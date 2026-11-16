@@ -454,6 +454,18 @@ export function bindMonster(node) {
     });
   }
 
+  // The modifiers the entry's register recipe read off the page ride on one
+  // embedded ability, named from a lang key and carrying the entry's page
+  // reference. The vocabulary scan's guesses never reach a creature.
+  if (node.effectsFrom === "recipe" && f.effects?.length) {
+    const item = namesakeAbility(game.i18n.localize(`${LANG_PREFIX}.monster.recipeAbility`));
+    const flags = item.flags[MODULE_ID];
+    flags.cookbook = { cite: node.cite ?? "" };
+    flags.minted = true;
+    flags.extras = { ...flags.extras, effectsFrom: "recipe", effects: f.effects };
+    items.push(item);
+  }
+
   // What the prose says the creature casts rides as the imported spells themselves.
   const cast = bindMonsterSpells(f.description ?? []);
   if (cast.spells) system.spells = cast.spells;

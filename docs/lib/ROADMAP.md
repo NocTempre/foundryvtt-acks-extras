@@ -160,14 +160,24 @@ new lead reconciling what a gap could have dropped, writer by writer.
 
 ## What daylight from a magic light does not do yet
 
-A magic light can state a daylight radius (`MAGIC_LIGHT_BANDS`), and every
-reader counts it as bright light. Nothing yet reads the level itself:
+A magic light can state a daylight radius (`MAGIC_LIGHT_BANDS`), and the
+`light` roll gate reads the level on the attack throw (MODEL, "The light level
+at a point"). Not yet:
 
-- **Light sensitivity.** A creature penalised in bright daylight is penalised
-  inside a magic light's daylight radius too (MM ch. 1 and the creatures'
-  entries). A reader of the daylight reaching a token (beside
-  `brightestLightAt`) and the penalty on the creature's throws are both
-  unbuilt.
+- **Other throws under the light gate.** Saving throws, proficiency throws and
+  morale do not read a `light` gate; an MM entry prints its penalty on all
+  three, and only its attack throw row is imported.
+- **An ambient light's daylight band.** A placed light stores only bright and
+  dim, so only a token whose actor sheds a magic daylight radius, or the sky,
+  makes daylight.
+- **"Clear" weather.** A penalty printed for clear daylight is read as any
+  daylight; the weather is not consulted.
+- **Walls.** The level is read straight-line, as every light reader is.
+- **Daylight's other consequences.** Dormancy, helplessness, destruction and
+  being barred from a lit area (MM ch. 4's special-ability list) are not
+  automated.
+- **The sheet's throw.** A light-gated penalty shows on the attack dialog and
+  card, never on the sheet's standing throw.
 - **A darkness that steps light down.** The reverse of a light spell lowers
   each level by its own rule, daylight included (RR ch. 5). A darkness source
   is read only as `negative`, which sheds nothing.

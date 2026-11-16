@@ -238,3 +238,29 @@ do yet", for the owner to order).
 entries and `effectLight`, `mergeLight` and `shedLight` answers gain
 `daylight`, and lib exports `MAGIC_LIGHT_BANDS`. An effect made before the band
 has no daylight key and reads exactly as before.
+
+## 2026-11-16 — Light sensitivity is a typed modifier gated on the light, read at the roll
+
+**Ruled.** The owner (2026-11-15), asked whether to build the light-sensitivity
+penalty next: "Yes, build it". MM prints a penalty in daylight on two creature
+entries, and characters can carry one (RR ch. 2, JJ ch. 12, JJ ch. 15, RR
+App. C), so the penalty is a typed `modifier` row with
+`gate: {kind: "light", light: <level>}`, on any actor. `registerGate` takes
+`{at: "roll"}`; a roll gate's row is `atRoll` (reason `gate`), the loadout never
+writes it, and `lib/roll-gates.mjs` adds it to the attack throw while
+`lightLevelOf` the attacker's token is at least the gate's level. A monster is
+reached because its stat line prints the throw and its prose the conditional
+penalty apart, so nothing counts twice; the typed-modifiers header's
+"characters only" now names standing modifiers only. The size arrives from the
+page through the importer, or the Judge types it in the row editor; a blank
+row adds nothing. A magic light's daylight radius counts as daylight for a
+penalty printed "in sunlight" (the session's call, owner may overrule).
+
+**Rejected.** A monster-only field with its own contributor (the character
+sources would need a second schema); a scope field (scope context describes the
+opponent, and the light describes the roller); applying the penalty with no
+token to read (the throw is never penalized on a guess).
+
+*Cost:* lib `apiVersion` stays 50 (none of these is on the API surface).
+`attackInFlight(actor).token` is new; column points carry `daylight` and `dim`.
+

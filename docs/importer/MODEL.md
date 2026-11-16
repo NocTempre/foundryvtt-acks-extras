@@ -24,6 +24,19 @@ is a monster's embedded copy of a proficiency whose book is closed, on an
 actor whose own book is open (`bindMonster`, step 2). The ruling is DECISIONS
 2026-10-29, "Nothing is imported without the book".
 
+## A monster's printed modifiers
+
+A monster entry may carry `effects` recipes in its register row, as a
+definition does: `compileMonster` passes them through `citeSpecs`, the same
+cited passthrough `compileDefinition` uses. `executeEntry` stamps the node with
+`effectsFrom` (`effectsOriginOf`), and `bindMonster` binds the rows only when
+they came from a recipe, onto ONE embedded `ability` item named
+`ACKS-IMPORTER.monster.recipeAbility`, carrying the entry's `cookbook.cite`;
+the scan's guesses on monster prose are never bound. The item has no
+`cookbook.id`, and its name matches no definition, so Update Abilities neither
+adopts nor prunes it. The first such rows are the light-gated attack throw
+penalties (lib MODEL, "The light gate"; DECISIONS 2026-11-16).
+
 ## A stat block's proficiencies
 
 `bindProficiency` (`cookbook/monster.mjs`) mints the ability item for each proficiency

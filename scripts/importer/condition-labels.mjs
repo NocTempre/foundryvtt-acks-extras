@@ -30,6 +30,7 @@ export const CONDITION_LABELS = Object.freeze([
   "against a creature kind",
   "for an ally",
   "in some places",
+  "in some light",
   "with some weapons",
   "in some armour",
   "for some items",

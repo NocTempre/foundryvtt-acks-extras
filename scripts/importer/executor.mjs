@@ -18,6 +18,7 @@ import { scenarioRoutines } from "./statline-attacks.mjs";
 import { levelFraction, DAMAGE_TYPES, SAVE_CATEGORIES, TARGET_FILTERS } from "../lib/vocab.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
+import { effectsOriginOf } from "./effects-origin.mjs";
 
 /** Monster description sections that no mechanics scan reads (see `executeEntry`). */
 const UNSCANNED_MONSTER_SECTIONS = new Set(["encounter", "lair", "notes"]);
@@ -2242,6 +2243,10 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
     kind: entry.kind,
     name: entry.name,
     cite: entry.cite,
+    // Which reader produced `fields.effects`: "recipe" (the entry's authored
+    // specs) or "scan" (the vocabulary guess), for a binding that carries only
+    // the first (`effectsOriginOf`).
+    effectsFrom: effectsOriginOf(entry),
     // Where the text was read from, for the citation link a binding writes: the
     // book id and the entry's first PDF page, not the printed folio `cite` names.
     book: entry.book ?? bookCookbook.book?.id ?? null,

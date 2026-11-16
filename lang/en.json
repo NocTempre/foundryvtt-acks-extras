@@ -7978,6 +7978,7 @@
   "ACKS-IMPORTER.ui.progressPoi": "Importing points of interest…",
   "ACKS-IMPORTER.ui.progressPictureText": "Reading picture text, PDF page {page}…",
   "ACKS-IMPORTER.ui.progressMarkets": "Importing market profiles…",
+  "ACKS-IMPORTER.monster.recipeAbility": "Printed modifiers",
   "ACKS-IMPORTER.markets.label": "Market {n}",
   "ACKS-IMPORTER.markets.unmapped": "Market profiles: {n} printed good(s) match no merchandise and were left out. Add the name to a merchandise item's Aliases, then import again: {list}",
   "ACKS-IMPORTER.markets.classConflict": "Market profiles: the domain record and the demand grid print different market classes for {list}. The record's class was used.",

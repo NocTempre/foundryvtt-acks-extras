@@ -1146,4 +1146,70 @@ await ta("a monster's encounter, lair and notes sections are never scanned for i
   assert.deepEqual(targets(await read("kind.proficiency", "encounter")), ["initiative", "surprise"], "a kind that is not a monster scans every section");
 });
 
+/* ------------------------------------------------------------------ */
+/*  a monster's register recipe: the gated light modifier              */
+/* ------------------------------------------------------------------ */
+
+const LIGHT_PROSE = "Quuxlings flinch from open sun. Their blows land poorly while it shines: -3 on attack throws.";
+/** The recipe row a light-sensitive creature's register entry ships: structure and a locator, no figure. */
+const LIGHT_SPEC = {
+  type: "modifier", target: "attackThrow", mode: "add",
+  gate: { kind: "light", light: "daylight" },
+  condition: "in some light (QQ p.1)",
+  onMiss: "blank",
+  from: { pattern: "flinch\\s*from\\s*open\\s*sun[\\s\\S]{0,120}?(-\\s*\\d+)\\s*on\\s*attack\\s*throws" },
+};
+/** One invented monster entry read through the executor, with the given effects recipe (none when omitted). */
+const readMonster = async (prose, specs, registers = {}) => {
+  const pd = page(run(prose, 40, 100, 400));
+  const description = { op: "text", page: 1, paras: [{ box: { x0: 35, x1: 500, y0: 94, y1: 110 }, section: "combat" }] };
+  const fields = { description, ...(specs ? { effects: { op: "effects", specs } } : {}) };
+  const cookbook = { schema: "acks-cookbook/3", entries: { "qq.quuxling": { kind: "kind.monster", name: "Quuxling", cite: "QQ p.1", fields } } };
+  return executeEntry(null, cookbook, registers, "qq.quuxling", { pageCache: new Map([[1, pd]]) });
+};
+
+await ta("a monster's recipe reads the printed figure into a light-gated modifier row", async () => {
+  const node = await readMonster(LIGHT_PROSE, [LIGHT_SPEC]);
+  assert.equal(node.effectsFrom, "recipe");
+  assert.equal(node.fields.effects.length, 1);
+  const [row] = node.fields.effects;
+  assert.deepEqual(row.value, { kind: "flat", flat: -3 }, "the figure is the page's, read at import");
+  assert.equal(row.target, "attackThrow");
+  assert.deepEqual(row.gate, { kind: "light", light: "daylight" });
+  assert.equal(row.condition, "in some light (QQ p.1)");
+  assert.ok(!("onMiss" in row), "onMiss never reaches the result");
+  assert.ok(!("unread" in row));
+});
+
+await ta("a locator that misses leaves the row's value blank and keeps its gate", async () => {
+  const node = await readMonster("Quuxlings are fond of dusk.", [LIGHT_SPEC]);
+  const [row] = node.fields.effects;
+  assert.ok(row, "onMiss blank keeps the row");
+  assert.equal(row.value, undefined, "no figure stands in for the unread one");
+  assert.deepEqual(row.unread, ["value"]);
+  assert.deepEqual(row.gate, { kind: "light", light: "daylight" });
+});
+
+const { bindMonster } = await import("../../scripts/importer/cookbook.mjs");
+globalThis.game = { i18n: { localize: (key) => key } };
+
+await ta("bindMonster carries a recipe's rows on one ability item that holds the page reference", async () => {
+  const node = await readMonster(LIGHT_PROSE, [LIGHT_SPEC]);
+  const abilities = bindMonster(node).items.filter((i) => i.type === "ability");
+  assert.equal(abilities.length, 1, "one embedded ability, however many rows");
+  const [item] = abilities;
+  assert.equal(item.name, "ACKS-IMPORTER.monster.recipeAbility", "named from a lang key");
+  assert.equal(item.flags["acks-extras"].cookbook.cite, "QQ p.1");
+  assert.equal(item.flags["acks-extras"].extras.effectsFrom, "recipe");
+  assert.deepEqual(item.flags["acks-extras"].extras.effects, node.fields.effects);
+});
+
+await ta("a scan's guessed effects stay unbound on a creature", async () => {
+  const registers = JSON.parse(fs.readFileSync(new URL("../../cookbook/registers.json", import.meta.url), "utf8"));
+  const node = await readMonster("The creature gains a +1 bonus to surprise rolls.", null, registers);
+  assert.equal(node.effectsFrom, "scan");
+  assert.ok(node.fields.effects?.length, "the scan read a row");
+  assert.deepEqual(bindMonster(node).items.filter((i) => i.type === "ability"), [], "and none of it is bound");
+});
+
 console.log(`\n${n} tests passed`);

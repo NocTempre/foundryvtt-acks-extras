@@ -3405,7 +3405,23 @@
     "name": "Morlock",
     "anchor": {
       "display": "Morlock"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "gate": {
+          "kind": "light",
+          "light": "daylight"
+        },
+        "condition": "in some light",
+        "onMiss": "blank",
+        "from": {
+          "pattern": "light\\s*sensitivity[\\s\\S]{0,160}?attack\\s*penalty\\s*of\\s*(-\\s*\\d+)"
+        }
+      }
+    ]
   },
   {
     "id": "mm.mummy",
@@ -4649,8 +4665,30 @@
       "display": "Wild Huntsman"
     },
     "assists": {
-      "spoilsPage": 337
-    }
+      "spoilsPage": 337,
+      "continuation": [
+        {
+          "page": 337,
+          "col": 0
+        }
+      ]
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "gate": {
+          "kind": "light",
+          "light": "daylight"
+        },
+        "condition": "in some light",
+        "onMiss": "blank",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\s*\\d+)\\s*penalty\\s*to\\s*attack\\s*throws[^.]{0,80}?in\\s*clear\\s*daylight"
+        }
+      }
+    ]
   },
   {
     "id": "mm.wolfCommon",

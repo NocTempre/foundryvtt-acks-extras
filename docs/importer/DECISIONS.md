@@ -1913,3 +1913,26 @@ replace it (a figure typed by hand would be silently overwritten).
 *Cost:* a register row a Judge edited stays, and the next repair adds the
 register's fresh row beside it, so the spell shows both until the Judge
 deletes one.
+
+## 2026-11-16 — A monster binds its recipe rows on one embedded ability
+
+The owner (2026-11-15), asked whether to build the light-sensitivity penalty
+next: "Yes, build it". Two MM entries print an attack penalty in daylight
+(MM p. 238, MM p. 334). Their register rows gain `effects` recipes: a
+`modifier` on `attackThrow`, gated `{kind: "light", light: "daylight"}`, the
+figure read from the page by a locator that holds no number, `onMiss: "blank"`,
+condition label "in some light" so a roller that does not read gates never
+applies it unconditionally. The second entry prints its penalty on
+proficiency throws and morale as well; only the attack throw row is emitted
+until those throws read the gate (lib ROADMAP). Its penalty sits in a section
+printed on the next page, so its row gains a `continuation` and its description
+gains that page's paragraphs.
+
+**Rejected.** Binding the scan's guesses (never bound on monster prose); one
+item per row (one carrier keeps the actor's ability list readable); binding by
+`effectsOriginOf(entry)` in `bindMonster` (it receives only the node, so the
+executor stamps the origin on the node).
+
+*Cost:* `cookbook/mm.json` grows by the two entries' recipes and the second
+entry's continuation; a world refreshes them only by a fresh import.
+

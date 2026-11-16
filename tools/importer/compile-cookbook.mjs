@@ -797,6 +797,20 @@ const camel = (s) =>
   s.replace(/[^A-Za-z0-9 ]/g, "").split(/\s+/).filter(Boolean)
     .map((w, i) => (i ? cap(w.toLowerCase()) : w.toLowerCase())).join("");
 
+/**
+ * Recipe specs with each neutral label (a condition, a restriction, a
+ * consequence) carrying the entry's page reference, so the reader of the
+ * Mechanics tab can open the page it stands for. Any other value is left as is.
+ */
+function citeSpecs(specs, cite) {
+  return specs.map((s) => {
+    if (!s || typeof s !== "object") return s;
+    const out = { ...s };
+    for (const field of Object.keys(LABELLED_FIELDS)) if (out[field]) out[field] = citeLabel(out[field], cite, field);
+    return out;
+  });
+}
+
 /* -------------------------------------------- */
 /*  Monster compilation                         */
 /* -------------------------------------------- */
@@ -1243,6 +1257,10 @@ async function compileMonster(doc, entry, kindRow, glyphChars) {
   }
 
   if (!assists.noArt) fields.art = { op: "art", page, select: kindRow.fields.art.select };
+
+  // Chef-authored effect specs (`compileDefinition`'s passthrough): structure
+  // and locators only, the figure read from the seat's own prose at import.
+  if (entry.effects?.length) fields.effects = { op: "effects", specs: citeSpecs(entry.effects, citeFor(entry.book, page)) };
 
   /* --- residue triage: margin furniture -> shipped skips; rest reported.
          Anchor-page instructions only — stat-page residue is verify's job. --- */
@@ -6146,13 +6164,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
   // page it stands for; the page's own words arrive through the field's
   // `<field>From` locator at import.
   const cite = citeFor(entry.book, page);
-  const cited = (specs) =>
-    specs.map((s) => {
-      if (!s || typeof s !== "object") return s;
-      const out = { ...s };
-      for (const field of Object.keys(LABELLED_FIELDS)) if (out[field]) out[field] = citeLabel(out[field], cite, field);
-      return out;
-    });
+  const cited = (specs) => citeSpecs(specs, cite);
   if (entry.effects?.length) fields.effects = { op: "effects", specs: cited(entry.effects) };
   // `assists.effectsFrames`: boxes on the anchor's page whose text the effects
   // recipe's locators read beside the description — a bonus table set under

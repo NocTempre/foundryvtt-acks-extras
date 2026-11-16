@@ -809,6 +809,33 @@ carried and put away. The result is `shining`, `shuttered` or `stowed`;
 which the surfaces turn into tooltips (`lightControl`). `effectLight`, and so
 `shedLight` and a column point, count only a shining light.
 
+**The light level at a point.** `lightLevelAt(scene, point, {extra, daylit,
+elevation})` answers `{level, by}`, `level` one of `LIGHT_LEVELS` (`daylight`,
+`bright`, `dim`, `dark`, brightest first; `lightAtLeast` orders them) and `by`
+`sky`, `light` or `none`; `lightLevelOf(tokenDoc)` asks it at a token's centre.
+The sky is daylight when the scene's global light is on, its darkness sits
+inside the global light's range and below one half, and the point is inside no
+Region flagged `cookbook.indoors`; `daylit` replaces the scene's sky reading (a
+journey's clock), and an indoors Region still roofs the point. A scene with no
+global light has no sky. Otherwise a light decides: daylight from a token whose
+actor sheds a magic daylight radius (`shedLight`, converted to the scene's
+units), a column point or `extra`; then the bright and dim reach
+`strongestReach` reads per band. Straight-line, ignoring walls. No scene or no
+point is null, which a reader takes as "cannot say".
+
+**The light gate.** A typed modifier with `gate: {kind: "light", light}` is
+read at the roll (`registerGate`'s `{at: "roll"}`, `isRollGate`): its
+disposition is `atRoll` with reason `gate` on any actor, monsters included, and
+`standingModifiers` never writes it. The evaluator answers null without
+`ctx.token`, else whether the token's level is at least `light`.
+`roll-gates.mjs` is the attack seam's contributor: for each `attackThrow` row
+whose roll gate passes for the attacker's token (`attackInFlight(actor).token`:
+`actor.token`, else the first active token, else null), it adds
+`{name} · {level} (cite)` with the row's value; a row narrowed by `forWhat` to
+melee or missile rides only that attack, and a blank value adds nothing. The
+effect row editor writes the gate (an "Only at light level" select on modifier
+rows) and never replaces a gate of another kind.
+
 The **shutter** is `flags["acks-extras"].lightShutter` on the effect, written by
 `setLightShutter(effect, on)` for any seat that owns the effect, with no relay
 and no chat card. It is not `disabled`: an effect may carry other changes, and a

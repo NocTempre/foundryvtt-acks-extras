@@ -143152,6 +143152,25 @@
             "maxW": 1500,
             "maxRatio": 3
           }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "gate": {
+                "kind": "light",
+                "light": "daylight"
+              },
+              "condition": "in some light (MM p.238)",
+              "onMiss": "blank",
+              "from": {
+                "pattern": "light\\s*sensitivity[\\s\\S]{0,160}?attack\\s*penalty\\s*of\\s*(-\\s*\\d+)"
+              }
+            }
+          ]
         }
       }
     },
@@ -210398,6 +210417,115 @@
                 ]
               },
               "section": "combat"
+            },
+            {
+              "box": {
+                "x0": 65,
+                "x1": 324,
+                "y0": 83,
+                "y1": 138.99500000000012
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17
+                ]
+              },
+              "page": 337,
+              "section": "combat"
+            },
+            {
+              "box": {
+                "x0": 65,
+                "x1": 324,
+                "y0": 152.99300000000017,
+                "y1": 198.98900000000026
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "page": 337,
+              "section": "combat"
+            },
+            {
+              "box": {
+                "x0": 65,
+                "x1": 324,
+                "y0": 210.98900000000026,
+                "y1": 268.9820000000003
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              },
+              "page": 337,
+              "section": "ecology",
+              "dropText": "Ecology"
+            },
+            {
+              "box": {
+                "x0": 65,
+                "x1": 324,
+                "y0": 282.9800000000003,
+                "y1": 338.9750000000004
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "page": 337,
+              "section": "ecology"
+            },
+            {
+              "box": {
+                "x0": 65,
+                "x1": 324,
+                "y0": 352.9730000000004,
+                "y1": 398.9690000000005
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              },
+              "page": 337,
+              "section": "ecology"
             }
           ]
         },
@@ -210967,6 +211095,25 @@
             "maxW": 1500,
             "maxRatio": 3
           }
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "attackThrow",
+              "mode": "add",
+              "gate": {
+                "kind": "light",
+                "light": "daylight"
+              },
+              "condition": "in some light (MM p.334)",
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\s*\\d+)\\s*penalty\\s*to\\s*attack\\s*throws[^.]{0,80}?in\\s*clear\\s*daylight"
+              }
+            }
+          ]
         }
       }
     },

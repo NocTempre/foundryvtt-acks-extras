@@ -3746,3 +3746,44 @@ Each run brings the world to the shape a step needs: the step that wants the `ca
 5. **A stated body stands alone.** Give the rider a stated body weight in its flags with the document absent. *Observable:* its figures are shown with no tooltip about a page.
 
 **Teardown.** The override of step 4 is removed in the step; the import of step 3 stays as the world's `capacity` document.
+
+## A light-gated penalty on the attack throw
+
+Covers `lightLevelAt`/`lightLevelOf`, the `light` roll gate and
+`roll-gates.mjs`. Every figure is invented. Drive the attack through the
+system's own attack dialog (`actor.makeAttackThrow` with the dialog shown), and
+read the modifier rows off the dialog's preview and the posted card.
+
+**Fixtures, kept and found by marker.**
+- The scene `lib/light-gate-scene`: square grid, 5 ft, global light on with its
+  default darkness range, never activated for players.
+- The character `lib/light-gate-roller` with a weapon and a linked token
+  `lib/light-gate-token` on that scene, and an ability item
+  `lib/light-gate-ability` whose `extras.effects` holds one `modifier` row:
+  target `attackThrow`, value `-3`, gate `{kind: "light", light: "daylight"}`.
+
+Each run brings the scene to shape at its start: darkness 0, global light on,
+no indoors Region, and no magic light on the roller.
+
+1. **Daylight.** Attack from the token. *Observable:* the dialog lists
+   `<ability> · Daylight` at -3 and the card's throw carries it.
+2. **Night.** Set the scene's darkness to 1. *Observable:* the same attack
+   lists no such row; `lightLevelOf(token)` reads `dark` or the band a light
+   gives.
+3. **A magic daylight radius.** Still at darkness 1, give the roller a magic
+   light effect with daylight 10. *Observable:* the row returns, and
+   `lightLevelOf(token)` is `{level: "daylight", by: "light"}`. Shutter it: the
+   row goes.
+4. **Indoors.** Darkness 0, magic light deleted, and a Region flagged
+   `cookbook.indoors` covering the token. *Observable:* no row; delete the
+   Region and it returns.
+5. **The editor.** Open the ability's row in the effect row editor as the GM:
+   "Only at light level" reads Daylight; set it blank and save. *Observable:*
+   the row's `gate` is gone and the attack lists no row; set Daylight again.
+6. **A monster.** Import an MM entry that prints a daylight penalty (fresh
+   import). *Observable:* the monster carries one ability item with the
+   page's figure on an `attackThrow` row gated on daylight, and an attack from
+   its token in daylight lists the row with the page reference in its label.
+
+Teardown: put darkness back to 0, delete the Region and any effect the run
+made, by the ledger; the fixtures stay.
