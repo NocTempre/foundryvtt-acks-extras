@@ -109,6 +109,7 @@ import * as conditions from "./conditions.mjs";
 import {
   STATUS_PALETTE_SETTING, installConditionRolls, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
+import { installRollGates } from "./roll-gates.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
   SETTING_MANAGE_VISION,
@@ -901,6 +902,9 @@ Hooks.once("ready", () => {
   // Conditions on every roll they reach; the attack half registers into the
   // seam installed above.
   installConditionRolls();
+
+  // Typed modifiers gated by a roll gate (a light), read on the attack throw.
+  installRollGates();
 
   // The consolidated surprise card; see docs/lib/DECISIONS.md, "2026-08-11 —
   // Surprise results consolidate onto one card".

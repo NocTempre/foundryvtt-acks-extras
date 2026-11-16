@@ -22,6 +22,7 @@
  */
 
 import { MODULE_ID } from "./constants.mjs";
+import { feetToUnits } from "./distance-units.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
@@ -634,13 +635,29 @@ function shinesNow(config, darkness) {
 }
 
 /**
- * The largest bright radius, in scene units, among the scene's sources that
- * reach `me` (a pixel point): ambient lights, tokens' own lights and a
- * marching column's lights. Straight-line, ignoring walls. `strict` also
- * leaves out a source that does not shine (`shinesNow`); `extra` is more
- * points, `{x, y, bright}`, a caller holds that no document stores.
+ * A token's daylight radius in scene units: what the light its actor sheds
+ * states as daylight, which no stored token light carries. 0 for a token with
+ * no actor or one whose light cannot be read.
  */
-function strongestReach(scene, me, { strict = false, extra = [] } = {}) {
+function tokenDaylight(scene, token) {
+  try {
+    const feet = token.actor ? shedLight(token.actor).daylight : 0;
+    return feet > 0 ? feetToUnits(feet, scene.grid?.units) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * The largest radius of one band, in scene units, among the scene's sources
+ * that reach `me` (a pixel point): ambient lights, tokens' own lights and a
+ * marching column's lights. Straight-line, ignoring walls. `band` is `"bright"`,
+ * `"dim"` or `"daylight"`; an ambient light states no daylight radius, and a
+ * token's comes from its actor's light (`tokenDaylight`). `strict` also leaves
+ * out a source that does not shine (`shinesNow`); `extra` is more points,
+ * `{x, y, bright, dim?, daylight?}`, a caller holds that no document stores.
+ */
+function strongestReach(scene, me, { strict = false, extra = [], band = "bright" } = {}) {
   const perUnit = pixelsPerUnit(scene);
   if (!perUnit) return 0;
   const gridSize = Number(scene.grid.size);
@@ -648,29 +665,36 @@ function strongestReach(scene, me, { strict = false, extra = [] } = {}) {
 
   let best = 0;
   const consider = (source, radius) => {
-    const bright = Number(radius) || 0;
-    if (bright <= best) return; // cannot win; skip the distance work
+    const reach = Number(radius) || 0;
+    if (reach <= best) return; // cannot win; skip the distance work
     const at = centreOf(source, gridSize);
     const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
-    if (feet <= bright) best = bright;
+    if (feet <= reach) best = reach;
   };
 
-  for (const light of scene.lights ?? []) {
-    if (light.hidden || (strict && !shinesNow(light.config, darkness))) continue;
-    consider(light, light.config?.bright);
+  if (band !== "daylight") {
+    for (const light of scene.lights ?? []) {
+      if (light.hidden || (strict && !shinesNow(light.config, darkness))) continue;
+      consider(light, light.config?.[band]);
+    }
   }
   for (const other of scene.tokens ?? []) {
-    if (other.hidden || (strict && !shinesNow(other.light, darkness))) continue;
-    consider(other, other.light?.bright);
+    if (other.hidden) continue;
+    if (band === "daylight") {
+      consider(other, tokenDaylight(scene, other));
+      continue;
+    }
+    if (strict && !shinesNow(other.light, darkness)) continue;
+    consider(other, other.light?.[band]);
   }
   // The lights a marching column sheds from its bearers' cells, which no
   // document stores. Asked through the shared namespace, as `bearerLights`
-  // asks: each point is a pixel centre with a bright radius in scene units.
+  // asks: each point is a pixel centre with radii in scene units.
   const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
   if (typeof columnPoints === "function") {
-    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
+    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point[band]);
   }
-  for (const point of extra) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point.bright);
+  for (const point of extra) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point[band]);
   return best;
 }
 
@@ -713,4 +737,89 @@ export function brightestLightReaching(tokenDoc) {
 export function brightestLightAt(scene, point, { extra = [] } = {}) {
   if (!scene || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return 0;
   return strongestReach(scene, point, { strict: true, extra });
+}
+
+/* -------------------------------------------- */
+/*  How brightly a place is lit                  */
+/* -------------------------------------------- */
+
+/**
+ * The levels of light a place can be in, brightest first: under the day's sky or
+ * a light's daylight band, in bright light, in dim light, in none. A reader asks
+ * whether a place is lit AT LEAST a level (`lightAtLeast`), and daylight
+ * satisfies only daylight.
+ */
+export const LIGHT_LEVELS = Object.freeze(["daylight", "bright", "dim", "dark"]);
+
+/** Whether `level` is `floor` or brighter. A level that is no level is never at least anything. */
+export function lightAtLeast(level, floor) {
+  const at = LIGHT_LEVELS.indexOf(level);
+  const need = LIGHT_LEVELS.indexOf(floor);
+  return at >= 0 && need >= 0 && at <= need;
+}
+
+/** Whether a Region is flagged as the indoors of a map: a place not under the sky. */
+const isIndoors = (region) => !!(region?.getFlag?.(MODULE_ID, "cookbook")?.indoors ?? region?.flags?.[MODULE_ID]?.cookbook?.indoors);
+
+/**
+ * Whether the scene's own sky is daylight: global illumination on, the scene's
+ * darkness inside the range that illumination is limited to, and darkness below
+ * half. A scene with no global illumination has no sky to read.
+ */
+function skyIsDaylight(scene) {
+  const global = scene?.environment?.globalLight;
+  if (!global?.enabled) return false;
+  const darkness = darknessOf(scene);
+  const { min = 0, max = 1 } = global.darkness ?? {};
+  return darkness >= min && darkness <= max && darkness < 0.5;
+}
+
+/** Whether the point stands in a Region flagged indoors, at `elevation`. */
+function indoorsAt(scene, point, elevation) {
+  for (const region of scene.regions ?? []) {
+    if (!isIndoors(region)) continue;
+    try {
+      if (region.testPoint?.({ x: point.x, y: point.y, elevation })) return true;
+    } catch {
+      /* a region whose geometry cannot be tested does not roof the point */
+    }
+  }
+  return false;
+}
+
+/**
+ * How brightly a point of a scene is lit: `{level, by}` with `level` one of
+ * `LIGHT_LEVELS` and `by` what decided it: `"sky"` (the scene's daylight, with
+ * the point not inside an indoors Region), `"light"` (a source's daylight,
+ * bright or dim reach, `brightestLightAt`'s reading) or `"none"` (dark).
+ * Straight-line, ignoring walls, and answers for a scene nobody is viewing.
+ * Daylight from a light is a token's own actor's daylight band
+ * (`shedLight`), the marching column's lights and `extra`.
+ *
+ * @param {Scene} scene
+ * @param {{x: number, y: number}} point pixel centre
+ * @param {object} [opts]
+ * @param {{x: number, y: number, bright?: number, dim?: number, daylight?: number}[]} [opts.extra]
+ *   further light points the caller reads from its own record, radii in scene units
+ * @param {boolean} [opts.daylit] replaces the scene's own sky reading (a journey's
+ *   clock states the hour the scene's darkness does not); an indoors Region still roofs the point
+ * @param {number} [opts.elevation] the point's elevation, for a Region bounded in height
+ * @returns {{level: string, by: string}|null} null with no scene or no point
+ */
+export function lightLevelAt(scene, point, { extra = [], daylit, elevation = 0 } = {}) {
+  if (!scene || !Number.isFinite(point?.x) || !Number.isFinite(point?.y)) return null;
+  const sky = typeof daylit === "boolean" ? daylit : skyIsDaylight(scene);
+  if (sky && !indoorsAt(scene, point, elevation)) return { level: "daylight", by: "sky" };
+  for (const band of ["daylight", "bright", "dim"]) {
+    if (strongestReach(scene, point, { strict: true, extra, band }) > 0) return { level: band, by: "light" };
+  }
+  return { level: "dark", by: "none" };
+}
+
+/** How brightly a token's centre is lit; see `lightLevelAt`. Null for a token on no scene. */
+export function lightLevelOf(tokenDoc, opts = {}) {
+  const scene = tokenDoc?.parent;
+  const size = Number(scene?.grid?.size);
+  if (!(size > 0)) return null;
+  return lightLevelAt(scene, centreOf(tokenDoc, size), { elevation: Number(tokenDoc.elevation) || 0, ...opts });
 }

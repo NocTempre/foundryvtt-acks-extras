@@ -21,9 +21,10 @@ import { isMemberDeployed } from "./deployment.mjs";
  * @param {object} formation the record (members and lights)
  * @param {{x: number, y: number}[]} points `columnFor(...).points`: the centre of
  *   every body of the formation
- * @param {(actorId: string) => {bright: number, dim: number}|null} [extraOf]
+ * @param {(actorId: string) => {daylight?: number, bright: number, dim: number}|null} [extraOf]
  *   a member's effect light in feet, or nothing when the caller has none
- * @returns {{bearerId: string, x: number, y: number, bright: number, dim: number, kind: "flame"|"magic"}[]}
+ * @returns {{bearerId: string, x: number, y: number, daylight: number, bright: number, dim: number, kind: "flame"|"magic"}[]}
+ *   `daylight` is the effect light's daylight band alone: a flame sheds none
  */
 export function columnLights(formation, points, extraOf = null) {
   const placed = memberCells(formation, points);
@@ -34,10 +35,10 @@ export function columnLights(formation, points, extraOf = null) {
     if (!bearerId || member.blank || seen.has(bearerId) || isMemberDeployed(member)) return;
     seen.add(bearerId);
     const own = (formation.lights ?? []).filter((l) => l?.bearerId === bearerId);
-    const { bright, dim, kind } = mergeLight(emittedLight(own), extraOf?.(bearerId));
+    const { daylight, bright, dim, kind } = mergeLight(emittedLight(own), extraOf?.(bearerId));
     const point = placed[index]?.[0];
     if (!point || (!(bright > 0) && !(dim > 0))) return;
-    out.push({ bearerId, x: point.x, y: point.y, bright, dim, kind });
+    out.push({ bearerId, x: point.x, y: point.y, daylight, bright, dim, kind });
   });
   return out;
 }

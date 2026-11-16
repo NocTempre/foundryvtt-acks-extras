@@ -268,6 +268,121 @@ check("a style bonus applies only with its style active", () => {
   assert.equal(standingModifiers(a, { ctx: {} }).listed[0].reason, "gate", "no loadout, no verdict");
 });
 
+/* --- Roll gates: read at the roll, on any actor ----------------------- */
+
+const { isRollGate, rollGatedModifiers } = await import("../scripts/lib/typed-modifiers.mjs");
+const { rollGateRows } = await import("../scripts/lib/roll-gates.mjs");
+
+/** A token on a scene whose sky is day (or night), 100px squares. Every figure is invented. */
+const tokenIn = ({ day = true, lights = [] } = {}) => {
+  const scene = {
+    grid: { size: 100, distance: 10, units: "ft" },
+    environment: { darknessLevel: day ? 0 : 0.9, globalLight: { enabled: day, darkness: { min: 0, max: 1 } } },
+    lights,
+    tokens: [],
+    regions: [],
+  };
+  return { x: 0, y: 0, width: 1, height: 1, parent: scene };
+};
+const lightRow = (over = {}) => mod({ target: "attackThrow", value: -2, gate: { kind: "light", light: "daylight" }, ...over });
+const asActor = (items, type = "character") => character(items, { type });
+
+check("the light gate is a roll gate and the status gate is not", () => {
+  assert.equal(isRollGate("light"), true);
+  assert.equal(isRollGate("status"), false);
+  assert.equal(isRollGate(undefined), false);
+});
+check("registering a gate again replaces whether it is read at the roll", () => {
+  registerGate("testFlip", () => true, { at: "roll" });
+  assert.equal(isRollGate("testFlip"), true);
+  registerGate("testFlip", () => true);
+  assert.equal(isRollGate("testFlip"), false);
+});
+check("a roll-gated row waits for the roll on a character and on a monster", () => {
+  for (const actorType of ["character", "monster"]) {
+    const d = modifierDisposition(lightRow(), { actorType });
+    assert.equal(d.kind, DISPOSITION.AT_ROLL, actorType);
+    assert.equal(d.reason, "gate", actorType);
+    assert.deepEqual(d.paths, [], actorType);
+    assert.equal(d.gate.light, "daylight", actorType);
+  }
+});
+check("a roll gate does not claim a consumed target, a replace mode or a foreign subject", () => {
+  assert.equal(modifierDisposition(lightRow({ target: "morale" }), { actorType: "character" }).kind, DISPOSITION.CONSUMED);
+  assert.equal(modifierDisposition(lightRow({ mode: "set" }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
+  assert.equal(modifierDisposition(lightRow({ appliesTo: "ally" }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
+});
+check("a monster's row with no roll gate stays unsupported", () => {
+  assert.equal(modifierDisposition(mod({ target: "attackThrow" }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
+  assert.equal(modifierDisposition(mod({ target: "attackThrow", gate: { kind: "status", status: "invented" } }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
+});
+check("standingModifiers writes nothing for a light-gated row, even standing in daylight, and lists it at the roll", () => {
+  const a = asActor([ability("Sun Shy", [lightRow()])]);
+  const r = standingModifiers(a, { ctx: { token: tokenIn({ day: true }) } });
+  assert.deepEqual(r.parts, []);
+  assert.equal(r.listed.length, 1);
+  assert.equal(r.listed[0].kind, DISPOSITION.AT_ROLL);
+  assert.equal(r.listed[0].reason, "gate");
+});
+check("the light gate answers null without a token, or for a level it does not know, or a token on no scene", () => {
+  const actor = asActor([]);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }), null);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: null }), null);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "" }, { token: tokenIn() }), null);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "noon" }, { token: tokenIn() }), null);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: { x: 0, y: 0, parent: null } }), null);
+});
+check("the light gate asks the token's place: daylight satisfies daylight only, bright and dim by ordering", () => {
+  const actor = asActor([]);
+  const day = tokenIn({ day: true });
+  const night = tokenIn({ day: false });
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: day }), true);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "bright" }, { token: day }), true);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: night }), false);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "dim" }, { token: night }), false);
+  // A lamp on the dark scene: bright is met, daylight is not.
+  const lit = tokenIn({ day: false, lights: [{ x: 0, y: 0, width: 0, height: 0, config: { bright: 30, dim: 60 } }] });
+  assert.equal(gateVerdict(actor, { kind: "light", light: "bright" }, { token: lit }), true);
+  assert.equal(gateVerdict(actor, { kind: "light", light: "daylight" }, { token: lit }), false);
+});
+
+check("rollGatedModifiers reads a monster's rows, once per definition, and leaves out blank, zero, opponent and other targets", () => {
+  const items = [
+    ability("Sun Shy", [lightRow(), lightRow({ value: null }), lightRow({ value: 0 }), lightRow({ appliesTo: "opponent" }), lightRow({ target: "save" }), mod()]),
+    ability("Sun Shy", [lightRow()]),
+  ];
+  const rows = rollGatedModifiers(asActor(items, "monster"), "attackThrow");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].value, -2);
+  assert.equal(rows[0].item.name, "Sun Shy");
+  assert.equal(rollGatedModifiers(asActor(items, "monster"), "save").length, 1);
+  assert.deepEqual(rollGatedModifiers(null, "attackThrow"), []);
+});
+
+check("the attack contributor adds a labelled row while the attacker's token stands in the light, on a character and a monster", () => {
+  for (const type of ["character", "monster"]) {
+    const actor = asActor([ability("Sun Shy", [lightRow()])], type);
+    assert.deepEqual(rollGateRows({ actor, token: tokenIn({ day: true }) }, "melee"), [{ label: "Sun Shy · daylight", value: -2 }], type);
+    assert.deepEqual(rollGateRows({ actor, token: tokenIn({ day: false }) }, "melee"), [], `${type} in the dark`);
+    assert.deepEqual(rollGateRows({ actor, token: null }, "melee"), [], `${type} with no token: no guess`);
+    assert.deepEqual(rollGateRows({ actor }, "missile"), [], `${type} with no token key`);
+  }
+});
+check("the contributor's label carries the ability's page reference, and a narrowed row rides only its own delivery", () => {
+  const item = ability("Sun Shy", [lightRow({ forWhat: "melee" })]);
+  item.flags["acks-extras"].cookbook = { cite: "Test Book p. 9" };
+  const actor = asActor([item], "monster");
+  const ctx = { actor, token: tokenIn({ day: true }) };
+  assert.deepEqual(rollGateRows(ctx, "melee"), [{ label: "Sun Shy · daylight (Test Book p. 9)", value: -2 }]);
+  assert.deepEqual(rollGateRows(ctx, "missile"), []);
+  const other = asActor([ability("Sun Shy", [lightRow({ forWhat: "Ambushing" })])], "monster");
+  assert.deepEqual(rollGateRows({ actor: other, token: tokenIn({ day: true }) }, "melee"), [], "an activity that is no delivery is another roll's");
+});
+check("the contributor adds nothing for a row with no figure", () => {
+  const actor = asActor([ability("Sun Shy", [lightRow({ value: "" }), lightRow({ value: "x" })])], "monster");
+  assert.deepEqual(rollGateRows({ actor, token: tokenIn({ day: true }) }, "melee"), []);
+});
+
 /* --- Keys ------------------------------------------------------------ */
 
 check("a spec key follows content, not position or locator", () => {

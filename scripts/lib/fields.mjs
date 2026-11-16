@@ -43,6 +43,7 @@ import {
   EFFECT_LASTS,
   EFFECT_RECURRENCES,
 } from "./vocab.mjs";
+import { LIGHT_LEVELS } from "./light.mjs";
 import { OCCUPANT_KIND } from "./place-logic.mjs";
 
 const F = () => foundry.data.fields;
@@ -407,12 +408,15 @@ export function effectField() {
     // Gate: the structured form of WHEN a modifier stands, decided against the
     // character's state by the evaluator `lib/typed-modifiers.mjs`
     // `registerGate` holds for `kind` (equipment's `lightlyEquipped`,
-    // `activeStyle`, `specializedStyle` and `armourCeiling`, lib's `status`). The arguments are read off the
+    // `activeStyle`, `specializedStyle` and `armourCeiling`, lib's `status` and
+    // `light`). The arguments are read off the
     // ability's own page by the import; one it did not read leaves the gate
-    // undecided, and the modifier is listed rather than applied. See
-    // docs/lib/API.md, "Typed modifiers".
+    // undecided, and the modifier is listed rather than applied. A `light` gate
+    // is read at the roll, from the roller's token (`registerGate`'s `at: "roll"`).
+    // See docs/lib/API.md, "Typed modifiers".
     gate: new SchemaField({
       kind: str(),
+      light: choice(Object.fromEntries(LIGHT_LEVELS.map((level) => [level, level]))), // the dimmest level that satisfies it
       armourMax: str(), // an armour rung: unarmored, veryLight, light, medium, heavy
       // A shield also breaks an `armourCeiling` limit. Null where nothing says
       // so, so a row that never named it stores no verdict either way.

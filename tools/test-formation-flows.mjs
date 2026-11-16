@@ -2919,7 +2919,7 @@ await scenario("a lit torch survives every hook chain and reaches the token", as
     // The bearer is the head: their cell is the one the token stands on.
     assert.deepEqual(
       carriedLightPoints(scene),
-      [{ x: partyToken.x + gs / 2, y: partyToken.y + gs / 2, bright: INVENTED_LIGHTS.torch.bright }],
+      [{ x: partyToken.x + gs / 2, y: partyToken.y + gs / 2, daylight: 0, bright: INVENTED_LIGHTS.torch.bright, dim: INVENTED_LIGHTS.torch.dim }],
       "one point, at the bearer's cell centre, with the imported reach",
     );
   } finally {

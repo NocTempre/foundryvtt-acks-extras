@@ -535,8 +535,8 @@ test("two bearers give two light points, each at its bearer's cell centre", () =
   const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
   const points = columnLights(f, cells.map(ctr));
   assert.deepEqual(points.map((p) => p.bearerId), ["a", "c"]);
-  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 7, dim: 11, kind: "flame" });
-  assert.deepEqual(points[1], { bearerId: "c", x: 550, y: 750, bright: 9, dim: 13, kind: "flame" });
+  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, daylight: 0, bright: 7, dim: 11, kind: "flame" });
+  assert.deepEqual(points[1], { bearerId: "c", x: 550, y: 750, daylight: 0, bright: 9, dim: 13, kind: "flame" });
 });
 
 test("a member's effect light gives a point, and joins a flame at the larger of each radius", () => {
@@ -548,9 +548,19 @@ test("a member's effect light gives a point, and joins a flame at the larger of 
   const reach = { a: { bright: 20, dim: 8 }, b: { bright: 15, dim: 30 }, c: { bright: 0, dim: 0 } };
   const points = columnLights(f, cells.map(ctr), (id) => reach[id]);
   assert.deepEqual(points.map((p) => p.bearerId), ["a", "b"]);
-  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, bright: 20, dim: 11, kind: "magic" });
-  assert.deepEqual(points[1], { bearerId: "b", x: 550, y: 650, bright: 15, dim: 30, kind: "magic" });
+  assert.deepEqual(points[0], { bearerId: "a", x: 550, y: 550, daylight: 0, bright: 20, dim: 11, kind: "magic" });
+  assert.deepEqual(points[1], { bearerId: "b", x: 550, y: 650, daylight: 0, bright: 15, dim: 30, kind: "magic" });
   assert.deepEqual(columnLights(f, cells.map(ctr), () => null).map((p) => p.bearerId), ["a"], "no effect light leaves the flame alone");
+});
+
+test("a member's effect light states its daylight band on the point, and a flame states none", () => {
+  const f = { frontage: 1, members: [{ actorId: "a" }, { actorId: "b" }], lights: [
+    { id: "l1", type: "torch", bearerId: "b", lit: true },
+  ] };
+  const cells = columnCells(f, { anchor: at(5, 5), heading: "north", gs: GS });
+  const reach = { a: { daylight: 12, bright: 12, dim: 24 } };
+  const points = columnLights(f, cells.map(ctr), (id) => reach[id]);
+  assert.deepEqual(points.map((p) => [p.bearerId, p.daylight, p.bright, p.dim]), [["a", 12, 12, 24], ["b", 0, 7, 11]]);
 });
 
 test("a deployed member's effect light is not the column's", () => {

@@ -33,7 +33,7 @@ import { ITEM_TYPE } from "../vocab.mjs";
  * throw. `ctx.terms` and `ctx.damageTerms` are mutable lists of `{label,
  * value}` rows added to the attack throw and the damage roll whatever the
  * attack's kind turns out to be; `ctx.item`, `ctx.target` and `ctx.options`
- * are what the attack was asked with. A contributor that needs the attack's
+ * are what the attack was asked with and `ctx.token` is the attacker's token. A contributor that needs the attack's
  * kind registers through `addAttackContributor` instead.
  */
 export const PRE_ATTACK_HOOK = "acksLibPreAttackRoll";
@@ -142,8 +142,24 @@ export function damageModifiersFor(system, attackType, base) {
 }
 
 /**
+ * The attacker's token: the one the actor is the synthetic actor of, else its
+ * first of its active tokens on the scene in view (`getActiveTokens` reads the
+ * canvas's own), else null. A sheet rolling for a world actor names no token,
+ * so the scene's own is the best answer there is.
+ */
+function attackerToken(actor) {
+  if (actor?.token) return actor.token;
+  try {
+    return actor?.getActiveTokens?.()?.[0]?.document ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * The context one attack carries. Built once per `makeAttackThrow` and handed
- * to every hook and contributor for that attack.
+ * to every hook and contributor for that attack. `token` is the attacker's
+ * TokenDocument, or null where none can be found.
  *
  * @param {Actor} actor
  * @param {object} options  `makeAttackThrow`'s own `{item, attackType, skipDialog}`,
@@ -158,6 +174,7 @@ export function attackContext(actor, options = {}) {
   const own = options.acksLib ?? {};
   return {
     actor,
+    token: attackerToken(actor),
     item,
     weapon: item?.type === ITEM_TYPE.weapon ? item : null,
     target,

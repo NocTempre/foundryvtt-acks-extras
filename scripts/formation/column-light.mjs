@@ -115,11 +115,12 @@ export function destroyColumnLights(state) {
 }
 
 /**
- * Every column light standing on `scene`, at rest: `{x, y, bright}` with `x`/`y`
- * a pixel centre and `bright` in the scene's units, the same reading a token's
- * stored `light.bright` gives. Read from the record, the token's stored
- * position and its stored trail, so it answers for a scene nobody is viewing.
- * Published on the formation namespace for lib's `brightestLightReaching`.
+ * Every column light standing on `scene`, at rest: `{x, y, daylight, bright,
+ * dim}` with `x`/`y` a pixel centre and the radii in the scene's units, the same
+ * reading a token's stored `light.bright` gives. Read from the record, the
+ * token's stored position and its stored trail, so it answers for a scene
+ * nobody is viewing. Published on the formation namespace for lib's light
+ * readers (`brightestLightReaching`, `lightLevelAt`).
  */
 export function carriedLightPoints(scene) {
   if (!scene || !columnLightsOn()) return [];
@@ -133,7 +134,8 @@ export function carriedLightPoints(scene) {
     const at = columnFor(formation, token);
     if (!at) continue;
     for (const point of columnLights(formation, at.points, memberEffectLight)) {
-      out.push({ x: point.x, y: point.y, bright: feetToUnits(point.bright, scene.grid.units) });
+      const units = (feet) => feetToUnits(feet, scene.grid.units);
+      out.push({ x: point.x, y: point.y, daylight: units(point.daylight), bright: units(point.bright), dim: units(point.dim) });
     }
   }
   return out;

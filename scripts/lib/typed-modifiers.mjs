@@ -22,13 +22,17 @@
  * else they share; everything else adds. An ability whose own enabled Active
  * Effect writes the field stands aside for that field.
  *
- * Characters only: a monster's stat line is the total its page prints.
- * Every number comes from the spec; this file ships the procedure and the
- * map from a target to the field it writes. Foundry-free.
+ * Standing modifiers are a character's only: a monster's stat line is the
+ * total its page prints. A spec gated by a ROLL gate (`registerGate`'s
+ * `at: "roll"`, the light gate) is read at the roll on any actor, a monster
+ * included, and is never written. Every number comes from the spec; this file
+ * ships the procedure and the map from a target to the field it writes.
+ * Foundry-free.
  */
 import { resolveLevelValue, scopeApplies, satisfies, abilitySlug, hasScope } from "./vocab.mjs";
 import { cookbookId } from "./library.mjs";
 import { RELEASED_SAVE_KEYS } from "./actor-compat.mjs";
+import { LIGHT_LEVELS, lightAtLeast, lightLevelOf } from "./light.mjs";
 
 const FLAG_SCOPE = "acks-extras";
 
@@ -96,20 +100,32 @@ export const DISPOSITION = Object.freeze({
 /* ---------------------------------------------------------------------- */
 
 const GATES = new Map();
+const ROLL_GATES = new Set();
 
 /**
  * Register the evaluator for one gate kind. `evaluate(actor, gate, ctx)`
  * answers true (the spec applies now), false (it does not), or null (it
  * cannot decide: an argument the import did not read, a context it lacks).
- * A later registration of the same kind replaces the earlier one.
+ * A later registration of the same kind replaces the earlier one, and its
+ * `at` with it.
+ *
+ * `at: "roll"` marks a gate that describes the roller's place at the moment of
+ * a roll (a token's light), not the actor's state: a spec it gates is never
+ * written as a standing modifier, on any actor, and a roll reads it with the
+ * context the roll holds (`ctx.token`).
  */
-export function registerGate(kind, evaluate) {
+export function registerGate(kind, evaluate, { at } = {}) {
   if (!kind || typeof evaluate !== "function") return;
   GATES.set(String(kind), evaluate);
+  if (at === "roll") ROLL_GATES.add(String(kind));
+  else ROLL_GATES.delete(String(kind));
 }
 
 /** Whether a gate kind has an evaluator. */
 export const hasGate = (kind) => GATES.has(String(kind ?? ""));
+
+/** Whether a gate kind is read at the roll (`registerGate`'s `at: "roll"`). */
+export const isRollGate = (kind) => ROLL_GATES.has(String(kind ?? ""));
 
 /**
  * One gate's verdict for one actor: true, false, or null when no evaluator is
@@ -133,6 +149,18 @@ registerGate("status", (actor, gate) => {
   if (!statuses) return null;
   return typeof statuses.has === "function" ? statuses.has(gate.status) : [...statuses].includes(gate.status);
 });
+
+// A light gate asks the roller's token how brightly its place is lit, so it
+// answers only at a roll that names the token, and only for a level it knows.
+registerGate(
+  "light",
+  (_actor, gate, ctx) => {
+    if (!ctx?.token || !LIGHT_LEVELS.includes(gate?.light)) return null;
+    const lit = lightLevelOf(ctx.token);
+    return lit ? lightAtLeast(lit.level, gate.light) : null;
+  },
+  { at: "roll" },
+);
 
 /* ---------------------------------------------------------------------- */
 /*  One spec                                                               */
@@ -193,14 +221,16 @@ function hasRollScope(spec) {
 /**
  * What happens to one spec on an actor of `actorType`, before any value is
  * resolved: `{kind, reason?, consumer?, paths}`. `kind` is a `DISPOSITION`
- * value; `reason` is a short machine word a surface localizes. Null for a
- * spec that is not a modifier.
+ * value; `reason` is a short machine word a surface localizes. A spec whose
+ * gate is a roll gate is AT_ROLL with reason `gate` for any actor type, and
+ * carries its `gate`. Null for a spec that is not a modifier.
  */
 export function modifierDisposition(spec, { actorType = "character" } = {}) {
   if (spec?.type !== "modifier") return null;
   const paths = [];
   const out = (kind, extra = {}) => ({ kind, paths, ...extra });
-  if (!MODIFIER_PATHS[actorType]) return out(DISPOSITION.UNSUPPORTED, { reason: "actorType" });
+  const rollGate = gateOf(spec) && isRollGate(gateOf(spec).kind) ? gateOf(spec) : null;
+  if (!MODIFIER_PATHS[actorType] && !rollGate) return out(DISPOSITION.UNSUPPORTED, { reason: "actorType" });
   const consumer = CONSUMED_TARGETS[spec.target];
   if (consumer) return out(DISPOSITION.CONSUMED, { consumer });
   if (spec.appliesToRoll) return out(DISPOSITION.CONSUMED, { consumer: "abilities" });
@@ -208,6 +238,8 @@ export function modifierDisposition(spec, { actorType = "character" } = {}) {
   if (spec.appliesTo && spec.appliesTo !== "self" && spec.appliesTo !== "opponent") {
     return out(DISPOSITION.UNSUPPORTED, { reason: "subject" });
   }
+  // A roll gate waits for the roll on any actor: the loadout never writes it.
+  if (rollGate) return out(DISPOSITION.AT_ROLL, { reason: "gate", gate: rollGate });
   if (hasRollScope(spec)) return out(DISPOSITION.AT_ROLL, { reason: "scope" });
   paths.push(...modifierPaths(spec, actorType));
   if (!paths.length) {
@@ -307,6 +339,42 @@ export function modifierValue(actor, item, spec, { resolve = defaultResolve } = 
   const copies = [...(actor?.items ?? [])].filter((i) => i?.type === "ability" && definitionKey(i) === key).length || 1;
   const scales = { level: levelOf(actor), rank: rankFor(actor, item, copies) };
   return { value: resolveValue(spec?.value, scales, resolve), level: scales.level, rank: scales.rank };
+}
+
+/**
+ * The modifiers an actor's abilities carry for one target that a ROLL gate
+ * decides (`registerGate`'s `at: "roll"`), on an actor of any type: `[{item,
+ * spec, index, gate, value}]` with the value resolved as `standingModifiers`
+ * resolves it. Copies of one definition count once. A spec that does not
+ * resolve to a nonzero number is left out, as is one the actor imposes on an
+ * opponent. The gate itself is NOT asked: the roll holds the context it needs
+ * (`gateVerdict`).
+ *
+ * @param {object} actor
+ * @param {string} target a modifier target, `attackThrow` for the attack throw
+ * @param {{resolve?: Function}} [options]
+ */
+export function rollGatedModifiers(actor, target, { resolve = defaultResolve } = {}) {
+  const out = [];
+  if (!actor?.items) return out;
+  const seen = new Set();
+  for (const item of actor.items) {
+    if (item?.type !== "ability") continue;
+    const effects = extrasOf(item)?.effects;
+    if (!Array.isArray(effects)) continue;
+    const key = definitionKey(item);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    effects.forEach((spec, index) => {
+      if (spec?.target !== target || spec.appliesTo === "opponent") return;
+      const disposition = modifierDisposition(spec, { actorType: actor.type });
+      if (disposition?.kind !== DISPOSITION.AT_ROLL || disposition.reason !== "gate") return;
+      const { value } = modifierValue(actor, item, spec, { resolve });
+      if (value === null || value === 0) return;
+      out.push({ item, spec, index, gate: disposition.gate, value });
+    });
+  }
+  return out;
 }
 
 /**
