@@ -101,6 +101,7 @@ const {
   sessionFollowsScene, installSceneNavigation,
 } = await import("../scripts/battlemap/scene-nav.mjs");
 const { writeSceneSystem, sceneSetup } = await import("../scripts/battlemap/scene-setup.mjs");
+const constants = await import("../scripts/battlemap/constants.mjs");
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -378,6 +379,62 @@ ok("the setup session follows the viewed scene's declared system, and nothing el
   // The viewed scene is not this one.
   session.sceneId = "elsewhere";
   assert.equal(sessionFollowsScene(session, scene, flagChange), false);
+});
+
+ok("the setup session follows the viewed scene's units and grid type, for the parts the change carries", () => {
+  const { GRID_TYPE, HEX_TYPES } = constants;
+  const scene = makeScene("g1");
+  scene.grid = { type: GRID_TYPE.SQUARE, units: "ft" };
+  const other = makeScene("g2");
+  other.grid = { type: GRID_TYPE.HEXODDR, units: "mi" };
+  const session = {
+    sceneId: "g1", gridFamily: "square", hexEven: false, units: "ft", mapSystem: null, sets: [],
+    setSetup(patch) { this.sets.push(patch); Object.assign(this, patch); },
+  };
+
+  scene.grid.units = "mi";
+  assert.equal(sessionFollowsScene(session, scene, { grid: { units: "mi" } }), true, "units ft to mi");
+  assert.deepEqual(session.sets, [{ units: "mi" }], "only the units move");
+  assert.equal(session.gridFamily, "square");
+
+  scene.grid.type = HEX_TYPES.hexRows.odd;
+  assert.equal(sessionFollowsScene(session, scene, { grid: { type: HEX_TYPES.hexRows.odd } }), true, "square to hex rows");
+  assert.deepEqual(session.sets[1], { gridFamily: "hexRows" }, "odd parity is what the session already holds");
+  assert.equal(session.hexEven, false);
+
+  scene.grid.type = HEX_TYPES.hexCols.even;
+  assert.equal(sessionFollowsScene(session, scene, { grid: { type: HEX_TYPES.hexCols.even } }), true, "an even-parity column type");
+  assert.deepEqual(session.sets[2], { gridFamily: "hexCols", hexEven: true });
+
+  scene.grid.type = HEX_TYPES.hexCols.odd;
+  assert.equal(sessionFollowsScene(session, scene, { grid: { type: HEX_TYPES.hexCols.odd } }), true, "parity alone");
+  assert.deepEqual(session.sets[3], { hexEven: false });
+
+  scene.grid.type = GRID_TYPE.GRIDLESS;
+  assert.equal(sessionFollowsScene(session, scene, { grid: { type: GRID_TYPE.GRIDLESS } }), true, "gridless reads as the square family, as adoption reads it");
+  assert.deepEqual(session.sets[4], { gridFamily: "square" });
+
+  const count = session.sets.length;
+  assert.equal(sessionFollowsScene(session, scene, { grid: { units: "mi", type: GRID_TYPE.GRIDLESS } }), false, "values already held");
+  assert.equal(sessionFollowsScene(session, other, { grid: { units: "mi", type: HEX_TYPES.hexRows.odd } }), false, "another scene's update");
+  assert.equal(sessionFollowsScene(session, scene, { flags: { other: { x: 1 } } }), false, "a flag that is not the module's record");
+  assert.equal(sessionFollowsScene(session, scene, { flags: { [MODULE_ID]: { other: 1 } } }), false, "a module flag outside the battlemap record");
+  assert.equal(sessionFollowsScene(session, scene, { grid: { size: 100 } }), false, "another part of the grid");
+  assert.equal(session.sets.length, count, "none of those wrote");
+
+  // A change the session does not carry is not followed even where the scene differs from the session.
+  scene.grid.units = "ft";
+  assert.equal(sessionFollowsScene(session, scene, { name: "x" }), false, "units not carried");
+  assert.equal(session.units, "mi");
+
+  // One update carrying the record and the grid moves them together.
+  scene.flags[MODULE_ID] = { battlemap: { mapSystem: "journey" } };
+  scene.grid.type = HEX_TYPES.hexRows.even;
+  assert.equal(sessionFollowsScene(session, scene, {
+    flags: { [MODULE_ID]: { battlemap: { mapSystem: "journey" } } },
+    grid: { units: "ft", type: HEX_TYPES.hexRows.even },
+  }), true, "the system mirror stays beside the grid follow");
+  assert.deepEqual(session.sets.at(-1), { mapSystem: "journey", units: "ft", gridFamily: "hexRows", hexEven: true });
 });
 
 console.log(`\n${passed} scene-nav checks passed`);

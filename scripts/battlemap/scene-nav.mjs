@@ -17,8 +17,9 @@
  * `writeSceneSystem`, the setup panel's writer; core re-renders the navigation
  * on every scene update, so the icon follows the flag.
  */
-import { LANG_PREFIX, MODULE_ID, FLAG_BATTLEMAP, TRAVEL_MODES } from "./constants.mjs";
-import { sceneSetup, writeSceneSystem } from "./scene-setup.mjs";
+import { LANG_PREFIX, MODULE_ID, FLAG_BATTLEMAP, TRAVEL_MODES, HEX_TYPES } from "./constants.mjs";
+import { familyOfScene, sceneSetup, writeSceneSystem } from "./scene-setup.mjs";
+import { unitKey } from "../lib/distance-units.mjs";
 import { elementOf } from "../lib/util.mjs";
 
 /** The icon's class: the picker's selector, the stylesheet's hook, and what a walk finds it by. */
@@ -156,18 +157,40 @@ export function bindScenePicker(root) {
 }
 
 /**
- * The setup panel's session mirrors the viewed scene's declared system once
- * a navigation card writes it, so an open panel's select does not show the
- * value the card just replaced. Nothing moves where the change is another
- * scene's, another part of the record, or the value the session holds.
+ * The setup panel's session mirrors the viewed scene's own edits, so an open
+ * panel's selects do not show the value an edit just replaced and Apply does
+ * not write it back: the declared system once a navigation card writes it,
+ * the units when Scene configuration's grid units change, and the grid family
+ * with its hex parity when the grid type changes. Each is taken from the
+ * scene as `adoptScene` takes it, and only where the change carries that
+ * part. Nothing moves where the change is another scene's, carries none of
+ * those parts, or leaves the session holding the value already. `setSetup`
+ * drops only the fit and hex-probe caches, so the samples and a baked fit
+ * stay, and the apply's own write of the grid it fitted follows to values
+ * the session already holds.
  * @returns {boolean} whether the session was moved.
  */
 export function sessionFollowsScene(session, scene, changes) {
   if (!session || scene?.id !== session.sceneId) return false;
-  if (!foundry.utils.hasProperty(changes, `flags.${MODULE_ID}.${FLAG_BATTLEMAP}`)) return false;
-  const { mapSystem } = sceneSetup(scene);
-  if (session.mapSystem === mapSystem) return false;
-  session.setSetup({ mapSystem });
+  const carries = (path) => foundry.utils.hasProperty(changes, path);
+  const patch = {};
+  if (carries(`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`)) {
+    const { mapSystem } = sceneSetup(scene);
+    if (session.mapSystem !== mapSystem) patch.mapSystem = mapSystem;
+  }
+  if (carries("grid.units")) {
+    const units = unitKey(scene.grid?.units);
+    if (session.units !== units) patch.units = units;
+  }
+  if (carries("grid.type")) {
+    const gridFamily = familyOfScene(scene);
+    const hex = HEX_TYPES[gridFamily];
+    const hexEven = hex ? scene.grid.type === hex.even : false;
+    if (session.gridFamily !== gridFamily) patch.gridFamily = gridFamily;
+    if (session.hexEven !== hexEven) patch.hexEven = hexEven;
+  }
+  if (!Object.keys(patch).length) return false;
+  session.setSetup(patch);
   return true;
 }
 
