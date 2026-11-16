@@ -2,16 +2,32 @@
     render exactly ONE root element, and the pinned footer has to be a
     sibling of the scrolling body for the flex column to hold it down. }}
 <footer class="acks-extras-battlemap-foot">
+  {{! What Apply rewrites, one row per change; nothing here until something is
+      solvable. Each figure's tooltip names both ends and where the new one
+      comes from, and the rows scroll inside their own box so the buttons
+      stay on screen. }}
+  {{#if footRows.length}}
+    <div class="acks-extras-battlemap-rowshead">{{rowsHeading}}</div>
+    <ul class="acks-extras-battlemap-rows" aria-label="{{rowsHeading}}">
+      {{#each footRows}}
+        <li>
+          <span class="acks-extras-battlemap-rowlabel">{{label}}</span>
+          <span class="acks-extras-battlemap-rowfigure" data-tooltip-text="{{tip}}">{{text}}</span>
+          {{#if note}}<span class="acks-extras-battlemap-rownote">{{note}}</span>{{/if}}
+        </li>
+      {{/each}}
+    </ul>
+  {{/if}}
   {{#if willAddGrid}}
     <div class="acks-extras-battlemap-sub">{{willAddGridLabel}}</div>
   {{/if}}
   {{#if keepsGridless}}
     <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.apply.keepsGridless"}}</div>
   {{/if}}
-  <button type="button" data-action="applyGrid" class="acks-extras-battlemap-primary" {{#unless canApply}}disabled{{/unless}}>
+  <button type="button" data-action="applyGrid" class="acks-extras-battlemap-primary" aria-label="{{applyAria}}" data-tooltip-text="{{applyTip}}" {{#unless canApply}}disabled{{/unless}}>
     <i class="fa-solid fa-border-all"></i> {{applyLabel}}
   </button>
-  <button type="button" data-action="rescaleTokens">
+  <button type="button" data-action="rescaleTokens" aria-label="{{rescaleAria}}" data-tooltip-text="{{rescaleTip}}">
     <i class="fa-solid fa-maximize"></i> {{localize "ACKS-BATTLEMAP.apply.tokens"}}
   </button>
 </footer>

@@ -29,7 +29,7 @@ import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-imag
 import { hexProbe } from "./scene-setup.mjs";
 import { hexAlignment } from "./hex-fit.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
-import { makeLoc } from "../lib/util.mjs";
+import { escape as escapeHtml, makeLoc } from "../lib/util.mjs";
 
 const loc = makeLoc(LANG_PREFIX);
 
@@ -56,25 +56,30 @@ const wroteScale = (scene, { size, distance }) =>
 /** The unit string the scene will actually be read in after this apply. */
 const unitsWritten = (scene, units) => DISTANCE_UNITS[units]?.abbr ?? scene.grid.units ?? "";
 
-/** The lang key of each family's confirmation body and done notice. */
+/** The lang key of each family's act (the button's own words, which also title the confirmation) and done notice. */
 const FAMILY_TEXT = Object.freeze({
-  square: { confirm: "apply.confirmBody", done: "apply.done" },
-  hexRows: { confirm: "apply.confirmHex", done: "apply.doneHex" },
-  hexCols: { confirm: "apply.confirmHex", done: "apply.doneHex" },
-  scale: { confirm: "apply.confirmScale", done: "apply.doneScale" },
+  square: { act: "apply.grid", done: "apply.done" },
+  hexRows: { act: "apply.hex", done: "apply.doneHex" },
+  hexCols: { act: "apply.hex", done: "apply.doneHex" },
+  scale: { act: "apply.scale", done: "apply.doneScale" },
 });
 
+/** Whether the scene holds a token, tile or wall that a rescaled, shifted image would pass under. */
+const holdsPlaceables = (scene) => ["tokens", "tiles", "walls"].some((key) => scene[key]?.size > 0);
+
 /**
- * The one confirmation every apply asks. Each states its own body — a square,
- * a hex and a bare ruler are three different promises — and the placeables
- * note appears only when the scene's own dimensions are changing.
+ * The one confirmation every apply asks. Its title names the family's act and
+ * its body lists the rows the panel showed, as plain text lines, so what is
+ * confirmed is what was on screen. The placeables note appears only when the
+ * scene's own dimensions are changing under something placed on it.
  */
-function confirmApply(body, { shifts }) {
-  const note = shifts ? `<p class="hint">${loc("apply.confirmShift")}</p>` : "";
+function confirmApply({ act, lines, shifts }) {
+  const list = lines.length ? `<ul>${lines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul>` : "";
+  const note = shifts ? `<p class="hint">${escapeHtml(loc("apply.confirmShift"))}</p>` : "";
   return foundry.applications.api.DialogV2.confirm({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
-    window: { title: loc("apply.confirmTitle") },
-    content: `<p>${body}</p>${note}`,
+    window: { title: loc("apply.ask", { act: loc(act) }) },
+    content: `<p>${escapeHtml(loc("apply.confirmLead"))}</p>${list}${note}`,
   });
 }
 
@@ -222,13 +227,15 @@ export function solveScaleOnly({ size, distance, units, mapSystem = null }) {
  * @param {object} choice
  * @param {"square"|"hexRows"|"hexCols"|"scale"} choice.family
  * @param {boolean} choice.autoScale  Whether tokens placed here are auto-sized.
+ * @param {string[]} [choice.lines]  The panel's rows as plain text, one per change; the
+ *   confirmation lists them as given, so it never re-derives a figure.
  * @returns {Promise<boolean>} whether the update was confirmed, written and read back.
  */
-export async function writeSetup(scene, { solution, update }, { family, autoScale }) {
+export async function writeSetup(scene, { solution, update }, { family, autoScale, lines = [] }) {
   const text = FAMILY_TEXT[family];
   const units = unitsWritten(scene, solution.units);
   const figures = { size: solution.gridSize, distance: Number(solution.distance.toFixed(3)), units };
-  if (!(await confirmApply(loc(text.confirm, figures), { shifts: family !== "scale" }))) return false;
+  if (!(await confirmApply({ act: text.act, lines, shifts: family !== "scale" && holdsPlaceables(scene) }))) return false;
 
   await scene.update({
     ...update,

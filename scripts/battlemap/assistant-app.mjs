@@ -331,9 +331,20 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     // and the Apply handler writes this same answer.
     const solved = this.#solve(fit, scale);
     const plan = this.#plan({ fit, scene, hasBackground, solved });
-    this.#shown = { sceneId: scene?.id ?? null, family: this.family, plan, solved: solved?.ok ? solved : null };
+    const footRows = this.#rowViews(plan);
+    // The confirmation reads the very lines the footer showed.
+    this.#shown = {
+      sceneId: scene?.id ?? null,
+      family: this.family,
+      plan,
+      solved: solved?.ok ? solved : null,
+      lines: footRows.map((r) => loc("rows.line", { label: r.label, text: r.text })),
+    };
     const hexFit = this.isHex && !!fit?.ok;
     const worstLine = this.#warningLines(plan);
+    const applyLabel = loc(`apply.${this.isScaleOnly ? "scale" : this.isHex ? "hex" : "grid"}`);
+    const applyTip = this.isScaleOnly ? loc("apply.tipScale") : loc("apply.tip");
+    const rescaleTip = loc("apply.tokensTip");
 
     return {
       scene,
@@ -358,8 +369,9 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       needLines: this.#needLines(plan),
       unusedLines: this.#unusedLines(plan),
       warnLines: worstLine,
-      // Apply is also off where the scene already matches what it would write.
-      matchesLine: plan.matches ? loc("apply.matches") : null,
+      // Apply is also off where the scene already matches what it would write;
+      // the line states the setup the scene holds, read from the scene itself.
+      matchesLine: plan.matches ? this.#matchesLine(scene) : null,
       // A map cell's worth has a field on every family but scale-only, where
       // one is asked for only when a drawn grid is to measure it.
       showMapCell: !this.isScaleOnly || !!fit?.ok,
@@ -407,7 +419,16 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       // The planner's verdict: it is also what disables the button, so the
       // lines above say why whenever it is off.
       canApply: plan.canApply,
-      applyLabel: loc(`apply.${this.isScaleOnly ? "scale" : this.isHex ? "hex" : "grid"}`),
+      applyLabel,
+      // The button and the whole-scene resize each say what a press writes: a
+      // name for assistive technology and a tooltip for the pointer.
+      applyTip,
+      applyAria: loc("apply.aria", { label: applyLabel, tip: applyTip }),
+      rescaleTip,
+      rescaleAria: loc("apply.aria", { label: loc("apply.tokens"), tip: rescaleTip }),
+      // What Apply rewrites, one row per change: empty until something is solvable.
+      rowsHeading: loc("rows.heading"),
+      footRows,
       // Offered whenever the image is wrong in a way a scene field cannot
       // express straight: crooked, or cells that are not square. A hex fit
       // has no skew or axis pair to straighten.
@@ -497,6 +518,72 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     });
   }
 
+  /**
+   * The statement that the scene already holds what Apply would write: its grid
+   * kind, grid size in px and what a cell is worth, each read off the scene.
+   */
+  #matchesLine(scene) {
+    const grid = scene?.grid;
+    return loc("apply.matches", {
+      grid: loc(`rows.type.${grid?.type ?? GRID_TYPE.GRIDLESS}`),
+      size: Math.round(grid?.size ?? 0),
+      distance: Number((grid?.distance ?? 0).toFixed(3)),
+      units: grid?.units ?? "",
+    });
+  }
+
+  /**
+   * The footer's rows, one per change the planner says Apply writes: a label,
+   * the before-to-after figure with its units, a tooltip naming both ends and
+   * where the after comes from, and an optional visible note. The same label
+   * and text become the confirmation's lines.
+   */
+  #rowViews(plan) {
+    const px = (n) => (Number.isFinite(n) ? Math.round(n) : "–");
+    const num = (n) => (Number.isFinite(n) ? Number(n.toFixed(3)) : "–");
+    const gridFigure = ({ type, size }) => loc("rows.gridFigure", { type: loc(`rows.type.${type ?? GRID_TYPE.GRIDLESS}`), size: px(size) });
+    const worthFigure = ({ distance, units }) => loc("rows.worthFigure", { distance: num(distance), units });
+    const imageNow = (i) => loc("rows.imageNow", { width: px(i.width), height: px(i.height), shiftX: px(i.shiftX), shiftY: px(i.shiftY) });
+    const onOff = (on) => loc(on ? "rows.on" : "rows.off");
+    const system = (id) => (id ? loc(`system.${id}`) : loc("setup.systemNone"));
+    const change = (from, to) => loc("rows.change", { from, to });
+    const tip = (from, to, source) => loc("rows.tip", { from, to, source });
+
+    const view = {
+      grid: (r) => {
+        const from = gridFigure(r.before);
+        const to = gridFigure(r.after);
+        return { text: change(from, to), tip: tip(from, to, this.isScaleOnly ? loc("rows.source.ruler") : loc("rows.source.sizeFit")) };
+      },
+      cellWorth: (r) => {
+        const from = worthFigure(r.before);
+        const to = worthFigure(r.after);
+        return { text: change(from, to), tip: tip(from, to, this.isScaleOnly ? loc("rows.source.ruler") : loc("rows.source.worth")) };
+      },
+      image: (r) => ({
+        text: loc("rows.imageFigure", { x: num(r.rescale?.x), y: num(r.rescale?.y), shiftX: px(r.after.shiftX), shiftY: px(r.after.shiftY) }),
+        tip: tip(imageNow(r.before), imageNow(r.after), loc("rows.source.fit")),
+        note: loc("rows.imageStays"),
+      }),
+      tokenSizing: (r) => {
+        const from = onOff(r.before);
+        const to = onOff(r.after);
+        return {
+          text: r.because === "expeditionScale" ? loc("rows.tokenSizingExpedition", { from }) : change(from, to),
+          tip: tip(from, to, loc("rows.source.scale")),
+        };
+      },
+      travelSystem: (r) => {
+        const from = system(r.before);
+        const to = system(r.after);
+        return { text: change(from, to), tip: tip(from, to, loc("rows.source.system")) };
+      },
+    };
+    return plan.rows
+      .filter((r) => view[r.id])
+      .map((r) => ({ id: r.id, label: loc(`rows.label.${r.id}`), note: null, ...view[r.id](r) }));
+  }
+
   /** The fit card's residual: pixels off on a hex fit (none for one box), a share of a cell otherwise. */
   #residualText(fit) {
     if (!this.isHex) return `${(fit.rmsPct * 100).toFixed(1)}%`;
@@ -564,7 +651,13 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       } else if (w.id === "unreachable") {
         lines.push(loc("warn.unreachable", { count: w.count }));
       } else if (w.id === "familyMismatch") {
-        lines.push(loc("warn.familyMismatch", { family }));
+        // One box cannot show its own size, so a lone box names both causes and the
+        // check. Where a second box was left out as a different size, the pair itself
+        // says one of them surrounds several hexes, and the advice is to delete it.
+        const split = plan.unused.some((u) => u.id === "multiHexBoxes");
+        if (!w.lone) lines.push(loc("warn.familyMismatch", { family }));
+        else if (split) lines.push(loc("warn.familyMismatchLoneSplit", { family }));
+        else lines.push(loc("warn.familyMismatchLone", { family, tool: loc("mode.square") }));
       } else if (w.id === "familyAmbiguous") {
         lines.push(loc("warn.familyAmbiguous", { family }));
       }
@@ -738,7 +831,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const scene = canvas?.scene;
     const shown = this.#shown;
     if (!scene || !shown?.plan.canApply || !shown.solved || shown.sceneId !== (scene.id ?? null)) return;
-    const applied = await writeSetup(scene, shown.solved, { family: shown.family, autoScale: shown.plan.autoScale });
+    const applied = await writeSetup(scene, shown.solved, { family: shown.family, autoScale: shown.plan.autoScale, lines: shown.lines });
     if (applied) this.render();
   }
 

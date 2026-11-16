@@ -63,7 +63,7 @@ const clones = { count: 0, broken: false };
  * target grid, and writes that land like core's (a field it will not take is
  * dropped). `afterWrite` stands in for the `updateScene` hook module.mjs wires.
  */
-function makeScene({ id = "S1", type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false } = {}) {
+function makeScene({ id = "S1", type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false, placed = {} } = {}) {
   const scene = {
     id,
     width: 4000,
@@ -71,6 +71,10 @@ function makeScene({ id = "S1", type = 0, size = 100, distance = 9, units = "ft"
     shiftX: 0,
     shiftY: 0,
     grid: { type, size, distance, units },
+    // Embedded collections, as far as the confirmation reads them: a count.
+    tokens: { size: placed.tokens ?? 0 },
+    tiles: { size: placed.tiles ?? 0 },
+    walls: { size: placed.walls ?? 0 },
     background: { src: "map.webp" },
     flags: { [MODULE_ID]: { [FLAG]: { ...flag } } },
     writes: [],
@@ -160,7 +164,7 @@ session.overlay.redraw = () => {};
 session.overlay.arm = () => {};
 const { default: App } = await import(root("scripts/battlemap/assistant-app.mjs").href);
 const { hexProbe } = await import(root("scripts/battlemap/scene-setup.mjs").href);
-const { solveHexCalibration } = await import(root("scripts/battlemap/apply.mjs").href);
+const { solveHexCalibration, writeSetup } = await import(root("scripts/battlemap/apply.mjs").href);
 
 const applyGrid = App.DEFAULT_OPTIONS.actions.applyGrid;
 const submit = App.DEFAULT_OPTIONS.form.handler;
@@ -279,19 +283,54 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
-  // The placeables note belongs to a write that moves the scene's dimensions,
-  // so the scale-only confirmation never carries it and a hex apply does.
-  const scene = makeScene({ type: 1 });
+  // The placeables note belongs to a write that moves the scene's dimensions
+  // under something placed: the scale-only confirmation never carries it, and a
+  // hex apply does only where a token, tile or wall is there to be passed under.
+  const scene = makeScene({ type: 1, placed: { tokens: 2 } });
   setup({ family: "scale", scene, samples: { squares: [squareBox(0, 0, 180)] }, opts: { mapCellFeet: 7 }, units: "ft" });
   assert.equal((await ctx()).canApply, true);
   await applyGrid.call(app);
   assert.equal(confirms.length, 1);
   assert.ok(!confirms[0].includes("confirmShift"), "scale-only moves no placeable");
-  const hexScene = makeScene();
-  setup({ family: "hexRows", scene: hexScene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
-  await ctx();
-  await applyGrid.call(app);
-  assert.ok(confirms[0].includes("confirmShift"), "a hex apply re-dimensions the scene and says so");
+  for (const [placed, shows] of [[{ tokens: 1 }, true], [{ tiles: 1 }, true], [{ walls: 3 }, true], [{}, false]]) {
+    const hexScene = makeScene({ placed });
+    setup({ family: "hexRows", scene: hexScene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+    await ctx();
+    await applyGrid.call(app);
+    assert.equal(confirms[0].includes("confirmShift"), shows, `placed ${JSON.stringify(placed)}: the note shows only over something placed`);
+  }
+}
+
+{
+  // The confirmation carries the rows the footer showed, as escaped plain lines, under a title that names the act.
+  const scene = makeScene({ units: "ft", distance: 9, flag: { autoScale: true }, placed: { tokens: 1 } });
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "mi" });
+  const c = await ctx();
+  assert.deepEqual(c.footRows.map((r) => r.id), ["grid", "cellWorth", "image", "tokenSizing"], "one row per change Apply writes");
+  const titles = [];
+  const confirm = foundry.applications.api.DialogV2.confirm;
+  foundry.applications.api.DialogV2.confirm = async (opts) => (titles.push(opts.window.title), confirms.push(opts.content), true);
+  try {
+    await applyGrid.call(app);
+  } finally {
+    foundry.applications.api.DialogV2.confirm = confirm;
+  }
+  assert.equal(keyOf(titles[0]), "apply.ask", "the title is the act's question");
+  assert.ok(titles[0].includes("apply.hex"), "and names the hex act");
+  const body = confirms[0];
+  assert.equal((body.match(/<li>/g) ?? []).length, c.footRows.length, "a list item per row");
+  for (const r of c.footRows) {
+    assert.ok(body.includes(`rows.line{&quot;label&quot;:${JSON.stringify(r.label).replace(/"/g, "&quot;")}`), `the ${r.id} row is in the confirmation as the panel worded it`);
+  }
+  assert.ok(body.includes("confirmShift"), "a scene with a token carries the placeables note");
+
+  // A line is text: markup in it is shown, never parsed.
+  const other = makeScene();
+  setup({ family: "hexRows", scene: other, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  const solved = solveHexCalibration(other, session.fit, { gridSize: 100, outputFeet: 3, family: "hexRows", probe: session.hexProbe });
+  await writeSetup(other, solved, { family: "hexRows", autoScale: true, lines: ["<b>x</b> & y"] });
+  assert.ok(confirms.at(-1).includes("&lt;b&gt;x&lt;/b&gt; &amp; y"), "a row's text is escaped");
+  assert.ok(!confirms.at(-1).includes("<b>"));
 }
 
 {
@@ -337,6 +376,93 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const c = await ctx();
   assert.equal(c.canApply, false, "nothing left to write");
   assert.equal(keyOf(c.matchesLine), "apply.matches");
+  // It states what the scene holds, read off the scene itself rather than off the choices.
+  const said = JSON.parse(c.matchesLine.slice(c.matchesLine.indexOf("{")));
+  assert.equal(said.grid, "rows.type.2{}", "the grid kind the scene has");
+  assert.equal(said.size, scene.grid.size, "its grid size in px");
+  assert.equal(said.distance, 3, "what a cell is worth");
+  assert.equal(said.units, "ft", "in the scene's unit");
+  scene.grid.size = 77;
+  assert.equal((await ctx()).matchesLine, null, "read at render: a scene that moved no longer matches");
+}
+
+{
+  // A scene a previous apply made hex, set up as square: the line names the way out, in core's own labels.
+  const scene = makeScene({ type: 2 });
+  setup({ family: "square", scene, samples: { squares: [squareBox(0, 0, 180)] }, opts: { mapCellFeet: 5 }, units: "ft" });
+  const c = await ctx();
+  assert.ok(c.needLines.map(keyOf).includes("warn.notSquareGrid"));
+  const text = JSON.parse(read("lang/en.json"))[`${LANG_PREFIX}.warn.notSquareGrid`];
+  for (const word of ["Scene configuration", "Grid tab", "Grid type", "Gridless"]) assert.ok(text.includes(word), `the line names ${word}`);
+  assert.ok(text.includes("{family}"), "and still offers the hex families");
+}
+
+{
+  // One box around several hexes: its only signal is its shape, so the line names both causes and the check.
+  const block = (family, cells) => {
+    const boxes = cells.map(([i, j]) => hexBox(family, i, j));
+    const x = Math.min(...boxes.map((b) => b.x));
+    const y = Math.min(...boxes.map((b) => b.y));
+    return { x, y, w: Math.max(...boxes.map((b) => b.x + b.w)) - x, h: Math.max(...boxes.map((b) => b.y + b.h)) - y };
+  };
+  const cells = [[0, 0], [0, 1], [1, 0], [1, 1]];
+  for (const family of ["hexRows", "hexCols"]) {
+    setup({ family, scene: makeScene(), samples: { squares: [block(family, cells)] }, opts: { mapCellFeet: 3 }, units: "ft" });
+    const lone = (await ctx()).warnLines.map(keyOf);
+    assert.ok(lone.includes("warn.familyMismatchLone"), `${family}: a lone block gets its own line, got ${lone}`);
+    assert.ok(!lone.includes("warn.familyMismatch"));
+    assert.equal((await ctx()).canApply, true, "and stays a warning");
+    // The Judge follows the line and draws a one-hex box: whichever order the two were drawn in,
+    // the panel never sends them back to the family for a block it can see is the cause.
+    const honest = hexBox(family, 8, 8);
+    setup({ family, scene: makeScene(), samples: { squares: [block(family, cells), honest] }, opts: { mapCellFeet: 3 }, units: "ft" });
+    let after = await ctx();
+    assert.deepEqual(after.warnLines.map(keyOf).filter((k) => k.startsWith("warn.familyMismatch")), ["warn.familyMismatchLoneSplit"], `${family}: block first, then a one-hex box`);
+    assert.ok(after.unusedLines.map(keyOf).includes("unused.multiHexBoxes"), "the box that was left out is named");
+    assert.equal(after.canApply, true);
+    setup({ family, scene: makeScene(), samples: { squares: [honest, block(family, cells)] }, opts: { mapCellFeet: 3 }, units: "ft" });
+    after = await ctx();
+    assert.deepEqual(after.warnLines.map(keyOf).filter((k) => k.startsWith("warn.familyMismatch")), [], `${family}: the one-hex box first leaves the block out and warns of nothing`);
+    assert.ok(after.unusedLines.map(keyOf).includes("unused.multiHexBoxes"));
+
+    const second = cells.map(([i, j]) => [i + 8, j + 8]);
+    setup({ family, scene: makeScene(), samples: { squares: [block(family, cells), block(family, second)] }, opts: { mapCellFeet: 3 }, units: "ft" });
+    const two = (await ctx()).warnLines.map(keyOf);
+    assert.ok(two.includes("warn.familyMismatch") && !two.includes("warn.familyMismatchLone"), `${family}: with two used boxes the plain mismatch line stands, got ${two}`);
+  }
+  const lang = JSON.parse(read("lang/en.json"));
+  const lone = lang[`${LANG_PREFIX}.warn.familyMismatchLone`];
+  assert.ok(lone.includes("several hexes") && lone.includes("second box") && lone.includes("{tool}") && lone.includes("{family}"), "the lone line names both causes, the one check and where it is");
+  const split = lang[`${LANG_PREFIX}.warn.familyMismatchLoneSplit`];
+  assert.ok(split.includes("delete the larger") && split.includes("{family}"), "the pair's line says which box to delete");
+  const ambiguous = lang[`${LANG_PREFIX}.warn.familyAmbiguous`];
+  assert.ok(ambiguous.includes("second box") && ambiguous.includes("stays as you chose"), "an ambiguity reads as a request, not as an error");
+}
+
+{
+  // The cell's worth is the scene's own only in the scene's own unit; in another it is blank and the needs list asks.
+  const scene = makeScene({ distance: 9, units: "ft" });
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, units: "ft" });
+  let c = await ctx();
+  assert.equal(c.mapCellFeet, 9, "the scene's own value in the scene's own unit");
+  assert.ok(!c.needLines.map(keyOf).includes("needs.cellWorth"));
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, units: "mi" });
+  c = await ctx();
+  assert.ok(!(c.mapCellFeet > 0), "blank in another unit");
+  assert.ok(c.needLines.map(keyOf).includes("needs.cellWorth"), "and asked for");
+  assert.equal(scene.writes.length, 0, "a unit is written by Apply alone");
+}
+
+{
+  // A mile-scale apply over a scene that sizes tokens says it writes that off, and why.
+  const scene = makeScene({ units: "ft", distance: 9, flag: { autoScale: true } });
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "mi" });
+  const row = (await ctx()).footRows.find((r) => r.id === "tokenSizing");
+  assert.equal(keyOf(row.text), "rows.tokenSizingExpedition");
+  assert.ok(row.tip.includes("rows.tip"), "with a tooltip of its two ends and its source");
+  const flat = makeScene({ units: "ft", distance: 9, flag: { autoScale: false } });
+  setup({ family: "hexRows", scene: flat, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  assert.equal(keyOf((await ctx()).footRows.find((r) => r.id === "tokenSizing").text), "rows.change", "a foot-scale apply turns sizing on and writes nothing off");
 }
 
 {
@@ -450,6 +576,75 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   assert.equal(session.samples.squares[0].cells, 3, "a count submitted on scale-only lands");
   const three = (await ctx()).pxPerUnit;
   near(one / three, 3, 0.01, "three cells in the box is a third of the pixels per unit");
+}
+
+/* -------------------------------------------- */
+/*  The body's order and the footer's rows      */
+/* -------------------------------------------- */
+
+{
+  const template = Handlebars.create();
+  template.registerHelper("localize", (key) => key);
+  template.registerHelper("checked", (value) => (value ? "checked" : ""));
+  const body = template.compile(read("templates/battlemap/assistant-body.hbs"));
+  const foot = template.compile(read("templates/battlemap/assistant-foot.hbs"));
+
+  const scene = makeScene();
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes(), scale: { x1: 100, y1: 900, x2: 700, y2: 900 } }, opts: { mapCellFeet: 3, scaleValue: 7 }, units: "ft" });
+  const html = body(await ctx());
+  const at = (needle) => {
+    const i = html.indexOf(needle);
+    assert.ok(i >= 0, `the body holds ${needle}`);
+    return i;
+  };
+
+  // The cell's worth and the units are one row; the chips stay under the cell's own column.
+  const rowStart = at('class="acks-extras-battlemap-row acks-extras-battlemap-row-top"');
+  assert.ok(at('name="units"') > rowStart && at('name="mapCellFeet"') > at('name="units"'), "the units select, then the cell's worth, in one row");
+  assert.ok(at('data-action="mapChip"') > at('name="mapCellFeet"'), "the chips follow the cell field");
+  assert.ok(at("ACKS-BATTLEMAP.scale.fromBar") > at('name="mapCellFeet"') && at("ACKS-BATTLEMAP.scale.fromBar") < at("ACKS-BATTLEMAP.scale.title"), "the bar's reading sits with the field, above the Scale section");
+  assert.ok(at('name="mapCellFeet"') < at("ACKS-BATTLEMAP.scale.title"), "and the field is above the Scale section");
+
+  // What a choice writes at once is one group, below Scale, headed so; the unit is not in it.
+  const saved = at("ACKS-BATTLEMAP.setup.saved");
+  assert.ok(saved > at("ACKS-BATTLEMAP.scale.title"), "the group is below the Scale section");
+  for (const name of ["mapSystem", "country.ground", "country.territory", "country.climate"]) {
+    assert.ok(at(`name="${name}"`) > saved, `${name} is in the saved group`);
+  }
+  assert.ok(html.indexOf('name="units"') < saved, "the unit is written by Apply, so it is outside the group");
+  const lang = JSON.parse(read("lang/en.json"));
+  const mentions = Object.entries(lang).filter(([k, v]) => k.startsWith(`${LANG_PREFIX}.`) && /saved the moment you choose/i.test(v));
+  assert.deepEqual(mentions.map(([k]) => k), [], "the sentence is said once, in the group's own hint");
+  assert.ok(/moment you choose/i.test(lang[`${LANG_PREFIX}.setup.savedHint`]));
+
+  // A statement of the scene's setup leads the needs area and is no warning.
+  const matched = makeScene();
+  setup({ family: "hexRows", scene: matched, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  await ctx();
+  await applyGrid.call(app);
+  const lines = { ...(await ctx()), needLines: ["NEED"], warnLines: ["WARN"] };
+  const page = body(lines);
+  assert.ok(page.indexOf("apply.matches") >= 0 && page.indexOf("apply.matches") < page.indexOf("NEED"), "the scene's own setup is said first");
+  assert.ok(!/battlemap-warn">[^<]*<i[^>]*><\/i>\s*apply\.matches/.test(page), "as a statement, not a warning");
+
+  // The footer: rows with a tooltip each, buttons that say what they write, no `title`.
+  setup({ family: "hexRows", scene: makeScene({ placed: { tokens: 1 } }), samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "mi" });
+  const solvable = await ctx();
+  const footer = foot(solvable);
+  assert.equal((footer.match(/<li>/g) ?? []).length, solvable.footRows.length);
+  assert.equal((footer.match(/data-tooltip-text="rows\.tip/g) ?? []).length, solvable.footRows.length, "every row's figure carries its tooltip");
+  assert.ok(footer.includes("rows.imageStays"), "the image row says, on screen, that placed things stay put");
+  assert.ok(/data-action="applyGrid"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tip/.test(footer), "Apply is named and says what it writes");
+  assert.ok(/data-action="rescaleTokens"[^>]*aria-label="apply\.aria[^"]*"[^>]*data-tooltip-text="apply\.tokensTip/.test(footer), "so is the resize");
+  assert.ok(!/\stitle=/.test(footer) && !/\stitle=/.test(html), "no title attribute: tooltips go through core's manager");
+  setup({ family: "scale", scene: makeScene(), units: "ft" });
+  assert.ok((await ctx()).applyTip.startsWith("apply.tipScale"), "scale-only does not claim the image is written");
+
+  // Nothing solvable yet: no rows block at all.
+  setup({ family: "hexRows", scene: makeScene(), units: "ft" });
+  const empty = await ctx();
+  assert.deepEqual(empty.footRows, []);
+  assert.ok(!foot(empty).includes("acks-extras-battlemap-rows"), "nothing extra shows");
 }
 
 /* -------------------------------------------- */

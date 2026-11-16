@@ -228,14 +228,40 @@ for (const family of ["hexRows", "hexCols"]) {
   });
 
   test(`${family}: the fit's family verdicts are warnings with the family select as their action, never needs`, () => {
+    const boxes = [hexBox(0), hexBox(1)];
     for (const id of ["familyMismatch", "familyAmbiguous"]) {
       for (const basis of ["lattice", "shape"]) {
-        const p = hexPlan({ samples: { boxes: 3 }, fit: hexFit({ warnings: [{ id, basis }] }) });
+        const p = hexPlan({ samples: { boxes: 2 }, fit: hexFit({ boxes, used: 2, warnings: [{ id, basis }] }) });
         assert.deepEqual(p.warnings, [{ id, action: "familySelect", basis }], `${id} ${basis}`);
         assert.deepEqual(p.needs, [], `${id} ${basis}`);
         assert.equal(p.canApply, true, `${id} ${basis}`);
       }
     }
+  });
+
+  test(`${family}: a shape-based family mismatch over one used box is lone, and stays a warning`, () => {
+    const p = hexPlan({ samples: { boxes: 1 }, fit: hexFit({ warnings: [{ id: "familyMismatch", basis: "shape" }] }) });
+    assert.deepEqual(p.warnings, [{ id: "familyMismatch", action: "familySelect", basis: "shape", lone: true }]);
+    assert.deepEqual(p.needs, []);
+    assert.equal(p.canApply, true, "a Judge gets a warning, never a block");
+  });
+
+  test(`${family}: a mismatch is not lone with two used boxes, on a lattice basis, or as an ambiguity`, () => {
+    const two = hexFit({ boxes: [hexBox(0), hexBox(1)], used: 2, warnings: [{ id: "familyMismatch", basis: "shape" }] });
+    assert.deepEqual(hexPlan({ samples: { boxes: 2 }, fit: two }).warnings, [{ id: "familyMismatch", action: "familySelect", basis: "shape" }]);
+    const lattice = hexFit({ warnings: [{ id: "familyMismatch", basis: "lattice" }] });
+    assert.deepEqual(hexPlan({ samples: { boxes: 1 }, fit: lattice }).warnings, [{ id: "familyMismatch", action: "familySelect", basis: "lattice" }]);
+    const ambiguous = hexFit({ warnings: [{ id: "familyAmbiguous", basis: "shape" }] });
+    assert.deepEqual(hexPlan({ samples: { boxes: 1 }, fit: ambiguous }).warnings, [{ id: "familyAmbiguous", action: "familySelect", basis: "shape" }]);
+  });
+
+  test(`${family}: boxes the fit left out do not count as used when the mismatch is called lone`, () => {
+    const boxes = [hexBox(0), outBox(1, "notOneHex"), outBox(2, "unreachable")];
+    const p = hexPlan({ samples: { boxes: 3 }, fit: hexFit({ boxes, warnings: [{ id: "familyMismatch", basis: "shape" }] }) });
+    assert.equal(p.warnings.find((w) => w.id === "familyMismatch").lone, true, "one used box among left-out ones is still alone");
+    const used = [hexBox(0), hexBox(1), outBox(2, "notOneHex")];
+    const q = hexPlan({ samples: { boxes: 3 }, fit: hexFit({ boxes: used, used: 2, warnings: [{ id: "familyMismatch", basis: "shape" }] }) });
+    assert.equal("lone" in q.warnings.find((w) => w.id === "familyMismatch"), false, "two used boxes are not alone");
   });
 
   test(`${family}: unreachable boxes are one warning that points at the box tool, with the boxes unused`, () => {
@@ -500,7 +526,7 @@ for (const t of [ROWS, COLS]) {
     assert.equal(fit.ok, true, "the real fit takes a lone block, shaped like the other family's hex, as one hex");
     const p = realPlan(t.family, fit, { boxes: 1 });
     assert.deepEqual(p.needs, []);
-    assert.deepEqual(p.warnings, [{ id: "familyMismatch", action: "familySelect", basis: "shape" }]);
+    assert.deepEqual(p.warnings, [{ id: "familyMismatch", action: "familySelect", basis: "shape", lone: true }]);
     assert.equal(p.canApply, true);
   });
 

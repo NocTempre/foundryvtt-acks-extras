@@ -30,7 +30,10 @@
     <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.hexEvenHint"}}</p>
   {{/if}}
 
-  <div class="acks-extras-battlemap-row">
+  {{! What one drawn cell is worth and the unit it is read in are one decision,
+      so they share a row; the chips and the bar's reading stay under the field
+      they fill. The unit is written by Apply, not on change. }}
+  <div class="acks-extras-battlemap-row acks-extras-battlemap-row-top">
     <label class="acks-extras-battlemap-field">
       <span>{{localize "ACKS-BATTLEMAP.setup.units"}}</span>
       <select name="units">
@@ -38,31 +41,29 @@
         {{#each unitOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
       </select>
     </label>
-    <label class="acks-extras-battlemap-field">
-      <span>{{localize "ACKS-BATTLEMAP.setup.system"}}</span>
-      <select name="mapSystem">
-        <option value="">{{localize "ACKS-BATTLEMAP.setup.systemNone"}}</option>
-        {{#each systemOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
+    {{#if showMapCell}}
+      <div class="acks-extras-battlemap-scalefield acks-extras-battlemap-cellgroup">
+        <label class="acks-extras-battlemap-field">
+          <span>{{mapCellLabel}}</span>
+          <div class="acks-extras-battlemap-withunit">
+            <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
+            <span>{{unitLabel}}</span>
+          </div>
+        </label>
+        <p class="acks-extras-battlemap-hint">{{mapCellHint}}</p>
+        {{#if mapChips.length}}
+          <div class="acks-extras-battlemap-chips">
+            {{#each mapChips}}
+              <button type="button" data-action="mapChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
+            {{/each}}
+          </div>
+        {{/if}}
+        {{#if barFeet}}
+          <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
+        {{/if}}
+      </div>
+    {{/if}}
   </div>
-  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.systemHint"}}</p>
-
-  {{! The country under the brush: what a hex nobody painted reads as, and all
-      a map that is not a hex map has. Written to the scene on change. }}
-  <div class="acks-extras-battlemap-row">
-    {{#each countryRows}}
-    <label class="acks-extras-battlemap-field">
-      <span>{{label}}</span>
-      <select name="{{name}}">
-        <option value="">{{@root.countryNone}}</option>
-        {{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
-        {{#each groups}}<optgroup label="{{label}}">{{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</optgroup>{{/each}}
-      </select>
-    </label>
-    {{/each}}
-  </div>
-  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.countryHint"}}</p>
 
   {{! The fit, read at a glance: this is the live feedback while sampling, so
       it leads. Sampling itself is the Battlemap scene controls' job. }}
@@ -86,13 +87,15 @@
   </div>
   {{/if}}
 
-  {{! What Apply is still waiting on, one line per gap and each naming the one
-      control that closes it, then what the family leaves out, then the fit's
-      own warnings (the worst-box slot). Labels are resolved in the context. }}
+  {{! What Apply says about the scene. First, that the scene already holds the
+      setup (a statement, not a warning); then what Apply is still waiting on,
+      one line per gap and each naming the one control that closes it; then what
+      the family leaves out, then the fit's own warnings (the worst-box slot).
+      Labels are resolved in the context. }}
+  {{#if matchesLine}}<p class="acks-extras-battlemap-sub"><i class="fa-solid fa-circle-check"></i> {{matchesLine}}</p>{{/if}}
   {{#each needLines}}
     <p class="acks-extras-battlemap-warn"><i class="fa-solid fa-circle-info"></i> {{this}}</p>
   {{/each}}
-  {{#if matchesLine}}<p class="acks-extras-battlemap-hint">{{matchesLine}}</p>{{/if}}
   {{#each unusedLines}}
     <p class="acks-extras-battlemap-hint">{{this}}</p>
   {{/each}}
@@ -150,29 +153,6 @@
   {{! Each field owns the chips directly beneath it, and says in words what its
       number means. A shared chip row under a two-column pair reads as
       belonging to whichever field the eye is on. }}
-  {{#if showMapCell}}
-    <div class="acks-extras-battlemap-scalefield">
-      <label class="acks-extras-battlemap-field">
-        <span>{{mapCellLabel}}</span>
-        <div class="acks-extras-battlemap-withunit">
-          <input type="number" name="mapCellFeet" min="0" step="any" value="{{opts.mapCellFeet}}" placeholder="{{mapCellFeet}}">
-          <span>{{unitLabel}}</span>
-        </div>
-      </label>
-      <p class="acks-extras-battlemap-hint">{{mapCellHint}}</p>
-      {{#if mapChips.length}}
-        <div class="acks-extras-battlemap-chips">
-          {{#each mapChips}}
-            <button type="button" data-action="mapChip" data-value="{{value}}" class="{{#if active}}active{{/if}}">{{value}}</button>
-          {{/each}}
-        </div>
-      {{/if}}
-      {{#if barFeet}}
-        <div class="acks-extras-battlemap-sub">{{localize "ACKS-BATTLEMAP.scale.fromBar"}}: <strong>{{barFeet}}</strong> {{unitLabel}}</div>
-      {{/if}}
-    </div>
-  {{/if}}
-
   {{#if isSquare}}
     <div class="acks-extras-battlemap-scalefield">
       <label class="acks-extras-battlemap-field">
@@ -248,6 +228,36 @@
       </button>
     </div>
   {{/if}}
+
+  {{! What a choice writes to the scene the moment it is made, apart from the
+      numbers Apply writes: the party system and the country under the brush. }}
+  <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.setup.saved"}}</span></div>
+  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.savedHint"}}</p>
+
+  <label class="acks-extras-battlemap-field">
+    <span>{{localize "ACKS-BATTLEMAP.setup.system"}}</span>
+    <select name="mapSystem">
+      <option value="">{{localize "ACKS-BATTLEMAP.setup.systemNone"}}</option>
+      {{#each systemOptions}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.systemHint"}}</p>
+
+  {{! The country under the brush: what a hex nobody painted reads as, and all
+      a map that is not a hex map has. }}
+  <div class="acks-extras-battlemap-row">
+    {{#each countryRows}}
+    <label class="acks-extras-battlemap-field">
+      <span>{{label}}</span>
+      <select name="{{name}}">
+        <option value="">{{@root.countryNone}}</option>
+        {{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        {{#each groups}}<optgroup label="{{label}}">{{#each options}}<option value="{{key}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</optgroup>{{/each}}
+      </select>
+    </label>
+    {{/each}}
+  </div>
+  <p class="acks-extras-battlemap-hint">{{localize "ACKS-BATTLEMAP.setup.countryHint"}}</p>
 
   <div class="acks-extras-battlemap-rule"><span>{{localize "ACKS-BATTLEMAP.tokens.title"}}</span></div>
 

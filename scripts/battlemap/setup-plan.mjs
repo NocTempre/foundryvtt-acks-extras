@@ -45,13 +45,17 @@
  *
  * | id | action | fields | when |
  * |---|---|---|---|
- * | `familyMismatch` | `familySelect` | `basis` | hex: the fit reads the boxes as the other hex family |
+ * | `familyMismatch` | `familySelect` | `basis`, `lone`? | hex: the fit reads the boxes as the other hex family |
  * | `familyAmbiguous` | `familySelect` | `basis` | hex: the fit cannot tell the two families apart |
  * | `unreachable` | `boxTool` | `count` | hex: boxes too far to place; a box drawn between them closes the gap |
  * | `looseFit` | none | `worst`, `rmsPct` | the fit's confidence is `"loose"` |
  *
  * `basis` is the fit's own: `"lattice"` (the boxes' spread decided it) or
- * `"shape"` (their proportions did). `worst` is the index of the box that sits
+ * `"shape"` (their proportions did). `lone` is present, and `true`, only on a
+ * shape-based `familyMismatch` over exactly one used box: one box cannot show
+ * its own size, so a box drawn around several hexes reads as the other family
+ * just as a wrong family does, and only a second box tells the two apart.
+ * `worst` is the index of the box that sits
  * furthest off, null where the fit names none (a square fit scores no single
  * box; a hex fit names one only from three used boxes).
  *
@@ -192,13 +196,18 @@ const FAMILY_VERDICTS = new Set(["familyMismatch", "familyAmbiguous"]);
 /**
  * The warnings a usable fit carries. A hex fit's family verdicts pass through
  * with the family select as their action; boxes it could not place become one
- * `unreachable` warning; a loose confidence adds `looseFit`.
+ * `unreachable` warning; a loose confidence adds `looseFit`. A shape-based
+ * mismatch over a single used box is marked `lone`.
  */
 function fitWarnings({ fit, hex }) {
   const warnings = [];
   if (hex) {
+    const used = (fit.boxes ?? []).filter((b) => !b.notOneHex && !b.unreachable).length;
     for (const w of fit.warnings ?? []) {
-      if (FAMILY_VERDICTS.has(w?.id)) warnings.push({ id: w.id, action: "familySelect", basis: w.basis ?? null });
+      if (!FAMILY_VERDICTS.has(w?.id)) continue;
+      const warning = { id: w.id, action: "familySelect", basis: w.basis ?? null };
+      if (w.id === "familyMismatch" && warning.basis === "shape" && used === 1) warning.lone = true;
+      warnings.push(warning);
     }
     const far = (fit.boxes ?? []).filter((b) => b.unreachable).length;
     if (far) warnings.push({ id: "unreachable", count: far, action: "boxTool" });

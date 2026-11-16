@@ -207,6 +207,21 @@
   margin-bottom: 2px;
 }
 
+/* A row whose columns differ in height: the units select stays level with the
+   cell field's own input, not with the chips under it. */
+.acks-extras-battlemap-row-top {
+  align-items: flex-start;
+}
+
+/* The cell's worth, its hint and its chips as one column of the row. A plain
+   block, not a `.acks-extras-battlemap-field`, whose flex basis would read as a
+   height in a column. */
+.acks-extras-battlemap-cellgroup {
+  flex: 2 1 10em;
+  min-width: 0;
+  margin-bottom: 0;
+}
+
 /* Armed: every click on the map is a sample, so this is loud and carries the
    way out. */
 .acks-extras-battlemap-armed {
@@ -319,6 +334,58 @@
 .acks-extras-battlemap-foot button {
   width: 100%;
   border-radius: var(--acks-radius);
+}
+
+/* What Apply rewrites. The list takes its own scroll past a bound in the
+   window's own unit, so a long list or a raised type size never pushes the
+   buttons below the frame. */
+.acks-extras-battlemap-rowshead {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-battlemap-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-height: 0;
+  max-height: 11em;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.acks-extras-battlemap-rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  line-height: 1.3;
+}
+
+.acks-extras-battlemap-rowlabel {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-battlemap-rowfigure {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--acks-fs-base);
+  color: var(--acks-ink);
+}
+
+.acks-extras-battlemap-rownote {
+  flex: 1 0 100%;
+  font-size: var(--acks-fs-base);
+  color: var(--acks-ink-faint);
 }
 
 .acks-extras-battlemap-primary {

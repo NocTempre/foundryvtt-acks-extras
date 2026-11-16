@@ -497,14 +497,18 @@ for (const [key, entry] of Object.entries(SIZES)) {
     assert.ok(body.includes(`{{#each ${slot}}}`), `the panel renders ${slot}`);
   }
   // Apply is also off where the scene already matches; that says so too.
-  assert.ok(body.includes("{{#if matchesLine}}") && app.includes("plan.matches ? loc(\"apply.matches\")"), "a matching scene's disabled Apply is explained");
+  assert.ok(body.includes("{{#if matchesLine}}") && app.includes("plan.matches ? this.#matchesLine(scene)") && app.includes('loc("apply.matches"'), "a matching scene's disabled Apply is explained");
   assert.ok("ACKS-BATTLEMAP.apply.matches" in lang);
+  assert.ok(body.indexOf("{{#if matchesLine}}") < body.indexOf("{{#each needLines}}"), "the scene's own setup is the first thing the needs area says");
 
   // Every key the lines read exists, and a retired key is not left behind.
-  for (const [, key] of app.matchAll(/loc\("((?:needs|unused|warn)\.\w+)"/g)) {
+  for (const [, key] of app.matchAll(/loc\("((?:needs|unused|warn|rows|apply|setup)\.[\w.]+)"/g)) {
     assert.ok(`ACKS-BATTLEMAP.${key}` in lang, `${key} is read and not defined`);
   }
-  for (const gone of ["warn.noHexBox", "warn.badSolution", "fit.none", "fit.noneScale"]) {
+  // The keys the panel builds from a grid type, a row id or a mode are read by suffix, so each is named here.
+  for (const key of [0, 1, 2, 3, 4, 5].map((t) => `rows.type.${t}`)) assert.ok(`ACKS-BATTLEMAP.${key}` in lang, `${key} is defined`);
+  for (const id of ["grid", "cellWorth", "image", "tokenSizing", "travelSystem"]) assert.ok(`ACKS-BATTLEMAP.rows.label.${id}` in lang, `rows.label.${id} is defined`);
+  for (const gone of ["warn.noHexBox", "warn.badSolution", "fit.none", "fit.noneScale", "apply.confirmTitle", "apply.confirmBody", "apply.confirmHex", "apply.confirmScale"]) {
     assert.ok(!(`ACKS-BATTLEMAP.${gone}` in lang), `${gone} has no reader and should be gone`);
   }
   assert.ok(!/placed tokens, tiles,? and walls\s+(?:move|reposition)/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]) && !/reposition/i.test(lang["ACKS-BATTLEMAP.apply.confirmShift"]),
