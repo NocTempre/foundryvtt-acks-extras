@@ -897,6 +897,10 @@ Kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`.
   - The readout gives the GM four lines: "Drawn larger than its footprint /
     Drawn at 6 × 6 mi / Footprint 5 × 5 ft / One square of 5 ft (MM p.11)".
     The 5 ft comes from the world's import.
+  - It appeared once the ticker was stepped. Whether it appears unaided
+    after an apply, in a foreground tab, is not checked. The cadence
+    member's footprint flag had been cleared, so its figure came from the
+    imported square.
   - It stayed through a move and a resize to 2 × 2, and after a resize back.
   - The client setting turns it off and back on.
   - It came back after leaving the scene for `formation/combat-scene` (square
@@ -905,6 +909,17 @@ Kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`.
   - On `day-journey-hex`, the formation's shadow token (`shadowFor`, no
     formation flag) carried a mark. That gap predates I (`resolveSize` had
     it), and c7b403da fixes it. After a reload the shadow has none.
+- **c7b403da's party exclusion, live.**
+  - A rescale of `formation/day-journey-hex` returned 0, with no width or
+    height write: `preUpdateToken` was armed only to see one. Both tokens
+    there, the party and its shadow, kept `_source` 1 × 1.
+  - A party actor of my own (`battlemap/party-drop@p3`), with no formation,
+    was dropped through `preCreateToken` onto the applied 6 mi scene with
+    auto-sizing on. It kept 1 × 1 and is not judged.
+  - Both were swept by their ids: removed `…Token.aOvGJ7RDgNgDlswg` and
+    `Actor.pvNqaTjnFTZXqAwz`; could not find `[]`; refused `[]`.
+  - The pre-fix write to the shadow is inferred: the old code judged it, and
+    0.25 is the mile-scale floor. It was not reproduced.
 - **The footer at a raised type size** (D, fixed on the walk). At 20 px type
   in a 480 px window the footer took 375 px and left the body 67. With
   c7b403da, at 14 px the body is 177, 243 and 455 px in 360, 480 and 760 px
@@ -920,6 +935,13 @@ Kept scenes `battlemap/hex-setup-feedback` and `battlemap/hex-cols-setup`.
   tokens and notes, with no Battlemap group. The cadence member's token is
   not visible to that seat, so its mark, a child of the token, is not either.
   The readout, forced by a `hoverToken` call, gives a non-owner two lines.
+  "A player sees the mark on a token it can see" is inferred, not exercised:
+  that scene held no token visible to the seat.
+- **The seat.** The pane began on Gamemaster. After the reload for the
+  shadow fix it read Assistant Gamemaster: the pane's shared profile had
+  taken a peer's join. That seat passes every `isGM` check, so the checks
+  after the reload still prove the GM path. It was not re-joined, which
+  would have re-seated a peer's pane.
 - **Console.** At the end of the walk the pane's buffer held no error-level
   entry. It had already dropped 2642 earlier lines, so it says nothing of
   `init`, `setup` or `ready` on this load.
@@ -948,8 +970,9 @@ Fixture ledger:
 #### Not checked
 
 - Both parities from one box, and the travel-system row (T-0611).
-- Step 15's party drop. Phase 2 walked it, and D, E, G and I do not touch it.
-  Dropping a party here would move a kept formation's party.
+- Step 15's party drop with a formation, taking Journey. Phase 2 walked it.
+  Dropping that party here would move a kept formation's party. The
+  formation-less party drop above covers the sizing half.
 - The mark's look on screen. The pane was hidden, so no shot was taken. Its
   draw order: it sits at child index 1, behind core's first child, not 0.
 - The footer and token section at an expedition scale (`travelSystem`).

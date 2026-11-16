@@ -19,7 +19,8 @@ by hand.
 - A disposable monster actor with extras size = Large (Classification tab).
 - A disposable 3-member formation with its party token on the first scene
   (see `docs/formation/TESTING.md` fixtures for the drop mechanics).
-- One disposable plain character actor with a default 1×1 prototype token.
+- One plain character actor with a default 1×1 prototype token, marker
+  `battlemap/plain-character`.
 - A disposable scene for the scale-only path — any background will do,
   including a flat texture (`ui/parchment.jpg`), because that path measures
   what you tell it rather than what is drawn. Set the background through the
