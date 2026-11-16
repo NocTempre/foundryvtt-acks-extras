@@ -256,9 +256,57 @@ the likely ones.
     "Battlemap window" (MODEL) and "Map alignment & token scale" (the guide).
     C, Cf.
 
+### Seen on screen (Phase 3's surface walk)
+
+Walked 2026-11-15 on `main` at 001316c2, GM seat, 1366×768, on
+`battlemap/hex-setup-feedback` as Phase 2 left it (hex rows, 6 mi), with the
+Battlemap group, the setup window in all four families, the brush palette,
+Map modes, the Scene configuration row and the navigation card's icon. Each is
+new unless it says which finding it confirms. **W** is walked.
+
+32. **A scene applied as hex cannot be set up again as square.** The square
+    family's needs line refuses it ("This scene uses a hex grid…") and offers
+    a hex family or scale only. The way out, the grid set back to gridless in
+    Scene configuration, is named nowhere, so a map applied as the wrong
+    family is stuck as far as the window is concerned (`apply.mjs`
+    `solveGridCalibration`, `CALIBRATABLE_GRIDS`). W, D. Slice D: the line
+    names the way out.
+33. **Three windows on one spot.** The setup window opens 760 px tall in a
+    768 px viewport. The brush palette (from the toolbar) and Map modes open
+    at fixed points over its right edge and over each other. W, Co.
+34. **The country block splits the setup.** Ground, territory and climate
+    (21, 4 and 31 options) sit between the units select and the needs line,
+    so the cell's worth and the needs line are a screen below the units. The
+    ground and territory lists repeat the brush palette's swatches word for
+    word, and both windows show them at once. W, Cf. Slice D: the block moves
+    under its "saved as you choose" heading, below the scale.
+35. **Reopened on a scene already applied**, the window reads as a fresh map:
+    "Draw a box…", a blank hex size, and nothing that says the scene is
+    already a 6 mi hex grid. W, Cf. Slice D's already-matches row.
+36. One box, two roundings: the box row reads "31×47 px" where the card reads
+    "30.7 × 47.3". W, Co. J1.
+37. On a 6 mi scene the scale-only and square families offer 6, 12, 60 and
+    120 mi chips, and the ruler-cell chips are multiples of the scene's own
+    distance whatever it is. W, Cf. Slice E, with the token chips.
+
+Confirmed on screen: 7 (the hex size's hint speaks of a Foundry square), 11
+(the ×, ↺ and ✓ have no spoken name; read from the DOM), 12 (the card's
+30.7 × 47.3, "fair" and "1 box" carry no tooltip), 24 (the palette says
+"Domain" where Map modes says "Domains"), 26 (three road tools share one
+glyph), 29 and 31 (the Scene configuration button's glyph is a ruler where
+the toolbar's is sliders). The familyAmbiguous line reads on one honest box,
+as Phase 1 predicted.
+
+**A name for 31**, proposed by the phase session from what the toolbar
+already says: **Map setup**. The window's title, the toolbar tool, the Scene
+configuration button ("Map setup…") and its hint all say it, and the window's
+own first heading moves to what it heads. MODEL and the guide take it in
+Phase 4.
+
 ### For a later batch
 
-Not built by this plan. Phase 3 registers each on the bug-intake ledger
+Not built by this plan. Registered 2026-11-15 as T-0599 to T-0607 (22 to
+30, in order), source `audit:2026-11-15`. Phase 3 registers each on the bug-intake ledger
 (`acks-bug-triage`, rows matched by title) before it opens its branch.
 
 22. Closing the palette leaves a toolbar-armed brush armed (`_onClose`), and
