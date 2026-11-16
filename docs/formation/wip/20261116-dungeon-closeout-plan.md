@@ -37,9 +37,20 @@ to an agent.
 
 Read here as: the first row of the batch is getting a party past hazardous
 ground (ROADMAP §1, "Spelunking, squeezing, swimming, jumping", and §3 item
-3). "UI improvement pass" is read as the new crossing surface plus the
-dungeon-mode windows it joins. That reading is the planning session's and is
-put to the owner once (§5, OQ7).
+3). "UI improvement pass" was first read as the new crossing surface plus the
+dungeon-mode windows it joins, and that reading was put to the owner (§5,
+OQ7).
+
+2026-11-16, asked "Should the UI pass cover the crossing surface plus the
+three windows it joins?", with "Yes, as planned" and "Every dungeon window" as
+the answers offered:
+
+> Every dungeon window
+
+Read here as: every window, dialog, sheet tab and sheet section the formation
+feature renders or opens while a party is in dungeon mode, a tab or dialog
+shared with the other modes included. §10 says which those are and which are
+left out, each with its reason.
 
 Standing rulings every phase holds to, each quoted where it lives: no house
 rules ship; a printed figure or categorical table is imported, Judge-editable,
@@ -226,7 +237,8 @@ ones its slices need, once, and builds what they do not touch meanwhile.
   them. (b) Amend the frozen archive. (c) Run the leak procedure.
 - **OQ7, what the UI pass covers.** (a) The crossing surface and the
   dungeon-mode windows it joins. (b) Every dungeon-mode window. (c) The
-  crossing surface alone. Planned on: (a).
+  crossing surface alone. Planned on: (a). **Answered 2026-11-16: (b)**, in
+  the owner's words in §1.
 
 ## 6. What the importer owes, in order
 
