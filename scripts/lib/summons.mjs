@@ -1,4 +1,4 @@
-/* global game, ui, foundry, canvas, CONST, Actor, Folder, fromUuid */
+/* global game, ui, foundry, canvas, CONST, Actor, Folder, fromUuid, Hooks */
 /**
  * Player summons — the Foundry half. A character's owner summons creatures
  * from the monster library onto the scene they are looking at; each one is an
@@ -31,7 +31,7 @@
  * spell names is resolved on the GM's client with the GM's access, so a seat
  * that cannot open its shelf still summons it.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
 import * as services from "./services.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
@@ -273,6 +273,9 @@ async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, sp
   const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast, at: game.time.worldTime });
   const ownership = summonOwnership(summoner.ownership, [user.id], (id) => !!game.users.get(id)?.isGM);
   const tokenUuids = await createTokens({ copy, scene, positions, flags, ownership });
+  if (tokenUuids.length) {
+    Hooks.callAll(SUMMONS_PLACED_HOOK, { summonerUuid: summoner.uuid, sceneId: scene.id, tokenIds: tokenUuids.map((uuid) => uuid.split(".").pop()) });
+  }
   return { ok: true, castId: cast, tokenUuids };
 }
 

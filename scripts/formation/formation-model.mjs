@@ -730,10 +730,12 @@ export const isPerson = (actor) => actor?.type === "character" || actor?.type ==
  * Dead or unconscious: either way these legs are worth nothing, and the party
  * must carry them or leave them before it can move at all. The distinction
  * between the two states matters elsewhere — to medicine, and to what a Judge
- * tells the players — but not to arithmetic about walking.
+ * tells the players — but not to arithmetic about walking. A summon member is
+ * never one: it is no person, and at zero hit points it ends instead
+ * (`endFallenSummon`).
  */
 export const isCasualty = (actor, member = null) =>
-  isPerson(actor) && (isDown(actor, member) || isDead(actor, member));
+  !isSummonMember(member) && isPerson(actor) && (isDown(actor, member) || isDead(actor, member));
 
 /**
  * Carried load: each down member's body and a share of their equipment

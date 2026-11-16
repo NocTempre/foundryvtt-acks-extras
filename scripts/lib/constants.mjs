@@ -71,3 +71,10 @@ export const TEMPLATE_HOOKS = Object.freeze({
  * (`damage`, `save` or `moved`). It does not fire when nothing was lost.
  */
 export const STATES_LOST_HOOK = `${NAMESPACE}.statesLost`;
+
+/**
+ * Fired with `{summonerUuid, sceneId, tokenIds}` once a summoning's tokens are
+ * on the scene, on the client that placed them (the GM's). A feature that
+ * moves summons somewhere else, as the party does, listens; lib imports none.
+ */
+export const SUMMONS_PLACED_HOOK = `${NAMESPACE}.summonsPlaced`;

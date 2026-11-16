@@ -18,6 +18,7 @@ import {
   updateFormation,
 } from "./formation-model.mjs";
 import { columnPlacement, columnSpacing, deploySpot, spotFits } from "./column.mjs";
+import { gatherSummons } from "./membership.mjs";
 
 /**
  * Putting members on the map and gathering them back in: the combat deploy,
@@ -324,7 +325,7 @@ export async function recallMembers(formation, { members = formation.members } =
     if (!token) continue; // token already gone; keep the pre-deploy stash
 
     const hp = token.actor?.system?.hp?.value;
-    if (typeof hp === "number" && hp <= 0) fallen.push(token.actor?.name ?? token.name);
+    if (typeof hp === "number" && hp <= 0 && !isSummonMember(member)) fallen.push(token.actor?.name ?? token.name);
 
     member.tokenData = token.toObject();
     toDelete.push(token);
@@ -339,6 +340,22 @@ export async function recallMembers(formation, { members = formation.members } =
   for (const token of toDelete) perScene.set(token.parent, [...(perScene.get(token.parent) ?? []), token.id]);
   for (const [where, ids] of perScene) await where.deleteEmbeddedDocuments("Token", ids);
   return { fallen, anchor };
+}
+
+/**
+ * Bring the creatures the recalled members summoned while out into the party
+ * with them: a cast made on the map left its creatures there as tokens, and
+ * they join once their summoner is back inside. A failure is logged and never
+ * undoes the recall.
+ * @param {object} formation
+ * @param {object[]} members the members just recalled
+ */
+export async function gatherRecalled(formation, members) {
+  try {
+    await gatherSummons(formation, members.filter((m) => !isSummonMember(m)).map((m) => m.actorId));
+  } catch (err) {
+    console.error(`${MODULE_ID} | a recalled summoner's creatures could not be gathered`, err);
+  }
 }
 
 /**
@@ -358,6 +375,7 @@ export async function toggleDetachMember(formation, actorId) {
   if (isMemberDeployed(member)) {
     if (!member.detached) return null; // deployed by a combat, not by a detach
     await recallMembers(formation, { members: [member] });
+    await gatherRecalled(formation, [member]);
     return "recalled";
   }
   const created = await deployMembers(formation, { members: [member], detached: true });
@@ -386,6 +404,7 @@ export async function toggleMemberLeft(formation, actorId) {
       await deployMembers(formation, { members: [member] });
     } else if (!leaving && isMemberDeployed(member)) {
       await recallMembers(formation, { members: [member] });
+      await gatherRecalled(formation, [member]);
     }
   }
   return leaving;

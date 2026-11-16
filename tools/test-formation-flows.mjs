@@ -6136,6 +6136,249 @@ await scenario("summon members: a deployed creature's token deleted by hand ends
   assert.equal(wolvesOn(rig.copy).length, 1, "disbanding restores the survivor");
 });
 
+/* -------------------------------------------- */
+/*  Summons join their summoner's party          */
+/* -------------------------------------------- */
+
+const { SUMMONS_PLACED_HOOK } = await import("../scripts/lib/constants.mjs");
+const placed = (by, on = scene) => Hooks.callAll(SUMMONS_PLACED_HOOK, { summonerUuid: by.uuid, sceneId: on.id, tokenIds: [] });
+const summonMembers = () => onlyFormation().members.filter((m) => m.baseActorId);
+
+await scenario("summon joining: a cast while the summoner is formed up brings both creatures in; a hand-bound one never joins", async () => {
+  const rig = await summonRig("JoinUp");
+  await rig.wolf(rig.caster, "c1", 1200);
+  await rig.wolf(rig.caster, "c1", 1300);
+  const [bound] = await scene.createEmbeddedDocuments("Token", [{ name: "Bound", actorId: rig.copy.id, actorLink: false, x: 1400, y: 1300, delta: { flags: { [MODULE_ID]: { summonedBy: rig.caster.uuid } } } }]);
+  placed(rig.caster);
+  await drain();
+  assert.equal(summonMembers().length, 2, "both cast creatures are members");
+  assert.deepEqual(wolvesOn(rig.copy).map((t) => t.id), [bound.id], "only the hand-bound creature still stands on the map");
+  assert.ok(summonMembers().every((m) => m.tokenData?.delta?.flags?.[MODULE_ID]?.summon?.castId === "c1"), "each keeps its cast record");
+  placed(rig.caster);
+  await drain();
+  assert.equal(summonMembers().length, 2, "a second announcement finds nothing more");
+  await model.dissolveFormation(rig.formation());
+  await drain();
+  const back = wolvesOn(rig.copy);
+  assert.equal(back.length, 3, "disbanding restores both beside the bound one");
+  assert.equal(back.filter((t) => t.delta?.flags?.[MODULE_ID]?.summon?.castId === "c1").length, 2, "with their cast records");
+});
+
+await scenario("summon joining: a summoner out on the map keeps its creatures out until it is recalled", async () => {
+  const rig = await summonRig("JoinOut");
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "detached");
+  await drain();
+  await rig.wolf(rig.caster, "c1", 1200);
+  await rig.wolf(rig.caster, "c1", 1300);
+  placed(rig.caster);
+  await drain();
+  assert.equal(summonMembers().length, 0, "nothing joins while the summoner is deployed");
+  assert.equal(wolvesOn(rig.copy).length, 2, "the creatures stand");
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "recalled");
+  await drain();
+  assert.equal(summonMembers().length, 2, "the recall gathers them");
+  assert.equal(wolvesOn(rig.copy).length, 0);
+});
+
+await scenario("summon joining: a fight's end gathers what the deployed summoner cast on the map", async () => {
+  const rig = await summonRig("JoinFight");
+  const combat = new CombatMock();
+  game.combats.set(combat.id, combat);
+  const stored = rig.formation();
+  await combat.createEmbeddedDocuments("Combatant", [{ tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false }]);
+  await drain();
+  assert.ok(rig.formation().combat?.active, "the party is deployed");
+  await rig.wolf(rig.caster, "c1", 1200);
+  placed(rig.caster);
+  await drain();
+  assert.equal(summonMembers().length, 0, "no join mid-fight");
+  await combat.delete();
+  await drain();
+  assert.equal(rig.formation().combat, null, "the fight is over");
+  assert.equal(summonMembers().length, 1, "the reform gathers the creature");
+  assert.equal(wolvesOn(rig.copy).length, 0);
+});
+
+await scenario("summon joining: a summoner who joins later brings its standing creatures in", async () => {
+  const rig = await summonRig("JoinLate");
+  const late = await member("JoinLate Late");
+  const [lateToken] = await scene.createEmbeddedDocuments("Token", [{ name: late.name, actorId: late.id, x: 1000, y: 1000 }]);
+  await rig.wolf(late, "c7", 1250);
+  placed(late);
+  await drain();
+  assert.equal(summonMembers().length, 0, "its summoner is no member yet, so nothing joins");
+  await model.addMember(rig.formation(), late, lateToken);
+  await drain();
+  assert.equal(summonMembers().length, 1, "joining gathers its creature");
+  assert.equal(summonMembers()[0].tokenData.delta.flags[MODULE_ID].summonedBy, late.uuid);
+  assert.equal(wolvesOn(rig.copy).length, 0);
+});
+
+await scenario("summon joining: a creature of another party's summoner, or on another scene, does not join", async () => {
+  const rig = await summonRig("JoinOther");
+  const stranger = await member("JoinOther Stranger");
+  const [strangerToken] = await scene.createEmbeddedDocuments("Token", [{ name: stranger.name, actorId: stranger.id, x: 900, y: 900 }]);
+  const other = await model.addMember(await model.createFormation("JoinOther Second"), stranger, strangerToken);
+  await drain();
+  const strangers = await rig.wolf(stranger, "c3", 1250);
+  placed(rig.caster);
+  placed(stranger);
+  await drain();
+  const ledger = Object.values(readFormations());
+  assert.equal(ledger.find((f) => f.id === rig.id).members.filter((m) => m.baseActorId).length, 0, "the stranger's creature is not this party's");
+  assert.equal(ledger.find((f) => f.id === other.id).members.filter((m) => m.baseActorId).length, 1, "it is its own party's");
+  assert.ok(!scene.tokens.get(strangers.id), "and left the scene for it");
+
+  const elsewhere = new SceneMock("Elsewhere");
+  game.scenes.set(elsewhere.id, elsewhere);
+  try {
+    const record = { sourceUuid: "Compendium.test.Actor.wolf", name: "Wolf", castId: "c4", at: 1 };
+    const [far] = await elsewhere.createEmbeddedDocuments("Token", [{ name: "Wolf", actorId: rig.copy.id, actorLink: false, x: 100, y: 100, delta: { flags: { [MODULE_ID]: { summonedBy: rig.caster.uuid, summon: record } } } }]);
+    placed(rig.caster, elsewhere);
+    await drain();
+    assert.ok(elsewhere.tokens.get(far.id), "a creature on a scene the party token is not on stays");
+    assert.equal(model.getFormation(rig.id).members.filter((m) => m.baseActorId).length, 0);
+  } finally {
+    game.scenes.delete(elsewhere.id);
+  }
+});
+
+await scenario("summon joining: a doubled trigger stores one member per creature, and a player's client stores none", async () => {
+  const rig = await summonRig("JoinTwice");
+  await rig.wolf(rig.caster, "c1", 1200);
+  await rig.wolf(rig.caster, "c1", 1300);
+  game.user = game.users.get("PL1");
+  try {
+    assert.equal(await membership.gatherSummons(rig.formation(), [rig.caster.id]), 0, "a player's client takes none");
+  } finally {
+    game.user = game.users.get("GM1");
+  }
+  const joined = await Promise.all([membership.gatherSummons(rig.formation(), [rig.caster.id]), membership.gatherSummons(rig.formation(), [rig.caster.id])]);
+  await drain();
+  assert.deepEqual(joined, [2, 0], "the second call finds both taken");
+  assert.equal(summonMembers().length, 2, "two members, not four");
+  assert.equal(new Set(summonMembers().map((m) => m.actorId)).size, 2);
+});
+
+/** A fake token actor, as core's `updateActor` hands one for an unlinked token's delta. */
+const syntheticOf = (token, value) => ({ isToken: true, token, id: token.actorId, system: { hp: { value } } });
+
+await scenario("summon members: reaching zero hit points ends one, stashed or deployed, and never a person", async () => {
+  const rig = await summonRig("Zero");
+  const roster = servicesApi.get("party-roster");
+  await rig.wolf(rig.caster, "c1", 1200);
+  await rig.wolf(rig.caster, "c1", 1300);
+  await rig.wolf(rig.caster, "c1", 1400);
+  placed(rig.caster);
+  await drain();
+  const [a, b, c] = summonMembers();
+  assert.equal((await roster.adjustStashedHp(rig.id, a.actorId, (hp) => hp.value - 2))?.after, 3, "a wound above zero leaves it");
+  assert.equal(summonMembers().length, 3);
+
+  // Stashed: the hit-point write that leaves it at zero ends it.
+  assert.equal((await roster.adjustStashedHp(rig.id, a.actorId, () => 0))?.after, 0);
+  assert.deepEqual(summonMembers().map((m) => m.actorId), [b.actorId, c.actorId], "its record is gone");
+
+  // Deployed: its token's creature falling ends it, record and token.
+  await deployment.toggleDetachMember(rig.formation(), b.actorId);
+  await deployment.toggleDetachMember(rig.formation(), c.actorId);
+  const bToken = scene.tokens.get(summonMembers().find((m) => m.actorId === b.actorId).deployedTokenId);
+  Hooks.call("updateActor", syntheticOf(bToken, 2), { system: { hp: { value: 2 } } }, {}, "GM1");
+  await drain();
+  assert.equal(summonMembers().length, 2, "a wounded token at hit points above zero stays");
+  Hooks.call("updateActor", syntheticOf(bToken, 0), { system: { hp: { value: 0 } } }, {}, "GM1");
+  await drain();
+  assert.deepEqual(summonMembers().map((m) => m.actorId), [c.actorId], "the fallen one's record is gone");
+  assert.ok(!scene.tokens.get(bToken.id), "and its token");
+  assert.equal(wolvesOn(rig.copy).length, 1, "the other still stands");
+
+  // A person at zero is untouched on both paths.
+  assert.equal(await deployment.toggleDetachMember(rig.formation(), rig.caster.id), "detached");
+  const casterToken = scene.tokens.get(rig.formation().members.find((m) => m.actorId === rig.caster.id).deployedTokenId);
+  Hooks.call("updateActor", syntheticOf(casterToken, 0), { system: { hp: { value: 0 } } }, {}, "GM1");
+  await drain();
+  assert.ok(rig.formation().members.some((m) => m.actorId === rig.caster.id && m.deployedTokenId), "a deployed person at zero stays a member");
+  assert.ok(scene.tokens.get(casterToken.id), "and keeps their token");
+  await deployment.toggleDetachMember(rig.formation(), rig.caster.id);
+  await drain();
+  assert.equal((await roster.adjustStashedHp(rig.id, rig.caster.id, () => 0))?.after, 0, "a stashed person's write lands");
+  assert.ok(rig.formation().members.some((m) => m.actorId === rig.caster.id), "and they stay a member");
+});
+
+await scenario("summon members: a summon is no person, so one never counts as a casualty or stops the column", async () => {
+  const rig = await summonRig("NoPerson");
+  await rig.wolf(rig.caster, "c1", 1200);
+  placed(rig.caster);
+  await drain();
+  const wolf = summonMembers()[0];
+  rig.copy.system.movementacks = { exploration: 90 };
+  await model.patchFormation(rig.id, (rec) => {
+    const held = rec.members.find((m) => m.actorId === wolf.actorId);
+    held.tokenData.delta.system.hp.value = 0;
+  });
+  const formation = rig.formation();
+  const held = formation.members.find((m) => m.actorId === wolf.actorId);
+  assert.equal(model.memberHp(held)?.value, 0, "its own hit points read zero");
+  assert.equal(model.isCasualty(rig.copy, held), false, "yet it is no casualty");
+  assert.equal(model.carriedLoad(formation).down.length, 0, "nobody carries it");
+  assert.equal(model.paceSetter(formation)?.speed, 90, "and the column is not stopped: the creature's own pace stands");
+  const personal = formation.members.find((m) => m.actorId === rig.caster.id);
+  assert.equal(model.isCasualty(rig.caster, { ...personal, dead: true }), true, "a person down is a casualty still");
+  await model.patchFormation(rig.id, (rec) => {
+    rec.members.find((m) => m.actorId === rig.caster.id).dead = true;
+  });
+  assert.equal(model.paceSetter(rig.formation())?.speed, 0, "while a casualty nobody carries stops it");
+});
+
+await scenario("summon joining: a joined summon survives the joiner's own later write, and a deployed one is no arrival", async () => {
+  const rig = await summonRig("JoinKeep");
+  const late = await member("JoinKeep Late");
+  const [lateToken] = await scene.createEmbeddedDocuments("Token", [{ name: late.name, actorId: late.id, x: 1000, y: 1000 }]);
+  await rig.wolf(late, "c7", 1250);
+  const copy = await model.addMember(rig.formation(), late, lateToken);
+  await drain();
+  assert.equal(summonMembers().length, 1, "the late summoner's creature joined");
+  copy.name = "Renamed";
+  await model.updateFormation(copy);
+  assert.equal(summonMembers().length, 1, "the joiner's own write of its copy keeps the summon");
+
+  // A summon member standing on the map is no new arrival.
+  const [held] = summonMembers();
+  assert.equal(await deployment.toggleDetachMember(onlyFormation(), held.actorId), "detached");
+  await drain();
+  const standing = scene.tokens.get(summonMembers()[0].deployedTokenId);
+  assert.ok(standing, "its token stands");
+  placed(late);
+  await drain();
+  assert.equal(summonMembers().length, 1, "still one member");
+  assert.ok(scene.tokens.get(standing.id), "its token was not taken in as a second creature");
+});
+
+await scenario("summon members: the party sheet and the experience share read a summon as no person", async () => {
+  const rig = await summonRig("Sheet");
+  await rig.wolf(rig.caster, "c1", 1200);
+  placed(rig.caster);
+  await drain();
+  const formation = rig.formation();
+  const wolf = formation.members.find((m) => m.baseActorId);
+  const built = (await import("../scripts/formation/formation-view.mjs")).buildFormationView(formation);
+  const row = built.members.find((r) => r.actorId === wolf.actorId);
+  assert.ok(row, "the party sheet lists it");
+  assert.equal(row.casualty, false);
+  game.user = game.users.get("PL1");
+  try {
+    const seat = (await import("../scripts/formation/formation-view.mjs")).buildFormationView(formation).members.find((r) => r.actorId === wolf.actorId);
+    assert.equal(seat.owned, false, "a player's seat owns nothing of the creature's copy");
+    assert.equal(seat.canControl, false, "so its row offers a player no control");
+  } finally {
+    game.user = game.users.get("GM1");
+  }
+  assert.deepEqual(row.roles.filter((r) => r.active), [], "it holds no role");
+  const xp = await import("../scripts/formation/xp-shares.mjs");
+  assert.equal(xp.shareFor(model.getMemberActor(wolf)).reason, xp.SHARE_REASON.notAPerson, "it takes no experience share");
+  assert.ok(xp.divideXp(xp.participantsOf(formation)).excluded.some((r) => r.actor === rig.copy), "and is left out of the division");
+});
+
 if (failures) {
   console.error(`test-flows: ${failures} scenario(s) FAILED`);
   process.exit(1);

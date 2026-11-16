@@ -39,6 +39,7 @@ import {
   getMemberActor,
   isCasualty,
   isPerson,
+  isSummonMember,
   memberPace,
   patchFormation,
   realMembers,
@@ -81,7 +82,7 @@ export function pinOf(actor) {
  * under their own token.
  */
 export function heldReason(member, actor, load) {
-  if (!isPerson(actor) && !isGroupActor(actor)) return "notPerson";
+  if (isSummonMember(member) || (!isPerson(actor) && !isGroupActor(actor))) return "notPerson";
   if (member.left) return "left";
   if (isMemberDeployed(member)) return "deployed";
   if (isCasualty(actor, member)) return "casualty";

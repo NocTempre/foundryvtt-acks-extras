@@ -1,4 +1,5 @@
 /* global Hooks, game, foundry, canvas, ui, CONFIG, Actor */
+import { SUMMONS_PLACED_HOOK } from "../lib/constants.mjs";
 import { ROLL_CONTEXT_HOOK } from "../lib/group-encounter-logic.mjs";
 import { rollLair } from "../lib/lair.mjs";
 import { elementOf, isPrimaryGM, replacementToken } from "../lib/util.mjs";
@@ -112,7 +113,7 @@ import * as swimming from "./swimming.mjs";
 import * as jumping from "./jumping.mjs";
 import * as encounterScaling from "./encounter-scaling.mjs";
 import { registerRequestSocket, requestBringIn, requestPartyAction } from "./player-requests.mjs";
-import { canJoin, partyHolding, partyOnScene, refusalText } from "./membership.mjs";
+import { canJoin, gatherSummons, partyHolding, partyOnScene, refusalText } from "./membership.mjs";
 import { registerSkillFlagEditor } from "./skill-audit.mjs";
 import { RESIZE_OPTION, stepFinished, syncEnvironments, syncPartyTokenSize } from "./scene-sync.mjs";
 import { recordTrail } from "./column-trail.mjs";
@@ -159,7 +160,7 @@ import { SURVIVAL_DOC } from "../lib/survival.mjs";
 import { expectTables } from "../lib/tables.mjs";
 import { TRAVEL_DOC, WEATHER_DOC } from "../vehicles/vehicle-speed.mjs";
 import { registerFormationRepairChecks } from "./repair-checks.mjs";
-import { registerPartyRoster } from "./party-roster.mjs";
+import { endFallenSummon, registerPartyRoster } from "./party-roster.mjs";
 import { registerFormationActivities } from "./turn-plan.mjs";
 import {
   clearStock, hexStockView, installHexStockCardActions, placeFromPoint, readStock, stockFromInputs, surveyHex, trueHexOf, writeStock,
@@ -951,10 +952,33 @@ Hooks.on("deleteToken", (tokenDoc, options) => {
 /*  Keep party speed in sync with members       */
 /* -------------------------------------------- */
 
-// Whoever added the member is a GM, so this one client takes the arrangement.
+// Whoever added the member is a GM, so this one client takes the arrangement
+// and the creatures its new member summoned before joining.
 Hooks.on("acksExtras.memberJoined", ({ formationId, actorId }) => {
   if (!game.user.isGM) return;
   arrangeJoined(formationId, actorId).catch((err) => console.error(`${MODULE_ID} | a joining member could not be arranged`, err));
+  const formation = getFormation(formationId);
+  if (formation) gatherSummons(formation, [actorId]).then(() => PartySheet.refreshAll()).catch((err) => console.error(`${MODULE_ID} | a joining member's creatures could not be gathered`, err));
+});
+
+/* A summoning placed on the scene of a party its summoner marches in joins that
+ * party. The hook is called on the placing GM's client alone. */
+Hooks.on(SUMMONS_PLACED_HOOK, ({ summonerUuid }) => {
+  if (!game.user.isGM) return;
+  const actorId = /^Actor.([^.]+)$/.exec(summonerUuid ?? "")?.[1];
+  const formation = actorId ? partyHolding(actorId) : null;
+  if (!formation) return;
+  gatherSummons(formation, [actorId]).then(() => PartySheet.refreshAll()).catch((err) => console.error(`${MODULE_ID} | a summoning's creatures could not be gathered`, err));
+});
+
+/* A deployed summon member's creature at zero hit points ends, as a dismissal
+ * ends it: core re-emits an unlinked token's delta update as `updateActor` on
+ * its synthetic actor. A person at zero is a casualty and is not touched. */
+Hooks.on("updateActor", (actor, changes) => {
+  if (!isPrimaryGM() || !actor?.isToken || !foundry.utils.hasProperty(changes, "system.hp")) return;
+  endFallenSummon(actor)
+    .then((ended) => ended && PartySheet.refreshAll())
+    .catch((err) => console.error(`${MODULE_ID} | a fallen summon could not be ended`, err));
 });
 
 Hooks.on("updateActor", (actor, changes) => {

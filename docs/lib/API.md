@@ -845,7 +845,9 @@ acksExtras.lib.summons = {
 A summon may ride in its summoner's party token, where it is a member record
 and no scene token. Lib reads and ends it through the `party-roster` contract
 (above) and imports no feature; with the contract's v2 members absent, a summon
-is only the scene token it is.
+is only the scene token it is. A placement announces itself: `acksExtras.summonsPlaced`
+(`SUMMONS_PLACED_HOOK`, constants) is called with `{summonerUuid, sceneId, tokenIds}`
+on the placing GM's client once the tokens stand.
 
 `placeSummons` runs on the summoner's owner's seat: core's click-to-place
 (`canvas.tokens.placeTokens`, `create: false`), then a relay to the GM's client

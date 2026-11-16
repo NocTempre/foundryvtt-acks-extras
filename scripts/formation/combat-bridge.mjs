@@ -17,6 +17,7 @@ import {
   deployedTokens,
   hasStaleDeployment,
   isMemberDeployed,
+  gatherRecalled,
   recallMembers,
   standsAs,
   standsElsewhere,
@@ -390,4 +391,7 @@ async function reform(formation, combat, { inPlace = false } = {}) {
     await announce(formation, loc("chat.combatFallen", { names: fallen.join(", ") }));
   }
   if (rounds > 0) await advanceRounds(formation, rounds, { reason: "combat" });
+  // What a caster summoned on the map during the fight joins the party now it is
+  // back inside; a summoner who stayed inside all along is asked as well.
+  await gatherRecalled(formation, formation.members.filter((m) => m?.actorId && !m.blank));
 }

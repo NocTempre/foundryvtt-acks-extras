@@ -63,7 +63,8 @@ globalThis.game = {
   i18n: { localize: (k) => k, format: (k) => k },
 };
 globalThis.foundry = { utils: { mergeObject: (a, b) => merge(a, b), randomID: () => `rid${++serial}`, escapeHTML: (s) => String(s) } };
-globalThis.Hooks = { on() {}, once() {}, call() {}, callAll() {} };
+const hookCalls = [];
+globalThis.Hooks = { on() {}, once() {}, call() {}, callAll: (name, payload) => hookCalls.push({ name, payload }) };
 globalThis.fromUuid = async (uuid) => registry.get(uuid) ?? null;
 globalThis.fromUuidSync = (uuid) => registry.get(uuid) ?? null;
 
@@ -260,6 +261,18 @@ await t("an owner's request makes one world copy and unlinked tokens owned throu
   }
   assert.equal(calls.tokenCreate[1].rotation, 90);
   assert.equal(scene.tokens.size, 2);
+});
+
+await t("a placement announces its tokens once they stand, and a refused one announces nothing", async () => {
+  const { summoner, scene } = setup();
+  hookCalls.length = 0;
+  await summonRelay(place({ requestUserId: stranger.id }));
+  assert.deepEqual(hookCalls, [], "a refusal is silent");
+  const out = await summonRelay(place({ castId: "castH1" }));
+  assert.equal(hookCalls.length, 1);
+  assert.equal(hookCalls[0].name, "acksExtras.summonsPlaced");
+  assert.deepEqual(hookCalls[0].payload, { summonerUuid: summoner.uuid, sceneId: scene.id, tokenIds: out.tokenUuids.map((u) => u.split(".").pop()) });
+  assert.ok(hookCalls[0].payload.tokenIds.every((id) => scene.tokens.get(id)), "each named token stands on the scene");
 });
 
 await t("a second summoning of the same creature reuses the copy and the folder", async () => {

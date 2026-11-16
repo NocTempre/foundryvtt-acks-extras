@@ -17,6 +17,7 @@ import {
   formationForToken,
   getFormation,
   getMemberActor,
+  isSummonMember,
   memberHp,
   memberOwnToken,
   patchFormation,
@@ -50,13 +51,15 @@ function rosterMember(member) {
 /**
  * Write a stashed unlinked member's hit points into their stashed token.
  * `next(hp)` is handed the value found inside the save lock and returns the
- * new value, or null to write nothing.
+ * new value, or null to write nothing. A summon member left at zero or below
+ * ends there, as a dismissal ends it (`release`): it is no person to be carried.
  * @returns {Promise<{before: number, after: number, max: number|null}|null>}
  *   null when the member is not stashed and unlinked, or `next` declined
  */
 async function adjustStashedHp(partyId, actorId, next) {
   if (!game.user?.isGM) return null;
   let done = null;
+  let summon = false;
   await patchFormation(partyId, (record) => {
     const member = record.members?.find((m) => m?.actorId === actorId);
     // Deployed or linked, the member is written through a document instead.
@@ -71,7 +74,9 @@ async function adjustStashedHp(partyId, actorId, next) {
     stashed.delta ??= {};
     foundry.utils.setProperty(stashed, "delta.system.hp.value", after);
     done = { before: hp.value, after, max: hp.max };
+    summon = isSummonMember(member);
   });
+  if (done && summon && done.after <= 0) await release(partyId, [actorId]);
   return done;
 }
 
@@ -120,6 +125,23 @@ async function release(partyId, ids) {
   }
   await syncPartyActorSpeed(record);
   return { released };
+}
+
+/**
+ * End a summon member whose deployed token's creature stands at zero hit
+ * points or below: the record goes first and then the token, as a dismissal
+ * removes it. Only a summon member ends; a person's token at zero is a
+ * casualty, not an end. GM only.
+ * @param {Actor} actor the token's actor, as core hands it to `updateActor`
+ * @returns {Promise<boolean>} whether a member ended
+ */
+export async function endFallenSummon(actor) {
+  const hp = actor?.system?.hp?.value;
+  const token = actor?.isToken ? actor.token : null;
+  if (!token || typeof hp !== "number" || hp > 0) return false;
+  const found = findDeployedMember(token);
+  if (!isSummonMember(found?.member) || !found.member.actorId) return false;
+  return (await release(found.formation.id, [found.member.actorId])).released > 0;
 }
 
 /** Provide the `party-roster` contract. Called once, at init. */
