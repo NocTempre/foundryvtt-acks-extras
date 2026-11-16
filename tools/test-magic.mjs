@@ -1319,6 +1319,34 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.deepEqual(mergeRowEdit({ value: { kind: "flat", flat: 1 } }, { value: { flat: 2 } }).value, { kind: "flat", flat: 2 }, "a value fragment merges into the stored value");
   });
 
+  t("a light level chosen on a modifier row sets its light gate, a change replaces it, and blank clears it", () => {
+    const plain = { type: "modifier", target: "attackThrow" };
+    const set = mergeRowEdit(plain, { gate: { light: "daylight" } });
+    assert.deepEqual(set.gate, { kind: "light", light: "daylight" }, "a level makes the gate");
+    assert.equal(plain.gate, undefined, "the stored row is not written through");
+    const changed = mergeRowEdit(set, { gate: { light: "dim" } });
+    assert.deepEqual(changed.gate, { kind: "light", light: "dim" }, "another level replaces the first");
+    assert.equal(mergeRowEdit(changed, { gate: { light: "" } }).gate, undefined, "blank removes the gate");
+    assert.equal("gate" in mergeRowEdit(plain, { gate: { light: "" } }), false, "blank on a row with no gate gives it none");
+    assert.deepEqual(mergeRowEdit({ ...set, gate: { ...set.gate, armourMax: "light" } }, { gate: { light: "" } }).gate, { armourMax: "light" }, "clearing keeps what else the gate holds, minus the kind");
+    assert.deepEqual(mergeRowEdit(set, { note: "x" }).gate, set.gate, "an edit that does not name the level leaves the gate");
+  });
+
+  t("a light level never replaces a gate of another kind, and the armour limit fields are unchanged", () => {
+    const status = { type: "modifier", gate: { kind: "status", status: "poisoned" } };
+    assert.deepEqual(mergeRowEdit(status, { gate: { light: "daylight" } }).gate, status.gate, "a status gate stays as stored");
+    assert.deepEqual(mergeRowEdit(status, { gate: { light: "" } }).gate, status.gate, "blank leaves it too");
+    const limit = { type: "limitation", gate: { kind: "armourCeiling", armourMax: "light", noShield: false } };
+    assert.deepEqual(mergeRowEdit(limit, { gate: { armourMax: "medium", noShield: true } }).gate, { kind: "armourCeiling", armourMax: "medium", noShield: true }, "an armour edit merges as before");
+    assert.deepEqual(mergeRowEdit({ type: "limitation" }, { gate: { armourMax: "light" } }).gate, { armourMax: "light", kind: "armourCeiling" }, "a first armour field takes the armour kind");
+    assert.deepEqual(mergeRowEdit(limit, { gate: { light: "dim" } }).gate, limit.gate, "a stray light value cannot touch an armour gate");
+  });
+
+  t("only a modifier row edits a light level", () => {
+    assert.ok(fieldsForType("modifier").includes("gate.light"));
+    for (const type of ["ward", "limitation", "damage"]) assert.ok(!fieldsForType(type).includes("gate.light"), type);
+  });
+
   t("a modifier and a ward row edit their scope, and no other kind does", () => {
     for (const type of ["modifier", "ward"]) {
       const fields = fieldsForType(type);

@@ -17,7 +17,9 @@
  * A modifier or ward row edits its scope: the kinds it applies against, an
  * alignment (a fixed one or the source's) with its mode, and the enemy test. A
  * nested `anyOf` is shown as text and kept exactly as stored on every edit; it
- * is authored by the importer's recipe, not here.
+ * is authored by the importer's recipe, not here. A modifier row also edits a
+ * light level, which becomes its `light` gate; a row that already carries a
+ * gate of another kind shows the select disabled and keeps that gate.
  *
  * A summon row's creature field takes a dropped Actor, from the sidebar or a
  * compendium, as its uuid, and says under it which creature the ref names.
@@ -29,6 +31,7 @@ import { vocabChoices } from "../magic-vocab.mjs";
 import { summonRefName } from "../summons-logic.mjs";
 import { byCookbookId } from "../library.mjs";
 import { SLOT_VOCAB } from "../proficiency-strip.mjs";
+import { LIGHT_LEVELS } from "../light.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
@@ -102,17 +105,23 @@ const FIELD_SPECS = {
   // the row an `armourCeiling` limit (`GATE_KIND`).
   "gate.armourMax": { kind: "select", choices: () => Object.fromEntries(SLOT_VOCAB.armour.map((r) => [r.token, game.i18n.localize(r.label)])) },
   "gate.noShield": { kind: "boolean" },
+  // A modifier's light gate: the dimmest level at which the row counts, read at
+  // the roll. Shown disabled while the row carries a gate of another kind.
+  "gate.light": { kind: "select", choices: () => Object.fromEntries(LIGHT_LEVELS.map((level) => [level, game.i18n.localize(`${LANG_PREFIX}.light.level.${level}`)])) },
 };
 
 /** The gate kind a limitation row takes once an armour limit field is set on it. */
 const GATE_KIND = "armourCeiling";
+
+/** The gate kind a modifier row takes once a light level is chosen on it. */
+const LIGHT_GATE_KIND = "light";
 
 /** The scope fields a modifier or a ward row edits, in the order they are shown. */
 const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"];
 
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
-  modifier: ["appliesTo", "target", "mode", "value", "forWhat", ...SCOPE_FIELDS],
+  modifier: ["appliesTo", "target", "mode", "value", "forWhat", ...SCOPE_FIELDS, "gate.light"],
   ward: ["appliesTo", "value", "range", ...SCOPE_FIELDS],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
@@ -172,7 +181,30 @@ export function mergeRowEdit(current, form) {
   // over it, and the row keeps its kind or takes the armour limit's once a
   // field of it is set; a row that sets none stays a plain limitation.
   if (form.gate && typeof form.gate === "object" && (current.gate?.kind || form.gate.armourMax || form.gate.noShield)) next.gate = { ...(current.gate ?? {}), ...form.gate, kind: current.gate?.kind || GATE_KIND };
+  if (form.gate && typeof form.gate === "object" && "light" in form.gate) {
+    const gate = lightGateOf(current.gate, form.gate.light);
+    if (gate) next.gate = gate;
+    else delete next.gate;
+  }
   return next;
+}
+
+/**
+ * A row's gate once its light level is set or cleared. A level makes the gate
+ * a `light` gate; a blank one removes the light gate and leaves whatever else
+ * the stored gate holds. A gate of another kind is returned as stored: the
+ * light level never replaces it.
+ * @param {object|undefined} stored the row's stored gate
+ * @param {string} light the chosen level, "" for none
+ * @returns {object|undefined} the gate the row now holds, undefined for none
+ */
+function lightGateOf(stored, light) {
+  if (stored?.kind && stored.kind !== LIGHT_GATE_KIND) return stored;
+  const rest = { ...(stored ?? {}) };
+  delete rest.light;
+  if (light) return { ...rest, kind: LIGHT_GATE_KIND, light };
+  delete rest.kind;
+  return Object.keys(rest).length ? rest : undefined;
 }
 
 /**
@@ -284,6 +316,10 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
           field.min = spec.min ?? "";
         }
         if (spec.list) field.list = Object.entries(spec.list()).map(([key, label]) => ({ key, label }));
+      }
+      if (name === "gate.light") {
+        field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;
+        field.tip = loc(field.disabled ? "lightLocked" : "lightTip");
       }
       if (name === "ref" && row.type === "summon") {
         field.drop = true;

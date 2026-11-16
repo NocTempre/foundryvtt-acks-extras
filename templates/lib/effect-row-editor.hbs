@@ -74,13 +74,14 @@
         </div>
       </div>
     {{else}}
-      <div class="form-group"{{#if f.drop}} data-acks-extras-ref-drop{{/if}}>
+      {{!-- A disabled control takes no pointer events, so a tooltip riding on one sits on its group. --}}
+      <div class="form-group"{{#if f.drop}} data-acks-extras-ref-drop{{/if}}{{#if f.tip}} data-tooltip-text="{{f.tip}}"{{/if}}>
         <label>{{f.label}}</label>
         <div class="form-fields">
           {{#if (eq f.kind "boolean")}}
             <input type="checkbox" name="{{f.name}}" {{checked f.checked}}>
           {{else if (eq f.kind "select")}}
-            <select name="{{f.name}}">{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
+            <select name="{{f.name}}"{{#if f.tip}} aria-label="{{f.label}}"{{/if}}{{#if f.disabled}} disabled{{/if}}>{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
           {{else if (eq f.kind "number")}}
             <input type="number" step="{{f.step}}"{{#if f.min}} min="{{f.min}}"{{/if}} name="{{f.name}}" value="{{f.value}}" placeholder="—">
           {{else if f.list}}
