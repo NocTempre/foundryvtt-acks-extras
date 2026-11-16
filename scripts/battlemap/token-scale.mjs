@@ -24,29 +24,59 @@ export function autoScaleEnabled(scene) {
 }
 
 /**
- * Whether a token is ours to size, and the size it takes. Not ours: party
- * tokens (formation-owned), locked tokens, markers, and scenes without a usable
- * grid distance. Ours with no size: the monster book's square or its actor's
- * size category frontage is not imported, so it keeps the size it has.
+ * What a token's body occupies at its scene's scale, and where that figure
+ * comes from. Judged is false for the tokens that have no footprint to hold
+ * to: a party token (it has no body), a marker's token (it is as big as the
+ * Judge drew it: a market square, a guild's banner or a barony is not a
+ * creature with a size category to fit to the scene's squares), and a scene
+ * without a usable grid distance. A `footprintLock` token IS judged: the lock
+ * stops writes to its size, not the reading of it. Judged with `feet` null:
+ * the monster book's square, or the actor's size category frontage, is not
+ * imported.
+ * @param {object} tokenDoc  The token document.
+ * @param {object} [scene]  The scene the token is on.
+ * @returns {{judged: boolean, feet: {w:number,h:number}|null, feetPerCell: number,
+ *   source: "token"|"actor"|"size"|"square"|null, sizeKey: string|null}}
+ *   `source` names what `footprintFeet` took the figure from: the flag on the
+ *   token, the flag on the actor, the size category over the imported square,
+ *   or the imported square alone; null where `feet` is. `feetPerCell` is the
+ *   scene's cell in feet, since footprints are in FEET and a scene's cells are
+ *   in its own units: six MILES per hex is the case that makes an unconverted
+ *   distance size a man as though he were a county.
+ */
+export function footprintOf(tokenDoc, scene = tokenDoc?.parent) {
+  const unjudged = { judged: false, feet: null, feetPerCell: 0, source: null, sizeKey: null };
+  if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return unjudged;
+  if (isMarkerActor(tokenDoc.actor)) return unjudged;
+  const feetPerCell = sceneFeetPerCell(scene);
+  if (!(feetPerCell > 0)) return unjudged;
+  const tokenFlag = tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT);
+  const actorFlag = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_FOOTPRINT);
+  // The token's flag shadows the actor's even where it is unusable, and an
+  // unusable override is no override: the figure then comes from the category.
+  const override = tokenFlag ?? actorFlag ?? null;
+  const sizeKey = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_EXTRAS)?.size ?? null;
+  const feet = footprintFeet({ override, sizeKey, feetPerSquare: sizeSquareFeet() });
+  let source = null;
+  if (feet) {
+    if (override && override.w > 0 && override.h > 0) source = tokenFlag != null ? "token" : "actor";
+    else source = sizeKey ? "size" : "square";
+  }
+  return { judged: true, feet, feetPerCell, source, sizeKey };
+}
+
+/**
+ * Whether a token is ours to size, and the size it takes. Not ours: whatever
+ * `footprintOf` does not judge, and locked tokens. Ours with no size: the
+ * footprint is not imported, so it keeps the size it has.
  * @returns {{ours: boolean, size: {width:number, height:number}|null}}
  */
 function resolveSize(tokenDoc, scene) {
   const notOurs = { ours: false, size: null };
-  if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FORMATION_ID)) return notOurs;
-  if (tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) return notOurs;
-  // A marker's token is as big as the Judge drew it: a market square, a
-  // guild's banner or a barony is not a creature with a size category to fit
-  // to the scene's squares.
-  if (isMarkerActor(tokenDoc.actor)) return notOurs;
-  // Footprints are in FEET and a scene's squares are in its own units, so
-  // the conversion goes through them: six MILES per hex is the case that
-  // makes an unconverted distance size a man as though he were a county.
-  const distance = sceneFeetPerCell(scene);
-  if (!(distance > 0)) return notOurs;
-  const override = tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? tokenDoc.actor?.getFlag(MODULE_ID, FLAG_FOOTPRINT) ?? null;
-  const sizeKey = tokenDoc.actor?.getFlag(MODULE_ID, FLAG_EXTRAS)?.size ?? null;
-  const feet = footprintFeet({ override, sizeKey, feetPerSquare: sizeSquareFeet() });
-  return { ours: true, size: feet ? { width: tokenSpan(feet.w, distance), height: tokenSpan(feet.h, distance) } : null };
+  if (!tokenDoc || tokenDoc.getFlag(MODULE_ID, FLAG_FOOTPRINT_LOCK)) return notOurs;
+  const { judged, feet, feetPerCell } = footprintOf(tokenDoc, scene);
+  if (!judged) return notOurs;
+  return { ours: true, size: feet ? { width: tokenSpan(feet.w, feetPerCell), height: tokenSpan(feet.h, feetPerCell) } : null };
 }
 
 /**

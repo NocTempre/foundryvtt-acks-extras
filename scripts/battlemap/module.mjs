@@ -15,6 +15,7 @@ import {
   applyFootprintToSelected,
   resetSelectedFootprints,
 } from "./token-scale.mjs";
+import { installScaleMark } from "./scale-mark.mjs";
 import { fitGrid, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid } from "./calibrate-logic.mjs";
 import {
   familyOfScene, sceneCountry, sceneSetup, sceneTravelSystem, sceneIncidents, writeSceneIncidents,
@@ -84,6 +85,7 @@ Hooks.once("init", () => {
   installSceneControls();
   installSceneConfigRow();
   installTokenAutoScale();
+  installScaleMark();
   registerTerrainPaintHooks();
   registerRoadHooks();
   installRoadControls();

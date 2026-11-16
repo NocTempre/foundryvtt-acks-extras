@@ -47,3 +47,35 @@ export function tokenSpan(feet, distance, { step = SPAN_STEP, min = SPAN_MIN } =
   if (!(feet > 0) || !(distance > 0)) return min;
   return Math.max(min, Math.round(feet / distance / step) * step);
 }
+
+/** Slack on the half-step edge, so a drawn size exactly half a step off is not off. */
+const MISMATCH_EPSILON = 1e-9;
+
+/**
+ * Whether a token is drawn at a size other than its footprint at the scene's
+ * scale. The exact size on each axis is `feet / feetPerCell`, unrounded, and an
+ * axis is off when the drawn size differs from it by MORE than half the step
+ * `tokenSpan` rounds to. The sizer's own answer is never consulted: its
+ * quarter-square floor would call a man on a mile-wide cell right.
+ * @param {object} input
+ * @param {{w:number,h:number}|null} [input.feet]  The footprint, from `footprintFeet`.
+ * @param {number} [input.feetPerCell]  What one cell of the scene is worth in feet.
+ * @param {number} input.width   The token's STORED width, in cells.
+ * @param {number} input.height  The token's STORED height, in cells.
+ * @param {number} [input.step]  The step the sizer rounds to.
+ * @returns {{dir: "larger"|"smaller"|"mixed", exact: {w:number,h:number}}|null}
+ *   null where nothing is off, there is no footprint or the scene has no usable
+ *   cell; `exact` is the footprint in cells; `mixed` is larger on one axis and
+ *   smaller on the other.
+ */
+export function scaleMismatch({ feet = null, feetPerCell = 0, width, height, step = SPAN_STEP } = {}) {
+  if (!feet || !(feet.w > 0) || !(feet.h > 0) || !(feetPerCell > 0)) return null;
+  if (!Number.isFinite(width) || !Number.isFinite(height)) return null;
+  const exact = { w: feet.w / feetPerCell, h: feet.h / feetPerCell };
+  const slack = step / 2 + MISMATCH_EPSILON;
+  const off = [width - exact.w, height - exact.h].filter((d) => Math.abs(d) > slack);
+  if (!off.length) return null;
+  const larger = off.some((d) => d > 0);
+  const smaller = off.some((d) => d < 0);
+  return { dir: larger && smaller ? "mixed" : larger ? "larger" : "smaller", exact };
+}

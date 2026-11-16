@@ -8,7 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { boxSpan, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
 import { hexPreviewOutlines, HEX_PREVIEW_MAX } from "../scripts/battlemap/capture.mjs";
-import { footprintFeet, tokenSpan, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
+import { footprintFeet, tokenSpan, scaleMismatch, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
 import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE, sizeSquares, sizeSquareFeet, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
@@ -464,6 +464,315 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
     for (const key of Object.keys(savedGlobals)) if (savedGlobals[key] === undefined) delete globalThis[key];
   }
   resetTables();
+}
+
+/* --- the not-to-scale predicate ---------------------------------------------
+   A drawn size is off when it differs from the exact one by MORE than half the
+   step the sizer rounds to, and the sizer's floor is never consulted. */
+{
+  const exact = { feet: { w: 5, h: 5 }, feetPerCell: 5 }; // exactly one cell
+  const off = (width, height, extra = {}) => scaleMismatch({ ...exact, width, height, ...extra });
+  assert.equal(off(1, 1), null, "an exact fit is not off");
+  assert.equal(off(1.125, 1.125), null, "half a step over is on the line, and the line is not off");
+  assert.equal(off(0.875, 0.875), null, "half a step under likewise");
+  assert.deepEqual(off(1.25, 1.25), { dir: "larger", exact: { w: 1, h: 1 } }, "past half a step is off");
+  assert.equal(off(0.75, 0.75).dir, "smaller");
+  assert.equal(off(1.25, 0.75).dir, "mixed", "larger on one axis and smaller on the other");
+  assert.equal(off(1.25, 1).dir, "larger", "one axis alone is enough");
+  assert.equal(off(1, 0.5).dir, "smaller", "the other axis alone is enough");
+  assert.equal(off(1.2, 1, { step: 0.5 }), null, "the tolerance follows the step it is given");
+  assert.equal(off(1.3, 1, { step: 0.5 }).dir, "larger");
+  assert.deepEqual(scaleMismatch({ feet: { w: 12, h: 5 }, feetPerCell: 5, width: 1, height: 1 }).exact, { w: 2.4, h: 1 }, "the exact size is not rounded");
+  assert.equal(scaleMismatch({ feet: { w: 2.5, h: 2.5 }, feetPerCell: 5, width: 0.5, height: 0.5 }), null, "a half-cell footprint drawn at half a cell");
+  assert.equal(scaleMismatch({ feet: { w: 2.5, h: 2.5 }, feetPerCell: 5, width: 1, height: 1 }).dir, "larger", "and the same drawn at a cell");
+
+  // A 5-foot man on a 31680-foot cell: the sizer would floor him at a quarter
+  // cell, so only the unrounded exact size calls him off.
+  const man = { feet: { w: 5, h: 5 }, feetPerCell: 31680 };
+  assert.equal(scaleMismatch({ ...man, width: 1, height: 1 }).dir, "larger", "a man a cell wide is off");
+  assert.equal(scaleMismatch({ ...man, width: SPAN_MIN, height: SPAN_MIN }).dir, "larger", "and so is the floored man the sizer writes");
+  assert.equal(tokenSpan(5, 31680), SPAN_MIN, "the floor is what the sizer would say");
+
+  // Nothing to compare: no footprint, no usable cell, no stored size.
+  for (const bad of [{ feet: null }, { feet: { w: 0, h: 5 } }, { feet: { w: 5, h: -1 } }, { feetPerCell: 0 }, { feetPerCell: NaN }, { width: undefined }, { height: NaN }]) {
+    assert.equal(off(5, 5, bad), null, `no verdict for ${JSON.stringify(bad)}`);
+  }
+  assert.equal(scaleMismatch(), null, "no input at all");
+}
+
+/* --- the footprint a token is judged by ----------------------------------------
+   Four sources over an invented square and frontage; the party token, a
+   marker's token and a scene with no distance are not judged at all. */
+{
+  const { footprintOf, sizeForToken, unsizedTokenCount } = await import("../scripts/battlemap/token-scale.mjs");
+  const SQ = 7;
+  const grid = { grid: { distance: 7, units: "ft" } };
+  const tokenFor = ({ token = {}, actor = {}, sizeKey = null, type = "monster", locked = false, party = false } = {}) => ({
+    getFlag: (_ns, key) => (key === "footprintLock" ? locked || undefined : key === "formationId" ? party || undefined : token[key]),
+    actor: { documentName: "Actor", type, getFlag: (_ns, key) => (key === "extras" ? (sizeKey ? { size: sizeKey } : undefined) : actor[key]) },
+  });
+  resetTables();
+  registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQ } } } }, { priority: PRIORITY.WORLD });
+
+  const fp = footprintOf(tokenFor({ sizeKey: "large" }), grid);
+  assert.deepEqual(fp, { judged: true, feet: { w: 35, h: 14 }, feetPerCell: 7, source: "size", sizeKey: "large" }, "a category over the imported square");
+  assert.deepEqual(footprintOf(tokenFor(), grid), { judged: true, feet: { w: 7, h: 7 }, feetPerCell: 7, source: "square", sizeKey: null }, "the imported square alone");
+  assert.equal(footprintOf(tokenFor({ actor: { footprint: { w: 9, h: 3 } }, sizeKey: "large" }), grid).source, "actor", "the actor's flag over its category");
+  const both = footprintOf(tokenFor({ token: { footprint: { w: 12, h: 6 } }, actor: { footprint: { w: 9, h: 3 } } }), grid);
+  assert.deepEqual([both.source, both.feet], ["token", { w: 12, h: 6 }], "the token's flag over the actor's");
+  const unusable = footprintOf(tokenFor({ token: { footprint: { w: 0, h: 6 } }, actor: { footprint: { w: 9, h: 3 } }, sizeKey: "large" }), grid);
+  assert.equal(unusable.source, "size", "an unusable token flag shadows the actor's and is no override");
+  assert.equal(footprintOf(tokenFor({ sizeKey: "large" }), { grid: { distance: 1, units: "mi" } }).feetPerCell, 5280, "the cell is read through its units");
+
+  // Not judged: no body, the Judge's own size, no scale to compare against.
+  const unjudged = { judged: false, feet: null, feetPerCell: 0, source: null, sizeKey: null };
+  assert.deepEqual(footprintOf(tokenFor({ party: true }), grid), unjudged, "the party token");
+  assert.deepEqual(footprintOf(tokenFor({ type: "acks-extras.domain" }), grid), unjudged, "a marker's token");
+  assert.deepEqual(footprintOf(tokenFor(), { grid: { distance: 0, units: "ft" } }), unjudged, "a scene with no usable distance");
+  assert.deepEqual(footprintOf(tokenFor(), {}), unjudged, "a scene with no grid");
+  assert.deepEqual(footprintOf(null, grid), unjudged, "no token");
+  // A locked token is judged: the lock stops writes, and the mark writes nothing.
+  assert.equal(footprintOf(tokenFor({ locked: true, sizeKey: "large" }), grid).judged, true, "a locked token is judged");
+  assert.equal(sizeForToken(tokenFor({ locked: true, sizeKey: "large" }), grid), null, "and still not ours to size");
+
+  // Nothing imported: judged, with no figure, and so no mark to be had.
+  resetTables();
+  assert.deepEqual(footprintOf(tokenFor({ sizeKey: "large" }), grid), { judged: true, feet: null, feetPerCell: 7, source: null, sizeKey: "large" });
+  assert.deepEqual(footprintOf(tokenFor({ token: { footprint: { w: 12, h: 6 } } }), grid).source, "token", "a flag needs no import");
+
+  // The sizer answers as it did.
+  registerTable({ id: SIZE_DOC, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: SQ } } } }, { priority: PRIORITY.WORLD });
+  assert.deepEqual(sizeForToken(tokenFor({ sizeKey: "large" }), grid), { width: 5, height: 2 });
+  assert.deepEqual(sizeForToken(tokenFor(), { grid: { distance: 1, units: "mi" } }), { width: SPAN_MIN, height: SPAN_MIN }, "a man at a mile a cell is floored");
+  assert.equal(sizeForToken(tokenFor({ party: true }), grid), null);
+  assert.equal(unsizedTokenCount({ ...grid, tokens: [tokenFor({ sizeKey: "colossal" }), tokenFor({ locked: true, sizeKey: "colossal" }), tokenFor({ party: true }), tokenFor({ type: "acks-extras.domain" }), tokenFor()] }), 1, "only a judged, unlocked token with no figure is counted");
+  resetTables();
+}
+
+/* --- the mark: its listener, its key and its readout -------------------------
+   A fake PIXI records what is drawn; nothing here has a canvas. */
+{
+  const { refreshMark, onRefreshToken, onHover, carriesScaleFlag, markKey, markOf, handleAnchor, readoutLines, registerScaleMarkSetting, SCALE_MARK_NAME, SETTING_SCALE_MARK } = await import("../scripts/battlemap/scale-mark.mjs");
+  assert.equal(SCALE_MARK_NAME, "acks-extras-scale-mark", "the name a page script finds the mark by");
+
+  for (const flag of ["redraw", "refreshSize", "refreshShape", "refreshState", "refreshVisibility"]) {
+    assert.equal(carriesScaleFlag({ [flag]: true }), true, `${flag} is answered`);
+  }
+  for (const flags of [{ refreshPosition: true }, { refreshElevation: true, refreshBorder: true }, {}, undefined]) {
+    assert.equal(carriesScaleFlag(flags), false, `${JSON.stringify(flags)} is not`);
+  }
+
+  const verdict = { dir: "larger", exact: { w: 0.5, h: 0.5 } };
+  const base = { w: 100, h: 100, shape: 0, verdict, ui: 1 };
+  assert.equal(markKey(base), markKey({ ...base }), "the key is stable");
+  for (const change of [{ w: 101 }, { h: 99 }, { shape: 1 }, { ui: 2 }, { verdict: { ...verdict, dir: "smaller" } }, { verdict: { ...verdict, exact: { w: 0.5, h: 0.75 } } }]) {
+    assert.notEqual(markKey({ ...base, ...change }), markKey(base), `the key moves with ${Object.keys(change)[0]}`);
+  }
+
+  assert.deepEqual(handleAnchor({ x: 0, y: 0, width: 100, height: 50 }), { x: 100, y: 50 }, "a rectangle's corner");
+  assert.deepEqual(handleAnchor({ points: [0, 0, 100, 10, 90, 80, 5, 70] }), { x: 90, y: 80 }, "a polygon's furthest vertex");
+  assert.ok(Math.abs(handleAnchor({ x: 50, y: 50, radius: 50 }).x - (50 + 50 * Math.SQRT1_2)) < 1e-9, "a circle's 45-degree point");
+  assert.ok(Math.abs(handleAnchor({ x: 50, y: 25, width: 50, height: 25, type: 3 }).y - (25 + 25 * Math.SQRT1_2)) < 1e-9, "an ellipse's");
+
+  class Gfx {
+    clears = 0;
+    children = [];
+    parent = null;
+    destroyed = false;
+    clear() { this.clears++; return this; }
+    lineStyle() { return this; }
+    drawShape() { return this; }
+    moveTo() { return this; }
+    lineTo() { return this; }
+    addChild(child) { child.parent = this; this.children.push(child); return child; }
+    destroy() {
+      this.destroyed = true;
+      const siblings = this.parent?.children;
+      if (siblings?.includes(this)) siblings.splice(siblings.indexOf(this), 1);
+    }
+  }
+  class Label extends Gfx {
+    anchor = { set() {} };
+    position = { set: (x, y) => { this.at = { x, y }; } };
+    constructor(text) { super(); this.text = text; }
+  }
+  const settings = { [SETTING_SCALE_MARK]: true };
+  const scene = { id: "s1", grid: { distance: 6, units: "mi" } };
+  const registered = [];
+  const saved = { PIXI: globalThis.PIXI, canvas: globalThis.canvas, game: globalThis.game, CONFIG: globalThis.CONFIG };
+  const tokenOf = ({ flags = {}, actorFlags = {}, size = 1, type = "monster", owner = false } = {}) => {
+    const doc = {
+      id: "t1",
+      parent: scene,
+      shape: 0,
+      width: size,
+      height: size,
+      _source: { width: size, height: size },
+      isOwner: owner,
+      getFlag: (_ns, key) => flags[key],
+      actor: { documentName: "Actor", type, getFlag: (_ns, key) => actorFlags[key] },
+    };
+    const token = {
+      document: doc,
+      destroyed: false,
+      isPreview: false,
+      shape: { x: 0, y: 0, width: 100, height: 100 },
+      w: 100,
+      h: 100,
+      nameplate: { visible: true, y: 104, height: 20 },
+      children: [{ name: "border" }],
+      addChildAt(child, i) { child.parent = this; this.children.splice(i, 0, child); },
+    };
+    return token;
+  };
+  try {
+    globalThis.PIXI = { Graphics: Gfx, Text: Label };
+    globalThis.CONFIG = { Canvas: { objectBorderThickness: 4 } };
+    globalThis.canvas = { ready: true, scene, dimensions: { uiScale: 1 }, tokens: { placeables: [] } };
+    globalThis.game = {
+      user: { isGM: true },
+      settings: { get: (_ns, key) => settings[key], register: (_ns, key, data) => registered.push({ key, data }) },
+      i18n: { localize: (key) => key, format: (key, data) => `${key} ${JSON.stringify(data)}` },
+    };
+    resetTables();
+    registerTable({ id: SIZE_DOC, source: { pages: "XX 9" }, tables: { [SIZE_TABLE]: { [SIZE_ROW]: { large: "5 × 2" } }, [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.WORLD });
+
+    // The setting: a client choice, on by default, gating the drawing.
+    registerScaleMarkSetting();
+    assert.equal(registered.length, 1);
+    assert.equal(registered[0].key, SETTING_SCALE_MARK);
+    assert.deepEqual([registered[0].data.scope, registered[0].data.config, registered[0].data.default, registered[0].data.type], ["client", true, true, Boolean]);
+
+    // A man a cell wide on a six-mile cell is drawn with the mark, first among the token's children.
+    const man = tokenOf();
+    refreshMark(man);
+    const mark = markOf(man);
+    assert.ok(mark, "the mark is drawn");
+    assert.equal(mark.name, SCALE_MARK_NAME);
+    assert.equal(mark.eventMode, "none", "deaf to the pointer");
+    assert.equal(man.children[0], mark, "behind the token's own drawing");
+    assert.equal(mark.clears, 1);
+    refreshMark(man);
+    assert.equal(mark.clears, 1, "nothing changed, so nothing is redrawn");
+    man.w = 120; // a resize tween's frame: the shape follows it, the verdict does not
+    man.h = 120;
+    refreshMark(man);
+    assert.equal(markOf(man), mark, "the same mark");
+    assert.equal(mark.clears, 2, "redrawn when its key changes");
+    canvas.dimensions.uiScale = 2;
+    refreshMark(man);
+    assert.equal(mark.clears, 3, "and when the interface scale does");
+    canvas.dimensions.uiScale = 1;
+    refreshMark(man);
+
+    // Core destroys a token's children on a redraw: the mark is drawn again.
+    mark.destroy();
+    refreshMark(man);
+    assert.ok(markOf(man) && markOf(man) !== mark, "a destroyed mark is rebuilt");
+    assert.equal(man.children.filter((c) => c.name === SCALE_MARK_NAME).length, 1, "never two");
+
+    // The verdict reads the stored size, not the animated one: at an exact fit
+    // the stored size says on-scale while the prepared width is mid-tween.
+    scene.grid = { distance: 6, units: "ft" };
+    man.document.width = 3;
+    man.document._source = { width: 1, height: 1 };
+    refreshMark(man);
+    assert.equal(markOf(man), null, "an exact fit loses its mark whatever the tween reads");
+    scene.grid = { distance: 6, units: "mi" };
+    refreshMark(man);
+    assert.ok(markOf(man), "and the mile cell brings it back");
+    man.document.width = 1; // prepared width back at the stored one
+
+    // Only a refresh carrying a size, shape, state or visibility flag is answered.
+    const fresh = tokenOf();
+    onRefreshToken(fresh, { refreshPosition: true });
+    assert.equal(markOf(fresh), null, "a move draws nothing");
+    onRefreshToken(fresh, { refreshSize: true });
+    assert.ok(markOf(fresh), "a size refresh judges the token");
+
+    // The hover readout: which way, the size drawn in the scene's units, and
+    // for the Judge or the owner the footprint and where it comes from.
+    const found = (token) => ({
+      verdict: { dir: "larger", exact: { w: 0.0002, h: 0.0002 } },
+      fp: { feet: { w: 6, h: 6 }, source: "square", sizeKey: null },
+      scene,
+      width: 1,
+      height: 1,
+      doc: token.document,
+    });
+    const gm = readoutLines(found(man), true);
+    assert.equal(gm.length, 4);
+    assert.ok(gm[0].startsWith("ACKS-BATTLEMAP.scaleMark.larger"));
+    assert.ok(gm[1].includes('"w":"6","h":"6","units":"mi"'), "the drawn size is in the scene's units");
+    assert.ok(gm[2].includes('"w":"6","h":"6"'));
+    assert.ok(gm[3].startsWith("ACKS-BATTLEMAP.scaleMark.sourceSquare") && gm[3].includes('"feet":"6"') && gm[3].includes("XX 9"), "the imported square and its page");
+    assert.equal(readoutLines(found(man), false).length, 2, "a seat that is not the Judge or the owner sees two lines");
+    const sized = { ...found(man), fp: { feet: { w: 30, h: 12 }, source: "size", sizeKey: "large" } };
+    const line = readoutLines(sized, true)[3];
+    assert.ok(line.startsWith("ACKS-BATTLEMAP.scaleMark.sourceSize") && line.includes('"w":"5","h":"2"') && line.includes("XX 9"), "the category's frontage and the page");
+    for (const source of ["token", "actor"]) {
+      const l = readoutLines({ ...found(man), fp: { feet: { w: 6, h: 6 }, source, sizeKey: null } }, true)[3];
+      assert.ok(l.startsWith(`ACKS-BATTLEMAP.scaleMark.source${source === "token" ? "Token" : "Actor"}`), `${source} as the source`);
+    }
+    registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.OVERRIDE });
+    unregisterTable(SIZE_DOC, { priority: PRIORITY.WORLD });
+    assert.ok(!readoutLines(found(man), true)[3].includes("XX 9"), "an override has no page to cite, and none is said");
+
+    // Hover shows the lines under the nameplate and takes them away on leaving.
+    onHover(man, true);
+    const text = markOf(man).readout;
+    assert.ok(text && text.text.split("\n").length === 4, "the Judge's hover reads four lines");
+    assert.deepEqual(text.at, { x: 60, y: 126 }, "under the nameplate, centred on the token");
+    game.user.isGM = false;
+    onHover(man, true);
+    assert.equal(markOf(man).readout.text.split("\n").length, 2, "a player who does not own it reads two");
+    man.document.isOwner = true;
+    onHover(man, true);
+    assert.equal(markOf(man).readout.text.split("\n").length, 4, "its owner reads four");
+    onHover(man, false);
+    assert.equal(markOf(man).readout, null, "leaving takes the readout away");
+    game.user.isGM = true;
+    onHover(tokenOf(), true); // no mark: nothing to say
+
+    // Who is never marked, and the setting.
+    for (const [why, token] of [
+      ["the party token", tokenOf({ flags: { formationId: "f1" } })],
+      ["a marker's token", tokenOf({ type: "acks-extras.domain" })],
+      ["a drag preview", Object.assign(tokenOf(), { isPreview: true })],
+      ["a token of another scene", Object.assign(tokenOf(), { document: { ...tokenOf().document, parent: { ...scene, id: "s2" } } })],
+    ]) {
+      refreshMark(token);
+      assert.equal(markOf(token), null, `${why} carries none`);
+    }
+    scene.grid = { distance: 0, units: "mi" };
+    const noScale = tokenOf();
+    refreshMark(noScale);
+    assert.equal(markOf(noScale), null, "a scene with no distance has no scale to be off");
+    scene.grid = { distance: 6, units: "mi" };
+    const locked = tokenOf({ flags: { footprintLock: true } });
+    refreshMark(locked);
+    assert.ok(markOf(locked), "a locked token is judged");
+    const stated = tokenOf({ flags: { footprint: { w: 31680, h: 31680 } } });
+    refreshMark(stated);
+    assert.equal(markOf(stated), null, "a token drawn at its footprint carries none");
+    resetTables();
+    refreshMark(fresh);
+    assert.equal(markOf(fresh), null, "nothing imported: no figure, no mark");
+    registerTable({ id: SIZE_DOC, tables: { [SQUARE_TABLE]: { [SIZE_ROW]: { feet: 6 } } } }, { priority: PRIORITY.WORLD });
+    refreshMark(fresh);
+    assert.ok(markOf(fresh), "and the import brings it");
+    settings[SETTING_SCALE_MARK] = false;
+    canvas.tokens.placeables = [fresh, man];
+    registered[0].data.onChange();
+    assert.deepEqual([markOf(fresh), markOf(man)], [null, null], "this seat's setting off takes every mark away");
+    settings[SETTING_SCALE_MARK] = true;
+    registered[0].data.onChange();
+    assert.ok(markOf(fresh) && markOf(man), "and on brings them back");
+  } finally {
+    Object.assign(globalThis, saved);
+    for (const key of Object.keys(saved)) if (saved[key] === undefined) delete globalThis[key];
+    resetTables();
+  }
 }
 
 {
@@ -2848,4 +3157,4 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   }
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap)");
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout)");
