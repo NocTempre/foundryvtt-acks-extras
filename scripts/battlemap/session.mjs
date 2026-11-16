@@ -297,6 +297,21 @@ class CalibrationSession {
     this.notify();
   }
 
+  /**
+   * An update of the session's own scene. Core redraws the canvas only for
+   * dimension, shift and grid changes, so a write that touches nothing but a
+   * module flag (auto-size, the declared travel system) never reaches
+   * `onCanvasReady`; the plan the panel shows reads those flags, so it is
+   * re-asked here. Another scene's update moves nothing.
+   * @returns {boolean} whether the session was told.
+   */
+  onSceneUpdated(scene) {
+    if (!scene || scene.id !== this.sceneId) return false;
+    this.#invalidate();
+    this.notify();
+    return true;
+  }
+
   /* -------------------------------------------- */
   /*  Change notification                         */
   /* -------------------------------------------- */

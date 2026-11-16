@@ -96,8 +96,12 @@ Hooks.once("init", () => {
   // The session owns the samples, so it is what a scene change clears — the
   // window is only a view and may not even be open.
   Hooks.on("canvasReady", () => session.onCanvasReady());
-  // A system declared from a navigation card reaches an open panel's select.
-  Hooks.on("updateScene", (scene, changes) => sessionFollowsScene(session, scene, changes));
+  // A system declared from a navigation card reaches an open panel's select;
+  // any update of the session's scene re-plans, since a flag-only write redraws nothing.
+  Hooks.on("updateScene", (scene, changes) => {
+    sessionFollowsScene(session, scene, changes);
+    session.onSceneUpdated(scene);
+  });
 
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)

@@ -252,7 +252,7 @@ nothing rewrites it.
   of a cell is a square-grid idea and hexes do not tile hexes.
 - **Every field states what it means and in which unit**, and every SAMPLE
   carries the box that says what it represents — how many drawn cells a box
-  spans (`cells`, divided out by the solver), what a scale bar reads. A
+  spans (`cells`, divided out by the solver; not offered on a hex family, whose fit reads a box as one hex), what a scale bar reads. A
   measurement and its meaning sit on the same row.
 - **Units are chosen, not assumed.** The picker writes `grid.units` with the
   scale, and `lib/distance-units.mjs` converts it to feet for every consumer

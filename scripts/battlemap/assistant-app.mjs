@@ -663,11 +663,13 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const present = (key) => Object.hasOwn(d, key);
     if (present("independentXY")) session.independentXY = !!d.independentXY;
     if (present("allowSkew")) session.allowSkew = !!d.allowSkew;
-    for (const [index, cells] of Object.entries(d.boxCells ?? {})) session.setBoxCells(index, Number(cells));
+    // Every slot is taken before the first notification: a listener that
+    // renders on it must plan from the values this submit carries.
     for (const slot of ["mapCellFeet", "scaleValue", "outputFeet", "gridSizePx", "customFeet"]) {
       if (present(slot)) session.opts[slot] = num(d[slot]);
     }
     session.setSetup({ gridFamily: d.gridFamily, hexEven: d.hexEven, units: d.units, mapSystem: d.mapSystem });
+    for (const [index, cells] of Object.entries(d.boxCells ?? {})) session.setBoxCells(index, Number(cells));
     // A statement ABOUT THE SCENE, not part of the calibration arithmetic,
     // so it lands the moment it is chosen.
     BattlemapAssistant.#writeSystem(d.mapSystem || null);

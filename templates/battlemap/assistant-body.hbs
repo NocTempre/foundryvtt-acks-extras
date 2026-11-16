@@ -107,13 +107,13 @@
       {{#each boxRows}}
         <li>
           <span>{{label}}</span>
-          {{! A hex fit reads every box as one hex; a count is the square family's. }}
-          {{#if @root.isSquare}}
+          {{! A hex fit reads every box as one hex; every other family divides a box by its count. }}
+          {{#unless @root.isHex}}
           <label class="acks-extras-battlemap-spans">
             <span>{{localize "ACKS-BATTLEMAP.samples.spans"}}</span>
             <input type="number" name="boxCells.{{index}}" min="1" step="1" value="{{cells}}">
           </label>
-          {{/if}}
+          {{/unless}}
           <button type="button" data-action="deleteSample" data-kind="squares" data-index="{{index}}" data-tooltip="{{localize 'ACKS-BATTLEMAP.samples.drop'}}"><i class="fa-solid fa-xmark"></i></button>
         </li>
       {{/each}}
