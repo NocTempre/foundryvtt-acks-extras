@@ -402,7 +402,7 @@ function installSceneConfigRow() {
       <p class="hint">${game.i18n.localize(`${LANG_PREFIX}.sceneConfig.${city ? "blockHint" : "hint"}`)}</p>`;
     anchor.after(group);
 
-    group.querySelector(".acks-extras-battlemap-open").addEventListener("click", () => openAssistant());
+    group.querySelector(".acks-extras-battlemap-open").addEventListener("click", () => openAssistant(scene));
     // Written immediately rather than on form submit: the gate is a flag, and
     // the scene-config submit handler knows nothing about it.
     group.querySelector(".acks-extras-battlemap-autoscale").addEventListener("change", async (ev) => {

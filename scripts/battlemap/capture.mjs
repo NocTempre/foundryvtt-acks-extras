@@ -161,6 +161,26 @@ export function hexPreviewOutlines({ fit, vertices, rect, focus = null, max = HE
     .map((n) => offsets.map((o) => ({ x: n.x + o.x, y: n.y + o.y })));
 }
 
+/** Input types that take no typed text, so a key from one is not an edit. */
+const NON_TEXT_INPUTS = new Set(["button", "checkbox", "color", "file", "image", "radio", "range", "reset", "submit"]);
+
+/**
+ * Whether a key event comes from a field the user types in: a text-like
+ * `input`, a `textarea`, a `select`, or a contenteditable element. The origin
+ * is the first node of the composed path (a shadow root retargets
+ * `ev.target`), else the target. Nodes are told by `nodeType` and `matches`,
+ * never `instanceof`: a window first rendered in a detached browser window
+ * builds nodes of another realm.
+ */
+export function isEditableTarget(ev) {
+  const origin = ev?.composedPath?.()[0] ?? ev?.target;
+  if (origin?.nodeType !== 1) return false;
+  if (origin.isContentEditable === true) return true;
+  if (origin.matches?.("textarea, select")) return true;
+  if (!origin.matches?.("input")) return false;
+  return !NON_TEXT_INPUTS.has(String(origin.type ?? "text").toLowerCase());
+}
+
 /** The screen-covering pointer catcher that records and draws calibration samples. */
 export class CaptureOverlay {
   /**
@@ -299,8 +319,12 @@ export class CaptureOverlay {
    * Escape disarms, everywhere else in Foundry and here — it does not
    * delete a sample. Ctrl+Z is the undo; the sampling group drives no
    * placeable layer, so core has no undo of its own to collide with.
+   * The listener sits on `document`, so both keys pass through untouched
+   * when they come from a field the user is typing in: the field's own
+   * undo and its own Escape are theirs.
    */
   onKeyDown(ev) {
+    if (isEditableTarget(ev)) return;
     if (ev.code === "KeyZ" && (ev.ctrlKey || ev.metaKey)) {
       ev.preventDefault();
       ev.stopPropagation();

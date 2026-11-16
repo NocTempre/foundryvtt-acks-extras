@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { boxSpan, canvasPerImage, fitGrid, fitHexLattice, unitsPerCentreSpacing, HAND_PX, REACH_Z, FAMILY_Z, TIGHT_PX, FAIR_PX, HEX_SHAPE_LEAN, HEX_SIZE_SPREAD, feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, solveShift } from "../scripts/battlemap/calibrate-logic.mjs";
 import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
-import { hexPreviewOutlines, HEX_PREVIEW_MAX } from "../scripts/battlemap/capture.mjs";
+import { hexPreviewOutlines, HEX_PREVIEW_MAX, CaptureOverlay, isEditableTarget } from "../scripts/battlemap/capture.mjs";
 import { footprintFeet, tokenSpan, scaleMismatch, SPAN_MIN } from "../scripts/battlemap/footprint.mjs";
 import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
@@ -3158,4 +3158,101 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   }
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout)");
+/* -------------------------------------------- */
+/*  Capture keys: a typed field keeps its keys   */
+/* -------------------------------------------- */
+
+{
+  /** A node the way the handler reads one: `nodeType`, `matches`, `isContentEditable`. */
+  const node = (tag, { type, editable = false } = {}) => ({
+    nodeType: 1,
+    type,
+    isContentEditable: editable,
+    matches: (sel) => sel.split(",").map((s) => s.trim()).includes(tag),
+  });
+  const key = (code, target, extra = {}) => ({
+    code, target, ctrlKey: false, metaKey: false, prevented: false, stopped: false,
+    preventDefault() { this.prevented = true; },
+    stopPropagation() { this.stopped = true; },
+    ...extra,
+  });
+
+  /** An overlay over a fake host holding two squares, plus the disarm count. */
+  const overlayOf = () => {
+    const host = {
+      samples: { squares: [{ x: 0, y: 0, w: 1, h: 1 }, { x: 5, y: 5, w: 1, h: 1 }], corners: [], scale: null },
+      disarms: 0,
+      onSamplesChanged() {},
+      requestDisarm() { this.disarms += 1; },
+    };
+    const overlay = new CaptureOverlay(host);
+    overlay.redraw = () => {};
+    return { host, overlay };
+  };
+
+  const undoFrom = (target, extra = { ctrlKey: true }) => {
+    const { host, overlay } = overlayOf();
+    const ev = key("KeyZ", target, extra);
+    overlay.onKeyDown(ev);
+    return { ev, left: host.samples.squares.length };
+  };
+
+  const canvasLike = { nodeType: 1, matches: () => false, isContentEditable: false };
+  for (const [what, target] of [
+    ["a text input", node("input", { type: "text" })],
+    ["an input with no type", node("input")],
+    ["a number input", node("input", { type: "number" })],
+    ["a textarea", node("textarea")],
+    ["a select", node("select")],
+    ["a contenteditable div", node("div", { editable: true })],
+  ]) {
+    for (const [mod, extra] of [["Ctrl", { ctrlKey: true }], ["Cmd", { metaKey: true }]]) {
+      const { ev, left } = undoFrom(target, extra);
+      assert.equal(left, 2, `${mod}+Z from ${what} removes no sample`);
+      assert.equal(ev.prevented || ev.stopped, false, `${mod}+Z from ${what} is left to the field's own undo`);
+    }
+    const { host, overlay } = overlayOf();
+    const esc = key("Escape", target);
+    overlay.onKeyDown(esc);
+    assert.equal(host.disarms, 0, `Escape from ${what} does not disarm`);
+    assert.equal(esc.prevented || esc.stopped, false, `Escape from ${what} is left to the field`);
+  }
+
+  // A shadow root retargets `ev.target`; the composed path still names the field.
+  {
+    const { host, overlay } = overlayOf();
+    const ev = key("KeyZ", canvasLike, {
+      ctrlKey: true,
+      composedPath: () => [node("input", { type: "text" }), canvasLike],
+    });
+    overlay.onKeyDown(ev);
+    assert.equal(host.samples.squares.length, 2, "a field behind a retargeted target keeps its Ctrl+Z");
+  }
+
+  // Controls that take no typed text, the canvas, the body and a dead target keep the overlay's keys.
+  for (const [what, target] of [
+    ["the canvas", canvasLike],
+    ["the body", node("body")],
+    ["a checkbox", node("input", { type: "checkbox" })],
+    ["a button", node("button")],
+    ["no target", undefined],
+    ["a non-element node", { nodeType: 3 }],
+  ]) {
+    const { ev, left } = undoFrom(target);
+    assert.equal(left, 1, `Ctrl+Z from ${what} removes the last sample`);
+    assert.equal(ev.prevented && ev.stopped, true, `Ctrl+Z from ${what} is taken`);
+    const { host, overlay } = overlayOf();
+    const esc = key("Escape", target);
+    overlay.onKeyDown(esc);
+    assert.equal(host.disarms, 1, `Escape from ${what} disarms`);
+    assert.equal(esc.prevented && esc.stopped, true, `Escape from ${what} is taken`);
+  }
+  assert.equal(isEditableTarget(undefined), false, "no event is not an editable origin");
+
+  // The scene configuration button opens the scene whose sheet it sits on.
+  const source = readFileSync(new URL("../scripts/battlemap/module.mjs", import.meta.url), "utf8");
+  assert.match(source, /acks-extras-battlemap-open"\)\.addEventListener\("click", \(\) => openAssistant\(scene\)\)/,
+    "the scene config button opens the assistant on its own scene");
+}
+
+console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene)");
