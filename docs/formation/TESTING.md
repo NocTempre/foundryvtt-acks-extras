@@ -4577,3 +4577,61 @@ animation frames name only the socket library's event dispatch). So the walk
 should press only once the Player page has gone a second without a long task.
 
 Teardown: both lights lit and open, the sheet closed; the fixtures stay.
+
+## Summons in the party (added with summons as members)
+
+Built for a summoning cast's creatures marching in their summoner's party
+(MODEL, "Summons as members"; character-sheet MODEL, "Summons go through
+spells"). A mock cannot prove that a real stash and restore keeps a creature's
+`summonedBy` and cast record in its delta, that the Player seat's placement has
+finished before the GM stashes, or that the party cell, the cast menu and the
+cast's end card reach a creature that is no token on the scene.
+
+**Fixtures** (kept; found by marker with `api.fixture`): the character-sheet
+recipe's `summons/*` ("Summons from a Player seat") — `summons/summoner`,
+`summons/spell-named`, `summons/spike-source`, `summons/scene` — and four of
+this section's own:
+- `summons/party` — an `acks-extras.party` actor whose formation holds
+  `summons/summoner` as a member, delving.
+- `summons/party-token` — that party's token on `summons/scene`, the
+  summoner stashed inside it.
+- `summons/summoner-b` — a second `character` the Player seat owns, a member of
+  the same party, spells enabled.
+- `summons/spell-named-b` — a summoning spell on `summons/summoner-b` naming
+  the same creature as `summons/spell-named`.
+
+At the start the party holds the two summoners and no summon members; a
+summon member a past run left is dismissed through the cast menu before the
+walk.
+
+**Steps, from the Player seat** (a real Player user; the GM seat moves the
+clock and starts the combat):
+1. Summoner's sheet → cast column → *Cast* the named spell, count 2, place
+   both. *Observable:* no creature token stands on the scene; the party
+   record holds two members with distinct `actorId`s and `baseActorId` the
+   creature's world copy, each `tokenData.delta` carrying `summonedBy` and the
+   Player's ownership; the Magic tab reads "2 standing".
+2. GM starts a combat with the party token. *Observable:* the deployed
+   creature tokens carry the same delta flags, ownership and hit points.
+3. Recall; Party sheet → the hit-point tool on one stashed creature.
+   *Observable:* only that member's stash changes.
+4. `summons/summoner-b` casts its spell for the same creature. *Observable:*
+   the summoner's cast menu Dismiss removes its own two and leaves B's two.
+5. Deploy, delete one of B's tokens by hand, recall. *Observable:* the
+   deleted creature's member record is gone and nothing restores it.
+6. Bring one of B's creatures to 0 hit points, stashed (the hit-point tool)
+   and deployed. *Observable:* each is removed as a dismissal removes it: no
+   member record, no token, never counted as a casualty or carried.
+7. GM moves the clock past the named spell's duration. *Observable:* the end
+   card counts the held creatures; its Dismiss, answered Yes, empties them.
+8. B leaves the party (summons restored on the scene with their flags), then
+   rejoins. *Observable:* its creatures are gathered back in.
+9. Disband. *Observable:* every member restored, creatures with their flags.
+10. Drop the creature's world copy on the party sheet. *Observable:* refused,
+    with the warning; a creature token of a caster outside the party is
+    refused too.
+
+**Teardown.** The fixtures are kept, the party re-formed with the two
+summoners and no summon members. Delete only what the run's ledger names: the
+creature tokens it placed or restored, the cast and end cards it posted, and
+a world copy where none stood before.
