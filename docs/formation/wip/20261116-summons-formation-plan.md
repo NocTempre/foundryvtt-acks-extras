@@ -23,14 +23,20 @@ The UI half (a caster column on the character sheet's right rail whose top
 cell opens a Cast menu holding all summon management) is `topic/cast-cell`,
 built separately.
 
-## Owner questions (open)
+## Owner answers (2026-11-16, verbatim)
 
-- **Q1.** A summon at 0 hp inside the party: (A) a casualty like any monster
-  member (today's code), or (B) not a person (what `isPerson`'s docstring
-  says)? Default A.
-- **Q2.** A creature bound to a character by hand: (A) the Judge adds it to
-  the party themselves, or (B) it joins automatically with its summoner?
-  Default A.
+- **Q1.** A summon at 0 hp inside the party — casualty, or not a person?
+  "Not a person, removed/destroyed." So `isPerson` is false for a summon
+  member, it never stops the column or needs carrying, and reaching 0 hp ends
+  it: the member record (and any deployed token) goes, as a dismissal does.
+  This adds a slice-4 trigger (a summon member's hp reaching 0, stashed or
+  deployed) and a walk step.
+- **Q2.** A creature bound to a character by hand — does it join? "What is
+  bind? Sounds like a legacy shortcut ready to retire." Bind (2026-09-03)
+  marks controlled canvas tokens as a character's summons; it predates the
+  spell-driven summoning of 2026-11-10/11. Retired in `topic/cast-cell`:
+  the Cast menu carries no Bind. Hand-bound creatures carry no cast record,
+  so they never join a party.
 
 ## Blockers found (architect, verified in source)
 
