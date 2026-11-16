@@ -697,14 +697,17 @@ VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
   missingFigures(assembleJumping({}, out), ["creatureSpeedBase", "creatureDex", "shortfallDie"], fail);
   missingFigures(assembleFall(out?.fall), ["die", "feetPerDie"], fail);
 };
-// The Spelunking grids: all four rows read, and the binding takes a stretch and
-// a target or a refusal for each of the six obstacles.
+// The Spelunking grids: every row read, and the binding takes a stretch, a
+// target or a refusal, a helplessness and a botch band for each of the six
+// obstacles.
 VERIFY["formation.spelunkingGrid"] = (out, recipe, fail) => {
   for (const spec of recipe.rows) if (!out?.[spec.key] || isMissingRow(out[spec.key])) fail(`${spec.key}: row not read`);
   const table = assembleSpelunking(out);
   if (table.stretchFeet == null) fail("stretchFeet: the binding reads no distance from the grids");
   for (const kind of SPELUNKING_COLUMNS.flat()) {
     if (table.adventuring?.[kind] === undefined) fail(`${kind}: the binding reads no target or refusal`);
+    if (typeof table.vulnerable?.[kind] !== "boolean") fail(`${kind}: the binding reads no helplessness`);
+    if (!table.botchBand?.[kind]) fail(`${kind}: the binding reads no botch band`);
   }
 };
 // The same grids' failed- and botched-throw rows: every row read, and the

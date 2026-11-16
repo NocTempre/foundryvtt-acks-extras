@@ -4380,7 +4380,10 @@ step 6).
 1. **The import reads them.** With the books open, run Rules tables.
    *Observable:* `acksExtras.lib.tables.getDoc("formation").tables.jumping`
    holds nine keys, `.fall` two, and `.spelunking` a stretch and six obstacle
-   entries, each a number or `false`; `getDoc("cityTravel").tables.dice`
+   entries, each a number or `false`, beside `vulnerable`, a boolean per
+   obstacle, and `botchBand`, a `{min, max}` of whole numbers per obstacle (the
+   `acksExtras.formation.obstacles` readers `obstacleVulnerable(kind)` and
+   `botchBand(kind)` answer the same); `getDoc("cityTravel").tables.dice`
    holds `street` and `incident` as `NdM` strings. Count the agreement against
    the pages named above with the book open and report it as a count of
    figures, never the figures.
@@ -4404,8 +4407,9 @@ step 6).
    throw does for its distance), and repeat step 3.
    *Observable:* the card lists the climber's name as unable, with no reason
    beside it, and the chat log gains no roll;
-   `jumpDistance({dex: 12})` is unchanged while `fall` is untouched. Clear the
-   override.
+   `jumpDistance({dex: 12})` is unchanged while `fall` is untouched.
+   `obstacleVulnerable(kind)` and `botchBand(kind)` answer null for all six
+   kinds. Clear the override.
 5. **An override wins, and reverts.** Give `spelunking` an override whose
    stretch is one the Judge picks, and repeat step 3 for a length of that
    figure.
@@ -4461,20 +4465,30 @@ miss and a natural 1.
    agreeing with the page, book open, and report the count.
 2. **The card acts on them.** `attemptObstacle([{actor, proficient: true,
    classThrow: 20}], {kind: "easyClimb", feet})` for two stretches, rigged to
-   miss: then rigged to a natural 1.
+   miss: then rigged to a natural result inside `s.botchBand.easyClimb`, where
+   `s = acksExtras.lib.tables.getDoc("formation").tables.spelunking`, and to
+   one just outside it.
    *Observable:* the miss prints `o.easyClimb.fail.text` and throws the second
    stretch only when `o.easyClimb.fail.advances` is true and
    `o.easyClimb.fail.falls` is false; with `advances` false or absent it stops
    after one throw, the member's row has `across: false`, `covered: 0`, and the
    card says how many stretches were covered. Where it advances, the
-   attempts' `step` reads `covered`, then `across`. The natural 1 prints
-   `o.easyClimb.botch.text` and, `falls` true, throws no further stretch (`step`
-   `fell`).
+   attempts' `step` reads `covered`, then `across`. The result inside the band
+   prints `o.easyClimb.botch.text` whatever the total reaches and, `falls` true,
+   throws no further stretch (`step` `fell`); the result just outside it, at a
+   total under the target, prints `o.easyClimb.fail.text` and the read's
+   `botch` is false. Every read's `vulnerable` is `s.vulnerable.easyClimb`.
    Hovering the outcome shows `Imported (<cite>)`.
 3. **Not imported.** In the Ruledata Browser give `formation` an override that
    blanks `spelunkingOutcomes`, and repeat the rigged miss.
    *Observable:* one throw only; the card prints "missed", with no tooltip;
-   nothing else is applied.
+   nothing else is applied. Then blank `spelunking` instead (no stretch is
+   known, so the attempt is not thrown) and read a throw directly:
+   `acksExtras.formation.obstacles.readThrow({plan: obstaclePlan({kind:
+   "easyClimb", proficient: true, classThrow: 5}), natural, total})` with the
+   band's lowest result as `natural` and a total over the target. The read's
+   `botch` is false and `success` true, since no band is known, and its
+   `vulnerable` is null. Clear the override.
 4. **An override wins, and reverts.** Override `spelunkingOutcomes.easyClimb.fail`
    with words of the Judge's own and `falls: true`, and repeat the rigged miss.
    *Observable:* the card prints the Judge's words, the tooltip says `Set by a

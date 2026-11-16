@@ -93,8 +93,8 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-11 — [A monster henchman's share of Deal XP is credited to its own record](DECISIONS-through-v11.14.5.md#2026-11-11--a-monster-henchmans-share-of-deal-xp-is-credited-to-its-own-record)
 - 2026-11-11 — [A speed under a load is the system's, and a table change repaints the column](DECISIONS-through-v11.14.5.md#2026-11-11--a-speed-under-a-load-is-the-systems-and-a-table-change-repaints-the-column)
 - 2026-11-11 — [No maximum encumbrance where core derived none](DECISIONS-through-v11.14.5.md#2026-11-11--no-maximum-encumbrance-where-core-derived-none)
-- 2026-11-11 — [Jumping, the fall, Spelunking and the street's dice are imported](DECISIONS-through-v11.14.5.md#2026-11-11--jumping-the-fall-spelunking-and-the-streets-dice-are-imported) — superseded in part by "2026-11-11 — The ancillary slot count and the obstacle outcomes are imported"
-- 2026-11-11 — [The ancillary slot count and the obstacle outcomes are imported](DECISIONS-through-v11.14.5.md#2026-11-11--the-ancillary-slot-count-and-the-obstacle-outcomes-are-imported)
+- 2026-11-11 — [Jumping, the fall, Spelunking and the street's dice are imported](DECISIONS-through-v11.14.5.md#2026-11-11--jumping-the-fall-spelunking-and-the-streets-dice-are-imported) — superseded in part by "2026-11-11 — The ancillary slot count and the obstacle outcomes are imported" and in part by "2026-11-16 — Which obstacles leave a climber helpless, and the botch band, are imported"
+- 2026-11-11 — [The ancillary slot count and the obstacle outcomes are imported](DECISIONS-through-v11.14.5.md#2026-11-11--the-ancillary-slot-count-and-the-obstacle-outcomes-are-imported) — superseded in part by "2026-11-16 — Which obstacles leave a climber helpless, and the botch band, are imported"
 
 ## 2026-11-13 — The column is spaced as the book spaces it
 
@@ -275,3 +275,17 @@ append-only, keep them; they are marked superseded in part.
 **The session's call, owner may overrule.** The dungeon die is reused rather than read per zone. Cost: a Judge's override of the delve die moves every journey zone, and the die's tooltip cites JJ p. 36, not the adventure page the zone's target came from. Counter-argument, moderate: a per-zone die is the more literal reading of the adventure rows, but it needs a new schema field, four register specs and four cookbook recompiles, and no page prints a die that differs from the dungeon's. A card with no die still posts, so entry and period card counts do not change; the alternative, no card (as the delve does), would.
 
 **Rejected.** Falling back to the territory d20 or to a d6 when no die is imported: a figure the book does not print for that throw, which is the house rule the 2026-11-11 ruling removes.
+
+## 2026-11-16 — Which obstacles leave a climber helpless, and the botch band, are imported
+
+**Supersedes** (in part) *Jumping, the fall, Spelunking and the street's dice are imported (2026-11-11)*, whose clause "which obstacles leave the climber helpless" kept a printed row in source as procedure, and *The ancillary slot count and the obstacle outcomes are imported (2026-11-11)*, whose clause that a botched throw is the lowest natural result kept the band's edge in source. **Evidence:** the 2026-11-14 ruling that a categorical row a page prints is content and arrives through the importer (the template's DECISIONS, "A field with nothing imported stays blank", and the printed-value rule in `ip-doctrine.md` it enforces), which the 2026-11-11 entries did not have. The Spelunking grid prints helplessness as a row of its own, and prints the botch band in the botched-throw row's label (RR p. 268); neither is the module's procedure.
+
+**Ruled.**
+- `spelunking.vulnerable.<kind>` (a boolean) and `spelunking.botchBand.<kind>` (`{min, max}`) are read from `spelunkingGrid`'s helplessness rows and botched-throw labels, and `readThrow` reads both through `formationValue`. `OBSTACLES` carries only its labels.
+- With no band imported no natural result reads as a botch and the target alone decides the miss; with no helplessness imported `vulnerable` is null. Nothing stands in for either (the 2026-11-14 ruling; `isBotch` in `trap-rules.mjs` already answers a missing band the same way). When a band is imported the natural result is read before the target.
+- What still ships is that a botched throw reads its own outcome row, a fall ends the attempt and a fixed rope plans a sheer face as the easy one.
+- The automatic-failure floor `trapbreak-app.mjs` and `door-app.mjs` read is the general rule's, not this grid's, and is not this entry's.
+
+**Rejected.** Keeping the lowest face as the band when none is imported: a printed figure standing in for a missing one. Reading the band once for both grids: each grid prints its own label, so each column takes its own grid's.
+
+**Cost.** A world must re-run the Rules tables import before the obstacle card carries a helplessness or a botch band. `OBSTACLES` loses `vulnerable`, so `api.formation.obstacles` reads it through `obstacleVulnerable` and `botchBand`, and formation `apiVersion` is 27.

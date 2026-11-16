@@ -26,6 +26,7 @@ import {
   assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterModifiers, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
+  parseVulnerableCell, parseBotchRange,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -118,6 +119,68 @@ eq("a grid that did not read costs only its own columns",
 eq("a cell that says neither is left out, never read as a refusal",
   assembleSpelunking({ ...GRID, adventuringFirst: { first: "see text", second: "8+", third: "" } }).adventuring.easyClimb, undefined);
 eq("the six obstacles are three columns over two grids", SPELUNKING_COLUMNS.map((c) => c.length), [3, 3]);
+
+/* --- helplessness and the botch band: the grid's own rows, invented ---------- */
+eq("a helplessness cell that is only a yes or a no reads", [" YES ", "no", "Yes\n"].map(parseVulnerableCell), [true, false, true]);
+eq("any other cell is no answer, never a refusal", ["", "yes, mostly", "n/a", null, "nope"].map(parseVulnerableCell),
+  [undefined, undefined, undefined, undefined, undefined]);
+eq("a botch note is one whole number or a pair, seams welded or spaced",
+  ["3", " 2 - 5 ", "4–6", "2−2", "1—3"].map(parseBotchRange),
+  [{ min: 3, max: 3 }, { min: 2, max: 5 }, { min: 4, max: 6 }, { min: 2, max: 2 }, { min: 1, max: 3 }]);
+eq("a note that is neither is no band", ["", "x", "1, 2", "5-3", "0", "2-", "1 or 2", null].map(parseBotchRange),
+  [null, null, null, null, null, null, null, null]);
+const GRID_ROWS = {
+  ...GRID,
+  botchFirst: { first: "a", second: "b", third: "c", note: "2-3" },
+  vulnerableFirst: { first: "yes", second: "no", third: "no" },
+  botchSecond: { first: "a", second: "b", third: "c", note: "4" },
+  vulnerableSecond: { first: "no", second: "yes", third: "yes" },
+};
+const withRows = assembleSpelunking(GRID_ROWS);
+eq("each obstacle reads its own helplessness", withRows.vulnerable,
+  { easyClimb: true, sheerClimb: false, rappel: false, crawl: false, narrowLedge: true, precariousLedge: true });
+eq("each grid's botched-throw label gives its three columns one band", withRows.botchBand, {
+  easyClimb: { min: 2, max: 3 }, sheerClimb: { min: 2, max: 3 }, rappel: { min: 2, max: 3 },
+  crawl: { min: 4, max: 4 }, narrowLedge: { min: 4, max: 4 }, precariousLedge: { min: 4, max: 4 },
+});
+eq("the target and the stretch are read as before", [withRows.stretchFeet, withRows.adventuring.narrowLedge], [50, 6]);
+eq("rows that did not read leave their keys off, and nothing beside them",
+  ["vulnerable" in assembleSpelunking(GRID), "botchBand" in assembleSpelunking(GRID)], [false, false]);
+eq("a grid's rows that did not read cost only that grid",
+  assembleSpelunking({ ...GRID_ROWS, botchFirst: { __missing: true }, vulnerableSecond: { __missing: true } }).botchBand,
+  { crawl: { min: 4, max: 4 }, narrowLedge: { min: 4, max: 4 }, precariousLedge: { min: 4, max: 4 } });
+eq("a cell that says neither is left out of the helplessness row",
+  assembleSpelunking({ ...GRID_ROWS, vulnerableFirst: { first: "yes", second: "see text", third: "" } }).vulnerable,
+  { easyClimb: true, crawl: false, narrowLedge: true, precariousLedge: true });
+eq("a botched row with no bracketed note leaves the band off",
+  "botchBand" in assembleSpelunking({ ...GRID, botchFirst: { first: "a", second: "b", third: "c" } }), false);
+
+// End to end: an invented grid through the shipped recipe, label runs left of
+// the cell columns, the botch figure in the label's bracket.
+{
+  const run = (x, y, str) => ({ x, y, str, w: str.length * 5 });
+  const line = (y, label, cells) => [
+    ...(label ? [run(50, y, label)] : []),
+    ...cells.map((c, i) => run([170, 295, 420][i], y, c)),
+  ];
+  const items = [
+    ...line(500, "Throw Required", ["per 50'", "per 50'", "per 50'"]),
+    ...line(512, "Using Adventuring", ["6+", "Not permitted", "Not permitted"]),
+    ...line(524, "Failed Throw", ["w", "w", "w"]),
+    ...line(536, "Botched Throw (2-3)", ["w", "w", "w"]),
+    ...line(548, "Vulnerable in Combat", ["Yes", "No", "No"]),
+    ...line(580, "Throw Required", ["per 50'", "per 50'", "per 50'"]),
+    ...line(592, "Using Adventuring", ["6+", "6+", "Not permitted"]),
+    ...line(604, "Failed Throw", ["w", "w", "w"]),
+    ...line(616, "Botched Throw(4)", ["w", "w", "w"]),
+    ...line(628, "Vulnerable in Combat", ["No", "Yes", "Yes"]),
+  ];
+  const read = assembleSpelunking(extractTable(items, TABLE_RECIPES.formation.tables.spelunkingGrid));
+  eq("the shipped recipe reads the rows in page order and the binding assembles them",
+    [read.vulnerable, read.botchBand.easyClimb, read.botchBand.crawl],
+    [{ easyClimb: true, sheerClimb: false, rappel: false, crawl: false, narrowLedge: true, precariousLedge: true },
+      { min: 2, max: 3 }, { min: 4, max: 4 }]);
+}
 
 /* --- what a missed throw costs: invented words, kept whole ----------------- */
 eq("an outcome cell keeps its words, its first letter raised, and says whether they name a fall",

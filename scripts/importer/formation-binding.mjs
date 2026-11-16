@@ -18,8 +18,9 @@
  * assumed Dexterity, the die a failed landing falls short by) and the `fall`
  * table (the die and the feet it is dealt per). The Spelunking grids (RR p. 268)
  * give the `spelunking` table: the stretch one throw covers and the target an
- * adventurer with no climbing proficiency throws against, or that none may try;
- * and the `spelunkingOutcomes` table: what a failed and a botched throw cost at
+ * adventurer with no climbing proficiency throws against, or that none may try,
+ * whether the climber is helpless on each obstacle, and the botch band each
+ * grid's botched-throw row names; and the `spelunkingOutcomes` table: what a failed and a botched throw cost at
  * each obstacle, as the cell's words and whether they name a fall. The
  * Combatant Frontage and Interval passage (RR ch. 6) gives three distances in
  * feet: the march and wide frontages and the rank interval, one window each.
@@ -294,6 +295,31 @@ export function parseAdventuringCell(cell) {
 }
 
 /**
+ * Whether a cell of the grid's helplessness row says yes or no: true or false
+ * for a cell that is only that word, undefined for any other cell (so it is
+ * left out, never read as an answer).
+ */
+export function parseVulnerableCell(cell) {
+  const t = cellText(cell);
+  if (t === "yes") return true;
+  return t === "no" ? false : undefined;
+}
+
+/**
+ * The natural results a botched-throw row's label names, as `{min, max}`: the
+ * label's bracketed note read as one whole number or a pair of them, and null
+ * for a note that is neither. Seams are `\s*`; a pair's first end may not
+ * exceed its second.
+ */
+export function parseBotchRange(note) {
+  const m = /^\s*(\d+)\s*(?:[-–—−]\s*(\d+))?\s*$/.exec(String(note ?? ""));
+  if (!m) return null;
+  const min = Number(m[1]);
+  const max = Number(m[2] ?? m[1]);
+  return min >= 1 && max >= min ? { min, max } : null;
+}
+
+/**
  * The `jumping` table from the two passages' windows: each figure on its own,
  * so a window that drifted costs that figure and nothing beside it. The jump's
  * die is kept only where it is a single die, which is the one the range the
@@ -337,24 +363,37 @@ export function assembleFall(window) {
  * one throw covers (every column states it; the first read stands), and
  * `adventuring`, one entry per obstacle that read. A grid that did not read,
  * or a cell that says neither a target nor a refusal, leaves its obstacle out.
+ * Two more rows are read per obstacle: `vulnerable`, whether the climber is
+ * helpless on it (`parseVulnerableCell`), and `botchBand`, the natural results
+ * that are a botch, which the botched-throw row's label prints and every
+ * column of its grid shares (`parseBotchRange`). Each leaves out what did not
+ * read.
  */
 export function assembleSpelunking(grid = {}) {
   const out = {};
   const rows = [
-    [grid.stretchFirst, grid.adventuringFirst, SPELUNKING_COLUMNS[0]],
-    [grid.stretchSecond, grid.adventuringSecond, SPELUNKING_COLUMNS[1]],
+    { stretch: grid.stretchFirst, throws: grid.adventuringFirst, botch: grid.botchFirst, helpless: grid.vulnerableFirst, kinds: SPELUNKING_COLUMNS[0] },
+    { stretch: grid.stretchSecond, throws: grid.adventuringSecond, botch: grid.botchSecond, helpless: grid.vulnerableSecond, kinds: SPELUNKING_COLUMNS[1] },
   ];
   const adventuring = {};
-  for (const [stretch, throws, kinds] of rows) {
+  const vulnerable = {};
+  const botchBand = {};
+  for (const { stretch, throws, botch, helpless, kinds } of rows) {
+    const band = botch?.__missing ? null : parseBotchRange(botch?.note);
     for (const [i, kind] of kinds.entries()) {
       const column = ["first", "second", "third"][i];
       const feet = stretch?.__missing ? null : parseStretchFeet(stretch?.[column]);
       if (feet != null && out.stretchFeet == null) out.stretchFeet = feet;
       const target = throws?.__missing ? undefined : parseAdventuringCell(throws?.[column]);
       if (target !== undefined) adventuring[kind] = target;
+      const helplessNow = helpless?.__missing ? undefined : parseVulnerableCell(helpless?.[column]);
+      if (helplessNow !== undefined) vulnerable[kind] = helplessNow;
+      if (band) botchBand[kind] = { ...band };
     }
   }
   if (Object.keys(adventuring).length) out.adventuring = adventuring;
+  if (Object.keys(vulnerable).length) out.vulnerable = vulnerable;
+  if (Object.keys(botchBand).length) out.botchBand = botchBand;
   return out;
 }
 

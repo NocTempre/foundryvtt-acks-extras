@@ -9,7 +9,7 @@ import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { SPELUNKING_COLUMNS } from "../scripts/importer/formation-binding.mjs";
 import {
   OBSTACLES, OBSTACLE_KEYS, OUTCOMES_TABLE, adventuringTarget, stretchFeet, throwsFor, obstaclePlan, readThrow,
-  obstacleStep, attemptObstacle, obstacleOutcome, outcomeProvenance,
+  obstacleStep, attemptObstacle, obstacleOutcome, outcomeProvenance, obstacleVulnerable, botchBand,
 } from "../scripts/formation/obstacles.mjs";
 
 let passed = 0;
@@ -23,6 +23,11 @@ const SPELUNKING = {
     easyClimb: 6, sheerClimb: false, rappel: false,
     crawl: 6, narrowLedge: 7, precariousLedge: false,
   },
+  vulnerable: {
+    easyClimb: true, sheerClimb: false, rappel: true,
+    crawl: false, narrowLedge: true, precariousLedge: false,
+  },
+  botchBand: { easyClimb: { min: 1, max: 1 }, sheerClimb: { min: 1, max: 1 } },
 };
 
 /**
@@ -52,6 +57,18 @@ ok("with the table not imported nothing is a target and nothing is a stretch", (
   for (const kind of OBSTACLE_KEYS) assert.equal(adventuringTarget(kind), null, kind);
   assert.equal(stretchFeet(), null);
   assert.equal(throwsFor(100), null);
+});
+
+ok("with the table not imported helplessness is null and no band is known", () => {
+  resetTables();
+  for (const kind of OBSTACLE_KEYS) {
+    assert.equal(obstacleVulnerable(kind), null, kind);
+    assert.equal(botchBand(kind), null, kind);
+  }
+});
+
+ok("an obstacle carries no printed figure of its own", () => {
+  for (const kind of OBSTACLE_KEYS) assert.deepEqual(Object.keys(OBSTACLES[kind]), ["label"], kind);
 });
 
 ok("an ordinary adventurer's attempt is reported as not imported, never refused or rolled", () => {
@@ -116,24 +133,24 @@ ok("one column left out leaves only that obstacle unimported", () => {
 });
 
 // ---- what a missed throw costs is imported ----------------------------------
-ok("a failed throw and a natural 1 each read their own imported row", () => {
+ok("a failed throw and a throw in the botch band each read their own imported row", () => {
   load();
   const at = (kind, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 10 }), natural, total });
   assert.deepEqual(at("easyClimb", 5, 5).outcome, OUTCOMES.easyClimb.fail);
   assert.equal(at("easyClimb", 5, 5).ends, false, "an outcome that names no fall does not end it by itself");
   assert.deepEqual(at("easyClimb", 1, 1).outcome, OUTCOMES.easyClimb.botch);
   assert.equal(at("easyClimb", 1, 1).botch, true);
-  assert.equal(at("easyClimb", 1, 1).ends, false, "a natural 1 whose row names no fall does not end it either");
+  assert.equal(at("easyClimb", 1, 1).ends, false, "a botch whose row names no fall does not end it either");
   assert.equal(at("sheerClimb", 5, 5).ends, false);
   assert.equal(at("sheerClimb", 1, 1).ends, true, "a fall ends the attempt");
   assert.equal(at("crawl", 12, 12).outcome, "progress");
   resetTables();
 });
 
-ok("the lowest face is read before the target: a total at or over it is still a botch", () => {
+ok("the natural result is read before the target: a total at or over it is still a botch", () => {
   load();
   const read = (kind, classThrow, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow }), natural, total });
-  // A total well over the target, and one exactly on it, both on the lowest face.
+  // A total well over the target, and one exactly on it, both inside the band.
   for (const total of [18, 10]) {
     const got = read("sheerClimb", 10, 1, total);
     assert.equal(got.success, false, `total ${total}`);
@@ -141,18 +158,53 @@ ok("the lowest face is read before the target: a total at or over it is still a 
     assert.deepEqual(got.outcome, OUTCOMES.sheerClimb.botch, `total ${total}`);
     assert.equal(got.ends, true, "the botch row names a fall");
   }
-  // A target the lowest face's total reaches on its own does not change that.
+  // A target the botched face's total reaches on its own does not change that.
   assert.equal(read("sheerClimb", 0, 1, 1).botch, true);
   assert.equal(read("easyClimb", 0, 1, 1).success, false);
-  // Any other face at the same total still makes it.
+  // Any face outside the band at the same total still makes it.
   assert.equal(read("sheerClimb", 10, 2, 10).success, true);
   resetTables();
 });
 
-ok("an obstacle carries no field nothing reads", () => {
-  for (const kind of OBSTACLE_KEYS) {
-    assert.equal("vertical" in OBSTACLES[kind], false, kind);
-    assert.equal("descendOnly" in OBSTACLES[kind], false, kind);
+ok("the botch band is the imported span, not a fixed face", () => {
+  load({ ...SPELUNKING, botchBand: { easyClimb: { min: 1, max: 3 }, crawl: { min: 5, max: 5 } } });
+  const read = (kind, natural, total) => readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 8 }), natural, total });
+  for (const natural of [1, 2, 3]) {
+    const got = read("easyClimb", natural, 20);
+    assert.equal(got.botch, true, `natural ${natural}`);
+    assert.equal(got.success, false, `natural ${natural}`);
+    assert.deepEqual(got.outcome, OUTCOMES.easyClimb.botch, `natural ${natural}`);
+  }
+  assert.equal(read("easyClimb", 4, 4).botch, false, "a face above the band is a plain miss");
+  assert.deepEqual(read("easyClimb", 4, 4).outcome, OUTCOMES.easyClimb.fail);
+  assert.equal(read("easyClimb", 4, 20).success, true);
+  // A face the band leaves out is an ordinary throw, whatever face it is.
+  assert.equal(read("crawl", 5, 20).botch, true);
+  assert.equal(read("crawl", 1, 1).botch, false);
+  assert.equal(read("crawl", 1, 20).success, true);
+  resetTables();
+});
+
+ok("with no band imported no natural result is a botch and the target alone decides", () => {
+  load({ ...SPELUNKING, botchBand: undefined });
+  const read = (natural, total) => readThrow({ plan: obstaclePlan({ kind: "easyClimb", proficient: true, classThrow: 8 }), natural, total });
+  assert.equal(read(1, 20).success, true, "a face that would be in a band, with a total over the target, makes it");
+  assert.equal(read(1, 1).botch, false);
+  assert.deepEqual(read(1, 1).outcome, OUTCOMES.easyClimb.fail, "a miss reads the failed-throw row");
+  resetTables();
+});
+
+ok("a band is a pair of whole numbers from 1 up, or it is not imported", () => {
+  const band = (cell) => {
+    load({ ...SPELUNKING, botchBand: { crawl: cell } });
+    const got = botchBand("crawl");
+    resetTables();
+    return got;
+  };
+  assert.deepEqual(band({ min: 2, max: 4 }), { min: 2, max: 4 });
+  assert.deepEqual(band({ min: "2", max: "2" }), { min: 2, max: 2 });
+  for (const bad of [{ min: 4, max: 2 }, { min: 0, max: 2 }, { min: 1.5, max: 2 }, { min: "a", max: 2 }, { min: 1 }, 3, "1-3", null]) {
+    assert.equal(band(bad), null, JSON.stringify(bad));
   }
 });
 
@@ -248,8 +300,30 @@ ok("the outcome's tooltip names the imported page, the override, or is empty", (
   resetTables();
 });
 
-ok("only the easy climb leaves the climber able to defend", () => {
-  for (const kind of OBSTACLE_KEYS) assert.equal(OBSTACLES[kind].vulnerable, kind !== "easyClimb", kind);
+ok("helplessness is the imported row, read per obstacle", () => {
+  load();
+  for (const kind of OBSTACLE_KEYS) assert.equal(obstacleVulnerable(kind), SPELUNKING.vulnerable[kind], kind);
+  assert.equal(obstaclePlan({ kind: "crawl", proficient: true, classThrow: 5 }).obstacle.vulnerable, undefined, "the obstacle holds none");
+  resetTables();
+});
+
+ok("a throw carries the obstacle's imported helplessness, and null while not imported", () => {
+  load();
+  const read = (kind, natural, total, assisted = false) =>
+    readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 8, assisted }), natural, total });
+  assert.equal(read("easyClimb", 10, 10).vulnerable, true, "a made throw");
+  assert.equal(read("easyClimb", 4, 4).vulnerable, true, "a miss");
+  assert.equal(read("sheerClimb", 10, 10).vulnerable, false);
+  assert.equal(read("sheerClimb", 10, 10, true).vulnerable, true, "a fixed rope reads the easy climb's row");
+  resetTables();
+  assert.equal(read("easyClimb", 10, 10).vulnerable, null, "nothing imported");
+  assert.equal(read("easyClimb", 4, 4).vulnerable, null, "nothing imported, a miss");
+});
+
+ok("a helplessness that is no boolean reads as not imported", () => {
+  load({ ...SPELUNKING, vulnerable: { easyClimb: "yes", sheerClimb: 1, rappel: null, crawl: true } });
+  assert.deepEqual(OBSTACLE_KEYS.map(obstacleVulnerable), [null, null, null, true, null, null]);
+  resetTables();
 });
 
 ok("a plan with no target is not thrown against", () => {

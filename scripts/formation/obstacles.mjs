@@ -7,19 +7,23 @@
  *
  *  - **may an ordinary adventurer try at all, and against what target?** Read
  *    from the `spelunking` registered table (`adventuringTarget`);
- *  - **what does a failed throw cost?** and **what does a natural 1 cost?**
+ *  - **what does a failed throw cost?** and **what does a botched one cost?**
  *    Read from the `spelunkingOutcomes` registered table (`obstacleOutcome`):
  *    the row's words, which the card prints, whether they name a fall, and
  *    whether the outcome still covers ground (`advances`). A fall ends that
  *    climber's attempt, and so does a miss that does not advance: the stretch
- *    is not covered and nothing here throws it again (`obstacleStep`);
- *  - **is the climber helpless while doing it?** (`vulnerable`).
+ *    is not covered and nothing here throws it again (`obstacleStep`). Which
+ *    natural results are a botch is the grid's own row (`botchBand`);
+ *  - **is the climber helpless while doing it?** The grid's own row
+ *    (`obstacleVulnerable`).
  *
  * One throw per stretch of the obstacle, the stretch being the imported figure
- * (`stretchFeet`). Nothing here knows a distance, a target or an outcome: with
- * the table not imported an ordinary adventurer's attempt is reported as
- * unknown, never rolled against a guess, and a missed throw whose outcome is
- * not imported, or imported with no `advances`, ends that climber's attempt.
+ * (`stretchFeet`). Nothing here knows a distance, a target, a band, a
+ * helplessness or an outcome: with the table not imported an ordinary
+ * adventurer's attempt is reported as unknown, never rolled against a guess,
+ * no natural result reads as a botch, helplessness is null, and a missed throw
+ * whose outcome is not imported, or imported with no `advances`, ends that
+ * climber's attempt.
  *
  * `assisted` is one flag the caller sets. Where it is true, `obstaclePlan`
  * plans a sheer climb as the easy climb, for the target and for the outcomes
@@ -35,24 +39,25 @@ const LANG_PREFIX = "ACKS-FORMATION.obstacles";
 export const OUTCOMES_TABLE = "spelunkingOutcomes";
 
 /**
- * The Spelunking tables, as the procedure each obstacle runs: its label and
- * whether the climber is helpless on it. The keys name the six columns, in the
- * order the grids print them (`importer/formation-binding.mjs`
- * `SPELUNKING_COLUMNS`). What an ordinary adventurer throws and what a missed
- * throw costs are not here: see `adventuringTarget` and `obstacleOutcome`.
+ * The Spelunking tables' obstacles, each with its label. The keys name the six
+ * columns, in the order the grids print them (`importer/formation-binding.mjs`
+ * `SPELUNKING_COLUMNS`). Every figure the grids print is read from the
+ * registered tables instead: see `adventuringTarget`, `obstacleOutcome`,
+ * `obstacleVulnerable` and `botchBand`.
  */
 export const OBSTACLES = Object.freeze({
-  easyClimb: { label: `${LANG_PREFIX}.easyClimb`, vulnerable: false },
-  sheerClimb: { label: `${LANG_PREFIX}.sheerClimb`, vulnerable: true },
-  rappel: { label: `${LANG_PREFIX}.rappel`, vulnerable: true },
-  crawl: { label: `${LANG_PREFIX}.crawl`, vulnerable: true },
-  narrowLedge: { label: `${LANG_PREFIX}.narrowLedge`, vulnerable: true },
-  precariousLedge: { label: `${LANG_PREFIX}.precariousLedge`, vulnerable: true },
+  easyClimb: { label: `${LANG_PREFIX}.easyClimb` },
+  sheerClimb: { label: `${LANG_PREFIX}.sheerClimb` },
+  rappel: { label: `${LANG_PREFIX}.rappel` },
+  crawl: { label: `${LANG_PREFIX}.crawl` },
+  narrowLedge: { label: `${LANG_PREFIX}.narrowLedge` },
+  precariousLedge: { label: `${LANG_PREFIX}.precariousLedge` },
 });
 
 /**
  * What a missed throw costs at this obstacle: `which` is `"fail"` for a failed
- * throw and `"botch"` for a natural 1. Answers `{text, falls, advances?}` — the
+ * throw and `"botch"` for a natural result inside the obstacle's botch band
+ * (`botchBand`). Answers `{text, falls, advances?}` — the
  * words the card prints, whether they end the attempt, and whether the outcome
  * still covers ground — or null until the table holds that outcome. A Judge's
  * override with no words reads as not imported. `advances` is present only
@@ -100,6 +105,39 @@ export function adventuringTarget(kind) {
   if (cell === false) return false;
   const n = cell == null || cell === "" ? NaN : Number(cell);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/**
+ * Whether the climber is helpless while crossing this obstacle: the grid's
+ * own row, or null until the table holds it. Only a boolean counts, so a
+ * Judge's override that is no boolean reads as not imported.
+ *
+ * @param {string} kind a key of OBSTACLES
+ * @returns {boolean|null}
+ */
+export function obstacleVulnerable(kind) {
+  const cell = formationValue("spelunking")?.vulnerable?.[kind];
+  return typeof cell === "boolean" ? cell : null;
+}
+
+/**
+ * The natural results of the throw that are a botch at this obstacle, the
+ * grid's own row: `{min, max}`, or null until the table holds it. Only a pair
+ * of whole numbers from 1 up, the first not above the second, counts; a single
+ * face is a band with both ends the same.
+ *
+ * @param {string} kind a key of OBSTACLES
+ * @returns {{min: number, max: number}|null}
+ */
+export function botchBand(kind) {
+  const cell = formationValue("spelunking")?.botchBand?.[kind];
+  const whole = (v) => {
+    const n = typeof v === "string" && v.trim() !== "" ? Number(v) : v;
+    return Number.isInteger(n) ? n : null;
+  };
+  const min = whole(cell?.min);
+  const max = whole(cell?.max);
+  return min !== null && max !== null && min >= 1 && max >= min ? { min, max } : null;
 }
 
 /** The feet one throw covers, or null until the table is imported. */
@@ -154,23 +192,28 @@ export function obstaclePlan({ kind, proficient = false, classThrow = null, assi
  * fall and on an outcome nobody imported. Whether a miss that names no fall
  * still covers ground is not in `ends`; `obstacleStep` answers it.
  *
- * The natural result is read before the target: a throw on the lowest face is a
- * miss whatever the total reaches, and reads the botch row.
+ * The natural result is read before the target: a result inside the obstacle's
+ * imported botch band is a miss whatever the total reaches, and reads the
+ * botch row. With no band imported no natural result is a botch and the target
+ * alone decides the miss. `vulnerable` is the obstacle's imported helplessness,
+ * null while not imported.
  */
 export function readThrow({ plan, natural, total }) {
   if (!plan?.permitted || plan.target == null) return { ok: false, outcome: null };
-  // A natural 1 is its own row on the table, read apart from a plain miss.
-  const botch = natural === 1;
+  const kind = plan.effective ?? plan.kind;
+  const vulnerable = obstacleVulnerable(kind);
+  const band = botchBand(kind);
+  const botch = band !== null && Number.isFinite(natural) && natural >= band.min && natural <= band.max;
   const success = !botch && total >= plan.target;
-  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable: plan.obstacle.vulnerable };
-  const outcome = obstacleOutcome(plan.effective ?? plan.kind, botch ? "botch" : "fail");
+  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable };
+  const outcome = obstacleOutcome(kind, botch ? "botch" : "fail");
   return {
     ok: true,
     success: false,
     outcome,
     ends: outcome == null || outcome.falls,
     botch,
-    vulnerable: plan.obstacle.vulnerable,
+    vulnerable,
   };
 }
 

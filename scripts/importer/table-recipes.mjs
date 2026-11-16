@@ -980,12 +980,15 @@ export const TABLE_RECIPES = {
         ],
       },
       // The Spelunking tables (RR 268): two stacked grids of three obstacles
-      // each, claimed by their row labels in reading order. Only the two rows
-      // that carry a figure are read: the stretch one throw covers, and the
-      // target an adventurer with no climbing proficiency throws against (or
-      // the words that say none may try). `yMin`/`yMax` bound the grids on the
-      // page; formation-binding assigns each column to its obstacle by
-      // position, in the order its `SPELUNKING_COLUMNS` lists.
+      // each, claimed by their row labels in reading order, so the specs sit in
+      // page order. Four rows per grid carry a figure: the stretch one throw
+      // covers, the target an adventurer with no climbing proficiency throws
+      // against (or the words that say none may try), the botched-throw row,
+      // read for its label alone (the bracketed note names the botch band and
+      // its cells are the outcome grid's), and whether the climber is helpless.
+      // `yMin`/`yMax` bound the grids on the page; formation-binding assigns
+      // each column to its obstacle by position, in the order its
+      // `SPELUNKING_COLUMNS` lists.
       spelunkingGrid: {
         shape: "gridRows",
         book: "rr",
@@ -996,8 +999,12 @@ export const TABLE_RECIPES = {
         rows: [
           { key: "stretchFirst", labelRe: "^throw\\s*required" },
           { key: "adventuringFirst", labelRe: "^using\\s*adventuring" },
+          { key: "botchFirst", labelRe: "^botched\\s*throw", labelPattern: "parenthetical" },
+          { key: "vulnerableFirst", labelRe: "^vulnerable" },
           { key: "stretchSecond", labelRe: "^throw\\s*required" },
           { key: "adventuringSecond", labelRe: "^using\\s*adventuring" },
+          { key: "botchSecond", labelRe: "^botched\\s*throw", labelPattern: "parenthetical" },
+          { key: "vulnerableSecond", labelRe: "^vulnerable" },
         ],
         // Windowed, so a cell opened by a small-caps initial glyph joins whole.
         cellColumns: [
