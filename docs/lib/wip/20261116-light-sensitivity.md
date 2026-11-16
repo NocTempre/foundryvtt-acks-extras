@@ -65,4 +65,16 @@ printed "in sunlight"?
 
 ## Results
 
-(appended per slice)
+- Slices 1-3 landed on main (d56dc679, unpushed). Docs moved into lib and
+  importer MODEL/DECISIONS/ROADMAP/TESTING.
+- Walked live 2026-11-16 (lib TESTING, "A light-gated penalty on the attack
+  throw", steps 1-5) on fixtures `lib/light-gate-scene`, `lib/light-gate-roller`,
+  `lib/light-gate-ability`, `lib/light-gate-token`: daylight `1d20 - 3` with the
+  row "<ability> · Daylight" on the card; night `1d20`; a magic daylight radius
+  `1d20 - 3` (`by: light`); shuttered `1d20`; indoors Region `1d20`; editor
+  select clears and restores the gate.
+- Open: step 6 (a fresh MM import) needs a book connected on the seat, which
+  needs the owner's file pick; `cookbookImportIds(["mm.morlock"])` returned 0.
+  Close the topic and delete this file once it is walked.
+- Noted: inside an indoors Region a scene's global light reads `dark` unless a
+  light reaches the point.
