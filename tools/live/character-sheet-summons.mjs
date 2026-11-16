@@ -84,6 +84,11 @@ const P = {
     }
     const auto = await import("/modules/acks-extras/scripts/lib/automation-client.mjs");
     await Promise.race([auto.automationSettled(), H.sleep(20000)]);
+    // The weapon rows' first publication redraws every open actor sheet, which
+    // closes an open cell menu: the walk opens none before it has landed.
+    const rows = await import("/modules/acks-extras/scripts/equipment/weapon-rows.mjs");
+    await Promise.race([rows.rowsReady(), H.sleep(60000)]);
+    await H.sleep(300);
     return { isGM: game.user.isGM, role: game.user.role, activeGMIsSelf: !!game.users.activeGM?.isSelf, paused: game.paused, castApi: typeof globalThis.acksExtras?.magic?.castSummon === "function" };
   },
   userId: async ({ name }) => game.users.find((u) => u.name === name)?.id ?? null,

@@ -282,6 +282,14 @@ export function castTrackers(records = [], slots = CAST_TRACKERS) {
 export const castTrackerKey = (records = []) => castTrackers(records).map((c) => [c.kind, c.id ?? c.n ?? "", c.pct ?? "", c.clock ?? ""].join(":")).join("|");
 
 /**
+ * Which casts the tracker cells stand for, as one string, without their fills
+ * or clocks: a clock advance that leaves it as it was is drawn on the cells
+ * in place, and one that changes it re-renders.
+ * @param {object[]} [trackers]  `castTrackers`' cells
+ */
+export const castTrackerShape = (trackers = []) => trackers.map((c) => [c.kind, c.id ?? c.n ?? ""].join(":")).join("|");
+
+/**
  * The cast column, or null for a character that is no caster, so the rails
  * stay as they were.
  * @param {{owner?: boolean, spells?: object[], records?: object[], summons?: object[]}} [cast]  `castOf`'s facts, with `partyOf`'s summons

@@ -15,7 +15,7 @@ import { readFileSync } from "node:fs";
 import {
   xpBar, hpCell, acCell, nextAcMode, slowedTone, moveCell, gripCell, lightCell, saveCells, partyCell, tabList, resolveTab,
   effectivePins, togglePin, buildFrameModel, loadBar, bridgeHands, slotBadge, storedSystem, carriesMorale, partyMenuModel, standingBySpell,
-  castMenuModel, castTrackers, castTrackerKey, castRail, isCaster, CAST_TRACKERS,
+  castMenuModel, castTrackers, castTrackerKey, castTrackerShape, castRail, isCaster, CAST_TRACKERS,
 } from "../scripts/character-sheet/view-model.mjs";
 import { CONDITION_SAVES, RAIL_CONDITIONS, SAVE_KEYS, TAB_ORDER } from "../scripts/character-sheet/constants.mjs";
 import { buildThrows } from "../scripts/character-sheet/tabs/stats.mjs";
@@ -275,6 +275,18 @@ test("the tracker key moves with a fill or a clock and with nothing else", () =>
   assert.equal(castTrackerKey(a), castTrackerKey([{ ...a[0], name: "Renamed", img: "other.webp" }]), "a name or an image is not a fill");
   assert.notEqual(castTrackerKey(a), castTrackerKey([{ ...a[0], remaining: 1, clock: "1t" }]));
   assert.notEqual(castTrackerKey(a), castTrackerKey([]));
+});
+test("the tracker shape holds through a clock advance and moves when a cast comes, goes or ends", () => {
+  const a = [record("r1", { remaining: 2, total: 3, clock: "2t" })];
+  const shape = (rs) => castTrackerShape(castTrackers(rs));
+  assert.equal(shape(a), shape([{ ...a[0], remaining: 1, clock: "1t" }]), "a fill that ran down is painted in place");
+  assert.notEqual(shape(a), shape([...a, record("r2", { remaining: 3, total: 3 })]), "a new cast re-renders");
+  assert.notEqual(shape(a), shape([{ ...a[0], ended: true }]), "an ended cast leaves its cell");
+});
+test("a clock advance paints the trackers in place instead of re-rendering the sheet", () => {
+  const sheet = readFileSync(new URL("../scripts/character-sheet/sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /castTrackerShape\(trackers\) !== this\.#castShape \|\| !this\.#paintTrackers\(trackers\)/, "only a changed shape, or a cell not found, re-renders");
+  assert.match(sheet, /"cast-id": t\.id/, "a record's cell carries its id for the paint");
 });
 test("the frame model carries the cast column for a caster and none for anyone else", () => {
   const base = { xp: {}, hp: { value: 1, max: 1 }, ac: {}, move: {}, grip: {}, light: {}, saves: {} };

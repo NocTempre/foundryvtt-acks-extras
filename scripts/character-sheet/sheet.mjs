@@ -26,7 +26,7 @@ import { SUMMON_FLAG, summonerOf, summonRecordOf, bareSummonAllowed } from "../l
 import { promptSummon, promptDismiss, summonsOf } from "../lib/summons.mjs";
 import { castSummon } from "../magic/cast-summon.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf } from "./snapshot.mjs";
-import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey } from "./view-model.mjs";
+import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey, castTrackers, castTrackerShape } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
 import { buildEquipmentTab } from "./tabs/equipment.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
@@ -98,7 +98,11 @@ const moveFigure = (modeKey, value) => (MOVE_MODES.find((m) => m.key === modeKey
 const enrich = (html, actor) =>
   foundry.applications.ux.TextEditor.implementation.enrichHTML(html ?? "", { relativeTo: actor, secrets: actor.isOwner });
 /** `data-*` attributes for a cell or the band's glyph, rendered raw by the partial. */
-const attr = (o) => Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
+/** A cast tracker cell's tooltip, which is also its accessible name. */
+const trackerTip = (t) =>
+  t.kind === "record" ? loc(`cast.track.${t.state}`, { name: t.name, clock: t.clock }) : t.kind === "more" ? loc("cast.track.more", { n: t.n }) : loc("cast.track.pad");
+
+const attr = (o) =>Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
 
 /** The ACKS character sheet: the window the file header describes, registered as the default for `character`. */
 export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
@@ -233,7 +237,9 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   /** The wage line's figures at the last render (`wageLineKey`). */
   #wageLine = "";
 
-  /** The cast column's tracker fills at the last render (`castTrackerKey`). */
+  /** Which casts the tracker cells stood for at the last render (`castTrackerShape`). */
+  #castShape = "";
+  /** The cast column's tracker fills at the last render or paint (`castTrackerKey`). */
   #castKey = "";
 
   /** Hook ids for the watch on documents this sheet shows but does not own. */
@@ -288,11 +294,19 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     // The wage line counts days on the world's clock. Nearly every advance of
     // the clock leaves the line reading what it read, so only one that
     // changes its figures re-renders. The cast column's trackers run down on
-    // the same clock, and re-render only once a fill or a clock has moved. The
-    // actor's own effects and spells re-render the sheet through core, so no
-    // hook of theirs is watched here.
+    // the same clock: a fill or a clock that moved is drawn on the cells in
+    // place, because a running clock moves one every few seconds and a
+    // re-render closes an open menu; a tracker that came or went re-renders.
+    // The actor's own effects and spells re-render the sheet through core, so
+    // no hook of theirs is watched here.
     const watchClock = () => {
-      if (wageLineKey(this.actor) !== this.#wageLine || castTrackerKey(castOf(this.actor).records) !== this.#castKey) this.#renderSoon();
+      if (wageLineKey(this.actor) !== this.#wageLine) return void this.#renderSoon();
+      const records = castOf(this.actor).records;
+      const key = castTrackerKey(records);
+      if (key === this.#castKey) return;
+      const trackers = castTrackers(records);
+      if (castTrackerShape(trackers) !== this.#castShape || !this.#paintTrackers(trackers)) return void this.#renderSoon();
+      this.#castKey = key;
     };
     const pairs = [
       ["updateActor", watchActor], ["deleteActor", watchActor],
@@ -357,6 +371,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     panels.followers = await buildFollowersTab(actor);
     this.#wageLine = wageLineKey(actor);
     this.#castKey = castTrackerKey(snap.cast.records);
+    this.#castShape = castTrackerShape(castTrackers(snap.cast.records));
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });
     panels.effects = buildEffectsTab(actor);
 
@@ -484,9 +499,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     r.influenceTitle = loc("rail.influence");
     if (r.cast) {
       r.cast.entryTitle = loc(r.cast.owner ? "rail.cast" : "rail.castViewer");
-      for (const t of r.cast.trackers) {
-        t.tip = t.kind === "record" ? loc(`cast.track.${t.state}`, { name: t.name, clock: t.clock }) : t.kind === "more" ? loc("cast.track.more", { n: t.n }) : loc("cast.track.pad");
-      }
+      for (const t of r.cast.trackers) t.tip = trackerTip(t);
     }
     r.foldTitle = frame.folded ? frameLoc("fold.open") : frameLoc("fold.close");
     for (const t of frame.tabs) {
@@ -550,11 +563,32 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     const cells = [cast.owner ? { ...entry, action: "castMenu", cls: "is-btn" } : { ...entry, cls: "is-pad" }];
     cast.trackers.forEach((t, i) => {
       const named = { tipText: t.tip, label: t.tip };
-      if (t.kind === "record") cells.push({ key: `cast-${t.id}`, ...effects, cls: "is-ts", fill: t.pct, img: t.img, icon: t.img ? null : "fa-solid fa-wand-magic-sparkles", ...named });
+      if (t.kind === "record") cells.push({ key: `cast-${t.id}`, ...effects, attrs: attr({ tab: "effects", "cast-id": t.id }), cls: "is-ts", fill: t.pct, img: t.img, icon: t.img ? null : "fa-solid fa-wand-magic-sparkles", ...named });
       else if (t.kind === "more") cells.push({ key: "cast-more", ...effects, cls: "is-btn", sub: `+${t.n}`, ...named });
       else cells.push({ key: `cast-pad-${i}`, cls: "is-pad", ...named });
     });
     return cells;
+  }
+
+  /**
+   * Draw a clock advance on the tracker cells already on the sheet: each
+   * record's fill, tooltip and accessible name. False where a cell the
+   * trackers name is not on the sheet, which the caller answers by
+   * re-rendering.
+   */
+  #paintTrackers(trackers) {
+    const root = this.element;
+    if (!root?.isConnected) return false;
+    for (const t of trackers) {
+      if (t.kind !== "record") continue;
+      const cell = root.querySelector(`[data-cast-id="${CSS.escape(t.id)}"]`);
+      if (!cell) return false;
+      const tip = trackerTip(t);
+      if (t.pct != null) cell.style.setProperty("--acks-extras-fill", `${t.pct}%`);
+      cell.dataset.tooltipText = tip;
+      cell.setAttribute("aria-label", tip);
+    }
+    return true;
   }
 
   /**
