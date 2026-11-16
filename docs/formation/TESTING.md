@@ -4379,8 +4379,11 @@ step 6).
 
 1. **The import reads them.** With the books open, run Rules tables.
    *Observable:* `acksExtras.lib.tables.getDoc("formation").tables.jumping`
-   holds nine keys, `.fall` two, and `.spelunking` a stretch and six obstacle
-   entries, each a number or `false`, beside `vulnerable`, a boolean per
+   holds eleven keys, among them `acrobaticsDexCap`, a whole number, and
+   `extendedDexBands`, ascending `{min, max, mod}` rows of whole numbers (the
+   `acksExtras.formation.jumping` readers `acrobaticsDexCap()` and
+   `extendedDexBands()` answer the same), `.fall` two, and `.spelunking` a
+   stretch and six obstacle entries, each a number or `false`, beside `vulnerable`, a boolean per
    obstacle, and `botchBand`, a `{min, max}` of whole numbers per obstacle (the
    `acksExtras.formation.obstacles` readers `obstacleVulnerable(kind)` and
    `botchBand(kind)` answer the same); `getDoc("cityTravel").tables.dice`
@@ -4395,6 +4398,15 @@ step 6).
    `shortBy` the imported die and `damage` an `NdM` string whose count follows
    the imported rate (the sum of dice for 40 feet against the imported feet
    per die).
+   **The leap reads the raised score.** Call `leapHeight({dex: 12, mod: 1,
+   acrobatics: true, level: 5})` and `leapHeight({dex: 12, mod: 1})`, then once
+   more with a `level` high enough that the raise reaches the imported
+   ceiling. *Observable:* the first reports `dex` as the raised score and
+   `bonus` as the imported band's figure for that score (or, for a score under
+   the lowest band, the system's own modifier for it), where the second keeps
+   the sheet's `mod`; the third reports `dex` equal to the imported ceiling and
+   the band's figure for it. `unknown` is empty in all three. The raised leap's
+   `feet` follows its own `bonus`, not the sheet's.
 3. **An obstacle attempt throws what the table says.** Run
    `acksExtras.formation.obstacles.attemptObstacle([{actor}], {kind: "easyClimb", feet})`
    with the climber, for a length of two stretches, then `kind: "sheerClimb"`.
@@ -4410,6 +4422,14 @@ step 6).
    `jumpDistance({dex: 12})` is unchanged while `fall` is untouched.
    `obstacleVulnerable(kind)` and `botchBand(kind)` answer null for all six
    kinds. Clear the override.
+   **Blanked Acrobatics figures stay unknown.** Give `formation` an override
+   that blanks `jumping`'s `extendedDexBands`, and repeat the raised leap.
+   *Observable:* `feet` and `bonus` are null with `unknown` naming
+   `extendedDexBands`, no card or toast says so, and the leap with no raise is
+   unchanged. Blank `acrobaticsDexCap` as well and repeat it: `dex` is null
+   and `unknown` names `acrobaticsDexCap`; `jumpDistance` for the same
+   acrobat names it too, and passing a `dexCap` argument answers it. Clear
+   the override.
 5. **An override wins, and reverts.** Give `spelunking` an override whose
    stretch is one the Judge picks, and repeat step 3 for a length of that
    figure.

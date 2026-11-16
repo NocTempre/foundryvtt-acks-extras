@@ -950,7 +950,8 @@ export const TABLE_RECIPES = {
       // encumbrance takes off both, the run-up the jump wants and what lacking
       // it does to them (`jumpingProse`); then a creature's scaling by running
       // speed and its assumed Dexterity, how far short a failed landing falls,
-      // and what the fall that follows deals (`jumpingLandingProse`).
+      // what the fall that follows deals, and the Acrobatics score ceiling and
+      // bonus bands (`jumpingLandingProse`).
       // formation-binding.mjs parses them into the `jumping` and `fall`
       // tables formation/jumping.mjs reads.
       jumpingProse: {
@@ -977,6 +978,11 @@ export const TABLE_RECIPES = {
           { key: "dex", find: "assumed to have dex scores of", take: "window", span: 20 },
           { key: "short", find: "lands short by", take: "window", span: 20 },
           { key: "fall", find: "lands him over empty space", take: "window", span: 80 },
+          // The Acrobatics sentence sits above the creature paragraph on this
+          // page: the score ceiling, then the bonus the leap takes at each
+          // score band.
+          { key: "dexCap", find: "add his class level to his dex score", take: "window", span: 40 },
+          { key: "dexBands", find: "a dex score of", take: "window", span: 110 },
         ],
       },
       // The Spelunking tables (RR 268): two stacked grids of three obstacles

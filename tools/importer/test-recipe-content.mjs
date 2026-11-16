@@ -682,8 +682,8 @@ for (const id of [
   "mercantile.impactProse", "mercantile.priceShiftProse",
 ]) VERIFY[id] = (out, recipe, fail) => proseKeys(out, recipe, fail);
 // The jumping passages: every window must read through the binding's own
-// parsers into the figures formation/jumping.mjs takes. Shape only; no figure
-// is named.
+// parsers into the figures formation/jumping.mjs takes (the Acrobatics ceiling
+// and bonus bands included). Shape only; no figure is named.
 /** Names each key of `keys` the assembled table does not hold. */
 const missingFigures = (table, keys, fail) => {
   for (const key of keys) if (table?.[key] === undefined) fail(`${key}: the binding reads no figure from the window`);
@@ -694,7 +694,16 @@ VERIFY["formation.jumpingProse"] = (out, recipe, fail) => {
 };
 VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
-  missingFigures(assembleJumping({}, out), ["creatureSpeedBase", "creatureDex", "shortfallDie"], fail);
+  const landing = assembleJumping({}, out);
+  missingFigures(landing, ["creatureSpeedBase", "creatureDex", "shortfallDie", "acrobaticsDexCap", "extendedDexBands"], fail);
+  // The bands are rows of whole numbers, ascending and apart, and the ceiling a whole number above zero.
+  const bands = landing.extendedDexBands;
+  if (bands !== undefined && !(Array.isArray(bands) && bands.every((b, i) => [b.min, b.max, b.mod].every(Number.isInteger) && b.max >= b.min && (i === 0 || b.min > bands[i - 1].max)))) {
+    fail("extendedDexBands: not ascending whole-number rows");
+  }
+  if (landing.acrobaticsDexCap !== undefined && !(Number.isInteger(landing.acrobaticsDexCap) && landing.acrobaticsDexCap > 0)) {
+    fail("acrobaticsDexCap: not a positive whole number");
+  }
   missingFigures(assembleFall(out?.fall), ["die", "feetPerDie"], fail);
 };
 // The Spelunking grids: every row read, and the binding takes a stretch, a

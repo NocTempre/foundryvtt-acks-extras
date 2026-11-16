@@ -15,7 +15,8 @@
  * Two more passages follow. Jumping and Leaping (RR pp. 270-271) is read into
  * the `jumping` table (the leap's formula and floor, the jump's die, the foot a
  * stone takes off, the run-up and what lacking it keeps, a creature's scale and
- * assumed Dexterity, the die a failed landing falls short by) and the `fall`
+ * assumed Dexterity, the die a failed landing falls short by, the Acrobatics
+ * score ceiling and the leap's bonus bands) and the `fall`
  * table (the die and the feet it is dealt per). The Spelunking grids (RR p. 268)
  * give the `spelunking` table: the stretch one throw covers and the target an
  * adventurer with no climbing proficiency throws against, or that none may try,
@@ -258,6 +259,37 @@ export function parseLeap(window) {
 }
 
 /**
+ * The ceiling Acrobatics holds a raised score to: the whole figure after the
+ * words "maximum of" in the window's first sentence; null when there is none or
+ * it is not above zero.
+ */
+export function parseDexCap(window) {
+  const n = wholeAfter(window, /maximum\s*of\s*(\d+)/);
+  return n != null && n > 0 ? n : null;
+}
+
+/**
+ * The bonus the leap takes at each score band, as rows `{min, max, mod}` in
+ * ascending order: each clause of the window's first sentence that names a
+ * score or a pair of scores, then the signed bonus it grants. A clause that
+ * does not read leaves only itself out; bands that overlap are a misreading and
+ * answer null, as does a window with no clause.
+ * @returns {{min: number, max: number, mod: number}[]|null}
+ */
+export function parseDexBands(window) {
+  const clause = /(?<![\w.+-])(\d+)(?:\s*[-–—−]\s*(\d+))?\s*grants?\s*a?\s*\+\s*(\d+)/g;
+  const bands = [];
+  for (const m of firstSentence(window).matchAll(clause)) {
+    const min = Number(m[1]);
+    const max = Number(m[2] ?? m[1]);
+    if (min >= 1 && max >= min) bands.push({ min, max, mod: Number(m[3]) });
+  }
+  bands.sort((a, b) => a.min - b.min);
+  const overlapped = bands.some((b, i) => i > 0 && b.min <= bands[i - 1].max);
+  return bands.length && !overlapped ? bands : null;
+}
+
+/**
  * What a standing start keeps: "halved" is one half, "quartered" one quarter,
  * and a share written any other way is the one `parseShareOf` reads.
  */
@@ -323,7 +355,9 @@ export function parseBotchRange(note) {
  * The `jumping` table from the two passages' windows: each figure on its own,
  * so a window that drifted costs that figure and nothing beside it. The jump's
  * die is kept only where it is a single die, which is the one the range the
- * jump reports is derived from.
+ * jump reports is derived from. The Acrobatics score ceiling
+ * (`acrobaticsDexCap`) and the bonus bands (`extendedDexBands`, rows of
+ * `{min, max, mod}`) come from the landing passage's page.
  */
 export function assembleJumping(jump = {}, landing = {}) {
   const out = {};
@@ -344,6 +378,10 @@ export function assembleJumping(jump = {}, landing = {}) {
   if (dex != null) out.creatureDex = dex;
   const short = parseDie(firstSentence(landing.short));
   if (short) out.shortfallDie = short;
+  const cap = parseDexCap(landing.dexCap);
+  if (cap != null) out.acrobaticsDexCap = cap;
+  const bands = parseDexBands(landing.dexBands);
+  if (bands) out.extendedDexBands = bands;
   return out;
 }
 

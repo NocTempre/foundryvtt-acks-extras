@@ -26,7 +26,7 @@ import {
   assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterModifiers, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
-  parseVulnerableCell, parseBotchRange,
+  parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -87,12 +87,33 @@ const JUMP_PROSE = {
   load: "Each stone takes 3 feet off.  Then 3' per stone is wrong.",
   runUp: "A run-up of 25 feet; without it the distance is halved.",
 };
-const LANDING_PROSE = { speed: "Scale by speed / 90. ", dex: "7 if none written.", short: "Lands 1d4 feet short.", fall: "A fall deals 1d8 per 12 feet." };
+const LANDING_PROSE = {
+  speed: "Scale by speed / 90. ", dex: "7 if none written.", short: "Lands 1d4 feet short.", fall: "A fall deals 1d8 per 12 feet.",
+  dexCap: ", to a maximum of 23, for the leap.",
+  dexBands: "19-21 grants a +7 bonus, 22-23 grants a +9 bonus, and 24 grants a +10 bonus. Then 30 grants a +1 bonus.",
+};
 const jumpingTable = assembleJumping(JUMP_PROSE, LANDING_PROSE);
 eq("the jumping table reads each figure from its own window", jumpingTable, {
   leapPlus: 4, leapMinimum: 3, jumpDie: "1d10", runUpFeet: 25, standingShare: 0.5,
   creatureSpeedBase: 90, creatureDex: 7, shortfallDie: "1d4",
+  acrobaticsDexCap: 23,
+  extendedDexBands: [{ min: 19, max: 21, mod: 7 }, { min: 22, max: 23, mod: 9 }, { min: 24, max: 24, mod: 10 }],
 });
+eq("the Acrobatics ceiling is the whole figure after its words, above zero", [
+  parseDexCap("to a maximum of 23, for"), parseDexCap("to a maximum of 0."), parseDexCap("no ceiling here"), parseDexCap(null),
+], [23, null, null, null]);
+eq("the bands are clauses of one sentence, ascending, and a figure past the full stop is left alone", [
+  parseDexBands("22-23 grants a +9 bonus, 19-21 grants a +7 bonus. 40 grants a +1 bonus."),
+  parseDexBands("19 grants a +3 bonus and 20 grants a + 4 bonus"),
+], [[{ min: 19, max: 21, mod: 7 }, { min: 22, max: 23, mod: 9 }], [{ min: 19, max: 19, mod: 3 }, { min: 20, max: 20, mod: 4 }]]);
+eq("a clause that does not read leaves only itself out, and overlapping or empty bands read nothing", [
+  parseDexBands("21-19 grants a +5 bonus, 22 grants a +6 bonus"),
+  parseDexBands("19-21 grants a +7 bonus, 21-22 grants a +8 bonus"),
+  parseDexBands("nothing is granted here"),
+  parseDexBands(undefined),
+], [[{ min: 22, max: 22, mod: 6 }], null, null, null]);
+eq("a window that read neither Acrobatics figure leaves both out",
+  assembleJumping({}, { dexCap: "no figure", dexBands: "no band" }), {});
 eq("a stone's rate is read only where it is printed as one",
   assembleJumping({ load: "Each stone takes 3' per stone." }).feetPerStone, 3);
 eq("a jump on more than one die is left out, since its range is one die's faces",

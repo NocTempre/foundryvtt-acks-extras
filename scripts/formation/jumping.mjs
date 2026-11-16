@@ -14,9 +14,13 @@
  * every distance that rests on it is null with the figure named in `unknown`:
  * a jump reported on a number nobody printed is a Judge ruling on a guess.
  *
- * The attribute-modifier table is the system's and the Acrobatics figures are
- * the proficiency's; both are passed in — see `dexModifier` and
- * `NO_ACROBATICS`.
+ * The Acrobatics score ceiling and the leap's bonus bands are printed in the
+ * passage and arrive in the `jumping` table (`acrobaticsDexCap`,
+ * `extendedDexBands`); a caller's own `dexCap` or `extended` wins over them.
+ * The sheet's modifier stands for the score the sheet holds, and the system's
+ * attribute table answers for a score under the bands — see `dexModifier`.
+ * What the proficiency is worth to the landing save is its own and is passed
+ * in (`NO_ACROBATICS`).
  */
 import { diceFormula, formationValue } from "./constants.mjs";
 
@@ -74,6 +78,57 @@ export const creatureSpeedBase = () => positive("creatureSpeedBase");
 /** The Dexterity score a creature with none written down is assumed to have, or null until imported. */
 export const creatureDex = () => figure("creatureDex");
 
+/** The ceiling Acrobatics holds a raised Dexterity score to, or null until imported. */
+export const acrobaticsDexCap = () => positive("acrobaticsDexCap");
+
+/**
+ * The bonus the leap takes at each Dexterity score band, as ascending rows
+ * `{min, max, mod}` of whole numbers, or null until imported. The rows are read
+ * whole: one that is no band of whole numbers, or that overlaps the one before
+ * it, makes the list no list, since a partial reading would answer a score
+ * the page may have priced differently.
+ */
+export function extendedDexBands() {
+  const rows = formationValue("jumping")?.extendedDexBands;
+  if (!Array.isArray(rows) || !rows.length) return null;
+  const bands = [];
+  for (const row of rows) {
+    const min = given(row?.min);
+    const max = given(row?.max);
+    const mod = given(row?.mod);
+    if (![min, max, mod].every(Number.isInteger) || max < min) return null;
+    bands.push({ min, max, mod });
+  }
+  bands.sort((a, b) => a.min - b.min);
+  return bands.every((b, i) => i === 0 || b.min > bands[i - 1].max) ? bands : null;
+}
+
+/**
+ * The system's own modifier for a score, from its attribute table, or null
+ * where the system does not answer (no table loaded).
+ */
+function systemModifier(score) {
+  const read = globalThis.CONFIG?.Actor?.dataModels?.character?.getAttributeModifier;
+  return typeof read === "function" ? given(read.call(globalThis.CONFIG.Actor.dataModels.character, score)) : null;
+}
+
+/**
+ * The leap's bonus for a Dexterity score the sheet does not hold (one Acrobatics
+ * raised, or a creature's assumed one). A score inside an imported band takes
+ * that band's bonus; one below the lowest band takes the system's table; one
+ * past the top band or between two bands answers null, never the nearest row.
+ * Null throughout while no bands are imported, since where they begin is
+ * unknown.
+ */
+export function scoreModifier(score) {
+  const s = given(score);
+  const bands = extendedDexBands();
+  if (s === null || bands === null) return null;
+  const band = bands.find((b) => s >= b.min && s <= b.max);
+  if (band) return band.mod;
+  return s < bands[0].min ? systemModifier(s) : null;
+}
+
 /**
  * Faces of the die the horizontal jump adds, or null until imported. Only a
  * single die is read: the range a jump reports is that die's faces, and a
@@ -100,30 +155,56 @@ export function fallFigures() {
 }
 
 /**
- * The Dexterity modifier a jump is figured from. Not derived here: every
- * sheet already carries it as `system.scores.dex.mod`. A caller holding a
- * seat's own imported extended bands (past what the printed table covers)
- * passes `extended`; one that does not gets the sheet's own.
+ * The Dexterity modifier a leap is figured from. A caller holding its own
+ * figure passes `extended`, which wins. Otherwise the sheet's own
+ * `system.scores.dex.mod` stands for the score the sheet holds, and where the
+ * score used is not that one (`raised`, Acrobatics having moved it, or no sheet
+ * modifier given for an assumed score) the modifier is the score's own,
+ * `scoreModifier`, which is null while the bands that answer it are not
+ * imported.
+ *
+ * @param {object} o
+ * @param {number} [o.mod] the sheet's modifier for the score it holds
+ * @param {number} [o.extended] a modifier to use instead
+ * @param {number} [o.score] the score the leap is figured from
+ * @param {boolean} [o.raised] Acrobatics raised that score past the sheet's
+ * @returns {number|null}
  */
-export function dexModifier({ mod = 0, extended = null } = {}) {
+export function dexModifier({ mod = null, extended = null, score = null, raised = false } = {}) {
   const supplied = given(extended);
   if (supplied !== null) return supplied;
-  return given(mod) ?? 0;
+  const held = given(mod);
+  if (!raised && (held !== null || given(score) === null)) return held ?? 0;
+  return scoreModifier(score);
+}
+
+/**
+ * The score a jump or leap is figured from, with what it could not be
+ * figured without: the character's own, raised by class level if they are an
+ * acrobat and held at the proficiency's ceiling, the caller's `dexCap` first
+ * and the imported one after it. A raise with no ceiling known is not a score
+ * (`score` null, `acrobaticsDexCap` named), and so is a score nobody wrote
+ * down while the creature's assumed one is not imported (`creatureDex`).
+ */
+function scoreFigures({ dex, acrobatics = false, level = 0, dexCap = null } = {}) {
+  const base = given(dex) ?? creatureDex();
+  if (base === null) return { score: null, unknown: ["creatureDex"] };
+  const gain = acrobatics ? Math.max(0, Number(level) || 0) : 0;
+  if (!gain) return { score: base, unknown: [] };
+  const cap = given(dexCap) ?? acrobaticsDexCap();
+  if (cap === null) return { score: null, unknown: ["acrobaticsDexCap"] };
+  return { score: Math.min(cap, base + gain), unknown: [] };
 }
 
 /**
  * The DEX a jump is figured from: the character's own, raised by class
- * level if they are an acrobat, and held at the proficiency's own cap
- * where one is given. No cap is invented in its absence. A score nobody wrote
- * down is the creature's assumed one, which is null until imported.
+ * level if they are an acrobat, and held at the proficiency's cap, the
+ * caller's `dexCap` or else the imported one. Null, never an uncapped score,
+ * while a raise has no cap to hold it to. A score nobody wrote down is the
+ * creature's assumed one, which is null until imported.
  */
-export function effectiveDex({ dex, acrobatics = false, level = 0, dexCap = null } = {}) {
-  const score = given(dex) ?? creatureDex();
-  if (score === null) return null;
-  if (!acrobatics) return score;
-  const raised = score + Math.max(0, Number(level) || 0);
-  const cap = given(dexCap);
-  return cap === null ? raised : Math.min(cap, raised);
+export function effectiveDex(options = {}) {
+  return scoreFigures(options).score;
 }
 
 /**
@@ -172,29 +253,29 @@ function conditions({ encumbrance = 0, runningStart = true, runSpeed = null } = 
  * How high this character can leap straight up, in feet.
  *
  * The Dexterity bonus plus the imported constant, never less than the imported
- * floor before conditions are applied. The bonus is the SHEET's — see
- * `dexModifier` — while the effective score is still reported, because a
- * caller holding the extended bands needs to know which score to resolve them
- * for before it can supply `extended`.
+ * floor before conditions are applied. The bonus is the modifier of the score
+ * the leap is figured from, the one Acrobatics raised: the sheet's own `mod`
+ * stands only for a score the sheet holds, and a raised or assumed score takes
+ * `scoreModifier`. The effective score is reported with it.
  *
  * @param {object} o
- * @param {number} [o.dex] the DEX score, for reporting the effective one
- * @param {number} [o.mod] the sheet's own `system.scores.dex.mod`
- * @param {number} [o.extended] the modifier to use instead, where a seat's
- *   imported bands cover a score Acrobatics pushed past the printed ones
+ * @param {number} [o.dex] the character's own DEX score
+ * @param {number} [o.mod] the sheet's own `system.scores.dex.mod`, for that score
+ * @param {number} [o.extended] the modifier to use instead of any read here
  * @param {number} [o.encumbrance] what they carry, in stone
  * @param {boolean} [o.acrobatics] has the Acrobatics proficiency
  * @param {number} [o.level] class level, which Acrobatics adds to DEX
- * @param {number} [o.dexCap] the proficiency's own ceiling on that score
+ * @param {number} [o.dexCap] the proficiency's ceiling on that score; the
+ *   imported one when omitted
  * @param {boolean} [o.runningStart] had the run-up the jump wants
  * @param {number} [o.runSpeed] a creature's running speed, for the scaling
- * @returns {{feet: number|null, dex: number|null, bonus: number, parts: object[], unknown: string[]}}
+ * @returns {{feet: number|null, dex: number|null, bonus: number|null, parts: object[], unknown: string[]}}
  *   `feet` is null while any figure the leap rests on is not imported, and
  *   `unknown` names each one
  */
 export function leapHeight({
   dex,
-  mod = 0,
+  mod = null,
   extended = null,
   encumbrance = 0,
   acrobatics = false,
@@ -203,13 +284,22 @@ export function leapHeight({
   runningStart = true,
   runSpeed = null,
 } = {}) {
-  const score = effectiveDex({ dex, acrobatics, level, dexCap });
-  const bonus = dexModifier({ mod, extended });
+  const figures = scoreFigures({ dex, acrobatics, level, dexCap });
+  const score = figures.score;
+  const raised = !!acrobatics && (Number(level) || 0) > 0;
+  const needsScore = given(extended) === null && (raised || given(mod) === null);
+  const bonus = needsScore && score === null ? null : dexModifier({ mod, extended, score, raised });
   const plus = leapPlus();
   const floor = leapMinimum();
   const held = conditions({ encumbrance, runningStart, runSpeed });
-  const unknown = [...(plus === null ? ["leapPlus"] : []), ...(floor === null ? ["leapMinimum"] : []), ...held.unknown];
-  if (plus === null || floor === null) return { feet: null, dex: score, bonus, parts: held.parts, unknown };
+  const unknown = [
+    ...(plus === null ? ["leapPlus"] : []),
+    ...(floor === null ? ["leapMinimum"] : []),
+    ...(needsScore ? figures.unknown : []),
+    ...(needsScore && score !== null && bonus === null ? ["extendedDexBands"] : []),
+    ...held.unknown,
+  ];
+  if (plus === null || floor === null || bonus === null) return { feet: null, dex: score, bonus, parts: held.parts, unknown };
   const base = Math.max(floor, bonus + plus);
   return {
     feet: held.apply(base),
@@ -241,11 +331,11 @@ export function jumpDistance({
   runningStart = true,
   runSpeed = null,
 } = {}) {
-  const score = effectiveDex({ dex, acrobatics, level, dexCap });
+  const { score, unknown: scoreUnknown } = scoreFigures({ dex, acrobatics, level, dexCap });
   const faces = jumpFaces();
   const held = conditions({ encumbrance, runningStart, runSpeed });
   const unknown = [
-    ...(score === null ? ["creatureDex"] : []),
+    ...scoreUnknown,
     ...(faces === null ? ["jumpDie"] : []),
     ...held.unknown,
   ];

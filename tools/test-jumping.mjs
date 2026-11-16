@@ -8,9 +8,9 @@ import assert from "node:assert/strict";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import {
-  NO_ACROBATICS, canClear, dexModifier, effectiveDex, fallFigures, feetPerStone, jumpDistance, jumpFaces,
-  landingFailure, landingSave, leapHeight, leapMinimum, leapPlus, partyJump, runningStartFeet,
-  shortfallDie, standingShare, creatureSpeedBase, creatureDex,
+  NO_ACROBATICS, acrobaticsDexCap, canClear, dexModifier, effectiveDex, extendedDexBands, fallFigures, feetPerStone,
+  jumpDistance, jumpFaces, landingFailure, landingSave, leapHeight, leapMinimum, leapPlus, partyJump, runningStartFeet,
+  scoreModifier, shortfallDie, standingShare, creatureSpeedBase, creatureDex,
 } from "../scripts/formation/jumping.mjs";
 
 let passed = 0;
@@ -23,6 +23,15 @@ const JUMPING = {
 };
 const FALL = { die: "1d4", feetPerDie: 7 };
 
+/** Invented Acrobatics figures: a ceiling and two bands, with a gap above them. */
+const ACROBAT = { acrobaticsDexCap: 23, extendedDexBands: [{ min: 19, max: 21, mod: 7 }, { min: 22, max: 23, mod: 9 }] };
+
+/** An invented system attribute table, for a score below the bands. */
+const withSystemTable = (fn) => {
+  globalThis.CONFIG = { Actor: { dataModels: { character: { getAttributeModifier: (s) => (s >= 13 ? 2 : 0) } } } };
+  try { fn(); } finally { delete globalThis.CONFIG; }
+};
+
 const load = (jumping = JUMPING, fall = FALL) => registerTable(
   { id: FORMATION_DOC, source: "invented", tables: { ...(jumping && { jumping }), ...(fall && { fall }) } },
   { priority: PRIORITY.WORLD, source: "test" },
@@ -32,7 +41,7 @@ const load = (jumping = JUMPING, fall = FALL) => registerTable(
 ok("with nothing imported every figure reads null", () => {
   resetTables();
   for (const read of [leapPlus, leapMinimum, feetPerStone, runningStartFeet, standingShare, creatureSpeedBase,
-    creatureDex, jumpFaces, shortfallDie, fallFigures]) {
+    creatureDex, acrobaticsDexCap, extendedDexBands, jumpFaces, shortfallDie, fallFigures]) {
     assert.equal(read(), null, read.name);
   }
 });
@@ -123,12 +132,121 @@ ok("a score nobody wrote down is the imported creature score", () => {
   resetTables();
 });
 
-ok("Acrobatics adds level to the score and stops at the cap the ability supplies", () => {
-  load();
+ok("Acrobatics adds level to the score and stops at the cap, the caller's or the imported one", () => {
+  load({ ...JUMPING, ...ACROBAT });
   assert.equal(effectiveDex({ dex: 13, acrobatics: true, level: 5 }), 18);
-  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 14, dexCap: 24 }), 24);
-  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 14 }), 30, "no cap is invented");
+  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 14 }), 23, "the imported cap");
+  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 14, dexCap: 20 }), 20, "the caller's cap wins");
+  assert.equal(effectiveDex({ dex: 16, level: 14 }), 16, "no Acrobatics, no raise");
   assert.equal(NO_ACROBATICS.saveBonus, 0);
+  resetTables();
+});
+
+ok("a raise with no cap to hold it to is no score, and the cap is named", () => {
+  load();
+  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 14 }), null, "no cap is invented");
+  assert.deepEqual(jumpDistance({ dex: 16, acrobatics: true, level: 14 }).unknown, ["acrobaticsDexCap"]);
+  assert.equal(jumpDistance({ dex: 16, acrobatics: true, level: 14, dexCap: 20 }).min, 21, "the caller's cap stands in");
+  assert.equal(effectiveDex({ dex: 16, acrobatics: true, level: 0 }), 16, "no raise, no cap needed");
+  resetTables();
+});
+
+ok("a jump takes the imported cap and the raised score", () => {
+  load({ ...JUMPING, ...ACROBAT });
+  assert.equal(jumpDistance({ dex: 16, acrobatics: true, level: 14 }).min, 24);
+  assert.equal(jumpDistance({ dex: 16, acrobatics: true, level: 14, dexCap: 17 }).min, 18);
+  resetTables();
+});
+
+// ---- the leap on the raised score -------------------------------------------
+ok("the bands are read whole, ascending, or not at all", () => {
+  const read = (extendedDexBands_) => { load({ ...JUMPING, extendedDexBands: extendedDexBands_ }); const got = extendedDexBands(); resetTables(); return got; };
+  assert.deepEqual(read([{ min: 22, max: 23, mod: 9 }, { min: 19, max: 21, mod: 7 }]), ACROBAT.extendedDexBands, "sorted");
+  assert.deepEqual(read([{ min: "19", max: "19", mod: "7" }]), [{ min: 19, max: 19, mod: 7 }], "an override typed as text");
+  for (const bad of [[], null, "19-20", [{ min: 19, max: 20 }], [{ min: 20, max: 19, mod: 1 }], [{ min: 19, max: 21, mod: 7 }, { min: 21, max: 22, mod: 8 }], [{ min: 19, max: 20.5, mod: 7 }]]) {
+    assert.equal(read(bad), null, JSON.stringify(bad));
+  }
+});
+
+ok("a leap takes the modifier of the raised score, not the sheet's", () => {
+  load({ ...JUMPING, ...ACROBAT });
+  const leap = leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 4 });
+  assert.equal(leap.dex, 20);
+  assert.equal(leap.bonus, 7);
+  assert.equal(leap.feet, 10, "7 + the constant, not the sheet's 2 + the constant");
+  assert.notEqual(leap.feet, leapHeight({ dex: 16, mod: 2 }).feet);
+  assert.deepEqual(leap.unknown, []);
+  assert.equal(leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 14 }).bonus, 9, "held at the cap, then read");
+  assert.equal(leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 14, dexCap: 20 }).bonus, 7, "the caller's cap");
+  resetTables();
+});
+
+ok("a score the sheet holds keeps the sheet's modifier, with no bands imported", () => {
+  load();
+  assert.equal(leapHeight({ dex: 20, mod: 5 }).feet, 8);
+  assert.equal(leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 0 }).feet, 5, "no raise");
+  resetTables();
+});
+
+ok("with no bands a raised score has no modifier and the leap names them", () => {
+  load({ ...JUMPING, acrobaticsDexCap: 23 });
+  const leap = leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 4 });
+  assert.equal(leap.feet, null);
+  assert.equal(leap.bonus, null);
+  assert.deepEqual(leap.unknown, ["extendedDexBands"]);
+  assert.equal(scoreModifier(20), null);
+  withSystemTable(() => assert.equal(scoreModifier(20), null, "the system's table does not stand in for the bands"));
+  resetTables();
+});
+
+ok("with no cap the leap of a raised score names the cap and is not figured", () => {
+  load({ ...JUMPING, extendedDexBands: ACROBAT.extendedDexBands });
+  const leap = leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 4 });
+  assert.equal(leap.feet, null);
+  assert.deepEqual(leap.unknown, ["acrobaticsDexCap"]);
+  assert.equal(leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 4, dexCap: 20 }).feet, 10, "the caller's cap stands in");
+  resetTables();
+});
+
+ok("a score between the bands or above the top one answers null, never the nearest band", () => {
+  load({ ...JUMPING, acrobaticsDexCap: 40, extendedDexBands: [{ min: 19, max: 20, mod: 7 }, { min: 23, max: 24, mod: 9 }] });
+  assert.equal(scoreModifier(22), null, "between two bands");
+  assert.equal(scoreModifier(30), null, "above the last band");
+  assert.equal(scoreModifier(24), 9);
+  const leap = leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 14 });
+  assert.equal(leap.dex, 30);
+  assert.equal(leap.feet, null);
+  assert.deepEqual(leap.unknown, ["extendedDexBands"]);
+  resetTables();
+});
+
+ok("a score under the bands is the system's own, and null where the system gives none", () => {
+  load({ ...JUMPING, ...ACROBAT });
+  assert.equal(scoreModifier(12), null, "no system table loaded");
+  withSystemTable(() => {
+    assert.equal(scoreModifier(12), 0);
+    assert.equal(scoreModifier(15), 2);
+    assert.equal(scoreModifier(19), 7, "inside a band, the band");
+    assert.equal(leapHeight({ dex: 12, mod: 0, acrobatics: true, level: 3 }).feet, 5, "raised to 15, read from the system");
+  });
+  assert.equal(leapHeight({ dex: 12, mod: 0, acrobatics: true, level: 3 }).feet, null, "no system table, no figure");
+  resetTables();
+});
+
+ok("a creature's assumed score takes a modifier of its own, not the sheet's absence", () => {
+  load({ ...JUMPING, ...ACROBAT });
+  withSystemTable(() => assert.equal(leapHeight({}).feet, 3, "the assumed score's modifier plus the constant"));
+  assert.equal(leapHeight({}).feet, null);
+  assert.deepEqual(leapHeight({}).unknown, ["extendedDexBands"]);
+  assert.equal(leapHeight({ mod: 2 }).feet, 5, "a sheet's modifier needs no score");
+  load();
+  assert.equal(leapHeight({}).unknown.includes("extendedDexBands"), true);
+  resetTables();
+});
+
+ok("a caller's own modifier wins over every read", () => {
+  load();
+  assert.equal(leapHeight({ dex: 16, mod: 2, acrobatics: true, level: 4, extended: 6 }).feet, 9);
   resetTables();
 });
 
@@ -208,6 +326,16 @@ ok("the modifier is the sheet's, and an extended one wins", () => {
   assert.equal(dexModifier({}), 0);
   assert.equal(dexModifier({ mod: 3, extended: 5 }), 5);
   assert.equal(dexModifier({ mod: 3, extended: 0 }), 0);
+  assert.equal(dexModifier({ mod: 3, score: 20, raised: true, extended: 4 }), 4);
+});
+
+ok("a raised score's modifier is the score's own, never the sheet's", () => {
+  resetTables();
+  assert.equal(dexModifier({ mod: 3, score: 20, raised: true }), null, "no bands imported");
+  load({ ...JUMPING, ...ACROBAT });
+  assert.equal(dexModifier({ mod: 3, score: 20, raised: true }), 7);
+  assert.equal(dexModifier({ mod: 3, score: 20, raised: false }), 3, "a score the sheet holds");
+  resetTables();
 });
 
 console.log(`test-jumping: all ${passed} checks passed`);
