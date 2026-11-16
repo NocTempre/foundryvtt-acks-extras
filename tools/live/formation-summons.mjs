@@ -162,7 +162,7 @@ const P = {
   shapeSpell: async ({ actorId, spellId, ref, duration }) => {
     const actor = game.actors.get(actorId);
     if (!actor.system.spells?.enabled) await actor.update({ "system.spells.enabled": true });
-    await actor.items.get(spellId).update({ "system.cast": 0, "flags.acks-extras.spell": { schools: ["summoning"], effects: [{ type: "summon", ref, amount: 2 }], duration } });
+    await actor.items.get(spellId).update({ "system.cast": 0, "flags.acks-extras.spell": { schools: ["summoning"], effects: [{ type: "summon", ref, amount: 3 }], duration } });
     const { isSummonSpell } = await import("/modules/acks-extras/scripts/magic/summon-spell.mjs");
     return { enabled: !!actor.system.spells?.enabled, summon: isSummonSpell(actor.items.get(spellId)) };
   },
@@ -990,7 +990,9 @@ try {
   const s6b = await placeCast({ tag: "6 (setup cast of three)", actorId: bId, label: `Cast ${nameB}`, count: 3, joined: (s) => ofCast(s, bUuid).length >= 3 });
   const mineB2 = ofCast(s6b, bUuid);
   const castB2 = mineB2[0]?.cast ?? "";
-  check("6: the setup cast stands as three members of a cast of its own", mineB2.length === 3 && mineB2.every((x) => x.cast === castB2 && x.by === bUuid) && !!castB2 && castB2 !== castB1);
+  const ok6b = mineB2.length === 3 && mineB2.every((x) => x.cast === castB2 && x.by === bUuid) && !!castB2 && castB2 !== castB1;
+  check("6: the setup cast stands as three members of a cast of its own", ok6b, { members: mineB2.length, loose: s6b.loose, all: s6b.summons.length, sameCast: castB2 === castB1, warns: await run(player, P.takeWarns) });
+  if (!ok6b) throw new Error("step 6's setup cast did not join; the steps after it need its three members");
   await registerCast("B2", bId, castB2);
   await run(gm, P.setStashHp, { fid, value: SHAPED_HP });
   const idsB2 = mineB2.map((x) => x.id);

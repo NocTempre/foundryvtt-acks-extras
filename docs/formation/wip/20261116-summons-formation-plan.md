@@ -211,3 +211,33 @@ topic/spell-effects: handed its three `cast-expiry.mjs` points (castSummons,
 standing counts held, the card's Dismiss passes both) on 2026-11-16; its S2a
 session scheduled them into its magic half. Slice 4 does not land until they
 are on main.
+
+**Slice 4, joining, with the docs and the walk** — implementer (joining),
+orchestrator (DECISIONS, ROADMAP row 13, changelog fragment), implementer (walk
+code); landed 8b0b1a3a, 91b631a4, 40f449e5 after the owner's pause. Two land
+attempts were refused at the fast-forward by the dungeon close-out session's
+in-flight `module.mjs` (S2, then S3; it held the four shared formation files
+for the third attempt); the rebase onto 6cea4785 stopped in formation
+DECISIONS, both appends kept, main's first. Gate green on 40f449e5.
+
+**Walks on main 40f449e5** (`tools/live/run.mjs`, GM + Player seats):
+formation-summons passed 101/0 on its third run; character-sheet-summons
+passed 52/0 and formation-membership 38/0 on the first. The first two
+formation-summons runs stopped at step 6's setup cast of three (56 pass): the
+Player seat's warning was `badCount`, because the walk's fixture spell row
+stated an amount of 2. The walk was at fault, not the module, which refused as
+the row says; the fixture row now states 3, and a failed setup cast throws
+with its counts and the seat's warnings. Exercised live: every step of the
+recipe's "Summons in the party" from the Player seat, a recorder attached
+before `init` on both seats with no error, and no console or uncaught error over
+the walk. Ledger: kept `summons/party` (Actor.b9hu8TsmuPUP3AMQ) and
+`summons/party-token` built this run, and reused the eight other `summons/*`
+fixtures. The sweep removed only the run's own chat cards. Not checked: a
+join racing another session's whole-`members` write; two GM seats at once.
+
+**Left open from slice 4** (offline-noted, not walked): `gatherSummons` gates
+on `isGM`, so with two GM clients connected both may gather (the per-client
+claim set does not span clients); `recallMembers` re-stashes a summon at 0 hp
+when its `updateActor` never fired; the 0-hp hook is not on
+`acksExtras.lib`. magic-cast-summon still pans the Player view off the scene
+before its first placement click (a finding for that walk's owner).
