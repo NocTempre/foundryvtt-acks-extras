@@ -1957,6 +1957,7 @@ const effectActor = (effects, { id = "a1", flameLights = [] } = {}) => ({
       flags: e.shuttered ? { "acks-extras": { [LIGHT_SHUTTER_FLAG]: true } } : {},
       parent: e.parent ?? (e.item ? { documentName: "Item", name: e.item } : { documentName: "Actor" }),
       changes: [
+        ...(e.daylight !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.daylight, type: "upgrade", value: e.daylight }] : []),
         ...(e.bright !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, type: "upgrade", value: e.bright }] : []),
         ...(e.dim !== undefined ? [{ key: MAGIC_LIGHT_CHANGE_KEYS.dim, type: "upgrade", value: e.dim }] : []),
         ...(e.other ? [{ key: "system.something", type: "add", value: "1" }] : []),
@@ -1971,8 +1972,8 @@ t("magicLights: each applied effect that writes a radius is one named source", (
     { id: "e3", name: "Unrelated", other: true },
   ]);
   assert.deepEqual(magicLights(actor), [
-    { id: "e1", uuid: null, label: "Glow", itemName: "Lamp of Testing", itemId: null, bright: 21, dim: 42, state: "shining" },
-    { id: "e2", uuid: null, label: "Spark", itemName: null, itemId: null, bright: null, dim: 9, state: "shining" },
+    { id: "e1", uuid: null, label: "Glow", itemName: "Lamp of Testing", itemId: null, daylight: null, bright: 21, dim: 42, state: "shining" },
+    { id: "e2", uuid: null, label: "Spark", itemName: null, itemId: null, daylight: null, bright: null, dim: 9, state: "shining" },
   ]);
   assert.equal(magicLights(effectActor([{ id: "e9", name: "Unrelated", other: true }])).length, 0, "an effect that writes neither key is no light");
 });
@@ -1985,9 +1986,19 @@ t("magicLights: an effect that names a light with no figure is listed with none,
   // The scan skips the disabled effect itself; a suppressed one reaching the list is skipped here.
   actor.appliedEffects.push({ id: "e3", name: "Held", disabled: false, isSuppressed: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
   actor.appliedEffects.push({ id: "e4", name: "Off", disabled: true, parent: { documentName: "Actor" }, changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.bright, value: "50" }] });
-  assert.deepEqual(magicLights(actor), [{ id: "e1", uuid: null, label: "Blank", itemName: null, itemId: null, bright: null, dim: null, state: "shining" }]);
-  assert.deepEqual(effectLight(actor), { bright: 0, dim: 0 }, "no figure, no light");
-  assert.deepEqual(effectLight({ id: "x" }), { bright: 0, dim: 0 }, "an actor with no effects sheds none");
+  assert.deepEqual(magicLights(actor), [{ id: "e1", uuid: null, label: "Blank", itemName: null, itemId: null, daylight: null, bright: null, dim: null, state: "shining" }]);
+  assert.deepEqual(effectLight(actor), { daylight: 0, bright: 0, dim: 0 }, "no figure, no light");
+  assert.deepEqual(effectLight({ id: "x" }), { daylight: 0, bright: 0, dim: 0 }, "an actor with no effects sheds none");
+});
+
+t("effectLight: daylight is bright light too, so a daylight-only light has a bright reach; a flame sheds no daylight", () => {
+  const actor = effectActor([{ id: "e1", name: "Noon", daylight: "8" }]);
+  assert.equal(magicLights(actor)[0].daylight, 8);
+  assert.deepEqual(effectLight(actor), { daylight: 8, bright: 8, dim: 0 });
+  assert.deepEqual(effectLight(effectActor([{ id: "e2", daylight: "8", bright: "16", dim: "24" }])), { daylight: 8, bright: 16, dim: 24 });
+  assert.equal(writesMagicLight({ changes: [{ key: MAGIC_LIGHT_CHANGE_KEYS.daylight, value: "" }] }), true, "a daylight key alone declares a light");
+  assert.equal(mergeLight({ bright: 30, dim: 60 }, { daylight: 8, bright: 8, dim: 0 }).daylight, 8);
+  assert.equal(mergeLight({ bright: 30, dim: 60 }, null).daylight, 0);
 });
 
 t("effectLight: several lights take the largest of each radius", () => {
@@ -1996,27 +2007,27 @@ t("effectLight: several lights take the largest of each radius", () => {
     { id: "e2", bright: "9", dim: "50" },
     { id: "e3", bright: "x", dim: "-4" },
   ]);
-  assert.deepEqual(effectLight(actor), { bright: 15, dim: 50 });
+  assert.deepEqual(effectLight(actor), { daylight: 0, bright: 15, dim: 50 });
 });
 
 t("mergeLight: the larger bright radius wins the kind, and a tie keeps the flame", () => {
-  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 14, dim: 14 }), { bright: 14, dim: 20, kind: "magic" });
-  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 20 }), { bright: 10, dim: 20, kind: "flame" });
-  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 25 }), { bright: 10, dim: 25, kind: "magic" });
-  assert.deepEqual(mergeLight(null, null), { bright: 0, dim: 0, kind: "flame" });
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 14, dim: 14 }), { daylight: 0, bright: 14, dim: 20, kind: "magic" });
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 20 }), { daylight: 0, bright: 10, dim: 20, kind: "flame" });
+  assert.deepEqual(mergeLight({ bright: 10, dim: 20 }, { bright: 10, dim: 25 }), { daylight: 0, bright: 10, dim: 25, kind: "magic" });
+  assert.deepEqual(mergeLight(null, null), { daylight: 0, bright: 0, dim: 0, kind: "flame" });
 });
 
 t("shedLight: the stronger of flame and effect, and which kind it was", () => {
   importLights();
   const lit = [{ id: "l1", type: "torch", lit: true }];
   const flameOnly = effectActor([], { flameLights: lit });
-  assert.deepEqual(shedLight(flameOnly), { bright: 13, dim: 27, kind: "flame" });
+  assert.deepEqual(shedLight(flameOnly), { daylight: 0, bright: 13, dim: 27, kind: "flame" });
   const bigger = effectActor([{ id: "e1", bright: "20", dim: "35" }], { flameLights: lit });
-  assert.deepEqual(shedLight(bigger), { bright: 20, dim: 35, kind: "magic" });
+  assert.deepEqual(shedLight(bigger), { daylight: 0, bright: 20, dim: 35, kind: "magic" });
   const smaller = effectActor([{ id: "e1", bright: "6", dim: "40" }], { flameLights: lit });
-  assert.deepEqual(shedLight(smaller), { bright: 13, dim: 40, kind: "flame" });
+  assert.deepEqual(shedLight(smaller), { daylight: 0, bright: 13, dim: 40, kind: "flame" });
   const effectOnly = effectActor([{ id: "e1", bright: "8" }]);
-  assert.deepEqual(shedLight(effectOnly), { bright: 8, dim: 0, kind: "magic" }, "an effect lights a bearer with no flame");
+  assert.deepEqual(shedLight(effectOnly), { daylight: 0, bright: 8, dim: 0, kind: "magic" }, "an effect lights a bearer with no flame");
 });
 
 /**
@@ -2087,11 +2098,11 @@ t("magicLights and effectLight: only a shining light counts, and a spell's is no
   assert.deepEqual(lights.map((l) => [l.id, l.state]), [["e1", "shining"], ["e2", "shuttered"], ["e3", "stowed"]], "the spell's effect is not listed");
   assert.equal(lights[0].itemId, "w1");
   assert.equal(lights[2].itemName, "Packed Lamp");
-  assert.deepEqual(effectLight(actor), { bright: 10, dim: 20 }, "the shuttered and the stowed shed nothing, however large");
-  assert.deepEqual(shedLight(actor), { bright: 10, dim: 20, kind: "magic" });
+  assert.deepEqual(effectLight(actor), { daylight: 0, bright: 10, dim: 20 }, "the shuttered and the stowed shed nothing, however large");
+  assert.deepEqual(shedLight(actor), { daylight: 0, bright: 10, dim: 20, kind: "magic" });
   const dark = effectActor([{ id: "e5", bright: "30", shuttered: true }]);
-  assert.deepEqual(effectLight(dark), { bright: 0, dim: 0 });
-  assert.deepEqual(shedLight(dark), { bright: 0, dim: 0, kind: "flame" }, "nothing shining: no magic kind");
+  assert.deepEqual(effectLight(dark), { daylight: 0, bright: 0, dim: 0 });
+  assert.deepEqual(shedLight(dark), { daylight: 0, bright: 0, dim: 0, kind: "flame" }, "nothing shining: no magic kind");
 });
 
 t("writesMagicLight: an effect declares a light by either radius key", () => {

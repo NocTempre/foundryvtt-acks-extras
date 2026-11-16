@@ -204,13 +204,14 @@ const P = {
       party: !!game.actors.get(partyId),
     };
   },
-  /** An effect made with the Add Effect control's own start data, its two reaches typed. */
+  /** An effect made with the Add Effect control's own start data, its bright and dim reaches typed. */
   makeEffect: async ({ actorId, itemId, bright, dim }) => {
     const H = globalThis.__ml;
     const item = H.find({ actorId, itemId });
     const data = H.EF.effectStartData("light", item, { lightName: game.i18n.localize("ACKS-EQUIPMENT.itemSheet.effects.lightEffect") });
-    data.changes[0].value = String(bright);
-    data.changes[1].value = String(dim);
+    const band = (b) => data.changes.find((c) => c.key.endsWith(`.magicLight.${b}`));
+    band("bright").value = String(bright);
+    band("dim").value = String(dim);
     const [eff] = await item.createEmbeddedDocuments("ActiveEffect", [data]);
     return { id: eff.id, uuid: eff.uuid, transfer: eff.transfer, changes: eff.changes.length };
   },
@@ -654,7 +655,7 @@ try {
   const ma = await makeEffect("a", itemRef.a, 11, 23);
   const mb = await makeEffect("b", itemRef.b, 7, 14);
   const mw = await makeEffect("w", itemRef.world, 5, 10);
-  check("each effect is a transfer effect with the two radius changes the Add Effect control makes", [ma, mb, mw].every((m) => m.transfer === true && m.changes === 2), [ma, mb, mw].map((m) => m.changes));
+  check("each effect is a transfer effect with the three band changes the Add Effect control makes", [ma, mb, mw].every((m) => m.transfer === true && m.changes === 3), [ma, mb, mw].map((m) => m.changes));
   const sa = await stateOf("a");
   check("the lamp's effect is applied, listed and shining, its flag unset and not disabled", sa.state === "shining" && sa.applied && sa.listed && !sa.flagKey && !sa.disabled, sa);
   await run(gm, P.openItem, { ...itemRef.a, fresh: true });

@@ -758,19 +758,29 @@ uncounted (`remaining` left unset), and every surface that shows a figure leaves
 it blank.
 
 **A magic light is an effect.** Light that is not a carried flame is declared by
-an Active Effect with two changes, `flags.acks-extras.magicLight.bright` and
-`.dim` (feet), of type `upgrade`. On an item it transfers to the owner; one placed
+an Active Effect with a change per band (`MAGIC_LIGHT_BANDS`):
+`flags.acks-extras.magicLight.daylight`, `.bright` and `.dim` (feet), of type
+`upgrade`. Each is a radius from the light, brightest first: daylight is a level
+no flame reaches, which a magic light may shed nearest, with bright and dim
+light beyond it. On an item it transfers to the owner; one placed
 on the actor (a spell cast on them) works the same. The figure is typed by the
 Judge from their own copy, so nothing printed ships (the item sheet's Effects tab
-has an Add effect control whose Magic Light choice creates the effect with both
-values empty; an item with no effect opens in the simple view, which has no tab
+has an Add effect control whose Magic Light choice creates the effect with all
+three values empty; an item with no effect opens in the simple view, which has no tab
 strip, so the control also stands beside Details there).
-`magicLights(actor)` reads one entry per applied effect that writes either key,
-`{id, uuid, label, itemName, itemId, bright, dim, state}`, from the effect's own
+`magicLights(actor)` reads one entry per applied effect that writes any band's key,
+`{id, uuid, label, itemName, itemId, daylight, bright, dim, state}`, from the effect's own
 change values (not the prepared flag) so each source stays nameable;
 `appliedEffects` already leaves out a disabled or suppressed effect, and a
 change's type is not read: the largest figure per radius stands. `effectLight(actor)`
-is the largest `{bright, dim}` among the entries whose `state` is `shining`.
+is the largest `{daylight, bright, dim}` among the entries whose `state` is
+`shining`, with `bright` raised to at least `daylight`, since daylight is bright
+light too: every reader of bright reach (mapping, a column point, the token)
+counts a light that states only daylight. A flame sheds no daylight, so
+`mergeLight` and `shedLight` carry the magic light's `daylight` alone. Foundry
+draws two radii, so a token takes `bright` and `dim`; no reader yet tells
+daylight from bright light (ROADMAP, "What daylight from a magic light does
+not do yet").
 `shedLight(actor)` is the stronger of `emittedLight(bearerLights)` and
 `effectLight`, each radius taking the larger, with the `kind` that won
 (`mergeLight`): `magic` when the effect has the larger bright radius (the dim on

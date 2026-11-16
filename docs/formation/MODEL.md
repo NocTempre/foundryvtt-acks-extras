@@ -758,7 +758,10 @@ dark pace, the roster's blinded marks, the strip's darkness and no-light
 warnings and the encounter card's signature. A flame counts whether or not its
 reach is imported; a magic light with no reach typed does not, so an Add
 effect left blank lifts no darkness. A dim-only magic light lifts the dark
-for the pace but lights no mapper, whose verdict reads bright reach only.
+for the pace but lights no mapper, whose verdict reads bright reach only; a
+daylight radius is bright reach (lib MODEL, Senses), so it lights a mapper
+within it. The Kit row leads with a stated daylight band ("{n} ft daylight"),
+then the bright and dim pair.
 `carriedLightPoints(scene)`, published on the formation namespace, is the same
 set at rest, read from the stored record, position and trail, for the Night
 Vision sweep (lib's `brightestLightReaching`), which runs on scenes no canvas is

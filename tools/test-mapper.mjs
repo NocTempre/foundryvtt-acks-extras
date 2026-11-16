@@ -312,6 +312,16 @@ await test("a member's magic light lifts the party's darkness as a flame does; s
   assert.equal(model.isPartyInDark(party([unsized])), true, "one with no reach typed sheds nothing");
 });
 
+await test("a magic light stating only a daylight radius lights the mapper within it and lifts the dark", () => {
+  const scene = sceneOf("s.daylight", { darkness: 0.9 });
+  const noon = { ...magicOn(false), changes: [{ key: light.MAGIC_LIGHT_CHANGE_KEYS.daylight, value: "20" }] };
+  actorOf("noon", { name: "Noonbearer", effects: [noon] });
+  const mapper = actorOf("mapper", { name: "Scribe" });
+  const party = partyOn(scene, [{ actorId: mapper.id, roles: ["mapper"] }, ...rank(2), { actorId: "noon", roles: [] }]);
+  assert.equal(verdictOf(party).litBy, LIT_BY.LIGHT, "three cells is fifteen feet, inside twenty");
+  assert.equal(model.isPartyInDark(party), false);
+});
+
 await test("a mapper who is dead, down, left behind, or standing on another scene does not work", () => {
   const scene = sceneOf("s.work");
   assert.equal(verdictOf(withTorchAt(1, scene, { dead: true })).working, false, "dead");

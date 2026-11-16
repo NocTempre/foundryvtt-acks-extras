@@ -595,7 +595,7 @@ the Effects tab's own group and, for an item with no effect (the simple view,
 which has no Effects tab), the footer beside Details. It opens a small choice,
 a blank effect or a magic light (`effect-starts.mjs`, `EFFECT_STARTS`), then
 creates the effect transferred to the bearer and opens its config sheet.
-Closing the choice creates nothing. The light start writes both radius changes
+Closing the choice creates nothing. The light start writes a change per band (daylight, bright, dim)
 as `upgrade` with no figure (lib MODEL, Senses), so the Judge types the feet
 from their own copy.
 

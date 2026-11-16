@@ -437,11 +437,11 @@ test("a blank start is a transferred effect with no change", () => {
   const data = effectStartData("blank", { name: "Crowbar", img: "i.svg" }, { lightName: "Light" });
   assert.deepEqual(data, { name: "Crowbar", img: "i.svg", transfer: true, disabled: false });
 });
-test("a light start carries both radius changes, upgrading, with no figure", () => {
+test("a light start carries a change per band, daylight first, upgrading, with no figure", () => {
   const data = effectStartData("light", { name: "Crowbar", img: "i.svg" }, { lightName: "Light" });
   assert.equal(data.name, "Light");
   assert.equal(data.transfer, true);
-  assert.deepEqual(data.changes.map((c) => c.key), [MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim]);
+  assert.deepEqual(data.changes.map((c) => c.key), [MAGIC_LIGHT_CHANGE_KEYS.daylight, MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim]);
   assert.ok(data.changes.every((c) => c.type === CHANGE.UPGRADE && c.value === ""), "upgrade, value left for the Judge");
 });
 test("every offered start builds data, and a closed choice builds none", () => {

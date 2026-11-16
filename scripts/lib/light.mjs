@@ -365,11 +365,17 @@ export function emittedLight(lights) {
  */
 export const MAGIC_LIGHT_KEY = "magicLight";
 
-/** The change keys of a magic light effect, by radius. */
-export const MAGIC_LIGHT_CHANGE_KEYS = Object.freeze({
-  bright: `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.bright`,
-  dim: `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.dim`,
-});
+/**
+ * The bands a magic light can state, brightest first, each a radius in feet
+ * from the light itself. Daylight is a level no flame reaches: a magic light
+ * may shed it nearest, bright light beyond it and dim light beyond that.
+ */
+export const MAGIC_LIGHT_BANDS = Object.freeze(["daylight", "bright", "dim"]);
+
+/** The change keys of a magic light effect, by band. */
+export const MAGIC_LIGHT_CHANGE_KEYS = Object.freeze(
+  Object.fromEntries(MAGIC_LIGHT_BANDS.map((band) => [band, `flags.${MODULE_ID}.${MAGIC_LIGHT_KEY}.${band}`])),
+);
 
 /** The flag on an Active Effect that a hand has shuttered: its light is held back, the effect stays applied. */
 export const LIGHT_SHUTTER_FLAG = "lightShutter";
@@ -381,11 +387,10 @@ export const LIGHT_SHUTTER_FLAG = "lightShutter";
  */
 export const LIGHT_STATE = Object.freeze({ SHINING: "shining", SHUTTERED: "shuttered", STOWED: "stowed" });
 
-/** Whether an effect declares a magic light: it carries a change on either radius key. */
+/** Whether an effect declares a magic light: it carries a change on any band's key. */
 export function writesMagicLight(effect) {
-  return [...(effect?.changes ?? [])].some(
-    (change) => change?.key === MAGIC_LIGHT_CHANGE_KEYS.bright || change?.key === MAGIC_LIGHT_CHANGE_KEYS.dim,
-  );
+  const keys = Object.values(MAGIC_LIGHT_CHANGE_KEYS);
+  return [...(effect?.changes ?? [])].some((change) => keys.includes(change?.key));
 }
 
 /** Whether a hand has shuttered this effect's light. */
@@ -498,9 +503,9 @@ export function lightControl(effect, { name, bearer = "" } = {}) {
 
 /**
  * Every magic light an actor holds: one entry per applied Active Effect that
- * writes a radius key, `{id, uuid, label, itemName, itemId, bright, dim,
- * state}`. `itemName` and `itemId` are the item the effect rides on, null for
- * an effect placed on the actor; `bright` and `dim` are feet, each null when
+ * writes a band's key, `{id, uuid, label, itemName, itemId, daylight, bright,
+ * dim, state}`. `itemName` and `itemId` are the item the effect rides on, null for
+ * an effect placed on the actor; each band is feet, null when
  * the effect states none; `state` is the effect's `LIGHT_STATE`. Read from the
  * effect's own change values rather than from the prepared flag, so each
  * source stays nameable. A disabled or suppressed effect is not applied and so
@@ -513,19 +518,16 @@ export function magicLights(actor) {
   const out = [];
   for (const effect of appliedEffects(actor)) {
     if (!effect || effect.disabled || effect.isSuppressed === true) continue;
-    let bright = null;
-    let dim = null;
+    const reach = { daylight: null, bright: null, dim: null };
     let writes = false;
     for (const change of [...(effect.changes ?? [])]) {
-      if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.bright) {
-        writes = true;
-        bright = Math.max(bright ?? 0, positiveFigure(change.value) ?? 0) || null;
-      } else if (change?.key === MAGIC_LIGHT_CHANGE_KEYS.dim) {
-        writes = true;
-        dim = Math.max(dim ?? 0, positiveFigure(change.value) ?? 0) || null;
-      }
+      const band = MAGIC_LIGHT_BANDS.find((b) => change?.key === MAGIC_LIGHT_CHANGE_KEYS[b]);
+      if (!band) continue;
+      writes = true;
+      reach[band] = Math.max(reach[band] ?? 0, positiveFigure(change.value) ?? 0) || null;
     }
     if (!writes) continue;
+    const { daylight, bright, dim } = reach;
     const state = lightStateOf(effect);
     if (!state) continue;
     const onItem = effect.parent?.documentName === "Item";
@@ -536,6 +538,7 @@ export function magicLights(actor) {
       label: String(effect.name ?? "") || itemName || "",
       itemName,
       itemId: onItem ? effect.parent.id ?? null : null,
+      daylight,
       bright,
       dim,
       state,
@@ -544,38 +547,48 @@ export function magicLights(actor) {
   return out;
 }
 
-/** The largest `{bright, dim}` reach, in feet, among the actor's shining magic lights. */
+/**
+ * The largest `{daylight, bright, dim}` reach, in feet, among the actor's
+ * shining magic lights. Each radius is measured from the light itself, so
+ * daylight is bright light as well: `bright` is never less than `daylight`,
+ * and every reader of bright reach (mapping, the column, the token) counts a
+ * light that states only a daylight radius.
+ */
 export function effectLight(actor) {
+  let daylight = 0;
   let bright = 0;
   let dim = 0;
   for (const light of magicLights(actor)) {
     if (light.state !== LIGHT_STATE.SHINING) continue;
-    bright = Math.max(bright, light.bright ?? 0);
+    daylight = Math.max(daylight, light.daylight ?? 0);
+    bright = Math.max(bright, light.bright ?? 0, light.daylight ?? 0);
     dim = Math.max(dim, light.dim ?? 0);
   }
-  return { bright, dim };
+  return { daylight, bright, dim };
 }
 
 /**
  * The stronger of a flame's reach and a magic light's, and which kind it
- * came from, so a caller can pick the look: `{bright, dim, kind}` with `kind`
- * `"magic"` when the magic light has the larger bright radius (the larger dim
- * radius when the bright radii tie) and `"flame"` otherwise, a tie included.
- * Each radius is the larger of the two, so a short flame never dims a long
- * effect's far edge.
+ * came from, so a caller can pick the look: `{daylight, bright, dim, kind}`
+ * with `kind` `"magic"` when the magic light has the larger bright radius (the
+ * larger dim radius when the bright radii tie) and `"flame"` otherwise, a tie
+ * included. Each radius is the larger of the two, so a short flame never dims
+ * a long effect's far edge. A flame sheds no daylight, so `daylight` is the
+ * magic light's alone.
  */
 export function mergeLight(flame, magic) {
   const f = { bright: Number(flame?.bright) || 0, dim: Number(flame?.dim) || 0 };
-  const m = { bright: Number(magic?.bright) || 0, dim: Number(magic?.dim) || 0 };
+  const m = { daylight: Number(magic?.daylight) || 0, bright: Number(magic?.bright) || 0, dim: Number(magic?.dim) || 0 };
   const magicWins = m.bright > f.bright || (m.bright === f.bright && m.dim > f.dim);
-  return { bright: Math.max(f.bright, m.bright), dim: Math.max(f.dim, m.dim), kind: magicWins ? "magic" : "flame" };
+  return { daylight: m.daylight, bright: Math.max(f.bright, m.bright), dim: Math.max(f.dim, m.dim), kind: magicWins ? "magic" : "flame" };
 }
 
 /**
  * The light an actor's token burns: the stronger of what its carried flames
  * shed (`emittedLight`) and what its effects shed (`effectLight`), in feet,
- * with the `kind` that won (`mergeLight`).
- * @returns {{bright: number, dim: number, kind: "flame"|"magic"}}
+ * with the `kind` that won (`mergeLight`). Foundry draws two radii, so the
+ * token takes `bright` and `dim`; `daylight` is for a reader of that level.
+ * @returns {{daylight: number, bright: number, dim: number, kind: "flame"|"magic"}}
  */
 export function shedLight(actor) {
   return mergeLight(emittedLight(bearerLights(actor)), effectLight(actor));

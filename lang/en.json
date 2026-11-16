@@ -2547,6 +2547,7 @@
       "magicLightReach": "{bright} / {dim} ft",
       "magicLightBrightOnly": "{bright} ft bright",
       "magicLightDimOnly": "{dim} ft dim",
+      "magicLightDaylight": "{daylight} ft daylight",
       "magicLightNotSet": "reach not set",
       "magicLightNotSetTip": "The effect \"{effect}\" on {source} names a light but carries no reach. Open the effect and type the feet in its changes.",
       "magicLightTip": "Set by the effect \"{effect}\" on {source}: {reach}.",

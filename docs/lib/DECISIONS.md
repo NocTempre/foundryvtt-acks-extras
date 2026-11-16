@@ -213,3 +213,28 @@ reads", shows the loads gone.
 **Rejected.** A sentinel `vsAlignment` value for "the caster's": that enum feeds `choice()`, the PDF reader and the lint, and a value that is not an alignment would leak into all three. Two conjunctive rows sharing a capability: it doubles the located figures and lets a Judge edit one twin and not the other. *Counter (medium):* a disposition is how a token is drawn, not whom it fights for; the Judge sets it per token, and a neutral token reads unknown, not false.
 
 *Cost:* lib `apiVersion` is 50 (`vocab` gains `alignmentKey`, `hasScope`, `SCOPE_ALIGNMENT_REFERENCES` and `SCOPE_BRANCH_FIELDS`, and `SCOPE_ALIGNMENT_MODES` gains `except`; `actorRead` gains `actorAlignment`, `creatureKinds`, `areEnemies`; `effectField` gains `vsAlignmentOf`, `vsEnemy` and `anyOf`). `classifyAlignment` read the first letter of its text, so "None" was neutral and any abbreviation beginning L, C or N was an alignment; it now reads the first word against `l`, `law`, `lawful`, `n`, `neutral`, `c`, `chaos` and `chaotic`, so "None" and an abbreviation such as "LN" or "Neut." are `other`, which every caller reads as undetermined. "Lawful Good", "Chaotic Evil" and a bare letter read as before. The row editor shows a modifier's and a ward's scope and keeps an `anyOf` as stored; an `anyOf` is authored by the importer's recipe, not by hand.
+
+## 2026-11-15 — A magic light can state a daylight radius
+
+**Ruled.** The owner (2026-11-15): "daylight is a third level of brightness,
+came up for magic lights since fire doesn't get that bright". A spell in RR
+ch. 5 prints three nested bands (daylight nearest, then bright, then dim), and
+the creature entries of MM penalise light sensitivity in daylight, so the
+level is printed procedure. A magic light gains a third change key,
+`flags.acks-extras.magicLight.daylight`, a radius from the light like the other
+two, typed by the Judge; the Add effect control's Magic Light start writes all
+three blank. Daylight is bright light as well, so `effectLight` raises `bright`
+to at least `daylight` and every reader of bright reach follows unchanged.
+Flames never shed it. This adds to "A magic light is an effect the Judge sizes"
+(2026-11-10) and supersedes none of it.
+
+**Rejected.** A daylight band on flames (no flame reaches it); a fourth
+Foundry radius or a token tint for the band (Foundry draws two radii, and no
+reader yet needs the canvas to show it); building light sensitivity in the
+same change (registered in ROADMAP, "What daylight from a magic light does not
+do yet", for the owner to order).
+
+*Cost:* lib `apiVersion` stays 50, since none of these is on the API surface; `magicLights`
+entries and `effectLight`, `mergeLight` and `shedLight` answers gain
+`daylight`, and lib exports `MAGIC_LIGHT_BANDS`. An effect made before the band
+has no daylight key and reads exactly as before.

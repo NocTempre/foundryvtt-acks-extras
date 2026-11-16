@@ -462,8 +462,8 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    Add Light beside it). It opens a choice, Blank Effect or Magic Light.
    *Observable:* Blank creates one transferred ActiveEffect with no change and
    opens its config sheet; Magic Light creates one named "Magic light" with
-   two `upgrade` changes keyed `flags.acks-extras.magicLight.bright` and
-   `.dim`, values empty, and opens its sheet (after the simple view's first
+   three `upgrade` changes keyed `flags.acks-extras.magicLight.daylight`,
+   `.bright` and `.dim`, values empty, and opens its sheet (after the simple view's first
    effect the sheet re-renders tabbed, so poll for the config sheet); closing
    the choice (its header button, or Escape) creates nothing, and the tab
    strip appears once the item has an effect.

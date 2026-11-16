@@ -4118,7 +4118,7 @@ sync runs, so the Observer case is driven on a sheet already open when the
 ownership falls, and a fresh open expects refusal (state stays closed). Steps
 1 to 7 and 12 are walked by hand on the GM seat, with the Player and Observer
 seats for steps 9 and 10. A magic light is an Active Effect on an item
-that writes `flags.acks-extras.magicLight.bright` and `.dim` (lib MODEL,
+that writes `flags.acks-extras.magicLight.daylight`, `.bright` and `.dim` (lib MODEL,
 Senses); every reach typed here is invented.
 
 **Fixtures** (kept; found by marker, built when none carries it):
@@ -4154,8 +4154,8 @@ member is inside the party token, not deployed.
    tab strip: the control stands beside Details. Otherwise it is on the
    Effects tab. The control shows while the sheet is locked. `api.track` the effect the
    click made (read its id from `item.effects` at once). *Observable:* one
-   effect on the item, transfer on, named "Magic light", two changes keyed as
-   above, each of type `upgrade` with an empty value, and its config sheet
+   effect on the item, transfer on, named "Magic light", three changes keyed as
+   above (daylight, bright, dim), each of type `upgrade` with an empty value, and its config sheet
    open. No console error as the actor prepares with the empty values.
 2. **Not set.** Open the Party sheet's Kit tab → Light Sources. *Observable:*
    one row, the item's name and the member's, reading "reach not set" with a
@@ -4164,7 +4164,7 @@ member is inside the party token, not deployed.
    column holds no point (`acksExtras.formation.carriedLightPoints(scene)` is
    empty) and the member's own token, if any, has no managed light.
 3. **Type the feet.** In the effect's config sheet, Changes tab, type 11 and 23
-   into the two values. *Observable:* the row reads "11 / 23 ft" and its
+   into the bright and dim values, the daylight left blank. *Observable:* the row reads "11 / 23 ft" and its
    tooltip names the effect, the item and both reaches. One column point
    stands at the member's cell (`carriedLightPoints` has one, `bright` the
    figure in scene units) and the client light source of that bearer is steady:
@@ -4230,6 +4230,13 @@ member is inside the party token, not deployed.
     and the mapping verdict reads `litBy` `light`. Shutter it: `isPartyInDark`
     true, the slowed pace and both warnings return. Put the darkness and the
     role back.
+14. **Daylight alone.** Clear the bright and dim values and type 7 into the
+    daylight value. *Observable:* the row reads "7 ft daylight" with no other
+    figure; `effectLight(member)` is `{daylight: 7, bright: 7, dim: 0}`; the
+    column point stands with `bright` 7 in scene units; with darkness 1 and
+    the Mapper role, the mapping verdict reads `litBy` `light` for a mapper
+    within 7 ft and `isPartyInDark` is false. An effect made before the band
+    existed (two changes, no daylight key) reads exactly as it did.
 
 Teardown: leave the effect open (Open, so the flag is cleared), the item out of
 the pack, and `api.sweepTracked()`; quote what it removed. The effect each Add

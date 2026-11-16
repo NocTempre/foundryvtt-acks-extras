@@ -4,12 +4,13 @@
  * share them.
  *
  * A blank effect is transferred to the bearer and carries no change. A magic
- * light is a transferred effect carrying both radius changes with no figure in
- * them: the Judge types the feet from their own copy. The changes are
+ * light is a transferred effect carrying a change per band (daylight, bright,
+ * dim) with no figure in them: the Judge types the feet from their own copy,
+ * and a band left blank sheds nothing. The changes are
  * `upgrade`, so the engine keeps the largest where several lights ride one
  * bearer.
  */
-import { MAGIC_LIGHT_CHANGE_KEYS } from "../../lib/light.mjs";
+import { MAGIC_LIGHT_BANDS, MAGIC_LIGHT_CHANGE_KEYS } from "../../lib/light.mjs";
 import { CHANGE } from "../../lib/effect-scan.mjs";
 
 /** The starting points the Add effect control offers, in the order it lists them. */
@@ -31,7 +32,7 @@ export function effectStartData(kind, item, { lightName }) {
       img: item.img,
       transfer: true,
       disabled: false,
-      changes: [MAGIC_LIGHT_CHANGE_KEYS.bright, MAGIC_LIGHT_CHANGE_KEYS.dim].map((key) => ({ key, type: CHANGE.UPGRADE, value: "" })),
+      changes: MAGIC_LIGHT_BANDS.map((band) => ({ key: MAGIC_LIGHT_CHANGE_KEYS[band], type: CHANGE.UPGRADE, value: "" })),
     };
   }
   return null;

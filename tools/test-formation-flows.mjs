@@ -2049,6 +2049,22 @@ await scenario("template renders live controls for a member-owner", async () => 
   assert.ok(rows[1].includes("magicLightNotSet") && !rows[1].includes("magicLightReach") && !rows[1].includes("magicLightTip"), "a light with no reach says it is not set and shows no figure");
   assert.ok(rows[2].includes("magicLightBrightOnly") && !rows[2].includes("magicLightReach") && !rows[2].includes("&quot;dim&quot;"), "a light with one radius shows that radius and no zero for the other");
 
+  // A daylight band leads the row, before the bright and dim pair; alone, it
+  // is the whole row.
+  dave.effects.push(
+    ownedBy({ id: "fxday", name: "Noon", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.daylight, "9"), change(MAGIC_LIGHT_CHANGE_KEYS.bright, "13"), change(MAGIC_LIGHT_CHANGE_KEYS.dim, "17")] }, "PL1"),
+    ownedBy({ id: "fxdayonly", name: "Glare", disabled: false, parent: { documentName: "Actor" }, changes: [change(MAGIC_LIGHT_CHANGE_KEYS.daylight, "9")] }, "PL1"),
+  );
+  try {
+    const dayRows = view.magicLightRows(formation);
+    const full = dayRows.find((r) => r.effectId === "fxday");
+    const only = dayRows.find((r) => r.effectId === "fxdayonly");
+    assert.ok(full.set && full.reachText.startsWith("ACKS-FORMATION.app.magicLightDaylight") && full.reachText.includes("magicLightReach"), "daylight first, then the pair");
+    assert.ok(only.set && only.reachText.startsWith("ACKS-FORMATION.app.magicLightDaylight") && !only.reachText.includes("magicLightReach") && !only.reachText.includes("Only"), "a daylight-only light shows daylight alone");
+  } finally {
+    dave.effects.length = 0;
+  }
+
   // The owner's seat is offered a shutter on each of their own lights; an
   // observer of another member's light sees its state and no button.
   assert.ok(rows.slice(0, 3).every((row) => row.includes('data-action="shutterMagicLight"')), "the owner sees a shutter on each of their lights");

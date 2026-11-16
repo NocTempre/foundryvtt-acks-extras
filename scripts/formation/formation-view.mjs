@@ -157,10 +157,16 @@ export function magicLightRows(formation) {
     const actor = getMemberActor(member);
     if (!actor) continue;
     for (const light of magicLights(actor)) {
-      const set = light.bright != null || light.dim != null;
-      // Only a radius the effect states is shown: an unset one is no zero.
-      const reachKey = light.bright != null && light.dim != null ? "magicLightReach" : light.bright != null ? "magicLightBrightOnly" : "magicLightDimOnly";
-      const reachText = set ? game.i18n.format(`ACKS-FORMATION.app.${reachKey}`, { ...(light.bright != null ? { bright: light.bright } : {}), ...(light.dim != null ? { dim: light.dim } : {}) }) : game.i18n.localize("ACKS-FORMATION.app.magicLightNotSet");
+      const set = light.daylight != null || light.bright != null || light.dim != null;
+      // Only a radius the effect states is shown: an unset one is no zero. The
+      // daylight band leads, then the bright and dim pair.
+      const parts = [];
+      if (light.daylight != null) parts.push(game.i18n.format("ACKS-FORMATION.app.magicLightDaylight", { daylight: light.daylight }));
+      if (light.bright != null || light.dim != null) {
+        const reachKey = light.bright != null && light.dim != null ? "magicLightReach" : light.bright != null ? "magicLightBrightOnly" : "magicLightDimOnly";
+        parts.push(game.i18n.format(`ACKS-FORMATION.app.${reachKey}`, { ...(light.bright != null ? { bright: light.bright } : {}), ...(light.dim != null ? { dim: light.dim } : {}) }));
+      }
+      const reachText = set ? parts.join(" · ") : game.i18n.localize("ACKS-FORMATION.app.magicLightNotSet");
       // A player is not told an item-borne effect's own name: on an item not yet
       // identified it is what the item sheet hides. The item's name is the one
       // the player already sees, a disguise's included.

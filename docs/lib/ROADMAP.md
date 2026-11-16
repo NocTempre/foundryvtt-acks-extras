@@ -158,6 +158,22 @@ new lead reconciling what a gap could have dropped, writer by writer.
   its own order, so the Judge wants a way to drag or nudge a tied combatant ahead of
   its peers, stored on the combatant and read by the same comparator.
 
+## What daylight from a magic light does not do yet
+
+A magic light can state a daylight radius (`MAGIC_LIGHT_BANDS`), and every
+reader counts it as bright light. Nothing yet reads the level itself:
+
+- **Light sensitivity.** A creature penalised in bright daylight is penalised
+  inside a magic light's daylight radius too (MM ch. 1 and the creatures'
+  entries). A reader of the daylight reaching a token (beside
+  `brightestLightAt`) and the penalty on the creature's throws are both
+  unbuilt.
+- **A darkness that steps light down.** The reverse of a light spell lowers
+  each level by its own rule, daylight included (RR ch. 5). A darkness source
+  is read only as `negative`, which sheds nothing.
+- **What the token draws.** Foundry has two radii, so the token draws a
+  daylight band as bright light; nothing on the canvas marks it.
+
 ## What the conditions do not do yet
 
 The catalogue lists every condition of RR 507-515 and the states of a round
