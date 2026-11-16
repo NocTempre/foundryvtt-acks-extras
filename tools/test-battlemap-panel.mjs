@@ -63,7 +63,7 @@ const clones = { count: 0, broken: false };
  * target grid, and writes that land like core's (a field it will not take is
  * dropped). `afterWrite` stands in for the `updateScene` hook module.mjs wires.
  */
-function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false, placed = {} } = {}) {
+function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, distance = 9, units = "ft", flag = {}, rejectType = false, placed = {}, districts = false } = {}) {
   const scene = {
     id,
     name,
@@ -83,6 +83,8 @@ function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, dist
     tiles: { size: placed.tiles ?? 0 },
     walls: { size: placed.walls ?? 0 },
     background: { src: "map.webp" },
+    // A district drawn on the map, as far as `sceneHasDistrict` reads one.
+    regions: districts ? [{ behaviors: [{ type: `${MODULE_ID}.district`, disabled: false }] }] : [],
     flags: { [MODULE_ID]: { [FLAG]: { ...flag } } },
     writes: [],
     afterWrite: null,
@@ -105,7 +107,7 @@ function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, dist
         if (k === "grid.type" && rejectType) continue;
         if (k === "background.src") scene.background.src = v;
         else if (k.startsWith("grid.")) scene.grid[k.slice(5)] = v;
-        else if (k === `flags.${MODULE_ID}.${FLAG}`) scene.flags[MODULE_ID][FLAG] = { ...v };
+        else if (k.startsWith(`flags.${MODULE_ID}.${FLAG}.`)) scene.flags[MODULE_ID][FLAG][k.slice(`flags.${MODULE_ID}.${FLAG}.`.length)] = v;
         else scene[k] = v;
       }
       scene.afterWrite?.(scene);
@@ -257,14 +259,42 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
-  // The travel system chosen in the panel is part of the write.
-  const system = TRAVEL_MODES[1];
-  const scene = makeScene();
-  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft", mapSystem: system });
-  await ctx();
+  // A declared travel system is the select's to write as it changes, never the
+  // apply's: Apply neither shows a row for it nor touches it, whatever scale it writes.
+  const system = TRAVEL_MODES[0];
+  const scene = makeScene({ flag: { mapSystem: system } });
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 6 }, units: "mi", mapSystem: system });
+  const c = await ctx();
+  assert.ok(!c.footRows.some((r) => r.id === "travelSystem"), "a declared system shows no row, though the scale written is a mile");
   await applyGrid.call(app);
-  assert.equal(flagOf(scene).mapSystem, system, "the declared system is written, never erased");
+  assert.equal(flagOf(scene).mapSystem, system, "the declared system is left as it was");
   assert.equal(flagOf(scene).calibrated, true);
+  assert.ok(scene.writes.every((w) => !Object.keys(w).some((k) => k.endsWith("mapSystem"))), "and no write names it");
+}
+
+{
+  // Undeclared, a foot-scale scene applied at 6 mi switches its party to a journey: the row says so.
+  const scene = makeScene({ units: "ft", distance: 9 });
+  setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 6 }, units: "mi" });
+  const row = (await ctx()).footRows.find((r) => r.id === "travelSystem");
+  assert.ok(row, "the row shows");
+  assert.ok(row.text.includes("setup.systemNone") && row.text.includes(`system.${TRAVEL_MODES[1]}`), "none now, a journey after");
+  assert.ok(row.tip.includes("rows.source.scale"), "sourced to the scale being written");
+  await applyGrid.call(app);
+  assert.equal(flagOf(scene).mapSystem, undefined, "nothing is declared by the apply: the party's system is called for, not written");
+
+  // With a district drawn, the system called for is a settlement until the scale reaches a mile.
+  const city = makeScene({ units: "ft", distance: 9, districts: true });
+  setup({ family: "hexRows", scene: city, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 6 }, units: "mi" });
+  const toJourney = (await ctx()).footRows.find((r) => r.id === "travelSystem");
+  assert.ok(toJourney?.text.includes(`"from":"system.${TRAVEL_MODES[2]}`) && toJourney.text.includes(`"to":"system.${TRAVEL_MODES[1]}`), "a settlement now, a journey after");
+  setup({ family: "hexRows", scene: city, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  assert.ok(!(await ctx()).footRows.some((r) => r.id === "travelSystem"), "a district at a foot scale stays a settlement: no row");
+
+  // Mile to foot scale: nothing is called for after, and a party's mode is left as it is, so no row.
+  const down = makeScene({ units: "mi", distance: 6 });
+  setup({ family: "hexRows", scene: down, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "ft" });
+  assert.ok(!(await ctx()).footRows.some((r) => r.id === "travelSystem"), "journey to nothing shows no row");
 }
 
 {
@@ -314,7 +344,7 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const scene = makeScene({ units: "ft", distance: 9, flag: { autoScale: true }, placed: { tokens: 1 } });
   setup({ family: "hexRows", scene, samples: { squares: rowBoxes() }, opts: { mapCellFeet: 3 }, units: "mi" });
   const c = await ctx();
-  assert.deepEqual(c.footRows.map((r) => r.id), ["grid", "cellWorth", "image", "tokenSizing"], "one row per change Apply writes");
+  assert.deepEqual(c.footRows.map((r) => r.id), ["grid", "cellWorth", "image", "tokenSizing", "travelSystem"], "one row per change Apply writes");
   const titles = [];
   const confirm = foundry.applications.api.DialogV2.confirm;
   foundry.applications.api.DialogV2.confirm = async (opts) => (titles.push(opts.window.title), confirms.push(opts.content), true);
@@ -444,7 +474,18 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
   const split = lang[`${LANG_PREFIX}.warn.familyMismatchLoneSplit`];
   assert.ok(split.includes("delete the larger") && split.includes("{family}"), "the pair's line says which box to delete");
   const ambiguous = lang[`${LANG_PREFIX}.warn.familyAmbiguous`];
-  assert.ok(ambiguous.includes("second box") && ambiguous.includes("stays as you chose"), "an ambiguity reads as a request, not as an error");
+  assert.ok(ambiguous.includes("three boxes") && ambiguous.includes("across and down") && !ambiguous.includes("second box") && ambiguous.includes("stays as you chose"), "an ambiguity asks for the boxes that can tell the two apart, and is no error");
+  // The window has one name, and the notice and the tooltip use the rows' words.
+  const name = (key) => lang[`${LANG_PREFIX}.${key}`];
+  assert.equal(name("title"), "Map setup");
+  assert.equal(name("titleScene"), "Map setup: {scene}");
+  assert.equal(name("controls.assistant"), "Map setup");
+  assert.equal(name("sceneConfig.open"), "Map setup…");
+  assert.ok(name("sceneConfig.hint").includes("map setup") && !/alignment assistant/i.test(name("sceneConfig.hint")));
+  assert.ok(name("setup.title") !== name("title"), "the first heading names what it heads, not the window");
+  assert.ok(!(`${LANG_PREFIX}.tool` in lang) && !(`${LANG_PREFIX}.rows.source.system` in lang), "keys nothing reads are gone");
+  assert.ok(name("apply.doneHex").includes("grid size {size} px") && name("rows.gridFigure").includes("grid size {size} px"), "the done notice says grid size, as the rows do");
+  assert.ok(/^As the scene has it: \{from\}\. After Apply: \{to\}\./.test(name("rows.tip")), "a figure follows a colon, so a capitalised label fits mid-tooltip");
 }
 
 {

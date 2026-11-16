@@ -44,6 +44,26 @@ export function sceneTravelSystem(scene) {
 }
 
 /**
+ * The travel system a map calls for from three facts about it, and which fact
+ * said so: the one declared, else a journey where a cell is a mile or more,
+ * else a settlement where a district is drawn, else nothing. Pure, so the
+ * formation (reading a scene) and the setup panel (reading a scene as an
+ * Apply would leave it) answer from one rule.
+ *
+ * @param {object} facts
+ * @param {string|null} [facts.declared]  The system the Judge declared, or null.
+ * @param {boolean} [facts.expedition]  Whether a cell is a mile or more.
+ * @param {boolean} [facts.districts]  Whether a district is drawn on the map.
+ * @returns {{system: string|null, source: "declared"|"scale"|"districts"|null}}
+ */
+export function systemCalledFor({ declared = null, expedition = false, districts = false } = {}) {
+  if (declared) return { system: declared, source: "declared" };
+  if (expedition) return { system: "journey", source: "scale" };
+  if (districts) return { system: "settlement", source: "districts" };
+  return { system: null, source: null };
+}
+
+/**
  * How big one city block is drawn on this map, in the scene's own distance
  * units, or null when nobody has said (the city tracker then times the party
  * by walking speed instead). See docs/formation/DECISIONS.md, "The block is

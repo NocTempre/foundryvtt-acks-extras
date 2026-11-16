@@ -10,7 +10,7 @@ import { solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup }
 import { DISTANCE_UNITS } from "../scripts/lib/distance-units.mjs";
 import { FLAG_BATTLEMAP, GRID_TYPE, MODULE_ID } from "../scripts/battlemap/constants.mjs";
 import { fitHexLattice } from "../scripts/battlemap/calibrate-logic.mjs";
-import { hexProbe } from "../scripts/battlemap/scene-setup.mjs";
+import { hexProbe, systemCalledFor } from "../scripts/battlemap/scene-setup.mjs";
 
 const results = [];
 function test(name, fn) {
@@ -30,14 +30,14 @@ function test(name, fn) {
 
 const GRIDLESS_SCENE = Object.freeze({
   gridType: GRID_TYPE.GRIDLESS, gridSize: 100, distance: 5, units: "ft",
-  width: 4000, height: 3000, shiftX: 0, shiftY: 0, autoScale: false, mapSystem: null, hasBackground: true,
+  width: 4000, height: 3000, shiftX: 0, shiftY: 0, autoScale: false, hasBackground: true,
 });
 const HEX_SCENE = Object.freeze({ ...GRIDLESS_SCENE, gridType: GRID_TYPE.HEXODDR });
 
 const SQUARE_FIT = Object.freeze({ ok: true, mode: "square", sizeX: 70, sizeY: 70, phaseX: 3, phaseY: 4, rmsPct: 0.004, confidence: "tight", samples: 2 });
 const SQUARE_SOLUTION = Object.freeze({
   gridType: GRID_TYPE.SQUARE, gridSize: 100, distance: 5, units: "ft",
-  width: 4200, height: 3100, shiftX: 12, shiftY: 7, mapSystem: null,
+  width: 4200, height: 3100, shiftX: 12, shiftY: 7,
 });
 
 // The shape `fitHexLattice` answers for one used box: no residual to be off by,
@@ -53,9 +53,9 @@ const hexFit = (over = {}) => ({
 const hexFail = (reason, boxes) => ({ ok: false, reason, samples: boxes?.length ?? 0, ...(boxes ? { boxes } : {}) });
 const HEX_SOLUTION = Object.freeze({
   gridType: GRID_TYPE.HEXODDR, gridSize: 100, distance: 6, units: "mi",
-  width: 3600, height: 2900, shiftX: 20, shiftY: 15, mapSystem: null,
+  width: 3600, height: 2900, shiftX: 20, shiftY: 15,
 });
-const SCALE_SOLUTION = Object.freeze({ gridSize: 120, distance: 2, units: "mi", mapSystem: null });
+const SCALE_SOLUTION = Object.freeze({ gridSize: 120, distance: 2, units: "mi" });
 
 const ids = (plan) => plan.needs.map((n) => n.id);
 const plan = (over) => planSetup({ scene: GRIDLESS_SCENE, solution: SQUARE_SOLUTION, cellWorth: 5, ...over });
@@ -391,7 +391,7 @@ test("rows: a field whose before equals its after produces no row", () => {
 
 test("rows: a unit spelled differently is the same unit, and a changed one is a row", () => {
   const scene = { ...GRIDLESS_SCENE, gridType: GRID_TYPE.SQUARE, units: "Miles", distance: 6, autoScale: true };
-  const solution = { gridType: GRID_TYPE.SQUARE, gridSize: 100, distance: 6, units: "mi", mapSystem: null };
+  const solution = { gridType: GRID_TYPE.SQUARE, gridSize: 100, distance: 6, units: "mi" };
   assert.equal(rowOf(plan({ family: "scale", scene, solution }), "cellWorth"), undefined);
   const changed = plan({ family: "scale", scene, solution: { ...solution, units: "km" } });
   assert.deepEqual(rowOf(changed, "cellWorth").after, { distance: 6, units: "km" });
@@ -423,23 +423,31 @@ test("rows: a grid size that differs below the tolerance is no row, and one abov
   assert.deepEqual(settled({ gridSize: 100.01 }).rows.map((r) => r.id), ["grid"]);
 });
 
-test("rows: a declared travel system met by a solution that names none is a row to null", () => {
-  const scene = { ...SETTLED, mapSystem: "overland" };
-  const p = plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene, solution: { ...SQUARE_SOLUTION, mapSystem: null } });
-  assert.deepEqual(p.rows, [{ id: "travelSystem", before: "overland", after: null }]);
-  const absent = { ...SQUARE_SOLUTION };
-  delete absent.mapSystem;
-  assert.deepEqual(plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene, solution: absent }).rows.map((r) => r.id), ["travelSystem"]);
+test("rows: the travel system is a row only where one is called for after the write and it differs", () => {
+  const base = { family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene: SETTLED, solution: SQUARE_SOLUTION };
+  const row = (travelSystem) => rowOf(plan({ ...base, travelSystem }), "travelSystem");
+  assert.deepEqual(row({ before: null, after: "journey" }), { id: "travelSystem", before: null, after: "journey" }, "none now, a journey after");
+  assert.deepEqual(row({ before: "settlement", after: "journey" }), { id: "travelSystem", before: "settlement", after: "journey" });
+  assert.equal(row({ before: "journey", after: null }), undefined, "the adopter ignores none, so leaving a system is no change to show");
+  assert.equal(row({ before: "journey", after: "journey" }), undefined, "an unchanged system is no row");
+  assert.equal(row({ before: null, after: null }), undefined);
+  assert.equal(row(null), undefined, "a caller that names none shows none");
+  assert.equal(rowOf(plan(base), "travelSystem"), undefined, "and one that passes nothing");
 });
 
-test("rows: a declared travel system is a row only when it changes", () => {
-  const scene = { ...GRIDLESS_SCENE, mapSystem: "overland" };
-  const base = { family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene };
-  assert.equal(rowOf(plan({ ...base, solution: { ...SQUARE_SOLUTION, mapSystem: "overland" } }), "travelSystem"), undefined);
-  assert.deepEqual(rowOf(plan({ ...base, solution: { ...SQUARE_SOLUTION, mapSystem: "dungeon" } }), "travelSystem"),
-    { id: "travelSystem", before: "overland", after: "dungeon" });
-  assert.deepEqual(rowOf(plan({ ...base, scene: GRIDLESS_SCENE, solution: { ...SQUARE_SOLUTION, mapSystem: "dungeon" } }), "travelSystem"),
-    { id: "travelSystem", before: null, after: "dungeon" });
+test("rows: a solution's own mapSystem is not a travel-system row", () => {
+  const scene = { ...SETTLED, mapSystem: "delve" };
+  const p = plan({ family: "square", samples: { boxes: 2 }, fit: SQUARE_FIT, scene, solution: { ...SQUARE_SOLUTION, mapSystem: "journey" } });
+  assert.deepEqual(p.rows, [], "the declaration is the select's to write, never the apply's");
+  assert.equal(p.matches, true);
+});
+
+test("systemCalledFor: a declared system wins, then the scale, then a district, else silence", () => {
+  assert.deepEqual(systemCalledFor({ declared: "delve", expedition: true, districts: true }), { system: "delve", source: "declared" });
+  assert.deepEqual(systemCalledFor({ expedition: true, districts: true }), { system: "journey", source: "scale" });
+  assert.deepEqual(systemCalledFor({ districts: true }), { system: "settlement", source: "districts" });
+  assert.deepEqual(systemCalledFor({}), { system: null, source: null });
+  assert.deepEqual(systemCalledFor(), { system: null, source: null });
 });
 
 /* -------------------------------------------- */
@@ -749,6 +757,9 @@ const snapping = (grid) => ({
   },
 });
 
+/** The prefix of every flag key an apply writes: one dot path per key. */
+const FLAG_PATH = `flags.${MODULE_ID}.${FLAG_BATTLEMAP}.`;
+
 function solveScene({ gridType = GRID_TYPE.GRIDLESS, autoScale = false } = {}) {
   const scene = {
     grid: { type: gridType, size: 100, distance: 5, units: "ft" },
@@ -767,7 +778,7 @@ function solveScene({ gridType = GRID_TYPE.GRIDLESS, autoScale = false } = {}) {
       scene.updates.push(patch);
       for (const [key, value] of Object.entries(patch)) {
         if (key.startsWith("grid.")) scene.grid[key.slice(5)] = value;
-        if (key.startsWith("flags.")) scene.flags = { [MODULE_ID]: { [FLAG_BATTLEMAP]: value } };
+        if (key.startsWith(FLAG_PATH)) scene.flags[MODULE_ID][FLAG_BATTLEMAP][key.slice(FLAG_PATH.length)] = value;
       }
     },
   };
@@ -803,7 +814,7 @@ function assertSolveAgrees(solved, { units }) {
 test("solve, hex: the update payload equals the solution the rows are built from", () => {
   const fit = fitReal(ROWS, LARGE, [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)]);
   assert.equal(fit.ok, true);
-  const solved = solveHexCalibration(solveScene(), fit, { gridSize: 100.4, outputFeet: 6, family: "hexRows", hexEven: false, units: "mi", mapSystem: null });
+  const solved = solveHexCalibration(solveScene(), fit, { gridSize: 100.4, outputFeet: 6, family: "hexRows", hexEven: false, units: "mi" });
   assertSolveAgrees(solved, { units: "mi" });
   assert.equal(solved.solution.gridSize, 100, "the size is rounded once, for both");
   assert.equal(solved.solution.gridType, GRID_TYPE.HEXODDR);
@@ -821,7 +832,7 @@ test("solve, hex: the fitted centre is what the shift lands on, not a box's own"
 });
 
 test("solve, square: the update payload equals the solution the rows are built from", () => {
-  const solved = solveGridCalibration(solveScene(), SQUARE_FIT, { gridSize: 100.4, outputFeet: 25, mapCellFeet: 25, units: "ft", mapSystem: null });
+  const solved = solveGridCalibration(solveScene(), SQUARE_FIT, { gridSize: 100.4, outputFeet: 25, mapCellFeet: 25, units: "ft" });
   assertSolveAgrees(solved, { units: "ft" });
   assert.equal(solved.solution.gridType, GRID_TYPE.SQUARE);
   assert.equal(solved.solution.gridSize, 100);
@@ -843,18 +854,18 @@ test("solve: a refusal answers a reason and speaks to no one", () => {
 });
 
 test("solve, scale-only: the solution carries no geometry and the update touches none", () => {
-  const solved = solveScaleOnly({ size: 120, distance: 2.5, units: "mi", mapSystem: "journey" });
-  assert.deepEqual(solved.solution, { gridSize: 120, distance: 2.5, units: "mi", mapSystem: "journey" });
+  const solved = solveScaleOnly({ size: 120, distance: 2.5, units: "mi" });
+  assert.deepEqual(solved.solution, { gridSize: 120, distance: 2.5, units: "mi" });
   assert.deepEqual(solved.update, { "grid.size": 120, "grid.distance": 2.5, "grid.units": "mi" });
 });
 
 /** Solve, plan and write a hex apply over a scene, the way the panel does. */
 async function applyHex({ units, outputFeet, scene }) {
   const fit = fitReal(ROWS, LARGE, [exactBox(ROWS, LARGE, 0, 0), exactBox(ROWS, LARGE, 1, 0), exactBox(ROWS, LARGE, 2, 1)]);
-  const solved = solveHexCalibration(scene, fit, { gridSize: 100, outputFeet, family: "hexRows", units, mapSystem: null });
+  const solved = solveHexCalibration(scene, fit, { gridSize: 100, outputFeet, family: "hexRows", units });
   const p = planSetup({
     family: "hexRows", samples: { boxes: 3 }, fit, cellWorth: outputFeet,
-    scene: { gridType: scene.grid.type, gridSize: scene.grid.size, distance: scene.grid.distance, units: scene.grid.units, width: 4000, height: 3000, shiftX: 0, shiftY: 0, autoScale: scene.flags[MODULE_ID][FLAG_BATTLEMAP].autoScale, mapSystem: null, hasBackground: true },
+    scene: { gridType: scene.grid.type, gridSize: scene.grid.size, distance: scene.grid.distance, units: scene.grid.units, width: 4000, height: 3000, shiftX: 0, shiftY: 0, autoScale: scene.flags[MODULE_ID][FLAG_BATTLEMAP].autoScale, hasBackground: true },
     solution: solved.solution,
     expeditionScale: expeditionScaleOf({ distance: solved.solution.distance, units, scene: scene.grid }),
   });
@@ -873,14 +884,14 @@ await (async () => {
       console.log(`  FAIL ${name}\n${err.stack}`);
     }
   };
-  const record = (scene) => scene.updates.at(-1)[`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`];
+  const record = (scene) => Object.fromEntries(Object.entries(scene.updates.at(-1)).filter(([k]) => k.startsWith(FLAG_PATH)).map(([k, v]) => [k.slice(FLAG_PATH.length), v]));
 
   await run("write: a mile-scale apply writes auto-sizing off even over a scene that had it on", async () => {
     const scene = solveScene({ autoScale: true });
     const { applied, plan: p } = await applyHex({ units: "mi", outputFeet: 6, scene });
     assert.equal(applied, true);
     assert.equal(p.autoScale, false);
-    assert.deepEqual(record(scene), { calibrated: true, distance: 6, autoScale: false, mapSystem: null });
+    assert.deepEqual(record(scene), { calibrated: true, distance: 6, autoScale: false });
   });
 
   await run("write: a foot-scale apply writes auto-sizing on", async () => {
@@ -893,9 +904,20 @@ await (async () => {
   await run("write: the update sent is the solve's update plus the flag record, and nothing else", async () => {
     const scene = solveScene();
     const { solved } = await applyHex({ units: "mi", outputFeet: 6, scene });
-    const { [`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`]: flag, ...rest } = scene.updates.at(-1);
+    const rest = Object.fromEntries(Object.entries(scene.updates.at(-1)).filter(([k]) => !k.startsWith(FLAG_PATH)));
     assert.deepEqual(rest, solved.update);
-    assert.deepEqual(Object.keys(flag).sort(), ["autoScale", "calibrated", "distance", "mapSystem"]);
+    assert.deepEqual(Object.keys(record(scene)).sort(), ["autoScale", "calibrated", "distance"]);
+  });
+
+  await run("write: the declared travel system and the rest of the record are left as they were", async () => {
+    const scene = solveScene();
+    Object.assign(scene.flags[MODULE_ID][FLAG_BATTLEMAP], { mapSystem: "delve", country: { ground: "x" } });
+    const { applied } = await applyHex({ units: "mi", outputFeet: 6, scene });
+    assert.equal(applied, true);
+    assert.ok(!Object.keys(scene.updates.at(-1)).some((k) => k.endsWith("mapSystem")), "no key names the declared system");
+    assert.equal(scene.flags[MODULE_ID][FLAG_BATTLEMAP].mapSystem, "delve", "a declared system survives a mile-scale apply");
+    assert.deepEqual(scene.flags[MODULE_ID][FLAG_BATTLEMAP].country, { ground: "x" }, "so does the country");
+    assert.equal(scene.flags[MODULE_ID][FLAG_BATTLEMAP].calibrated, true);
   });
 
   await run("write: the done notice names the family and the unit, per family", async () => {

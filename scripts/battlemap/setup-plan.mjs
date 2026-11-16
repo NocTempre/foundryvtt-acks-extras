@@ -65,9 +65,10 @@
  * after. `grid` (`{type,size}`, with `unit: "px"`), `cellWorth`
  * (`{distance,units}`), `image` (`{width,height,shiftX,shiftY}` plus `rescale`
  * `{x,y}`), `tokenSizing` (a boolean, with `because: "expeditionScale"` when the answer
- * is off for that reason), and `travelSystem` (a mode id or null for none
- * declared). A solution field that is absent or null is unchanged, except the
- * travel system, where null is the declaration of none.
+ * is off for that reason), and `travelSystem` (the mode a party takes where
+ * none is declared: a mode id, or null before; a row only where one is called
+ * for after the write and it differs). A solution field that is absent or null
+ * is unchanged.
  */
 
 import { CALIBRATABLE_GRIDS } from "./constants.mjs";
@@ -217,7 +218,7 @@ function fitWarnings({ fit, hex }) {
 }
 
 /** The before/after rows of what the apply would write over the scene. */
-function planRows({ scene, solution, autoScale, expeditionScale }) {
+function planRows({ scene, solution, autoScale, expeditionScale, travelSystem }) {
   if (!solution) return [];
   const rows = [];
 
@@ -256,9 +257,11 @@ function planRows({ scene, solution, autoScale, expeditionScale }) {
     rows.push(row);
   }
 
-  const systemBefore = scene.mapSystem ?? null;
-  const systemAfter = solution.mapSystem ?? null;
-  if (systemBefore !== systemAfter) rows.push({ id: "travelSystem", before: systemBefore, after: systemAfter });
+  // The row is the system a party takes where none is declared, so it shows
+  // only where one is called for after the write and differs from now.
+  const systemBefore = travelSystem?.before ?? null;
+  const systemAfter = travelSystem?.after ?? null;
+  if (systemAfter && systemBefore !== systemAfter) rows.push({ id: "travelSystem", before: systemBefore, after: systemAfter });
 
   return rows;
 }
@@ -279,18 +282,21 @@ function planRows({ scene, solution, autoScale, expeditionScale }) {
  * @param {number|null} [input.cellWorth]  What one map cell is worth, already resolved
  *   (`resolveCellWorth`); null or blank is a need.
  * @param {object} [input.scene]  The scene as it is: `{gridType, gridSize, distance, units,
- *   width, height, shiftX, shiftY, autoScale, mapSystem, hasBackground}`. A background is
+ *   width, height, shiftX, shiftY, autoScale, hasBackground}`. A background is
  *   assumed unless `hasBackground` is exactly false.
  * @param {object|null} [input.solution]  The same fields as the apply would write them
- *   (`gridType, gridSize, distance, units, width, height, shiftX, shiftY, mapSystem`), or null
+ *   (`gridType, gridSize, distance, units, width, height, shiftX, shiftY`), or null
  *   when nothing is solvable yet. An absent field is unchanged; a scale-only solution carries
  *   no width, height, shift or type.
  * @param {boolean} [input.expeditionScale]  Whether a cell is a mile or more; the caller decides
  *   it. True leaves token auto-sizing off.
+ * @param {{before: string|null, after: string|null}|null} [input.travelSystem]  The system a
+ *   party takes on the scene as it is and as the apply would leave it (`systemCalledFor`), each
+ *   null where none is called for; the caller decides both.
  * @returns {{family: string, needs: object[], unused: object[], warnings: object[], rows: object[],
  *   matches: boolean, canApply: boolean, autoScale: boolean}}
  */
-export function planSetup({ family, samples = {}, fit = null, cellWorth = null, scene = {}, solution = null, expeditionScale = false } = {}) {
+export function planSetup({ family, samples = {}, fit = null, cellWorth = null, scene = {}, solution = null, expeditionScale = false, travelSystem = null } = {}) {
   const hex = family === "hexRows" || family === "hexCols";
   const sample = { boxes: samples.boxes ?? 0, corners: samples.corners ?? 0, bar: !!samples.bar, barValue: !!samples.barValue };
   const needs = [];
@@ -310,7 +316,7 @@ export function planSetup({ family, samples = {}, fit = null, cellWorth = null, 
   const warnings = fit?.ok ? fitWarnings({ fit, hex }) : [];
 
   const autoScale = !expeditionScale;
-  const rows = planRows({ scene, solution, autoScale, expeditionScale });
+  const rows = planRows({ scene, solution, autoScale, expeditionScale, travelSystem });
   const matches = !!solution && rows.length === 0;
   return {
     family,

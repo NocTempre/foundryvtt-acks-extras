@@ -31,7 +31,7 @@ import { mayAdvanceWorldTime, untilNextDawn, calendarDay, calendarSeason } from 
 import { TRAVEL_PACE, expeditionCite, expeditionFigures } from "../lib/movement-scales.mjs";
 import { isExpeditionScale } from "../lib/distance-units.mjs";
 import { hexLabelFromOffset, isHexScene, layerRegionsOf } from "../battlemap/terrain-paint.mjs";
-import { sceneTravelSystem } from "../battlemap/scene-setup.mjs";
+import { sceneTravelSystem, systemCalledFor } from "../battlemap/scene-setup.mjs";
 import { COUNTRY_KEYS, countryAt, riverTableFor } from "../battlemap/country.mjs";
 import { FOLLOWING_KINDS, TERRITORY_KEYS } from "./country-keys.mjs";
 import { TRAVEL_MODES } from "../lib/vocab.mjs";
@@ -737,11 +737,11 @@ function cityMapOf(place, links) {
  * @returns {{system: string|null, source: "declared"|"scale"|"districts"|null}}
  */
 export function inferredTravelSystem(scene) {
-  const declared = sceneTravelSystem(scene);
-  if (declared) return { system: declared, source: "declared" };
-  if (isExpeditionScale(scene)) return { system: "journey", source: "scale" };
-  if (sceneHasDistrict(scene)) return { system: "settlement", source: "districts" };
-  return { system: null, source: null };
+  return systemCalledFor({
+    declared: sceneTravelSystem(scene),
+    expedition: isExpeditionScale(scene),
+    districts: sceneHasDistrict(scene),
+  });
 }
 
 /**

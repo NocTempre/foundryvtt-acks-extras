@@ -19,8 +19,9 @@
  * They write grid.size / grid.distance / grid.units / shiftX / shiftY / width /
  * height DIRECTLY on the Scene — no flags mirror them. That is the same field
  * set core's own GridConfig writes; the module's flag records only what core
- * has no field for (the calibration mark, the autoScale gate, and the travel
- * system declared here).
+ * has no field for (the calibration mark and the autoScale gate). The declared
+ * travel system is the panel's select's to write as it changes, never the
+ * apply's.
  */
 
 import { MODULE_ID, LANG_PREFIX, FLAG_BATTLEMAP, CALIBRATABLE_GRIDS, GRID_TYPE, gridTypeFor } from "./constants.mjs";
@@ -42,8 +43,12 @@ const mod = (a, n) => ((a % n) + n) % n;
  */
 const unitPatch = (units) => (DISTANCE_UNITS[units] ? { "grid.units": DISTANCE_UNITS[units].abbr } : {});
 
-/** The module's scene record, as an update payload. */
-const setupPatch = (record) => ({ [`flags.${MODULE_ID}.${FLAG_BATTLEMAP}`]: record });
+/**
+ * The module's scene record, as an update payload: one dot path per key, so a
+ * key the apply does not write (the declared travel system, the country) is
+ * never replaced by the write.
+ */
+const setupPatch = (record) => Object.fromEntries(Object.entries(record).map(([key, value]) => [`flags.${MODULE_ID}.${FLAG_BATTLEMAP}.${key}`, value]));
 
 /**
  * What the scene actually holds, against what was asked for. A rejected field
@@ -96,10 +101,9 @@ function confirmApply({ act, lines, shifts }) {
  * @param {number} choice.outputFeet  What one output square is worth.
  * @param {number} choice.mapCellFeet  What one DRAWN box is worth.
  * @param {string} [choice.units]  A `DISTANCE_UNITS` key; absent keeps the scene's.
- * @param {string|null} [choice.mapSystem]  The travel system declared here.
  * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet, units, mapSystem = null }) {
+export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCellFeet, units }) {
   // GRIDLESS is accepted and switched to SQUARE; a hex scene is refused this
   // apply — the hex family calibrates it instead.
   if (!CALIBRATABLE_GRIDS.has(scene.grid.type)) return { ok: false, reason: "notSquareGrid" };
@@ -123,7 +127,7 @@ export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCell
   if (shiftX === null || shiftY === null || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0) || !(mapCellFeet > 0)) {
     return { ok: false, reason: "badSolution" };
   }
-  return geometrySolve({ type: GRID_TYPE.SQUARE, G, distance: outputFeet, units, mapSystem, width, height, shiftX, shiftY });
+  return geometrySolve({ type: GRID_TYPE.SQUARE, G, distance: outputFeet, units, width, height, shiftX, shiftY });
 }
 
 /**
@@ -144,7 +148,7 @@ export function solveGridCalibration(scene, fit, { gridSize, outputFeet, mapCell
  *   the caller already holds it; asked of the scene otherwise.
  * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, hexEven = false, units, mapSystem = null, probe = undefined }) {
+export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, hexEven = false, units, probe = undefined }) {
   const type = gridTypeFor(family, hexEven);
   const tex = backgroundTexture(scene);
   if (!tex) return { ok: false, reason: "noBackground" };
@@ -169,7 +173,7 @@ export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, 
     point: (dims) => ({ x: dims.sceneX + hexCentre.x * fx, y: dims.sceneY + hexCentre.y * fy }),
   });
   if (!shift || !Number.isFinite(width) || !Number.isFinite(height) || !(G > 0) || !(outputFeet > 0)) return { ok: false, reason: "badSolution" };
-  return geometrySolve({ type, G, distance: outputFeet, units, mapSystem, width, height, shiftX: shift.shiftX, shiftY: shift.shiftY });
+  return geometrySolve({ type, G, distance: outputFeet, units, width, height, shiftX: shift.shiftX, shiftY: shift.shiftY });
 }
 
 /**
@@ -177,10 +181,10 @@ export function solveHexCalibration(scene, fit, { gridSize, outputFeet, family, 
  * `solution` the planner reads and the scene `update` the writer sends, built
  * from the same values so they cannot disagree.
  */
-function geometrySolve({ type, G, distance, units, mapSystem, width, height, shiftX, shiftY }) {
+function geometrySolve({ type, G, distance, units, width, height, shiftX, shiftY }) {
   return {
     ok: true,
-    solution: { gridType: type, gridSize: G, distance, units: units ?? null, width, height, shiftX, shiftY, mapSystem },
+    solution: { gridType: type, gridSize: G, distance, units: units ?? null, width, height, shiftX, shiftY },
     update: {
       width,
       height,
@@ -202,15 +206,15 @@ function geometrySolve({ type, G, distance, units, mapSystem, width, height, shi
  * pair of them to write (`scaleOnlyGrid`). The solution carries no type, width,
  * height or shift: an absent field is unchanged.
  *
- * @param {object} choice  `{ size, distance, units, mapSystem }`.
+ * @param {object} choice  `{ size, distance, units }`.
  * @returns {{ok: true, solution: object, update: object}|{ok: false, reason: string}}
  */
-export function solveScaleOnly({ size, distance, units, mapSystem = null }) {
+export function solveScaleOnly({ size, distance, units }) {
   const G = Math.round(size);
   if (!(G > 0) || !(distance > 0) || !Number.isFinite(distance)) return { ok: false, reason: "badSolution" };
   return {
     ok: true,
-    solution: { gridSize: G, distance, units: units ?? null, mapSystem },
+    solution: { gridSize: G, distance, units: units ?? null },
     update: { "grid.size": G, "grid.distance": distance, ...unitPatch(units) },
   };
 }
@@ -239,7 +243,7 @@ export async function writeSetup(scene, { solution, update }, { family, autoScal
 
   await scene.update({
     ...update,
-    ...setupPatch({ calibrated: true, distance: solution.distance, autoScale: !!autoScale, mapSystem: solution.mapSystem ?? null }),
+    ...setupPatch({ calibrated: true, distance: solution.distance, autoScale: !!autoScale }),
   });
 
   const typeKept = solution.gridType == null || scene.grid.type === solution.gridType;

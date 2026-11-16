@@ -17,7 +17,8 @@ import { session } from "./session.mjs";
 import { FAIR_PX, boxSpan,feetPerSquare, hexSizeFromBox, pixelsPerUnit, roundSuggestions, outputGridSize, scaleOnlyGrid, unitsPerCentreSpacing } from "./calibrate-logic.mjs";
 import { bakeCorrectedBackground, solveGridCalibration, solveHexCalibration, solveScaleOnly, writeSetup } from "./apply.mjs";
 import { expeditionScaleOf, planSetup, resolveCellWorth } from "./setup-plan.mjs";
-import { sceneCountry, sceneSetup, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
+import { sceneCountry, sceneSetup, systemCalledFor, writeSceneSetup, writeSceneSystem } from "./scene-setup.mjs";
+import { sceneHasDistrict } from "../formation/district-find.mjs";
 import { autoScaleEnabled, rescaleSceneTokens, applyFootprintToSelected, resetSelectedFootprints, unsizedTokenReport } from "./token-scale.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
 import { climateLabelFor, layerLabelFor, paintableValues } from "./terrain-paint.mjs";
@@ -500,7 +501,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
   #solve(fit, scale) {
     const scene = canvas?.scene;
     if (!scene) return null;
-    const common = { units: session.units, mapSystem: session.mapSystem };
+    const common = { units: session.units };
     if (this.isScaleOnly) return scale ? solveScaleOnly({ size: scale.size, distance: scale.distance, ...common }) : null;
     if (!fit?.ok) return null;
     const gridSize = this.gridSizePx;
@@ -518,6 +519,13 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
     const grid = scene?.grid;
     const record = sceneSetup(scene);
     const solution = solved?.ok ? solved.solution : null;
+    // The row is the system a party takes where none is declared: the select
+    // writes the declaration as it changes, so Apply leaves it as it is and
+    // only the scale and the districts can move what the scene calls for.
+    const sceneScale = { distance: grid?.distance, units: grid?.units };
+    const districts = sceneHasDistrict(scene);
+    const expeditionScale = expeditionScaleOf({ distance: solution?.distance, units: session.units, scene: sceneScale });
+    const called = (expedition) => systemCalledFor({ declared: record.mapSystem, expedition, districts }).system;
     return planSetup({
       family: this.family,
       samples: {
@@ -538,11 +546,11 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
         shiftX: scene?.shiftX,
         shiftY: scene?.shiftY,
         autoScale: record.autoScale,
-        mapSystem: record.mapSystem,
         hasBackground,
       },
       solution,
-      expeditionScale: expeditionScaleOf({ distance: solution?.distance, units: session.units, scene: { distance: grid?.distance, units: grid?.units } }),
+      expeditionScale,
+      travelSystem: { before: called(expeditionScaleOf({ scene: sceneScale })), after: called(expeditionScale) },
     });
   }
 
@@ -604,7 +612,7 @@ export default class BattlemapAssistant extends HandlebarsApplicationMixin(Appli
       travelSystem: (r) => {
         const from = system(r.before);
         const to = system(r.after);
-        return { text: change(from, to), tip: tip(from, to, loc("rows.source.system")) };
+        return { text: change(from, to), tip: tip(from, to, loc("rows.source.scale")) };
       },
     };
     return plan.rows
