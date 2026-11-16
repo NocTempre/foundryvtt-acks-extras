@@ -251,8 +251,13 @@ monster actor with no type and a neutral token).
    reading back as the schema's empty value.
 4. On the Mechanics tab press a row's edit control and change a text field
    in the editor.
-   *Observable:* the row's `origin` is cleared and a repair keeps it; the
-   repair also writes the register row afresh beside it.
+   *Observable:* the row's `origin` is cleared and its `key` kept; a repair
+   keeps it and adds no fresh row beside it (one row carries the key, the
+   register rows number as before), and a repair that decides lists nothing
+   held, since an edit to the note still covers every figure of the fresh row.
+4a. On the Mechanics tab press a register row's delete control and confirm.
+   *Observable:* the row is gone and its key is in the spell's `retired`; a
+   repair does not bring it back and lists it as held.
 
 5. Read the scope and the measure off the repaired rows.
    *Observable:* holy circle's ward row carries `vsKinds` of one token; its
@@ -292,6 +297,15 @@ monster actor with no type and a neutral token).
   `scopeApplies` reads as unset: step 7 compares branches with those dropped.
 - The row editor is a form with `submitOnChange`: set a field's value and
   dispatch a bubbling `change` on it. Its first text field is `condition`.
+- A repair lists held edits in its tally only when the tally carries a
+  `decision` (the Judge's path through the repair dialog): pass
+  `{replaced: 0, refused: 0, keptProse: 0, decision: "keep"}` and read
+  `tally.edits`. Without one it writes under the plain policy and lists
+  nothing.
+- The delete control raises a DialogV2 confirm; press its `yes` button.
+- A repair keeps a stamped row in its own place, so a spell whose rows an
+  earlier run left out of recipe order stays so: clear its register rows and
+  repair it once to restore the order before step 1 reads it.
 - A monster actor is created hostile whatever disposition its data names, so
   step 6 sets each fixture's prototype token disposition before it reads
   them; `areEnemies` takes the prototype tokens.
@@ -299,7 +313,8 @@ monster actor with no type and a neutral token).
 ### Teardown
 
 The walk removes the rows it added, found by their own marks
-(`walk-hand-row`, `walk-edit`, `walk-edit-scope`), and repairs each spell it
+(`walk-hand-row`, `walk-edit`, `walk-edit-scope`), clears desiccate's
+`retired` so the row step 4a deleted returns, and repairs each spell it
 edited once more; its last checks are that none of its rows remains and the
 register rows number as before. A row anyone else added stays, and the three
 scope fixtures are kept.

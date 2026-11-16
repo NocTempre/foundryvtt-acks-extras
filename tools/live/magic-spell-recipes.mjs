@@ -5,7 +5,9 @@
  * on the five recipe spells of the seat's own RR, every figure the recipe
  * locates is filled or listed as unread, a Judge's own row survives a repair,
  * a change on the spell sheet's Overview keeps every row field it does not
- * render, and an edit in the row editor makes the row the Judge's. It also
+ * render, an edit in the row editor makes the row the Judge's and a repair
+ * holds it in place of the fresh row, and a register row deleted from the
+ * Mechanics tab is retired and stays deleted through a repair. It also
  * reads the scopes and area measures off the rows, evaluates a bonus row's
  * scope against three creatures, and checks that an editor submit keeps a
  * nested `anyOf`.
@@ -16,7 +18,8 @@
  * imported spells (owner ruling 2026-11-11: a walk may write the test world's
  * items), and the walk leaves each as it found it. The rows it adds carry its
  * own marks (`walk-hand-row`, `walk-edit`, `walk-edit-scope`) and are removed
- * by those marks before a closing repair; a row anyone else added stays.
+ * by those marks before a closing repair, which also clears the spell's
+ * retired keys so the deleted row returns; a row anyone else added stays.
  * Prints counts and booleans, never a figure or a book word.
  */
 import { connect } from "./_driver.mjs";
@@ -198,13 +201,52 @@ try {
     for (let i = 0; i < 30 && (${rowsOf(D)})[0]?.origin === "register"; i++) await new Promise(r => setTimeout(r, 100));
     const edited = (${rowsOf(D)})[0];
     await ed.close(); await sheet.close();
-    ${repair([D])}
+    const registerBefore = (${rowsOf(D)}).filter(r => r.origin === "register").length;
+    const tally = { replaced: 0, refused: 0, keptProse: 0, decision: "keep" };
+    await acksExtras.importer.importSpells({ only: new Set([${JSON.stringify(D)}]), repair: tally });
     const after = ${rowsOf(D)};
-    return { button: true, editor: true, field: true, cleared: !edited?.origin, keptAfterRepair: after.some(r => !r.origin && /walk-edit/.test(\`\${r.note ?? ""} \${r.condition ?? ""}\`)), registerAfter: after.filter(r => r.origin === "register").length, total: after.length };
+    const key = edited?.key ?? "";
+    return { button: true, editor: true, field: true, cleared: !edited?.origin, keyed: /^[a-z]/.test(key),
+      keptAfterRepair: after.some(r => !r.origin && /walk-edit/.test(\`\${r.note ?? ""} \${r.condition ?? ""}\`)),
+      sameKey: after.filter(r => r.key === key).length, registerBefore, registerAfter: after.filter(r => r.origin === "register").length, total: after.length,
+      held: (tally.edits ?? []).length };
   })()`);
   check("the editor opened from the Mechanics tab and took a change", r4.button && r4.editor && r4.field, r4);
-  check("the edited row lost its register origin", r4.cleared);
+  check("the edited row lost its register origin and kept its register key", r4.cleared && r4.keyed);
   check("a repair keeps the edited row", r4.keptAfterRepair);
+  check("the repair adds no fresh row beside it: one row carries the key", r4.sameKey === 1 && r4.registerAfter === r4.registerBefore, { sameKey: r4.sameKey, registerBefore: r4.registerBefore, registerAfter: r4.registerAfter });
+  // The edit touches the row's note alone, which every figure of the fresh row
+  // still covers, so a repair that decides holds nothing for it.
+  check("an edit that still covers the fresh row is not listed as held", r4.held === 0, { held: r4.held });
+
+  section("A deleted register row stays deleted");
+  const r8 = await gm.eval(`(async () => { ${LIB}
+    const doc = L.byCookbookId("Item", ${JSON.stringify(D)}, { original: true });
+    const before = ${rowsOf(D)};
+    const index = before.findIndex(r => r.origin === "register");
+    if (index < 0) return { row: false };
+    const key = before[index].key;
+    const sheet = doc.sheet; await sheet.render({ force: true, tab: "mechanics" });
+    for (let i = 0; i < 40 && !sheet.rendered; i++) await new Promise(r => setTimeout(r, 100));
+    sheet.changeTab?.("mechanics", "primary");
+    const btn = sheet.element.querySelector(\`[data-action="effectDelete"][data-index="\${index}"]\`);
+    if (!btn) { await sheet.close(); return { row: true, button: false }; }
+    btn.click();
+    let yes = null;
+    for (let i = 0; i < 40 && !yes; i++) { yes = document.querySelector('dialog[open] button[data-action="yes"], .application.dialog button[data-action="yes"]'); if (!yes) await new Promise(r => setTimeout(r, 100)); }
+    if (!yes) { await sheet.close(); return { row: true, button: true, confirm: false }; }
+    yes.click();
+    for (let i = 0; i < 30 && (${rowsOf(D)}).some(r => r.key === key); i++) await new Promise(r => setTimeout(r, 100));
+    await sheet.close();
+    const retired = [...(doc.getFlag("acks-extras", "spell")?.retired ?? [])];
+    const tally = { replaced: 0, refused: 0, keptProse: 0, decision: "keep" };
+    await acksExtras.importer.importSpells({ only: new Set([${JSON.stringify(D)}]), repair: tally });
+    const after = ${rowsOf(D)};
+    return { row: true, button: true, confirm: true, gone: !before.length || !(${rowsOf(D)}).some(r => r.key === key), retired: retired.includes(key), backAfterRepair: after.some(r => r.key === key), held: (tally.edits ?? []).length };
+  })()`);
+  check("the Mechanics tab's delete removed a register row after its confirm", r8.row && r8.button && r8.confirm && r8.gone, r8);
+  check("the deleted row's key is retired on the spell", r8.retired);
+  check("a repair does not bring it back and lists it as held", !r8.backAfterRepair && r8.held >= 1, { back: r8.backAfterRepair, held: r8.held });
   console.log(`after an edit and a repair: ${r4.registerAfter} register row(s), ${r4.total} in all`);
 
   section("A row-editor submit keeps a nested scope");
@@ -258,6 +300,7 @@ try {
     const mine = (r) => r.note === "walk-hand-row" || /walk-edit/.test(\`\${r.note ?? ""} \${r.condition ?? ""}\`);
     const keep = rows.filter(r => !mine(r));
     await doc.setFlag("acks-extras", "spell.effects", keep);
+    await doc.setFlag("acks-extras", "spell.retired", []);
     ${repair([D])}
     const after = ${rowsOf(D)};
     return { removed: rows.length - keep.length, after: after.length, walkRowsLeft: after.filter(mine).length, register: after.filter(r => r.origin === "register").length };

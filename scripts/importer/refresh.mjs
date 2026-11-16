@@ -438,8 +438,9 @@ const withoutMarks = ({ origin, unread, key, ...rest } = {}) => rest;
  *   skipped and listed in `kept` (`retired: true`, no `current`). A key in
  *   `take` (or `force`) writes it and clears it from `retired`.
  *
- * Fresh rows no stored row answers for go in a block at the place of the first
- * stamped row, or first when none is stored.
+ * A fresh row no stored row answers for goes straight after the row that
+ * precedes it in the build; with none placed before it, at the place of the
+ * first stamped row, or first when none is stored.
  *
  * @param {object[]|undefined} stored the document's rows
  * @param {object[]|undefined} fresh the build's rows
@@ -477,14 +478,24 @@ export function mergeRowsByOrigin(stored, fresh, { retired = [], take = new Set(
       out.push(row);
     }
   }
-  const block = [];
+  // A fresh row no stored row answers for goes straight after the row that
+  // precedes it in the build, so a returning row takes its recipe place.
+  let after = -1;
   for (const row of built) {
     const key = keyOf(row);
-    if (key && placed.has(key)) continue;
-    if (key && gone.has(key) && !taken(key)) kept.push({ key, page: row, retired: true });
-    else block.push(row);
+    if (key && placed.has(key)) {
+      const at = out.findIndex((r) => keyOf(r) === key);
+      if (at >= 0) after = at;
+      continue;
+    }
+    if (key && gone.has(key) && !taken(key)) {
+      kept.push({ key, page: row, retired: true });
+      continue;
+    }
+    const at = after >= 0 ? after + 1 : Math.max(slot, 0);
+    out.splice(at, 0, row);
+    after = at;
   }
-  out.splice(Math.max(slot, 0), 0, ...block);
   return { rows: out, retired: [...gone].filter((key) => !(twins.has(key) && taken(key))), kept };
 }
 

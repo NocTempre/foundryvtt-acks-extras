@@ -208,9 +208,16 @@ t("a stamped row is replaced by the fresh row of its key, in its own place", () 
   assert.deepEqual(rows, [judge, reg("b", "3d3"), own, reg("a", "2d2")]);
 });
 
-t("a register row the fresh build gained goes in at the first stamped row's place", () => {
+t("a register row the fresh build gained goes in straight after the row that precedes it in the build", () => {
   const { rows } = mergeRowsByOrigin([judge, reg("a", "1d1")], [reg("a", "2d2"), reg("c", "4d4")]);
-  assert.deepEqual(rows, [judge, reg("c", "4d4"), reg("a", "2d2")]);
+  assert.deepEqual(rows, [judge, reg("a", "2d2"), reg("c", "4d4")]);
+});
+
+t("a register row missing from the middle returns to its recipe place, and one with nothing before it to the first stamped row's", () => {
+  const middle = mergeRowsByOrigin([reg("a", "1d1"), reg("c", "1d1"), judge], [reg("a", "2d2"), reg("b", "3d3"), reg("c", "4d4")]);
+  assert.deepEqual(middle.rows, [reg("a", "2d2"), reg("b", "3d3"), reg("c", "4d4"), judge]);
+  const first = mergeRowsByOrigin([judge, reg("b", "1d1")], [reg("a", "2d2"), reg("b", "3d3")]);
+  assert.deepEqual(first.rows, [judge, reg("a", "2d2"), reg("b", "3d3")]);
 });
 
 t("an edited register row stands in for the fresh one, which is not added, and is held when it no longer covers it", () => {
