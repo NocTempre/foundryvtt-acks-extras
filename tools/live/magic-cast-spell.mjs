@@ -227,7 +227,8 @@ const P = {
     const scene = game.scenes.get(sceneId);
     const data = actorIds.map((actorId, i) => ({ actorId, x: 300 + i * 200, y: 300, actorLink: false, disposition: -1 }));
     const made = await scene.createEmbeddedDocuments("Token", data);
-    return made.map((t) => ({ id: t.id, uuid: t.uuid, actorId: t.actorId }));
+    // Answered in the order asked, paired by actor: a create's answer is not in the order of its data.
+    return actorIds.map((actorId) => made.find((t) => t.actorId === actorId)).filter(Boolean).map((t) => ({ id: t.id, uuid: t.uuid, actorId: t.actorId }));
   },
   /** Target exactly these tokens, in this order, as the seat's user. */
   target: async ({ sceneId, tokenIds }) => {
@@ -387,9 +388,12 @@ const P = {
   tokensFor: async ({ sceneId, specs }) => {
     const scene = game.scenes.get(sceneId);
     const made = await scene.createEmbeddedDocuments("Token", specs.map((s) => ({ actorId: s.actorId, x: s.x, y: s.y, actorLink: true, disposition: s.disposition })));
+    // The created tokens are paired with their specs by actor, never by position: the order a create answers in is not the order asked.
     const out = [];
-    for (const [i, t] of made.entries()) {
-      if (t.disposition !== specs[i].disposition) await t.update({ disposition: specs[i].disposition });
+    for (const spec of specs) {
+      const t = made.find((m) => m.actorId === spec.actorId);
+      if (!t) { out.push({ id: null, uuid: null, actorId: spec.actorId, name: "", actorName: "", disposition: null, linked: false }); continue; }
+      if (t.disposition !== spec.disposition) await t.update({ disposition: spec.disposition });
       out.push({ id: t.id, uuid: t.uuid, actorId: t.actorId, name: t.name, actorName: t.actor?.name ?? "", disposition: t.disposition, linked: t.actorLink === true && t.actor === game.actors.get(t.actorId) });
     }
     await new Promise((r) => setTimeout(r, 600));
@@ -595,13 +599,18 @@ const P = {
     await new Promise((r) => setTimeout(r, 600));
     return combat.turns.map((c) => c.id);
   },
-  /** Move the tracker by `combat.update` or `nextTurn`, and answer where it stands. */
+  /**
+   * Move the tracker by `combat.update` or `nextTurn`, and answer where it stands, with `cards`: the uuids of the speakerless cards this
+   * client authored during the move (core's round card, posted when `nextTurn` opens a round), the run's own leavings to sweep.
+   */
   combatMove: async ({ combatId, update, next }) => {
     const combat = game.combats.get(combatId);
+    const before = new Set([...game.messages].map((m) => m.id));
     if (next) await combat.nextTurn();
     else await combat.update(update);
     await new Promise((r) => setTimeout(r, 1200));
-    return { round: combat.round, turn: combat.turn, current: combat.combatant?.id ?? null };
+    const cards = [...game.messages].filter((m) => !before.has(m.id) && m.author?.id === game.user.id && !m.speaker?.actor).map((m) => m.uuid);
+    return { round: combat.round, turn: combat.turn, current: combat.combatant?.id ?? null, cards };
   },
   /** A combatant's `prepareSpell`; with `until`, wait for it to read that. */
   combatInfo: async ({ combatId, combatantId, until }) => {
@@ -772,7 +781,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
     { actorId: ids.foe, disposition: -1, x: 700, y: 600 },
     { actorId: ids.stranger, disposition: -1, x: 900, y: 600 },
   ] });
-  for (const t of placed) await track(t.uuid, "Token");
+  for (const t of placed) if (t.uuid) await track(t.uuid, "Token");
   const [tCaster, tAlly, tFoe, tStranger] = placed;
   check("buff: four linked tokens stand on the field, the caster's and the ally's friendly, the foe's and the stranger's hostile", placed.length === 4 && placed.every((t) => t.linked) && placed[0].disposition === 1 && placed[1].disposition === 1 && placed[2].disposition === -1 && placed[3].disposition === -1);
   const rowShape = await run(gm, P.rowShape, { casterId, spellId: ids.circle });
@@ -1132,7 +1141,12 @@ async function walkDeclare(K) {
   const cbOf = (tokenId) => fight.combatants.find((c) => c.tokenId === tokenId)?.id;
   const [cbCaster, cbFoe] = [cbOf(tCaster.id), cbOf(tFoe.id)];
   const prepared = (value) => run(gm, P.combatInfo, { combatId: fight.id, combatantId: cbCaster, until: value });
-  const move = (update) => run(gm, P.combatMove, { combatId: fight.id, update });
+  const moveTracked = async (opts) => {
+    const at = await run(gm, P.combatMove, { combatId: fight.id, ...opts });
+    for (const uuid of at.cards ?? []) await trackCard(uuid.split(".").pop());
+    return at;
+  };
+  const move = (update) => moveTracked({ update });
 
   section("declare 15. a declaration is made, lost to damage and reported lost at the turn");
   const label = await fmt("ACKS-MAGIC.cast.dialog.declare", {});
@@ -1180,7 +1194,7 @@ async function walkDeclare(K) {
   check("declare 17: the declaration is made and spent once", d17.dialog && d17.pending === 1 && declared17.cast - before17.cast === 1, { cast: declared17.cast - before17.cast });
   const turn17 = await move({ turn: 1 });
   check("declare 17: the tracker reaches the caster's turn and the declaration still stands", turn17.current === cbCaster && (await run(gm, P.pendingOf, { casterId })).pending.length === 1);
-  await run(gm, P.combatMove, { combatId: fight.id, next: true });
+  await moveTracked({ next: true });
   const lapsed = await run(gm, P.pendingOf, { casterId, until: 0 });
   const stale = await counters();
   check("declare 17: the caster's turn ended with no cast: the pending record is deleted and the flag is clear", lapsed.pending.length === 0 && (await prepared(false)).prepareSpell === false, { pending: lapsed.pending.length });

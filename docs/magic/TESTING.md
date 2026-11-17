@@ -578,9 +578,13 @@ slots at zero.
   step asserts (held step 7 writes them on the Player's, the client whose
   funnel it asserts).
 - `nextTurn()` past the last combatant goes through core's `nextRound`, which
-  resets initiatives and posts a "Round N has started" card with no speaker, a
-  leaving of the run that the card ledger does not list; declaration step 17
-  ends the caster's turn that way, as a user does.
+  resets initiatives and posts a "Round N has started" card with no speaker;
+  declaration step 17 ends the caster's turn that way, as a user does. A move
+  tracks the speakerless cards its own client authored during it, so the
+  round card is swept with the run's.
+- Tokens a step creates are paired with the actors asked for by `actorId`,
+  never by position: a create answers in its own order, and a pairing by index
+  hands a step another fixture's token.
 - The held steps drive concentration's end by the real triggers: hit points
   written through the token's actor (lib's loss path), `toggleStatusEffect`
   with `active: false` (the HUD), and the clock (`game.time.advance`). A card of
