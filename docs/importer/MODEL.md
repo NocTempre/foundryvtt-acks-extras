@@ -1639,6 +1639,22 @@ resolved at import time and no noun, die or type ships.
   `cookbook.read`. A repair rewrites both with the figures. Items minted before
   the block was recorded carry none until a repair runs.
 
+## The gnostic tables
+
+The `gnosis` ruledata document (optional, By This Axe) holds five raw
+`gridRows` tables from the gnostic chapter: `performanceGrid` (invocation level
+by invoker level, its header row kept as the column scale), `paceTable`,
+`ceremonyDegree` (a band to a degree word), `mishapTable` (a row per d10 face,
+three degree columns) and `implementCosts`. Rows are ordinals (`r1`...), the
+face and level read through `labelInt`, cells are `c1`... in print order and
+kept as printed; the derivation printed beside the performance grid is not
+read. Nothing assembles or reads the document yet (the gnosis engine, magic
+ROADMAP 3c, is its reader), so the Ruledata Browser listing is the whole
+surface. The mishap table's label sits at the centre of a row of any height,
+which nearest-label joining mis-assigns, so its recipe sets `wrapRows.boxed`
+(`boxWrapLines`): the first line no earlier row took fixes the box's last line
+as its reflection about the label.
+
 ## A point of interest
 
 The points-of-interest step (`cookbookImportPoiPlaces`) brings location actors

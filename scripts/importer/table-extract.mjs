@@ -379,13 +379,43 @@ function centreWrapLines(rows, claimed, blocks, start, end, recipe, tol) {
 }
 
 /**
+ * `wrapRows.boxed`: a grid of stacked row boxes whose label is centred on its
+ * own box, so the label's y is the mean of its tallest cell's lines. A box's
+ * first line is the first line no earlier row took, which fixes its last line
+ * as the reflection of the first about the label; lines up to that (within
+ * `rowTol`) are the box's, never past the next label's line. Lines above the
+ * first label join only within `tol`, and lines below the last box are dropped.
+ * Returns claimed row index → its lines, top to bottom.
+ */
+function boxWrapLines(rows, claimed, start, end, recipe, tol) {
+  const blocks = new Map();
+  const first = claimed[0];
+  const pool = [];
+  for (let i = start; i < end; i++) {
+    const own = claimed.includes(i) || (rows[i].items.length && !rows[i].items.some((it) => it.x < recipe.labelMaxX));
+    if (own && (i >= first || Math.abs(rows[first].y - rows[i].y) <= tol)) pool.push(i);
+  }
+  const eps = recipe.rowTol ?? 3;
+  let at = 0;
+  claimed.forEach((idx, k) => {
+    const next = claimed[k + 1] ?? Infinity;
+    const bottom = 2 * rows[idx].y - rows[pool[at]].y;
+    const lines = [];
+    while (at < pool.length && pool[at] < next && (pool[at] <= idx || rows[pool[at]].y <= bottom + eps)) lines.push(rows[pool[at++]]);
+    blocks.set(idx, lines);
+  });
+  return blocks;
+}
+
+/**
  * `wrapRows`: the lines of a cell printed over several lines. The label sits
  * on one of them and the rest carry no run left of `labelMaxX`; each such line
  * between the grid's first and last claimed rows joins the claimed row nearest
  * it by y, and one outside them joins only within `wrapRows.tol` (default 12).
  * A line holding a label-zone run — a heading, prose, another table's label —
  * is never a continuation. `wrapRows.floorKey` names the row spec that opens
- * the body, so a line above its claim joins only within `tol`. Returns claimed row index → its lines, top to
+ * the body, so a line above its claim joins only within `tol`. `wrapRows.boxed`
+ * joins by row boxes instead (`boxWrapLines`). Returns claimed row index → its lines, top to
  * bottom; empty unless the recipe asks. Windowed `cellColumns` read the lines.
  */
 function wrapLines(rows, claims, recipe, start, end) {
@@ -396,6 +426,7 @@ function wrapLines(rows, claims, recipe, start, end) {
   const tol = recipe.wrapRows.tol ?? 12;
   const first = Math.min(...claimed);
   const last = Math.max(...claimed);
+  if (recipe.wrapRows.boxed) return boxWrapLines(rows, claimed, start, end, recipe, tol);
   for (const idx of claimed) blocks.set(idx, [rows[idx]]);
   // `floorKey`: the row spec whose claim opens the body. A line above it
   // further than `tol` from it is a header, never a wrapped line, so a

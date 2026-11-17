@@ -231,4 +231,102 @@ check("the other print column never joins a cell", !ranges.some((r) => /across/.
   check("tidyNames restores the opening letter of every comma part", applyCellPattern("aa (any), bb, cc", "tidyNames") === "Aa (any), Bb, Cc");
 }
 
+/* --- the gnosis group: five grids on invented runs laid out as the book sets them --- */
+{
+  const g = TABLE_RECIPES.gnosis;
+  // A cell's characters arrive as runs set flush against each other.
+  const cell = (str, x, y) => [...str].map((ch, i) => run(ch, x + i * 5, y, 5));
+  check("the group is optional, tied to the supplement and cites its three pages",
+    Object.values(g.tables).every((t) => t.book === "bta" && t.optional === true) && g.source.pages === "BTA 120-121, 128");
+
+  // Invocation level by invoker level: a header row of column numbers, then ordinal rows.
+  const starts = [146, 191, 235, 280, 324, 369, 413, 458, 502, 546];
+  const gridRow = (label, y, values) => [
+    run(label.slice(0, -2), 87, y, 5), run(label.slice(-2), 92, y, 10), ...starts.flatMap((x, i) => cell(values[i], x, y)),
+  ];
+  const head = [run("Invocation", 58, 111, 40), run("Level", 100, 111, 25), ...starts.flatMap((x, i) => cell(String(i + 1), x, 111))];
+  const body = [
+    ...gridRow("1st", 125, ["7+", "3+", "9+", "4+", "1+", "8+", "2+", "0+", "-1+", "5+"]),
+    ...gridRow("2nd", 138, ["6+", "11+", "2+", "8+", "13+", "0+", "9+", "4+", "1+", "12+"]),
+    ...gridRow("3rd", 151, ["10+", "5+", "7+", "14+", "3+", "9+", "15+", "2+", "6+", "8+"]),
+    ...gridRow("4th", 165, ["4+", "12+", "11+", "1+", "9+", "13+", "7+", "0+", "10+", "3+"]),
+    ...gridRow("5th", 179, ["15+", "2+", "8+", "6+", "11+", "10+", "14+", "5+", "1+", "9+"]),
+  ];
+  const strayText = [run("Title", 58, 83, 60), run("Scale", 326, 97, 40), run("prose below the grid", 54, 206, 200), run("more", 324, 218, 60)];
+  const perf = extractTable([...strayText, ...head, ...body], g.tables.performanceGrid);
+  check("the performance grid reads the header row and five ordinal rows",
+    Object.keys(perf).join() === "columns,r1,r2,r3,r4,r5" && Object.values(perf).every((r) => !r.__missing));
+  check("every row holds ten cells, a sign and its digits joined", Object.values(perf).every((r) => Object.keys(r).length === 10)
+    && perf.r1.c1 === "7+" && perf.r1.c9 === "-1+" && perf.r5.c1 === "15+" && perf.r3.c10 === "8+");
+  check("the header row carries the column scale in print order", perf.columns.c1 === "1" && perf.columns.c10 === "10");
+  check("a two-digit cell stays in its own column", perf.r4.c2 === "12+" && perf.r4.c3 === "11+" && perf.r5.c5 === "11+" && perf.r5.c6 === "10+");
+  check("the page's prose below the grid is no row", !JSON.stringify(perf).includes("prose") && !JSON.stringify(perf).includes("more"));
+  check("a grid whose header is missing reads it missing", extractTable(body, g.tables.performanceGrid).columns.__missing === true);
+
+  // The pace table: rows carry no label, so each claims the next row empty at the label zone.
+  const paceRow = (y, pace, time, mod, fail, degree) => [
+    run(pace, 130, y, 26), ...cell(time[0], 165, y), run(time[1], 172, y, 29), run(time[2], 201, y, 10), run(time[3], 212, y, 34),
+    ...cell(mod, 292, y), ...cell(fail, 381, y), run(degree, 438, y, 73),
+  ];
+  const paceHead = [run("Pace head", 88, 695, 40), run("Time head", 147, 695, 40), run("Degree head", 438, 695, 50)];
+  const pace = extractTable([...paceHead, ...paceRow(708, "Brisk", ["3", "beats (", "30", "ticks)"], "-2", "1-2", "By tier"),
+    ...paceRow(722, "Plain", ["2", "tides (", "20", "ticks)"], "0", "1", "By tier"),
+    ...paceRow(735, "Slow", ["9", "tides (", "90", "ticks)"], "+3", "1", "By tier, less one")], g.tables.paceTable);
+  check("the pace table reads three rows of five cells", Object.keys(pace).join() === "r1,r2,r3" && Object.values(pace).every((r) => Object.keys(r).length === 5));
+  check("a pace row reads its pace, time, modifier, failure band and mishap rule",
+    pace.r1.pace === "Brisk" && pace.r1.time === "3 beats (30 ticks)" && pace.r1.throwModifier === "-2" && pace.r1.automaticFailure === "1-2" && pace.r3.mishapDegree === "By tier, less one" && pace.r3.throwModifier === "+3");
+  check("the header row is no pace row", Object.values(pace).every((r) => r.pace !== "Pace head"));
+
+  // The ceremony table: the label is a band, read through rollBand.
+  const band = (y, label, text) => [run(label, 155, y, 13), run(text, 174, y, 40)];
+  const ceremony = extractTable([run("Level head", 102, 332, 60), run("Degree head", 174, 332, 60),
+    ...band(346, "2-4", "Mild"), ...band(361, "5", "Grave"), ...band(374, "6-7", "Dire")], g.tables.ceremonyDegree);
+  check("the ceremony table reads each band and its degree word",
+    ceremony.r1.min === 2 && ceremony.r1.max === 4 && ceremony.r1.degree === "Mild" && ceremony.r2.min === 5 && ceremony.r2.max === 5 && ceremony.r3.max === 7 && ceremony.r3.degree === "Dire");
+
+  // The mishap table: label centred on its row, rows of differing height, lines in three columns.
+  const mishapLines = [
+    { label: 144, lines: [5, 3, 1] },
+    { label: 186, lines: [2, 1, 2] },
+    { label: 234, lines: [6, 4, 5] },
+    { label: 276, lines: [1, 1, 1] },
+  ];
+  const mishapRuns = [];
+  const xs = [90, 247, 404];
+  mishapLines.forEach(({ label, lines }, r) => {
+    mishapRuns.push(run(String(r + 1), 59, label, 5));
+    lines.forEach((n, c) => {
+      for (let j = 0; j < n; j++) mishapRuns.push(run(`r${r + 1}c${c + 1}l${j + 1}`, xs[c], label - 6 * (n - 1) + 12 * j, 60));
+    });
+  });
+  const noise = [run("heading", 90, 100, 40), run("note below the table", 90, 320, 90), run("*", 40, 330, 5)];
+  const four = { ...g.tables.mishapTable, rows: g.tables.mishapTable.rows.slice(0, 4) };
+  const mishap = extractTable([...noise, ...mishapRuns], four);
+  check("the mishap table reads a row per face, each with three cells, labelled by its face",
+    Object.keys(mishap).join() === "r1,r2,r3,r4" && Object.values(mishap).every((r, i) => r.label === i + 1 && !r.__missing && r.c1 && r.c2 && r.c3));
+  check("a tall row's lines join it whole, the row above's last lines included",
+    mishap.r1.c1 === "r1c1l1 r1c1l2 r1c1l3 r1c1l4 r1c1l5" && mishap.r2.c1 === "r2c1l1 r2c1l2" && mishap.r3.c1.split(" ").length === 6);
+  check("every column keeps its own lines in order", mishap.r3.c2 === "r3c2l1 r3c2l2 r3c2l3 r3c2l4" && mishap.r3.c3 === "r3c3l1 r3c3l2 r3c3l3 r3c3l4 r3c3l5" && mishap.r2.c3 === "r2c3l1 r2c3l2");
+  check("a header far above and a note below the last box are no lines of any row",
+    !JSON.stringify(mishap).includes("heading") && !JSON.stringify(mishap).includes("note"));
+  const nearest = extractTable(mishapRuns, { ...four, wrapRows: { tol: 30 } });
+  check("nearest-label joining hands the same page's first-row line to the row below, which is why the recipe asks for boxes",
+    nearest.r2.c1.includes("r1c1l5"));
+
+  // A figure the page sets after a line's words, though the sentence's sense puts it earlier, is
+  // read where the page sets it: cells follow the print's own run order, never a reading of the sense.
+  const late = extractTable([
+    run("1", 59, 132, 5),
+    run("tide one two three", 404, 120, 114), run("said so", 404, 132, 114), run("30", 521, 132, 10), run("’", 530, 132, 2), run("Then more", 404, 144, 48),
+  ], { ...g.tables.mishapTable, rows: g.tables.mishapTable.rows.slice(0, 1) });
+  check("a figure set after its line's words stays where the page sets it, and the next line follows", late.r1.c3 === "tide one two three said so 30’ Then more");
+
+  // The implement costs: the level is the label, the cost the one cell.
+  const costRow = (n, y, cost) => [run(String(n), 479, y, 5), run(cost, 521, y, 24)];
+  const costs = extractTable([run("Level head", 470, 245, 30), run("Cost head", 522, 245, 20),
+    ...[1, 2, 3, 4, 5, 6].flatMap((n, i) => costRow(n, 259 + i * 13, `${n * 11}pp`))], g.tables.implementCosts);
+  check("the implement costs read six levels as labelled ordinals", Object.keys(costs).join() === "r1,r2,r3,r4,r5,r6"
+    && costs.r1.label === 1 && costs.r6.label === 6 && costs.r4.cost === "44pp");
+}
+
 console.log(`test-grid-rows: all ${pass} checks passed`);

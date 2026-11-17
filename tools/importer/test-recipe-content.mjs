@@ -123,6 +123,8 @@ const TABLES = {
   treasure: Object.keys(TABLE_RECIPES.treasure.tables),
   // The Judges Journal's magic-item generation and arms-and-armour tables.
   magicItemTables: Object.keys(TABLE_RECIPES.magicItemTables.tables),
+  // The gnostic procedure's five tables, all from the supplement.
+  gnosis: ["performanceGrid", "paceTable", "ceremonyDegree", "mishapTable", "implementCosts"],
 };
 
 /** Whether a recipe's book is on this machine. */
@@ -1134,6 +1136,56 @@ Object.assign(VERIFY, {
     }
     if (out?.caste4Pct !== null) fail("caste4Pct: the remainder is not left to the consumer");
     if (!Array.isArray(out?.order) || out.order.length !== 4) fail("order: not the four castes");
+  },
+  // The gnostic tables (a supplement): shape only. The performance grid's
+  // header scale ascends and every body row descends along it and ascends down
+  // its column; the pace rows hold five cells of the shapes their columns carry;
+  // the ceremony bands tile; the mishap table has a row per face, each cell a
+  // whole sentence (a line joined to the wrong row opens mid-sentence); the
+  // implement costs ascend by level.
+  "gnosis.performanceGrid": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail).map(({ key, row }) => ({ key, cells: Array.from({ length: 10 }, (_, i) => row[`c${i + 1}`]) }));
+    const scale = rows.find((r) => r.key === "columns")?.cells.map(Number);
+    if (!scale || !scale.every((n, i) => Number.isInteger(n) && (!i || n === scale[i - 1] + 1))) fail("columns: the header is not an ascending scale of whole numbers");
+    const body = rows.filter((r) => r.key !== "columns").map((r) => r.cells.map((c) => (/^-?\d+\+$/.test(String(c)) ? parseInt(c, 10) : NaN)));
+    body.forEach((cells, i) => {
+      if (cells.some(Number.isNaN)) fail(`row r${i + 1}: a cell is not a signed whole number and a plus`);
+      else if (!cells.every((n, j) => !j || n < cells[j - 1])) fail(`row r${i + 1}: cells do not fall along the row`);
+      else if (i && !cells.every((n, j) => n > body[i - 1][j])) fail(`row r${i + 1}: cells do not rise down the column`);
+    });
+  },
+  "gnosis.paceTable": (out, recipe, fail) => {
+    for (const { key, row } of keyedRows(out, recipe, fail)) {
+      for (const cell of ["pace", "time", "throwModifier", "automaticFailure", "mishapDegree"]) if (!isText(row[cell])) fail(`row ${key}: ${cell} is empty`);
+      if (!/^[-+]?\d+$/.test(row.throwModifier ?? "")) fail(`row ${key}: throwModifier is not a signed whole number`);
+      if (!/^\d+(?:-\d+)?$/.test(row.automaticFailure ?? "")) fail(`row ${key}: automaticFailure is not a number or a band`);
+      if (!/\d/.test(row.time ?? "")) fail(`row ${key}: time holds no figure`);
+    }
+  },
+  "gnosis.ceremonyDegree": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail).map(({ row }) => row);
+    rows.forEach((r, i) => {
+      if (!isText(r.degree) || /\s/.test(r.degree)) fail(`row r${i + 1}: degree is not one word`);
+      if (!(Number.isInteger(r.min) && Number.isInteger(r.max) && r.min <= r.max)) fail(`row r${i + 1}: the band is not two whole numbers in order`);
+      else if (i && r.min !== rows[i - 1].max + 1) fail(`row r${i + 1}: band does not follow the one before`);
+    });
+  },
+  "gnosis.mishapTable": (out, recipe, fail) => {
+    keyedRows(out, recipe, fail).forEach(({ key, row }, i) => {
+      if (row.label !== i + 1) fail(`row ${key}: the face is not the next whole number`);
+      for (const cell of ["c1", "c2", "c3"]) {
+        if (!isText(row[cell])) fail(`row ${key}: ${cell} is empty`);
+        else if (!/^[A-Z]/.test(row[cell]) || !/[.*]$/.test(row[cell])) fail(`row ${key}: ${cell} is not a whole sentence`);
+      }
+    });
+  },
+  "gnosis.implementCosts": (out, recipe, fail) => {
+    const rows = keyedRows(out, recipe, fail).map(({ row }) => row);
+    rows.forEach((r, i) => {
+      if (r.label !== i + 1) fail(`row r${i + 1}: the level is not the next whole number`);
+      if (!/^[\d,]+gp$/.test(r.cost ?? "")) fail(`row r${i + 1}: cost is not a figure and gp`);
+    });
+    ascending(rows.map((r) => parseInt(String(r.cost).replace(/,/g, ""), 10)), "cost", fail);
   },
   "people.cultureAppearance": (out, recipe, fail) => {
     for (const b of recipe.valueBlocks) {

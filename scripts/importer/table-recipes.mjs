@@ -473,6 +473,16 @@ const terrainSub = ({ page, locate, column, labelMaxX, cells, ...bounds }) => ({
   rows: SUB_BAND_ROWS,
 });
 
+// The performance grid's ten cell windows (BTA 121): each runs to the next one's
+// start, and a cell's sign and digits arrive as separate runs the window joins.
+const GNOSIS_GRID_COLUMNS = [143, 188, 232, 277, 321, 366, 410, 455, 499, 543].map((x, i, xs) => ({
+  key: `c${i + 1}`,
+  x,
+  w: (xs[i + 1] ?? 593) - x,
+  pattern: "raw",
+  row: true,
+}));
+
 /**
  * The table recipes by ruledata document id: each document's `source` and its
  * `tables`, one recipe per raw table. Raw reads only; the bindings assemble the
@@ -1034,7 +1044,7 @@ export const TABLE_RECIPES = {
         locate: "Caving and Spelunking",
         column: { xMin: 40, xMax: 592, yMin: 470, yMax: 760 },
         labelMaxX: 165,
-        wrapRows: {},
+        wrapRows: { boxed: true, tol: 30 },
         joinGap: 1,
         rows: [
           { key: "failFirst", labelRe: "^failed\\s*throw" },
@@ -5418,6 +5428,114 @@ export const TABLE_RECIPES = {
         keyByLabel: true,
         cellColumns: [{ key: "example", x: 136, w: 105, row: true, pattern: "tidyNames" }],
         rows: Array.from({ length: 60 }, (_, i) => ({ key: `form${i + 1}`, labelRe: "^[a-z]+\\W*$", optional: true })),
+      },
+    },
+  },
+
+  // The tables BTA's gnostic procedure rolls against (BTA 120-121, 128): the
+  // invocation performance grid, the pace table, the ceremony level to mishap
+  // degree table, the mishap table and the gnostic implement costs. Raw reads
+  // of the grids only; the derivation printed beside the performance grid is
+  // not read, and no binding assembles them yet. Rows are ordinals (`r1`...),
+  // cells are `c1`... in print order, and every cell is kept as printed.
+  // Optional: a supplement.
+  gnosis: {
+    source: { book: "By This Axe: The Cyclopedia of Dwarven Civilization", pages: "BTA 120-121, 128" },
+    tables: {
+      // Invocation level (rows) by invoker level (columns): the header row
+      // keeps the column scale so a reader can check which column is which.
+      performanceGrid: {
+        shape: "gridRows",
+        book: "bta",
+        optional: true,
+        printedPage: 121,
+        locate: "Invocation Performance",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592, yMin: 78, yMax: 190 },
+        labelMaxX: 130,
+        rowTol: 4,
+        joinGap: 0.5,
+        cellColumns: GNOSIS_GRID_COLUMNS,
+        rows: [
+          { key: "columns", labelRe: "^invo\\s*cation\\s*level$" },
+          ...[1, 2, 3, 4, 5].map((n) => ({ key: `r${n}`, labelRe: "^\\d+\\s*(?:st|nd|rd|th)$" })),
+        ],
+      },
+      // The three paces: the pace itself, the time it takes, the throw
+      // modifier, the automatic-failure band and the degree-of-mishap rule. The
+      // rows carry no label of their own (the pace is a cell), so each claims
+      // the next row whose label zone is empty.
+      paceTable: {
+        shape: "gridRows",
+        book: "bta",
+        optional: true,
+        printedPage: 121,
+        locate: "Invocation Pace",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592, yMin: 690, yMax: 745 },
+        labelMaxX: 100,
+        rowTol: 4,
+        joinGap: 0.5,
+        cellColumns: [
+          { key: "pace", x: 104, w: 58, pattern: "raw", row: true },
+          { key: "time", x: 165, w: 110, pattern: "raw", row: true },
+          { key: "throwModifier", x: 285, w: 60, pattern: "raw", row: true },
+          { key: "automaticFailure", x: 380, w: 40, pattern: "raw", row: true },
+          { key: "mishapDegree", x: 438, w: 150, pattern: "raw", row: true },
+        ],
+        rows: [1, 2, 3].map((n) => ({ key: `r${n}`, unlabelled: true })),
+      },
+      // Which degree of mishap each ceremony level (a band) calls for.
+      ceremonyDegree: {
+        shape: "gridRows",
+        book: "bta",
+        optional: true,
+        printedPage: 121,
+        locate: "Ceremony Level",
+        locateBare: true,
+        column: { xMin: 100, xMax: 310, yMin: 340, yMax: 390 },
+        labelMaxX: 172,
+        rowTol: 4,
+        joinGap: 0.5,
+        cellColumns: [{ key: "degree", x: 174, w: 120, pattern: "raw", row: true }],
+        rows: [1, 2, 3].map((n) => ({ key: `r${n}`, labelRe: "^\\d", labelPattern: "rollBand" })),
+      },
+      // The d10 mishap table: a row per face, three degree columns of prose
+      // wrapped over several lines. The face is read through `labelInt`.
+      mishapTable: {
+        shape: "gridRows",
+        book: "bta",
+        optional: true,
+        printedPage: 128,
+        locate: "Invocation Mishaps",
+        locateBare: true,
+        column: { xMin: 40, xMax: 592, yMin: 112, yMax: 712 },
+        labelMaxX: 85,
+        rowTol: 3,
+        joinGap: 0.5,
+        wrapRows: { boxed: true, tol: 30 },
+        cellColumns: [
+          { key: "c1", x: 88, w: 156, pattern: "raw", row: true },
+          { key: "c2", x: 247, w: 155, pattern: "raw", row: true },
+          { key: "c3", x: 404, w: 180, pattern: "raw", row: true },
+        ],
+        rows: Array.from({ length: 10 }, (_, i) => ({ key: `r${i + 1}`, labelRe: "^\\d+$", labelPattern: "labelInt" })),
+      },
+      // The cost of a set of implements at each level, beside the paragraph
+      // that names them.
+      implementCosts: {
+        shape: "gridRows",
+        book: "bta",
+        optional: true,
+        printedPage: 120,
+        locate: "cost per level of gnostic implements",
+        locateBare: true,
+        column: { xMin: 460, xMax: 592, yMin: 252, yMax: 335 },
+        labelMaxX: 500,
+        rowTol: 4,
+        joinGap: 0.5,
+        cellColumns: [{ key: "cost", x: 505, w: 70, pattern: "raw", row: true }],
+        rows: Array.from({ length: 6 }, (_, i) => ({ key: `r${i + 1}`, labelRe: "^\\d+$", labelPattern: "labelInt" })),
       },
     },
   },

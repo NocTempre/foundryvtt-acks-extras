@@ -4030,3 +4030,37 @@ marker, and are read, never driven.
 
 The import is kept. Step 4's edit is removed by Remove override on that entry;
 nothing is swept.
+
+## The gnostic tables, read from By This Axe
+
+The `gnosis` ruledata document (MODEL, "The gnostic tables"): five tables, no
+reader yet, so the Ruledata Browser is where they are seen.
+
+### Fixtures
+
+A world with By This Axe open on the GM's seat. The tables are registry
+documents, not world documents: nothing is tracked or swept.
+
+### Steps
+
+1. **Settings tab → Game Settings → ACKS II — Extras → Manage imports**, the
+   Rebuild tab: pick **Shelf, book or tables → Rules tables → gnosis only**, **Go**.
+   *Observable:* a re-read notification and no notice that a table's page was
+   not found; `acksExtras.lib.tables.getDoc("gnosis")` answers.
+2. **Settings tab → Game Settings → ACKS II — Extras → Imported Rules Tables →
+   Open Ruledata Browser**, filter on `gnosis`.
+   *Observable:* five entries, each with a By This Axe page line under its
+   name (pages 120, 121 and 128, `citeOf` per table), and none greyed as absent.
+3. Read the shapes from `acksExtras.lib.tables.getDoc("gnosis").tables`.
+   *Observable:* the performance grid has a header row and five rows of ten
+   cells; the pace table three rows of five; the ceremony table three bands
+   with a degree word each; the mishap table ten rows of three whole
+   sentences, none opening mid-sentence; the implement costs six rows. No
+   cell is empty and no row is `__missing`.
+4. With By This Axe closed on the seat, repeat step 1.
+   *Observable:* a supplement notice naming the book, no error, and the
+   document unchanged.
+
+### Teardown
+
+The import is kept.
