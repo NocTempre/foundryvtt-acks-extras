@@ -3855,3 +3855,42 @@ and all its areas at once.
 
 The import is kept. Step 7's place is the library's own and comes back by
 the step itself; nothing is swept.
+
+## By This Axe invocations and the gnostic classes' lists
+
+The five invocations import as spell items on the Spells shelf
+(`register/bta/p129-p132-invocations.json`), and the two gnosis-casting
+classes bind them as their casting row's `spellList` through
+`def.classmeta.invocationLists` (MODEL, "A heading beside its stat run" and
+"A class's printed spell lists").
+
+### Fixtures
+
+A world with By This Axe open on the GM's seat (the Books tab). The five
+spells and the two gnostic classes are library documents, not the run's:
+they are found by their entry ids in `flags.acks-extras.cookbook`, never
+tracked or swept.
+
+### Steps
+
+1. **(Re)import Individual Entries (GM)**: filter `def.spell.invocation`,
+   tick the five, *Reimport*.
+   *Observable:* five spell items on the Spells shelf. Each opens with a
+   range, a duration and one list whose source is gnostic at the level the
+   page's tag prints, and a description holding the base text and every
+   level paragraph, no worked example and no next entry's text. The fifth is
+   named from the page, not "Invocation 5".
+2. Same picker: tick the two gnostic classes, *Reimport*.
+   *Observable:* each class's Casting tab shows its gnosis row's spell list:
+   four entries on one class, one on the other, each opening the spell
+   from step 1.
+3. Give a test character one of those classes and cast one invocation from
+   its sheet, with nothing targeted.
+   *Observable:* record what the cast does today (which card posts, whether a
+   spend or a declaration happens, what the record carries). This is
+   evidence for the plan's owner questions A and B, not a pass or fail.
+
+### Teardown
+
+The import is kept. The test character, if built for step 3, carries the
+marker `importer/bta-gnostic-caster` and stays.
