@@ -962,7 +962,7 @@ const treasureRegistry = () => ({
       ],
       ornamental: [{ min: 1, max: 4, result: "Qq bundle" }],
     },
-    typeClassic: { A: { category: "Qq", avgValue: "5gp", cp: "10% 1d3" } },
+    typeClassic: { A: { category: "Qq", avgValue: "5gp", cp: "13% 1d9" } },
   },
 });
 
