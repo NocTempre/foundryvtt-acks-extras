@@ -169,7 +169,7 @@ have been true and `null <= edge` too. The session's calls, owner may overrule:
 *Cost:* a Judge who clears the class of a market with ventures in flight sees
 those days resolve unresolved.
 
-## 2026-11-16 — Detection is its own mark, `detected`, and not a fourth identification step
+## 2026-11-16 — Detection is its own mark, `detected`, and not a fourth identification step — SUPERSEDED IN PART 2026-11-17
 
 A treasure deal must hand a player an item that does not say it is magic, which
 the three identification states cannot express: `none` already means "magic,
@@ -214,3 +214,29 @@ does, not what it is called, so the name stays masked and so do cost, damage,
 armour class, description and icon, until a full identification. The narrowest
 reading was taken; the owner may widen it by marking another ladder entry
 `recognizes`.
+
+## 2026-11-17 — The Judge marks detection from the Appearance tab, beside the identification steps
+
+Supersedes in part the 2026-11-16 entry's "Only a treasure deal writes `false`".
+Detection is a Judge's mark (the 2026-11-16 entry), but nothing let a Judge set
+it. The new evidence, found reading T2's commit against its own plan:
+`markIdentified` could only raise `detected`, and a player cannot start an
+identification on an item whose magic is hidden from them, so a Judge had no way
+to mark an item either way. The item sheet's
+Appearance tab, which already holds the Judge's identification steps for the
+item (the `appearance.hbs` "What The Players Know" group, magical items only,
+Judge only), gains a **Detected** checkbox beside them; that tab is the one
+place, since the magic panel's own Judge selector is mounted in the same group.
+`lib/item-model.mjs` `toggleDetected` flips the mark and keeps every other
+key; an item where the key is absent shows checked, its first click writes
+`false`, and `detected` is never written to an item the Judge has not touched.
+The control writes whatever the Judge clicks, `identified` notwithstanding.
+
+The same pass closed two tells on a player's sheet for an undetected item: the
+value badge's tooltip read "Apparent worth" (or "The value of the disguise"),
+which says the item is not what it seems, and the sell dialog's basis line read
+"apparent value (unidentified)". Both now read their ordinary wording for such an
+item, with the same apparent figure.
+
+*Cost:* the control does not stop a Judge un-detecting an item that is already
+identified; whether it should is an open owner question.

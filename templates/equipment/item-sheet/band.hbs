@@ -32,7 +32,7 @@
     <span class="acks-extras-item-sheet__badge-note acks-nums">{{#if band.valueDiffers}}{{band.value}}{{else}}gp{{/if}}</span>
   </span>
   {{else}}
-  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.' band.valueReason)}}">
+  <span class="acks-extras-item-sheet__badge" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.value.' band.valueTip)}}">
     <span class="acks-extras-item-sheet__badge-label">{{localize 'ACKS-EQUIPMENT.itemSheet.band.value'}}</span>
     <span class="acks-extras-item-sheet__badge-value acks-nums">
       {{#if band.valueUnknown}}{{localize 'ACKS-EQUIPMENT.itemSheet.value.unknownLabel'}}{{else}}{{band.value}}{{/if}}

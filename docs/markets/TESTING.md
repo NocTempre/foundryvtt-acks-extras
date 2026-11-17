@@ -1316,7 +1316,8 @@ A step that needs the shape asserts it at its start: read
 
 1. **Player seat:** open the item's sheet. *Observable:* the Details tab has no
    identification panel, the Effects tab names no hidden effects and lists none,
-   and the art carries no aura mark.
+   and the art carries no aura mark; the value badge's tooltip is "Value", not
+   the apparent-worth one.
 2. **Player seat:** the character sheet's Equipment tab, the place the item is
    worn at. *Observable:* the place's badge counts the known magic item and not
    this one; wearing a second known magic item past the place's capacity (an
@@ -1332,7 +1333,15 @@ A step that needs the shape asserts it at its start: read
 5. **Full:** an identification that grants `full` (magic research, or sipping
    a potion). *Observable:* the disguise flag is gone and every masked field is
    true again.
-6. **Judge's panel and Appearance tab:** on an undetected copy, raise
+6. **The Judge's mark:** first shape the fixture (`detected: false`,
+   `identified: "none"`; steps 4 and 5 leave it detected). GM seat, pencil armed:
+   Appearance tab, "What The
+   Players Know", tick Detected. *Observable:* `markets.detected` is `true`; the
+   Player seat's open sheet now shows the identification panel (the aura waits
+   for a partial identification), and the value badge's tooltip changes from
+   "Value" to the apparent-worth one. Untick it: `detected` is `false` and the Player seat's sheet hides the magic
+   again. The control is absent on a mundane item and on a Player seat's sheet.
+7. **Judge's panel and Appearance tab:** on an undetected copy, raise
    Identification to Partly identified, in the magic panel and again on a fresh
    copy through the Appearance tab's steps. *Observable:* `detected` is `true` after the same write.
 

@@ -20,6 +20,11 @@
       {{/each}}
     </div>
     <span class="acks-extras-item-sheet__note">{{localize (concat 'ACKS-EQUIPMENT.itemSheet.know.note.' appearance.know)}}</span>
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.know.detectedHint'}}">
+      <input type="checkbox" data-action="toggleDetected" {{checked appearance.detected}} {{disabled (not editing)}}
+             aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.know.detectedAria'}}">
+      <span>{{localize 'ACKS-EQUIPMENT.itemSheet.know.detected'}}</span>
+    </label>
     <label class="acks-extras-item-sheet__field is-md">
       <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.aura.title'}}</span>
       <select class="acks-input acks-input--line" name="flags.acks-extras.markets.aura" {{disabled (not editing)}}>

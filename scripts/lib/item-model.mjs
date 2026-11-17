@@ -227,14 +227,15 @@ export function isMagical(item) {
 /**
  * What a viewer knows of an item's magic. `magical` is the truth (`isMagical`).
  * `detected` is the item's `flags.acks-extras.markets.detected` mark, true when
- * the key is absent, so only a treasure deal that wrote `false` ever hides
- * anything. `identified` is the markets identification state (`none`,
- * `partial`, `full`). `known` is whether the viewer may be told the item is
- * magic at all: it is magical and either the viewer is a Judge or it is
- * detected. Every writer that raises `identified` past `none` goes through
- * `markIdentified`, which marks the item detected in the same write, so the
- * two never disagree for a player. Display code gates on `known`; enforcement
- * keeps reading `isMagical`.
+ * the key is absent, so only an item marked `false` (by a treasure deal or by a
+ * Judge, `toggleDetected`) ever hides anything. `identified` is the markets
+ * identification state (`none`, `partial`, `full`). `known` is whether the
+ * viewer may be told the item is magic at all: it is magical and either the
+ * viewer is a Judge or it is detected. Every writer that raises `identified`
+ * past `none` goes through `markIdentified`, which marks the item detected in
+ * the same write; a Judge's `toggleDetected` afterwards is the one write that
+ * leaves an identified item undetected. Display code gates on `known`;
+ * enforcement keeps reading `isMagical`.
  * @param {Item} item
  * @param {{isGM?: boolean}} [viewer] defaults to the current user's seat
  * @returns {{magical: boolean, detected: boolean, identified: "none"|"partial"|"full", known: boolean}}
@@ -260,6 +261,17 @@ export function markIdentified(flag, state) {
   const next = { ...flag, identified: state };
   if (state !== "none" && flag?.detected === false) next.detected = true;
   return next;
+}
+
+/**
+ * The markets flag after a Judge's click on the Detected control. The control
+ * reads an absent key as detected, so the click turns it off and writes `false`;
+ * any other state is switched to its opposite. Every other key, `identified`
+ * included, is carried unchanged. Returns a new object.
+ * @param {object} flag the item's current markets flag
+ */
+export function toggleDetected(flag) {
+  return { ...flag, detected: flag?.detected === false };
 }
 
 /** Every ammunition name RAW recognises, across all three launcher families. */

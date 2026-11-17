@@ -438,7 +438,7 @@ party's find.
   magic is known to a player when it is magic and
   `flags["acks-extras"].markets.detected` is not `false`
   (`lib/item-model.mjs` `magicKnowledge`; a Judge always knows). Only a
-  treasure deal writes `false`. On a player's item sheet an undetected magic item
+  treasure deal or a Judge writes `false`. On a player's item sheet an undetected magic item
   offers no identify panel, hides its aura and the note that effects are
   hidden, and shows no effects; the character sheet's place label counts only
   known magic while `slotUse().full` counts the truth. A successful
@@ -446,7 +446,13 @@ party's find.
   through `markIdentified`), Magical Engineering and Loremastery (marked
   `recognizes` in `METHODS`) lift a disguised name, and a `full` one reveals the item
   (`equipment/actions.mjs` `revealItem`). The listener runs on the client
-  that made the attempt.
+  that made the attempt. The Judge sets the mark by hand: the item sheet's
+  Appearance tab holds a Detected checkbox beside the identification steps, on a
+  magical item, for a Judge only (`lib/item-model.mjs` `toggleDetected`; an item
+  with the key absent reads checked, and its first click writes `false`). A player's
+  value badge on an undetected item carries the ordinary value tooltip, never
+  "apparent worth" or the disguise's (`view-model.mjs` `valueBadge`, `tip`), and
+  the sell dialog reads the ordinary basis label instead of "apparent value".
 
 ## A market whose class is not known
 

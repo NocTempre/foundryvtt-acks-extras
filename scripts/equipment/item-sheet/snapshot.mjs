@@ -458,7 +458,8 @@ function namedSnapshot(item, gm) {
 /**
  * The snapshot's `magic` block. `known` is what a PLAYER may be told of the
  * item's magic, whoever is looking: a Judge previewing as a player reads the
- * same figure, and the view-model ignores it for a Judge.
+ * same figure, and the view-model ignores it for a Judge. `detected` is the
+ * Judge's mark itself, true when absent, for the Appearance tab's control.
  * @param {Item} item
  * @param {object} markets the item's markets flag
  */
@@ -468,6 +469,7 @@ export function magicSnapshotOf(item, markets) {
     aura: markets.aura ?? null,
     identified: markets.identified ?? "none",
     known: magicKnowledge(item, { isGM: false }).known,
+    detected: magicKnowledge(item, { isGM: false }).detected,
   };
 }
 

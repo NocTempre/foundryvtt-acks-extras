@@ -13,7 +13,7 @@
  *   goods      qty (number|null), stackable, weight6, cost
  *   currency   {perStone, declared, system} | null — how many make a stone
  *   wear       wearable, worn, wornSlot, slotGuess, favorite (bool|null), split
- *   magic      {is, aura, identified, known?}  disguise {enabled, active, trueName,
+ *   magic      {is, aura, identified, known?, detected?}  disguise {enabled, active, trueName,
  *              trueDescription, trueCost, apparentName}
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
  *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
@@ -110,18 +110,23 @@ export function listedPrice(price) {
 
 /**
  * What the value badge reads, and why — one rule for the band, the ledger and
- * the tooltip.
- * @returns {{text:string, reason:string}}
+ * the tooltip. `tip` is the lang key under `itemSheet.value` the badge's tooltip
+ * reads: `reason`, except that a player looking at an undetected magic item
+ * (`undetected`) is given the ordinary `value` tooltip, since "apparent worth"
+ * and "the disguise's value" both say the item is not what it seems. The text
+ * is unchanged: the figure a player sees is still the apparent one.
+ * @returns {{text:string, reason:string, tip:string}}
  */
-export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, maskedForJudge, coin = false }) {
+export function valueBadge({ mode, fullCost, apparentCost, hideMagic, masked, maskedForJudge, undetected = false, coin = false }) {
+  const read = ((out) => ({ ...out, tip: undetected && (out.reason === "apparent" || out.reason === "maskValue") ? "value" : out.reason }));
   // Currency is its own worth: nothing appraises it, and nothing is typed.
-  if (coin) return { text: gpLabel(fullCost), reason: "coin" };
-  if (mode === "unknown") return { text: null, reason: "unknown" };
-  if (mode === "na") return { text: DASH, reason: "na" };
-  if (hideMagic) return { text: gpLabel(apparentCost ?? fullCost), reason: "apparent" };
-  if (masked) return { text: gpLabel(fullCost), reason: "maskValue" };
-  if (maskedForJudge) return { text: gpLabel(fullCost), reason: "trueValue" };
-  return { text: gpLabel(fullCost), reason: "value" };
+  if (coin) return read({ text: gpLabel(fullCost), reason: "coin" });
+  if (mode === "unknown") return read({ text: null, reason: "unknown" });
+  if (mode === "na") return read({ text: DASH, reason: "na" });
+  if (hideMagic) return read({ text: gpLabel(apparentCost ?? fullCost), reason: "apparent" });
+  if (masked) return read({ text: gpLabel(fullCost), reason: "maskValue" });
+  if (maskedForJudge) return read({ text: gpLabel(fullCost), reason: "trueValue" });
+  return read({ text: gpLabel(fullCost), reason: "value" });
 }
 
 /**
@@ -202,6 +207,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
     hideMagic,
     masked,
     maskedForJudge,
+    undetected,
     coin: !!coin,
   });
   const condState = dur?.destroyed ? "destroyed" : dur?.damaged ? "damaged" : null;
@@ -310,6 +316,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       condition: bandState,
       value: value.text,
       valueReason: value.reason,
+      valueTip: value.tip,
       valueUnknown: value.reason === "unknown",
       // Editable only where the badge reads the plain value (see
       // docs/equipment/MODEL.md, "The band types the two numbers it reads.").
@@ -396,6 +403,8 @@ export function buildItemSheetModel(snap, viewer = {}) {
           magic: magic.is,
           aura: magic.aura ?? "",
           know,
+          // The Judge's mark; an absent key counts as detected.
+          detected: magic.detected !== false,
           steps: KNOW_STEPS.map((s) => ({ ...s, on: s.n === know })),
           disguisable: !!dis.enabled,
           disguised: !!dis.active,

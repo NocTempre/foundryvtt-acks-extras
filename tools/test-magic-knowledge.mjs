@@ -22,7 +22,7 @@ globalThis.foundry = {
   applications: { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: (B) => class extends B {}, DialogV2: class {} }, handlebars: {} },
 };
 
-const { magicKnowledge, markIdentified, slotUse, isMagical } = await import("../scripts/lib/item-model.mjs");
+const { magicKnowledge, markIdentified, toggleDetected, slotUse, isMagical } = await import("../scripts/lib/item-model.mjs");
 const T = await import("../scripts/lib/tables.mjs");
 const vocab = await import("../scripts/lib/vocab.mjs");
 const { buildItemSheetModel } = await import("../scripts/equipment/item-sheet/view-model.mjs");
@@ -135,6 +135,75 @@ await test("a detected item at step one still offers identification and the effe
   const m = sheetFor(magicFlag({ ...AURA, detected: true }), { isGM: false });
   assert.equal(m.details.identifyOffered, true);
   assert.equal(m.effects.hiddenByIdentification, true);
+});
+
+console.log("the Judge's detected mark");
+
+await test("toggleDetected turns an absent or true mark off, a false one on, and keeps every other key", () => {
+  assert.deepEqual(toggleDetected({ magic: true, identified: "partial", aura: "arcane" }), { magic: true, identified: "partial", aura: "arcane", detected: false });
+  assert.deepEqual(toggleDetected({ magic: true, detected: true }), { magic: true, detected: false });
+  assert.deepEqual(toggleDetected({ magic: true, detected: false }), { magic: true, detected: true });
+  const flag = { magic: true };
+  toggleDetected(flag);
+  assert.equal("detected" in flag, false, "the input is not mutated, so an absent key stays absent until a Judge turns it off");
+});
+
+await test("the mark turns a player's view off and on", () => {
+  const flag = magicFlag();
+  const off = toggleDetected(flag);
+  assert.equal(magicKnowledge(mockItem({ markets: off }), { isGM: false }).known, false);
+  assert.equal(magicKnowledge(mockItem({ markets: toggleDetected(off) }), { isGM: false }).known, true);
+  assert.equal(magicKnowledge(mockItem({ markets: off }), { isGM: true }).known, true, "a Judge still knows");
+});
+
+await test("a Judge sees the Detected control on a magical item, reading the flag", () => {
+  const unmarked = sheetFor(magicFlag(AURA), { isGM: true });
+  assert.equal(unmarked.appearance.magic, true);
+  assert.equal(unmarked.appearance.detected, true, "absent reads as detected");
+  assert.equal(sheetFor(magicFlag({ ...AURA, detected: false }), { isGM: true }).appearance.detected, false);
+  assert.equal(sheetFor(magicFlag({ ...AURA, detected: true }), { isGM: true }).appearance.detected, true);
+});
+
+await test("a mundane item offers a Judge no Detected control, and a player never gets one", () => {
+  assert.equal(sheetFor({}, { isGM: true }).appearance.magic, false, "the template shows the control only inside appearance.magic");
+  assert.equal(sheetFor(magicFlag(AURA), { isGM: false }).appearance, null);
+  assert.equal(sheetFor(magicFlag({ ...AURA, detected: false }), { isGM: false }).appearance, null);
+  assert.equal(sheetFor(magicFlag(AURA), { isGM: true, previewAsPlayer: true }).appearance, null, "a Judge previewing as a player has none");
+});
+
+console.log("the value badge on an undetected item");
+
+/** The value badge for a snapshot with `magic`, price and disguise as given. */
+const badgeFor = (markets, viewer, { disguised = false } = {}) => {
+  const s = snap(magicSnapshotOf(mockItem({ markets }), markets));
+  s.price = { lines: [], final: 10000, apparent: 15 };
+  if (disguised) s.disguise = { enabled: true, active: true, trueName: "Test Blade", apparentName: "Old Sword" };
+  return buildItemSheetModel(s, { editable: true, ...viewer }).band;
+};
+
+await test("a player's undetected item reads an ordinary value with the ordinary tooltip", () => {
+  const b = badgeFor(magicFlag({ detected: false }), { isGM: false });
+  assert.equal(b.value, "15 gp", "the figure is still the apparent one");
+  assert.equal(b.valueTip, "value");
+  assert.equal(b.valueEditable, false);
+});
+
+await test("an undetected disguised item does not say its value is the disguise's", () => {
+  const b = badgeFor(magicFlag({ detected: false, identified: "full" }), { isGM: false }, { disguised: true });
+  assert.equal(b.valueReason, "maskValue");
+  assert.equal(b.valueTip, "value");
+});
+
+await test("a detected disguised item keeps its apparent and mask tooltips for a player", () => {
+  assert.equal(badgeFor(magicFlag(), { isGM: false }).valueTip, "apparent");
+  assert.equal(badgeFor(magicFlag({ detected: true }), { isGM: false }).valueTip, "apparent");
+  assert.equal(badgeFor(magicFlag({ detected: true, identified: "full" }), { isGM: false }, { disguised: true }).valueTip, "maskValue");
+});
+
+await test("a Judge's tooltip is unchanged by the mark", () => {
+  assert.equal(badgeFor(magicFlag({ detected: false }), { isGM: true }).valueTip, "value");
+  assert.equal(badgeFor(magicFlag({ detected: false }), { isGM: true }, { disguised: true }).valueTip, "trueValue");
+  assert.equal(badgeFor(magicFlag(), { isGM: true }, { disguised: true }).valueTip, "trueValue");
 });
 
 console.log("slot label vs enforcement");

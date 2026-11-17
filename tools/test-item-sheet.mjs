@@ -186,6 +186,12 @@ test("value modes drive the badge", () => {
   assert.equal(valueBadge({ mode: "unknown", fullCost: 5 }).text, null);
   assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: true }).text, "15 gp");
   assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: false }).text, "10,000 gp");
+  assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: true }).tip, "apparent");
+  assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: true, undetected: true }).tip, "value", "an undetected item's tooltip does not say apparent");
+  assert.equal(valueBadge({ mode: "priced", fullCost: 10000, apparentCost: 15, hideMagic: true, undetected: true }).text, "15 gp");
+  assert.equal(valueBadge({ mode: "priced", fullCost: 10, masked: true }).tip, "maskValue");
+  assert.equal(valueBadge({ mode: "priced", fullCost: 10, masked: true, undetected: true }).tip, "value");
+  assert.equal(valueBadge({ mode: "unknown", fullCost: 5, undetected: true }).tip, "unknown", "other reasons keep their tooltip");
 });
 test("the band types the listed price only where the badge reads the plain value", () => {
   const plain = buildItemSheetModel(base(), { isGM: true, editable: true });

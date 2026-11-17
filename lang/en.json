@@ -2332,6 +2332,9 @@
       },
       "know": {
         "title": "What The Players Know",
+        "detected": "Detected",
+        "detectedHint": "Judge's mark: the players are told this item is magic only once it is detected. Identification marks it detected (JJ ch. 4, Identifying Magic Items).",
+        "detectedAria": "Mark this item's magic as detected by the players",
         "hint": {
           "none": "Held and handled; nothing magical is apparent.",
           "partial": "Its nature is known, not its effect or worth.",
