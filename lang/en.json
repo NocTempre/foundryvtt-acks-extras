@@ -1512,6 +1512,14 @@
       "finesse": "Weapon Finesse",
       "substitute": "{attribute} for Strength"
     },
+    "damagePrompt": {
+      "title": "Damage formula: {name}",
+      "label": "Damage formula",
+      "hint": "This weapon has no damage formula. What you enter is saved to the weapon as its base damage and used for this attack; it is not asked again.",
+      "save": "Save and attack",
+      "invalid": "\"{formula}\" is not a dice formula. Enter one the dice roller accepts, or close the window to cancel the attack.",
+      "notOwner": "{name} has no damage formula, and you cannot edit it. Ask the Judge to enter one."
+    },
     "settings": {
       "enforceMode": {
         "name": "Equip-limit enforcement",

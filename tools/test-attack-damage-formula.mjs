@@ -113,4 +113,30 @@ ok("another weapon with the same text is told about on its own", () => {
   console.log("ok   an attack with no attack throw is refused at the seam, and a figure rolls");
 }
 
+// A contributor's `prepare` runs once per attack before the throw is built,
+// and one that declines cancels the attack: core's roll is never reached.
+{
+  const { addAttackContributor } = await import("../scripts/lib/patches/attack-throw.mjs");
+  const makeAttackThrow = registered["CONFIG.Actor.documentClass.prototype.makeAttackThrow"];
+  let answer = true;
+  const asked = [];
+  addAttackContributor({ prepare: async (ctx) => { asked.push(ctx.weapon?.name ?? null); return answer; } });
+  addAttackContributor({ prepare: async () => { throw new Error("broken"); } });
+  const quiet = console.error;
+  console.error = () => {};
+  const actor = { name: "attacker", system: { attack: { throw: 10 } } };
+  const sword = { name: "sword", type: "weapon" };
+  let rolled = 0;
+  const go = await makeAttackThrow.call(actor, async () => { rolled++; return { hit: true }; }, { item: sword });
+  answer = false;
+  const stop = await makeAttackThrow.call(actor, async () => { rolled++; return { hit: true }; }, { item: sword });
+  console.error = quiet;
+  assert.deepEqual(go, { hit: true }, "a prepare that resolves true lets the attack roll, and one that throws does not hold it");
+  assert.equal(stop, null, "a prepare that resolves false answers the dismissed dialog's null");
+  assert.equal(rolled, 1, "the declined attack never reaches core's roll");
+  assert.deepEqual(asked, ["sword", "sword"], "prepare is asked once per attack, with the weapon in the context");
+  passed++;
+  console.log("ok   a contributor's prepare runs before the throw, and declining it cancels the attack");
+}
+
 console.log(`\n${passed} passed`);

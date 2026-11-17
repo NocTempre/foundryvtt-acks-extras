@@ -484,7 +484,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       {
         name: game.i18n.localize("ACKS-LIB.followerCard.newAttack"),
         type: ITEM_TYPE.weapon,
-        system: { equipped: true, damage: { base: { formula: "1d6" } }, melee: true },
+        // No die is invented: the formula stays blank until the first attack asks for one.
+        system: { equipped: true, damage: { base: { formula: "" } }, melee: true },
       },
     ]);
   }

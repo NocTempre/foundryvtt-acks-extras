@@ -20,6 +20,7 @@ import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, manage
 import { unstowOnUse, releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
+import { registerDamagePrompt } from "./damage-prompt.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
 import { advanceWieldedOnLevelUp, levelsGained } from "./overlays/named.mjs";
@@ -144,6 +145,12 @@ Hooks.once("setup", () => {
     }
   } catch (err) {
     console.error(`${MODULE_ID} | failed to register the encumbrance wrapper; core's load stands`, err);
+  }
+  // A blank damage formula is asked for whatever the roll setting says.
+  try {
+    registerDamagePrompt();
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to register the damage-formula prompt`, err);
   }
   if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
   try {

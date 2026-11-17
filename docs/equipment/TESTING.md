@@ -1667,6 +1667,57 @@ cards the system posts and the tooltips.
 7. Teardown. The run's tracked documents are swept by ledger; the override is
    cleared.
 
+## A weapon with no damage formula (unwalked)
+
+Nothing writes a die for a missing formula, and the first attack asks for one
+(MODEL, "Design rules"). Offline: `tools/test-weapon-damage-blank.mjs` and the
+`prepare` case in `tools/test-attack-damage-formula.mjs`.
+
+### Fixtures
+
+- **Kept, `equipment/blank-damage-actor`**: a `character` the Player seat owns,
+  with a positive attack throw, holding a `weapon` whose
+  `system.damage.base.formula` is `""`. Built by `api.fixture`; each run's
+  first step writes the formula back to `""` and drops
+  `flags.acks-extras.named` and `.pristine`.
+
+### Steps
+
+1. Named and blank. With the named overlay on, open the weapon's item sheet
+   (GM seat) → Make named; ladder `damage,hit`, unlocked 1. *Observable:*
+   `flags.acks-extras.named.base.damage` is `""`, Record → Damage is blank,
+   and no `1d6` appears anywhere on the item.
+2. The first attack asks. From the Player seat, attack with the weapon from
+   the character sheet's Equipment tab (or
+   `actor.makeAttackThrow({item, attackType: "melee"})`). *Observable:* a
+   window titled *Damage formula: <weapon>* opens before the system's attack
+   dialog, with a resize corner, and nothing has posted to chat.
+3. A bad answer. Type `sword` and press Save and attack. *Observable:* a
+   warning naming `sword`, the window opens again, nothing is written.
+4. The answer saves. Type `1d8`. *Observable:* the system's attack runs;
+   `system.damage.base.formula` reads `1d8+1` and
+   `flags.acks-extras.named.base.damage` reads `1d8`; a hit's card rolls
+   `1d8+1`.
+5. Asked once. Attack again. *Observable:* no prompt; the attack runs at
+   `1d8+1`. Raise unlocked to 2 from the GM tab. *Observable:* damage still
+   reads `1d8+1` (the second rung is hit), never `1d8+1+1`.
+6. Cancel rolls nothing. Reset the fixture (first step of the run), attack,
+   and close the prompt. *Observable:* no attack dialog, no chat card, and the
+   formula is still `""`. Arm a `createChatMessage` counter for this step; it
+   reads 0.
+7. A layer over a blank. Reset, then give the weapon a masterwork damage tier
+   (`api.equipment.setMasterwork(item, "weaponToDamage")`). *Observable:* the
+   formula stays `""` (no bare `+1`), and an attack asks; answering `1d6`
+   writes `pristine.damage` `1d6` and the formula `1d6` plus the tier's
+   figure.
+8. The Follower Card's Add attack makes a weapon with a blank formula, and its
+   first attack asks.
+
+### Teardown
+
+The kept actor stays, reset to a blank formula with no named or pristine
+record. Nothing else is written.
+
 ## A container's retrieval side (unwalked)
 
 ### Fixtures

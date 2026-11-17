@@ -139,21 +139,44 @@ export function resolveGuess(item, actor, spoken) {
 
 /**
  * The item's mundane stats, captured once so unlocking is idempotent: every
- * application recomputes from this base, never from the modified value.
+ * application recomputes from this base, never from the modified value. A
+ * weapon with no damage formula captures a blank one; no die stands in for it.
  */
 export function captureBase(item) {
   return {
     bonus: attackBonusOf(item),
-    damage: damageFormulaOf(item) || "1d6",
+    damage: damageFormulaOf(item),
     // The stored record names the armour class `aac`.
     aac: Number(item.system?.ac?.value ?? 0),
     weight6: Number(item.system?.weight6 ?? 0),
   };
 }
 
-/** The stored base stats, falling back to the item's current values. */
+/**
+ * The stored base stats, falling back to the item's current values. A stored
+ * base whose damage is blank takes the weapon's formula once it has one, since
+ * nothing was layered over a blank: the formula the item now holds is the base.
+ */
 export function baseOf(item) {
-  return namedOf(item)?.base ?? captureBase(item);
+  const stored = namedOf(item)?.base;
+  if (!stored) return captureBase(item);
+  if (item?.type === ITEM_TYPE.weapon && !String(stored.damage ?? "").trim()) {
+    const now = String(damageFormulaOf(item) ?? "").trim();
+    if (now) return { ...stored, damage: now };
+  }
+  return stored;
+}
+
+/**
+ * The write that stores a damage formula `baseOf` took up in place of a blank
+ * stored one, so the base is fixed before bonuses are layered over the field
+ * and a second application reads the base, not its own output.
+ */
+function recapturedBase(item) {
+  const stored = namedOf(item)?.base;
+  if (!stored || String(stored.damage ?? "").trim()) return {};
+  const damage = baseOf(item).damage;
+  return String(damage ?? "").trim() ? { [`flags.${MODULE_ID}.${ITEM_FLAGS.NAMED}.base.damage`]: damage } : {};
 }
 
 /**
@@ -178,7 +201,7 @@ export function renameUpdates(item, givenName, wielderLevel) {
  * fields recomputed from the captured base. Idempotent by construction.
  */
 export function applyUpdates(item) {
-  return toItemUpdates(item, baseOf(item));
+  return { ...recapturedBase(item), ...toItemUpdates(item, baseOf(item)) };
 }
 
 /**
@@ -212,7 +235,7 @@ export function advanceWieldedOnLevelUp(actor, levels = 1) {
     const rec = namedOf(item);
     const next = { ...rec, unlocked: advance[`flags.${MODULE_ID}.${ITEM_FLAGS.NAMED}.unlocked`] };
     const preview = { ...item, getFlag: (_m, k) => (k === ITEM_FLAGS.NAMED ? next : item.getFlag?.(_m, k)) };
-    out.push({ item, updates: { ...advance, ...toItemUpdates(preview, baseOf(item)) } });
+    out.push({ item, updates: { ...advance, ...recapturedBase(item), ...toItemUpdates(preview, baseOf(item)) } });
   }
   return out;
 }
@@ -248,8 +271,10 @@ export function toItemUpdates(item, base = {}) {
   const updates = {};
   if (item.type === ITEM_TYPE.weapon) {
     updates["system.bonus.attack"] = Number(base.bonus ?? attackBonusOf(item)) + b.hit;
-    const formula = base.damage ?? damageFormulaOf(item) ?? "1d6";
-    updates["system.damage.base.formula"] = b.damage ? `${formula}+${b.damage}` : formula;
+    // A blank base writes nothing to the damage field: no die is invented
+    // under the bonus, and the field waits for a formula (`damage-blank.mjs`).
+    const formula = String(base.damage ?? damageFormulaOf(item) ?? "").trim();
+    if (formula) updates["system.damage.base.formula"] = b.damage ? `${formula}+${b.damage}` : formula;
   }
   if (item.type === ITEM_TYPE.armor) {
     updates["system.ac.value"] = Number(base.aac ?? item.system?.ac?.value ?? 0) + b.ac;

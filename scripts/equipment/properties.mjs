@@ -192,7 +192,8 @@ export async function recomputeItemFields(item, overrides = {}) {
   const d = layerDeltas(item, { masterwork, scavenged, silvered, itemLossAc });
   if (item.type === ITEM_TYPE.weapon) {
     update["system.bonus.attack"] = base.bonus + d.bonus;
-    update["system.damage.base.formula"] = withFlatDelta(base.damage, d.damage);
+    // A blank baseline stays blank: a delta over no die is no formula.
+    update["system.damage.base.formula"] = String(base.damage ?? "").trim() ? withFlatDelta(base.damage, d.damage) : "";
   }
   if (item.type === ITEM_TYPE.armor) update["system.ac.value"] = Math.max(0, base.ac + d.ac);
   update["system.weight6"] = Math.max(0, base.weight6 + d.weight6);

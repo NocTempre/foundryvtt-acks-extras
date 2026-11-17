@@ -412,7 +412,7 @@ export async function buildGearData(entry, { base: given } = {}) {
     const system =
       klass.type === ITEM_TYPE.weapon
         ? {
-            damage: klass.damage || "1d6",
+            damage: klass.damage || "", // no die stated stays blank; the first attack asks for one
             melee: klass.melee ?? true,
             missile: klass.missile ?? false,
             bonus: 0,

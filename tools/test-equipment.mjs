@@ -2788,6 +2788,18 @@ await setMasterwork(typed, "none");
 check("a later layer change keeps the typed values", typed.system.damage.base.formula === "1d8" && typed.system.bonus.attack === typedBonus - FIG.both.bonus);
 check("a blank damage stays blank; a number that is not one is refused",
   baseForTyped("damage", " ", { damage: 1 }) === "" && baseForTyped("bonus", "x", { bonus: 1 }) === null);
+// A weapon with no damage formula stays blank under a damage layer: no flat
+// figure is written over a die nobody stated.
+const blankLayered = mockDoc("weapon", { name: "Sword", damage: "", bonus: 0, weight6: 6 });
+await setMasterwork(blankLayered, "weaponBoth");
+check("a damage layer over a blank formula writes a blank, and snapshots the blank",
+  blankLayered.system.damage.base.formula === "" && blankLayered._flags.pristine?.damage === "");
+blankLayered._flags.pristine = { ...blankLayered._flags.pristine, damage: "1d8" }; // the prompt's saved answer
+await recomputeItemFields(blankLayered);
+check("once the snapshot holds a formula, the layer applies over it", blankLayered.system.damage.base.formula === `1d8 + ${FIG.both.damage}`);
+await recomputeItemFields(blankLayered);
+check("and a second recompute does not compound it", blankLayered.system.damage.base.formula === `1d8 + ${FIG.both.damage}`);
+await setMasterwork(blankLayered, "none");
 
 /* --- GOLD VALUE follows the layers (the number on the sheet must move) --- */
 const priced = mockDoc("weapon", { name: "Sword", damage: "1d6", cost: 10, weight6: 6 });
