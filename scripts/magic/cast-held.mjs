@@ -11,7 +11,8 @@
  * operation's options, and lib's loss path holds its cause while it lifts).
  *
  * The cause, first match wins: the cast's own delete names it in the operation's
- * options (`cast` or `time`); else the loss lib is lifting for this actor
+ * options (`cast`, `time`, or `saved` for a recurring prompt's passed save,
+ * `cast-recur.mjs`); else the loss lib is lifting for this actor
  * (`damage` or `save`); else `removed`. It is read before anything awaits.
  *
  * What the funnel does to a recipient record it can write, by the caster
@@ -38,13 +39,13 @@ import { lossInFlight } from "../lib/status-effects.mjs";
 import { escape as esc, unset } from "../lib/util.mjs";
 
 /** The causes a card names. */
-export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed"]);
+export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
 
 /** The status a held record carries, by the kind of concentration. */
 export const heldStatusOf = (held) => (held === "stationary" ? "concentratingStationary" : "concentrating");
 
-/** The causes a cast's own delete may name in the operation's options. */
-const NAMED = new Set(["cast", "time"]);
+/** The causes a cast's own delete may name in the operation's options: `saved` is a recurring prompt's pass ending the cast (`cast-recur.mjs`). */
+const NAMED = new Set(["cast", "time", "saved"]);
 
 /** The causes lib's loss path may hold for a concentration. */
 const LOST = new Set(["damage", "save"]);
@@ -54,7 +55,7 @@ const LOST = new Set(["damage", "save"]);
  * loss in flight. Pure: both are passed in.
  * @param {object|undefined} options  the delete hook's options
  * @param {{cause: string}|null} loss  `lossInFlight`'s answer for the caster's actor
- * @returns {"damage"|"save"|"cast"|"time"|"removed"}
+ * @returns {"damage"|"save"|"cast"|"time"|"removed"|"saved"}
  */
 export function causeOf(options, loss) {
   const named = options?.[MODULE_ID]?.endCause;

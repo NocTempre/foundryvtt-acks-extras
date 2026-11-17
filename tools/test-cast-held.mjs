@@ -44,7 +44,9 @@ t("the cause: the cast's own delete names it, else the loss lib is lifting, else
   assert.equal(causeOf({}, { cause: "moved" }), "removed", "a loss that is not a concentration's is not read");
   assert.equal(causeOf({ "acks-extras": { endCause: "damage" } }, null), "removed", "a seat cannot name a loss in the options");
   assert.equal(causeOf({}, null), "removed");
-  assert.ok(HELD_CAUSES.every((c) => ["damage", "save", "cast", "time", "removed"].includes(c)));
+  assert.equal(causeOf({ "acks-extras": { endCause: "saved" } }, { cause: "damage" }), "saved", "a recurring prompt's passed save names its own cause");
+  assert.ok(HELD_CAUSES.every((c) => ["damage", "save", "cast", "time", "removed", "saved"].includes(c)));
+  assert.ok(HELD_CAUSES.includes("saved"));
 });
 
 t("with no tail every recipient the client can write is removed; a tail re-times it from now and keeps the earlier figures; a none tail leaves it open; what it cannot write is relayed", () => {

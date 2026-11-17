@@ -314,8 +314,97 @@ it to the reach of the spell's own formula (`roundsBounds` over Foundry's
 extremes; `badRounds` for a count that is absent, not whole, or out of reach, or
 sent for a formula that cannot be read). A blank formula, a missing or invalid
 count and a formula that will not roll leave the record untimed; the card then
-carries the page reference alone. A modifier, ward or `ignite` row's `lasts` of
-either kind times nothing: only a condition record lives.
+carries the page reference alone. A modifier or ward row's `lasts` of either kind
+times nothing. A condition record lives, and so does the recipient record of an
+`ignite` row (below), written status-free with the same `life`.
+
+**A ruling-14 kind with a recipient writes the recipient's record.** A kind with
+no arithmetic is a card line and a record. `writesRecipientRecord(row)`
+(`cast-spell.mjs`, `RECORD_KINDS`) names the rows whose record is the
+recipient's: today `ignite` alone, with a recipient (`appliesTo` not `self`) and a
+`lasts` of `duration`, `rounds` or `nextTurn`. Such a row is a section of the card
+with an entry per target, beside its `describeSpellEffect` line, and applies as a
+condition does but with no status: `conditionRecords` leaves one status-free
+recipient record carrying `rowKey` and `startTime`, timed by the row's `lasts`
+(the cast's duration, or the `life` of a `rounds` or `nextTurn` row, with its
+rolled count in the request, held to the formula's reach as a condition's is). The
+save is not rolled for it. An `ignite` row that lasts once (`instant`) or is the
+caster's own stays a line. Every other ruling-14 kind stays a line until its own
+row asks for a record.
+
+**Recurring rows** (`cast-recur.mjs`, `cast-rows.mjs` `recurringRows`, registered
+at `init`). A row's `recur` is `eachRound` (resolved at the cast like any row, then
+recurring) or `laterRounds` (a damage or heal row is withheld from the cast: no
+roll, no entry, a card line says it waits; a condition row is applied at the
+cast). `recurAt` names the moment (`casterTurn`, `bearerStart`, `bearerEnd`;
+blank names none), `recurSave` what the bearer throws first (`row`: a pass ends
+that bearer's records of the row; `cast`: a pass ends the cast), `recurTarget`
+whom it meets (blank, its bearers; `pick`, a target the caster picks). A row
+recurs while its anchor stands: a caster-turn row on the caster's record of the
+cast, which `castSpellRun` writes for a timed cast (its `timed` test counts
+`castersTurnRecurs` beside a row that lasts the duration; flag-timed; an untimed
+cast writes none, since the record would never end); a bearer row on a
+recipient record of the cast the bearer holds. Where the cast writes the bearer no
+such record, `anchorsNeeded` names the row and `applyOnTarget` writes a status-free
+recipient record carrying `rowKey`, `startTime` and the row's life (its `lasts`,
+else the cast's duration); a row `recurSave: row` stands on a record carrying its
+own key, so it writes one of its own, and the rows that ask only a record of the
+cast share one. A save that negated the row, a judged entry and a pick row write
+none; a prompt's own entries are never anchored. The anchor is named among the
+entry's `recordIds`, so Undo takes it off. A `laterRounds` damage or heal row has
+no entry at the cast, so it writes no anchor of its own: it prompts only where
+another row of the cast leaves the bearer a record (a condition row, an `ignite`
+row, an `eachRound` row).
+
+*The prompt.* On lib's `acksExtras.turnBegan` and `acksExtras.turnEnded`, which
+fire on the primary GM's client alone, `duePrompts` answers the prompts the
+combatant's turn raises: at a start, the caster-turn prompt of each cast whose
+caster it is (while the caster's record stands; it meets every bearer of the cast)
+and the bearer-start prompt of each cast it holds a record of; at an end, the
+bearer-end prompt. The cast is found by the `castId` on the actor's records, its
+card by the message holding that `castCard` and no `recurOf`, its rows by the
+card's mode and picks; with the card, spell or caster gone nothing is posted. The
+GM's client posts, through `postCastCard`, one card per cast, moment, round of the
+fight and bearer (`samePrompt` skips a repeat): a `castCard` model
+(`promptModel`: the cast's spell, caster, level, mode, picks and save, a row each
+with nothing rolled, a target per bearer, a pending entry for each row a bearer
+meets, `recur {moment, round, combatId, bearer, pick}`) and the message flag
+`recurOf {cardId, castId, round, combatId, moment, bearer}` (`bearer` is the
+actor's uuid, blank for a caster-turn prompt and a Next round's, which meet them
+all; the prompt's targets are actors, so the presses read a target's actor from
+an actor or a token alike). A prompt asks damage
+and heal rows, and condition rows that ask a save. Outside a fight the cast
+card's **Next round** (the caster's owners and GMs, through `magicCastNextRound`)
+posts each moment of the round in turn for every bearer, counting rounds on the
+card (`recurRound`); the GM's client refuses it while a begun fight holds the
+caster. With no GM connected no prompt is posted on the hook, and Next round
+answers no GM.
+
+*The presses* roll on the presser's seat and are applied on the GM's client. A
+prompt's entries have no Apply: **Save** (`magicCastSave`; the bearer's owners and
+GMs) rolls the bearer's saving throw against what the row resists
+(`resistedDamage`), and where the pass does not negate the amount (`saveFractionOf`)
+rolls the row's damage or healing too; **Roll** (`magicCastRoll`; the caster's
+owners and GMs) rolls the row and applies it, with no save, to the bearer. A **pick
+row** has one line with Roll: the presser's one targeted token must be within the
+spell's range (`pickRange`, a Player blocked and a Judge warned; the relay does not
+measure again), and the relay adds it to the prompt as a target. Nothing is ever
+auto-rolled, an NPC's save included. The relay (`relayRecur`) requires a prompt a
+GM authored, the requester owning the bearer for a Save and the caster for a Roll,
+a row the prompt asks that recurs, an anchor that still stands, and a Save only on
+a row that asks one and a Roll only on one that asks none; a pick row is pressed
+once and only with a target named, any other with none (`checkRecurRequest`).
+Level, mode, picks, rows and duration come from the original cast card
+(`worldFor`'s `source`), and the rest is the cast relay's own check
+(`checkApplyRequest`): the save's target and total recomputed, the amount within
+the row's bounds, the gates. A passed save that negates carries no figure
+(`settleEntries`). The damage or healing goes through `applyOnTarget` as a cast's
+does (defenses, rounding, instances, a failed save's loss path). A pass then ends
+what the row asks: `recurSave: row` deletes that bearer's records of the row;
+`cast` deletes the caster's held record with `endCause: "saved"`, so the one
+funnel ends the cast and its card lists what ended (cause "A passed saving
+throw"), and a cast not held ends its own records and the caster's. The entry
+keeps `ended {kind, count}`. Entries and Undo live on the prompt card.
 
 **Casting a spell** (`cast-spell.mjs`, registered at `init` after the
 summoning's). A second claimant (key `acks-extras.magic.castSpell`) takes the
@@ -534,7 +623,8 @@ cancel at any point before the spend costs nothing:
    `none`) it is written whatever the rows are: status-only, `concentrating` or
    `concentratingStationary` by the kind held, with `held` and `tail` in the flag,
    flag-timed by the cap where there is one. For any other duration it is written
-   only where the duration is timed and a row lasts.
+   only where the duration is timed and a row lasts, or where a row recurs on the
+   caster's turn ("Recurring rows", below).
 8. *The application* (`cast-apply.mjs`), where the seat had targets, for each
    target on the right client. The amount is the roll through the save's fraction,
    then the target's defenses, then `amountAfter`'s one rounding, to `adjustHp`
@@ -642,7 +732,8 @@ caster's held record goes (damage or a failed save through lib's loss path, the
 status's own toggle, a hand delete, another cast, the cap running out) the client
 that deleted it ends the cast, in one funnel on `deleteActiveEffect` for its own
 user's delete, because the cause exists only there. The cause, read before
-anything awaits: the cast's own delete names `cast` or `time` in the operation's
+anything awaits: the cast's own delete names `cast`, `time` or `saved` (a
+recurring prompt's passed save, below) in the operation's
 options (`{"acks-extras": {endCause}}`); else lib's `lossInFlight(actor)` gives
 `damage` or `save`; else `removed`. `heldEndPlan` sorts the cast's recipient
 records, found by `castId` over every actor and unlinked token, by the caster

@@ -721,7 +721,7 @@ the one the walk rigs or reads back.
 | Marker | What it is |
 |---|---|
 | `magic/widen-spell-blindingFlash` | The copy of the imported `def.spell.blindingFlash`; its condition row is `lasts: nextTurn` as imported. |
-| `magic/widen-spell-kindleFlame` | The copy of the imported `def.spell.kindleFlame`. Its imported burning row lasts `duration` and the imported `rounds` figure sits on its `ignite` row, which writes no record, so the step writes `lasts: rounds` and a `rounds` formula on the burning row through the row editor (a step's own formula, rigged by the dice) and blanks it again in the step after. |
+| `magic/widen-spell-kindleFlame` | The copy of the imported `def.spell.kindleFlame`. Its imported burning row lasts `duration`, and the imported `rounds` figure sits on its `ignite` row, a different option of the spell's choice group, so a cast of the creature option has no rounds figure of its own: the step writes `lasts: rounds` and a `rounds` formula on the burning row through the row editor (a step's own formula, rigged by the dice) and blanks it again in the step after. |
 
 Each step asserts its shape at its start (the fight's current turn, no record of
 an earlier run on the target, the row as the step needs it).
@@ -762,6 +762,97 @@ an earlier run on the target, the row as the step needs it).
 Teardown: the run's Combat, cast cards and records are swept by the uuids and ids
 the walk tracked as it made them; the copies and the fixtures stay, and the
 kindle copy's row is left blank of a lifetime, as imported.
+
+### Recurring prompts
+
+Walked by `tools/live/magic-cast-widen.mjs` after the record-lives steps, on the
+GM and Player seats (MODEL, "Recurring rows"). The walk's Combat is created for
+the run and swept with it, as the record-lives steps' is: the prompts follow the
+turns, so a fight is the state under test, and a turn is advanced with the
+tracker's own `nextTurn()`. No figure is printed here: every count and total is
+rigged by the dice or read back.
+
+| Marker | What it is |
+|---|---|
+| `magic/widen-spell-thunderclap` | The copy of the imported `def.spell.thunderclap`: a damage row that resolves at the cast and a deafening condition row that recurs `laterRounds`, `bearerEnd`, `recurSave: row`. |
+| `magic/widen-spell-chokingGrip` | The copy of `def.spell.chokingGrip`: a held cast whose damage row recurs `eachRound`, `casterTurn`, `recurSave: cast`. |
+| `magic/widen-spell-mageMissile` | The copy of `def.spell.mageMissile`: a damage row that recurs `eachRound`, `casterTurn`, `recurTarget: pick`. |
+| `magic/widen-spell-kindleFlame` | The copy of `def.spell.kindleFlame` (record lives, above). |
+
+Each step asserts its shape at its start (the fight's current turn, no record or
+prompt of an earlier run on the fixtures, the row as the step needs it). A prompt
+is found by its `recurOf` flag and the run's cast id; it is posted
+asynchronously on the primary GM's window, so poll for it.
+
+The Save steps need a bearer the Player seat owns and one it does not, which the
+other steps' fixtures are not by default (Drive mechanics): `magic/widen-target-a`
+is the owned bearer and `magic/widen-target-b` the one that is not. The first
+step sets the Player seat's ownership of `magic/widen-target-a`'s actor to Owner,
+asserted at its start since a kept fixture carries what the last walk left, and
+the walk's last step sets it back by the same write. `magic/widen-far` is the
+token beyond the spell's range, and is no bearer.
+
+1. In the fight, cast Thunderclap on the caster's turn at `magic/widen-target-a`
+   and `magic/widen-target-b`. *Observable:* the cast writes the deafened record on
+   each target that did not save, carrying its `rowKey`, and the damage row
+   applies at the cast as any row does.
+2. Advance the tracker to the end of `magic/widen-target-a`'s turn. *Observable:*
+   one prompt card whose flag `recurOf` names the cast, the round and `moment:
+   "bearerEnd"`, with one target and a Save on that row, nothing rolled; the
+   Player seat that owns the target sees Save, a seat that does not sees none.
+   Press Save as the owning Player with the dice rigged to pass. *Observable:* the
+   entry reads Saved, that target's deafened record is gone, the other target's
+   stands (its own prompt is at its own turn end), and the GM seat's card shows
+   the figure's tooltip with the page.
+3. Repeat the turn with the dice rigged to fail. *Observable:* the entry reads
+   Failed, the record stands, and no second prompt is posted for the same round
+   and bearer when the tracker is stepped back and forward.
+4. From the Player seat, send `magicCastSave` for `magic/widen-target-b` (a bearer
+   it does not own) and `magicCastRoll` for a prompt whose card a Player authored.
+   *Observable:* the first is refused `notOwner`, the second `notAuthor`, and
+   nothing is written.
+5. Cast Choking Grip from the caster's turn at the target, a held cast. Advance
+   to the caster's next turn. *Observable:* a prompt at `moment: "casterTurn"`
+   with the target and a Save. Press Save as the target's owner rigged to fail:
+   the damage is rolled and applied in the one press, with the target's defenses
+   as a cast's, and the caster's record stands. Advance to the next caster turn
+   and press Save rigged to pass. *Observable:* the caster's held record is gone,
+   the target's records of the cast are gone, and the end card names the cause "A
+   passed saving throw" and lists what ended; Restore (GM) puts them back.
+6. Cast Magic Missile and advance to the caster's turn. *Observable:* a prompt at
+   `moment: "casterTurn"` with one line and a Roll and no target. As the caster's
+   Player, target one token within range and press Roll: the damage is rolled
+   there, applied to that token by the GM's client, and the line now names the
+   target. Target `magic/widen-far` out of range and press Roll: a Player is
+   refused with the range notice and nothing is sent; the GM is warned and the
+   press goes through. Pressing Roll a second time on the same prompt is refused
+   `applied`. A press with two tokens targeted, or none, says so and sends
+   nothing.
+7. On the kindle copy, cast in the fight with the creature option and advance to
+   the target's turn start. *Observable:* a prompt at `moment: "bearerStart"`
+   whose row is the burning damage, with a Roll for the caster's owner and none
+   for the target's Player; pressed, the damage applies to the target. The
+   rounds the burning lasts are the burning row's own `lasts` (record lives,
+   step 5). Cast the objects option on the same copy at a token: the `ignite`
+   row writes that recipient's status-free record carrying `rowKey` and, in a
+   fight, `turnLife` `{edge: "start", count: <rolled>, seen: 0}`, and lib deletes
+   that record by id at the start of the token's turn that reaches the count; the
+   entry's tooltip names the roll and the end written.
+8. Outside a fight (the Combat ended), cast Thunderclap and press **Next round**
+   on its card as the caster's Player. *Observable:* the round's prompts are
+   posted by a GM (message author a GM), each moment with its bearers; a second
+   press posts round two's, and `castCard.recurRound` reads 2. Press it as a
+   Player who does not own the caster: refused `notOwner`. Press it in a fight
+   that holds the caster: refused `inFight`.
+9. With no GM connected (the GM seat closed) advance a turn: no prompt is posted,
+   and Next round answers that no Judge is connected. Reconnect the GM seat and
+   press it: the prompts are posted. Last, set the Player seat's ownership of
+   `magic/widen-target-a`'s actor back to what step 1 found.
+
+Teardown: the run's Combat, cast cards, prompt cards, end cards and records are
+swept by the ids the walk tracked as it made them (a prompt is the GM client's
+write, so it is tracked by the flag and the cast id read back, and listed by id);
+the copies and the fixtures stay.
 
 ### Drive mechanics
 

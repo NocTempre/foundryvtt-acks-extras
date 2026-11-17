@@ -19,8 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, CAST_MODES } from "./cast-rows.mjs";
-import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
@@ -202,8 +201,18 @@ async function readWorld(spell) {
 /** A target as the card keeps it. */
 const targetOf = (token) => ({ uuid: token.uuid, name: token.name || token.actor?.name || "" });
 
+/**
+ * The kinds of the ruling-14 family (a record and a card line, no arithmetic) that name a recipient and lasting
+ * write the recipient's record, not only a line: the card carries them as a row with an entry per target. Only
+ * `ignite` is one so far; a row that lasts once leaves no record and stays a line.
+ */
+export const RECORD_KINDS = Object.freeze(["ignite"]);
+
+/** Does this row write a record on the recipient, as a card row with an entry per target? */
+export const writesRecipientRecord = (row) => RECORD_KINDS.includes(row?.type) && !aimedAtSelf(row) && ["duration", "rounds", "nextTurn"].includes(row.lasts);
+
 /** The Roll of one non-thrown row, with the figures the card shows. */
-async function rollRow(caster, spell, card, keyed) {
+export async function rollRow(caster, spell, card, keyed) {
   const spec = await rowSpecOf(caster, spell, card, keyed);
   if (!spec) return { total: null, formula: "", detail: "", roll: null };
   const roll = await new Roll(spec.formula, spec.data).evaluate();
@@ -271,14 +280,14 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   const entries = {};
   const rolls = [];
   const level = card.casterLevel?.value ?? null;
-  const opens = (r) => (r.type === "conditionGrant" ? r.conditions.length : isModRow(r) ? r.blank !== true : r.total != null);
+  const opens = (r) => (r.type === "ignite" ? true : r.type === "conditionGrant" ? r.conditions.length : isModRow(r) ? r.blank !== true : r.total != null);
   const open = rows.filter(({ key }) => card.rows[key] && opens(card.rows[key]));
   // A thrown row's entry opens at its throw, so it is listed with the rows that open one only to be marked exempt.
   const entered = rows.filter(({ key, row }) => card.rows[key] && (opens(card.rows[key]) || (rowNeedsThrow(row) && card.rows[key].blank !== true)));
   const hasSelf = rows.some(({ row }) => aimedAtSelf(row));
   // A condition that lasts a number of rounds opens with its count rolled, once for this target's record and shown on the card; a formula the import left blank, or one that will not roll, opens with no count.
   const opened = async (row) => {
-    if (row.type !== "conditionGrant" || row.lasts !== "rounds") return {};
+    if ((row.type !== "conditionGrant" && row.type !== "ignite") || row.lasts !== "rounds") return {};
     const formula = roundsFormulaOf(row);
     const none = { life: { kind: "rounds", count: null, formula } };
     if (!formula) return none;
@@ -308,7 +317,7 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   const damage = resistedDamage(rows);
   for (const token of tokens) {
     const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
-    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row) && gates[key].affected);
+    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && row.type !== "ignite" && !aimedAtSelf(row) && !rowNeedsThrow(row) && gates[key].affected);
     const made = resisting
       ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
@@ -529,7 +538,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   for (const keyed of kept) {
     const { row } = keyed;
     if (isModRow(row)) continue;
-    if (row.type === "damage" || row.type === "heal") {
+    if ((row.type === "damage" || row.type === "heal") && !resolvesAtCast(row)) {
+      // A row that recurs from the later rounds waits for its first moment (`cast-recur.mjs`); the card says so in a line.
+      card.lines.push(describeSpellEffect(row).text);
+    } else if (row.type === "damage" || row.type === "heal") {
       const count = instanceCount(row, level.value);
       if (rowNeedsThrow(row)) {
         // A thrown row whose count the import left blank is thrown at nobody: the card carries the page reference alone.
@@ -543,6 +555,11 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     } else if (row.type === "conditionGrant") {
       card.rows[keyed.key] = cardRow(keyed, {});
       card.order.push(keyed.key);
+    } else if (writesRecipientRecord(row)) {
+      // A ruling-14 kind with a recipient: its record is the recipient's, and its line says what the Judge applies by hand.
+      card.rows[keyed.key] = cardRow(keyed, {});
+      card.order.push(keyed.key);
+      card.lines.push(describeSpellEffect(row).text);
     } else {
       card.lines.push(describeSpellEffect(row).text);
     }
@@ -592,7 +609,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
 
   // A concentration leaves a caster record whatever the rows are: the status held, the tail it outlasts by, flag-timed by its cap where it has one.
   const held = card.duration?.held;
-  const timed = card.duration && !card.duration.none && kept.some(({ row }) => row.lasts === "duration");
+  // A row that recurs on the caster's turn recurs while the caster's record stands (`cast-recur.mjs`), so it counts as lasting; the record is still written only for a timed cast, since an untimed one would never end.
+  const timed = card.duration && !card.duration.none && (castersTurnRecurs(kept) || kept.some(({ row }) => row.lasts === "duration"));
+  card.recurs = kept.some(({ row }) => isRecurring(row));
   if (held || timed) {
     const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", startTime: deps.now() };
     const data = held

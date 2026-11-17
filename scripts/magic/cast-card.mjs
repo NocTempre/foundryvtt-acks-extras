@@ -43,6 +43,9 @@ export const CARD_ACTIONS = Object.freeze({
   applyTargets: "magicCastApplyTargets",
   throw: "magicCastThrow",
   undo: "magicCastUndo",
+  save: "magicCastSave",
+  roll: "magicCastRoll",
+  nextRound: "magicCastNextRound",
 });
 
 /** A new target key of the card. */
@@ -125,15 +128,17 @@ function lifeTip(life, card, loc) {
   const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
   if (life.kind === "rounds" && life.count == null) return cite;
   const count = life.kind === "nextTurn" ? 1 : life.count;
-  const lasts = life.kind === "nextTurn" ? loc("tip.lastsNextTurn") : loc("tip.lastsRounds", { count, formula: life.formula, detail: life.detail || count });
-  const ends = life.turn === undefined ? "" : life.turn ? loc(life.kind === "nextTurn" ? "tip.endsTurnEnd" : "tip.endsTurnStart", { count }) : loc("tip.endsClock", { count });
+  // A count of one reads in the singular: its own keys, as the importer's counted strings do (`...One`).
+  const one = count === 1 ? "One" : "";
+  const lasts = life.kind === "nextTurn" ? loc("tip.lastsNextTurn") : loc(`tip.lastsRounds${one}`, { count, formula: life.formula, detail: life.detail || count });
+  const ends = life.turn === undefined ? "" : life.turn ? loc(life.kind === "nextTurn" ? "tip.endsTurnEnd" : `tip.endsTurnStart${one}`, { count }) : loc(`tip.endsClock${one}`, { count });
   return [lasts, ends, cite].filter(Boolean).join(" ");
 }
 
 /** What a condition entry's line says of its life: how many rounds, or until the bearer's next turn ends; nothing where the record is untimed. */
 function lifeDetail(life, loc) {
   if (life?.kind === "nextTurn") return loc("detail.lastsNextTurn");
-  return life?.kind === "rounds" && life.count != null ? loc("detail.lastsRounds", { count: life.count }) : "";
+  return life?.kind === "rounds" && life.count != null ? loc(life.count === 1 ? "detail.lastsRoundsOne" : "detail.lastsRounds", { count: life.count }) : "";
 }
 
 /** A row's figure tooltip: its dice and the page the procedure is cited to; the citation alone for a blank figure. A count the import gave names its parts first. */
@@ -181,6 +186,17 @@ function entryActions(entry, ids, { isGM, canPress }, loc, { group = false, name
   return out;
 }
 
+/**
+ * The press a pending entry of a recurring prompt offers this seat (`cast-recur.mjs`): Save where the row asks its
+ * bearer for a throw, to the bearer's owners and the Judge; Roll where it asks none, to the caster's owners and the Judge.
+ */
+function recurActions(entry, ids, row, { maySave, mayRoll }, loc) {
+  if (entry?.state !== "pending") return [];
+  const data = { target: ids.targetKey, row: ids.rowKey };
+  if (row.recur?.save) return maySave ? [{ action: CARD_ACTIONS.save, label: loc("button.save"), icon: "fa-solid fa-shield-halved", data, tooltip: loc("tip.recurSave") }] : [];
+  return mayRoll ? [{ action: CARD_ACTIONS.roll, label: loc("button.roll"), icon: "fa-solid fa-dice", data, tooltip: loc("tip.recurRoll") }] : [];
+}
+
 /** The result word and emphasis of an entry. */
 function outcomeOf(entry, loc) {
   if (!entry) return { outcome: "" };
@@ -217,6 +233,10 @@ export function castCardView(card, seat, loc) {
       // The defense a figure names is the Judge's and the target's owners' to read; every other seat reads "a defense".
       const named = namesDefense({ isGM: seat.isGM === true, ownsTarget: seat.ownsTarget?.(target) === true });
       const judged = entry?.state === "judge" && entry.defense ? entry.defense : null;
+      // A prompt names a bearer only for the rows it meets: the others have no entry and no line.
+      if (card.recur && !entry) continue;
+      const mayRoll = seat.isGM === true || seat.ownsCaster === true;
+      const maySave = seat.isGM === true || seat.ownsTarget?.(target) === true;
       const line = isMod
         ? {
             name: target.name,
@@ -240,7 +260,10 @@ export function castCardView(card, seat, loc) {
               .filter(Boolean)
               .join(" · "),
             ...outcomeOf(entry, loc),
-            actions: entryActions(entry, { targetKey, rowKey }, seat, loc),
+            // A prompt's entries are pressed through Save and Roll, never Apply; its applied entries keep the Judge's Undo.
+            actions: card.recur
+              ? [...recurActions(entry, { targetKey, rowKey }, row, { maySave, mayRoll }, loc), ...entryActions(entry, { targetKey, rowKey }, { ...seat, canPress: false }, loc)]
+              : entryActions(entry, { targetKey, rowKey }, seat, loc),
           };
       if (resist?.noSave) {
         Object.assign(line, { target: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
@@ -250,7 +273,17 @@ export function castCardView(card, seat, loc) {
       }
       rows.push(line);
     }
-    if (!targets.length) {
+    // A pick row of a prompt has no target until it is pressed: one line with the caster's Roll, which takes the presser's one target.
+    if (card.recur && (card.recur.pick ?? []).includes(rowKey) && !Object.keys(card.entries ?? {}).some((id) => id.endsWith(`_${rowKey}`))) {
+      const mayRoll = seat.isGM === true || seat.ownsCaster === true;
+      rows.push({
+        name: loc("recur.pick"),
+        total: "—",
+        tooltipText: rollTip(row, card, loc),
+        actions: mayRoll ? [{ action: CARD_ACTIONS.roll, label: loc("button.roll"), icon: "fa-solid fa-dice", data: { row: rowKey }, tooltip: loc("tip.recurPick") }] : [],
+      });
+    }
+    if (!targets.length && !card.recur) {
       const needsThrow = Boolean(row.delivery);
       rows.push({
         name: loc("noTarget"),
@@ -262,12 +295,18 @@ export function castCardView(card, seat, loc) {
     const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
     sections.push({ title: titleOf(row, loc), titleTooltip: isMod ? cite : rollTip(row, card, loc), rows });
   }
-  const loose = !targets.length && (card.order ?? []).some((k) => !card.rows?.[k]?.delivery);
+  const loose = !card.recur && !targets.length && (card.order ?? []).some((k) => !card.rows?.[k]?.delivery);
   const buttons = loose && seat.canPress ? [{ action: CARD_ACTIONS.applyTargets, label: loc("button.applyTargets"), icon: "fa-solid fa-crosshairs", tooltip: loc("tip.applyTargets") }] : [];
+  // A cast with a recurring row offers its caster's seat and the Judge the round's prompts by hand, for a cast no fight keeps.
+  if (card.recurs && !card.recur && (seat.isGM === true || seat.ownsCaster === true)) {
+    buttons.push({ action: CARD_ACTIONS.nextRound, label: loc("button.nextRound"), icon: "fa-solid fa-forward-step", tooltip: loc("tip.nextRound") });
+  }
   return {
-    title: card.spellName,
+    title: card.recur ? loc("recur.title", { name: card.spellName }) : card.spellName,
     subtitle: card.casterName ?? "",
-    note: [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : ""].filter(Boolean).join(" · "),
+    note: card.recur
+      ? [loc(`recur.moment.${card.recur.moment}`), loc("recur.round", { round: card.recur.round })].join(" · ")
+      : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : ""].filter(Boolean).join(" · "),
     noteTooltip: levelTip(card, loc),
     sections,
     footnote: (card.lines ?? []).join(" · "),
@@ -294,12 +333,12 @@ export const cardOf = (message) => message?.flags?.[MODULE_ID]?.[CAST_CARD_FLAG]
  * message so Dice So Nice shows them.
  * @returns {Promise<ChatMessage>}
  */
-export async function postCastCard(card, { rolls = [], mode = "public", speaker } = {}) {
+export async function postCastCard(card, { rolls = [], mode = "public", speaker, flags = {} } = {}) {
   const data = {
     speaker: speaker ?? ChatMessage.getSpeaker(),
     content: castCardContent(card, cardLoc),
     rolls,
-    flags: { [MODULE_ID]: { [CAST_CARD_FLAG]: card } },
+    flags: { [MODULE_ID]: { ...flags, [CAST_CARD_FLAG]: card } },
   };
   const applied = ChatMessage.applyMode?.(data, mode);
   return ChatMessage.create(applied && typeof applied === "object" ? applied : data);
@@ -344,7 +383,7 @@ function onRender(message, html) {
   if (!card || !root) return;
   const body = root.querySelector?.(".message-content");
   if (!body) return;
-  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget };
+  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget, ownsCaster: docOf(card.casterUuid)?.testUserPermission?.(game.user, "OWNER") === true };
   body.innerHTML = renderRollCard(castCardView(card, seat, cardLoc));
   body.querySelectorAll("[data-action^='magicCast']").forEach((button) => {
     button.addEventListener("click", (event) => {

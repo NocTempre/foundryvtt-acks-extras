@@ -109,6 +109,30 @@ export function rowsForMode(rows, mode, picks = {}) {
   });
 }
 
+/** The values of a row's `recur` that repeat it. `eachRound` resolves at the cast and then recurs; `laterRounds` only after the cast. */
+export const RECURRENCES = Object.freeze(["eachRound", "laterRounds"]);
+
+/** The moments a recurring row resolves at (`recurAt`). */
+export const RECUR_MOMENTS = Object.freeze(["casterTurn", "bearerStart", "bearerEnd"]);
+
+/** Does this row repeat while the spell lasts? */
+export const isRecurring = (row) => RECURRENCES.includes(row?.recur);
+
+/** Does this row resolve at the cast itself? A damage or heal row that recurs `laterRounds` waits for its first moment. */
+export const resolvesAtCast = (row) => row?.recur !== "laterRounds";
+
+/**
+ * The recurring rows of one moment, from keyed rows (`keyedRows`, `rowsForMode`):
+ * those that repeat and name that moment in `recurAt`. A recurring row with no
+ * moment is named at none.
+ * @param {Array<{row: object, key: string, index: number}>} rows
+ * @param {"casterTurn"|"bearerStart"|"bearerEnd"} moment
+ */
+export const recurringRows = (rows, moment) => (rows ?? []).filter(({ row }) => isRecurring(row) && row.recurAt === moment);
+
+/** Does any of these keyed rows recur on the caster's turn? Such a cast keeps the caster's record while it lasts. */
+export const castersTurnRecurs = (rows) => recurringRows(rows, "casterTurn").length > 0;
+
 /** Does this row need the caster's attack throw to land before it applies? */
 export const rowNeedsThrow = (row) => row?.type === "damage" && THROWN.includes(row.delivery);
 

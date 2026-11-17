@@ -55,6 +55,7 @@ import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife } from "./cast-life.mjs";
 import { fightHolding } from "./cast-moment.mjs";
+import { anchorsNeeded } from "./cast-recur.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -122,17 +123,19 @@ const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band,
  * rounds, and lib's turn flag where the bearer holds a turn in a begun fight; a
  * life with no count leaves the record untimed.
  */
-export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null }) {
+export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null, anchor = false }) {
   const lived = Boolean(life?.rounds);
-  const timed = lived || (row.lasts === "duration" && duration && !duration.none);
+  const timed = lived || ((row.lasts === "duration" || anchor) && duration && !duration.none);
   const clock = lived ? { value: life.rounds, units: "rounds" } : duration;
-  return Array.from(row.conditions ?? []).map((status) =>
+  // A row that names no condition (an ignite row, a recurring row's anchor) leaves one status-free record.
+  const statuses = row.type === "conditionGrant" ? Array.from(row.conditions ?? []) : [undefined];
+  return statuses.map((status) =>
     spellEffectData({
       spell: { uuid: card.spellUuid, name: card.spellName, img: spell?.img ?? spellImg },
       caster: { uuid: card.casterUuid },
       castId: card.castId,
       role: "recipient",
-      statuses: [status],
+      statuses: status ? [status] : [],
       rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
       duration: timed ? clock : undefined,
@@ -262,7 +265,7 @@ export function checkApplyRequest(req, world) {
     if (card.entries?.[entryId(req.targetKey, e.rowKey)]?.state === "exempt" || world.gateOf?.(row.row)?.affected === false) return { refused: "exempt" };
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
     // A condition row has no amount; a rounds count it lasts is checked against its formula's reach. A modifier or ward row has no amount either: its figure is the spell's, read at the roll.
-    if (row.row.type === "conditionGrant") {
+    if (row.row.type === "conditionGrant" || row.row.type === "ignite") {
       const refused = checkRounds(row.row, e, world);
       if (refused) return { refused };
       continue;
@@ -367,6 +370,8 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
       out.push({ id, entry });
     }
     if (group.length) await applyGroup({ card, targetKey, group, resist, found, deps, out });
+    // A recurring prompt's own entries (`card.recur`) are never anchored again: their cast wrote its anchors when it applied.
+    if (!target.self && !card.recur) await anchorRecurring({ card, targetKey, resist, found, deps, out, requests });
   } finally {
     for (const { key } of claimed) inFlight.delete(key);
   }
@@ -406,12 +411,41 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
   }
 }
 
+/**
+ * A recurring row's anchor on one bearer (`cast-recur.mjs` `anchorsNeeded`): where
+ * the cast leaves the bearer no record the row can recur on, the row writes a
+ * status-free recipient record carrying its `rowKey`, `startTime` and its life
+ * (the row's `lasts`, else the cast's duration), and the entry names it among its
+ * `recordIds`, so an Undo takes it off with the rest.
+ */
+async function anchorRecurring({ card, targetKey, resist, found, deps, out, requests }) {
+  const applied = out.filter((o) => o.entry).map(({ id, entry }) => ({ rowKey: id.slice(targetKey.length + 1), entry }));
+  for (const keyed of anchorsNeeded({ rows: deps.rows ?? [], applied })) {
+    const entry = applied.find((a) => a.rowKey === keyed.key).entry;
+    const asked = requests.find((r) => r.rowKey === keyed.key);
+    const life = hasLife(keyed.row) ? lifeOf(keyed.row, { count: asked?.rounds ?? null, fight: keyed.row.lasts === "nextTurn" || roundsFormulaOf(keyed.row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const records = conditionRecords(keyed.row, card, { resist, startTime: deps.now(), key: keyed.key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life, anchor: true });
+    const ids = await deps.createRecords(found.actor, records);
+    const next = { ...entry, recordIds: [...(entry.recordIds ?? []), ...ids] };
+    await deps.writeEntry(entryId(targetKey, keyed.key), next);
+    const done = out.find((o) => o.id === entryId(targetKey, keyed.key));
+    if (done) done.entry = next;
+  }
+}
+
 /** One row on one target: the entry it leaves. `keyed` is the spell's own row. */
 async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps, existing, rounds = null }) {
   const { row, key } = keyed;
   const by = deps.by ?? null;
   if (hits) return applyInstances({ card, keyed, hits, resist, found, deps, existing });
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
+  // An ignite row names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
+  if (row.type === "ignite") {
+    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: row.lasts === "nextTurn" || roundsFormulaOf(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const records = conditionRecords(row, card, { resist: null, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
+    const ids = await deps.createRecords(found.actor, records);
+    return { ...base, state: "applied", saved: null, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
+  }
   if (row.type === "conditionGrant") {
     const made = saveFractionOf(row, card.save, resist);
     if (made.fraction === null || (made.fraction !== 1 && made.fraction !== 0)) return { ...base, state: "judge", saved: made.saved };
@@ -559,6 +593,9 @@ export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
   };
 }
 
+/** The actor a card target names: the target itself where it is an actor (a recurring prompt's bearers are actors), else its token's actor. */
+const actorOfTarget = (doc) => (doc?.documentName === "Actor" ? doc : (doc?.actor ?? null));
+
 /** Is this a token of the caster whose spell the card names? The card's token uuid is the seat's word, so it is read only where it checks. */
 const tokenOfCaster = (token, caster) => Boolean(token && caster && (token.actor === caster || (token.actor?.uuid && token.actor.uuid === caster.uuid)));
 
@@ -597,7 +634,7 @@ async function castInputs(card, targetDoc, { recompute = false } = {}) {
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const lookups = { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) };
   const rows = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks) : [];
-  const pick = card?.item?.id ? targetDoc?.actor?.items?.get?.(card.item.id) : null;
+  const pick = card?.item?.id ? actorOfTarget(targetDoc)?.items?.get?.(card.item.id) : null;
   // The gates read the spell's figures as they stand now and the card's caster level.
   const extras = spell ? castGateExtrasOf(spell, lookups) : null;
   return {
@@ -612,20 +649,26 @@ async function castInputs(card, targetDoc, { recompute = false } = {}) {
   };
 }
 
-/** The spell and rows a card's request is checked against, read as the live world gives them. */
-async function worldFor(req, message) {
-  const card = message?.flags?.[MODULE_ID]?.castCard ?? null;
+/**
+ * The spell and rows a card's request is checked against, read as the live world
+ * gives them. `card` stands in for the message's own (a recurring prompt's, with
+ * the request's resist and target on it), and `source` is the card the spell, rows,
+ * mode, picks and duration are read from (the prompt's original cast card).
+ */
+export async function worldFor(req, message, { card: given = null, source = null } = {}) {
+  const card = given ?? message?.flags?.[MODULE_ID]?.castCard ?? null;
   const user = game.users.get(req.requestUserId);
   const targetDoc = card?.targets?.[req.targetKey] ? fromUuidSync(card.targets[req.targetKey].uuid) : null;
-  const inputs = await castInputs(card, targetDoc, { recompute: true });
+  const inputs = await castInputs(source ?? card, targetDoc, { recompute: true });
   const { caster, spell, rows } = inputs;
   let resist = null;
-  if (targetDoc?.actor && card?.save?.category) {
+  const targetActor = actorOfTarget(targetDoc);
+  if (targetActor && card?.save?.category) {
     const { saveSpec } = await import("../lib/saves.mjs");
     const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
     const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
     // What the save resists is the spell's own rows' damage, as the cast read it, so the target's defenses join this throw as they joined that one.
-    const spec = saveSpec(targetDoc.actor, card.save.category, {
+    const spec = saveSpec(targetActor, card.save.category, {
       situational: card.situational ?? null,
       against,
       bearerToken: targetDoc.documentName === "Token" ? targetDoc : null,
@@ -641,10 +684,11 @@ async function worldFor(req, message) {
     message: message ? { authorId: message.author?.id ?? message.user?.id } : null,
     card,
     ownsCaster: !user || user.isGM || caster?.testUserPermission?.(user, "OWNER") === true,
+    ownsTarget: !user || user.isGM || targetActor?.testUserPermission?.(user, "OWNER") === true,
     spellOfCaster: Boolean(spell && caster && spell.parent?.uuid === caster.uuid),
     rows,
     resist,
-    gateOf: targetDoc?.actor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetDoc.actor, row) : null,
+    gateOf: targetActor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetActor, row) : null,
     item: inputs.item,
     inputs,
     roundsBoundsOf: (row) => roundsBounds(roundsFormulaOf(row), foundryBounds),
@@ -656,7 +700,7 @@ async function worldFor(req, message) {
 }
 
 /** What `applyOnTarget` reads of a cast, from `castInputs`. */
-const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment, gate: inputs.gate });
+export const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment, gate: inputs.gate });
 
 /**
  * The relay's handler, on the GM's client: check, then apply. Answers
