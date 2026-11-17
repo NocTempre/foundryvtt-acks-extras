@@ -291,6 +291,32 @@ conditions held on its score (`withMoraleConditions`). `open` is handed the
 actor with its score as stored, and a page that wants the conditions reads
 them from `conditions.rollMath("morale", conditions.subjectOf(actor))`.
 
+### Contract `magic-item-roll` v1
+
+Provider: the magic-items feature (`scripts/magic-items/roll-service.mjs`).
+Consumers: any feature that rolls a magic item without importing it. Shape:
+
+```
+{
+  roll({from, style, rarity, category, roller}) → Promise<result>   // never throws on table content
+}
+```
+
+`from` is a list id, `"<table>.<column>"`, and wins over `style`. Otherwise
+`style` is `classic` (with `category`, the category list's key, or none to roll
+the type list that picks one), or `heroic` or `gritty` (with `rarity`, the rarity
+list's key). `roller(expr) → {total, sides}` is optional, sync or async; the
+default evaluates a Foundry `Roll`. The result is `{ok, reason?, start, steps,
+item, error?, rolls}`. `ok` is false with a `reason` of `not-imported` (the
+Judge's tables are not imported, and no figure stands in place), `rarity-required`,
+`unknown-style`, or a walk error (`bands-untiled`, `roll-failed`, `die-mismatch`,
+`roll-out-of-range`); `steps` then holds what was rolled before it. Each step is
+`{list, die, total, band: {min, max}, inner?: {die, total, band}, fields, caption,
+cite, overridden}`. `item` is `{list, text, fields, flag, hop?, uuid}`: `flag` is
+null or `unresolved-hop`, `missing-list`, `cycle` or `too-deep` (the item reached
+where the chain could not go on), and `uuid` is always null, reserved for a linked
+item. `rolls` holds the Foundry `Roll`s of the default roller.
+
 ## `vocab` — Foundry-free enums (Node-importable)
 
 Enum objects are `{ key: { label, … } }`; `vocab.choicesOf(enumObj)` maps them

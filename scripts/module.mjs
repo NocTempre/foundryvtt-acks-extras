@@ -16,6 +16,8 @@
  *              traditions a world's classes cast under, and the class spell
  *              picker reads the spell primitive; before character-sheet,
  *              which draws the Magic tab from it.
+ *   magic-items after magic — it reads the imported item tables and consumes
+ *              nothing of the spell feature; nothing consumes it.
  *   influence  before henchmen — henchmen consumes influence's Active Effect
  *              reaction convention (INFLUENCE_REACTION_KEY).
  *   location   after henchmen — the two import each other (henchmen pulls in
@@ -61,6 +63,7 @@ import "./abilities/module.mjs";
 import "./equipment/module.mjs";
 import "./classes/module.mjs";
 import "./magic/module.mjs";
+import "./magic-items/module.mjs";
 import "./formation/module.mjs";
 import "./influence/module.mjs";
 import "./henchmen/module.mjs";

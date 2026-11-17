@@ -17,7 +17,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
-import { assembledDoc } from "./produces.mjs";
+import { assembledDoc, joinCites } from "./produces.mjs";
 import { printKey } from "./printed-name.mjs";
 import { clean, sentence, tiles } from "./treasure-binding.mjs";
 
@@ -88,6 +88,7 @@ export const PRODUCES = Object.freeze({
     ...Object.fromEntries(Object.entries(LISTS).map(([table, columns]) => [table, Object.values(columns).flat()])),
     ...ARMS_RAW_KEYS,
     captions: Object.values(LISTS).flatMap((columns) => Object.values(columns).map((keys) => keys[0])),
+    listCites: Object.values(LISTS).flatMap((columns) => Object.values(columns).flat()),
     armsSettings: Object.values(ARMS_RAW_KEYS),
   },
 });
@@ -238,6 +239,26 @@ export function assembleSettings(raw = {}) {
 }
 
 /**
+ * The page each list was read from, `{<table>.<column>: cite}`: the cites of the
+ * raw segments the list is joined from, merged by `joinCites`. A list whose
+ * segments carry no cite is left out. The document's own `cites` hold one cite
+ * per assembled table, which for a table of several lists names every list's
+ * pages; this is what a roll's tooltip points at.
+ *
+ * @param {Record<string, string>} cites the raw document's `cites`, by raw key
+ */
+export function listCitesOf(cites = {}) {
+  const out = {};
+  for (const [table, columns] of Object.entries(LISTS)) {
+    for (const [column, keys] of Object.entries(columns)) {
+      const cite = joinCites(keys.map((k) => cites[k]));
+      if (cite) out[`${table}.${column}`] = cite;
+    }
+  }
+  return out;
+}
+
+/**
  * The magic-item tables from the raw ones. Pure. Each table assembles
  * independently, so a partial import still yields what its pages held.
  */
@@ -281,6 +302,8 @@ export async function applyMagicItemImport() {
   if (!svc || !doc) return { assembled: [] };
   const engine = assembleMagicItemTables(doc.tables ?? {});
   if (!Object.keys(engine).length) return { assembled: [] };
+  const listCites = listCitesOf(doc.cites);
+  if (Object.keys(listCites).length) engine.listCites = listCites;
   await svc.importDoc(assembledDoc(doc, engine, PRODUCES[MAGIC_ITEM_DOC_ID]), { priority: PRIORITY.WORLD, source: MODULE_ID });
   return { assembled: Object.keys(engine) };
 }

@@ -24,8 +24,12 @@ import {
   assembleSettings,
   bandOf,
   captionKeys,
+  applyMagicItemImport,
   hopOf,
+  listCitesOf,
 } from "../../scripts/importer/magic-item-binding.mjs";
+import * as services from "../../scripts/lib/services.mjs";
+import { PRIORITY, registerTable, resetTables } from "../../scripts/lib/tables.mjs";
 import { assembleLegend, assembleSpecialPer, assembleTypeUnits } from "../../scripts/importer/treasure-binding.mjs";
 
 let pass = 0;
@@ -115,6 +119,28 @@ eq("a row naming no caption has no hop", made.classicType.bands[2].hop, null);
 eq("the captions are kept as printed, by list", made.captions["classic.potions"], "Zz Potions");
 eq("hopOf folds case, spacing and punctuation", hopOf("zz-POTIONS", captionKeys(raw)), "classic.potions");
 eq("the lists a page held assemble and the rest are left out", Object.keys(made).sort(), ["captions", "classic", "classicType", "heroic"]);
+
+/* --- per-list cites ---------------------------------------------------------- */
+const segCites = { randomTypeRaw: "ZZ p.5", potionsRaw: "ZZ p.7", potionsMoreRaw: "ZZ p.8", ringsRaw: "ZZ p.8", scrollsRaw: "ZZ p.6; TT p.40", scrollsMoreRaw: "TT p.41" };
+const listCites = listCitesOf(segCites);
+eq("a list's cite is its segments' pages joined", listCites["classic.potions"], "ZZ p.7-8");
+eq("a list's cite is its own, not its table's", [listCites["classic.rings"], listCites["classicType.bands"]], ["ZZ p.8", "ZZ p.5"]);
+eq("each book's pages merge once", listCites["classic.scrolls"], "ZZ p.6; TT p.40-41");
+eq("a list whose segments carry no cite is left out", "classic.misc" in listCites, false);
+eq("no cites, no list cites", listCitesOf(), {});
+check("PRODUCES names the per-list cites beside the captions", PRODUCES[MAGIC_ITEM_DOC_ID].listCites.includes("potionsMoreRaw") && "captions" in PRODUCES[MAGIC_ITEM_DOC_ID]);
+
+{
+  // The import writes the per-list cites into the document beside the assembled tables.
+  let written = null;
+  services.register("ruledata-import", { importDoc: async (doc) => { written = doc; } });
+  resetTables();
+  registerTable({ id: MAGIC_ITEM_DOC_ID, source: { book: "test" }, cites: { potionsRaw: "ZZ p.7", ringsRaw: "ZZ p.8" }, tables: raw }, { priority: PRIORITY.WORLD });
+  await applyMagicItemImport();
+  eq("the import writes listCites beside the assembled tables", written.tables.listCites, { "classic.potions": "ZZ p.7", "classic.rings": "ZZ p.8" });
+  check("the raw tables stay beside them", written.tables.potionsRaw != null && written.tables.classic != null);
+  resetTables();
+}
 
 /* --- arms grids -------------------------------------------------------------- */
 const armsRaw = {

@@ -1561,7 +1561,11 @@ item, ...cells}`, a tail band `{min, max, sub: [inner bands]}`),
 `armsArmor`, `armsAmmo`, `armsAxe`, `armsBludgeon`, `armsBow`, `armsSpear`,
 `armsSword`, `armsOther` (`{s1..s7: [{min, max, type}]}`, one column per
 setting), `armsSettings` (`{s1..s7: name}`) and `captions` (`{<table>.<column>:
-caption as printed}`, a spell-level list named by its header figure). Each
+caption as printed}`, a spell-level list named by its header figure) and
+`listCites` (`{<table>.<column>: cite}`: the pages of the raw segments each list
+is joined from, `joinCites` of their cites, so a list the Tome's version replaced
+cites the Tome; the document's `cites` name only a whole table's pages, and the
+magic-items roll's tooltip reads this one). Each
 Random Type row carries `hop`: the id `<table>.<column>` of the one list whose
 folded caption (`printKey`) is the folded words of the row, else null.
 `check-magic-item-tables.mjs` reads the real pages and fails on a refused or
