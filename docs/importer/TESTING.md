@@ -3901,6 +3901,9 @@ The `treasure` registry document (JJ ch. 4), read from the seat's own Judges
 Journal and projected as RollTables. `tools/importer/check-treasure-tables.mjs`
 already proves the page reads whole offline; this walk proves the import writes
 it, the browser lists it, and the RollTables hold it.
+`tools/live/importer-treasure-tables.mjs` walks steps 1 to 4 and 7 to 10 of this
+section and steps 1 to 4 and 7 of the next, with both books connected; the
+edit-and-drop steps and the Journal-only seat are walked by hand.
 
 ### Fixtures
 
