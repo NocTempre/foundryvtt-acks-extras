@@ -21,6 +21,9 @@ check("a signed cell parses", parseSigned("+3") === 3 && parseSigned("-1") === -
 check("a target reads its plus", parseTargetPlus("of 9+ (5+ if") === 9);
 check("a bonus keeps its sign until the caller decides", parseSignedClause("gains a +6 bonus") === 6 && parseSignedClause("a - 8 penalty") === -8 && parseSignedClause("none") === null);
 check("dice read from a window", parseDice("suffers 3d12  structural") === "3d12");
+check("a +K after the die is kept", parseDice("loses 2d6 + 3 days") === "2d6+3" && parseDice("1d4-1 hits") === "1d4-1");
+check("a bare die keeps no modifier it was not printed with", parseDice("1d6 and 3 more") === "1d6");
+check("the word round before a figure is no die", parseDice("on round 20 it ends") === null);
 check("a share reads fraction or number", parseShare("1/5 damage to") === 0.2);
 
 /* --- assembly ------------------------------------------------------------- */

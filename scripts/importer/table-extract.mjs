@@ -100,18 +100,20 @@ export function applyCellPattern(text, pattern = "raw") {
       // restored (`tidyRowName`).
       return tidyRowName(t);
     case "int": {
-      const m = t.match(/-?\d[\d,]*/);
+      // A figure printed with a typographic minus, en dash or em dash keeps
+      // its sign; the leftmost figure is read, so "10–20" is 10.
+      const m = t.replace(/[−–—]/g, "-").match(/-?\d[\d,]*/);
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
     }
     case "num": {
-      const m = t.match(/-?\d[\d,]*(?:\.\d+)?/);
+      const m = t.replace(/[−–—]/g, "-").match(/-?\d[\d,]*(?:\.\d+)?/);
       return m ? Number(m[0].replace(/,/g, "")) : null;
     }
     case "dashNull":
       return t === "-" || t === "—" || t === "" ? null : t;
     case "intDash": {
       if (t === "-" || t === "—" || t === "") return null;
-      const m = t.match(/[+-]?\d[\d,]*/);
+      const m = t.replace(/[−–—]/g, "-").match(/[+-]?\d[\d,]*/);
       return m ? parseInt(m[0].replace(/,/g, ""), 10) : null;
     }
     case "dashZero": {

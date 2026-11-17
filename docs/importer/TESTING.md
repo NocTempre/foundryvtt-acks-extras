@@ -544,6 +544,13 @@ counting, run offline in `tools/importer/test-import-manager.mjs` and
    book*, and nothing imported. Then press **Import everything**.
    *Observable:* no confirm opens at the creatures step, and the chain runs to
    its end with the window's status line naming each step in turn.
+10. **Two openers in one tick.** With the window closed, in the page context:
+    `const M = game.settings.menus.get("acks-extras.importManager");
+    acksExtras.importer.openImportManager(); new M.type().render(true);`
+    in the same tick, so the second call lands while the first window is
+    still rendering. *Observable:*
+    `document.querySelectorAll("#acks-extras-import-manager").length === 1`.
+    Run it again in the other order (menu first, macro second): still one.
 
 ### Teardown
 
