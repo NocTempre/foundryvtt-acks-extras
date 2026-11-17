@@ -1640,7 +1640,8 @@ reads the Tome's lists, places them as the import does, and fails on a refused o
 untiled list, a leaf of a standing hopping list that does not resolve, a key two
 ids share, a subtable no row names, a classic list naming another category's
 subtable, and a list unplaced where everything it names is in the map; a list
-waiting for a category whose subtables a later batch adds is reported. The
+waiting for a category whose subtables the map does not yet hold is reported,
+and with the whole chain in the map none waits. The
 projection keeps `hop` on `classic` and `heroic` and on a tail's inner bands, and
 `subtables` is a RollTable per list like the others.
 

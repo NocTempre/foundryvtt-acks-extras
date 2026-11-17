@@ -77,6 +77,18 @@ export const MAGIC_ITEM_LISTS = Object.freeze({
       misc8: ["tomeMisc8Raw", "tomeMisc8MoreRaw"],
       misc9: ["tomeMisc9Raw", "tomeMisc9MoreRaw"],
       misc10: ["tomeMisc10Raw", "tomeMisc10MoreRaw"],
+      swords1: ["tomeSwords1Raw"],
+      swords2: ["tomeSwords2Raw", "tomeSwords2MoreRaw"],
+      swords3: ["tomeSwords3Raw", "tomeSwords3MoreRaw"],
+      swords4: ["tomeSwords4Raw"],
+      weapons1: ["tomeWeapons1Raw"],
+      weapons2: ["tomeWeapons2Raw"],
+      weapons3: ["tomeWeapons3Raw"],
+      weapons4: ["tomeWeapons4Raw"],
+      armors1: ["tomeArmors1Raw"],
+      armors2: ["tomeArmors2Raw"],
+      armors3: ["tomeArmors3Raw"],
+      armors4: ["tomeArmors4Raw"],
     },
   },
   scrollLanguages: { lists: { bands: ["tomeScrollLanguagesRaw"] } },
@@ -99,4 +111,9 @@ export const MAGIC_ITEM_LISTS = Object.freeze({
 export const ALSO_KEYS = Object.freeze({
   // The Random Type row for the armour list, which the page sets in the singular.
   "classic.armors": ["1ww2klw"],
+  // The armour subtables' rarity rows, which the category and rarity lists set in the plural against singular captions.
+  "subtables.armors1": ["ychk4j"],
+  "subtables.armors2": ["vqsgxp"],
+  "subtables.armors3": ["b6lqw1"],
+  "subtables.armors4": ["jog4k6"],
 });

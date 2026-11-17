@@ -1,6 +1,6 @@
 /**
  * The Treasure Tome's table recipes for the `magicItemTables` document: the
- * Classic and Heroic or Gritty item-generation chains (TT folios 30 to 45) and
+ * Classic and Heroic or Gritty item-generation chains (TT folios 30 to 50) and
  * the scroll sub-tables its scroll entries print (folios 94 to 98). Geometry
  * and anchors only; every band edge, caption and name is read from the Judge's
  * own copy at import (docs/importer/RECIPES.md), and `magic-item-lists.mjs` says
@@ -18,7 +18,7 @@
 import { list } from "../../table-recipes-magic-items.mjs";
 
 /** The Tome's printed folio of each page a table is read from. */
-const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, implementsB: 38, misc1: 39, misc2: 40, misc3: 41, misc4: 42, misc5: 43, misc6: 44, misc7: 45, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
+const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, implementsB: 38, misc1: 39, misc2: 40, misc3: 41, misc4: 42, misc5: 43, misc6: 44, misc7: 45, swords1: 46, swords2: 47, weapons1: 48, weapons2: 49, armors1: 49, armors2: 50, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
 
 /**
  * One Tome list. `bare` names the page by words with the spaces taken out (a
@@ -84,6 +84,20 @@ const MISC_RECTO_R = { column: { xMin: 325, xMax: 592 }, labelMaxX: 357, cells: 
 /** One column of a miscellaneous page between two heights; `side` is one of the four column specs above. */
 const miscCol = (page, side, yMin, yMax) => ({ page, ...MISC_PAGE, ...side, column: { ...side.column, yMin, yMax } });
 
+/**
+ * Sword, miscellaneous weapon and armour subtables: one per rarity, each a
+ * caption over a d100 grid in one column of its page. Every list is sized to
+ * its own content, so its label edge and item column are its own. A rarity
+ * list too long for one column runs on into the other as a `...More` segment
+ * with no caption of its own.
+ */
+const ARMS_VERSO_L = { column: { xMin: 40, xMax: 300 }, labelMaxX: 83, cells: [["item", 84, 216]] };
+const ARMS_VERSO_R = { column: { xMin: 300, xMax: 592 }, labelMaxX: 340, cells: [["item", 341, 251]] };
+const ARMS_RECTO_L = { column: { xMin: 40, xMax: 325 }, labelMaxX: 108, cells: [["item", 109, 216]] };
+const ARMS_RECTO_R = { column: { xMin: 325, xMax: 592 }, labelMaxX: 366, cells: [["item", 367, 225]] };
+/** One column of an arms page between two heights, found by the phrase `locate`. */
+const armsCol = (page, locate, side, yMin, yMax, own = {}) => ({ page, locate, ...side, ...own, column: { ...(own.column ?? side.column), yMin, yMax } });
+
 /** A list whose item names are read with their first letter raised, for a row the page sets in one lower-case run. */
 const capitalFirst = (recipe) => ({ ...recipe, cellColumns: recipe.cellColumns.map((c) => ({ ...c, pattern: "rawCapital" })) });
 
@@ -108,7 +122,7 @@ const spellLevel = ({ xMin, xMax, labelMaxX }) => {
  */
 export const tableRecipes = {
   magicItemTables: {
-    pages: "TT 30-45, 94-98",
+    pages: "TT 30-50, 94-98",
     tables: {
       // Random Magic Item Type, and the eight category lists, which name subtables.
       tomeTypeRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 135, yMax: 258 }, labelMaxX: 82, cells: [["item", 83, 200]], caption: true }),
@@ -178,6 +192,26 @@ export const tableRecipes = {
       tomeMisc9MoreRaw: tt(miscCol(PAGE.misc6, MISC_VERSO_R, 232, 750)),
       tomeMisc10Raw: tt({ ...miscCol(PAGE.misc7, MISC_RECTO_L, 76, 460), caption: true }),
       tomeMisc10MoreRaw: tt(miscCol(PAGE.misc7, MISC_RECTO_R, 92, 460)),
+
+      // Sword subtables: four rarities, the second and third running across both columns of their page.
+      tomeSwords1Raw: tt({ ...armsCol(PAGE.swords1, "Uncommon Swords", ARMS_VERSO_L, 118, 245), caption: true }),
+      tomeSwords2Raw: tt({ ...armsCol(PAGE.swords1, "Rare Swords", ARMS_VERSO_L, 246, 610, { labelMaxX: 96, cells: [["item", 97, 203]] }), caption: true }),
+      tomeSwords2MoreRaw: tt(armsCol(PAGE.swords1, "Rare Swords", ARMS_VERSO_R, 270, 610)),
+      tomeSwords3Raw: tt({ ...armsCol(PAGE.swords2, "Very Rare Swords", ARMS_RECTO_L, 288, 548, { column: { xMin: 40, xMax: 330 }, labelMaxX: 124, cells: [["item", 125, 205]] }), caption: true }),
+      tomeSwords3MoreRaw: tt(armsCol(PAGE.swords2, "Very Rare Swords", ARMS_RECTO_R, 312, 548, { column: { xMin: 330, xMax: 592 }, labelMaxX: 365, cells: [["item", 366, 226]] })),
+      tomeSwords4Raw: tt({ ...armsCol(PAGE.swords2, "Very Rare Swords", ARMS_RECTO_L, 553, 712, { column: { xMin: 40, xMax: 300 }, cells: [["item", 109, 190]] }), caption: true }),
+
+      // Miscellaneous weapon subtables: the first beside the second on a verso page, the last two one under another on the next.
+      tomeWeapons1Raw: tt({ ...armsCol(PAGE.weapons1, "Uncommon Miscellaneous Weapons", ARMS_VERSO_L, 138, 425, { labelMaxX: 82, cells: [["item", 83, 217]] }), caption: true }),
+      tomeWeapons2Raw: tt({ ...armsCol(PAGE.weapons1, "Uncommon Miscellaneous Weapons", ARMS_VERSO_R, 75, 530, { labelMaxX: 338, cells: [["item", 339, 253]] }), caption: true }),
+      tomeWeapons3Raw: tt({ ...armsCol(PAGE.weapons2, "Very Rare Miscellaneous Weapons", ARMS_RECTO_L, 78, 540), caption: true }),
+      tomeWeapons4Raw: tt({ ...armsCol(PAGE.weapons2, "Very Rare Miscellaneous Weapons", ARMS_RECTO_L, 541, 745), caption: true }),
+
+      // Armour subtables: two in the right column of a recto page, then a pair of columns on the next page.
+      tomeArmors1Raw: tt({ ...armsCol(PAGE.armors1, "Armor Tables", ARMS_RECTO_R, 128, 245), caption: true }),
+      tomeArmors2Raw: tt({ ...armsCol(PAGE.armors1, "Armor Tables", ARMS_RECTO_R, 248, 715), caption: true }),
+      tomeArmors3Raw: tt({ ...armsCol(PAGE.armors2, "Very Rare Armor", ARMS_VERSO_L, 238, 735), caption: true }),
+      tomeArmors4Raw: tt({ ...armsCol(PAGE.armors2, "Very Rare Armor", ARMS_VERSO_R, 75, 280), caption: true }),
 
       // The sub-tables the scroll entries print.
       tomeScrollLanguagesRaw: tt({ page: PAGE.languages, locate: "Scroll Languages", column: { ...LEFT, yMin: 262, yMax: 400 }, labelMaxX: 82, cells: [["item", 83, 215]], caption: true }),

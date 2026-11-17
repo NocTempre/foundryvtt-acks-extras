@@ -4009,7 +4009,7 @@ marker, and are read, never driven.
    `col6`, `.creatureType.bands` and `.arms<Kind>.s1` to `s7` are rollable,
    each row naming JJ and its folio; `captions` and `armsSettings` are JSON
    pages.
-4. Open the Swords RollTable and its last result. *Observable:* a result on the
+4. On a Journal-only seat, open the Swords RollTable and its last result. *Observable:* a result on the
    top face reads the inner bands as "a-b: name · a-b: name", and the table's
    formula reaches that face. Edit one inner name, drop the table back over
    its entry, and read `getTable("magicItemTables","classic").swords.at(-1).sub`.
@@ -4025,24 +4025,24 @@ marker, and are read, never driven.
    match what the Journal-only seat showed. Disconnect the Tome and rerun:
    *observable:* those tables still cite TT, and the report names the Tome as
    an optional book that is not open.
-8. **The Tome's chain (S3 batches 1 and 2).** On the seat with both books, rerun
-   step 1. *Observable:* `getDoc("magicItemTables").tables.subtables` has 33 keys
+8. **The Tome's chain (S3).** On the seat with both books, rerun step 1.
+   *Observable:* `getDoc("magicItemTables").tables.subtables` has 45 keys
    (seven `potions<n>`, five `rings<n>`, five `scrolls<n>`, six
-   `implements<n>` and ten `misc<n>`), the import log's "magic-item tables
-   assembled" line names `unplaced` only for lists the Tome's pages did not read,
-   and `getTable("magicItemTables","classic")` has five lists whose rows carry
-   `hop: "subtables.<key>"` (potions, rings, scrolls, implements, misc) and three
-   that carry none (swords, armors, weapons: still the Journal's until batch 3
-   lands). `getTable("magicItemTables","heroic").common` rows carry a `hop` too.
-   With both books, `unplaced` lists exactly those three and the four other
-   rarity lists, since each names subtables not read yet.
+   `implements<n>`, ten `misc<n>`, four each of `swords<n>`, `weapons<n>` and
+   `armors<n>`), the import log's "magic-item tables assembled" line names
+   `unplaced` only for lists the Tome's pages did not read (none, with the whole
+   Tome), and every list of `getTable("magicItemTables","classic")` (eight) and
+   of `getTable("magicItemTables","heroic")` (five) has rows carrying
+   `hop: "subtables.<key>"`, the armour rows included.
 9. `getTable("magicItemTables","classicType").bands.map((b) => b.hop)`, with the
    Tome open. *Observable:* eight `classic.<list>` ids, one per row, the armour
    row included. Roll the classic style from the type list a few times with
    the magic-items roller. *Observable:* a card whose chain shows a type step, a
-   category step and a subtable step for a potion, ring, scroll, implement or
-   miscellaneous item, and a type step then a category step for the others; no card ends flagged
-   `unresolved-hop`.
+   category step and a subtable step for every category, a sword, miscellaneous
+   weapon or armour included; no card ends flagged `unresolved-hop`. Roll the
+   heroic style from `heroic.uncommon`, `heroic.rare`, `heroic.veryRare` and
+   `heroic.legendary` a few times. *Observable:* a rarity step then a subtable
+   step each, and each card cites the Tome's page.
 10. Roll with `from: "classic.potions"` until the category's tail row lands (the
     last face), by setting the dice rig (`TEST_ENVIRONMENT.md`) to throw the top of the d100 and then any inner band.
     *Observable:* the card's category step shows the tail's inner roll and the
