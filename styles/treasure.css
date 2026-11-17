@@ -4,11 +4,41 @@
    The window scrolls at its part root (`scrollable: [""]`), the grid and the
    panels reflow, and nothing here sets a width a narrow window cannot shrink. */
 
+/* The four value bands, light to dark: the lowest worth is the lightest. Each is
+   a theme token's hue at a fixed lightness, so the ladder and the white icon
+   and label on it hold in both themes (about 5.2, 7, 11 and 15 to one). The
+   plain token values are the fallback where relative colour is not understood.
+   The pips on every card carry the band where colour does not. */
 .acks-extras-treasure {
-  --acks-extras-treasure-band-0: var(--acks-burgundy-mid);
+  --acks-extras-treasure-band-0: var(--acks-warning);
   --acks-extras-treasure-band-1: var(--acks-ink-soft);
-  --acks-extras-treasure-band-2: var(--acks-warning-ink);
+  --acks-extras-treasure-band-2: var(--acks-burgundy-mid);
   --acks-extras-treasure-band-3: var(--acks-burgundy-deep);
+  --acks-extras-treasure-cursed-ink: var(--acks-danger-ink);
+  --acks-extras-treasure-magic-ink: oklch(0.42 0.09 250);
+}
+
+@supports (color: oklch(from red l c h)) {
+  .acks-extras-treasure {
+    --acks-extras-treasure-band-0: oklch(from var(--acks-warning) 0.52 c h);
+    --acks-extras-treasure-band-1: oklch(from var(--acks-ink-soft) 0.44 c h);
+    --acks-extras-treasure-band-2: oklch(from var(--acks-burgundy) 0.36 c h);
+    --acks-extras-treasure-band-3: oklch(from var(--acks-burgundy-deep) 0.27 c h);
+    --acks-extras-treasure-cursed-ink: oklch(from var(--acks-danger) 0.45 c h);
+  }
+}
+
+/* A turned card's face: plain wears the system's ink, a magic item once its
+   magic is identified wears the magic ink, and a curse once it is shown wears
+   the cursed ink. No theme token is a blue, so the magic hue is the one literal. */
+.acks-extras-treasure .is-look-plain { --face-ink: var(--acks-spot); --face-bg: var(--acks-paper); }
+.acks-extras-treasure .is-look-magic {
+  --face-ink: var(--acks-extras-treasure-magic-ink);
+  --face-bg: color-mix(in srgb, var(--acks-extras-treasure-magic-ink) 12%, var(--acks-paper));
+}
+.acks-extras-treasure .is-look-cursed {
+  --face-ink: var(--acks-extras-treasure-cursed-ink);
+  --face-bg: color-mix(in srgb, var(--acks-extras-treasure-cursed-ink) 12%, var(--acks-paper));
 }
 
 /* Core pins a font-size on the content and on the header; both are re-taken so the type knob reaches the sheet. */
@@ -30,6 +60,7 @@
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
   font-family: var(--acks-font-ui);
   color: var(--acks-ink);
   background: var(--acks-paper);
@@ -90,17 +121,36 @@
   border: var(--acks-rule-hair) solid var(--acks-ink);
 }
 
-/* --- Layout: a side panel and the pot; the panel drops below when narrow ----- */
+/* --- Layout: the source panel, the pot, the toggles; both panels drop below the pot when narrow --- */
 .acks-extras-treasure .acks-extras-treasure__layout {
-  display: flex;
-  flex-wrap: wrap-reverse;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "main";
   align-items: stretch;
   flex: 1 1 auto;
 }
 
+.acks-extras-treasure .acks-extras-treasure__layout.is-staging {
+  grid-template-columns: minmax(12em, 14em) minmax(0, 1fr) minmax(12em, 14em);
+  grid-template-areas: "side main toggles";
+}
+
+@container (max-width: 46em) {
+  .acks-extras-treasure .acks-extras-treasure__layout.is-staging {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main" "side" "toggles";
+  }
+
+  .acks-extras-treasure .acks-extras-treasure__side,
+  .acks-extras-treasure .acks-extras-treasure__toggles {
+    border-inline: 0;
+    border-block-start: var(--acks-rule) solid var(--acks-spot);
+  }
+}
+
 .acks-extras-treasure .acks-extras-treasure__side {
-  flex: 1 1 14em;
-  max-width: 100%;
+  grid-area: side;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: var(--acks-sp-6);
@@ -109,10 +159,72 @@
 }
 
 .acks-extras-treasure .acks-extras-treasure__main {
-  flex: 4 1 22em;
+  grid-area: main;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The deal toggles: buttons that hold a state, the pressed one filled. */
+.acks-extras-treasure .acks-extras-treasure__toggles {
+  grid-area: toggles;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-6);
+  border-inline-start: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  min-height: 2.6em;
+  margin: 0;
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border-radius: 0;
+  text-align: start;
+  cursor: pointer;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle[aria-pressed="true"] {
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+  outline: none;
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle-mark {
+  flex: none;
+  width: 0.7em;
+  height: 0.7em;
+  rotate: 45deg;
+  border: var(--acks-rule-hair) solid currentcolor;
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle[aria-pressed="true"] .acks-extras-treasure__toggle-mark {
+  background: currentcolor;
+}
+
+.acks-extras-treasure .acks-extras-treasure__toggle-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The band's pips: a count of filled marks, so the band never rests on colour alone. */
+.acks-extras-treasure .acks-extras-treasure__pips {
+  font-size: var(--acks-fs-fine);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
 }
 
 .acks-extras-treasure .acks-extras-treasure__field {
@@ -207,8 +319,17 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--acks-paper);
-  border: var(--acks-rule-hair) solid var(--acks-spot);
+  background: var(--face-bg, var(--acks-paper));
+  border: var(--acks-rule-hair) solid var(--face-ink, var(--acks-spot));
+  transition: background-color var(--acks-duration) var(--acks-ease), border-color var(--acks-duration) var(--acks-ease);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-struck {
+  opacity: 0.55;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-struck .acks-extras-treasure-card__name {
+  text-decoration: line-through;
 }
 
 .acks-extras-treasure .acks-extras-treasure-card.is-claimed {
@@ -224,7 +345,7 @@
   align-items: center;
   gap: var(--acks-sp-3);
   padding: var(--acks-sp-2) var(--acks-sp-4);
-  background: var(--acks-spot);
+  background: var(--face-ink, var(--acks-spot));
   color: var(--acks-on-burgundy);
   font-family: var(--acks-font-display);
   font-size: var(--acks-fs-label);
@@ -295,6 +416,10 @@
 @media (prefers-reduced-motion: reduce) {
   .acks-extras-treasure .acks-extras-treasure-card.is-turning {
     animation: none;
+  }
+
+  .acks-extras-treasure .acks-extras-treasure-card {
+    transition: none;
   }
 }
 

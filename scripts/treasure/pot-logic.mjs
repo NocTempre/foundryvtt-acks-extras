@@ -13,11 +13,24 @@
  * Hiding is display-level: every seat can read a Card's flag, so what a seat is
  * SHOWN is chosen here (`cardView`) and is never a security boundary.
  */
+import { curseKnowledge, magicKnowledge } from "../lib/item-model.mjs";
 import { BAND_COUNT, BUCKET, CARD_FLAG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, REFUSAL } from "./constants.mjs";
 
 const refuse = (reason) => ({ ok: false, reason });
 const ids = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string" && x) : []);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+/** The deal toggles a Judge sets on a staged pot; each gates something when the pot opens. */
+export const DEAL_TOGGLE = Object.freeze({ noMagic: "noMagic", forceCursed: "forceCursed" });
+
+/**
+ * The back icon of a card whose magic is detected or identified, from Foundry's
+ * own image library. A card nobody has detected wears its displayed pool's icon.
+ */
+export const AURA_BACK_ICON = "icons/svg/aura.svg";
+
+/** The deal toggles with both keys present and nothing else kept. */
+const normalizeToggles = (t) => Object.fromEntries(Object.values(DEAL_TOGGLE).map((k) => [k, t?.[k] === true]));
 
 /** A pot's flag with every key present and every id list clean. */
 export function normalizePot(flag) {
@@ -29,7 +42,7 @@ export function normalizePot(flag) {
     audience: ids(f.audience),
     partyId: typeof f.partyId === "string" ? f.partyId : null,
     origin: f.origin ?? null,
-    deal: { toggles: { ...(f.deal?.toggles ?? {}) } },
+    deal: { toggles: normalizeToggles(f.deal?.toggles) },
     order: ids(f.order),
     buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },
     messageId: typeof f.messageId === "string" ? f.messageId : null,
@@ -79,12 +92,12 @@ export function bucketCards(view, bucket) {
 
 /**
  * The pool a seat is shown. A Judge reads the truth. A player is told `magic`
- * only once the card's magic is identified past `none`; until then it is an
- * item, whether or not anyone has detected it.
+ * only once the card's magic is identified in full; until then, recognized
+ * (`partial`) included, it is an item, whether or not anyone has detected it.
  */
 export function shownPool(truth, { isGM = false } = {}) {
   if (isGM || truth.pool !== POOL.magic) return truth.pool;
-  return truth.identified === "none" ? POOL.item : POOL.magic;
+  return truth.identified === "full" ? POOL.magic : POOL.item;
 }
 
 /** The name a seat that has turned the card reads: the mask's, else the card's own. */
@@ -102,15 +115,76 @@ export function worthOf(truth) {
 }
 
 /**
- * The band a new card is written with. Every card is band 0 until the bands
- * are computed; the computation replaces this one function.
- * @param {object} _truth
- * @param {object} _pot
+ * The worth a card is RANKED by: what a seat would take it to be worth. A card
+ * that states a worth (coin by count and rate, a value card) ranks by it; an
+ * item by its mask's cost, else the snapshot's `system.cost`. A magic item
+ * nobody has detected is only ever ranked by its mask, since its own cost
+ * would give the seed away; with no mask cost it ranks as worth nothing.
  */
-export const bandOf = (_truth, _pot) => 0;
+export function rankWorth(truth) {
+  const stated = worthOf(truth);
+  if (stated != null) return stated;
+  const maskCost = truth.mask?.cost;
+  if (maskCost != null && maskCost !== "" && Number.isFinite(Number(maskCost))) return Number(maskCost);
+  if (truth.magical && !truth.detected) return 0;
+  return num(truth.source?.data?.system?.cost, 0);
+}
+
+/**
+ * The band of each worth, ranked within the list: the number of strictly lower
+ * worths, over the list's length, spread across `BAND_COUNT` ranks. Equal
+ * worths share a band, a list of one is band 0, and no band is out of range.
+ * @param {Array<number|null>} worths
+ * @returns {number[]}
+ */
+export function bandsOf(worths) {
+  const v = worths.map((x) => num(x, 0));
+  return v.map((x) => Math.min(BAND_COUNT - 1, Math.floor((BAND_COUNT * v.filter((y) => y < x).length) / v.length)));
+}
 
 /** A band clamped into the ranks that exist. */
 export const clampBand = (v) => Math.min(BAND_COUNT - 1, Math.max(0, Math.floor(num(v))));
+
+/**
+ * A plain item shaped for `magicKnowledge` and `curseKnowledge`: the card's
+ * own record of its magic (read from the live item at the deal, so a variation
+ * inside the item counts) and the snapshot's curse marks.
+ */
+function knowledgeItem(truth) {
+  const marks = truth.source?.data?.flags?.[MODULE_ID]?.markets ?? {};
+  return {
+    flags: {
+      [MODULE_ID]: {
+        markets: { magic: truth.magical, detected: truth.detected, identified: truth.identified, cursed: marks.cursed, curseKnown: marks.curseKnown },
+      },
+    },
+  };
+}
+
+/**
+ * The colour a card's face wears once a seat sees it: `cursed` where this seat
+ * may be shown the curse, `magic` where the magic is known and identified in
+ * full (recognized stays plain), else `plain`. A Judge's tiles always read the truth.
+ */
+export function faceLook(truth, { isGM = false } = {}) {
+  const item = knowledgeItem(truth);
+  if (curseKnowledge(item, { isGM }).showCurse) return "cursed";
+  const magic = magicKnowledge(item, { isGM });
+  if (isGM ? magic.magical : magic.known && magic.identified === "full") return "magic";
+  return "plain";
+}
+
+/**
+ * The icon on a card's back for a seat that has not turned it: the displayed
+ * pool's, except that a magic card whose magic is detected (or identified)
+ * wears the aura. An undetected magic card wears an item's icon, so its back
+ * is its plain twin's.
+ */
+export function backIconOf(truth) {
+  const pool = shownPool(truth);
+  if (pool === POOL.magic || (truth.magical && truth.detected)) return AURA_BACK_ICON;
+  return POOL_BACK_ICON[pool] ?? POOL_BACK_ICON.item;
+}
 
 /**
  * The data of a new Card for a truth. The card is face down: no faces, no
@@ -127,7 +201,7 @@ export function buildCard(truth, { band = 0, poolLabel }) {
     type: "base",
     suit: shown,
     value: clampBand(band),
-    back: { name: label, text: "", img: POOL_BACK_ICON[shown] ?? POOL_BACK_ICON.item },
+    back: { name: label, text: "", img: backIconOf(truth) },
     faces: [],
     face: null,
     flags: { [MODULE_ID]: { [CARD_FLAG]: truth } },
@@ -161,6 +235,9 @@ export function cardView(card, { isGM = false } = {}) {
     down: !up,
     poolKey: shownPool(truth, { isGM }),
     backKey: shownPool(truth),
+    backIcon: backIconOf(truth),
+    auraBack: truth.magical && truth.detected && shownPool(truth) !== POOL.magic,
+    look: shows ? faceLook(truth, { isGM }) : "plain",
     band: clampBand(card.value),
     name: !shows ? "" : isGM ? truth.label : apparentName(truth),
     maskName: isGM && truth.mask?.name ? truth.mask.name : "",
@@ -286,11 +363,69 @@ export function placeAdds(order, adds, rng) {
   return out;
 }
 
+/** The pot with one deal toggle set, during staging only. Returns the new pot, or null. */
+export function setToggle(pot, key, on) {
+  if (pot.phase !== PHASE.staging || !Object.values(DEAL_TOGGLE).includes(key)) return null;
+  const next = normalizePot(pot);
+  next.deal.toggles[key] = !!on;
+  return next;
+}
+
 /**
- * Open a staged pot to the table: the replace bucket's cards join `order` as
- * they are (nothing is struck from the roll), the add bucket's land at random
- * positions, and both buckets empty. `audience` is who gets LIMITED sight.
- * @returns {{ok: true, flag: object}|{ok: false, reason: string}}
+ * What opening the pot does to its cards, before anything is written: the
+ * toggles applied to every card the pot will hold (`order` and both buckets),
+ * then each survivor's band ranked within the survivors.
+ *
+ * "No magic" strikes every card whose truth is magic, seeds included, since a
+ * by-hand pot has no roll to skip. "Force cursed" marks the snapshot of every
+ * remaining magic card cursed (`markets.cursed`, never `curseKnown`), so an
+ * item created from it is. `audit` has one row per toggle that is on, with the
+ * true names of the cards it changed, for the Judge's whisper.
+ * @returns {{removed: string[], kept: string[], bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[]}>}}
+ */
+export function dealOf(view) {
+  const { pot } = view;
+  const byId = new Map(view.cards.map((c) => [c.id, c]));
+  const listed = [...new Set([...pot.order, ...pot.buckets.replace, ...pot.buckets.add])].filter((id) => byId.has(id));
+  const { noMagic, forceCursed } = pot.deal.toggles;
+  const removed = noMagic ? listed.filter((id) => byId.get(id).truth.magical) : [];
+  const kept = listed.filter((id) => !removed.includes(id));
+  const forced = forceCursed
+    ? kept
+        .filter((id) => byId.get(id).truth.magical && byId.get(id).truth.source.data)
+        .map((id) => {
+          const flags = structuredClone(byId.get(id).truth.source.data.flags ?? {});
+          flags[MODULE_ID] = { ...(flags[MODULE_ID] ?? {}) };
+          flags[MODULE_ID].markets = { ...(flags[MODULE_ID].markets ?? {}), cursed: true };
+          return { id, flags };
+        })
+    : [];
+  const ranks = bandsOf(kept.map((id) => rankWorth(byId.get(id).truth)));
+  const bands = Object.fromEntries(kept.map((id, i) => [id, ranks[i]]));
+  const audit = [];
+  if (noMagic) audit.push({ toggle: DEAL_TOGGLE.noMagic, names: removed.map((id) => byId.get(id).truth.label) });
+  if (forceCursed) audit.push({ toggle: DEAL_TOGGLE.forceCursed, names: forced.map((f) => byId.get(f.id).truth.label) });
+  return { removed, kept, bands, forced, audit };
+}
+
+/**
+ * A staged pot's view with each card's `value` set to the band opening would
+ * give it, so the Judge's tiles never show a band that is only a placeholder.
+ * A card the toggles will strike keeps its stored value. An open or closed pot
+ * is returned as it is: its bands were frozen at open.
+ */
+export function withBands(view) {
+  if (view.pot.phase !== PHASE.staging) return view;
+  const { bands } = dealOf(view);
+  return { ...view, cards: view.cards.map((c) => (c.id in bands ? { ...c, value: bands[c.id] } : c)) };
+}
+
+/**
+ * Open a staged pot to the table: the deal toggles are applied, the replace
+ * bucket's cards join `order` as they are (nothing is struck from the roll),
+ * the add bucket's land at random positions, and both buckets empty. Bands are
+ * ranked here and never again. `audience` is who gets LIMITED sight.
+ * @returns {{ok: true, flag: object, bands: object, removed: string[], forced: object[], audit: object[]}|{ok: false, reason: string}}
  */
 export function planOpen(view, { audience, rng }) {
   if (!view) return refuse(REFUSAL.noPot);
@@ -301,12 +436,15 @@ export function planOpen(view, { audience, rng }) {
   const replace = pot.buckets.replace.filter((id) => known.has(id));
   const add = pot.buckets.add.filter((id) => known.has(id));
   if (!order.length && !replace.length && !add.length) return refuse(REFUSAL.empty);
+  const deal = dealOf(view);
+  if (!deal.kept.length) return refuse(REFUSAL.dealEmpty);
+  const gone = new Set(deal.removed);
   const next = normalizePot(pot);
   next.phase = PHASE.open;
   next.audience = ids(audience);
-  next.order = placeAdds([...order, ...replace], add, rng);
+  next.order = placeAdds([...order, ...replace].filter((id) => !gone.has(id)), add.filter((id) => !gone.has(id)), rng);
   next.buckets = { add: [], replace: [] };
-  return { ok: true, flag: next };
+  return { ok: true, flag: next, bands: deal.bands, removed: deal.removed, forced: deal.forced, audit: deal.audit };
 }
 
 /**

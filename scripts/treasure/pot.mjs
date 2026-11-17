@@ -19,7 +19,7 @@ import { isProvider, stockProvider } from "../lib/storage.mjs";
 import { magicKnowledge, weight6Of } from "../lib/item-model.mjs";
 import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  bandOf, buildCard, claimCoinCredits, claimItemData, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, stage,
+  buildCard, claimCoinCredits, claimItemData, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setToggle, stage,
   turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
 import { createRelay } from "./pot-relay.mjs";
@@ -129,7 +129,7 @@ export function truthsFromItem(item) {
  */
 export async function addTruths(pile, truths, { bucket = null } = {}) {
   if (!game.user.isGM || potOf(pile).phase !== PHASE.staging || !truths.length) return [];
-  const data = truths.map((t) => buildCard({ ...t, bucket }, { band: bandOf(t, potOf(pile)), poolLabel }));
+  const data = truths.map((t) => buildCard({ ...t, bucket }, { poolLabel }));
   const made = await pile.createEmbeddedDocuments("Card", data);
   let pot = potOf(pile);
   for (const c of made) pot = stage(pot, c.id, { bucket }) ?? pot;
@@ -148,6 +148,13 @@ export async function removeStaged(pile, cardId) {
 /** Set who rolls. Stored only. Judge-only. */
 export const setMode = (pile, mode) => (game.user.isGM ? pile.update({ [`${potPath}.mode`]: mode }) : null);
 
+/** Set one deal toggle (`DEAL_TOGGLE`) on a staged pot. Stored only; opening applies it. Judge-only. */
+export async function setDealToggle(pile, key, on) {
+  const pot = setToggle(potOf(pile), key, on);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.toggles`]: pot.deal.toggles });
+}
+
 /* -------------------------------------------- */
 /*  Opening and closing                          */
 /* -------------------------------------------- */
@@ -162,12 +169,40 @@ export async function openPot(pile) {
   const audience = game.users.filter((u) => !u.isGM).map((u) => u.id);
   const plan = planOpen(viewOf(pile), { audience, rng: () => foundry.dice.MersenneTwister.random() });
   if (!plan.ok) return plan;
+  // The cards are written before the pile opens, so no seat ever renders a band that is not final.
+  const forced = new Map(plan.forced.map((f) => [f.id, f.flags]));
+  const updates = Object.entries(plan.bands).map(([id, value]) => {
+    const update = { _id: id, value };
+    if (forced.has(id)) update[`${cardPath}.source.data.flags`] = forced.get(id);
+    return update;
+  });
+  if (updates.length) await pile.updateEmbeddedDocuments("Card", updates);
+  const gone = plan.removed.filter((id) => pile.cards.get(id));
+  if (gone.length) await pile.deleteEmbeddedDocuments("Card", gone);
   const message = await postDoorway(pile);
   plan.flag.messageId = message?.id ?? null;
   const ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
   for (const id of audience) ownership[id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
   await pile.update({ [potPath]: plan.flag, ownership });
+  if (plan.audit.length) await postDealAudit(pile, plan.audit);
   return { ok: true };
+}
+
+/**
+ * The Judge's audit card: a whisper to every Judge listing, for each deal
+ * toggle that was on, the cards it changed by their true names. Posted only
+ * when a toggle was on, and never to a player.
+ */
+async function postDealAudit(pile, audit) {
+  const esc = foundry.utils.escapeHTML;
+  const rows = audit.map((row) => {
+    const what = row.names.length ? row.names.map(esc).join(", ") : esc(loc("audit.none"));
+    return `<li><strong>${esc(loc(`toggle.${row.toggle}`))}</strong>: ${esc(loc(`audit.${row.toggle}`, { n: row.names.length }))} ${what}</li>`;
+  });
+  return ChatMessage.create({
+    content: `<div class="acks-extras-treasure-record"><h3>${esc(loc("audit.title", { name: pile.name }))}</h3><ul>${rows.join("")}</ul></div>`,
+    whisper: ChatMessage.getWhisperRecipients("GM").map((u) => u.id),
+  });
 }
 
 /** The doorway card: a chat message carrying only the pot's uuid. */

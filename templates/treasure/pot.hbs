@@ -16,7 +16,7 @@
     {{/if}}
   </header>
 
-  <div class="acks-extras-treasure__layout">
+  <div class="acks-extras-treasure__layout{{#if staging}} is-staging{{/if}}">
 
     {{#if staging}}
       <aside class="acks-extras-treasure__side">
@@ -43,14 +43,16 @@
       <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
         {{#each cards}}
           {{#if ../isGM}}
-            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}">
+            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}">
               <div class="acks-extras-treasure-card__tag">
                 <span>{{tag}}</span>
                 {{#if seed}}<span class="acks-extras-treasure-card__seed">{{localize "ACKS-TREASURE.card.seed"}}</span>{{/if}}
                 <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
+                <span class="acks-extras-treasure__pips" role="img" aria-label="{{bandName}}" data-tooltip-text="{{bandTip}}">{{bandPips}}</span>
               </div>
               <div class="acks-extras-treasure-card__body">
                 <span class="acks-extras-treasure-card__name">{{name}}</span>
+                {{#if struck}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.struck"}}</span>{{/if}}
                 {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
                 {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.leaks"}}</span>{{/if}}
                 <span class="acks-extras-treasure-card__note">{{worthText}}</span>
@@ -72,14 +74,15 @@
               {{#if down}}
                 <button type="button" class="acks-extras-treasure-back is-band-{{band}}" data-action="flip" data-card-id="{{id}}" aria-label="{{backLabel}}" data-tooltip-text="{{tip}}">
                   <img class="acks-extras-treasure-back__icon" src="{{backIcon}}" alt="">
-                  <span class="acks-extras-treasure-back__pool">{{tag}}</span>
+                  <span class="acks-extras-treasure-back__pool">{{backTag}}</span>
                   <span class="acks-extras-treasure-back__pips" aria-hidden="true">{{bandPips}}</span>
                 </button>
               {{else}}
-                <div class="acks-extras-treasure-card{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}">
+                <div class="acks-extras-treasure-card is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}">
                   <div class="acks-extras-treasure-card__tag">
                     <span>{{tag}}</span>
                     <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
+                    <span class="acks-extras-treasure__pips" role="img" aria-label="{{bandName}}" data-tooltip-text="{{bandTip}}">{{bandPips}}</span>
                   </div>
                   <div class="acks-extras-treasure-card__body">
                     <span class="acks-extras-treasure-card__name">{{name}}</span>
@@ -125,5 +128,19 @@
       {{/if}}
 
     </main>
+
+    {{#if staging}}
+      <aside class="acks-extras-treasure__toggles" aria-labelledby="{{@root.partId}}-toggles">
+        <span class="acks-extras-caption" id="{{@root.partId}}-toggles">{{localize "ACKS-TREASURE.toggle.title"}}</span>
+        {{#each toggles}}
+          <button type="button" class="acks-extras-treasure__toggle" data-action="toggleDeal" data-toggle="{{key}}" aria-pressed="{{pressed}}">
+            <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
+            <span class="acks-extras-treasure__toggle-label">{{label}}</span>
+          </button>
+          <span class="acks-extras-treasure__hint">{{hint}}</span>
+        {{/each}}
+        <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.toggle.note"}}</span>
+      </aside>
+    {{/if}}
   </div>
 </section>

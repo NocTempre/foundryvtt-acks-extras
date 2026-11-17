@@ -15,9 +15,9 @@ import { makeLoc } from "../lib/util.mjs";
 import { listsGoods } from "../lib/bundles.mjs";
 import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
-import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, POT_HANDLER, REFUSAL } from "./constants.mjs";
-import { bucketCards, cardView, haulOf, normalizeTruth, potCards, turnedOf } from "./pot-logic.mjs";
-import { addTruths, closePot, openPot, potOf, removeStaged, setMode, truthsFromItem, viewOf } from "./pot.mjs";
+import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
+import { DEAL_TOGGLE, bucketCards, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
+import { addTruths, closePot, openPot, potOf, removeStaged, setDealToggle, setMode, truthsFromItem, viewOf } from "./pot.mjs";
 
 const { HandlebarsApplicationMixin, DocumentSheetV2, DialogV2 } = foundry.applications.api;
 const loc = makeLoc(LANG);
@@ -49,6 +49,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       flip: PotSheet.#onFlip,
       take: PotSheet.#onTake,
       setMode: PotSheet.#onSetMode,
+      toggleDeal: PotSheet.#onToggleDeal,
       openTable: PotSheet.#onOpen,
       closePot: PotSheet.#onClose,
       removeCard: PotSheet.#onRemove,
@@ -75,7 +76,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const isGM = game.user.isGM;
-    const view = viewOf(this.document);
+    const view = withBands(viewOf(this.document));
     const { pot } = view;
     const staging = pot.phase === PHASE.staging;
     const open = pot.phase === PHASE.open;
@@ -94,7 +95,14 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       : loc("tip.haulNone", { cite });
     context.turnedText = loc("bar.turned", { turned, count });
     context.bands = Array.from({ length: BAND_COUNT }, (_, rank) => ({ rank, name: loc(`band.${rank}`) }));
-    context.cards = seat.map((v) => this.#cardContext(v, { open, staging }));
+    const struck = new Set(staging ? dealOf(view).removed : []);
+    context.cards = seat.map((v) => ({ ...this.#cardContext(v, { open, staging }), struck: struck.has(v.id) }));
+    context.toggles = Object.values(DEAL_TOGGLE).map((key) => ({
+      key,
+      label: loc(`toggle.${key}`),
+      hint: loc(`toggle.${key}Hint`),
+      pressed: pot.deal.toggles[key],
+    }));
     context.modeJudge = pot.mode === MODE.judge;
     context.modeTable = pot.mode === MODE.table;
     context.modeHint = loc(pot.mode === MODE.judge ? "judge.modeJudgeHint" : "judge.modeTableHint");
@@ -117,17 +125,20 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
 
   /** One card as the template reads it: the view, worded. */
   #cardContext(v, { open, staging }) {
-    const pool = loc(`pool.${v.poolKey}`);
+    const pool = v.look === "cursed" ? loc("card.cursed") : loc(`pool.${v.poolKey}`);
+    const backPool = loc(`pool.${v.backKey}`);
     const bandName = loc(`band.${v.band}`);
     return {
       ...v,
       tag: pool,
       band: v.band,
       bandPips: "◆".repeat(v.band + 1),
-      backIcon: POOL_BACK_ICON[v.backKey] ?? POOL_BACK_ICON[POOL.item],
+      bandName,
+      bandTip: loc("tip.band", { band: bandName }),
       // A player's tooltip names the displayed pool's page and nothing else, so no card can be told from another by it.
-      tip: loc("tip.pool", { pool: loc(`pool.${v.backKey}`), cite: loc(`cite.${v.backKey}`) }),
-      backLabel: loc("card.backLabel", { pool, band: bandName }),
+      tip: loc("tip.pool", { pool: backPool, cite: loc(`cite.${v.backKey}`) }),
+      backTag: backPool,
+      backLabel: loc(v.auraBack ? "card.backLabelAura" : "card.backLabel", { pool: backPool, band: bandName }),
       removeLabel: loc("card.removeLabel", { name: v.name }),
       worthText: this.#worthText(v),
       weightText: v.weight6 ? stoneText(v.weight6) : loc("card.weightless"),
@@ -237,6 +248,11 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   /** Judge: who rolls. */
   static async #onSetMode(_event, target) {
     await setMode(this.document, target.dataset.mode === MODE.table ? MODE.table : MODE.judge);
+  }
+
+  /** Judge: set or clear one deal toggle on the staged pot. */
+  static async #onToggleDeal(_event, target) {
+    await setDealToggle(this.document, target.dataset.toggle, target.getAttribute("aria-pressed") !== "true");
   }
 
   /** Judge: open the staged pot to the table. */
