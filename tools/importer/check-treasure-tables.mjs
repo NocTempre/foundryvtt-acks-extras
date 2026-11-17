@@ -1,0 +1,192 @@
+/**
+ * Treasure table gate: do the Judges Journal's treasure tables read WHOLE from
+ * the book — every row found, every cell carrying its own text, every band
+ * list tiling its die with no gap and no overlap?
+ *
+ * The treasure-type grids are set four lines to a row with the letter centred
+ * on it; the special-treasure lists wrap their results and three of them run
+ * across two print columns or two pages. A window or a y-bound that misses by a
+ * few points does not throw: a wrapped line lands on the neighbouring row, or
+ * a segment's rows go missing, and the table reads plausibly short. The
+ * committed tests feed the assembler invented cells, so nothing offline reads
+ * the real page.
+ *
+ * Reads every `treasure` recipe and fails on:
+ *   - a declared treasure-type letter the page did not yield, or an empty cell;
+ *   - a type row whose cells are not shaped as the page sets them (a chance and
+ *     its dice, a category and an average value, a magic cell that opens on a
+ *     number and closes its bracket), which is how a wrapped line misjoined to
+ *     the row above or below shows;
+ *   - a band whose label did not parse, an empty value or result, a stranded
+ *     single letter at either end of a cell, or an unbalanced bracket;
+ *   - a band list that does not tile from 1 with no gap or overlap, one that
+ *     ends on no die's face, or a value list that does not end where its dice
+ *     legend says.
+ * The die each list is thrown on is read off its own bands, so no face is
+ * written here.
+ *
+ * Requires the LOCAL Judges Journal, so it SKIPS (exit 0) where it is absent,
+ * CI included. Output names recipe keys, bands and columns, never a cell's text.
+ *
+ * Usage: node tools/importer/check-treasure-tables.mjs   (also via `npm run validate`)
+ */
+import fs from "node:fs";
+import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
+import { extractTable } from "../../scripts/importer/table-extract.mjs";
+import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
+import { locatePageNumber } from "../../scripts/importer/tables-binding.mjs";
+import { SPECIAL_RAW_KEYS, TYPE_RAW_KEYS, VALUE_RAW_KEYS, assembleBands } from "../../scripts/importer/treasure-binding.mjs";
+import { TYPE_LETTERS } from "../../scripts/importer/table-recipes-treasure.mjs";
+import { FILES } from "./reference-lib.mjs";
+
+if (!fs.existsSync(FILES.jj)) {
+  console.log("treasure tables: SKIPPED — the local Judges Journal is not on this machine.");
+  process.exit(0);
+}
+
+/** The faces a special-treasure list may end on: the standard dice. */
+const DICE = new Set([4, 6, 8, 10, 12, 20, 100]);
+
+const faults = [];
+const fail = (where, why) => faults.push(`${where}: ${why}`);
+
+const { doc: pdf } = await openBook(fs.readFileSync(FILES.jj), { book: "jj" });
+const pages = new Map();
+
+/** Read one recipe off the book: its rows and the text of the page it found. */
+async function readGrid(key) {
+  const recipe = TABLE_RECIPES.treasure.tables[key];
+  if (!recipe) {
+    fail(key, "no such recipe");
+    return null;
+  }
+  const page = await locatePageNumber(pdf, recipe);
+  if (page == null) {
+    fail(key, "no page answers the recipe's locate");
+    return null;
+  }
+  if (!pages.has(page)) pages.set(page, await pageItems(pdf, page));
+  const { items } = pages.get(page);
+  return { rows: extractTable(items, recipe), text: items.map((i) => i.str).join(" ") };
+}
+
+/** A band list against its die: null when it tiles from 1 to `top`, else what is wrong. */
+function tilingFault(bands) {
+  const sorted = [...bands].sort((a, b) => a.min - b.min);
+  if (!sorted.length) return "no bands at all";
+  const wrong = [];
+  if (sorted[0].min !== 1) wrong.push(`starts at ${sorted[0].min}`);
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const cur = sorted[i];
+    if (cur.min > prev.max + 1) wrong.push(`gap ${prev.max + 1}-${cur.min - 1}`);
+    else if (cur.min <= prev.max) wrong.push(`overlap ${cur.min}-${Math.min(prev.max, cur.max)}`);
+  }
+  return wrong.length ? wrong.join(", ") : null;
+}
+
+/** What is wrong with a cell's text, by shape alone; null when nothing is. */
+function cellFault(text) {
+  const s = String(text ?? "").replace(/\s+/g, " ").trim();
+  if (!s) return "empty cell";
+  if (/\s[A-Za-z]$/.test(s)) return "ends in a stranded letter";
+  if (/^[A-Za-z]\s/.test(s)) return "begins with a stranded letter";
+  if ((s.match(/\(/g) ?? []).length !== (s.match(/\)/g) ?? []).length) return "unbalanced brackets";
+  return null;
+}
+
+const rowsRead = {};
+let bandsChecked = 0;
+
+/* --- the treasure-type grids ---------------------------------------------- */
+const COIN_COLUMNS = ["cp", "sp", "ep", "gp", "pp", "gems", "jewelry"];
+for (const key of Object.keys(TYPE_RAW_KEYS)) {
+  const got = await readGrid(key);
+  if (!got) continue;
+  rowsRead[key] = 0;
+  for (const letter of TYPE_LETTERS) {
+    const row = got.rows[letter];
+    if (!row || row.__missing) {
+      fail(`${key} ${letter}`, "row not found on the page");
+      continue;
+    }
+    rowsRead[key]++;
+    const cells = { head: row.head, ...Object.fromEntries(COIN_COLUMNS.map((c) => [c, row[c]])), magic: row.magic };
+    for (const [col, text] of Object.entries(cells)) {
+      const bad = cellFault(text);
+      if (bad) fail(`${key} ${letter} ${col}`, bad);
+    }
+    if (!/^[A-Za-z]+\s+[\d,]+gp$/.test(String(row.head ?? "").trim())) fail(`${key} ${letter} head`, "is not a category and an average value");
+    for (const c of COIN_COLUMNS) if (!/^\d+%\s+\S/.test(String(row[c] ?? "").trim())) fail(`${key} ${letter} ${c}`, "does not open on a chance and its dice");
+    const magic = String(row.magic ?? "").trim();
+    if (!/^\d/.test(magic)) fail(`${key} ${letter} magic`, "does not open on a number (a line of the row below joined it, or its first line went to the row above)");
+    if (!/\)$/.test(magic)) fail(`${key} ${letter} magic`, "does not close on its average value (its last line went to another row)");
+  }
+}
+
+/* --- gem and jewelry value ------------------------------------------------ */
+for (const key of Object.keys(VALUE_RAW_KEYS)) {
+  const got = await readGrid(key);
+  if (!got) continue;
+  const bands = [];
+  for (const [rowKey, row] of Object.entries(got.rows)) {
+    if (row?.__missing) {
+      fail(`${key} ${rowKey}`, "row not found on the page");
+      continue;
+    }
+    if (!Number.isFinite(row.min) || !Number.isFinite(row.max)) {
+      fail(`${key} ${rowKey}`, "band label did not parse");
+      continue;
+    }
+    for (const col of ["value", "type"]) {
+      const bad = cellFault(row[col]);
+      if (bad) fail(`${key} ${row.min}-${row.max} ${col}`, bad);
+    }
+    bands.push(row);
+  }
+  rowsRead[key] = bands.length;
+  bandsChecked++;
+  const wrong = tilingFault(bands);
+  if (wrong) fail(key, wrong);
+  // The dice legend over the bands names the d100 and the offset the top band reaches.
+  const offset = /d100\s*\+\s*(\d+)/.exec(got.text);
+  const top = Math.max(...bands.map((b) => b.max));
+  if (!offset) fail(key, "no dice legend found on the page to take the top band's face from");
+  else if (top !== 100 + Number(offset[1])) fail(key, `ends at ${top}, not where its dice legend says`);
+}
+
+/* --- special treasure ----------------------------------------------------- */
+const rawSpecial = {};
+for (const rawKey of Object.values(SPECIAL_RAW_KEYS).flat()) {
+  const got = await readGrid(rawKey);
+  if (!got) continue;
+  rawSpecial[rawKey] = got.rows;
+  rowsRead[rawKey] = 0;
+  for (const [rowKey, row] of Object.entries(got.rows)) {
+    if (row?.__missing) {
+      fail(`${rawKey} ${rowKey}`, "row not found on the page");
+      continue;
+    }
+    rowsRead[rawKey]++;
+    if (!Number.isFinite(row.min) || !Number.isFinite(row.max)) fail(`${rawKey} ${rowKey}`, "band label did not parse");
+    const bad = cellFault(row.text);
+    if (bad) fail(`${rawKey} ${row.min}-${row.max}`, bad);
+  }
+}
+for (const [kind, rawKeys] of Object.entries(SPECIAL_RAW_KEYS)) {
+  bandsChecked++;
+  const bands = assembleBands(rawKeys.map((k) => rawSpecial[k]), (r) => ({ text: r.text }));
+  const flat = rawKeys.flatMap((k) => Object.values(rawSpecial[k] ?? {})).filter((r) => Number.isFinite(r?.min) && Number.isFinite(r?.max));
+  const wrong = tilingFault(flat);
+  if (wrong) fail(`special.${kind}`, wrong);
+  else if (!bands) fail(`special.${kind}`, "the binding refuses its bands");
+  else if (!DICE.has(bands.at(-1).max)) fail(`special.${kind}`, `ends at ${bands.at(-1).max}, which is no die's face`);
+}
+
+const counts = Object.entries(rowsRead).map(([k, n]) => `${k} ${n}`).join(", ");
+if (faults.length) {
+  for (const f of faults) console.error(`FAIL  ${f}`);
+  console.error(`treasure tables: FAILED — ${faults.length} fault(s). Rows read: ${counts}.`);
+  process.exit(1);
+}
+console.log(`treasure tables: OK — ${Object.keys(rowsRead).length} tables read; ${bandsChecked} band lists tile their dice. Rows read: ${counts}.`);

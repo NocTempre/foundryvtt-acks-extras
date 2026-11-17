@@ -942,4 +942,56 @@ await test("a projected table whose data is not columns falls back to one JSON p
   assert.equal(entry.rollable, false);
 });
 
+/**
+ * An invented `treasure` doc in the assembled shape: a value list whose bands
+ * carry two fields, a set of special lists each on its own die, and a type
+ * grid that is a lookup and not a roll. Every band, word and figure is made up.
+ */
+const treasureRegistry = () => ({
+  treasure: {
+    gemValue: {
+      bands: [
+        { min: 1, max: 60, value: "7", type: "Qq stone, zz stone" },
+        { min: 61, max: 90, value: "2d6 × 5", type: "Qq crystal — rarely clear" },
+      ],
+    },
+    special: {
+      cp: [
+        { min: 1, max: 9, result: "Qq crates" },
+        { min: 10, max: 12, result: "Qq sacks" },
+      ],
+      ornamental: [{ min: 1, max: 4, result: "Qq bundle" }],
+    },
+    typeClassic: { A: { category: "Qq", avgValue: "5gp", cp: "10% 1d3" } },
+  },
+});
+
+await test("a value list of two fields reads as one result and splits back at the first separator", async () => {
+  world({ registry: treasureRegistry() });
+  const entry = entryAt("treasure.gemValue.bands");
+  assert.ok(entry?.rollable, "the band list is rollable");
+  await materializeAll();
+  const made = tableNamed(entry.label);
+  assert.equal(made?.formula, "1d90", "the die reaches the highest band");
+  assert.deepEqual([...made.results].map((r) => r.description), ["7 — Qq stone, zz stone", "2d6 × 5 — Qq crystal — rarely clear"]);
+  const drop = droppedTable([
+    { range: [1, 40], description: "9 — Qq flint" },
+    { range: [41, 90], description: "2d6 × 5 — Qq crystal — rarely clear" },
+  ]);
+  const { data } = await parseDrop(entry, drop);
+  assert.deepEqual(data.bands, [
+    { min: 1, max: 40, value: "9", type: "Qq flint" },
+    { min: 41, max: 90, value: "2d6 × 5", type: "Qq crystal — rarely clear" },
+  ], "the last field keeps every separator after the first");
+});
+
+await test("the special lists are one table each on a die of their own, and a type grid is a lookup", async () => {
+  world({ registry: treasureRegistry() });
+  assert.ok(entryAt("treasure.special.cp")?.rollable && entryAt("treasure.special.ornamental")?.rollable);
+  assert.equal(entryAt("treasure.typeClassic")?.rollable, false, "a lookup by letter is no roll");
+  await materializeAll();
+  assert.equal(tableNamed("Special — Cp").formula, "1d12");
+  assert.equal(tableNamed("Special — Ornamental").formula, "1d4", "not the set's furthest band");
+});
+
 console.log(`test-table-docs: ${passed} tests passed`);

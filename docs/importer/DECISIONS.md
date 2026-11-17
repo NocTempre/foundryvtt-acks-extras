@@ -2080,3 +2080,42 @@ resolver changed.
 **Rejected:** authoring the entry ids on the class row (`bindClass` rebuilds
 `spellList`, so they would be overwritten), and naming the fifth invocation in
 the register so a plain title lookup could find it.
+
+## 2026-11-16 — The treasure wave runs ahead of the wave order, and its charts are registry tables
+
+**Asked.** The owner, 2026-11-16: "letting the TT effort start to get those
+tables of items (and magic items!) going too." Two standing orders stood in
+the way: "Treasure is read from the Judges Journal, and the Treasure Tome is a
+layer over it" (2026-11-11) says "The wave order 3 to 8 stands", which puts
+treasure (wave 7) after waves 3 to 6; and magic DECISIONS 2026-09-25 orders
+magic items from the Judges Journal (4a) before the Treasure Tome's (4b).
+
+**New evidence, superseding in part the 2026-11-11 entry's wave-order clause
+(under seven days old).** The owner's goal above names this work now. The
+order of waves 3 to 6 among themselves stands; wave 7 is taken out of it.
+Magic's 4a is not superseded: no treasure slice writes
+`flags["acks-extras"].magicItem`, so 4a's design stays the magic work's.
+
+**Ruled.**
+
+- Every generation chart in the treasure chapter is a registry table read at
+  import (`TABLE_RECIPES.treasure`, `table-recipes-treasure.mjs`), projected as
+  a RollTable where it is rolled, under the 2026-09-23 entry "A Judges Journal
+  chart has one source and at most two projections". None is a
+  `kind.rolltable`: a feature computes with each of them, and their band edges
+  are read off the page.
+- A list the page prints across two columns or two pages is read as segments
+  and joined by `treasure-binding.mjs`; a band list that does not tile its die
+  from 1 is not assembled, and its raw table stays.
+- The treasure-type grids are lookups by letter and project as journal pages,
+  not RollTables.
+- The Treasure Tome layers by whole table (plan question A, open).
+
+**Rejected:** `kind.rolltable` for these charts (ships band edges as section
+keys); row-by-row merge of a Treasure Tome table over a Journal table (a
+re-banded d100 list merged by row overlaps).
+
+*Cost:* the gem and jewelry value lists project as a RollTable rolled on one
+die up to their top band; the dice legend the page prints above them is not
+read yet, so a roll from that RollTable is not the printed procedure's.
+ROADMAP wave 7 carries it.

@@ -442,7 +442,13 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    Journal"). Gems are this wave (see "Variations" above). The Treasure Tome
    is registered (`tt`) against these consumers and nothing reads it yet,
    which is the one standing exception to the rule that a book id must unlock
-   something; its importer is next-roadmap work.
+   something. The Journal's treasure types, gem and jewelry values and
+   special treasures are read (DECISIONS 2026-11-16, "The treasure wave runs
+   ahead of the wave order"); not yet: the dice legend above the gem and
+   jewelry value lists (their RollTables roll one die to the top band), the
+   magic-item chain, arms and armour, the Treasure Tome layer and its
+   entries, and the generators that use them
+   (`docs/importer/wip/20261116-tt-importer-plan.md`).
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.
 

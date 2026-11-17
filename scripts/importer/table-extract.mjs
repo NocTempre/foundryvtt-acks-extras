@@ -331,6 +331,41 @@ export async function findPage(recipe, numPages, readPage) {
 }
 
 /**
+ * `wrapRows.centered`: a grid whose rows differ in height and whose label (or
+ * any cell) is centred on its own row. A tall row's first lines sit nearer a
+ * short row's label above it than their own, so nearest-label joining hands them
+ * to the wrong row. The lines between two claimed rows are instead split so
+ * that the upper row's lines, its own included, centre on its label: the split
+ * that puts their mean y nearest the label's is taken, top row to bottom, and
+ * the rest go to the row below. Lines above the first row and below the last
+ * join it only within `tol`. Fills `blocks` (claimed row index → its lines).
+ */
+function centreWrapLines(rows, claimed, blocks, start, end, recipe, tol) {
+  const free = [];
+  for (let i = start; i < end; i++) {
+    if (blocks.has(i)) continue;
+    const r = rows[i];
+    if (r.items.length && !r.items.some((it) => it.x < recipe.labelMaxX)) free.push(i);
+  }
+  const first = claimed[0];
+  const last = claimed[claimed.length - 1];
+  let carry = free.filter((i) => i < first && Math.abs(rows[first].y - rows[i].y) <= tol);
+  claimed.forEach((idx, k) => {
+    const lines = [...carry.map((i) => rows[i]), ...blocks.get(idx)];
+    carry = [];
+    const below = free.filter((i) => i > idx && (k + 1 < claimed.length ? i < claimed[k + 1] : i > last && Math.abs(rows[i].y - rows[idx].y) <= tol));
+    let take = 0;
+    if (k + 1 < claimed.length) {
+      const centre = (n) => Math.abs([...lines, ...below.slice(0, n).map((i) => rows[i])].reduce((s, r) => s + r.y, 0) / (lines.length + n) - rows[idx].y);
+      for (let n = 1; n <= below.length; n++) if (centre(n) < centre(take)) take = n;
+      carry = below.slice(take);
+    } else take = below.length;
+    for (const i of below.slice(0, take)) lines.push(rows[i]);
+    blocks.set(idx, lines);
+  });
+}
+
+/**
  * `wrapRows`: the lines of a cell printed over several lines. The label sits
  * on one of them and the rest carry no run left of `labelMaxX`; each such line
  * between the grid's first and last claimed rows joins the claimed row nearest
@@ -348,6 +383,10 @@ function wrapLines(rows, claims, recipe, start, end) {
   const first = Math.min(...claimed);
   const last = Math.max(...claimed);
   for (const idx of claimed) blocks.set(idx, [rows[idx]]);
+  if (recipe.wrapRows.centered) {
+    centreWrapLines(rows, claimed, blocks, start, end, recipe, tol);
+    return blocks;
+  }
   for (let i = start; i < end; i++) {
     if (blocks.has(i)) continue;
     const r = rows[i];

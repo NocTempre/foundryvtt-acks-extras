@@ -27,6 +27,7 @@ import { applyTravelImport, TRAVEL_DOC_ID } from "./travel-binding.mjs";
 import { applyWeatherImport, WEATHER_DOC_ID } from "./weather-binding.mjs";
 import { applyEncountersImport, ENCOUNTERS_DOC_ID } from "./encounters-binding.mjs";
 import { applyVoyagesImport, VOYAGES_DOC_ID } from "./voyages-binding.mjs";
+import { applyTreasureImport, TREASURE_DOC_ID } from "./treasure-binding.mjs";
 import { applyLanguageImport, LANGUAGES_DOC_ID } from "./language-binding.mjs";
 import { applySurvivalImport, SURVIVAL_DOC_ID } from "./survival-binding.mjs";
 import { applyConditionsImport, CONDITIONS_DOC_ID } from "./conditions-binding.mjs";
@@ -73,6 +74,7 @@ const ASSEMBLED = Object.freeze([
   { id: WEATHER_DOC_ID, label: "weather", assemble: applyWeatherImport, shown: (r) => r.assembled },
   { id: ENCOUNTERS_DOC_ID, label: "encounter", assemble: applyEncountersImport, shown: (r) => r.assembled.length },
   { id: VOYAGES_DOC_ID, label: "voyage", assemble: applyVoyagesImport, shown: (r) => r.assembled },
+  { id: TREASURE_DOC_ID, label: "treasure", assemble: applyTreasureImport, shown: (r) => r.assembled },
 ]);
 
 /**

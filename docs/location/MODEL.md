@@ -53,7 +53,10 @@ sibling features (henchmen today; domains later) read through lib.
   - Two generic projections, keyed by a descriptor table in
     `table-docs.mjs`, carry the `encounters` doc: a **column grid** (every
     column an ascending band list read with one die) is one RollTable per
-    column, rolling the table's own die, read off its furthest band; a
+    column, rolling the table's own die, read off its furthest band (a
+    descriptor naming `fields` reads each band's fields as one result joined
+    by " — ", and a drop splits it back at the first separators; the
+    `treasure` value lists use it); a
     **list set** is one RollTable per non-empty list, a die of the list's
     length. A column or list dropped back (as a RollTable, or as JSON by
     drop or Edit) is merged into the table as it reads now, and the

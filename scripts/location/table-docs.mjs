@@ -100,7 +100,21 @@ const COLUMN_GRIDS = [
   { docId: "encounters", tableId: "civilized", field: "name" },
   { docId: "encounters", prefix: "monsters.", field: "name" },
   { docId: "encounters", tableId: "terrainSubTables", field: "name", ownDie: true },
+  { docId: "treasure", tableId: "gemValue", field: "value", fields: ["value", "type"] },
+  { docId: "treasure", tableId: "jewelryValue", field: "value", fields: ["value", "type"] },
+  { docId: "treasure", tableId: "special", field: "result", ownDie: true },
 ];
+
+/** How a band with several `fields` reads as one result, and splits back. */
+const FIELD_JOIN = " — ";
+
+/** A result's text split into `fields`: the first parts one each, the last field the rest. */
+function splitFields(text, fields) {
+  const parts = text.split(FIELD_JOIN);
+  const head = parts.slice(0, fields.length - 1);
+  const rest = parts.slice(fields.length - 1).join(FIELD_JOIN);
+  return Object.fromEntries(fields.map((f, i) => [f, i < head.length ? head[i] : i === head.length ? rest : ""]));
+}
 
 /** Tables whose data is a set of LISTS, `{kind: [text, …]}`, each read with one die of its own length. */
 const UNIFORM_LISTS = [{ docId: "encounters", tableId: "terrainEncounters" }];
@@ -290,10 +304,10 @@ function rollTableSpec(entry, data) {
     return {
       formula: `1d${top}`,
       results: (data ?? [])
-        .filter((b) => b?.min != null && b[grid.field] != null)
+        .filter((b) => b?.min != null && (grid.fields ?? [grid.field]).every((f) => b[f] != null))
         .map((b) => ({
           range: [b.min, b.max ?? b.min],
-          description: grid.keyed ? humanize(b[grid.field]) : String(b[grid.field]),
+          description: grid.fields ? grid.fields.map((f) => b[f]).join(FIELD_JOIN) : grid.keyed ? humanize(b[grid.field]) : String(b[grid.field]),
         })),
     };
   }
@@ -400,6 +414,7 @@ function parseRollTable(entry, table) {
       .filter((r) => textOf(r))
       .map((r) => {
         const [min, max] = r.range ?? [1, 1];
+        if (grid.fields) return { min, max, ...splitFields(textOf(r), grid.fields) };
         return { min, max, [grid.field]: keys ? keyFor(textOf(r), keys) : textOf(r) };
       });
     return current;

@@ -1445,6 +1445,48 @@ the recipe: every anchor is a phrase, and the rows are found by position.
   book not imported the table is absent and every consumer says "not imported"
   (`docs/lib/MODEL.md`, "Expedition figures").
 
+## The treasure tables
+
+The `treasure` registry document reads the Judges Journal's treasure tables
+(JJ ch. 4, folios 125 to 129) from the Judge's own copy at import: the two
+treasure-type grids, the gem and jewelry value lists, and the eleven
+special-treasure lists. Every band edge, dice string, name and figure is read;
+the recipes (`table-recipes-treasure.mjs`) carry geometry and anchors only.
+
+**Raw reads.** `typeClassicRaw` and `typeHeroicRaw` are `gridRows` keyed by the
+type letters A to R, the one structural list the file holds. A row is two to
+five lines tall with its letter centred on it, and rows differ in height, so
+`wrapRows.centered` splits the lines between two letters so that the upper
+row's lines centre on its letter; nearest-letter joining gives a tall row's
+first lines to the short row above it. The first cell stacks the category over
+the average value; the other cells are the page's text, a chance and its
+dice. `gemValueRaw` and `jewelryValueRaw` are band, value, type; the three rows
+over the bands that name the dice each kind is rolled on are not bands and are
+not read. Each special-treasure list is a `<kind>Raw` table of `b<n>` rows
+(`min`, `max`, `text`) read by the `rollBand` label pattern, and copper, gold
+and gem lists run across two print columns or two pages, so each is two raw
+tables (`...MoreRaw`) the binding joins. A page is found by a caption's words,
+never a figure: the special lists' captions differ only after a figure, so one
+common phrase locates the page and a region of it is bounded by print column
+and y.
+
+**Assembly.** `treasure-binding.mjs` writes `typeClassic` and `typeHeroic`
+(`{<letter>: {category, avgValue, cp, sp, ep, gp, pp, gems, jewelry, magic}}`,
+cells the page's text), `gemValue` and `jewelryValue` (`{bands: [{min, max,
+value, type}]}`) and `special` (`{<kind>: [{min, max, result}]}`) beside the raw
+tables. A band list that does not tile from 1 with no gap or overlap is not
+assembled, so a lost row never reads as a smaller die; the raw table stays.
+`check-treasure-tables.mjs` reads the real page and fails on a missing letter,
+a cell that is not shaped as the page sets it, an untiled list, or a list that
+ends on no die's face; it skips without the local Journal.
+
+**Projection.** The value lists project as one RollTable each, a result reading
+"value — type" (`fields` in the `COLUMN_GRIDS` row of
+`location/table-docs.mjs`), rolled on `1d<top band>`: the page rolls two dice
+for each kind of stone or piece, which the one table does not model. The
+special lists are one RollTable each on a die of its own length (`ownDie`). The
+type grids are lookups by letter and project as JSON pages.
+
 ## The weapon lists
 
 The weapons grid prints each row's figures and the sub-header it sits under,

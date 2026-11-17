@@ -18,6 +18,7 @@
 import { HIT_POINTS_DOC, HP_PAST_LAST_DIE_TABLE } from "./hitpoint-tables.mjs";
 import { MERCHANDISE_KEYS } from "../markets/merchandise-keys.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { TREASURE_RECIPES } from "./table-recipes-treasure.mjs";
 
 // Henchman/mercenary availability rows share the RR market-class grid: a label
 // column, six market-class cells (dice strings kept raw), and — for henchmen —
@@ -3595,6 +3596,7 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  treasure: TREASURE_RECIPES,
   // Mercantile-venture merchandise (RR ch. 8): the common and precious
   // merchandise grid. The markets feature reads pricePerStone / priceStep for
   // demand-step pricing; the market-class cells ride along.

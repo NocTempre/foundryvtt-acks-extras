@@ -3894,3 +3894,59 @@ tracked or swept.
 
 The import is kept. The test character, if built for step 3, carries the
 marker `importer/bta-gnostic-caster` and stays.
+
+## The treasure tables
+
+The `treasure` registry document (JJ ch. 4), read from the seat's own Judges
+Journal and projected as RollTables. `tools/importer/check-treasure-tables.mjs`
+already proves the page reads whole offline; this walk proves the import writes
+it, the browser lists it, and the RollTables hold it.
+
+### Fixtures
+
+The Judges Journal connected on the seat. Nothing is built: the imported
+document and the RollTables it materializes on the library's shelf are the
+world's, carry no `flags.world.fixture` marker, and are read, never driven. A
+world that already holds the document is the usual start; to see the first
+read, remove it with Remove ALL Imports first.
+
+### Steps
+
+1. Run the **Reimport One Shelf (GM)** macro (`Compendium Packs → ACKS II —
+   Extras → Macros → ACKS Extras Macros → Import from your books`), choose
+   **Rules tables**, then **treasure only**.
+   *Observable:* no error notice and no `incomplete` entry for the document;
+   `acksExtras.lib.tables.getDoc("treasure").tables` holds the raw reads
+   (`typeClassicRaw`, `typeHeroicRaw`, `gemValueRaw`, `jewelryValueRaw`, and a
+   `<kind>Raw` per special list, three of them with a `...MoreRaw` segment)
+   beside `typeClassic`, `typeHeroic`, `gemValue`, `jewelryValue` and `special`.
+2. Prove the special lists tile their dice:
+   `Object.entries(acksExtras.lib.tables.getTable("treasure","special")).map(([k,b]) => [k, b[0].min, b.at(-1).max, b.every((x,i) => !i || x.min === b[i-1].max + 1)])`.
+   *Observable:* eleven kinds, each starting at 1, ending on a die's face, and
+   `true`; the three that run over two columns or pages show no gap where the
+   segments meet.
+3. Open the Ruledata Browser (`Settings tab → Game Settings → ACKS II — Extras →
+   Imported Rules Tables → Open Ruledata Browser`).
+   *Observable:* `treasure.special.<kind>` rows (rollable), `treasure.gemValue.bands`
+   and `treasure.jewelryValue.bands` (rollable), `treasure.typeClassic` and
+   `treasure.typeHeroic` (JSON pages, not rollable), each row naming JJ and its
+   folio (125 for Classic, 126 for Heroic, 127 for the value lists, 128 and 129
+   for the special lists).
+4. Open a special list's RollTable, then Gem Value's, against the Journal's
+   page. *Observable:* each special table's formula is the die the page prints
+   over that list and its rows are the page's, in order; Gem Value's formula
+   reaches its highest band and each row reads "value — type", the value
+   cell first.
+5. Open the Classic type grid's JSON page and compare rows I, Q and R with the
+   page. *Observable:* each cell is the page's text; Q's magic cell and R's
+   do not run into each other (the pair that nearest-letter joining mixed up).
+6. Edit one special result in its RollTable and drop it back over its entry,
+   then the same on a Gem Value row. *Observable:* the entry is overridden as
+   a whole table, the other kinds keep their values, and the Gem Value row
+   keeps its value and type as two fields (`getTable("treasure","gemValue").bands[0]`).
+   Remove the override.
+
+### Teardown
+
+The import is kept. Step 6's override is removed by its own last action;
+nothing is swept.

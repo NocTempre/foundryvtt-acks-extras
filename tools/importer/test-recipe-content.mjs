@@ -119,6 +119,8 @@ const TABLES = {
   // its page; a culture's name list may be in a supplement. The supplement's
   // caste split: three shares and four words, each read by key.
   people: ["cultures", "cultureAppearance", "dwarvenCastes", "hirelingAttributes"],
+  // The Judges Journal's treasure types, value bands and special-treasure lists.
+  treasure: Object.keys(TABLE_RECIPES.treasure.tables),
 };
 
 /** Whether a recipe's book is on this machine. */
@@ -1147,6 +1149,23 @@ Object.assign(VERIFY, {
     }
   },
 });
+
+// The treasure tables (JJ ch. 4): every row found with its cells filled, and a
+// band list's labels parsed. The bands tiling their die is
+// `check-treasure-tables.mjs`, which reads them across their segments.
+for (const id of Object.keys(TABLE_RECIPES.treasure.tables)) {
+  VERIFY[`treasure.${id}`] = (out, recipe, fail) => {
+    const rows = Object.entries(out ?? {});
+    if (!rows.length) return fail("no rows read");
+    const band = !!recipe.rows[0].labelPattern;
+    if (!band && rows.length !== recipe.rows.length) fail("rows: count differs from the declared letters");
+    for (const [key, row] of rows) {
+      if (isMissingRow(row)) { fail(`row ${key}: __missing placeholder`); continue; }
+      if (band && !(isNum(row.min) && isNum(row.max) && row.min <= row.max)) fail(`row ${key}: band label did not parse`);
+      for (const c of recipe.cellColumns) if (!isText(row[c.key])) fail(`row ${key}: ${c.key} is empty`);
+    }
+  };
+}
 
 /* --------------------------------- the run -------------------------------- */
 

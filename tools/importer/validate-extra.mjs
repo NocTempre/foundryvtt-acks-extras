@@ -28,6 +28,9 @@
  *   check-encounter-grids  Do the encounter grids read whole off the book —
  *                       every cell one name, every band tiling its die? Needs
  *                       the PDFs and skips without them, like the drift check.
+ *   check-treasure-tables  Do the treasure tables read whole off the Judges
+ *                       Journal — every type row found, every band list tiling
+ *                       its die? Needs the PDF and skips without it.
  *   check-market-classes  Does each domain record read the class of the grid
  *                       row it names, or declare the misprint it reads past?
  *                       Needs the PDFs and skips without them.
@@ -142,7 +145,7 @@ if (failed) {
 // the others read, so they run side by side, each to its end.
 const importerTool = ([tool, ...args]) => [path.join(ROOT, "tools", "importer", tool), ...args];
 execFileSync(process.execPath, importerTool(["lint-register.mjs"]), { stdio: "inherit" });
-const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-market-classes.mjs"]].map(importerTool));
+const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-treasure-tables.mjs"], ["check-market-classes.mjs"]].map(importerTool));
 if (checks.some((check) => check.status !== 0)) {
   console.error(`validate-extra: FAILED — ${checks.filter((check) => check.status !== 0).map((check) => path.basename(check.args[0])).join(", ")}`);
   process.exit(1);
