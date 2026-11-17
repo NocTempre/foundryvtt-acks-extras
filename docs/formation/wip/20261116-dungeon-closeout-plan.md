@@ -1056,6 +1056,11 @@ a hover pass over the six controls.
 
 A phase corrects the next one's prompt before it ends.
 
+The planning session closed on 2026-11-17 and answers nothing further. Each
+later phase is started by the session managing the walk lanes, from the
+"Phase 2 and later" prompt below, once the phase before it has appended its
+results.
+
 **The phase session's model.** `claude-opus-5-5`. The design is ruled and
 every slice is briefed, so the session's own work is dispatching, reading
 diffs against the word and value rules, landing, and driving the walk: review
