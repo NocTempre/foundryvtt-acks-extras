@@ -162,7 +162,7 @@ the card (`stageFromCard`):
 - each linked table is drawn quietly (`drawQuietly`); item results become cards,
   text results are listed on the card;
 - the letters are listed and deal nothing yet (`dealLetter`, the seam the hoard
-  adapter fills);
+  adapter, "The hoard adapter", will fill);
 - the staged pot's uuid is written back to the card, so a second press opens it.
 
 **Open** moves the goods: an `updateCards` listener on the opening client calls
@@ -332,3 +332,47 @@ through `dealOf`:
 - A pot that the toggles would leave empty refuses to open.
 - When any toggle is on, `openPot` whispers the Judges a card listing, per
   toggle, the true names of the cards it changed. No card is posted otherwise.
+
+## The hoard adapter
+
+Source: `hoard-logic.mjs` (the engine), `hoard-map.mjs` (pure mapping),
+`hoard.mjs` (the Foundry side). `dealHoard({letter, style, toggles, special,
+roll})` returns `{truths, errors, cite, toggles, audit}` for one treasure type
+in `classic`, `heroic` or `gritty`. Nothing calls it yet. It reads the
+imported `treasure` registry document through `lib/tables.mjs` and holds no
+figure: with the document, the style's type table or the letter missing, it
+returns no truths and one typed error (`not-imported`, `unknown-type`,
+`unknown-style`). The rest of a hoard is dealt around any other gap, and each
+gap is an entry of `errors` for the caller to word.
+
+**Imported table to engine argument** (`mapHoardArgs`):
+
+| Imported | Becomes |
+| --- | --- |
+| `typeClassic`, `typeHeroic`, `typeGritty` | `tables.type.rows`, the dealt letter's row alone; its cite is `citeOf` of the table |
+| `typeUnits[style]` | `units.coin` by coin column, the first figure of each text; a column with none is left out and its coin errors `unit-missing` |
+| `gemValue`, `jewelryValue` | `tables.values` |
+| `gemDice`, `jewelryDice` | one kind per legend row, thrown on the row's `dice`, named by its `kind` in either number; the row's place is the place of its special list (`GEM_LISTS`, `JEWELRY_LISTS`). A missing or short legend skips its column and lists `column-skipped`, unless the dealt row's cell there is empty |
+| `special`, `specialPer` | `tables.special`, only with `special: true`; the die is the one a list's own bands span (`bandDie`), a coin list's `per` the first figure of its text |
+
+The kinds are not imported. A coin column is one kind, named by the nouns its
+cells print and, with special treasure on, by the coin names its special lists
+use; a magic column has one kind per noun it prints, whose `tableRef` is that
+noun for the magic-item roll. The `noMagic` toggle removes the row's magic cell
+before the engine sees it, so none of its dice are thrown; `forceCursed` is not
+read and is returned as it came, since `planOpen` applies it.
+
+**Special treasure is off unless asked for.** A coin list's result that counts a
+coin (`N <world coin name> <word>`) is coin and joins that coin card; a gem or
+jewelry list's result that says one of its own kind (`1 <kind>`) leaves the lot
+as it was; any other result is a `special` truth of its label alone.
+
+**Cards become truths** (`truthsFromCards`). A coin card names the world's coin
+by the lang name of its column (`ACKS-TREASURE.hoard.coin.<key>`), found with
+`coinTemplate`; its `cv` is that item's `coppervalue` and its weight that
+stack's. A world with no such coin gets `coin-missing` and no card for that
+coin; no rate is assumed. A gem or jewelry card carries `valueGp` and its
+band's type as the label. A magic card is a placeholder: pool `magic`, magical,
+undetected, no mask, with a `tableRef` that is not part of a stored truth and
+that the magic-item roll resolves. Dice are `CONFIG.Dice.randomUniform` through
+`rollerFrom`, or a roller the caller passes.

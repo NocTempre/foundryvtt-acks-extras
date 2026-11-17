@@ -45,7 +45,7 @@ const PERCENTILE = "1d100";
 const err = (code, rest = {}) => ({ error: { code, ...rest } });
 
 /** A string folded for matching: case, accents, runs of space and edge punctuation. */
-const fold = (s) =>
+export const fold = (s) =>
   String(s ?? "")
     .normalize("NFKD")
     .replace(/[̀-ͯ]/g, "")
@@ -245,9 +245,12 @@ function parseFigure(v) {
 const unitOf = (units, key) => (typeof units === "number" ? units : units?.[key]);
 const labelOf = (k) => k.label ?? k.names?.[0] ?? k.key;
 
-/** A special-treasure result as a count of a coin kind ("N <coin name>"), else null. */
+/**
+ * A special-treasure result as a count of a coin kind ("N <coin name>", a
+ * trailing parenthesized note set aside), else null.
+ */
 function coinResult(text, kinds) {
-  const m = /^(\d{1,3}(?:,\d{3})+|\d+)\s*(.+)$/.exec(String(text ?? "").trim());
+  const m = /^(\d{1,3}(?:,\d{3})+|\d+)\s*(.+?)(?:\s*\([^)]*\))?$/.exec(String(text ?? "").trim());
   if (!m) return null;
   const hits = kinds.filter((k) => k.pool === "coins" && (k.names ?? []).some((n) => fold(n) === fold(m[2])));
   return hits.length === 1 ? { kind: hits[0], count: Number(m[1].replace(/,/g, "")) } : null;

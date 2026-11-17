@@ -9897,5 +9897,10 @@
   "ACKS-MAGICITEMS.refused.not-imported": "No magic-item tables are imported. Still to import:",
   "ACKS-MAGICITEMS.refused.rarity-required": "Choose a rarity for a Heroic or Gritty roll.",
   "ACKS-MAGICITEMS.refused.unknown-style": "Choose a style to roll.",
-  "ACKS-MAGICITEMS.refused.post-failed": "The magic item was rolled but its card could not be posted."
+  "ACKS-MAGICITEMS.refused.post-failed": "The magic item was rolled but its card could not be posted.",
+  "ACKS-TREASURE.hoard.coin.cp": "Copper",
+  "ACKS-TREASURE.hoard.coin.sp": "Silver",
+  "ACKS-TREASURE.hoard.coin.ep": "Electrum",
+  "ACKS-TREASURE.hoard.coin.gp": "Gold",
+  "ACKS-TREASURE.hoard.coin.pp": "Platinum"
 }

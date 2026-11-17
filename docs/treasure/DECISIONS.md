@@ -355,3 +355,47 @@ both left the point open for the owner.
   a card identified in part or not at all is forced cursed and not known, as
   before. **Counter (moderate):** a Judge forcing a curse late loses the
   surprise on a fully identified card.
+
+## 2026-11-17 — The hoard adapter reads the import's own shapes
+
+The adapter (`hoard-map.mjs`, `hoard.mjs`) was built against the importer's
+documents. The choices, each of which the engine's contracts left open:
+
+- **Kinds are derived, not imported.** The import gives no list of kind names.
+  A coin column is one kind named by the nouns its cells print and, with special
+  treasure on, by the coin lists' own results; each distinct magic noun is a
+  kind whose `tableRef` is the noun; a gem or jewelry kind is one legend row.
+  No noun is written in source. **Counter (moderate):** an importer-written
+  kinds table would be explicit, at the cost of a second read of the same page.
+- **A legend row's place picks its special list.** The legend gives dice and a
+  kind per row but not which special list each belongs to; the rows are paired
+  with `GEM_LISTS` and `JEWELRY_LISTS` by position, and a legend not three rows
+  long skips its column rather than pair by guess. **Counter (strong):** the
+  pairing is a structural assumption read off one printing; a reordered legend
+  silently swaps two lists. It needs the live walk against a real import, and
+  the importer could name the list on each legend row.
+- **A kind is matched in either number.** The legend prints one number and the
+  cells the other, so `formsOf` adds the regular plural or singular. A kind the
+  rule does not reach fails as `unknown-noun`, typed.
+- **A special list's die is the die its bands span** (`bandDie`, the
+  importer's own `ownDie` convention). The engine's header says a die is never
+  derived from a top band; the exception is a list the import already checked
+  "ends on a die's face", and the adapter passes the die in as an argument like
+  any other.
+- **Special treasure is off by default.** The Judge's procedure makes lots and
+  the special lists optional, so a deal throws on them only when asked. The
+  default is the owner's to confirm.
+- **A "stays as it was" result is read by its words' shape.** The import marks
+  none. A gem or jewelry result of `1 <own kind>` is kept; a coin result that
+  counts a coin is coin, which for a same-coin result nets to no change. The
+  engine's `coinResult` now sets a trailing parenthesized note aside. A coin
+  list result of `N <coin name> <word>` for a thing that is not a coin would be
+  read as coin; the lists the book prints give none.
+- **The world's coin is found by lang name.** The engine's key (`cp` to `pp`)
+  is not a rate. The adapter looks up the world's coin item by the localized
+  name of each denomination and takes its `coppervalue`, so a Judge's renamed
+  or re-rated coin is theirs; with none, no card and `coin-missing`.
+- **A magic card is undetected with no mask.** It is a placeholder the
+  magic-item roll replaces; until then the Judge sees the no-mask warning.
+- **A column the type row leaves empty is not reported when skipped.** A legend
+  gap names a skipped column only where the dealt cell has something in it.

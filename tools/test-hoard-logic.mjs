@@ -192,6 +192,8 @@ eq(deal.cards, [{ pool: "coins", coin: { key: "c1", count: 98 }, label: "quills"
 eq(deal.audit.filter((a) => a.special).map((a) => [a.where, a.expr, a.total, a.cite]), [["special.c1", "1d4", 1, "INV special c1"], ["special.c1", "1d4", 3, "INV special c1"]], "one throw per lot, audited with its list's cite");
 deal = dealSp({ c1: "1d4" }, [4, 2, 2]);
 eq(deal.cards, [{ pool: "coins", coin: { key: "c1", count: 148 - 100 + 80 }, label: "quills", cite: "INV type" }], "a result that counts a coin kind returns coin to its card");
+deal = dealSp({ c1: "1d4" }, [4, 2, 2], { c1: { ...SPECIAL.c1, bands: [{ min: 1, max: 4, result: "40 quills (3 st)" }] } });
+eq(deal.cards, [{ pool: "coins", coin: { key: "c1", count: 148 - 100 + 80 }, label: "quills", cite: "INV type" }], "a coin result's trailing note is set aside, not read as part of the coin's name");
 deal = dealSp({ c1: "1d4" }, [1]);
 eq(deal.cards.length, 1, "a count under one lot throws nothing on the special list");
 eq(deal.audit.filter((a) => a.special).length, 0, "and audits nothing");
