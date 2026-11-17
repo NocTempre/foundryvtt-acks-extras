@@ -47,6 +47,11 @@ const EMPHASIS = Object.freeze({ success: "is-success", failure: "is-failure", n
  *                                 appears only if some row in the section has one.
  * @property {string} [targetSuffix] What follows the target: "+" by default, "-"
  *                                 for a throw that wants a low total, "" for an exact match.
+ * @property {string} [targetText] A word in the target cell for a row with no
+ *                                 number to need (an automatic pass, no throw).
+ *                                 Counts toward the column, prints escaped with
+ *                                 no suffix, and is ignored where `target` is a
+ *                                 number.
  * @property {string} [targetTooltip] Hover text for the target (where it came
  *                                 from), assembled at render, so it is written
  *                                 as text and never read as a lang key.
@@ -83,7 +88,7 @@ function buttonHtml({ action, label, icon, data, tooltip, disabled }) {
 /** One `<table>`, or "" when the section has no rows. `labels` overrides a column's heading. */
 function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
   if (!rows?.length) return "";
-  const showTarget = rows.some((r) => Number.isFinite(Number(r.target)));
+  const showTarget = rows.some((r) => Number.isFinite(Number(r.target)) || r.targetText);
   // Result, like Target, is printed only where there is one: a roll that
   // carries no verdict — initiative — is a name and a number, and an always-on
   // column would head a whole table of blanks.
@@ -108,8 +113,10 @@ function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
     html += `<td class="acks-nums"${tip}>${esc(row.total)}</td>`;
     if (showTarget) {
       const t = Number(row.target);
-      const tip = row.targetTooltip && Number.isFinite(t) ? ` data-tooltip-text="${esc(row.targetTooltip)}"` : "";
-      html += `<td class="acks-nums"${tip}>${Number.isFinite(t) ? `${esc(t)}${esc(row.targetSuffix ?? "+")}` : ""}</td>`;
+      const numeric = Number.isFinite(t);
+      const text = !numeric && row.targetText ? String(row.targetText) : "";
+      const tip = row.targetTooltip && (numeric || text) ? ` data-tooltip-text="${esc(row.targetTooltip)}"` : "";
+      html += `<td class="acks-nums"${tip}>${numeric ? `${esc(t)}${esc(row.targetSuffix ?? "+")}` : esc(text)}</td>`;
     }
     // A success is the one thing read at a glance, so it takes the bold.
     if (showResult) {

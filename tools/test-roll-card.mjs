@@ -127,4 +127,23 @@ ok("a card with no rows still posts its banner, line and buttons when it has an 
   assert.equal(renderRollCard({ title: "T", buttons: [{ action: "x", label: "X" }] }), "", "and none at all without it");
 });
 
+ok("a target word opens the Target column, prints escaped with no suffix, and carries the row's tooltip", () => {
+  const html = renderRollCard({
+    title: "T",
+    sections: [{ rows: [{ name: "A", total: 5, targetText: "Au<to>", targetTooltip: "why & how" }, { name: "B", total: 9, target: 14, targetTooltip: "the figure" }] }],
+  });
+  assert.ok(html.includes("rollCard.colTarget"));
+  assert.ok(html.includes('<td class="acks-nums" data-tooltip-text="why &amp; how">Au&lt;to&gt;</td>'));
+  assert.ok(html.includes('<td class="acks-nums" data-tooltip-text="the figure">14+</td>'), "a numeric target renders as before");
+});
+
+ok("a target word alone opens the column, and a number wins over a word on the same row", () => {
+  const alone = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1, targetText: "None" }] }] });
+  assert.ok(alone.includes("colTarget") && alone.includes('<td class="acks-nums">None</td>'));
+  const both = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1, target: 8, targetSuffix: "-", targetText: "None", targetTooltip: "t" }] }] });
+  assert.ok(both.includes('data-tooltip-text="t">8-</td>') && !both.includes("None"));
+  const neither = renderRollCard({ title: "T", sections: [{ rows: [{ name: "A", total: 1, targetTooltip: "t" }] }] });
+  assert.ok(!neither.includes("colTarget") && !neither.includes('data-tooltip-text="t"'));
+});
+
 console.log(`\n${passed} passed`);

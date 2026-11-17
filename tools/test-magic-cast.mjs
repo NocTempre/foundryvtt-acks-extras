@@ -907,7 +907,8 @@ t("a save passed by a defense shows no total, names the band to the seats that m
     const auto = { kind: "save", category: "spell", formula: "1d20", total: null, target: 13, baseTarget: 13, success: true, auto: { label: "Immune", source: "Quillback", types: ["fire"], cite: "ZZ p. 4" }, parts: [] };
     const c = card({ targets: { t1: { ...card().targets.t1, resist: auto } }, entries: { t1_burn: { state: "applied", rolled: 7, applied: 0, fraction: 0.5, saved: true, steps: [] } } });
     const named = castCardView(c, { isGM: true, canPress: false }, realLoc).sections[0].rows[0];
-    assert.equal(named.target, "Auto");
+    assert.equal(named.targetText, "Auto");
+    assert.equal(named.target, undefined);
     assert.ok(named.detail.startsWith("Immune (Quillback): no roll"));
     assert.ok(named.targetTooltip.includes("ZZ p. 4"));
     const other = castCardView(c, { isGM: false, canPress: false }, realLoc).sections[0].rows[0];

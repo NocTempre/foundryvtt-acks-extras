@@ -266,10 +266,10 @@ export function castCardView(card, seat, loc) {
               : entryActions(entry, { targetKey, rowKey }, seat, loc),
           };
       if (resist?.noSave) {
-        Object.assign(line, { target: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
+        Object.assign(line, { targetText: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
       } else if (resist) {
         const shown = resist.auto ? loc("detail.saveAuto", { defense: defenseWord(resist.auto, named) }) : loc("detail.save", { total: resist.total });
-        Object.assign(line, { target: resist.auto ? loc("save.auto") : resist.target, targetTooltip: saveTip(resist, loc, named), detail: [shown, line.detail].filter(Boolean).join(" · ") });
+        Object.assign(line, { ...(resist.auto ? { targetText: loc("save.auto") } : { target: resist.target }), targetTooltip: saveTip(resist, loc, named), detail: [shown, line.detail].filter(Boolean).join(" · ") });
       }
       rows.push(line);
     }

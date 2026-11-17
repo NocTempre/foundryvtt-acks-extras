@@ -348,7 +348,8 @@ t("the card says Exempt with the gate's parts and the page, and No save with its
   assert.match(tip.parts, /tip\.gatePart\.hd\|\{"value":6\} · tip\.gatePart\.cap\|\{"value":4\}/);
   assert.deepEqual(exempt.actions, [], "an exempt entry offers no Apply");
   assert.equal(exempt.target, undefined, "no save column for a row it is exempt from");
-  assert.equal(nosave.target, "save.none|undefined");
+  assert.equal(nosave.target, undefined, "the word is not a number to need");
+  assert.equal(nosave.targetText, "save.none|undefined");
   assert.match(nosave.targetTooltip, /^tip\.noSave\|/);
   assert.match(tipData(nosave.targetTooltip).parts, /tip\.gatePart\.hd\|\{"value":1\} · tip\.gatePart\.below\|\{"value":2\}/);
   assert.equal(tipData(nosave.targetTooltip).name, "Mouse");
