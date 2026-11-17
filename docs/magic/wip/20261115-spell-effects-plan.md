@@ -1915,3 +1915,214 @@ cast card.
 > you proceeded on), writing the session 1b start prompt under it,
 > committing that on `main` with `acks-commit`, and reporting. You start no
 > session; the managing session starts the next one from your prompt.
+
+### Results, S2b (2026-11-16)
+
+S2b is built and walked on `main`. The architect's rulings 48 to 66 (above)
+split it into a probe, a lib half and two magic slices, M1 (the weapon's
+buff) and M2 (held records and the declaration). Each was built on
+`topic/spell-effects` by its own `implementer` and landed. The topic stays
+open for 1b. Nothing is pushed.
+
+**Built.**
+
+- `da6b2f29`: docs, rulings 48 to 66.
+- `874950a3`, the lib half (rulings 48 to 55):
+  - `lib/roll-mods.mjs`: the `rollMods` flag, its reader and its
+    attack-seam contributor; `registerItemBonusSource`; the item gates
+    `weaponMundane` and `weaponMagical`.
+  - `typed-modifiers.mjs`: `modifierDisposition` takes a `bearer` and answers
+    unsupported for an area or recipient subject before it tests a scope;
+    `stackingPart`.
+  - `saves.mjs`: `against`, the scopes judged against the attacker at the
+    roll.
+  - The concentration rows' `lost`; `lossInFlight`; `actorToken`.
+  - API version 52.
+- `8f703c3c`, M1 (rulings 57 and 62 to 65): `magic/cast-mods.mjs`.
+  - The cast dialog's weapon pick.
+  - Records built from the spell's own rows through `castInputs`, never the
+    card's.
+  - One group write per cast, and Undo by entry.
+  - Equipment's masterwork registered as an item-bonus source at `init`.
+- `cf23a0fe`: on `main`, the walk's buff steps and the recipe.
+- `2e9585de`, M2 (rulings 56 and 59 to 61): `cast-moment.mjs`,
+  `cast-held.mjs`, `cast-declare.mjs`.
+  - The held caster record. Concentration's end ends that cast's recipient
+    records on the deleting client, with one end card that carries End and
+    a Judge's Restore.
+  - The declaration: free, declare or resolve. It is lost on `loseStates`,
+    resolved on the caster's turn with no dialog and no second spend, and it
+    lapses when that turn passes.
+  - Magic MODEL, DECISIONS (two entries), ROADMAP and TESTING, and the
+    walk's held and declare steps.
+- `8de2898c`, a walk find fixed on `main`. The walk's token helpers paired
+  a create's answer with its actors by position. They now pair by
+  `actorId`. The round card a tracker move posts is swept with the run's.
+
+**Exercised live** (GM and Player seats, `main`'s junction, nobody else
+seated, world relaunched after the pause):
+
+- The probe before the lib half (P1 to P6, in the notes folder's
+  `20261116-s2b-probes.md`). P4 failed: a Player cannot update its own
+  combatant. So `prepareSpell` is set by the GM's client through the relay,
+  ruling 60's fallback.
+- After M1: `magic-cast-spell` passed (93 pass, 0 fail, exit 0).
+  `magic-spell-recipes` passed (36 pass, 0 fail). The seams the lib half
+  touched passed: `typed-modifiers` (76), `equipment-ability-training` (8)
+  and `formation-day` (185).
+- After M2 and `8de2898c`, the final run: `magic-cast-spell` passed (124
+  pass, 0 fail, exit 0) and `magic-spell-recipes` passed (36 pass, 0 fail,
+  exit 0). The sweep reported `"missing":[],"failed":[]`. In the walk:
+  - Holy circle cast at the caster's token and an ally's by the Player seat.
+    A foe's claw meets the ally's ward. A stranger's attack does not. The
+    ally's own attack at the caster is not changed. The foe's spell at the
+    ally takes the save part.
+  - Sharpness on the blade, cast by the Player. The GM's client writes the
+    record. The figure is on that weapon's attack and damage, with a tooltip
+    naming the spell. Cast twice: two records and one figure, which stays
+    while either record stands. Beside masterwork on the other weapon, the
+    two resolve through `resolveStacking`. Cast with two creatures targeted,
+    the Player's dialog blocks it and a cancel spends nothing; the Judge's
+    dialog warns and leaves Cast on.
+  - Held steps:
+    - Hurt on the GM's client, the caster's cast ends with one card, and
+      Restore puts it back.
+    - Hurt on the Player's client, that client ends what it can.
+    - A time past concentration runs out the recipients' records.
+    - The longest hold ends the cast with the cause `time`.
+    - A recast warns, and confirming ends the held cast with the cause
+      `cast`.
+  - Declare steps:
+    - A declaration is lost to damage and reported lost at the caster's
+      turn.
+    - One is resolved on the turn with no dialog and no second spend.
+    - One the turn passes unresolved lapses, and its spend stands.
+  - S2a's steps 1 to 9 still pass.
+- Fixtures kept, by marker: S2a's, plus
+  - `magic/cast-ally` and `magic/cast-ally-blade`, `-fine`;
+  - `magic/cast-foe` and `magic/cast-foe-claw`, `-spell`;
+  - `magic/cast-stranger` and `magic/cast-stranger-claw`;
+  - `magic/cast-spell-circle` and `magic/cast-spell-edge`.
+- The run's cards and tokens were swept by id, none missing and none
+  refused.
+
+**Offline only:**
+
+- `npm test`: 240 suites. Validate: 0 failures. Among them, on invented
+  spells: test-roll-mods 27, test-typed-modifiers 75, test-saves 15,
+  test-conditions 52, test-lib 247, test-cast-mods 8, test-cast-held 10,
+  test-cast-declare 10, test-magic-cast 61, test-magic 90, test-equipment
+  886.
+- The relay's refusals for a record write.
+- `restorePlan`'s sanitizing of an end card's entries.
+- A Judge's second declaration replacing the first.
+
+**Not checked:**
+
+- The no-GM fallbacks: a Player's held end or declaration with no GM
+  connected, where the pending record waits with Apply and End.
+- A points pool's spend.
+- A cast made outside the module, which leaves concentration standing.
+- Dice So Nice.
+- The masterwork case where the spell's figure is one below masterwork's:
+  no imported weapon reaches it on this import.
+- The guide and a release shot (S7).
+
+**Defaults proceeded on, for the owner:**
+
+1. Lawful undead do not count for holy circle's reverse.
+2. A Player's attack at a warded creature is not refused; the Player is
+   told.
+3. A creature that enters an area after the cast gains nothing until area
+   templates are built.
+4. A cast outside the module leaves concentration standing. The lib
+   ROADMAP's concentration row records it.
+5. A declaration resolves without a dialog.
+6. A declaration made after the caster's turn waits a round.
+7. An unread tail leaves the records standing, with End.
+8. A Judge's second declaration replaces the first.
+9. A tie with masterwork keeps masterwork.
+10. (M1) A spell whose duration is dice keeps the card's rolled figure when
+    a recompute finds it in range.
+11. (M2) A Judge's Restore may act on an end card a Player's client wrote.
+    `restorePlan` takes only that cast's entries.
+
+**Departures from the rulings, as built:**
+
+- Ruling 53's `vsEnemy` is judged on the bearer's side.
+- Ruling 58: the caster is outside its own area unless targeted.
+- Ruling 59: concentration's end runs on the deleting client.
+- Ruling 61: a declaration lapses at the end of the caster's next turn.
+
+**Findings:**
+
+- Deleting an actor fires no effect delete, so its held records end with
+  nothing. A magic ROADMAP row records it.
+- S2a's relay read the card's rows. Ruling 63 moved it to the spell's own,
+  in M1.
+- A `prepareSpell` set by hand counts as a declaration, but that cast runs
+  fresh and spends.
+- A cast still posts two cards (S2a's finding stands).
+
+### Start prompt, session 1b
+
+> Run session 1b of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`: S3 as "Session 1b: widening" lists it
+> (recurring rows and their prompts, several instances per cast, picks, HD
+> gates, range checks, the rest of the row editor, for its ten
+> `def.spell.*` rows) and the slice S3d that ruling 74 makes of damage
+> against defenses. Read the plan whole first: owner rulings 1 to 4,
+> rulings 17 to 82, and the Results sections. Then read "Early rulings for
+> session 1b" (rulings 67 to 74), which govern S3d:
+> - a `defenses` registry document, `lib/defenses.mjs`, with resistance's
+>   figures imported;
+> - `amountAfter` as the one place an amount is reduced;
+> - lib's apply of a weapon hit;
+> - the save side built in S3.
+>
+> Before anything is built, check each line of that section's "Rests on"
+> list against your own tip, and report the result. A line that is no
+> longer true reopens the ruling that leans on it, and goes to an
+> `architect`. Since those rulings were made, S2b changed `cast-apply.mjs`
+> (records from `castInputs`, group writes, `undoEntries`), `saves.mjs`
+> (`against`) and `patches/attack-throw.mjs` (`actorToken`).
+>
+> Then read `docs/magic/MODEL.md` "Casting a spell", `docs/lib` where the
+> plan names a seam, `.claude/rules/ip-doctrine.md` and
+> `.claude/rules/live-testing.md`. Proceed on the four owner questions'
+> defaults under ruling 74, and list them in your Results. Number any new
+> ruling from 83.
+>
+> You are the orchestrator. S3 gets its own `implementer`, or one per slice
+> if an `architect` splits it. S3d gets one `implementer` for each part, in
+> ruling 74's order: lib, then the importer and monsters, then magic. Each
+> brief quotes the owner's words from the plan, and each report restates
+> them with one example. An `architect` takes any design question the plan
+> does not answer. Review each change against the IP doctrine yourself:
+> resistance's fraction and save figure are imported and never shipped, and
+> committed tests use invented spells. Before an agent writes under
+> `scripts/lib/`, list the running sessions and `main`'s dirty paths.
+>
+> You work in the worktree `C:\Proj\foundryvtt-acks-extras.spell-effects`
+> on `topic/spell-effects`.
+> - Run `node .claude/skills/acks-branch/branch.mjs sync spell-effects`
+>   there first.
+> - Commit by hand, and land with `branch.mjs land spell-effects`.
+> - Walk on `main` yourself through `tools/live`, never the `live-tester`
+>   agent. Extend `magic-cast-spell`, whose fixtures are kept by marker, or
+>   add a walk for the widened rows. Rerun it and `magic-spell-recipes`, and
+>   walk S3d's resisted, immune and susceptible targets from an import. Its
+>   tokens pair by `actorId` (TESTING's drive mechanics).
+> - Check who is seated before a world relaunch.
+> - Push nothing.
+>
+> For the prompts after yours: of S5's spells, only `sharpness` has
+> register rows today, and the save-under-a-condition row, `salvingRest`,
+> is in S4's list.
+>
+> Finish by appending "Results, 1b" to the plan, by sha, sorted exercised
+> live, offline only and not checked, with the defaults you proceeded on.
+> Write session 1c's start prompt under it (S4 and S5, per "Session 1c" and
+> "Early rulings for S5"). Commit that on `main` with `acks-commit`, and
+> report. You start no session; the managing session starts the next one
+> from your prompt.
