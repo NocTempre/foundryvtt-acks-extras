@@ -2666,6 +2666,39 @@ in it (`start.round` on the effect). The lifting client holds which rounds
 have opened and not begun (`unrolled`), in memory. A fight whose initiative is
 kept from round to round never opens one.
 
+**Turn hooks.** Wherever the tracker begins a turn it fires
+`acksExtras.turnBegan(combat, combatantId)`, and where it leaves a turn that
+began, `acksExtras.turnEnded(combat, combatantId)`, both on the primary GM's
+client (`TURN_BEGAN_HOOK`, `TURN_ENDED_HOOK`). One of each per real turn: the
+turn that ends is the one the round advance or the forward move left, and it
+ends before the next begins. A round that opens unrolled ends the turn it was
+advanced from and begins none; leaving a round that never began ends nothing. A
+change of the current combatant while a round awaits its rolls, the same
+combatant's place in the order moving, and the Judge stepping back fire neither
+(`turnEdges`, `turn-life.mjs`). A turn the Judge passes over by hand in an
+unrolled round begins and ends as it is passed, since the tracker lifts at it.
+The conditions lift as before, on every change of the current combatant; only
+the hooks and the records below take the stricter reading. The hook fires after
+the records and conditions of that edge are lifted, so a listener reads the
+world as the turn finds it. Lib is not a listener of its own hooks.
+
+**A record that lasts turns.** An Active Effect on the actor of any combatant of
+a fight (a linked actor, or an unlinked token's own) may carry
+`flags["acks-extras"].turnLife`, `{combatId, combatantId, edge, count, seen}`.
+At each `turnBegan` for that combatant in that fight the record's `seen` goes up
+by one, and the record is deleted by id at its edge: `start`, at the turn start
+that brings `seen` to `count`, before the conditions and the hook of that
+moment; `end`, at that combatant's `turnEnded` once `seen` is at `count` or
+more. A record written during the combatant's own turn has `seen` 0 at that
+turn's end, so an `end` record of one turn lasts through the combatant's next
+turn. A record is written once at each turn edge it takes part in: a `seen`
+update at a begin, or the delete at its edge (a `start` record's last turn is
+one delete and no update; an `end` record's last turn is the update at its begin
+and the delete at its end, two writes). A
+record of another fight is never read, and a record whose fight is deleted is
+left where it is: its flag clock ends it. Lib counts turns and deletes; what a
+record means is its writer's.
+
 **Whose state it is.** Foundry writes on every effect an actor is given who
 was acting when it was made (`start.combatant`, `start.initiative`). A `given`
 state made while another combatant of the same fight acts is that combatant's

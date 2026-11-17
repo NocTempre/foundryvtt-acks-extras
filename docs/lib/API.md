@@ -1,4 +1,4 @@
-# lib API (apiVersion 53)
+# lib API (apiVersion 54)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 53,
+  apiVersion: 54,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -65,6 +65,7 @@ acksExtras.lib = {
   summons,             // lib/summons.mjs — a character's summoned creatures (below); 36
   spellUse,            // lib/patches/spell-use.mjs — the cast seam (below); 36
   // 51: attack.{MAGIC_ATTACK_TYPE, spellCarrier, isSpellCarrier, carrierOf, magicDamageSpec}, saves, loseStates, STATES_LOST_HOOK (below)
+  // 54: TURN_BEGAN_HOOK, TURN_ENDED_HOOK, turnLife.{FLAG, EDGES, readTurnLife, turnLifeStep, turnEdges} (below, "Turn hooks and a record's turn life")
 }
 ```
 
@@ -1067,6 +1068,39 @@ lowers the number to roll, so a positive value helps the roller on either side.
 `saveThrow` rolls nothing and answers `roll`, `total` and `success` null for a
 creature with no stored target (and `success` true, nothing rolled, for a spec
 with `auto`), and never calls `loseStates`.
+
+## Turn hooks and a record's turn life (apiVersion 54)
+
+The model is docs/lib/MODEL.md, "The tracker lifts what ends" and "A record that
+lasts turns"; the ruling is DECISIONS, "The tracker fires the turn hooks and
+lifts a record by its turn count".
+
+```
+acksExtras.lib.TURN_BEGAN_HOOK   // "acksExtras.turnBegan", called with (combat, combatantId)
+acksExtras.lib.TURN_ENDED_HOOK   // "acksExtras.turnEnded", called with (combat, combatantId)
+acksExtras.lib.turnLife = {
+  FLAG: "turnLife",              // flags["acks-extras"].turnLife on an Active Effect
+  EDGES: ["start", "end"],
+  readTurnLife(flag) → {combatId, combatantId, edge, count, seen} | null,
+  turnLifeStep(flag, {kind, combatId, combatantId}) → {seen, lift},   // kind: "began" | "ended"
+  turnEdges(prior, current, {unrolled}) → {ended: combatantId | null, began: boolean}
+}
+```
+
+Both hooks fire only on the primary GM's client, as a combatant's turn begins
+and as the tracker leaves one that began; a re-sort after an initiative roll and
+the Judge stepping back fire neither, and a round that opened before its
+initiative was rolled begins no turn until it is rolled. A listener sees the
+records of that edge already lifted.
+
+**The `turnLife` flag** is `{combatId, combatantId, edge, count, seen}` on an
+Active Effect of any combatant's actor in the fight `combatId` (a linked actor or
+an unlinked token's). Each turn start of `combatantId` adds one to `seen`. At
+`edge: "start"` the record is deleted at the turn start that brings `seen` to
+`count`; at `edge: "end"`, at the end of that combatant's turn once `seen` is at
+`count` or more, so a turn already running when the record was written does not
+count. Another fight's records are never touched. A writer sets `seen: 0` and
+need not write it again; lib writes it.
 
 ## Turn activities (`scripts/lib/turn-activities.mjs`)
 

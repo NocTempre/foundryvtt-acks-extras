@@ -21,6 +21,14 @@ export const FLAG_GEAR = "gear";
 export const FLAG_ROLL_MODS = "rollMods";
 
 /**
+ * Flag key under `flags["acks-extras"]` on an Active Effect that lasts a number
+ * of one combatant's turns inside one fight (`turn-life.mjs`): `{combatId,
+ * combatantId, edge, count, seen}`. Named here because the feature that writes
+ * the record and the tracker that lifts it both name it.
+ */
+export const FLAG_TURN_LIFE = "turnLife";
+
+/**
  * The actor sub-types this library adds to the system. Named here, in the
  * one Foundry-free constants file, so a pure-logic module (and the Node test
  * harness that loads it) can import them without pulling in the sheets and
@@ -79,6 +87,24 @@ export const TEMPLATE_HOOKS = Object.freeze({
  * (`damage`, `save` or `moved`). It does not fire when nothing was lost.
  */
 export const STATES_LOST_HOOK = `${NAMESPACE}.statesLost`;
+
+/**
+ * Fired with `(combat, combatantId)` on the primary GM's client when a
+ * combatant's turn begins: after the tracker has lifted what ends at that turn
+ * (`turn-life.mjs` records and the conditions that end with a turn). A round
+ * that opened before its initiative was rolled begins no turn until it is
+ * rolled.
+ */
+export const TURN_BEGAN_HOOK = `${NAMESPACE}.turnBegan`;
+
+/**
+ * Fired with `(combat, combatantId)` on the primary GM's client when the
+ * tracker leaves a combatant whose turn began: the round advanced or the turn
+ * moved forward. The tracker re-sorting after an initiative roll and the Judge
+ * stepping back end nothing. Records that end at that turn's end are already
+ * lifted when it fires.
+ */
+export const TURN_ENDED_HOOK = `${NAMESPACE}.turnEnded`;
 
 /**
  * Fired with `{summonerUuid, sceneId, tokenIds}` once a summoning's tokens are

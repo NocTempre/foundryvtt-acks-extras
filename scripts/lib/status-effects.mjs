@@ -17,7 +17,8 @@
  * shift of that field held only across the synchronous read, then put back:
  * the roll sees it and no document ever stores it.
  */
-import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK, TURN_BEGAN_HOOK, TURN_ENDED_HOOK, FLAG_TURN_LIFE } from "./constants.mjs";
+import { readTurnLife, turnLifeStep, turnEdges } from "./turn-life.mjs";
 import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
@@ -647,30 +648,104 @@ const unrolled = new Map();
 /** Whether any combatant of `combat` is still without an initiative. */
 const awaitsRoll = (combat) => combat.combatants.some((c) => c.initiative == null);
 
+/** Run a turn hook's call; a listener that throws costs only itself. */
+function tellListeners(call) {
+  try {
+    call();
+  } catch (err) {
+    console.error(`${MODULE_ID} | a turn listener failed`, err);
+  }
+}
+
+/**
+ * Apply a turn event (`began` or `ended`, for `combatantId`) to every record of
+ * `combat` carrying a `turnLife` flag, on the actor of any combatant of it: a
+ * record whose count is reached is deleted by id, and any other that counted
+ * the turn has its `seen` written, once. A fight's records are its own: a
+ * record of another fight is never touched. A record in a fight that is
+ * deleted stays, and the flag clock ends it.
+ */
+async function liftTurnLife(combat, combatantId, kind) {
+  const event = { kind, combatId: combat.id, combatantId };
+  const done = new Set();
+  for (const combatant of combat.combatants) {
+    const actor = combatant.actor;
+    if (!actor) continue;
+    // One actor behind two combatants holds each record once.
+    for (const effect of [...(actor.effects ?? [])]) {
+      const record = readTurnLife(effect?.flags?.[MODULE_ID]?.[FLAG_TURN_LIFE]);
+      const key = effect?.uuid ?? effect;
+      if (!record || done.has(key)) continue;
+      done.add(key);
+      const step = turnLifeStep(record, event);
+      try {
+        if (step.lift) await actor.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+        else if (step.seen !== record.seen) await effect.setFlag(MODULE_ID, FLAG_TURN_LIFE, { ...record, seen: step.seen });
+      } catch (err) {
+        console.error(`${MODULE_ID} | could not step a record's turn count on ${actor.name}`, err);
+      }
+    }
+  }
+}
+
+/**
+ * A turn begins: the records that end as it starts go first, then what ends
+ * with the turn, then the hook. With `counts` false the tracker is on a turn
+ * that already began (the Judge stepped back, or the order moved under it),
+ * which lifts what the turn lifts and is no new turn for a record or a listener.
+ */
+async function beginTurn(combat, combatantId, { before = null, counts = true } = {}) {
+  if (!combatantId) return;
+  if (counts) await liftTurnLife(combat, combatantId, "began");
+  await liftAtTurn(combat, combatantId, before == null ? {} : { before });
+  if (counts) tellListeners(() => Hooks.callAll(TURN_BEGAN_HOOK, combat, combatantId));
+}
+
+/** A turn ends: the records that end with it, then the hook. */
+async function endTurn(combat, combatantId) {
+  if (!combatantId) return;
+  await liftTurnLife(combat, combatantId, "ended");
+  tellListeners(() => Hooks.callAll(TURN_ENDED_HOOK, combat, combatantId));
+}
+
 /**
  * The tracker changed who is current. A round that opened unrolled begins when
  * every combatant has rolled, or when the Judge moves the tracker on without
  * that; in between, a change of the current combatant is the roll re-sorting
- * the order and no turn.
+ * the order and no turn. The turn the tracker leaves ends before the next one
+ * begins, and a round that opens unrolled still ends the turn it was
+ * advanced from; a turn the Judge passed over by hand begins and ends as it
+ * is passed.
  */
 async function onTurnChange(combat, prior, current) {
   const now = combat.combatants.get(current?.combatantId);
   if (!now) return;
   const opening = prior?.round !== current.round;
+  // Read before an opening overwrites it: leaving a round that never began ends no turn.
+  const edges = turnEdges(prior, current, { unrolled: unrolled.get(combat.id) ?? null });
   if (opening && now.initiative == null) {
     unrolled.set(combat.id, current.round);
+    await endTurn(combat, edges.ended);
     return;
   }
+  let { ended, began } = edges;
   let passed = null;
   if (!opening && unrolled.get(combat.id) === current.round) {
     const advanced = current.turn > prior.turn;
     if (!advanced && awaitsRoll(combat)) return;
     if (advanced) passed = prior.combatantId;
+    // The round's first turn begins here, forward or back; the position the tracker held was no turn.
+    began = true;
+    ended = null;
   }
   unrolled.delete(combat.id);
   // Moved on by hand: the turn the tracker left has passed.
-  if (passed) await liftAtTurn(combat, passed, { before: current.round });
-  await liftAtTurn(combat, now.id);
+  if (passed) {
+    await beginTurn(combat, passed, { before: current.round });
+    await endTurn(combat, passed);
+  }
+  await endTurn(combat, ended);
+  await beginTurn(combat, now.id, { counts: began });
 }
 
 /**
@@ -684,7 +759,7 @@ function onInitiativeRolled(combat) {
   setTimeout(() => {
     if (unrolled.get(combat.id) !== combat.round || combat.turn !== 0 || awaitsRoll(combat)) return;
     unrolled.delete(combat.id);
-    void liftAtTurn(combat, combat.combatant?.id);
+    void beginTurn(combat, combat.combatant?.id);
   }, 0);
 }
 

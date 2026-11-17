@@ -26,7 +26,8 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
-import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK, FLAG_ROLL_MODS } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK, FLAG_ROLL_MODS, FLAG_TURN_LIFE, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
+import { turnLifeStep, readTurnLife, turnEdges, TURN_LIFE_EDGES } from "./turn-life.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
@@ -156,7 +157,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 53,
+  apiVersion: 54,
   vocab,
   fields,
   /**
@@ -438,6 +439,20 @@ const localImpl = Object.freeze({
   loseStates,
   lossInFlight,
   STATES_LOST_HOOK,
+  /**
+   * The tracker's turn edges. `TURN_BEGAN_HOOK` and `TURN_ENDED_HOOK` fire
+   * with `(combat, combatantId)` on the primary GM's client, the second as the
+   * tracker leaves a turn that began. A record carrying `flags["acks-extras"]`
+   * `[FLAG_TURN_LIFE]`, `{combatId, combatantId, edge, count, seen}`, is lifted
+   * at its edge by the tracker once its combatant's turns reach `count`;
+   * `turnLife` is the pure reading: `readTurnLife(flag)` the well-formed record
+   * or null, `turnLifeStep(flag, {kind, combatId, combatantId})` the `{seen,
+   * lift}` a `began` or `ended` event gives it, `turnEdges(prior, current,
+   * {unrolled})` the `{ended, began}` a change of the tracker crosses.
+   */
+  TURN_BEGAN_HOOK,
+  TURN_ENDED_HOOK,
+  turnLife: { FLAG: FLAG_TURN_LIFE, EDGES: TURN_LIFE_EDGES, readTurnLife, turnLifeStep, turnEdges },
   /**
    * The cast seam (patches/spell-use.mjs) over the system's `Item#_useSpell`.
    * `addClaimant({key, claims, cast})` registers a feature that takes a cast

@@ -546,3 +546,38 @@ doubtful case to the Judge is the honest answer.
 the system does; it is the Judge's manual route. Until the importer reads
 `resistanceProse`, every resistant hit is the Judge's, and the producer gate
 carries a waiver for it that the importer's recipe removes.
+
+## 2026-11-17 — The tracker fires the turn hooks and lifts a record by its turn count
+
+Spell effects that last a combatant's next turn, or a few rounds inside one
+fight, need an end the world clock cannot give: combat does not move this
+system's clock, and the tracker's initiative is rerolled each round, so counting
+the fight's rounds is wrong too. The owner's words: "cast time and spell duration
+(and if it requires concentration to hold) are the other obvious buckets to
+think about", and "1 stops", a record that runs out stops applying by itself,
+with no card offering its removal and no press waited for. Ruling 94 of the
+spell-effects plan puts the turn handling in lib and qualifies the cost line of
+magic DECISIONS 2026-11-11 (the clock math), "a combat's rounds do not age a
+record": a record carrying `flags["acks-extras"].turnLife` is aged by the
+tracker's turns, and the clock math stays for every other record.
+
+`status-effects.mjs`, the one owner of the tracker's turn handling, fires
+`acksExtras.turnBegan(combat, combatantId)` and `acksExtras.turnEnded(combat,
+combatantId)` on the primary GM, with the handling of a round that opens before
+its initiative is rolled it already had, and deletes by id a record whose
+`turnLife` count is reached at its edge (`start`: at that turn's start; `end`:
+at its end). Pure `turn-life.mjs` decides, so the rules are tested offline.
+
+*Rejected:* magic listening to `combatTurnChange` itself, which is a second
+owner of the rounds-before-initiative reading and the primary-GM gate;
+counting the combat's rounds, since initiative is rerolled each round; lib
+listening to its own hooks, which would order the lift after a listener that
+should find it done. *Counter (medium):* one write per turn per record. An
+`end` record costs a `seen` update at its begin and a delete at its end; a
+`start` record's last turn is one delete.
+
+*Cost:* a deleted fight leaves its records, ended by their flag clock. The
+hooks fire for a turn the Judge passes over by hand in an unrolled round, since
+lib already lifts there, and the conditions still lift on a step back where the
+hooks and records do not count. Magic's own turn-end detection is unchanged
+until the ROADMAP row moves it onto the hook.
