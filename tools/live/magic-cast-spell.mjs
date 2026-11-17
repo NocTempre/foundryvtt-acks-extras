@@ -20,6 +20,34 @@
  * figures it uses on its own copies are invented. Machine values arrive through
  * ./_env.mjs.
  *
+ * Then the buff steps (docs/magic/TESTING.md, "The buff steps"), which walk what
+ * a cast's modifier and ward rows become and how lib reads them at the roll. A
+ * circle cast by the Player at the caster's token and the ally's leaves one
+ * status-free record per recipient carrying lib's `rollMods` (scoped `ac`,
+ * `save` and `ward` parts with the scope copied and the caster's alignment key),
+ * the ally's written by the GM's client, and the card's entries carry tooltips
+ * naming the spell. A hostile undead creature's attack on the ally stores an
+ * attack card whose modifier list holds one row for the circle on the ally, of
+ * minus the ally's AC part, and the ward is warned; a hostile creature of no
+ * kind and no alignment draws the undetermined notice and no row; the ally's own
+ * attack on the caster draws neither; the undead creature's spell at the ally
+ * rolls a save whose target is the base less the circle's save part. Sharpness
+ * cast on the ally's blade (the Player's cast, the weapon picked in the dialog)
+ * leaves one record whose parts name the blade, and the blade's attack card
+ * carries a row for the spell on the attack and on the damage while the ally's
+ * other weapon carries none; cast twice, one row is the larger of the two
+ * records' figures, then the smaller once the first ends by the clock, then none;
+ * beside the other weapon's masterwork (read live from the imported figure) the
+ * larger of the two stands and the other is taken back out or never added, the
+ * net always equal to the larger; and with two tokens targeted the Player is
+ * blocked and the Judge warned. The buff steps assert relations between what a
+ * record, a stored attack card, a notice and a stored save hold, never a printed
+ * value, and print booleans and counts only; a figure the import left blank
+ * fails its step as an import finding. The steps the held casts and the
+ * declaration add (concentration's end, the tail and the cap, a recast, a
+ * declaration lost, resolved and stale) are not written here; `walkBuffs`
+ * leaves their place marked.
+ *
  * Fixtures, kept and found by marker (the GM seat builds them):
  * `magic/cast-scene` (the field), `magic/cast-class` (a class with one vancian
  * tradition and two first-level slots), `magic/cast-caster` (a character the
@@ -27,8 +55,15 @@
  * and `magic/cast-spell-fright` (copies of the three imported spells on the
  * caster, each brought to a known shape at the start), `magic/cast-target-a`,
  * `-b` and `-c` (three monsters nobody but the GM owns) and `magic/cast-monster`
- * (a monster with one weapon). The run's own tokens, cards and records are
- * tracked by uuid and swept alone. The walk moves the world clock forward by a
+ * (a monster with one weapon). For the buff steps: `magic/cast-spell-circle`
+ * and `magic/cast-spell-edge` (copies of two more imported spells on the
+ * caster), `magic/cast-ally` (a character only the GM owns) with
+ * `magic/cast-ally-blade` (a mundane weapon) and `magic/cast-ally-fine` (a
+ * weapon stamped with the both-ways masterwork tier), `magic/cast-foe` (an
+ * undead, Chaotic monster) with `magic/cast-foe-claw` and `magic/cast-foe-spell`
+ * (a copy of the damage spell), and `magic/cast-stranger` (a monster of no kind
+ * and no alignment) with `magic/cast-stranger-claw`. The run's own tokens,
+ * cards and records are tracked by uuid and swept alone. The walk moves the world clock forward by a
  * few minutes and restores the dice it rigged.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
@@ -39,6 +74,11 @@ const MACHINE = machineSeats();
 const { browser, origin } = MACHINE;
 const KEY = "magic-cast-spell-walk";
 const IDS = { damage: "def.spell.desiccate", cure: "def.spell.cureLightInjury", fright: "def.spell.frightenHumanoid" };
+/** The two spells the buff steps copy, imported apart from `IDS` so the first section's three-spell check stands as it was. */
+const BUFF_IDS = { circle: "def.spell.holyCircle", edge: "def.spell.sharpness" };
+/** The durations the buff steps set on their own copies, so a record is timed and the clock can end it. The figures are the walk's own, not the book's. */
+const CIRCLE_DURATION = { shape: "fixed", value: 60, unit: "minutes" };
+const EDGE_DURATION = { shape: "fixed", value: 2, unit: "minutes" };
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -190,7 +230,7 @@ const P = {
    * Cast a spell as a user does: `item.use()`, then the dialog. `mode` picks the form; with `stop` the dialog is read and cancelled instead of confirmed.
    * Answers what the dialog showed, then (confirmed) waits for the cast card and for its entries to leave pending.
    */
-  cast: async ({ casterId, spellId, mode, stop, wait }) => {
+  cast: async ({ casterId, spellId, mode, stop, wait, weaponId }) => {
     const H = globalThis.__mcs;
     const actor = game.actors.get(casterId);
     const item = actor.items.get(spellId);
@@ -204,8 +244,12 @@ const P = {
     const select = dialog.querySelector("[data-cast-mode]");
     if (mode && select) { select.value = mode; select.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(200); }
     const verdicts = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")].map((li) => li.dataset.severity);
+    const verdictTexts = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")].map((li) => li.textContent.trim());
+    // The weapon the buff is cast on: the dialog lists the one targeted creature's weapons, and the pick is the select's value.
+    const weaponSelect = dialog.querySelector("[data-cast-for]:not([hidden]) select[data-weapon]");
+    if (weaponId && weaponSelect) { weaponSelect.value = weaponId; weaponSelect.dispatchEvent(new Event("change", { bubbles: true })); }
     const castButton = root.querySelector('button[data-action="cast"]');
-    const shown = { dialog: true, scroll: root.classList.contains("acks-extras-scroll"), modeSelect: !!select, verdicts, castDisabled: !!castButton?.disabled, levelField: !!dialog.querySelector('[name="casterLevel"]'), literalIds: [...root.querySelectorAll("[id]")].filter((e) => !e.closest(".window-header") && !/^[A-Za-z]+-[A-Za-z0-9]+$/.test(e.id)).length };
+    const shown = { weaponOptions: weaponSelect ? weaponSelect.options.length : 0, weaponPicked: weaponSelect && weaponId ? weaponSelect.value === weaponId : null, verdictTexts, dialog: true, scroll: root.classList.contains("acks-extras-scroll"), modeSelect: !!select, verdicts, castDisabled: !!castButton?.disabled, levelField: !!dialog.querySelector('[name="casterLevel"]'), literalIds: [...root.querySelectorAll("[id]")].filter((e) => !e.closest(".window-header") && !/^[A-Za-z]+-[A-Za-z0-9]+$/.test(e.id)).length };
     if (stop) {
       root.querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
@@ -281,6 +325,178 @@ const P = {
   },
   /** Messages the run made speaking as its own fixtures since `since`. */
   cards: async ({ actorIds, since }) => [...game.messages].filter((m) => m.timestamp >= since && actorIds.includes(m.speaker?.actor)).map((m) => m.uuid),
+
+  /* ---------------------------------------------------------------- */
+  /*  The buff steps                                                   */
+  /* ---------------------------------------------------------------- */
+
+  /** A string of the lang as the page's own `format` makes it, so a notice or a label is compared to what the module would say. */
+  format: async ({ key, data }) => game.i18n.format(key, data ?? {}),
+  /**
+   * Bring the four creatures of the buff steps to a known shape: the caster Lawful, the ally a character with no condition, the foe an undead
+   * Chaotic monster, the stranger a monster of no kind and no alignment, each with equal hit points and saves (figures the walk invents).
+   * Answers what each reads as, through lib's own readers.
+   */
+  buffActors: async ({ casterId, allyId, foeId, strangerId }) => {
+    const R = await import("/modules/acks-extras/scripts/lib/actor-read.mjs");
+    const [caster, ally, foe, stranger] = [casterId, allyId, foeId, strangerId].map((id) => game.actors.get(id));
+    const hp = { "system.hp.value": 20, "system.hp.max": 20 };
+    const saves = Object.fromEntries(["paralysis", "death", "blast", "implements", "spell"].map((s) => [`system.saves.${s}.value`, 15]));
+    await caster.update({ "system.details.alignment": "Lawful" });
+    await ally.update({ ...hp, ...saves });
+    await foe.update({ ...hp, ...saves, "system.details.alignment": "Chaotic", "flags.acks-extras.extras.types": ["undead"] });
+    await stranger.update({ ...hp, ...saves, "system.details.alignment": "" });
+    const kinds = (a) => [...R.creatureKinds(a)];
+    return {
+      casterKey: R.actorAlignment(caster),
+      foeKey: R.actorAlignment(foe),
+      foeEnchanted: kinds(foe).includes("enchanted"),
+      strangerKey: R.actorAlignment(stranger),
+      strangerKinds: kinds(stranger).length,
+      allyCharacter: kinds(ally).includes("character"),
+      allyStatuses: [...ally.statuses].length,
+      stale: [ally, foe, stranger].flatMap((a) => [...a.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect)).length,
+    };
+  },
+  /** One linked token per spec on the scene, each read back for its disposition; answers their ids and names. */
+  tokensFor: async ({ sceneId, specs }) => {
+    const scene = game.scenes.get(sceneId);
+    const made = await scene.createEmbeddedDocuments("Token", specs.map((s) => ({ actorId: s.actorId, x: s.x, y: s.y, actorLink: true, disposition: s.disposition })));
+    const out = [];
+    for (const [i, t] of made.entries()) {
+      if (t.disposition !== specs[i].disposition) await t.update({ disposition: specs[i].disposition });
+      out.push({ id: t.id, uuid: t.uuid, actorId: t.actorId, name: t.name, actorName: t.actor?.name ?? "", disposition: t.disposition, linked: t.actorLink === true && t.actor === game.actors.get(t.actorId) });
+    }
+    await new Promise((r) => setTimeout(r, 600));
+    return out;
+  },
+  /**
+   * A copy of an imported spell reshaped onto the first-level list, with a fixed duration of the walk's own and, per row key, a flat figure of the
+   * walk's own; the rest of its rows are the import's, taken afresh from `fresh` (the library original's flag) each time.
+   */
+  buffShape: async ({ casterId, spellId, fresh, duration, values }) => {
+    const item = game.actors.get(casterId).items.get(spellId);
+    const flag = foundry.utils.deepClone(fresh);
+    flag.lists = [{ source: "arcane", level: 1, classes: [], note: "" }];
+    flag.duration = duration;
+    for (const [key, n] of Object.entries(values ?? {})) {
+      const row = (flag.effects ?? []).find((r) => r.key === key);
+      if (row) row.value = n;
+    }
+    await item.update({ "system.cast": 0, "flags.acks-extras.spell": flag });
+    const rows = item.getFlag("acks-extras", "spell")?.effects ?? [];
+    return { rows: rows.length, kinds: rows.map((r) => r.type) };
+  },
+  /** The damage copy on an actor with no class: a flat roll and a "half" save, as the first section shapes its own. The figure is the walk's. */
+  shapeDamage: async ({ actorId, spellId }) => {
+    const item = game.actors.get(actorId).items.get(spellId);
+    const flag = foundry.utils.deepClone(item.getFlag("acks-extras", "spell") ?? {});
+    const row = (flag.effects ?? []).find((r) => r.type === "damage");
+    if (row) { row.roll = "5"; row.saveEffect = "half"; row.delivery = "none"; }
+    flag.save = { ...(flag.save ?? {}), category: flag.save?.category && flag.save.category !== "none" ? flag.save.category : "spell", kind: "", effect: "half" };
+    await item.update({ "system.cast": 0, "flags.acks-extras.spell": flag });
+    return { damageRow: !!row };
+  },
+  /** The flat figure a row of a spell's flag reads as at a level, through the cast's own reader; null where the import read none. */
+  figureOf: async ({ flag, key, level }) => {
+    const M = await import("/modules/acks-extras/scripts/magic/cast-mods.mjs");
+    const row = (flag?.effects ?? []).find((r) => r.key === key);
+    return row ? M.modifierFigure(row, level ?? 1) : null;
+  },
+  /** What each row of a copy's flag declares of its scope: how many `anyOf` branches and which kinds, to compare with what a record copied. */
+  rowShape: async ({ casterId, spellId }) => {
+    const rows = game.actors.get(casterId).items.get(spellId).getFlag("acks-extras", "spell")?.effects ?? [];
+    return Object.fromEntries(Array.from(rows).map((r) => [r.key, { anyOf: Array.from(r.anyOf ?? []).length, vsKinds: Array.from(r.vsKinds ?? []) }]));
+  },
+  /** The buff records (those carrying lib's `rollMods`) on a token's actor, each with its parts reduced to what a step compares. */
+  mods: async ({ sceneId, tokenId }) => {
+    const actor = game.scenes.get(sceneId).tokens.get(tokenId)?.actor;
+    return [...(actor?.effects ?? [])]
+      .filter((e) => e.flags?.["acks-extras"]?.spellEffect && e.flags["acks-extras"].rollMods)
+      .map((e) => {
+        const m = e.flags["acks-extras"].rollMods;
+        const mark = e.flags["acks-extras"].spellEffect;
+        return {
+          id: e.id,
+          castId: mark.castId,
+          role: mark.role,
+          statuses: [...e.statuses].length,
+          changes: e.changes.length,
+          startTime: mark.startTime ?? null,
+          duration: mark.duration ?? null,
+          writer: e._stats?.lastModifiedBy ?? null,
+          label: String(m.label ?? ""),
+          cite: String(m.cite ?? ""),
+          sourceAlignment: m.sourceAlignment ?? null,
+          item: mark.item?.id ?? null,
+          parts: Array.from(m.parts ?? []).map((p) => ({ key: p.key, on: p.on, value: p.value ?? null, itemId: p.itemId ?? null, gate: p.gate?.kind ?? null, anyOf: Array.from(p.anyOf ?? []).length, vsKinds: Array.from(p.vsKinds ?? []) })),
+        };
+      });
+  },
+  /** Whether a seat's own actor is owned by it: the Player's answer for a token it should not own. */
+  ownsToken: async ({ sceneId, tokenId }) => game.scenes.get(sceneId).tokens.get(tokenId)?.actor?.isOwner === true,
+  /** The cells of a rendered cast card that carry a figure or a dash, and how many carry a tooltip naming the spell. */
+  seenMods: async ({ messageId, spellName }) => {
+    const H = globalThis.__mcs;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    await H.sleep(500);
+    const el = document.querySelector(`[data-message-id="${messageId}"]`);
+    const cells = [...(el?.querySelectorAll(".acks-extras-roll-card td.acks-nums") ?? [])];
+    return { found: !!el, cells: cells.length, named: cells.filter((td) => (td.dataset.tooltipText ?? "").includes(spellName)).length };
+  },
+  /**
+   * An attack as a user makes it: `makeAttackThrow` on a token's actor with one of its items, against the seat's targets, the dice as they stand.
+   * Answers the stored card's two modifier lists (the attack's and, on a hit, the damage's) and every notice told while it rolled; the notices
+   * are recorded by wrapping `warn` and `info` for this call alone.
+   */
+  attack: async ({ sceneId, tokenId, itemId }) => {
+    const H = globalThis.__mcs;
+    const actor = game.scenes.get(sceneId).tokens.get(tokenId)?.actor;
+    const item = actor?.items.get(itemId);
+    if (!actor || !item) return { card: false, missing: true };
+    const before = new Set([...game.messages].map((m) => m.id));
+    const told = [];
+    const warn = ui.notifications.warn;
+    const info = ui.notifications.info;
+    ui.notifications.warn = function (msg, ...rest) { told.push({ level: "warn", text: String(msg) }); return warn.call(this, msg, ...rest); };
+    ui.notifications.info = function (msg, ...rest) { told.push({ level: "info", text: String(msg) }); return info.call(this, msg, ...rest); };
+    let message = null;
+    try {
+      await actor.makeAttackThrow({ item, attackType: "melee", skipDialog: true });
+      message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.speaker?.actor === actor.id && String(m.content).includes("attack-throw-card")), { tries: 40, every: 200 });
+    } finally {
+      ui.notifications.warn = warn;
+      ui.notifications.info = info;
+    }
+    const doc = new DOMParser().parseFromString(String(message?.content ?? ""), "text/html");
+    const blocks = [...doc.querySelectorAll(".attack-throw-card__roll")];
+    const listOf = (block) => [...(block?.querySelectorAll(".attack-throw-card__modifiers li") ?? [])].map((li) => ({ label: li.children[0]?.textContent ?? "", value: li.children[1]?.textContent ?? "" }));
+    return { card: !!message, id: message?.id ?? null, hit: blocks.length > 1, attack: listOf(blocks[0]), damage: listOf(blocks[1]), notices: told };
+  },
+  /** The imported figure of a masterwork tier; where the document is not imported, import the variations first. Answers the attack bonus or null. */
+  masterwork: async ({ tier }) => {
+    const H = globalThis.__mcs;
+    const L = await import("/modules/acks-extras/scripts/equipment/printed-layers.mjs");
+    let figure = L.masterworkFigure(tier);
+    let imported = false;
+    if (!figure && typeof acksExtras.importer?.importVariations === "function") {
+      await H.poll(() => acksExtras.importer?.bookOpen?.("rr"), { tries: 600, every: 200 });
+      await acksExtras.importer.importVariations();
+      imported = true;
+      figure = await H.poll(() => L.masterworkFigure(tier), { tries: 40, every: 250 });
+    }
+    return { have: !!figure, imported, bonus: figure ? Number(figure.bonus) : null };
+  },
+  /** Put a tier on a weapon through the module's own action, clearing it first so the stamp always starts from the weapon's own figures. */
+  stamp: async ({ actorId, itemId, tier }) => {
+    const A = await import("/modules/acks-extras/scripts/equipment/actions.mjs");
+    const L = await import("/modules/acks-extras/scripts/equipment/printed-layers.mjs");
+    const item = game.actors.get(actorId).items.get(itemId);
+    await A.setMasterwork(item, null);
+    await A.setMasterwork(item, tier);
+    const part = L.masterworkBonusParts(item, "attack")[0] ?? null;
+    return { tier: item.getFlag("acks-extras", "masterwork")?.tier ?? null, attackBonus: Number(item.system.bonus.attack), mwLabel: part?.label ?? "", itemName: item.name, weaponLabel: game.i18n.localize("ACKS.throw.modifier.weapon") };
+  },
   restore: async () => {
     const H = globalThis.__mcs;
     if (!H?.patched) return "never installed";
@@ -342,7 +558,7 @@ const track = async (uuid, kind) => {
   own.push(uuid);
   await gm.track(uuid, kind);
 };
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 900_000);
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_500_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -358,6 +574,291 @@ const halfEven = (x) => {
 };
 const entriesOf = (model, rowKey) => Object.entries(model.entries).filter(([id]) => id.endsWith(`_${rowKey}`)).map(([, e]) => e);
 const startedAt = Date.now();
+/** The casts the buff steps made, by cast id: the teardown lists the records they left on the fixtures by these. */
+const castIds = [];
+
+/** The label a spell's rows carry on an attack card: its name, and its page reference where it has one. */
+const labelWithCite = (rec) => (rec.cite ? `${rec.label} (${rec.cite})` : rec.label);
+
+/**
+ * The buff steps: what a cast's modifier and ward rows become on each recipient
+ * and how lib reads them at the roll (docs/magic/TESTING.md, "The buff steps").
+ * Each step brings what it needs to a known shape at its start; a record a cast
+ * leaves is taken off by the Judge's Undo or by the clock before the next step
+ * counts records. A figure the import left blank fails its step as an import
+ * finding, and nothing here fills one in.
+ */
+async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload }) {
+  const fmt = (key, data) => run(gm, P.format, { key, data });
+  const modsOf = (tokenId) => run(gm, P.mods, { sceneId, tokenId });
+  const gmId = await run(gm, async () => game.user.id);
+  const trackCard = async (id) => { if (id) await track(`ChatMessage.${id}`, "ChatMessage"); };
+  const spent = () => run(gm, P.setSpent, { casterId, spent: 0 });
+  const undo = (c, tokenKey) => run(gm, P.press, { messageId: c.messageId, action: "magicCastUndo", target: tokenKey, row: c.model.order[0] });
+  const keyOf = (c, tokenUuid) => Object.entries(c.model?.targets ?? {}).find(([, t]) => t.uuid === tokenUuid)?.[0];
+  const recipients = (list, castId) => list.filter((r) => r.castId === castId && r.role === "recipient");
+  const blank = (c) => (c.model?.order ?? []).filter((k) => c.model.rows[k]?.blank);
+
+  section("buff fixtures");
+  const lib2 = await run(gm, P.library, { ids: BUFF_IDS });
+  check("the GM seat has the two spells of the buff steps imported", lib2.rr && lib2.present.every(Boolean), lib2.present);
+  if (!lib2.rr || !lib2.present.every(Boolean)) throw new Error("the circle or the edge spell is not available on the GM seat");
+  const freshOf = (k) => lib2.payload[k]?.flags?.["acks-extras"]?.spell ?? {};
+  const copy = (k, marker, name) => gm.fixture(marker, "Item", { ...lib2.payload[k], name }, { parent: caster.uuid });
+  const circle = await copy("circle", "magic/cast-spell-circle", "QA Cast circle");
+  const edge = await copy("edge", "magic/cast-spell-edge", "QA Cast edge");
+  const ally = await gm.fixture("magic/cast-ally", "Actor", { name: "QA Cast Ally", type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
+  const blade = await gm.fixture("magic/cast-ally-blade", "Item", { name: "QA Cast Blade", type: "weapon", system: { melee: true, damage: { base: { formula: "1d4" } } } }, { parent: ally.uuid });
+  const fine = await gm.fixture("magic/cast-ally-fine", "Item", { name: "QA Cast Fine Blade", type: "weapon", system: { melee: true, damage: { base: { formula: "1d4" } } } }, { parent: ally.uuid });
+  const foe = await gm.fixture("magic/cast-foe", "Actor", { name: "QA Cast Foe", type: "monster", ownership: { default: 0 } });
+  const foeClaw = await gm.fixture("magic/cast-foe-claw", "Item", { name: "QA Cast Foe Claw", type: "weapon", system: { melee: true, damage: { base: { formula: "1d4" } } } }, { parent: foe.uuid });
+  const foeSpell = await gm.fixture("magic/cast-foe-spell", "Item", { ...damagePayload, name: "QA Cast foe spell" }, { parent: foe.uuid });
+  const stranger = await gm.fixture("magic/cast-stranger", "Actor", { name: "QA Cast Stranger", type: "monster", ownership: { default: 0 } });
+  const strangerClaw = await gm.fixture("magic/cast-stranger-claw", "Item", { name: "QA Cast Stranger Claw", type: "weapon", system: { melee: true, damage: { base: { formula: "1d4" } } } }, { parent: stranger.uuid });
+  const ids = { circle: idOf(circle), edge: idOf(edge), ally: idOf(ally), blade: idOf(blade), fine: idOf(fine), foe: idOf(foe), foeClaw: idOf(foeClaw), foeSpell: idOf(foeSpell), stranger: idOf(stranger), strangerClaw: idOf(strangerClaw) };
+
+  const shapeActors = await run(gm, P.buffActors, { casterId, allyId: ids.ally, foeId: ids.foe, strangerId: ids.stranger });
+  check("buff: the caster reads an alignment, the foe an undead of another, the stranger neither a kind nor an alignment, the ally a character with no condition", !!shapeActors.casterKey && !!shapeActors.foeKey && shapeActors.foeEnchanted && shapeActors.strangerKey === null && shapeActors.strangerKinds === 0 && shapeActors.allyCharacter && shapeActors.allyStatuses === 0, { foeEnchanted: shapeActors.foeEnchanted, strangerKinds: shapeActors.strangerKinds });
+  check("buff: no spell record stands on the ally, the foe or the stranger before the steps begin", shapeActors.stale === 0, { stale: shapeActors.stale });
+  const shapedCircle = await run(gm, P.buffShape, { casterId, spellId: ids.circle, fresh: freshOf("circle"), duration: CIRCLE_DURATION, values: {} });
+  const shapedEdge = await run(gm, P.buffShape, { casterId, spellId: ids.edge, fresh: freshOf("edge"), duration: EDGE_DURATION, values: {} });
+  const shapedFoeSpell = await run(gm, P.shapeDamage, { actorId: ids.foe, spellId: ids.foeSpell });
+  check("buff: each copy carries its rows, and the foe's copy a damage row", shapedCircle.rows > 0 && shapedEdge.rows > 0 && shapedFoeSpell.damageRow, { circle: shapedCircle.rows, edge: shapedEdge.rows });
+  const placed = await run(gm, P.tokensFor, { sceneId, specs: [
+    { actorId: casterId, disposition: 1, x: 300, y: 600 },
+    { actorId: ids.ally, disposition: 1, x: 500, y: 600 },
+    { actorId: ids.foe, disposition: -1, x: 700, y: 600 },
+    { actorId: ids.stranger, disposition: -1, x: 900, y: 600 },
+  ] });
+  for (const t of placed) await track(t.uuid, "Token");
+  const [tCaster, tAlly, tFoe, tStranger] = placed;
+  check("buff: four linked tokens stand on the field, the caster's and the ally's friendly, the foe's and the stranger's hostile", placed.length === 4 && placed.every((t) => t.linked) && placed[0].disposition === 1 && placed[1].disposition === 1 && placed[2].disposition === -1 && placed[3].disposition === -1);
+  const rowShape = await run(gm, P.rowShape, { casterId, spellId: ids.circle });
+  await run(gm, P.drain);
+  await run(player, P.drain);
+  const allyOwned = await run(player, P.ownsToken, { sceneId, tokenId: tAlly.id });
+  const targetBoth = async (seat) => run(seat, P.target, { sceneId, tokenIds: [tCaster.id, tAlly.id] });
+
+  section("buff 1. the circle cast at the caster's token and the ally's (Player seat)");
+  await spent();
+  await targetBoth(player);
+  const c1 = await run(player, P.cast, { casterId, spellId: ids.circle, wait: 80 });
+  await run(player, P.target, { sceneId, tokenIds: [] });
+  await trackCard(c1.messageId);
+  if (c1.model?.castId) castIds.push(c1.model.castId);
+  check("buff 1: the dialog opened and the cast settled with one card, no entry left pending", c1.dialog && c1.card && c1.settled && Object.values(c1.model?.entries ?? {}).every((e) => e.state === "applied"), { entries: Object.keys(c1.model?.entries ?? {}).length });
+  const blank1 = blank(c1);
+  check("buff 1: the circle's modifier rows all read a figure from the import", c1.card && blank1.length === 0, blank1.length ? "imported figure blank" : undefined);
+  const rec1 = { caster: recipients(await modsOf(tCaster.id), c1.model?.castId), ally: recipients(await modsOf(tAlly.id), c1.model?.castId) };
+  check("buff 1: each recipient holds exactly one record of the cast, with no status and no change", rec1.caster.length === 1 && rec1.ally.length === 1 && [...rec1.caster, ...rec1.ally].every((r) => r.statuses === 0 && r.changes === 0), { caster: rec1.caster.length, ally: rec1.ally.length });
+  const partsOf = (r, on) => (r?.parts ?? []).filter((p) => p.on === on);
+  const scoped = (r) => ["ac", "save"].every((on) => partsOf(r, on).length === 1 && partsOf(r, on)[0].anyOf > 0 && partsOf(r, on)[0].anyOf === rowShape[partsOf(r, on)[0].key]?.anyOf) && partsOf(r, "ward").length === 1 && partsOf(r, "ward")[0].vsKinds.length > 0 && JSON.stringify(partsOf(r, "ward")[0].vsKinds) === JSON.stringify(rowShape[partsOf(r, "ward")[0].key]?.vsKinds);
+  check("buff 1: each record's ac, save and ward parts carry the scope their rows declare, with the branches copied", scoped(rec1.caster[0]) && scoped(rec1.ally[0]), { caster: scoped(rec1.caster[0]), ally: scoped(rec1.ally[0]) });
+  check("buff 1: each record names the caster's alignment key as the source", !!shapeActors.casterKey && rec1.caster[0]?.sourceAlignment === shapeActors.casterKey && rec1.ally[0]?.sourceAlignment === shapeActors.casterKey);
+  check("buff 1: the ally's record was written by the GM's client, the Player owning neither the token nor its actor", rec1.ally[0]?.writer === gmId && rec1.ally[0]?.writer !== playerId && allyOwned === false, { gmWrote: rec1.ally[0]?.writer === gmId, playerOwns: allyOwned });
+  const seen1 = await run(gm, P.seenMods, { messageId: c1.messageId, spellName: c1.model?.spellName ?? "" });
+  check("buff 1: every modifier entry on the card carries a tooltip naming the spell", seen1.found && seen1.cells > 0 && seen1.named === seen1.cells, { cells: seen1.cells, named: seen1.named });
+  // Concentration's record on the caster is the next slice's, and nothing here asserts it.
+
+  const circleRec = rec1.ally[0];
+  const acPart = partsOf(circleRec, "ac")[0];
+  const savePart = partsOf(circleRec, "save")[0];
+  const circleReady = c1.card && blank1.length === 0 && !!circleRec && !!acPart && !!savePart;
+
+  section("buff 2. the foe attacks the ally with its claw (GM seat)");
+  await run(gm, P.target, { sceneId, tokenIds: [tAlly.id] });
+  await run(gm, P.rig, { seq: [0.025] });
+  const a2 = await run(gm, P.attack, { sceneId, tokenId: tFoe.id, itemId: ids.foeClaw });
+  await run(gm, P.rig, {});
+  await trackCard(a2.id);
+  const onTarget = circleReady ? await fmt("ACKS-LIB.rollMods.onTarget", { name: labelWithCite(circleRec), target: tAlly.name }) : "";
+  const rows2 = (a2.attack ?? []).filter((r) => r.label === onTarget);
+  check("buff 2: the stored attack card holds one row for the circle on the ally, of minus the ally's AC part", circleReady && a2.card && rows2.length === 1 && Number(rows2[0].value) === -acPart.value, { rows: rows2.length });
+  const ward2 = circleReady ? await fmt("ACKS-LIB.rollMods.notice.ward", { target: tAlly.name, spell: circleRec.label, attacker: tFoe.actorName }) : "";
+  check("buff 2: a warning names the ward on the ally and the attacker", circleReady && (a2.notices ?? []).some((n) => n.level === "warn" && n.text === ward2), { notices: (a2.notices ?? []).length });
+
+  section("buff 3. the stranger attacks the ally");
+  await run(gm, P.rig, { seq: [0.025] });
+  const a3 = await run(gm, P.attack, { sceneId, tokenId: tStranger.id, itemId: ids.strangerClaw });
+  await run(gm, P.rig, {});
+  await trackCard(a3.id);
+  const undetermined3 = circleReady ? await fmt("ACKS-LIB.rollMods.notice.undetermined", { spell: circleRec.label, target: tAlly.name, attacker: tStranger.actorName }) : "";
+  check("buff 3: the attack card holds no row for the circle", circleReady && a3.card && !(a3.attack ?? []).some((r) => r.label.includes(circleRec.label)));
+  check("buff 3: a notice says the circle's scope cannot be told against the stranger", circleReady && (a3.notices ?? []).some((n) => n.level === "warn" && n.text === undetermined3), { notices: (a3.notices ?? []).length });
+
+  section("buff 4. the ally attacks the caster with the blade");
+  await run(gm, P.target, { sceneId, tokenIds: [tCaster.id] });
+  await run(gm, P.rig, { seq: [0.025] });
+  const a4 = await run(gm, P.attack, { sceneId, tokenId: tAlly.id, itemId: ids.blade });
+  await run(gm, P.rig, {});
+  await trackCard(a4.id);
+  check("buff 4: the attack card holds no row for the circle and no notice names it, the scope failing on the same side", circleReady && a4.card && !(a4.attack ?? []).some((r) => r.label.includes(circleRec.label)) && !(a4.notices ?? []).some((n) => n.text.includes(circleRec.label)), { notices: (a4.notices ?? []).length });
+
+  section("buff 5. the foe casts its spell at the ally");
+  await run(gm, P.target, { sceneId, tokenIds: [tAlly.id] });
+  const c5 = await run(gm, P.cast, { casterId: ids.foe, spellId: ids.foeSpell, wait: 60 });
+  await trackCard(c5.messageId);
+  if (c5.model?.castId) castIds.push(c5.model.castId);
+  const resist5 = Object.values(c5.model?.targets ?? {})[0]?.resist ?? null;
+  const circleSave = (resist5?.parts ?? []).filter((p) => circleReady && p.label === circleRec.label);
+  check("buff 5: the ally rolled a save, and its parts hold one part named for the circle, equal to the circle's save part", circleReady && c5.card && !!resist5 && circleSave.length === 1 && Number(circleSave[0].value) === savePart.value, { parts: (resist5?.parts ?? []).length });
+  check("buff 5: the save's target is the base target less that figure, the ally having no condition", circleReady && !!resist5 && Number.isFinite(resist5.baseTarget) && resist5.baseTarget - resist5.target === savePart.value);
+  await run(gm, P.setHp, { sceneId, tokenId: tAlly.id, value: 20 });
+
+  // The Judge's Undo takes the circle's group off each recipient and clears the way for the weapon steps.
+  for (const tk of Object.keys(c1.model?.targets ?? {})) await undo(c1, tk);
+  const after1 = { caster: recipients(await modsOf(tCaster.id), c1.model?.castId), ally: recipients(await modsOf(tAlly.id), c1.model?.castId) };
+  check("buff 5: the Judge's Undo on one modifier entry took the cast's record off each recipient", c1.card && after1.caster.length === 0 && after1.ally.length === 0, { caster: after1.caster.length, ally: after1.ally.length });
+  await run(gm, P.target, { sceneId, tokenIds: [] });
+
+  /* ---------------------------------------------------------------- */
+  /*  Reserved: the held-cast steps (6 to 10 of the design) go here,   */
+  /*  after step 5 and before step 11, and the declaration steps (15   */
+  /*  to 17) after step 14. Neither is written in this slice.          */
+  /* ---------------------------------------------------------------- */
+
+  section("buff 11. sharpness on the blade (the Player's cast; the GM's client writes the record)");
+  await spent();
+  await run(player, P.target, { sceneId, tokenIds: [tAlly.id] });
+  const c11 = await run(player, P.cast, { casterId, spellId: ids.edge, weaponId: ids.blade, wait: 80 });
+  await run(player, P.target, { sceneId, tokenIds: [] });
+  await trackCard(c11.messageId);
+  if (c11.model?.castId) castIds.push(c11.model.castId);
+  const blank11 = blank(c11);
+  check("buff 11: the dialog listed the ally's two weapons and took the pick", c11.dialog && c11.weaponOptions === 2 && c11.weaponPicked === true, { options: c11.weaponOptions });
+  check("buff 11: the cast settled and the card names the blade for the ally's entry", c11.card && c11.settled && c11.model?.item?.id === ids.blade && c11.model?.item?.targetKey === keyOf(c11, tAlly.uuid), { settled: c11.settled });
+  check("buff 11: the sharpness rows all read a figure from the import", c11.card && blank11.length === 0, blank11.length ? "imported figure blank" : undefined);
+  const rec11 = recipients(await modsOf(tAlly.id), c11.model?.castId);
+  check("buff 11: one record stands on the ally, its parts all naming the blade", rec11.length === 1 && rec11[0].statuses === 0 && rec11[0].changes === 0 && rec11[0].parts.length > 0 && rec11[0].parts.every((p) => p.itemId === ids.blade) && rec11[0].item === ids.blade, { parts: rec11[0]?.parts.length });
+  const attackPart = partsOf(rec11[0], "attack")[0];
+  const damagePart = (rec11[0]?.parts ?? []).find((p) => p.on === "damage" && p.gate === "weaponMundane");
+  const edgeReady = c11.card && blank11.length === 0 && rec11.length === 1 && !!attackPart && !!damagePart;
+  const edgeLabel = edgeReady ? labelWithCite(rec11[0]) : "";
+  await run(gm, P.target, { sceneId, tokenIds: [] });
+  await run(gm, P.rig, { seq: [0.025] });
+  const a11 = await run(gm, P.attack, { sceneId, tokenId: tAlly.id, itemId: ids.blade });
+  const a11fine = await run(gm, P.attack, { sceneId, tokenId: tAlly.id, itemId: ids.fine });
+  await run(gm, P.rig, {});
+  await trackCard(a11.id);
+  await trackCard(a11fine.id);
+  const atk11 = (a11.attack ?? []).filter((r) => r.label === edgeLabel);
+  const dmg11 = (a11.damage ?? []).filter((r) => r.label === edgeLabel);
+  check("buff 11: the blade's attack card carries one row for the spell, equal to the attack part", edgeReady && a11.card && atk11.length === 1 && Number(atk11[0].value) === attackPart.value, { rows: atk11.length });
+  check("buff 11: the blade's damage carries one row for the spell, equal to the damage part that fits a mundane weapon", edgeReady && a11.hit && dmg11.length === 1 && Number(dmg11[0].value) === damagePart.value, { hit: a11.hit, rows: dmg11.length });
+  check("buff 11: the ally's other weapon carries no row for the spell, on its attack or its damage", edgeReady && a11fine.card && !(a11fine.attack ?? []).some((r) => r.label === edgeLabel) && !(a11fine.damage ?? []).some((r) => r.label === edgeLabel));
+  if (c11.card) await undo(c11, keyOf(c11, tAlly.uuid));
+  check("buff 11: the Judge's Undo took the record off", c11.card && recipients(await modsOf(tAlly.id), c11.model?.castId).length === 0);
+
+  section("buff 12. the spell cast twice on the blade");
+  // The two figures are the import's and the import's plus one, set on the copy as flat figures: the walk's own, read relative to the import.
+  const f0 = await run(gm, P.figureOf, { flag: freshOf("edge"), key: "attack", level: 1 });
+  check("buff 12: the attack row's figure reads from the import", Number.isFinite(f0), Number.isFinite(f0) ? undefined : "imported figure blank");
+  if (Number.isFinite(f0)) {
+    const castEdge = async (figure) => {
+      await run(gm, P.buffShape, { casterId, spellId: ids.edge, fresh: freshOf("edge"), duration: EDGE_DURATION, values: { attack: figure } });
+      await spent();
+      await run(gm, P.target, { sceneId, tokenIds: [tAlly.id] });
+      const c = await run(gm, P.cast, { casterId, spellId: ids.edge, weaponId: ids.blade, wait: 60 });
+      await run(gm, P.target, { sceneId, tokenIds: [] });
+      await trackCard(c.messageId);
+      if (c.model?.castId) castIds.push(c.model.castId);
+      return c;
+    };
+    const attackBlade = async () => {
+      await run(gm, P.rig, { seq: [0.025] });
+      const a = await run(gm, P.attack, { sceneId, tokenId: tAlly.id, itemId: ids.blade });
+      await run(gm, P.rig, {});
+      await trackCard(a.id);
+      return a;
+    };
+    const first = await castEdge(f0 + 1);
+    await run(gm, P.time, { advance: 30 });
+    const second = await castEdge(f0);
+    const standing = await modsOf(tAlly.id);
+    const recs12 = [recipients(standing, first.model?.castId)[0], recipients(standing, second.model?.castId)[0]];
+    const figures = recs12.map((r) => partsOf(r, "attack")[0]?.value);
+    check("buff 12: two casts left two records on the ally, one figure the larger", recs12.every(Boolean) && figures.every(Number.isFinite) && Math.max(...figures) > Math.min(...figures), { records: recs12.filter(Boolean).length });
+    const label12 = recs12[0] ? labelWithCite(recs12[0]) : "";
+    const rowsAt = (a) => (a.attack ?? []).filter((r) => r.label === label12);
+    const both = await attackBlade();
+    check("buff 12: with both standing the attack card holds one row for the spell, equal to the larger figure", recs12.every(Boolean) && both.card && rowsAt(both).length === 1 && Number(rowsAt(both)[0].value) === Math.max(...figures), { rows: rowsAt(both).length });
+    const timed12 = recs12.every((r) => r?.duration && Number.isFinite(r.startTime));
+    check("buff 12: both records are timed by the flag, each with its start and its duration", timed12);
+    if (timed12) {
+      await run(gm, P.time, { to: recs12[0].startTime + recs12[0].duration.value * 60 + 1 });
+      const mid = await modsOf(tAlly.id);
+      const midMine = [first, second].flatMap((c) => recipients(mid, c.model?.castId));
+      const aMid = await attackBlade();
+      check("buff 12: past the first record's end one record stands and the row is the second's figure, the smaller", midMine.length === 1 && midMine[0].castId === second.model?.castId && aMid.card && rowsAt(aMid).length === 1 && Number(rowsAt(aMid)[0].value) === figures[1], { records: midMine.length });
+      await run(gm, P.time, { to: recs12[1].startTime + recs12[1].duration.value * 60 + 1 });
+      const end = await modsOf(tAlly.id);
+      const endMine = [first, second].flatMap((c) => recipients(end, c.model?.castId));
+      const aEnd = await attackBlade();
+      check("buff 12: past the second record's end none stands and the attack card holds no row for the spell", endMine.length === 0 && aEnd.card && rowsAt(aEnd).length === 0, { records: endMine.length });
+    }
+  }
+
+  section("buff 13. sharpness beside masterwork on the other weapon");
+  const mw = await run(gm, P.masterwork, { tier: "weaponBoth" });
+  check("buff 13: the both-ways masterwork tier's attack figure is imported", mw.have && Number.isFinite(mw.bonus) && mw.bonus >= 1, mw.have && Number.isFinite(mw.bonus) && mw.bonus >= 1 ? undefined : "imported figure blank; not reachable on this import");
+  if (mw.have && Number.isFinite(mw.bonus) && mw.bonus >= 1) {
+    const m = mw.bonus;
+    // The spell's own attack figure is set against masterwork's: above it, level with it, and below it where it can be.
+    const cases = [m + 1, m, ...(m >= 2 ? [m - 1] : [])];
+    if (m < 2) note("buff 13: the case below masterwork's figure", "not reachable on this import");
+    for (const [i, s] of cases.entries()) {
+      const tag = `buff 13.${i + 1}`;
+      const stamped = await run(gm, P.stamp, { actorId: ids.ally, itemId: ids.fine, tier: "weaponBoth" });
+      check(`${tag}: the weapon carries the tier and its own attack figure is the tier's`, stamped.tier === "weaponBoth" && stamped.attackBonus === m && !!stamped.mwLabel, { tier: stamped.tier === "weaponBoth" });
+      await run(gm, P.buffShape, { casterId, spellId: ids.edge, fresh: freshOf("edge"), duration: EDGE_DURATION, values: { attack: s } });
+      await spent();
+      await run(gm, P.target, { sceneId, tokenIds: [tAlly.id] });
+      const c = await run(gm, P.cast, { casterId, spellId: ids.edge, weaponId: ids.fine, wait: 60 });
+      await run(gm, P.target, { sceneId, tokenIds: [] });
+      await trackCard(c.messageId);
+      if (c.model?.castId) castIds.push(c.model.castId);
+      const rec = recipients(await modsOf(tAlly.id), c.model?.castId)[0];
+      const part = partsOf(rec, "attack")[0];
+      check(`${tag}: the record on the ally carries the spell's attack part for the weapon`, c.card && !!rec && !!part && part.itemId === ids.fine, { record: !!rec });
+      await run(gm, P.rig, { seq: [0.025] });
+      const a = await run(gm, P.attack, { sceneId, tokenId: tAlly.id, itemId: ids.fine });
+      await run(gm, P.rig, {});
+      await trackCard(a.id);
+      if (rec && part) {
+        const spellLabel = labelWithCite(rec);
+        const yieldLabel = await fmt("ACKS-LIB.rollMods.yields", { name: stamped.mwLabel, to: rec.label });
+        const sum = (label) => (a.attack ?? []).filter((r) => r.label === label).map((r) => Number(r.value)).reduce((t, v) => t + v, 0);
+        const count = (label) => (a.attack ?? []).filter((r) => r.label === label).length;
+        const net = sum(stamped.weaponLabel) + sum(spellLabel) + sum(yieldLabel);
+        check(`${tag}: the net of the weapon's own figure and the spell's rows is the larger of the two`, a.card && count(stamped.weaponLabel) === 1 && net === Math.max(m, s), { rows: (a.attack ?? []).length });
+        if (s > m) {
+          check(`${tag}: the spell stands as a row and the masterwork share is taken back out by a row naming the spell`, count(spellLabel) === 1 && sum(spellLabel) === s && count(yieldLabel) === 1 && sum(yieldLabel) === -m);
+        } else {
+          const yielded = await fmt("ACKS-LIB.rollMods.notice.yielded", { spell: rec.label, item: stamped.itemName, to: stamped.mwLabel });
+          check(`${tag}: no row is added for the spell, and a notice says it yielded to the masterwork`, count(spellLabel) === 0 && count(yieldLabel) === 0 && (a.notices ?? []).some((n) => n.text === yielded), { notices: (a.notices ?? []).length });
+          check(`${tag}: the card said at the cast that the entry would yield`, Object.keys(c.model?.yields ?? {}).length > 0, { yields: Object.keys(c.model?.yields ?? {}).length });
+        }
+      }
+      if (c.card) await undo(c, keyOf(c, tAlly.uuid));
+      check(`${tag}: the Judge's Undo took the record off before the next case`, c.card && recipients(await modsOf(tAlly.id), c.model?.castId).length === 0);
+    }
+  }
+
+  section("buff 14. the weapon's buff with two creatures targeted");
+  await spent();
+  await run(player, P.target, { sceneId, tokenIds: [tAlly.id, tStranger.id] });
+  const blocked14 = await run(player, P.cast, { casterId, spellId: ids.edge, stop: true });
+  await run(player, P.target, { sceneId, tokenIds: [] });
+  const blockedText = await fmt("ACKS-MAGIC.cast.notice.blocked.oneBearer", {});
+  check("buff 14: the Player's dialog states the one-bearer verdict as a block and its Cast button is off", blocked14.dialog && blocked14.verdicts.includes("block") && blocked14.verdictTexts.includes(blockedText) && blocked14.castDisabled, blocked14.verdicts);
+  check("buff 14: cancelling it spent nothing and posted no card", blocked14.cancelled && blocked14.cast === 0 && blocked14.pool === 0 && blocked14.cards === 0, { cast: blocked14.cast, pool: blocked14.pool });
+  await run(gm, P.target, { sceneId, tokenIds: [tAlly.id, tStranger.id] });
+  const warned14 = await run(gm, P.cast, { casterId, spellId: ids.edge, stop: true });
+  await run(gm, P.target, { sceneId, tokenIds: [] });
+  const warnText = await fmt("ACKS-MAGIC.cast.notice.verdict.oneBearer", {});
+  check("buff 14: the Judge's dialog states the same verdict as a warning and leaves Cast on", warned14.dialog && warned14.verdicts.includes("warn") && !warned14.verdicts.includes("block") && warned14.verdictTexts.includes(warnText) && !warned14.castDisabled, warned14.verdicts);
+  await spent();
+}
 
 try {
   section("seats");
@@ -561,6 +1062,14 @@ try {
   check("8: the Judge's dialog states the same verdict as a warning and leaves Cast on", warned.dialog && warned.verdicts.includes("warn") && !warned.verdicts.includes("block") && !warned.castDisabled, warned.verdicts);
   await run(gm, P.setSpent, { casterId, spent: 0 });
 
+  // The buff steps run apart, so a throw in one still reaches the console check below.
+  try {
+    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage });
+  } catch (err) {
+    console.error("WALK ERROR (buff steps):", err?.stack ?? err);
+    checks.push(["the buff steps ran to the end", false]);
+  }
+
   section("9. the console");
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     const d = await run(seat, P.drain);
@@ -580,14 +1089,15 @@ try {
   // The run's own leavings: cards speaking as its fixtures since it began, and its caster record, listed by id and then swept.
   try {
     if (gm) {
-      const ledger = await gm.eval(`(async () => JSON.stringify({ cards: [...game.messages].filter((m) => m.timestamp >= ${startedAt} && game.actors.some((a) => a.flags?.world?.fixture?.startsWith?.("magic/cast-") && a.id === m.speaker?.actor)).map((m) => m.uuid), records: game.actors.filter((a) => a.flags?.world?.fixture === "magic/cast-caster").flatMap((a) => [...a.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect && e.flags["acks-extras"].spellEffect.casterUuid === a.uuid).map((e) => e.uuid)) }))()`);
+      // The buff steps' records are listed by the cast ids they made, on the fixtures that carry a marker of this walk's.
+      const ledger = await gm.eval(`(async () => JSON.stringify({ cards: [...game.messages].filter((m) => m.timestamp >= ${startedAt} && game.actors.some((a) => a.flags?.world?.fixture?.startsWith?.("magic/cast-") && a.id === m.speaker?.actor)).map((m) => m.uuid), records: [...game.actors.filter((a) => a.flags?.world?.fixture === "magic/cast-caster").flatMap((a) => [...a.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect && e.flags["acks-extras"].spellEffect.casterUuid === a.uuid).map((e) => e.uuid)), ...game.actors.filter((a) => a.flags?.world?.fixture?.startsWith?.("magic/cast-")).flatMap((a) => [...a.effects].filter((e) => ${JSON.stringify(castIds)}.includes(e.flags?.["acks-extras"]?.spellEffect?.castId)).map((e) => e.uuid))] }))()`);
       const { cards, records } = JSON.parse(ledger);
       for (const uuid of cards) await track(uuid, "ChatMessage");
       for (const uuid of records) await track(uuid, "ActiveEffect");
     }
   } catch (err) { console.error("ledger:", err?.message ?? err); }
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  console.log("fixtures kept: magic/cast-scene, magic/cast-class, magic/cast-caster, magic/cast-spell-damage, magic/cast-spell-cure, magic/cast-spell-fright, magic/cast-target-a, magic/cast-target-b, magic/cast-target-c, magic/cast-monster, magic/cast-monster-weapon");
+  console.log("fixtures kept: magic/cast-scene, magic/cast-class, magic/cast-caster, magic/cast-spell-damage, magic/cast-spell-cure, magic/cast-spell-fright, magic/cast-target-a, magic/cast-target-b, magic/cast-target-c, magic/cast-monster, magic/cast-monster-weapon, magic/cast-spell-circle, magic/cast-spell-edge, magic/cast-ally, magic/cast-ally-blade, magic/cast-ally-fine, magic/cast-foe, magic/cast-foe-claw, magic/cast-foe-spell, magic/cast-stranger, magic/cast-stranger-claw");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

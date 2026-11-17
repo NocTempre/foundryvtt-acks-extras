@@ -338,6 +338,17 @@ Found by marker, built by `api.fixture` when nothing carries it, and kept.
 | `magic/cast-spell-damage`, `-cure`, `-fright` | Copies of the three imported spells on the caster, as the walk reshapes them at its start: first-level list, a flat roll and a "half" save on the damage copy, a two-minute duration and a "negates" save on the condition copy. |
 | `magic/cast-target-a`, `-b`, `-c` | Monsters nobody but the GM owns, each reset to 20 hit points and equal saves. |
 | `magic/cast-monster`, `magic/cast-monster-weapon` | A monster with one melee weapon. |
+| `magic/cast-spell-circle`, `magic/cast-spell-edge` | Copies, on the caster, of two more imported spells (cookbook ids `def.spell.holyCircle`, `def.spell.sharpness`), the circle with scoped modifier and ward rows, the edge with weapon-gated ones. Built as the first three are, from the seat's own import; each step reshapes its copy from the library original's flag: first-level list, a fixed duration of the walk's own, and where a step needs one, a flat figure on one row. |
+| `magic/cast-ally` | A character only the GM owns, no condition, equal hit points and saves; a friendly linked token. |
+| `magic/cast-ally-blade` | A weapon on the ally with no magic and no layer. |
+| `magic/cast-ally-fine` | A weapon on the ally stamped with the both-ways masterwork tier through the module's own `setMasterwork`; each case clears and re-stamps it. |
+| `magic/cast-foe`, `magic/cast-foe-claw`, `magic/cast-foe-spell` | A GM-owned monster typed undead with alignment Chaotic, its melee weapon, and a copy of the damage spell with a flat roll and a save; a hostile linked token. |
+| `magic/cast-stranger`, `magic/cast-stranger-claw` | A GM-owned monster with no type and no alignment, its melee weapon; a hostile linked token. |
+
+The caster's alignment is set to Lawful at the start of the buff steps. The
+walk reads each creature back through lib's own readers (`creatureKinds`,
+`actorAlignment`) before it relies on it, and fails if any spell record already
+stands on the ally, the foe or the stranger.
 
 The run's own tokens, cards and records are tracked by uuid and swept alone.
 The walk moves the world clock forward by a few minutes and restores the dice
@@ -381,6 +392,72 @@ it rigged.
    the GM's dialog shows the same verdict as a warning and leaves Cast on.
 10. Neither seat recorded a console error after its load.
 
+### The buff steps
+
+Walked after step 8 and before the console step. They are numbered here as
+the walk labels them (`buff N`); the numbers between 5 and 11 and after 14 are
+held for the steps the held casts and the declaration add, which sit in the
+walk under a marked place and are not written. Every observable is a relation
+between two things the world holds, and a figure the import left blank fails
+its step as an import finding (the walk never supplies one).
+
+1. **The circle at two tokens.** The Player targets the caster's token and the
+   ally's and casts the circle. *Observable:* the cast settles with every
+   entry applied; each recipient holds exactly one record of the cast, with no
+   status and no change, carrying lib's `rollMods` with one `ac`, one `save`
+   and one `ward` part, the scope of each as its spell row declares it (the
+   same count of `anyOf` branches, the same kinds) and `sourceAlignment`
+   equal to the caster's alignment key; the ally's record was last written by
+   the GM's user and the Player's `isOwner` on the ally is false; every
+   modifier entry on the rendered card carries a tooltip naming the spell.
+   Nothing here reads the caster's concentration record.
+2. **The foe's claw at the ally** (GM seat, the ally targeted, the dice rigged
+   to a hit). *Observable:* the stored attack card's modifier list holds one
+   row named as lib words it for the circle on the ally, of minus the ally's
+   `ac` part, and a recorded `ui.notifications.warn` is lib's ward notice for
+   the ally and the foe.
+3. **The stranger's claw at the ally.** *Observable:* no row names the circle;
+   a recorded warning is lib's undetermined notice for the circle, the ally
+   and the stranger (the ward notice may also be told, so its absence is not
+   asserted).
+4. **The ally's blade at the caster.** *Observable:* no row names the circle
+   and no recorded notice names it.
+5. **The foe's spell at the ally** (cast through the module on the GM seat).
+   *Observable:* the stored resist has one part labelled as the circle whose
+   value equals the circle's `save` part, and its base target less its target
+   equals that value. Then the Judge's Undo on one modifier entry of each
+   recipient: the cast's record is gone from both.
+11. **Sharpness on the blade, a Player's cast.** The Player targets the ally
+    alone and picks the blade in the dialog. *Observable:* the dialog's
+    weapon list holds the ally's two weapons and keeps the pick; the card
+    names the blade for the ally's entry; one record on the ally has no status
+    and no change, every part naming the blade; on the blade's attack card the
+    modifier list holds one row labelled `{spell} ({cite})` equal to the
+    attack part, the damage list one equal to the damage part that fits a
+    mundane weapon; the other weapon's attack carries no such row; Undo takes
+    the record off.
+12. **Twice.** The copy's attack figure is the import's plus one for the first
+    cast, then the import's for a second cast thirty world-seconds later.
+    *Observable:* two timed records and one row equal to the larger figure; past
+    the first's end by the clock one record and the row equal to the smaller;
+    past the second's end no record and no row.
+13. **Beside masterwork.** The weapon is stamped with the tier and the walk
+    reads the tier's imported attack figure `m` (importing the variations
+    first when it reads none; where it still reads none the step fails as an
+    import finding, "not reachable on this import"). The copy's attack figure
+    `s` is set to `m + 1`, `m` and, where `m` is at least 2, `m - 1`.
+    *Observable* on the attack card of the stamped weapon, in every case: the
+    net of the weapon's own row and the spell's and yielding rows is the
+    larger of `m` and `s`. With `s > m`: one spell row of `s` and one
+    yielding row of minus `m`. With `s <= m`: neither row, lib's yielded notice
+    among the recorded ones, and the cast card's dry run names what the entry
+    yields to. Each case ends by the Judge's Undo and a check that the record
+    is gone.
+14. **Two creatures targeted.** *Observable:* the Player's dialog shows the
+    one-bearer verdict as a block (its text the lang string for it) with Cast
+    off, and cancelling spends nothing and posts nothing; the Judge's dialog
+    shows it as a warning with Cast on.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2
@@ -397,6 +474,40 @@ it rigged.
 - The walk's seats do not own the targets, so every apply from a Player
   goes through the GM client's relay: wait for the entry rather than the
   hit points.
+- The buff steps' tokens are linked (`actorLink: true`) with an explicit
+  disposition, read back after creation: the roll's scope reads the sides from
+  the two tokens, and a record on a linked token's actor is the world actor's,
+  which is what lib reads on the attacker.
+- An attack is `token.actor.makeAttackThrow({item, attackType: "melee",
+  skipDialog: true})` with the seat's targets set through
+  `canvas.tokens.setTargets`; a rigged `0.025` throws a natural 20, so the
+  attack hits and the damage list renders. The observable is the stored
+  message: parse its `content` and read the `li` rows of each
+  `.attack-throw-card__roll` block (the first is the attack, the second the
+  damage), never the contributor's return. The weapon's own bonus is the row
+  core labels for the weapon.
+- Notices are recorded by wrapping `ui.notifications.warn` and `.info` in the
+  page for the one attack, and restored in a `finally`. Expected texts are
+  built in the page with `game.i18n.format` from the lang keys, so the
+  comparison is to the module's own wording and the walk prints a boolean.
+- Who wrote a record is the effect's `_stats.lastModifiedBy`; a card entry's
+  `by` is the requesting user, not the writing client.
+- A rendered card's cells are read at `.acks-extras-roll-card td.acks-nums`,
+  whose tooltip is `dataset.tooltipText`; a dash cell counts, since a ward
+  entry shows no figure.
+- Masterwork is stamped through `setMasterwork` from
+  `scripts/equipment/actions.mjs` (a bare flag leaves core's weapon row
+  without the figure), cleared first so every case starts from the weapon's own
+  figures. The tier's figure is read live with `masterworkFigure`; the
+  variations are imported through `acksExtras.importer.importVariations()` when
+  it reads none.
+- A foe with no class casts through the claimant like any caster: capacity is
+  unknown there and gives no verdict.
+- Hit points are written on the GM client, the client whose apply path the
+  step asserts.
+- A record is taken off by the Judge's Undo (or by the clock, in the step that
+  walks the clock) before the next step counts records, since a standing one
+  resolves against the next.
 
 ### Teardown
 
@@ -404,3 +515,10 @@ The walk lists the cards speaking as its fixtures since it began and the
 caster's own records, tracks them with its tokens, and `sweepTracked` deletes
 exactly that list. It resets the caster's spent slots, restores the dice and
 clears each seat's targets. The fixtures stay.
+
+The buff steps add the records their casts left, found by the cast ids the
+walk recorded, on the fixtures that carry a marker of this walk's; the tokens
+(by their uuids) and every attack and cast card, tracked by id as each is made.
+Nothing is deleted by name, folder or pattern. A record an earlier run that
+died left on the ally, the foe or the stranger fails the buff steps' first
+check: delete it by its id, then run again.
