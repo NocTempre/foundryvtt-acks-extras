@@ -5,9 +5,11 @@
  * flag, the roll and the card; this file answers what a row may do, what a
  * landing asks for and costs, where a throw leaves a member, how far a fall is,
  * and where a rolled jump leaves a jumper (`jumpResult`) and what a jumper
- * hanging at the edge climbs (`climbUpRow`).
+ * hanging at the edge climbs (`climbUpRow`), and what the water asks of a
+ * swimmer each round (`swimRow`).
  *
- * Every figure comes from the readers `obstacles.mjs` and `jumping.mjs` hold,
+ * Every figure comes from the readers `obstacles.mjs`, `jumping.mjs` and
+ * `swimming.mjs` hold,
  * so nothing here is a printed value. A figure the world has not imported
  * answers null and is named in `unknown`; the row is refused, never rolled
  * against a guess.
@@ -31,6 +33,10 @@
 import { OBSTACLES, obstaclePlan, obstacleStep, stretchFeet, throwsFor } from "./obstacles.mjs";
 import { canClear, fallFigures, landingFailure, landingSave } from "./jumping.mjs";
 import { pitDamage } from "./trap-rules.mjs";
+import { carriedBody } from "./constants.mjs";
+import {
+  breathRounds, drowning, rescueStone, sinkFeetPerStone, swimSpeed as paceOf, swimSpeedShare, swimmingThrow, waterPenaltyAllowed,
+} from "./swimming.mjs";
 
 /**
  * The climb's party-check configuration, local to the crossing. It carries
@@ -513,5 +519,145 @@ export function withFooting(result, footing, depth = null) {
     feet: failure.feet,
     damage: failure.damage,
     unknown: failure.unknown.filter((key) => key !== "shortfallDie"),
+  };
+}
+
+/** The state of a swimmer who is afloat, with a throw to make each round. */
+export const SWIMMING = "swimming";
+
+/** The state of a swimmer whose throw failed: no actions, no more throws, sinking until rescued or out of breath. */
+export const DROWNING = "drowning";
+
+/**
+ * One swimmer's row for the round: the throw the water asks, the pace a success
+ * allows, what drowning would cost and, for a member who is drowning, what a
+ * rescuer lifts.
+ *
+ * A creature with a swim speed of its own takes no throw (`skip` is `swimSpeed`)
+ * and paces at that speed. A holder of Swimming whose target reaches nothing
+ * takes none either (`skip` is `proficiency`); anyone else with a target of
+ * nothing still throws. A drowning member takes no throw and no pace. `can`
+ * says a throw may be pressed from this seat, which a skipped row never offers.
+ *
+ * A holder's bonus that is not imported is an absence refusal, so no throw is
+ * rolled against a guess. A water penalty the page does not let a Judge set
+ * (`waterPenaltyAllowed`) is a permission refusal: a player is stopped and a
+ * Judge is warned. Every other figure is null on its own, with the missing
+ * import named in that figure's own `unknown`, and refuses nothing. Each figure
+ * carries the parts a tooltip lists, as `{key, value}` pairs the surface names
+ * and cites.
+ *
+ * @param {object} o
+ * @param {number} [o.encumbrance] the stone the member carries
+ * @param {boolean} [o.holds] the member holds Swimming
+ * @param {{combat: number|null, run: number|null}|null} [o.own] the member's own
+ *   swim speed (`ownSwimSpeed`)
+ * @param {{combat?: number, run?: number}} [o.speeds] the member's combat and
+ *   running speed in feet, whose share a swimmer makes
+ * @param {number} [o.conMod] the member's Constitution modifier, for their breath
+ * @param {number|string|null} [o.penalty] the water penalty as a size
+ * @param {string[]} [o.conditions] keys of `WATER` ticked as its reason
+ * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
+ * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
+ * @param {{state?: string, drownedRounds?: number}|null} [o.member] the member's
+ *   crossing record; `drownedRounds` is the rounds spent drowning so far
+ * @returns {{kind: string, state: string, skip: string|null, target: number|null, needed: boolean|null,
+ *   penalty: number, conditions: string[], parts: object[], refusal: {cls: string, reason: string}|null,
+ *   can: boolean, warn: boolean, plan: object|null, unknown: string[],
+ *   pace: {combat: number|null, run: number|null, share: number|null, own: boolean,
+ *     parts: {combat: object[], run: object[]}, unknown: string[]}|null,
+ *   drown: {active: boolean, rounds: number|null, feetPerRound: number|null, depthAtDeath: number|null,
+ *     elapsed: number, left: number|null, depth: number|null, parts: object[], unknown: string[]},
+ *   rescue: {stone: number|null, parts: object[], unknown: string[]}|null}}
+ */
+export function swimRow({
+  encumbrance = 0, holds = false, own = null, speeds = {}, conMod = 0, penalty = 0, conditions = [], seat = {}, standing = null, member = null,
+} = {}) {
+  const state = member?.state ?? SWIMMING;
+  const sinking = state === DROWNING;
+  const exempt = [own?.combat, own?.run].some((feet) => Number(feet) > 0);
+  const stone = Math.max(0, Number(encumbrance) || 0);
+
+  const refusals = seatRefusals({ seat, standing, state });
+  if (sinking) refusals.push({ cls: REFUSAL.seat, reason: DROWNING });
+
+  const thrown = swimmingThrow({ encumbrance: stone, proficient: holds, penalty, conditions });
+  const unknown = [];
+  const water = waterPenaltyAllowed(penalty);
+  if (!exempt && !sinking) {
+    if (thrown.unknown.length) {
+      refusals.push({ cls: REFUSAL.absence, reason: "bonus" });
+      unknown.push(...thrown.unknown);
+    }
+    if (!water.ok) refusals.push({ cls: REFUSAL.permission, reason: "penalty" });
+  }
+
+  const skip = exempt ? "swimSpeed" : thrown.needed === false ? "proficiency" : null;
+  const { refusal, can: allowed, warn } = settle(refusals, seat?.judge);
+  const needed = exempt ? false : thrown.needed;
+  const can = allowed && needed === true && !sinking;
+  const target = exempt ? null : thrown.target;
+
+  const share = swimSpeedShare();
+  const paceFor = (feet) => (Number(feet) > 0 && share !== null ? paceOf(feet) : null);
+  const partsFor = (feet) => (Number(feet) > 0 && share !== null ? [{ key: "speed", value: Number(feet) }, { key: "share", value: share }] : []);
+  let pace = null;
+  if (exempt) {
+    pace = { combat: own.combat, run: own.run, share: null, own: true, parts: { combat: [], run: [] }, unknown: [] };
+  } else if (!sinking) {
+    pace = {
+      combat: paceFor(speeds?.combat), run: paceFor(speeds?.run), share, own: false,
+      parts: { combat: partsFor(speeds?.combat), run: partsFor(speeds?.run) }, unknown: share === null ? ["swimSpeedShare"] : [],
+    };
+  }
+
+  const breath = drowning({ conMod, encumbrance: stone });
+  const elapsed = Math.max(0, Number(member?.drownedRounds) || 0);
+  const perStone = sinkFeetPerStone();
+  const base = breathRounds();
+  const drownUnknown = [...(base === null ? ["breathRounds"] : []), ...(perStone === null ? ["sinkFeetPerStone"] : [])];
+  const drown = {
+    active: sinking,
+    ...breath,
+    elapsed,
+    left: breath.rounds === null ? null : Math.max(0, breath.rounds - elapsed),
+    depth: breath.feetPerRound === null ? null : elapsed * breath.feetPerRound,
+    parts: [
+      ...(base === null ? [] : [{ key: "breath", value: base }, { key: "conMod", value: Number(conMod) || 0 }]),
+      { key: "encumbrance", value: stone },
+      ...(perStone === null ? [] : [{ key: "sink", value: perStone }]),
+    ],
+    unknown: drownUnknown,
+  };
+
+  let rescue = null;
+  if (sinking) {
+    const body = carriedBody();
+    rescue = {
+      stone: rescueStone(stone),
+      parts: body.stone === null || body.gearShare === null
+        ? []
+        : [{ key: "body", value: body.stone }, { key: "gear", value: stone }, { key: "gearShare", value: body.gearShare }],
+      unknown: [...(body.stone === null ? ["carriedBodyStone"] : []), ...(body.gearShare === null ? ["carriedGearShare"] : [])],
+    };
+  }
+
+  return {
+    kind: "swim",
+    state,
+    skip,
+    target,
+    needed,
+    penalty: water.size,
+    conditions: thrown.conditions,
+    parts: exempt ? [] : thrown.parts,
+    refusal,
+    can,
+    warn: can && warn,
+    plan: can ? { target, needed: true, conditions: thrown.conditions, overRefusal: warn } : null,
+    unknown,
+    pace,
+    drown,
+    rescue,
   };
 }

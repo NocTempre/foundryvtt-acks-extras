@@ -6,7 +6,7 @@
 import assert from "node:assert/strict";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
-import { WATER, holdsSwimming, partySwim, swimmingThrow, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
+import { WATER, holdsSwimming, partySwim, swimmingThrow, waterPenaltyAllowed, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
@@ -111,6 +111,22 @@ ok("with nothing imported the steps are null, and an empty or malformed list is 
   resetTables();
   load({ swimWaterPenaltySteps: "6, 11" });
   assert.equal(waterPenaltySteps(), null);
+  resetTables();
+});
+
+ok("a penalty is allowed as none, an imported step or a figure above every step, whatever its sign", () => {
+  load();
+  for (const penalty of [0, null, "x", 13, 11, -11, 14, 99]) assert.equal(waterPenaltyAllowed(penalty).ok, true, String(penalty));
+  assert.deepEqual(waterPenaltyAllowed(-11), { ok: true, size: 11, reason: null });
+  for (const penalty of [1, 10, 12, 12.5]) assert.deepEqual(waterPenaltyAllowed(penalty), { ok: false, size: penalty, reason: "size" }, String(penalty));
+  resetTables();
+});
+
+ok("with the steps not imported any size is allowed, there being no step to fall short of", () => {
+  resetTables();
+  assert.deepEqual(waterPenaltyAllowed(5), { ok: true, size: 5, reason: null });
+  load({ swimWaterPenaltySteps: [] });
+  assert.equal(waterPenaltyAllowed(5).ok, true);
   resetTables();
 });
 

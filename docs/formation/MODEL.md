@@ -2950,6 +2950,28 @@ the member hanging), so the outcome reads "Climbed up" or "Fell", a fall shows
 the setup's depth with the imported dice (`fallFromDepth`), and the tooltip
 adds the climb up's throw. A stalled climb up reads "Hanging" still.
 
+**A swimmer's row.** Deep water is a row of its own, `swimRow` in
+`crossing-logic.mjs`, with no surface yet. It prices the round's throw through
+`swimmingThrow` on the member's carried stone, the water penalty and the
+conditions ticked as its reason, and `holds` (`holdsSwimming`) is what lets a
+target of nothing or less skip the throw (`skip: "proficiency"`); a member who
+does not hold Swimming throws at any target. A creature with a swim speed of its
+own (`ownSwimSpeed`: the `swim` row of a monster's Speed table) takes no throw
+(`skip: "swimSpeed"`) and paces at that row. The penalty is none, an imported
+step (`swimWaterPenaltySteps`) or a figure larger than every step
+(`waterPenaltyAllowed`), and with no steps imported any size stands; any other
+size is a permission refusal, which stops a player and warns a Judge, and a
+holder's bonus not imported is an absence refusal that stops every seat. The pace is the imported share of the member's combat and running
+speeds (`swimSpeedShare`), each null while it is unknown. A member in the
+`drowning` state takes no throw and no pace and is a seat refusal on every seat;
+their row carries the breath, the sink rate and the depth at death
+(`drowning`), the rounds spent (`drownedRounds` on the record), the breath left
+and the depth reached, and the stone a rescuer lifts (`rescueStone`: the body
+and a share of the gear). Each figure that is not imported reads null and is
+named in its own `unknown`; only the throw's own two figures refuse the row.
+Each carries the `{key, value}` parts a tooltip lists. The round's driver, the
+dice and the applying of drowning are the surface's.
+
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the
 row for the seat, says a refusal where it has words and otherwise relays

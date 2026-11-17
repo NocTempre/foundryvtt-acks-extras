@@ -13,8 +13,9 @@ import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/ob
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, withFooting,
+  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, swimRow, withFooting,
 } from "../scripts/formation/crossing-logic.mjs";
+import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 
 let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
@@ -632,6 +633,163 @@ await ok("a fall from the edge is the Judge's depth with the imported dice, and 
   assert.deepEqual([out.feet, out.damage, out.unknown, out.parts], [30, "2d8", [], [{ key: "depth", value: 30 }]]);
   assert.deepEqual([fallFromDepth().feet, fallFromDepth().unknown], [null, ["depth"]]);
   assert.deepEqual(fallFromDepth(30).unknown, [], "the shortfall die is not part of a climb's fall");
+});
+
+// ---- the swim row ------------------------------------------------------------
+/** Invented figures for the registered swimming magnitudes. */
+const SWIM = {
+  swimmingBonus: 7, swimWaterPenaltySteps: [3, 5, 9], swimSpeedShare: 0.3, breathRounds: 17, sinkFeetPerStone: 19,
+  carriedBodyStone: 23, carriedGearShare: 0.4,
+};
+const loadSwim = (tables = SWIM) => {
+  resetTables();
+  if (tables) registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
+};
+
+await ok("a holder whose target reaches nothing takes no throw, and a non-holder at the same stone still throws", () => {
+  loadSwim();
+  const holder = swimRow({ encumbrance: 2, holds: true, seat: OWNER });
+  assert.deepEqual([holder.target, holder.needed, holder.skip, holder.can, holder.plan], [-5, false, "proficiency", false, null]);
+  const other = swimRow({ encumbrance: 2, holds: false, seat: OWNER });
+  assert.deepEqual([other.target, other.needed, other.skip, other.can], [2, true, null, true]);
+  assert.deepEqual(other.plan, { target: 2, needed: true, conditions: [], overRefusal: false });
+  assert.equal(swimRow({ encumbrance: 0, seat: OWNER }).needed, true, "nothing carried is still a throw without the proficiency");
+  // The holder's bonus is a part of the figure; a holder whose target stays above nothing throws.
+  const loaded = swimRow({ encumbrance: 9, holds: true, seat: OWNER });
+  assert.deepEqual([loaded.target, loaded.needed, loaded.can], [2, true, true]);
+  assert.deepEqual(loaded.parts, [{ key: "encumbrance", value: 9 }, { key: "proficient", value: 7 }]);
+});
+
+await ok("a creature with a swim speed takes no throw and paces at that speed", () => {
+  loadSwim();
+  const row = swimRow({ encumbrance: 9, holds: false, own: { combat: 31, run: 62 }, speeds: { combat: 100, run: 200 }, seat: OWNER });
+  assert.deepEqual([row.skip, row.needed, row.target, row.can, row.plan, row.refusal], ["swimSpeed", false, null, false, null, null]);
+  assert.deepEqual([row.pace.combat, row.pace.run, row.pace.own, row.pace.share], [31, 62, true, null]);
+  assert.deepEqual(row.parts, []);
+  // A row with neither figure positive is no swim speed.
+  assert.equal(swimRow({ encumbrance: 9, own: { combat: 0, run: null }, seat: OWNER }).needed, true);
+  assert.equal(swimRow({ encumbrance: 9, own: null, seat: OWNER }).needed, true);
+  // A swim speed needs nothing imported: no bonus, no steps.
+  loadSwim(null);
+  const bare = swimRow({ encumbrance: 9, holds: true, own: { combat: 31, run: null }, penalty: 4, seat: OWNER });
+  assert.deepEqual([bare.skip, bare.refusal, bare.unknown], ["swimSpeed", null, []]);
+});
+
+await ok("an actor's swim speed is the swim row of its Speed table", () => {
+  const actor = (speeds) => ({ getFlag: () => ({ speeds }) });
+  assert.deepEqual(ownSwimSpeed(actor([{ type: "land", combat: 40, run: 120 }, { type: "swim", combat: 31, run: 93 }])), { combat: 31, run: 93 });
+  assert.deepEqual(ownSwimSpeed(actor([{ type: "swim", combat: null, run: 93 }])), { combat: null, run: 93 });
+  assert.equal(ownSwimSpeed(actor([{ type: "land", combat: 40, run: 120 }])), null);
+  assert.equal(ownSwimSpeed(actor([{ type: "swim", combat: 0, run: null }])), null);
+  assert.equal(ownSwimSpeed({ getFlag: () => null }), null);
+  assert.equal(ownSwimSpeed(null), null);
+});
+
+await ok("the pace is the imported share of the member's speed, null until imported", () => {
+  loadSwim();
+  const row = swimRow({ encumbrance: 4, speeds: { combat: 100, run: 200 }, seat: OWNER });
+  assert.deepEqual([row.pace.combat, row.pace.run, row.pace.share, row.pace.own, row.pace.unknown], [100 * 0.3, 200 * 0.3, 0.3, false, []]);
+  assert.deepEqual(row.pace.parts.combat, [{ key: "speed", value: 100 }, { key: "share", value: 0.3 }]);
+  assert.deepEqual(swimRow({ encumbrance: 4, speeds: { combat: 100 }, seat: OWNER }).pace.run, null, "a speed that is not given has no pace");
+  loadSwim({ ...SWIM, swimSpeedShare: undefined });
+  const blank = swimRow({ encumbrance: 4, speeds: { combat: 100, run: 200 }, seat: OWNER });
+  assert.deepEqual([blank.pace.combat, blank.pace.run, blank.pace.share, blank.pace.unknown], [null, null, null, ["swimSpeedShare"]]);
+  assert.deepEqual(blank.pace.parts, { combat: [], run: [] });
+  assert.equal(blank.can, true, "a missing share refuses nothing: the throw does not need it");
+});
+
+await ok("a penalty is none, an imported step or a larger figure; anything else stops a player and warns a Judge", () => {
+  loadSwim();
+  for (const penalty of [0, 3, 5, 9, 10, 40, -5]) {
+    const row = swimRow({ encumbrance: 4, penalty, conditions: ["cold"], seat: JUDGE });
+    assert.equal(row.refusal, null, "penalty " + penalty);
+    assert.equal(row.can, true, "penalty " + penalty);
+  }
+  const stepped = swimRow({ encumbrance: 4, penalty: 5, conditions: ["cold", "fast"], seat: OWNER });
+  assert.deepEqual([stepped.target, stepped.penalty, stepped.conditions], [4 + 5, 5, ["cold", "fast"]]);
+  assert.deepEqual(stepped.parts.find((part) => part.key === "water"), { key: "water", value: -5, conditions: ["cold", "fast"] });
+  for (const penalty of [1, 2.5, 4, 8]) {
+    const refusal = { cls: REFUSAL.permission, reason: "penalty" };
+    const player = swimRow({ encumbrance: 4, penalty, seat: OWNER });
+    assert.deepEqual([player.refusal, player.can, player.warn, player.plan, player.unknown], [refusal, false, false, null, []], "penalty " + penalty);
+    const judge = swimRow({ encumbrance: 4, penalty, seat: JUDGE });
+    assert.deepEqual([judge.refusal, judge.can, judge.warn, judge.plan.overRefusal], [refusal, true, true, true], "penalty " + penalty);
+  }
+  // With the steps not imported there is no step to fall short of: any size prices the throw, as it does for swimmingThrow.
+  loadSwim({ ...SWIM, swimWaterPenaltySteps: undefined });
+  for (const penalty of [0, 1, 50]) {
+    const row = swimRow({ encumbrance: 4, penalty, seat: OWNER });
+    assert.deepEqual([row.refusal, row.can, row.target, row.unknown], [null, true, 4 + penalty, []], "penalty " + penalty);
+  }
+});
+
+await ok("a holder's bonus that is not imported refuses every seat, and a non-holder is not asked for it", () => {
+  loadSwim({ ...SWIM, swimmingBonus: undefined });
+  for (const seat of [JUDGE, OWNER]) {
+    const holder = swimRow({ encumbrance: 4, holds: true, seat });
+    assert.deepEqual(holder.refusal, { cls: REFUSAL.absence, reason: "bonus" });
+    assert.deepEqual([holder.can, holder.target, holder.needed, holder.unknown], [false, null, null, ["swimmingBonus"]]);
+  }
+  assert.equal(swimRow({ encumbrance: 4, holds: false, seat: OWNER }).can, true);
+  loadSwim(null);
+  assert.equal(swimRow({ encumbrance: 4, holds: false, seat: OWNER }).can, true, "nothing imported still prices a throw with no bonus and no penalty");
+});
+
+await ok("a seat that is not the owner, or a member who is down, is refused as on any row; a Judge is warned only where the class says", () => {
+  loadSwim();
+  assert.deepEqual(swimRow({ encumbrance: 4, seat: OTHER }).refusal, { cls: REFUSAL.seat, reason: "notOwner" });
+  const down = swimRow({ encumbrance: 4, seat: OWNER, standing: "down" });
+  assert.deepEqual([down.refusal, down.can], [{ cls: REFUSAL.seat, reason: "down" }, false]);
+  const judge = swimRow({ encumbrance: 4, seat: JUDGE, standing: "down" });
+  assert.deepEqual([judge.refusal.cls, judge.can, judge.warn], [REFUSAL.permission, true, true]);
+  assert.deepEqual(judge.plan, { target: 4, needed: true, conditions: [], overRefusal: true });
+});
+
+await ok("a drowning member takes no throw and no pace, and has the breath and depth the imports give", () => {
+  loadSwim();
+  const row = swimRow({ encumbrance: 4, conMod: 2, speeds: { combat: 100 }, seat: JUDGE, member: { state: DROWNING, drownedRounds: 3 } });
+  assert.deepEqual(row.refusal, { cls: REFUSAL.seat, reason: DROWNING });
+  assert.deepEqual([row.can, row.plan, row.pace], [false, null, null]);
+  assert.deepEqual(
+    [row.drown.active, row.drown.rounds, row.drown.feetPerRound, row.drown.depthAtDeath, row.drown.elapsed, row.drown.left, row.drown.depth],
+    [true, 19, 76, 19 * 76, 3, 16, 3 * 76],
+  );
+  assert.deepEqual(row.drown.parts, [{ key: "breath", value: 17 }, { key: "conMod", value: 2 }, { key: "encumbrance", value: 4 }, { key: "sink", value: 19 }]);
+  // Breath runs out, and a breath is at least one round whatever the modifier.
+  assert.equal(swimRow({ encumbrance: 4, conMod: 2, member: { state: DROWNING, drownedRounds: 40 } }).drown.left, 0);
+  assert.equal(swimRow({ encumbrance: 4, conMod: -30, member: { state: DROWNING } }).drown.rounds, 1);
+  // A member who is afloat has the same figures as what failing would cost, with no clock running.
+  const afloat = swimRow({ encumbrance: 4, conMod: 2, seat: OWNER });
+  assert.deepEqual([afloat.drown.active, afloat.drown.rounds, afloat.drown.elapsed, afloat.drown.left], [false, 19, 0, 19]);
+});
+
+await ok("drowning names each figure not imported on its own and reads null", () => {
+  loadSwim({ ...SWIM, breathRounds: undefined });
+  const row = swimRow({ encumbrance: 4, member: { state: DROWNING, drownedRounds: 2 } });
+  assert.deepEqual([row.drown.rounds, row.drown.left, row.drown.depthAtDeath, row.drown.feetPerRound, row.drown.depth], [null, null, null, 76, 152]);
+  assert.deepEqual(row.drown.unknown, ["breathRounds"]);
+  loadSwim(null);
+  const none = swimRow({ encumbrance: 4, member: { state: DROWNING, drownedRounds: 2 } });
+  assert.deepEqual([none.drown.rounds, none.drown.feetPerRound, none.drown.left, none.drown.depth], [null, null, null, null]);
+  assert.deepEqual(none.drown.unknown, ["breathRounds", "sinkFeetPerStone"]);
+});
+
+await ok("a drowning member's rescue lifts the body and a share of what they carry; nobody afloat has one", () => {
+  loadSwim();
+  const row = swimRow({ encumbrance: 10, member: { state: DROWNING } });
+  assert.equal(row.rescue.stone, 23 + 10 * 0.4);
+  assert.deepEqual(row.rescue.parts, [{ key: "body", value: 23 }, { key: "gear", value: 10 }, { key: "gearShare", value: 0.4 }]);
+  assert.equal(swimRow({ encumbrance: 10, seat: OWNER }).rescue, null);
+  loadSwim({ ...SWIM, carriedGearShare: undefined });
+  const half = swimRow({ encumbrance: 10, member: { state: DROWNING } }).rescue;
+  assert.deepEqual([half.stone, half.parts, half.unknown], [null, [], ["carriedGearShare"]]);
+  loadSwim(null);
+  assert.deepEqual(swimRow({ encumbrance: 10, member: { state: DROWNING } }).rescue.unknown, ["carriedBodyStone", "carriedGearShare"]);
+});
+
+await ok("a swimmer who is across or fell has nothing left to throw", () => {
+  loadSwim();
+  for (const state of SETTLED) assert.deepEqual(swimRow({ encumbrance: 4, seat: JUDGE, member: { state } }).refusal, { cls: REFUSAL.seat, reason: state });
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);

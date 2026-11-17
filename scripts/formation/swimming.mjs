@@ -14,6 +14,7 @@
  */
 
 import { hasCapability } from "../lib/capabilities.mjs";
+import { getMonsterExtras } from "../lib/senses.mjs";
 import { carriedBody, formationValue } from "./constants.mjs";
 import { hasAbility } from "./formation-model.mjs";
 
@@ -71,6 +72,43 @@ export const breathRounds = () => formationValue("breathRounds");
  * `rest.mjs` reads for Endurance.
  */
 export const holdsSwimming = (actor) => !!actor && (hasCapability(actor, "kw:swimming") || hasAbility(actor, SWIMMING));
+
+/**
+ * Whether a water penalty is one the page lets a Judge set: none, an imported
+ * step, or a figure larger than every step (the list is open ended). A size
+ * between or below the steps is no printed size. With the steps not imported
+ * there is no step for a size to fall short of, so any size stands, as it does
+ * for `swimmingThrow`.
+ *
+ * @param {number|string|null} penalty the penalty as a size, whatever its sign
+ * @returns {{ok: boolean, size: number, reason: null|"size"}} `reason` is `size`
+ *   for a figure that is neither a step nor above them
+ */
+export function waterPenaltyAllowed(penalty) {
+  const size = penaltySize(penalty);
+  const steps = waterPenaltySteps();
+  if (!size || !steps) return { ok: true, size, reason: null };
+  const ok = steps.includes(size) || size > Math.max(...steps);
+  return { ok, size, reason: ok ? null : "size" };
+}
+
+/**
+ * The swim speed an actor has of its own: the `swim` row of a monster's Speed
+ * table, as `{combat, run}` with a figure that is no positive number as null,
+ * or null when it has no such row or neither figure is positive. The crossing's
+ * `swimRow` takes the row as the reason a creature has no Swimming throw.
+ */
+export function ownSwimSpeed(actor) {
+  const rows = getMonsterExtras(actor)?.speeds;
+  if (!Array.isArray(rows)) return null;
+  const positive = (n) => (Number.isFinite(Number(n)) && Number(n) > 0 ? Number(n) : null);
+  for (const row of rows) {
+    if (row?.type !== "swim") continue;
+    const speed = { combat: positive(row.combat), run: positive(row.run) };
+    if (speed.combat !== null || speed.run !== null) return speed;
+  }
+  return null;
+}
 
 /**
  * The throw one swimmer needs this round.
