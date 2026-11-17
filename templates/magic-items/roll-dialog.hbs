@@ -1,0 +1,26 @@
+{{!-- The Judge's roller: three pickers, each a label above its control. The
+      category applies to the classic style and the rarity to heroic and
+      gritty; the window switches the other off. Rendered into a dialog's form. --}}
+<div class="acks-extras-magicitems-pickers">
+  <label>
+    <span>{{localize "ACKS-MAGICITEMS.roller.style"}}</span>
+    <select name="style">
+      {{#each styles}}<option value="{{value}}"{{#if selected}} selected{{/if}}{{#if disabled}} disabled{{/if}}>{{label}}</option>{{/each}}
+    </select>
+  </label>
+  <label>
+    <span>{{localize "ACKS-MAGICITEMS.roller.category"}}</span>
+    <select name="category"{{#if categoryOff}} disabled{{/if}}>
+      {{#each categories}}<option value="{{value}}"{{#if selected}} selected{{/if}}{{#if disabled}} disabled{{/if}}>{{label}}</option>{{/each}}
+    </select>
+    <span class="hint">{{localize "ACKS-MAGICITEMS.roller.categoryHint"}}</span>
+  </label>
+  <label>
+    <span>{{localize "ACKS-MAGICITEMS.roller.rarity"}}</span>
+    <select name="rarity"{{#if rarityOff}} disabled{{/if}}>
+      {{#each rarities}}<option value="{{value}}"{{#if selected}} selected{{/if}}{{#if disabled}} disabled{{/if}}>{{label}}</option>{{/each}}
+    </select>
+    <span class="hint">{{localize "ACKS-MAGICITEMS.roller.rarityHint"}}</span>
+  </label>
+  <p class="hint">{{localize "ACKS-MAGICITEMS.roller.whisperHint"}}</p>
+</div>

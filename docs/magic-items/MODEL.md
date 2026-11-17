@@ -71,9 +71,40 @@ band it landed on names another list, rolls that. Pure; the roller is
 - `starts(tables)` is `{classicType, classic: [{key, id, caption}], heroic: [...]}`
   for a roller window to list; a list the import did not read is absent.
 
+## The entry point, the card and the window
+
+- `rollAndPost({style, category, rarity, from, roller, tables})`
+  (`chat-card.mjs`) is the one call that rolls and posts: the window, a macro and
+  any sheet that wants an item go through it. A seat that is not a GM's is
+  refused (`gm-only`) with a notification. A roll that cannot begin, or that stops
+  before its first step, posts no card and says why in a notification (a world
+  with nothing imported adds, from lib's `missingTablesList`, the documents it
+  still lacks, never a figure). A walk that stops after a step, or an item the
+  chain could not follow to its end, posts the steps it has with a footnote. It
+  answers `{ok, reason?, result, message}` and does not throw on the tables'
+  content or on a failed post (`post-failed`).
+- The card is `chainCard(result, {loc, style})` (`card-model.mjs`, pure) rendered
+  by lib's `renderRollCard`, and posted by `postToJudges`: whispered to every GM,
+  its dice in its content, never public. A row per step: the list's caption, the
+  roll (`1d100 = 57`, or `face › inner` for a nested tail) and the row's text beneath
+  the caption; then an "Item" section holding the final text; then a footnote for
+  a flagged item or a stopped walk. A total's tooltip joins the parts that exist: the
+  die, the band the roll landed in, and the list's page, or "Set by hand" where the
+  list is overridden. A list with no page recorded adds nothing in its place.
+- `openRoller({tables})` (`roll-dialog.mjs`) opens "Roll a Magic Item", GM only: three
+  selects (style; category, opening on "Roll the type" and then each imported classic
+  list by its caption; rarity, the imported heroic lists by caption), a hint that the
+  card is whispered to the GM, and Cancel and Roll. Roll calls `rollAndPost`. The
+  category picker is switched off under Heroic and Gritty and the rarity picker
+  under Classic (`roller-options.mjs`, pure: `rollerContext`, `appliesTo`,
+  `rollArgs`). A list the import did not read is a disabled option marked "not
+  imported"; a world with nothing rollable gets the notification and no window.
+  Cancel answers `false`. The macro "Roll a Magic Item"
+  (`tools/pack-data/magic-items.mjs`) opens it, and no Token controls button does.
+
 ## What the feature publishes (`scripts/magic-items/module.mjs`)
 
 - `init`: the `magic-item-roll` contract, `{roll: rollMagicItem}`
-  (`docs/lib/API.md`), and `acksExtras.magicItems = {apiVersion, roll, starts}`.
+  (`docs/lib/API.md`), and `acksExtras.magicItems = {apiVersion, roll, starts, rollAndPost, openRoller}`.
 - `setup`: `expectTables("magicItemTables", ["classicType", "classic", "heroic",
   "captions"])`, so the missing-tables notice names what an import lacks.

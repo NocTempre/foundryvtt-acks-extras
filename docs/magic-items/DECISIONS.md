@@ -51,3 +51,25 @@ pinned to the importer's by `tools/test-magic-item-roll.mjs`), and a second copy
 of the Foundry roller until lib has one. The gritty style starts at the heroic lists,
 the only rarity lists the document holds. A Judge's override of one list replaces its
 whole table (lib's per-table layering), so the table's other lists leave `starts()`.
+
+## 2026-11-17 — The roller is a macro and an entry point, with no Token controls button
+
+The owner approved the roller's design ("I approve the UI for the roller"): a window
+"Roll a Magic Item", GM only, with a Style, a Category and a Rarity select, a hint
+that the card is whispered to the GM, and Cancel and Roll; and a card whispered to the
+GM with a row per chain step and a strip for the item. On the control: "Roller is macro
+only, but it might get called by UI elements later."
+
+**Ruled.** The macro "Roll a Magic Item" opens the window; there is no Token controls
+button. The roll and the post are one callable function, `rollAndPost`
+(`acksExtras.magicItems`), and the window's Roll button calls it, so a sheet or a
+control added later calls it without the window. The window has no Reroll button.
+The item strip is a section of the card of its own (lib's card has no slot for one),
+and a step's row text sits under the list's caption.
+
+**Rejected.** A Token controls button now. A card template with CSS of its own (the
+2026-11-17 ruling above already rejected it for the shared card).
+
+**What it cost.** The Judge reaches the roll from the macro bar or the compendium, not
+from the canvas. The item strip repeats the card's column headings over a table of one
+row.

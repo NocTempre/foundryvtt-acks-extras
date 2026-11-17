@@ -129,6 +129,7 @@ for (const fn of hooks.init) fn();
 check("the roll is published under its contract name", services.get(MAGIC_ITEM_ROLL_CONTRACT)?.roll === rollMagicItem);
 eq("the contract name is the documented one", MAGIC_ITEM_ROLL_CONTRACT, "magic-item-roll");
 check("the api carries the roll and the starts", acksExtras.magicItems.roll === rollMagicItem && acksExtras.magicItems.starts === starts);
+check("the api carries the entry point and the window", typeof acksExtras.magicItems.rollAndPost === "function" && typeof acksExtras.magicItems.openRoller === "function");
 {
   const out = await services.get(MAGIC_ITEM_ROLL_CONTRACT).roll({ from: "heroic.rr", ...r(5) });
   eq("the contract roll is deterministic with a roller and keeps uuid null", [out.ok, out.item.text, out.item.uuid], [true, "Xx twenty", null]);

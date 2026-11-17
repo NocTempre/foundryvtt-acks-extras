@@ -1,11 +1,17 @@
 /**
  * Names this feature owns.
- *
- * The lang root `ACKS-MAGICITEMS` is not defined here: the feature ships no
- * string until its roller window does.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 export { MODULE_ID };
+
+/** Lang root for this feature's own keys. */
+export const LANG_PREFIX = "ACKS-MAGICITEMS";
+
+/** The roller window's template. */
+export const ROLLER_TEMPLATE = `modules/${MODULE_ID}/templates/magic-items/roll-dialog.hbs`;
+
+/** The styles a roll offers: the classic chain, and the heroic and gritty rarity lists. */
+export const STYLES = Object.freeze(["classic", "heroic", "gritty"]);
 
 /**
  * The registry document the item-generation tables are read into. The importer

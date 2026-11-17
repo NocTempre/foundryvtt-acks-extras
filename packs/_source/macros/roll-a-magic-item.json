@@ -1,0 +1,20 @@
+{
+  "_id": "acksMagItemRoll0",
+  "_key": "!macros!acksMagItemRoll0",
+  "name": "Roll a Magic Item",
+  "type": "script",
+  "scope": "global",
+  "img": "icons/svg/d20-grey.svg",
+  "command": "// Roll a magic item from the imported tables; the card is whispered to the GM.\nconst api = game.modules.get(\"acks-extras\")?.api?.magicItems ?? globalThis.acksExtras?.magicItems;\nif (!api) return ui.notifications.error(\"ACKS Extras is not active.\");\nif (typeof api.openRoller !== \"function\") {\n  return ui.notifications.warn(\"ACKS Extras | Roll a Magic Item needs a newer build of this module.\");\n}\nawait api.openRoller();",
+  "folder": "acks420ff1a0388a",
+  "flags": {},
+  "ownership": {
+    "default": 0
+  },
+  "sort": 0,
+  "_stats": {
+    "coreVersion": "14",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

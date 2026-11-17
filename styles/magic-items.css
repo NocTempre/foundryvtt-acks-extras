@@ -1,0 +1,16 @@
+/* The Judge's magic-item roller window: each picker a label above its control. */
+.acks-extras-magicitems-pickers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75em;
+}
+
+.acks-extras-magicitems-pickers label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.acks-extras-magicitems-pickers select:disabled {
+  opacity: 0.5;
+}

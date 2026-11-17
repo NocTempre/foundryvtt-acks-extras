@@ -2,15 +2,6 @@
 
 What is not built. How the roll works now is `MODEL.md`.
 
-- **The Judge's roller dialog, card and macro: waits on a /design approval.** The
-  service (`roll-service.mjs`) and the `magic-item-roll` contract are built and have no
-  window: a Judge reaches a roll only through the API. The window (style, category and
-  rarity pickers over `starts()`, nothing offered for a list that was not imported),
-  the Judges-only chat card (a row per step, the list's page in each total's tooltip,
-  "set by hand" where a Judge overrode the list, a footnote for a flagged item) and a
-  macro that opens it are held until a design is approved
-  (`.claude/rules/ui-layout.md`, "Design before build"). A Token controls button waits
-  on the owner's ruling as well.
 - **The scroll, treasure-map, creature-type and arms tables are not walked.** They are
   in the `magicItemTables` document; `walkChain` follows the classic category and the
   heroic rarity lists only. Each is a follow-up that adds its own start and its own
@@ -23,3 +14,7 @@ What is not built. How the roll works now is `MODEL.md`.
   category. A per-list override layer would keep them.
 - **A linked item.** `item.uuid` is reserved and always null; a slice that links an
   imported item fills it.
+- **No sheet or control calls the roll yet.** The Judge reaches it through the
+  macro "Roll a Magic Item" and the API. `acksExtras.magicItems.rollAndPost` takes
+  the style, category and rarity without the window, for a sheet or a control that
+  wants to roll in place; none has been built.

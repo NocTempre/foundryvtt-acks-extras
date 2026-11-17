@@ -79,7 +79,7 @@ function fieldsOf(band) {
 }
 
 /** The item's name: its `item` field, else the first text field. */
-function textOf(fields) {
+export function textOf(fields) {
   return fields.item ?? Object.values(fields).find((v) => typeof v === "string") ?? null;
 }
 

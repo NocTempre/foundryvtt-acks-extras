@@ -89,6 +89,7 @@ export default defineConfig({
             { label: "The character sheet", slug: "guides/character-sheet" },
             { label: "Classes & the class builder", slug: "guides/classes" },
             { label: "Magic & spells", slug: "guides/magic" },
+            { label: "Magic items", slug: "guides/magic-items" },
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },
             { label: "Exploration formations", slug: "guides/formation" },

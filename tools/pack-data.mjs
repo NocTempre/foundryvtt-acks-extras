@@ -25,9 +25,10 @@ import { packs as location } from "./pack-data/location.mjs";
 import { packs as monsters } from "./pack-data/monsters.mjs";
 import { packs as importer } from "./pack-data/importer.mjs";
 import { packs as magic } from "./pack-data/magic.mjs";
+import { packs as magicItems } from "./pack-data/magic-items.mjs";
 import { packs as characterSheet } from "./pack-data/character-sheet.mjs";
 
-const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, magic, characterSheet, importer };
+const FEATURES = { lib, abilities, equipment, formation, henchmen, influence, location, monsters, magic, magicItems, characterSheet, importer };
 
 /** Deterministic 16-char id under the module's declared idPrefix ("acks"). */
 const did = (seed) => "acks" + crypto.createHash("sha1").update(seed).digest("hex").slice(0, 12);
