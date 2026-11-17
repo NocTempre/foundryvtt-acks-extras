@@ -373,7 +373,7 @@ Hooks.once("init", () => {
   // swimming throw (`swimming.mjs`).
   expectTables(FORMATION_DOC, [
     "restInterval", "carriedBodyStone", "carriedGearShare",
-    "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
+    "swimWaterPenaltySteps", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds",
     // Jumping and the Spelunking tables (`jumping.mjs`, `obstacles.mjs`).
     "jumping", "fall", "spelunking", "spelunkingOutcomes",
     // The column's spacing on the battlemap, in feet.
@@ -555,7 +555,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 29,
+    apiVersion: 30,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,

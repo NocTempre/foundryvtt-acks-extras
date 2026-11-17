@@ -21,16 +21,16 @@ import { recipeCite } from "../scripts/importer/produces.mjs";
 import * as services from "../scripts/lib/services.mjs";
 import { registerTable, unregisterTable, getLayer, PRIORITY } from "../scripts/lib/tables.mjs";
 import {
-  FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, WATER_KEYS, assembleFall, assembleFormationTables,
+  FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, assembleFall, assembleFormationTables,
   assembleTrapFigures, parseBandTop, parseBotchBand,
   assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
-  parseStretchFeet, parseWaterModifiers, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
+  parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
-import { WATER, drowning, rescueStone, swimSpeed, swimmingThrow } from "../scripts/formation/swimming.mjs";
+import { WATER, drowning, rescueStone, swimSpeed, swimmingThrow, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
 import { navigationCompetence } from "../scripts/formation/travel.mjs";
 import { TRAVEL_DOC } from "../scripts/vehicles/vehicle-speed.mjs";
 
@@ -47,8 +47,10 @@ const near = (a, b) => Math.abs(a - b) < 1e-9;
 
 /* --- the binding and the engine agree on names ---------------------------- */
 check("the binding writes the document the feature reads", FORMATION_DOC_ID === FORMATION_DOC);
-eq("the water keys are the engine's, less calm",
-  [...WATER_KEYS].sort(), Object.keys(WATER).filter((k) => k !== "calm").sort());
+eq("the water conditions are three keys, and calm is none of them",
+  Object.keys(WATER).sort(), ["cold", "fast", "rough"]);
+check("the penalty sizes are produced from the swimming window",
+  PRODUCES[FORMATION_DOC_ID].swimWaterPenaltySteps === "swimmingProse" && !("swimWaterModifiers" in PRODUCES[FORMATION_DOC_ID]));
 eq("every engine key is read from a recipe of this document",
   [...new Set(Object.values(PRODUCES[FORMATION_DOC_ID]).flat())].filter((raw) => !(raw in TABLE_RECIPES.formation.tables)), []);
 
@@ -252,17 +254,24 @@ eq("the document carries the three new tables beside the others", [!!assembled.j
 eq("with their windows empty it carries none of them",
   ["jumping", "fall", "spelunking"].filter((k) => k in assembleFormationTables({})), []);
 
-/* --- water: paired in the order the sentence names them -------------------- */
-eq("conditions take the penalties in the order they are named",
-  parseWaterModifiers(" rough, then cold, a swimmer counts -6 and then -11."), { rough: -6, cold: -11 });
-eq("a penalty is stored negative whatever sign is printed",
-  parseWaterModifiers(" cold costs +2 here"), { cold: -2 });
-eq("a condition the sentence leaves unpriced is left out",
-  parseWaterModifiers(" cold or rough, -7 to the swimmer"), { cold: -7 });
+/* --- water: the sizes a Judge may set, in printed order, apart from the conditions */
+eq("the sizes are read in printed order, not sorted",
+  parseWaterPenaltySteps(" cold, rough or swift, a swimmer counts -9, then -3, and sinks."), [9, 3]);
+eq("a size is a magnitude whatever sign is printed",
+  parseWaterPenaltySteps(" swampy, a swimmer loses +7 and −5 here"), [7, 5]);
+eq("the count of conditions named does not bound the sizes",
+  parseWaterPenaltySteps(" cold, a dunking of -7, -8, -9"), [7, 8, 9]);
+eq("one condition word beside three sizes is still three sizes",
+  parseWaterPenaltySteps(" cold, so -12, -13, -14"), [12, 13, 14]);
+eq("no condition word at all still reads the sizes",
+  parseWaterPenaltySteps(" choppy, -6 or -15"), [6, 15]);
+eq("more condition words than sizes read only the sizes",
+  parseWaterPenaltySteps(" cold, rough or swift, a drag of -8"), [8]);
 check("a figure past the full stop belongs to the next rule",
-  parseWaterModifiers(" cold, a dunking. Elsewhere -9") === null);
-check("unsigned figures price nothing", parseWaterModifiers(" cold or rough, 3 or 5") === null);
-check("no condition named, nothing paired", parseWaterModifiers(" choppy, -3") === null);
+  parseWaterPenaltySteps(" cold, a dunking. Elsewhere -9") === null);
+check("unsigned figures are no sizes", parseWaterPenaltySteps(" cold or rough, 3 or 5") === null);
+check("a size of nothing is no size", parseWaterPenaltySteps(" cold, a drag of -0") === null);
+check("an absent window answers null", parseWaterPenaltySteps(undefined) === null);
 
 /* --- shares, feet, the carried body, the rest ------------------------------ */
 check("a share word", near(parseShareOf(" shrinks to one-third of it"), 1 / 3));
@@ -292,7 +301,7 @@ check("a rest with no count of turns is no interval", parseRestInterval(" rest w
 const page = (lines) => lines.map((str, i) => ({ x: 320, y: 100 + i * 12, str }));
 const SWIM_PAGE = [
   "Otters scoff at all of this.",
-  "If the water is rough, then cold, a swimmer counts -6 and then -11 against the eel king.",
+  "If the water is rough, then cold, then swift, a swimmer counts -6 or -11, or worse, against the eel king.",
   "A gnome who has the swimming proficiency adds +3 to the tally, or so the gnomes say.",
   "Her swimming movement shrinks to one-third of whatever she would manage ashore.",
   "Each luckless adventurer sinks 6’ a round for every stone he hauls.",
@@ -318,7 +327,7 @@ const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PRO
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
     .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS].includes(k)).sort());
-eq("the water penalties", engine.swimWaterModifiers, { rough: -6, cold: -11 });
+eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
 check("the sink rate per stone", engine.sinkFeetPerStone === 6);
@@ -397,7 +406,7 @@ eq("nothing assembles from an absent passage", Object.keys(assembleTrapFigures({
 eq("nothing assembles from nothing", assembleFormationTables({}), {});
 eq("nor from an undefined raw", assembleFormationTables(), {});
 eq("a partial read assembles only what it read",
-  Object.keys(assembleFormationTables({ swimmingProse: { water: raw.swimmingProse.water } })), ["swimWaterModifiers"]);
+  Object.keys(assembleFormationTables({ swimmingProse: { water: raw.swimmingProse.water } })), ["swimWaterPenaltySteps"]);
 eq("a drifted window costs its own figure and nothing beside it",
   Object.keys(assembleFormationTables({ ...raw, swimmingProse: { ...raw.swimmingProse, breath: " whatever her lungs allow" } })).length, 7);
 
@@ -433,17 +442,19 @@ check("the layer read back is the written one", getLayer(FORMATION_DOC_ID, PRIOR
 check("the rest interval reads through", restInterval() === 4);
 check("the rescue load: the body whole and its kit's share", near(rescueStone(6), 9.25 + 6 * (2 / 3)));
 check("a swimmer's pace is the imported share of it", near(swimSpeed(90), 30));
-let t = swimmingThrow({ encumbrance: 20, proficient: true, water: "cold" });
-eq("cold water's penalty raises the target and the bonus lowers it", [t.target, t.needed, t.unknown], [20 - 3 + 11, true, []]);
-t = swimmingThrow({ encumbrance: 2, proficient: true, water: "calm" });
+eq("the imported sizes read back in printed order", waterPenaltySteps(), [6, 11]);
+let t = swimmingThrow({ encumbrance: 20, proficient: true, penalty: waterPenaltySteps()[1], conditions: ["cold"] });
+eq("a chosen step raises the target and the bonus lowers it", [t.target, t.needed, t.unknown, t.conditions], [20 - 3 + 11, true, [], ["cold"]]);
+t = swimmingThrow({ encumbrance: 2, proficient: true });
 eq("a target the bonus takes to zero or below is no throw at all", [t.target, t.needed], [-1, false]);
 eq("breath and the sink rate", drowning({ conMod: 1, encumbrance: 4 }), { rounds: 8, feetPerRound: 24, depthAtDeath: 192 });
 
 unregisterTable(FORMATION_DOC_ID);
-t = swimmingThrow({ encumbrance: 5, water: "rough" });
-eq("with nothing imported the throw names what it is missing", [t.target, t.needed, t.unknown], [null, null, ["swimWaterModifiers"]]);
-t = swimmingThrow({ encumbrance: 5, proficient: true, water: "calm" });
-eq("and the proficiency's bonus is missing too", t.unknown, ["swimmingBonus"]);
+check("with nothing imported the steps are null, never an empty guess", waterPenaltySteps() === null);
+t = swimmingThrow({ encumbrance: 5, penalty: 13, conditions: ["rough"] });
+eq("a typed penalty prices the throw with nothing imported", [t.target, t.needed, t.unknown], [18, true, []]);
+t = swimmingThrow({ encumbrance: 5, proficient: true, penalty: 13 });
+eq("the proficiency's bonus is what is missing", [t.target, t.needed, t.unknown], [null, null, ["swimmingBonus"]]);
 eq("an unencumbered swimmer in calm water needs no import", swimmingThrow({ encumbrance: 0 }).target, 0);
 check("an unknown rescue load is unknown, never nothing", rescueStone(6) === null);
 eq("an unknown drowning is unknown", drowning({ conMod: 1, encumbrance: 4 }), { rounds: null, feetPerRound: null, depthAtDeath: null });

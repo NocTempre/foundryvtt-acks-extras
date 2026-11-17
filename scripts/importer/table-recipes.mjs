@@ -921,8 +921,8 @@ export const TABLE_RECIPES = {
         locate: "Swimming and Drowning",
         column: { xMin: 300, xMax: 592 },
         values: [
-          // The conditions are named before the figures that price them, so
-          // one window holds both and the binding pairs them in order.
+          // One sentence names the conditions and then the penalty sizes a
+          // Judge may set; the binding reads the sizes in printed order.
           { key: "water", find: "if the water is", take: "window", span: 120 },
           { key: "proficiency", find: "has the swimming proficiency", take: "window", span: 40 },
           { key: "pace", find: "swimming movement", take: "window", span: 130 },

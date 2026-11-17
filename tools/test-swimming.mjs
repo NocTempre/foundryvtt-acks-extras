@@ -6,13 +6,13 @@
 import assert from "node:assert/strict";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
-import { holdsSwimming, partySwim, swimmingThrow } from "../scripts/formation/swimming.mjs";
+import { WATER, holdsSwimming, partySwim, swimmingThrow, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
 
 let passed = 0;
 const ok = (name, fn) => { fn(); passed++; console.log("ok   " + name); };
 
 /** Invented figures for the registered swimming magnitudes. */
-const FIGURES = { swimmingBonus: 7, swimWaterModifiers: { calm: 0, cold: -11, rough: -13 }, breathRounds: 17, sinkFeetPerStone: 19 };
+const FIGURES = { swimmingBonus: 7, swimWaterPenaltySteps: [13, 11], breathRounds: 17, sinkFeetPerStone: 19 };
 
 const load = (tables = FIGURES) => registerTable(
   { id: FORMATION_DOC, source: "invented", tables },
@@ -46,10 +46,44 @@ ok("a target above nothing is a throw for anyone", () => {
   resetTables();
 });
 
-ok("water prices the target: a penalty is stored negative and raises it", () => {
+ok("the conditions are three keys; calm is none ticked", () => {
+  assert.deepEqual(Object.keys(WATER).sort(), ["cold", "fast", "rough"]);
+});
+
+ok("the imported steps read back in printed order, unsorted", () => {
   load();
-  assert.equal(swimmingThrow({ encumbrance: 5, proficient: true, water: "cold" }).target, 5 - 7 + 11);
-  assert.equal(swimmingThrow({ encumbrance: 5, water: "rough" }).target, 5 + 13);
+  assert.deepEqual(waterPenaltySteps(), [13, 11]);
+  resetTables();
+});
+
+ok("a chosen imported step raises the target and names its reason", () => {
+  load();
+  const [first, second] = waterPenaltySteps();
+  const got = swimmingThrow({ encumbrance: 5, proficient: true, penalty: second, conditions: ["cold", "fast"] });
+  assert.equal(got.target, 5 - 7 + 11);
+  assert.deepEqual(got.conditions, ["cold", "fast"]);
+  assert.deepEqual(got.parts.find((p) => p.key === "water"), { key: "water", value: -11, conditions: ["cold", "fast"] });
+  assert.equal(swimmingThrow({ encumbrance: 5, penalty: first, conditions: ["rough"] }).target, 5 + 13);
+  resetTables();
+});
+
+ok("a larger typed figure prices the throw as a step does", () => {
+  load();
+  const got = swimmingThrow({ encumbrance: 5, proficient: true, penalty: 20, conditions: ["rough"] });
+  assert.equal(got.target, 5 - 7 + 20);
+  assert.deepEqual(got.unknown, []);
+  // A size is a size whatever sign it was typed with.
+  assert.equal(swimmingThrow({ encumbrance: 5, penalty: -20 }).target, 25);
+  resetTables();
+});
+
+ok("no penalty is no water term; a stray condition key is not a reason", () => {
+  load();
+  const got = swimmingThrow({ encumbrance: 5, conditions: ["cold", "cold", "bogus"] });
+  assert.equal(got.target, 5);
+  assert.deepEqual(got.conditions, ["cold"]);
+  assert.equal(got.parts.some((p) => p.key === "water"), false);
+  for (const penalty of [0, null, "x", NaN]) assert.equal(swimmingThrow({ encumbrance: 5, penalty }).target, 5);
   resetTables();
 });
 
@@ -58,13 +92,26 @@ ok("a figure not imported is named, and neither needed nor skipped", () => {
   const holder = swimmingThrow({ encumbrance: 0, proficient: true });
   assert.equal(holder.needed, null);
   assert.deepEqual(holder.unknown, ["swimmingBonus"]);
-  const rough = swimmingThrow({ encumbrance: 0, water: "rough" });
-  assert.equal(rough.needed, null);
-  assert.deepEqual(rough.unknown, ["swimWaterModifiers"]);
-  // Calm water needs no import, and a non-holder at nothing still throws.
+  // The steps are not what a throw needs: the Judge's figure is passed in.
+  const typed = swimmingThrow({ encumbrance: 0, penalty: 8, conditions: ["rough"] });
+  assert.equal(typed.needed, true);
+  assert.equal(typed.target, 8);
+  assert.deepEqual(typed.unknown, []);
+  // A non-holder at nothing still throws.
   const calm = swimmingThrow({ encumbrance: 0 });
   assert.equal(calm.needed, true);
   assert.deepEqual(calm.unknown, []);
+});
+
+ok("with nothing imported the steps are null, and an empty or malformed list is null", () => {
+  resetTables();
+  assert.equal(waterPenaltySteps(), null);
+  load({ swimWaterPenaltySteps: [] });
+  assert.equal(waterPenaltySteps(), null);
+  resetTables();
+  load({ swimWaterPenaltySteps: "6, 11" });
+  assert.equal(waterPenaltySteps(), null);
+  resetTables();
 });
 
 ok("a hand-made ability of that name makes a holder", () => {
@@ -84,6 +131,14 @@ ok("a party row says whether it holds the proficiency, or its actor does", () =>
     { name: "D", encumbrance: 2 },
   ]);
   assert.deepEqual(rows.map((r) => r.needed), [false, true, false, true]);
+  resetTables();
+});
+
+ok("a party row takes the one water every member swims in", () => {
+  load();
+  const rows = partySwim([{ name: "A", encumbrance: 2, proficient: true }, { name: "B", encumbrance: 2 }], { penalty: 9, conditions: ["fast"] });
+  assert.deepEqual(rows.map((r) => r.target), [2 - 7 + 9, 2 + 9]);
+  assert.deepEqual(rows.map((r) => r.conditions), [["fast"], ["fast"]]);
   resetTables();
 });
 

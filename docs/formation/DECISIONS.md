@@ -44,7 +44,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-29 — [The faked reveal uncovers the GROUND, never the contents](DECISIONS-through-v11.14.5.md#2026-08-29--the-faked-reveal-uncovers-the-ground-never-the-contents) — superseded in part by "2026-08-29 — SUPERSEDES the reveal ruling above: observations are remapped, not withheld"
 - 2026-08-29 — [SUPERSEDES the reveal ruling above: observations are remapped, not withheld](DECISIONS-through-v11.14.5.md#2026-08-29--supersedes-the-reveal-ruling-above-observations-are-remapped-not-withheld)
 - 2026-08-29 — [The true position is a SHADOW TOKEN, not a coordinate](DECISIONS-through-v11.14.5.md#2026-08-29--the-true-position-is-a-shadow-token-not-a-coordinate)
-- 2026-09-02 — [Swimming's printed magnitudes move to the register](DECISIONS-through-v11.14.5.md#2026-09-02--swimmings-printed-magnitudes-move-to-the-register)
+- 2026-09-02 — [Swimming's printed magnitudes move to the register](DECISIONS-through-v11.14.5.md#2026-09-02--swimmings-printed-magnitudes-move-to-the-register) — superseded in part by "2026-11-17 — The water penalty is a size the Judge picks, the conditions its reason" (`WATER`'s keys and the per-condition cost)
 - 2026-09-07 — [A formation that turns has not gone anywhere](DECISIONS-through-v11.14.5.md#2026-09-07--a-formation-that-turns-has-not-gone-anywhere) — superseded in part by "2026-11-04 — The party token is the head of its column"; "2026-10-15 — The party sheet takes the character sheet's frame"; "2026-10-16 — The party is shown the hex it believes in, and the day's throw comes at its first step"; "2026-10-28 — A city's buildings are the city"; "2026-11-11 — The encounter throw ships no house modifier"; "2026-11-11 — Jumping, the fall, Spelunking and the street's dice are imported"; "2026-11-13 — Only what the module and the current system write is served" (docs/DECISIONS.md §29)
 - 2026-10-15 — [The sky keys on the calendar day, and the day change settles it](DECISIONS-through-v11.14.5.md#2026-10-15--the-sky-keys-on-the-calendar-day-and-the-day-change-settles-it)
 - 2026-10-15 — [The party sheet takes the character sheet's frame](DECISIONS-through-v11.14.5.md#2026-10-15--the-party-sheet-takes-the-character-sheets-frame) — superseded in part by "2026-10-15 — The country is read from the map, and the Judge's word stands over it"
@@ -313,6 +313,20 @@ append-only, keep them; they are marked superseded in part.
 **Rejected.** Clamping a score past the top band to the top band's bonus, or reading the system's table where no band is imported: the passage prices those scores itself, and the system's table is not the page. Keeping a score uncapped where no ceiling is imported: it is a score the book does not allow, written to a card as a figure. A ceiling or band in source "until the import lands": the value rule.
 
 **Cost.** A world must re-run the Rules tables import before an acrobat's raised leap or jump reads a figure; until then both read unknown, which is the failure the doctrine asks for. `leapHeight`'s `bonus` can be null, `dexModifier` takes `score` and `raised`, `scoreModifier`, `acrobaticsDexCap` and `extendedDexBands` are published on `api.formation.jumping`, and formation `apiVersion` is 28.
+
+## 2026-11-17 — The water penalty is a size the Judge picks, the conditions its reason
+
+**Supersedes in part** *Swimming's printed magnitudes move to the register (2026-09-02)*: its clauses that `WATER` keeps three frozen keys with `calm` among them, and that cold and rough water each have a cost read from the book. **Evidence:** the dungeon close-out audit of 2026-11-16 (findings A5 and C6) and the owner's answer to its OQ1, 2026-11-17: "1a". The Swimming and Drowning passage (RR ch. 6) names three water conditions and, apart from them, penalty sizes with an open end. It prices no condition. The binding had paired conditions with sizes by their position, had no key for the third condition, and a lang label merged two; a suite pinned the pairing.
+
+**Ruled.**
+- The import reads the printed sizes, in printed order, as `swimWaterPenaltySteps` (`parseWaterPenaltySteps`); with none read it is null.
+- `WATER` holds the three conditions, `cold`, `rough` and `fast`, as structure. Calm water is no condition ticked, not a key.
+- `swimmingThrow` and `partySwim` take `penalty` (one imported size, or a larger figure the Judge types) and `conditions` (the keys ticked as its reason). The penalty part carries the conditions beside its value. No price per condition exists.
+- `waterModifier` is gone and `waterPenaltySteps()` reads the steps; formation `apiVersion` is 30.
+
+**Rejected.** A price per condition (OQ1 c): the page prints none. The Judge typing any penalty with the sizes only in the tooltip (OQ1 b): the owner picked (a).
+
+**Cost.** A world must re-run the Rules tables import before the crossing offers a size. Removing `waterModifier` and `WATER.calm` breaks any caller of the published names. The throw prices whatever size it is passed; the crossing's picker (slice S13) is where "an imported size or larger" is held.
 
 ## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time
 

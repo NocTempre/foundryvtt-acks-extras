@@ -5,8 +5,8 @@
  * `formationValue`).
  *
  * One page holds the first eight figures (RR p. 271). The swimming paragraph
- * gives seven: what each named water condition costs the throw, what the
- * Swimming proficiency is worth, the share of speed a swimmer makes, the sink
+ * gives seven: the penalty sizes a Judge may set on the throw, in printed order
+ * and apart from any one water condition, what the Swimming proficiency is worth, the share of speed a swimmer makes, the sink
  * rate per stone, a breath's base before Constitution, and the load a rescuer
  * hauls — the body's own figure and the share of its kit that comes with it.
  * The rest paragraph gives the turns an unrested party may explore before it
@@ -56,7 +56,7 @@ export const PRODUCES = Object.freeze({
     restInterval: "restProse",
     carriedBodyStone: "swimmingProse",
     carriedGearShare: "swimmingProse",
-    swimWaterModifiers: "swimmingProse",
+    swimWaterPenaltySteps: "swimmingProse",
     swimmingBonus: "swimmingProse",
     swimSpeedShare: "swimmingProse",
     sinkFeetPerStone: "swimmingProse",
@@ -91,13 +91,6 @@ export const SPELUNKING_COLUMNS = Object.freeze([
   Object.freeze(["easyClimb", "sheerClimb", "rappel"]),
   Object.freeze(["crawl", "narrowLedge", "precariousLedge"]),
 ]);
-
-/**
- * The water conditions the swimming throw prices, as the engine names them
- * (`WATER` in formation/swimming.mjs) and as a sentence names them. `calm` is
- * not here: it costs nothing by definition and is never emitted.
- */
-export const WATER_KEYS = Object.freeze(["cold", "rough"]);
 
 /* ------------------------------------------------------------------ */
 /*  Parsers                                                            */
@@ -140,25 +133,16 @@ export function firstCount(text) {
 }
 
 /**
- * What each named water condition costs the throw, as `{cold, rough}`: the
- * signed figures of the sentence in printed order, paired with the conditions
- * in the order the sentence names them. Stored negative whatever sign is
- * printed — the reader subtracts a modifier, so a penalty raises the target.
- * A condition the sentence leaves without a figure is left out; null when
- * none pairs.
+ * The penalty sizes a Judge may set on the swimming throw: the signed figures of
+ * the sentence in printed order, each as a size (whatever sign is printed).
+ * The sentence prices the conditions together rather than one apiece, so the
+ * conditions are never consulted and nothing is paired with them; the throw
+ * adds the size a Judge picks to its target. Null when the sentence prints no
+ * figure.
  */
-export function parseWaterModifiers(window) {
-  const s = firstSentence(window);
-  const named = WATER_KEYS
-    .map((key) => ({ key, at: s.search(new RegExp(`\\b${key}\\b`)) }))
-    .filter((w) => w.at !== -1)
-    .sort((a, b) => a.at - b.at);
-  const figures = signedFigures(s);
-  const out = {};
-  named.forEach(({ key }, i) => {
-    if (figures[i] != null) out[key] = -Math.abs(figures[i]);
-  });
-  return Object.keys(out).length ? out : null;
+export function parseWaterPenaltySteps(window) {
+  const steps = signedFigures(firstSentence(window)).map(Math.abs).filter((n) => n > 0);
+  return steps.length ? steps : null;
 }
 
 /** A bonus as a magnitude: the first signed figure of the sentence; null when none. */
@@ -552,8 +536,8 @@ export function assembleFormationTables(raw = {}) {
   const out = {};
   const swim = raw.swimmingProse ?? {};
 
-  const water = parseWaterModifiers(swim.water);
-  if (water) out.swimWaterModifiers = water;
+  const steps = parseWaterPenaltySteps(swim.water);
+  if (steps) out.swimWaterPenaltySteps = steps;
 
   const bonus = parseBonusMagnitude(swim.proficiency);
   if (bonus != null) out.swimmingBonus = bonus;

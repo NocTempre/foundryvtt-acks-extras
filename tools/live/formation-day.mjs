@@ -434,12 +434,12 @@ const P = {
     const nav = travel.navigationBonus;
     const pos = (x) => typeof Number(x) === "number" && Number.isFinite(Number(x)) && Number(x) > 0;
     const share = (x) => pos(x) && Number(x) <= 1;
-    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds"];
+    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterPenaltySteps", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds"];
     const shape = {
       restInterval: Number.isInteger(Number(w.restInterval)) && Number(w.restInterval) > 0,
       carriedBodyStone: pos(w.carriedBodyStone), swimmingBonus: pos(w.swimmingBonus), sinkFeetPerStone: pos(w.sinkFeetPerStone), breathRounds: pos(w.breathRounds),
       carriedGearShare: share(w.carriedGearShare), swimSpeedShare: share(w.swimSpeedShare),
-      swimWaterModifiers: !!w.swimWaterModifiers && Number(w.swimWaterModifiers.cold) < 0 && Number(w.swimWaterModifiers.rough) < 0,
+      swimWaterPenaltySteps: Array.isArray(w.swimWaterPenaltySteps) && w.swimWaterPenaltySteps.length > 0 && w.swimWaterPenaltySteps.every(pos),
       navigationBonus: !!nav && pos(nav.either) && pos(nav.both) && Number(nav.both) > Number(nav.either),
     };
     const cites = Object.fromEntries(KEYS.map((k) => [k, t.citeOf("formation", k)]));
@@ -462,8 +462,8 @@ const P = {
     if (!app) return { found: false };
     await H.sleep(800);
     const el = H.root(app);
-    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds"];
-    const row = (k) => el.querySelector(`tr[data-entry-key="formation.${k}"]`);
+    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterPenaltySteps", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds"];
+    const row =(k) => el.querySelector(`tr[data-entry-key="formation.${k}"]`);
     const rows = Object.fromEntries(KEYS.map((k) => {
       const r = row(k);
       return [k, r ? { absent: r.classList.contains("absent"), badge: !!r.querySelector(".absent-badge"), override: !!r.querySelector(".override-badge"), cite: r.querySelector(".cite")?.textContent.trim() ?? null } : null];
@@ -483,7 +483,7 @@ const P = {
     const hit = index.find((e) => e.flags?.["acks-extras"]?.ruledataDocs) ?? index.find((e) => e.name === "ACKS Ruledata (Imported)") ?? null;
     const journal = hit ? await pack.getDocument(hit._id) : null;
     if (!journal) return { pack: true, packLabel: pack.metadata.label, journal: false };
-    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterModifiers", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds", "restProse", "swimmingProse"];
+    const KEYS = ["restInterval", "carriedBodyStone", "carriedGearShare", "swimWaterPenaltySteps", "swimmingBonus", "swimSpeedShare", "sinkFeetPerStone", "breathRounds", "restProse", "swimmingProse"];
     const pages = Object.fromEntries(KEYS.map((k) => {
       const p = journal.pages.find((x) => x.name === `formation.${k}`);
       const c = String(p?.text?.content ?? "");
@@ -635,15 +635,18 @@ const P = {
     const w = H.t.getDoc("formation")?.tables ?? {};
     const s = acksExtras.formation.swimming;
     const close = (a, b) => typeof a === "number" && Math.abs(a - b) < 1e-9;
-    const cold = s.swimmingThrow({ encumbrance: 5, proficient: true, water: "cold" });
-    const rough = s.swimmingThrow({ encumbrance: 5, proficient: true, water: "rough" });
+    const steps = s.waterPenaltySteps() ?? [];
+    const larger = Math.max(0, ...steps) + 1;
+    const stepped = s.swimmingThrow({ encumbrance: 5, proficient: true, penalty: steps[0], conditions: ["cold"] });
+    const typed = s.swimmingThrow({ encumbrance: 5, proficient: true, penalty: larger, conditions: ["rough", "fast"] });
     const d = s.drowning({ conMod: 1, encumbrance: 3 });
     return {
-      coldUnknownEmpty: Array.isArray(cold.unknown) && cold.unknown.length === 0,
-      coldPart: cold.parts.some((p) => p.key === "water.cold"),
-      coldTarget: close(cold.target, 5 - Number(w.swimmingBonus) - Number(w.swimWaterModifiers?.cold)),
-      roughPart: rough.parts.some((p) => p.key === "water.rough"),
-      roughTarget: close(rough.target, 5 - Number(w.swimmingBonus) - Number(w.swimWaterModifiers?.rough)),
+      stepsRead: steps.length > 0 && steps.every((n, i) => n === Number(w.swimWaterPenaltySteps?.[i])),
+      stepUnknownEmpty: Array.isArray(stepped.unknown) && stepped.unknown.length === 0,
+      stepPart: stepped.parts.some((p) => p.key === "water") && stepped.conditions.join() === "cold",
+      stepTarget: close(stepped.target, 5 - Number(w.swimmingBonus) + steps[0]),
+      typedPart: typed.parts.some((p) => p.key === "water") && typed.conditions.join() === "rough,fast",
+      typedTarget: close(typed.target, 5 - Number(w.swimmingBonus) + larger),
       speed: close(s.swimSpeed(120), 120 * Number(w.swimSpeedShare)),
       rounds: d.rounds === Number(w.breathRounds) + 1,
       feetPerRound: close(d.feetPerRound, 3 * Number(w.sinkFeetPerStone)),
@@ -704,20 +707,21 @@ const P = {
       t.unregisterTable("formation");
       out.step1.afterUnregister = t.hasDoc("formation");
       out.step2 = acc();
-      out.step3 = { calm: s.waterModifier("calm"), rough: s.waterModifier("rough"), cold: s.waterModifier("cold") };
-      const r4 = s.swimmingThrow({ actor, water: "rough" });
-      const c4 = s.swimmingThrow({ actor, water: "calm" });
+      out.step3 = { steps: s.waterPenaltySteps() };
+      const r4 = s.swimmingThrow({ actor, penalty: 8, conditions: ["rough"] });
+      const c4 = s.swimmingThrow({ actor });
       out.step4 = { rough: { target: r4.target, needed: r4.needed, unknown: r4.unknown }, calm: { target: c4.target, needed: c4.needed, unknown: c4.unknown } };
       out.step5 = s.drowning({ actor });
-      t.registerTable({ id: "formation", tables: { swimmingBonus: 77, swimSpeedShare: 0.42, sinkFeetPerStone: 88, breathRounds: 99, swimWaterModifiers: { calm: 0, rough: -55, cold: -66 } } }, { priority: t.PRIORITY.OVERRIDE, source: "live-check" });
+      t.registerTable({ id: "formation", tables: { swimmingBonus: 77, swimSpeedShare: 0.42, sinkFeetPerStone: 88, breathRounds: 99, swimWaterPenaltySteps: [66, 55] } }, { priority: t.PRIORITY.OVERRIDE, source: "live-check" });
       fabricated = true;
-      const r6 = s.swimmingThrow({ actor, water: "rough" });
+      const r6 = s.swimmingThrow({ actor, penalty: s.waterPenaltySteps()?.[1], conditions: ["rough"] });
       // Unladen in calm water: the no-throw case is the proficiency holder's alone.
-      const h6 = s.swimmingThrow({ encumbrance: 0, proficient: true, water: "calm" });
-      const n6 = s.swimmingThrow({ encumbrance: 0, proficient: false, water: "calm" });
+      const h6 = s.swimmingThrow({ encumbrance: 0, proficient: true });
+      const n6 = s.swimmingThrow({ encumbrance: 0, proficient: false });
       out.step6 = {
         ...acc(),
-        rough: { target: r6.target, unknown: r6.unknown, waterPart: r6.parts.find((p) => p.key === "water.rough") ?? null },
+        steps: s.waterPenaltySteps(),
+        rough: { target: r6.target, unknown: r6.unknown, waterPart: r6.parts.find((p) => p.key === "water") ?? null },
         holder: { needed: h6.needed },
         nonHolder: { needed: n6.needed },
       };
@@ -2317,7 +2321,7 @@ async function delve(gm, player, census) {
   section("delve step 4: the swimming throw is priced");
   const sp = await page(gm, P.swimPriced);
   note("swim priced", sp);
-  check("step 4: cold and rough price the throw from their own entries with nothing unknown; speed, drowning and the rescue load follow the world's figures", allTrue(sp), sp);
+  check("step 4: a chosen imported step and a larger typed figure price the throw, each naming its ticked conditions, with nothing unknown; speed, drowning and the rescue load follow the world's figures", allTrue(sp), sp);
 
   section("delve step 5: a carried casualty weighs on its carrier");
   note("porter", { porter: r.porter, porterWarn: r.porterWarn });
@@ -2357,10 +2361,10 @@ async function swim(gm, player, census) {
   note("swim", s);
   check("swimming step 1: the world's import is on this client, and unregisterTable with no priority takes every layer off it", s.step1.worldHeld && s.step1.worldLayer && s.step1.afterUnregister === false, s.step1);
   check("swimming step 2: every accessor returns null, never 0", Object.values(s.step2).every((v) => v === null), s.step2);
-  check("swimming step 3: calm is 0, rough and cold null", s.step3.calm === 0 && s.step3.rough === null && s.step3.cold === null, s.step3);
-  check("swimming step 4: rough names swimWaterModifiers and prices nothing; calm is 0 and a non-holder still throws, nothing unknown", s.step4.rough.target === null && s.step4.rough.needed === null && same(s.step4.rough.unknown, ["swimWaterModifiers"]) && s.step4.calm.target === 0 && s.step4.calm.needed === true && same(s.step4.calm.unknown, []), s.step4);
+  check("swimming step 3: the penalty steps are null, never an empty list", s.step3.steps === null, s.step3);
+  check("swimming step 4: a typed penalty prices the throw with nothing imported and nothing unknown; with none passed a non-holder still throws at 0", s.step4.rough.target === 8 && s.step4.rough.needed === true && same(s.step4.rough.unknown, []) && s.step4.calm.target === 0 && s.step4.calm.needed === true && same(s.step4.calm.unknown, []), s.step4);
   check("swimming step 5: drowning is all null", s.step5.rounds === null && s.step5.feetPerRound === null && s.step5.depthAtDeath === null, s.step5);
-  check("swimming step 6: the fabricated document answers every accessor and the rough throw carries its water row", s.step6.swimmingBonus === 77 && s.step6.swimSpeedShare === 0.42 && s.step6.sinkFeetPerStone === 88 && s.step6.breathRounds === 99 && same(s.step6.rough.unknown, []) && same(s.step6.rough.waterPart, { key: "water.rough", value: -55 }) && s.step6.rough.target === 55 && s.step6.holder.needed === false && s.step6.nonHolder.needed === true, s.step6);
+  check("swimming step 6: the fabricated document answers every accessor, the steps read in printed order, and a chosen step's throw carries its water row", s.step6.swimmingBonus === 77 && s.step6.swimSpeedShare === 0.42 && s.step6.sinkFeetPerStone === 88 && s.step6.breathRounds === 99 && same(s.step6.steps, [66, 55]) && same(s.step6.rough.unknown, []) && same(s.step6.rough.waterPart, { key: "water", value: -55, conditions: ["rough"] }) && s.step6.rough.target === 55 && s.step6.holder.needed === false && s.step6.nonHolder.needed === true, s.step6);
   check("swimming step 7: unregistering by { priority } removes it: null again and hasDoc false", s.step7.swimmingBonus === null && s.step7.hasDoc === false && !s.fabricatedRemovedInFinally, s.step7);
   const back = await page(player, P.reloadTables);
   note("reload", back);

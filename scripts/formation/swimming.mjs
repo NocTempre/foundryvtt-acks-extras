@@ -5,9 +5,11 @@
  * the swimmer's encumbrance, the throw repeats every round at the start of
  * initiative while the water is deep, and failing starts a drowning.
  *
- * The file owns the procedure. Every magnitude (the Swimming bonus, what cold
- * and rough water cost, the speed share, the sink rate, the breath) arrives
+ * The file owns the procedure. Every magnitude (the Swimming bonus, the penalty
+ * sizes a Judge may set, the speed share, the sink rate, the breath) arrives
  * registered through `formationValue`, and each reads as unknown until it does.
+ * The throw's water penalty is the Judge's: a size picked from the imported
+ * steps or typed larger, passed in with the conditions that are its reason.
  * See docs/formation/DECISIONS.md, "Swimming's printed magnitudes move to the register".
  */
 
@@ -19,27 +21,37 @@ const LANG_PREFIX = "ACKS-FORMATION.swimming";
 const SWIMMING = /\bswimming\b/i;
 
 /**
- * The water conditions a Judge chooses between.
- *
- * The keys name the options a select offers; `calm` is structurally zero. What
- * cold and rough water cost is looked up per throw.
+ * The water conditions a Judge ticks as the reason for a penalty, one key per
+ * condition the page names. Calm water is no key: nothing ticked is no penalty.
+ * No condition carries a size of its own; the penalty is one figure the Judge
+ * sets (`waterPenaltySteps`).
  */
 export const WATER = Object.freeze({
-  calm: { label: `${LANG_PREFIX}.water.calm` },
   cold: { label: `${LANG_PREFIX}.water.cold` },
   rough: { label: `${LANG_PREFIX}.water.rough` },
+  fast: { label: `${LANG_PREFIX}.water.fast` },
 });
 
 /**
- * What the named water condition does to the throw, or null when the figure
- * has not been imported. Calm water is structurally zero.
+ * The penalty sizes the page prints for a Judge to pick from, as positive sizes
+ * in printed order, or null until they are imported. The page leaves the end
+ * open, so a larger size typed by hand is as valid as a step.
  */
-export function waterModifier(water = "calm") {
-  if (water === "calm" || !(water in WATER)) return 0;
-  const table = formationValue("swimWaterModifiers");
-  const value = table?.[water];
-  return value == null ? null : Number(value);
+export function waterPenaltySteps() {
+  const steps = formationValue("swimWaterPenaltySteps");
+  if (!Array.isArray(steps)) return null;
+  const sizes = steps.map(Number).filter((n) => Number.isFinite(n) && n > 0);
+  return sizes.length ? sizes : null;
 }
+
+/**
+ * A penalty as a size: a non-negative number, whatever sign it was passed with.
+ * Nothing passed, or something that is no number, is no penalty.
+ */
+const penaltySize = (penalty) => {
+  const n = Math.abs(Number(penalty));
+  return Number.isFinite(n) ? n : 0;
+};
 
 /** What the Swimming proficiency is worth, or null until it is imported. */
 export const swimmingBonus = () => formationValue("swimmingBonus");
@@ -66,16 +78,21 @@ export const holdsSwimming = (actor) => !!actor && (hasCapability(actor, "kw:swi
  * A target of zero or less is no throw (`needed` is false) for a holder of the
  * Swimming proficiency only; anyone else still throws. A throw that needs an
  * imported figure it lacks returns a null target and names the missing figure
- * in `unknown`.
+ * in `unknown`. The water penalty needs no import: it is whatever size the
+ * caller passes, so a larger figure typed by a Judge prices the throw with
+ * nothing imported.
  *
  * @param {object} o
  * @param {number} o.encumbrance what they are carrying, in stone
  * @param {boolean} [o.proficient] holds the Swimming proficiency: it adds the
  *   bonus and is what lets a zero target skip the throw
- * @param {string} [o.water] a key of WATER
- * @returns {{target: number|null, needed: boolean|null, parts: object[], unknown: string[]}}
+ * @param {number} [o.penalty] the water penalty as a size: an imported step
+ *   (`waterPenaltySteps`) or a larger figure; none is no penalty
+ * @param {string[]} [o.conditions] keys of WATER ticked as the penalty's reason
+ * @returns {{target: number|null, needed: boolean|null, parts: object[], unknown: string[], conditions: string[]}}
+ *   `conditions` is the ticked keys that are WATER's, in the order given
  */
-export function swimmingThrow({ encumbrance = 0, proficient = false, water = "calm" } = {}) {
+export function swimmingThrow({ encumbrance = 0, proficient = false, penalty = 0, conditions = [] } = {}) {
   const stone = Math.max(0, Number(encumbrance) || 0);
   const parts = [{ key: "encumbrance", value: stone }];
   const unknown = [];
@@ -86,15 +103,15 @@ export function swimmingThrow({ encumbrance = 0, proficient = false, water = "ca
     else parts.push({ key: "proficient", value: bonus });
   }
 
-  const modifier = waterModifier(water);
-  if (modifier == null) unknown.push("swimWaterModifiers");
-  else if (modifier) parts.push({ key: `water.${water}`, value: modifier });
+  const reason = [...new Set(Array.isArray(conditions) ? conditions : [])].filter((key) => key in WATER);
+  const size = penaltySize(penalty);
+  if (size) parts.push({ key: "water", value: -size, conditions: reason });
 
-  if (unknown.length) return { target: null, needed: null, parts, unknown };
+  if (unknown.length) return { target: null, needed: null, parts, unknown, conditions: reason };
 
-  // A water penalty is stored negative, so subtracting it raises the target.
-  const target = stone - bonus - modifier;
-  return { target, needed: target > 0 || !proficient, parts, unknown };
+  // A penalty is a size, so adding it raises the target.
+  const target = stone - bonus + size;
+  return { target, needed: target > 0 || !proficient, parts, unknown, conditions: reason };
 }
 
 /**
@@ -145,12 +162,13 @@ export const rescueStone = (gearStone = 0) => {
  * `proficient` out is read from its `actor` (`holdsSwimming`).
  *
  * @param {object[]} members [{ name, encumbrance, proficient, actor, conMod }]
- * @param {string} [water] a key of WATER
+ * @param {object} [water] `{ penalty, conditions }`, as `swimmingThrow` takes
+ *   them; the same water for every member
  */
-export function partySwim(members = [], water = "calm") {
+export function partySwim(members = [], { penalty = 0, conditions = [] } = {}) {
   return members.filter(Boolean).map((m) => {
     const proficient = m.proficient ?? holdsSwimming(m.actor);
-    const throwFor = swimmingThrow({ encumbrance: m.encumbrance, proficient, water });
+    const throwFor = swimmingThrow({ encumbrance: m.encumbrance, proficient, penalty, conditions });
     return {
       name: m.name,
       ...throwFor,

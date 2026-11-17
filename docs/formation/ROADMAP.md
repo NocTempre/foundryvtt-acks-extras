@@ -150,7 +150,6 @@ worst first:
 | `deployment.mjs` leash, `lang` `app.leashed` | how far a detached member may range ahead of the party | No printed rule found for it (RR ch. 6); a house limit, so removal is a behaviour ruling. The `detachHint` string does not state it, but MODEL and the guide do. |
 | `encounter-zone.mjs`, `district-zone.mjs` | the schema's `max` on the encounter target and throw-count fields | The die the target is thrown on, written into a field bound. The delve die is imported; the bound needs the same reading. |
 | `constants.mjs` `ROLE_GEAR` | the parchment fallback's cost | A printed price in the fallback item's data. |
-| `swimming.mjs` `WATER`, `waterModifier` | the water penalties: the sizes are read by key, but the binding that fills them pairs the page's conditions with the sizes by position | `WATER_KEYS` (`formation-binding.mjs`) names two conditions, and the page's third has no key; a lang label merges two conditions (`swimming.water.rough`). Swimming and Drowning, RR p. 271. |
 | `encounter-scaling.mjs` | the number-appearing rate per level step | Pass them in, as `jumping.mjs` takes its figures. |
 
 Ruled STRUCTURAL and not to be stripped: see DECISIONS, "Three printed figures

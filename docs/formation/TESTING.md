@@ -2022,13 +2022,14 @@ no token, no canvas — every call is API-level.
    `acksExtras.formation.swimming` — not `acksExtras.formation`, where the
    feature's other surfaces sit. `const s = acksExtras.formation.swimming`
    first and the rest of the recipe reads as written.
-3. `waterModifier("calm")` returns `0`; `waterModifier("rough")` and
-   `waterModifier("cold")` return `null`. Calm is the absence of a modifier and
-   is structural; the other two are printed and are not.
-4. `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `target: null`,
-   `needed: null`, and `unknown: ["swimWaterModifiers"]` — it **names** the
-   figure it lacks. The same call with `water: "calm"` returns `target: 0`,
-   `needed: true`, `unknown: []`: nothing is missing, and a zero target skips
+3. `waterPenaltySteps()` returns `null`, not an empty list. `Object.keys(s.WATER)`
+   is `["cold", "rough", "fast"]`; calm is no key, since nothing ticked is no
+   penalty.
+4. `swimmingThrow({encumbrance: 0, proficient: false, penalty: 8, conditions: ["rough"]})`
+   returns `target: 8`, `needed: true`, `unknown: []`, `conditions: ["rough"]`:
+   the penalty is the Judge's figure and needs no import. The same call with
+   no `penalty` returns `target: 0`, `needed: true`, `unknown: []`: nothing is
+   missing, and a zero target skips
    the throw only for a holder of the Swimming proficiency. With
    `proficient: true` the target reads the unimported bonus, so the call
    returns `target: null` and `unknown: ["swimmingBonus"]`; the holder's skip
@@ -2043,16 +2044,18 @@ no token, no canvas — every call is API-level.
    const t = acksExtras.lib.tables;
    t.registerTable({ id: "formation", tables: {
      swimmingBonus: 77, swimSpeedShare: 0.42, sinkFeetPerStone: 88,
-     breathRounds: 99, swimWaterModifiers: { calm: 0, rough: -55, cold: -66 },
+     breathRounds: 99, swimWaterPenaltySteps: [66, 55],
    }}, { priority: t.PRIORITY.OVERRIDE, source: "live-check" });
    ```
 
-   Each accessor now returns its fabricated figure, and
-   `swimmingThrow({encumbrance: 0, proficient: false, water: "rough"})` returns `unknown: []` with a
-   `parts` entry `{key: "water.rough", value: -55}` and the target built from
+   Each accessor now returns its fabricated figure, `waterPenaltySteps()`
+   returns `[66, 55]` in that order, and
+   `swimmingThrow({encumbrance: 0, proficient: false, penalty: s.waterPenaltySteps()[1], conditions: ["rough"]})`
+   returns `unknown: []` with a `parts` entry
+   `{key: "water", value: -55, conditions: ["rough"]}` and the target built from
    it. A `parts` array that still lacks the water row means the throw is
-   reading a constant rather than the document.
-   `swimmingThrow({encumbrance: 0, proficient: true, water: "calm"})` returns a
+   dropping the Judge's figure.
+   `swimmingThrow({encumbrance: 0, proficient: true})` returns a
    target at or under zero and `needed: false`: the holder skips the throw. The
    same call with `proficient: false` returns `target: 0` and `needed: true`.
 7. **Exercise the removal**, not only the registration:
@@ -2543,8 +2546,8 @@ which runs every step.
    sheet's Rest stat ends in a bare slash; Porter's carrier line gives the same
    encumbrance on both sides of its arrow;
    `acksExtras.formation.swimming.swimmingThrow({encumbrance: 5, proficient:
-   true, water: "cold"}).unknown` names `swimmingBonus` and
-   `swimWaterModifiers`; `acksExtras.formation.travel.navigationCompetence(f())`
+   true, penalty: 3, conditions: ["cold"]}).unknown` names `swimmingBonus` alone
+   and `waterPenaltySteps()` is `null`; `acksExtras.formation.travel.navigationCompetence(f())`
    answers `bonus: 0, unpriced: true`. A world that already ran this import
    starts at step 2, and the report says so.
 2. **The import, by the Judge's gesture.**
@@ -2557,7 +2560,7 @@ which runs every step.
    `restInterval` a positive whole count of turns; `carriedBodyStone`,
    `swimmingBonus`, `sinkFeetPerStone` and `breathRounds` positive numbers;
    `carriedGearShare` and `swimSpeedShare` above 0 and at most 1;
-   `swimWaterModifiers` `{cold, rough}`, both negative; `navigationBonus`
+   `swimWaterPenaltySteps` a non-empty list of positive sizes in printed order; `navigationBonus`
    `{either, both}`, both positive and `both` the larger. `t.citeOf` answers
    `RR p.271` for each `formation` key and `RR p.275` for `navigationBonus`,
    and every travel key step 1 noted is still there, with the raw
@@ -2582,10 +2585,12 @@ which runs every step.
    *Observable:* the flag, the effects and the warning are gone, and the card
    says the party has recovered.
 4. **The swimming throw is priced.** `s = acksExtras.formation.swimming`.
-   *Observable:* `s.swimmingThrow({encumbrance: 5, proficient: true, water:
-   "cold"})` has an empty `unknown`, a `water.cold` part, and the target
-   `5 - w.swimmingBonus - w.swimWaterModifiers.cold`; `water: "rough"` reads
-   its own entry the same way. `s.swimSpeed(120)` is `120 * w.swimSpeedShare`.
+   *Observable:* `s.swimmingThrow({encumbrance: 5, proficient: true, penalty:
+   w.swimWaterPenaltySteps[0], conditions: ["cold"]})` has an empty `unknown`,
+   a `water` part, `conditions: ["cold"]` and the target
+   `5 - w.swimmingBonus + w.swimWaterPenaltySteps[0]`; a `penalty` one above the
+   largest step with `conditions: ["rough", "fast"]` prices the same way.
+   `s.swimSpeed(120)` is `120 * w.swimSpeedShare`.
    `s.drowning({conMod: 1, encumbrance: 3})` gives `rounds`
    `w.breathRounds + 1`, `feetPerRound` `3 * w.sinkFeetPerStone`, and
    `depthAtDeath` their product. `s.rescueStone(4)` is
