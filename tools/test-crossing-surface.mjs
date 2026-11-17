@@ -114,7 +114,7 @@ const {
   CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, landFor, readCrossing, reportLanding,
   throwAll, throwFor, writeMemberStep,
 } = crossing;
-const { registerRequestSocket, requestCrossingThrow } = await import("../scripts/formation/player-requests.mjs");
+const { registerRequestSocket, requestCrossingThrow, requestPartyAction } =await import("../scripts/formation/player-requests.mjs");
 
 /**
  * socketlib's stand-in. `relay` delivers a request to the registered handler as the GM
@@ -317,6 +317,28 @@ await ok("a table's Adventuring column is permitted-or-not and never a member's 
   assert.equal(row.can, false, "no figure, no throw");
 });
 
+await ok("a holder's Permitted cell is a word at an obstacle the table refuses, and with the table not imported", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const plain = person("Birch", { adventuring: { climb: 14 } });
+  const { formation } = world([holder, plain]);
+  await beginCrossing(formation, "sheerClimb");
+  await applyCrossingForm(formation, { length: "40" });
+  const view = buildCrossingView(formation);
+  assert.equal(rowOf(view, "Birch").permitted, "No", "the table refuses a member who holds nothing");
+  const h = rowOf(view, "Alder");
+  assert.equal(h.permitted, "May try", "the same table does not refuse a holder");
+  assert.equal(h.can, true, "the row lets the holder throw, as the word says");
+  reset();
+  const bare = person("Alder", { items: [CLIMBING()] });
+  const second = world([bare]);
+  await beginCrossing(second.formation, "sheerClimb");
+  const none = rowOf(buildCrossingView(second.formation), "Alder");
+  assert.equal(none.permitted, "May try", "a holder's permission does not wait on the table");
+  assert.ok(none.permittedTip.endsWith("RR ch. 6, Spelunking"), "the page reference alone stands in for the import");
+});
+
 await ok("a holder's and a non-holder's targets carry their parts; the Judge modifier lowers both and is a part", async () => {
   reset();
   load();
@@ -330,7 +352,9 @@ await ok("a holder's and a non-holder's targets carry their parts; the Judge mod
   const p = rowOf(view, "Birch");
   assert.deepEqual([h.target, p.target], ["10+", "12+"], "level 6 ladder 12, stored 14, each less the modifier of 2");
   assert.equal(h.holds, true);
-  assert.equal(h.permitted, "", "the Adventuring column does not apply to a holder, so it is not shown beside their Throw");
+  assert.equal(h.permitted, "May try", "a holder may try whatever the Adventuring column says, so the cell is never blank");
+  assert.equal(h.can, true, "and the word agrees with the row that lets them throw");
+  assert.ok(h.permittedTip.includes("Climbing") && h.permittedTip.endsWith("XX p.1"), "the tip names the proficiency and the page");
   assert.equal(p.holds, false);
   assert.ok(h.targetTip.includes("Probe Climb"), "the skill is named");
   assert.ok(p.targetTip.includes("Adventuring"), "the stored route is named");
@@ -507,6 +531,39 @@ await ok("a player's press for an owned member lands: a public declaration, one 
   const record = readCrossing(formation).members.Alder;
   assert.deepEqual([record.state, record.throws, record.covered], ["across", 1, 1]);
   assert.equal(holder.system.hp.value, 8, "hit points are untouched");
+});
+
+await ok("a request the GM client refuses is not announced to its seat as declared; one it takes still is", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const { formation } = world([holder]);
+  const old = await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  naturals.push(18, 18);
+  // A stale crossing id: refused on the GM client, answered to the seat, whispered.
+  const stale = await asAsync(PLAYER, () => requestPartyAction(formation.id, "crossing", { crossingId: "not-this-one", actorId: "Alder" }));
+  assert.deepEqual(stale, { ok: false, refused: "stale" });
+  assert.deepEqual(seen.told, [], "no Declared toast for a refused request");
+  assert.equal(posted().whispers.length, 1, "the refusal is still whispered to the seat");
+  // The seat's own press, ended by the Judge between the seat's read and the GM client's.
+  const real = registered.partyRequest;
+  registered.partyRequest = async function wrapped(...args) {
+    await endCrossing(formation);
+    return real.apply(this, args);
+  };
+  const raced = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder"));
+  registered.partyRequest = real;
+  assert.deepEqual(raced, { ok: false, refused: "closed" }, "the seat's press reports the GM client's refusal");
+  assert.deepEqual(seen.told, [], "and no toast says it was declared");
+  assert.equal(naturals.length, 2, "no die was rolled");
+  // A request the GM client takes still toasts.
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  const taken = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder"));
+  assert.deepEqual(taken, { ok: true });
+  assert.deepEqual(seen.told, ["Declared — sent to the Judge."]);
+  assert.notEqual(readCrossing(formation).id, old);
 });
 
 await ok("a non-owner is refused with a whisper and nothing is rolled, declared or written", async () => {

@@ -341,6 +341,35 @@ export function kindLabel(kind) {
 /*  The view                                    */
 /* -------------------------------------------- */
 
+/**
+ * The Permitted cell and its tooltip. A member who holds Climbing is permitted
+ * at any obstacle the row resolves (`memberRow` plans a holder as permitted
+ * whatever the table says), so the cell reads the permitted word and the tip
+ * names the proficiency; the table's cell is not read for them. Anyone else
+ * reads the Adventuring column: blank while it is not imported, with the page
+ * reference alone as the tip.
+ * @param {boolean} holds the member holds Climbing
+ * @param {number|false|null} adventuring `adventuringTarget` for the row's kind
+ * @param {string|null} effective the kind the row resolved to, null for an unknown kind
+ * @param {string} kind the crossing's kind
+ * @returns {{permitted: string, permittedTip: string}}
+ */
+function permittedCell(holds, adventuring, effective, kind) {
+  const cite = citeFor("spelunking") || spelunkingRef();
+  if (holds) {
+    if (effective === null) return { permitted: "", permittedTip: spelunkingRef() };
+    return {
+      permitted: loc("crossing.permitted"),
+      permittedTip: [loc("crossing.tip.permittedHolder", { kind: kindLabel(effective), holds: loc("crossing.holds") }), cite].join(" · "),
+    };
+  }
+  if (adventuring === null) return { permitted: "", permittedTip: spelunkingRef() };
+  return {
+    permitted: loc(adventuring === false ? "crossing.refused" : "crossing.permitted"),
+    permittedTip: [loc("crossing.tip.permitted", { kind: kindLabel(effective ?? kind) }), citeFor("spelunking")].filter(Boolean).join(" · "),
+  };
+}
+
 /** One obstacle row for the template. */
 function obstacleRowView(crossing, entry) {
   const { actor, row, figure } = entry;
@@ -364,10 +393,7 @@ function obstacleRowView(crossing, entry) {
     targetTip: target === null ? spelunkingRef() : targetTooltip(figure, row.judgeMod),
     holds: entry.holds,
     holdsLabel: entry.holds ? loc("crossing.holds") : "",
-    permitted: entry.holds || permitted === null ? "" : loc(permitted === false ? "crossing.refused" : "crossing.permitted"),
-    permittedTip: permitted === null
-      ? spelunkingRef()
-      : [loc("crossing.tip.permitted", { kind: kindLabel(row.effective ?? crossing.kind) }), citeFor("spelunking")].filter(Boolean).join(" · "),
+    ...permittedCell(entry.holds, permitted, row.effective, crossing.kind),
     covered: row.stretches === null ? "" : `${row.covered} / ${row.stretches}`,
     coveredTip: stretchTooltip(row.stretches),
     throws: row.throws,

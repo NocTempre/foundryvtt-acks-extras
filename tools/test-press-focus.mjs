@@ -29,7 +29,9 @@ function node(tag, data = {}, kids = [], doc = null, extra = {}) {
   const el = {
     nodeType: 1, tagName: tag, dataset: { ...data }, parent: null, children: kids, ownerDocument: doc, disabled: false, ...extra,
     closest(sel) {
-      for (let n = this; n; n = n.parent) if (sel === "[data-action]" && n.dataset?.action) return n;
+      const key = { "[data-action]": "action", "[data-press-home]": "pressHome" }[sel];
+      assert.ok(key, `unexpected selector ${sel}`);
+      for (let n = this; n; n = n.parent) if (n.dataset?.[key]) return n;
       return null;
     },
     contains(other) {
@@ -37,9 +39,10 @@ function node(tag, data = {}, kids = [], doc = null, extra = {}) {
       return false;
     },
     querySelectorAll(sel) {
-      assert.equal(sel, "[data-action]");
+      const key = { "[data-action]": "action", "[data-press-home]": "pressHome" }[sel];
+      assert.ok(key, `unexpected selector ${sel}`);
       const out = [];
-      const walk = (n) => { for (const c of n.children) { if (c.dataset.action) out.push(c); walk(c); } };
+      const walk = (n) => { for (const c of n.children) { if (c.dataset[key]) out.push(c); walk(c); } };
       walk(this);
       return out;
     },
@@ -320,6 +323,53 @@ ok("a window of another document is read through its own document", () => {
   assert.equal(state.restore(next, 10), next.children[0]);
   assert.equal(popped.activeElement, next.children[0]);
   assert.equal(main.focused.length, 0);
+});
+
+/** A row that takes focus when its pressed control goes: `kids` under it, keyed by `key`. */
+const home = (doc, key, kids = []) => node("LI", { pressHome: key }, kids, doc, { tabindex: "-1" });
+
+ok("a pressed control that the render removed hands focus to its row, found by key and not by position", () => {
+  const doc = makeDocument();
+  const throwBtn = (id) => button(doc, { action: "crossingThrow", actorId: id });
+  const root = makeWindow(doc, [home(doc, "a", [throwBtn("a")]), home(doc, "b", [throwBtn("b")])]);
+  const state = new PressFocus();
+  doc.activeElement = root.children[1].children[0];
+  state.note(root.children[1].children[0], root, 0);
+  // The render keeps both rows, in the other order, and row b has lost its button.
+  const next = makeWindow(doc, [home(doc, "b"), home(doc, "a", [throwBtn("a")])]);
+  doc.activeElement = doc.body;
+  const restored = state.restore(next, 10);
+  assert.equal(restored, next.children[0], "row b, wherever it now sits");
+  assert.equal(doc.activeElement.dataset.pressHome, "b");
+  assert.deepEqual(doc.focused[0].opts, { preventScroll: true });
+});
+
+ok("a control that survives is focused itself, and its row is not", () => {
+  const doc = makeDocument();
+  const btn = () => button(doc, { action: "crossingThrow", actorId: "a" });
+  const root = makeWindow(doc, [home(doc, "a", [btn()])]);
+  const state = new PressFocus();
+  doc.activeElement = root.children[0].children[0];
+  state.note(root.children[0].children[0], root, 0);
+  const next = makeWindow(doc, [home(doc, "a", [btn()])]);
+  doc.activeElement = doc.body;
+  assert.equal(state.restore(next, 10), next.children[0].children[0]);
+});
+
+ok("a row that is gone too takes no focus, and a control outside any row has no fallback", () => {
+  const doc = makeDocument();
+  const root = makeWindow(doc, [home(doc, "a", [button(doc, { action: "crossingThrow", actorId: "a" })]), shortcut(doc, "s")]);
+  const first = new PressFocus();
+  doc.activeElement = root.children[0].children[0];
+  first.note(root.children[0].children[0], root, 0);
+  doc.activeElement = doc.body;
+  assert.equal(first.restore(makeWindow(doc, [home(doc, "z")]), 10), null);
+  const second = new PressFocus();
+  doc.activeElement = root.children[1];
+  second.note(root.children[1], root, 0);
+  doc.activeElement = doc.body;
+  assert.equal(second.restore(makeWindow(doc, [home(doc, "a")]), 10), null);
+  assert.equal(doc.focused.length, 0);
 });
 
 ok("a missing or non-element argument is refused quietly", () => {

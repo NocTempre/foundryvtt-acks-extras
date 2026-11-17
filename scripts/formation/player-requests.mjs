@@ -65,7 +65,11 @@ async function whisperCrossingRefusal(formation, user, reason, actor) {
   });
 }
 
-/** Execute a validated request on the GM client. */
+/**
+ * Execute a validated request on the GM client. A crossing request answers
+ * `{ok, refused?}`, which the relay carries back to the requesting seat; every
+ * other kind answers nothing.
+ */
 async function executeRequest(formation, user, type, payload) {
   switch (type) {
     case "light": {
@@ -304,7 +308,11 @@ async function executeRequest(formation, user, type, payload) {
       // A payload with no actor id must not fall through to "owns any member".
       const actorId = typeof payload.actorId === "string" ? payload.actorId : null;
       const actor = actorId ? game.actors.get(actorId) : null;
-      const refuse = (reason) => whisperCrossingRefusal(formation, user, reason, actor);
+      // The answer names only the reason: it travels back to the requesting seat.
+      const refuse = async (reason) => {
+        await whisperCrossingRefusal(formation, user, reason, actor);
+        return { ok: false, refused: reason };
+      };
       if (!actorId) return refuse("notOwner");
       // An actor the player owns that the party no longer holds is told so, not
       // called someone else's; an actor they do not own learns nothing more.
@@ -322,8 +330,8 @@ async function executeRequest(formation, user, type, payload) {
           name: foundry.utils.escapeHTML(actor?.name ?? "?"),
         })),
       });
-      if (!out.ok) await refuse(out.refused);
-      break;
+      if (!out.ok) return refuse(out.refused);
+      return { ok: true };
     }
 
     /* --- Consult (anchor) a map the player's character holds --- */
@@ -342,32 +350,35 @@ async function executeRequest(formation, user, type, payload) {
 
 /**
  * Relay handler, on the active GM: acts for the attested sender
- * (`requestUserId`, null when a GM sent it).
+ * (`requestUserId`, null when a GM sent it). Returns the executed request's
+ * answer, so a result-bearing relay reaches the requesting seat.
  */
 async function handlePartyRequest({ formationId, type, payload, requestUserId } = {}) {
   const formation = getFormation(formationId);
   const user = requestUserId ? game.users.get(requestUserId) : game.user;
   if (!formation || !user) return;
-  await executeRequest(formation, user, type, payload ?? {});
+  return executeRequest(formation, user, type, payload ?? {});
 }
 
 /**
  * Declare a party action. GMs execute directly; players relay to the active
- * GM (executeAsGM routes to exactly one GM client).
+ * GM (executeAsGM routes to exactly one GM client). A player's seat is told
+ * "sent" only when the GM client did not answer with a refusal: a request kind
+ * that answers `{ok: false}` (a crossing's throw) is not announced as declared.
+ * @returns {Promise<{ok: boolean, refused?: string}|undefined>} the executing
+ *   client's answer, where the request kind gives one
  */
 export async function requestPartyAction(formationId, type, payload = {}) {
   const formation = getFormation(formationId);
   if (!formation) return;
-  if (game.user.isGM) {
-    await executeRequest(formation, game.user, type, payload);
-    return;
-  }
+  if (game.user.isGM) return executeRequest(formation, game.user, type, payload);
   if (!game.users.activeGM) {
     ui.notifications.warn(game.i18n.localize("ACKS-FORMATION.request.noGM"));
     return;
   }
-  await executeAsGM(REQUEST_HANDLER, { formationId, type, payload });
-  ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
+  const answer = await executeAsGM(REQUEST_HANDLER, { formationId, type, payload });
+  if (answer?.ok !== false) ui.notifications.info(game.i18n.localize("ACKS-FORMATION.request.sent"));
+  return answer;
 }
 
 /** A player's own actor into the party, refused here with the reason where the GM client would refuse it silently. */
@@ -390,7 +401,8 @@ export async function requestTakeOut(formation, actorId) {
  * sent; the GM client reads the row again and is the one that rolls, writes
  * and posts. The request names the formation, the crossing the seat saw and
  * the member, and nothing else.
- * @returns {Promise<{ok: boolean, refused?: string}>} whether the request was sent, or why not
+ * @returns {Promise<{ok: boolean, refused?: string}>} whether the request was
+ *   sent and the GM client took it, or why not
  */
 export async function requestCrossingThrow(formation, actorId) {
   const crossing = readCrossing(formation);
@@ -408,8 +420,8 @@ export async function requestCrossingThrow(formation, actorId) {
     if (said) ui.notifications.warn(said);
     return { ok: false, refused };
   }
-  await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId });
-  return { ok: true };
+  const answer = await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId });
+  return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
 }
 
 /** Register the GM-side request handler with socketlib. */

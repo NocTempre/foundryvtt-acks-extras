@@ -7484,6 +7484,7 @@
   "ACKS-FORMATION.crossing.tip.faces": "{clearing} of {faces} faces clear",
   "ACKS-FORMATION.crossing.tip.fallDice": "Fall dice: {count}d{faces} per {feet} ft",
   "ACKS-FORMATION.crossing.tip.permitted": "{kind}",
+  "ACKS-FORMATION.crossing.tip.permittedHolder": "{kind}, by holding {holds}",
   "ACKS-FORMATION.crossing.tip.judgeSet": "Set by the Judge",
   "ACKS-FORMATION.crossing.tip.lastThrow": "Natural {natural}, total {total}",
   "ACKS-FORMATION.crossing.jumpPart.dex": "Dexterity",

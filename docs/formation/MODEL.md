@@ -2799,7 +2799,7 @@ refusal stops the seat it names, a permission refusal stops a player and warns
 a Judge, an absence refusal stops every seat. A refusal with words is shown as
 text on the row (`crossing.refusal.*`); an absence has none, only a blank
 figure and the page reference. The Adventuring column of the imported table
-says whether a member who holds no Climbing may try (a holder's row does not show it) and is never read as the member's figure: a
+says whether a member who holds no Climbing may try (a holder's Permitted cell reads "May try" whatever the column says, since `memberRow` plans a holder as permitted) and is never read as the member's figure: a
 member with no figure of their own has a blank target.
 
 **Throwing.** `throwFor` runs on a GM client: one d20 for one stretch, read by

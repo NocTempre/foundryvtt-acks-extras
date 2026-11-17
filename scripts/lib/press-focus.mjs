@@ -7,7 +7,10 @@
  *
  * One window owns one instance: `note` at the press (a capture-phase click on
  * the window's root, so it runs before the action's handler), `restore` once
- * the render has finished. Foundry-free, and it never tests a node with
+ * the render has finished. A press whose control does not survive the render
+ * (a button that is only drawn while its row can act) lands on its row's home
+ * instead: the nearest ancestor marked `data-press-home="<row key>"`, which
+ * carries `tabindex="-1"` so it can hold focus. Foundry-free, and it never tests a node with
  * `instanceof` or builds nodes: a window first rendered in a detached browser
  * window is made by that window's document, so its nodes are no instance of
  * the main window's classes. Nodes are told by `nodeType === 1`, and every
@@ -23,6 +26,9 @@ export const PRESS_FOCUS_TTL_MS = 3000;
 
 /** Every control an action can sit on. */
 const ACTIONABLE = "[data-action]";
+
+/** A row that takes focus when the control pressed inside it is gone: keyed by its `data-press-home` value. */
+const HOME = "[data-press-home]";
 
 /** An element node, whichever window's document built it. */
 const isElement = (node) => !!node && node.nodeType === 1;
@@ -76,21 +82,26 @@ export class PressFocus {
     if (!isElement(active) || !root.contains(active)) return;
     const id = identity(control);
     const same = matching(root, id);
-    this.#pending = { id, index: same.indexOf(control), count: same.length, at: now };
+    const home = control.closest(HOME);
+    this.#pending = {
+      id, index: same.indexOf(control), count: same.length, at: now,
+      home: home && root.contains(home) ? (home.dataset?.pressHome ?? null) : null,
+    };
   }
 
   /**
    * Put focus back on the control the remembered press names, if the press
    * is recent, focus was lost to the render, and that control exists exactly
-   * once as before. Where the control is gone, ambiguous or disabled, nothing
-   * is focused. A press stays remembered across renders until the window
+   * once as before. Where the control is gone, ambiguous or disabled, the row
+   * it sat in (`data-press-home`) takes focus; with no such row nothing is
+   * focused. A press stays remembered across renders until the window
    * after it lapses, a new press replaces it, or a render finds focus held
    * (by another window, or a field the user has since entered): one press can
    * write more than once, and each write's render detaches the control again.
    *
    * @param {HTMLElement} root The window's root element, after the render.
    * @param {number} [now]     The clock, in ms.
-   * @returns {HTMLElement|null} The control focused, or null.
+   * @returns {HTMLElement|null} The control, or its row, focused; null if neither.
    */
   restore(root, now = Date.now()) {
     const pending = this.#pending;
@@ -106,10 +117,15 @@ export class PressFocus {
       return null;
     }
     const same = matching(root, pending.id);
-    if (same.length !== pending.count) return null;
-    const control = same[pending.index];
-    if (!control || control.disabled) return null;
-    control.focus({ preventScroll: true });
-    return control;
+    const control = same.length === pending.count ? same[pending.index] : null;
+    if (control && !control.disabled) {
+      control.focus({ preventScroll: true });
+      return control;
+    }
+    // The control did not survive: the row it sat in takes focus, if it has a home.
+    const home = pending.home === null ? null : [...root.querySelectorAll(HOME)].find((el) => el.dataset?.pressHome === pending.home);
+    if (!home || typeof home.focus !== "function") return null;
+    home.focus({ preventScroll: true });
+    return home;
   }
 }

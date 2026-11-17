@@ -4779,7 +4779,8 @@ a world copy where none stood before.
 Built for the party sheet's Dungeon tab section "The crossing" (MODEL, "The
 crossing"): the party's way over one obstacle or gap, a member at a time. A
 mock cannot prove that the partial draws for each seat, that a press keeps the
-tab's scroll and returns focus to the pressed row's button, that a throw's card
+tab's scroll and returns focus to the pressed row's button (or, once the press
+takes the member across and the button is gone, to the row itself), that a throw's card
 reaches the Judges alone, or that two seats see one crossing. Path: Actors
 sidebar → party sheet → Dungeon tab → The crossing.
 
@@ -4833,12 +4834,12 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 0 | Re-import the Rulebook's tables in the test world | `advances` on an outcome cell, `vulnerable` on the grid, the Acrobatics cap and bands, each read back through `formationValue` |
 | 1 | Assert the start: no `crossing` flag, the four tables present | End the crossing if one stands |
 | 2 | The GM begins a sheer climb with a length | Rows on both seats; the easy-climb and rappel kind labels bare, the two ledge labels keeping the word that tells them apart; each figure's tooltip in its shape (a target's parts with their pages, a stretch count's page, the outcome's provenance); the beast's target blank, its tooltip the page reference |
-| 3 | The player's seat | No `crossing.*` field in the DOM; the adventurer's Throw drawn where the grid allows it and, where it refuses, absent with the reason as text on the row |
+| 3 | The player's seat | No `crossing.*` field in the DOM; the adventurer's Throw drawn where the grid allows it and, where it refuses, absent with the reason as text on the row; the Climbing holder's Permitted cell reads "May try" (never blank) with a tooltip naming the kind, the proficiency and the page |
 | 4 | Rope fixed | The sheer face's rows flip to the easy climb's on both seats |
-| 5 | The player presses Throw on the adventurer, the GM seat connected, the die rigged | The Player's own pane writes nothing and rolls nothing: the flag changes only after the GM client acts. A public declaration from the party's name reads "<Player's name> declares: <adventurer> throws to cross."; one card, a whisper to the Judges alone, follows it; the member's record is one stretch on; the Player is told "Declared — sent to the Judge." and sees no card |
+| 5 | The player presses Throw on the adventurer, the GM seat connected, the die rigged | The Player's own pane writes nothing and rolls nothing: the flag changes only after the GM client acts. A public declaration from the party's name reads "<Player's name> declares: <adventurer> throws to cross."; one card, a whisper to the Judges alone, follows it; the member's record is one stretch on; the Player is told "Declared — sent to the Judge." and sees no card. The row's button is gone once the member is across, and keyboard focus lands on that row (`[data-press-home]`), not on `<body>`, with the tab's scroll unmoved |
 | 5a | A seat that owns nobody: from its pane, import `formation/player-requests.mjs` in page context and call `requestPartyAction(<formationId>, "crossing", { crossingId, actorId: <adventurer's id> })` | The row shows no button on that seat, so the call stands for a stale or hand-made press. A whisper to that seat reads that the member is not theirs to throw for; no declaration, no card, no die (the rig's counter is unmoved), the flag unchanged. The same call with no `actorId` is refused the same way |
 | 5b | The Player's seat on a member the grid refuses (the adventurer on a face the table refuses), its pane's row | No button; the reason as text on the row. The same `requestPartyAction` call from that pane: a whisper to the Player with the reason, no declaration, no card, no die. The Judge's own press on that row still warns and throws (step 9) |
-| 5c | A stale id: End then Begin, then the Player's pane calls `requestPartyAction` with the ended crossing's id; then with none open | A whisper that the crossing changed, and one that none is open; nothing rolled or written; no declaration |
+| 5c | A stale id: End then Begin, then the Player's pane calls `requestPartyAction` with the ended crossing's id; then with none open | A whisper that the crossing changed, and one that none is open; nothing rolled or written; no declaration, and no "Declared" toast on the Player's seat for either |
 | 5d | The Player's pane presses Throw for two members it owns in quick succession, then twice for one | Two declarations and two cards, both members' records one stretch on; for the single member one declaration, one card, one record step and a whisper that the throw is still being made |
 | 5e | A member across, from the Player's pane by the same call | A whisper that nothing is left to throw; no card |
 | 6 | A miss that does not advance, then a make | The member is stalled, not across, and `covered` is 0; the row now warns the Judge. The make is the Judge's press over that warning, its card says so, and `covered` is 1 |
