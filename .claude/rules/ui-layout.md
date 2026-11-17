@@ -14,6 +14,23 @@ application frame at the viewport height and gives `.window-content`
 footer first — with no scrollbar to say anything is missing. Nothing offline
 sees it, because nothing offline has a viewport.
 
+## Design before build
+
+A UI element is designed and shown to the owner before a line of it is
+written. Creating or changing anything a user sees — a window, a sheet or a
+tab of one, a dialog, a control, a chat card, a HUD, a canvas overlay — starts
+with `/design`; the owner's feedback on that design is the go-ahead, and
+implementation waits for it. `/design` is a built-in command, so no session's
+skill list shows it: it makes a new Artifact from the Design type, which the
+Artifact tool reaches with `action: "quickstart"`, `intent: "design"`. The owner: "when creating or modifying a new UI
+element, run /design first and get user feedback before implementing".
+
+A brief or plan whose slice touches a UI element names the design step before
+the edit, as it names its tree and its agent; an agent handed such a slice
+without an approved design stops and asks. A change no user can see on the
+surface (a handler, a data path, a fix restoring what the approved design
+already shows) needs none.
+
 ## The drag corner
 
 Core gives a corner only to a window that asks for one, and `DialogV2.prompt`
