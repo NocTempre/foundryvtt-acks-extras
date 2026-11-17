@@ -1,5 +1,5 @@
 /* global foundry, game */
-import { makeLoc } from "../lib/util.mjs";
+import { makeLoc, escape } from "../lib/util.mjs";
 /**
  * What is this dropped actor to the vehicle? A dialog that ASKS: every
  * actor drop offers the stations the vehicle actually has (from
@@ -46,8 +46,8 @@ export async function routeActorDrop(vehicle, doc, { preselect = null, auto = fa
       (o, i) => `
       <label class="acks-extras-vehicle-drop-option">
         <input type="radio" name="station" value="${i}" ${o === checked ? "checked" : ""}>
-        <span class="acks-extras-vehicle-drop-label">${o.label}</span>
-        <span class="acks-extras-vehicle-drop-note">${o.note ?? ""}</span>
+        <span class="acks-extras-vehicle-drop-label">${escape(o.label)}</span>
+        <span class="acks-extras-vehicle-drop-note">${escape(o.note)}</span>
       </label>`,
     )
     .join("");

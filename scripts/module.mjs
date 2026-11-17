@@ -26,7 +26,9 @@
  *   factions   after location — its sheet reads the place layer and the
  *              district vocabulary through direct imports, and its api is
  *              what the henchmen feature asks for a standing shift at call
- *              time; nothing imports it.
+ *              time. Formation's hunt, the domain sheet and the importer
+ *              import its leaf files (constants, standing); nothing imports
+ *              its module.mjs.
  *   domains    after factions — its sheet reads the place layer and the
  *              faction sub-type through direct imports, and it publishes its
  *              api at init, before location's ready-time prune asks it which

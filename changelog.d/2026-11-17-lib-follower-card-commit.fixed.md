@@ -1,0 +1,1 @@
+- **Actors sidebar → a monster or follower's Follower Card → Commit:** pressing Commit on an attack row no longer discards a Throw or damage-bonus override you had set on it. Commit still writes the row's label, damage and attack bonus onto the weapon and clears only those; the Throw and damage bonus stay on the card until you press Reset.

@@ -1,0 +1,1 @@
+- **Settings tab → Game Settings → ACKS II — Extras → Manage imports:** opening the import manager from the settings menu while the macro's window is still drawing no longer opens a second window; the open one is used.

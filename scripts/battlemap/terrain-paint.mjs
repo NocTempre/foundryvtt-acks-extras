@@ -8,7 +8,7 @@
  * is this hex?" is a flag read, never a point-in-polygon test. One terrain
  * per hex; painting is GM-only, hex grids only. The PAINT SESSION is armed
  * by the battlemap control group's terrain tool, a screen-space pointer
- * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
+ * catcher (pointer-catcher.mjs) turning clicks and drags into cell writes.
  *
  * Terrain is one LAYER of a registry (`registerPaintLayer`): territory is
  * painted the same way into regions of its own, under flags of its own, one
@@ -28,6 +28,9 @@ import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
 import { lighten } from "../lib/color.mjs";
+import { buildPointerCatcher, onBoard } from "./pointer-catcher.mjs";
+
+export { onBoard };
 
 /** Region flags: the terrain kind, and the painted cells as offset keys. */
 export const TERRAIN_FLAG = "terrain";
@@ -540,15 +543,6 @@ export async function paintHexAt(scene, point, value, layer = "terrain") {
 /*  The paint session and its canvas catcher                            */
 /* -------------------------------------------------------------------- */
 
-/**
- * Whether a pointer event happened over the board canvas itself rather than
- * over a window, the sidebar or any other element in front of it. Read off
- * the native event's target, which is the element under the pointer.
- */
-export function onBoard(ev, board = canvas?.app?.view) {
-  return !!board && ev?.nativeEvent?.target === board;
-}
-
 class TerrainPaintSession {
   /** The brush: a value of the current layer, "erase", or null (disarmed). */
   brush = null;
@@ -568,6 +562,8 @@ class TerrainPaintSession {
   #lastKey = null;
   /** Whether the pointer went down on the board itself, which is what opens a drag stroke. */
   #stroking = false;
+  /** Tail of the write chain; a stroke's cell writes run one after another. */
+  #paintQueue = Promise.resolve();
   #listeners = new Set();
   /** The last value picked on each layer, so a layer switch or a re-arm comes back to it. */
   #lastBrush = { terrain: "grassland" };
@@ -629,39 +625,23 @@ class TerrainPaintSession {
     const container = (this.#container = canvas.stage.addChild(new PIXI.Container()));
     container.eventMode = "passive";
     container.zIndex = 10000;
-    // Screen-space pointer catcher — capture.mjs's pattern: invisible, and it
-    // swallows canvas pointer events while the brush is armed.
-    const catcher = container.addChild(new PIXI.Sprite(PIXI.Texture.WHITE));
-    catcher.alpha = 0;
-    catcher.eventMode = "static";
-    catcher.hitArea = canvas.app.screen;
-    catcher.updateTransform = function () {
-      const screen = canvas.app.screen;
-      this.width = screen.width;
-      this.height = screen.height;
-      this._boundsID++;
-      this.transform.updateTransform(PIXI.Transform.IDENTITY);
-      this.worldAlpha = this.alpha;
-    };
-    // PIXI hears `pointermove` on the whole document and `pointerdown` on the
-    // board alone, so a move over a window — a swatch clicked with a pixel of
-    // travel, the palette dragged by its header — still reaches this
-    // full-screen catcher. A move paints only inside a stroke the board's own
-    // pointerdown opened, and only while the pointer is over the board.
-    catcher.on("pointerdown", (ev) => {
-      if (!onBoard(ev)) return;
-      this.#stroking = true;
-      this.#paintAt(ev);
+    // The shared screen-space catcher swallows canvas pointer events while the
+    // brush is armed and hands a press or move over the board alone (a swatch
+    // clicked with a pixel of travel, the palette dragged by its header, never
+    // paint). A move paints only inside a stroke the board's own press opened.
+    buildPointerCatcher(container, {
+      down: (ev) => {
+        this.#stroking = true;
+        this.#paintAt(ev);
+      },
+      move: (ev) => {
+        if (this.#stroking && ev.buttons & 1) this.#paintAt(ev);
+      },
+      up: () => {
+        this.#stroking = false;
+        this.#lastKey = null;
+      },
     });
-    catcher.on("pointermove", (ev) => {
-      if (this.#stroking && ev.buttons & 1 && onBoard(ev)) this.#paintAt(ev);
-    });
-    const endStroke = () => {
-      this.#stroking = false;
-      this.#lastKey = null;
-    };
-    catcher.on("pointerup", endStroke);
-    catcher.on("pointerupoutside", endStroke);
   }
 
   #teardown() {
@@ -671,7 +651,12 @@ class TerrainPaintSession {
     this.#stroking = false;
   }
 
-  async #paintAt(ev) {
+  /**
+   * Read everything the write needs from the event synchronously (PIXI may
+   * reuse the event object), then queue only the write: each write reads the
+   * region and rewrites it, so overlapping writes would drop cells.
+   */
+  #paintAt(ev) {
     if (!this.brush || !canvas?.scene) return;
     const point = ev.getLocalPosition(canvas.stage);
     if (!isHexScene(canvas.scene)) {
@@ -686,7 +671,12 @@ class TerrainPaintSession {
     const key = hexKeyOf(canvas.scene.grid.getOffset(point));
     if (key === this.#lastKey) return; // drag-paint: one write per cell
     this.#lastKey = key;
-    await paintHexAt(canvas.scene, point, this.brush === "erase" ? null : this.brush, this.layer);
+    const scene = canvas.scene;
+    const value = this.brush === "erase" ? null : this.brush;
+    const layer = this.layer;
+    this.#paintQueue = this.#paintQueue
+      .then(() => paintHexAt(scene, point, value, layer))
+      .catch((err) => console.error(`${MODULE_ID} | terrain paint failed`, err));
   }
 }
 

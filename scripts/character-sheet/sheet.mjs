@@ -50,7 +50,7 @@ import { takeOut, storeIn, setConcealed, setLocked, setOpened, emptyContainer, c
 import { pickLock, bashOpen } from "../equipment/locks.mjs";
 import { annotateItem } from "../equipment/api.mjs";
 import { splitOne } from "../equipment/item-sheet/stack.mjs";
-import { isEquippable, isGoods, isCurrency, joinStacks } from "../lib/item-model.mjs";
+import { isEquippable, isGoods, isCurrency, isLocked, joinStacks } from "../lib/item-model.mjs";
 import { promptDivide } from "../lib/stack-prompt.mjs";
 import { unpackBundle, landCoin } from "../lib/bundles.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
@@ -1128,7 +1128,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   static async #onContainerLock(event, target) {
     const item = this.#itemOf(target);
     if (!item) return;
-    const locked = !!item.getFlag(MODULE_ID, "container")?.locked;
+    const locked = isLocked(item);
     await (locked ? setOpened(item, true) : setLocked(item, true));
   }
 

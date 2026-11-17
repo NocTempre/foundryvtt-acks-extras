@@ -28,7 +28,7 @@ import { isWeaponProficient } from "../proficiency.mjs";
 import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
-  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, sumWeight6, bundleSizeOf, isClothing, isAmmoItem, STONE,
+  isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, contentsWeight6, siblingsOf, weight6Of, bundleSizeOf, isClothing, isAmmoItem, STONE,
   isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
@@ -389,7 +389,9 @@ function containerSnapshot(item) {
   if (!holds && !rec) return null;
   const cap = capacityOf(item);
   const contents = contentsIn(item).filter((i) => !variationItemsOf(item).includes(i));
-  const load6 = sumWeight6(contents);
+  // The same load `containerReport` shows: a container inside this one counts
+  // with what it holds.
+  const load6 = item.id ? contentsWeight6(siblingsOf(item), item.id) : 0;
   return {
     holds,
     // The gear flag's own declaration, which is all the Holds toggle writes;

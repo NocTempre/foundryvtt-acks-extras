@@ -17,25 +17,26 @@
  * also owns base resolution and the skinning payloads for a template with no
  * bundle.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass, readyToApply, syncClassTraining } from "./apply.mjs";
 import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, offeredProficiencyType, rankedCopies, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
-import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE, slug } from "../lib/vocab.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, unset } from "../lib/util.mjs";
+import { libraryItems, whenReady } from "../lib/library.mjs";
 
 // The base-resolution and skinning layer lives in template-packages.mjs (the
 // materializer resolves once, at import; this file resolves at grant time only
 // on the legacy row path). Re-exported so consumers keep one import site.
 export { resolveBase, templateItemName };
 
-const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+const fold = slug;
 
 /**
  * The money items the system's own coin bookkeeping recognises, by name.
@@ -184,9 +185,12 @@ async function grantRowEntries(actor, { abilities = [], items = [], spells = [] 
     if (s.uuid) doc = await fromUuid(s.uuid).catch(() => null);
     if (!doc && name) {
       const f = fold(name);
+      // The whole library, as package building reads it: a spell on an imported shelf is as findable as a sidebar one.
+      await whenReady();
+      const spellDocs = libraryItems().filter((i) => i.type === ITEM_TYPE.spell);
       doc =
-        game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === f) ??
-        game.items.find((i) => i.type === ITEM_TYPE.spell && f.length >= 6 && fold(i.name).includes(f)) ??
+        spellDocs.find((i) => fold(i.name) === f) ??
+        (f.length >= 6 ? spellDocs.find((i) => fold(i.name).includes(f)) : null) ??
         null;
     }
     if (doc) {
@@ -372,6 +376,14 @@ export async function applyChargen(
   if (wipe) {
     const ids = actor.items.map((i) => i.id);
     if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
+    // The previous run's path answers and closed rungs live in the flag, not on
+    // items; left in place they would pre-answer the new template's variant.
+    // An empty object merges into the stored answers and leaves them in place;
+    // only a deletion clears them. An array replaces wholesale.
+    await actor.update({
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.paths`]: unset(),
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.awardsTaken`]: [],
+    });
   }
 
   // Chargen rolls no hit dice of its own, so the 1st-level total is built here:

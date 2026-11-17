@@ -30,7 +30,8 @@ import { libStorage as storage } from "../lib/util.mjs";
 import { carrierChain } from "../lib/attachment.mjs";
 import { getFormations, getFormationForActor } from "../formation/formation-model.mjs";
 import { partyPoint } from "../formation/zones.mjs";
-import { tokenCenter, placeReachesSpot, placeStandsOn } from "./here.mjs";
+import { placeReachesSpot, placeStandsOn } from "./here.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 
 /** Flag on a CHARACTER: places they have pinned to their own sheet. */
 export const PINNED_PLACES_FLAG = "places";
@@ -123,12 +124,11 @@ function standingSpots(actor, scan) {
   for (const [sceneId, tokens] of mine) {
     const scene = game.scenes?.get(sceneId);
     if (!scene) continue;
-    const gridSize = scene.grid.size;
     for (const token of tokens) {
       // Once a deploy has given this member a body, any other token naming
       // the actor is a leftover and stands for nobody.
       if (ownBody && (token.id !== ownBody || (ownScene && sceneId !== ownScene))) continue;
-      out.push({ scene, point: tokenCenter(token, gridSize), elevation: token.elevation ?? 0 });
+      out.push({ scene, point: tokenCentre(token, scene), elevation: token.elevation ?? 0 });
     }
   }
   return out;

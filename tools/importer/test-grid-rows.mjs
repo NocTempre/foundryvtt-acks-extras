@@ -108,7 +108,11 @@ const rate = (t) => JSON.stringify(applyCellPattern(t, "gpRate"));
 check("a ranged rate reads both ends and its unit", rate("7 – 11gp / barrel") === '{"min":7,"max":11,"per":"barrel"}');
 check("one rate is both ends, silver read as gp", rate("6sp/ cart") === '{"min":0.6,"max":0.6,"per":"cart"}');
 check("a word for a rate is null", applyCellPattern("Ask", "gpRate") === null);
-check("a signed list reads each figure", JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
+check("int, num and intDash keep the sign of a glyph minus, en dash and em dash",
+  ["int", "num", "intDash"].every((p) => ["−3", "–3", "—3", "-3"].every((t) => applyCellPattern(t, p) === -3)));
+check("a range reads its leftmost figure whatever the dash", ["int", "num", "intDash"].every((p) => ["10–20", "10−20", "10—20", "10-20"].every((t) => applyCellPattern(t, p) === 10)));
+check("a lone dash reads no figure", ["int", "num", "intDash"].every((p) => ["–", "−", "—"].every((t) => applyCellPattern(t, p) === null)));
+check("a signed list reads each figure",JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
 check("a list with a word in it is no list", applyCellPattern("+2/some", "signedList") === null);
 check("a word list drops its closing and, its quotes, its bracket of examples and the word items",
   JSON.stringify(applyCellPattern("aa, bb (e.g. cc), and “dd” items", "wordList")) === '["aa","bb","dd"]');

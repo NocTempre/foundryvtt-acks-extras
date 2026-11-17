@@ -172,6 +172,13 @@ row, a `type: "item"` on A with `system.cost` and
     through the relay. Before entry the player's toolbar carries no
     merchandise picker; once entered, the picker sits captioned before
     Solicit (the network walk checks both).
+11. GM seat, with two characters A and B both listed in the **Acting as**
+    picker and A not first in the Purchase dialog's alphabetical list: pick A,
+    press Buy on a catalog row, then press Commission on one. *Observable:*
+    each dialog's **Buyer** select opens on A (not the first listed), and
+    submitting both unchanged charges A's coin and leaves B's untouched. Repeat
+    with B picked. The commission dialog needs the Wage and Construction Rates
+    table imported to list workers.
 
 **Not reachable on a shared world with the GM seat online:** the "not sent"
 relay warning (it needs no GM connected), a venture day refused for a missing

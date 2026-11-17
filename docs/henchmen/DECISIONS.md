@@ -317,3 +317,21 @@ them.
   campaign's chargen method setting (the per-attribute choice has no one to
   make it at hire). *Cost:* no world rolls attributes at hire until the people
   tables are imported.
+
+## 2026-11-17 — A hire states its wage monthly, and an old group is keyed by a repair check
+
+- **Payroll bills a month, so a hire writes a month.** A specialist's
+  availability row carries the unit its wage was printed in, and the candidate
+  keeps it for the row's display. `hire` and the offer dialog convert a day or
+  a week figure to a monthly one (`rules/wages.mjs` `monthlyWage`, by the
+  market month's length in days); a unit it cannot convert is left blank for
+  the Judge, since a figure billed as monthly in its place is wrong.
+- **Groups hired before the wage type was stored are repaired, not billed by
+  guess.** `henchmen.wageType` finds a mercenary group's combined
+  composite/longbow stack with no `wageType` and stores the variant of the
+  settlement the group was hired at. A group whose settlement is gone is listed
+  and left alone: its variant is not derivable. Rejected: a billing fallback
+  that reads the variant at payday (a settlement's variant can be edited, so
+  the figure would move under a group already hired) and a migration run
+  unasked at ready (a write the Judge did not choose). *Cost:* an old group
+  stays unbilled until the repair tool is run.

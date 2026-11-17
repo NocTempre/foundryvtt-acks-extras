@@ -1,0 +1,1 @@
+- **Vehicle sheet → Board best:** loads the members of the formation the vehicle travels with, not the members of every formation in the world.

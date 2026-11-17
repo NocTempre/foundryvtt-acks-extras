@@ -224,6 +224,11 @@ function viewingScene(formation) {
   return !!formation.sceneId && canvas?.scene?.id === formation.sceneId;
 }
 
+/** True while a combat holds the party: its flag is up, or a member stands deployed for one. */
+export function heldByCombat(record) {
+  return !!record?.combat?.active || !!record?.members?.some((m) => m?.deployedCombatId);
+}
+
 /** Create the working Map item and register the session on the formation. */
 async function openSession(formation, mapper, scene) {
   const proficient = mapperIsProficient(formation);
@@ -259,10 +264,15 @@ async function openSession(formation, mapper, scene) {
   // over writes its flag last, after its deploy has marked the members it took
   // (`deployedCombatId`): they stand for the fight until the flag lands.
   const patched = await patchFormation(formation.id, (rec) => {
-    if (rec.mapSession || rec.combat?.active || rec.members?.some((m) => m?.deployedCombatId)) return false;
+    if (rec.mapSession || heldByCombat(rec)) return false;
     rec.mapSession = { itemUuid: item.uuid, sceneId: rec.sceneId };
   });
-  if (!patched?.mapSession) return; // world moved on: leave the item inactive
+  if (patched?.mapSession?.itemUuid !== item.uuid) {
+    // The world moved on (a combat, or another session opened first): the item was made active for a session that never
+    // opened, so it goes rather than standing as a second working map.
+    await item.delete();
+    return;
+  }
   formation.mapSession = patched.mapSession;
   await announce(formation, loc("map.sessionStarted", { mapper: mapper.name }));
   if (!proficient) await announce(formation, loc("map.sessionUnproficient"), { whisper: true });
@@ -283,7 +293,10 @@ export async function ensureMapSession(formation) {
   await openSession(formation, mapper, scene);
 }
 
-/** "New Map": archive & close the old session, wipe fog, start from black. */
+/**
+ * "New Map": archive & close the old session, wipe fog, start from black.
+ * Refused, before anything closes, while a combat holds the party.
+ */
 export async function startMapSession(formation) {
   if (!game.user.isGM) return;
   if (!viewingScene(formation)) {
@@ -295,10 +308,16 @@ export async function startMapSession(formation) {
     ui.notifications.warn(loc("map.needsMapper"));
     return;
   }
+  if (heldByCombat(formation)) {
+    ui.notifications.warn(loc("map.newMapInCombat"));
+    return;
+  }
 
   if (formation.mapSession) await closeMapSession(formation, { silent: true });
 
-  // The new map starts from black: every client viewing the scene re-pulls its fog.
+  // The new map starts from black: core's reset deletes every explored record
+  // of the scene, then every client viewing it re-pulls its fog.
+  await canvas.fog?.reset?.();
   const socket = getSocket();
   if (socket) await socket.executeForEveryone("reloadFog", formation.sceneId);
   else await reloadFog(formation.sceneId);

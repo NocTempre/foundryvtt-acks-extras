@@ -213,8 +213,15 @@ assert.equal(travelMultiplier({ terrain: "grassland", road: "paved", raining: tr
   "a paved road keeps its worth in the wet");
 assert.equal(travelMultiplier({ terrain: "grassland", road: "gravel", snowing: true }).multiplier, 1,
   "a row may be nulled by snow instead");
-assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 1,
+assert.equal(travelMultiplier({ terrain: "grassland", road: "mystery" }).multiplier, 1,
   "a road that is not a ROAD_KINDS key earns nothing");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true }).multiplier, 2,
+  "the sheet's Road checkbox (true) reads as the plainest kind, as canEnter reads it");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, driverProficient: true }).multiplier, 3,
+  "and a proficient driver then counts on it");
+assert.equal(travelMultiplier({ terrain: "grassland", road: true, raining: true }).multiplier, 1,
+  "an earthen road washed out by rain is nulled all the same");
+assert.equal(travelMultiplier({ terrain: "grassland", road: false }).multiplier, 1, "false is no road");
 
 /* --- the parts name what the sheet will say ------------------------------ */
 const namedGround = travelMultiplier({ terrain: "swamp", road: "earth", driverProficient: true });
@@ -434,7 +441,7 @@ import {
   kelpHours,
   lightenChance,
 } from "../scripts/vehicles/navigation.mjs";
-import { damageToVessel, sinkFormula, repairPlan, roundVoyage } from "../scripts/vehicles/vessel-damage.mjs";
+import { damageToVessel, sinkFormula, repairPlan, roundVoyage, isSinking, speedFactor, hullValue } from "../scripts/vehicles/vessel-damage.mjs";
 import { crewCargoTrade, berthStone } from "../scripts/vehicles/berths.mjs";
 
 registerSamples();
@@ -584,5 +591,42 @@ assert.equal(g("role:rowers").unweighed, true, "and flags the hands nothing coul
 assert.equal(g("role:marines").unweighed, false, "a non-motive group never asks");
 assert.equal(stationsFor(galleySys, [{ role: "crew", station: "rowers", name: "Aella", proficient: true }])
   .find((x) => x.key === "role:rowers").unweighed, false, "a proficient bench has nothing to weigh");
+
+/* --- a blank hull value is unknown, not a wreck ---------------------------- */
+assert.equal(hullValue({ shp: { value: null, max: 10 } }), null, "a blank value is unknown");
+assert.equal(hullValue({ shp: { value: 0, max: 10 } }), 0, "a typed zero is a zero");
+assert.equal(isSinking({ shp: { value: null, max: 10 } }), false, "a blank value is not sinking");
+assert.equal(isSinking({ shp: { value: 0, max: 10 } }), true, "a typed zero is");
+assert.equal(isSinking({ shp: { value: 3, max: 10 } }), false, "a hull with points left is not");
+assert.equal(speedFactor({ shp: { value: null, max: 10 }, crew: { roles: [] } }).hull, 1, "an unknown hull takes no speed");
+assert.equal(speedFactor({ shp: { value: 5, max: 10 }, crew: { roles: [] } }).hull, 0.5, "a known hull still does");
+
+/* --- the sinking clock: stops at zero, retired once she floats ------------- */
+{
+  const { tickSinkingClock, clearSinkingClockIfAfloat, SINKING_FLAG } = await import("../scripts/vehicles/sea-throws.mjs");
+  const flags = {};
+  const posted = [];
+  globalThis.game = { users: [], i18n: { localize: (k) => k, format: (k) => k } };
+  globalThis.ChatMessage = { create: async (m) => { posted.push(m); } };
+  const actor = {
+    name: "Test hull",
+    system: { shp: { value: 0, max: 10 } },
+    getFlag: (_m, k) => flags[k],
+    setFlag: async (_m, k, v) => { flags[k] = v; },
+    unsetFlag: async (_m, k) => { delete flags[k]; },
+  };
+  flags[SINKING_FLAG] = { rounds: 1, rolled: 4 };
+  assert.equal(await tickSinkingClock(actor), 0, "the last round runs out");
+  assert.equal(posted.length, 1, "and says so once");
+  assert.equal(await tickSinkingClock(actor), 0, "a clock at zero stays at zero");
+  assert.equal(posted.length, 1, "and posts nothing more");
+  assert.equal(await clearSinkingClockIfAfloat(actor), false, "a hull still at zero keeps its clock");
+  actor.system.shp.value = null;
+  assert.equal(await clearSinkingClockIfAfloat(actor), false, "a blank hull keeps it too");
+  actor.system.shp.value = 3;
+  assert.equal(await clearSinkingClockIfAfloat(actor), true, "a hull put back above zero retires it");
+  assert.equal(flags[SINKING_FLAG], undefined, "the flag is gone, so Start is offered at the next sinking");
+  assert.equal(await clearSinkingClockIfAfloat(actor), false, "nothing left to clear");
+}
 
 console.log("test-vehicles: OK (one hold, empty berths, weighed hands, unweighed hands)");

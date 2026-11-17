@@ -28,6 +28,39 @@ import { SECRET_ADVENTURING, rollSecretAdventuring } from "../patches/adventurin
 import { promptDivide } from "../stack-prompt.mjs";
 import { showStoredInputs } from "../patches/stored-inputs.mjs";
 
+/**
+ * What Commit does with the card's per-attack overrides. A row bakes onto the
+ * weapon it names (`<itemId>:…`): a label becomes the item's name, a damage
+ * formula and an attack bonus land on its fields. A row with no item stays an
+ * override. Only the sub-keys that were baked are cleared, as flag-update
+ * entries; a field with no base field to bake into (`target`, `damageBonus`)
+ * stands, and a row left with nothing is removed whole.
+ *
+ * @param {object} [attacks]  The `fcOverrides.attacks` map.
+ * @param {(itemId: string) => boolean} hasItem  Whether the actor holds that item.
+ * @returns {{itemUpdates: object[], cleared: object}}  Embedded-item updates, and
+ *   the `fcOverrides`-relative entries (`attacks.<key>.<field>`) to unset.
+ */
+export function planAttackCommit(attacks, hasItem) {
+  const itemUpdates = [];
+  const cleared = {};
+  for (const [key, o] of Object.entries(attacks ?? {})) {
+    const itemId = String(key).split(":")[0];
+    if (!hasItem(itemId)) continue;
+    const u = { _id: itemId };
+    const baked = [];
+    if (o.label) { u.name = o.label; baked.push("label"); }
+    if (o.damage != null) { u["system.damage.base.formula"] = o.damage; baked.push("damage"); }
+    if (o.bonus != null) { u["system.bonus.attack"] = num(o.bonus); baked.push("bonus"); }
+    if (!baked.length) continue;
+    itemUpdates.push(u);
+    const standing = Object.keys(o).filter((f) => !baked.includes(f));
+    if (!standing.length) cleared[`attacks.${key}`] = unset();
+    else for (const f of baked) cleared[`attacks.${key}.${f}`] = unset();
+  }
+  return { itemUpdates, cleared };
+}
+
 /** The actions that only look, kept live on a seat that cannot edit. */
 const VIEW_ACTIONS = new Set(["fcOpenFull", "fcShowItem"]);
 
@@ -298,32 +331,18 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
 
     // Attack edits bake onto the weapon they came from; a row with no item
     // (unarmed, improvised) has nothing to write to and stays an override.
-    const itemUpdates = [];
-    for (const [key, o] of Object.entries(ov.attacks ?? {})) {
-      const itemId = String(key).split(":")[0];
-      const item = this.actor.items.get(itemId);
-      if (!item) continue;
-      const u = { _id: item.id };
-      if (o.label) u.name = o.label;
-      if (o.damage != null) u["system.damage.base.formula"] = o.damage;
-      if (o.bonus != null) u["system.bonus.attack"] = num(o.bonus);
-      if (Object.keys(u).length > 1) itemUpdates.push(u);
-    }
+    const { itemUpdates, cleared: attackClears } = planAttackCommit(ov.attacks, (id) => !!this.actor.items.get(id));
     if (itemUpdates.length) await this.actor.updateEmbeddedDocuments("Item", itemUpdates);
 
     // Clear only what was baked; a whole-flag unset would drop overrides that
     // have no base field to bake into. Deletion is spelled per key
     // (`unset()`) — a smaller object would deep-merge and remove nothing.
-    const cleared = {};
+    const cleared = { ...attackClears };
     if (ov.ac != null) cleared.ac = unset();
     if (ov.speed != null && (actorProvides(this.actor, "movementacks.combat") || actorProvides(this.actor, "movement.base"))) {
       cleared.speed = unset();
     }
     if (ov.adventuring) cleared.adventuring = unset();
-    for (const key of Object.keys(ov.attacks ?? {})) {
-      const itemId = String(key).split(":")[0];
-      if (this.actor.items.get(itemId)) cleared[`attacks.${key}`] = unset();
-    }
     if (Object.keys(cleared).length) {
       await this.actor.update({ [`flags.${MODULE_ID}.fcOverrides`]: cleared });
     }
@@ -465,7 +484,8 @@ export class FollowerCardSheet extends foundry.applications.api.HandlebarsApplic
       {
         name: game.i18n.localize("ACKS-LIB.followerCard.newAttack"),
         type: ITEM_TYPE.weapon,
-        system: { equipped: true, damage: { base: { formula: "1d6" } }, melee: true },
+        // No die is invented: the formula stays blank until the first attack asks for one.
+        system: { equipped: true, damage: { base: { formula: "" } }, melee: true },
       },
     ]);
   }

@@ -1,0 +1,1 @@
+- **Influence roller:** in an opposed contest the target adds only its reaction modifiers, never its loyalty or morale ones, and never one that waits on the Judge's confirmation; changing the target to someone with no stored attitude starts from Neutral at the first attempt; Reset defaults never makes the influencer their own target.

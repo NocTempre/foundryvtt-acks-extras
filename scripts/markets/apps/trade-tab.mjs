@@ -898,7 +898,7 @@ export const TRADE_TAB_ACTIONS = {
   /** Open the purchase dialog for a catalog row. */
   async openPurchase(_event, target) {
     const row = catalogRow(this, target?.dataset?.key);
-    if (row) openPurchaseDialog(this.actor, row);
+    if (row) openPurchaseDialog(this.actor, row, actingTrader(this));
   },
 
   /** Open the sell dialog for one of the acting trader's carried items. */
@@ -963,7 +963,7 @@ export const TRADE_TAB_ACTIONS = {
   /** Commission a catalog item's construction. */
   async openCommission(_event, target) {
     const row = catalogRow(this, target?.dataset?.key);
-    if (row) openCommissionDialog(this.actor, row);
+    if (row) openCommissionDialog(this.actor, row, actingTrader(this));
   },
 
   /** Post a directed search for a catalog item the market cannot supply now. */

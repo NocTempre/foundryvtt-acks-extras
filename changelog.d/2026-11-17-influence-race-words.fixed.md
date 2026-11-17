@@ -1,0 +1,1 @@
+- **Character sheet → class name, in influence and reaction rolls:** a class whose name only contains a race word inside another word (Sorcerer, Enforcer, Delver) is no longer read as a beastman or an elf.

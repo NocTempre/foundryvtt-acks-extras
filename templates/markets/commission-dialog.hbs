@@ -10,7 +10,7 @@
     <label>{{localize "ACKS-MARKETS.purchase.buyer"}}</label>
     <select name="buyerUuid">
       {{#each buyers}}
-      <option value="{{id}}">{{name}}</option>
+      <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>
       {{/each}}
     </select>
   </div>

@@ -1,0 +1,1 @@
+- **Scene controls → Battlemap:** a calibration sample drag released over a window, such as the calibration assistant, no longer adds a sample there; only a drag that ends on the map is kept.

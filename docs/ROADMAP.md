@@ -10,6 +10,29 @@ Feature-scoped roadmaps live in `docs/<feature>/ROADMAP.md`.
 
 ---
 
+## Open after the 2026-11-17 bug sweep
+
+Rulings that wait for the owner (the sweep decided none of them):
+
+- **A search order's trader.** `markets/engine/imports.mjs` `createItemSearch` is the only order path without `awayFromMarket`. Should a search require the trader at the market?
+- **Container capacity stated as 0.** Does it mean "holds nothing" or "unstated"? `equipment/containers.mjs` (`if (!cap) return false`) and `lib/capacity.mjs` disagree, and `capacityStone` gives 0 versus null for an unstated capacity. Once ruled, containers delegate to lib.
+- **Combat rounds and rest.** `docs/formation/MODEL.md` says combat rounds do not count toward rest; the code counts them (`onCombatRoundChange` → `advanceRounds` → `turnsSinceRest`). Which is intended?
+- **A weapon dropped on a non-hand slot.** `equipment/placement.mjs` `placeItem` draws it. Should it draw, be worn where the slot allows, or be refused with `equipment.notWearable`?
+- **The detach leash's units.** `formation/deployment.mjs` `feetBetween` returns scene units and is compared with feet, so the leash is wrong on a metric scene. Converting with `sceneFeetPerCell` makes every step breach on an expedition-scale scene, so it needs a ruling on whether the leash stands down there (`isExpeditionScale`).
+- **A range hyphen read as a minus.** The prose readers in `importer/table-extract.mjs` (`signed`/`int`/`gp` windows) read the hyphen of "1-3" as a sign. The obvious lookbehind fix breaks "1d6-2". Needs a book check of which printed windows hold a range, then `test-recipe-content` with the books.
+- **The vehicles api version.** `hullValue` and `clearSinkingClockIfAfloat` were added to `acksExtras.vehicles`; `vehicles/module.mjs` says additive changes bump `apiVersion` (3).
+- **A requirement scan's letter case.** `importer/cookbook/classes.mjs` matches upper-case ability abbreviations only; check a printed requirements line before widening it.
+- **A bold-cell role across Detach.** Detaching a template package cannot restore an ability's bold-cell `role`, since the bundle never recorded it (a schema change).
+- **A solicitation resolving in the next market month** is spent and logged, not re-resolved against the month it was posted in (`markets/engine/ventures.mjs`); re-resolving is a design change.
+
+Unbuilt, found by the sweep:
+
+- **Named items and property layers:** see `docs/equipment/ROADMAP.md`.
+- **pdf.js lifecycle:** `importer/module.mjs` `ingestBook` and `shelvePath` re-ingest an already-open book without destroying the earlier pdf.js document, so a worker leaks; fingerprint with a throwaway open instead.
+- **Not reviewed by any reader:** all of `scripts/abilities/`; `location/apps/{location-sheet,scene-link,table-docs,ruledata-browser}`; `vehicles/vehicle-sheet.mjs` outside ~140-445 and ~540-705; `monsters/monster-sheet.mjs`; `classes/class-data.mjs`; `importer/wall-trace.mjs` ~650-2030; `importer/adventure-binding.mjs` past line 200; `formation/formation-view.mjs` ~1000-1190 and ~1670-1840; `lib/vocab.mjs` lines 1-900; and the importer bindings `adventure-item`, `character`, `conditions`, `delve-encounter`, `faction`, `flight`, `foraging`, `formation`, `market-profile`, `merchandise`, `searching`, `survival`, `travel`, `weapon`, `weather` (searched, not read).
+- **Unverified against core 14** (core source was not on the sweep's machine): `lib/module.mjs` flip-face menu reads only `li.dataset.entryId`; `lib/conditions.mjs` `giverOf` assumes the shape of `effect.start`; `lib/patches/morale-roll.mjs` catches a synchronous throw only; `magic/cast-expiry.mjs` `calendarSeconds`; `formation/party-actor.mjs` and `lib/data/animal-data.mjs` default `movement.base` to 120 (a printed value unless it mirrors core's field default); `ApplicationV2.RENDER_STATES` (import manager) and `FogManager.reset()` (New Map).
+- **Refactoring backlog** (decoupling, helper dedup, one character-sheet decorator pipeline, header-band, importer splits): take an item when it fixes a defect.
+
 ## Standing cleanup passes
 
 - **Rename the module-wide identifiers.** Low priority. The 18 lang key roots

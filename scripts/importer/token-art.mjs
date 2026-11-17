@@ -139,7 +139,7 @@ export async function applyTokenArt(source) {
   if (!game.user?.isGM) return null;
   const actors = new Map((await subjectActors()).map((a) => [a.uuid, a]));
   const plan = planApply([...actors.values()].map(subjectOf), source.index, { from: source.title });
-  const placedCount = plan.changes.reduce((n, c) => n + (actors.get(c.uuid)?.pack ? 0 : placedTokens(actors.get(c.uuid)).filter((t) => !t.actorLink && t.src === c.was.src).length), 0);
+  const placedCount = plan.changes.reduce((n, c) => n + (actors.get(c.uuid)?.pack ? 0 : placedTokens(actors.get(c.uuid)).filter((t) => !t.actorLink && t.src === c.current).length), 0);
   const asked = await confirmApply(source, plan.counts, placedCount);
   if (!asked) return null;
   const done = { ...plan.counts, change: 0, refused: 0, placed: 0 };
@@ -153,7 +153,7 @@ export async function applyTokenArt(source) {
         [`flags.${MODULE_ID}.${FLAG}`]: { from: change.from, src: change.src, was: change.was },
       });
       done.change++;
-      if (asked.placed) done.placed += await movePlaced(actor, change.was.src, change.src);
+      if (asked.placed) done.placed += await movePlaced(actor, change.current, change.src);
     } catch (err) {
       console.warn(`${MODULE_ID} | token art: ${change.name} refused`, err);
       done.refused++;

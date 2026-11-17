@@ -27,8 +27,10 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
  * @returns {string} a WEAR key
  */
 export function wearLocation(actor, item, loadout = getLoadout(actor)) {
-  // Inside a container beats everything.
-  if (containedIn(item)) return WEAR.stowed;
+  // Inside a container beats everything. A pointer at a container the actor no
+  // longer holds is no containment, so the item falls through to its own place.
+  const holder = containedIn(item);
+  if (holder && (!item.parent?.items?.get || item.parent.items.get(holder))) return WEAR.stowed;
 
   // The mapper's kit is held, not worn, so it is placed before the worn gate:
   // quill in the main hand, parchment in the off hand (the loadout's `mappingKit`).

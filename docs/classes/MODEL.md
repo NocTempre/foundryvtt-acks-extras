@@ -144,8 +144,12 @@ cell, or for gear a plain name of a linked base) and nothing else, so the two li
 nor a grant can double them — while a package that could not carry something
 leaves it printed on the row, still applying the old way. That is what makes
 single ownership safe: a partial package can never silently shorten a
-starting kit. `detachTemplatePackages` clears every link (documents kept
-unless asked) and the class applies its printed entries again.
+starting kit. `detachTemplatePackages` and the row's unbind first write what
+the bundle carries back onto the row as printed entries (`unbindTemplateRow`,
+the inverse of `stripRepresented`; a bold-cell `role` is not recorded by a
+bundle and is not restored), then clear the link (documents kept unless
+asked), and the class applies its printed entries again. Binding a dropped
+bundle strips the entries it carries from the row the same way a build does.
 A package on a library shelf is read from its loaded bundle. `templateContents` and
 `templateGrantKeys` are synchronous, and a bundle on a shelf not yet loaded
 answers `fromUuidSync` with an index entry that has no `itemList`, so they would

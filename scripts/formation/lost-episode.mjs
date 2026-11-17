@@ -7,6 +7,7 @@
  * the Judge is looking at. See docs/formation/MODEL.md, "Lost".
  */
 import { makeLoc } from "../lib/util.mjs";
+import { tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
 import { seatJourneyHex, storedTravelOf, travelOf } from "./travel.mjs";
 import { beginLost, walkBelieving, discoverLost, reanchorLost, endLost, lostOf, driftSummary } from "./lost.mjs";
@@ -126,12 +127,8 @@ async function moveToShadow(formation, scene) {
   const shadow = shadowFor(scene, formation.id);
   const party = formation.sceneId === scene?.id ? scene.tokens.get(formation.tokenId) : null;
   if (!shadow || !party) return false;
-  const gs = scene.grid.size;
-  const cx = shadow.x + (shadow.width * gs) / 2;
-  const cy = shadow.y + (shadow.height * gs) / 2;
-  const x = Math.round(cx - (party.width * gs) / 2);
-  const y = Math.round(cy - (party.height * gs) / 2);
-  await party.update({ x, y }, { animate: false, [TRUTH_MOVE_OPTION]: true });
+  const corner = tokenCorner(tokenCentre(shadow, scene), party, scene);
+  await party.update({ x: Math.round(corner.x), y: Math.round(corner.y) }, { animate: false, [TRUTH_MOVE_OPTION]: true });
   // The stored corner: core drops a write that changes nothing, so a party
   // already standing on its shadow keeps drawing the move that brought it.
   const at = storedPosition(party);

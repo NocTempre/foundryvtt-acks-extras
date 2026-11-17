@@ -1,0 +1,1 @@
+- **Vehicle sheet → Details tab → structural hit points:** a vessel whose current value is left blank is no longer shown on the Travel tab as sinking with no speed; the Travel tab's hull block appears once a value is typed.

@@ -22,6 +22,25 @@ truth behind the code enums; local-only, never in the repo).
   (`scripts/equipment/roll-wrap.mjs`, the rows computed in `attack-mods.mjs`)
   and holds one libWrapper registration of its own, `computeEncumbrance`; a
   second registration against the same target fails `tools/validate-extra.mjs`.
+- **A weapon with no damage formula stays blank.** No layer and no maker
+  writes a die in its place: the named overlay captures a blank base and,
+  while it is blank, writes nothing to the damage field; a scavenged condition
+  and the property layers write no flat figure over it; a Follower Card's new
+  attack and a template package's weapon with no stated die are made blank.
+  The first attack with such a weapon asks for its formula
+  (`damage-prompt.mjs`, a second contributor to the lib seam, answering its
+  `prepare`, registered whatever the roll setting says). The answer must pass
+  `Roll.validate`; it is saved to `system.damage.base.formula`, and to each
+  layer's captured base that held a blank (`pristine.damage`,
+  `named.base.damage`), and those layers are applied again over it
+  (`damage-blank.mjs` `savedFormulaUpdates`). A named base left blank also
+  takes the weapon's formula the next time its bonuses are applied, and stores
+  it in the same write (`overlays/named.mjs` `baseOf`). Closing the prompt
+  cancels the attack: nothing is written or rolled. A user who cannot edit the
+  weapon is told so and the attack is cancelled. A copy an attack rolls in
+  place of the stored weapon (a Follower Card override) writes the stored
+  weapon and takes the formula in memory; an unsaved weapon takes it in memory
+  only.
 - **The non-proficient package's figures are imported.** `attack-mods.mjs`
   reads the throw a non-proficient character fights with and the further
   penalty a character of no level takes from the equipment document's

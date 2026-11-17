@@ -49,9 +49,9 @@ export function parseSigned(cell) {
   return m ? Number(m[1]) : null;
 }
 
-/** The first NdM in a window; junk → null. */
+/** The first NdM in a window, with a `+K` or `-K` printed straight after it kept; junk → null. */
 export function parseDice(window) {
-  const m = /(\d+\s*d\s*\d+)/i.exec(String(window ?? ""));
+  const m = /(\d+\s*d\s*\d+(?:\s*[+-]\s*\d+)?)/i.exec(String(window ?? ""));
   return m ? m[1].replace(/\s+/g, "").toLowerCase() : null;
 }
 

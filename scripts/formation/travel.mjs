@@ -24,6 +24,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isPrimaryGM, numOrNull } from "../lib/util.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { parentUuidOf, resolvePlaceSync } from "../lib/place.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility, derivedMovementMode } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
@@ -885,15 +886,8 @@ export function enterHex(formationId, label) {
   });
 }
 
-/** The centre of a token document on its scene, read off the document alone (no canvas). */
-export function tokenCentre(tokenDoc, scene = tokenDoc?.parent) {
-  const sizeX = scene?.grid?.sizeX ?? scene?.grid?.size ?? 0;
-  const sizeY = scene?.grid?.sizeY ?? scene?.grid?.size ?? 0;
-  return {
-    x: tokenDoc.x + ((tokenDoc.width ?? 1) * sizeX) / 2,
-    y: tokenDoc.y + ((tokenDoc.height ?? 1) * sizeY) / 2,
-  };
-}
+/** The centre of a token document on its scene, read off the document alone (no canvas): `lib/token-centre.mjs`, re-exported for the formation's readers. */
+export { tokenCentre };
 
 /**
  * The map's reading at a point, in the shape `travel.map` caches it:
@@ -1707,6 +1701,13 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
     // record keeps only what it stored.
     entry = composeLogEntry(travelOf(rec), { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
     advancedToday = t.day.secondsAdvanced ?? 0;
+    // The finished day carries how it was fed, set before the entry is stored.
+    if (provisions) {
+      entry.provisions = {
+        short: provisions.short,
+        suffering: provisions.report.filter((r) => r.worsened).map((r) => r.name),
+      };
+    }
     rec.travel = {
       ...t,
       dayCount: entry.day,
@@ -1726,12 +1727,5 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
   }
   const jump = untilNextDawn() ?? Math.max(0, DAY_SECONDS - advancedToday);
   if (jump > 0 && mayAdvanceWorldTime()) await game.time.advance(jump);
-  // The finished day carries how it was fed.
-  if (entry && provisions) {
-    entry.provisions = {
-      short: provisions.short,
-      suffering: provisions.report.filter((r) => r.worsened).map((r) => r.name),
-    };
-  }
   return entry;
 }

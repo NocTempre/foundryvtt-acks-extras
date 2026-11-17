@@ -34,11 +34,12 @@ export function parseKindList(value) {
  */
 export function inferRace(actor) {
   const cls = String(actor?.system?.details?.class ?? "").toLowerCase();
-  if (/dwarv|dwarf/.test(cls)) return "dwarf";
-  if (/elv|elf/.test(cls)) return "elf";
-  if (/gnom/.test(cls)) return "gnome";
-  if (/lizard/.test(cls)) return "lizardman";
-  if (/beastman|bugbear|gnoll|goblin|hobgoblin|kobold|orc/.test(cls)) return "beastman";
+  // Each word opens at a word boundary: "Sorcerer" is no orc, "Delver" no elf.
+  if (/\b(?:dwarv|dwarf)/.test(cls)) return "dwarf";
+  if (/\b(?:elv|elf)/.test(cls)) return "elf";
+  if (/\bgnom/.test(cls)) return "gnome";
+  if (/\blizard/.test(cls)) return "lizardman";
+  if (/\b(?:beastman|bugbear|gnoll|goblin|hobgoblin|kobold|orc)/.test(cls)) return "beastman";
   return globalThis.acksExtras?.classes?.raceKeyOfClass?.(cls) || "human";
 }
 

@@ -174,6 +174,10 @@ function onRenderCharacterSheet(app, element) {
     if (!root) return;
     for (const item of pendingChoices(actor)) {
       for (const row of root.querySelectorAll(`[data-item-id="${item.id}"]`)) {
+        // Core fires a render hook per class in the sheet's chain, so this
+        // handler runs twice per render; one listener per row.
+        if (row.dataset.acksPendingWired) continue;
+        row.dataset.acksPendingWired = "1";
         row.classList.add("acks-extras-classes-pending");
         row.dataset.tooltip = game.i18n.localize(`${LANG_PREFIX}.pending.hint`);
         row.addEventListener("click", (ev) => {

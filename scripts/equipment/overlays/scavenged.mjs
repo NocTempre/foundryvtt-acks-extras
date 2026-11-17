@@ -192,10 +192,10 @@ export function toItemUpdates(item, cond) {
   const updates = {};
   if (item.type === ITEM_TYPE.weapon) {
     if (cond.attack) updates["system.bonus.attack"] = attackBonusOf(item) + cond.attack;
-    if (cond.damage) {
-      const base = damageFormulaOf(item) || "1d6";
-      updates["system.damage.base.formula"] = `${base}${cond.damage}`; // e.g. "1d6" + "-1"
-    }
+    // A weapon with no damage formula keeps it blank: the condition is not
+    // written over an invented die.
+    const base = String(damageFormulaOf(item) ?? "").trim();
+    if (cond.damage && base) updates["system.damage.base.formula"] = `${base}${cond.damage}`; // e.g. "1d6" + "-1"
   }
   if (item.type === ITEM_TYPE.armor && cond.ac) {
     updates["system.ac.value"] = Math.max(0, Number(item.system?.ac?.value ?? 0) + cond.ac);

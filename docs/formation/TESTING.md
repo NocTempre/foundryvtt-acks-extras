@@ -2265,6 +2265,15 @@ opened and closed in step 7. Teardown: `api.sweepTracked()`,
     the card rolls six turns' worth of throws at that cadence, rounded, never
     fewer than one. With the layer gone, the Ruledata Browser shows the
     imported cadence citing RR p. 274.
+15. **A Found button after the party has moved.** Stock a hex with two
+    unfound points, search an hour there (rigged hit) so the card lists both,
+    then move the party to a hex with no stock and press one point's Found.
+    *Observable:* the searched hex's record holds that point found by this
+    formation, the other hex has no record, and the button is disabled. Then
+    delete the point (Wilderness tab → Points of interest) and press the
+    other's Found: nothing is written and the button stays live. A card posted
+    before the upgrade (no `data-scene-id` on its buttons) still marks the
+    hex the party stands in.
 
 Drive mechanics (walked 2026-10-09 through the capture driver). Rig the d20
 through `CONFIG.Dice.randomUniform`, never `Math.random` (ids are minted from
@@ -4351,6 +4360,27 @@ darkness and fog mode and the mapper's role, and puts them back.
 effects, Combat, step 10's tokens, Map items, cards and party token. The
 fixtures stay. The settings, the scene's darkness and fog mode and its
 management flag, and the mapper's role are put back.
+
+## New Map resets the scene's fog
+
+Fixtures: the mapper fixtures above (`formation/mapper-lit-*`) with a
+Mapper working and fog on the scene's SHARED mode, and a second seat joined as
+a Player who owns a party member. Teardown: `api.sweepTracked()` over the Map
+items the walk's sessions opened; the party's `mapSession` is closed.
+
+1. As the Judge, view the scene and walk the party so both seats have explored
+   some of it. Note the Player seat's `FogExploration` count for the scene.
+2. **Party sheet → Kit tab → New Map**, then confirm. *Observable:* every
+   seat's fog redraws black but for what the party sees now; the scene's
+   `FogExploration` documents were deleted (read them from the server, not the
+   Judge's cache); the new Map item's first archive holds none of the old
+   exploration; the old item keeps its own record, inactive. Core's reset runs
+   from the Judge's client: if the Player seat keeps the old fog after the
+   redraw, the reset did not reach the server (`canvas.fog.reset` on core 14 is
+   unread offline).
+3. Start a combat with the party. *Observable:* the New Map button is disabled;
+   calling `startMapSession` from the console warns and leaves the working
+   map, the fog and the item list as they were. Leaving combat re-enables it.
 
 ## Jumping, the fall, the Spelunking table and the street's dice (imported)
 

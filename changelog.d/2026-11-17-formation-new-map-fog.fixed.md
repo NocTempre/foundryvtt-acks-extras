@@ -1,0 +1,1 @@
+- **Party sheet → Kit tab → New Map:** starting a new map now wipes the scene's explored fog on every seat, as its confirmation says, so the new Map item no longer inherits the old map's exploration.

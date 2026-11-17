@@ -1,0 +1,1 @@
+- **Vehicle sheet → drop an actor onto the sheet:** a crew role labelled with markup or special characters is shown as typed in the "as what?" dialog instead of being read as markup.

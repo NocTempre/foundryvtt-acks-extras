@@ -379,8 +379,10 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
     const scene = game.scenes?.viewed;
     if (!scene) return ui.notifications.warn(game.i18n.localize("ACKS-LIB.group.warn.noScene"));
     const token = scene.tokens.find((t) => t.actorId === this.actor.id);
-    const x = token?.x ?? Math.floor((scene.width ?? 0) / 2);
-    const y = token?.y ?? Math.floor((scene.height ?? 0) / 2);
+    // With no group token, centre on the playable area, not the padded canvas.
+    const rect = scene.dimensions?.sceneRect;
+    const x = token?.x ?? Math.floor(rect ? rect.x + rect.width / 2 : (scene.width ?? 0) / 2);
+    const y = token?.y ?? Math.floor(rect ? rect.y + rect.height / 2 : (scene.height ?? 0) / 2);
     const made = await groups.deploy(this.actor, scene, { stackKey, count: GroupSheet.#count(target), x, y });
     ui.notifications.info(game.i18n.format("ACKS-LIB.group.info.deployed", { n: made.length }));
     this.render();

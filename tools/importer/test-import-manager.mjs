@@ -22,6 +22,8 @@ const ok = (label, cond, detail = "") => {
 
 class MockApplication {
   static DEFAULT_OPTIONS = {};
+  static RENDER_STATES = { ERROR: -1, CLOSED: 0, CLOSING: 1, RENDERING: 2, RENDERED: 3 };
+  state = 0;
   rendered = false;
   element = { id: "root" };
   focused = 0;
@@ -33,13 +35,18 @@ class MockApplication {
   }
   async render() {
     this.renders++;
+    this.state = MockApplication.RENDER_STATES.RENDERING;
     this.context = await this._prepareContext();
     this.rendered = true;
+    this.state = MockApplication.RENDER_STATES.RENDERED;
     await this._onRender(this.context, { parts: ["tabs", "body"] });
     return this;
   }
   async _onRender() {}
-  _onClose() {}
+  _onClose() {
+    this.rendered = false;
+    this.state = MockApplication.RENDER_STATES.CLOSED;
+  }
   bringToFront() {
     this.focused++;
   }
@@ -56,7 +63,7 @@ globalThis.game = {
 };
 globalThis.foundry = { applications: { api: { ApplicationV2: MockApplication, HandlebarsApplicationMixin: (Base) => class extends Base {} } } };
 
-const { ImportManagerApp, installImportManager, openImportManager } = await import("../../scripts/importer/apps/import-manager.mjs");
+const { ImportManagerApp, ImportManagerMenu, installImportManager, openImportManager } = await import("../../scripts/importer/apps/import-manager.mjs");
 
 /* --- the host: an api that counts what is read, and a panel that counts its build ------ */
 
@@ -186,6 +193,29 @@ installImportManager({
   const second = openImportManager({ tab: "rebuild" });
   await new Promise((r) => setTimeout(r, 0));
   ok("a second call raises the window and moves its tab", second === first && second.tab?.[0] === "rebuild" && second.focused >= 2);
+}
+
+/* --- a menu press during the first render hands off, so one app opens -------------------- */
+{
+  const prev = openImportManager();
+  await new Promise((r) => setTimeout(r, 0));
+  prev._onClose(); // the previous blocks' window is closed
+  const opening = openImportManager(); // first render starts: state RENDERING, not yet rendered
+  ok("the opening window is mid-render", opening.state === 2 && !opening.rendered);
+  const menu = new ImportManagerMenu();
+  await menu.render(true);
+  ok("the settings menu opened during the first render renders no second app", menu.renders === 0 && opening.renders === 1);
+  await new Promise((r) => setTimeout(r, 0));
+  ok("the window rendered is the one open", opening.rendered && openImportManager() === opening);
+  await new Promise((r) => setTimeout(r, 0));
+  const raise = opening.focused;
+  await new ImportManagerMenu().render(true);
+  ok("a menu press on a rendered window raises it", opening.focused === raise + 1);
+  opening._onClose();
+  const reopened = new ImportManagerMenu();
+  await reopened.render(true);
+  ok("a menu press with nothing open renders its own window", reopened.renders === 1);
+  reopened._onClose();
 }
 
 /* --- the importer's entry points all open this tab, and no window of its own ------------- */

@@ -52,7 +52,7 @@ globalThis.foundry = {
 };
 
 const S = new URL("../scripts/equipment/", import.meta.url);
-const { planItemLoss } = await import(new URL("overlays/item-loss.mjs", S));
+const { planItemLoss, materialOf } = await import(new URL("overlays/item-loss.mjs", S));
 const { applyItemLoss, planMarkup } = await import(new URL("item-loss-flow.mjs", S));
 const { loseArmourClass, setItemLossAc, clearScavenged, setScavenged, scavengeItem } = await import(new URL("actions.mjs", S));
 const { itemLossAcOf } = await import(new URL("properties.mjs", S));
@@ -140,6 +140,33 @@ check("a marred item is not written", none.destroyed === 1 && crate._flags.destr
 
 const full = planItemLoss(actorOf([plate]), NO_LOADOUT, { hp: -13, damageType: "fire" });
 check("two full stones of damage cost the figure per stone", full.damaged[0].stones === 2 && full.damaged[0].acLost === 6);
+
+// --- a destroyed item is not planned again; its contents still find their holder ---
+// -9 hp risks 1 stone = 6 sixths; from the rear the hanging pack is struck first.
+const wrecked = doc("Wrecked", 6, { cat: "handsOrTorso" });
+wrecked._flags.destroyed = true;
+const again = planItemLoss(actorOf([wrecked, doc("Whole", 6, { cat: "handsOrTorso" })]), NO_LOADOUT, { hp: -9, damageType: "fire" });
+check("an item already flagged destroyed is left out of the plan", ids(again.destroyed) === "Whole" && again.survivors === 0);
+const tin = doc("Tin", 6, { cat: "inBackpack" });
+const pack = doc("Pack", 6);
+pack._flags.destroyed = true;
+pack._flags.strap = "back";
+const rope = doc("Rope", 6);
+rope._flags.containedIn = "Pack";
+const held = planItemLoss(actorOf([tin, pack, rope]), NO_LOADOUT, { hp: -9, damageType: "fire", fromRear: true });
+check("the contents of a destroyed container still find their holder", ids(held.destroyed) === "Rope");
+
+// --- a stack and a bundle weigh as stacked ------------------------------------
+const bolts = doc("Bolts", 2, { cat: "handsOrTorso" });
+bolts.system.quantity.value = 5;
+const stacked = planItemLoss(actorOf([bolts]), NO_LOADOUT, { hp: -9, damageType: "fire" });
+check("a stack is planned at its whole weight, not the per-unit figure", stacked.destroyed.length === 0 && stacked.marred.length === 1 && stacked.marred[0].weight6 === 10);
+
+// --- the material guess reads whole words --------------------------------------
+const mat = (name) => materialOf({ name, type: "item", getFlag: () => undefined });
+check("Boiled Leather is leather, not oil", mat("Boiled Leather Armor") === "leather");
+check("a potion is not a pot", mat("Potion of Healing") !== "ceramic" && mat("Clay Pot") === "ceramic");
+check("oil and compounds the page words allow still read", mat("Flask of Oil") === "combustible" && mat("Torches") === "combustible" && mat("Longbow") === "wood" && mat("Spellbook") === "paper" && mat("Hourglass") === "glass");
 
 // --- the card shows both -------------------------------------------------------
 const card = planMarkup(front, { damageType: "fire", fromRear: false, figures: FIGURES });

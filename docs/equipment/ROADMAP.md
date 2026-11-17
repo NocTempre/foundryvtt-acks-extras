@@ -119,3 +119,10 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   `sheet.mjs` moves core's inventory rows into wear-location buckets. If the
   system gains a list the module can extend, the regrouping is deleted in
   favour of it.
+- **Named and property layers write the same fields without coordination.**
+  `overlays/named.mjs` `toItemUpdates` and `properties.mjs` `layerDeltas` both
+  write an item's attack bonus, damage formula, armour class and weight from
+  their own captured base, so a masterwork or scavenged layer applied after
+  naming is lost on the next level-up, and the reverse. The fix is a named
+  layer in `layerDeltas`, with `recomputeItemFields` called from every caller
+  that now calls `named.applyUpdates`; it needs a DECISIONS entry first.

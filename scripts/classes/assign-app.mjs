@@ -117,7 +117,9 @@ export class ClassAssignApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   #rungs(cls, level, template = null) {
     if (!cls) return { opening: [], ladder: [] };
-    const taken = this.actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
+    const held = this.actor.getFlag(MODULE_ID, FLAG_CLASSES);
+    // A rung answered under another class does not close this class's rung.
+    const taken = held?.key === (cls.system?.key || cls.name?.toLowerCase()) ? (held?.awardsTaken ?? []) : [];
     const { choices } = awardsThrough(this.actor, cls, level, taken);
     const granted = template ? templateGrantKeys(template) : null;
     const row = (a) => ({

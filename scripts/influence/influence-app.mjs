@@ -30,7 +30,6 @@ import {
   getActsAsPowers,
   getEffectReactionMods,
   getProficiencies,
-  getTargetActor,
   itemsWithProficiencyRows,
   monthlyWageForHD,
   offeredEffectRows,
@@ -86,6 +85,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   #modConfig = null;
   /** The stored-attitude Item for the current influencer→target, if any. */
   #attitudeItem = null;
+  /**
+   * The in-flight create of a stored-attitude Item, with the influencer and
+   * target it is for: a save for the same pair that starts while one is pending
+   * awaits it and updates the result, so one pair never gets two Items.
+   */
+  #attitudeCreate = null;
   /** Forces the hidden (GM-whisper) posting path when a GM resolves a player's roll. */
   #forceHidden = false;
   /**
@@ -569,6 +574,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** Load the saved attitude/attempts for the current influencer→target, if any. */
   #loadAttitude() {
     this.#attitudeItem = null;
+    // A pair with no stored attitude starts from a fresh roll, not from the
+    // previous target's attitude and attempt count.
+    this.#system.currentAttitude = INFLUENCE_NEUTRAL_INDEX;
+    this.#system.attempt = 0;
     if (!this.#actor || !this.#targetActor) return;
     const uuid = this.#targetActor.uuid;
     const item = this.#actor.items?.find((i) => i.type === ATTITUDE_TYPE && i.system?.targetUuid === uuid);
@@ -582,30 +591,44 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   async #saveAttitude(newIndex, nextAttempt) {
     if (!this.#actor?.isOwner || !this.#targetActor) return;
     const tone = this.#system.tone;
+    const actor = this.#actor;
+    const target = this.#targetActor;
     try {
-      if (this.#attitudeItem) {
-        await this.#attitudeItem.update({ "system.attitude": newIndex, [`system.attempts.${tone}`]: nextAttempt });
+      let item = this.#attitudeItem;
+      if (!item && this.#attitudeCreate?.actor === actor && this.#attitudeCreate.uuid === target.uuid) item = await this.#attitudeCreate.promise;
+      if (item) {
+        await item.update({ "system.attitude": newIndex, [`system.attempts.${tone}`]: nextAttempt });
       } else {
-        const created = await this.#actor.createEmbeddedDocuments("Item", [
-          {
-            name: game.i18n.format("ACKS-INFLUENCE.attitude.itemName", { name: this.#targetActor.name }),
-            type: ATTITUDE_TYPE,
-            img: this.#targetActor.img || undefined,
-            system: {
-              targetUuid: this.#targetActor.uuid,
-              targetName: this.#targetActor.name,
-              targetImg: this.#targetActor.img || "",
-              attitude: newIndex,
-              attempts: { [tone]: nextAttempt },
+        const promise = actor
+          .createEmbeddedDocuments("Item", [
+            {
+              name: game.i18n.format("ACKS-INFLUENCE.attitude.itemName", { name: target.name }),
+              type: ATTITUDE_TYPE,
+              img: target.img || undefined,
+              system: {
+                targetUuid: target.uuid,
+                targetName: target.name,
+                targetImg: target.img || "",
+                attitude: newIndex,
+                attempts: { [tone]: nextAttempt },
+              },
             },
-          },
-        ]);
-        this.#attitudeItem = created?.[0] ?? null;
+          ])
+          .then((created) => created?.[0] ?? null);
+        const pending = { actor, uuid: target.uuid, promise };
+        this.#attitudeCreate = pending;
+        try {
+          item = await promise;
+        } finally {
+          if (this.#attitudeCreate === pending) this.#attitudeCreate = null;
+        }
+        // The window may have moved to another influencer or target while the create ran.
+        if (item && this.#actor === actor && this.#targetActor?.uuid === target.uuid) this.#attitudeItem = item;
       }
       // Consumer-module event: the stored relationship changed.
       Hooks.callAll("acksExtras.influenceAttitudeChanged", {
-        actor: this.#actor,
-        target: this.#targetActor,
+        actor,
+        target,
         attitude: newIndex,
         tone,
         attempt: nextAttempt,
@@ -714,8 +737,16 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** Overlay a player's request onto GM-computed defaults (keeping target autos). */
   #applyExternalState({ tone, attempt, currentAttitude, gmAdjustment, playerMods, bribeOffer }) {
     if (tone) this.#system.tone = tone;
-    if (attempt !== undefined) this.#system.attempt = Number(attempt);
-    if (currentAttitude !== undefined) this.#system.currentAttitude = Number(currentAttitude);
+    // The stored relationship on this seat is current; the requesting window's
+    // copy of it is as old as its last render, so it counts only where nothing
+    // is stored yet.
+    if (this.#attitudeItem) {
+      this.#system.currentAttitude = this.#attitudeItem.system.attitude ?? this.#system.currentAttitude;
+      this.#system.attempt = this.#attitudeItem.system.attempts?.[this.#system.tone] ?? 0;
+    } else {
+      if (attempt !== undefined) this.#system.attempt = Number(attempt);
+      if (currentAttitude !== undefined) this.#system.currentAttitude = Number(currentAttitude);
+    }
     this.#system.gmAdjustment = Number(gmAdjustment) || 0;
     const t = this.#system.tone;
     // Which keys are target-derived (keep the GM's real values for these). The
@@ -1063,7 +1094,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    */
   static #onResetDefaults() {
     // Re-read the current target so a newly-selected token is picked up.
-    this.#targetActor = getTargetActor() ?? this.#targetActor;
+    this.#targetActor = openingTarget(this.#actor, null) ?? this.#targetActor;
     this.#system.targetKindOverridden = false;
     this.#system.targetKind = this.#autoTargetKind();
     this.#modConfig = this.#buildModConfig();
@@ -1192,8 +1223,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   async #rollOpposed(actorRoll, actorTotal) {
     if (!this.#system.opposed || !this.#targetActor) return null;
     const cha = abilityMod(this.#targetActor, "cha");
-    const effectMods = getEffectReactionMods(this.#targetActor).filter((m) =>
-      scopeApplies(m, { tone: this.#system.tone, ...this.#ctx }, this.#optionalRules()).applies,
+    // One row per change across every roll family: only the reaction family
+    // feeds this roll, and a situational or unaudited row is offered, never
+    // asserted, so the target's side leaves it out.
+    const effectMods = effectRowsForPage(getEffectReactionMods(this.#targetActor), {
+      family: ROLL_FAMILY.REACTION,
+      tone: this.#system.tone,
+    }).filter(
+      (m) =>
+        !m.situational &&
+        !m.unaudited &&
+        scopeApplies(m, { ...this.#ctx, tone: this.#system.tone, optionalRules: this.#optionalRules() }).applies,
     );
     const effectTotal = effectMods.reduce((sum, m) => sum + (Number(m.value) || 0), 0);
     const modifier = cha + effectTotal;
@@ -1502,7 +1542,8 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
       attempt: this.#system.attempt,
       timeLabel: isContinuing && timeStep?.time ? timeStep.time : null,
       opposed,
-      ...this.#rawNotes(tone, newIndex, diceResult),
+      // No result named (nothing imported) or an opposed contest: no rung to note.
+      ...this.#rawNotes(tone, band && !opposed ? newIndex : null, diceResult),
     };
 
     const speaker = ChatMessage.getSpeaker({ actor: this.#actor });

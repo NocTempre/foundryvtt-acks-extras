@@ -40,8 +40,50 @@ export function mercenaryWage(troopType, race = "man") {
   return row.wages[race] ?? null;
 }
 
+/**
+ * A wage read per `unit` (a specialist's availability row states one) as the
+ * monthly figure payroll bills in. No unit, or a month, is the figure itself;
+ * a day or a week scales by the market month's length in days. Any other unit,
+ * a figure that is not a number, and a month length that is not positive give
+ * null: a figure the module cannot convert is left for the Judge to state and
+ * is never billed as if it were monthly.
+ * @param {number|string|null} wage
+ * @param {string} [unit] the row's unit, as imported ("day", "week", "month")
+ * @param {number} daysPerMonth
+ * @returns {number|null}
+ */
+export function monthlyWage(wage, unit, daysPerMonth) {
+  if (wage == null || wage === "" || !Number.isFinite(Number(wage))) return null;
+  const figure = Number(wage);
+  const kind = String(unit ?? "").trim().toLowerCase();
+  if (!kind || kind === "month") return figure;
+  const days = Number(daysPerMonth);
+  if (!(days > 0)) return null;
+  const scaled = kind === "day" ? figure * days : kind === "week" ? (figure * days) / 7 : null;
+  return scaled == null ? null : Math.round(scaled * 100) / 100;
+}
+
 /** The combined composite/longbow market entry's id; a settlement has one of the two. */
 export const COMPOSITE_TROOP = "compositeBowmanLongbowman";
+
+/**
+ * Key a mercenary group's stacks to their wage rows, in place: a stack whose
+ * label is the combined composite/longbow entry and that stores no `wageType`
+ * takes the settlement's variant, as a hire stores it. Returns how many
+ * stacks it keyed. Any other stack is keyed by its own label already.
+ * @param {object[]} stacks plain stack sources
+ * @param {string} compositeVariant the settlement's `market.compositeVariant`
+ * @returns {number}
+ */
+export function keyWageStacks(stacks, compositeVariant) {
+  let keyed = 0;
+  for (const stack of stacks ?? []) {
+    if (stack?.template?.label !== COMPOSITE_TROOP || stack.template.wageType) continue;
+    stack.template.wageType = wageTroopType(COMPOSITE_TROOP, compositeVariant);
+    keyed++;
+  }
+  return keyed;
+}
 
 /**
  * The troop type a market candidate's wage row is keyed by: the combined

@@ -1,0 +1,1 @@
+- **Classes:** character generation finds a template's spell by name among every imported spell, not only those in the world's Items sidebar, so a spell held on an imported shelf is granted instead of reported unresolved.

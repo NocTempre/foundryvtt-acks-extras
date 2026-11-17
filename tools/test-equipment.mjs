@@ -874,6 +874,10 @@ check("backpack rolls up its contents' weight", contentsWeight6(cActor, "bp") ==
 check("backpack under capacity (2 st of 4)", !overCapacity(cActor, pack));
 check("container report lists load in stone", containerReport(cActor)[0].loadStone === 2);
 check("isContainer only true for flagged items", isContainer(pack) && !isContainer(rope));
+// One reading for a document and for plain item data (no getFlag): the container
+// record counts on either.
+check("isContainer reads a container record off plain data", isContainer({ flags: { "acks-extras": { container: { locked: true } } } }) === true);
+check("isContainer on plain data with no flags is false", isContainer({ flags: {} }) === false);
 
 const ingots = gear("Iron Ingots", 30, { id: "ing", flags: { containedIn: "bp" } });
 check("backpack over capacity flagged", overCapacity(withItems([pack, ingots]), pack));
@@ -1434,6 +1438,27 @@ const adv = N.advanceWieldedOnLevelUp({ items: [basedHammer(2)], system: { detai
 check("level-up advances a wielded named item one rung", adv.length === 1 && adv[0].updates["flags.acks-extras.named.unlocked"] === 3);
 check("advancement restates bonuses from base (3 rungs = +2 dmg, +1 hit)", adv[0].updates["system.damage.base.formula"] === "1d6+2" && adv[0].updates["system.bonus.attack"] === 1);
 check("an unwielded named item does not advance", N.advanceWieldedOnLevelUp({ items: [basedHammer(2, false)], system: { details: { level: 4 } } }).length === 0);
+
+// Several levels gained at once unlock a rung each, bounded by the ladder; a fall unlocks none.
+const adv3 = N.advanceWieldedOnLevelUp({ items: [basedHammer(1)], system: {} }, 3);
+check("three levels gained advance three rungs and restate from base", adv3[0].updates["flags.acks-extras.named.unlocked"] === 4 && adv3[0].updates["system.damage.base.formula"] === "1d6+2" && adv3[0].updates["system.bonus.attack"] === 2);
+check("a jump past the ladder's end stops at the end", N.advanceWieldedOnLevelUp({ items: [basedHammer(5)], system: {} }, 9)[0].updates["flags.acks-extras.named.unlocked"] === 6);
+check("zero levels gained advance nothing", N.advanceWieldedOnLevelUp({ items: [basedHammer(2)], system: {} }, 0).length === 0);
+check("levelsGained: up by 3, down, same, and unknown", N.levelsGained(2, 5) === 3 && N.levelsGained(5, 2) === 0 && N.levelsGained(4, 4) === 0 && N.levelsGained(undefined, 4) === 0 && N.levelsGained(3, null) === 0);
+
+// Lowering the unlocked count (or emptying the ladder) restores the base rather than leaving the last write.
+const lowered = N.applyUpdates(basedHammer(0));
+check("zero unlocked rungs writes the base values back", lowered["system.bonus.attack"] === 0 && lowered["system.damage.base.formula"] === "1d6" && lowered["system.weight6"] === 1);
+const armorNamed = (unlocked) => ({
+  id: "pl", name: "Plate", type: "armor",
+  system: { ac: { value: 9 }, equipped: true, weight6: 30 },
+  getFlag: (_m, k) => (k === "named" ? { ladder: ["ac", "encumbrance"], unlocked, revealed: false, base: { aac: 6, weight6: 30 } } : undefined),
+  effects: [],
+});
+const armorFull = N.applyUpdates(armorNamed(2));
+check("armour rungs add to the base armour class and shed weight", armorFull["system.ac.value"] === 7 && armorFull["system.weight6"] === 24);
+const armorNone = N.applyUpdates(armorNamed(0));
+check("armour with no rung unlocked is restated at its base", armorNone["system.ac.value"] === 6 && armorNone["system.weight6"] === 30);
 SETTINGS_STATE.overlayNamed = false;
 
 
@@ -2523,6 +2548,10 @@ const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 
 await prepareTorch(torchActor, lastTorch);
 check("prepareTorch deletes the stack when the last torch is drawn", lastTorch.system.quantity.value === 0 && lastTorch.deleted === true);
 check("a readied torch is carried, not drawn, unless asked", created.every((d) => d.system.equipped === false));
+// A stack's weight covers a whole bundle; the one drawn carries its own share.
+const bundledTorches = readiedWeaponData({ name: "Torches (6)", img: "t.png", flags: { "acks-extras": { gear: { per: 6 } } }, system: { cost: 1, weight6: 6, quantity: { value: 6 } } });
+check("a torch drawn from a bundle carries one unit's share of its weight", bundledTorches.system.weight6 === 1);
+check("an unbundled torch keeps its stated weight", readied.system.weight6 === 1);
 // A stack dropped on a hand place, or its Equip pressed, readies one torch INTO
 // the hand: the stack is never held, so "equip a torch" is ready-and-draw.
 const drawn = [];
@@ -2663,6 +2692,23 @@ check("an armour tier moves the weight by the document's sixths", mkArmor.system
 await setMasterwork(mkArmor, "armorAC");
 check("an armour tier raises aac from base and restores the weight", mkArmor.system.ac.value === 4 + FIG.ac.ac && mkArmor.system.weight6 === 30);
 
+// Moving an applied variation onto another item restates BOTH: the item it left
+// no longer carries the figures, and the item it joined does.
+const { applyVariation } = await import(new URL("variation-items.mjs", S));
+const { recomputeItemFields: recomputeMoved } = await import(new URL("properties.mjs", S));
+const moveActor = { items: [] };
+moveActor.items = Object.assign([], { get: (id) => moveActor.items.find((i) => i.id === id) });
+const onActor = (doc, id) => { doc.id = id; doc.parent = moveActor; moveActor.items.push(doc); return doc; };
+const moveFrom = onActor(mockDoc("weapon", { name: "From", bonus: 0, damage: "1d6", weight6: 6 }), "from");
+const moveTo = onActor(mockDoc("weapon", { name: "To", bonus: 0, damage: "1d6", weight6: 6 }), "to");
+const moved = onActor(mockDoc("weapon", {}), "moved");
+Object.assign(moved, { type: VARIATION_ITEM_TYPE, name: "Moved", system: { key: "masterwork.weaponToHit", deltas: { bonus: FIG.hit.bonus, damage: 0, ac: 0, weight6: 0 }, cost: { baseMul: 1, add: 0, mul: 1 } } });
+moved._flags.containedIn = "from";
+await recomputeMoved(moveFrom);
+check("a variation on an item moves its bonus", moveFrom.system.bonus.attack === FIG.hit.bonus && moveTo.system.bonus.attack === 0);
+const movedApplied = await applyVariation(moveTo, moved, { move: true });
+check("moving a variation onto another item restates the item it left", movedApplied === moved && moveFrom.system.bonus.attack === 0 && moveTo.system.bonus.attack === FIG.hit.bonus);
+
 /* ---------------------------------------------------------------------- */
 /*  #5 Shield strap cycle — free a hand by slinging (overlay on)           */
 /* ---------------------------------------------------------------------- */
@@ -2742,6 +2788,18 @@ await setMasterwork(typed, "none");
 check("a later layer change keeps the typed values", typed.system.damage.base.formula === "1d8" && typed.system.bonus.attack === typedBonus - FIG.both.bonus);
 check("a blank damage stays blank; a number that is not one is refused",
   baseForTyped("damage", " ", { damage: 1 }) === "" && baseForTyped("bonus", "x", { bonus: 1 }) === null);
+// A weapon with no damage formula stays blank under a damage layer: no flat
+// figure is written over a die nobody stated.
+const blankLayered = mockDoc("weapon", { name: "Sword", damage: "", bonus: 0, weight6: 6 });
+await setMasterwork(blankLayered, "weaponBoth");
+check("a damage layer over a blank formula writes a blank, and snapshots the blank",
+  blankLayered.system.damage.base.formula === "" && blankLayered._flags.pristine?.damage === "");
+blankLayered._flags.pristine = { ...blankLayered._flags.pristine, damage: "1d8" }; // the prompt's saved answer
+await recomputeItemFields(blankLayered);
+check("once the snapshot holds a formula, the layer applies over it", blankLayered.system.damage.base.formula === `1d8 + ${FIG.both.damage}`);
+await recomputeItemFields(blankLayered);
+check("and a second recompute does not compound it", blankLayered.system.damage.base.formula === `1d8 + ${FIG.both.damage}`);
+await setMasterwork(blankLayered, "none");
 
 /* --- GOLD VALUE follows the layers (the number on the sheet must move) --- */
 const priced = mockDoc("weapon", { name: "Sword", damage: "1d6", cost: 10, weight6: 6 });

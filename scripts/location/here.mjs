@@ -28,14 +28,6 @@ import { isDeployed } from "../lib/place.mjs";
 export const standsAsPlace = (actor) => actor?.type === LOCATION_TYPE || isDeployed(actor);
 
 /**
- * A token's centre point, in scene pixels: grid-unit width/height times the
- * scene's grid size.
- */
-export function tokenCenter(token, gridSize) {
-  return { x: token.x + (token.width * gridSize) / 2, y: token.y + (token.height * gridSize) / 2 };
-}
-
-/**
  * Is this point within reach of this token's footprint? The footprint is
  * padded by one grid square on every side; rotation is not applied.
  */
