@@ -1087,6 +1087,68 @@ name is per run, so a second run never meets the first run's order: name it
 stops before step 6 leaves its order in the world setting under its run name;
 the next run finds it through `list()` by that name and deletes it by its id.
 
+## Saved marching orders, from the picker
+
+Covers the picker (`marching-templates.mjs` `pickMarchingOrder`) and what each
+of its answers does (`carryOutPick`), from both of its openers: the party
+token's HUD button (`module.mjs` `formUpFromHud`) and the party sheet's
+**Load order** pill (`formation-actions.mjs` `loadMarchingOrder`).
+`tools/live/formation-marching-picker.mjs` walks it
+(`node tools/live/run.mjs formation-marching-picker`), on the GM seat alone.
+
+**Fixtures**, each found by its marker (`flags.world.fixture`) or built
+carrying it, and kept:
+- `formation/picker-scene`: a Scene.
+- `formation/picker-party`: an `acks-extras.party` actor, its formation
+  auto-created.
+- `formation/picker-van`, `formation/picker-rear`: two `character` actors. The
+  walk's start shape enrolls each that is not a member with
+  `addMember(formation, actor, token)` from a token it places on the scene,
+  which also puts the party token there, clears the record's `combat`, and
+  views the scene.
+
+**Drive mechanics.**
+- The saved orders are one world setting shared by every session, and the
+  picker's select opens on the first name in the alphabet. Save the run's
+  orders under per-run names (`picker-<run>-<kept|held|spare|extra>`), set the
+  select to the id a save returned, and press nothing where the select did not
+  take it. An order of another run is never deleted.
+- The HUD skips the picker when exactly one order is saved, so two of the
+  run's orders stand through steps 1 to 5.
+- The picker is a `DialogV2`: find its `select[name="id"]` under
+  `.acks-extras-scroll`, and its buttons as `button[data-action="apply"]` and
+  `button[data-action="delete"]` inside the same window. Dismiss it through its
+  instance in `foundry.applications.instances`, with `close({animate: false})`.
+- Before each step the walk reverses the members when they stand in the saved
+  order, so a form-up shows in who stands where and its absence does too.
+- Notices are read from a wrapper on `ui.notifications.info` and matched on
+  the run's order name.
+
+1. **HUD, Delete.** Bind the party token's HUD, press
+   `#token-hud .acks-formation-hud`, set the select to the run's spare order
+   and press Delete.
+   **Observable:** the picker lists every saved order; afterwards the spare
+   order is gone, every other order stands, the members stand as they stood,
+   and one notice names the deleted order.
+2. **HUD, Form up.** The same, with the kept order and Form up.
+   **Observable:** the members stand in the saved order, the order is kept,
+   one notice.
+3. **HUD, dismissed.** Open the picker and close it.
+   **Observable:** nobody moved, the order is kept, no notice.
+4. **Sheet, Delete.** Save one more order, open the party sheet's Order tab,
+   press `[data-action="loadMarchingOrder"]`, pick that order, press Delete.
+   **Observable:** as step 1.
+5. **Sheet, Form up.** The same pill, the kept order, Form up.
+   **Observable:** as step 2.
+6. **One saved order.** Only where the world holds no order of another run:
+   forget the run's second order by its id, then press the HUD button.
+   **Observable:** no picker opens and the members stand in the saved order.
+   Where another run's order stands the walk prints "not walked" and the step
+   is reported so.
+
+**Teardown.** The run's orders are forgotten by the ids their saves returned.
+The fixtures are kept.
+
 ## End day, the whole tick (added with survival and the throw)
 
 End day does two things here, and each can fail independently.

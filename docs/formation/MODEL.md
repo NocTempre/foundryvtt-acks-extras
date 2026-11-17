@@ -825,7 +825,8 @@ feature recomputes a loadout off that hook.
 
 The party sheet saves and loads orders; the party token's HUD carries a **form
 up** button, which appears only once at least one order is saved and skips the
-picker when there is only one to pick.
+picker when there is only one to pick. Both hand the picker's answer to
+`carryOutPick`, which forgets the order or forms the party up into it.
 
 ## Traps
 

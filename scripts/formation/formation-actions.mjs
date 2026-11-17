@@ -31,9 +31,7 @@ import {
   startMapSession,
 } from "./map-items.mjs";
 import {
-  deleteTemplate,
-  describeResult,
-  formUp,
+  carryOutPick,
   pickMarchingOrder,
   promptForOrderName,
   saveTemplate,
@@ -666,17 +664,7 @@ export const SHARED_ACTIONS = {
   async loadMarchingOrder() {
     const formation = gmFormation(this);
     if (!formation) return;
-    const picked = await pickMarchingOrder();
-    if (!picked) return;
-    if (picked.action === "delete") {
-      await deleteTemplate(picked.template.id);
-      ui.notifications.info(loc("marching.deleted", { name: picked.template.name }));
-      this.render();
-      return;
-    }
-    const result = await formUp(formation, picked.template);
-    if (result) ui.notifications.info(describeResult(result));
-    this.render();
+    if (await carryOutPick(formation, await pickMarchingOrder())) this.render();
   },
 
   async addBlank() {

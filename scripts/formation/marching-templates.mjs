@@ -416,6 +416,32 @@ export async function pickMarchingOrder() {
 }
 
 /**
+ * Carry out a picker's answer: forget the order, or march the party into it,
+ * and tell the seat which. Every opener of the picker hands its answer here, so
+ * each button does the same thing wherever the picker opened. An action that is
+ * neither of the two does nothing.
+ *
+ * WRITES the world setting, or the formation as `formUp` does.
+ *
+ * @param {object} formation the formation to form up
+ * @param {{template: object, action: "apply"|"delete"}|null} picked the answer
+ * @returns {Promise<{deleted: boolean, result: object|null}|null>} null when
+ *   nothing was asked; `result` is `formUp`'s report, null where it declined.
+ */
+export async function carryOutPick(formation, picked) {
+  if (!formation || !picked?.template) return null;
+  if (picked.action === "delete") {
+    await deleteTemplate(picked.template.id);
+    ui.notifications.info(game.i18n.format("ACKS-FORMATION.marching.deleted", { name: picked.template.name }));
+    return { deleted: true, result: null };
+  }
+  if (picked.action !== "apply") return null;
+  const result = await formUp(formation, picked.template);
+  if (result) ui.notifications.info(describeResult(result));
+  return { deleted: false, result };
+}
+
+/**
  * A one-line account of what applying an order did, for the Judge: the restored
  * count, then each of recalled, appended, absent and gear-refused that applies.
  */

@@ -1,0 +1,1 @@
+- **Party token → token HUD → Form up → Saved marching orders → Delete:** Delete now deletes the chosen order and leaves the party where it stands. It used to form the party up into the order it was asked to delete, and keep the order.

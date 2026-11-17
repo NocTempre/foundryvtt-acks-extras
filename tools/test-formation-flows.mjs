@@ -4309,6 +4309,82 @@ await scenario("Form Up is refused while a fight still holds a fighter", async (
   }
 });
 
+/** A party whose order was saved and then reversed, so a form-up shows in who stands where. */
+async function pickedParty(name) {
+  const { saveTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await isolatedParty(name, "Vanguard", "Rearguard");
+  const { template } = await saveTemplate(model.getFormation(party.id), `${name} order`);
+  await model.patchFormation(party.id, (rec) => {
+    rec.members.reverse();
+  });
+  const standing = () => model.getFormation(party.id).members.map((m) => m.actorId);
+  return { ...party, template, standing };
+}
+
+async function dismissPicked({ id, actors, template }) {
+  const { deleteTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  await deleteTemplate(template.id);
+  await dismissFighting({ id, actors });
+}
+
+await scenario("a picker's Delete forgets the order and leaves the party as it stood", async () => {
+  const { carryOutPick, getTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await pickedParty("Deleting Party");
+  const { id, template, standing } = party;
+  try {
+    const stood = standing();
+    const told = notices.length;
+    const done = await carryOutPick(model.getFormation(id), { template, action: "delete" });
+    await drain();
+    assert.deepEqual(done, { deleted: true, result: null }, "the answer says an order was forgotten");
+    assert.equal(getTemplate(template.id), null, "the order is gone");
+    assert.deepEqual(standing(), stood, "nobody was marched anywhere");
+    const said = notices.slice(told).map(([, m]) => m);
+    assert.ok(said.some((m) => m.includes("marching.deleted")), "the seat is told the order was deleted");
+    assert.ok(!said.some((m) => m.includes("marching.restored")), "and is not told of a form-up");
+  } finally {
+    await dismissPicked(party);
+  }
+});
+
+await scenario("a picker's Form up marches the party into the order and keeps the order", async () => {
+  const { carryOutPick, getTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await pickedParty("Forming Party");
+  const { id, template, standing } = party;
+  try {
+    const saved = template.cells.map((c) => c.actorId);
+    assert.notDeepEqual(standing(), saved, "the party stands out of its saved order");
+    const told = notices.length;
+    const done = await carryOutPick(model.getFormation(id), { template, action: "apply" });
+    await drain();
+    assert.equal(done?.deleted, false);
+    assert.equal(done?.result?.restored, 2, "both members are laid back");
+    assert.deepEqual(standing(), saved, "the party stands in the saved order");
+    assert.ok(getTemplate(template.id), "the order is kept");
+    assert.ok(notices.slice(told).some(([, m]) => m.includes("marching.restored")), "the seat is told of the form-up");
+  } finally {
+    await dismissPicked(party);
+  }
+});
+
+await scenario("a dismissed picker, or an answer naming neither button, does nothing", async () => {
+  const { carryOutPick, getTemplate } = await import("../scripts/formation/marching-templates.mjs");
+  const party = await pickedParty("Undecided Party");
+  const { id, template, standing } = party;
+  try {
+    const stood = standing();
+    const told = notices.length;
+    assert.equal(await carryOutPick(model.getFormation(id), null), null, "a dismissed picker");
+    assert.equal(await carryOutPick(model.getFormation(id), { template, action: "rename" }), null, "an unknown button");
+    await drain();
+    assert.deepEqual(standing(), stood, "nobody moved");
+    assert.ok(getTemplate(template.id), "the order is kept");
+    assert.equal(notices.length, told, "and nothing is said");
+  } finally {
+    await dismissPicked(party);
+  }
+});
+
 await scenario("a fight the GM moved into another encounter is not over", async () => {
   // See docs/formation/DECISIONS.md, "A fight no combat holds a body of is over".
   const party = await fightingParty("Moved Party", "Brawler", "Slinger");

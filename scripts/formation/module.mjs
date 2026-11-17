@@ -93,8 +93,7 @@ import {
 import { endSummonMembership, findDeployedMember, followMemberToken, leashBreach, reanchorDetached } from "./deployment.mjs";
 import {
   SETTING_TEMPLATES,
-  describeResult,
-  formUp,
+  carryOutPick,
   listTemplates,
   pickMarchingOrder,
   publicApi as marchingOrdersApi,
@@ -1214,10 +1213,8 @@ async function formUpFromHud(tokenDoc) {
   if (!formation) return;
   const saved = listTemplates();
   if (!saved.length) return;
-  const template = saved.length === 1 ? saved[0] : (await pickMarchingOrder())?.template;
-  if (!template) return;
-  const result = await formUp(formation, template);
-  if (result) ui.notifications.info(describeResult(result));
+  const picked = saved.length === 1 ? { template: saved[0], action: "apply" } : await pickMarchingOrder();
+  if (!(await carryOutPick(formation, picked))) return;
   game.actors.get(formation.actorId)?.sheet?.render(false);
 }
 
