@@ -153,3 +153,35 @@ Written to the shared notes folder for 1b; BTA builds none of them.
   *Recommended: yes.*
 
 ## Results
+
+### Results, 2026-11-17
+
+Built on `topic/bta` and landed on `main` (not pushed): B1 `5d9d8a32`, B3
+`a68d34ce`, the importer TESTING recipe `dc98b92d` ("By This Axe invocations
+and the gnostic classes' lists"). B5's matrix is on the rules shelf beside the
+level 1 matrix, LOCAL-ONLY.
+
+- **B1, offline:** a full recompile adds five entries to `cookbook/spells.json`
+  (337 to 342) and moves nothing else; the WARN set is unchanged.
+  test-stat-beside 5 checks on invented content; npm test and validate green.
+- **B3, offline:** one classMeta entry added to `cookbook/classes.json` (37 to
+  38), nothing else moved; test-invocation-lists 14 checks on invented
+  content; npm test 243 suites; validate green. Rulings beside the plan's are
+  importer DECISIONS 2026-11-17.
+- **Walk, recipe steps 1-2,** on main from the seat's own BTA PDF (a seat lane
+  with `FIXTURE_OWN`, so partial): the entry picker reimported the five
+  invocations and the two classes through its Repair in place confirm. Each
+  invocation has one gnostic list, a range, a duration and four labelled level
+  paragraphs, with no worked example and no stat text in the description; the
+  fifth is named from the page. One class's gnosis row lists four invocations
+  and the other's one, each resolving to its spell. 16 of 16 observables
+  hold (one check first read "for example" in prose as a leaked callout; the
+  callout marker is absent).
+- **Not walked:** recipe step 3, the cast of an invocation from a character,
+  which is the evidence for owner questions A and B. The walk was a scratch
+  driver, not a committed `tools/live` walk.
+- **Spell-effects line:** requests R1-R5 and the caster-level finding are in
+  the shared notes folder for session 1b.
+- **Next:** B4 (a word with the Treasure Tome session first), then B2 once the
+  spell-effects line has answered on ruling 6; B6 waits on R1-R3 and owner
+  question B.
