@@ -171,12 +171,15 @@ S4a `74c87fa1`.
   of the roller's choices; BtA's `wrapRows.boxed` and this plan's
   `wrapRows.centered` may fold into one mode, with the two table gates as proof.
 
-Next: S4b (the Judge's roller dialog, card and macro) waits on a `/design`
-approval (`.claude/rules/ui-layout.md`); no UI is written. S3, S6 and S8 add
-Tome book facts, which the owner wants per book ("They should be building
-separate importer files per book"): they go under `scripts/importer/books/tt/`
-once that seam is built, and S3 waits on A as well, S6 to S8 on C and E. The
-code already landed stays where it is until the owner's cleanup. D was closed
+Next: S4b (the Judge's roller window, card, `rollAndPost` entry point and
+macro, to the owner-approved design) is built on the branch, lands after the
+magic plan's 1b, and is walked on `main`. **Next start, held until the coming
+minor ships** (the owner, 2026-11-17: "A lot of changes hanging open. Needs to
+be a cap that now is clearly past."): S3, S6 and S8 and the per-book layout.
+They add Tome book facts, which the owner wants per book ("They should be
+building separate importer files per book"), so they go under
+`scripts/importer/books/tt/` once that seam is built. A, C and E are answered.
+The code already landed stays where it is until the owner's cleanup. D was closed
 by the treasure plan, not by an owner answer. Question **F** (from S4's design): does
 "Roll a magic item" get a Token controls button as well as the macro?
 Recommended: the macro and the api only. Counter (moderate): a compendium
