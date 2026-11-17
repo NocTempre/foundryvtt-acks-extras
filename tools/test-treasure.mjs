@@ -48,6 +48,14 @@ const view = (cards, pot = {}) => ({
   eq(normalizeTruth({ detected: false }).detected, false);
 }
 
+/* --- the last grab's result on the flag --- */
+{
+  eq(normalizePot({}).grab, null, "no grab has run");
+  eq(normalizePot({ grab: "x" }).grab, null, "a grab that is no object is none");
+  const g = normalizePot({ grab: { leftover: [{ cardId: "a", count: 4.9, code: "tooHeavy" }, { cardId: "", count: 1 }, { cardId: "b" }, null, { cardId: "c", count: 0, code: 7 }] } }).grab;
+  eq(g.leftover, [{ cardId: "a", count: 4, code: "tooHeavy" }, { cardId: "b", count: null, code: "noRoom" }, { cardId: "c", count: null, code: "noRoom" }], "leftover keeps cards with ids, whole counts, and a reason code");
+}
+
 /* --- what a seat is shown --- */
 {
   const magicUndetected = truth({

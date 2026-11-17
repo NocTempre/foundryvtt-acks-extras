@@ -16,8 +16,9 @@ import { listsGoods } from "../lib/bundles.mjs";
 import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
-import { DEAL_TOGGLE, bucketCards, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
-import { addTruths, closePot, openPot, potOf, removeStaged, setDealToggle, setMode, truthsFromItem, viewOf } from "./pot.mjs";
+import { DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
+import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
+import { addTruths, closePot, openPot, partyFigures, potOf, removeStaged, setDealToggle, setMode, truthsFromItem, viewOf } from "./pot.mjs";
 
 const { HandlebarsApplicationMixin, DocumentSheetV2, DialogV2 } = foundry.applications.api;
 const loc = makeLoc(LANG);
@@ -31,11 +32,29 @@ const gpText = (gp) => (Math.round(gp * 100) / 100).toLocaleString(game.i18n.lan
 /** A weight in sixths of a stone, as the stones it is. */
 const stoneText = (w6) => loc("card.weight", { n: Math.round((w6 / 6) * 10) / 10 });
 
-/** A refusal said to the seat that asked, or a Judge's warning that went through. */
-function report(result) {
+/** A weight in sixths of a stone as a figure in stone, one decimal at most. */
+const stoneFigure = (w6) => Math.round((w6 / 6) * 10) / 10;
+
+/**
+ * A refusal said to the seat that asked, or a Judge's warning that went
+ * through. No answer is said nothing: `executeAsGM` has already told the seat
+ * that no Judge is connected.
+ */
+export function report(result) {
   if (!result) return;
   if (!result.ok) ui.notifications?.warn(loc(`refuse.${result.reason ?? REFUSAL.failed}`));
   else if (result.warn) ui.notifications?.warn(loc("refuse.judgeGave"));
+}
+
+/** What a Quick grab did: the pace the party now keeps, the cards that fit nobody and the members who took nothing. */
+function reportGrab(result) {
+  if (!result?.ok) return report(result);
+  ui.notifications?.info(loc("grab.done", { n: result.placed, speed: result.speed ?? "—" }));
+  if (result.leftover.length) ui.notifications?.warn(loc("grab.leftover", { names: result.leftover.map((l) => l.name).join(", ") }));
+  if (result.excluded.length) {
+    const who = result.excluded.map((e) => loc("grab.excluded", { name: e.name, why: loc(`grab.why.${e.why}`) })).join(", ");
+    ui.notifications?.warn(loc("grab.takesNothing", { who }));
+  }
 }
 
 /** The pot's window. Chosen per pot by `flags.core.sheetClass`; never the default sheet for a pile. */
@@ -48,6 +67,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     actions: {
       flip: PotSheet.#onFlip,
       take: PotSheet.#onTake,
+      grab: PotSheet.#onGrab,
       setMode: PotSheet.#onSetMode,
       toggleDeal: PotSheet.#onToggleDeal,
       openTable: PotSheet.#onOpen,
@@ -103,6 +123,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       hint: loc(`toggle.${key}Hint`),
       pressed: pot.deal.toggles[key],
     }));
+    context.party = open ? this.#partyContext(view) : null;
     context.modeJudge = pot.mode === MODE.judge;
     context.modeTable = pot.mode === MODE.table;
     context.modeHint = loc(pot.mode === MODE.judge ? "judge.modeJudgeHint" : "judge.modeTableHint");
@@ -117,6 +138,49 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       }),
     }));
     return context;
+  }
+
+  /**
+   * The party aside as the template reads it: each member's name, speed and
+   * load with the provenance of both, the pace the party keeps now, and the
+   * cards the last grab left that are still in the pot. A figure the roster or
+   * the actor does not give is a dash, and its tooltip is the page reference
+   * alone.
+   */
+  #partyContext(view) {
+    const figures = partyFigures(this.document);
+    const cite = loc("cite.pace");
+    const members = (figures?.members ?? []).map((m) => {
+      const speed = speedOfRank(figures.paceWith(m.id, 0));
+      const stated = m.hasDocument && m.capacity6 !== null && m.load6 !== null;
+      const note = !m.hasDocument ? loc("party.noGoods") : m.casualty ? loc("party.down") : "";
+      return {
+        name: m.name,
+        uuid: m.uuid,
+        drop: !!m.uuid,
+        counted: m.hasDocument && !m.casualty && speed !== null,
+        speed,
+        speedText: speed === null ? "—" : loc("party.speed", { n: speed }),
+        speedTip: speed === null ? cite : loc("tip.memberSpeed", { name: m.name, n: speed, cite }),
+        pct: stated && m.capacity6 > 0 ? Math.min(100, Math.round((m.load6 / m.capacity6) * 100)) : 0,
+        over: stated && m.load6 > m.capacity6,
+        loadText: stated ? loc("party.load", { load: stoneFigure(m.load6), cap: stoneFigure(m.capacity6), items: m.items ?? 0 }) : "—",
+        loadTip: stated ? loc("tip.memberLoad", { name: m.name, load: stoneFigure(m.load6), cap: stoneFigure(m.capacity6), cite }) : cite,
+        note,
+      };
+    });
+    const pace = slowestSpeed(members.map((m) => (m.counted ? m.speed : null)));
+    const left = (potOf(this.document).grab?.leftover ?? [])
+      .map((l) => ({ l, card: cardInPot(view, l.cardId) }))
+      .filter(({ card }) => card && card.face !== null && card.face !== undefined && !card.truth.claimedBy)
+      .map(({ l, card }) => ({ name: apparentName(card.truth), code: l.code }));
+    return {
+      members,
+      movesText: pace === null ? "—" : loc("party.speed", { n: pace }),
+      movesTip: loc("tip.partyMoves", { cite }),
+      leftover: left.length ? loc("party.leftover", { names: left.map((x) => x.name).join(", ") }) : "",
+      leftoverTip: left.map((x) => loc("tip.leftoverPart", { name: x.name, why: loc(`grab.code.${x.code}`) })).join(" · "),
+    };
   }
 
   #worthText(v) {
@@ -145,6 +209,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       stateText: loc(v.up ? "card.stateUp" : "card.stateDown"),
       canFlip: open && v.down && !v.claimed,
       canTake: open && v.up && !v.claimed,
+      dragUuid: open && v.up && !v.claimed ? (this.document.cards.get(v.id)?.uuid ?? "") : "",
       staging,
     };
   }
@@ -161,14 +226,20 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       if (!first && !this.#shown.has(id)) el.classList.add("is-turning");
     }
     this.#shown = seen;
-    if (game.user.isGM && potOf(this.document).phase === PHASE.staging) this.#bindDrops();
+    this.#bindDrops();
   }
 
-  /** Light the drop zone under a drag, and take what is dropped on it. */
+  /**
+   * Bound once per window element, on the element itself so a re-render of the
+   * part keeps it. A turned card is dragged as a Card; a member's zone takes
+   * one (any seat, once the pot is open); the Judge's zones in staging take
+   * items. Nodes are told by `closest`, never by `instanceof`.
+   */
   #bindDrops() {
     const root = this.element;
     if (root.dataset.dropBound) return;
     root.dataset.dropBound = "1";
+    const ZONES = "[data-accept-drop], [data-member-drop]";
     let lit = null;
     const light = (zone) => {
       if (zone === lit) return;
@@ -176,8 +247,14 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       lit = zone;
       lit?.classList.add("is-dropping");
     };
+    root.addEventListener("dragstart", (event) => {
+      const el = event.target?.closest?.("[data-drag-uuid]");
+      if (!el?.dataset.dragUuid || !event.dataTransfer) return;
+      event.dataTransfer.setData("text/plain", JSON.stringify({ type: "Card", uuid: el.dataset.dragUuid }));
+      event.dataTransfer.effectAllowed = "move";
+    });
     root.addEventListener("dragover", (event) => {
-      const zone = event.target.closest?.("[data-accept-drop]") ?? null;
+      const zone = event.target.closest?.(ZONES) ?? null;
       if (zone) event.preventDefault();
       light(zone);
     });
@@ -187,11 +264,23 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     root.addEventListener("dragend", () => light(null));
     root.addEventListener("drop", (event) => {
       light(null);
-      const zone = event.target.closest?.("[data-accept-drop]");
+      const zone = event.target.closest?.(ZONES);
       if (!zone) return;
       event.preventDefault();
-      this.#onDrop(event, zone.dataset.acceptDrop);
+      if (zone.dataset.memberDrop) this.#onMemberDrop(event, zone.dataset.actorUuid);
+      else if (game.user.isGM) this.#onDrop(event, zone.dataset.acceptDrop);
     });
+  }
+
+  /** A card dropped on a member's zone: ask the relay to put it on that member's actor. */
+  async #onMemberDrop(event, actorUuid) {
+    const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    const card = data?.type === "Card" && data.uuid ? await fromUuid(data.uuid) : null;
+    if (!card || card.parent?.id !== this.document.id) {
+      ui.notifications?.warn(loc(`refuse.${REFUSAL.notInPot}`));
+      return;
+    }
+    report(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "claim", cardId: card.id, actorUuid }));
   }
 
   /** Items dropped on the pot become cards; on a bucket, seed cards of that bucket. Anything else is said not to be taken. */
@@ -220,6 +309,11 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const actorUuid = await this.#chooseActor();
     if (!actorUuid) return;
     report(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "claim", cardId: target.dataset.cardId, actorUuid }));
+  }
+
+  /** Ask the relay to share what is turned across the party; it plans again on the Judge's client. */
+  static async #onGrab() {
+    reportGrab(await executeAsGM(POT_HANDLER, { potId: this.document.id, op: "grab" }));
   }
 
   /**

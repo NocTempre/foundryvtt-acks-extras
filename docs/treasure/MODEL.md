@@ -21,7 +21,9 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | `buckets` | `{add: [ids], replace: [ids]}`, the seed cards kept out of `order` until open |
 | `messageId` | the doorway's chat message, so closing can rewrite it |
 | `deal.toggles` | `{noMagic, forceCursed}`, both booleans, set while staging and applied at open |
-| `partyId`, `origin` | reserved; written empty |
+| `partyId` | the party the aside lists and Quick grab shares among; nothing writes it, so `resolveParty` reads it while the roster lists it, else the only party the roster has (see "The party aside") |
+| `grab` | `{leftover: [{cardId, count, code}]}`, what the last Quick grab left: the card, the coin still unplaced (null for a whole card) and `tooHeavy`, `noRoom` or `failed`; null before any grab |
+| `origin` | reserved; written empty by a hand-built pot, the fallen's record on a staged one |
 
 Core lets any user create a Card in a pile. A Card whose id is not in `order`
 (or a bucket list) is never shown by the window and never acted on by the
@@ -86,6 +88,9 @@ window is narrow.
 - **Take** goes to the one actor a player owns, or asks among several. A Judge
   is asked among every actor that carries goods and gets a warning for one no
   seat at the table owns.
+- **A turned, unclaimed card drags** as `{type: "Card", uuid}`, to a member's zone
+  in the party aside or to an actor's sheet (see "The party aside" and "Drag onto
+  a sheet").
 - A card turning changes its colour and brightness for one beat and never
   turns in space; nothing plays under `prefers-reduced-motion`.
 
@@ -103,8 +108,8 @@ authorizes on the attested sender (`runRelayed`), never on the payload. It
 refuses a pot that is not open, a seat outside the audience or not among the
 `flippers`, a card not in `order`, a card of the wrong face, a claimed card, a
 target that is no actor, and a target a player does not own. The in-flight key
-`potId:op:cardId` is claimed before the first await; one request runs at a time
-per pot.
+`potId:op:cardId` is claimed before the first await (`potId:grab:` for a grab);
+one request runs at a time per pot. A `grab` is the third op, below.
 
 **A claim** builds an item from the snapshot through `disguiseData(data, mask)`
 and writes `markets.detected: false` only where the card says undetected
@@ -112,7 +117,9 @@ and writes `markets.detected: false` only where the card says undetected
 (the card's own coin row, else the world's coin of that name from
 `coinTemplate`, else nothing is written); a value card as `mintCoin`. The card is
 marked claimed before its goods move, and the mark is cleared if the delivery
-fails.
+fails. Each card weighs its own document (`goodsWeights6`, lib's `weight6Of` on
+the document's data), so a grab can place cards apart; `droppedGoods` gives one
+document for any drop today.
 
 **The doorway** is a chat message carrying only the pot's uuid. Every client
 fills its count, haul and row of card backs from the live pile when it renders
@@ -202,8 +209,68 @@ The party's pace is its slowest member's. The plan:
 It returns `{assignments: [{lotId, memberId, count?}], pace, leftover:
 [{lotId, count?}], notes}`; `pace` is read back off `paceWith` at the final loads.
 Ties go to the lower member id and then to the earlier lot, so equal input gives
-an equal plan. The button, the party panel and the relay act are the roadmap's
-next step.
+an equal plan.
+
+### The `grab` op
+
+Source: `pot-relay.mjs` (`grab`, `claimCard`), `grab-pot.mjs`, `pot.mjs`
+(`partyFigures`, `splitCard`). Anyone who may Take may press it (the Judge, or a
+seat the pot opened to), and it needs no ownership of the members: they come
+from the roster read on the Judge's client, never from the payload, which names
+only the pot.
+
+1. `planGrabStart` refuses a pot not open, a seat outside the audience, and a
+   pot with no turned unclaimed card (`nothingToGrab`); `deps.party` refuses a
+   pot with no party (`noParty`).
+2. The members are the roster's: `capacity6` and `load6` from lib on the row's
+   `document`, a casualty at or below zero hit points, `hasDocument` false where
+   the document is missing or its sheet lists no goods. `paceWith` is the roster's
+   `pace(partyId, id, {adding6}).rank`. The lots are `grabLots`: the turned,
+   unclaimed cards in `order`, a coin card carrying its coin row and its whole
+   stack's weight.
+3. `planGrab` plans; each assignment is carried out through `claimCard`, the code
+   a Take runs, one at a time inside the queued request. A coin share smaller
+   than the card's current count first splits (`splitCoin`, `splitCard`): a new
+   turned card holds the share, the original keeps the rest, and the new id sits
+   after it in `order`. The share is then claimed like any card.
+4. What is still turned and unclaimed afterwards is the leftover, the plan's or a
+   failed delivery's, with `tooHeavy`, `noRoom` or `failed`. It is written to
+   the pot's `grab` flag and returned with the plan's pace as feet per turn
+   (`speedOfRank`), the number of cards placed, and the members who took nothing
+   and why.
+
+### The party aside
+
+Shown in the window once the pot is open, to every seat (`#partyContext`). The
+party is `resolveParty`: the flag's `partyId` while the roster lists it, else the
+only party the roster has, else none, and with none the aside is one line.
+Otherwise it holds the caption, one zone per member, **Quick grab**, a "Party
+moves" readout and, only when a grab left something, a leftover line.
+
+- A zone shows the member's name, speed, a load bar and "load of capacity · items".
+  Speed is the roster's `pace` read with nothing added; the load and capacity
+  are lib's `load6` and `capacity6` of the member's document. A figure the actor
+  or the roster does not give is a dash. A member with no goods-bearing sheet is
+  shown dashed with a note and takes no drop; a casualty is noted and takes no
+  share of a grab but takes a drop. Each figure's tooltip names its parts and
+  cites the page; with nothing behind it, the page alone.
+- "Party moves" is the slowest speed among the members who are not casualties,
+  read live. A member the planner leaves out for want of a stated capacity or
+  load still walks with the party, so it counts here and can make this slower
+  than the plan's pace. The leftover line lists the
+  cards of the last grab still in the pot; its tooltip gives each card's reason.
+- A drop on a zone sends `claim` for the zone's actor; the sender's ownership is
+  the relay's to refuse, and the refusal is shown as a notification.
+- At a narrow width the aside drops below the pot, as the staging panels do.
+
+### Drag onto a sheet
+
+`sheet-drop.mjs` (`createCardDrop`, wired in `module.mjs`) is the
+`dropActorSheetData` hook. A drop of `{type: "Card", uuid}` whose Card is in a
+pot's `order` returns `false` at once and sends `claim` for the sheet's actor;
+the relay's answer is shown, a refusal included. Any other drop is left to the
+sheet. It reaches the sheets that fire the hook (the system's and extras'
+character sheets); a sheet that overrides `_onDrop` does not (ROADMAP).
 
 ## Bands, backs, faces and deal toggles
 

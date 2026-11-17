@@ -16,7 +16,7 @@
     {{/if}}
   </header>
 
-  <div class="acks-extras-treasure__layout{{#if staging}} is-staging{{/if}}">
+  <div class="acks-extras-treasure__layout{{#if staging}} is-staging{{/if}}{{#if open}} is-open{{/if}}">
 
     {{#if staging}}
       <aside class="acks-extras-treasure__side">
@@ -43,7 +43,7 @@
       <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
         {{#each cards}}
           {{#if ../isGM}}
-            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}">
+            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
               <div class="acks-extras-treasure-card__tag">
                 <span>{{tag}}</span>
                 {{#if seed}}<span class="acks-extras-treasure-card__seed">{{localize "ACKS-TREASURE.card.seed"}}</span>{{/if}}
@@ -78,7 +78,7 @@
                   <span class="acks-extras-treasure-back__pips" aria-hidden="true">{{bandPips}}</span>
                 </button>
               {{else}}
-                <div class="acks-extras-treasure-card is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}">
+                <div class="acks-extras-treasure-card is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
                   <div class="acks-extras-treasure-card__tag">
                     <span>{{tag}}</span>
                     <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
@@ -128,6 +128,38 @@
       {{/if}}
 
     </main>
+
+    {{#if open}}
+      <aside class="acks-extras-treasure__party">
+        {{#if party.members.length}}
+          <span class="acks-extras-caption" id="{{@root.partId}}-party">{{localize "ACKS-TREASURE.party.title"}}</span>
+          <ul class="acks-extras-treasure__members" aria-labelledby="{{@root.partId}}-party">
+            {{#each party.members}}
+              <li class="acks-extras-treasure__member{{#unless drop}} is-closed{{/unless}}"{{#if drop}} data-member-drop="1" data-actor-uuid="{{uuid}}"{{/if}}>
+                <div class="acks-extras-treasure__member-head">
+                  <span class="acks-extras-treasure__member-name">{{name}}</span>
+                  <span class="acks-extras-treasure__member-speed" data-tooltip-text="{{speedTip}}">{{speedText}}</span>
+                </div>
+                <div class="acks-extras-treasure__bar-track" aria-hidden="true"><div class="acks-extras-treasure__bar-fill{{#if over}} is-over{{/if}}" style="--load: {{pct}}%"></div></div>
+                <span class="acks-extras-treasure__member-load" data-tooltip-text="{{loadTip}}">{{loadText}}</span>
+                {{#if note}}<span class="acks-extras-treasure__hint">{{note}}</span>{{/if}}
+              </li>
+            {{/each}}
+          </ul>
+          <div class="acks-extras-treasure__grab">
+            <button type="button" class="acks-btn" data-action="grab">{{localize "ACKS-TREASURE.party.quick"}}</button>
+            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.party.quickHint"}}</span>
+            <div class="acks-extras-treasure__moves" data-tooltip-text="{{party.movesTip}}">
+              <span>{{localize "ACKS-TREASURE.party.moves"}}</span>
+              <span>{{party.movesText}}</span>
+            </div>
+            {{#if party.leftover}}<span class="acks-extras-treasure__leftover" data-tooltip-text="{{party.leftoverTip}}">{{party.leftover}}</span>{{/if}}
+          </div>
+        {{else}}
+          <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.party.none"}}</span>
+        {{/if}}
+      </aside>
+    {{/if}}
 
     {{#if staging}}
       <aside class="acks-extras-treasure__toggles" aria-labelledby="{{@root.partId}}-toggles">

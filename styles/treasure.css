@@ -135,17 +135,124 @@
   grid-template-areas: "side main toggles";
 }
 
+.acks-extras-treasure .acks-extras-treasure__layout.is-open {
+  grid-template-columns: minmax(0, 1fr) minmax(14em, 19em);
+  grid-template-areas: "main party";
+}
+
 @container (max-width: 46em) {
   .acks-extras-treasure .acks-extras-treasure__layout.is-staging {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas: "main" "side" "toggles";
   }
 
+  .acks-extras-treasure .acks-extras-treasure__layout.is-open {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "main" "party";
+  }
+
   .acks-extras-treasure .acks-extras-treasure__side,
-  .acks-extras-treasure .acks-extras-treasure__toggles {
+  .acks-extras-treasure .acks-extras-treasure__toggles,
+  .acks-extras-treasure .acks-extras-treasure__party {
     border-inline: 0;
     border-block-start: var(--acks-rule) solid var(--acks-spot);
   }
+}
+
+/* The party aside: one drop zone per member, then Quick grab and what it reports. */
+.acks-extras-treasure .acks-extras-treasure__party {
+  grid-area: party;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-5);
+  padding: var(--acks-sp-6);
+  border-inline-start: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__members {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__member {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+  padding: var(--acks-sp-4);
+  background: var(--acks-paper);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__member.is-closed {
+  border-style: dashed;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__member-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-treasure .acks-extras-treasure__member-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-treasure .acks-extras-treasure__member-speed,
+.acks-extras-treasure .acks-extras-treasure__member-load {
+  font-size: var(--acks-fs-label);
+  font-variant-numeric: tabular-nums;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bar-track {
+  height: 0.45em;
+  background: var(--acks-tint-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bar-fill {
+  height: 100%;
+  width: var(--load, 0%);
+  background: var(--acks-extras-treasure-band-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bar-fill.is-over {
+  background: var(--acks-extras-treasure-cursed-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure__grab {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  padding-block-start: var(--acks-sp-5);
+  border-block-start: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__moves {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.acks-extras-treasure .acks-extras-treasure__leftover {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-extras-treasure-band-0);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card[draggable="true"] {
+  cursor: grab;
 }
 
 .acks-extras-treasure .acks-extras-treasure__side {

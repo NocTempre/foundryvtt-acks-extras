@@ -13,7 +13,7 @@
  * Hiding is display-level: every seat can read a Card's flag, so what a seat is
  * SHOWN is chosen here (`cardView`) and is never a security boundary.
  */
-import { curseKnowledge, magicKnowledge } from "../lib/item-model.mjs";
+import { curseKnowledge, magicKnowledge, weight6Of } from "../lib/item-model.mjs";
 import { BAND_COUNT, BUCKET, CARD_FLAG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, REFUSAL } from "./constants.mjs";
 
 const refuse = (reason) => ({ ok: false, reason });
@@ -32,6 +32,35 @@ export const AURA_BACK_ICON = "icons/svg/aura.svg";
 /** The deal toggles with both keys present and nothing else kept. */
 const normalizeToggles = (t) => Object.fromEntries(Object.values(DEAL_TOGGLE).map((k) => [k, t?.[k] === true]));
 
+/**
+ * What each document a dropped item delivers weighs, in sixths of a stone, read
+ * off that document's own data. A card is one document, so the weights that go
+ * on a pot's cards sum to what the pot would put on an actor, and a grab can
+ * place each card on its own member.
+ * @param {object[]} goods plain item data, as `droppedGoods` returns it
+ * @returns {number[]}
+ */
+export const goodsWeights6 = (goods) => (goods ?? []).map((data) => weight6Of(data));
+
+/**
+ * The result of the last Quick grab, as the window shows it: the cards no
+ * member could take, each with the card's id, the coin count still unplaced
+ * (null for a whole card) and the reason code. Null when no grab has run.
+ */
+function normalizeGrab(g) {
+  if (!g || typeof g !== "object") return null;
+  const left = Array.isArray(g.leftover) ? g.leftover : [];
+  return {
+    leftover: left
+      .filter((x) => x && typeof x.cardId === "string" && x.cardId)
+      .map((x) => ({
+        cardId: x.cardId,
+        count: Number(x.count) > 0 ? Math.floor(Number(x.count)) : null,
+        code: typeof x.code === "string" ? x.code : "noRoom",
+      })),
+  };
+}
+
 /** A pot's flag with every key present and every id list clean. */
 export function normalizePot(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
@@ -42,6 +71,7 @@ export function normalizePot(flag) {
     audience: ids(f.audience),
     partyId: typeof f.partyId === "string" ? f.partyId : null,
     origin: f.origin ?? null,
+    grab: normalizeGrab(f.grab),
     deal: { toggles: normalizeToggles(f.deal?.toggles) },
     order: ids(f.order),
     buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },

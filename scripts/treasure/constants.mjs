@@ -76,4 +76,6 @@ export const REFUSAL = Object.freeze({
   noCoin: "noCoin",
   empty: "empty",
   dealEmpty: "dealEmpty",
+  noParty: "noParty",
+  nothingToGrab: "nothingToGrab",
 });

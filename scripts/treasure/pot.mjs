@@ -16,12 +16,15 @@ import { makeLoc } from "../lib/util.mjs";
 import { listsGoods, deliverItems, droppedGoods } from "../lib/bundles.mjs";
 import { HOUSE_OWNER, coinTemplate, creditCoin, mintCoin } from "../lib/money.mjs";
 import { isProvider, stockProvider } from "../lib/storage.mjs";
-import { magicKnowledge, weight6Of } from "../lib/item-model.mjs";
+import { magicKnowledge, physicalItems } from "../lib/item-model.mjs";
+import { capacity6, load6 } from "../lib/capacity.mjs";
+import * as services from "../lib/services.mjs";
 import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  buildCard, claimCoinCredits, claimItemData, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setToggle, stage,
-  turnedOf, unstage, cardView,
+  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setToggle,
+  stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
+import { resolveParty, splitCoin } from "./grab-pot.mjs";
 import { createRelay } from "./pot-relay.mjs";
 
 const loc = makeLoc(LANG);
@@ -94,11 +97,13 @@ function maskOf(item) {
  * snapshot cannot see a variation applied inside it.
  */
 export function truthsFromItem(item) {
-  return droppedGoods(item).map((data, i) => {
+  const goods = droppedGoods(item);
+  const weights = goodsWeights6(goods);
+  return goods.map((data, i) => {
     const live = i === 0 ? item : null;
     const disguise = data.flags?.[MODULE_ID]?.[ITEM_FLAGS.DISGUISE];
     const known = live ? magicKnowledge(live, { isGM: false }) : { magical: false, detected: true, identified: "none" };
-    const base = { source: { uuid: item.uuid, data }, weight6: live ? weight6Of(live) : 0 };
+    const base = { source: { uuid: item.uuid, data }, weight6: weights[i] };
     if (data.type === "money") {
       const count = Math.max(0, Math.floor(Number(data.system?.quantity) || 0));
       const cv = Number(data.system?.coppervalue) || 1;
@@ -303,6 +308,68 @@ export async function deliverTruth(truth, actorUuid) {
 }
 
 /* -------------------------------------------- */
+/*  The party                                    */
+/* -------------------------------------------- */
+
+const roster = () => services.get("party-roster");
+
+/** The id of the party a pot answers to (`resolveParty`), or null with no roster or no party. */
+export const potPartyId = (pile) => resolveParty(potOf(pile), roster()?.list?.() ?? []);
+
+/**
+ * The pot's party as the planner and the window read it, from the roster
+ * contract alone: each member's actor uuid and figures, and `paceWith`, the
+ * rank a member would pace at bearing `adding6` more. A member whose document
+ * is missing or whose sheet lists no goods has no uuid and no figures, so it
+ * is shown and takes nothing. A member at or below zero hit points is a
+ * casualty (the contract carries no casualty flag).
+ * @returns {{partyId: string, members: object[], paceWith: (id: string, adding6?: number) => number|null}|null}
+ */
+export function partyFigures(pile) {
+  const party = roster();
+  const partyId = potPartyId(pile);
+  if (!party || !partyId) return null;
+  const members = (party.members(partyId) ?? []).map((row) => {
+    const doc = row.document ?? null;
+    const carries = !!doc && listsGoods(doc);
+    const hp = row.hp?.value;
+    return {
+      id: row.actorId,
+      uuid: carries ? doc.uuid : null,
+      name: row.name,
+      capacity6: carries ? capacity6(doc) : null,
+      load6: carries ? load6(doc) : null,
+      casualty: typeof hp === "number" && hp <= 0,
+      hasDocument: carries,
+      items: carries ? physicalItems(doc).length : null,
+    };
+  });
+  return { partyId, members, paceWith: (id, adding6 = 0) => party.pace?.(partyId, id, { adding6 })?.rank ?? null };
+}
+
+/**
+ * Move `count` coins of a coin card onto a new turned card placed after it,
+ * and leave the rest on the original. The new card exists before the original
+ * is reduced, so a failure part-way strands no coin: the worst it leaves is a
+ * card outside `order`, which nothing shows or acts on.
+ * @returns {Promise<string|null>} the new card's id, or null where it did not split
+ */
+async function splitCard(pile, cardId, count) {
+  const card = pile?.cards.get(cardId);
+  if (!card) return null;
+  const split = splitCoin(normalizeTruth(card.flags?.[MODULE_ID]?.[CARD_FLAG]), count, { text: (n) => n.toLocaleString(game.i18n.lang) });
+  if (!split) return null;
+  const { faces, face } = flipUpdate(cardId, split.taken);
+  const [made] = await pile.createEmbeddedDocuments("Card", [{ ...buildCard(split.taken, { band: card.value, poolLabel }), faces, face }]);
+  if (!made) return null;
+  await card.update({ [cardPath]: split.rest });
+  const order = [...potOf(pile).order];
+  order.splice(order.indexOf(cardId) + 1, 0, made.id);
+  await pile.update({ [`${potPath}.order`]: order });
+  return made.id;
+}
+
+/* -------------------------------------------- */
 /*  The relay                                    */
 /* -------------------------------------------- */
 
@@ -335,6 +402,14 @@ export function createPotRelay() {
     deliver: deliverTruth,
     setClaim: async (id, cardId, claim) => {
       await findPot(id)?.cards.get(cardId)?.update({ [`${cardPath}.claimedBy`]: claim });
+    },
+    party: (id) => {
+      const pile = findPot(id);
+      return pile ? partyFigures(pile) : null;
+    },
+    splitCard: (id, cardId, count) => splitCard(findPot(id), cardId, count),
+    setGrab: async (id, grab) => {
+      await findPot(id)?.update({ [`${potPath}.grab`]: grab });
     },
   });
 }

@@ -1,19 +1,37 @@
-/* global Hooks, foundry, game, ui */
+/* global Hooks, foundry, fromUuidSync, game, ui */
 /**
  * Treasure: a window a table turns treasure over in, built on one core `pile`
  * Cards document per pot. This file wires the feature: the pot's sheet (chosen
- * per pot, never the default for a pile), the one relay handler, the doorway
- * card, a Judge-only scene control, and `acksExtras.treasure`.
+ * per pot, never the default for a pile), the one relay handler, a card dragged
+ * onto an actor's sheet, the doorway card, a Judge-only scene control, and
+ * `acksExtras.treasure`.
  */
 import { acksExtras } from "../namespace.mjs";
-import { registerHandler } from "../lib/sockets.mjs";
+import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { MODULE_ID, LANG, POT_HANDLER } from "./constants.mjs";
 import { installDoorway } from "./doorway.mjs";
-import PotSheet from "./pot-sheet.mjs";
-import { createPotRelay, findPot, newPot } from "./pot.mjs";
+import PotSheet, { report } from "./pot-sheet.mjs";
+import { createPotRelay, findPot, isPot, newPot, potOf } from "./pot.mjs";
+import { createCardDrop } from "./sheet-drop.mjs";
 import "./search.mjs";
 
 registerHandler(POT_HANDLER, createPotRelay().handle);
+
+Hooks.on(
+  "dropActorSheetData",
+  createCardDrop({
+    resolveCard: (uuid) => {
+      try {
+        return fromUuidSync(uuid);
+      } catch {
+        return null;
+      }
+    },
+    potOf: (pile) => (isPot(pile) ? potOf(pile) : null),
+    send: (request) => executeAsGM(POT_HANDLER, request),
+    report,
+  }),
+);
 
 Hooks.once("init", () => {
   foundry.applications.apps.DocumentSheetConfig.registerSheet(foundry.documents.Cards, MODULE_ID, PotSheet, {

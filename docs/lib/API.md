@@ -220,7 +220,7 @@ on the embedded copy's name only. No provider ⇒ consumers skip granting.
 Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
 hit-point tool (`lib/hp.mjs`), which works on a whole party at once, the
 summons (`lib/summons.mjs`), which reach a summon riding in a party token, and
-the treasure pot's Quick grab (`pace`). Shape:
+the treasure pot's party aside and Quick grab (`list`, `members`, `pace`). Shape:
 
 ```
 {

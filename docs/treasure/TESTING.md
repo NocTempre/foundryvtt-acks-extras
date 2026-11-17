@@ -32,6 +32,15 @@ swept with `api.sweepTracked()`.
   (the target of the not-owner refusal).
 - `treasure/place` — a location actor with `flags.acks-extras.storage.provider:
   true`, the place the close files leftovers at.
+- `treasure/party` — the world's only formation (`services.get("party-roster")
+  .list()` answers one entry), holding `treasure/player-character`,
+  `treasure/judge-character` and a third `character` actor, `treasure/ally`
+  (owned by the Judge), each with an encumbrance maximum and movement on
+  automatic, so the roster answers a pace for each. Build it as the formation
+  recipe does (docs/formation/TESTING.md): tokens of the three on a scene, then
+  the party window's add to party. The pot reads it as its party with no
+  `partyId` set. `treasure/party-b` is a second formation, built only for the
+  no-party step, since two parties and an unset `partyId` is how a pot has none.
 - A pot is **not** a kept fixture: it is made by the step that builds it (the
   scene control's tool, which calls `acksExtras.treasure.newPot()`), is marked
   `flags.world.fixture = "treasure/pot"` by the run (`newPot` sets none; the
@@ -111,6 +120,72 @@ swept with `api.sweepTracked()`.
    when no place is chosen), and no longer has an Open the table button; the
    pile is gone from the Cards directory and from both seats; **no** "pot deleted"
    or other chat message is created by the delete.
+
+## Party aside, drag and Quick grab (both seats)
+
+Fixtures: `treasure/party`, the three members, `treasure/coin`, and
+`treasure/item-masked` (see above). Build a pot with: a coin card whose stack
+weighs about a third of a member's room (set the coin item's count so), two item
+cards of invented weights that together fill most of `treasure/player-character`'s
+room, a card heavier than any member's room, and a card left face down. Open it,
+turn all but the face-down one. Read each member's speed and load first through
+`services.get("party-roster").pace(partyId, actorId)` and `load6`/`capacity6`
+(lib), so every observable below is compared with the world's own figure, not
+the window's.
+
+1. **The aside (Player seat).** Observables: one zone per member showing name,
+   speed, a load bar and "load of capacity · items"; the speed and load tooltips
+   name their parts and the page; "Party moves" equals the slowest member's
+   `roster.pace(...).speed`; no leftover line; **Quick grab** has its one-line
+   hint. With `treasure/party-b` present and the pot's `partyId` unset, the aside
+   is the one line "No party is set for this pot." and nothing else; delete
+   `party-b` after.
+2. **Drag to a character sheet (Player seat).** Open `treasure/player-character`'s
+   sheet beside the pot and drag a turned item card onto the sheet. Scripted, a
+   `drop` event whose `dataTransfer` holds `{"type":"Card","uuid":<card uuid>}`,
+   dispatched at the sheet's content. Observables: the actor holds the item; the
+   card reads "To <name>" and no longer drags (`draggable` absent); no console
+   error; the item landed once.
+3. **Drop on a member zone (Player seat).** Drag a turned card to
+   `treasure/player-character`'s zone. Observables: the card is claimed by that
+   character; the zone's load figure and bar rise by the card's weight and its
+   speed re-reads from `roster.pace`.
+4. **Refusal, unowned target (Player seat).** Drag a turned card to
+   `treasure/judge-character`'s zone. Observables: a notification "You do not own
+   that character."; the Card is unclaimed; the actor gains nothing. Then drag a
+   card onto `treasure/judge-character`'s sheet if the seat can open it. Whether
+   core fires the hook for a sheet the seat cannot edit is not known offline:
+   record what the sheet does (the same notification, or nothing).
+5. **Quick grab (Player seat), the predicted pace.** From the figures read before
+   the step, work out the slowest speed the party could keep with everything
+   placed (try each member's load with the whole of each card added; the planner
+   chose the best split). Press **Quick grab** once. Observables: the
+   notification reads "Quick grab: N taken. The party moves X ft."; once it
+   lands, every member's `roster.pace(...).speed` is no lower than X, the slowest
+   equals X, and "Party moves" shows X; each member's load is within its
+   capacity; the coin card became several turned cards, each "To <name>", whose
+   counts plus the card still in the pot sum to the original stack; the card
+   heavier than any member's room stays turned and unclaimed, the notification
+   warns that it fits nobody, and the leftover line names it with the tooltip
+   "heavier than any member can bear"; the face-down card is untouched. The
+   Player seat owns one member and the rest received goods: that is the ruled
+   behaviour. Press twice quickly: the second answers "That is already being
+   done." or finds nothing left.
+6. **Quick grab (Judge seat).** Same as 5 on a second pot, with `treasure/ally`
+   given a stack of existing load so it is nearly full. Observables: it takes
+   less than the others; a member at zero hit points (set `treasure/ally`'s hit
+   points to 0) takes nothing and the notification names it ("Takes nothing: …
+   (down)"); a member whose actor keeps no goods, if one is in the party, is
+   named with its reason.
+7. **Narrow window.** Shrink the pot's window below about 46em wide. Observables:
+   the aside sits below the pot grid, every zone and the button are reachable by
+   scrolling the part root, and the window keeps its resize corner.
+
+Teardown: the pot is closed or deleted by the Judge's close step; the actors'
+added items and coin rows are tracked by the ids read back from each actor and
+swept with `api.sweepTracked()`; `treasure/party-b` (built for step 1 only) is
+tracked and swept; the fixtures with markers stay, and their loads are reset
+by a step that needs a known shape (assert it at the step's start).
 
 ## Window contract
 

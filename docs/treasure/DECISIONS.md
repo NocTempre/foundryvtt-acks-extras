@@ -229,3 +229,100 @@ buttons, each holding a state, in place of a control per right.
   strike; `openPot` applies it, then whispers the Judges the names of what
   changed. A pot every card of which a toggle would strike refuses to open
   rather than open empty.
+
+## 2026-11-17 — The stash: a card drags to a sheet or a member's zone, and the party aside is built as designed
+
+The owner: "It should be an inventory stash players can click a button or drag
+and drop pick up items to their own. Quick grab should calculate the
+distribution that leaves the party moving as fast as they can." And: "Don't
+forget the general rules of every window needs to be resizable and
+scrollable." The owner approved the mockup ("Approved for development"); the
+aside is its structure and nothing new beyond it.
+
+- **One claim, three ways in.** Take's button, a drop on a member's zone and a
+  drop on an actor's sheet all send the relay's `claim`. The relay already
+  refuses a target the sender does not own, so the sheet hook and the zone
+  repeat no check; each says the refusal (`report`).
+- **The hook decides synchronously.** `dropActorSheetData` takes a Card of a
+  pot's `order` and returns `false` before core's own drop goes on, face-down
+  cards included, so the relay's "Turn the card over first" is what the player
+  reads and no sheet gets a Card it cannot use. Any other drop is left alone.
+- **Sheets that override `_onDrop`** (vehicle, item, party, unit) never reach the
+  hook and stay a ROADMAP row.
+- **Counter (weak):** a Take that asks which actor makes a drag unnecessary. A
+  drag is the owner's word, and it keeps the character sheet and the pot open
+  side by side.
+
+## 2026-11-17 — The aside's party: the flag's, else the world's only one; none is one line
+
+Nothing writes the pot's `partyId` and the design has no chooser, so the aside
+would never list a member. `resolveParty` reads the party the flag names while
+the roster lists it, else the only party the roster has, else none; the window
+and the relay read it the same way. With none, the aside is one line ("No party
+is set for this pot.") instead of hiding, so a table can tell why no zone is
+there; a drop on a character sheet still works. **Rejected:** hiding the
+aside (a missing panel reads as a broken window); a stored party written at
+open (a party created after the pot opened would never be picked up). **Open
+for the owner:** with two or more parties the pot has none until a picker
+exists (ROADMAP, "Party picker").
+
+## 2026-11-17 — Members come through the roster contract alone
+
+`partyFigures` reads `party-roster` (`members`, `pace`) and lib's `capacity6`
+and `load6` on the member's `document`; treasure imports nothing from
+formation. A member with no document, or whose sheet lists no goods, is shown
+and takes nothing (`hasDocument` false). The contract has no casualty flag, so a
+member at or below zero hit points is the casualty; if formation's own notion
+differs, the contract should carry it and this derivation goes. The window's
+"Party moves" is the slowest pace among the members the planner would count, read
+live from `pace`, so after a grab it is the figure the sheet shows.
+
+## 2026-11-17 — Quick grab: the Judge's client plans and delivers, and a player need not own the members
+
+`grab` is a relay op. The Judge's client builds the members from the roster, the
+lots from the pot's turned unclaimed cards, and `paceWith` from the roster's
+`pace`, runs `planGrab`, and carries out each assignment through `claimCard`,
+the code a Take runs, inside the one queued request. Nothing in the payload
+names a member, a card or a plan. Who may press it is who may Take (the Judge,
+or a seat the pot opened to); the in-flight key `potId:grab:` runs one at a time.
+
+**It does not ask that the presser owns the members.** A grab shares the pot
+across the party, and a seat that owns one character could otherwise only ever
+share with itself. Targets come from the roster read on the Judge's client, so
+a payload cannot aim goods at an actor outside the party. **Counter (strong):**
+a player can now put goods on another player's character without that player's
+say. The pot already lets any seat in the audience turn and take every card, so
+the grab moves goods only between characters of one party, to the planner's
+placement; a Judge who wants a gate limits who may press it. **Open for the
+owner:** restrict Quick grab to the Judge, or to a seat that owns at least one
+member.
+
+## 2026-11-17 — A coin share is a card of its own; the leftover is stored, the pace is read live
+
+A claim marks a whole card and credits `coin.count`, so a share smaller than
+its stack has no card to mark. `splitCoin` divides the truth by whole coins
+(counts and weights add back to the stack's); `splitCard` creates a turned card
+for the share, reduces the original to the rest, and inserts the new id after it
+in `order`, then the share is claimed like any card. The haul and the closed
+record count the share and the rest as two cards that sum to the stack. A failed
+delivery leaves the share as an unclaimed card, so the coin is never lost or
+credited twice. **Rejected:** shares kept on the card (the claim mark, the card's
+"to <name>" line and the record hold one name); decrementing the count (it
+shrinks the haul by what was delivered).
+
+What the last grab left is stored on the pot flag (`grab.leftover`: card id,
+unplaced coin count, reason code), because the window re-renders on every card
+write and a plan per render is an exact search per seat. The window shows only
+the entries still turned and unclaimed. The pace is not stored: it is read live
+from the roster, and the relay returns the plan's own pace so the notification
+can state what was predicted.
+
+## 2026-11-17 — Each card weighs its own document
+
+`truthsFromItem` gave the whole item's weight to the first document a drop
+delivers and nothing to the rest. A grab places cards on different members, so
+`goodsWeights6` reads each document's own data through lib's `weight6Of`. Today
+`droppedGoods` answers one document for any drop, so the defect was unreachable;
+the change holds for the first multi-document source. A coin stack with no
+count weighs the one coin that is delivered, not the nothing the live item
+weighs.
