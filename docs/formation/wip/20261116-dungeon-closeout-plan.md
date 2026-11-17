@@ -1169,14 +1169,25 @@ only, with no module frame.
   Dungeon tab, each naming its field and carrying its page.
 - §11 steps 1 to 13 and 16, including 5a to 5e (a non-owner, a refused
   member, an ended crossing, two interleaved requests, a member already
-  across) and 11a to 11d (the landing save's card, a closed dialog, a member
-  out of reach, each footing). Step 14 in part: scroll kept across a press;
-  focus back on the pressed row while its button survives; two party sheets
+  across; 5c's die count was not captured) and 11a to 11d (the landing save's
+  card, a closed dialog, a member out of reach, each footing). Step 14 in
+  part: scroll kept across a press; focus back on the pressed row while its
+  button survives, except on the first press after the sheet opened, which
+  lost it to the page in the pane (1 of 5); two party sheets
   render with no duplicate id; no row clips at the largest font knob or at
   420 px. Step 16's sweep of the run's own cards: asked 49, removed 49, could
   not find 0, refused none.
 
 ### Found by the walk
+
+Each fix below was re-walked live on `4d6dd428` after its landing: W1 by
+`readThrow` in the GM pane; W5 and W6 by requests from the player and the
+trusted-player seats with the adventurer dropped from the party (the owner
+told it is no longer in the party, a non-owner told it is not theirs, a
+request with no member answered with the neutral fallback); W8 by measuring
+the button against the font knob. The three whispers were swept by id
+(removed 3, could not find 0, refused none), the adventurer re-added and
+the crossing ended.
 
 - **W1, fixed.** `readThrow`'s success read carried no `botch` key.
 - **W2, T-0638.** A member's target tooltip names its source only, with no
@@ -1190,7 +1201,7 @@ only, with no module frame.
 - **W7, T-0641.** A press that takes the member across drops focus to the
   page.
 - **W8, fixed.** The panel's buttons kept core's size at every font knob
-  setting; re-measured live after the fix.
+  setting. The turn plan's buttons may share it: not checked.
 - The member record in the party flag keeps a copy of the imported outcome's
   words, which a later Judge override does not reach. World data, not a leak;
   S16 to S18 touch that record.
@@ -1201,9 +1212,9 @@ only, with no module frame.
 
 ### Checked offline only
 
-The four suites the slices added or changed and `npm test` at each landing's
-gate; the walk's fixes against the crossing, crossing-surface and obstacle
-suites and the landing gate.
+The suites the slices added or changed and `npm test` at each landing's
+gate; the walk's fixes against the crossing (29 checks), crossing-surface
+(34) and obstacle (40) suites and the landing gate on `4d6dd428`.
 
 ### Not checked
 
