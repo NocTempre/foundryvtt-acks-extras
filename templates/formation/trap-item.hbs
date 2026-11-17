@@ -16,6 +16,11 @@
              placeholder="{{triggerOnPlaceholder}}" data-dtype="Number" min="0"
              {{#if triggerMax}}max="{{triggerMax}}"{{/if}} {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.triggerOn'}}</p>
+      {{!-- The band in force, as a figure: the typed one, else the imported one. --}}
+      <p class="hint acks-extras-trap-band" data-tooltip-text="{{triggerBand.tip}}">
+        {{localize 'ACKS-FORMATION.traps.bandInForce'}}
+        <span class="acks-extras-trap-figure">{{triggerBand.text}}</span>
+      </p>
     </div>
 
     <div class="form-group">
@@ -32,17 +37,24 @@
     <div class="form-group">
       <label>{{localize 'ACKS-FORMATION.traps.field.level'}}</label>
       <input type="number" name="system.level" value="{{system.level}}"
-             data-dtype="Number" min="1" max="6" {{#unless editable}}disabled{{/unless}}/>
+             data-dtype="Number" min="1" max="{{levelMax}}" {{#unless editable}}disabled{{/unless}}/>
       <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.level'}}</p>
     </div>
 
     {{!-- Which levels this trap actually states something for. An imported trap
           fills all six; a hand-made one usually fills the one being played. --}}
-    <ol class="acks-extras-trap-strip">
+    {{!-- Each step says its state in words for assistive technology and in a
+          tooltip; the line under the strip says it in text for everyone. --}}
+    <ol class="acks-extras-trap-strip" aria-label="{{localize 'ACKS-FORMATION.traps.strip.label'}}">
       {{#each levelStrip}}
-        <li class="{{#if current}}is-current{{/if}} {{#if stated}}is-stated{{else}}is-blank{{/if}}">{{level}}</li>
+        <li class="{{#if current}}is-current{{/if}} {{#if stated}}is-stated{{else}}is-blank{{/if}}"
+            {{#if current}}aria-current="step"{{/if}} data-tooltip-text="{{label}}">
+          <span aria-hidden="true">{{level}}</span>
+          <span class="acks-extras-trap-sr">{{label}}</span>
+        </li>
       {{/each}}
     </ol>
+    <p class="hint acks-extras-trap-strip-state" data-tooltip="ACKS-FORMATION.traps.strip.summaryTip">{{levelSummary}}</p>
     <p class="hint">{{localize 'ACKS-FORMATION.traps.hint.levelStrip'}}</p>
 
     {{!-- The book's own sentence for this level, kept whole beside the typed
@@ -120,9 +132,12 @@
       </div>
     {{/if}}
 
-    {{#if derivedDamage}}
-      <p class="hint acks-extras-trap-derived">
-        {{localize 'ACKS-FORMATION.traps.derivedDamage' formula=derivedDamage}}
+    {{!-- Stays with a pit depth whatever is imported: the figure is blank where
+          no dice are known, and the tooltip carries the page. --}}
+    {{#if pitLine}}
+      <p class="hint acks-extras-trap-derived" data-tooltip-text="{{pitLine.tip}}">
+        {{localize 'ACKS-FORMATION.traps.derivedDamage'}}
+        <span class="acks-extras-trap-figure">{{pitLine.formula}}</span>
       </p>
     {{/if}}
   </fieldset>
@@ -162,8 +177,7 @@
           `disabled`, so read-only falls through to the enriched render. --}}
     {{#if editable}}
     <prose-mirror class="acks-extras-trap-description content-sized" name="system.description"
-                  value="{{system.description}}" toggled data-document-uuid="{{item.uuid}}"
-                  style="--min-height: 4rem;">{{{descriptionHTML}}}</prose-mirror>
+                  value="{{system.description}}" toggled data-document-uuid="{{item.uuid}}">{{{descriptionHTML}}}</prose-mirror>
     {{else}}
     <div class="acks-extras-trap-description">{{{descriptionHTML}}}</div>
     {{/if}}

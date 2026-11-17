@@ -2640,11 +2640,52 @@
 
 /* --- Trap item sheet ------------------------------------------------- */
 
+/* The sheet's one scroller: its form part's root, so core keeps the scroll
+   position across the re-render every changed field causes. The frame is
+   capped to the viewport; the content box takes what the header leaves
+   without scrolling itself, and hands it to the part. */
+.acks-extras-trap-sheet.application {
+  max-height: 92vh;
+}
+
+.acks-extras-trap-sheet .window-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* Same type root as the other item sheets: the em hierarchy below rides
    --acks-fs-base rather than the browser's default. */
 .acks-extras-trap-sheet .acks-extras-trap-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-body);
+}
+
+/* The description editor's floor, in the type the sheet rides. */
+.acks-extras-trap-sheet prose-mirror.acks-extras-trap-description {
+  --min-height: 5em;
+}
+
+/* Text for assistive technology that the strip's numerals do not carry. */
+.acks-extras-trap-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* A figure read off the world, set apart from the caption it follows. */
+.acks-extras-trap-figure {
+  font-weight: 700;
+  color: var(--acks-ink);
 }
 
 .acks-extras-trap-sheet .form-group.stacked {
@@ -2664,6 +2705,7 @@
 }
 
 .acks-extras-trap-strip li {
+  position: relative;
   flex: 0 0 auto;
   min-width: 1.6em;
   padding: 0.05em 0.3em;

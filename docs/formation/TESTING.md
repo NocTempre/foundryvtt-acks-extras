@@ -4867,3 +4867,62 @@ finds each in the set of `game.messages` ids before and after and tracks it by
 uuid. A step that needs a known shape asserts it at its start: step 2 needs no
 `crossing` flag, step 5b needs the adventurer to have no Climbing and step 9
 the same.
+
+## The trap item sheet and the trap zone's config (added with U16 of the dungeon close-out)
+
+Built for the trap Item's sheet (Items sidebar → a Trap item) and the trap
+zone's behavior config (Scene controls → Regions → the region → Behaviors →
+Trap Zone). A mock cannot prove that the form part keeps its scroll across the
+re-render a changed field causes, that the strip's state reaches assistive
+technology, or that the zone's State select shows labels. Both windows open on a
+display no taller than the sheet.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`).
+- `formation/trap-sheet-pit` — an `acks-extras.trap` Item at level 3, resolving
+  as automatic damage, with a pit depth set on its level-3 row and a typed
+  `triggerOn`.
+- `formation/trap-sheet-zone` — a Region on a scene holding a Trap Zone
+  behavior that names the item above.
+- The `formation` registered document's `fall`, `pitSpikeCount`, `pitSpikeDie`
+  and `trapTriggerOn` tables imported, and then removed, between the passes
+  below: the Ruledata Browser's override layer edits them in place, and the
+  import's own layer is the one that carries a page (`citeOf` answers null
+  for an override).
+
+1. With the figures imported, open the trap sheet. *Observable:* the strip's
+   caption reads the level on screen and the count of filled levels; the third
+   step carries `aria-current="step"`; each step's text for assistive
+   technology and its tooltip name its level and whether it is filled.
+2. Hover the Pit damage line with the pit spiked. *Observable:* the tooltip
+   names the depth, the fall dice and the spike dice, each with the page the
+   import cited, and the figure beside the label is the formula those make.
+3. Clear the spike tables only. *Observable:* the line keeps the fall's dice,
+   and the tooltip's spike part is the page reference alone, with no digit.
+4. Clear the `fall` table. *Observable:* the line stays, its figure blank, and
+   the tooltip names the depth and the page reference.
+5. Blank the trap's Springs-on field. *Observable:* the In force line reads
+   the imported band, its tooltip names the import and its page; typed again,
+   the tooltip names the trap's own figure and the imported one it stands
+   over; typed 0, the line reads 0.
+6. Shrink the window below the sheet's height, scroll the form a little way
+   down, change a field. *Observable:* the form part is the scroller (the
+   window frame is not), and it is at the same offset after the render. Core
+   puts an auto-height window back to `height: auto` on every render, so the
+   frame regrows; an offset past its new reach clamps, and is no failure.
+7. Open the zone's behavior config. *Observable:* the State select lists the
+   lang labels (armed, spotted, disarmed, spent), and the Known checkbox
+   carries its label and hint instead of a field path.
+8. Raise the seat's type size and open the sheet on a client loaded after the
+   change. *Observable:* the window opens wider by the same factor. An item
+   keeps one sheet instance, whose width is decided when it is built, so a
+   sheet already opened once keeps its width until reload; scripted, build a
+   fresh instance (`new item.sheet.constructor({ document: item })`).
+
+`tools/live/formation-trap-sheet.mjs` walks steps 1, 2, 5, 6, 7 and 8 against
+the tables the world holds, checking each part for its page where the world
+holds it and for the reference alone where it does not. Steps 3 and 4 clear
+tables every lane of the shared world reads, so the walk leaves them;
+`tools/test-trap-sheet-view.mjs` pins both offline.
+
+Teardown: nothing is swept; the fixtures stay. Restore the imported tables the
+passes removed.

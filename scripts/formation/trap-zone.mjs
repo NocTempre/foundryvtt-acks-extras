@@ -80,7 +80,12 @@ export class TrapZoneBehavior extends foundry.data.regionBehaviors.RegionBehavio
       /** The trap Item this zone is an instance of. */
       trapUuid: new fields.DocumentUUIDField({ type: "Item" }),
 
-      state: new fields.StringField({ required: true, initial: STATES.armed, choices: Object.values(STATES) }),
+      // A record of state to lang key: the config form localizes each label.
+      state: new fields.StringField({
+        required: true,
+        initial: STATES.armed,
+        choices: Object.fromEntries(Object.values(STATES).map((state) => [state, `${LANG_PREFIX}.state.${state}`])),
+      }),
       /**
        * Who has already failed a hasty attempt here, and at what level.
        * Cleared by re-arming.

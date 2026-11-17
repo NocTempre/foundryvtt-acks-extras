@@ -961,8 +961,26 @@ Scene config → Grid. Not imported:
   adds nothing.
 - **no `fall` table**: a pit derives no damage;
   **no spike dice**: a spiked pit deals the fall alone.
-  A typed damage formula owes no figure. The sheet and the cards add no line for
-  any of these; the trap sheet leaves the trigger band's placeholder blank.
+  A typed damage formula owes no figure. The cards add no line for any of these.
+  The trap sheet (`trap-sheet.mjs`) keeps its lines and blanks the figure: the
+  Pit damage line stays with a depth and shows no dice for a part not imported,
+  and the In force line shows the band in force (the trap's own, else the
+  imported one), blank with nothing behind it. Each line's tooltip is built at
+  render from the world's figures, each with the page `citeOf` gives for the
+  `formation` table it was read from and the shipped chapter reference where it
+  gives none (a Judge's override, a part not imported); a part not imported is
+  its reference alone.
+
+**The trap sheet's frame.** The form part's root is the sheet's one scroller
+(`scrollable: [""]`, with the frame capped to the viewport and `.window-content`
+a flex column in `styles/formation.css`), so a changed field's re-render keeps
+the offset; the window therefore leaves the shared `acks-extras-scroll` class,
+and opens at its canvas width scaled to the seat's type size
+(`_initializeApplicationOptions`). The level strip says its state in text: a
+caption beside it (level on screen, count filled), `aria-current` on the step on
+screen, and each step's own words for assistive technology and its tooltip. The
+trap zone's behavior config labels its State choices with the `traps.state`
+words and its `known` field under `TRAP_ZONE.FIELDS`.
 
 **Ranks are the column's as it stands on the map.** `runTrapCheck` and
 `sweepForTraps` read the sequence from `laidOrder` (`formation-model.mjs`), not

@@ -3491,6 +3491,10 @@
         "repeatLock": {
           "label": "Failed hasty attempts",
           "hint": "Who has already failed a hasty Trapbreaking attempt here, and at what level. Cleared by re-arming."
+        },
+        "known": {
+          "label": "The party knows it is here",
+          "hint": "Ticked, the party can see this trap and may work on it. Kept apart from the state: an armed trap can be known."
         }
       }
     },
@@ -3581,7 +3585,29 @@
       "legendEffect": "What it does",
       "legendWho": "Who it catches",
       "noSave": "No save",
-      "derivedDamage": "Falling into it deals {formula}.",
+      "derivedDamage": "Pit damage",
+      "bandInForce": "In force",
+      "ref": {
+        "trap": "RR ch. 6, Traps and Trapbreaking",
+        "spikes": "JJ ch. 8"
+      },
+      "pit": {
+        "spikes": "Spike dice: ({count})d{faces}"
+      },
+      "band": {
+        "imported": "Read from the import ({page})",
+        "own": "Set on this trap ({page})",
+        "ownOver": "Set on this trap, over the imported {band} ({page})"
+      },
+      "strip": {
+        "label": "Trap levels",
+        "summary": "Level {level} of {max} on screen; {filled} of {max} levels filled.",
+        "summaryTip": "Counted from this trap's rows: a level is filled when its text, damage, attack throw or pit depth is set.",
+        "filled": "Level {level}: filled",
+        "blank": "Level {level}: blank",
+        "currentFilled": "Level {level}: on screen, filled",
+        "currentBlank": "Level {level}: on screen, blank"
+      },
       "resolution": {
         "save": "A saving throw",
         "attack": "An attack throw",
