@@ -400,6 +400,32 @@ show through Dice So Nice to the Judges.
 - **Nothing advances.** An audit roll spends no round and no turn and sets no
   once-per-turn mark; it is the Judge looking, not the party acting.
 
+## The audit window
+
+`SkillAuditApp` is one window per party, on the Judge's seat.
+
+- **Id.** `auditWindowId(formationId)`: core keeps one element per window id, so each
+  party's audit stands beside another's, and `tools/live/formation-audit.mjs` finds the
+  window by it. A second press for the same party brings the open window forward
+  (`formation-actions.mjs` `openSkillAudit`) instead of building another.
+- **Redraw.** The window watches the formations setting and draws again when the
+  party's ordered roster changes, not for any other write to the record (the clock, a
+  light), and on a create, update or delete of an ability item held by one of its
+  members' world actors (a summon member is its base actor). Other actors' items and
+  other item types draw nothing.
+- **Scroll.** The body part's root is the one scroller (`scrollable: [""]`), so core
+  restores its position across every render; `.window-content` holds it without
+  scrolling. A table sits in an `.audit-scroll` box that scrolls sideways when the
+  check columns are wider than the window. Control heights and column minimums are
+  `em`, off the ramp's type; the opening size is the canvas figure at the seat's type
+  size (`atTypeScale`).
+- **Focus.** `PressFocus` returns focus to a pressed `[data-action]` control after the
+  render, wired by hand as `lib/frame.mjs` wires it. A Used-for select is no action
+  control, so the window remembers the item and field a change was made in and
+  focuses that select after the render, until focus is held again.
+- **Corner.** The drag corner is the lib's `window-resize.mjs`, granted by the
+  window's `acks-extras` class; the window declares none.
+
 ## The turn plan
 
 What each member spends a stationary dungeon turn on (JJ ch. 2, Sequence of

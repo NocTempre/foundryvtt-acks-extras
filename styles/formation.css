@@ -21,27 +21,60 @@
    leading pins a control row at one height while its label rides the ramp, so
    a raised fontScale clips the row. */
 
-/* The skill audit's one scroller: the window content. The window root is
+/* The skill audit's one scroller: its body part's root, so core keeps the scroll
+   position across the re-render every ruling causes. The window root is
    hard-capped to the viewport so the frame can never grow past the screen; the
-   content then overflows and scrolls. The party sheet scrolls at its tab parts
-   instead — "The frame", below. */
+   content box takes the frame's remaining height without scrolling itself, and
+   hands it to the body. The party sheet scrolls at its tab parts too — "The
+   frame", below. */
 .acks-extras.skill-audit.application {
   max-height: 92vh;
 }
 
 .acks-extras.skill-audit .window-content {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: hidden;
   padding: 6px;
+  /* Re-take the type from core, which pins a size on the content box. */
+  font-size: var(--acks-fs-body);
 }
 
 .acks-extras.skill-audit .acks-formation-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
   gap: 8px;
   padding: 4px;
+}
+
+/* A table wider than the window scrolls sideways inside its own box, so the
+   right-hand check columns are reached instead of clipped by the body's
+   horizontal hide. */
+.acks-extras.skill-audit .audit-scroll {
+  overflow-x: auto;
+}
+
+/* The audit's controls and cells follow the type size: the shared table rules
+   below pin a px height and a nowrap member cell. */
+.acks-extras.skill-audit.application .audit-table :is(select, input) {
+  height: auto;
+  min-height: 1.75em;
+  min-width: 6em;
+}
+
+.acks-extras.skill-audit.application .audit-table .member-cell {
+  white-space: normal;
+  min-width: 8em;
+}
+
+.acks-extras.skill-audit.application .audit-resolution :is(th, td) {
+  min-width: 6em;
 }
 
 .acks-extras:is(.party-sheet, .skill-audit) section {
@@ -2204,13 +2237,13 @@
 .acks-formation-flags select,
 .acks-formation-flags input {
   width: auto;
-  min-width: 80px;
-  height: 22px;
+  min-width: 6em;
+  min-height: 1.75em;
 }
 
 .acks-formation-flags input[type="number"] {
-  min-width: 55px;
-  max-width: 60px;
+  min-width: 4em;
+  max-width: 5em;
 }
 
 /* The row's TYPE SIZE needs a heavier selector than its geometry does, and the

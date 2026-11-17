@@ -1,5 +1,6 @@
 /* global game, foundry, fromUuidSync, Hooks, document */
-import { elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
+import { atTypeScale, elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
+import { PRESS_FOCUS_TTL_MS, PressFocus } from "../lib/press-focus.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
@@ -11,12 +12,35 @@ import {
   resetOverrides,
   setOverride,
 } from "./ability-bridge.mjs";
-import { getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
+import { SETTING_FORMATIONS, getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, boundChecks, partText, resolveCheck, skillGateAllows } from "./party-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/** The window id every Skill audit takes before its party's id is added. */
+const AUDIT_ID_ROOT = "acks-formation-skill-audit";
+
+/**
+ * The window id of one party's Skill audit. Core keeps one element per id, so a
+ * shared id would let a second audit replace the first's element and leave the
+ * first instance's actions dead; an id of the party's own lets each party's
+ * audit stand beside the others.
+ *
+ * @param {string} [formationId] The party's formation id.
+ * @returns {string}
+ */
+export function auditWindowId(formationId) {
+  return formationId ? `${AUDIT_ID_ROOT}-${formationId}` : AUDIT_ID_ROOT;
+}
+
+/** The world actors behind a party's real members, in marching order. */
+function memberActorIds(formation) {
+  return realMembers(formation)
+    .map((member) => getMemberActor(member)?.id)
+    .filter(Boolean);
+}
 
 /**
  * Skill Audit (GM): full transparency into how every party roll resolves for
@@ -28,15 +52,36 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 export default class SkillAuditApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #formationId;
 
+  /** The press whose render is pending: where keyboard focus returns once the body's HTML is replaced. */
+  #press = new PressFocus();
+
+  /** The Used-for select a change just re-rendered under, `{uuid, field, at}`, until focus is held again. */
+  #fieldFocus = null;
+
+  /** Hook ids for the watch on the party's roster and its members' abilities. */
+  #watch = [];
+
+  /** The debounced re-render the watch calls, made at first render. */
+  #renderSoon = null;
+
+  /** The roster the last render read, as one string: a record write that leaves it alone is no reason to draw again. */
+  #roster = "";
+
   constructor(options = {}) {
-    super(options);
+    super({ ...options, id: options.id ?? auditWindowId(options.formationId) });
     this.#formationId = options.formationId;
   }
 
   static DEFAULT_OPTIONS = {
-    id: "acks-formation-skill-audit",
-    classes: ["acks-ui", "acks-extras", "acks-extras-scroll", "skill-audit"],
-    window: { resizable: true, title: "ACKS-FORMATION.audit.title" },
+    // no-scroll: this window scrolls at its body PART root, not at
+    // `.window-content`. The shared contract would move the scroller onto
+    // `.window-content`, which is not a part — and ApplicationV2 restores
+    // scroll per part, so the body's `scrollable: [""]` below would stop
+    // working on a window that re-renders on every ruling. The scroller
+    // lives in styles/formation.css, at the top.
+    classes: ["acks-ui", "acks-extras", "skill-audit"],
+    window: { title: "ACKS-FORMATION.audit.title" },
+    // The canvas figures; `_initializeApplicationOptions` scales them to the seat's type size.
     position: { width: 640, height: 640 },
     actions: {
       /** Flip one ability's ruling: automatic → off → on → automatic. */
@@ -80,6 +125,107 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
 
   get formation() {
     return getFormation(this.#formationId);
+  }
+
+  /**
+   * Open at the canvas size for the seat's type size. `DEFAULT_OPTIONS` is
+   * evaluated before settings exist, so the scale is applied here at
+   * construction instead; core clamps the result to the viewport.
+   */
+  _initializeApplicationOptions(options) {
+    const opts = super._initializeApplicationOptions(options);
+    if (opts.position?.width) opts.position.width = atTypeScale(opts.position.width);
+    if (opts.position?.height) opts.position.height = atTypeScale(opts.position.height);
+    return opts;
+  }
+
+  /**
+   * Watch what the window draws: the party's roster, which the formations
+   * record carries, and the ability items of its members. A write to the record
+   * that leaves the roster as it was (the clock, a light) draws nothing.
+   *
+   * @override
+   */
+  async _onFirstRender(context, options) {
+    await super._onFirstRender(context, options);
+    this.#renderSoon ??= foundry.utils.debounce(() => {
+      if (this.rendered) this.render();
+    }, 60);
+    this.#roster = memberActorIds(this.formation).join();
+    const onSetting = (setting) => {
+      if (setting?.key !== `${MODULE_ID}.${SETTING_FORMATIONS}`) return;
+      const roster = memberActorIds(this.formation).join();
+      if (roster === this.#roster) return;
+      this.#roster = roster;
+      this.#renderSoon();
+    };
+    const onItem = (item) => {
+      if (item?.type !== ITEM_TYPE.ability || !item.parent?.id) return;
+      if (memberActorIds(this.formation).includes(item.parent.id)) this.#renderSoon();
+    };
+    this.#watch = [
+      ["createSetting", Hooks.on("createSetting", onSetting)],
+      ["updateSetting", Hooks.on("updateSetting", onSetting)],
+      ["createItem", Hooks.on("createItem", onItem)],
+      ["updateItem", Hooks.on("updateItem", onItem)],
+      ["deleteItem", Hooks.on("deleteItem", onItem)],
+    ];
+  }
+
+  /** @override */
+  async _onClose(options) {
+    for (const [hook, id] of this.#watch) Hooks.off(hook, id);
+    this.#watch = [];
+    await super._onClose(options);
+  }
+
+  /**
+   * Note every `[data-action]` press as it lands, in the capture phase so it
+   * runs ahead of the action's own handler. The root persists across renders;
+   * only the body's HTML is replaced.
+   *
+   * @override
+   */
+  _attachFrameListeners() {
+    super._attachFrameListeners();
+    const root = this.element;
+    root.addEventListener("click", (event) => this.#press.note(event.target, root), { capture: true });
+  }
+
+  /**
+   * After every hook has run: focus back on the control a press re-rendered
+   * (`press-focus.mjs`), or on the Used-for select a change re-rendered under.
+   *
+   * @override
+   */
+  async _postRender(context, options) {
+    await super._postRender(context, options);
+    try {
+      if (!this.#press.restore(this.element)) this.#restoreField(this.element);
+    } catch (err) {
+      console.error(`${MODULE_ID} | ${this.constructor.name}: restoring focus failed`, err);
+    }
+  }
+
+  /**
+   * Put focus back on the select a change was made in. A select is no
+   * `[data-action]` control, so `PressFocus` does not know it; it is named by
+   * its item and field. The change stays remembered across the renders one
+   * write causes, until focus is held again or the window after it lapses.
+   */
+  #restoreField(root) {
+    const pending = this.#fieldFocus;
+    if (!pending) return;
+    const doc = root.ownerDocument;
+    const held = doc.activeElement && doc.activeElement !== doc.body && doc.activeElement !== doc.documentElement;
+    if (held || Date.now() - pending.at > PRESS_FOCUS_TTL_MS) {
+      this.#fieldFocus = null;
+      return;
+    }
+    const field = [...root.querySelectorAll("[data-item-uuid][data-field]")].find(
+      (el) => el.dataset.itemUuid === pending.uuid && el.dataset.field === pending.field,
+    );
+    field?.focus({ preventScroll: true });
   }
 
   /** @override */
@@ -153,6 +299,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         const { itemUuid, field } = event.currentTarget.dataset;
         const item = fromUuidSync(itemUuid);
         if (!item) return;
+        this.#fieldFocus = { uuid: itemUuid, field, at: Date.now() };
         const value = event.currentTarget.value;
         if (value === "" || value === null) await item.unsetFlag(MODULE_ID, field);
         else await item.setFlag(MODULE_ID, field, value);

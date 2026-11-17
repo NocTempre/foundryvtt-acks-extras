@@ -4,7 +4,8 @@
  * token HUD; the Player seat proves the audit card is whispered past it.
  *
  * Covers:
- *   "The audit roll" 1, 2, 4, 5, 6. Not walked: 3 (a stored proficiency-throw
+ *   "The audit roll" 1, 2, 4, 5, 6, 7 (the window: ids, redraw, scroll and
+ *       focus, columns, type size). Not walked: 3 (a stored proficiency-throw
  *       bonus) and 3a (a row bound to a party check), whose stored shapes this
  *       walk does not build.
  *   "A party in a combat" 1-7. Step 6 creates the second token through the
@@ -70,6 +71,7 @@ const P = {
       return null;
     };
     H.model = await import(`${base}formation/formation-model.mjs`);
+    H.audit = await import(`${base}formation/skill-audit.mjs`);
     H.F = acksExtras.formation;
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0]) ?? null;
     if (!H.notes) {
@@ -175,12 +177,15 @@ const P = {
     await H.sleep(300);
     const opener = H.root(sheet)?.querySelector('[data-action="openSkillAudit"]');
     opener?.click();
-    const app = await H.poll(() => [...foundry.applications.instances.values()].find((a) => (a.constructor.name === "SkillAuditApp" || a.id === "acks-formation-skill-audit") && a.rendered), { tries: 80, every: 200 });
+    // The window is found by the id its party gives it.
+    const fid = Object.values(H.model.getFormations()).find((f) => f.actorId === partyId)?.id;
+    const wantId = H.audit.auditWindowId(fid);
+    const app = await H.poll(() => foundry.applications.instances.get(wantId)?.rendered ? foundry.applications.instances.get(wantId) : null, { tries: 80, every: 200 });
     await H.sleep(500);
-    if (!app) return { opener: !!opener, app: false, appId: null, row: false, button: null, open: [...foundry.applications.instances.values()].map((a) => `${a.constructor.name}#${a.id}:${a.rendered}`).slice(0, 12) };
+    if (!app) return { opener: !!opener, app: false, appId: null, wantId, row: false, button: null, open: [...foundry.applications.instances.values()].map((a) => `${a.constructor.name}#${a.id}:${a.rendered}`).slice(0, 12) };
     const row = H.root(app)?.querySelector(`[data-ability-name="${name}"]`);
     const button = row?.querySelector('[data-action="rollAbilityForParty"]');
-    return { opener: !!opener, app: !!app, appId: app?.id ?? null, row: !!row, button: button ? { tag: button.tagName, aria: button.getAttribute("aria-label") ?? "", tip: button.dataset.tooltip ?? "", tabbable: button.tabIndex >= 0 && !button.disabled } : null };
+    return { opener: !!opener, app: !!app, appId: app?.id ?? null, wantId, row: !!row, button: button ? { tag: button.tagName, aria: button.getAttribute("aria-label") ?? "", tip: button.dataset.tooltip ?? "", tabbable: button.tabIndex >= 0 && !button.disabled } : null };
   },
   pressRoll: async ({ name }) => {
     const H = globalThis.__aud;
@@ -368,6 +373,143 @@ const P = {
   },
   takeNotes: async () => globalThis.__aud.notes.splice(0),
 
+  /* ---- "The audit roll" step 7: the window ---- */
+
+  /** Press the Order tab's Skill audit on a party's sheet, leaving any audit already open. */
+  pressAudit: async ({ partyId, fid }) => {
+    const H = globalThis.__aud;
+    const sheet = game.actors.get(partyId).sheet;
+    await sheet.render(true);
+    await H.sleep(900);
+    H.root(sheet)?.querySelector('[data-action="tab"][data-tab="order"]')?.click();
+    await H.sleep(300);
+    const before = foundry.applications.instances.get(H.audit.auditWindowId(fid)) ?? null;
+    H.root(sheet)?.querySelector('[data-action="openSkillAudit"]')?.click();
+    const app = await H.poll(() => { const a = foundry.applications.instances.get(H.audit.auditWindowId(fid)); return a?.rendered ? a : null; }, { tries: 60, every: 150 });
+    await H.sleep(400);
+    await sheet.close({ animate: false });
+    return { id: app?.id ?? null, same: !!before && before === app, audits: [...foundry.applications.instances.values()].filter((a) => a.constructor.name === "SkillAuditApp").map((a) => a.id) };
+  },
+  /** One open audit's rows, read off its DOM. */
+  auditRows: async ({ fid }) => {
+    const H = globalThis.__aud;
+    const app = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    const root = H.root(app);
+    if (!root) return null;
+    return {
+      abilities: [...root.querySelectorAll("[data-ability-name]")].map((r) => r.dataset.abilityName),
+      members: [...root.querySelectorAll(".audit-resolution tbody tr")].map((r) => r.querySelector("td")?.textContent.replace(/\s+/g, " ").trim()),
+    };
+  },
+  /** Press a row's roll button in a given party's audit. */
+  pressRollIn: async ({ fid, name }) => {
+    const H = globalThis.__aud;
+    const root = H.root(foundry.applications.instances.get(H.audit.auditWindowId(fid)));
+    const button = root?.querySelector(`[data-ability-name="${name}"] [data-action="rollAbilityForParty"]`);
+    if (!button) return { pressed: false };
+    const since = Date.now();
+    button.click();
+    await H.poll(() => H.cards.some((c) => c.at >= since), { tries: 40, every: 200 });
+    await H.sleep(800);
+    return { pressed: true, since };
+  },
+  itemCreate: async ({ actorId, data }) => {
+    const [item] = await game.actors.get(actorId).createEmbeddedDocuments("Item", [data]);
+    return { id: item.id, uuid: item.uuid };
+  },
+  itemRename: async ({ uuid, name }) => { await fromUuidSync(uuid).update({ name }); return true; },
+  itemDelete: async ({ uuid }) => { await fromUuidSync(uuid)?.delete(); return true; },
+  dropMember: async ({ fid, actorId }) => {
+    const H = globalThis.__aud;
+    await H.model.removeMember(H.model.getFormation(fid), actorId);
+    return H.model.getFormation(fid).members.filter((m) => m?.actorId).map((m) => m.actorId);
+  },
+  /** Scroll the body down, press a ruling with a real click on a focused button, and read scroll and focus back. */
+  scrollFocus: async ({ fid, name }) => {
+    const H = globalThis.__aud;
+    const app = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    app.setPosition({ height: 320 });
+    await H.sleep(400);
+    const root = H.root(app);
+    const body = root.querySelector(".acks-formation-body");
+    const scrolls = body.scrollHeight > body.clientHeight;
+    body.scrollTop = Math.min(80, body.scrollHeight - body.clientHeight);
+    const top0 = body.scrollTop;
+    const press = async () => {
+      const button = H.root(app).querySelector(`[data-ability-name="${name}"] [data-action="toggleAbility"]`);
+      button.focus();
+      button.click();
+      await H.sleep(900);
+    };
+    await press();
+    const body1 = H.root(app).querySelector(".acks-formation-body");
+    const active = document.activeElement;
+    const out = {
+      scrolls, top0, top1: body1.scrollTop, sameBody: body1 === body,
+      focus: { action: active?.dataset?.action ?? null, row: active?.closest?.("[data-ability-name]")?.dataset.abilityName ?? null, inWindow: root.contains(active) },
+    };
+    // Two more presses bring the ruling round to automatic.
+    await press();
+    await press();
+    return out;
+  },
+  /** Change one Used-for select and read focus back; then put the value back. */
+  selectFocus: async ({ fid, itemUuid }) => {
+    const H = globalThis.__aud;
+    const app = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    const pick = () => [...H.root(app).querySelectorAll('select[data-field="checkKey"]')].find((s) => s.dataset.itemUuid === itemUuid);
+    itemUuid ??= H.root(app).querySelector('select[data-field="checkKey"]')?.dataset.itemUuid ?? null;
+    const select = pick();
+    if (!select) return { found: false };
+    const was = select.value;
+    const other = [...select.options].map((o) => o.value).find((v) => v && v !== was);
+    select.focus();
+    select.value = other;
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(1200);
+    const focused = document.activeElement === pick();
+    const back = pick();
+    back.focus();
+    back.value = was;
+    back.dispatchEvent(new Event("change", { bubbles: true }));
+    await H.sleep(1200);
+    return { found: true, focused, restored: pick()?.value === was, changedTo: !!other };
+  },
+  /** Narrow the window and read the resolution table's sideways scroll. */
+  columns: async ({ fid }) => {
+    const H = globalThis.__aud;
+    const app = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    app.setPosition({ width: 340, height: 520 });
+    await H.sleep(500);
+    const box = H.root(app).querySelector(".audit-resolution")?.closest(".audit-scroll");
+    if (!box) return { box: false };
+    const wide = box.scrollWidth > box.clientWidth;
+    box.scrollLeft = box.scrollWidth;
+    await H.sleep(200);
+    const last = [...box.querySelectorAll("thead th")].at(-1).getBoundingClientRect();
+    const rect = box.getBoundingClientRect();
+    return { box: true, wide, scrolled: box.scrollLeft > 0, lastInside: last.right <= rect.right + 1 && last.left >= rect.left - 1, overflowX: getComputedStyle(box).overflowX };
+  },
+  /** The type knob, read on a window opened fresh at each size. */
+  knob: async ({ partyId, fid, px }) => {
+    const H = globalThis.__aud;
+    await game.settings.set("acks-extras", "fontScale", px);
+    await H.sleep(400);
+    const old = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    if (old) await old.close({ animate: false });
+    const app = new H.audit.default({ formationId: fid });
+    await app.render(true);
+    await H.poll(() => app.rendered, { tries: 40, every: 150 });
+    await H.sleep(500);
+    const select = H.root(app).querySelector(".audit-table select");
+    const cs = select ? getComputedStyle(select) : null;
+    const out = { width: app.position.width, font: cs ? parseFloat(cs.fontSize) : null, height: select ? select.getBoundingClientRect().height : null };
+    await app.close({ animate: false });
+    void partyId;
+    return out;
+  },
+  getKnob: async () => game.settings.get("acks-extras", "fontScale"),
+
   boot: async () => globalThis.__audBoot ?? null,
 };
 
@@ -455,6 +597,7 @@ try {
     const opened = await run(gm, P.openAudit, { partyId: party.id, name: ABILITY });
     note("audit", opened);
     check("1: the Order tab opens the Skill audit, and the ability's row has a roll button", opened.opener && opened.app && opened.row && opened.button?.tag === "BUTTON", opened);
+    check("1: the audit's window id is its party's", !!opened.appId && opened.appId === opened.wantId && !opened.appId.endsWith("undefined"), { appId: opened.appId, wantId: opened.wantId });
     check("1: the button is named for the ability, carries a tooltip, and Tab reaches it", !!opened.button && opened.button.aria.includes(ABILITY) && !!opened.button.tip && opened.button.tabbable, opened.button);
 
     // 2 and 6.
@@ -616,6 +759,84 @@ try {
     check("teardown: the party is gathered", !r.active && r.partyVisible && r.deployed.every((d) => !d), { active: r.active, visible: r.partyVisible });
     const tail = await run(gm, P.cardsSince, { since: 0, names });
     for (const c of tail) tracked.push(gm.track(c.uuid, "ChatMessage"));
+  });
+
+  /* ---------------- the audit window ("The audit roll" step 7) ---------------- */
+  await guarded("the audit window", async () => {
+    const { gm } = open;
+    const party = await gm.fixture("formation/audit-party", "Actor", { name: "QA Audit Party", type: `${SCOPE}.party` });
+    const members = [];
+    for (const n of [1, 2, 3]) members.push(await gm.fixture(`formation/audit-member-${n}`, "Actor", character(`QA Auditor ${n}`, n < 3 ? { items: [abilityData] } : {})));
+    const other = await gm.fixture("formation/combat-party", "Actor", { name: "QA Combat Party", type: `${SCOPE}.party` });
+    const outsider = await gm.fixture("formation/combat-member-1", "Actor", character("QA Fighter 1"));
+    const { fid } = await run(gm, P.formationOf, { partyId: party.id });
+    const { fid: otherFid } = await run(gm, P.formationOf, { partyId: other.id });
+    await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
+    for (const m of members.slice(0, 2)) await run(gm, P.ensureItem, { actorId: m.id, name: ABILITY, data: abilityData });
+    for (const m of members) await run(gm, P.setHp, { actorId: m.id, value: 8 });
+    await run(gm, P.closeAudit);
+    const knob0 = await run(gm, P.getKnob);
+
+    // Id: two parties' audits side by side, the first still live; a second press brings the open one forward.
+    const a = await run(gm, P.pressAudit, { partyId: party.id, fid });
+    const b = await run(gm, P.pressAudit, { partyId: other.id, fid: otherFid });
+    check("7 id: two parties' audits stand open together, each under its party's id", !!a.id && !!b.id && a.id !== b.id && b.audits.includes(a.id) && b.audits.includes(b.id), { a: a.id, b: b.id, open: b.audits.length });
+    const pr = await run(gm, P.pressRollIn, { fid, name: ABILITY });
+    const posted = await run(gm, P.cardsSince, { since: pr.since, names: ["QA Audit Party", ABILITY] });
+    for (const c of posted) tracked.push(gm.track(c.uuid, "ChatMessage"));
+    check("7 id: the first audit's roll still posts its card once the second is open", pr.pressed && posted.length === 1, posted.length);
+    const again = await run(gm, P.pressAudit, { partyId: party.id, fid });
+    check("7 id: a second press for the same party brings the open window forward, no second one", again.same && again.audits.filter((id) => id === a.id).length === 1 && again.audits.length === b.audits.length, again);
+
+    // Redraw: an ability item created, renamed and deleted on a member; one on an outsider; a member leaving and rejoining.
+    const probe = { name: "QA Audit Probe", type: "ability", system: { roll: "1d20", rollType: "above", rollTarget: 11 } };
+    const made = await run(gm, P.itemCreate, { actorId: members[0].id, data: probe });
+    tracked.push(gm.track(made.uuid, "Item"));
+    await sleep(700);
+    let rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: an ability created on a member shows with no reopen", rows?.abilities.includes("QA Audit Probe"), rows?.abilities);
+    await run(gm, P.itemRename, { uuid: made.uuid, name: "QA Audit Probe Renamed" });
+    await sleep(700);
+    rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: renaming it redraws the row", rows?.abilities.includes("QA Audit Probe Renamed") && !rows.abilities.includes("QA Audit Probe"), rows?.abilities);
+    await run(gm, P.itemDelete, { uuid: made.uuid });
+    await sleep(700);
+    rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: deleting it takes the row away", !!rows && !rows.abilities.some((n) => n.startsWith("QA Audit Probe")), rows?.abilities);
+    const foreign = await run(gm, P.itemCreate, { actorId: outsider.id, data: { ...probe, name: "QA Outsider Probe" } });
+    tracked.push(gm.track(foreign.uuid, "Item"));
+    await sleep(700);
+    rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: an ability on an actor outside the party adds no row", !!rows && !rows.abilities.includes("QA Outsider Probe"), rows?.abilities);
+    note("outsider probe swept", await sweepNow(gm, [foreign.uuid]));
+    await run(gm, P.dropMember, { fid, actorId: members[2].id });
+    await sleep(800);
+    rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: a member leaving is gone from the open window", !!rows && !rows.members.some((t) => t?.includes("QA Auditor 3")) && rows.members.some((t) => t?.includes("QA Auditor 1")), rows?.members);
+    await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
+    await sleep(800);
+    rows = await run(gm, P.auditRows, { fid });
+    check("7 redraw: the member rejoining shows again", !!rows && rows.members.some((t) => t?.includes("QA Auditor 3")), rows?.members);
+
+    // Scroll and focus.
+    const sf = await run(gm, P.scrollFocus, { fid, name: ABILITY });
+    check("7 scroll: the body part is the scroller and keeps its position across a ruling's render", sf.scrolls && sf.top0 > 0 && Math.abs(sf.top1 - sf.top0) <= 2, sf);
+    check("7 focus: after the ruling, focus is on that row's ruling button", sf.focus.action === "toggleAbility" && sf.focus.row === ABILITY && sf.focus.inWindow, sf.focus);
+    const sel = await run(gm, P.selectFocus, { fid, itemUuid: null });
+    check("7 focus: after a Used-for change, focus is on that select, and the value went back", sel.found && sel.changedTo && sel.focused && sel.restored, sel);
+
+    // Columns and type.
+    const col = await run(gm, P.columns, { fid });
+    check("7 columns: narrowed, the Resolution table scrolls sideways to its last column", col.box && col.wide && col.scrolled && col.lastInside && col.overflowX === "auto", col);
+    try {
+      const small = await run(gm, P.knob, { partyId: party.id, fid, px: 14 });
+      const large = await run(gm, P.knob, { partyId: party.id, fid, px: 18 });
+      note("type knob", { small, large });
+      check("7 type: at the largest type size the window opens wider and its select grows with the type", large.width > small.width && large.font > small.font && large.height > small.height && large.height >= large.font * 1.6, { small, large });
+    } finally {
+      await run(gm, P.knob, { partyId: party.id, fid, px: knob0 });
+    }
+    await run(gm, P.closeAudit);
   });
 
   if (SHOTS && plateCard) {

@@ -66,7 +66,7 @@ import { openCountryBrush, PAINT_LAYERS } from "../battlemap/terrain-paint.mjs";
 import { COUNTRY_KEYS } from "../battlemap/country.mjs";
 import { forcedMarchBar, confirmBarOverride } from "./march-bar.mjs";
 import { escape as esc, makeLoc } from "../lib/util.mjs";
-import SkillAuditApp from "./skill-audit.mjs";
+import SkillAuditApp, { auditWindowId } from "./skill-audit.mjs";
 import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import {
   addLight,
@@ -608,7 +608,9 @@ export const SHARED_ACTIONS = {
   async openSkillAudit() {
     const formation = gmFormation(this);
     if (!formation) return;
-    new SkillAuditApp({ formationId: formation.id }).render(true);
+    const open = foundry.applications.instances.get(auditWindowId(formation.id));
+    if (open) open.render({ force: true }).then(() => open.bringToFront());
+    else new SkillAuditApp({ formationId: formation.id }).render(true);
   },
 
   /** Change the party's image like any other actor: actor, prototype, and

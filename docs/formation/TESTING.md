@@ -3779,6 +3779,29 @@ card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
    the footnote, and no dice shown. Rebuild the items.
 6. **Nothing advanced.** Read the party's clock before and after step 2.
    *Observable:* identical.
+7. **The window.** `tools/live/formation-audit.mjs` walks every part of this step
+   in its section "the audit window"; the focus press is a `focus()` then a
+   `click()` on the ruling button, which is what a keyboard Enter dispatches.
+   - *Id.* Open the audit for `formation/audit-party`, then for the kept combat
+     party's formation (`formation/combat-party`). *Observable:* two windows, ids
+     `auditWindowId(<formation id>)` each, and the first one's roll button still
+     posts a card (track it). Press the first party's Skill audit again: the same
+     window comes forward and no second one opens.
+   - *Redraw.* With a window open, create an ability item on a member through the
+     API, edit its name, then delete it; seat a member through the party sheet's
+     drop. *Observable:* each write shows in the open window with no reopen; an item
+     created on an actor outside the party adds no row.
+   - *Scroll and focus.* Narrow the window until the body scrolls, scroll it down,
+     then press a row's ruling button with the keyboard (Tab, Enter). *Observable:*
+     the body part's `scrollTop` is unchanged after the render and
+     `document.activeElement` is that row's ruling button again. Change a Used-for
+     select in the items table: focus is on that select afterwards. Set a ruling
+     back to automatic before leaving.
+   - *Columns and type.* Narrow the window below the Resolution table's width, and
+     raise the Type size setting to its largest. *Observable:* the table's
+     `.audit-scroll` box scrolls sideways to the last check column, no column is
+     clipped, and the selects and inputs grow with the type; the Skill tab on an
+     ability sheet shows its select and number input at the same type size.
 
 Teardown: the cards the run posted are the module's; read each id back right after
 the press and `api.track(id, "ChatMessage")` it, then `api.sweepTracked()`. The kept
