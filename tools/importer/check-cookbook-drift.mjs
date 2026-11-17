@@ -19,14 +19,25 @@
  * not a CI gate; tools/lint-register.mjs remains the PDF-free check that runs
  * everywhere.
  *
- * Usage: node tools/check-cookbook-drift.mjs   (also runs via `npm run validate`)
+ * The recompile is the cost (minutes), so it runs only when its inputs moved.
+ * `cookbook-stamp.json`, committed beside this file, holds the digest of every
+ * input the compile reads and of every `cookbook/*.json` as of the last match
+ * (cookbook-stamp.mjs says what is hashed). With both digests equal to the
+ * stamp the check prints one line and exits 0 without compiling. Otherwise the
+ * full check below runs, and a pass that leaves the stamp different rewrites it
+ * for the session that commits the change to commit too. `npm run compile` of
+ * every book rewrites it as well. `ACKS_COOKBOOK_DRIFT_FULL=1` ignores the
+ * stamp and always runs the full check.
+ *
+ * Usage: node tools/importer/check-cookbook-drift.mjs   (also runs via `npm run validate`)
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { referenceComplete } from "./reference-lib.mjs";
+import { FILES, COMMUNITY_FILES, referenceComplete } from "./reference-lib.mjs";
+import { STAMP_PATH, currentDigests, decide, readStamp, writeStamp } from "./cookbook-stamp.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(HERE, "..", "..");
@@ -42,6 +53,18 @@ if (!fs.existsSync(COOKBOOK)) {
 }
 
 const jsonFiles = (dir) => fs.readdirSync(dir).filter((f) => f.endsWith(".json")).sort();
+
+// The recompile runs only when something it depends on moved: see the header.
+const STAMP_FILE = path.join(ROOT, STAMP_PATH);
+const stamp = readStamp(STAMP_FILE);
+const digests = currentDigests({ ...FILES, ...COMMUNITY_FILES }, ROOT);
+const now = { inputs: digests.inputs.hash, outputs: digests.outputs };
+const decision = decide({ now, stamp });
+if (decision.skip) {
+  console.log(`cookbook drift: inputs unchanged since the last match (stamp ${now.inputs.slice(0, 8)}) — recompile skipped`);
+  process.exit(0);
+}
+console.log(`cookbook drift: full recompile (${decision.why}).`);
 
 /** First line that differs. The fallback locator, for files that are not a
  *  map of entries (index.json, registers.json). */
@@ -144,3 +167,7 @@ if (drift.length) {
   process.exit(1);
 }
 console.log(`cookbook drift: none (${jsonFiles(COOKBOOK).length} file(s) match a fresh compile).`);
+if (stamp?.inputs !== now.inputs || stamp?.outputs !== now.outputs) {
+  writeStamp(STAMP_FILE, now);
+  console.log(`cookbook drift: stamp updated (${STAMP_PATH}, ${now.inputs.slice(0, 8)}) — commit it with the change.`);
+}

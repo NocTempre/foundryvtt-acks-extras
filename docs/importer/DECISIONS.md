@@ -2174,3 +2174,52 @@ a drop; it stays on the range that stood, so an edit that renames a row leaves
 its hop pointing at the old list. The Clue Concealment and Clue Code lists
 carry sentences of the book in their cells, imported at the Judge's own copy
 like any other cell.
+
+## 2026-11-17 — The cookbook drift check recompiles only when its inputs moved
+
+The owner, answering a proposal to run the drift check's full recompile only when
+its inputs changed and otherwise report them unchanged and pass: "Yes, build the
+skip."
+
+`check-cookbook-drift.mjs` recompiled every book from the local PDFs on every
+`npm run validate`: 538 s of validate's 586 s, measured the same day. Every
+commit to `main` holds the single landing lease for the length of the gate, a
+docs-only commit included.
+
+- **A committed stamp.** `tools/importer/cookbook-stamp.json` holds two digests
+  from the last match of committed and compiled: the inputs and the committed
+  `cookbook/*.json`. Both equal the stamp's, and the check prints one line and
+  passes; either differs, and the full check runs as before. A full pass that
+  leaves the stamp different rewrites it, and so does an `npm run compile` of
+  every book; the session committing the change commits the stamp. What the
+  inputs digest covers, and its mechanics, are the headers of
+  `tools/importer/cookbook-stamp.mjs` and of the check.
+- **The input set is derived, not listed.** It is the register files the
+  compiler's `loadRegister` reads (the book directories, `_kinds/`, `_refs/`; the
+  gitignored pipeline state beside them is left out, since a scratch clone does not
+  have it), `vendor/pdfjs/`, the compiler and every repo module reachable from it
+  by static import, plus the name and size of each reference PDF (never its
+  content: they run to 100 MB).
+- **`ACKS_COOKBOOK_DRIFT_FULL=1` forces the full run.**
+- Rejected: **a local cache** (a gate runs in a fresh scratch clone, so it never
+  hits); **a hand-written input list** (a module added to the compiler's imports
+  would be missed with nothing to say so).
+
+*Cost:* an input the walk cannot see goes stale silently. It reads static
+specifiers and literal `import()`; a dynamic `import()` with a computed specifier
+and a data file read by a path built at run time are not followed.
+`node tools/importer/cookbook-stamp.mjs` lists the files holding a non-literal
+`import()`: today only the vendored pdf.js, which is hashed whole. The compile
+reads the author's OCR reads (`acks-rules/importer/ocr-reads`) through
+`compile-picture.mjs`, but only to warn: they reach no cookbook byte, so they are
+not an input. The importer's OCR modules read `vendor/tesseract/` by path only
+through the `ocr` op at import time, which a compile never runs. The register
+selection restates `loadRegister`'s own reads, so a change to which directories
+it reads has to change `registerFiles` too. A partial library or a single-book
+compile never writes the stamp, and a compile into `cookbook/` folds in files an
+earlier run left there, so a leftover file could be stamped; the forced run
+catches it. The inputs digest changes with every edit to `compile-cookbook.mjs`
+and `cookbook-stamp.mjs`, so the first commit after a compiler edit pays the full
+run, and the session that changed an input runs the check (or `npm run compile`)
+in the working tree to rewrite the stamp: a full run inside a gate's clone
+rewrites it there, where it is discarded.

@@ -1,0 +1,1 @@
+- **The importer drift check** (`npm run validate`; `npm run check:drift`) recompiles the cookbook only when its inputs changed since the committed stamp `tools/importer/cookbook-stamp.json`, so a docs-only commit no longer pays for the recompile. `ACKS_COOKBOOK_DRIFT_FULL=1` forces the full run.

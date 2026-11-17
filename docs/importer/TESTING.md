@@ -1890,7 +1890,8 @@ to look old.
 1. Offline first, in the repo: `npm run icons` must report every kind fully
    placed, and `node tools/importer/check-cookbook-drift.mjs` must report none — drift
    means the register was edited without recompiling, and the seat cannot see a
-   register edit at all.
+   register edit at all. (The check skips its recompile while nothing it
+   reads has moved: importer DECISIONS 2026-11-17.)
 2. In the world, import three families whose registers differ most. There is no
    by-shelf import for proficiencies on the public API (`cookbookImportAbilities`
    opens a dialog and blocks a scripted run), so take one ability by id:
