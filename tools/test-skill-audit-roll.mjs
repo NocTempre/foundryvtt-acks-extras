@@ -94,7 +94,8 @@ const { evaluateThrow, rollAbility, rollsOf, throwOutcome } = await import("../s
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 const { renderRollCard } = await import("../scripts/lib/roll-card.mjs");
-const { PARTY_CHECKS, boundChecks, resolveCheck, rollCheckFor } = await import("../scripts/formation/party-rolls.mjs");
+const { BASH_STR_FACTOR } = await import("../scripts/formation/doors.mjs");
+const { PARTY_CHECKS, boundChecks, checkTip, citedParts, citedSource, resolveCheck, rollCheckFor, usedForOptions } = await import("../scripts/formation/party-rolls.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
 /** A throw as an ability stores it: a flat target, optionally of another kind. */
@@ -309,6 +310,36 @@ await ok("a row a party check takes rolls the check's resolved target, parts ite
   dice.push(12);
   const direct = await rollCheckFor(a, hasty);
   assert.deepEqual([direct.row.target, direct.row.total, direct.row.source], [table.target, 12, "Searching [+1]; +2 Alertness, +1 Throw bonus"]);
+});
+
+await ok("the cited-parts helper prints a part's page after it, and the roll row's source and tip are as the card always printed them", async () => {
+  reset();
+  const parts = [{ label: "Alertness", value: 2, cite: "XX p.1" }, { label: "Throw bonus", value: -1 }];
+  assert.equal(citedParts(parts), "+2 Alertness (XX p.1), −1 Throw bonus");
+  assert.equal(citedParts(parts, ["+8 STR×4"]), "+2 Alertness (XX p.1), −1 Throw bonus, +8 STR×4", "extra parts follow, as given");
+  assert.equal(citedParts([], ["+8 STR×4"]), "+8 STR×4");
+  assert.equal(citedParts(undefined), "");
+  assert.equal(citedSource({ source: "Searching", parts }), "Searching; +2 Alertness (XX p.1), −1 Throw bonus");
+  assert.equal(citedSource({ source: "Searching", parts: [] }), "Searching", "no parts, the line alone");
+  assert.equal(checkTip({ target: 12, source: "Searching", parts }), "Target 12+: Searching; +2 Alertness (XX p.1), −1 Throw bonus.");
+
+  const a = actor("Alder", [searching(15, { targetMod: 1 }), alertness()]);
+  const search = await rollCheckFor(a, PARTY_CHECKS.searchHasty);
+  assert.equal(search.row.source, "Searching [+1]; +2 Alertness, +1 Throw bonus");
+  assert.equal(search.row.sourceTip, "Searching [+1]; +2 Alertness (XX p.1), +1 Throw bonus");
+
+  // A Strength-scaled check: its term follows the parts in both lines, and a level-scaled throw names the level.
+  const ladderThrow = throwOf(0, { target: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 16 }, { atLevel: 3, value: 14 }] } });
+  const basher = actor("Birch", [{ name: "Dungeonbashing", rolls: [ladderThrow], system: { rollTarget: 14 }, flags: { targetMod: 1 } }]);
+  basher.system.scores = { str: { mod: 2 } };
+  const bash = await rollCheckFor(basher, PARTY_CHECKS.dungeonbashing);
+  const strTerm = `+${2 * BASH_STR_FACTOR} STR×${BASH_STR_FACTOR}`;
+  assert.equal(bash.row.source, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
+  assert.equal(bash.row.sourceTip, `Dungeonbashing (L3) [+1]; +1 Throw bonus, ${strTerm}`);
+  assert.equal(bash.check.source, "Dungeonbashing (L3) [+1]", "the level tag is the lang string's, the same text as before");
+  assert.equal(usedForOptions().filter((o) => o.value === "search").length, 1, "one option per flag");
+  assert.deepEqual(usedForOptions().map((o) => o.value), ["", "listen", "search", "bash", "trapbreak", "track"]);
+  assert.equal(usedForOptions()[0].label, "— by name —");
 });
 
 await ok("a bonus whose ifHas the character does not hold, or a renamed holder of it, does not change the figure", async () => {

@@ -3,7 +3,9 @@
  * of each party's own, the opening size at the seat's type size, no declared
  * drag corner, the watch that draws the window again when its party's roster or
  * a member's ability item changes (and for nothing else), and the keyboard
- * focus that comes back after a press or a select change.
+ * focus that comes back after a press or a select change, and the figures and
+ * names the window and the Skill tab draw (resolutions with their cited
+ * tooltips, the Used-for names, the Sheet target, the progression rows).
  *
  * Stand-ins for the application base and the DOM; every id and name is
  * invented. What the page then does with those classes and parts — the scroll
@@ -11,9 +13,19 @@
  * (docs/formation/TESTING.md, "The audit roll").
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
+
+/* --- the real strings, so a key that does not exist fails here ------------- */
+const LANG = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+const lookup = (key) => (key in LANG ? LANG[key] : key.split(".").slice(1).reduce((at, part) => at?.[part], LANG[key.split(".")[0]]));
+const format = (key, data = {}) => {
+  const text = lookup(key);
+  assert.equal(typeof text, "string", `lang key ${key} exists`);
+  return text.replace(/\{(\w+)\}/g, (_, name) => String(data[name] ?? ""));
+};
 
 /* --- stand-ins -------------------------------------------------------------- */
 const hooks = new Map();
@@ -30,7 +42,7 @@ const formations = {};
 const settings = { fontScale: 14, formations };
 globalThis.game = {
   user: { id: "gm1", isGM: true },
-  i18n: { localize: (k) => k, format: (k) => k, has: () => true },
+  i18n: { localize: (k) => format(k), format, has: () => true },
   settings: { get: (_scope, key) => settings[key] },
   actors: new Map(),
   items: [],
@@ -67,12 +79,14 @@ globalThis.foundry = {
   utils: {
     debounce: (fn) => fn,
     deepClone: (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v))),
-    escapeHTML: (s) => String(s),
+    escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#x27;" })[c]),
   },
   applications: { api: { ApplicationV2: AppBase, HandlebarsApplicationMixin: (B) => B, DialogV2: Stub }, handlebars: { renderTemplate: async () => "" } },
 };
 
-const { default: SkillAuditApp, auditWindowId } = await import("../scripts/formation/skill-audit.mjs");
+const { default: SkillAuditApp, auditWindowId, buildSkillTabHTML } = await import("../scripts/formation/skill-audit.mjs");
+const { refreshLadders } = await import("../scripts/formation/ability-bridge.mjs");
+const { default: Handlebars } = await import("handlebars");
 const { isModuleWindow } = await import("../scripts/lib/window-resize.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
@@ -262,6 +276,127 @@ await ok("focus returns to the select a change re-rendered, and stays where the 
   await app._postRender({}, {});
   assert.equal(dom.doc.activeElement, dom.doc.body, "a render that finds focus held ends the memory");
   items.delete("Actor.a.Item.2");
+});
+
+/* --- the figures and names the window draws ----------------------------------- */
+/** An ability item as the audit reads it: flags under the module's scope, a page in its cookbook flag when imported. */
+function skillItem(name, { rolls = [], effects = [], provides = [], rollTarget, cite = "", id = "", flags = {} } = {}) {
+  const scoped = { extras: { rolls, effects, provides }, ...(cite || id ? { cookbook: { ...(id ? { id } : {}), ...(cite ? { cite } : {}) } } : {}), ...flags };
+  const doc = {
+    type: "ability", name, uuid: `Actor.fT.Item.${name}`, system: rollTarget === undefined ? {} : { rollTarget }, flags: { "acks-extras": scoped },
+    getFlag: (scope, key) => doc.flags[scope]?.[key],
+  };
+  items.set(doc.uuid, doc);
+  return doc;
+}
+const flatThrow = (flat) => ({ key: "primary", label: "", formula: "1d20", rollType: "above", target: { kind: "flat", flat }, scale: "level" });
+const ladderThrow = (...pairs) => ({ key: "primary", label: "", formula: "1d20", rollType: "above", target: { kind: "breakpoints", breakpoints: pairs.map(([atLevel, value]) => ({ atLevel, value })) }, scale: "level" });
+const seen = (html) => html.replaceAll("&#x27;", "'").replaceAll("&#x3D;", "=");
+
+/** The audit's body as a Judge's window draws it. */
+async function drawn() {
+  const hb = Handlebars.create();
+  hb.registerHelper("localize", (key, options) => format(key, options?.hash ?? {}));
+  const app = new SkillAuditApp({ formationId: "fT" });
+  const context = await app._prepareContext({ isFirstRender: false });
+  const html = seen(hb.compile(fs.readFileSync(new URL("../templates/formation/skill-audit.hbs", import.meta.url), "utf8"))(context));
+  return { context, html };
+}
+
+const alertness = skillItem("Alertness", {
+  provides: ["kw:alertness"], cite: "XX p.1", id: "def.prof.alertness",
+  effects: [{ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], ifHas: ["kw:searching"], mode: "add", value: { flat: 2 } }],
+});
+const searching = skillItem("Searching", { provides: ["kw:searching"], rolls: [flatThrow(15)], rollTarget: 15, cite: "XX p.7", flags: { targetMod: 1, checkKey: "search" } });
+const homebrew = skillItem("Home Cooking", { rolls: [flatThrow(11)], rollTarget: 0 });
+const listening = skillItem("Hearing", { rollTarget: undefined, cite: "XX p.9" });
+const scaling = skillItem("Scaling", { id: "def.skill.climbing", cite: "XX p.22", rolls: [ladderThrow([1, 15], [4, null], [8, 12])] });
+const tracker = actor("fT1");
+Object.assign(tracker, { img: "fT1.webp", system: { details: { level: 3 } }, items: [searching, alertness, homebrew, listening] });
+for (const it of tracker.items) it.actor = tracker;
+searching.parent = tracker;
+setFormation("fT", roster("fT1"));
+game.items.push(scaling);
+await refreshLadders();
+
+await ok("a resolution keeps its visible text and carries the cited form in its tooltip", async () => {
+  const { context, html } = await drawn();
+  const [member] = context.members;
+  const search = member.resolutions[1];
+  assert.equal(search.label, "12+");
+  assert.equal(search.source, "Searching [+1]; +2 Alertness, +1 Throw bonus", "no page in the visible text");
+  assert.equal(search.tip, "Target 12+: Searching [+1]; +2 Alertness (XX p.1), +1 Throw bonus.");
+  assert.match(html, /<td data-tooltip-text="Target 12\+: Searching \[\+1\]; \+2 Alertness \(XX p\.1\), \+1 Throw bonus\.">\s*<strong>12\+<\/strong><br \/><span class="src">Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus<\/span>/);
+  const none = member.resolutions[0];
+  assert.deepEqual([none.label, none.tip], ["—", ""], "a check the member cannot make carries no tooltip");
+  assert.match(html, /<td><strong>—<\/strong>/);
+});
+
+await ok("the member's level reads through its lang string", async () => {
+  const { html } = await drawn();
+  assert.match(html, /<span class="lvl">L3<\/span>/);
+  assert.equal(format("ACKS-FORMATION.audit.levelTag", { level: 7 }), "L7");
+});
+
+await ok("each Used-for select is named for its item and keeps the attributes focus restore finds it by", async () => {
+  const { context, html } = await drawn();
+  for (const it of context.members[0].items) {
+    const tag = html.match(new RegExp(`<select data-item-uuid="${it.uuid.replaceAll(".", "\\.")}" data-field="checkKey"\\s+aria-label="([^"]*)">`));
+    assert.ok(tag, `a named select for ${it.name}`);
+    assert.equal(tag[1], format("ACKS-FORMATION.audit.usedForLabel", { name: it.name }));
+  }
+  const opts = context.members[0].items[0].checkOptions;
+  assert.deepEqual(opts.map((o) => o.value), ["", "listen", "search", "bash", "trapbreak", "track"]);
+  assert.ok(opts.every((o) => o.label !== o.value && o.label.length), "names, not flag ids");
+  assert.equal(opts.find((o) => o.active).value, "search");
+});
+
+await ok("the Sheet target is the stored target or nothing, and its tooltip names its source", async () => {
+  const { context, html } = await drawn();
+  const [found, cooked, heard] = [searching, homebrew, listening].map((it) => context.members[0].items.find((row) => row.uuid === it.uuid));
+  assert.deepEqual([found.target, found.targetTip], ["15+", "XX p.7"], "imported: the page");
+  assert.deepEqual([cooked.target, cooked.targetTip], ["", format("ACKS-FORMATION.audit.sheetTargetTip")], "a zero is blank, and with no page the tooltip names the sheet's stored target");
+  assert.deepEqual([heard.target, heard.targetTip], ["", "XX p.9"], "imported and blank: the page reference alone");
+  assert.match(html, /<td data-tooltip-text="XX p\.7">15\+<\/td>/);
+  assert.match(html, /<td data-tooltip-text="XX p\.9"><\/td>/);
+  assert.doesNotMatch(html, /\b0\+/, "no zero target is drawn");
+  assert.doesNotMatch(html, /<td[^>]*>\+<\/td>/, "no bare plus");
+});
+
+await ok("the progression table names each row for its imported skill, cites its page, and leaves a missing rung blank", async () => {
+  const { context, html } = await drawn();
+  assert.deepEqual(context.progressionTable, [{ name: "Scaling", tip: "XX p.22", values: "15 /  / 12" }]);
+  assert.match(html, /<tr data-tooltip-text="XX p\.22"><td class="member-cell">Scaling<\/td><td>15 \/  \/ 12<\/td><\/tr>/);
+  assert.doesNotMatch(html, /climbing/, "the ladder key is not shown");
+});
+
+await ok("the audit template carries no title attribute", async () => {
+  const { html } = await drawn();
+  assert.doesNotMatch(html, /\stitle\s*=/);
+  assert.doesNotMatch(fs.readFileSync(new URL("../templates/formation/skill-audit.hbs", import.meta.url), "utf8"), /\stitle\s*=/);
+});
+
+await ok("the Skill tab names its options as the audit does, names its controls, and cites in tooltips only", async () => {
+  const html = seen(buildSkillTabHTML(searching, true));
+  const options = [...html.matchAll(/<option value="([^"]*)" ?(selected)? ?>([^<]*)<\/option>/g)].map((m) => [m[1], m[3], Boolean(m[2])]);
+  const { context } = await drawn();
+  const audit = context.members[0].items[0].checkOptions;
+  assert.deepEqual(options.map(([value, label]) => ({ value, label })), audit.map(({ value, label }) => ({ value, label })), "one list for both surfaces");
+  assert.deepEqual(options.filter(([, , selected]) => selected).map(([value]) => value), ["search"]);
+  assert.doesNotMatch(html, />(listen|search|bash|trapbreak|track)<\/option>/, "no flag id as an option's text");
+  assert.match(html, /<select data-field="checkKey" aria-label="Used for: Searching" >/);
+  assert.match(html, /<label data-tooltip="ACKS-FORMATION\.audit\.throwBonusHint">/);
+  assert.match(html, /<input type="number"[^>]*data-field="targetMod" aria-label="Throw bonus \(±\)" data-tooltip="ACKS-FORMATION\.audit\.throwBonusHint"/);
+  assert.doesNotMatch(html, /\stitle\s*=/);
+  assert.match(html, /<li data-tooltip-text="Target 12\+: Searching \[\+1\]; \+2 Alertness \(XX p\.1\), \+1 Throw bonus\."><strong>[^<]*<\/strong>: 12\+ <em>\(Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus\)<\/em><\/li>/);
+});
+
+await ok("the Skill tab escapes an item's name into its select's attribute", async () => {
+  const quoted = skillItem('Odd "name" <b>', { rolls: [flatThrow(14)], rollTarget: 14, flags: { checkKey: "search" } });
+  quoted.parent = tracker;
+  const raw = buildSkillTabHTML(quoted, true);
+  assert.ok(raw.includes('aria-label="Used for: Odd &quot;name&quot; &lt;b&gt;"'), raw);
+  assert.doesNotMatch(raw, /name" </, "no raw quote or tag from the name inside an attribute");
 });
 
 console.log(`\n${passed} checks passed`);

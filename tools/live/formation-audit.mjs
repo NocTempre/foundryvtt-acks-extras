@@ -559,6 +559,109 @@ const P = {
   },
   getKnob: async () => game.settings.get("acks-extras", "fontScale"),
 
+  /* ---- "The audit roll" step 7, names and sources ---- */
+
+  /** A world item carrying `data`, made where none carries the name; the uuid it has. */
+  worldItem: async ({ name, data }) => {
+    let item = game.items.find((i) => i.name === name && !i.parent);
+    let made = false;
+    if (!item) { item = await Item.create(data); made = true; }
+    return { uuid: item.uuid, made };
+  },
+  /** An item on an actor carrying `data` whole (flags and target), replaced where one of the name differs. */
+  freshItem: async ({ actorId, data }) => {
+    const actor = game.actors.get(actorId);
+    const old = actor.items.filter((i) => i.name === data.name).map((i) => i.id);
+    if (old.length) await actor.deleteEmbeddedDocuments("Item", old);
+    const [item] = await actor.createEmbeddedDocuments("Item", [data]);
+    return { uuid: item.uuid, id: item.id };
+  },
+  setOwner: async ({ actorId, userName, level }) => {
+    const user = game.users.getName(userName);
+    await game.actors.get(actorId).update({ [`ownership.${user.id}`]: level });
+    return game.actors.get(actorId).ownership[user.id];
+  },
+  /** The resolution the audit would show for one member's check, read from the module, for comparison. */
+  resolved: async ({ actorId, checkKey }) => {
+    const rolls = await import("/modules/acks-extras/scripts/formation/party-rolls.mjs");
+    const check = rolls.resolveCheck(game.actors.get(actorId), rolls.PARTY_CHECKS[checkKey]);
+    return check ? { target: check.target, source: check.source, parts: check.parts, tip: rolls.checkTip(check) } : null;
+  },
+  /** Names, figures and sources in one open audit, read off its DOM, with one tooltip activated through core. */
+  auditSources: async ({ fid, actorName, itemNames, ladderName, checkColumn }) => {
+    const H = globalThis.__aud;
+    const app = foundry.applications.instances.get(H.audit.auditWindowId(fid));
+    const root = H.root(app);
+    if (!root) return null;
+    const checkHeads = [...root.querySelectorAll(".audit-resolution thead th")].map((th) => th.textContent.trim());
+    const col = checkHeads.indexOf(checkColumn);
+    const memberRow = [...root.querySelectorAll(".audit-resolution tbody tr")].find((tr) => tr.querySelector("td")?.textContent.includes(actorName));
+    const cell = col > 0 ? memberRow?.querySelectorAll("td")[col] : null;
+    let shown = null;
+    if (cell) {
+      game.tooltip.activate(cell);
+      await H.sleep(300);
+      shown = document.getElementById("tooltip")?.textContent.trim() ?? null;
+      game.tooltip.deactivate();
+    }
+    const heading = [...root.querySelectorAll("h4")].find((h) => h.textContent.trim() === actorName);
+    const table = heading?.nextElementSibling?.querySelector("table") ?? null;
+    const items = Object.fromEntries(itemNames.map((n) => {
+      const tr = [...(table?.querySelectorAll("tbody tr") ?? [])].find((r) => r.querySelector("td")?.textContent.trim() === n);
+      const cells = tr ? [...tr.querySelectorAll("td")] : [];
+      const select = tr?.querySelector("select");
+      return [n, tr ? { target: cells[1]?.textContent.trim(), targetTip: cells[1]?.dataset.tooltipText ?? null, aria: select?.getAttribute("aria-label") ?? null, options: select ? [...select.options].map((o) => ({ value: o.value, text: o.textContent.trim() })) : null, keptData: !!(select?.dataset.itemUuid && select?.dataset.field) } : null];
+    }));
+    const ladder = [...root.querySelectorAll(".audit-table tr")].find((tr) => tr.querySelector("td")?.textContent.trim() === ladderName);
+    return {
+      cell: cell ? { label: cell.querySelector("strong")?.textContent.trim(), tipAttr: cell.dataset.tooltipText ?? null, shown } : null,
+      level: memberRow?.querySelector(".lvl")?.textContent.trim() ?? null,
+      items,
+      ladder: ladder ? { tip: ladder.dataset.tooltipText ?? null, values: ladder.querySelectorAll("td")[1]?.textContent.trim() } : null,
+      titles: root.querySelectorAll("[title]").length,
+    };
+  },
+  /** The check names each Used-for option should read, in order. */
+  usedForLabels: async () => {
+    const rolls = await import("/modules/acks-extras/scripts/formation/party-rolls.mjs");
+    return rolls.usedForOptions();
+  },
+  /** An ability item's sheet opened on this seat, its Skill tab shown, and what it carries. */
+  skillTab: async ({ uuid }) => {
+    const H = globalThis.__aud;
+    const item = await fromUuid(uuid);
+    const sheet = item.sheet;
+    await sheet.render(true);
+    await H.sleep(1200);
+    let root = H.root(sheet);
+    root?.querySelector('.acks-formation-skill-anchor')?.click();
+    await H.sleep(600);
+    root = H.root(sheet);
+    const tab = root?.querySelector(".acks-formation-skill-tab");
+    const select = tab?.querySelector('select[data-field="checkKey"]');
+    const input = tab?.querySelector('input[data-field="targetMod"]');
+    const li = tab?.querySelector(".acks-formation-resolution li[data-tooltip-text]");
+    let shown = null;
+    if (li) {
+      game.tooltip.activate(li);
+      await H.sleep(300);
+      shown = document.getElementById("tooltip")?.textContent.trim() ?? null;
+      game.tooltip.deactivate();
+    }
+    const out = {
+      tab: !!tab, active: !!tab?.classList.contains("active"),
+      aria: select?.getAttribute("aria-label") ?? null, disabled: !!select?.disabled,
+      selected: select?.value ?? null,
+      options: select ? [...select.options].map((o) => ({ value: o.value, text: o.textContent.trim() })) : null,
+      inputAria: input?.getAttribute("aria-label") ?? null, inputTip: input?.dataset.tooltip ?? null,
+      liTip: li?.dataset.tooltipText ?? null, shown,
+      titles: tab ? tab.querySelectorAll("[title]").length : null,
+    };
+    await sheet.close({ animate: false });
+    return out;
+  },
+  fmt: async ({ key, data }) => game.i18n.format(key, data ?? {}),
+
   boot: async () => globalThis.__audBoot ?? null,
 };
 
@@ -885,6 +988,75 @@ try {
       await run(gm, P.knob, { partyId: party.id, fid, px: knob0 });
     }
     await run(gm, P.closeAudit);
+  });
+
+  /* ---------------- names and sources ("The audit roll" step 7, U15) ---------------- */
+  await guarded("names and sources", async () => {
+    const { gm, player } = open;
+    const party = await gm.fixture("formation/audit-party", "Actor", { name: "QA Audit Party", type: `${SCOPE}.party` });
+    const members = [];
+    for (const n of [1, 2, 3]) members.push(await gm.fixture(`formation/audit-member-${n}`, "Actor", character(`QA Auditor ${n}`, n < 3 ? { items: [abilityData] } : {})));
+    const { fid } = await run(gm, P.formationOf, { partyId: party.id });
+    await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
+    for (const m of members.slice(0, 2)) await run(gm, P.ensureItem, { actorId: m.id, name: ABILITY, data: abilityData });
+    await run(gm, P.closeAudit);
+    // Invented abilities shaped as the importer writes them: a cookbook page, a capability, a throw modifier, a level ladder.
+    const X = "acks-extras";
+    const cited = { name: "QA Cited Search", type: "ability", system: { roll: "1d20", rollType: "above", rollTarget: 14 }, flags: { [X]: { extras: { provides: ["kw:searching"] }, checkKey: "search", isSkill: true } } };
+    const keen = { name: "QA Keen Eye", type: "ability", system: { roll: "", rollType: "above", rollTarget: 0 }, flags: { [X]: { cookbook: { cite: "QA p. 9" }, extras: { effects: [{ type: "modifies", target: "proficiencyThrow", refs: ["kw:searching"], value: { flat: 2 } }] } } } };
+    const blank = { name: "QA Blank Target", type: "ability", system: { roll: "1d20", rollType: "above", rollTarget: 0 }, flags: { [X]: { cookbook: { cite: "QA p. 13" } } } };
+    const ladderItem = { name: "QA Audit Ladder", type: "ability", system: { roll: "1d20", rollType: "above", rollTarget: 0 }, flags: { [X]: { cookbook: { id: "def.skill.qaauditladder", cite: "QA p. 11" }, extras: { rolls: [{ target: { kind: "level", breakpoints: [{ atLevel: 1, value: 17 }, { atLevel: 4, value: null }, { atLevel: 7, value: 12 }] } }] } } } };
+    const m1 = members[0];
+    const probes = [];
+    for (const data of [cited, keen, blank]) { const r = await run(gm, P.freshItem, { actorId: m1.id, data }); probes.push(r); }
+    const citedUuid = probes[0].uuid;
+    const lad = await gm.fixture("formation/audit-skill-ladder", "Item", ladderItem);
+    note("fixtures", { ladder: lad.uuid ?? lad.id, probes: probes.map((p) => p.uuid) });
+
+    const methodical = (await run(gm, P.strings, { keys: ["ACKS-FORMATION.rolls.searchMethodical"] }))["ACKS-FORMATION.rolls.searchMethodical"];
+    const want = await run(gm, P.resolved, { actorId: m1.id, checkKey: "searchMethodical" });
+    note("resolved", want);
+    check("sources: the fixture's resolution carries a part with an imported page", !!want && want.parts.some((p) => p.cite === "QA p. 9"), want?.parts);
+
+    await run(gm, P.pressAudit, { partyId: party.id, fid });
+    const opts = await run(gm, P.usedForLabels);
+    const src = await run(gm, P.auditSources, { fid, actorName: "QA Auditor 1", itemNames: [ABILITY, "QA Cited Search", "QA Blank Target"], ladderName: "QA Audit Ladder", checkColumn: methodical.split("{")[0].trim() });
+    note("audit", src);
+    check("6: the Resolution cell's tooltip is the target with each part and its page, and core shows it", !!src?.cell && src.cell.tipAttr === want?.tip && src.cell.tipAttr.includes("QA p. 9") && src.cell.shown === want?.tip, src?.cell);
+    const auditItem = src?.items?.[ABILITY];
+    const blankItem = src?.items?.["QA Blank Target"];
+    const sheetTip = (await run(gm, P.strings, { keys: ["ACKS-FORMATION.audit.sheetTargetTip"] }))["ACKS-FORMATION.audit.sheetTargetTip"];
+    check("8: a stored target shows as a target, its tooltip saying it is the sheet's", auditItem?.target === "13+" && auditItem.targetTip === sheetTip, auditItem);
+    check("8: an imported item with no stored target shows an empty cell, its tooltip the page alone", blankItem?.target === "" && blankItem.targetTip === "QA p. 13", blankItem);
+    const aria = await run(gm, P.fmt, { key: "ACKS-FORMATION.audit.usedForLabel", data: { name: "QA Cited Search" } });
+    const citedRow = src?.items?.["QA Cited Search"];
+    check("5: the Used-for select is named for its item and keeps its item and field", citedRow?.aria === aria && citedRow.keptData, citedRow && { aria: citedRow.aria, kept: citedRow.keptData });
+    check("5: its options read the check names, in order", !!citedRow?.options && JSON.stringify(citedRow.options.map((o) => [o.value, o.text])) === JSON.stringify(opts.map((o) => [o.value, o.label])), citedRow?.options);
+    check("9: the progression row is named for the imported skill, carries its page, and a rung with no value is blank", src?.ladder?.tip === "QA p. 11" && src.ladder.values === "17 /  / 12", src?.ladder);
+    const lvl = await run(gm, P.fmt, { key: "ACKS-FORMATION.audit.levelTag", data: { level: 1 } });
+    check("10: the level column reads the lang tag", src?.level === lvl, { level: src?.level, lvl });
+    check("1 (Skill tab) and 10: no title attribute anywhere in the audit", src?.titles === 0, src?.titles);
+    await run(gm, P.closeAudit);
+
+    // The Skill tab, on the Judge's seat and on a Player who owns the member.
+    const tabGm = await run(gm, P.skillTab, { uuid: citedUuid });
+    note("skill tab (GM)", tabGm);
+    const tabAria = aria;
+    check("Skill tab 2: the GM's select is named, editable, bound, and reads check names", tabGm.tab && tabGm.aria === tabAria && !tabGm.disabled && tabGm.selected === "search" && JSON.stringify(tabGm.options?.map((o) => [o.value, o.text])) === JSON.stringify(opts.map((o) => [o.value, o.label])), tabGm);
+    check("Skill tab 1: the Throw bonus is named and carries core's tooltip, and the tab has no title attribute", !!tabGm.inputAria && tabGm.inputTip === "ACKS-FORMATION.audit.throwBonusHint" && tabGm.titles === 0, { aria: tabGm.inputAria, tip: tabGm.inputTip, titles: tabGm.titles });
+    check("Skill tab 3: the resolution's tooltip cites each part's page, and core shows it", tabGm.liTip === want?.tip && tabGm.shown === want?.tip, { li: tabGm.liTip, shown: tabGm.shown });
+    const was = await gm.eval(`game.actors.get(${JSON.stringify(m1.id)}).ownership[game.users.getName(${JSON.stringify(SEATS.player)}).id] ?? null`);
+    await run(gm, P.setOwner, { actorId: m1.id, userName: SEATS.player, level: 3 });
+    try {
+      await sleep(800);
+      const tabPl = await run(player, P.skillTab, { uuid: citedUuid });
+      note("skill tab (Player)", tabPl);
+      check("Skill tab, Player owner: the tab shows read-only, named, with check names and the cited tooltip", tabPl.tab && tabPl.disabled && tabPl.aria === tabAria && tabPl.options?.find((o) => o.value === "search")?.text === opts.find((o) => o.value === "search")?.label && tabPl.liTip === want?.tip && tabPl.titles === 0, tabPl);
+    } finally {
+      await run(gm, P.setOwner, { actorId: m1.id, userName: SEATS.player, level: was ?? 0 });
+    }
+    // The probes are rebuilt by the next walk from their data; the ladder is a kept fixture.
+    for (const p of probes) tracked.push(gm.track(p.uuid, "Item"));
   });
 
   if (SHOTS && plateCard) {

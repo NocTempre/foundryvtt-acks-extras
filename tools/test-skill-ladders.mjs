@@ -40,7 +40,7 @@ globalThis.foundry = {
 };
 
 const { ladderRungAt, resolveLevelOutcome } = await import("../scripts/classes/registry.mjs");
-const { importedLadderFor, skillLadderRungs, refreshLadders, initLadders, LADDER_REFRESH_QUIET_MS } = await import("../scripts/abilities/skill-ladders.mjs");
+const { importedLadderFor, importedSkillFor, skillLadderRungs, refreshLadders, initLadders, LADDER_REFRESH_QUIET_MS } = await import("../scripts/abilities/skill-ladders.mjs");
 const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
@@ -130,6 +130,24 @@ await ok("the owner's own copy of a skill is read before the world's", async () 
   const a = actorOf([mine]);
   assert.equal(importedLadderFor("climbing", a).breakpoints[0].value, 4);
   assert.equal(importedLadderFor("climbing", null).breakpoints[0].value, 9);
+});
+
+await ok("an imported skill answers with its item's name, ladder and the item, from the world or the cached pack", async () => {
+  reset();
+  const world = skill("climbing", [1, 9], [4, 7]);
+  world.name = "Scaling";
+  game.items.push(world);
+  const found = importedSkillFor("climbing");
+  assert.deepEqual([found.key, found.name, found.item === world, found.ladder.breakpoints.map((b) => b.value)], ["climbing", "Scaling", true, [9, 7]]);
+  assert.equal(importedSkillFor("unknownskill"), null, "a skill not imported answers nothing");
+  assert.equal(importedSkillFor(""), null);
+  const packed = skill("sneaking", [1, 10]);
+  packed.name = "Stealth";
+  game.packs.push({ documentName: "Item", collection: "world.skills", metadata: { packageType: "world" }, getDocuments: async () => [packed] });
+  await refreshLadders();
+  const held = importedSkillFor("sneaking");
+  assert.deepEqual([held.name, held.item === packed], ["Stealth", true]);
+  assert.equal(importedLadderFor("sneaking", null).breakpoints[0].value, 10, "the ladder reader is unchanged");
 });
 
 /* --- the cache under a burst of item writes ---------------------------------- */

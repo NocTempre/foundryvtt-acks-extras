@@ -429,6 +429,26 @@ show through Dice So Nice to the Judges.
 - **Ladders.** The first draw reads the skill ladders fresh (`refreshLadders`, which
   opens every world compendium); later draws read the cache the item hooks keep, so a
   redraw stays inside the press-focus window.
+- **Resolutions.** A Resolution cell reads `check.source; parts` as text with no
+  page; its tooltip is the card's (`checkTip` in `party-rolls.mjs`): the target and
+  the source with each part's page, built by `citedParts`, which `rollCheckFor`'s
+  `sourceTip` shares. The Skill tab's resolved target takes the same tooltip. The
+  Strength term of a bash is added by `rollCheckFor` alone; neither surface lists it.
+  The level a scaled source names (`Searching (L3)`) comes from the lang string
+  `audit.levelTag`, in the source and in the member's cell.
+- **Used for.** The select's choices are `usedForOptions` (`party-rolls.mjs`): the
+  unbound choice, then one per check flag, each named by the first check that takes
+  it. The audit's selects and the item sheet's Skill tab draw the one list. Each
+  select's `aria-label` names its item; the audit's keep `data-item-uuid` and
+  `data-field`, which the focus restore finds them by.
+- **Sheet target.** The column is the item's stored `system.rollTarget` as `N+`, or
+  an empty cell when that is not a positive number. The cell's tooltip is the page
+  the item's import names (`citeOf`), else says the figure is the sheet's stored
+  target. It is not the resolved figure; that is the Resolution table's.
+- **Progression table.** One row per imported skill (`importedSkillFor`), labeled
+  with the skill item's name, its tooltip the item's page. A rung with no value
+  leaves its place blank. `skill-ladders.mjs` keeps the item beside each cached
+  ladder and returns it, since `citeOf` lives above that file.
 - **Corner.** The drag corner is the lib's `window-resize.mjs`, granted by the
   window's `acks-extras` class; the window declares none.
 

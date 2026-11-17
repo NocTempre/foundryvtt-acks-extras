@@ -4,7 +4,7 @@ import { PressFocus } from "../lib/press-focus.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
-  importedLadderFor,
+  importedSkillFor,
   importedSkillKeys,
   ladderRows,
   overrideFor,
@@ -13,7 +13,8 @@ import {
   setOverride,
 } from "./ability-bridge.mjs";
 import { SETTING_FORMATIONS, getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
-import { PARTY_CHECKS, boundChecks, partText, resolveCheck, skillGateAllows } from "./party-rolls.mjs";
+import { PARTY_CHECKS, boundChecks, checkTip, partText, resolveCheck, skillGateAllows, usedForOptions } from "./party-rolls.mjs";
+import { citeOf } from "../abilities/ability-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
 
@@ -257,15 +258,7 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
     }));
     context.checkColumns = checks;
 
-    const checkOptions = [
-      { value: "", label: game.i18n.localize("ACKS-FORMATION.audit.flagNone") },
-      ...Object.values(
-        Object.entries(PARTY_CHECKS).reduce((acc, [key, cfg]) => {
-          acc[cfg.flagKey] ??= { value: cfg.flagKey, label: game.i18n.localize(cfg.label) };
-          return acc;
-        }, {}),
-      ),
-    ];
+    const checkOptions = usedForOptions();
     context.members = realMembers(formation)
       .map((member) => getMemberActor(member))
       .filter(Boolean)
@@ -275,17 +268,21 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         level: actor.system?.details?.level ?? "—",
         resolutions: Object.entries(PARTY_CHECKS).map(([key, cfg]) => {
           const check = resolveCheck(actor, cfg);
-          if (!check) return { label: "—", source: "" };
+          if (!check) return { label: "—", source: "", tip: "" };
           // The parts are inside the target, so they are the source's detail.
           const detail = check.parts.map(partText).join(", ");
-          return { label: `${check.target}+`, source: detail ? `${check.source}; ${detail}` : check.source };
+          return {
+            label: `${check.target}+`,
+            source: detail ? `${check.source}; ${detail}` : check.source,
+            tip: checkTip(check),
+          };
         }),
         items: actor.items
           .filter((i) => i.type === ITEM_TYPE.ability)
           .map((item) => ({
             uuid: item.uuid,
             name: item.name,
-            target: item.system?.rollTarget ?? 0,
+            ...sheetTargetOf(item),
             checkKey: item.getFlag(MODULE_ID, "checkKey") ?? "",
             checkOptions: checkOptions.map((o) => ({
               ...o,
@@ -295,12 +292,16 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
       }));
 
     context.abilities = collectPartyAbilities(formation);
-    context.progressionTable = importedSkillKeys().map((key) => ({
-      key,
-      values: ladderRows(importedLadderFor(key))
-        .map((r) => r.value)
-        .join(" / "),
-    }));
+    context.progressionTable = importedSkillKeys()
+      .map((key) => importedSkillFor(key))
+      .filter(Boolean)
+      .map((skill) => ({
+        name: skill.name,
+        tip: citeOf(skill.item),
+        values: ladderRows(skill.ladder)
+          .map((r) => r.value ?? "")
+          .join(" / "),
+      }));
     return context;
   }
 
@@ -329,6 +330,22 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
       });
     }
   }
+}
+
+/**
+ * What an item's Sheet target cell shows: the stored `system.rollTarget` as a
+ * target when it is a positive number, else nothing, with the tooltip saying
+ * where the figure comes from: the page the item's import names, or, for an item
+ * that carries none, that the figure is the sheet's stored target.
+ *
+ * @returns {{target: string, targetTip: string}}
+ */
+function sheetTargetOf(item) {
+  const stored = Number(item.system?.rollTarget);
+  return {
+    target: stored > 0 ? `${stored}+` : "",
+    targetTip: citeOf(item) || game.i18n.localize("ACKS-FORMATION.audit.sheetTargetTip"),
+  };
 }
 
 /* -------------------------------------------- */
@@ -491,23 +508,31 @@ function injectSkillUI(app, root, item) {
   }
 }
 
-function buildSkillTabHTML(item, gm) {
+/**
+ * The Skill tab's body for an ability item: the Used-for select (named by the
+ * party check, as the audit window names it), the Throw bonus, and for a bound
+ * item held by an actor the live resolution, its tooltip citing each part's page.
+ *
+ * @param {Item} item
+ * @param {boolean} gm whether the seat may edit; a player's fields are disabled
+ * @returns {string} HTML
+ */
+export function buildSkillTabHTML(item, gm) {
   const checkKey = item.getFlag(MODULE_ID, "checkKey") ?? "";
   const targetMod = item.getFlag(MODULE_ID, "targetMod") ?? 0;
   const dis = gm ? "" : "disabled";
   const owner = item.parent;
 
-  const flagKeys = [...new Set(Object.values(PARTY_CHECKS).map((c) => c.flagKey))];
-  const checkOpts = [`<option value="">${loc("audit.flagNone")}</option>`]
-    .concat(flagKeys.map((k) => `<option value="${k}" ${k === checkKey ? "selected" : ""}>${k}</option>`))
+  const checkOpts = usedForOptions()
+    .map((o) => `<option value="${esc(o.value)}" ${o.value === checkKey ? "selected" : ""}>${esc(o.label)}</option>`)
     .join("");
   let html = `<div class="content">`;
   html += `<fieldset class="acks-formation-flags"><legend>${loc("audit.sheetSection")}</legend>
     <div class="acks-formation-flag-row">
       <label>${loc("audit.usedFor")}</label>
-      <select data-field="checkKey" ${dis}>${checkOpts}</select>
-      <label title="${loc("audit.throwBonusHint")}">${loc("audit.throwBonus")}</label>
-      <input type="number" step="1" value="${targetMod}" data-field="targetMod" title="${loc("audit.throwBonusHint")}" ${dis}/>
+      <select data-field="checkKey" aria-label="${esc(loc("audit.usedForLabel", { name: item.name }))}" ${dis}>${checkOpts}</select>
+      <label data-tooltip="ACKS-FORMATION.audit.throwBonusHint">${loc("audit.throwBonus")}</label>
+      <input type="number" step="1" value="${esc(targetMod)}" data-field="targetMod" aria-label="${esc(loc("audit.throwBonus"))}" data-tooltip="ACKS-FORMATION.audit.throwBonusHint" ${dis}/>
     </div>
     ${checkKey ? "" : `<p class="hint">${loc("audit.tabNotSkill")}</p>`}
   </fieldset>`;
@@ -525,7 +550,7 @@ function buildSkillTabHTML(item, gm) {
         continue;
       }
       const breakdown = (check.parts ?? []).map(partText).join(", ");
-      html += `<li><strong>${label}</strong>: ${check.target}+ <em>(${esc(check.source)}${breakdown ? `; ${esc(breakdown)}` : ""})</em></li>`;
+      html += `<li data-tooltip-text="${esc(checkTip(check))}"><strong>${label}</strong>: ${check.target}+ <em>(${esc(check.source)}${breakdown ? `; ${esc(breakdown)}` : ""})</em></li>`;
     }
     html += `</ul></fieldset>`;
   }

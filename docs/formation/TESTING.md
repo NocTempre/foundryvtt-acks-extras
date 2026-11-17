@@ -3749,6 +3749,13 @@ card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
   (a flat target of any invented figure). Member 3 carries none. Build the items
   through the abilities API so the throw is stored where `rollsOf` reads it. The
   ability's name is invented; do not use a printed proficiency's.
+- `formation/audit-skill-imported`: an ability item in the world's items carrying a
+  cookbook id `def.skill.<invented key>`, a cookbook `cite` and a throw whose level
+  ladder has a rung with no value (the shape the importer writes). For step 7's
+  *Names and sources*; the importer makes one from a Judge's own copy.
+- `formation/audit-item-zero`: an ability item on member 1 with `system.rollTarget`
+  0 and no cookbook flag; `formation/audit-item-cited`: one with no stored target and
+  a cookbook `cite`. Build both through the abilities API.
 
 1. **The control.** Open the Skill audit from the Order tab. *Observable:* the
    `Audit Search` row has a dice button; it is a `<button>` with an `aria-label`
@@ -3807,6 +3814,16 @@ card, the evaluator and the footnote. `tools/live/formation-audit.mjs` walks it.
      `.audit-scroll` box scrolls sideways to the last check column, no column is
      clipped, and the selects and inputs grow with the type; the Skill tab on an
      ability sheet shows its select and number input at the same type size.
+   - *Names and sources.* With `Audit Search` bound to Search on member 1 and one
+     imported skill in the world, read the open window and the ability's Skill tab.
+     *Observable:* each Used-for select has an `aria-label` naming its item and
+     options named for the check (the Skill tab's list equals the audit's); a
+     Resolution cell's tooltip lists the source and each part with the page its
+     import names while the cell's text carries none; an item with a zero stored
+     target has an empty Sheet target cell whose tooltip names the sheet's stored
+     target, an imported one's names its page; a progression row reads the skill
+     item's name with its page in the tooltip; neither the window nor the Skill tab
+     has a `title` attribute; the Throw bonus label and input show core's tooltip.
 
 Teardown: the cards the run posted are the module's; read each id back right after
 the press and `api.track(id, "ChatMessage")` it, then `api.sweepTracked()`. The kept

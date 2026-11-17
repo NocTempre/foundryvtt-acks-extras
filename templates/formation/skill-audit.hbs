@@ -71,9 +71,9 @@
       <tbody>
         {{#each members}}
         <tr>
-          <td class="member-cell"><img src="{{this.img}}" alt="" /> {{this.name}} <span class="lvl">L{{this.level}}</span></td>
+          <td class="member-cell"><img src="{{this.img}}" alt="" /> {{this.name}} <span class="lvl">{{localize "ACKS-FORMATION.audit.levelTag" level=this.level}}</span></td>
           {{#each this.resolutions}}
-          <td><strong>{{this.label}}</strong><br /><span class="src">{{this.source}}</span></td>
+          <td{{#if this.tip}} data-tooltip-text="{{this.tip}}"{{/if}}><strong>{{this.label}}</strong><br /><span class="src">{{this.source}}</span></td>
           {{/each}}
         </tr>
         {{/each}}
@@ -101,9 +101,10 @@
         {{#each this.items}}
         <tr>
           <td>{{this.name}}</td>
-          <td>{{this.target}}+</td>
+          <td data-tooltip-text="{{this.targetTip}}">{{this.target}}</td>
           <td>
-            <select data-item-uuid="{{this.uuid}}" data-field="checkKey">
+            <select data-item-uuid="{{this.uuid}}" data-field="checkKey"
+                    aria-label="{{localize 'ACKS-FORMATION.audit.usedForLabel' name=this.name}}">
               {{#each this.checkOptions}}
               <option value="{{this.value}}" {{#if this.active}}selected{{/if}}>{{this.label}}</option>
               {{/each}}
@@ -126,7 +127,7 @@
     <table class="audit-table">
       <tbody>
         {{#each progressionTable}}
-        <tr><td class="member-cell">{{this.key}}</td><td>{{this.values}}</td></tr>
+        <tr{{#if this.tip}} data-tooltip-text="{{this.tip}}"{{/if}}><td class="member-cell">{{this.name}}</td><td>{{this.values}}</td></tr>
         {{/each}}
       </tbody>
     </table>

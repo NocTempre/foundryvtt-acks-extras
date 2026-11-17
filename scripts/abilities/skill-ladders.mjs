@@ -58,28 +58,39 @@ const onItemChange = (item) => {
   if (!item?.parent) invalidateLadders();
 };
 
-function takeLadder(map, item) {
+/** The imported skill item behind each cached ladder, by skill key, kept in step with `ladderCache`. */
+let itemCache = null;
+
+/** Take the item's ladder into `map` and, when given, the item itself into `items`; the first item of a key wins. */
+function takeLadder(map, item, items = null) {
   const id = item?.type === ITEM_TYPE.ability ? cookbookId(item) : "";
   if (!id.startsWith(SKILL_PREFIX)) return;
   const ladder = ladderOf(item);
-  if (ladder && !map.has(id.slice(SKILL_PREFIX.length))) map.set(id.slice(SKILL_PREFIX.length), ladder);
+  const key = id.slice(SKILL_PREFIX.length);
+  if (!ladder || map.has(key)) return;
+  map.set(key, ladder);
+  items?.set(key, item);
 }
 
 /** Rebuild the skill-to-ladder map from the item directory AND the world packs. */
 export async function refreshLadders() {
   const mine = ++generation;
   const map = new Map();
-  for (const item of game.items ?? []) takeLadder(map, item);
+  const items = new Map();
+  for (const item of game.items ?? []) takeLadder(map, item, items);
   for (const pack of openPacks("Item")) {
     if (pack.metadata?.packageType !== "world") continue;
     try {
-      for (const doc of await pack.getDocuments()) takeLadder(map, doc);
+      for (const doc of await pack.getDocuments()) takeLadder(map, doc, items);
     } catch (err) {
       console.warn(`acks-extras | could not read compendium ${pack.collection}`, err);
     }
   }
   // A read that started earlier never overwrites a later one's map.
-  if (mine === generation) ladderCache = map;
+  if (mine === generation) {
+    ladderCache = map;
+    itemCache = items;
+  }
   return map;
 }
 
@@ -117,6 +128,32 @@ export function importedLadderFor(key, actor = null) {
   }
   if (!ladderCache) invalidateLadders();
   return ladderCache?.get(key) ?? null;
+}
+
+/**
+ * The imported skill for a key: its item's name, its ladder and the item itself
+ * (whose page `citeOf` reads; this file stays below `ability-rolls.mjs`). The
+ * world's items are read live, then the cached index of the world packs; null
+ * when the skill has not been imported.
+ *
+ * @returns {{key: string, name: string, ladder: object, item: Item}|null}
+ */
+export function importedSkillFor(key) {
+  if (!key) return null;
+  const id = skillDefId(key);
+  let item = null;
+  for (const candidate of game.items ?? []) {
+    if (candidate?.type === ITEM_TYPE.ability && cookbookId(candidate) === id && ladderOf(candidate)) {
+      item = candidate;
+      break;
+    }
+  }
+  if (!item) {
+    if (!itemCache) invalidateLadders();
+    item = itemCache?.get(key) ?? null;
+  }
+  const ladder = ladderOf(item);
+  return ladder ? { key, name: String(item.name ?? ""), ladder, item } : null;
 }
 
 /** The borrowed ladder's value at `level`, or null. */

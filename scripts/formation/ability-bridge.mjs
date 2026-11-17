@@ -34,6 +34,7 @@ export {
   initLadders,
   importedLadderFor,
   importedLadderTarget,
+  importedSkillFor,
   importedSkillKeys,
   ladderRows,
 } from "../abilities/skill-ladders.mjs";

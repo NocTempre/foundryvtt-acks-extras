@@ -178,6 +178,55 @@ function skillCandidates(actor, cfg) {
 export const partText = (part) => `${part.value < 0 ? "−" : "+"}${Math.abs(part.value)} ${part.label}`;
 
 /**
+ * A check's parts as a tooltip prints them: each `partText`, followed by the
+ * page its ability's import names when it has one, joined by commas. `extra`
+ * holds parts already formatted, appended after the cited ones.
+ *
+ * @param {Array<{label: string, value: number, cite?: string}>} [parts] `resolveCheck`'s `parts`
+ * @param {string[]} [extra]
+ * @returns {string} "" with no parts
+ */
+export function citedParts(parts, extra = []) {
+  return (parts ?? []).map((part) => `${partText(part)}${part.cite ? ` (${part.cite})` : ""}`).concat(extra).join(", ");
+}
+
+/**
+ * A resolved check's source line with its parts cited: `check.source` and the
+ * `citedParts`, which is the line alone when no part is left to list.
+ *
+ * @param {{source: string, parts?: Array<{label: string, value: number, cite?: string}>}} check `resolveCheck`'s result
+ * @param {string[]} [extra] parts already formatted, appended after the cited ones
+ */
+export function citedSource(check, extra = []) {
+  const cited = citedParts(check.parts, extra);
+  return cited ? `${check.source}; ${cited}` : check.source;
+}
+
+/** The tooltip a resolved check's target carries: the target and where it came from, with each part's page. */
+export function checkTip(check, extra = []) {
+  return game.i18n.format("ACKS-FORMATION.audit.checkTip", { target: `${check.target}+`, source: citedSource(check, extra) });
+}
+
+/**
+ * The Used-for choices, one per `flagKey` a party check binds on: the first
+ * option is the unbound one, and a flag is named by the first check that takes
+ * it. The one list the audit window's selects and an ability sheet's Skill tab
+ * both draw.
+ *
+ * @returns {Array<{value: string, label: string}>}
+ */
+export function usedForOptions() {
+  const named = new Map();
+  for (const cfg of Object.values(PARTY_CHECKS)) {
+    if (!named.has(cfg.flagKey)) named.set(cfg.flagKey, game.i18n.localize(cfg.label));
+  }
+  return [
+    { value: "", label: game.i18n.localize("ACKS-FORMATION.audit.flagNone") },
+    ...[...named].map(([value, label]) => ({ value, label })),
+  ];
+}
+
+/**
  * What the creature's conditions do to a proficiency throw, as a signed bonus
  * (a penalty is negative); 0 with no conditions.
  */
@@ -226,7 +275,7 @@ export function resolveCheck(actor, cfg) {
     const modTag = best.mod ? ` [${best.mod > 0 ? "+" : ""}${best.mod}]` : "";
     found = {
       target: best.target,
-      source: (best.found.scaled ? `${best.item.name} (L${level})` : best.item.name) + modTag,
+      source: (best.found.scaled ? `${best.item.name} (${game.i18n.format("ACKS-FORMATION.audit.levelTag", { level })})` : best.item.name) + modTag,
       parts,
       skilled: true,
     };
@@ -289,8 +338,6 @@ export async function rollCheckFor(actor, cfg) {
   const roll = await new Roll(formula).evaluate();
   const strPart = cfg.strScaled ? [`${bonus - check.bonus >= 0 ? "+" : ""}${bonus - check.bonus} STR×${BASH_STR_FACTOR}`] : [];
   const breakdown = (check.parts ?? []).map(partText).concat(strPart).join(", ");
-  // The same parts with the page each ability's import names, for the target's tooltip.
-  const cited = (check.parts ?? []).map((part) => `${partText(part)}${part.cite ? ` (${part.cite})` : ""}`).concat(strPart).join(", ");
   return {
     roll,
     check,
@@ -299,7 +346,7 @@ export async function rollCheckFor(actor, cfg) {
       total: roll.total,
       target: check.target,
       source: breakdown ? `${check.source}; ${breakdown}` : check.source,
-      sourceTip: cited ? `${check.source}; ${cited}` : check.source,
+      sourceTip: citedSource(check, strPart),
       success: roll.total >= check.target,
     },
   };
