@@ -86,9 +86,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** The stored-attitude Item for the current influencer→target, if any. */
   #attitudeItem = null;
   /**
-   * The in-flight create of a stored-attitude Item, with the target it is for:
-   * a save that starts while one is pending awaits it and updates the result,
-   * so one pair never gets two Items.
+   * The in-flight create of a stored-attitude Item, with the influencer and
+   * target it is for: a save for the same pair that starts while one is pending
+   * awaits it and updates the result, so one pair never gets two Items.
    */
   #attitudeCreate = null;
   /** Forces the hidden (GM-whisper) posting path when a GM resolves a player's roll. */
@@ -595,7 +595,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
     const target = this.#targetActor;
     try {
       let item = this.#attitudeItem;
-      if (!item && this.#attitudeCreate?.uuid === target.uuid) item = await this.#attitudeCreate.promise;
+      if (!item && this.#attitudeCreate?.actor === actor && this.#attitudeCreate.uuid === target.uuid) item = await this.#attitudeCreate.promise;
       if (item) {
         await item.update({ "system.attitude": newIndex, [`system.attempts.${tone}`]: nextAttempt });
       } else {
@@ -615,15 +615,15 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
             },
           ])
           .then((created) => created?.[0] ?? null);
-        const pending = { uuid: target.uuid, promise };
+        const pending = { actor, uuid: target.uuid, promise };
         this.#attitudeCreate = pending;
         try {
           item = await promise;
         } finally {
           if (this.#attitudeCreate === pending) this.#attitudeCreate = null;
         }
-        // The window may have moved to another target while the create ran.
-        if (item && this.#targetActor?.uuid === target.uuid) this.#attitudeItem = item;
+        // The window may have moved to another influencer or target while the create ran.
+        if (item && this.#actor === actor && this.#targetActor?.uuid === target.uuid) this.#attitudeItem = item;
       }
       // Consumer-module event: the stored relationship changed.
       Hooks.callAll("acksExtras.influenceAttitudeChanged", {
