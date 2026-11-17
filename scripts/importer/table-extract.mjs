@@ -1163,7 +1163,12 @@ function takePatronym(cased) {
   return out;
 }
 
-function takeProse(window, take, spec = {}) {
+/**
+ * One `take` micro-pattern applied to a lowercased text window: the figure the
+ * named take reads from it, or undefined. A `proseValues` recipe and a seat-side
+ * scan that reads the same kind of figure (the executor's `defenseScan`) share it.
+ */
+export function takeProse(window, take, spec = {}) {
   const num = (s) => Number(s.replace(/,/g, ""));
   switch (take) {
     case "levelLadder":

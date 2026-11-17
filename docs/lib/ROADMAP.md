@@ -109,13 +109,6 @@ An unlinked token is found as a rider, a passenger or a draft animal
 The procedure is built ([MODEL.md](MODEL.md), "Damage against defenses"). Not
 built:
 
-- **The resistance figures have no recipe.** The `defenses` document's
-  `resistanceProse` table is declared and nothing imports it, so a resistant
-  hit is the Judge's until the importer reads `fraction` and `saveBonus`, and
-  `defenseScan` reads the silver flaw and a susceptibility's `factor` and
-  `save` from the creature's clause. The producer gate's waiver for
-  `defenses` document (`tools/validate-producers.mjs`) goes with that recipe. The monster sheet edits
-  `factor` and `save`.
 - **A weapon Apply a player can press.** Only a Judge presses, as in the
   system. A player's press would go through a relay the Judge's client
   re-checks, as a cast's does.
@@ -396,3 +389,11 @@ training, a load, a keeper, a seat), where a rider's mount, a hired monster
 and a bought ox are each a combination of parts and none is a branch of its
 own. The first steps above move one fact at a time to a single store read
 through a facade. Nothing beyond them is designed.
+
+## Magic's turn-end detection is its own
+
+`magic/cast-declare.mjs` `turnEnded(prior, current)` and its `combatTurnChange` listener
+decide that a turn ended, a second owner of the reading `turn-life.mjs` `turnEdges`
+and `acksExtras.turnEnded` now give (MODEL.md, "Turn hooks"). Not built: the
+declaration's lapse listens to the hook and the local predicate goes, so the tracker's
+rounds that open before initiative is rolled are read once.

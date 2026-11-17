@@ -101,9 +101,15 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    permission on the monster: the rolls, the menus and the fold work and
    every field is disabled.
 5. Defenses: declare an immunity and a susceptibility, including the
-   `mundane` / `extraordinary` / `silverFlaw` switches.
-   *Observable:* they appear on the sheet as stated defenses, and damage
-   applied through the system's own path respects them.
+   `mundane` / `extraordinary` / `silverFlaw` switches, and type the
+   susceptibility's damage multiple and save modifier (blank, the fields show
+   the creature's page reference as their tooltip).
+   *Observable:* they appear on the sheet as stated defenses. The system's own
+   damage path does not read them. Lib's amount path does: cast a damaging
+   spell at the token, and press a weapon attack card's Apply under it as a
+   Judge. Each card's line names the defense and the steps, and a
+   susceptibility with a blank figure is the Judge's call naming its page,
+   never a guessed amount.
 6. Variants: add a variant entry.
    *Observable:* it is listed and can be applied without editing the base
    monster.

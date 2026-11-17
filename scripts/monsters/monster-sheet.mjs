@@ -345,6 +345,9 @@ export function createFullMonsterSheet(Base) {
         resConditions: Array.from(def.resistances?.conditions ?? []),
         susConditions: Array.from(def.susceptibilities?.conditions ?? []),
       };
+      // The page the creature's own entry cites: the pointer a susceptibility's
+      // figures carry as their tooltip, read or blank (`ui-tooltips.md`).
+      context.susCite = String(actor.flags?.[MODULE_ID]?.cookbook?.cite ?? "").trim();
       // The base prepares the effects list only for its own effects PART; the
       // body includes that template, so the list is prepared here.
       if (typeof this._prepareEffectsContext === "function") context = await this._prepareEffectsContext(context);

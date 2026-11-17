@@ -1120,6 +1120,27 @@ export const TABLE_RECIPES = {
       },
     },
   },
+  // The two figures lib/defenses.mjs turns a resistance into: the share of the
+  // damage a resistant combatant suffers, which the page writes as a word, and
+  // the signed bonus its saving throw gains against that damage (RR ch. 6,
+  // "Damage Type Immunity and Resistance"). Each anchor is the clause
+  // that precedes the figure, never the figure; which damage a defense covers
+  // and what immunity does are lib/defenses.mjs's procedure.
+  defenses: {
+    source: { book: "ACKS II Revised Rulebook", pages: "RR 300" },
+    tables: {
+      resistanceProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 300,
+        locate: "Damage Type Immunity and Resistance",
+        values: [
+          { key: "fraction", findRe: "resistant\\s*to\\s*a\\s*damage\\s*type,\\s*it\\s*suffers\\s*only", take: "fractionWord", span: 24 },
+          { key: "saveBonus", findRe: "type\\.\\s*it\\s*also\\s*gains\\s*a", take: "signed", span: 14 },
+        ],
+      },
+    },
+  },
   // How many magic rings one wearer benefits from (JJ 144, the Rings
   // introduction; the Treasure Tome prints it too): written as a count word,
   // read after the clause that names the benefit, which carries no figure.

@@ -45,6 +45,29 @@ const TRAINED_ROLE_MAP = {
 };
 
 /**
+ * One executor defense band as the extras schema stores it: `damage`, `effects`
+ * and `conditions` as sets (arrays), the two quality flags, `silverFlaw` and a
+ * `note`. A susceptibility also carries its own `factor` and `save`, and only
+ * when the scan read them: an unread figure stays absent, which the schema
+ * stores as blank.
+ */
+export function packDefenseBand(b, susceptible = false) {
+  if (!b) return undefined;
+  const figure = (v) => (Number.isFinite(v) ? v : undefined);
+  return {
+    damage: [...(b.damage ?? [])],
+    effects: [...(b.effects ?? [])],
+    conditions: [...(b.conditions ?? [])],
+    mundane: !!b.mundane,
+    extraordinary: !!b.extraordinary,
+    silverFlaw: !!b.silverFlaw,
+    ...(b.note ? { note: String(b.note) } : {}),
+    ...(susceptible && figure(b.factor) !== undefined ? { factor: b.factor } : {}),
+    ...(susceptible && figure(b.save) !== undefined ? { save: b.save } : {}),
+  };
+}
+
+/**
  * Map executor output onto the Full Monster Sheet's extras schema
  * (Classification / Rating & Saves / Vision / Movement / Ecology / Defenses).
  * Pure data mapping — exported so the dev harness can test it without Foundry.
@@ -186,11 +209,9 @@ export function buildExtras(node) {
 
   /* --- defenses (materialized by the executor from this seat's prose) --- */
   if (node.fields.defenses) {
-    const packSide = (b) =>
-      b ? { damage: b.damage ?? [], effects: (b.effects ?? []).join(", "), mundane: !!b.mundane, extraordinary: !!b.extraordinary } : undefined;
     const def = {};
     for (const side of ["immunities", "resistances", "susceptibilities"]) {
-      const p = packSide(node.fields.defenses[side]);
+      const p = packDefenseBand(node.fields.defenses[side], side === "susceptibilities");
       if (p) def[side] = p;
     }
     if (Object.keys(def).length) extras.defenses = def;

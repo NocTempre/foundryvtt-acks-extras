@@ -12,7 +12,7 @@
  * Runs identically in the browser (Foundry binding) and Node (verify harness).
  */
 import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
-import { rowsByY, applyCellPattern, slugLabel, joinRuns as joinCellRuns } from "./table-extract.mjs";
+import { rowsByY, applyCellPattern, slugLabel, takeProse, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { scenarioRoutines } from "./statline-attacks.mjs";
 import { levelFraction, DAMAGE_TYPES, SAVE_CATEGORIES, TARGET_FILTERS } from "../lib/vocab.mjs";
@@ -1219,7 +1219,11 @@ export function effectScan(paras, registers) {
  * susceptibility statements, matching a SHIPPED vocabulary (damage words and
  * the `defenseEffect` register). Returns `{immunities?, resistances?,
  * susceptibilities?}`, each `{damage, effects, mundane, extraordinary}`, or null
- * when nothing reads. Exported so authoring tools can preview the same result.
+ * when nothing reads. An immunity or resistance that turns on the damage's
+ * quality also carries `silverFlaw` when the text says silver counts as
+ * extraordinary; a susceptibility carries `factor` and `save` when the text
+ * prints them, and neither key otherwise. Exported so authoring tools can
+ * preview the same result.
  */
 export function defenseScan(paras, registers) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
@@ -1249,13 +1253,74 @@ export function defenseScan(paras, registers) {
   const res = scan(new RegExp(`(?:resistan(?:t|ce) to|takes? half (?:damage )?from) (.+?)${DEF_BOUNDARY}`, "gi"));
   const sus = scan(new RegExp(`(?:susceptible|vulnerable|especially vulnerable) to (.+?)${DEF_BOUNDARY}`, "gi"));
   const any = (b) => b.damage.length || b.effects.length || b.mundane || b.extraordinary;
+  // The silver flaw is a sentence of its own, so it is read off the whole text
+  // and set on the defenses it can change: those that turn on the damage's quality.
+  if (hasSilverFlaw(text)) for (const b of [imm, res]) if (b.mundane || b.extraordinary) b.silverFlaw = true;
+  Object.assign(sus, susceptibilityFigures(text));
   if (any(imm)) out.immunities = imm;
   if (any(res)) out.resistances = res;
   if (any(sus)) out.susceptibilities = sus;
   return Object.keys(out).length ? out : null;
 }
 
-/** Union two defense objects (type-inherent ACKS rule + per-entry prose scan). */
+/** The sentences of a prose run, a stop followed by a space ending each. */
+const sentencesOf = (text) => String(text).split(/(?<=[.!?])\s+/);
+
+/** A figure's window as the takes read it: lowercased, with the typographic minuses a page prints as a hyphen. */
+const takeWindow = (s) => s.replace(/[−–—]/g, "-").toLowerCase();
+
+/**
+ * Does the creature's own text say a silver weapon's damage counts as
+ * extraordinary (RR ch. 6, "Damage Type Immunity and Resistance")? One sentence
+ * names silver beside a weapon or damage and says it is extraordinary or
+ * counts as magical; a sentence that only lists silver or magic among what a
+ * defense covers does not say so.
+ */
+function hasSilverFlaw(text) {
+  const silverWeapon = /\bsilver(?:ed)?\b[^.]{0,40}\b(?:weapons?|damage)\b|\b(?:weapons?|damage)\b[^.]{0,40}\bsilver(?:ed)?\b/;
+  const counted = /\bextraordinary\b|\b(?:as if|as though|as|are|is|considered|counts?|treated)\s+(?:(?:they|it|them)\s+(?:were|was|are|is)\s+)?(?:being\s+)?magic(?:al)?\b/;
+  return sentencesOf(text).some((s) => {
+    const w = takeWindow(s);
+    return silverWeapon.test(w) && counted.test(w);
+  });
+}
+
+/**
+ * A susceptibility's own figures from the creature's text: `factor`, the
+ * multiple of damage it takes, and `save`, the signed modifier to its saving
+ * throw. They are read from the sentence that names the susceptibility and the
+ * one after it, each by the take a recipe would use (`times`, `signed`) and
+ * each only beside its cue: a sentence about damage the creature takes for
+ * `factor`, one about its saves for `save`. A figure not read is not returned.
+ *
+ * @returns {{factor?: number, save?: number}}
+ */
+function susceptibilityFigures(text) {
+  const out = {};
+  const sentences = sentencesOf(text);
+  const named = /\b(?:susceptible|vulnerable|especially vulnerable) to\b/i;
+  sentences.forEach((s, i) => {
+    if (!named.test(s)) return;
+    for (const near of sentences.slice(i, i + 2)) {
+      const w = takeWindow(near);
+      if (out.factor == null && /\b(?:damage|dice)\b/.test(w) && /\b(?:suffers?|takes?|taking|sustains?|receives?|dealt)\b/.test(w)) {
+        const n = takeProse(w, "times");
+        if (Number.isFinite(n) && n > 0) out.factor = n;
+      }
+      if (out.save == null && /\bsav(?:e|es|ing)\b/.test(w)) {
+        const n = takeProse(w, "signed");
+        if (Number.isFinite(n)) out.save = n;
+      }
+    }
+  });
+  return out;
+}
+
+/**
+ * Union two defense objects (a creature's own prose scan first, then the
+ * type-inherent ACKS rule). Sets and flags union; a note joins; a figure is the
+ * first object's, so the creature's own `factor` and `save` win.
+ */
 export function mergeDefenses(a, b) {
   if (!a) return b ?? null;
   if (!b) return a;
@@ -1270,6 +1335,15 @@ export function mergeDefenses(a, b) {
       mundane: !!(x?.mundane || y?.mundane),
       extraordinary: !!(x?.extraordinary || y?.extraordinary),
     };
+    const conditions = [...new Set([...(x?.conditions ?? []), ...(y?.conditions ?? [])])];
+    if (conditions.length) out[cat].conditions = conditions;
+    if (x?.silverFlaw || y?.silverFlaw) out[cat].silverFlaw = true;
+    const note = [x?.note, y?.note].filter(Boolean).join("; ");
+    if (note) out[cat].note = note;
+    for (const key of ["factor", "save"]) {
+      const figure = x?.[key] ?? y?.[key];
+      if (figure != null) out[cat][key] = figure;
+    }
   }
   return out;
 }

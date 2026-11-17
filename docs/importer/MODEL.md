@@ -1883,6 +1883,39 @@ the side tab prints. The executor's mechanics scans (defenses, effects, rolls,
 derived values) skip the encounter, lair and notes sections, because those
 describe a lair and its occupants rather than the creature.
 
+## Defenses: the creature's own clause and resistance's two figures
+
+Two readers feed `lib/defenses.mjs` (the procedure is `docs/lib/MODEL.md`,
+"Damage against defenses").
+
+- **The creature's clause.** `defenseScan` reads a monster's own description
+  into immunity, resistance and susceptibility bands of damage types, effects
+  and the two quality flags. Beyond the sets it reads two more things from the
+  same text, each only beside a cue and each left absent when unread:
+  - `silverFlaw`, from a sentence that names silver beside a weapon or its
+    damage and calls it extraordinary or magical. It is set on an immunity or
+    resistance that turns on the damage's quality, never on a susceptibility.
+  - a susceptibility's `factor` and `save`, from the sentence that names the
+    susceptibility and the one after it. `factor` is read (`times`) from a
+    sentence about the damage the creature suffers, takes or receives; `save`
+    (`signed`) from a sentence about its saves. The takes are the recipes'
+    own (`takeProse`), so a typographic minus reads as a hyphen. A multiple
+    beside no such cue, or a sign-less figure, is left unread.
+  - `mergeDefenses` unions the creature's bands with its type's: sets and
+    flags union, a note joins, and the creature's own figure wins over the
+    type's.
+  - `bindMonster` stores each band through `packDefenseBand`: `damage`,
+    `effects` and `conditions` as sets, `silverFlaw`, `note`, and for a
+    susceptibility `factor` and `save`.
+- **Resistance's figures** are the `defenses` document's `resistanceProse`
+  table, a `proseValues` recipe in `table-recipes.mjs` like the `senses`
+  document's: `fraction` (take `fractionWord`) and `saveBonus` (take `signed`),
+  each located by the words of the clause before it, never by the figure (RR
+  ch. 6, "Damage Type Immunity and Resistance"). It is a table recipe, so it
+  has no register row and no cookbook entry; the Tables step of an import
+  writes the document to the world, and the Judge's override layer wins over
+  it. Immunity prints no figure and has no recipe.
+
 ## A run-in keyed area
 
 A keyed area whose key opens its first paragraph (`anchor: {number, as:

@@ -2255,3 +2255,37 @@ shelf knows. Under C, the merge that keeps a printing (`books.mjs`
 `keptBook`) is checked against the Tome when its entries are built (S6). The
 Tome-side code for S3, S6 and S8 is written under `scripts/importer/books/tt/`
 once the per-book seam exists.
+
+## 2026-11-17 — Resistance's two figures are a table recipe; a creature's defense figures are read only beside their cue
+
+Owner, in the spell-effects plan's ruling 4: "Yes to damage
+types/resistances/immunities interactions", with "Spells want their proper
+effects, damage/effects should apply with correct amount and type." and
+"automation with transparency is the design principle". Plan rulings 67, 70
+and 73 placed the figures; this is how the importer reads them.
+
+**Ruled.**
+
+- Resistance's amount fraction and save modifier (RR ch. 6, "Damage Type
+  Immunity and Resistance") are the `defenses` document's `resistanceProse`
+  table, a `proseValues` entry of `TABLE_RECIPES` beside the `senses` one: no
+  register row and no cookbook entry, because a table recipe is read from the
+  seat's own book at import. Each value is located by the words of the clause
+  before it, with the figure's own take (`fractionWord`, `signed`). Immunity
+  prints no figure and has no recipe.
+- `defenseScan` reads three more things from a creature's own text, and each
+  is absent when its cue is not there. The silver flaw needs one sentence that
+  names silver beside a weapon or its damage and calls it extraordinary or
+  magical. A susceptibility's `factor` needs a sentence about damage the
+  creature suffers or takes, and its `save` a sentence about its saves, each
+  within the sentence that names the susceptibility or the one after it.
+  `takeProse` is exported so the scan reads a figure with the take a recipe
+  would use.
+- `packDefenseBand` stores `effects` and `conditions` as sets and keeps the
+  flaw, the note and a susceptibility's figures.
+
+*Rejected:* a looser read of any "twice" or signed figure near the
+susceptibility, which would write a wrong multiple on a creature whose next
+sentence is about its bite; a null is the Judge's call, a wrong figure is
+applied silently. *Cost:* a creature that prints its multiple two sentences
+away, or a save modifier with no sign, reads blank until the Judge types it.

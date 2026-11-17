@@ -52,6 +52,8 @@ const TABLES = {
   settlement: ["marketClassByFamilies"],
   // The three figures lib/senses.mjs reads: the shadowy radius, Night Vision's multiple and a dark sense's default reach.
   senses: ["shadowySensesProse", "nightVisionProse", "lightlessDefaultProse"],
+  // The two figures lib/defenses.mjs reads: a resistant combatant's share of the damage and its saving throw modifier.
+  defenses: ["resistanceProse"],
   // The expedition speed grid and the sentences around it: the ratio, the hours of each day, the wilderness scale.
   travel: ["expeditionRows", "expeditionProse"],
   // The influence roller's two morale pages: a result column and a modifier
@@ -572,6 +574,13 @@ for (const id of ["senses.shadowySensesProse", "senses.nightVisionProse", "sense
     for (const v of recipe.values) if (isNum(out?.[v.key]) && !(out[v.key] > 0)) fail(`${v.key}: not above zero`);
   };
 }
+// Resistance's two figures lib/defenses.mjs reads: a share above none and within
+// the whole, and a whole signed modifier. Shape only; no figure is named.
+VERIFY["defenses.resistanceProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  if (isNum(out?.fraction) && !(out.fraction > 0 && out.fraction <= 1)) fail("fraction: not a share above none and within the whole");
+  if (isNum(out?.saveBonus) && !Number.isInteger(out.saveBonus)) fail("saveBonus: not a whole modifier");
+};
 // The expedition grid: every declared row read, a figure in both cells, and
 // every row holding the same ratio between them (the binding takes that ratio
 // and refuses a grid that disagrees with itself). The prose windows: each hours

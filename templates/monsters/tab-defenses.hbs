@@ -85,6 +85,12 @@
         <label class="checkbox acksm-cb"><input type="checkbox" name="{{x}}.defenses.susceptibilities.extraordinary" {{#if extras.defenses.susceptibilities.extraordinary}}checked{{/if}}/> {{localize "ACKS-MONSTERS.field.extraordinary"}}</label>
       </div>
       <div class="flexrow">
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.susFactor"}}</label>
+          <div class="form-fields"><input type="number" min="0" step="any" name="{{x}}.defenses.susceptibilities.factor" value="{{extras.defenses.susceptibilities.factor}}" {{#if susCite}}data-tooltip-text="{{susCite}}"{{else}}data-tooltip="ACKS-MONSTERS.hint.susFactor"{{/if}}/></div></div>
+        <div class="form-group"><label>{{localize "ACKS-MONSTERS.field.susSave"}}</label>
+          <div class="form-fields"><input type="number" step="1" name="{{x}}.defenses.susceptibilities.save" value="{{extras.defenses.susceptibilities.save}}" {{#if susCite}}data-tooltip-text="{{susCite}}"{{else}}data-tooltip="ACKS-MONSTERS.hint.susSave"{{/if}}/></div></div>
+      </div>
+      <div class="flexrow">
         <div class="form-group stacked flex-2"><label>{{localize "ACKS-MONSTERS.field.effectKeywords"}}</label>
           <multi-checkbox name="{{x}}.defenses.susceptibilities.effects" class="acksm-chips">
             {{#each choices.effect as |label key|}}
