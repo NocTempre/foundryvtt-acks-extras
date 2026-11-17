@@ -1,8 +1,9 @@
 # Magic items — live-test recipe
 
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
-driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. No walk drives
-this recipe yet; it is walked by hand on the GM seat and a real Player seat.
+driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
+`tools/live/magic-items.mjs` walks steps 1 to 10 on the GM seat and a real
+Player seat, then rolls once from the world's own import where one stands.
 
 The surface is the roller window, the Judges-only card it posts and the entry
 point both go through (`acksExtras.magicItems.openRoller`, `rollAndPost`). The
@@ -25,14 +26,15 @@ in the client, so a seat's real import is neither needed nor touched.
   and page invented:
   - `classicType.bands`: one band `1-6`, `item` "Zq Kk", `hop` `classic.kk`.
   - `classic.kk`: one band `1-10`, `item` "Xx ten". `classic.tt`: bands `1-3`
-    ("Xx low") and `4-6` carrying `sub` `[{min: 1, max: 3, item: "Xx tail a"},
-    {min: 4, max: 6, item: "Xx tail b"}]`.
+    ("Xx low") and `4-6` carrying `sub` `[{min: 1, max: 2, item: "Xx tail a"},
+    {min: 3, max: 3, item: "Xx tail b"}]`. A tail's die is the top of its own
+    inner bands, so this one is a 1d3.
   - `heroic.rr` and `heroic.ss`: one band `1-100` each, `item` "Hh one" and
     "Hh two".
   - `captions`: a caption for each list id (`classicType.bands`, `classic.kk`,
     `classic.tt`, `heroic.rr`, `heroic.ss`); `listCites`: "ZZ p.1" and so on.
   A single band over the whole die makes a roll on it deterministic without
-  rigging the dice; only the tail (step 3) needs a roller.
+  rigging the dice; only the tail (step 4) needs a roller.
 - **Cards.** Each card a walk posts is tracked by the id `rollAndPost` answers
   (`result.message.id`, `api.track(id, "ChatMessage")`), or, for a card the
   window posted, by the newest message of the run's minute whose content holds
@@ -79,7 +81,7 @@ in the client, so a seat's real import is neither needed nor touched.
 4. `rollAndPost({style: "classic", category: "tt", roller})` with a roller that
    throws a 5 on the 1d6 and a 2 on the 1d3.
    *Observable:* one row whose roll reads `5 › 2`, "Xx tail a" beneath, and a
-   tooltip `Die 1d6 › 1d3 · Band 4–6 › 1–3 · <page>`. The asserted die strings
+   tooltip `Die 1d6 › 1d3 · Band 4–6 › 1–2 · <page>`. The asserted die strings
    are read off the call the roller received.
 5. Press Roll on Heroic with each rarity, then on Gritty.
    *Observable:* one row each, headed by the rarity's caption, the subtitle
