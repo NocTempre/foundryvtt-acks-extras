@@ -33,7 +33,7 @@ import { hasCapability } from "./ability-bridge.mjs";
 import {
   carriedLoad, encumbranceOf, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
 } from "./formation-model.mjs";
-import { partText, resolveCheck } from "./party-rolls.mjs";
+import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
 import { NO_ACROBATICS, fallFigures, jumpDistance } from "./jumping.mjs";
 import {
@@ -254,16 +254,22 @@ const jumpingRef = () => loc("crossing.ref.jumping");
 const citeFor = (table) => citeOf(FORMATION_DOC, table);
 
 /**
- * A member's target as a tooltip: where the figure was read from, each part with
- * the page its import cites, and the Judge's modifier where one is set. Conditions
- * arrive as a part of the figure.
+ * A member's target as a tooltip: where the figure was read from with the figure
+ * it starts at, each part that moved it with the page its import cites, and the
+ * Judge's modifier where one is set. `resolveCheck` itemizes only what lowered
+ * the figure, so the starting figure (a ladder's rung at the member's level, or the
+ * sheet's stored figure) is read back as the target plus those parts. Conditions
+ * arrive as a part of the figure. The procedure's page ends the line unless a
+ * part names its own.
  */
 export function targetTooltip(figure, judgeMod = 0) {
   if (!figure) return spelunkingRef();
-  const parts = (figure.parts ?? []).map((part) => `${partText(part)}${part.cite ? ` (${part.cite})` : ""}`);
+  const parts = figure.parts ?? [];
   const mod = Number(judgeMod) || 0;
-  if (mod) parts.push(partText({ value: mod, label: loc("crossing.judgeMod") }));
-  return [figure.source, ...parts].filter(Boolean).join(" · ");
+  const start = Number.isFinite(figure.target) ? figure.target + parts.reduce((sum, part) => sum + part.value, 0) : null;
+  const source = start === null ? figure.source : loc("crossing.tip.base", { source: figure.source, base: start });
+  const line = citedSource({ source, parts }, mod ? [partText({ value: mod, label: loc("crossing.judgeMod") })] : []);
+  return parts.some((part) => part.cite) ? line : [line, spelunkingRef()].join(" · ");
 }
 
 /** What a stretch count reads as, in a tooltip: the stretch and the page, or the page alone. */

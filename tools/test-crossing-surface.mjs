@@ -364,6 +364,40 @@ await ok("a holder's and a non-holder's targets carry their parts; the Judge mod
   assert.equal(h.can, true);
 });
 
+await ok("a target's tooltip lists the figure's base and its parts with their pages, not the source alone", async () => {
+  reset();
+  load();
+  // A held ladder and a stored figure with no bonus of any kind: `resolveCheck` itemizes only what
+  // moved the target, so its `parts` is empty and the tooltip once read the source alone.
+  const holder = person("Alder", { items: [CLIMBING()] });
+  const plain = person("Birch", { adventuring: { climb: 14 } });
+  const { formation } = world([holder, plain]);
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "100" });
+  const view = buildCrossingView(formation);
+  const h = rowOf(view, "Alder");
+  const p = rowOf(view, "Birch");
+  assert.deepEqual([h.target, p.target], ["12+", "14+"]);
+  assert.notEqual(h.targetTip, "Probe Climb (L6)", "the source is not the whole tooltip");
+  assert.ok(h.targetTip.includes("Probe Climb (L6), base 12+"), "the ladder's rung at the member's level is the base part");
+  assert.ok(p.targetTip.includes("base 14+"), "the stored figure is the base part");
+  assert.ok(h.targetTip.endsWith("RR ch. 6, Spelunking") && p.targetTip.endsWith("RR ch. 6, Spelunking"), "no part names a page, so the procedure's page ends it");
+
+  // A figure shaped as `resolveCheck` returns it, with a cited part, an uncited one and a penalty.
+  const figure = {
+    target: 9, source: "Probe Climb (L6)", skilled: true,
+    parts: [{ label: "Probe Boots", value: 2, cite: "XX p.7" }, { label: "Probe Score", value: 1 }, { label: "Conditions", value: -1 }],
+  };
+  assert.equal(
+    crossing.targetTooltip(figure, 1),
+    "Probe Climb (L6), base 11+; +2 Probe Boots (XX p.7), +1 Probe Score, −1 Conditions, +1 Judge modifier",
+    "the base is the target and every part it was lowered by, each cited part carrying its page, then the Judge's modifier",
+  );
+  assert.ok(!crossing.targetTooltip(figure, 1).endsWith("Spelunking"), "a part's page stands in for the procedure's");
+  assert.equal(crossing.targetTooltip({ target: 12, source: "Via Adventuring", parts: [] }, 0), "Via Adventuring, base 12+ · RR ch. 6, Spelunking");
+  assert.equal(crossing.targetTooltip(null, 2), "RR ch. 6, Spelunking", "no figure, the page alone");
+});
+
 await ok("a Judge is warned on a permission refusal and a player is blocked, each with the reason as text", async () => {
   reset();
   load();
