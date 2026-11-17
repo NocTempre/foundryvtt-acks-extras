@@ -1150,6 +1150,36 @@ reads these before its first agent:
 - S10's shot is of a crossing a user set up through the section; Phase 1's
   fixtures (§13) are API-built and are not shot.
 
+**The next start, from Phase 2's results (§16).** The owner capped Phase 2
+on 2026-11-17 at the unpushed work it had landed, and asked for build-ahead
+meanwhile. The managing session starts the next session on the topic from
+the "Phase 2 and later" prompt; it also reads these before its first agent:
+
+- What lands waits for the owner's minor. A slice is built to an offline
+  green on `topic/dungeon-closeout` and committed there; nothing is landed
+  on `main` until the managing session says the minor is tagged. Then
+  `acks-branch sync dungeon-closeout`, the full gate on the tip, the land,
+  and the walk on `main`.
+- Phase 2's remaining slices come first, in this order: S13 (built on
+  S12's logic, `982eee0a`), S15, S16, S17; then Phase 3's. S10 waits for a
+  walk on `main` of a crossing a user set up, so it follows the first land
+  after the minor. Phase 3's S20 and S24 read S16's pace pick.
+- S12's full gate has not run on its tip: run it before S13 starts. S12
+  left S13 the stepping questions B13 owns: where a round's throw leaves a
+  swimmer, how a swimmer gets across, who counts `drownedRounds` and when
+  `left` reaching 0 ends it, a rescuer's cost and who may rescue, and what
+  each pace allows. S13's brief reads B13 against the page; a question the
+  page leaves open goes to an `architect`, not to the implementer.
+- OQ2 to OQ5 are answered (below); OQ11 is put in S24's brief.
+- Re-run rigged, on a lane with no other GM seated, the Player-relayed
+  presses §16 records as unrigged (step 5, 11j), and walk the relayed
+  landing save and 11k there too.
+- Formation's `apiVersion` is 31 on `main` and 32 on the topic. A
+  topic-side gate can rewrite `tools/importer/cookbook-stamp.json`; restore
+  it before `land`, which refuses a dirty worktree.
+- The CPU is shared with release walks: no full gate in the worktree while
+  the managing session says a walk holds the machine.
+
 ### Phase 3's questions, put for one pass
 
 Phase 2 read RR ch. 3 and ch. 6 against §5's OQ2 to OQ5 (an `architect`,
@@ -1533,3 +1563,131 @@ whose lines date from `569d7d67`.
   audit in the world lists it as a progression row.
 - The three probe items on member 1 and the run's cards were swept by tracked
   id each run.
+
+## 16. Phase 2 results
+
+Phase 2 ran on 2026-11-17 and is capped there by the owner: "A lot of
+changes hanging open. Needs to be a cap that now is clearly past", then "As
+in unpushed commits, I'm fine burning the work down for the next release."
+Later the same day: "Get as much work done unsupervised over the next
+several hours, skipping around work that requires more input to clear
+blockers", which the managing session read as build-ahead: slices built to
+an offline green on the topic and not landed until the minor is tagged.
+Nothing is pushed; no release was cut.
+
+**Commits on `main`, none pushed.** T-0639, T-0640 and T-0641 `ecbe809c`;
+the design approval `6ef27ea4`; S11 `848f3702`; T-0638 `a587ac26`; the
+topic's S14, S18, S19, the S19 defect fixes and two review commits, landed
+by one fast-forward as `7289480d` (gate green on that tip); the OQ answers
+`f212486d`. Ledger: T-0638 to T-0641 fixed-unreleased; T-0642 registered.
+
+**Built ahead on `topic/dungeon-closeout`, not landed.** S12 `982eee0a`,
+the swim row's logic. Its single suites are green (test-crossing 50,
+test-swimming 15, test-crossing-surface 65; `npm test` 268 suites before a
+comment-only edit); the full gate was held while the machine served the
+minor's walks and has not run on the tip.
+
+**Published names.** Formation's `apiVersion` is 31 on `main`: S11 took 30
+and removes `waterModifier` and `WATER.calm`, a removal the module's own
+comment calls a major; S19 took 31 when the sync met it. S12 takes 32 on the
+topic.
+
+**Rulings the slices took, for the owner to see.**
+- S14: Contortionism's figure applies to the squeeze and push throws, not to
+  the wiggle-back save, which its ch. 3 effect already modifies (DECISIONS).
+- S18: Clambering is not held, since the condition catalogue puts it in
+  combat toward a creature; the board's example chip showed one. Only the
+  status the imported grid row names is held, and nothing while the figure
+  is not imported.
+- S19: the footing is the rolled distance less the slip less the gap: past
+  the edge, solid ground and prone; on it, the edge and hanging; short of
+  it, empty space and a fall. A short jump falls with no save. The climb up
+  is one stretch of the sheer climb on the member's own figure, the easy
+  climb with Rope fixed. A dismissed save dialog keeps the distance and the
+  next press finishes the save. Two controls are not on the board: Rope
+  fixed on a jump, and the "Save to roll" state with its resume press.
+- S12: a water penalty is none, an imported step, or a figure above the
+  largest step; one between or below the steps is refused; with no steps
+  imported any size stands.
+
+### Exercised live
+
+On `main` at `7289480d`, lane B: Gamemaster 2 in the app's pane (its
+recorder attached after load and saw the hidden pane's zero-size canvas
+errors only, no module frame) and Player 2 in a capture-driver seat held
+open for the walk.
+
+- Step 0: the formation tables re-imported through the reimport dialog; the
+  log names the four squeeze keys and `swimWaterPenaltySteps`, each read
+  back in its shape (four positive figures; a list of two positive sizes);
+  `vulnerable` and `advances` present.
+- T-0638: a member's target tooltip reads its source with the base figure
+  and ends on the Spelunking page; the beast's blank target carries the page
+  alone. T-0639: the Climbing holder's Permitted cell reads "May try" with
+  the kind, the proficiency and the page. T-0640: two refused Player
+  requests (a member across, a stale crossing id) whispered their reasons
+  and raised no "Declared" toast. T-0641: a focused press that takes the
+  member across leaves focus on the row, on an obstacle row and on a jump
+  row.
+- TESTING steps 1 to 4.
+- Step 6a on the narrow ledge: one marked Vulnerable per member beside an
+  unmarked hand-set one; the chip on both seats with its tooltip and page; a
+  second throw makes no second effect; a hand delete is refused; across, a
+  fall and End each release it; the hand-set effect stands; the easy climb,
+  not vulnerable, held nothing.
+- 11e; 11f; 11g with the save made (two dice; the system's card target
+  equal to the row's); the failed save and 11h's three footings (three dice,
+  two cards each); the Judge's override to the edge (record and state
+  follow, Climb up offered, "Set by the Judge" in the tooltip); 11i, a
+  climb-up miss that fell, thrown over a refusal and priced at the setup's
+  depth, and a make by the Climbing holder with the footing kept as the
+  edge, neither holding a condition; a blank gap drawing no Attempt.
+- Teardown: the run's cards swept by id, asked 29, removed 29, could not
+  find 0, refused none; the two hand-set Vulnerable effects removed; the
+  crossing ended.
+
+**Ran unrigged: lane A's GM was the active relay.** Lane A joined mid-walk,
+and Foundry handed every Player-relayed request to its GM client, where the
+pane's die rig does not reach: step 5's Throw (the declaration, the
+Judges-only card, the toast and no local write, as written), a narrow-ledge
+Throw (it rolled a botch and fell) and 11j's Attempt (the declaration "…
+jumps.", one card, the record written). They are re-run rigged on a lane
+with no other GM seated.
+
+### Found by the walk
+
+- After a climb-up fall the row's state reads Fell while its result line
+  still reads "An edge: Hanging".
+- No warning was seen before the Judge's "Climb up anyway" press; a toast
+  may have expired before the read. Not captured.
+- The covered cell's tooltip reads "1 stretches"; older than this phase.
+- T-0642 (`tooltip:2026-11-17`): the target's base figure carries no page,
+  since `resolveCheck` drops the winning item's cite.
+- Found offline, not by the walk: `acks-rules`' formation RULES.md §11 has
+  the narrow and precarious botched-throw cells swapped against the printed
+  grid (local-only, not fixed); `tools/rules-tests/test-obstacles.mjs`
+  (gitignored) still calls the `assisted` name S6 renamed.
+
+### Checked offline only
+
+Each slice's suites with its mutations (S11 13 and 165, S14 182, S18 32 and
+46, S19 38 and 60, then 39 and 65 after its fixes, S12 50 and 15); `npm
+test` and `validate` on each landing's gate; the topic's tip before the land
+(`npm test` 260 suites, `validate` OK).
+
+### Not checked
+
+- 11k with the jumping table or the shortfall die blanked: lane A shares
+  the world's tables.
+- A relayed landing save: its dialog would open on lane A's GM client.
+- A climb-up miss that holds on, short of a fall; a holding member removed
+  from the party.
+- Swimming in a crossing: S12 has no surface yet.
+- The detached window and the font knob on the new jump result cells.
+
+### Fixtures kept
+
+`formation/crossing-party`, `formation/crossing-adventurer` (owned by
+Player 2), `formation/crossing-climber`, `formation/crossing-acrobat`,
+`formation/crossing-beast`, all reused; nothing built. The crossing is
+ended.
