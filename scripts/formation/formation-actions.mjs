@@ -38,11 +38,11 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
-  applyCrossingForm, beginCrossing, endCrossing, readCrossing, requestCrossingThrow, throwAll, throwFor,
+  applyCrossingForm, beginCrossing, endCrossing, readCrossing, throwAll, throwFor,
 } from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
@@ -965,7 +965,7 @@ export const SHARED_ACTIONS = {
 
   /**
    * One member's throw. The Judge's seat throws it; a player's seat hands the
-   * press to `requestCrossingThrow`, which writes nothing.
+   * press to `requestCrossingThrow`, which relays it to the GM client.
    */
   async crossingThrow(_event, target) {
     const formation = this.formation;

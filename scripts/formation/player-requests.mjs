@@ -9,6 +9,7 @@ import { bringInRefusal, refusalText, takeOutRefusal } from "./membership.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
+import { JUMP_KIND, crossingMembers, readCrossing, relayRefusalWords, rowFor, throwFor } from "./crossing.mjs";
 import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { turnActivity } from "../lib/turn-activities.mjs";
@@ -20,7 +21,7 @@ import { turnActivity } from "../lib/turn-activities.mjs";
  * types are the `case`s of `executeRequest`: lights, spells, a rest turn, party
  * checks, the turn plan, the marching order, roles, detaching, leaving a
  * member behind, conveyance, bringing an actor in or out, light discipline,
- * anchoring a map and trapbreaking.
+ * anchoring a map, trapbreaking and a crossing's throw.
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
@@ -47,6 +48,20 @@ async function announceDeclaration(formation, user, text) {
       action: text,
     })}</em></div>`,
     speaker: { alias: formation.name },
+  });
+}
+
+/**
+ * Tell the requesting user, and nobody else, why their crossing throw was not
+ * made. A reason with no words (an absence refusal) is not whispered.
+ */
+async function whisperCrossingRefusal(formation, user, reason, actor) {
+  const said = relayRefusalWords(reason, actor);
+  if (!said) return;
+  await ChatMessage.create({
+    content: foundry.utils.escapeHTML(said),
+    whisper: [user.id],
+    speaker: { alias: formation.name ?? "" },
   });
 }
 
@@ -284,6 +299,28 @@ async function executeRequest(formation, user, type, payload) {
       break;
     }
 
+    /* --- A crossing: one stretch thrown for a member the player owns --- */
+    case "crossing": {
+      // A payload with no actor id must not fall through to "owns any member".
+      const actorId = typeof payload.actorId === "string" ? payload.actorId : null;
+      const actor = actorId ? game.actors.get(actorId) : null;
+      const refuse = (reason) => whisperCrossingRefusal(formation, user, reason, actor);
+      if (!actorId || !userOwnsMember(formation, user, actorId)) return refuse("notOwner");
+      // The crossing id the requester saw, or "" for none, which matches no crossing.
+      const crossingId = typeof payload.crossingId === "string" ? payload.crossingId : "";
+      // The declaration is made once every check has passed and the member's
+      // throw is claimed, so a refused or busy request declares nothing.
+      const out = await throwFor(formation, actorId, {
+        player: !user.isGM,
+        crossingId,
+        beforeRoll: () => announceDeclaration(formation, user, loc("request.crossing", {
+          name: foundry.utils.escapeHTML(actor?.name ?? "?"),
+        })),
+      });
+      if (!out.ok) await refuse(out.refused);
+      break;
+    }
+
     /* --- Consult (anchor) a map the player's character holds --- */
     case "anchorMap": {
       const item = await fromUuid(payload.itemUuid);
@@ -340,6 +377,34 @@ export async function requestTakeOut(formation, actorId) {
   const refused = takeOutRefusal(formation, actorId, game.user);
   if (refused) return void ui.notifications.warn(refusalText(refused, game.actors.get(actorId)));
   await requestPartyAction(formation.id, "takeOut", { actorId });
+}
+
+/**
+ * A seat's press on a member's crossing throw. The row is read for this seat
+ * first and a refusal is said here, so a press that cannot succeed is never
+ * sent; the GM client reads the row again and is the one that rolls, writes
+ * and posts. The request names the formation, the crossing the seat saw and
+ * the member, and nothing else.
+ * @returns {Promise<{ok: boolean, refused?: string}>} whether the request was sent, or why not
+ */
+export async function requestCrossingThrow(formation, actorId) {
+  const crossing = readCrossing(formation);
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  let refused = null;
+  if (!crossing) refused = "closed";
+  else if (!entry) refused = "member";
+  else if (crossing.kind === JUMP_KIND) refused = JUMP_KIND;
+  else {
+    const { row } = rowFor(formation, crossing, entry);
+    if (!row.can) refused = row.refusal?.reason ?? "member";
+  }
+  if (refused) {
+    const said = relayRefusalWords(refused, entry?.actor ?? game.actors.get(actorId));
+    if (said) ui.notifications.warn(said);
+    return { ok: false, refused };
+  }
+  await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId });
+  return { ok: true };
 }
 
 /** Register the GM-side request handler with socketlib. */

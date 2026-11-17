@@ -2819,7 +2819,8 @@
       "relight": "relights {bearer}'s light.",
       "anchor": "consults the map “{map}”.",
       "trapbreak": "{name} works on the trap.",
-      "trapRearm": "{name} sets the trap going again."
+      "trapRearm": "{name} sets the trap going again.",
+      "crossing": "{name} throws to cross."
     },
     "role": {
       "mapper": "Mapper",
@@ -7442,7 +7443,6 @@
   "ACKS-FORMATION.crossing.refused": "No",
   "ACKS-FORMATION.crossing.fell": "Fell {feet} ft, {damage}",
   "ACKS-FORMATION.crossing.fellNoDice": "Fell {feet} ft",
-  "ACKS-FORMATION.crossing.relayPending": "Ask the Judge to make this throw.",
   "ACKS-FORMATION.crossing.leftForJudge": "{count} left for the Judge to press.",
   "ACKS-FORMATION.crossing.kind.jump": "Jump",
   "ACKS-FORMATION.crossing.state.climbing": "Under way",
@@ -7478,6 +7478,9 @@
   "ACKS-FORMATION.crossing.refusal.busy": "That throw is still being made.",
   "ACKS-FORMATION.crossing.refusal.stale": "The crossing changed during the throw; nothing was recorded.",
   "ACKS-FORMATION.crossing.refusal.jump": "A jump has no throw here.",
+  "ACKS-FORMATION.crossing.relay.notOwner": "{name} is not yours to throw for.",
+  "ACKS-FORMATION.crossing.relay.settled": "{name} has nothing left to throw.",
+  "ACKS-FORMATION.crossing.relay.member": "{name} is no longer in the party.",
   "ACKS-FORMATION.crossing.card.title": "{kind}",
   "ACKS-FORMATION.crossing.card.overRefusal": "Thrown over a refusal: {reason}",
   "ACKS-FORMATION.crossing.card.overRefusalBare": "Thrown over a refusal",

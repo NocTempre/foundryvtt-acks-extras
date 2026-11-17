@@ -2789,9 +2789,27 @@ damage. `throwAll` throws for each member whose row allows it with no warning.
 A jump row is `canClear`'s verdict for the member, blank until a gap is set;
 it has no throw on this surface.
 
-A player's press on a member they own reaches `requestCrossingThrow`, which
-writes nothing, rolls nothing and tells the seat the throw is the Judge's to
-make.
+**A player's throw.** A player throws for the members they own and no other. The
+press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the
+row for the seat, says a refusal where it has words and otherwise relays
+`crossing` with the formation id, the crossing id the seat saw and the actor id,
+and nothing else; the player's client never writes, rolls or posts. The GM
+client's `executeRequest` case checks again, in this order: the requesting user
+owns the member (`userOwnsMember`, against the sender the server attests, and an
+actor id must be named); a crossing is open and its id is the one sent; the row
+read with `judge: false, owns: true` allows the throw, so a permission, absence
+or seat refusal stops a player where a permission refusal only warns a Judge;
+and no throw for that member is in flight. The in-flight key is claimed in the
+same synchronous run as the checks, and `announceDeclaration` runs after it and
+before the die (`throwFor`'s `beforeRoll`), so a refused or busy request
+declares nothing. A pass posts the public declaration and the card goes to the
+Judges as for a Judge's throw. A refusal is whispered to the requesting user
+with `crossing.relay.*` or `crossing.refusal.*` words, and an absence refusal,
+which has none, is not whispered. Two requests for two members interleave and
+both land, since each writes its own member's path; two for one member land once
+and the second is whispered as busy. `buildPlayerPanel` carries `canCross`, true
+where the seat owns a member whose row allows a throw in an open obstacle
+crossing, read from the same rows the section draws.
 
 **Tooltips.** A target names the figure's source, each part with the page its
 import cites, and the Judge modifier; a permitted-or-not and a stretch count

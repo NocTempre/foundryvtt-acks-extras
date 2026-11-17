@@ -18,8 +18,9 @@
  *
  * A crossing applies no condition, spends no time on the clock and posts no
  * damage: the card reports a fall's distance and dice and touches no hit
- * points. A player's press is `requestCrossingThrow`, which refuses on a
- * seat that cannot write.
+ * points. A player's client never writes or rolls: its press is relayed
+ * (`player-requests.mjs`, kind `crossing`) and the GM client answers it with
+ * `throwFor` read for a player's seat.
  */
 import { MODULE_ID, FORMATION_DOC } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
@@ -195,10 +196,12 @@ export function crossingMembers(formation) {
 /**
  * One member's row for a seat: the logic's answer with the figure it was read
  * from. A seat that is a GM is the Judge; any other is its owner's or a
- * bystander's.
+ * bystander's. `owns` states the seat's ownership outright where the caller
+ * has established it for a user other than this client's (the GM client
+ * answering a relayed throw); left null it is read from this client's user.
  */
-export function rowFor(formation, crossing, { member, actor }, { judge = game.user.isGM, load = null } = {}) {
-  const owns = judge || (actor.testUserPermission?.(game.user, "OWNER") ?? false);
+export function rowFor(formation, crossing, { member, actor }, { judge = game.user.isGM, owns = null, load = null } = {}) {
+  owns = owns ?? (judge || (actor.testUserPermission?.(game.user, "OWNER") ?? false));
   const seat = { judge, owns };
   const standing = standingOf(member, actor);
   const record = crossing.members?.[member.actorId] ?? null;
@@ -281,6 +284,38 @@ function refusalText(refusal, actor) {
   if (!refusal || refusal.cls === "absence") return "";
   const key = `ACKS-FORMATION.crossing.refusal.${refusal.reason}`;
   return game.i18n.has(key) ? game.i18n.format(key, { name: actor.name }) : "";
+}
+
+/**
+ * The words a refused player's press is told, or "" for a reason with none (an
+ * absence refusal says nothing about what was not imported). The relay's own
+ * keys come first, so a reason the row never words (not the owner, a member
+ * whose crossing is over, a member the party no longer holds) can be said here
+ * without appearing on the row.
+ * @param {string} reason a refusal's reason, from the row or from `throwFor`
+ * @param {object|null} actor the member
+ */
+export function relayRefusalWords(reason, actor) {
+  const key = SETTLED.includes(reason) ? "settled" : reason;
+  for (const path of [`ACKS-FORMATION.crossing.relay.${key}`, `ACKS-FORMATION.crossing.refusal.${key}`]) {
+    if (game.i18n.has(path)) return game.i18n.format(path, { name: actor?.name ?? "?" });
+  }
+  return "";
+}
+
+/**
+ * Whether this seat may press a throw now: a crossing over an obstacle is open
+ * and a member this seat owns has a row that allows it and a throw left. This
+ * is the question the player panel asks, answered from the rows the section
+ * draws.
+ */
+export function canCross(formation) {
+  const crossing = readCrossing(formation);
+  if (!crossing || crossing.kind === JUMP_KIND) return false;
+  return crossingMembers(formation).some((entry) => {
+    const { row } = rowFor(formation, crossing, entry);
+    return row.can && !SETTLED.includes(row.state);
+  });
 }
 
 /** A kind's label: the jump's own, or the obstacle's. */
@@ -456,23 +491,37 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall }
  * refusal rolls nothing. The record is written after the roll, only while the
  * crossing still stands, and the card goes to the Judges.
  *
+ * A player's throw is the same throw read for a player's seat, over a member
+ * the caller has already established the player owns: the row is read with
+ * `owns` true and `judge` false, so a permission refusal blocks where it would
+ * only warn a Judge. `crossingId` is the crossing the requester saw; a throw
+ * for any other is refused as `stale`. `beforeRoll` runs once every check has
+ * passed and the member's in-flight key is held, so a declaration it posts is
+ * made only for a throw that goes ahead and a second request for the member is
+ * refused as `busy` before it declares.
+ *
  * @param {object} formation
  * @param {string} actorId the member's actor id
+ * @param {object} [o]
+ * @param {boolean} [o.player] read the row for a player's seat
+ * @param {string|null} [o.crossingId] the crossing id the requester held; null skips the check
+ * @param {Function|null} [o.beforeRoll] awaited after the checks, before the die
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string}>}
  *   `refused` names why nothing was thrown: `notGM`, `closed`, `member`, `jump`,
  *   `busy`, `stale` or the row's refusal reason; a refusal that went ahead is no refusal
  */
-export async function throwFor(formation, actorId) {
+export async function throwFor(formation, actorId, { player = false, crossingId = null, beforeRoll = null } = {}) {
   if (!game.user.isGM) return { ok: false, refused: "notGM" };
   const crossing = readCrossing(formation);
   if (!crossing) return { ok: false, refused: "closed" };
+  if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
   const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
   if (!entry) {
     await pruneMembers(formation);
     return { ok: false, refused: "member" };
   }
   if (crossing.kind === JUMP_KIND) return { ok: false, refused: JUMP_KIND };
-  const seen = { ...entry, ...rowFor(formation, crossing, entry, { judge: true }) };
+  const seen = { ...entry, ...rowFor(formation, crossing, entry, player ? { judge: false, owns: true } : { judge: true }) };
   const { row } = seen;
   if (!row.can || !row.plan) return { ok: false, refused: row.refusal?.reason ?? "member" };
   const key = `${crossing.id}:${actorId}`;
@@ -482,6 +531,7 @@ export async function throwFor(formation, actorId) {
   }
   inFlight.add(key);
   try {
+    await beforeRoll?.();
     const roll = await new Roll("1d20").evaluate();
     const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
     const read = readThrow({ plan: row.plan, natural, total: roll.total });
@@ -525,14 +575,4 @@ export async function throwAll(formation) {
     } else out.left++;
   }
   return out;
-}
-
-/**
- * A player's press on a member's throw. A player's client writes nothing and
- * rolls nothing: the press is told the throw is the Judge's to make.
- * @returns {Promise<{ok: false, refused: "seat"}>}
- */
-export async function requestCrossingThrow() {
-  ui.notifications.info(loc("crossing.relayPending"));
-  return { ok: false, refused: "seat" };
 }

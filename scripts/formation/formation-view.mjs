@@ -99,7 +99,7 @@ import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { planView } from "./turn-plan.mjs";
-import { buildCrossingView } from "./crossing.mjs";
+import { buildCrossingView, canCross } from "./crossing.mjs";
 import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { provisionForecast, daysCarried } from "./provisions.mjs";
@@ -1997,6 +1997,9 @@ export function buildPlayerPanel(formation) {
     canTrapbreak: owned.some(
       (a) => resolveCheck(a, PARTY_CHECKS.trapbreakHasty) || resolveCheck(a, PARTY_CHECKS.trapbreakMethodical),
     ),
+    // A crossing throw is offered to a seat with an owned member whose row
+    // allows one: the rows the crossing section draws, on the modes that draw it.
+    canCross: !["journey", "settlement"].includes(travelOf(formation).mode) && canCross(formation),
   };
   for (const actor of owned) {
     const level = actor.system?.details?.level ?? 1;

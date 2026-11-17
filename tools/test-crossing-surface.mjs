@@ -10,9 +10,13 @@
  * tooltip is the page reference alone; the Adventuring column of the table
  * never stands in for a member's own figure; a Judge is warned on a
  * permission refusal and refused on an absence; a player is blocked on both
- * and a player's press writes nothing; two writes in flight both land; a card
- * says it was thrown over a refusal, prints the imported words escaped, and
- * reports a fall without touching hit points.
+ * and a player's own client writes nothing; a player's relayed throw is
+ * checked again on the GM client (ownership, the crossing's id, the member's
+ * row read for a player, one throw in flight per member), declared publicly
+ * and carded to the Judges, and a refusal is whispered to the requester alone;
+ * two writes in flight both land; a card says it was thrown over a refusal,
+ * prints the imported words escaped, and reports a fall without touching hit
+ * points.
  *
  * Run: node tools/test-crossing-surface.mjs
  */
@@ -43,26 +47,35 @@ class ForcedReplacement {
 }
 const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
 
-const GM = { id: "gm1", isGM: true };
-const PLAYER = { id: "pl1", isGM: false };
-const OTHER = { id: "pl2", isGM: false };
+const GM = { id: "gm1", name: "Judge", isGM: true };
+const PLAYER = { id: "pl1", name: "Pat", isGM: false };
+const OTHER = { id: "pl2", name: "Quinn", isGM: false };
 
 const seen = { created: [], warned: [], told: [], updates: [] };
 const naturals = [];
 let rollDelay = 0;
 let serial = 0;
+/** The formations setting, by id; `world` stores each formation here so the relay's handler can read it. */
+const formations = {};
 
+const users = Object.assign([GM, PLAYER, OTHER], { get: (id) => [GM, PLAYER, OTHER].find((u) => u.id === id), activeGM: GM });
 globalThis.game = {
   user: GM,
-  users: [GM, PLAYER, OTHER],
+  users,
   i18n: { localize: (k) => (typeof lookup(k) === "string" ? lookup(k) : k), format, has: (k) => typeof lookup(k) === "string" },
-  settings: { get: () => ({}) },
+  settings: { get: (_scope, key) => (key === "formations" ? formations : {}) },
   actors: new Map(),
   scenes: new Map(),
   items: [],
 };
 globalThis.ui = { notifications: { info: (m) => seen.told.push(m), warn: (m) => seen.warned.push(m), error() {} } };
-globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
+/** `socketlib.ready` callbacks, held until the stand-in socketlib below fires them. */
+const socketReady = [];
+globalThis.Hooks = {
+  on() {},
+  once: (name, fn) => { if (name === "socketlib.ready") socketReady.push(fn); },
+  off() {}, call() {}, callAll() {},
+};
 globalThis.Roll = class {
   constructor(formula) { this.formula = formula; }
   async evaluate() {
@@ -96,9 +109,36 @@ const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
 const {
-  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, endCrossing, readCrossing, requestCrossingThrow,
-  throwAll, throwFor, writeMemberStep,
+  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, readCrossing, throwAll, throwFor,
+  writeMemberStep,
 } = crossing;
+const { registerRequestSocket, requestCrossingThrow } = await import("../scripts/formation/player-requests.mjs");
+
+/**
+ * socketlib's stand-in. `relay` delivers a request to the registered handler as the GM
+ * client receives it: `this.socketdata.userId` is the sender the server stamped, and
+ * `game.user` stays the GM, so overlapping relays do not disturb one another. `executeAsGM`
+ * is the player client's route and swaps `game.user` for the one call it makes.
+ */
+const registered = {};
+globalThis.socketlib = {
+  registerModule: () => ({
+    register: (name, fn) => { registered[name] = fn; },
+    executeAsGM: async (name, payload) => {
+      const declaring = game.user;
+      game.user = GM;
+      try {
+        return await registered[name].call({ socketdata: { userId: declaring.id } }, payload);
+      } finally {
+        game.user = declaring;
+      }
+    },
+  }),
+};
+registerRequestSocket();
+for (const fn of socketReady) fn();
+const relay = (user, formation, type, payload) =>
+  registered.partyRequest.call({ socketdata: { userId: user.id } }, { formationId: formation.id, type, payload });
 
 /* --- fixtures ---------------------------------------------------------------- */
 const ladder = (...pairs) => ({ kind: "breakpoints", breakpoints: pairs.map(([atLevel, value]) => ({ atLevel, value })) });
@@ -160,7 +200,9 @@ function party(id = "party1") {
 /** A formation holding these actors, with a party actor beside it. */
 function world(actors) {
   const actor = party();
-  return { actor, formation: { id: "f1", name: "Party", actorId: actor.id, members: actors.map((a) => ({ actorId: a.id })) } };
+  const formation = { id: "f1", name: "Party", actorId: actor.id, members: actors.map((a) => ({ actorId: a.id })) };
+  formations[formation.id] = formation;
+  return { actor, formation };
 }
 
 /** The registered tables, invented; nothing registered is the world with nothing imported. */
@@ -198,12 +240,19 @@ const as = (user, fn) => {
   game.user = user;
   try { return fn(); } finally { game.user = was; }
 };
+/** `as` for an async call: the seat stays in place until the call has settled. */
+const asAsync = async (user, fn) => {
+  const was = game.user;
+  game.user = user;
+  try { return await fn(); } finally { game.user = was; }
+};
 const reset = () => {
   seen.created.length = 0;
   seen.warned.length = 0;
   seen.told.length = 0;
   seen.updates.length = 0;
   naturals.length = 0;
+  for (const id of Object.keys(formations)) delete formations[id];
   game.actors.clear();
   resetTables();
 };
@@ -403,25 +452,178 @@ await ok("a Judge's throw over a refusal warns first and the card says it was th
   assert.equal(seen.created[0].content.includes("over a refusal"), false, "an ordinary throw says nothing of the kind");
 });
 
-await ok("a player's press writes nothing and rolls nothing; it is told the throw is the Judge's", async () => {
+/** The chat messages a relayed throw left, sorted by who could read them. */
+const posted = () => ({
+  declarations: seen.created.filter((m) => !m.whisper && m.content.includes("declares")),
+  cards: seen.created.filter((m) => m.whisper?.[0] === GM.id),
+  whispers: seen.created.filter((m) => m.whisper && m.whisper[0] !== GM.id),
+});
+
+await ok("a player's own client writes, rolls and posts nothing: the press is relayed, and a throw itself refuses that seat", async () => {
   reset();
   load();
   const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
   const { formation } = world([holder]);
   await beginCrossing(formation, "easyClimb");
-  seen.updates.length = 0;
-  seen.told.length = 0;
-  naturals.push(20);
-  const out = await as(PLAYER, () => requestCrossingThrow(formation, "Alder"));
-  assert.deepEqual([out.ok, out.refused], [false, "seat"]);
-  assert.deepEqual(seen.told, ["Ask the Judge to make this throw."]);
-  assert.equal(seen.updates.length, 0);
-  assert.equal(seen.created.length, 0);
-  assert.equal(naturals.length, 1, "no die was rolled");
   const direct = await as(PLAYER, () => throwFor(formation, "Alder"));
   assert.deepEqual([direct.ok, direct.refused], [false, "notGM"], "the throw itself refuses a seat that cannot write");
   const player = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder");
   assert.equal(player.can, true, "the owner's button is drawn");
+  assert.equal(as(PLAYER, () => canCross(formation)), true, "and the panel offers a crossing throw");
+  assert.equal(as(OTHER, () => canCross(formation)), false, "a seat that owns no member is offered none");
+  assert.equal(canCross(formation), true, "the Judge's seat reads its own rows");
+  seen.updates.length = 0;
+  naturals.push(20);
+  const refusedLocally = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Nobody"));
+  assert.deepEqual([refusedLocally.ok, refusedLocally.refused], [false, "member"]);
+  assert.equal(seen.updates.length, 0);
+  assert.equal(seen.created.length, 0);
+  assert.equal(naturals.length, 1, "no die was rolled");
+});
+
+await ok("a player's press for an owned member lands: a public declaration, one card to the Judges, one record", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const { formation } = world([holder]);
+  await beginCrossing(formation, "sheerClimb");
+  await applyCrossingForm(formation, { length: "40" });
+  naturals.push(17);
+  const out = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder"));
+  assert.deepEqual(out, { ok: true });
+  assert.deepEqual(seen.told, ["Declared — sent to the Judge."], "the seat is told its request went");
+  const { declarations, cards, whispers } = posted();
+  assert.equal(declarations.length, 1);
+  assert.ok(declarations[0].content.includes("Pat declares: Alder throws to cross."), "public, in the requester's name");
+  assert.equal(cards.length, 1);
+  assert.ok(cards[0].content.includes("acks-extras-roll-card"), "the throw's card goes to the Judges alone");
+  assert.equal(whispers.length, 0);
+  assert.ok(seen.created.indexOf(declarations[0]) < seen.created.indexOf(cards[0]), "declared before the card");
+  const record = readCrossing(formation).members.Alder;
+  assert.deepEqual([record.state, record.throws, record.covered], ["across", 1, 1]);
+  assert.equal(holder.system.hp.value, 8, "hit points are untouched");
+});
+
+await ok("a non-owner is refused with a whisper and nothing is rolled, declared or written", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const mine = person("Birch", { owner: OTHER.id });
+  const { formation } = world([holder, mine]);
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  const id = readCrossing(formation).id;
+  naturals.push(18, 18, 18);
+  await relay(OTHER, formation, "crossing", { crossingId: id, actorId: "Alder" });
+  let { declarations, cards, whispers } = posted();
+  assert.deepEqual([declarations.length, cards.length, whispers.length], [0, 0, 1]);
+  assert.deepEqual(whispers[0].whisper, [OTHER.id], "told to the requester alone");
+  assert.equal(whispers[0].content, "Alder is not yours to throw for.");
+  assert.equal(naturals.length, 3, "no die was rolled");
+  assert.deepEqual(readCrossing(formation).members, {}, "no record");
+  // A payload naming no member must not pass on the strength of owning some other one.
+  await relay(OTHER, formation, "crossing", { crossingId: id });
+  ({ declarations, cards, whispers } = posted());
+  assert.deepEqual([declarations.length, cards.length, whispers.length], [0, 0, 2]);
+  assert.equal(naturals.length, 3);
+  assert.deepEqual(readCrossing(formation).members, {});
+  // The same request from the owner lands.
+  await relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Alder" });
+  ({ declarations, cards } = posted());
+  assert.deepEqual([declarations.length, cards.length], [1, 1]);
+  assert.equal(readCrossing(formation).members.Alder.throws, 1);
+});
+
+await ok("an owner is blocked where the grid refuses the member, a Judge only warned: a whisper, no roll, no declaration", async () => {
+  reset();
+  load();
+  const plain = person("Birch", { owner: PLAYER.id, adventuring: { climb: 14 } });
+  const { formation } = world([plain]);
+  await beginCrossing(formation, "sheerClimb");
+  await applyCrossingForm(formation, { length: "40" });
+  const id = readCrossing(formation).id;
+  naturals.push(19);
+  const blockedLocally = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Birch"));
+  assert.deepEqual([blockedLocally.ok, blockedLocally.refused], [false, "notPermitted"], "the seat's own press is stopped first");
+  assert.deepEqual(seen.warned, ["Birch cannot attempt this"]);
+  assert.equal(seen.created.length, 0);
+  await relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Birch" });
+  const { declarations, cards, whispers } = posted();
+  assert.deepEqual([declarations.length, cards.length, whispers.length], [0, 0, 1], "a hand-made request meets the GM client's own check");
+  assert.equal(whispers[0].content, "Birch cannot attempt this");
+  assert.equal(naturals.length, 1, "no die was rolled");
+  assert.deepEqual(readCrossing(formation).members, {});
+  const judge = await throwFor(formation, "Birch");
+  assert.equal(judge.ok, true, "the Judge's own throw proceeds over the same refusal");
+});
+
+await ok("a request for another crossing, for none, or for a settled member is refused with its words", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const { formation } = world([holder]);
+  const old = await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "40" });
+  await endCrossing(formation);
+  naturals.push(18, 18, 18, 18);
+  await relay(PLAYER, formation, "crossing", { crossingId: old, actorId: "Alder" });
+  assert.equal(posted().whispers.at(-1).content, "No crossing is open.", "none open");
+  const current = await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  assert.notEqual(current, old);
+  await relay(PLAYER, formation, "crossing", { crossingId: old, actorId: "Alder" });
+  assert.equal(posted().whispers.at(-1).content, "The crossing changed during the throw; nothing was recorded.", "another crossing's id");
+  await relay(PLAYER, formation, "crossing", { actorId: "Alder" });
+  assert.equal(posted().whispers.length, 3, "no id at all");
+  assert.equal(naturals.length, 4, "no die was rolled for any of them");
+  assert.deepEqual([posted().declarations.length, posted().cards.length], [0, 0]);
+  assert.deepEqual(readCrossing(formation).members, {});
+  await applyCrossingForm(formation, { length: "40" });
+  naturals.length = 0;
+  naturals.push(18);
+  await relay(PLAYER, formation, "crossing", { crossingId: current, actorId: "Alder" });
+  assert.equal(readCrossing(formation).members.Alder.state, "across");
+  await relay(PLAYER, formation, "crossing", { crossingId: current, actorId: "Alder" });
+  assert.equal(posted().whispers.at(-1).content, "Alder has nothing left to throw.", "a member who is across");
+  assert.equal(posted().cards.length, 1);
+});
+
+await ok("two interleaved requests for two members both land; two for one member land once and the second is told it is busy", async () => {
+  reset();
+  load();
+  const a = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const b = person("Birch", { owner: PLAYER.id });
+  const { formation, actor } = world([a, b]);
+  await beginCrossing(formation, "easyClimb");
+  await applyCrossingForm(formation, { length: "400" });
+  const id = readCrossing(formation).id;
+  rollDelay = 20;
+  try {
+    naturals.push(18, 18);
+    await Promise.all([
+      relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Alder" }),
+      relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Birch" }),
+    ]);
+    const first = posted();
+    assert.deepEqual([first.declarations.length, first.cards.length, first.whispers.length], [2, 2, 0]);
+    const held = actor.store.flags["acks-extras"].crossing.members;
+    assert.deepEqual([held.Alder.throws, held.Birch.throws], [1, 1], "both steps are on the party actor");
+    seen.created.length = 0;
+    naturals.length = 0;
+    naturals.push(18, 18);
+    await Promise.all([
+      relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Alder" }),
+      relay(PLAYER, formation, "crossing", { crossingId: id, actorId: "Alder" }),
+    ]);
+  } finally {
+    rollDelay = 0;
+  }
+  const second = posted();
+  assert.deepEqual([second.declarations.length, second.cards.length, second.whispers.length], [1, 1, 1], "one declared, one card, one refusal");
+  assert.equal(second.whispers[0].content, "That throw is still being made.");
+  assert.equal(naturals.length, 1, "one die");
+  assert.equal(readCrossing(formation).members.Alder.throws, 2, "one step landed, not two");
+  assert.equal(readCrossing(formation).members.Birch.throws, 1);
 });
 
 await ok("two members' steps in flight both land, and a setup edit beside them does not drop either", async () => {
@@ -607,6 +809,27 @@ await ok("every action the partial names has a handler, and the sheet and the fo
   assert.ok(/new PressFocus\(\)/.test(sheet) && /#press\.note\(/.test(sheet) && /#press\.restore\(/.test(sheet), "PressFocus is wired by hand");
   const views = fs.readFileSync(new URL("../scripts/formation/formation-view.mjs", import.meta.url), "utf8");
   assert.ok(/view\.crossing = /.test(views), "the Dungeon tab's context carries the crossing");
+  assert.ok(/canCross:[^\n]*canCross\(formation\)/.test(views), "the player panel carries canCross, from the crossing's own rows");
+  const requests = fs.readFileSync(new URL("../scripts/formation/player-requests.mjs", import.meta.url), "utf8");
+  assert.ok(/case "crossing":/.test(requests) && /userOwnsMember\(formation, user, actorId\)/.test(requests), "the relay's case checks ownership");
+});
+
+await ok("the partial's player rows draw the throw for an owner and the reason as text where it is blocked", async () => {
+  reset();
+  load();
+  const holder = person("Alder", { items: [CLIMBING()], owner: PLAYER.id });
+  const plain = person("Birch", { owner: PLAYER.id, adventuring: { climb: 14 } });
+  const other = person("Cedar", { items: [CLIMBING()], owner: OTHER.id });
+  const { formation } = world([holder, plain, other]);
+  await beginCrossing(formation, "sheerClimb");
+  await applyCrossingForm(formation, { length: "40" });
+  const html = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
+  const row = (name) => html.split("<li").find((li) => li.includes(`>${name}`)) ?? "";
+  assert.ok(row("Alder").includes('data-action="crossingThrow"') && row("Alder").includes('data-actor-id="Alder"'), "an owned member the grid allows");
+  assert.equal(row("Birch").includes('data-action="crossingThrow"'), false, "an owned member the grid refuses has no button");
+  assert.ok(row("Birch").includes("Birch cannot attempt this") && row("Birch").includes("acks-extras-crossing-block"), "and the reason as visible text");
+  assert.equal(row("Cedar").includes('data-action="crossingThrow"'), false, "another seat's member has none");
+  assert.equal(row("Cedar").includes("cannot attempt"), false, "and no words about what this seat can do nothing about");
 });
 
 console.log(`\n${passed} passed`);
