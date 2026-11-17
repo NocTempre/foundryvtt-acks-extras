@@ -14,7 +14,7 @@
 
   {{#each groups}}
   <fieldset class="acks-extras-cast-group" data-cast-for="{{mode}}">
-    <legend>{{localize "ACKS-MAGIC.cast.dialog.pick"}}</legend>
+    <legend>{{legend}}</legend>
     <label>
       <span>{{label}}</span>
       <select data-pick="{{id}}" data-pick-mode="{{mode}}">
@@ -76,9 +76,11 @@
     {{/if}}
   </section>
 
+  {{#if rangeNote}}<p class="hint">{{rangeNote}}</p>{{/if}}
+
   {{#each verdicts}}
   <ul class="acks-extras-cast-verdicts notes" data-cast-for="{{mode}}">
-    {{#each items}}<li data-severity="{{severity}}">{{text}}</li>{{/each}}
+    {{#each items}}<li data-severity="{{severity}}"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{text}}</li>{{/each}}
   </ul>
   {{/each}}
 </div>

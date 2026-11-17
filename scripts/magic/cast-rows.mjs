@@ -54,39 +54,58 @@ export const keyedRows = (rows) => (rows ?? []).map((row, index) => ({ row, key:
 export const rowsOfMode = (rows, mode) => keyedRows(rows).filter(({ row }) => Boolean(row.reversed) === (mode === CAST_MODES.reversed));
 
 /**
+ * The option a row belongs to in its choice group: its own `pickOption` token,
+ * else its row key, so a group authored one row to an option keeps working.
+ * @param {object} row
+ * @param {string} [key]  the row's key in the spell, where the caller has it keyed (`rowKeyOf`)
+ */
+export const optionTokenOf = (row, key = row?.key) => String(row?.pickOption ?? "").trim() || String(key ?? "");
+
+/**
  * The choice groups of a mode: rows sharing a `pick` id, of which the caster
- * takes one. A group of one row offers no choice and is left out.
- * @returns {Array<{id: string, rows: Array<{row: object, key: string, index: number}>}>}
+ * takes one option. Rows sharing `(pick, pickOption)` are one option, so an
+ * option may be several rows; a group holding a single option offers no choice
+ * and is left out. `rows` is every row of the group, `options` its options in
+ * the spell's order.
+ * @returns {Array<{id: string, rows: Array<{row: object, key: string, index: number}>, options: Array<{token: string, rows: Array<{row: object, key: string, index: number}>}>}>}
  */
 export function pickGroups(rows, mode) {
   const groups = new Map();
   for (const entry of rowsOfMode(rows, mode)) {
     const id = String(entry.row.pick ?? "").trim();
     if (!id) continue;
-    if (!groups.has(id)) groups.set(id, []);
-    groups.get(id).push(entry);
+    if (!groups.has(id)) groups.set(id, new Map());
+    const options = groups.get(id);
+    const token = optionTokenOf(entry.row, entry.key);
+    if (!options.has(token)) options.set(token, []);
+    options.get(token).push(entry);
   }
-  return [...groups].filter(([, members]) => members.length > 1).map(([id, members]) => ({ id, rows: members }));
+  return [...groups]
+    .filter(([, options]) => options.size > 1)
+    .map(([id, options]) => ({ id, rows: [...options.values()].flat(), options: [...options].map(([token, members]) => ({ token, rows: members })) }));
 }
 
 /**
  * The rows one cast keeps: the mode's rows, and from each choice group only the
- * one `picks` names by key (the group's first when it names none).
+ * rows of the one option `picks` names (the group's first option when it names
+ * none, or one the group does not hold). A pick names an option token, or the
+ * key of one of an option's rows, which is what a group keyed by row key stored.
  *
  * @param {object[]} rows
  * @param {string} mode  a `CAST_MODES` key
- * @param {Record<string, string>} [picks]  group id to row key
+ * @param {Record<string, string>} [picks]  group id to option token
  */
 export function rowsForMode(rows, mode, picks = {}) {
   const kept = rowsOfMode(rows, mode);
   const chosen = new Map();
   for (const group of pickGroups(rows, mode)) {
-    const named = group.rows.find((r) => r.key === picks?.[group.id]);
-    chosen.set(group.id, (named ?? group.rows[0]).key);
+    const named = picks?.[group.id];
+    const option = group.options.find((o) => o.token === named) ?? group.options.find((o) => o.rows.some((r) => r.key === named)) ?? group.options[0];
+    chosen.set(group.id, option.token);
   }
   return kept.filter(({ row, key }) => {
     const id = String(row.pick ?? "").trim();
-    return !chosen.has(id) || chosen.get(id) === key;
+    return !chosen.has(id) || chosen.get(id) === optionTokenOf(row, key);
   });
 }
 

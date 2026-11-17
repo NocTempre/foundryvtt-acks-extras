@@ -3,7 +3,8 @@
  *
  * Foundry's `grid.units` is free text, and every length this module owns is in
  * FEET — footprints, frontages, reaches. An unrecognised or empty unit reads
- * as feet, so an untouched world's behaviour does not change.
+ * as feet, so an untouched world's behaviour does not change. `tokenGapFeet`
+ * reads the grid between two token documents through the same table.
  *
  * Foundry-free.
  */
@@ -69,6 +70,37 @@ export function sceneFeetPerCell(scene) {
  */
 export function sceneMilesPerCell(scene) {
   return sceneFeetPerCell(scene) / DISTANCE_UNITS.mi.feet;
+}
+
+/** A token document's centre point, as the document itself gives it, else from its own corner and size; null when neither is readable. */
+function centreOfToken(token) {
+  const own = token?.getCenterPoint?.({ x: token.x, y: token.y });
+  if (Number.isFinite(own?.x) && Number.isFinite(own?.y)) return { x: own.x, y: own.y };
+  const size = Number(token?.parent?.grid?.size);
+  const x = Number(token?.x) + (Number(token?.width) * size) / 2;
+  const y = Number(token?.y) + (Number(token?.height) * size) / 2;
+  return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
+}
+
+/**
+ * The distance between two tokens' centres, in FEET: the scene grid's own
+ * `measurePath` between the two points, read through the scene's units. The
+ * grid decides how a diagonal counts, so the figure is the one a ruler on that
+ * scene shows.
+ *
+ * @param {TokenDocument} a
+ * @param {TokenDocument} b
+ * @returns {number|null} null where either token is missing, they stand on
+ *   different scenes, or the scene's grid cannot measure
+ */
+export function tokenGapFeet(a, b) {
+  const scene = a?.parent;
+  if (!scene || !b || !a || scene.id !== b.parent?.id || typeof scene.grid?.measurePath !== "function") return null;
+  const from = centreOfToken(a);
+  const to = centreOfToken(b);
+  if (!from || !to) return null;
+  const distance = Number(scene.grid.measurePath([from, to])?.distance);
+  return Number.isFinite(distance) && distance >= 0 ? distance * feetPerUnit(scene.grid.units) : null;
 }
 
 /**

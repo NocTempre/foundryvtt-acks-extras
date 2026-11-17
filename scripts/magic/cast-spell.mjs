@@ -31,7 +31,9 @@ import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
-import { isModRow, modParts, needsBearer, dryYields, ROW_ON } from "./cast-mods.mjs";
+import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ROW_ON } from "./cast-mods.mjs";
+import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
+import { areaExtent } from "./cast-area.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
@@ -39,6 +41,7 @@ import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spel
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken } from "../lib/patches/attack-throw.mjs";
 import { saveThrow } from "../lib/saves.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
+import { tokenGapFeet } from "../lib/distance-units.mjs";
 import { isMagical } from "../lib/item-model.mjs";
 
 /** The claimant's key on the cast seam. */
@@ -100,6 +103,45 @@ function castFight(actor) {
   return null;
 }
 
+/**
+ * The spell's range and target figures: the copy's own, else its library
+ * twin's where the copy prints none (the twin is read as the duration's is).
+ */
+export function castFiguresOf(spell, lookups) {
+  const own = flagOf(spell);
+  const id = spell?.flags?.[MODULE_ID]?.cookbook?.id;
+  const twin = (!own.range?.shape || !own.target?.model) && id ? flagOf(lookups?.byCookbookId?.("Item", id)) : {};
+  return {
+    range: own.range?.shape ? own.range : (twin.range ?? own.range ?? null),
+    target: own.target?.model ? own.target : (twin.target ?? own.target ?? null),
+    // The page reference of whichever copy the range is read from.
+    cite: (own.range?.shape ? own.cite : (twin.cite || own.cite)) ?? "",
+  };
+}
+
+/**
+ * What the spell's range and target count say of the targeted tokens at a caster
+ * level: the range verdict inputs (`cast-range.mjs`) and the count cap, each
+ * null or empty where the import read nothing. A per-level figure reads only
+ * once a level is known.
+ * @param {{figures: {range: object|null, target: object|null}, level: number|null, tokens: object[], gaps?: Record<string, number|null>}} from
+ * @returns {{range: ReturnType<typeof rangeVerdicts>, count: number|null}}
+ */
+export function castReach({ figures, level, tokens, gaps = {} }) {
+  const target = figures?.target ?? {};
+  const area = target.area ?? {};
+  const figure = (value) => modifierFigure({ value }, level);
+  const extent = areaExtent({ measure: area.measure, size: figure(area.size), width: figure(area.width), height: area.height, unit: area.unit });
+  const range = rangeVerdicts({
+    targets: tokens.map((token) => ({ key: token.uuid, name: targetOf(token).name })),
+    gaps,
+    rangeFeet: rangeFeet(figures?.range, level),
+    extent,
+    model: target.model,
+  });
+  return { range, count: figure(target.count) };
+}
+
 /** The reading of the live world a cast needs, in one place. */
 async function readWorld(spell) {
   const actor = spell.parent;
@@ -116,10 +158,13 @@ async function readWorld(spell) {
   const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
+  const casterToken = actorToken(actor);
   return {
     actor,
     tokens,
-    casterToken: actorToken(actor),
+    casterToken,
+    // The centre-to-centre gap in feet to each targeted token; null where it cannot be measured (no caster token, another scene).
+    gaps: Object.fromEntries(tokens.map((t) => [t.uuid, tokenGapFeet(casterToken, t)])),
     combat: fight?.combat ?? null,
     combatant: fight?.combatant ?? null,
     held: records.some((r) => r.role === "caster" && r.held),
@@ -190,9 +235,10 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
     targets[key] = target;
     for (const { key: rowKey, row } of open) if (forRow(row) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending" };
   };
+  // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes and no
+  // throw decides. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
+  const resisting = spellSaves(save) && open.some(({ row }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row));
   for (const token of tokens) {
-    // A buff is not resisted: only a row that does something to the target calls for the save.
-    const resisting = spellSaves(save) && rows.some(({ row }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row));
     const made = resisting ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token }) : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
     add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row));
@@ -283,9 +329,14 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const moment = castMoment({ combat: world.combat, combatant: world.combatant });
   const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
   const resolving = moment === MOMENT.resolve && Boolean(declaration.valid);
-  const verdictsFor = (mode, picks) =>
-    castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration });
+  const figures = castFiguresOf(spell, deps.lookups);
   const known = casterLevel(world.level);
+  // What the range and the target count say of the targeted tokens at a caster level.
+  const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: world.tokens, gaps: world.gaps });
+  const verdictsFor = (mode, picks, levelValue) => {
+    const reach = reachAt(levelValue);
+    return castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count });
+  };
   // One targeted token can bear a weapon buff, and the dialog lists its weapons.
   const bearerToken = world.tokens.length === 1 ? world.tokens[0] : null;
   // A declaration being resolved answers for itself; the dialog opens only where its stored weapon is not one of the one target's.
@@ -300,13 +351,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m)])),
     level: known,
-    levelNeeded: levelNeeded(extras, rowsForMode(all, CAST_MODES.normal)) || levelNeeded(extras, rowsForMode(all, CAST_MODES.reversed)),
+    levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m))),
     weapons: bearerToken ? weaponsOf(bearerToken.actor) : [],
     needsWeapon: Object.fromEntries(modeKeys.map((m) => [m, needsBearer(rowsForMode(all, m, {}))])),
     targets: world.tokens.map(targetOf),
     saves: spellSaves(extras.save),
     capacity: world.capacity,
-    verdicts: Object.fromEntries(modeKeys.map((m) => [m, verdictsFor(m, {})])),
+    verdicts: Object.fromEntries(modeKeys.map((m) => [m, verdictsFor(m, {}, known.value)])),
+    rangeUnmeasured: moment !== MOMENT.declare && reachAt(known.value).range.unmeasured,
+    cite: figures.cite || extras.cite || "",
     isGM,
   });
   const answer = storedFits
@@ -316,15 +369,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   const kept = rowsForMode(all, mode, answer.picks);
-  const verdicts = verdictsFor(mode, answer.picks);
+  const level = casterLevel({ ...world.level, override: answer.casterLevel });
+  const verdicts = verdictsFor(mode, answer.picks, level.value);
   const stop = verdicts.find((v) => v.severity === "block");
+  const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
   if (blocked(verdicts)) {
-    deps.notify("warn", `blocked.${stop.key}`, { name: caster.name });
+    deps.notify("warn", `blocked.${stop.key}`, detail(stop));
     return { ok: false, reason: stop.key };
   }
-  for (const v of verdicts) deps.notify("warn", `verdict.${v.key}`, { name: caster.name });
+  for (const v of verdicts) deps.notify("warn", `verdict.${v.key}`, detail(v));
 
-  const level = casterLevel({ ...world.level, override: answer.casterLevel });
   // A declaration being resolved was spent at its declaring.
   if (!resolving) {
     await spend();

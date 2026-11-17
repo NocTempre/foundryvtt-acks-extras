@@ -23,7 +23,7 @@ globalThis.Roll = class {
   }
 };
 
-const { rowsOf, rowKeyOf, rowsForMode, pickGroups, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows } = await import("../scripts/magic/cast-rows.mjs");
+const { rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows } = await import("../scripts/magic/cast-rows.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/magic/cast-capacity.mjs");
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
@@ -31,8 +31,9 @@ const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
 const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
-const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
+const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 
@@ -91,6 +92,36 @@ t("the reverse form keeps its own rows, and a choice group keeps the one picked,
   assert.deepEqual(pickGroups(rows, "normal").map((g) => [g.id, g.rows.length]), [["g", 2]]);
   assert.equal(hasReversedRows(rows), true);
   assert.equal(hasReversedRows([dmg()]), false);
+});
+
+t("rows sharing a pick and a pick option are one option; a pick option token, or the key of one of its rows, names it", () => {
+  const rows = [
+    { key: "a1", type: "damage", roll: "1d4", damage: ["fire"], pick: "form", pickOption: "flame" },
+    { key: "a2", type: "conditionGrant", conditions: ["slowed"], pick: "form", pickOption: " flame " },
+    { key: "b1", type: "damage", roll: "1d6", damage: ["cold"], pick: "form", pickOption: "frost" },
+    { key: "solo", type: "damage", roll: "1d8", damage: ["fire"], pick: "lone", pickOption: "only" },
+    { key: "free", type: "heal", roll: "1d4" },
+  ];
+  const [group, ...rest] = pickGroups(rows, "normal");
+  assert.deepEqual(rest, [], "one option, however many rows, is no choice");
+  assert.deepEqual(group.options.map((o) => [o.token, o.rows.map((r) => r.key)]), [["flame", ["a1", "a2"]], ["frost", ["b1"]]]);
+  assert.deepEqual(group.rows.map((r) => r.key), ["a1", "a2", "b1"]);
+  assert.deepEqual(rowsForMode(rows, "normal").map((r) => r.key), ["a1", "a2", "solo", "free"], "the first option keeps both its rows");
+  assert.deepEqual(rowsForMode(rows, "normal", { form: "frost" }).map((r) => r.key), ["b1", "solo", "free"]);
+  assert.deepEqual(rowsForMode(rows, "normal", { form: "b1" }).map((r) => r.key), ["b1", "solo", "free"], "a pick stored as a row key still finds its option");
+  assert.deepEqual(rowsForMode(rows, "normal", { form: "nothing" }).map((r) => r.key), ["a1", "a2", "solo", "free"], "an unknown pick falls to the first option");
+  assert.equal(optionTokenOf({ pickOption: " flame ", key: "a1" }), "flame");
+  assert.equal(optionTokenOf({ key: "a1" }), "a1");
+  assert.equal(optionTokenOf({}, "#2"), "#2");
+  assert.equal(optionTokenOf({}), "");
+});
+
+t("a group of rows with no pick option and no key is told by position, and an old group keyed by row key still works", () => {
+  const bare = [{ type: "heal", roll: "1d4", pick: "g" }, { type: "heal", roll: "1d6", pick: "g" }];
+  assert.deepEqual(pickGroups(bare, "normal")[0].options.map((o) => o.token), ["#0", "#1"]);
+  assert.deepEqual(rowsForMode(bare, "normal", { g: "#1" }).map((r) => r.row.roll), ["1d6"]);
+  const old = [{ key: "a", type: "conditionGrant", pick: "g" }, { key: "b", type: "conditionGrant", pick: "g" }];
+  assert.deepEqual(rowsForMode(old, "normal", { g: "b" }).map((r) => r.key), ["b"]);
 });
 
 t("only a damage row with a delivery needs a throw", () => {
@@ -567,6 +598,33 @@ await ta("the resist is rolled and recomputed against the caster, so a scoped sa
   assert.equal(unknown.resist.target, 14, "with no source the scoped figure is told, not added");
 });
 
+await ta("a save is rolled only where it governs an entry the target takes: a spell of line rows and thrown rows rolls none", async () => {
+  const saver = { type: "monster", system: { saves: { spell: { value: 14 } } }, getFlag: () => undefined, effects: [] };
+  const token = { uuid: "Scene.s.Token.k1", name: "Target", actor: saver };
+  const save = { category: "spell", effect: "half" };
+  const caster = { uuid: "Actor.c1", name: "Caster", getRollData: () => ({}) };
+  const keyedOf = (rows) => rows.map((row, index) => ({ row, key: row.key, index }));
+  const run = (rows, cardRows) => buildTargets({ tokens: [token], card: { rows: cardRows }, rows: keyedOf(rows), save, situational: null, caster, randomID: () => "x" });
+  const thrown = dmg({ key: "bolt", delivery: "missile" });
+  const line = { key: "glow", type: "illusion", note: "an invented glow" };
+  const lineOnly = await run([line, thrown], { bolt: { type: "damage", key: "bolt", total: null, delivery: "missile" } });
+  assert.equal(Object.values(lineOnly.targets)[0].resist, null, "a line row and a throw row are governed by no save");
+  assert.deepEqual(lineOnly.rolls, []);
+  const thrownRolled = await run([thrown], { bolt: { type: "damage", key: "bolt", total: 5, delivery: "missile" } });
+  assert.equal(Object.values(thrownRolled.targets)[0].resist, null, "a thrown row is decided by its throw");
+  const ward = { key: "ward", type: "ward", appliesTo: "recipient" };
+  const buff = await run([ward], { ward: { type: "ward", key: "ward", blank: false } });
+  assert.equal(Object.values(buff.targets)[0].resist, null, "a buff is not resisted");
+  const unread = await run([dmg({ roll: "" })], { burn: { type: "damage", key: "burn", total: null, delivery: "" } });
+  assert.equal(Object.values(unread.targets)[0].resist, null, "a damage row whose roll was never read opens no entry");
+  const governed = await run([line, dmg()], { burn: { type: "damage", key: "burn", total: 6, delivery: "" } });
+  const target = Object.values(governed.targets)[0];
+  assert.equal(target.resist?.category, "spell", "a damage row with a figure is resisted");
+  assert.equal(governed.rolls.length, 1);
+  const cond = await run([{ key: "dread", type: "conditionGrant", conditions: ["stunned"] }], { dread: { type: "conditionGrant", key: "dread", conditions: ["stunned"] } });
+  assert.equal(Object.values(cond.targets)[0].resist?.category, "spell", "a condition row is resisted");
+});
+
 t("amountOf prices a row through its save and a throw row ignores the spell's save", () => {
   const c = card();
   assert.equal(amountOf(c.rows.burn, c, c.targets.t1.resist, 6).applied, 3);
@@ -619,6 +677,23 @@ t("a cast with nothing targeted posts the rolled row and an Apply for the presse
   assert.deepEqual(tv.buttons, [], "nothing to apply for a throw row");
 });
 
+t("a pick option's label joins the reading of each of its rows, the legend is a string, and the option's value is its token", () => {
+  const rows = [
+    { key: "a1", type: "damage", roll: "1d4", damage: ["fire"], pick: "form", pickOption: "flame" },
+    { key: "a2", type: "conditionGrant", conditions: ["slowed"], pick: "form", pickOption: "flame" },
+    { key: "b1", type: "damage", roll: "1d6", damage: ["cold"], pick: "form", pickOption: "frost" },
+  ];
+  const ctx = { modes: ["normal"], groups: { normal: pickGroups(rows, "normal") }, level: {}, verdicts: { normal: [] } };
+  const [group] = dialogContext(ctx, {}).groups;
+  assert.equal(group.legend, "ACKS-MAGIC.cast.dialog.pickLegend", "a lang string, never the group id");
+  assert.equal(group.label, "ACKS-MAGIC.cast.dialog.pick");
+  assert.deepEqual(group.options.map((o) => o.key), ["flame", "frost"]);
+  const text = (r) => describeSpellEffect(r).text;
+  assert.equal(group.options[0].label, `${text(rows[0])} · ${text(rows[1])}`);
+  assert.equal(typeof group.options[1].label, "string");
+  assert.ok(group.options[1].label.length > 0);
+});
+
 t("the dialog context lists the modes, each mode's verdicts and the level field only where it is needed and unresolved", () => {
   const ctx = {
     modes: ["normal", "reversed"],
@@ -657,13 +732,13 @@ t("the claimant takes a flagged spell with rows on an actor the seat owns, and d
 });
 
 /** The dependencies of a run, recorded. */
-function runDeps({ answer, capacity = { verdict: "ok" }, isGM = false, tokens = [], casterToken = null } = {}) {
+function runDeps({ answer, capacity = { verdict: "ok" }, isGM = false, tokens = [], casterToken = null, gaps = {}, level = { matched: false } } = {}) {
   const calls = { notices: [], posts: [], spends: 0, pools: [], records: [], applied: [], asked: null };
   return {
     calls,
     deps: {
       lookups: NO_TWIN,
-      read: async () => ({ actor: {}, tokens, casterToken, statuses: [], capacity, level: { matched: false } }),
+      read: async () => ({ actor: {}, tokens, casterToken, gaps, statuses: [], capacity, level }),
       ask: async (ctx) => {
         calls.asked = ctx;
         return answer;
@@ -1031,6 +1106,73 @@ t("the dialog says Declare's hint at a declaration and names the caster in the c
   assert.ok(out.declaring.includes("dialog.declaring"));
   assert.ok(out.verdicts[0].items[0].text.includes("verdict.concentrating"));
   assert.equal(dialogContext({ ...ctx, moment: "free" }, {}).declaring, "");
+});
+
+/* ------------------------------------------------------------------ */
+/*  Range, count and picks in the run                                 */
+/* ------------------------------------------------------------------ */
+
+const folkToken = (id) => ({ uuid: `Scene.s.Token.${id}`, name: `Folk ${id}`, actor: { name: `Folk ${id}`, type: "monster", items: [], effects: [] } });
+const RANGED = { range: { shape: "distance", value: 30, unit: "feet" }, target: { model: "creature", count: { kind: "flat", flat: 2 } } };
+
+await ta("a target beyond the spell's range refuses a Player before the spend and warns a Judge, whose cast goes on; one in range, or unmeasured, is no verdict", async () => {
+  const s = spell([{ key: "mend", type: "heal", roll: "1d6" }], RANGED);
+  const spend = () => calls.spends++;
+  const far = folkToken("a");
+  let r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [far], gaps: { [far.uuid]: 45 } });
+  let calls = r.calls;
+  const refused = await castSpellRun(s, spend, r.deps);
+  assert.deepEqual([refused.ok, refused.reason], [false, "outOfRange"]);
+  assert.equal(calls.spends, 0);
+  assert.deepEqual(calls.notices, [["warn", "blocked.outOfRange"]]);
+  assert.deepEqual(calls.asked.verdicts.normal.map((v) => [v.key, v.severity]), [["outOfRange", "block"]], "the dialog shows it before the seat confirms");
+  assert.equal(calls.asked.rangeUnmeasured, false);
+  r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [far], gaps: { [far.uuid]: 45 }, isGM: true });
+  calls = r.calls;
+  assert.equal((await castSpellRun(s, spend, r.deps)).ok, true);
+  assert.equal(calls.spends, 1);
+  assert.ok(calls.notices.some(([level, key]) => level === "warn" && key === "verdict.outOfRange"));
+  r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [far], gaps: { [far.uuid]: 30 } });
+  assert.equal((await castSpellRun(s, () => {}, r.deps)).ok, true, "a gap at the range is in range");
+  r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [far], gaps: { [far.uuid]: null } });
+  assert.equal((await castSpellRun(s, () => {}, r.deps)).ok, true, "no measurable gap, no verdict");
+  assert.equal(r.calls.asked.rangeUnmeasured, true, "and the dialog says the range was not measured");
+});
+
+await ta("a per-level range is judged at the level the seat typed; a count the import read caps the targets", async () => {
+  const s = spell([{ key: "mend", type: "heal", roll: "1d6" }], { range: { shape: "distancePerLevel", value: 10, unit: "feet" }, target: { model: "creature", count: { kind: "flat", flat: 1 } } });
+  const a = folkToken("a");
+  const b = folkToken("b");
+  let r = runDeps({ answer: { mode: "normal", picks: {}, casterLevel: "3" }, tokens: [a], gaps: { [a.uuid]: 45 } });
+  const refused = await castSpellRun(s, () => {}, r.deps);
+  assert.equal(refused.reason, "outOfRange", "the typed level 3 reaches thirty feet, not forty-five");
+  assert.equal(r.calls.asked.levelNeeded, true, "the dialog asks for the level");
+  assert.deepEqual(r.calls.asked.verdicts.normal, [], "and judges nothing until it is known");
+  r = runDeps({ answer: { mode: "normal", picks: {}, casterLevel: "5" }, tokens: [a], gaps: { [a.uuid]: 45 } });
+  assert.equal((await castSpellRun(s, () => {}, r.deps)).ok, true, "level 5 reaches fifty feet");
+  r = runDeps({ answer: { mode: "normal", picks: {}, casterLevel: "5" }, tokens: [a, b], gaps: { [a.uuid]: 5, [b.uuid]: 5 } });
+  const over = await castSpellRun(s, () => {}, r.deps);
+  assert.deepEqual([over.ok, over.reason], [false, "tooManyTargets"]);
+  assert.deepEqual(r.calls.notices, [["warn", "blocked.tooManyTargets"]]);
+  const blank = spell([{ key: "mend", type: "heal", roll: "1d6" }], { range: { shape: "distance", value: 30, unit: "feet" }, target: { model: "creature" } });
+  r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [a, b], gaps: { [a.uuid]: 5, [b.uuid]: 5 } });
+  assert.equal((await castSpellRun(blank, () => {}, r.deps)).ok, true, "a blank count caps nothing");
+});
+
+await ta("a cast keeps every row of the picked option on the card", async () => {
+  const rows = [
+    { key: "a1", type: "heal", roll: "1d4", pick: "form", pickOption: "flame" },
+    { key: "a2", type: "heal", roll: "1d6", pick: "form", pickOption: "flame" },
+    { key: "b1", type: "heal", roll: "1d8", pick: "form", pickOption: "frost" },
+  ];
+  let r = runDeps({ answer: { mode: "normal", picks: { form: "flame" } } });
+  await castSpellRun(spell(rows), () => {}, r.deps);
+  assert.deepEqual(r.calls.posts[0].order, ["a1", "a2"]);
+  assert.deepEqual(r.calls.posts[0].picks, { form: "flame" });
+  r = runDeps({ answer: { mode: "normal", picks: { form: "frost" } } });
+  await castSpellRun(spell(rows), () => {}, r.deps);
+  assert.deepEqual(r.calls.posts[0].order, ["b1"]);
+  assert.deepEqual(r.calls.asked.groups.normal[0].options.map((o) => o.token), ["flame", "frost"]);
 });
 
 console.log(`\n${n} magic cast tests passed`);

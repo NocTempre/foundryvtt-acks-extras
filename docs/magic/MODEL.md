@@ -274,14 +274,39 @@ cancel at any point before the spend costs nothing:
    seat's targets and each verdict. The weapon is a select of the weapon items
    of the one targeted token's actor, each marked magic where lib's `isMagical`
    says so, offered for a form that holds a row gated on the weapon. A verdict
-   that blocks a Player disables Cast for that form.
+   that blocks a Player disables Cast for that form. A pick option is one or
+   more rows: rows sharing a `pick` and a `pickOption` are one option, a row
+   with a `pick` and no `pickOption` is its own option keyed by its row key
+   (`cast-rows.mjs` `optionTokenOf`), and the choice stores the option token.
+   Its label joins the `describeSpellEffect` reading of each of its rows. Where
+   a range could not be measured the dialog says so beside the targets.
 2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
    slot at the spell's level, several targets for a row with a throw, a
    condition that forbids casting, and `oneBearer` where a kept row is gated on
    the weapon and the seat has not targeted exactly one token; in a begun fight,
    `declarationLost`, `noDeclaration` and `declared` ("A declaration", below);
-   and `concentrating`, which is always a warning. They are checked again after
-   the dialog and before anything is spent.
+   and `concentrating`, which is always a warning. `outOfRange` and
+   `tooManyTargets` are not judged at a declaring, since the targets are the
+   resolving cast's. They are checked again after the dialog and before
+   anything is spent.
+
+   *Range* (`cast-range.mjs`) is measured per target, centre to centre. The
+   spell's `range` gives a figure in feet only for a distance, a touch-or-
+   distance, or a distance per caster level (the figure times the level, read
+   once a level is known); every other shape and a blank figure judge nothing.
+   `readWorld` measures each targeted token against the caster's token with
+   lib's `tokenGapFeet` (the scene grid's `measurePath`, in the scene's unit).
+   A creature, recipient, Hit Dice pool or object target must be within the
+   range; a target of an area spell within the range plus the area's reach
+   (`cast-area.mjs` `areaExtent`: its radius, else its length). A model with no
+   such reading, a blank area extent, no caster token and a target on another
+   scene give no verdict, and the dialog notes that the range was not
+   measured. The verdict line names the targets out of range; its tooltip gives
+   each one's measured distance, then the range's parts (the figure, the caster level, the
+   reach) and the spell's page reference, all from the world's figures. The
+   relay does not measure again. *A target count* the import read (`target.count`,
+   at the caster level) caps the targets, and `tooManyTargets` says how many are
+   over; a blank count caps nothing.
 3. *The spend*, once: the seam's `spend()`, and `adjustPool` for a vancian
    tradition (`cast-capacity.mjs`: the tradition whose key or label a list of the
    spell names, its slot at the spell's level less what the actor spent; a
@@ -295,8 +320,9 @@ cancel at any point before the spend costs nothing:
 4. *The caster level* (`cast-level.mjs`): the typed figure, else the matching
    tradition's caster-level ladder at the class level (the class level where the
    ladder is blank), else a monster's spellcasting level; never defaulted. It is
-   asked for only where the duration or a row scales with it.
-5. *The rows*: the mode's rows less the unpicked members of each choice group.
+   asked for only where the duration, the range, the target count, the area's
+   size or a row scales with it.
+5. *The rows*: the mode's rows less the rows of each choice group's unpicked options.
    A damage row with no throw and a heal row are rolled once for the cast; a
    damage row is asked through lib's `magicDamageSpec`, so the caster's
    modifiers that opted in apply and no melee row does. A damage row with a
@@ -330,7 +356,11 @@ cancel at any point before the spend costs nothing:
    and tells it on the card; the roll decides again.
 6. *The resists*: where the spell saves (`save.kind` blank or `save`, a category
    other than none), each target rolls lib's `saveThrow` once for the cast, with
-   the situational figure, the roll kept as labelled parts. A row's `saveEffect`
+   the situational figure, the roll kept as labelled parts. The throw is rolled
+   only where the save governs an entry the cast opens on the target: a damage,
+   heal or condition row with a figure, aimed at the target and decided by no
+   attack throw. A buff, the caster's own row, a thrown row and a row that is
+   only a card line call for none. A row's `saveEffect`
    wins over the spell's. A passed save leaves nothing (negates) or half (half);
    any other effect is left to the Judge (`saveFractionOf`).
 7. *The card* (`cast-card.mjs`): lib's roll card, one section per rolled row, one

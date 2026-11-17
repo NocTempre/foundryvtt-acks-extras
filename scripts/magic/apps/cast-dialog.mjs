@@ -7,7 +7,9 @@
  * weapons, a situational modifier for the targets' saves, the card's
  * visibility, the targets the seat has, and each verdict that stands in the
  * way. A verdict that blocks a Player disables the Cast button for the form
- * it belongs to; a Judge reads it as a warning. Cancel and a closed window
+ * it belongs to; a Judge reads it as a warning. The range verdict's tooltip
+ * names the targets out of range, each distance and the range's parts, and a
+ * note says where the range could not be measured. Cancel and a closed window
  * both answer null, so nothing is spent.
  *
  * The window carries `acks-extras-scroll`, so it scrolls and takes the drag
@@ -23,6 +25,13 @@ const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
 
 const loc = (key, data = {}) => game.i18n.format(`ACKS-MAGIC.cast.${key}`, data);
 
+/** The text of a range verdict's tooltip: the targets out of range with each measured distance, then the range's parts (figure and source) and the spell's page reference. */
+function rangeTip(v, cite) {
+  const targets = v.out.map((t) => loc("tip.rangeTarget", { name: t.name, gap: Math.round(t.gap * 10) / 10 })).join("; ");
+  const parts = (v.parts ?? []).map((p) => loc(`tip.rangePart.${p.key}`, { value: Math.round(p.value * 100) / 100 })).join(" · ");
+  return loc("tip.range", { targets, limit: Math.round(v.limit * 10) / 10, parts, cite });
+}
+
 /** The template's data from the cast's context. */
 export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public", modeLabel = (k) => k, visibilityLabel = (k) => k } = {}) {
   const groups = [];
@@ -31,8 +40,10 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
       groups.push({
         mode: m,
         id: group.id,
-        label: group.id,
-        options: group.rows.map(({ row, key }) => ({ key, label: describeSpellEffect(row) })),
+        label: loc("dialog.pick"),
+        legend: loc("dialog.pickLegend"),
+        // An option is one or more rows, read as the card will read them.
+        options: (group.options ?? group.rows.map((entry) => ({ token: entry.key, rows: [entry] }))).map(({ token, rows }) => ({ key: token, label: rows.map(({ row }) => describeSpellEffect(row).text).join(" · ") })),
       });
     }
   }
@@ -62,9 +73,14 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
         ? { line: loc("dialog.capacity", { used: cap.used, max: cap.max, level: cap.spellLevel ?? "" }), tip: loc("tip.capacity", { source: loc(`tip.capacitySource.${cap.source}`) }) }
         : {},
     targets: ctx.targets ?? [],
+    rangeNote: ctx.rangeUnmeasured ? loc("dialog.rangeUnmeasured") : "",
     verdicts: (ctx.modes ?? []).map((m) => ({
       mode: m,
-      items: (ctx.verdicts?.[m] ?? []).map((v) => ({ severity: v.severity, text: loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "" }) })),
+      items: (ctx.verdicts?.[m] ?? []).map((v) => ({
+        severity: v.severity,
+        text: loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
+        tip: v.key === "outOfRange" ? rangeTip(v, ctx.cite ?? "") : v.key === "tooManyTargets" && ctx.cite ? loc("tip.cite", { cite: ctx.cite }) : "",
+      })),
     })),
   };
 }

@@ -21,6 +21,8 @@ export const VERDICT = Object.freeze({
   declarationLost: "declarationLost",
   noDeclaration: "noDeclaration",
   declared: "declared",
+  outOfRange: "outOfRange",
+  tooManyTargets: "tooManyTargets",
 });
 
 /**
@@ -44,9 +46,11 @@ export const VERDICT = Object.freeze({
  * @param {boolean} [from.held]  the caster holds a concentration this cast would end
  * @param {string} [from.moment]  a `MOMENT` value; `free` by default
  * @param {{valid: object|null, lost: object|null, other: object|null, hand: boolean}|null} [from.declaration]  `declarationOf`'s answer
- * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[]}>}
+ * @param {{limit: number|null, parts: object[], out: object[]}|null} [from.range]  `rangeVerdicts`' answer; any target out of range is one verdict, carrying the targets, the limit and the range's parts
+ * @param {number|null} [from.count]  the target count the import read, a cap; null where it was left blank
+ * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -57,6 +61,12 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
   if (moment === MOMENT.declare && (declaration?.valid || declaration?.other)) out.push({ key: VERDICT.declared, severity });
   if (!resolving && capacity?.verdict === CAPACITY.none) out.push({ key: VERDICT.noSlot, severity });
   if (targets.length > 1 && rows.some(({ row }) => rowNeedsThrow(row))) out.push({ key: VERDICT.severalTargets, severity });
+  // A declared spell takes its targets when it resolves, so neither check belongs to the declaring.
+  if (moment !== MOMENT.declare) {
+    if (range?.out?.length) out.push({ key: VERDICT.outOfRange, severity, out: range.out, limit: range.limit, parts: range.parts });
+    const cap = Number(count);
+    if (count != null && count !== "" && Number.isFinite(cap) && cap > 0 && targets.length > cap) out.push({ key: VERDICT.tooManyTargets, severity, max: cap, over: targets.length - cap });
+  }
   if (needsBearer(rows) && bearers !== 1) out.push({ key: VERDICT.oneBearer, severity });
   const stopped = forbiddenBy(conditionSet(statuses), "cast");
   if (stopped.length) out.push({ key: VERDICT.forbidden, severity, conditions: stopped });
