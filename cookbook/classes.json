@@ -5195,6 +5195,157 @@
         }
       }
     },
+    "def.classmeta.invocationLists": {
+      "kind": "kind.classMeta",
+      "name": "Invocation Lists",
+      "book": "bta",
+      "cite": "BTA p.129",
+      "pages": [
+        130,
+        131,
+        132
+      ],
+      "meta": {
+        "category": "classMeta"
+      },
+      "fields": {
+        "Dwarven Earthforger.title1": {
+          "op": "value",
+          "page": 130,
+          "box": {
+            "x0": 52,
+            "x1": 187.53899999999987,
+            "y0": 193.84000000000003,
+            "y1": 202.84000000000003
+          },
+          "pattern": "raw"
+        },
+        "Dwarven Earthforger.tag1": {
+          "op": "value",
+          "page": 130,
+          "box": {
+            "x0": 52,
+            "x1": 196,
+            "y0": 206.84000000000003,
+            "y1": 214.84000000000003
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0
+            ]
+          }
+        },
+        "Dwarven Earthforger.title2": {
+          "op": "value",
+          "page": 130,
+          "box": {
+            "x0": 322,
+            "x1": 442.15000000000043,
+            "y0": 541.84,
+            "y1": 550.84
+          },
+          "pattern": "raw"
+        },
+        "Dwarven Earthforger.tag2": {
+          "op": "value",
+          "page": 130,
+          "box": {
+            "x0": 322,
+            "x1": 466,
+            "y0": 554.84,
+            "y1": 562.84
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0
+            ]
+          }
+        },
+        "Dwarven Earthforger.title3": {
+          "op": "value",
+          "page": 131,
+          "box": {
+            "x0": 304,
+            "x1": 423.63000000000045,
+            "y0": 75.79989999999998,
+            "y1": 84.79989999999998
+          },
+          "pattern": "raw"
+        },
+        "Dwarven Earthforger.tag3": {
+          "op": "value",
+          "page": 131,
+          "box": {
+            "x0": 304,
+            "x1": 448,
+            "y0": 88.79989999999998,
+            "y1": 96.79989999999998
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0
+            ]
+          }
+        },
+        "Dwarven Earthforger.title4": {
+          "op": "value",
+          "page": 132,
+          "box": {
+            "x0": 52,
+            "x1": 161.39999999999992,
+            "y0": 75.79989999999998,
+            "y1": 84.79989999999998
+          },
+          "pattern": "raw"
+        },
+        "Dwarven Earthforger.tag4": {
+          "op": "value",
+          "page": 132,
+          "box": {
+            "x0": 52,
+            "x1": 196,
+            "y0": 88.79989999999998,
+            "y1": 96.79989999999998
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0
+            ]
+          }
+        },
+        "Dwarven Furnacewife.title1": {
+          "op": "value",
+          "page": 132,
+          "box": {
+            "x0": 322,
+            "x1": 438.0600000000004,
+            "y0": 565.84,
+            "y1": 574.84
+          },
+          "pattern": "raw"
+        },
+        "Dwarven Furnacewife.tag1": {
+          "op": "value",
+          "page": 132,
+          "box": {
+            "x0": 322,
+            "x1": 465.99850000000004,
+            "y0": 578.84,
+            "y1": 586.84
+          },
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0
+            ]
+          }
+        }
+      }
+    },
     "def.class.catgirlOathkeeper": {
       "kind": "kind.class",
       "name": "Catgirl Oathkeeper",

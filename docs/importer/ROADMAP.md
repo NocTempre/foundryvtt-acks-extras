@@ -167,14 +167,6 @@ a template naming a horse would stop resolving to one and fall back to a bare
 named item. The rows carry the section they were printed under, so the fact
 needed to decide is already there.
 
-## Gnostic invocations as documents
-
-The two gnosis-casting classes' casting entries carry the gnosis kind and the
-Maximum Invocation Level ladder, but their invocation lists (BTA ch.5) are not
-imported as documents. The RR classes' spell lists ride repertoires
-(`def.classmeta.spellRepertoires`); the invocation lists should ride the same
-mechanism.
-
 ---
 
 ## A definition heading that opens mid-line

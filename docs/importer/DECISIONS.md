@@ -2063,3 +2063,20 @@ from the Judge's own copy.
 **Rejected:** one row per invocation level (the invoker picks the level at cast
 time, so one document holds all five), and widening the solo-line test for every
 kind (it would move every spell and power already compiled).
+
+## 2026-11-17 — A gnostic class's invocations ride a classMeta row that names each section's class
+
+The two gnosis-casting classes' invocation lists reach their casting rows
+through `def.classmeta.invocationLists`, beside the repertoire row (mechanics:
+MODEL, "A class's printed spell lists").
+
+**Ruled.** The row declares each `{class, heading}` pair, because the book's
+section headings share no fold with the class names they stand for and a
+compiler that guessed the pairing would break on the next such book. A list's
+level and tradition are read off its own tag, never written in the register.
+The hash fallback sits in `classes.mjs`, around `titleIndex`, so no shared
+resolver changed.
+
+**Rejected:** authoring the entry ids on the class row (`bindClass` rebuilds
+`spellList`, so they would be overwritten), and naming the fifth invocation in
+the register so a plain title lookup could find it.

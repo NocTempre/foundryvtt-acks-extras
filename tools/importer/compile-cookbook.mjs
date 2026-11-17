@@ -5207,6 +5207,107 @@ async function compileRepertoires(doc, entry) {
 }
 
 /**
+ * The invocation titles of one page, each under the section heading it follows
+ * in reading order (column by column, top to bottom). `sections` is the row's
+ * `[{class, heading}]`; a heading is the line whose folded text IS the
+ * declared one, never a prefix of it, since a running head and a chapter head
+ * fold to a prefix. A title is a line carrying the `label` run (see
+ * `besideHeads`). `current` is the section index the page opens under, so a
+ * page with no heading of its own continues the last one; returns
+ * `{reads, current}` where each read is `{section, title, stat, tag}` — the
+ * title run, the stat run beside it, and the box of the level tag set under
+ * the title, left of the stat run. Boxes only: no word and no figure of the
+ * page is held.
+ */
+export function invocationReads(pd, cols, sections, label, current = -1) {
+  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const lines = new Map();
+  for (const it of pd.items) {
+    if (!it.str.trim()) continue;
+    const k = `${colOf(it.x, cols)}:${Math.round(it.y / 3)}`;
+    (lines.get(k) ?? lines.set(k, []).get(k)).push(it);
+  }
+  const events = [];
+  for (const ln of lines.values()) {
+    const text = fold(ln.sort((a, b) => a.x - b.x).map((i) => i.str).join(""));
+    const at = sections.findIndex((s) => fold(s.heading) === text);
+    if (at >= 0) events.push({ col: colOf(ln[0].x, cols), y: ln[0].y, section: at });
+  }
+  for (const title of besideHeads(pd, cols, label)) {
+    events.push({ col: colOf(title.x, cols), y: title.y, title });
+  }
+  events.sort((a, b) => a.col - b.col || a.y - b.y);
+  const reads = [];
+  for (const ev of events) {
+    if (!ev.title) {
+      current = ev.section;
+      continue;
+    }
+    const col = ev.col;
+    const stat = pd.items.find((it) => it.str.trim().startsWith(label) && Math.abs(it.y - ev.title.y) <= 2 && colOf(it.x, cols) === col && it.x > ev.title.x);
+    const under = pd.items.filter(
+      (it) => it.str.trim() && colOf(it.x, cols) === col && it.x >= ev.title.x - 2 && it.x < stat.x - 2 && it.y > ev.title.y + 4 && it.y <= ev.title.y + 18,
+    );
+    const tagY = under.length ? Math.min(...under.map((it) => it.y)) : null;
+    reads.push({
+      section: current,
+      title: ev.title,
+      stat,
+      tag: tagY == null ? null : { x0: ev.title.x - 2, x1: stat.x - 2, y0: tagY - 4, y1: tagY + 4 },
+    });
+  }
+  return { reads, current };
+}
+
+/**
+ * kind.classMeta with `invocations` — the pages that print a gnostic class's
+ * invocations under one section heading per class. The row declares each
+ * `{class, heading}`; the compiled fields are boxes only, keyed
+ * `<class>.title<n>` (the title line) and `<class>.tag<n>` (the level tag
+ * under it), `n` counting that class's titles in reading order. The executor
+ * reads the words off the Judge's own copy.
+ */
+async function compileInvocationLists(doc, entry) {
+  const sections = entry.invocations;
+  const label = entry.assists?.statBeside ?? "Range:";
+  const fields = {};
+  const counts = sections.map(() => 0);
+  let current = -1;
+  for (const page of entry.pages) {
+    const pd = await pageItems(doc, page);
+    const read = invocationReads(pd, defColumns(pd), sections, label, current);
+    current = read.current;
+    for (const r of read.reads) {
+      if (r.section < 0) throw new Error(`p.${page}: an invocation title stands before any section heading`);
+      if (!r.tag) throw new Error(`p.${page}: an invocation title has no level tag under it`);
+      const key = sections[r.section].class;
+      const n = ++counts[r.section];
+      fields[`${key}.title${n}`] = withFixes(
+        {
+          op: "value",
+          page,
+          box: { x0: r.title.x - 2, x1: Math.min(r.title.x + (r.title.w ?? 60) + 2, r.stat.x - 1), y0: r.title.y - 5, y1: r.title.y + 4 },
+          pattern: "raw",
+        },
+        pd,
+      );
+      fields[`${key}.tag${n}`] = withFixes({ op: "value", page, box: r.tag, pattern: "raw" }, pd);
+    }
+  }
+  const empty = sections.filter((_, i) => !counts[i]).map((s) => s.class);
+  if (empty.length) throw new Error(`no invocation title found under the section of: ${empty.join(", ")}`);
+  return {
+    kind: entry.kind,
+    name: entry.name,
+    book: entry.book,
+    cite: citeFor(entry.book, entry.pages[0]),
+    pages: entry.pages,
+    meta: { ...(entry.meta ?? {}) },
+    fields,
+  };
+}
+
+/**
  * kind.classMeta — the Profs chapter's Proficiencies Gained per Level grid:
  * class-name rows × level columns 1..N, cells "C" / "G" / "C + G" (blank past
  * a class's maximum level). Rows are keyed by class name, so the walk accepts
@@ -5220,6 +5321,7 @@ async function compileRepertoires(doc, entry) {
  */
 async function compileClassMeta(doc, entry) {
   if (entry.repertoires) return compileRepertoires(doc, entry);
+  if (entry.invocations) return compileInvocationLists(doc, entry);
   if (entry.window) {
     const fields = {};
     for (const p of entry.pages) {

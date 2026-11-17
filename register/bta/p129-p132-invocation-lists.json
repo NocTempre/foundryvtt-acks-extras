@@ -1,0 +1,33 @@
+[
+ {
+  "id": "def.classmeta.invocationLists",
+  "kind": "kind.classMeta",
+  "book": "bta",
+  "name": "Invocation Lists",
+  "anchor": {
+   "label": "Invocations"
+  },
+  "pages": [
+   130,
+   131,
+   132
+  ],
+  "meta": {
+   "category": "classMeta"
+  },
+  "invocations": [
+   {
+    "class": "Dwarven Earthforger",
+    "heading": "Invocations of the Earthforgers"
+   },
+   {
+    "class": "Dwarven Furnacewife",
+    "heading": "Invocations of the Furnacewives"
+   }
+  ],
+  "assists": {
+   "statBeside": "Range:"
+  },
+  "note": "The gnostic classes' invocation pages: one section heading per class, the invocation titles under it, each with its level tag beneath. Binds onto the named class document's casting row as spell-list references (entry ids), never as its own item."
+ }
+]

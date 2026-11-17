@@ -1093,6 +1093,23 @@ every column of that page, up to the next heading, for such a row; the first
 paragraph of each carried chunk is marked `continues` when the text before it
 ends on no stop, so the executor joins it whatever its first word is.
 
+**A class's printed spell lists.** A casting row's `spellList` is never authored:
+`bindClass` rebuilds it from what the book prints for the class, as `[{tradition,
+level, names}]`, and resolves each name through the spell-title index into the
+entry ids of the register's spells (a name no title answers is warned and left
+out). Two `kind.classMeta` rows feed it. `def.classmeta.spellRepertoires`
+(`repertoires`) reads the per-class repertoire grids. `def.classmeta.invocationLists`
+(`invocations`) declares `[{class, heading}]` for the pages that print one
+section per class with the invocation titles under it: the compiler orders the
+section headings (matched by folded equality, not by prefix) and the title
+lines (`besideHeads`) by page, column and height, carries the current section
+over a page that opens with none of its own, and ships boxes only, keyed
+`<class>.title<n>` and `<class>.tag<n>`. `classInvocationsFor` groups the
+executed titles by the tradition word and level their tag prints, and the call
+sites concatenate it with `classRepertoireFor`. A spell entry located by a hash
+answers to the `printKey` of its printed title (`keyedTitleIndex`), so a list
+can name an entry whose title the register does not hold.
+
 **Spell recipes.** A spell register row (`kind.spell`) may carry the same
 `effects` and `values` recipes, and `bindSpell` reads them only when the
 entry has them: `executeEntry` runs `effectScan` over every spell's prose,

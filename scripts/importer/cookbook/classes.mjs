@@ -1279,8 +1279,56 @@ async function executeRepertoires() {
   return node;
 }
 
-/** The register's spell titles as a resolver, so a class binds its printed names to entry ids. */
-const spellTitleIndex = () => titleIndex([...spellEntries()].map(([sid, e]) => [sid, e.name]));
+/**
+ * Execute the invocation pages once per run (null without a book): per gnostic
+ * class, a title and a level tag for each invocation printed under its section
+ * heading. A title that did not read is warned and left out; the rest bind.
+ */
+async function executeInvocationLists() {
+  const id = "def.classmeta.invocationLists";
+  const found = cookbookEntry(id);
+  if (!found) return null;
+  const session = ctx.sessionDocs.get(bookOf(found));
+  if (!session) return null;
+  const node = await executeEntry(session.doc, found.cb, data.registers, id);
+  if (!node?.fields || !Object.keys(node.fields).length) return null;
+  if (!node.ok) console.warn(`${MODULE_ID} | ${id}: ${node.misses?.length ?? 0} invocation title(s) did not read; the rest bind.`);
+  return node;
+}
+
+/**
+ * A title resolver over `pairs` (`[key, name]`, a `titleIndex`'s input) that
+ * also answers a printed name by the `printKey` of its letters, for the entries
+ * `keyed` (`[key, printKey]`) ships without its words: the name arrives only
+ * at import, so the register holds a neutral label and a locator, and a class's
+ * printed list can still name it. The whole name and its plural-dropped form
+ * are tried first, exactly as `titleIndex` does.
+ */
+export function keyedTitleIndex(pairs, keyed = []) {
+  const base = titleIndex(pairs);
+  const byKey = new Map();
+  for (const [key, hash] of keyed) if (hash && !byKey.has(hash)) byKey.set(hash, key);
+  const resolve = (name) => {
+    const hit = base.resolve(name);
+    if (hit) return hit;
+    const k = printKey(name);
+    return (k && byKey.get(k)) || null;
+  };
+  return { has: (name) => resolve(name) != null, resolve, size: base.size + byKey.size };
+}
+
+/**
+ * The register's spell titles as a resolver, so a class binds its printed
+ * names to entry ids; an entry located by a hash answers to the key of its
+ * printed title.
+ */
+const spellTitleIndex = () => {
+  const entries = [...spellEntries()];
+  return keyedTitleIndex(
+    entries.map(([sid, e]) => [sid, e.name]),
+    entries.map(([sid, e]) => [sid, e.fields?.name?.op === "heading" ? e.fields.name.hash : null]),
+  );
+};
 
 /**
  * One class's printed repertoire off the executed repertoire pages:
@@ -1319,6 +1367,34 @@ export function classRepertoireFor(node, className) {
     }
   }
   return out.sort((a, b) => a.level - b.level);
+}
+
+/**
+ * One class's printed invocations off the executed invocation pages, in the
+ * shape `classRepertoireFor` returns: `[{tradition, level, names}]`. The
+ * executor nests, per class key, `title<n>` (the printed title) and `tag<n>`
+ * (the level tag set under it, a tradition word then the level); a title with
+ * no readable tag is left out, and titles sharing a tradition and level are one
+ * list, in printed order. Empty for a class the pages do not print.
+ */
+export function classInvocationsFor(node, className) {
+  const cls = spellNameKey(className);
+  if (!cls) return [];
+  const lists = new Map();
+  for (const [field, parts] of Object.entries(node?.fields ?? {})) {
+    if (spellNameKey(field) !== cls) continue;
+    for (const [key, title] of Object.entries(parts ?? {})) {
+      const m = /^title(\d+)$/.exec(key);
+      const name = String(title ?? "").trim();
+      const tag = m ? /^\s*([a-z]+)\s*(\d+)/i.exec(String(parts[`tag${m[1]}`] ?? "")) : null;
+      if (!name || !tag) continue;
+      const tradition = tag[1].toLowerCase();
+      const level = parseInt(tag[2], 10);
+      const held = lists.get(`${tradition}:${level}`) ?? lists.set(`${tradition}:${level}`, { tradition, level, names: [] }).get(`${tradition}:${level}`);
+      held.names.push(name);
+    }
+  }
+  return [...lists.values()].sort((a, b) => a.level - b.level);
 }
 
 /**
@@ -1862,6 +1938,7 @@ export async function importClasses({ only = null } = {}) {
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
   const repertoires = await executeRepertoires();
+  const invocations = await executeInvocationLists();
   const spellTitles = spellTitleIndex();
   for (const [id, entry] of classEntries()) {
     if (only && !only.has(id)) continue;
@@ -1878,7 +1955,7 @@ export async function importClasses({ only = null } = {}) {
         commonName,
         gear,
         spellTitles,
-        printedRepertoire: classRepertoireFor(repertoires, entry.name),
+        printedRepertoire: [...classRepertoireFor(repertoires, entry.name), ...classInvocationsFor(invocations, entry.name)],
         builderTables: worldBuilderTables(),
       });
       return createDoc(Item, { ...built, folder });
@@ -1998,6 +2075,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
   const commonName = await executeCommonTongue();
   const gear = await materializedGearMenu();
   const repertoires = await executeRepertoires();
+  const invocations = await executeInvocationLists();
   const spellTitles = spellTitleIndex();
   for (const item of readable) {
     const id = item.flags[MODULE_ID].cookbook.id;
@@ -2015,7 +2093,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
       commonName,
       gear,
       spellTitles,
-      printedRepertoire: classRepertoireFor(repertoires, entry.name),
+      printedRepertoire: [...classRepertoireFor(repertoires, entry.name), ...classInvocationsFor(invocations, entry.name)],
       builderTables: worldBuilderTables(),
     });
     const plan = await repairWrite(item, doc, REPAIR.class, repair);
