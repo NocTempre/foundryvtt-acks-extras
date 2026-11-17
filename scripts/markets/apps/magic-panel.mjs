@@ -14,6 +14,7 @@ import { RARITIES, MAGIC_KINDS, ID_STATES } from "../config.mjs";
 import { availableMethods, methodGaps, identifyAttempt, candidateIdentifiers } from "../engine/identify.mjs";
 import { refusalText } from "../engine/refusal.mjs";
 import { makeLoc, el } from "../../lib/util.mjs";
+import { magicKnowledge, markIdentified } from "../../lib/item-model.mjs";
 
 const loc = makeLoc(LANG);
 
@@ -54,6 +55,13 @@ export function buildMagicPanel(item) {
   const setFlag = (patch) => item.setFlag(MODULE_ID, ITEM_FLAG, { ...flag(), ...patch });
   const f = flag();
 
+  // The panel names the item's magic and its identification state, so a player
+  // is shown it only once the magic is known (`magicKnowledge`).
+  if (f.magic && !game.user.isGM && !magicKnowledge(item).known) {
+    root.remove();
+    return root;
+  }
+
   root.appendChild(el("h3", null, loc("magic.header")));
 
   if (game.user.isGM) {
@@ -84,7 +92,7 @@ export function buildMagicPanel(item) {
     selfMade.addEventListener("change", () => setFlag({ selfMade: selfMade.checked }));
     root.appendChild(labeled("magic.selfMade", selfMade));
     root.appendChild(
-      labeled("magic.identified", select(ID_STATES.map((v) => ({ v, label: loc(`magic.states.${v}`) })), f.identified ?? "none", (v) => setFlag({ identified: v })))
+      labeled("magic.identified", select(ID_STATES.map((v) => ({ v, label: loc(`magic.states.${v}`) })), f.identified ?? "none", (v) => item.setFlag(MODULE_ID, ITEM_FLAG, markIdentified(flag(), v))))
     );
   } else {
     const state = f.identified ?? "none";

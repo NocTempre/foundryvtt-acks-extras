@@ -29,7 +29,7 @@ import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../pro
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
-import { containedIn, siblingsOf, isEquippable, isWorn } from "../../lib/item-model.mjs";
+import { containedIn, siblingsOf, isEquippable, isWorn, markIdentified } from "../../lib/item-model.mjs";
 import { isLightShuttered, setLightShutter } from "../../lib/light.mjs";
 import { EFFECT_STARTS, effectStartData } from "./effect-starts.mjs";
 import { wearableSlots } from "../profiles.mjs";
@@ -815,7 +815,7 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
     const step = KNOW_STEPS.find((s) => String(s.n) === target.dataset.step);
     if (!step) return;
     const f = this.item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
-    await this.item.setFlag(MODULE_ID, MARKETS_FLAG, { ...f, identified: step.key });
+    await this.item.setFlag(MODULE_ID, MARKETS_FLAG, markIdentified(f, step.key));
   }
 
   static async #onToggleMagic() {

@@ -168,3 +168,49 @@ have been true and `null <= edge` too. The session's calls, owner may overrule:
 
 *Cost:* a Judge who clears the class of a market with ventures in flight sees
 those days resolve unresolved.
+
+## 2026-11-16 — Detection is its own mark, `detected`, and not a fourth identification step
+
+A treasure deal must hand a player an item that does not say it is magic, which
+the three identification states cannot express: `none` already means "magic,
+nothing known of it", and the item sheet shows a player at `none` that the item
+is magic (the identify button, the note that effects are hidden, the aura).
+Ruled for the treasure table (`docs/treasure/wip/20261116-treasure-table-plan.md`,
+"Hiding is display-level"):
+
+- **`flags["acks-extras"].markets.detected`**, an optional boolean. Only a
+  treasure deal writes `false`. Absent counts as detected, so a bought or
+  hand-made item behaves as it did. `lib/item-model.mjs` `magicKnowledge` is the
+  one reader, and every display of "this is magic" gates on its `known`.
+- **A fourth `ID_STATES` step is rejected.** `DEPTH_ORDER`, `KNOW_STEPS` and the
+  magic panel each assume three states, and the new axis is orthogonal: a
+  partly identified item is also a detected one, never the reverse.
+- **Detection is a Judge's mark.** JJ ch. 4 "Identifying Magic Items" prints no
+  detection throw, so nothing rolls it. A later link from the spell work's
+  detection results to `detected` is on the ROADMAP.
+- **Enforcement counts the truth.** A magic item's use of a place's capacity
+  (`slotUse` `full`) is the same whether it is detected; only the label a player
+  reads leaves an undetected item out.
+- **Every writer of `identified` goes through `lib/item-model.mjs`
+  `markIdentified`**: an identification attempt (`engine/identify.mjs`), the
+  Judge's magic panel, and the item sheet's Appearance steps. Raising the
+  state past `none` marks an undetected item detected in the same write, so
+  `identified` and `detected` cannot disagree for a player.
+
+*Cost:* a place's badge on a player's sheet can read below the cap while the
+place is marked full.
+
+## 2026-11-16 — Two identification methods lift a disguised name
+
+`engine/identify-reveal.mjs` listens on `HOOKS.IDENTIFIED`, which fires on the
+client that ran the attempt and has just written `identified`, so that client
+alone writes. A full identification (`depth: "full"`) calls `revealItem`, so
+the whole disguise lifts. A partial method lifts only the disguised NAME, and
+only where the method's ladder entry says `recognizes`: Magical Engineering and
+Loremastery, which JJ ch. 4 describes as recognizing an item and its general
+method of use. The other partial methods (trial by use, the combat bonus, Arcane
+Dabbling, which triggers the item before it learns the effect) tell what an item
+does, not what it is called, so the name stays masked and so do cost, damage,
+armour class, description and icon, until a full identification. The narrowest
+reading was taken; the owner may widen it by marking another ladder entry
+`recognizes`.

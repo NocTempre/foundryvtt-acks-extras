@@ -1303,6 +1303,42 @@ name and figures, tracked by id). Create by hand with `system.cost` and
 
 **Teardown:** delete the character by id.
 
+## The undetected item walk (a magic item a player is not told is magic)
+
+**Fixture** `treasure/undetected-item`: an Item on the Player-seat character,
+marked `flags.world.fixture = "treasure/undetected-item"`, found by that
+marker and never by name. Build it when nothing carries the marker: a weapon
+with `flags["acks-extras"].markets` = `{magic: true, aura: "arcane", identified: "none", detected: false}`
+and one active effect on it, owned by the Player seat's character. A second
+magic item on the same character with `detected` absent serves the slot check.
+A step that needs the shape asserts it at its start: read
+`markets.detected === false` and `identified === "none"` before walking.
+
+1. **Player seat:** open the item's sheet. *Observable:* the Details tab has no
+   identification panel, the Effects tab names no hidden effects and lists none,
+   and the art carries no aura mark.
+2. **Player seat:** the character sheet's Equipment tab, the place the item is
+   worn at. *Observable:* the place's badge counts the known magic item and not
+   this one; wearing a second known magic item past the place's capacity (an
+   imported figure) still marks the place full.
+3. **GM seat:** the same item's sheet. *Observable:* Appearance tab and aura as
+   for any magic item; nothing is hidden.
+4. **Recognize:** disguise the item (the equipment API's `disguiseItem`, apparent
+   name "Plain Blade") and drive a recognizing identification from the Player
+   seat (Details tab of a detected copy, or `identifyAttempt` with Loremastery
+   or Magical Engineering; Arcane Dabbling and trial by use leave the name). *Observable:* `markets.detected`
+   is `true`, the name is the true one, cost and description are still the
+   apparent ones, and the disguise flag is still on the item.
+5. **Full:** an identification that grants `full` (magic research, or sipping
+   a potion). *Observable:* the disguise flag is gone and every masked field is
+   true again.
+6. **Judge's panel and Appearance tab:** on an undetected copy, raise
+   Identification to Partly identified, in the magic panel and again on a fresh
+   copy through the Appearance tab's steps. *Observable:* `detected` is `true` after the same write.
+
+**Teardown:** delete the item by its tracked id. A kept fixture is shaped again
+at the start of its step, never restored at the end.
+
 ## A market whose class is not known
 
 The Trade tab, the Enter dialog, solicitation and a negotiated trade at a

@@ -29,7 +29,7 @@ import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
   isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, sumWeight6, bundleSizeOf, isClothing, isAmmoItem, STONE,
-  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear,
+  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear, magicKnowledge,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { lightControl, writesMagicLight } from "../../lib/light.mjs";
@@ -456,6 +456,22 @@ function namedSnapshot(item, gm) {
 }
 
 /**
+ * The snapshot's `magic` block. `known` is what a PLAYER may be told of the
+ * item's magic, whoever is looking: a Judge previewing as a player reads the
+ * same figure, and the view-model ignores it for a Judge.
+ * @param {Item} item
+ * @param {object} markets the item's markets flag
+ */
+export function magicSnapshotOf(item, markets) {
+  return {
+    is: !!markets.magic,
+    aura: markets.aura ?? null,
+    identified: markets.identified ?? "none",
+    known: magicKnowledge(item, { isGM: false }).known,
+  };
+}
+
+/**
  * Read the item.
  * @param {Item} item
  * @param {{gm:boolean, descriptionHTML?:string, trueDescriptionHTML?:string}} opts
@@ -515,11 +531,7 @@ export function snapshotItem(item, { gm = false, descriptionHTML = "", trueDescr
     slotIcon: slotKey ? `fa-solid ${WEAR_SLOTS[slotKey]?.icon ?? "fa-circle"}` : "fa-solid fa-hand-holding",
     typeShort: typeShortOf(item, baseType),
     typeTitle: loc("itemSheet.type.title", { type: game.i18n.localize(`TYPES.Item.${item.type}`), base: baseType ? game.i18n.localize(`ACKS-EQUIPMENT.baseType.${baseType}`) : DASH_LABEL(weaponProfile) }),
-    magic: {
-      is: !!markets.magic,
-      aura: markets.aura ?? null,
-      identified: markets.identified ?? "none",
-    },
+    magic: magicSnapshotOf(item, markets),
     disguise: {
       enabled: !!item.getFlag(MODULE_ID, SHEET_FLAGS.DISGUISABLE),
       active: isDisguised(item),

@@ -56,3 +56,8 @@ vehicles setting its market impact. What is not built:
   trade-layer phase that first consumes it (`wip/trade-layer.md`).
 - **Despoilment's demand shift** (AXIOMS) and dwarven ore tables: not trade
   data under the RR; left unless a Judge asks.
+- **Detection results mark `detected`.** The spell work's detection results
+  (a detect-magic effect, a creature's sense) write nothing to an item's
+  `flags["acks-extras"].markets.detected` today: only a treasure deal writes it
+  (`false`), and an identification or the Judge's panel sets it true. Linking a
+  detection result to the item it names is unbuilt.

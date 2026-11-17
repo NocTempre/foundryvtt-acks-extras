@@ -434,6 +434,19 @@ party's find.
 - **Identification** (`engine/identify.mjs`): the JJ method ladder,
   qualified through the identifier's own ability items or level; failures
   lock per method and identifier until a level is gained.
+- **Detection and the masks** (`engine/identify-reveal.mjs`): an item's
+  magic is known to a player when it is magic and
+  `flags["acks-extras"].markets.detected` is not `false`
+  (`lib/item-model.mjs` `magicKnowledge`; a Judge always knows). Only a
+  treasure deal writes `false`. On a player's item sheet an undetected magic item
+  offers no identify panel, hides its aura and the note that effects are
+  hidden, and shows no effects; the character sheet's place label counts only
+  known magic while `slotUse().full` counts the truth. A successful
+  identification marks the item detected (every writer of `identified` goes
+  through `markIdentified`), Magical Engineering and Loremastery (marked
+  `recognizes` in `METHODS`) lift a disguised name, and a `full` one reveals the item
+  (`equipment/actions.mjs` `revealItem`). The listener runs on the client
+  that made the attempt.
 
 ## A market whose class is not known
 

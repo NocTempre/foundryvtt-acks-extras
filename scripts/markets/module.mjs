@@ -13,6 +13,7 @@ import { MODULE_ID, LANG, HOOKS } from "./constants.mjs";
 import * as config from "./config.mjs";
 import { registerSettings, getSetting } from "./settings.mjs";
 import { registerAssessmentListener } from "./engine/assessment.mjs";
+import { registerIdentifyReveal } from "./engine/identify-reveal.mjs";
 import * as availabilityRules from "./rules/availability.mjs";
 import * as pricingRules from "./rules/pricing.mjs";
 import * as importRules from "./rules/imports.mjs";
@@ -242,4 +243,6 @@ Hooks.once("ready", () => {
   registerImportWatcher();
   // The assessment day's roll, made on the influence page, becomes a queued day.
   registerAssessmentListener();
+  // A successful identification marks the item detected and lifts its mask.
+  registerIdentifyReveal();
 });

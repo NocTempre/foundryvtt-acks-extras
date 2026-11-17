@@ -17,10 +17,11 @@ import { unarmedStrikeDie } from "./attack-mods.mjs";
 import {
   tableFor, importedTable, importedNeedsReroll, accumulateImported,
 } from "./overlays/scavenged.mjs";
-import { recomputeItemFields, withFlatDelta, damageFormulaOf, scavengedOf, itemLossAcOf } from "./properties.mjs";
+import { recomputeItemFields, withFlatDelta, scavengedOf, itemLossAcOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
 import { isMissingRow } from "../lib/tables.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
+import { trueIdentityOf, disguisePatch, revealPatch } from "./disguise-logic.mjs";
 
 function notify(key, data) {
   const full = `ACKS-EQUIPMENT.action.${key}`;
@@ -546,45 +547,22 @@ export async function scavengeItem(item, { roll } = {}) {
 export async function disguiseItem(item, apparent = {}) {
   if (!item) return;
   const existing = item.getFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);
-  const truth = existing?.true ?? {
-    name: item.name,
-    img: item.img,
-    cost: Number(item.system?.cost ?? 0),
-    damage: damageFormulaOf(item),
-    ac: Number(item.system?.ac?.value ?? 0),
-    description: item.system?.description ?? "",
-  };
-  const update = { name: apparent.name ?? truth.name };
-  if (apparent.img) update.img = apparent.img;
-  if (apparent.cost != null && apparent.cost !== "") update["system.cost"] = Number(apparent.cost);
-  if (item.type === ITEM_TYPE.weapon && apparent.damage != null && apparent.damage !== "") update["system.damage.base.formula"] = apparent.damage;
-  if (item.type === ITEM_TYPE.armor && apparent.ac != null && apparent.ac !== "") update["system.ac.value"] = Number(apparent.ac);
-  if (apparent.description != null) update["system.description"] = apparent.description;
-  await item.update?.(update);
+  const truth = existing?.true ?? trueIdentityOf(item);
+  await item.update?.(disguisePatch(item.type, apparent, truth));
   await item.setFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE, { true: truth, apparent });
 }
 
 /**
  * Drop the disguise, restoring the item's true identity.
  *
- * Restores only the fields the disguise actually masked: each guard mirrors the
- * matching write in `disguiseItem` against the stored `apparent` payload. A field
- * the disguise never wrote still holds the owner's own later edits, which are the
- * newer truth and must survive the reveal. `name` is always masked, so it always
- * comes back. Keep the two sets of guards in step if either function changes.
+ * Restores only the fields the disguise actually masked, so a field it never
+ * wrote keeps the owner's later edits; the guards live beside the masking
+ * ones in `disguise-logic.mjs` (`revealPatch`).
  */
 export async function revealItem(item) {
   const d = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);
   if (!d?.true) return;
-  const t = d.true;
-  const ap = d.apparent ?? {};
-  const update = { name: t.name };
-  if (ap.img) update.img = t.img;
-  if (ap.cost != null && ap.cost !== "") update["system.cost"] = t.cost;
-  if (item.type === ITEM_TYPE.weapon && ap.damage != null && ap.damage !== "") update["system.damage.base.formula"] = t.damage;
-  if (item.type === ITEM_TYPE.armor && ap.ac != null && ap.ac !== "") update["system.ac.value"] = t.ac;
-  if (ap.description != null) update["system.description"] = t.description;
-  await item.update?.(update);
+  await item.update?.(revealPatch(item.type, d));
   await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.DISGUISE);
 }
 

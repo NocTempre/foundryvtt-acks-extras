@@ -224,6 +224,44 @@ export function isMagical(item) {
   );
 }
 
+/**
+ * What a viewer knows of an item's magic. `magical` is the truth (`isMagical`).
+ * `detected` is the item's `flags.acks-extras.markets.detected` mark, true when
+ * the key is absent, so only a treasure deal that wrote `false` ever hides
+ * anything. `identified` is the markets identification state (`none`,
+ * `partial`, `full`). `known` is whether the viewer may be told the item is
+ * magic at all: it is magical and either the viewer is a Judge or it is
+ * detected. Every writer that raises `identified` past `none` goes through
+ * `markIdentified`, which marks the item detected in the same write, so the
+ * two never disagree for a player. Display code gates on `known`; enforcement
+ * keeps reading `isMagical`.
+ * @param {Item} item
+ * @param {{isGM?: boolean}} [viewer] defaults to the current user's seat
+ * @returns {{magical: boolean, detected: boolean, identified: "none"|"partial"|"full", known: boolean}}
+ */
+export function magicKnowledge(item, { isGM = !!globalThis.game?.user?.isGM } = {}) {
+  const magical = isMagical(item);
+  const flag = item?.getFlag?.(MODULE_ID, "markets") ?? item?.flags?.[MODULE_ID]?.markets ?? {};
+  const detected = flag.detected !== false;
+  const identified = flag.identified === "partial" || flag.identified === "full" ? flag.identified : "none";
+  return { magical, detected, identified, known: magical && (isGM || detected) };
+}
+
+/**
+ * The markets flag after an item's identification state is set to `state`.
+ * Raising it past `none` marks an undetected item detected (an item whose
+ * magic is being identified is one its holders know is magic); every other key
+ * is carried unchanged, and `detected` is never written where it is absent.
+ * Returns a new object.
+ * @param {object} flag the item's current markets flag
+ * @param {"none"|"partial"|"full"} state
+ */
+export function markIdentified(flag, state) {
+  const next = { ...flag, identified: state };
+  if (state !== "none" && flag?.detected === false) next.detected = true;
+  return next;
+}
+
 /** Every ammunition name RAW recognises, across all three launcher families. */
 const AMMO_NAME = /arrow|bolt|quarrel|bullet|sling\s*stone|shot/i;
 
@@ -613,16 +651,20 @@ export function itemsInSlot(actor, slot) {
  * what it MEANS is the caller's to decide.
  * @param {string} slot a wear-slot key
  * @param {Item[]} items what is at that place, as the caller resolved it
+ * @param {{viewer?: {isGM?: boolean}}} [opts] with a `viewer`, `magic` and `used`
+ *   count only the magic that viewer knows (`magicKnowledge`), the figures for a
+ *   label; `full` is the truth either way, since it is what a rule enforces
  * @returns {{equip:number, magic:number, cap:number, used:number, full:boolean}}
  *   `cap` the magic capacity (Infinity when uncapped, null while an imported
  *   figure is not read); `used` the larger of the two counts, for a badge;
  *   `full` when either rule is broken, and never while `cap` is null
  */
-export function slotUse(slot, items) {
+export function slotUse(slot, items, { viewer } = {}) {
   const cap = slotCapacity(slot);
   const equip = items.filter(isEquippable).length;
-  const magic = items.filter(isMagical).length;
-  const full = cap !== null && (magic > cap || (cap !== Infinity && equip > 1));
+  const truth = items.filter(isMagical).length;
+  const magic = viewer ? items.filter((i) => magicKnowledge(i, viewer).known).length : truth;
+  const full = cap !== null && (truth > cap || (cap !== Infinity && equip > 1));
   return { equip, magic, cap, used: Math.max(equip, magic), full };
 }
 

@@ -24,6 +24,7 @@ import { identification, printedError, tableLabel } from "./printed.mjs";
 import { inBackfireBand } from "../rules/identification.mjs";
 import { getLevel } from "../../henchmen/acks-adapter.mjs";
 import { ITEM_TYPE, slug } from "../../lib/vocab.mjs";
+import { markIdentified } from "../../lib/item-model.mjs";
 import { judgesAndOwners } from "../../lib/util.mjs";
 
 const flagOf = (item) => item.getFlag(MODULE_ID, ITEM_FLAG) ?? {};
@@ -51,7 +52,9 @@ function throwTarget(actor, abilityName) {
  * The method ladder. `applies(flag, item, printed)` gates on the ITEM
  * (kind/rarity); `qualifies(actor, printed)` on the IDENTIFIER; `throwOf`
  * names the die (null = automatic); `depth` is what success grants; `needs`
- * lists the printed identification values the method cannot run without.
+ * lists the printed identification values the method cannot run without;
+ * `recognizes` marks a method that names what the item IS, so a disguised
+ * name is lifted after it (`identify-reveal.mjs`).
  */
 export const METHODS = Object.freeze({
   trialUse: {
@@ -106,6 +109,7 @@ export const METHODS = Object.freeze({
     qualifies: (actor) => abilityRanks(actor, "Magical Engineering") > 0,
     throwOf: "Magical Engineering",
     depth: "partial",
+    recognizes: true,
     needs: ["engineeringTiers"],
   },
   loremastery: {
@@ -115,6 +119,7 @@ export const METHODS = Object.freeze({
     qualifies: (actor) => abilityRanks(actor, "Loremastery") > 0,
     throwOf: "Loremastery",
     depth: "partial",
+    recognizes: true,
     needs: ["engineeringTiers"],
   },
   magicResearch: {
@@ -216,7 +221,7 @@ export async function identifyAttempt(item, { identifier, method }) {
   }
 
   if (success) {
-    await item.setFlag(MODULE_ID, ITEM_FLAG, { ...f, identified: spec.depth });
+    await item.setFlag(MODULE_ID, ITEM_FLAG, markIdentified(f, spec.depth));
   }
 
   const lines = [

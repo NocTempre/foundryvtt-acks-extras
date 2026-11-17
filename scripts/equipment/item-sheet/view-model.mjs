@@ -13,7 +13,7 @@
  *   goods      qty (number|null), stackable, weight6, cost
  *   currency   {perStone, declared, system} | null — how many make a stone
  *   wear       wearable, worn, wornSlot, slotGuess, favorite (bool|null), split
- *   magic      {is, aura, identified}     disguise {enabled, active, trueName,
+ *   magic      {is, aura, identified, known?}  disguise {enabled, active, trueName,
  *              trueDescription, trueCost, apparentName}
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
  *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
@@ -144,7 +144,11 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const magic = snap.magic ?? { is: false, aura: null, identified: "full" };
   const know = magic.is ? (KNOW_STEPS.find((s) => s.key === magic.identified)?.n ?? 1) : 3;
   const hideMagic = !gm && magic.is && know < 3;
-  const showAura = gm || !magic.is || know >= 2;
+  // A player is not told an undetected item is magic: no aura, no note about
+  // hidden effects, no identify offer. `known` absent counts as known, so only
+  // a snapshot that says `false` changes what a sheet shows.
+  const undetected = !gm && magic.is && magic.known === false;
+  const showAura = gm || !magic.is || (know >= 2 && !undetected);
   const dis = snap.disguise ?? { enabled: false, active: false };
   // A player looking at a disguised item sees the document, which IS the mask.
   const masked = !gm && dis.active;
@@ -165,7 +169,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
   const dur = snap.condition && !masked ? snap.condition : null;
   const named = snap.named && !masked ? snap.named : null;
   const chart = snap.chart && !masked ? snap.chart : null;
-  const ownEffects = masked || hideMagic ? [] : snap.effects?.own ?? [];
+  const ownEffects = masked || hideMagic || undetected ? [] : snap.effects?.own ?? [];
   const inherited = masked ? [] : snap.effects?.inherited ?? [];
   const effectCount = ownEffects.length + inherited.length + (named ? 1 : 0);
 
@@ -371,7 +375,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
     effects: {
       own: ownEffects,
       inherited,
-      hiddenByIdentification: hideMagic && (snap.effects?.own?.length ?? 0) > 0,
+      hiddenByIdentification: hideMagic && !undetected && (snap.effects?.own?.length ?? 0) > 0,
       named: namedView,
       // A Judge may name ordinary arms or armour while the overlay is on.
       namedOffered: gm && !named && !!snap.namedOffered,
@@ -416,7 +420,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
       acceptChips: (snap.acceptKinds ?? []).map((k) => ({ key: k, on: (container?.accepts ?? []).includes(k) })),
       refusal: container?.refusal ?? "",
       disguisable: !!dis.enabled,
-      identifyOffered: !gm && magic.is && know < 3 && editable,
+      identifyOffered: !gm && magic.is && !undetected && know < 3 && editable,
     },
     record: snap.record ?? null,
     masked,
