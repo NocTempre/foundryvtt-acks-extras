@@ -111,10 +111,10 @@ ok("a stretch of the imported length is one throw, and a longer face is more", (
 
 ok("a fixed rope turns a sheer face into the easy climb, and no ledge into another", () => {
   load();
-  const rope = obstaclePlan({ kind: "sheerClimb", assisted: true });
+  const rope = obstaclePlan({ kind: "sheerClimb", ropeFixed: true });
   assert.equal(rope.effective, "easyClimb");
   assert.equal(rope.target, 6);
-  assert.equal(obstaclePlan({ kind: "precariousLedge", assisted: true }).permitted, false);
+  assert.equal(obstaclePlan({ kind: "precariousLedge", ropeFixed: true }).permitted, false);
   resetTables();
 });
 
@@ -210,7 +210,7 @@ ok("a band is a pair of whole numbers from 1 up, or it is not imported", () => {
 
 ok("a fixed rope reads the easy climb's outcomes", () => {
   load();
-  const read = readThrow({ plan: obstaclePlan({ kind: "sheerClimb", assisted: true }), natural: 4, total: 4 });
+  const read = readThrow({ plan: obstaclePlan({ kind: "sheerClimb", ropeFixed: true }), natural: 4, total: 4 });
   assert.deepEqual(read.outcome, OUTCOMES.easyClimb.fail);
   resetTables();
 });
@@ -309,8 +309,8 @@ ok("helplessness is the imported row, read per obstacle", () => {
 
 ok("a throw carries the obstacle's imported helplessness, and null while not imported", () => {
   load();
-  const read = (kind, natural, total, assisted = false) =>
-    readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 8, assisted }), natural, total });
+  const read = (kind, natural, total, ropeFixed = false) =>
+    readThrow({ plan: obstaclePlan({ kind, proficient: true, classThrow: 8, ropeFixed }), natural, total });
   assert.equal(read("easyClimb", 10, 10).vulnerable, true, "a made throw");
   assert.equal(read("easyClimb", 4, 4).vulnerable, true, "a miss");
   assert.equal(read("sheerClimb", 10, 10).vulnerable, false);

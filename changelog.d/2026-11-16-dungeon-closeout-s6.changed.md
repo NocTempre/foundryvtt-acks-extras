@@ -1,0 +1,1 @@
+- **Macros and companion modules → `acksExtras.formation.obstacles`:** the `assisted` option of `obstaclePlan` and `attemptObstacle` is now `ropeFixed`, and it means one thing: a rope is already fixed to the face, which plans a sheer climb as the easy climb. A caller that passed `assisted` passes `ropeFixed` instead; the old name is no longer read. Formation `apiVersion` 29.

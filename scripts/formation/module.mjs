@@ -555,7 +555,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 28,
+    apiVersion: 29,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,

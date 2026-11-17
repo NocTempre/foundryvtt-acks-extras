@@ -25,9 +25,9 @@
  * whose outcome is not imported, or imported with no `advances`, ends that
  * climber's attempt.
  *
- * `assisted` is one flag the caller sets. Where it is true, `obstaclePlan`
- * plans a sheer climb as the easy climb, for the target and for the outcomes
- * read; it changes no other obstacle.
+ * `ropeFixed` is one flag the caller sets: a rope is already fixed to the face.
+ * Where it is true, `obstaclePlan` plans a sheer climb as the easy climb, for
+ * the target and for the outcomes read; it changes no other obstacle.
  */
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { citeOf } from "../lib/tables.mjs";
@@ -162,12 +162,12 @@ export function throwsFor(feet) {
  * @param {string} o.kind        a key of OBSTACLES
  * @param {boolean} o.proficient has Climbing or Mountaineering
  * @param {number|null} o.classThrow the proficient climber's own throw, if known
- * @param {boolean} o.assisted   a rope is fixed, or a mountaineer is supervising
+ * @param {boolean} o.ropeFixed   a rope is fixed to the face
  * @returns {{permitted: boolean, target: number|null, reason: string|null, obstacle: object}}
  */
-export function obstaclePlan({ kind, proficient = false, classThrow = null, assisted = false } = {}) {
-  // Assistance turns the sheer climb into the easy one; it does not help along a ledge.
-  const effective = assisted && kind === "sheerClimb" ? "easyClimb" : kind;
+export function obstaclePlan({ kind, proficient = false, classThrow = null, ropeFixed = false } = {}) {
+  // A fixed rope turns the sheer climb into the easy one; it changes no other obstacle.
+  const effective = ropeFixed && kind === "sheerClimb" ? "easyClimb" : kind;
   const obstacle = OBSTACLES[effective];
   if (!obstacle) return { permitted: false, target: null, reason: "unknown", obstacle: null };
 
@@ -258,14 +258,14 @@ export function obstacleStep({ covered = 0, stretches, read } = {}) {
  *
  * @param {Array<{actor: Actor, proficient?: boolean, classThrow?: number}>} members
  */
-export async function attemptObstacle(members, { kind, assisted = false, feet = stretchFeet() } = {}) {
+export async function attemptObstacle(members, { kind, ropeFixed = false, feet = stretchFeet() } = {}) {
   const throws = throwsFor(feet);
   const results = [];
 
   for (const m of members) {
     const plan = throws === null
       ? { permitted: false, target: null, reason: "notImported", obstacle: OBSTACLES[kind] ?? null }
-      : obstaclePlan({ kind, proficient: m.proficient, classThrow: m.classThrow, assisted });
+      : obstaclePlan({ kind, proficient: m.proficient, classThrow: m.classThrow, ropeFixed });
     if (!plan.permitted || plan.target == null) {
       results.push({ name: m.actor?.name, plan, blocked: true });
       continue;
