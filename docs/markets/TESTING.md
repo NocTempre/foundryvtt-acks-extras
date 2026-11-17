@@ -1305,6 +1305,8 @@ name and figures, tracked by id). Create by hand with `system.cost` and
 
 ## The undetected item walk (a magic item a player is not told is magic)
 
+Driven by `tools/live/markets-undetected.mjs` (`node tools/live/run.mjs markets-undetected`).
+
 **Fixture** `treasure/undetected-item`: an Item on the Player-seat character,
 marked `flags.world.fixture = "treasure/undetected-item"`, found by that
 marker and never by name. Build it when nothing carries the marker: a weapon
@@ -1345,8 +1347,9 @@ A step that needs the shape asserts it at its start: read
    Identification to Partly identified, in the magic panel and again on a fresh
    copy through the Appearance tab's steps. *Observable:* `detected` is `true` after the same write.
 
-**Teardown:** delete the item by its tracked id. A kept fixture is shaped again
-at the start of its step, never restored at the end.
+**Teardown:** the marked fixtures stay; delete only what the run made beyond
+them (step 7's copy, the identification cards) by its tracked ids. A kept
+fixture is shaped again at the start of its step, never restored at the end.
 
 ## A market whose class is not known
 
