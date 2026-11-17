@@ -23,7 +23,7 @@ import { isHelmet, isShield } from "./profiles.mjs";
 // go through it. `isStowable` is where coin's missing cost/weight6 is
 // reconciled: coin is goods without being physical, so asking `isPhysical`
 // here loses it.
-import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, capacityStated, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6, isLocked } from "../lib/item-model.mjs";
+import { weight6Of, coreWeight6Of, sumWeight6, bundleSizeOf, isCurrency, perStoneOf, isStowable, isWorn, isClothing, isAmmoItem, gearOf, capacityOf, capacityStated, holdsGear, reliefOf, STONE, containedIn, contentsOf, contentsWeight6, isLocked, isContainer } from "../lib/item-model.mjs";
 import { kindsOf, acceptsKinds, cleanAccepts } from "./item-sheet/accept-kinds.mjs";
 import { itemBaseType } from "./variation-items.mjs";
 // Containment READS live in lib now (the capacity primitive needs them, and
@@ -44,16 +44,10 @@ export function containerOf(item) {
   return item?.getFlag?.(MODULE_ID, ITEM_FLAGS.CONTAINER) ?? null;
 }
 
-/**
- * Can gear go inside this?
- *
- * Either ground counts: a declared capacity (any gear at all — the coat with
- * pockets), or a container state record (a chest a Judge made by hand and gave
- * a lock but no stated size).
- */
-export function isContainer(item) {
-  return holdsGear(item) || !!containerOf(item);
-}
+// Can gear go inside this? One reading, `lib/item-model.mjs`: a declared
+// capacity (any gear at all) or a container state record (a lock but no stated
+// size), on a document or on plain item data.
+export { isContainer };
 
 /** Declared capacity in stone (0 = a container of unstated size, which never warns). */
 export function capacityStone(item) {

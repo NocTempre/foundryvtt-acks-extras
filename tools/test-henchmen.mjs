@@ -515,6 +515,37 @@ assert.ok(packs && typeof packs === "object", "packs manifest exported");
   });
   withTables({}, () => assert.strictEqual(hiredMorale("mercenary", "troopA"), null, "nothing imported: no base"));
 
+  // A wage read per a unit is stated monthly for payroll, which bills a month
+  // at a time; a unit that cannot be converted is left blank, never billed as
+  // monthly. The figures are invented.
+  const { monthlyWage, keyWageStacks } = await import(new URL("../scripts/henchmen/rules/wages.mjs", import.meta.url));
+  assert.strictEqual(monthlyWage(6, "month", 30), 6, "a month's figure is itself");
+  assert.strictEqual(monthlyWage(6, undefined, 30), 6, "and so is one with no unit");
+  assert.strictEqual(monthlyWage("6", "", 30), 6, "a text figure reads as a number");
+  assert.strictEqual(monthlyWage(2, "day", 30), 60, "a day's figure scales by the month's days");
+  assert.strictEqual(monthlyWage(7, "Week", 28), 28, "a week's figure scales by the month's weeks, the unit's case aside");
+  assert.strictEqual(monthlyWage(1, "week", 30), 4.29, "a part week rounds to the coin's hundredth");
+  assert.strictEqual(monthlyWage(2, "day", 0), null, "no month length, no conversion");
+  assert.strictEqual(monthlyWage(2, "year", 30), null, "a unit it cannot convert is blank");
+  assert.strictEqual(monthlyWage(null, "day", 30), null, "no figure stays none");
+  assert.strictEqual(monthlyWage("", "month", 30), null, "an empty figure is none, not zero");
+
+  // A group hired before the wage type was stored: the combined entry takes the
+  // settlement's variant, any other stack is left as it is.
+  const unkeyed = () => [
+    { key: "a", template: { label: COMPOSITE_TROOP } },
+    { key: "b", template: { label: "troopA" } },
+    { key: "c", template: { label: COMPOSITE_TROOP, wageType: "longbowman" } },
+  ];
+  const stacksA = unkeyed();
+  assert.strictEqual(keyWageStacks(stacksA, "longbow"), 1, "one stack is keyed");
+  assert.deepStrictEqual(stacksA.map((s) => s.template.wageType), ["longbowman", undefined, "longbowman"], "the unkeyed combined entry takes the variant; the others stand");
+  const stacksB = unkeyed();
+  keyWageStacks(stacksB, "composite");
+  assert.strictEqual(stacksB[0].template.wageType, "compositeBowman", "the other variant keys the other row");
+  assert.strictEqual(keyWageStacks(stacksB, "longbow"), 0, "a keyed group is not keyed again");
+  assert.strictEqual(keyWageStacks(undefined, "longbow"), 0, "no stacks, nothing to key");
+
   // The specialists' base morale: three figures, each after the clause that
   // names its group, read by the recipe from invented filler; the officer-role
   // group takes the officer figure already read. Each clause is the recipe's

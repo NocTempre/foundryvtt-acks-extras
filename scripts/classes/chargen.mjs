@@ -24,7 +24,7 @@ import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
 import { awardKey, grantAbility, grantAdventuring, offeredProficiencyType, rankedCopies, refOf } from "./grants.mjs";
 import { isOffer, mintPendingChoices } from "./pending-choices.mjs";
 import { grantLanguages } from "./languages.mjs";
-import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE, slug } from "../lib/vocab.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
@@ -35,7 +35,7 @@ import { elementOf, unset } from "../lib/util.mjs";
 // on the legacy row path). Re-exported so consumers keep one import site.
 export { resolveBase, templateItemName };
 
-const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+const fold = slug;
 
 /**
  * The money items the system's own coin bookkeeping recognises, by name.

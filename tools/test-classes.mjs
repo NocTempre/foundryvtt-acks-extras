@@ -778,6 +778,7 @@ test("a rung parked at level 0 is owed at no level, fixed or choice", () => {
   ] } }, 5).choices[0].key, "4:2");
 });
 
+
 /* A world that has materialized its class templates holds one specialized copy
  * of a proficiency per class that prints a specialty — ordinary general
  * abilities in every respect but the stamp naming what they are a part of. */
@@ -2437,6 +2438,13 @@ await atest("a rung's pick is granted as the type of the list it was picked from
     };
     assert.equal((await grantTo({ proficiencyType: "class" })).system.proficiencytype, "class");
     assert.equal((await grantTo({})).system.proficiencytype, "general", "no rung type keeps the definition's");
+    // A count of two met before a count of one lands both copies in the one call.
+    const made = [];
+    const grants = [];
+    const actor = { items: [], createEmbeddedDocuments: async (_type, data) => made.push(...data) };
+    await grantAbility(actor, "uuid:Item.bothLists", grants, { upTo: 2 });
+    assert.equal(made.length, 2);
+    assert.equal(grants.length, 2);
   } finally {
     globalThis.fromUuidSync = prior;
   }

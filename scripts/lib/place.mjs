@@ -7,7 +7,7 @@
  * `nodeOf`; nothing downstream knows the difference. See docs/lib/PLACES.md.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { holdsGear } from "./item-model.mjs";
+import { isContainer } from "./item-model.mjs";
 import { coinTotalGC, isProvider, storedItems, storageFlagOf, STORAGE_KEY } from "./storage.mjs";
 import {
   LIB_ID,
@@ -71,8 +71,7 @@ export const PLACE_HOOKS = Object.freeze({
 /** The location actor sub-type. Named here, not imported, to keep lib edge-free. */
 const LOCATION_TYPE = `${MODULE_ID}.location`;
 
-/** The equipment feature's container vocabulary — read generically, never imported. */
-const CONTAINER_FLAG = "container";
+/** The equipment feature's containment vocabulary — read generically, never imported. */
 const CONTAINED_IN = "containedIn";
 
 /* -------------------------------------------- */
@@ -97,12 +96,11 @@ const MARKER_TYPES = new Set([LOCATION_TYPE, `${MODULE_ID}.faction`, `${MODULE_I
 export const isMarkerActor = (doc) => doc?.documentName === "Actor" && MARKER_TYPES.has(doc?.type);
 
 /**
- * Is this item something gear can go inside? True for a declared capacity
- * (any gear may have one) or a container state flag — checking only the
- * flag would miss a capacity-only container.
+ * Is this item something gear can go inside? The shared reading
+ * (`item-model.isContainer`), behind an Item-document guard: `isPlace` and
+ * `kindOf` take any document, and an Actor carrying a gear flag is not a box.
  */
-export const isContainerItem = (doc) =>
-  doc?.documentName === "Item" && (holdsGear(doc) || !!doc?.getFlag?.(MODULE_ID, CONTAINER_FLAG));
+export const isContainerItem = (doc) => doc?.documentName === "Item" && isContainer(doc);
 
 /** Any document that can hold things: a location, a provider actor, a container. */
 export const isPlace = (doc) => isLocation(doc) || isContainerItem(doc) || isProvider(doc);

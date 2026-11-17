@@ -799,7 +799,12 @@ export async function processVentureActions(location, log, t) {
         logUnresolved(actor, action, log, t);
         continue;
       }
-      if (!venture?.entered) continue;
+      // The action is spent as it resolves: a day that finds no entered venture
+      // this month (it fell in the next market month) leaves its failed row.
+      if (!venture?.entered) {
+        logUnresolved(actor, action, log, t);
+        continue;
+      }
       // Every figure below reads by the market's class.
       const trueClass = location.system.marketClass;
       if (trueClass == null) {
@@ -807,7 +812,10 @@ export async function processVentureActions(location, log, t) {
         continue;
       }
       const price = await ensureMerchPrice(goods, merchPrices, action.category, trueClass, monthStart);
-      if (!price) continue;
+      if (!price) {
+        logUnresolved(actor, action, log, t);
+        continue;
+      }
       // The network that counts is the soliciting trader's, in a market they
       // had been in before this visit; the price stays the market's own.
       const base = { cls: Number(venture.effectiveClass) || trueClass, imp: Number(venture.impact) || 0 };

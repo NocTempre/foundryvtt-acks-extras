@@ -17,6 +17,7 @@ import { REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
 import { coversFigure, decides, heldEdit } from "./held-edits.mjs";
+import { setPath } from "../lib/dotted-path.mjs";
 
 /** The value at a dotted path, or undefined. */
 const getPath = (node, path) =>
@@ -34,17 +35,6 @@ function dropPath(node, keys) {
   }
   if (!rest.length) delete node[head];
   else dropPath(node[head], rest);
-}
-
-/** Write `value` at a dotted path, creating the objects along it. */
-function setPath(node, keys, value) {
-  const [head, ...rest] = keys;
-  if (!rest.length) {
-    node[head] = value;
-    return;
-  }
-  if (node[head] === null || typeof node[head] !== "object") node[head] = {};
-  setPath(node[head], rest, value);
 }
 
 /**
@@ -347,7 +337,7 @@ export function refreshPlan(source, built, policy = {}) {
     const stored = getPath(source?.flags?.[MODULE_ID], path);
     const merged = mergeRowsByOrigin(stored, fresh);
     if (!merged.length && !(Array.isArray(stored) && stored.length)) continue; // nothing stored, nothing built
-    setPath(flagUpdate, path.split("."), structuredClone(merged));
+    setPath(flagUpdate, path, structuredClone(merged));
   }
   // What the write carries is what the stamp records: a field kept above was
   // dropped from the payload and keeps the sum of what the import last wrote.

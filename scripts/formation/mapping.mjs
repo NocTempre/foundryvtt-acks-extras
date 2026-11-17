@@ -17,6 +17,7 @@ import { formationMapping, mapperLit } from "./mapper-logic.mjs";
 import { isNight } from "./settlement.mjs";
 import { feetToUnits } from "../lib/distance-units.mjs";
 import { brightestLightAt, effectLight, lightFigures, shedLight } from "../lib/light.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 
 /**
@@ -63,11 +64,6 @@ export function mappingNeedsLight() {
   }
 }
 
-/** A token document's footprint centre in pixels. */
-function tokenCentre(token, gs) {
-  return { x: token.x + ((Number(token.width) || 1) * gs) / 2, y: token.y + ((Number(token.height) || 1) * gs) / 2 };
-}
-
 /** A member's effect light, feet: what their Active Effects shed. */
 const effectsOf = (actorId) => effectLight(game.actors?.get?.(actorId));
 
@@ -94,7 +90,7 @@ function recordLights(formation, scene, at, gs) {
     const actor = getMemberActor(member);
     if (!token || !actor || !(gs > 0)) continue;
     const bright = shedLight(actor).bright;
-    if (bright > 0) points.push({ ...tokenCentre(token, gs), bright: feetToUnits(bright, units) });
+    if (bright > 0) points.push({ ...tokenCentre(token, scene), bright: feetToUnits(bright, units) });
   }
   const unimportedFlame = (formation.lights ?? []).some((l) => l?.lit && !l.shielded && lightFigures(l.type).bright == null);
   return { points, unimportedFlame };
@@ -104,10 +100,10 @@ function recordLights(formation, scene, at, gs) {
  * Where a mapper stands, as a pixel point, or null when the record gives none
  * (no party token to lay a column from).
  */
-function placeOf(formation, member, index, scene, at, gs) {
+function placeOf(formation, member, index, scene, at) {
   if (isMemberDeployed(member) && scene) {
     const token = scene.tokens?.get?.(member.deployedTokenId);
-    if (token) return tokenCentre(token, gs);
+    if (token) return tokenCentre(token, scene);
   }
   return at ? (memberCells(formation, at.points)[index]?.[0] ?? null) : null;
 }
@@ -147,7 +143,7 @@ export function mappersOf(formation, { needsLight = mappingNeedsLight() } = {}) 
     const working = memberCanWork(member, actor) && !standsElsewhere(formation, member, scene);
     let reach = 0;
     if (needsLight && working && !ambient) {
-      const place = placeOf(formation, member, index, scene, at, gs);
+      const place = placeOf(formation, member, index, scene, at);
       if (place) reach = brightestLightAt(scene, place, { extra: record.points });
       else reach = partySheds(formation, record.points) ? 1 : 0;
     }

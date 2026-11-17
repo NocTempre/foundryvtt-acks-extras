@@ -24,6 +24,7 @@
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { isPrimaryGM, numOrNull } from "../lib/util.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { parentUuidOf, resolvePlaceSync } from "../lib/place.mjs";
 import { patchFormation, getFormation, getFormations, getPartyToken, realMembers, getMemberActor, hasAbility, derivedMovementMode } from "./formation-model.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
@@ -885,15 +886,8 @@ export function enterHex(formationId, label) {
   });
 }
 
-/** The centre of a token document on its scene, read off the document alone (no canvas). */
-export function tokenCentre(tokenDoc, scene = tokenDoc?.parent) {
-  const sizeX = scene?.grid?.sizeX ?? scene?.grid?.size ?? 0;
-  const sizeY = scene?.grid?.sizeY ?? scene?.grid?.size ?? 0;
-  return {
-    x: tokenDoc.x + ((tokenDoc.width ?? 1) * sizeX) / 2,
-    y: tokenDoc.y + ((tokenDoc.height ?? 1) * sizeY) / 2,
-  };
-}
+/** The centre of a token document on its scene, read off the document alone (no canvas): `lib/token-centre.mjs`, re-exported for the formation's readers. */
+export { tokenCentre };
 
 /**
  * The map's reading at a point, in the shape `travel.map` caches it:

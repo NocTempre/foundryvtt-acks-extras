@@ -1,6 +1,7 @@
 /* global foundry */
 import { getPartyToken } from "./formation-model.mjs";
 import { roadUnder } from "../battlemap/roads.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { effectiveWhere } from "./settlement.mjs";
 import { truePositionToken } from "./shadow.mjs";
 import { polygonArea } from "./zone-layers.mjs";
@@ -251,12 +252,10 @@ export function partyPoint(formation) {
 function tokenPoint(token) {
   const scene = token.parent;
   if (!scene?.grid) return null;
-  const gs = scene.grid.size;
-  const { x, y } = token._source ?? token;
   return {
     scene,
     token,
-    point: { x: x + (token.width * gs) / 2, y: y + (token.height * gs) / 2 },
+    point: tokenCentre(token, scene, token._source ?? token),
     elevation: token.elevation ?? 0,
   };
 }

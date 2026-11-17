@@ -1,0 +1,1 @@
+- **Party formation:** two quick steps of the party token no longer set off an armed trap twice; each step's trap check now measures from where the step before it ended.

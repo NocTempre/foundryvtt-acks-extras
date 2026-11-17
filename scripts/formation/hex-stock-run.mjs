@@ -16,6 +16,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc, gmIds, elementOf, escape as esc, unset } from "../lib/util.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { calendarDayOf, clockReading } from "../lib/world-time.mjs";
 import { hexLabelFromOffset, isHexScene, paintedTerrainAt } from "../battlemap/terrain-paint.mjs";
 import { readTable } from "../vehicles/vehicle-speed.mjs";
@@ -69,8 +70,7 @@ export function trueHexOf(formation) {
   const astray = lost.active;
   const token = truePositionToken(scene, formation, { open: !!lost.phase });
   if (token && isHexScene(scene)) {
-    const gs = scene.grid.size;
-    const center = { x: token.x + (token.width * gs) / 2, y: token.y + (token.height * gs) / 2 };
+    const center = tokenCentre(token, scene);
     const offset = scene.grid.getOffset(center);
     const key = hexStockKey({ offset });
     if (key) return { scene, key, label: hexLabelFromOffset(offset), center, offset, astray };

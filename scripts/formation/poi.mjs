@@ -17,6 +17,7 @@
 import { MODULE_ID, TURN_SECONDS } from "./constants.mjs";
 import { elementOf, escape as esc, makeLoc, gmIds } from "../lib/util.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
+import { tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
 import { partyPoint, regionOutlines } from "./zones.mjs";
 import { districtAt } from "./district-zone.mjs";
@@ -236,8 +237,7 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
   const isPlaceMarker = target?.actor?.type === LOCATION_TYPE || isDeployed(target?.actor);
   if (!at || !target || !isPlaceMarker) return { moved: false, reason: "noTarget" };
 
-  const gs = at.scene.grid.size;
-  const to = { x: target.x + (target.width * gs) / 2, y: target.y + (target.height * gs) / 2 };
+  const to = tokenCentre(target, at.scene);
   const from = districtAt(at.scene, at.point, at.elevation);
   const dest = districtAt(at.scene, to, target.elevation ?? 0);
   const relation = districtRelation(from?.region ?? null, dest?.region ?? null, {
@@ -257,9 +257,8 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
   const party = after ? partyPoint(after)?.token : null;
   if (!party) return { moved: false, reason: "noTarget", relation };
   // Whole pixels: the baseline must be the integer position the token holds.
-  const x = Math.round(to.x - (party.width * gs) / 2);
-  const y = Math.round(to.y - (party.height * gs) / 2);
-  await party.update({ x, y }, { animate: false, [TRAVEL_OPTION]: true });
+  const topLeft = tokenCorner(to, party, at.scene);
+  await party.update({ x: Math.round(topLeft.x), y: Math.round(topLeft.y) }, { animate: false, [TRAVEL_OPTION]: true });
   // The stored corner: core drops a write that changes nothing, so a party
   // already standing on the place keeps drawing the move that brought it.
   const corner = storedPosition(party);

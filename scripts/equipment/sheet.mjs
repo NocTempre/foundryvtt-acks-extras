@@ -597,13 +597,14 @@ function buildStowedSection(actor, tab) {
       // An empty container says so, since a bare header over a drop zone reads
       // as broken.
       if (!claimed) bucket.append(el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.container.emptyHint")));
-    } else if (!c.visible) {
-      // A locked container hides its contents, so its rows are claimed into a
-      // list that is never attached, taking them out of core's list. The
-      // report's `c.contents` is empty here, so ask the model directly. The
+    } else {
+      // A shut-away or folded container shows no rows, so its rows are claimed
+      // into a list that is never attached, taking them out of core's list
+      // rather than leaving them there as loose gear. The report's
+      // `c.contents` is empty for a locked one, so ask the model directly. The
       // header's load still shows.
       claimRows(tab, contentsOf(actor, c.item.id), el("ul", "item-list unlist"), "stowed");
-      bucket.append(el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.container.lockedHint")));
+      if (!c.visible) bucket.append(el("p", "acks-equipment-wear__hint", game.i18n.localize("ACKS-EQUIPMENT.container.lockedHint")));
     }
 
     section.append(bucket);

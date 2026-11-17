@@ -21,6 +21,7 @@
  */
 
 import { bracketRow } from "./tables.mjs";
+import { setPath } from "./dotted-path.mjs";
 
 /** Mulberry32 — a tiny seedable PRNG so tests are deterministic. */
 export function seededRng(seed) {
@@ -269,17 +270,6 @@ export function rollMenu(menu, budget, rng = Math.random) {
   }
   return { picks, rolls };
 }
-
-/** Set a dotted path on a plain object, creating intermediates. */
-const setPath = (obj, path, value) => {
-  const parts = path.split(".");
-  let cur = obj;
-  for (const p of parts.slice(0, -1)) {
-    if (typeof cur[p] !== "object" || cur[p] === null || Array.isArray(cur[p])) cur[p] = {};
-    cur = cur[p];
-  }
-  cur[parts[parts.length - 1]] = value;
-};
 
 const isPlain = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 

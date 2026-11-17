@@ -1,0 +1,1 @@
+- **Influence roller:** a roll a Judge resolves for a hidden target now leaves the player's next roll starting from the stored attitude and attempt instead of overwriting them with the window's older copy; two quick rolls against one target keep a single stored attitude; and the intimidation notes no longer appear on a roll that named no result or on an opposed contest.

@@ -79,28 +79,35 @@ export function offeredProficiencyType(classItem, level, ref) {
 }
 
 /**
- * Create one granted ability on the actor from a world item ref, unless the
- * actor already holds `upTo` copies of it — a ref the ladder prints at several
- * rungs owes one more copy at each. `proficiencyType`, where given, is the
+ * Create the granted ability on the actor from a world item ref, as many copies
+ * as bring it to `upTo` and none where the actor already holds that many — a
+ * ref the ladder prints at several rungs owes one more copy at each.
+ * `proficiencyType`, where given, is the
  * type the copy is granted as (`rungProficiencyType`); the definition keeps
  * its own.
  * @param {{upTo?: number, proficiencyType?: string|null}} [options]
  */
 export async function grantAbility(actor, ref, grants, { upTo = 1, proficiencyType = null } = {}) {
-  if (!ref || heldCount(actor, ref) >= upTo) return;
+  const owed = upTo - heldCount(actor, ref);
+  if (!ref || owed <= 0) return;
   const source = findByRef(ref);
   if (!source) {
     grants.push({ ref, name: ref, missing: true });
     return;
   }
-  const data = source.toObject();
-  delete data._id;
-  // Stamped with where it came from, so the next apply recognises it without
-  // falling back to its name.
-  data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), grantedFrom: ref } };
-  if (proficiencyType && data.type === ITEM_TYPE.ability) data.system = { ...(data.system ?? {}), proficiencytype: proficiencyType };
-  await actor.createEmbeddedDocuments("Item", [data]);
-  grants.push({ ref, name: source.name });
+  const copy = () => {
+    const data = source.toObject();
+    delete data._id;
+    // Stamped with where it came from, so the next apply recognises it without
+    // falling back to its name.
+    data.flags = { ...(data.flags ?? {}), [MODULE_ID]: { ...(data.flags?.[MODULE_ID] ?? {}), grantedFrom: ref } };
+    if (proficiencyType && data.type === ITEM_TYPE.ability) data.system = { ...(data.system ?? {}), proficiencytype: proficiencyType };
+    return data;
+  };
+  // Every copy owed lands in one call: a ladder listing a later rung's count
+  // before an earlier one's would otherwise land one copy and find the rest held.
+  await actor.createEmbeddedDocuments("Item", Array.from({ length: owed }, copy));
+  for (let i = 0; i < owed; i++) grants.push({ ref, name: source.name });
 }
 
 /**

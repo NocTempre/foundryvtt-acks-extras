@@ -252,7 +252,7 @@ export function nameForms(name) {
  *  from its paren-free version (an embellished instance contains "spellbook",
  *  never "(blank)"). */
 function menuRow(name, ref) {
-  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fold = slug;
   const formsOf = (n) => nameForms(n).map((text) => ({ text, fold: fold(text) })).filter((f) => f.fold);
   return {
     name,
@@ -361,7 +361,7 @@ export function parseEquipment(cellText, menu, aliases = {}) {
     else gp += amount;
     return "";
   });
-  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  const fold = slug;
   // An authored equivalence is a menu row with one form: it matches on exactly
   // the terms a printed name does, so a four-letter key like "pole" can no more
   // fire from inside "polearm" than the catalogue's own short names can.
@@ -639,9 +639,8 @@ export function liftCompanions(items, abilities, table) {
 /** The Proficiencies Gained per Level row for one class, from the executed
  *  classMeta grid: `{l1: "c+ G", …}` keyed by the class's printed name. */
 export function classGainsFor(gainsNode, className) {
-  const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
   const rows = gainsNode?.fields?.gains?.rows ?? [];
-  return rows.find((r) => fold(r.label) === fold(className))?.cells ?? null;
+  return rows.find((r) => slug(r.label) === slug(className))?.cells ?? null;
 }
 
 /**

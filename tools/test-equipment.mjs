@@ -874,6 +874,10 @@ check("backpack rolls up its contents' weight", contentsWeight6(cActor, "bp") ==
 check("backpack under capacity (2 st of 4)", !overCapacity(cActor, pack));
 check("container report lists load in stone", containerReport(cActor)[0].loadStone === 2);
 check("isContainer only true for flagged items", isContainer(pack) && !isContainer(rope));
+// One reading for a document and for plain item data (no getFlag): the container
+// record counts on either.
+check("isContainer reads a container record off plain data", isContainer({ flags: { "acks-extras": { container: { locked: true } } } }) === true);
+check("isContainer on plain data with no flags is false", isContainer({ flags: {} }) === false);
 
 const ingots = gear("Iron Ingots", 30, { id: "ing", flags: { containedIn: "bp" } });
 check("backpack over capacity flagged", overCapacity(withItems([pack, ingots]), pack));
@@ -2523,6 +2527,10 @@ const lastTorch = { name: "Torch", img: "t.png", system: { quantity: { value: 1 
 await prepareTorch(torchActor, lastTorch);
 check("prepareTorch deletes the stack when the last torch is drawn", lastTorch.system.quantity.value === 0 && lastTorch.deleted === true);
 check("a readied torch is carried, not drawn, unless asked", created.every((d) => d.system.equipped === false));
+// A stack's weight covers a whole bundle; the one drawn carries its own share.
+const bundledTorches = readiedWeaponData({ name: "Torches (6)", img: "t.png", flags: { "acks-extras": { gear: { per: 6 } } }, system: { cost: 1, weight6: 6, quantity: { value: 6 } } });
+check("a torch drawn from a bundle carries one unit's share of its weight", bundledTorches.system.weight6 === 1);
+check("an unbundled torch keeps its stated weight", readied.system.weight6 === 1);
 // A stack dropped on a hand place, or its Equip pressed, readies one torch INTO
 // the hand: the stack is never held, so "equip a torch" is ready-and-draw.
 const drawn = [];

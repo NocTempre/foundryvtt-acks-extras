@@ -6,6 +6,7 @@ import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { makeLoc } from "../lib/util.mjs";
+import { centreOffset, tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { findZone, regionEdges } from "./zones.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
@@ -186,9 +187,7 @@ export async function livePlacement(formation, { from = null, to = null } = {}) 
     // `from`/`to` arrive as the token's top-left corner; what meets a tripwire
     // is its centre, so the path is shifted onto it before anything is
     // intersected, and `haltParty` shifts the crossing back.
-    const gs = token.parent.grid.size;
-    const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
-    const path = [from, to].map((p) => ({ x: p.x + half.x, y: p.y + half.y }));
+    const path = [from, to].map((p) => tokenCentre(token, token.parent, p));
     const crossed = trapWallsCrossed(token.parent, path[0], path[1]).find((h) => h.trap.state === STATES.armed);
     // `approach` is where the party came from, in centre coordinates, so the
     // halt pulls up on the near side of the line.
@@ -219,8 +218,8 @@ function partyPath(formation, { from = null, to = null } = {}) {
   const gs = scene.grid.size;
   const feetPerCell = sceneFeetPerCell(scene);
   if (!(feetPerCell > 0) || !(gs > 0)) return null;
-  const half = { x: (token.width * gs) / 2, y: (token.height * gs) / 2 };
-  const centre = (p) => ({ x: p.x + half.x, y: p.y + half.y });
+  const half = centreOffset(token, scene);
+  const centre = (p) => tokenCentre(token, scene, p);
   const a = centre(from ?? { x: token.x, y: token.y });
   const b = centre(to ?? { x: token.x, y: token.y });
   return {
@@ -229,7 +228,7 @@ function partyPath(formation, { from = null, to = null } = {}) {
     seg: [a.x, a.y, b.x, b.y],
     // Distances are measured from the token's edge, not its centre: a party
     // token is often larger than a square.
-    halfToken: Math.max(half.x, half.y),
+    halfToken: Math.max(half.dx, half.dy),
     feetPerPixel: feetPerCell / gs,
   };
 }
@@ -596,7 +595,6 @@ async function haltParty(formation, haltAt, from = null) {
   if (!haltAt) return;
   const token = getPartyToken(formation);
   if (!token) return;
-  const gs = token.parent.grid.size;
 
   // Stop just short of the line, on the near side: halting on it would leave
   // the party somewhere every later step departs from, springing the trap again.
@@ -613,8 +611,9 @@ async function haltParty(formation, haltAt, from = null) {
   haltAt = { x, y };
   // The crossing is where the token's centre met the line; back the top-left
   // corner out of it. `HALT_OPTION` keeps this write out of the movement hook.
+  const corner = tokenCorner(haltAt, token);
   await token.update(
-    { x: Math.round(haltAt.x - (token.width * gs) / 2), y: Math.round(haltAt.y - (token.height * gs) / 2) },
+    { x: Math.round(corner.x), y: Math.round(corner.y) },
     { animate: false, [HALT_OPTION]: true },
   );
   formation.clock.lastPosition = { x: token.x, y: token.y };
