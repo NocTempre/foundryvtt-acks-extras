@@ -66,8 +66,8 @@ Judge is warned (`docs/lib/DECISIONS.md`); no tools for previous-version data.
   - `topic/spell-effects`: its cast registers on the turn plan, and its plan
     names `turn-plan.mjs`, `lib/turn-activities.mjs`, `lib/roll-card.mjs` and
     `lib/saves.mjs`. Touches S7, S9, S17 and U2 below.
-  - `topic/summons-formation` (plan: `20261116-summons-formation-plan.md`
-    beside this file): a summon marches as a party member; formation
+  - `topic/summons-formation` (landed and closed during Phase 1; its plan
+    has left `wip/`): a summon marches as a party member; formation
     `module.mjs`, `formation-model.mjs`, `combat-bridge.mjs`. Touches S1 and
     S13, and settles whether a summon member may join a crossing.
   - `topic/cast-cell`: `lang/en.json` and the character sheet.
@@ -1106,3 +1106,126 @@ model. Its agents take their definitions' models with no override.
 > prompt: one slice, one fresh agent of the kind §9 names; the peer check
 > before every fan-out; your own review, landing and walk; results appended;
 > the next prompt corrected.
+
+**Phase 2's corrections, from Phase 1's walk.** The Phase 2 session also
+reads these before its first agent:
+
+- The owner was put OQ1, OQ8, OQ9 and OQ10 in Phase 1's report. Answers given
+  since are recorded under §13; ask only the ones still open.
+- `topic/summons-formation` has landed and closed, so S13's check reads
+  `main`. `topic/dungeon-closeout` is landed and open: `acks-branch sync
+  dungeon-closeout` before S12.
+- The test world runs parallel walk lanes. Take the lane the managing session
+  assigns: export its `SEAT_GM`, `SEAT_PLAYER`, `CAPTURE_PORT_GM` and
+  `CAPTURE_PORT_PLAYER`, and set `FIXTURE_OWN` where a peer may drive the same
+  fixtures. A failure that shows only with other lanes up is checked again
+  alone before it is called a bug.
+- The crossing walk is a hand walk: no `tools/live` walk drives it. The pane
+  must be the active GM for its die rig to reach a relayed player throw, and a
+  hidden pane throttles its timers (Phase 1's froze once); timing and focus
+  checks run on a driver seat.
+- Ledger rows T-0638 to T-0641 (§13's W2, W3, W4, W7) are fixes to the shipped
+  surface: written in `main`'s tree, by one `implementer`, before S12.
+- S10's shot is of a crossing a user set up through the section; Phase 1's
+  fixtures (§13) are API-built and are not shot.
+
+## 13. Phase 1 results
+
+Phase 1 ran on 2026-11-16. Nothing is pushed; no release was cut.
+
+**Commits on `main`, none pushed.** S1 `f7e37962`, S2 `d591105a`, S3
+`6cea4785`, U0 `e95da0b6`, S4 `ea4174f9`, S5 `ce5f6b6e`; the topic's S6
+`bb559b5e`, S7 `99563419`, S8 `4527eb4d`, S9 `918fde8f`, landed by one
+fast-forward from `0abb2ac5` with the gate green on `918fde8f`;
+`topic/dungeon-closeout` stays open. The walk's fixes: `4d6dd428`.
+
+**Published names.** Formation's `apiVersion` rose one step at each of S1,
+S2, S3, S4 and S6, from 24 to 29. Two steps remove or rename a published
+name: S1's (`vertical` and `descendOnly` left `OBSTACLES`) and S6's
+(`assisted` became `ropeFixed`).
+
+**Rulings the slices took, for the owner to see.** S4: an imported extended
+band answers for a raised score where core's own table also has a row, so the
+import wins over core inside the bands. S6: a fall from a climb in progress
+counts the stretches covered and half the stretch under way. S7: OQ10 shipped
+as its default (b). S9: core's save card follows the roll mode the Judge set;
+the save term from Acrobatics is 0 until OQ5 is answered; the jump rows gained
+a depth field so a failed landing can price its fall.
+
+### Exercised live
+
+On `main` at `918fde8f` plus the walk's fixes, the GM in the app's pane and
+a player in a driver seat whose recorder was attached before load (`init`,
+`setup` and `ready`, no errors; a trusted-player and an assistant-GM seat the
+same). The pane's recorder was attached after load and saw core socket errors
+only, with no module frame.
+
+- §11 step 0: the formation tables re-imported (11), and `formationValue`
+  read back `advances`, `vulnerable`, the botch band, the Acrobatics cap and
+  the extended bands.
+- TESTING's Swimming steps 1 to 7, the Spelunking outcomes steps 1 to 4 and
+  the Jumping steps 1 to 5, each with its teardown.
+- U0: the six strings read live; the pace and speed hints hovered on the
+  Dungeon tab, each naming its field and carrying its page.
+- §11 steps 1 to 13 and 16, including 5a to 5e (a non-owner, a refused
+  member, an ended crossing, two interleaved requests, a member already
+  across) and 11a to 11d (the landing save's card, a closed dialog, a member
+  out of reach, each footing). Step 14 in part: scroll kept across a press;
+  focus back on the pressed row while its button survives; two party sheets
+  render with no duplicate id; no row clips at the largest font knob or at
+  420 px. Step 16's sweep of the run's own cards: asked 49, removed 49, could
+  not find 0, refused none.
+
+### Found by the walk
+
+- **W1, fixed.** `readThrow`'s success read carried no `botch` key.
+- **W2, T-0638.** A member's target tooltip names its source only, with no
+  part and no page.
+- **W3, T-0639.** A Climbing holder's permitted cell is blank.
+- **W4, T-0640.** A player's refused request still toasts that it was
+  declared.
+- **W5, fixed.** A refusal named its member "?".
+- **W6, fixed.** A player asking for a member the party dropped was refused
+  as not the owner.
+- **W7, T-0641.** A press that takes the member across drops focus to the
+  page.
+- **W8, fixed.** The panel's buttons kept core's size at every font knob
+  setting; re-measured live after the fix.
+- The member record in the party flag keeps a copy of the imported outcome's
+  words, which a later Judge override does not reach. World data, not a leak;
+  S16 to S18 touch that record.
+- TESTING's step 2 observable over-reached plan C5, which names the easy
+  climb and rappel labels; the ledge labels keep the word that tells them
+  apart. Narrowed with the fixes.
+- §10's door finding 4 is T-0637.
+
+### Checked offline only
+
+The four suites the slices added or changed and `npm test` at each landing's
+gate; the walk's fixes against the crossing, crossing-surface and obstacle
+suites and the landing gate.
+
+### Not checked
+
+- Jumping steps 6 and 7 (the city's dice): Phase 1 did not touch them.
+- Jumping step 8 and the pane's own load: the pane takes no pre-load
+  recorder.
+- Step 14's detached window: the driver opened no second document.
+- Step 15 against the printed page: every tooltip's text was read and its
+  page is the importer's citation at render, but none was compared with the
+  book open.
+
+### Fixtures kept
+
+`formation/imported-climber`, `formation/crossing-scene`,
+`formation/crossing-party`, `formation/crossing-adventurer` (owned by the
+player seat), `formation/crossing-climber` (an imported class bound, Climbing
+taken through the sheet's class proficiency chip), `formation/crossing-acrobat`
+(Acrobatics the same way), `formation/crossing-beast`. The crossing is ended.
+
+### Incidents
+
+The Foundry server process died mid-walk, not stopped by this session; the
+app was restarted and the world relaunched, and the crossing and the import
+survived. The pane's in-page fixture ledger did not, so the run's own cards
+were listed by author, time and fixture, and swept by that list.
