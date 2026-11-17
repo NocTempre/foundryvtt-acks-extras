@@ -336,3 +336,113 @@ Defaults the phase session proceeds on if they are unanswered:
 ## Results
 
 (Appended by each slice.)
+
+## Handover (2026-11-17)
+
+The phase session "Treasure table phase 1" stops here and hands the plan to a
+successor in the orchestrator's family. This file stays the hand-over.
+
+### Slices
+
+| Slice | State | Commits |
+| --- | --- | --- |
+| R0 | Owner: "Approved for development" | |
+| T2, T2 follow-ups | Landed on `main`, walked | f8a61673, 6acff028, 7e93e64e (walk) |
+| R1 | Landed on `main`, walked | e7efe5eb, e9c06d37 (walk), 30afa306 and bce8457d (walk fixes) |
+| R3 | Landed on `main`; walked only through R2's force-cursed Take | 46932c12 |
+| R2 | Landed on `main`, walked | 37a21e9d |
+| R6 | Landed on `main`, walked | 86559252 |
+| R5 core | Landed on `main` | 7257a0c1 |
+| R4 + R5 wiring | Landed on `main`, walked with one finding (below) | 653bb8ee |
+| R2, R4/R5, R6 walks | On `main` | the commit that adds this section |
+| T4 engine | Landed on `main` | f281ed1c |
+| T4 adapter | Built on `topic/treasure`, offline green, not landed | 336b6cc3 |
+| T3 | Built on `topic/treasure`, offline green, not landed; no tick control (the mockup draws none) | 5a2ebc23 |
+| T5 | Not started: its entry points are new controls and need `/design` first | |
+| T6 | Not started: waits on tt-importer S6's magic-item documents | |
+
+The topic does not land until the orchestrator says the minor is tagged (the
+owner's cap on unpushed work). It stays open; `sync` it before the next slice.
+
+### Walks (lane C, FIXTURE_OWN=treasure, partial by design)
+
+- `markets-undetected`: 72 pass, 0 fail.
+- `treasure`: 77 pass, 0 fail after the relaunch.
+- `treasure-search`: 31 pass, 0 fail (a real fight; the tracker's End Combat
+  fires the real `deleteCombat`).
+- `treasure-faces`: 37 pass, 0 fail.
+- `treasure-party`: 25 pass, 1 fail. **Finding:** the Quick grab button is
+  never the element under its own centre after scrolling, at any width, so a
+  real pointer press never reaches it (step 7, and both presses in step 5 fell
+  back to a scripted click). Not diagnosed: one `elementFromPoint` probe on the
+  button's centre is the next step.
+- **Unproven, watch it:** one `treasure-search` run of three delivered another
+  body's item from a deleted body's card, the signature of `carriedMap`
+  pairing card ids with bodies by position when `addTruths` returns ids in
+  another order. The walk now pins each card to its body; the two runs since
+  passed.
+- Walk-side flakes the walks now absorb: the Player seat's doorway card can
+  arrive late; the doorway's Open the table sometimes opened no window on the
+  first press (twice in four runs; the walk presses up to three times). If a
+  real table sees the second, it is a code issue.
+- Not walked: search step 4 (a linked RollTable), party step 6 (the Judge's
+  grab with a nearly full ally and a down member), a drag onto a sheet the
+  seat cannot open, reduced motion, a Tab walk through the cards.
+
+Run them with the scratch launcher pattern in `TEST_ENVIRONMENT.md` "Seat
+lanes": lane C is Gamemaster 3 / Player 3 on 9487/9488.
+
+### Fixtures kept (markers, `@treasure` own-tag)
+
+`treasure/player-character`, `judge-character`, `ally`, `coin`,
+`item-masked`, `place`, `item-plain`, `item-masked-cheap`, `item-detected`,
+`item-identified`, `item-identified-unknown`, `item-expensive`, `weight-a`,
+`weight-b`, `weight-huge`, `weight-down`, `search-scene`, `search-hostile`,
+`search-hostile-2`, `search-friend`, `undetected-holder`, `undetected-item`,
+`known-magic-item`, `mundane-item`, `identifier-engineering`,
+`identifier-lore`, `identifier-research`. The party formation "QA Treasure
+Party" is a formation record with no marker: found by name, never deleted by
+name. Recipe gaps the walks found (fixtures the recipes do not list yet):
+`item-identified-unknown`, the four `weight-*`, and the search walk making its
+tokens and combat per run.
+
+### Owner questions
+
+1. Who may press Quick grab: any seat that may Take (built; it places goods on
+   characters the seat does not own), the Judge only, or a seat owning a member?
+2. A world with two or more parties needs a party picker on the pot (ROADMAP
+   row); until then the pot has no party there.
+3. A value card in a grab weighs its own `weight6`, while it is delivered as
+   minted coin: should it weigh the coin?
+4. Should a Judge be able to un-detect an identified item? The control allows it.
+5. Should "No magic" strike Judge-seeded cards?
+6. Should "Force cursed" set `curseKnown` on an item already fully identified?
+7. Special treasure is off unless asked (T4): right default?
+8. Should the tt-importer name each dice-legend row's special list (and mark
+   the "leave the lot" row), so T4 drops its order-and-wording pairing?
+9. The deal-a-letter control and T5's entry points need `/design`.
+10. T3: a tick control for the Judge to change a replace seed's lots (question B allows it in "Judge deals" mode; the mockup draws none, so both modes take the auto-pick; ROADMAP "Replace ticks") needs `/design`.
+11. T3: a seed the lots cannot cover takes none (built) rather than striking every free lot; a seed stands in its first struck lot's slot (built) rather than at a drawn position.
+
+The plan's T3 line ("a random position is a `shuffle(...)`") no longer matches: placement uses the injected-rng `placeAdds`.
+
+Also outside these slices and not fixed: the Details-tab price ledger shows a
+player an unidentified magic item's true cost, and trade chat lines say
+"Apparent value". A player's slot badge can read below the cap while the place
+is marked full. The MODEL flag table's `origin` row predates R6.
+`acks-extras-treasure-search__*` classes are unstyled. The staging screenshots,
+guide step and gallery row are stale. The magic colour is a literal oklch, for
+want of a blue token.
+
+### Start prompt for the successor
+
+> Continue the treasure table, `docs/treasure/wip/20261116-treasure-table-plan.md`,
+> from its "Handover (2026-11-17)" section. The work is on `topic/treasure`
+> (worktree `C:\Proj\foundryvtt-acks-extras.treasure`); do not land until the
+> orchestrator says the minor is tagged, then land with `branch.mjs land
+> treasure` and walk on `main`. First diagnose the Quick grab press finding
+> (one `elementFromPoint` probe) and fix it on `main` as a walk finding. Then,
+> on the topic: T6 once tt-importer S6 lands. T5 and the
+> deal-a-letter control start with `/design` and the owner's approval. Walk on
+> lane C with `FIXTURE_OWN=treasure`. Build slices with fresh `implementer`
+> agents and quote the owner's words from "Revised design" in each brief.
