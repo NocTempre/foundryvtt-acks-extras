@@ -96,7 +96,7 @@ probed in S0.
 | S2 | The TT layer: `over` and the downgrade guard in `tables-binding.mjs`; the TT's same-shape tables and Gritty | `implementer` | A for the different-shape tables only | yes |
 | S3 | The TT's banded subtables, in three batches (potions, rings, scrolls; implements, miscellaneous; swords, weapons, armour). TT has no wiki oracle, so band tiling and hop resolution are the self-check | `implementer` per batch | A | yes |
 | S4 | Chain walker and a "Roll a magic item" control in `scripts/magic-items/` (`ACKS-MAGICITEMS`, `docs/magic-items/`) | `architect` for the feature skeleton, then `implementer` | none | yes |
-| S5 | Hoard generator from a treasure type letter; buttons on the monster statblock and the encounter card | `architect`, then `implementer` | D | yes |
+| S5 | Moved: the hoard generator and its entry points are T4 and T5 of `docs/treasure/wip/20261116-treasure-table-plan.md`, a new `treasure` feature, which answers D. That plan deals from this plan's S1 tables and calls S4's walker | — | — | — |
 | S6 | TT entries: `register/tt/`, `register/_kinds/magicItem.json`, compiler branch, `scripts/importer/cookbook/magic-items.mjs`; `books.mjs` `tt` gains `judge: true` and a glyph only if S0 proves one | `architect` first (new kind), then `implementer` batches | C, E | yes |
 | S7 | "+N" arms and armour into core fields; `magicBonusParts` | `implementer` (touches equipment, coordinate with magic) | none past S6 | yes |
 | S8 | JJ ch. 4 entries under the same kind | `implementer` | C | yes |
@@ -124,9 +124,7 @@ to be registered; these slices add none.
 - **C.** When both books print the same item, does the library keep the TT's
   entry? Recommended: the TT's. Counter (moderate): the magic scoping and
   `books.mjs` `keptBook` today keep the JJ's.
-- **D.** Does the hoard generator live in a new `treasure` feature that calls
-  `magic-items`, or inside `magic-items`? Recommended: a new feature. Counter
-  (moderate): a fourth feature and lang root for one generator.
+- **D.** Answered by the treasure plan (S5 above): a new `treasure` feature.
 - **E.** Does every TT entry ship a neutral label and a heading hash, or only
   an entry whose heading holds a figure or a proper name? Recommended: only
   those, since spells and equipment ship their common names and an entry
