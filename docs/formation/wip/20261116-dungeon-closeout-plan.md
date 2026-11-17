@@ -563,6 +563,15 @@ feature is not reported built until that walk has run.
 
 OQ1, OQ8, OQ9 and OQ10 were answered on 2026-11-17 (§13, "Owner answers"), so nothing in this phase waits on the owner.
 
+**Design approved 2026-11-17.** `ui-layout.md` "Design before build" was
+synced after this plan was written, so Phase 2 drew its surface first: six
+boards at https://claude.ai/artifact/JmdFLnu3QPncGFCxQspvMX (private to the
+owner). They show swim on the Judge and Player seats, the combat prompt card,
+the squeeze with its two escapes, the climb's pace pick, rounds spent and held
+conditions, and the jump attempt. The owner's word, relayed by the managing
+session: "Go". S13, S15, S16, S17's round count, S18's chips and S19 are
+built to those boards.
+
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
 | S10 | `main` | doc-scribe | `docs/guides/formation.md` gains the crossing step; a `docs/GALLERY.md` row. The shot is of a crossing a user set up through the section. | the guide | Phase 1's walk |
