@@ -930,6 +930,449 @@ keeps masterwork (yes). Departures from earlier rulings, also on that list:
 targeted, 59's deleting client, 61's lapse at the end of the caster's next
 turn.
 
+## Early rulings for session 1b (an architect, 2026-11-16)
+
+Ruled ahead of session 1b, in parallel with S2b, on owner ruling 4's
+question: where the fractions come from, and the one place an amount is
+reduced. Made against `main` at `cf23a0fe`. `2e9585de` (S2b's M2, since
+landed) changes no amount-path symbol: `amountOf`, `applyRow`,
+`amountAfter`, `saveSpec`, `adjustHp`. Before it builds, session 1b checks
+each line of "Rests on" against its own tip. A line that is no longer true
+reopens the ruling that leans on it.
+
+67. **Resistance's figures are imported into a `defenses` registry document;
+    immunity ships as procedure; susceptibility's figures are the
+    creature's.** Resistance's amount fraction and save modifier (RR ch. 6,
+    "Damage Type Immunity and Resistance") are a `proseValues` table
+    `resistanceProse`, with keys `fraction` (take `fractionWord`) and
+    `saveBonus` (take `signed`). It follows the `senses` precedent.
+    `lib/defenses.mjs` declares it with `expectTables`. `defenseFigures()`
+    answers each figure, null until read. `defenseCite()` gives the page
+    through `citeOf`. The Judge edits the figures in the Ruledata Browser,
+    which writes the override layer.
+    - Immunity prints no figure: it removes the damage and passes the save.
+      That is procedure, and it ships.
+    - Susceptibility prints no general figure. The susceptibility band
+      gains nullable `factor` and `save`, which `defenseScan` locates in the
+      creature's own clause (takes `times` and `signed`). The monster sheet
+      edits them, and an unread one stays blank with the creature's page
+      reference.
+
+    *Rejected:* the fraction as structure, on `saveFractionOf`'s word map;
+    a world setting; a table on the `monsters` document (characters need
+    the figures too). *Counter (medium):* `saveFractionOf` already ships a
+    word-to-fraction map. Medium, because that word is a vocabulary key
+    authored per row, while resistance's figure is the rule's own printed
+    number.
+68. **`amountAfter` stays the one reducer.** It applies the save fraction,
+    then one defenses stage, then one half-even rounding. Only the pure
+    `lib/defenses.mjs` `defenseStage(sources, damage, figures)` builds that
+    stage. `amountAfter` gains a `judge` stage, which answers `applied:
+    null` and rounds nothing.
+    - **Callers:** magic's `amountOf`, from `applyRow`, on the owning seat
+      and inside `magicCastRelay` on the GM's client. The sources are read
+      from `found.actor` on the client that writes. The types and the
+      extraordinary mark come from the spell's own keyed row, never from the
+      card or the request. A heal row takes no stage. The weapon Apply
+      (ruling 69) is the other caller.
+    - **Not callers:** the HP tool, `adjustTargets`, `planHpChange` and
+      provision-day. Their amounts are untyped, and the HP tool's
+      multiplier is the Judge's way to apply a defense by hand.
+    - `adjustHp` stays the one writer, at multiplier 1.
+
+    *Rejected:* wrapping `AcksActor#applyDamage`. It is untyped, core's
+    card never calls it, and lib's `writeOne` does, so it would reduce a
+    cast twice. Also rejected: a `preUpdateActor` reducer. *Counter
+    (medium):* the HP tool still rounds up as core does, so two rounding
+    rules remain. It is the Judge's manual route, and it gets a ROADMAP row.
+69. **A weapon hit is applied by lib, not by core's button.** Core's Apply
+    (`#onChatCardAction` → `#applyDamageToTarget`, a raw hit-point update)
+    is private and cannot be wrapped.
+    - Lib's `onPreCreateMessage` in `attack-throw.mjs`, which already owns
+      that stamp, widens to every attack card in flight that is not a
+      carrier's and still has an apply button. It reads `data-damage` and
+      `data-target-uuid` and strips the button (`stripApplyDamage`). It
+      stamps `flags.acks-extras.attackApply {targetUuid, rolled, types,
+      extraordinary, silver}`. The types and quality come from
+      `attackInFlight(actor).item.system.damage.base`, the field core's
+      builder reads, and silver from `system.silver`.
+    - The new `lib/attack-apply.mjs` adds a render hook and an Apply press
+      outside `.card-buttons`. Only GMs press it, as in core. The press
+      recomputes against the target's current sources through
+      `amountAfter`, writes through `adjustHp` and stores `{applied, steps,
+      before, after, by}`. A GM's Undo uses `restoreHp`.
+    - A judge stage offers no Apply, and its line names the defense with
+      its page reference.
+    - `rolled` is core's floored `damageTotal`, so a defense can take a hit
+      to 0 (inferred; owner question 3).
+    - Core's other apply, `chat.mjs` `.damage-roll`, is out of scope: no
+      core template emits that class, and it carries no type.
+
+    *Rejected:* a second button beside core's (two writers, one of which
+    ignores defenses); a capture-phase listener that swallows core's click.
+    *Counter (medium):* every weapon card changes shape. Medium, because a
+    failure at preCreate leaves core's button, which is the safe failure.
+70. **The procedure ships.** A band covers a type dealt when it lists the
+    type, or lists none and sets a quality flag that matches. The damage's
+    quality is extraordinary when the damage is, or when a silver weapon
+    meets `silverFlaw`; otherwise it is mundane. A band with no quality flag
+    covers both.
+    - Every type covered by immunity → 0.
+    - Every type covered by immunity or resistance, at least one by
+      resistance → `fraction`, or judge while it is null.
+    - Every type susceptible → the creature's `factor`, or judge while it is
+      null.
+    - Judge in every other mixed case: a susceptibility covering some types,
+      a susceptibility beside an immunity or resistance, or an applying band
+      with a `note`.
+
+    `actorDefenses(actor)` gathers the actor's `flags.acks-extras.extras.defenses`
+    and each owned item's bands (ability items carry `defensesField()`).
+    Each source is named, and a type covered twice counts once, so a
+    fraction never applies twice (owner ruling 2). *Counter (medium):*
+    tables meet more judge entries than they expect. The bands come from a
+    prose scan, so sending a doubtful case to the Judge is the honest
+    answer.
+71. **The save side is built in S3** (owner word 4, "resist rolls with their
+    types"). `saveSpec` takes `damage {types, extraordinary}`, and the new
+    `defenseSaveParts` reads the same sources under the same coverage rule:
+    - immunity → an `auto` success;
+    - resistance → a target-side part of `saveBonus`, or `pending` while it
+      is null;
+    - susceptibility → the creature's `save`.
+
+    The cast passes the union of its damage rows' types, and `worldFor`
+    passes the same, so the relay's recomputed save matches.
+    `checkApplyRequest` accepts an `auto` success. *Counter (medium):* one
+    save covers rows that deal different types (owner question 4).
+72. **Transparency.** A defense step is stored as `{key: "defense", label,
+    band, types, source, cite}`. `cast-card.mjs` `appliedTip` lists every
+    stored step, where it lists only rolled, fraction and applied today. A
+    judge entry's detail names the defense, and its tooltip is the page
+    reference alone. The save part carries the band's label, and the weapon
+    line shows the same steps. The defense is named to GMs and the target's
+    owners; other seats read "a defense" (owner question 1).
+73. **Data fixes inside S3.**
+    - `bindMonster` `packSide` writes `effects` as a set and keeps
+      `silverFlaw` and `note`.
+    - `defenseScan` reads the silver flaw and the susceptibility figures.
+    - The monster sheet edits `factor` and `save`.
+    - `docs/monsters/TESTING.md` step 5 is rewritten. It claims core's damage
+      path respects defenses, and nothing reads them.
+74. **Slice S3d, and what waits.** One `implementer` for each part, in this
+    order:
+    1. lib: `defenses.mjs`, `amountAfter`, `saves.mjs`, `attack-apply.mjs`,
+       the `onPreCreateMessage` change, MODEL and DECISIONS, and the
+       damage-against-defenses ROADMAP row S2 never wrote;
+    2. the importer and monsters;
+    3. magic: `amountOf` and `applyRow`, the card and the relay.
+
+    The session then walks it on `main`. Effect and condition bands go to
+    S4's opening ruling, since they act on the grant path. ROADMAP rows:
+    - a damage-type pick in the HP tool, with the printed rounding;
+    - a weapon Apply a player can press, through a relay;
+    - quality per type within one band;
+    - the incorporeal-weapon rule;
+    - spell records as defense sources;
+    - magic resistance;
+    - core's sheet save, which gets no defense part.
+
+**Rests on** (at `cf23a0fe`):
+
+- `lib/hp-logic.mjs`:
+  - `amountAfter` applies a fraction, then `stages` (a `factor` or a
+    function), then one `roundHalfEven`. It has no judge stage.
+  - `planHpChange` rounds up, as core does.
+- `magic/cast-apply.mjs`:
+  - `amountOf` calls `amountAfter(rolled, {fraction})` with no stages.
+  - `applyRow` holds `found.actor` and stores `steps`.
+  - `magicCastRelay` runs the same `applyOnTarget`.
+  - `checkApplyRequest` requires `success === (total >= target)`.
+- `lib/hp.mjs` `writeOne` calls `actor.applyDamage`.
+- Core:
+  - `chat-message.mjs` `#applyDamageToTarget` is private and GM-only, and
+    writes `system.hp.value` raw.
+  - `chat.mjs` `addChatMessageButtons` binds `.damage-roll`, which no
+    template emits.
+- `lib/patches/attack-throw.mjs`: `onPreCreateMessage` strips only a
+  carrier's card. `attackInFlight` holds the context while core posts.
+- `lib/fields.mjs` `defensesField`: bands `{damage, effects, conditions,
+  mundane, extraordinary, silverFlaw, note}`, with no figure fields.
+- The importer and monsters:
+  - `importer/executor.mjs` `defenseScan` and `mergeDefenses` read neither
+    silver nor figures.
+  - `importer/cookbook/monster.mjs` `packSide` writes `effects` as a string
+    and drops `silverFlaw`, `conditions` and `note`.
+  - `monsters/module.mjs` `migrateDefenseBands` turns the string into sets.
+- The monster sheet, `monsters/statblock.mjs` and the ability sheet read the
+  bands, and only to display them.
+- `lib/senses.mjs` reads a raw `proseValues` document through `getDoc` and
+  `citeOf`. `location/table-store.mjs` mirrors imported documents to the
+  world layer and keeps the override layer. That a new raw document persists
+  the same way is inferred from the `senses` precedent, not checked live.
+- `importer/table-extract.mjs` has the takes `fractionWord`, `signed` and
+  `times`.
+- Neither `docs/lib/ROADMAP.md` nor `docs/magic/ROADMAP.md` has a
+  damage-against-defenses row.
+
+**Owner questions**, each with the default to proceed on:
+
+1. Is a target's defense named to every seat on a public card? Default: to
+   GMs and the target's owners.
+2. What happens when a susceptibility covers only some of the types dealt,
+   or stands beside a resistance? Default: the entry goes to the Judge.
+3. Does a hit's damage floor apply before the defense, so that a defense
+   can take a hit to 0? Default: yes.
+4. When a spell's rows deal different types, does the save part apply only
+   when the target's defenses cover them all? Default: yes.
+
+## Early rulings for S5 (an architect, 2026-11-16)
+
+Ruled ahead of session 1c's S5, in parallel with S2b, on the readers ruling
+10 lists. Each is ruled against lib's `rollMods`, `stackingPart` and
+`saveSpec` as `874950a3` built them. Made against `main` at `cf23a0fe`.
+`2e9585de` (S2b's M2) adds `held`, `tail` and `pending` to the record and
+touches neither `rollMods`, `cast-mods.mjs` nor `scripts/lib/`. Session
+1c checks "Rests on" against its own tip before it builds.
+
+**Which row goes to which reader** (by register id):
+
+- **The throw reader:**
+  - `chameleon` and `silentStep`: a bonus where the bearer holds the
+    proficiency, a set target where it lacks it.
+  - `leaping`: a bonus on a held proficiency's throw.
+  - `spiderClimbing`: a grant.
+  - `passWithoutTrace`: a grant with no throw.
+  - Ruling 10's fifth proficiency row is `locateAnimalOrPlant`, which is in
+    S6's list (inferred count).
+- **Influence:** `allure`.
+- **A set armour class:** `arcaneArmor`, two rows.
+- **A save under a condition:** `salvingRest`, which is in S4's list.
+- **No new reader:** `baneRune` (M1's weapon part plus a creature kind
+  picked at cast) and `slickness` (its object row is the Judge's).
+
+At `cf23a0fe` only `sharpness` of these has register rows. S5 authors the
+rest before any reader can be walked.
+
+75. **One way into the record.** None of the four reaches a part today:
+    `modParts` needs a `ROW_ON` entry and `atRoll`. `modifierDisposition`
+    answers `consumed` for a proficiency throw or a reaction,
+    `unsupported` for mode `set`, and `gated` for a status gate.
+    `rollModsOf` drops any `on` outside `ROLL_MODS_ON`.
+    - **Lib:**
+      - `ROLL_MODS_ON` gains `throw`, `reaction` and `grant`.
+      - A part may carry `mode`, `attackKinds`, `saves`, `ref`, `rollKey`,
+        `ifHas` and `atLevel`.
+      - With `bearer`, `modifierDisposition` answers `atRoll` for a `set` on
+        `ac` and for a gated row. A declared `attackKinds` answers `atRoll`
+        with reason `narrowed`, on both paths.
+      - `effectField` gains `attackKinds`, a choice set over `conditions.mjs`
+        `ATTACK_KINDS`, and `gate.occasion`.
+      - `typed-modifiers.mjs` exports `saveKeyOf`.
+    - **Magic, `cast-mods.mjs`:**
+      - `isModRow` admits `modifies` and `grants` rows.
+      - `ROW_ON` gains `proficiencyThrow` → `throw` and `reaction` →
+        `reaction`.
+      - A `consumed` row whose consumer is abilities or influence is
+        admitted.
+      - A save `forWhat` is written as `saves`.
+    - A blank figure writes no part, and the card shows "—" with the page
+      reference, as in M1. Every part keeps the spell-record capability.
+    - **The row editor:**
+      - `modifier` gains `attackKinds`, `gate.status` and `gate.occasion`.
+      - `modifies` gains `appliesTo`, `ifHas` and `appliesToRoll`.
+      - `grants` gains `appliesTo`, `mode` and `value`.
+
+    *Rejected:* a magic-owned reader (ruling 50); `delivery` for attack
+    kinds, since `cast-card.mjs` treats any row with a `delivery` as a throw
+    row. *Counter (medium):* seven new fields for five spells. Medium,
+    because each is a narrowing the conditions catalogue already uses or an
+    existing `effectField` key.
+76. **Lib reads every record part through `recordParts`.** The new
+    `roll-mods.mjs` function `recordParts(actor, on, {subject, rollKey,
+    save, ctx})` answers `{kept, dropped, pending}`, each labelled `{spell}
+    ({cite})`:
+    1. It filters by `on`, by `ref` (through `satisfies`), by `rollKey` and
+       by `saves`.
+    2. `partHolds` tests a non-item gate through `gateVerdict`: true
+       applies, false drops, null goes to pending. It tests each `ifHas`
+       through `hasCapability`.
+    3. The applying parts go through `resolveStacking`, oriented so that the
+       part kept is the better figure.
+
+    `defenderSide` and `saveModParts` adopt `partHolds`; neither checks a
+    gate today. Every reader reads applied effects at the roll, so a part is
+    gone when its record ends. *Rejected:* each feature re-implementing
+    gates, `ifHas` and stacking. *Counter (low):* abilities and influence
+    import lib, the direction lib's index already allows.
+77. **The abilities roller reads record parts.** `ability-rolls.mjs`
+    `throwModifiers` gains a third source, `recordParts(actor, "throw",
+    {subject: refOf(item), rollKey})`.
+    - Record parts are resolved among themselves, then add to the actor's
+      own bonuses: ruling 10's non-stacking is between spell records.
+    - They join `parts`, so `targetModifiers`, `itemized` and the Rolls tab's
+      tooltip name the spell.
+    - Row shape: `{type: "modifies", target: "proficiencyThrow", refs:
+      ["kw:<prof>"], ifHas?, appliesToRoll?, value}`.
+    - `leaping` reaches whatever throw `rollsOf` gives the held proficiency.
+      A bearer without it has no throw, and the part does nothing.
+
+    *Rejected:* `modifier` with `forWhat`, since a name slug misses the
+    routes a capability token catches. *Counter (medium):* a granted
+    proficiency never satisfies an ability's `ifHas`. It matters only where
+    a bearer's own ability depends on the granted one.
+78. **A grant is a record part, never an item.** `{on: "grant", ref: <def
+    id>}` means the bearer counts as holding that proficiency while none of
+    its abilities provides `capabilityForId(ref)`.
+    - `mode: "set"` with `value` sets the throw target (`chameleon`,
+      `silentStep`). Each spell also carries an `ifHas` bonus part, so
+      exactly one of the two applies.
+    - With no mode, the throw is the definition's own at the bearer's level
+      (`spiderClimbing`).
+    - `atLevel` is the level the granted proficiency's figures are read at
+      (`passWithoutTrace`).
+    - The definition comes from `library.mjs` `byCookbookId(type, ref,
+      {original: true})`, and only its formula, roll type and ladder are
+      read.
+    - A blank set figure still writes the grant, with `value: null`. The
+      throw shows "—" with the spell's page and rolls with no target.
+    - Two grants of one `ref` leave one, the better target for that throw's
+      type.
+
+    Readers:
+    - abilities: `grantedThrows(actor)` and `rollGrantedThrow(actor,
+      grant)`. `pickThrow` takes the holder as an explicit argument where it
+      reads `item.actor` today.
+    - the character sheet, `rolls.mjs`: a row kind `grant:<effectId>:<key>`.
+    - influence: ruling 79.
+
+    `hasCapability` stays items-only. Perception's hiding test reading
+    grants is a ROADMAP row. *Rejected:* adding the proficiency item to the
+    bearer, which a record deleted while no GM is connected would leave
+    behind for good, against ruling 10's lifetime. *Counter (medium):* only
+    the module's character sheet lists granted throws.
+79. **Influence reads reaction parts and grants.**
+    - `#buildModConfig` adds `recordParts(subject, "reaction")`, resolved
+      among themselves first, because ticked rows sum.
+    - Each part goes to `scopeApplies` whole, with the record's
+      `sourceAlignment` and `enemy: null`, so `vsEnemy` is undetermined and
+      offered unticked.
+    - `getActsAsPowers` reads grant parts whose `ref` maps to a `CORE_PROFS`
+      key: `allure` maps to `mysticAura`.
+    - `resolveHeldRows` gives that stand-in the reaction figure from the
+      library definition. With nothing imported it stays unvalued, as
+      today.
+    - `allure`'s bonus row carries `ifHas: ["kw:mysticaura"]`.
+    - Core's `rollReaction` takes no part (inferred from a grep).
+    - The same slice replaces `influence/ability-effects.mjs`'s three-key
+      scope copy (the S1b finding).
+
+    *Rejected:* writing influence's `actsAs` flag on the record, which
+    would put a second flag vocabulary on a record lib owns. *Counter
+    (low):* the scope fix touches ability rows no import writes yet.
+80. **An armour class set by the kind of attack is a term on the attack.**
+    The part is `{on: "ac", mode: "set", value, attackKinds}`.
+    `arcaneArmor`'s missile row lists `["missile", "thrown"]`, since RR
+    ch. 6, "Missile Attacks", counts a thrown item as a missile attack. Core
+    adds the target's armour class inside `buildAttackThrow`, so the set can
+    only enter as a term.
+    - `rollModRows` passes `attackType` (a carrier's delivery) to
+      `defenderSide`, which it does not today.
+    - `defenderSide` drops a part whose `attackKinds` miss that type.
+    - A set part becomes its lift: `max(0, value − (ac.value − dexMod +
+      acMath(subject, {kind}).total))`. The lift joins the add parts in one
+      `resolveStacking`, so the larger applies and the spell-record
+      capability keeps it from adding to another spell's.
+    - The term is `−lift`, labelled with the spell and the kind. A lift of 0
+      is told as yielding to the target's own armour class.
+    - Conditions that improve the attacker's throw are attack-side terms and
+      are unaffected.
+
+    *Rejected:* writing `system.ac.value`, which core recomputes and which
+    knows no attack kind. *Counter (medium):* reading the set figure as a
+    floor is inferred from the print's wording and its non-stacking clause
+    (owner question 1).
+81. **A save changed under a condition: `saveSpec` does not cover it yet.**
+    `saveModParts` and `sheetSaveShift` skip every gated part and are not
+    told which save is rolled. `salvingRest`'s figure belongs to the daily
+    Death save the enervated condition imposes (RR Appendix B), not to every
+    Death save.
+    - The part is `{on: "save", saves: ["death"], gate: {kind: "status",
+      status: "enervated", occasion: true}}`.
+    - `saveSpec` and `onRollSave` pass the save kind. A part whose `saves`
+      miss it is skipped, and a gate that is off adds nothing.
+    - An `occasion` gate that holds goes to `pending`, unless the caller
+      passes `occasion: "enervated"`. No module roller passes it yet.
+    - The clause on how enervation ends stays a card line.
+
+    This supersedes, for gated save parts, lib DECISIONS 2026-11-16's "only
+    the unscoped, ungated parts". The new evidence is that this is the first
+    save part to carry a gate. *Rejected:* a plain status gate, which would
+    add the figure to an enervated creature's Death save against poison.
+    *Counter (medium):* until an enervation roller exists, the figure only
+    ever shows as pending.
+82. **Owners and slices.** Lib owns its half of ruling 75, and rulings 76,
+    80 and 81. No wrapper is added: `defenderSide` runs inside the
+    roll-mods contributor, and `onRollSave` stays `status-effects.mjs`'s. No
+    reader refuses anything, so the block-and-warn rule has nothing to gate.
+    Each slice gets a fresh `implementer`:
+    - **S5a:** lib, the row editor, `docs/lib`, the README and the API
+      version.
+    - **S5b:** `cast-mods.mjs`, the register rows (`salvingRest`'s too,
+      unless S4 authored them) and the recompile.
+    - **S5c:** abilities and the character sheet.
+    - **S5d:** influence, which may run beside S5c.
+
+    The session walks it on `main`.
+
+**Rests on** (at `cf23a0fe`):
+
+- `lib/roll-mods.mjs`:
+  - `ROLL_MODS_ON` holds five values.
+  - `saveModParts` and `sheetSaveShift` skip gated parts and take no save
+    kind.
+  - `defenderSide` gets no `attackType` and checks no gate.
+  - `attackerSide` checks gates through `gateHolds`.
+- `lib/typed-modifiers.mjs` `modifierDisposition`:
+  - `CONSUMED_TARGETS` is answered before mode and subject.
+  - Any mode other than `add` is unsupported.
+  - A gated row answers `gated` even with `bearer`.
+  - `saveKeyOf` is private.
+- `magic/cast-mods.mjs`: `ROW_ON`, `isModRow`, and `modParts` keeping
+  `atRoll` rows only.
+- `abilities/ability-rolls.mjs`: `throwModifiers` reads item rows only, and
+  `pickThrow` uses `item.actor`.
+- `lib/capabilities.mjs` `hasCapability` reads ability items only.
+- `influence/actor-data.mjs`:
+  - `getActsAsPowers` reads `actsAs` flags.
+  - `resolveHeldRows` gives an item-less stand-in an unvalued row.
+- `influence/influence-app.mjs` `effectModRow`'s `scopeApplies` context
+  carries no `sourceAlignment` or `enemy`.
+- Core:
+  - `buildAttackThrow` adds the target's `ac.value` itself.
+  - `AcksActor#computeAC` sums armour, DEX, shield and `ac.mod`.
+- `lib/conditions.mjs` has `acMath(…, {kind})`, `ATTACK_KINDS`, and
+  catalogue rows narrowed by `scope` and `saves`.
+- `lib/status-effects.mjs`: `onRollSave` knows the save key, and
+  `recordSaveShift` drops it.
+- `magic/cast-card.mjs` treats any row with a `delivery` as a throw row.
+- The register: `def.prof.acrobatics` carries a `throw` effect, and
+  `def.prof.passingWithoutTrace` has none.
+
+**Owner questions**, each with the default to proceed on:
+
+1. Where the target's own armour class, less DEX, is already better than
+   `arcaneArmor`'s figure, does the target keep it? Default: yes.
+2. Does a granted proficiency's throw take the bearer's conditions and other
+   bonuses? Default: yes.
+3. `passWithoutTrace`'s level-scaled figure has no reader, since evasion is
+   formation's. Is it shown on the grant, with a ROADMAP row for evasion?
+   Default: yes.
+4. Should anything roll the enervated daily save, so that ruling 81's
+   figure applies instead of sitting as pending? Default: no.
+5. Are granted throws shown on the module's character sheet only? Default:
+   yes.
+
 ## Data shapes
 
 Effect row (`lib/fields.mjs` `effectField`), new keys: `saveEffect`
