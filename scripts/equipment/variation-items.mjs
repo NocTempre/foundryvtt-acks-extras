@@ -120,6 +120,8 @@ export async function applyVariation(base, source, { move = false } = {}) {
     return null;
   }
 
+  // A moved variation leaves the item it was on, which restates its fields too.
+  const from = move ? baseItemOf(source) : null;
   const inPlace = move && siblingsOf(source) === siblingsOf(base);
   let applied;
   if (inPlace) {
@@ -136,6 +138,7 @@ export async function applyVariation(base, source, { move = false } = {}) {
     if (move && source.isOwner) await source.delete();
   }
   await recomputeItemFields(base);
+  if (from && from.id !== base.id) await recomputeItemFields(from);
   return applied ?? null;
 }
 

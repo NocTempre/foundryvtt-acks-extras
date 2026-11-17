@@ -75,6 +75,15 @@ GM has this tab alone.
    handing a row the wrong book's PDF is refused with nothing on the server;
    the bulk picker stages everything it can name and lists the files that named
    no book. Both leave the row reading "Open from the server on every launch".
+3c. **Add to server** on an open book with the refresh bridge off. Set the
+   refresh-bridge window setting to 0, forget books on this computer, connect one book from a folder, and confirm
+   it is not staged (a book that is staged takes the server's copy and never
+   reaches this path); then press its row's **Add to server**.
+   *Observable:* the book uploads and its row reads "Open from the server on
+   every launch"; the console carries no "no longer held in memory" error,
+   which is what the row said every time before. `acksExtras.importer.bookBytes(id)`
+   returns the same bytes the upload wrote, so `md5sum` of the file under
+   `Data/acks-extras-books/` matches the source PDF.
 4. **Shut the world down and relaunch it.** This is the check the whole shelf
    exists for and a page reload does not substitute for it.
    *Observable:* the staged book is open at `ready` with NO gesture, no picker
@@ -115,6 +124,15 @@ GM has this tab alone.
    *Observable:* the console reports `shelf: 1 book(s) carried from the world
    setting into journals under "Your Books"`, the journal is back with its PDF
    page on that path, and the setting reads `{}` again.
+11. A citation clicked in a detached window. With a book shelved, put a
+   journal page holding one of the module's own citations (a cookbook import
+   writes them) in a sheet, and pop that sheet out into its own browser window
+   (the sheet's detach control). Click the citation there, then open another
+   detached window afterwards and click a citation in it too.
+   *Observable:* each click opens the cited PDF page, the same as in the main
+   window, and core's own link handler never runs; a citation inside an open
+   editor is left alone. Pressing a citation in the main
+   window after the pop-outs still opens the page once, not twice.
 
 ### Driving the pickers
 

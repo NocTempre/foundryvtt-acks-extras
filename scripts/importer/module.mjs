@@ -57,6 +57,7 @@ import { tokenArtSources, applyTokenArt, restoreTokenArt, hasTokenArtFlag } from
 import { acksExtras } from "../namespace.mjs";
 import * as services from "../lib/services.mjs";
 import { escape as esc } from "../lib/util.mjs";
+import { clientPages } from "../lib/client-pins.mjs";
 import { registerBookAdventureHooks } from "./book-adventure.mjs";
 
 const SETTING_DYNAMIC = "dynamicRecipes";
@@ -303,7 +304,7 @@ function citeTarget(el) {
 
 /**
  * Opens the cited page for every citation this module wrote. One listener on
- * the document, because the references live in sheets, journal pages and chat
+ * each page of the client (`listenForCites`), because the references live in sheets, journal pages and chat
  * cards this module does not render; in the capture phase, so core's own
  * `a[href]` listener never sees the click. A reference naming no shelvable
  * book, or one inside an open editor, is left alone.
@@ -317,6 +318,22 @@ function onCiteClick(event) {
   event.preventDefault();
   event.stopPropagation();
   openBookPage(target.book, target.page).catch((err) => console.error(`${MODULE_ID} | could not open the cited page`, err));
+}
+
+/** Each page already carrying the citation listener. */
+const citeListening = new WeakSet();
+
+/**
+ * Puts the citation listener on every page this client draws in. A detached
+ * browser window is a document of its own, so a listener on the main page
+ * never sees a click inside it; each page is wired once, when it opens.
+ */
+function listenForCites() {
+  for (const page of clientPages()) {
+    if (citeListening.has(page)) continue;
+    citeListening.add(page);
+    page.addEventListener("click", onCiteClick, { capture: true });
+  }
 }
 
 /**
@@ -513,10 +530,14 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   return record;
 }
 
+/** The file of a book open on this seat, as fresh bytes, or null when it is not open. */
+const openBookBytes = async (bookId) => (await sessionDocs.get(bookId)?.doc?.getData?.()) ?? null;
+
 /**
  * Put a book that is OPEN on this seat onto the server. The server is asked
  * first, since a copy already up there needs no bytes from this seat; only when
- * the name is free are the bridged bytes uploaded, already fingerprinted.
+ * the name is free are the bytes uploaded (the bridge's, else the open
+ * document's), already fingerprinted.
  */
 async function shelveOpen(bookId) {
   const name = `${bookId}.pdf`;
@@ -526,7 +547,9 @@ async function shelveOpen(bookId) {
     if (!held) throw new Error(game.i18n.format(`${LANG_PREFIX}.ui.shelfTaken`, { path: taken }));
     return held;
   }
-  const blob = await bytesGet(bookId).catch(() => null);
+  // The bridge holds the bytes only inside its window; a book that is open here
+  // is read back from the open document, which `ingestBook` fingerprinted.
+  const blob = (await bytesGet(bookId).catch(() => null)) ?? (await openBookBytes(bookId).catch(() => null));
   if (!blob) throw new Error(game.i18n.localize(`${LANG_PREFIX}.ui.shelfNoBytes`));
   return shelveUpload(bookId, new File([blob], name, { type: "application/pdf" }), { verified: true });
 }
@@ -1599,7 +1622,8 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
           if (sessionDocs.has(id) && left.has(id)) settle(id, true, L("reconnectOpened"));
         }
         const blocked = stillWaiting.filter((id) => !sessionDocs.has(id));
-        const opened = folderOpened.length + (pending.length - blocked.length);
+        // A book the folder opened is also one of `pending` that is now open: counted once.
+        const opened = new Set([...folderOpened, ...pending.filter((id) => sessionDocs.has(id))]).size;
         // A seat with nothing waiting (its books are on the server) gets its own "nothing" message.
         say(
           "[data-status-bulk]",
@@ -1854,7 +1878,17 @@ async function forgetBooks() {
   // The bridge goes with the locations, or the next reload would reopen the dropped books.
   await attempt("bridged book bytes", bytesClear);
   await stampClear();
+  // Cleared first, so nothing reads a document while it is being torn down;
+  // each one's worker is released, and one that refuses does not hold the rest.
+  const dropped = [...sessionDocs];
   sessionDocs.clear();
+  for (const [bookId, { doc }] of dropped) {
+    try {
+      await doc?.destroy?.();
+    } catch (err) {
+      console.warn(`${MODULE_ID} | forget books: ${bookId} could not be released`, err);
+    }
+  }
   if (allCleared) {
     ui.notifications.info(`${MODULE_ID} | remembered book locations on this computer dropped; in-memory prose cleared. Books on the shelf are unaffected.`);
   } else {
@@ -2262,6 +2296,7 @@ async function applyStats() {
   const closed = new Set();
   const unknown = [];
   const noStats = [];
+  const noMatch = [];
   for (const actor of selected) {
     // A cookbook-imported monster knows which entry it came from; ask it before
     // resolving by name against `allRecipes()`.
@@ -2282,7 +2317,12 @@ async function applyStats() {
       noStats.push(actor.name);
       continue;
     }
-    if (refilled) continue; // ours, but this printing did not match — already logged
+    // Ours, but this printing did not match; nothing was written, so it is named.
+    if (refilled?.reason === "no-match") {
+      noMatch.push(actor.name);
+      continue;
+    }
+    if (refilled) continue; // ours; a throw was logged where it happened
     const recipe = monsterRecipeForActor(actor);
     if (!recipe) {
       unknown.push(actor.name);
@@ -2297,6 +2337,10 @@ async function applyStats() {
     ui.notifications.warn(
       `${MODULE_ID} | no stat block for this surface to re-read — left unchanged: ${noStats.slice(0, 5).join(", ")}${noStats.length > 5 ? ` (+${noStats.length - 5})` : ""}.`,
     );
+  }
+  if (noMatch.length) {
+    const names = `${noMatch.slice(0, 5).join(", ")}${noMatch.length > 5 ? ` (+${noMatch.length - 5})` : ""}`;
+    ui.notifications.warn(`${MODULE_ID} | ${game.i18n.format(`${LANG_PREFIX}.ui.applyStatsNoMatch`, { names })}`);
   }
   if (unknown.length) {
     ui.notifications.warn(
@@ -2360,7 +2404,7 @@ Hooks.once("ready", async () => {
     /** Whether a book is open on this seat. */
     bookOpen: (bookId) => sessionDocs.has(bookId),
     /** The file of a book open on this seat, as fresh bytes, or null when it is not open. */
-    bookBytes: async (bookId) => (await sessionDocs.get(bookId)?.doc?.getData?.()) ?? null,
+    bookBytes: openBookBytes,
     cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities, cookbookFillCompanions, cookbookPruneAbilities,
     importAbility, cookbookDebug, cookbookCount,
     cookbookImportTables,
@@ -2399,7 +2443,8 @@ Hooks.once("ready", async () => {
     lib: () => acksExtras.lib,
     tokenArt: { sources: tokenArtSources, apply: applyTokenArt, restore: restoreTokenArt, hasFlag: hasTokenArtFlag },
   });
-  document.addEventListener("click", onCiteClick, { capture: true });
+  listenForCites();
+  Hooks.on("openDetachedWindow", listenForCites);
 
   // The ability-resolution contract (docs/lib/API.md), through which other
   // features embed proficiency packages without naming this feature.

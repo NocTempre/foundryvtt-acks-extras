@@ -271,7 +271,10 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
    contents are not readable through `canSeeInside`.
 6. Variations: apply the variation item to the weapon via `variations`.
    *Observable:* the named bonus lands on the item and is visible on its
-   sheet; removing the variation removes it.
+   sheet; removing the variation removes it. With the pencil armed, drag it from the first
+   weapon's sheet onto a second weapon's sheet (a variation already inside an
+   item is moved, not copied). *Observable:* the second weapon carries the bonus and the first is back at
+   its own bare figures.
 7. Item loss (JJ p. 398), on a GM seat with the Judges Journal connected. The
    fixture is a disposable `character` with a wooden shield in hand, a light
    item, a heavy armour (marker `equipment/item-loss-armour`) and a weapon;
@@ -318,6 +321,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
      button disappears, and `item.getFlag("acks-extras", "itemLossAc")` is
      undefined. The same armour with no loss never shows the button. This is
      also how a loss fixture is reset.
+   - **A second loss.** With the light item from the first case still marked
+     destroyed, apply another loss to the same character. *Observable:* the
+     card does not list the destroyed item again, and what it held (in a
+     destroyed container) is still planned at the container's position. A
+     stack of several units is planned at its whole weight.
    - **Absent.** Unregister the tables (or use a world that never imported):
      *Observable:* the macro opens no window, `planItemLoss` answers
      `ready: false`, and the Durability tab's Item loss fact value and the
@@ -487,7 +495,12 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 9. Player seat: at `identified:"none"` the Effects tab reads Unidentified, no
    aura, no Appearance tab; at `partial` the aura shows.
 10. Named: overlay on → Make named; true name + ladder `hit,damage` +
-    unlocked 1 → `system.bonus` rises by one; Un-name restores.
+    unlocked 1 → `system.bonus` rises by one; Un-name restores. Then lower
+    unlocked to 0, and reorder the ladder, from the GM tab. *Observable:*
+    the weapon's bonus and damage return to the base captured at naming. With
+    the weapon wielded, raise the wielder's level by three in one update.
+    *Observable:* three rungs unlock at once (capped at the ladder's end);
+    lower the level by one and nothing unlocks.
 11. Chart: bind the scene → Chart tab and band chip; Update From Exploration
     captures or warns "nothing explored"; Unbind removes the tab.
 12. Both seats, both looks. Dark seat: no near-white ground among the

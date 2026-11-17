@@ -361,6 +361,9 @@ await t("several unfound points mark nothing and the card lists them with their 
   assert.equal((html.match(/acks-extras-hex-found/g) ?? []).length, 2);
   for (const p of record.points) {
     assert.ok(html.includes(`data-point-id="${p.id}"`), `the button for ${p.name}`);
+  }
+  assert.equal((html.match(/data-scene-id="s1" data-hex-key="2:3"/g) ?? []).length, 2, "each button names the searched hex");
+  for (const p of record.points) {
     assert.ok(html.includes(p.name), "and its name");
   }
   assert.ok(html.includes('data-formation-id="f1"'));

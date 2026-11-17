@@ -26,7 +26,7 @@
 import { overlayGate } from "../settings.mjs";
 import { MODULE_ID, SETTINGS, ITEM_FLAGS } from "../constants.mjs";
 import { containedIn } from "../containers.mjs";
-import { isClothing, isPhysical, slotsOf, declaresSlots, STONE } from "../../lib/item-model.mjs";
+import { isClothing, isPhysical, slotsOf, declaresSlots, weight6Of, STONE } from "../../lib/item-model.mjs";
 import { hasDoc, getDoc, citeOf } from "../../lib/tables.mjs";
 import { SLOT, ITEM_TYPE } from "../../lib/vocab.mjs";
 import { RULEDATA_DOC } from "./scavenged.mjs";
@@ -147,22 +147,22 @@ export async function setMaterial(item, material) {
   return item?.setFlag?.(MODULE_ID, ITEM_FLAGS.MATERIAL, String(material).toLowerCase());
 }
 
-/** An item's primary material: explicit flag, else a name/type guess. */
+/** An item's primary material: explicit flag, else a guess from whole words of its name, then its type. */
 export function materialOf(item) {
   const flagged = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.MATERIAL);
   if (flagged) return String(flagged).toLowerCase();
   const n = (item?.name ?? "").toLowerCase();
-  if (/oil|torch|candle|tallow/.test(n)) return "combustible";
-  if (/holy water/.test(n)) return "good";
-  if (/unholy water/.test(n)) return "evil";
-  if (/rope|sack|cloak|cape|tunic|robe|clothing|blanket|tent/.test(n)) return "cloth";
-  if (/leather|boots|belt|harness|pouch|backpack|scabbard|quiver/.test(n)) return "leather";
-  if (/ration|food|bread/.test(n)) return "food";
-  if (/paper|scroll|book|map|journal/.test(n)) return "paper";
-  if (/glass|flask|vial|mirror|lens/.test(n)) return "glass";
-  if (/pot|jug|amphora|ceramic/.test(n)) return "ceramic";
-  if (/stone|rock/.test(n)) return "stone";
-  if (/bow|staff|pole|spear|club|haft|wood/.test(n)) return "wood";
+  if (/\b(oil|torch|torches|candles?|tallow)\b/.test(n)) return "combustible";
+  if (/\bholy water\b/.test(n)) return "good";
+  if (/\bunholy water\b/.test(n)) return "evil";
+  if (/\b(rope|sacks?|cloaks?|capes?|tunics?|robes?|clothing|blankets?|tents?)\b/.test(n)) return "cloth";
+  if (/\b(leather|boots?|belts?|harness|pouch(es)?|backpacks?|scabbards?|quivers?)\b/.test(n)) return "leather";
+  if (/\b(rations?|food|bread)\b/.test(n)) return "food";
+  if (/\b(paper|scrolls?|\w*books?|maps?|journals?)\b/.test(n)) return "paper";
+  if (/\b(\w*glass|flasks?|vials?|mirrors?|lens(es)?)\b/.test(n)) return "glass";
+  if (/\b(pots?|jugs?|amphorae?|amphoras?|ceramic)\b/.test(n)) return "ceramic";
+  if (/\b(stones?|rocks?)\b/.test(n)) return "stone";
+  if (/\b(\w*bows?|\w*staff|staves|poles?|\w*spears?|\w*clubs?|hafts?|wood(en)?)\b/.test(n)) return "wood";
   if (item?.type === ITEM_TYPE.armor || item?.type === ITEM_TYPE.weapon) return "metal";
   return "metal";
 }
@@ -278,11 +278,13 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false,
   if (!plan.stones) return plan;
 
   const order = fromRear ? LOSS_ORDER_REAR : LOSS_ORDER_FRONT;
-  const candidates = actor.items.filter(isPhysical);
-  const lo = { ...loadout, actorItems: candidates };
+  // Every physical item is a possible holder; one already destroyed takes no further loss.
+  const physical = actor.items.filter(isPhysical);
+  const lo = { ...loadout, actorItems: physical };
 
   const buckets = new Map(order.map((k) => [k, []]));
-  for (const item of candidates) {
+  for (const item of physical) {
+    if (item.getFlag?.(MODULE_ID, ITEM_FLAGS.DESTROYED)) continue;
     const cat = categoryOf(item, lo);
     if (buckets.has(cat)) buckets.get(cat).push(item);
   }
@@ -298,7 +300,7 @@ export function planItemLoss(actor, loadout, { hp, damageType, fromRear = false,
       }
       // A garment layer counts as the page's figure, whatever its listed weight;
       // a weightless item still spends the smallest unit so the budget ends.
-      const weight6 = isClothing(item) ? figures.clothingStones * STONE : Math.max(1, Number(item.system?.weight6 ?? 1));
+      const weight6 = isClothing(item) ? figures.clothingStones * STONE : Math.max(1, weight6Of(item));
       const kind = lossClassOf(weight6, figures);
       if (kind === "destroyed" && budget6 >= weight6) {
         plan.destroyed.push({ item, material, weight6 });

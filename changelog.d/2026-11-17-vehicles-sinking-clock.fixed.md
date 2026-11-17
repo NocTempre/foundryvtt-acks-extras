@@ -1,0 +1,1 @@
+- **Vehicle sheet → Travel tab → sinking clock:** raising a vessel's structural hit points above zero retires its countdown, so the next sinking offers **Start the clock** afresh, and **Round passes** at zero no longer posts the sinking line again.

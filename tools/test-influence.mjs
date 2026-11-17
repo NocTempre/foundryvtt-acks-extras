@@ -1027,6 +1027,22 @@ t("no lang string of the tone pages carries a magnitude", () => {
   }
 });
 
+t("a race word inside another word is not a race: Sorcerer, Enforcer and Delver stay human", () => {
+  const actor = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
+  const saved = globalThis.acksExtras.classes;
+  try {
+    globalThis.acksExtras.classes = undefined;
+    for (const cls of ["Sorcerer", "Enforcer", "Delver", "Reaver Enforcer"]) assert.equal(inferRace(actor(cls)), "human", cls);
+    assert.equal(inferRace(actor("Elven Ranger")), "elf");
+    assert.equal(inferRace(actor("Half-Elf Scout")), "elf", "a hyphen is a word edge");
+    assert.equal(inferRace(actor("Dwarven Vaultguard")), "dwarf");
+    assert.equal(inferRace(actor("Orc Berserker")), "beastman");
+    assert.equal(inferRace(actor("Gnomish Trickster")), "gnome");
+  } finally {
+    globalThis.acksExtras.classes = saved;
+  }
+});
+
 t("a character's race is the race of the class its name answers to, through the classes api", () => {
   const actor = (cls) => ({ type: ACTOR_TYPE.character, system: { details: { class: cls } } });
   const saved = globalThis.acksExtras.classes;

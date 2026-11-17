@@ -692,6 +692,22 @@ test("with no cap, attack bands and traditions take what the imported tables hol
   assert.equal(plan.update.casting[0].slots.length, 2);
 });
 
+test("a tradition the tables cannot answer leaves casting out of the update, never writes it empty", () => {
+  const noMagic = planWith(BUILD({ magic: [] }), NO_HUMAN);
+  assert.deepEqual(noMagic.update.casting, []); // a class with no magic is written none
+  const unknown = planWith(BUILD({ magic: [{ type: "nosuchtradition", value: 1 }] }), NO_HUMAN);
+  assert.ok(hasIssue(unknown, "unknownMagicType"));
+  assert.ok(!("casting" in unknown.update));
+  const noFraction = planWith(BUILD({ magic: [{ type: "arcane", value: 1 }] }), NO_HUMAN, {
+    tables: { ...TABLES, magicTypes: { ...TABLES.magicTypes, arcane: { ...TABLES.magicTypes.arcane, values: [{ value: 1 }] } } },
+  });
+  assert.ok(hasIssue(noFraction, "missingMagicFraction"));
+  assert.ok(!("casting" in noFraction.update));
+  // One tradition failing withholds the whole list: the others would drop it.
+  const mixed = planWith(BUILD({ magic: [{ type: "arcane", value: 1 }, { type: "nosuchtradition", value: 1 }] }), NO_HUMAN);
+  assert.ok(!("casting" in mixed.update));
+});
+
 /* ------------------- awards owed for a level held ------------------- */
 
 /* Whether an ability is already owned is partly a question about the WORLD —
@@ -1246,6 +1262,7 @@ const {
   applyShortfall,
   templateItemName,
   stripRepresented,
+  unbindTemplateRow,
   plainNameMatch,
   isPlainBase,
   sharedPartKey,
@@ -1576,6 +1593,66 @@ test("a plain entry is represented by a linked base no part stamp marks", () => 
   } finally {
     globalThis.fromUuidSync = prior;
   }
+});
+
+await atest("unbinding a row writes the bundle's contents back, so the kit is not lost", async () => {
+  const prior = globalThis.fromUuid;
+  const docs = {
+    "Item.bundle": {
+      system: {
+        itemList: [
+          { type: "ability", name: "Alpha", uuid: "Item.alpha", quantity: 2 },
+          { type: "ability", name: "Beta (x)", uuid: "Item.betaCopy", quantity: 1 },
+          { type: "weapon", name: "Mossy blade", uuid: "Item.skin", quantity: 1 },
+          { type: "item", name: "Torch", uuid: "Item.torch", quantity: 6 },
+          { type: "spell", name: "Gone Spell", uuid: "Item.gone", quantity: 1 },
+          { type: "spell", name: "Kept Spell", uuid: "Item.spell", quantity: 1 },
+        ],
+      },
+    },
+    "Item.alpha": { name: "Alpha", uuid: "Item.alpha", flags: { "acks-extras": { cookbook: { id: "def.alpha" } } } },
+    "Item.betaCopy": {
+      name: "Beta (x)",
+      uuid: "Item.betaCopy",
+      flags: { "acks-extras": { grantedFrom: "def.beta", extras: { selections: ["x"] } } },
+    },
+    "Item.skin": {
+      name: "Mossy blade",
+      uuid: "Item.skin",
+      system: { cost: 3 },
+      flags: { "acks-extras": { skin: { base: "def.blade", descriptor: "moss-green blade" } } },
+    },
+    "Item.torch": { name: "Torch", uuid: "Item.torch", flags: { "acks-extras": { cookbook: { id: "def.torch" } } } },
+    "Item.spell": { name: "Kept Spell", uuid: "Item.spell", flags: {} },
+  };
+  globalThis.fromUuid = async (uuid) => docs[uuid] ?? null;
+  try {
+    const row = { bundle: "Item.bundle", abilities: [{ ref: "def.left", name: "Leftover" }], items: [], spells: [] };
+    await unbindTemplateRow(row);
+    assert.equal(row.bundle, "");
+    assert.deepEqual(row.abilities[0], { ref: "def.alpha", name: "Alpha", rank: 2 });
+    assert.equal(row.abilities[1].ref, "def.beta");
+    assert.equal(row.abilities[1].selection, "x");
+    assert.equal(row.abilities[2].name, "Leftover", "what the row kept follows");
+    assert.deepEqual(row.items[0], { ref: "def.blade", name: "moss-green blade", qty: 1, skinName: "Mossy blade" });
+    assert.deepEqual(row.items[1], { ref: "def.torch", name: "Torch", qty: 6 });
+    assert.deepEqual(row.spells, [{ uuid: "", name: "Gone Spell" }, { uuid: "Item.spell", name: "Kept Spell" }]);
+    // A link that names no bundle is only cleared.
+    const bare = { bundle: "Item.missing", abilities: [], items: [], spells: [] };
+    await unbindTemplateRow(bare);
+    assert.deepEqual(bare, { bundle: "", abilities: [], items: [], spells: [] });
+  } finally {
+    globalThis.fromUuid = prior;
+  }
+});
+
+test("a dropped bundle strips what it carries, and a spell is found through the library", () => {
+  const sheet = readFileSync(new URL("../scripts/classes/class-sheet.mjs", import.meta.url), "utf8");
+  assert.match(sheet, /t\.bundle = dropped\.uuid;\s*stripRepresented\(t, dropped\)/, "rebinding never leaves the entries printed beside the bundle");
+  assert.match(sheet, /await unbindTemplateRow\(templates\[index\]\)/, "the row unbind writes the bundle back");
+  const chargen = readFileSync(new URL("../scripts/classes/chargen.mjs", import.meta.url), "utf8");
+  assert.doesNotMatch(chargen, /game\.items\.find/, "chargen reads the library, not the sidebar alone");
+  assert.match(chargen, /libraryItems\(\)\.filter/);
 });
 
 test("a template's package and its leftovers are both applied, once each", () => {

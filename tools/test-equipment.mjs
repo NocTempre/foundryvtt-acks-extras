@@ -1438,6 +1438,27 @@ const adv = N.advanceWieldedOnLevelUp({ items: [basedHammer(2)], system: { detai
 check("level-up advances a wielded named item one rung", adv.length === 1 && adv[0].updates["flags.acks-extras.named.unlocked"] === 3);
 check("advancement restates bonuses from base (3 rungs = +2 dmg, +1 hit)", adv[0].updates["system.damage.base.formula"] === "1d6+2" && adv[0].updates["system.bonus.attack"] === 1);
 check("an unwielded named item does not advance", N.advanceWieldedOnLevelUp({ items: [basedHammer(2, false)], system: { details: { level: 4 } } }).length === 0);
+
+// Several levels gained at once unlock a rung each, bounded by the ladder; a fall unlocks none.
+const adv3 = N.advanceWieldedOnLevelUp({ items: [basedHammer(1)], system: {} }, 3);
+check("three levels gained advance three rungs and restate from base", adv3[0].updates["flags.acks-extras.named.unlocked"] === 4 && adv3[0].updates["system.damage.base.formula"] === "1d6+2" && adv3[0].updates["system.bonus.attack"] === 2);
+check("a jump past the ladder's end stops at the end", N.advanceWieldedOnLevelUp({ items: [basedHammer(5)], system: {} }, 9)[0].updates["flags.acks-extras.named.unlocked"] === 6);
+check("zero levels gained advance nothing", N.advanceWieldedOnLevelUp({ items: [basedHammer(2)], system: {} }, 0).length === 0);
+check("levelsGained: up by 3, down, same, and unknown", N.levelsGained(2, 5) === 3 && N.levelsGained(5, 2) === 0 && N.levelsGained(4, 4) === 0 && N.levelsGained(undefined, 4) === 0 && N.levelsGained(3, null) === 0);
+
+// Lowering the unlocked count (or emptying the ladder) restores the base rather than leaving the last write.
+const lowered = N.applyUpdates(basedHammer(0));
+check("zero unlocked rungs writes the base values back", lowered["system.bonus.attack"] === 0 && lowered["system.damage.base.formula"] === "1d6" && lowered["system.weight6"] === 1);
+const armorNamed = (unlocked) => ({
+  id: "pl", name: "Plate", type: "armor",
+  system: { ac: { value: 9 }, equipped: true, weight6: 30 },
+  getFlag: (_m, k) => (k === "named" ? { ladder: ["ac", "encumbrance"], unlocked, revealed: false, base: { aac: 6, weight6: 30 } } : undefined),
+  effects: [],
+});
+const armorFull = N.applyUpdates(armorNamed(2));
+check("armour rungs add to the base armour class and shed weight", armorFull["system.ac.value"] === 7 && armorFull["system.weight6"] === 24);
+const armorNone = N.applyUpdates(armorNamed(0));
+check("armour with no rung unlocked is restated at its base", armorNone["system.ac.value"] === 6 && armorNone["system.weight6"] === 30);
 SETTINGS_STATE.overlayNamed = false;
 
 
@@ -2670,6 +2691,23 @@ await setMasterwork(mkArmor, "armorLight");
 check("an armour tier moves the weight by the document's sixths", mkArmor.system.weight6 === 30 + FIG.light.weight6 && mkArmor.system.ac.value === 4);
 await setMasterwork(mkArmor, "armorAC");
 check("an armour tier raises aac from base and restores the weight", mkArmor.system.ac.value === 4 + FIG.ac.ac && mkArmor.system.weight6 === 30);
+
+// Moving an applied variation onto another item restates BOTH: the item it left
+// no longer carries the figures, and the item it joined does.
+const { applyVariation } = await import(new URL("variation-items.mjs", S));
+const { recomputeItemFields: recomputeMoved } = await import(new URL("properties.mjs", S));
+const moveActor = { items: [] };
+moveActor.items = Object.assign([], { get: (id) => moveActor.items.find((i) => i.id === id) });
+const onActor = (doc, id) => { doc.id = id; doc.parent = moveActor; moveActor.items.push(doc); return doc; };
+const moveFrom = onActor(mockDoc("weapon", { name: "From", bonus: 0, damage: "1d6", weight6: 6 }), "from");
+const moveTo = onActor(mockDoc("weapon", { name: "To", bonus: 0, damage: "1d6", weight6: 6 }), "to");
+const moved = onActor(mockDoc("weapon", {}), "moved");
+Object.assign(moved, { type: VARIATION_ITEM_TYPE, name: "Moved", system: { key: "masterwork.weaponToHit", deltas: { bonus: FIG.hit.bonus, damage: 0, ac: 0, weight6: 0 }, cost: { baseMul: 1, add: 0, mul: 1 } } });
+moved._flags.containedIn = "from";
+await recomputeMoved(moveFrom);
+check("a variation on an item moves its bonus", moveFrom.system.bonus.attack === FIG.hit.bonus && moveTo.system.bonus.attack === 0);
+const movedApplied = await applyVariation(moveTo, moved, { move: true });
+check("moving a variation onto another item restates the item it left", movedApplied === moved && moveFrom.system.bonus.attack === 0 && moveTo.system.bonus.attack === FIG.hit.bonus);
 
 /* ---------------------------------------------------------------------- */
 /*  #5 Shield strap cycle — free a hand by slinging (overlay on)           */

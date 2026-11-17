@@ -265,6 +265,20 @@ export function markPointFound(formation, pointId) {
   return amendStock(formation, (record) => markFound(record, pointId, formation.id, worldNow()));
 }
 
+/**
+ * Mark a point found in the hex a search card names, wherever the party
+ * stands now. Resolves the record, or null when the scene, the stock or the
+ * point is gone.
+ */
+export async function markPointFoundAt(sceneId, key, formationId, pointId) {
+  const scene = game.scenes?.get(sceneId);
+  const record = scene ? readStock(scene, key) : null;
+  if (!record?.stocked || !record.points?.some((p) => p.id === pointId)) return null;
+  const next = markFound(record, pointId, formationId, worldNow());
+  await writeStock(scene, key, next);
+  return next;
+}
+
 /** Credit this formation with a search throw that beat the target in the party's hex. Resolves the record, or null. */
 export function creditSearchHere(formation) {
   return amendStock(formation, (record) => creditSearch(record, formation.id));
@@ -434,15 +448,17 @@ export function installHexStockCardActions() {
         button.addEventListener("click", (event) => {
           event.preventDefault();
           Promise.resolve(run(button))
-            .then(() => { button.disabled = true; })
+            .then((result) => { if (result !== null) button.disabled = true; })
             .catch((err) => console.error(`${MODULE_ID} | hex stock card action failed`, err));
         });
       }
     };
     bind(".acks-extras-hex-tell", (button) => tellParty(button.dataset.formationId, button.dataset.told));
     bind(".acks-extras-hex-found", (button) => {
-      const formation = getFormation(button.dataset.formationId);
-      return formation ? markPointFound(formation, button.dataset.pointId) : null;
+      const { formationId, pointId, sceneId, hexKey } = button.dataset;
+      if (sceneId && hexKey) return markPointFoundAt(sceneId, hexKey, formationId, pointId);
+      const formation = getFormation(formationId);
+      return formation ? markPointFound(formation, pointId) : null;
     });
   });
 }

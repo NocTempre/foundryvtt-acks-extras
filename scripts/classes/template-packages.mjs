@@ -609,9 +609,59 @@ export function stripRepresented(row, bundle) {
 }
 
 /**
- * Detach every package from a class: the rows' `bundle` links and the
- * table's are cleared, so the class applies from its own printed entries
- * again. The documents stay on their shelf unless `deleteDocuments`.
+ * Take a row off its package: what the bundle carries is written back onto the
+ * row as printed entries (the inverse of `stripRepresented`), then the link is
+ * cleared, so the row applies from its own entries and none is lost.
+ *
+ * An ability returns by the ref it was linked or specialized from, with its
+ * selection and the quantity as its rank; gear by its skin's base, printed
+ * descriptor and skinned name (a plain linked base by its own ref and name);
+ * a spell by uuid and name. A linked document that no longer resolves returns
+ * by the name and quantity the bundle listed. Entries the row still holds are
+ * disjoint from the bundle's and follow the restored ones. What a bundle row
+ * never recorded — an ability's bold-cell role — is not restored. A link that
+ * names no bundle is simply cleared. Mutates `row`.
+ */
+export async function unbindTemplateRow(row) {
+  const bundle = row?.bundle ? await fromUuid(row.bundle).catch(() => null) : null;
+  const abilities = [];
+  const items = [];
+  const spells = [];
+  for (const entry of bundle?.system?.itemList ?? []) {
+    const doc = await fromUuid(entry.uuid).catch(() => null);
+    const quantity = Math.max(1, entry.quantity || 1);
+    const name = doc?.name ?? entry.name;
+    if (entry.type === ITEM_TYPE.ability) {
+      const flags = doc?.flags?.[MODULE_ID] ?? {};
+      const selection = String(flags.extras?.selections?.[0] ?? "");
+      const ref = doc ? flags.grantedFrom || refOf(doc) : "";
+      // A specialized copy is named from its source; the row prints the source.
+      const printed = selection && ref ? (findByRef(ref)?.name ?? name) : name;
+      abilities.push({ ref, name: printed, rank: quantity, ...(selection ? { selection } : {}) });
+    } else if (entry.type === ITEM_TYPE.spell) {
+      spells.push({ uuid: doc ? entry.uuid : "", name });
+    } else {
+      const skin = doc?.flags?.[MODULE_ID]?.skin;
+      if (skin) {
+        const cost = !skin.base && doc.system?.cost > 0 ? { cost: doc.system.cost } : {};
+        items.push({ ref: skin.base ?? "", name: skin.descriptor || name, qty: quantity, skinName: name, ...cost });
+      } else {
+        items.push({ ref: doc ? refOf(doc) : "", name, qty: quantity });
+      }
+    }
+  }
+  row.abilities = [...abilities, ...(row.abilities ?? [])];
+  row.items = [...items, ...(row.items ?? [])];
+  row.spells = [...spells, ...(row.spells ?? [])];
+  row.bundle = "";
+  return row;
+}
+
+/**
+ * Detach every package from a class: each row's contents are written back
+ * onto it (`unbindTemplateRow`) and its `bundle` link and the table's are
+ * cleared, so the class applies from its own printed entries again. The
+ * documents stay on their shelf unless `deleteDocuments`.
  *
  * `deleteDocuments` removes only documents carrying this class's identity in
  * this module's own `templatePart` stamp (its bundles and table, and the
@@ -623,7 +673,7 @@ export async function detachTemplatePackages(classItem, { deleteDocuments = fals
   const removed = [];
   if (!classItem?.system?.templates?.length) return removed;
   const templates = foundry.utils.deepClone(classItem.system.toObject().templates ?? []);
-  for (const row of templates) row.bundle = "";
+  for (const row of templates) await unbindTemplateRow(row);
   await classItem.update({ "system.templates": templates, "system.templateTable": "" });
   if (!deleteDocuments) return removed;
   const classKey = classItem.system.key || fold(classItem.name);

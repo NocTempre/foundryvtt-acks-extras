@@ -593,23 +593,31 @@ export function derivePlan({
   }
 
   // --- casting: one tradition per magic value above zero (after stacking) ---
+  // A tradition the tables cannot answer for leaves `casting` out of the update
+  // altogether: writing the traditions that did derive would drop the one that
+  // did not, so the class keeps what it has. Only a class with no magic is
+  // written an empty list.
   const stacking = racialStacking(builder, race);
   const casting = [];
+  let castingSkipped = false;
   for (const m of builder?.magic ?? []) {
     const effective = effectiveMagicValue(m, stacking);
     if (!(effective > 0)) continue;
     const typeDef = tables.magicTypes?.[m.type];
     if (!typeDef) {
       issues.push({ key: "unknownMagicType", type: m.type });
+      castingSkipped = true;
       continue;
     }
     const derived = deriveTradition(m, typeDef, progenitors.get(m.type) ?? null, maxLevel, issues, effective);
-    if (derived) {
-      casting.push(derived.tradition);
-      if (derived.ladder) ladders.push(derived.ladder);
+    if (!derived || (!derived.tradition.slots.length && !derived.tradition.pool.length)) {
+      castingSkipped = true;
+      continue;
     }
+    casting.push(derived.tradition);
+    if (derived.ladder) ladders.push(derived.ladder);
   }
-  update.casting = casting;
+  if (!castingSkipped) update.casting = casting;
 
   // --- thievery skills into the inventory, with the progenitor's ladders ---
   const thiefRow = valueRow(tables.thievery, builder?.thievery?.value ?? 0);

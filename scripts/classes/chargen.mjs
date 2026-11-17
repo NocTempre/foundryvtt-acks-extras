@@ -29,6 +29,7 @@ import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
 import { elementOf, unset } from "../lib/util.mjs";
+import { libraryItems, whenReady } from "../lib/library.mjs";
 
 // The base-resolution and skinning layer lives in template-packages.mjs (the
 // materializer resolves once, at import; this file resolves at grant time only
@@ -184,9 +185,12 @@ async function grantRowEntries(actor, { abilities = [], items = [], spells = [] 
     if (s.uuid) doc = await fromUuid(s.uuid).catch(() => null);
     if (!doc && name) {
       const f = fold(name);
+      // The whole library, as package building reads it: a spell on an imported shelf is as findable as a sidebar one.
+      await whenReady();
+      const spellDocs = libraryItems().filter((i) => i.type === ITEM_TYPE.spell);
       doc =
-        game.items.find((i) => i.type === ITEM_TYPE.spell && fold(i.name) === f) ??
-        game.items.find((i) => i.type === ITEM_TYPE.spell && f.length >= 6 && fold(i.name).includes(f)) ??
+        spellDocs.find((i) => fold(i.name) === f) ??
+        (f.length >= 6 ? spellDocs.find((i) => fold(i.name).includes(f)) : null) ??
         null;
     }
     if (doc) {

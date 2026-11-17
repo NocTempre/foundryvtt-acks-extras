@@ -1,0 +1,1 @@
+- **Settings tab → Game Settings → ACKS II — Extras → Manage imports → Books tab:** **Add to server** on a book that is open on this computer now uploads it even when the refresh bridge is turned off; before, the row failed with "no longer held in memory" every time. The upload reads the open book itself when the bridge holds nothing.

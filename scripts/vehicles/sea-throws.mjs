@@ -21,7 +21,7 @@ import { abilityRank } from "../lib/capabilities.mjs";
 import { occupantsOf } from "./occupants.mjs";
 import { isMasterMariner } from "./vehicle-speed.mjs";
 import { WATERS, HAZARD_KINDS, navigationThrow, hazardThrow, hazardSpec, reducedSpeed } from "./navigation.mjs";
-import { sinkFormula, isSinking } from "./vessel-damage.mjs";
+import { sinkFormula, isSinking, hullValue } from "./vessel-damage.mjs";
 
 const loc = makeLoc("ACKS-VEHICLES");
 
@@ -209,10 +209,24 @@ export async function startSinkingClock(vehicleActor) {
   return roll.total;
 }
 
+/**
+ * Drop a countdown whose hull has since been put back above zero, so the next
+ * sinking starts a clock of its own. Reports whether a flag was cleared.
+ */
+export async function clearSinkingClockIfAfloat(vehicleActor) {
+  if (!vehicleActor?.getFlag?.(MODULE_ID, SINKING_FLAG)) return false;
+  const value = hullValue(vehicleActor.system);
+  if (value === null || value <= 0) return false;
+  await vehicleActor.unsetFlag(MODULE_ID, SINKING_FLAG);
+  return true;
+}
+
 /** One round off the clock; announces the water closing over her at zero. */
 export async function tickSinkingClock(vehicleActor) {
   const state = vehicleActor.getFlag(MODULE_ID, SINKING_FLAG);
   if (!state) return null;
+  // A clock already at zero has said its piece; ticking it again posts nothing.
+  if ((Number(state.rounds) || 0) <= 0) return 0;
   const rounds = Math.max(0, (Number(state.rounds) || 0) - 1);
   await vehicleActor.setFlag(MODULE_ID, SINKING_FLAG, { ...state, rounds });
   if (rounds === 0) {

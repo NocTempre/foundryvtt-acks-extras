@@ -1,4 +1,4 @@
-/* global CONFIG, Hooks, fromUuidSync */
+/* global CONFIG, Hooks, foundry, fromUuidSync */
 /**
  * Vehicles: carts, wagons, galleys and sailing ships as documents.
  *
@@ -24,6 +24,7 @@ import * as hold from "./hold.mjs";
 import * as deploy from "./deploy.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { handOver } from "../lib/storage.mjs";
+import { isPrimaryGM } from "../lib/util.mjs";
 import { listsGoods, refuseGoods } from "../lib/bundles.mjs";
 import { isCurrency } from "../lib/item-model.mjs";
 import { isLocation } from "../lib/place.mjs";
@@ -77,6 +78,17 @@ Hooks.on("dropActorSheetData", (target, _sheet, data) => {
   }
   void handOver(source, target, [{ id: item.id }]);
   return false;
+});
+
+/**
+ * A hull put back above zero retires its sinking countdown, so a later
+ * sinking starts a fresh one. Written by the lead Judge's client only, so one
+ * edit is one write however many seats watch it.
+ */
+Hooks.on("updateActor", (actor, changes) => {
+  if (actor.type !== VEHICLE_TYPE || !isPrimaryGM()) return;
+  if (!foundry.utils.hasProperty(changes ?? {}, "system.shp.value")) return;
+  void seaThrows.clearSinkingClockIfAfloat(actor);
 });
 
 /**

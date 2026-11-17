@@ -491,6 +491,39 @@ test("a character from the page is handed its class's fixed awards, after the sh
   assert.doesNotMatch(hench, /grantFixedAwards|fixedAwards/);
 });
 
+section("official sheet: the export's weapon rows");
+test("a weapon's damage box holds the formula, whatever shape the item stores it in", async () => {
+  const heldFoundry = globalThis.foundry;
+  const heldGame = globalThis.game;
+  globalThis.game = { ...heldGame, user: { isGM: false }, settings: { get: () => undefined } };
+  globalThis.foundry = {
+    abstract: { DataModel: class {}, TypeDataModel: class {} },
+    applications: { api: { HandlebarsApplicationMixin: (base) => base, ApplicationV2: class {}, DialogV2: class {} }, sheets: {}, handlebars: {} },
+    utils: { flattenObject: (o) => o },
+    data: { fields: new Proxy({}, { get: () => class {} }) },
+  };
+  try {
+    const { sheetValues } = await import("../scripts/character-sheet/pdf/export.mjs");
+    const weapon = (id, name, damage) => ({ id, name, type: "weapon", system: { damage, range: {} } });
+    const items = [
+      weapon("w1", "Stub Pike", { base: { formula: "1d8" }, alternate: { formula: "1d10" } }),
+      weapon("w2", "Stub Club", "1d4"),
+    ];
+    const actor = { name: "Fixture", system: {}, flags: {}, getFlag: () => undefined, items };
+    const { values } = sheetValues(actor);
+    const damageOf = (name) => {
+      const row = [0, 1].find((i) => values[`weapon.${i}.name`] === name);
+      return values[`weapon.${row}.damage`];
+    };
+    assert.equal(damageOf("Stub Pike"), "1d8", "the object's base formula, not [object Object]");
+    assert.equal(damageOf("Stub Club"), "1d4", "a bare string passes through");
+    assert.ok(!Object.values(values).some((v) => String(v).includes("[object Object]")));
+  } finally {
+    globalThis.foundry = heldFoundry;
+    globalThis.game = heldGame;
+  }
+});
+
 for (const [name, fn] of tests) {
   if (name === null) {
     console.log(fn);

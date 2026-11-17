@@ -182,19 +182,35 @@ export function applyUpdates(item) {
 }
 
 /**
+ * How many levels an actor update gained: the new level less the level it left,
+ * never below 0. Nothing is gained where either level is unknown, so a change
+ * that did not record where it began advances no item.
+ * @param {number|null|undefined} from the level before the update
+ * @param {number|null|undefined} to the level the update sets
+ */
+export function levelsGained(from, to) {
+  const a = Number(from);
+  const b = Number(to);
+  if (from == null || to == null || !Number.isFinite(a) || !Number.isFinite(b)) return 0;
+  return Math.max(0, Math.floor(b - a));
+}
+
+/**
  * Advance every named item the actor currently wields, then restate its bonuses.
- * Driven by a level-up, not the wielder's absolute level.
+ * Driven by the levels just gained, never the wielder's absolute level.
+ * @param {Actor} actor
+ * @param {number} [levels] levels gained by the change; a rung is unlocked for each, up to the ladder's end
  * @returns {{item, updates:object}[]}
  */
-export function advanceWieldedOnLevelUp(actor) {
+export function advanceWieldedOnLevelUp(actor, levels = 1) {
   const out = [];
   for (const item of actor.items ?? []) {
     if (!isNamed(item) || !item.system?.equipped) continue;
-    const advance = advanceOnLevelUp(item);
+    const advance = advanceOnLevelUp(item, levels);
     if (!advance) continue;
     // Recompute from base using the POST-advance count.
     const rec = namedOf(item);
-    const next = { ...rec, unlocked: Number(rec.unlocked ?? 0) + 1 };
+    const next = { ...rec, unlocked: advance[`flags.${MODULE_ID}.${ITEM_FLAGS.NAMED}.unlocked`] };
     const preview = { ...item, getFlag: (_m, k) => (k === ITEM_FLAGS.NAMED ? next : item.getFlag?.(_m, k)) };
     out.push({ item, updates: { ...advance, ...toItemUpdates(preview, baseOf(item)) } });
   }
@@ -202,35 +218,44 @@ export function advanceWieldedOnLevelUp(actor) {
 }
 
 /**
- * Advance the ladder when the current wielder gains a level: driven by the
- * level-up event, never by the wielder's absolute level.
+ * Advance the ladder when the current wielder gains levels: driven by the
+ * level-up event, never by the wielder's absolute level. One rung per level
+ * gained, bounded by the ladder.
+ * @param {Item} item
+ * @param {number} [levels] levels gained; fewer than one advances nothing
  * @returns {object|null} item updates, or null when nothing advances
  */
-export function advanceOnLevelUp(item) {
+export function advanceOnLevelUp(item, levels = 1) {
   const rec = namedOf(item);
   if (!rec || rec.revealed) return null;
+  const rungs = Math.floor(Number(levels));
+  if (!(rungs >= 1)) return null;
   const ladder = ladderOf(item);
   const now = unlockedCount(item);
   if (now >= ladder.length) return null;
-  return { [`flags.${MODULE_ID}.${ITEM_FLAGS.NAMED}.unlocked`]: now + 1 };
+  return { [`flags.${MODULE_ID}.${ITEM_FLAGS.NAMED}.unlocked`]: Math.min(ladder.length, now + rungs) };
 }
 
 /**
  * Apply the unlocked bonuses to the fields core already owns.
- * Called with the item's BASE values so repeated application is idempotent.
+ * Called with the item's BASE values so repeated application is idempotent, and
+ * it states every field its category governs for the item's type (an
+ * unlocked count of 0 included), so lowering the count or reordering the
+ * ladder puts the base back instead of leaving the last write standing.
  */
 export function toItemUpdates(item, base = {}) {
   const b = unlockedBonuses(item);
   const updates = {};
   if (item.type === ITEM_TYPE.weapon) {
-    if (b.hit) updates["system.bonus.attack"] = Number(base.bonus ?? attackBonusOf(item)) + b.hit;
-    if (b.damage) updates["system.damage.base.formula"] = `${base.damage ?? damageFormulaOf(item) ?? "1d6"}+${b.damage}`;
+    updates["system.bonus.attack"] = Number(base.bonus ?? attackBonusOf(item)) + b.hit;
+    const formula = base.damage ?? damageFormulaOf(item) ?? "1d6";
+    updates["system.damage.base.formula"] = b.damage ? `${formula}+${b.damage}` : formula;
   }
-  if (item.type === ITEM_TYPE.armor && b.ac) {
+  if (item.type === ITEM_TYPE.armor) {
     updates["system.ac.value"] = Number(base.aac ?? item.system?.ac?.value ?? 0) + b.ac;
   }
-  if (b.encumbrance) {
-    updates["system.weight6"] = Math.max(0, Number(base.weight6 ?? item.system?.weight6 ?? 0) - b.encumbrance * 6);
+  if (item.system && "weight6" in item.system) {
+    updates["system.weight6"] = Math.max(0, Number(base.weight6 ?? item.system.weight6 ?? 0) - b.encumbrance * 6);
   }
   return updates;
 }

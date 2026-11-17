@@ -18,9 +18,11 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
 /** The window that buys one catalog item at a market. */
 export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ location, item, ...options } = {}) {
+  constructor({ location, item, buyer = null, ...options } = {}) {
     super(options);
     this.location = location;
+    /** The acting trader the dialog opens on; null leaves the first listed buyer. */
+    this.buyer = buyer;
     /** @type {{name: string, costGp: number, img: string, type: string, system: object, sourceUuid?: string}} */
     this.item = item;
   }
@@ -49,8 +51,12 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     context.buyers = game.actors
       .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
-      .map((a) => ({ id: a.uuid, name: a.name }));
-    const first = context.buyers[0] ? game.actors.find((a) => a.uuid === context.buyers[0].id) : null;
+      .map((a) => ({ id: a.uuid, name: a.name, selected: a.uuid === this.buyer?.uuid }));
+    // The acting trader when listed, else the first listed buyer; the select's
+    // default and the availability preview then name the same actor.
+    if (!context.buyers.some((b) => b.selected) && context.buyers[0]) context.buyers[0].selected = true;
+    const chosen = context.buyers.find((b) => b.selected);
+    const first = chosen ? game.actors.find((a) => a.uuid === chosen.id) : null;
     // A magic item is banded by base cost on the magic grid and priced as
     // Tower stock; a held row is the market's own item, outside the grid.
     const { magic, baseGp } = magicBasisOf(this.item);
@@ -123,7 +129,7 @@ export class PurchaseDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 }
 
-/** Opens a `PurchaseDialog` for `item` at `location`. */
-export function openPurchaseDialog(location, item) {
-  new PurchaseDialog({ location, item }).render(true);
+/** Opens a `PurchaseDialog` for `item` at `location`, with `buyer` (the acting trader, or null) preselected. */
+export function openPurchaseDialog(location, item, buyer = null) {
+  new PurchaseDialog({ location, item, buyer }).render(true);
 }

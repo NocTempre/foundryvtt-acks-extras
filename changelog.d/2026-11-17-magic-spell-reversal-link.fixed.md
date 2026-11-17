@@ -1,0 +1,1 @@
+- **Spell sheet → reversed spell:** a reversal partner recorded only by its import id is found again, so its name shows instead of a blank.

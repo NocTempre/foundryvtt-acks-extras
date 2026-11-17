@@ -18,7 +18,7 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_KINDS, CARRIAGE } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, draftEquivalent, masterMarinerRank, WIND, TERRAIN } from "./vehicle-speed.mjs";
-import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
+import { isSinking, hullValue, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
 import { SINKING_FLAG, openHazardDialog, openNavigationDialog, startSinkingClock, tickSinkingClock } from "./sea-throws.mjs";
 import { voyageDay } from "./voyage.mjs";
 import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
@@ -665,9 +665,10 @@ const round2 = (n) => Math.round(n * 100) / 100;
  * before a dock.
  */
 function hullState(sys, roles) {
-  const value = Number(sys?.shp?.value) || 0;
+  const value = hullValue(sys);
   const max = Number(sys?.shp?.max) || 0;
-  if (max <= 0) return null;
+  // No maximum, or no current value typed yet: nothing to measure a hull by.
+  if (max <= 0 || value === null) return null;
   const { factor, worst, crew, hull } = speedFactor(sys, { roles });
   const aboard = (roles ?? sys?.crew?.roles ?? []).reduce((sum, r) => sum + (Number(r.heads ?? r.aboard) || 0), 0);
   const plan = repairPlan(max - value, aboard, { atSea: true });

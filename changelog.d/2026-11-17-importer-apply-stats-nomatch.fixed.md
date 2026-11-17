@@ -1,0 +1,1 @@
+- **Apply Stats (a selected monster token, or an open monster sheet):** a monster imported from a book whose page no longer matches the stored entry is now named in a warning and left unchanged, instead of being skipped without a word.
