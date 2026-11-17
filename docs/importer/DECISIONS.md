@@ -2223,3 +2223,34 @@ and `cookbook-stamp.mjs`, so the first commit after a compiler edit pays the ful
 run, and the session that changed an input runs the check (or `npm run compile`)
 in the working tree to rewrite the stamp: a full run inside a gate's clone
 rewrites it there, where it is discarded.
+
+## 2026-11-17 — The Treasure Tome wins whole: its tables, its entries, and a neutral label only where a heading needs one
+
+**Asked.** The owner answered the TT importer plan's questions A, C and E
+(`wip/20261116-tt-importer-plan.md`), each picked from the plan's options.
+
+**Ruled.**
+
+- **A, "Whole tables".** Where the Treasure Tome is open, its whole table
+  replaces the Judges Journal's, including where the Tome splits one Journal
+  table into a chain of subtables. This closes the question "The treasure wave
+  runs ahead of the wave order" (2026-11-16) left open for the tables whose
+  shape differs: the classic category lists and the heroic rarity lists are
+  layered too, by the Tome's own chain, built with plan slice S3.
+- **C, "The Tome's".** When both books print the same magic item, the library
+  keeps the Tome's entry.
+- **E, "Only flagged ones".** A Tome entry ships a neutral label and a heading
+  hash only where its heading holds a figure or a proper name; every other
+  entry ships its common name, as spells and equipment do.
+
+**Rejected:** keeping a Journal row the Tome's reprint drops (A's counter: such
+a row is lost where the Tome is open); keeping the Journal's entry (C); a
+neutral label on every entry (E: the design's architect recommended it, since
+one rule for over a thousand entries cannot miss a name a reviewer would).
+
+*Cost:* under E, each Tome heading needs a reviewer's call on whether it holds
+a proper name, and `ip-doctrine.md`'s name scan finds only what an aliased
+shelf knows. Under C, the merge that keeps a printing (`books.mjs`
+`keptBook`) is checked against the Tome when its entries are built (S6). The
+Tome-side code for S3, S6 and S8 is written under `scripts/importer/books/tt/`
+once the per-book seam exists.

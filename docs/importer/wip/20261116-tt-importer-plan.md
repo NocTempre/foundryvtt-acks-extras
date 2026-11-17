@@ -115,6 +115,11 @@ to be registered; these slices add none.
 
 ## Owner questions
 
+Answered 2026-11-17 (importer DECISIONS, "The Treasure Tome wins whole"):
+A "Whole tables", C "The Tome's", E "Only flagged ones". F (below):
+"Roller is macro only, but it might get called by UI elements later." B is
+open.
+
 - **A.** When the TT is open, does its whole table replace the JJ's, including
   where the TT splits a JJ table into a chain of subtables? Recommended: yes,
   whole tables. Counter (moderate): a JJ row the TT's reprint drops is lost.
