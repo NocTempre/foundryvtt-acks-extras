@@ -109,7 +109,7 @@ seat's own PDF.
 | **B5** Per-level matrix | `implementer`, LOCAL-ONLY output | `C:\Proj\acks-rules\magic\BTA-INVOCATIONS.md` | per invocation and level: row kinds, gate vs scale, caster-level figures, saves, summons | nothing |
 | **B4** Gnosis tables | `scout` enumerates, `implementer` writes | `scripts/importer/table-recipes.mjs`, docs | the recipe pages test runs; the Ruledata Browser lists them | word with the Treasure Tome session, which shares the file |
 | **B2** Level cap | `implementer` after the line is told | `scripts/classes/class-data.mjs`, `scripts/classes/casting.mjs`, the Casting tab and lang, importer `classes.mjs`, the BTA casting rows, classes MODEL/DECISIONS/TESTING | the pool strip unchanged; `casterLevel()` source is the class; the cap shows on the Casting tab with a tooltip after a Classes repair | the spell-effects line's word on ruling 6 |
-| **B6** Effect rows on the five | `implementer` | register rows, `spell-recipe-rules.mjs` | as the spell-effects plan's row rulings | R1-R3 and question B |
+| **B6** Effect rows on the five | `implementer` | register rows, `spell-recipe-rules.mjs` | as the spell-effects plan's row rulings | R1-R3 and the 3c invocation throw (owner ruling B) |
 | **3c** Ceremony procedure | `architect` first | invocation throw, pace, mishaps, stigma, purification, implements as levelled items, a sigil granting its invocation | | later |
 
 After 3c: extemporaneous invocations and the printed builds need ROADMAP 1b;
@@ -151,6 +151,17 @@ Written to the shared notes folder for 1b; BTA builds none of them.
   *Recommended: yes,* as the dependency half (TOOLCHAIN §10e).
 - **D.** Does the BTA groundwork ride the minor held for spell effects?
   *Recommended: yes.*
+
+## Owner rulings (2026-11-17)
+
+The owner, whole: "A Yes, B No, C Yes, D Yes". Reading, per question:
+
+- **A yes:** the invocation documents and class lists ship before any effect
+  rows; B1 and B3 stand as built.
+- **B no:** no invocation effect row executes until the 3c invocation throw
+  exists. B6 waits on 3c as well as R1-R3.
+- **C yes:** B4 imports the gnosis tables now, before any engine reads them.
+- **D yes:** the BTA groundwork rides the minor held for spell effects.
 
 ## Results
 
