@@ -301,6 +301,8 @@ export class CaptureOverlay {
    * placeable layer, so core has no undo of its own to collide with.
    */
   onKeyDown(ev) {
+    // A focused field keeps its own undo and Escape.
+    if (ev.target?.closest?.("input, textarea, select, [contenteditable]")) return;
     if (ev.code === "KeyZ" && (ev.ctrlKey || ev.metaKey)) {
       ev.preventDefault();
       ev.stopPropagation();

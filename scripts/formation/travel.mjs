@@ -1707,6 +1707,13 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
     // record keeps only what it stored.
     entry = composeLogEntry(travelOf(rec), { miles, hours, hexes, notes, worldTime: game.time?.worldTime ?? null });
     advancedToday = t.day.secondsAdvanced ?? 0;
+    // The finished day carries how it was fed, set before the entry is stored.
+    if (provisions) {
+      entry.provisions = {
+        short: provisions.short,
+        suffering: provisions.report.filter((r) => r.worsened).map((r) => r.name),
+      };
+    }
     rec.travel = {
       ...t,
       dayCount: entry.day,
@@ -1726,12 +1733,5 @@ export async function endDay(formationId, { miles = null, hours = null, hexes = 
   }
   const jump = untilNextDawn() ?? Math.max(0, DAY_SECONDS - advancedToday);
   if (jump > 0 && mayAdvanceWorldTime()) await game.time.advance(jump);
-  // The finished day carries how it was fed.
-  if (entry && provisions) {
-    entry.provisions = {
-      short: provisions.short,
-      suffering: provisions.report.filter((r) => r.worsened).map((r) => r.name),
-    };
-  }
   return entry;
 }

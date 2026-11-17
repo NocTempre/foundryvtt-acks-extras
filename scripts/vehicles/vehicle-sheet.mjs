@@ -623,16 +623,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
   }
 
   /**
-   * Load the party for the best pace. The candidates are the members of any
-   * formation this vehicle's passengers already belong to, falling back to
-   * every player character — a Judge with no formation set up still gets the
-   * one-click load.
+   * Load the party for the best pace. The candidates are the members of the
+   * formation this vehicle travels with, falling back to every player
+   * character — a Judge with no formation set up still gets the one-click
+   * load.
    */
   static async #boardBest() {
     const api = game.modules.get(MODULE_ID)?.api?.formation;
-    const raw = api?.getFormations?.() ?? [];
-    const forms = Array.isArray(raw) ? raw : Object.values(raw ?? {});
-    const members = forms.flatMap((f) => (f.members ?? []).map((m) => game.actors.get(m.actorId)).filter(Boolean));
+    const carrying = api?.formationCarrying?.(this.actor);
+    const members = (carrying ? [carrying] : []).flatMap((f) => (f.members ?? []).map((m) => game.actors.get(m.actorId)).filter(Boolean));
     const candidates = members.length ? members : game.actors.filter((a) => a.type === "character" && a.hasPlayerOwner);
     await boardForBestPace(this.actor, candidates, { ground: this.#ground, speedOf: explorationSpeedOf });
     this.render();

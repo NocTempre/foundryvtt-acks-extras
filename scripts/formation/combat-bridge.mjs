@@ -319,15 +319,21 @@ async function deployFor(combatant, tokenDoc, formationId) {
  * rather than catching up afterwards.
  */
 export async function onCombatRoundChange(combat) {
-  const formations = Object.values(getFormations()).filter(
-    (f) => f.combat?.active && f.combat.combatId === combat.id,
-  );
-  for (const formation of formations) {
-    const counted = formation.combat.roundsCounted ?? 0;
-    const delta = (combat.round ?? 0) - counted;
-    if (delta <= 0) continue; // never rewind on GM round corrections
-    formation.combat.roundsCounted = combat.round;
-    await advanceRounds(formation, delta, { reason: "combat" });
+  const ids = Object.values(getFormations())
+    .filter((f) => f.combat?.active && f.combat.combatId === combat.id)
+    .map((f) => f.id);
+  for (const id of ids) {
+    // Each tick reads the record fresh in the formation's turn, so a round
+    // change arriving mid-advance sees the rounds already billed.
+    await oneAtATime(id, async () => {
+      const formation = getFormation(id);
+      if (!formation?.combat?.active || formation.combat.combatId !== combat.id) return;
+      const counted = formation.combat.roundsCounted ?? 0;
+      const delta = (combat.round ?? 0) - counted;
+      if (delta <= 0) return; // never rewind on GM round corrections
+      formation.combat.roundsCounted = combat.round;
+      await advanceRounds(formation, delta, { reason: "combat" });
+    });
   }
 }
 

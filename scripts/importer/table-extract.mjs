@@ -808,8 +808,12 @@ export function extractHarvestPairs(items, recipe) {
   for (const [key, text] of Object.entries(out)) {
     // Junk guards: a real occupation label is short and sentence-free —
     // prose pages interleave the table and must not mint entries.
-    if (key.split(/\s+/).length > (recipe.maxKeyWords ?? 3)) continue;
-    if (/[.:;!?]/.test(key)) continue;
+    // The folded key carries no spaces or punctuation, so the guards read the
+    // raw label; the label entries themselves are not rows.
+    if (key.startsWith("__label:")) continue;
+    const rawLabel = out[`__label:${key}`] ?? key;
+    if (rawLabel.split(/\s+/).length > (recipe.maxKeyWords ?? 3)) continue;
+    if (/[.:;!?]/.test(rawLabel)) continue;
     // Split on commas OUTSIDE parentheses, so a parenthetical list stays in one token.
     const tokens = [];
     let depth = 0, buf = "";

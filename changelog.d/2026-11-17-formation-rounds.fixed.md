@@ -1,0 +1,1 @@
+- **Party formation:** combat rounds tick one at a time for each party, so pressing Next Round twice quickly no longer spends a round's time, light and wandering throw twice; a finished day's log entry keeps how the party was fed.

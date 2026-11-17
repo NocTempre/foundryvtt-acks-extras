@@ -409,7 +409,11 @@ export async function applyClass(
   // just reached it: every rung of the award ladder at or below it. A fixed
   // award the character already carries is dropped, so the dialog offers only
   // what would actually land.
-  const takenAlready = actor.getFlag(MODULE_ID, FLAG_CLASSES)?.awardsTaken ?? [];
+  // Rungs answered under another class do not carry: an award key is an index
+  // and a level, so it would close the new class's rung at the same position.
+  const heldFlag = actor.getFlag(MODULE_ID, FLAG_CLASSES);
+  const sameClass = heldFlag?.key === (classItem.system.key || classItem.name.toLowerCase());
+  const takenAlready = sameClass ? (heldFlag?.awardsTaken ?? []) : [];
   const owed = grantAwards
     ? awardsThrough(actor, classItem, clamped, takenAlready)
     : { fixed: [], choices: [] };
@@ -425,7 +429,8 @@ export async function applyClass(
   const given = { ...answers };
   /** Path answers, keyed by group: what the character already chose (a template
    *  may have set it), overlaid by whatever the dialog collects. A caller may
-   *  pass `paths` to answer without a dialog — chargen does. */
+   *  pass `paths` to answer without a dialog. Chargen passes none: it clears
+   *  the stored answers first and the template sets the variant. */
   const pathPicks = { ...actorPaths(actor), ...(paths ?? {}) };
 
   // A level whose numbers already agree can still owe abilities; re-applying
@@ -577,7 +582,7 @@ export async function applyClass(
       ...(election ? { damageBonus: { class: classKey, applies: election } } : {}),
       ...(Object.keys(pathPicks).length ? { paths: pathPicks } : {}),
       ...(hpRolls ? { [HP_ROLLS_KEY]: hpRolls } : {}),
-      ...(closed.length || grantAwards ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
+      ...(closed.length || grantAwards || !sameClass ? { awardsTaken: [...new Set([...takenAlready, ...closed])] } : {}),
     },
   });
   await syncClassTraining(actor, classItem, pathPicks);

@@ -17,7 +17,7 @@
  * also owns base resolution and the skinning payloads for a template with no
  * bundle.
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { findByRef } from "./registry.mjs";
 import { applyClass, readyToApply, syncClassTraining } from "./apply.mjs";
 import { templateSelection, setActorPath, actorPaths } from "./paths.mjs";
@@ -28,7 +28,7 @@ import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { coinTemplate, creditCoin, ownCoin } from "../lib/money.mjs";
 import { resolveBase, templateItemName, buildGearData, expandTemplate, applyShortfall } from "./template-packages.mjs";
 import { isUnidentifiedWeapon } from "../equipment/profiles.mjs";
-import { elementOf } from "../lib/util.mjs";
+import { elementOf, unset } from "../lib/util.mjs";
 
 // The base-resolution and skinning layer lives in template-packages.mjs (the
 // materializer resolves once, at import; this file resolves at grant time only
@@ -372,6 +372,14 @@ export async function applyChargen(
   if (wipe) {
     const ids = actor.items.map((i) => i.id);
     if (ids.length) await actor.deleteEmbeddedDocuments("Item", ids);
+    // The previous run's path answers and closed rungs live in the flag, not on
+    // items; left in place they would pre-answer the new template's variant.
+    // An empty object merges into the stored answers and leaves them in place;
+    // only a deletion clears them. An array replaces wholesale.
+    await actor.update({
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.paths`]: unset(),
+      [`flags.${MODULE_ID}.${FLAG_CLASSES}.awardsTaken`]: [],
+    });
   }
 
   // Chargen rolls no hit dice of its own, so the 1st-level total is built here:

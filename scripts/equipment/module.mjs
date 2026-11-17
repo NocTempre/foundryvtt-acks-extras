@@ -17,7 +17,7 @@ import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
-import { unstowOnUse } from "./containers.mjs";
+import { unstowOnUse, releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
 import { registerSheet } from "./sheet.mjs";
@@ -254,6 +254,13 @@ function onLoadoutItemChange(item) {
 }
 Hooks.on("createItem", onLoadoutItemChange);
 Hooks.on("deleteItem", onLoadoutItemChange);
+
+/* A deleted container hands its contents to its own holder; only the deleting
+ * client writes. */
+Hooks.on("deleteItem", (item, _options, userId) => {
+  if (userId !== game.user?.id) return;
+  releaseContents(item).catch((err) => console.error(`${MODULE_ID} | releasing container contents failed`, err));
+});
 
 /* Proficiency/style config lives in actor flags — rebuild when it changes.
  * A level-up also advances any named item the actor is wielding: RAW counts

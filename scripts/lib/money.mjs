@@ -673,12 +673,22 @@ async function planPayment({ from, to, needCp, scope, terms, minting }) {
   const own = other.slots.map((s) => ({ kind: `own:${s.id}`, cv: s.cv, ...(to ? { qty: s.qty } : {}) }));
   // A market till that cannot make change is not refused — minting is what
   // "exchanges freely" means. Barter refuses instead.
-  const onShort = !to ? "mintRemainder" : terms.mode === "market" ? "mintAll" : "refuse";
+  // A market that PAYS is the payer, so the change it cannot make is never
+  // handed to the payee as overpayment: it refuses here and falls to the exact
+  // payment below. `mintAll` is for a market that RECEIVES.
+  const marketPays = !!to && terms.mode === "market" && isLocation(from);
+  const onShort = !to ? "mintRemainder" : terms.mode === "market" && !marketPays ? "mintAll" : "refuse";
   let settled = settleChange(plan, own, onShort);
   if (!settled && purse.slots.some((s) => s.rank)) {
     const flat = planCoinSpend(purse.slots.map(({ rank, ...slot }) => slot), needCp);
     const again = settleChange(flat, own, onShort);
     if (again) [plan, settled] = [flat, again];
+  }
+  if (!settled && marketPays) {
+    // The till pays what its coins represent exactly; the payee is minted the
+    // rest, so it receives exactly what is owed and nothing is minted to the till.
+    const exact = planCoinPayUpTo(purse.slots, needCp);
+    return { purse, other, takes: exact.takes, handBack: [], mintCp: 0, payMintCp: exact.shortCp, changeCp: 0 };
   }
   if (!settled) return { refusal: { ok: false, reason: "noChange", changeCp: plan.changeCp } };
   return { purse, other, ...settled, changeCp: plan.changeCp };
@@ -690,7 +700,7 @@ function writesOf(pay, from, to, scope) {
   for (const t of pay.takes) actors.add(pay.purse.rows.get(t.id)?.actor);
   if (to) {
     for (const t of pay.handBack) actors.add(pay.other.rows.get(t.id)?.actor);
-    if (pay.takes.length) actors.add(landingOf(to, { scope }).actor);
+    if (pay.takes.length || pay.payMintCp > 0) actors.add(landingOf(to, { scope }).actor);
   }
   if (pay.handBack.length || pay.mintCp > 0) actors.add(landingOf(from, { scope }).actor);
   actors.delete(undefined);
@@ -738,7 +748,7 @@ async function moveCoin({ from, to = null, needCp, at = null, gate = true, allow
 
   // Both landings are worked out from the rows as they stand, then written
   // ahead of both takes.
-  const paid = takenAsCredits(pay.purse, pay.takes);
+  const paid = [...takenAsCredits(pay.purse, pay.takes), ...mintCredits(pay.payMintCp ?? 0)];
   const back = [...takenAsCredits(pay.other, pay.handBack), ...mintCredits(pay.mintCp)];
   if (to) await credit(to, paid, { scope });
   await credit(from, back, { scope });

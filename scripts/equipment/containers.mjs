@@ -262,6 +262,26 @@ export async function takeOut(item) {
 }
 
 /**
+ * After a container is deleted, its direct contents move to the container's
+ * own holder, or come out loose when it had none. Run by the deleting client.
+ * @param {Item} container the deleted document
+ * @returns {Promise<number>} how many items moved
+ */
+export async function releaseContents(container) {
+  const actor = container?.parent;
+  if (actor?.documentName !== "Actor" || !container.id) return 0;
+  const contents = contentsOf(actor, container.id);
+  if (!contents.length) return 0;
+  const outer = containedIn(container);
+  const path = `flags.${MODULE_ID}.${ITEM_FLAGS.CONTAINED_IN}`;
+  await actor.updateEmbeddedDocuments(
+    "Item",
+    contents.map((i) => ({ _id: i.id, [path]: outer && actor.items.get(outer) ? outer : unset() })),
+  );
+  return contents.length;
+}
+
+/**
  * Emptying a container leaves its contents loose on the actor rather than
  * deleting them — nothing is destroyed by a UI action.
  */

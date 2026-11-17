@@ -258,6 +258,9 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   if (isMoney(plain)) return `money|${byOwner ? rowOwnerOf(plain) : ""}|${coinKind(plain)}`;
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
   if (plain.effects?.length) return null;
+  // A container keeps its own row: merging two would leave the second's
+  // contents pointing at a container id that is never created.
+  if (plain.flags?.[LIB_ID]?.container) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
   setPath(wrapper, quantityOf(plain).path, 0);

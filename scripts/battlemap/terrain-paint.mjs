@@ -568,6 +568,8 @@ class TerrainPaintSession {
   #lastKey = null;
   /** Whether the pointer went down on the board itself, which is what opens a drag stroke. */
   #stroking = false;
+  /** Tail of the write chain; a stroke's cell writes run one after another. */
+  #paintQueue = Promise.resolve();
   #listeners = new Set();
   /** The last value picked on each layer, so a layer switch or a re-arm comes back to it. */
   #lastBrush = { terrain: "grassland" };
@@ -671,7 +673,12 @@ class TerrainPaintSession {
     this.#stroking = false;
   }
 
-  async #paintAt(ev) {
+  /**
+   * Read everything the write needs from the event synchronously (PIXI may
+   * reuse the event object), then queue only the write: each write reads the
+   * region and rewrites it, so overlapping writes would drop cells.
+   */
+  #paintAt(ev) {
     if (!this.brush || !canvas?.scene) return;
     const point = ev.getLocalPosition(canvas.stage);
     if (!isHexScene(canvas.scene)) {
@@ -686,7 +693,12 @@ class TerrainPaintSession {
     const key = hexKeyOf(canvas.scene.grid.getOffset(point));
     if (key === this.#lastKey) return; // drag-paint: one write per cell
     this.#lastKey = key;
-    await paintHexAt(canvas.scene, point, this.brush === "erase" ? null : this.brush, this.layer);
+    const scene = canvas.scene;
+    const value = this.brush === "erase" ? null : this.brush;
+    const layer = this.layer;
+    this.#paintQueue = this.#paintQueue
+      .then(() => paintHexAt(scene, point, value, layer))
+      .catch((err) => console.error(`${MODULE_ID} | terrain paint failed`, err));
   }
 }
 

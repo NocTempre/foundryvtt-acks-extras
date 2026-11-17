@@ -30,7 +30,6 @@ import {
   getActsAsPowers,
   getEffectReactionMods,
   getProficiencies,
-  getTargetActor,
   itemsWithProficiencyRows,
   monthlyWageForHD,
   offeredEffectRows,
@@ -569,6 +568,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /** Load the saved attitude/attempts for the current influencer→target, if any. */
   #loadAttitude() {
     this.#attitudeItem = null;
+    // A pair with no stored attitude starts from a fresh roll, not from the
+    // previous target's attitude and attempt count.
+    this.#system.currentAttitude = INFLUENCE_NEUTRAL_INDEX;
+    this.#system.attempt = 0;
     if (!this.#actor || !this.#targetActor) return;
     const uuid = this.#targetActor.uuid;
     const item = this.#actor.items?.find((i) => i.type === ATTITUDE_TYPE && i.system?.targetUuid === uuid);
@@ -1063,7 +1066,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    */
   static #onResetDefaults() {
     // Re-read the current target so a newly-selected token is picked up.
-    this.#targetActor = getTargetActor() ?? this.#targetActor;
+    this.#targetActor = openingTarget(this.#actor, null) ?? this.#targetActor;
     this.#system.targetKindOverridden = false;
     this.#system.targetKind = this.#autoTargetKind();
     this.#modConfig = this.#buildModConfig();
@@ -1192,8 +1195,17 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   async #rollOpposed(actorRoll, actorTotal) {
     if (!this.#system.opposed || !this.#targetActor) return null;
     const cha = abilityMod(this.#targetActor, "cha");
-    const effectMods = getEffectReactionMods(this.#targetActor).filter((m) =>
-      scopeApplies(m, { tone: this.#system.tone, ...this.#ctx }, this.#optionalRules()).applies,
+    // One row per change across every roll family: only the reaction family
+    // feeds this roll, and a situational or unaudited row is offered, never
+    // asserted, so the target's side leaves it out.
+    const effectMods = effectRowsForPage(getEffectReactionMods(this.#targetActor), {
+      family: ROLL_FAMILY.REACTION,
+      tone: this.#system.tone,
+    }).filter(
+      (m) =>
+        !m.situational &&
+        !m.unaudited &&
+        scopeApplies(m, { ...this.#ctx, tone: this.#system.tone, optionalRules: this.#optionalRules() }).applies,
     );
     const effectTotal = effectMods.reduce((sum, m) => sum + (Number(m.value) || 0), 0);
     const modifier = cha + effectTotal;

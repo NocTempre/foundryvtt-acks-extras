@@ -454,7 +454,7 @@ function dueHirelings(employer, currentTime) {
  *  the normal hireling cycle, not counted here. */
 function groupMonthlyWage(group) {
   return (group.system?.stacks ?? []).reduce((sum, s) => {
-    const each = mercenaryWage(s.template?.label) ?? 0;
+    const each = mercenaryWage(s.template?.wageType ?? s.template?.label) ?? 0;
     return sum + each * (s.size?.current ?? 0);
   }, 0);
 }
@@ -536,6 +536,13 @@ export async function enrollNewcomers(employer, currentTime = now()) {
       ...record,
       hiredTime: currentTime,
       origin: record.origin ?? "adopted",
+      // The level at adoption is the baseline, so levels the actor already
+      // held are never credited as gained in service.
+      counters: {
+        ...(record.counters ?? {}),
+        startLevel: record.counters?.startLevel ?? adapter.getLevel(actor),
+        levelsGainedInService: record.counters?.levelsGainedInService ?? 0,
+      },
       terms: { ...(record.terms ?? {}), lastPaidTime: currentTime, arrearsGp: record.terms?.arrearsGp ?? 0 },
     });
     await HenchmanRecord.logEvent(actor, { type: "adopted" });
