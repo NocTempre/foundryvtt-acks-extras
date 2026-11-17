@@ -44,7 +44,10 @@ module computes geometry or membership that core keeps.
   one polygon because `pictureCells` returned cells only on hex grids.
 - F6 A place's quarter is copied into `system.parentUuid` when the place is
   made (`poi.mjs` `promoteIncident`, importer `adventure-places`).
-  Inferred to go stale once the token moves; not checked.
+  Inferred to go stale once the token moves; not checked. Checked by S5: it
+  is the place's filing, read only by hierarchy walks (location DECISIONS
+  2026-11-16). One true drift: `promoteIncident` files under the marker's
+  drop-time `regionUuid` while placing the token at the note's current point.
 - F7 `battlemap/terrain-paint.mjs` and `domains/domain-map.mjs` paint one
   polygon per hex, plus a `terrainHexes`, `territoryHexes` or `domainHexes`
   flag that the terrain is read from. Battlemap DECISIONS 2026-08-28 ("the
@@ -57,11 +60,11 @@ module computes geometry or membership that core keeps.
 |---|---|---|---|---|---|
 | S0 | Hex encounter zones as core `grid` shapes | main | this session | none | landed 1f19fc81 |
 | S3 | Square-grid (dungeon plan) zones as `grid` shapes; quarters stay polygons | main | this session | none | landed, walked live on AX1's Buried Temple (2000 squares) |
-| S1 | `scripts/lib/regions.mjs`: `regionsUnder(token, type)` over `token.regions` (scene order kept, so the delve's "first zone" stands), `regionsAt(scene, point, {elevation, level}, type)` over `includedInLevel` plus `testPoint`, and `regionRings` from `polygonTree`. `zones.mjs` exports become adapters, so callers do not change; the fallback goes, and `regionArea` becomes `region.area`. Fixtures in `test-journey` and `test-trap-rules` gain `testPoint`, `polygonTree` and `area`. | main | `implementer` | dungeon close-out (formation); S1 leaves `encounter-zone.mjs` alone | open |
+| S1 | `scripts/lib/regions.mjs`: `regionsUnder(token, type)` over `token.regions` (scene order kept, so the delve's "first zone" stands), `regionsAt(scene, point, {elevation, level}, type)` over `includedInLevel` plus `testPoint`, and `regionRings` from `polygonTree`. `zones.mjs` exports become adapters, so callers do not change; the fallback goes, and `regionArea` becomes `region.area`. Fixtures in `test-journey` and `test-trap-rules` gain `testPoint`, `polygonTree` and `area`. | main | `implementer` | dungeon close-out (formation); S1 leaves `encounter-zone.mjs` alone | in progress |
 | S2 | Membership is core's footprint: `findZone` and `zonesAt` for a token read `token.regions`. New formation DECISIONS entry (supersedes the centre rule in MODEL and in the `findZone` docstring); re-walk formation TESTING "A move the GM's client is drawing" 7-9 | main | `implementer` | same as S1 | open |
 | S1b | Trap sweep on core geometry: `placementDistanceFeet` and `pointInsideEdges` read `PolygonTree#testPoint(point, distance)` and `findClosestPoint` | main | `implementer` | close-out U16 and §7 row 2: land after them | open |
 | S4 | Paint layers (terrain, territory, domain) as core `grid` shapes; drop the per-hex polygons and cell flags. Supersedes battlemap 2026-08-28, citing the rulings above | `topic/native-paint-regions` (reworks the paint surface) | `architect` ruling on read paths, then `implementer` | battlemap and domains in-flight work | open |
-| S5 | Check F6, and if the quarter copy goes stale, read a place's quarter from the Region its token stands in | main | `architect`, then `implementer` | none | open |
+| S5 | Check F6, and if the quarter copy goes stale, read a place's quarter from the Region its token stands in | main | `architect`, then `implementer` | none | ruled: no `parentUuid` change (docs); `promoteIncident` reads the quarter under the note's point after S1 |
 
 Every slice that changes the runtime is walked live on `main` before it is
 reported done (`.claude/rules/live-testing.md`).

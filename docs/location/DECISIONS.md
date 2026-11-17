@@ -163,3 +163,26 @@ default; a "class not set" notice (the owner's ruling is a blank field and a
 page reference, no text saying it is missing). *Cost:* a market a Judge adds
 and does not describe does nothing in henchmen and trade until a class is set;
 a world that relied on the fourth class sets it once.
+
+## 2026-11-16 — A place's parent is its filing, not where its token stands
+
+The native-regions audit inferred that a place's quarter, copied into
+`system.parentUuid` when the place is made, goes stale once its token moves.
+Checked against the code, the copy is not a position: every reader of
+`parentUuid` walks the hierarchy (the sheet's breadcrumb and contents,
+`gateMarketOf`, `domainOf`, `factionsAt`, `cityStampOf`, the prune's
+`emptyOfPlaces`), and every reader that needs position already asks geometry
+(`travelToPlace`, `districtPlace`, `districtUnder`). It stands on "Places
+nest" (2026-08-02) and on the stored record winning over a live observation
+(`docs/lib/PLACES.md`). The owner's rulings the audit served: "The new actor
+types like districts are a UI for the more complex needs, not a replacement
+for a fundamental object type", and "Design principles, composition (extend)
+better than bespoke": the Region answers where a token stands, and the
+place's parent answers where it is filed.
+
+Rejected: repointing the readers at the token's Region, since none of them
+means the token's ground; and re-filing a place when its token moves, which
+overwrites the Judge's filing and has no single answer for a place with
+tokens on several maps. *Cost:* a Judge who drags a promoted place into
+another quarter sees the breadcrumb keep the old one until they re-file it by
+a drop on the sheet.

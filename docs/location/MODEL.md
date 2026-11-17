@@ -255,6 +255,11 @@ there steps over a place's: the roster a linked scene derives
 formation's **Add to party**. A shrine standing in the market square is not
 the square's tenant and cannot join a marching order.
 
+**It does not file its place.** A place's parent (`system.parentUuid`) is
+where the Judge or the importer filed it, and moving its token never
+re-parents it. The quarter a token stands in is asked of the Region under the
+token, as `poi.mjs` `travelToPlace` prices a hop by `districtAt`.
+
 **A deployed vehicle's token is one too.** `here.mjs` `standsAsPlace` takes a
 location's token or a vehicle deployed as a place (`lib/place.mjs`
 `isDeployed`; the deploy itself is `docs/vehicles/MODEL.md`, "Deployed as a
