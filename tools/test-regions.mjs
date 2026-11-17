@@ -6,7 +6,7 @@
  */
 import assert from "node:assert/strict";
 import { regionArea, regionRings, regionsAt, regionsUnder } from "../scripts/lib/regions.mjs";
-import { mockRegion, rect } from "./region-fixture.mjs";
+import { containmentPoints, mockRegion, rect, standOnRegions } from "./region-fixture.mjs";
 
 let passed = 0;
 const test = (name, fn) => {
@@ -135,6 +135,39 @@ test("regionsUnder does not read the geometry: membership is whatever core recor
   // footprint test), and that answer stands.
   const region = zone("room", rect(0, 0, 100, 100));
   const token = { parent: sceneOf(region), regions: new Set([region]), x: 500, y: 500 };
+  assert.deepEqual(ids(regionsUnder(token, ZONE)), ["room"]);
+});
+
+test("a footprint holds a token a centre test misses, and the reverse of a clipped edge", () => {
+  // A token of three cells on a 100 px grid spans x 0..300, y 0..100: its centre
+  // is (150, 50) and core tests the middle of each cell, x 50, 150 and 250.
+  const scene = sceneOf();
+  scene.grid = { size: 100 };
+  const token = standOnRegions({ parent: scene, x: 0, y: 0, width: 3, height: 1 });
+  const last = zone("last", rect(200, 0, 100, 100));
+  const edge = zone("edge", rect(280, 0, 20, 100));
+  const middle = zone("middle", rect(100, 0, 100, 100));
+  scene.regions = [last, edge, middle];
+  assert.deepEqual(regionsAt(scene, { x: 150, y: 50 }, {}, ZONE).map(({ region }) => region.id), ["middle"], "a centre test holds the middle zone only");
+  assert.deepEqual(ids(regionsUnder(token, ZONE)), ["last", "middle"], "the footprint holds the last cell's zone too, and not the sliver beside no cell's middle");
+  assert.deepEqual(containmentPoints(token, 100).map((p) => p.x).sort((a, b) => a - b), [50, 150, 250], "the centre is one of the cell middles");
+  // One cell or less tests the centre alone.
+  const small = standOnRegions({ parent: scene, x: 0, y: 0, width: 1, height: 1 });
+  assert.deepEqual(containmentPoints(small, 100), [{ x: 50, y: 50 }]);
+  assert.deepEqual(ids(regionsUnder(small, ZONE)), [], "so a one-cell token at the same corner holds none of the three");
+  // A square token tests every cell's middle: the centre and four more.
+  const square = { parent: scene, x: 0, y: 0, width: 2, height: 2 };
+  assert.equal(containmentPoints(square, 100).length, 5);
+  assert.deepEqual(containmentPoints(square, 100).slice(1).map((p) => [p.x, p.y]), [[50, 50], [150, 50], [50, 150], [150, 150]]);
+});
+
+test("a token's Regions follow its stored corner, not the prepared one", () => {
+  const scene = sceneOf();
+  scene.grid = { size: 100 };
+  const room = zone("room", rect(500, 0, 100, 100));
+  scene.regions = [room];
+  // Prepared x is mid-tween; the stored corner is the destination.
+  const token = standOnRegions({ parent: scene, x: 100, y: 0, width: 1, height: 1, _source: { x: 500, y: 0 } });
   assert.deepEqual(ids(regionsUnder(token, ZONE)), ["room"]);
 });
 

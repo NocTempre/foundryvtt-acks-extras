@@ -19,7 +19,7 @@ import { elementOf, escape as esc, makeLoc, gmIds } from "../lib/util.mjs";
 import { getDoc, hasDoc } from "../lib/tables.mjs";
 import { getFormation, patchFormation } from "./formation-model.mjs";
 import { partyPoint, regionOutlines } from "./zones.mjs";
-import { districtAt } from "./district-zone.mjs";
+import { districtAt, findDistrict } from "./district-find.mjs";
 import { SETTLEMENT_DOC, SETTLEMENT_PACES, settlementOf } from "./settlement.mjs";
 import { travelOf } from "./travel.mjs";
 import { ENCOUNTER_OUTCOMES } from "./encounters.mjs";
@@ -118,9 +118,13 @@ export async function markTerrainEncounter(formation, { outcome, name = "", tabl
 export const transientNotesOn = (scene) => [...(scene?.notes ?? [])].filter((n) => transientOf(n));
 
 /**
- * Turn a marker into a place: a location actor under the quarter's place
- * (else the city's, else nothing), its token where the marker stood, and the
- * marker gone. The marker's own text becomes the place's notes.
+ * Turn a marker into a place: a location actor filed under the place of the
+ * quarter the marker stands in now (else the quarter stamped when it was
+ * dropped, while the marker still stands in it; else the scene's place, else
+ * nothing), its token where the marker
+ * stood, and the marker gone. The marker's own text becomes the place's notes.
+ * The filing is read once, here, and never again: it is the place's parent, not
+ * its position.
  * @returns {Promise<Actor|null>}
  */
 export async function promoteIncident(note, { name = "" } = {}) {
@@ -128,8 +132,16 @@ export async function promoteIncident(note, { name = "" } = {}) {
   const scene = note?.parent;
   if (!t || !scene || !game.user.isGM) return null;
   const scenes = locationApi()?.scenes;
-  const region = t.regionUuid ? fromUuidSync(t.regionUuid) : null;
-  const parent = (region ? scenes?.locationOfRegion?.(region) : null) ?? scenes?.locationOfScene?.(scene) ?? null;
+  // A Note names its Levels as a set; one Level is a Level to ask, several are none.
+  const levels = [...(note.levels ?? [])];
+  const under = districtAt(scene, { x: note.x, y: note.y }, note.elevation ?? 0, levels.length === 1 ? levels[0] : undefined);
+  const point = { x: note.x, y: note.y, elevation: note.elevation ?? 0 };
+  const stamped = t.regionUuid ? fromUuidSync(t.regionUuid) : null;
+  // The stamp answers only while the marker still stands in it: a quarter the
+  // marker has left is not where it is, whether or not its new ground has a place.
+  const stampHolds = !under && stamped?.parent === scene && stamped.testPoint?.(point);
+  const placeOf = (region) => (region ? scenes?.locationOfRegion?.(region) : null) ?? null;
+  const parent = (under ? placeOf(under.region) : stampHolds ? placeOf(stamped) : null) ?? scenes?.locationOfScene?.(scene) ?? null;
   const actor = await placeTokenAt({
     scene, x: note.x, y: note.y,
     name: name || noteLabel(t.text) || loc("settlement.poi.promotedDefault"),
@@ -238,8 +250,11 @@ export async function travelToPlace(formationId, tokenId, { spend = true } = {})
 
   const gs = at.scene.grid.size;
   const to = { x: target.x + (target.width * gs) / 2, y: target.y + (target.height * gs) / 2 };
-  const from = districtAt(at.scene, at.point, at.elevation);
-  const dest = districtAt(at.scene, to, target.elevation ?? 0);
+  // The party's end is the quarter its token stands in by core's footprint,
+  // the one the party sheet names; the place's end is the point its marker is.
+  const from = findDistrict(formation);
+  const targetLevel = (target._source ?? target).level;
+  const dest = districtAt(at.scene, to, target.elevation ?? 0, typeof targetLevel === "string" ? targetLevel : undefined);
   const relation = districtRelation(from?.region ?? null, dest?.region ?? null, {
     touch: (a, b) => regionsTouch(a, b, at.scene),
   });

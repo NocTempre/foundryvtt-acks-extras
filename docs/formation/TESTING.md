@@ -353,7 +353,8 @@ it covers; a section no walk names is walked by hand.
 
 The clock, the journey and the trap check measure a move to where it put the
 party, on the client that animates the token as well (DECISIONS 2026-10-17).
-No walk in `tools/live/` names this section.
+Steps 7–10 and the Region reads after them are walked by
+`tools/live/formation-regions.mjs`; steps 1–6 have no walk.
 
 Fixtures: two disposable scenes A and B (`active: false`, `padding: 0`, a
 100 px grid of 5 ft, wide enough for four 500 px steps east), a disposable
@@ -415,7 +416,8 @@ already stands on and the step onto a shadow are pinned offline only
 
 Steps 7–9 ask what ground the party stands on while its move is drawn
 (DECISIONS 2026-10-17, "The ground under the party is read at the token's
-stored corner"). Each wants a move that completes a turn, so they run on a
+stored corner"; the zone is core's footprint since 2026-11-16, "A zone holds
+the party by core's footprint"). Each wants a move that completes a turn, so they run on a
 scene C of their own: as A, with room for one 500 px step south as well, but
 its cell is the formation's `turnDistance` times 1.2, divided by 5 and
 rounded up, read once the member has joined. The party token settles
@@ -428,8 +430,11 @@ ground is read a few hundred milliseconds into the chain: arm a
 `preCreateChatMessage` observer, and an `updateSetting` one on
 `acks-extras.formations`, that records at that moment whether the token is
 still drawn and whether the zone holds its prepared centre and its stored
-one. At core's default speed every read below landed inside the move's
-~0.8 s draw.
+one, and whether `token.regions` holds the zone: core works it out from the
+destination before the write, so a hook on the drawing client reads the
+destination's Regions. The party token is one cell or less there, so its
+footprint is its centre and the geometry below stands. At core's default speed
+every read below landed inside the move's ~0.8 s draw, but the delve's throw card can post after it. The walk sets `CONFIG.Token.movement.defaultSpeed = 1` for each move (a five-second draw) and restores it.
 
 7. Add an encounter zone (`acks-extras.encounterZone`, `encounterEvery: 1`,
    `encounterTarget: 2`, so the throw stands whether or not the world has
@@ -437,8 +442,9 @@ one. At core's default speed every read below landed inside the move's
    east.
    *Observable:* the turn's throw card says `in zone "<the region's name>"`,
    and when it was created the token was still drawn, with its prepared
-   centre outside the zone and its stored centre inside. The prepared centre
-   is the one the code before the fix asked about.
+   centre outside the zone and its stored centre inside, and `token.regions`
+   held the zone. The prepared centre is the one the code before the fix
+   asked about.
 8. Create a trap Item (`acks-extras.trap`, `triggerOn: 0`, so it never
    springs) and a trap zone (`acks-extras.trapZone`, `trapUuid` the item's
    uuid, `state: "armed"`) south of the token, and move it 500 px south.
@@ -452,6 +458,33 @@ one. At core's default speed every read below landed inside the move's
    `clock.lastPosition` is the token's `_source`, lands while the token is
    drawn with its prepared centre outside the zone, and its `clock.zoneIds`
    names the zone. The day's first step posts a navigation card; track it.
+10. On scene C make a disposable token three cells wide (not the party's), at
+    the scene's origin, and an encounter zone one cell wide over its last cell
+    only, so the token's centre is outside the zone and its last cell inside.
+    *Observable:* `token.regions` holds the zone, `zonesUnder(token, type)`
+    names it, and `regionsAt` at the token's centre does not. A 20 px sliver
+    zone at the token's far edge, which holds no cell's middle, is not held.
+
+The Region reads follow, on scene C with the party token one cell wide and
+each zone made for its step and swept at its end:
+
+11. A zone drawn as a core `grid` shape (two cells) under the party token.
+    *Observable:* `findZone` finds it.
+12. An encounter zone 1000 px square with an 800 px hole, and a second 700 px
+    square zone over its corner, the party in the corner both hold. The outer
+    states a target of 2, the inner 3.
+    *Observable:* `journeyZones` names both, the outer's `area` is its ring's
+    360000 square pixels (core's `region.area`, hole out) against the inner's
+    490000, and the composed target is the outer's 2. The hole left in would
+    rank the inner smaller and give 3.
+13. The trap sweep's distance, `placementsNear` with an unbounded reach, to a
+    rectangle zone and to a circle zone at a known distance east of the party.
+    *Observable:* each `distanceFeet` is the hand figure (the nearest edge
+    less the token's half-size, in pixels, times the scene's feet per pixel),
+    the circle's within six pixels' worth of feet, since core tessellates it.
+14. `poi.mjs` `regionsTouch` of two rectangle Regions that share an edge and
+    of two apart.
+    *Observable:* true, then false.
 
 Teardown by the run's own ids: `api.sweepTracked()` removes the scenes, the
 trap Item and the actors (the party actor dissolves its formation). Track
@@ -1786,6 +1819,19 @@ places".
     is disabled; the actor's sheet opened. Press the button on an older card
     whose marker expired: a warning, nothing made. Track the actor and its
     token by id.
+30a. **A dragged marker is filed under the quarter it stands in.** Drop a
+    marker in a quarter that has a place, then, on the Notes scene control
+    layer, drag its Note into another quarter that has its own place. Press
+    **Make it a place** on its card.
+    *Observable:* the new place's parent is the second quarter's place, not
+    the quarter the marker was dropped in, and its token stands where the Note
+    was left. Repeat with the Note dragged off every quarter: the parent is
+    the scene's place, not the quarter it was dropped in. Drag the new place's token into a third
+    quarter afterwards: the parent does not change (the filing is read once).
+    `tools/live/formation-regions.mjs` step 15 walks this through
+    `note.update` and `promoteIncident`, with the hop priced from a party
+    token three cells wide; the card button and the Notes-layer drag are not
+    driven there.
 31. **The walk is priced by quarter.** With a second district touching the
     first along one street and a point's token inside each, the party in the
     first: **Go to a point of interest**, pick the point in the same quarter,

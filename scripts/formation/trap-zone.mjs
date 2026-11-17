@@ -7,7 +7,8 @@ import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
-import { findZone, regionEdges } from "./zones.mjs";
+import { findZone } from "./zones.mjs";
+import { regionDistance } from "../lib/regions.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import {
   CRUDE,
@@ -242,32 +243,11 @@ function partyPath(formation, { from = null, to = null } = {}) {
 /** How far a placement lies from the ground the party covered, in feet. */
 function placementDistanceFeet(placement, path) {
   if (!path) return Infinity;
-  let px;
-  if (placement.kind === "wall") {
-    px = segmentDistance(path.seg, placement.doc.c);
-  } else {
-    const edges = regionEdges(placement.region);
-    if (!edges.length) return Infinity;
-    px = Math.min(...edges.map((e) => segmentDistance(path.seg, e)));
-    // Inside the outline is zero away; the edge distance alone would put a
-    // party in the middle of a region far from it.
-    const inside = [
-      { x: path.seg[0], y: path.seg[1] },
-      { x: path.seg[2], y: path.seg[3] },
-    ].some((pt) => edges.length && pointInsideEdges(edges, pt));
-    if (inside) px = 0;
-  }
+  // A zone is measured by core's geometry (`regionDistance`): ground the party
+  // stands on is zero away, a hole is not ground, and a region with none is
+  // out of reach.
+  const px = placement.kind === "wall" ? segmentDistance(path.seg, placement.doc.c) : regionDistance(placement.region, path.seg);
   return Math.max(0, px - path.halfToken) * path.feetPerPixel;
-}
-
-/** Even-odd containment against a region's own edge list. */
-function pointInsideEdges(edges, pt) {
-  let inside = false;
-  for (const [x1, y1, x2, y2] of edges) {
-    const hits = y1 > pt.y !== y2 > pt.y && pt.x < ((x2 - x1) * (pt.y - y1)) / (y2 - y1 || 1e-9) + x1;
-    if (hits) inside = !inside;
-  }
-  return inside;
 }
 
 /**

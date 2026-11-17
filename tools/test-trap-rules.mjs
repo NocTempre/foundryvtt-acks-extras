@@ -37,7 +37,8 @@ import {
   segmentCrossing,
   segmentDistance,
 } from "../scripts/formation/trap-walls.mjs";
-import { regionEdges, regionOutlines } from "../scripts/formation/zones.mjs";
+import { regionOutlines } from "../scripts/formation/zones.mjs";
+import { regionDistance } from "../scripts/lib/regions.mjs";
 import { mockRegion, rect } from "./region-fixture.mjs";
 import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
 
@@ -781,12 +782,87 @@ test("a walked path measures to a trap it passed but never reached", () => {
   assert.equal(segmentDistance(path, tripwire), 100);
 });
 
-test("a region's outline survives as edges the sweep can measure to", () => {
+test("a region's outline is its ring", () => {
   const square = mockRegion({ rings: [[0, 0, 100, 0, 100, 100, 0, 100]] });
   assert.deepEqual(regionOutlines(square), [[0, 0, 100, 0, 100, 100, 0, 100]]);
-  // Four points close into four edges, last back to first.
-  assert.equal(regionEdges(square).length, 4);
-  assert.deepEqual(regionEdges(square).at(-1), [0, 100, 0, 0]);
+});
+
+/* -------------------------------------------- */
+/*  The sweep's distance to a zone              */
+/* -------------------------------------------- */
+
+/** A party standing still at `(x, y)`: the zero-length segment the sweep measures. */
+const standing = (x, y) => [x, y, x, y];
+
+test("a party standing on a zone is no distance from it; one beside it is the gap to the nearest edge", () => {
+  const zone = mockRegion({ rings: [rect(100, 100, 200, 200)] });
+  assert.equal(regionDistance(zone, standing(200, 200)), 0);
+  assert.equal(regionDistance(zone, standing(500, 200)), 200);
+  // Off a corner the nearest ground is the corner itself.
+  assert.equal(regionDistance(zone, standing(400, 400)), Math.hypot(100, 100));
+});
+
+test("a party standing in a zone's hole measures to the hole's rim, not zero", () => {
+  // The ring alone would hold the whole 400-square, the party in its middle.
+  const zone = mockRegion({ rings: [rect(0, 0, 400, 400)], holes: [rect(100, 100, 200, 200)] });
+  assert.equal(regionDistance(zone, standing(200, 200)), 100);
+  assert.equal(regionDistance(zone, standing(120, 200)), 20);
+  assert.equal(regionDistance(zone, standing(50, 200)), 0, "the solid band around the hole");
+});
+
+test("an island standing inside a hole is ground again", () => {
+  const zone = mockRegion({
+    rings: [rect(0, 0, 400, 400), rect(180, 180, 40, 40)],
+    holes: [rect(100, 100, 200, 200)],
+  });
+  assert.equal(regionDistance(zone, standing(200, 200)), 0, "on the island");
+  assert.equal(regionDistance(zone, standing(120, 200)), 20, "the hole's rim is nearer than the island");
+  assert.equal(regionDistance(zone, standing(170, 200)), 10, "the island is nearer than the hole's rim");
+});
+
+test("a zone with no ring and a missing region are out of reach", () => {
+  assert.equal(regionDistance(mockRegion(), standing(0, 0)), Infinity);
+  assert.equal(regionDistance({}, standing(0, 0)), Infinity);
+  assert.equal(regionDistance(undefined, [0, 0, 50, 0]), Infinity);
+});
+
+test("a walked path measures to a zone it passed but never reached", () => {
+  // Both ends are well clear of the zone, which the line passes 30 px above.
+  const zone = mockRegion({ rings: [rect(200, 30, 100, 100)] });
+  assert.equal(regionDistance(zone, [0, 0, 500, 0]), 30);
+});
+
+test("a walked path through a zone, both ends outside it, is no distance from it", () => {
+  const zone = mockRegion({ rings: [rect(200, -50, 100, 100)] });
+  assert.equal(regionDistance(zone, [0, 0, 500, 0]), 0);
+});
+
+test("a walked path ending on a zone is no distance from it; one inside a hole stays clear of the rim", () => {
+  const zone = mockRegion({ rings: [rect(0, 0, 400, 400)], holes: [rect(100, 100, 200, 200)] });
+  assert.equal(regionDistance(zone, [-100, 200, 50, 200]), 0, "ends on the solid band");
+  // Walked within the hole, off the middle: the hole's rim is the nearest ground.
+  assert.equal(regionDistance(zone, [150, 150, 250, 150]), 50);
+});
+
+test("a grid shape's merged outline is measured as the one ring it is", () => {
+  // A grid shape's merged outline is an L: two squares, as core's tree would hold it.
+  const zone = mockRegion({
+    shapes: [{ type: "grid", hole: false, offsets: [{ i: 0, j: 0 }, { i: 1, j: 0 }, { i: 0, j: 1 }] }],
+    rings: [[0, 0, 200, 0, 200, 100, 100, 100, 100, 200, 0, 200]],
+  });
+  assert.equal(regionDistance(zone, standing(50, 150)), 0);
+  assert.equal(regionDistance(zone, standing(150, 150)), 50, "the notch");
+});
+
+test("the fixture's tree answers core's testPoint tolerance as core defines it", () => {
+  const { polygonTree: tree } = mockRegion({ rings: [rect(0, 0, 100, 100)], holes: [rect(40, 40, 20, 20)] });
+  assert.equal(tree.testPoint({ x: 10, y: 10 }), true);
+  assert.equal(tree.testPoint({ x: 50, y: 50 }), false, "in the hole");
+  assert.equal(tree.testPoint({ x: 50, y: 50 }, 10), true, "a circle of 10 reaches the hole's rim");
+  assert.equal(tree.testPoint({ x: 150, y: 50 }, 40), false);
+  assert.equal(tree.testPoint({ x: 150, y: 50 }, 50), true);
+  assert.equal(tree.testPoint({ x: 10, y: 10 }, -10), true, "a circle of 10 fits");
+  assert.equal(tree.testPoint({ x: 10, y: 10 }, -11), false, "a circle of 11 crosses the rim");
 });
 
 test("a region's outline is its solid rings; a hole contributes none", () => {

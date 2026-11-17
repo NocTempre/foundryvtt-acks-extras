@@ -59,7 +59,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-17 — [Every whole write keeps the party token's linkage](DECISIONS-through-v11.14.5.md#2026-10-17--every-whole-write-keeps-the-party-tokens-linkage) — superseded in part by "2026-10-17 — A whole write carries only what its copy changed"
 - 2026-10-17 — [A member on another scene: the recall, a combat, and whole writes](DECISIONS-through-v11.14.5.md#2026-10-17--a-member-on-another-scene-the-recall-a-combat-and-whole-writes) — superseded in part by "2026-10-17 — A whole write carries only what its copy changed"
 - 2026-10-17 — [A re-anchor reads the party token's stored corner](DECISIONS-through-v11.14.5.md#2026-10-17--a-re-anchor-reads-the-party-tokens-stored-corner)
-- 2026-10-17 — [The ground under the party is read at the token's stored corner](DECISIONS-through-v11.14.5.md#2026-10-17--the-ground-under-the-party-is-read-at-the-tokens-stored-corner)
+- 2026-10-17 — [The ground under the party is read at the token's stored corner](DECISIONS-through-v11.14.5.md#2026-10-17--the-ground-under-the-party-is-read-at-the-tokens-stored-corner) — superseded in part by "2026-11-16 — A zone holds the party by core's footprint" (zones and districts; the street, the place and the scene stay on the centre read here)
 - 2026-10-17 — [A combat records whom it took over](DECISIONS-through-v11.14.5.md#2026-10-17--a-combat-records-whom-it-took-over) — superseded in part by "2026-10-26 — A fight no combat holds a body of is over"
 - 2026-10-17 — [A whole write carries only what its copy changed](DECISIONS-through-v11.14.5.md#2026-10-17--a-whole-write-carries-only-what-its-copy-changed)
 - 2026-10-17 — [A band in the content box takes no layout](DECISIONS-through-v11.14.5.md#2026-10-17--a-band-in-the-content-box-takes-no-layout)
@@ -355,3 +355,41 @@ append-only, keep them; they are marked superseded in part.
 **Rejected.** A Trapbreak-style dialog. The crossing as a turn-plan activity: `memberBlock` refuses after a move and in combat, and a move cancels the plan. A `PARTY_CHECKS` climb entry. Writing the whole flag per throw. Producing `.unless`, `progress` or `vulnerable` before its reader. Closing the crossing when the party moves. Reading Mountaineering as permitted before it is ruled: a holder of it alone is treated by the grid's column and the Judge may proceed. A row for a stack standing for several bodies, which has no single pair of hands. Putting a throw's imported words in the card's row tooltip: the card has one slot per card for it, so the words go in the note and the provenance on the note.
 
 **Cost.** The Dungeon tab gains a section. `formation-model.mjs` exports `encumbranceOf`, which a jump row reads for a member who carries nothing for the party. Nothing is published on `api.formation`. A world must hold the Rules tables import (the stretch, the Adventuring column, the outcomes) before a row reads a figure; until then the rows are blank with their page references and refuse every seat. A player cannot throw until the relay lands, and is told so.
+
+## 2026-11-16 — A zone holds the party by core's footprint
+
+**Ruled.** The owner, 2026-11-16: "Both should be fixed to using the foundry native regions instead of polygons with unreachable ack-extra code"; "Design principles, composition (extend) better than bespoke"; and of party membership, "Core's footprint". `findZone` (so `findDistrict`, `findEncounterZone` and `findTrapZone`) and the journey's `journeyZones` answer from `zonesUnder(token, type)`, which is core's `token.regions` (lib `regions.mjs` `regionsUnder`), in the scene's region order. A token stands in a zone when core says it does: its stored position, size and Level, tested at every cell of a token wider than one cell, not at its centre. A one-cell token tests its centre alone, so the party in the `order` shape reads as it did.
+
+**Supersedes in part** *The ground under the party is read at the token's stored corner* (2026-10-17), for zones and districts: its read of the centre from the stored corner stays for the street, the place and the scene (`partyPoint`); its rejection of "Width, height and elevation from `_source` as well" is reversed for zones, since core's membership reads them stored; and its Cost line that a drawn move which changes elevation is answered at the elevation it began at no longer holds for a zone. What the 2026-10-17 entry did not weigh is that core keeps membership itself: `token.regions` is worked out on the moving client before the write, from the destination (`_preUpdateOperation`, `testInsideRegion` reading `_source` and the change, its contract forbidding prepared values), and every client rebuilds it from the stored data (`_onUpdate`) before `updateToken` fires. A hook on the drawing client reads the destination's Regions, not the tween's, which is the property the 2026-10-17 entry needed.
+
+**Rejected.**
+- *Keeping the centre test and adding the token's size* (strong). It rebuilds core's lattice of test points, its 0.75 px tolerance, its Level and elevation rules in the module, which is the bespoke geometry the owner's rulings remove.
+- *Asking `token.testInsideRegion(region)` for each region at hook time* (moderate). It reads `_source` too and is immune to the lag below, but it recomputes what core already keeps and leaves two answers to "what zone is the party in", the sheet's and the movement hook's.
+- *Moving the street, the place and the scene to the footprint as well* (weak). They ask where a point is (a road, a place's reach, a note's marker), and a token's footprint is not a point; `partyPoint` stays the one reader of the centre.
+
+**Cost.**
+- For a token wider than one cell the zone and the district can name ground the centre is not over, so they can disagree with the street and the place beside them. The `fixed` token shape is where it shows; in `order` the token is one cell.
+- A Region made or reshaped under a standing token updates the token's membership in a write of its own a moment later, so a read in that instant answers the old membership.
+- Core's tolerance applies: a token whose test point lies within 0.75 px of a Region's edge is inside it. The Region's Levels apply, and its elevation range is read against the token's head.
+- The offline suites stand `token.regions` up with `tools/region-fixture.mjs` `standOnRegions`, which copies core's test-point lattice for a square grid, so the lattice is an assumption they cannot check. `tools/live/formation-regions.mjs` walks it, with TESTING "A move the GM's client is drawing" steps 7 to 9.
+
+## 2026-11-17 — The trap sweep measures to core's polygon tree
+
+The sweep's own outline edges and even-odd containment (`pointInsideEdges`,
+`regionEdges`) are gone (native-regions F3; the owner: "Both should be fixed
+to using the foundry native regions instead of polygons with unreachable
+ack-extra code"). lib `regions.mjs` `regionDistance(region, seg)` asks each end
+of the party's path of core's `polygonTree`: `testPoint` for standing on solid
+ground, else `findClosestPoint`. Core has no segment-to-tree distance, so a
+path that moved adds lib's `segmentDistance` from the walked stretch to every
+node of the same tree, holes included: the geometry is core's, the measure is
+lib's existing wall maths. The test is planar, `polygonTree.testPoint` and not
+`region.testPoint`, because the party's path carries no elevation or Level
+and the sweep never filtered on them.
+
+Rejected: ends only, which loses a zone the party walked past or through
+mid-path; `RegionDocument#segmentizeMovementPath`, which answers where a path
+enters and leaves, not how far it passes. *Cost:* a party standing in a hole
+of a trap zone is now outside it and measured to the hole's rim, so at a reach
+of 0 it no longer reaches that trap; a trap zone on another elevation stays in
+reach as before.

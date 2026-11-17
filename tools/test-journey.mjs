@@ -12,7 +12,7 @@
  * Run: node tools/test-journey.mjs   (also wired into `npm run validate`).
  */
 import assert from "node:assert/strict";
-import { mockRegion, rect } from "./region-fixture.mjs";
+import { mockRegion, rect, standOnRegions } from "./region-fixture.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry mock                                */
@@ -211,7 +211,7 @@ function makeScene(id, { kind = "hex", miles = TABLE_MILES, measure = true } = {
 
 /** A party token on a scene, standing at pixel (x, y). */
 function makeToken(scene, id, x = 0, y = 0) {
-  const token = { id, x, y, width: 1, height: 1, parent: scene, getFlag: () => undefined };
+  const token = standOnRegions({ id, x, y, width: 1, height: 1, parent: scene, getFlag: () => undefined });
   scene.tokens.set(id, token);
   return token;
 }
@@ -1000,6 +1000,24 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   scene.tokens.delete(shadow.id);
   const found = await observe(() => postEncounterThrow(getFormation(id)));
   assert.equal(found.cards[0].zone, null, "with no shadow the marker's own ground answers");
+}
+
+// A token stands in a zone by core's footprint, not its centre: a party token
+// three cells wide is in a zone that holds only its last cell, which the centre
+// is not over, and out of one that touches only its edge.
+{
+  const scene = makeScene("S.zone.wide", { kind: "square", miles: 7 });
+  const token = makeToken(scene, "t.zone.wide");
+  token.width = 3;
+  const id = makeFormation(scene, token);
+  // The token spans x 0..300; its centre is (150, 50), its cells' middles x 50, 150, 250.
+  makeZone(scene, "Annex", { x: 200, y: 0, width: CELL, height: CELL }, { encounterTarget: 1 });
+  makeZone(scene, "Sliver", { x: 280, y: 0, width: 20, height: CELL }, { encounterTarget: 1 });
+  const held = await observe(() => postEncounterThrow(getFormation(id)));
+  assert.equal(held.cards[0].zone, "Annex", "the zone over the last cell holds the token, and the sliver at its edge touches no cell's middle");
+  token.width = 1;
+  const narrow = await observe(() => postEncounterThrow(getFormation(id)));
+  assert.equal(narrow.cards[0].zone, null, "a one-cell token tests its centre alone, which neither zone holds");
 }
 
 // An entry cadence throws once on crossing in, and nothing per unit inside.

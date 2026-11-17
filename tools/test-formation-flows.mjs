@@ -8,6 +8,7 @@
  * Run: node tools/test-flows.mjs   (also wired into `npm run validate`).
  */
 import assert from "node:assert/strict";
+import { standOnRegions } from "./region-fixture.mjs";
 
 // One namespace now, not eight globals; stubs below hang off it.
 globalThis.acksExtras ??= {};
@@ -407,6 +408,8 @@ class TokenMock {
     this.light ??= { bright: 0, dim: 0 };
     this.x ??= 0;
     this.y ??= 0;
+    // Core's `token.regions`: the zones the stored footprint stands in.
+    standOnRegions(this);
   }
   get uuid() {
     return `Scene.${this.parent.id}.Token.${this.id}`;
@@ -2725,6 +2728,56 @@ await scenario("a hop to the place the party already stands on re-anchors where 
     await drain();
     assert.equal(result.moved, true, `the hop was made (${result.reason ?? "no refusal"})`);
     assert.deepEqual(onlyFormation().clock.lastPosition, hop, "the clock is re-anchored where the party stands");
+  } finally {
+    unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
+    await dismissDrawn(party);
+    game.actors.delete(inn.id);
+    game.scenes.delete(quarter.id);
+  }
+});
+
+await scenario("a hop is priced from the quarter the party's footprint stands in, as the party sheet names it", async () => {
+  // The party's end of the hop is `findDistrict` (core's `token.regions`), not
+  // the quarter under the token's centre. A two-cell party token has its first
+  // cell in quarter A and its centre, with its second cell, in quarter B; the
+  // place is in A. Read by footprint the hop is inside one quarter and is made
+  // free; read by centre it would run between two and be refused.
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { SETTLEMENT_DOC, SETTLEMENT_PACES } = await import("../scripts/formation/settlement.mjs");
+  const { DISTRICT_TYPE, districtAt, findDistrict } = await import("../scripts/formation/district-find.mjs");
+  const { LOCATION_TYPE } = await import("../scripts/location/constants.mjs");
+  const { travelToPlace } = await import("../scripts/formation/poi.mjs");
+  const { mockRegion, rect } = await import("./region-fixture.mjs");
+  const free = Object.fromEntries(Object.keys(SETTLEMENT_PACES).map((pace) => [pace, 0]));
+  registerTable(
+    { id: SETTLEMENT_DOC, source: "invented", tables: { districtTravel: { same: free } } },
+    { priority: PRIORITY.WORLD, source: "test" },
+  );
+  const quarter = new SceneMock("Footprint");
+  game.scenes.set(quarter.id, quarter);
+  const party = await drawnParty("Spanning", quarter);
+  const { id, partyToken } = party;
+  const inn = await ActorMock.create({ name: "Inn", type: LOCATION_TYPE });
+  try {
+    const gs = quarter.grid.size;
+    partyToken.width = 2;
+    const { x, y } = partyToken;
+    const behaviors = [{ type: DISTRICT_TYPE, disabled: false }];
+    const a = mockRegion({ id: "a", behaviors, rings: [rect(x - gs, y - gs, gs * 1.75, gs * 3)] });
+    const b = mockRegion({ id: "b", behaviors, rings: [rect(x + gs * 0.75, y - gs, gs * 2.25, gs * 3)] });
+    quarter.regions.set("a", a);
+    quarter.regions.set("b", b);
+    const [place] = await quarter.createEmbeddedDocuments("Token", [
+      { name: "Inn", actorId: inn.id, x: x - gs, y },
+    ]);
+    const centre = { x: x + gs, y: y + gs / 2 };
+    assert.equal(districtAt(quarter, centre)?.region, b, "the party's centre is in quarter B");
+    assert.equal(findDistrict(model.getFormation(id))?.region, a, "its footprint reaches quarter A first");
+
+    const result = await travelToPlace(id, place.id);
+    await drain();
+    assert.equal(result.moved, true, `the hop was made (${result.reason ?? "no refusal"})`);
+    assert.equal(result.relation, "same", "the party and the place are in one quarter");
   } finally {
     unregisterTable(SETTLEMENT_DOC, { priority: PRIORITY.WORLD });
     await dismissDrawn(party);

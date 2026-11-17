@@ -27,8 +27,8 @@ export function findDistrict(formation) {
  * to a point of interest is asked this way.
  * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
  */
-export function districtAt(scene, point, elevation = 0) {
-  return zoneAt(scene, point, elevation, DISTRICT_TYPE);
+export function districtAt(scene, point, elevation = 0, level) {
+  return zoneAt(scene, point, elevation, DISTRICT_TYPE, level);
 }
 
 /**

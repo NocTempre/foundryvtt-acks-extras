@@ -681,6 +681,99 @@ await t("the extracted placement leaves promoting an incident marker as it was",
   assert.equal(deleted, true, "the marker is gone");
 });
 
+/**
+ * Two quarters side by side on a scene (A over x 0-200, B over x 200-400), each
+ * the place it is filed as through the Region's own link flag, and the scene's
+ * place under both; the location api is the module's own readers.
+ */
+async function quartersWorld() {
+  const { mockRegion, rect } = await import("./region-fixture.mjs");
+  const { DISTRICT_TYPE } = await import("../scripts/formation/district-find.mjs");
+  const scenes_ = await import("../scripts/location/scene-link.mjs");
+  const { LOCATION_TYPE } = await import("../scripts/location/constants.mjs");
+  const { scene } = world();
+  const place = (id) => {
+    const actor = { id, type: LOCATION_TYPE, uuid: `Actor.${id}` };
+    actors.set(id, actor);
+    uuidMap.set(actor.uuid, actor);
+    return actor;
+  };
+  const city = place("qqCity");
+  scene.flags["acks-extras"] = { location: city.uuid };
+  const quarter = (id, x, placed) => {
+    const region = mockRegion({
+      id, uuid: `Scene.s1.Region.${id}`, rings: [rect(x, 0, 200, 400)],
+      behaviors: [{ type: DISTRICT_TYPE, disabled: false }],
+      getFlag: (ns, key) => (placed && ns === "acks-extras" && key === "location" ? placed.uuid : undefined),
+    });
+    uuidMap.set(region.uuid, region);
+    return region;
+  };
+  const quarterA = place("qqQuarterA");
+  const quarterB = place("qqQuarterB");
+  const a = quarter("qqA", 0, quarterA);
+  const b = quarter("qqB", 200, quarterB);
+  const bare = quarter("qqBare", 400, null);
+  scene.regions = [a, b, bare];
+  globalThis.acksExtras = { ...(globalThis.acksExtras ?? {}), location: { scenes: scenes_ } };
+  return { scene, a, b, bare, city, quarterA, quarterB };
+}
+
+const incidentAt = async (scene, x, regionUuid) => {
+  const { TRANSIENT_FLAG } = await import("../scripts/formation/poi-logic.mjs");
+  return {
+    x, y: 200, parent: scene, delete: async () => {},
+    flags: { "acks-extras": { [TRANSIENT_FLAG]: { text: "QQ incident", regionUuid } } },
+  };
+};
+const parentOfLast = () => made.actors.at(-1).system.parentUuid;
+
+await t("a marker dragged into another quarter before promotion is filed under that quarter", async () => {
+  const { promoteIncident } = await import("../scripts/formation/poi.mjs");
+  const w = await quartersWorld();
+  try {
+    // Dropped in A (stamped with it), dragged to x 300, which is B's ground.
+    await promoteIncident(await incidentAt(w.scene, 300, w.a.uuid), { name: "QQ Moved" });
+    assert.equal(parentOfLast(), w.quarterB.uuid, "filed under the quarter the marker stands in");
+    // Left where it was dropped: the same read gives A.
+    await promoteIncident(await incidentAt(w.scene, 100, w.a.uuid), { name: "QQ Stayed" });
+    assert.equal(parentOfLast(), w.quarterA.uuid, "a marker still in its quarter keeps it");
+  } finally {
+    delete globalThis.acksExtras.location;
+  }
+});
+
+await t("a stamp answers only while the marker stands in it, else the scene's place", async () => {
+  const { promoteIncident } = await import("../scripts/formation/poi.mjs");
+  const { mockRegion, rect } = await import("./region-fixture.mjs");
+  const w = await quartersWorld();
+  try {
+    // x 900 is under no Region and has left A: A is not where it is.
+    await promoteIncident(await incidentAt(w.scene, 900, w.a.uuid), { name: "QQ Off Map" });
+    assert.equal(parentOfLast(), w.city.uuid, "a quarter the marker left is not its filing");
+    // Dragged onto a quarter with no place linked, stamped A: still not A.
+    await promoteIncident(await incidentAt(w.scene, 500, w.a.uuid), { name: "QQ Bare Moved" });
+    assert.equal(parentOfLast(), w.city.uuid, "new ground with no place gives the scene's place");
+    // A stamped Region that is no district but still holds the marker answers.
+    const plain = mockRegion({
+      id: "qqPlain", uuid: "Scene.s1.Region.qqPlain", rings: [rect(600, 0, 200, 400)], behaviors: [], parent: w.scene,
+      getFlag: (ns, key) => (ns === "acks-extras" && key === "location" ? w.quarterA.uuid : undefined),
+    });
+    uuidMap.set(plain.uuid, plain);
+    w.scene.regions = [...w.scene.regions, plain];
+    await promoteIncident(await incidentAt(w.scene, 700, plain.uuid), { name: "QQ Stamped Holds" });
+    assert.equal(parentOfLast(), w.quarterA.uuid, "a stamp the marker still stands in");
+    // Under a quarter with no place linked, stamped with none: the scene's place.
+    await promoteIncident(await incidentAt(w.scene, 500, null), { name: "QQ Bare" });
+    assert.equal(parentOfLast(), w.city.uuid, "the scene's place");
+    // Under no quarter and stamped with none: the scene's place too.
+    await promoteIncident(await incidentAt(w.scene, 900, null), { name: "QQ Nowhere" });
+    assert.equal(parentOfLast(), w.city.uuid, "the scene's place");
+  } finally {
+    delete globalThis.acksExtras.location;
+  }
+});
+
 /* -------------------------------------------- */
 /*  Card buttons and the view                   */
 /* -------------------------------------------- */

@@ -1,6 +1,6 @@
 /* global foundry, CONFIG, game */
 import { MODULE_ID } from "./constants.mjs";
-import { findZone, regionArea, truePartyPoint, zonesAt } from "./zones.mjs";
+import { findZone, regionArea, truePartyPoint, zonesUnder } from "./zones.mjs";
 import { composeZones, sourceLayers } from "./zone-layers.mjs";
 
 /**
@@ -76,9 +76,9 @@ export function findEncounterZone(formation) {
 }
 
 /**
- * The encounter zones under a journeying party's TRUE position
- * (`truePartyPoint`), composed field by field, smallest zone first
- * (`composeZones`).
+ * The encounter zones under a journeying party's TRUE position (the footprint
+ * of the token `truePartyPoint` names), composed field by field, smallest zone
+ * first (`composeZones`).
  *
  * @returns {{fields: object, sources: object, layers: object[], regions: RegionDocument[]}}
  *   `fields` and `sources` are `composeZones`'s; each layer is `{area, fields,
@@ -89,7 +89,7 @@ export function findEncounterZone(formation) {
  */
 export function journeyZones(formation) {
   const at = truePartyPoint(formation);
-  const hits = at ? zonesAt(at.scene, at.point, at.elevation, ENCOUNTER_ZONE_TYPE) : [];
+  const hits = at ? zonesUnder(at.token, ENCOUNTER_ZONE_TYPE) : [];
   const layers = hits.map(({ region, behavior }) => ({ area: regionArea(region), fields: behavior.system ?? {}, region, behavior }));
   const composed = composeZones(layers);
   return { ...composed, layers, regions: sourceLayers(composed).map((layer) => layer.region) };
