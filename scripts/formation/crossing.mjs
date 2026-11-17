@@ -24,14 +24,15 @@
  * `members.<id>.jump.distance`. A jumper left hanging at the edge climbs up
  * through the climb rows' own throw (`climbUpRow`, `stepMember`). The Judge's
  * own landing save press (`landFor`) and footing pick (`reportLanding`) stand
- * beside it, as an override; neither writes the flag.
+ * beside it, as an override: the press writes nothing, and the pick, on a
+ * member who has attempted, writes the record's `jump.footing` and state.
  *
  * A member on an obstacle holds the conditions the Spelunking grid names for it
  * (`CROSSING_STATUSES`), as held conditions (`lib/held-condition.mjs`) whose
  * holder names this crossing and the status. A throw writes them after its record
  * lands, on the member's body (`carriersOf`), and they come off when the member is
  * across or fell, when the crossing ends, when the party drops the member, and as
- * strays when a crossing begins. A crossing spends no time on the clock and posts
+ * strays when a crossing begins; a jump, the climb up included, holds none. A crossing spends no time on the clock and posts
  * no damage: the card reports a fall's distance and dice and touches no hit
  * points. A player's client never writes or rolls: its press is relayed
  * (`player-requests.mjs`, kind `crossing`) and the GM client answers it with
@@ -47,8 +48,8 @@ import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
 import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallDie } from "./jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, HANGING, LANDING, SETTLED, STALLED, climbUpRow, crossingHeld, crossingOfHolder, fallFromClimb,
-  fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, climbUpRow, crossingHeld, crossingOfHolder, fallFromClimb,
+  fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, withFooting,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
@@ -626,6 +627,11 @@ function rolledTooltip(options, face) {
   return [loc("crossing.tip.face", { face }), ...parts, citeFor("jumping") ?? jumpingRef()].join(" · ");
 }
 
+/** The gap as a tooltip: the Judge's figure and the page. */
+function gapTooltip() {
+  return [loc("crossing.tip.judgeSet"), citeFor("jumping") ?? jumpingRef()].join(" · ");
+}
+
 /** The fall a failed jump reports, in the shape `fallTooltip` reads, or null where the jumper does not fall. */
 function jumpFall(result) {
   if (result?.footing !== "empty") return null;
@@ -639,14 +645,20 @@ function fallWords(fall, onCard) {
   return loc(key, { feet: fall.feet, damage: fall.damage ?? "" });
 }
 
-/** What an attempt left on the row: the rolled distance, the save, the slip and the footing. Null before an attempt. */
+/**
+ * What an attempt left on the row: the rolled distance, the save, the slip and
+ * the footing. Null before an attempt. The footing the record holds is read
+ * over the one the attempt reached, so a Judge's pick shows as made.
+ */
 function resultView(crossing, entry) {
   const jump = entry.record?.jump;
   if (!jump) return null;
-  const result = jumpResult({
+  const reached = jumpResult({
     gap: jump.gap, distance: jump.distance, save: jump.save ? { passed: jump.save.passed === true } : null, slip: jump.slip ?? null, depth: crossing.depth,
   });
-  if (!result) return null;
+  if (!reached) return null;
+  const overridden = FOOTINGS.includes(jump.footing) && jump.footing !== reached.footing;
+  const result = overridden ? withFooting(reached, jump.footing, crossing.depth) : reached;
   const fall = jumpFall(result);
   const cite = citeFor("jumping") ?? jumpingRef();
   const slipped = result.slip !== null;
@@ -664,12 +676,18 @@ function resultView(crossing, entry) {
       }
       : null,
     pending: entry.record.state === LANDING,
-    footing: !result.clears || slipped
+    footing: !result.clears || slipped || overridden
       ? {
-        text: loc(slipped ? "crossing.result.slip" : "crossing.result.shortBy", { feet: slipped ? result.slip : result.shortBy }),
+        text: result.clears && !slipped
+          ? loc("crossing.result.override")
+          : loc(slipped ? "crossing.result.slip" : "crossing.result.shortBy", { feet: slipped ? result.slip : result.shortBy }),
         outcome: result.outcome ? loc(`crossing.landing.outcome.${result.outcome}`) : "",
         footing: result.footing ? loc(`crossing.footing.${result.footing}`) : "",
-        tip: [loc("crossing.tip.footingParts", { distance: result.distance, gap: result.gap, slip: result.slip ?? 0 }), cite].join(" · "),
+        tip: [
+          loc("crossing.tip.footingParts", { distance: result.distance, gap: result.gap, slip: result.slip ?? 0 }),
+          ...(overridden ? [loc("crossing.tip.judgeSet")] : []),
+          cite,
+        ].join(" · "),
         fall: fall ? { text: fallWords(fall, false), tip: fallTooltip(fall) } : null,
       }
       : null,
@@ -891,9 +909,10 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
  * @param {Function} o.fallOf the fall a failed step reports, read only when the member fell
  * @param {object} [o.row] the row thrown; the entry's own by default
  * @param {string} [o.title] the card's title, in place of the obstacle's
+ * @param {boolean} [o.hold] hold the grid's conditions on a member still on the obstacle; false touches none
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string, fall?: object|null}>}
  */
-async function rollStretch(formation, crossing, seen, { record, fallOf, row = seen.row, title = "" }) {
+async function rollStretch(formation, crossing, seen, { record, fallOf, row = seen.row, title = "", hold = true }) {
   const actorId = seen.member.actorId;
   const roll = await new Roll("1d20").evaluate();
   const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
@@ -901,11 +920,13 @@ async function rollStretch(formation, crossing, seen, { record, fallOf, row = se
   const stepped = stepMember({ member: record, stretches: row.stretches, read, natural, total: roll.total });
   const fall = stepped.state === "fell" ? fallOf() : null;
   if (!(await writeMemberStep(formation, crossing.id, actorId, stepped))) return { ok: false, refused: "stale" };
-  const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
-  const bodies = carriersOf(seen.member);
-  await syncHeld(bodies, crossing.id, wanted);
-  // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
-  if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
+  if (hold) {
+    const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
+    const bodies = carriersOf(seen.member);
+    await syncHeld(bodies, crossing.id, wanted);
+    // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
+    if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
+  }
   const message = await postToJudges({
     content: throwCard({ crossing, entry: { ...seen, row }, plan: row.plan, read, roll, natural, stepped, fall, title }),
     speaker: { alias: formation.name },
@@ -1005,20 +1026,45 @@ export async function landFor(formation, actorId, { event = null } = {}) {
 /**
  * Report a failed landing on the footing the Judge picked, from a GM client:
  * `landingOutcome`'s answer on a card to the Judges. A fall's distance is the
- * setup's depth. The figures are reported and applied to nothing: no hit point,
- * condition or position changes, and the flag is not written.
+ * setup's depth. No hit point, condition or position changes. Where the member
+ * has made an attempt the pick is the Judge's override of its footing, and the
+ * record takes it: `jump.footing` and the state the footing implies, so the
+ * row, the climb up and the state follow it. A member with no attempt has no
+ * record, and the pick is reported alone.
  *
  * @param {object} formation
  * @param {string} actorId the member's actor id
  * @param {string} footing one of `FOOTINGS`
- * @returns {Promise<{ok: boolean, refused?: string, message?: object, outcome?: object}>}
- *   `refused` is `notGM`, `closed`, `notJump`, `member` or `footing`
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, outcome?: object, step?: string}>}
+ *   `refused` is `notGM`, `closed`, `notJump`, `member`, `footing`, `busy` or `stale`; `step` is the state
+ *   the record was written to, absent where nothing was written
  */
 export async function reportLanding(formation, actorId, footing) {
   const { crossing, seen, refused } = landingEntry(formation, actorId);
   if (refused) return { ok: false, refused };
   const outcome = landingOutcome({ footing, depth: crossing.depth });
   if (!outcome) return { ok: false, refused: "footing" };
+  const key = `${crossing.id}:${actorId}`;
+  if (inFlight.has(key)) return { ok: false, refused: "busy" };
+  inFlight.add(key);
+  try {
+    const record = crossing.members?.[actorId];
+    let step;
+    if (record?.jump) {
+      step = FOOTING_STATE[footing];
+      const written = await writeMemberStep(formation, crossing.id, actorId, {
+        state: step, covered: 0, throws: record.throws ?? 0, jump: { ...record.jump, footing },
+      });
+      if (!written) return { ok: false, refused: "stale" };
+    }
+    return { ...(await postLanding(formation, seen, outcome)), ...(step ? { step } : {}) };
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/** The card a reported landing posts to the Judges; the result of `reportLanding` less what it wrote. */
+async function postLanding(formation, seen, outcome) {
   const foot = [];
   if (outcome.shortBy) foot.push(loc("crossing.card.landingShort", { die: outcome.shortBy }));
   if (outcome.outcome === "fall") {
@@ -1061,8 +1107,9 @@ function jumpCard({ seen, result, face, save, over }) {
   const rows = [{
     name: actor.name,
     total: result.distance,
+    tooltipText: rolledTooltip(seen.options, face),
     target: result.gap,
-    targetTooltip: rolledTooltip(seen.options, face),
+    targetTooltip: gapTooltip(),
     detail: loc("crossing.card.jumpDetail", { face }),
     outcome: loc(result.clears ? "crossing.result.clears" : "crossing.result.short"),
     emphasis: result.clears ? "success" : "failure",
@@ -1160,6 +1207,7 @@ export async function jumpFor(formation, actorId, { step = "attempt", player = f
         row: seen.climb,
         title: loc("crossing.card.climbUp"),
         fallOf: () => fallFromDepth(crossing.depth),
+        hold: false,
       });
     }
     return await attemptJump(formation, crossing, seen, { event: saveEvent(event, player), over });

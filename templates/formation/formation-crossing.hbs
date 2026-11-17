@@ -91,7 +91,7 @@
   <ul class="acks-extras-crossing-rows">
     {{#if crossing.jump}}
     {{#each crossing.rows}}
-    <li class="acks-extras-crossing-row" data-verdict="{{this.verdict}}" data-state="{{this.state}}">
+    <li class="acks-extras-crossing-row" data-verdict="{{this.verdict}}" data-state="{{this.state}}" data-press-home="{{this.actorId}}" tabindex="-1">
       <span class="acks-extras-crossing-name">{{this.name}}{{#if this.holdsAcrobatics}} <span class="acks-extras-crossing-badge">{{localize "ACKS-FORMATION.crossing.holdsAcrobatics"}}</span>{{/if}}</span>
       {{#if this.attempt.can}}
       <button type="button" data-action="crossingAttempt" data-actor-id="{{this.actorId}}"

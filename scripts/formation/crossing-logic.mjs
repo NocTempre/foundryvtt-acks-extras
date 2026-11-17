@@ -368,6 +368,9 @@ export function landingRow(row, { precarious = false, charging = false, acrobati
 /** The footings a Judge picks after a failed landing, in the order a pick lists them. */
 export const FOOTINGS = Object.freeze(["solid", "edge", "empty"]);
 
+/** The state each footing leaves a jumper in: on solid ground across, on the edge hanging, over empty space fell. */
+export const FOOTING_STATE = Object.freeze({ solid: "across", edge: HANGING, empty: "fell" });
+
 /**
  * What a failed landing costs on the footing the Judge picked: `landingFailure`
  * whole, with the footing and the fall's distance beside it. A footing that is
@@ -481,9 +484,34 @@ export function jumpResult({ gap, distance, save = null, slip = null, depth = nu
     position,
     footing,
     outcome: failure.outcome,
-    state: footing === "solid" ? "across" : footing === "edge" ? HANGING : "fell",
+    state: FOOTING_STATE[footing],
     feet: failure.feet,
     damage: failure.damage,
     unknown: clears ? failure.unknown : failure.unknown.filter((key) => key !== "shortfallDie"),
+  };
+}
+
+/**
+ * A `jumpResult` with the footing a Judge picked in place of the one the
+ * attempt reached: the footing, what it costs and the state it implies, with
+ * the distance, the slip and the position left as rolled. A result that is no
+ * result, or a footing that is no footing, comes back unchanged.
+ *
+ * @param {object|null} result a `jumpResult` answer
+ * @param {string|null} footing one of `FOOTINGS`
+ * @param {number|string|null} [depth] the drop under a fall, in feet
+ * @returns {object|null}
+ */
+export function withFooting(result, footing, depth = null) {
+  const failure = landingOutcome({ footing, depth });
+  if (!result || !failure) return result;
+  return {
+    ...result,
+    footing,
+    outcome: failure.outcome,
+    state: FOOTING_STATE[footing],
+    feet: failure.feet,
+    damage: failure.damage,
+    unknown: failure.unknown.filter((key) => key !== "shortfallDie"),
   };
 }

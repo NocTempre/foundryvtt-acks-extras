@@ -12,8 +12,8 @@ import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/obstacles.mjs";
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
+  fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, withFooting,
 } from "../scripts/formation/crossing-logic.mjs";
 
 let passed = 0;
@@ -571,6 +571,23 @@ await ok("a failed landing slips back by the shortfall: past the edge is solid a
   assert.deepEqual([unrolled.state, unrolled.footing, unrolled.unknown], [LANDING, null, ["shortfallDie"]], "no slip, no footing: the Judge's pick is the route");
   assert.equal(jumpResult({ gap: 0, distance: 3 }), null);
   assert.equal(jumpResult({ gap: 15, distance: null }), null);
+});
+
+await ok("a footing the Judge picks replaces the one the attempt reached, with the state it implies, and the rolled figures stand", () => {
+  load({ jumping: { ...JUMPING, shortfallDie: "1d3" } });
+  assert.deepEqual({ ...FOOTING_STATE }, { solid: "across", edge: HANGING, empty: "fell" });
+  for (const footing of FOOTINGS) assert.equal(jumpResult({ gap: 15, distance: 18, save: { passed: false }, slip: footing === "solid" ? 2 : footing === "edge" ? 3 : 5, depth: 30 }).state, FOOTING_STATE[footing], `${footing} is the state jumpResult maps`);
+  const reached = jumpResult({ gap: 15, distance: 18, save: { passed: false }, slip: 3, depth: 30 });
+  const solid = withFooting(reached, "solid", 30);
+  assert.deepEqual([solid.footing, solid.outcome, solid.state, solid.feet, solid.damage], ["solid", "prone", "across", null, null]);
+  assert.deepEqual([solid.distance, solid.slip, solid.position, solid.gap], [reached.distance, reached.slip, reached.position, reached.gap], "what was rolled stands");
+  const empty = withFooting(reached, "empty", 30);
+  assert.deepEqual([empty.state, empty.feet, empty.damage], ["fell", 30, "2d8"]);
+  assert.deepEqual(withFooting(reached, "empty").unknown, ["depth"], "a blank depth reads unknown");
+  const clean = withFooting(jumpResult({ gap: 15, distance: 18 }), "edge", 30);
+  assert.deepEqual([clean.clears, clean.footing, clean.state], [true, "edge", HANGING], "a clean landing may be overridden too");
+  assert.equal(withFooting(reached, "lava", 30), reached, "no footing, no change");
+  assert.equal(withFooting(null, "solid"), null);
 });
 
 await ok("a jump row stops a jumper who is across or fell, and one hanging at the edge climbs up instead", () => {

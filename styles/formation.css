@@ -2197,6 +2197,26 @@
   color: var(--acks-ink-soft);
 }
 
+/* A jump's result: the rolled distance leads, the save and the footing follow;
+   each wraps inside the row's cells line, at the cells' own type size. A failed
+   save reads in the warning ink. */
+.acks-extras.party-sheet .acks-extras-crossing-result {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--acks-sp-2);
+  min-width: 0;
+}
+
+.acks-extras.party-sheet :is(.acks-extras-crossing-rolled, .acks-extras-crossing-save, .acks-extras-crossing-footing) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-save.is-failed {
+  color: var(--acks-warning-ink);
+}
+
 .acks-extras.party-sheet .acks-extras-crossing-block {
   font-size: var(--acks-fs-label);
   color: var(--acks-warning-ink);

@@ -2882,10 +2882,15 @@ Judges with the total. After a failed save the Judge picks a footing on the
 row (`FOOTINGS`) and `reportLanding` posts `landingOutcome` (`landingFailure`
 with the setup's depth as the fall's distance, which a fall over empty space
 without a depth names as unknown) on a card to the Judges. Both are the Judge's
-alone and neither writes the flag, a hit point or a condition; a player's row
+alone, and neither writes a hit point or a condition (the footing pick writes the jump record, below); a player's row
 reads that a save is asked for and has no press of its own. The landing save
 press stands until an attempt has been made on the row; the footing pick
-remains after it, as the Judge's override of the footing the attempt reached.
+remains after it, as the Judge's override of the footing the attempt reached:
+where the member has made an attempt the pick is written to the record
+(`jump.footing` and the state `FOOTING_STATE` gives it) and the row, its
+Climb up button and its state read it (`withFooting`); a pick on a member
+with no attempt has no record to write and is reported alone. A pick is
+refused as busy while a press for the member is in flight.
 
 **The jump attempt.** `jumpFor` (GM client) answers the Attempt press on a
 member of an open jump. Every check comes before the first die: the row read
@@ -2920,7 +2925,9 @@ press and finishes the save without rolling the die again. The row shows
 N ft" with the footing and what it costs, and the state, each with its working
 and the imported page as the tooltip. The card goes to the Judges, a row for
 the distance against the gap, a row for the save, a footnote for the slip, the
-footing and a fall's figures; hit points are untouched.
+footing and a fall's figures; hit points are untouched. On the card the
+distance's tooltip is the die's face, its parts and the page, and the gap's is
+the Judge's setting and the page.
 
 **The climb up.** A jumper left hanging has the climb up to make, in place of a
 second jump. `climbUpRow` is `memberRow` on `HANG_CLIMB` (one obstacle, held in
@@ -2931,7 +2938,9 @@ easy climb; `jumpFor`'s `climbUp` step throws it through the same
 make is across, a miss that holds on stalls (the jumper is still hanging and a
 Judge may rule another), and a fall is the setup's depth (`fallFromDepth`). A
 Judge is warned where the grid refuses the member and a player is blocked, as
-on any climb.
+on any climb. The climb up holds no condition: a jump applies nothing to a
+member's body, so `rollStretch` is told not to hold or release (`hold:
+false`), whatever the grid's Vulnerable row says of the sheer climb.
 
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the

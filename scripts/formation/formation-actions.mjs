@@ -1029,7 +1029,8 @@ export const SHARED_ACTIONS = {
 
   /**
    * A failed landing reported on the footing the row's pick names, with the
-   * figures it yields. The Judge's alone; nothing is applied.
+   * figures it yields. The Judge's alone; no hit point or condition is applied,
+   * and a member who has attempted the jump has the pick written to the record.
    */
   async crossingLandingFailed(_event, target) {
     const formation = gmFormation(this);
