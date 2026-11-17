@@ -163,6 +163,181 @@ The owner, whole: "A Yes, B No, C Yes, D Yes". Reading, per question:
 - **C yes:** B4 imports the gnosis tables now, before any engine reads them.
 - **D yes:** the BTA groundwork rides the minor held for spell effects.
 
+## 3c rulings (the BTA session's architect, 2026-11-17)
+
+Ruled against `topic/bta` at `a22907fe` and `topic/spell-effects` at
+`3ddddb6e`, with BTA ch. 5 and HFH's ceremonial chapter read from the shelf.
+Nothing here is a printed figure, a rule sentence or a proper name; tests use
+invented tables.
+
+**Reuse map.** lib provides the tables registry (`getTable`, `citeOf`,
+`bracketRow`, `bandDie`, the override layer), `abilityMod`,
+`renderRollCard`, `field-spec.mjs`, `openCoreWindow` and the loss hook;
+classes provides the ladder; the cast seam is R5. New: the ceremony engine,
+its two flags, and a table set per tradition kind.
+
+1. **Three outcomes, three steps** (BTA pp. 120-121). Inputs: the invocation
+   level (R3, capped by B2's `levelCap` rung); the invoker level (ruling 6's
+   `{value, parts}`); the pace; the implement set; the Wisdom modifier
+   (`abilityMod`); a situational part, marked as set by hand. Target: the grid
+   cell at that row, in the column whose header matches the invoker level,
+   never picked by position. Success: the total meets the target and the
+   natural roll is outside the pace's failure band; the cast goes ahead.
+   Failure: no rows run; one stigma mark. Botch (a natural roll in the band,
+   or ruling 8): a stigma mark and a damage mark on the set, then a mishap
+   throw with the same parts and target; only if it fails is the degree read
+   (`ceremonyDegree` at the invocation level, shifted by the pace's degree
+   rule). Below the lowest degree the set is lost and nothing is rolled;
+   otherwise the mishap die, read off the table's own faces, picks the row,
+   the degree the column, and the card shows the imported cell. Supersedes
+   the scoping file's "failure adds stigma and rolls the tier's mishap
+   table". Rejected: working a target out of the printed derivation when the
+   grid has no cell (B4 ruling 7). Counter (medium): most botches post two
+   throws.
+2. **The throw's parts are closed.** The talisman (pp. 120, 126) comes with
+   4a, one bonus counted through `resolveStacking`; the extemporaneous
+   penalty (p. 122) with 1b; the trinket-storing and substitute-component
+   penalties (p. 124) with 4a and research. The grid already counts the
+   abilities p. 120 gives every invoker the book prints: the gnosis set
+   declares `gridIncludes`, and the throw adds no part for them, p. 127's
+   bonus included. Counter (medium): a Judge-built gnosis class without those
+   abilities gets too easy a target (question 3c-E).
+3. **Values are imported; units and step order ship.** Imported through
+   `getTable("gnosis", …)`, Judge-editable through the Ruledata Browser's
+   override layer (an overridden figure's tooltip says so): the grid; each
+   pace's time, modifier, failure band and degree rule; the degree bands; the
+   mishap cells; the implement costs; and, new in C1, a `proseValues` table
+   `gnosisProse` (the corruption multipliers, pp. 122-123; the purification
+   times, p. 123). Shipped: a failure is one stigma mark and a botch one
+   damage mark (counts of events); the threshold comparison and step order;
+   pace keys `hasty|regular|methodical`, matched by the word in the pace
+   cell; the degree as an ordinal matching the mishap columns in print order;
+   Wisdom-score multiples as the corruption thresholds. One reader parses the
+   raw cells; an unparsable cell is null, never a guess; a missing cell stays
+   blank with its page. Counter (medium): the value rule's "however small"
+   could reach the two marks; importing them later costs one multiplication.
+4. **HFH shares the procedure, not the tables.** No importer reader for HFH
+   exists, and secrets p. 134 keeps gnostic and eldritch items apart.
+   `ceremony.mjs` takes a set per tradition kind (`CEREMONY_SETS.gnosis`: doc
+   id, table ids, `gridIncludes`); `ceremonial` registers its own once a
+   reader exists (a ROADMAP row).
+5. **Where state lives.** Actor:
+   `flags["acks-extras"].ceremony = {stigma: [{castId, at, cause}],
+   corruption: {points, wounds, log}}`; stigma is the entry count, at most
+   one per `castId`, so a replay writes nothing; it belongs to the invoker,
+   not a tradition (p. 123). Threshold: a new `casting.mjs` export,
+   `traditionCapAt(classItem, tradition, level)`, which `poolState` also
+   reads; null means no lockout, only a note. Item:
+   `flags["acks-extras"].ceremony = {implementLevel, damage}`, offered on the
+   imported row (`def.equip.gnosticImplements`) and on any item carrying the
+   flag; effective level is level less damage; the throw takes the highest
+   set high enough and names it on the card. Rejected: stigma in
+   `classes.pools` (`restPools` clears the whole flag, so a rest would
+   purify); a spent `RESOURCE_KINDS.stigma` pool; implements on 4a's
+   `magicItem` flag (gear, not magic items); one item per implement level.
+6. **Corruption** (pp. 122-123; secrets p. 133). Each invocation is authored
+   with `SpellExtras.corruption` (`none|creates|souls`); the multiplier is
+   imported; corruption is written on success only; each Wisdom-score
+   multiple crossed adds a wound due, up to the tradition's cap rung; the
+   card offers `openCoreWindow("mortalWounds", actor)`. Counter (medium): the
+   page ties the cap to the repertoire's highest invocation, and "performs"
+   may mean the attempt rather than the success.
+7. **Verdicts** go through `castVerdicts`' severity (a Player blocked, a
+   Judge warned): stigma at or over the threshold; no set high enough; the
+   pace not imported; a non-hasty pace in a started fight; a blank target
+   cell. A Judge past a blank target posts the roll and no rows run (owner
+   ruling B). Counter (medium): the Judge has no single-press way to apply an
+   outcome.
+8. **Disruption.** In a fight a hasty invocation is declared like a spell; a
+   gnosis declaration stamped lost is a botch (p. 121). R5's `lost` runs it
+   once on the primary GM, else when the caster reports, idempotent by
+   `castId`.
+9. **Purification** (p. 123). The strip's Purify press checks a set is held,
+   empties the ledger and names the imported rest and rite times; it writes
+   no time. Trinkets (4a) are named, not touched. Purification as a turn
+   activity is a ROADMAP row.
+10. **Sigils stay out of 3c**: a sigil granting its invocation is a
+    repertoire grant (ROADMAP 2). Counter (medium): this plan's 3c row named
+    sigils.
+11. **The R5 contract** (the spell-effects line builds it; nothing new in
+    `scripts/lib/`). A lane file `cast-procedure.mjs` holds
+    `registerCastProcedure(kind, procedure)`.
+    - (a) Every magic claimant consults it: `castSpellClaims` also claims a
+      flagged spell whose tradition has a procedure, rows or not (today it
+      turns rowless spells away); `castSummon`, asked first, runs the same
+      step, since `isSummonSpell` takes any spell with a summon row and two
+      invocations summon.
+    - (b) `fields(ctx)` returns field-spec specs rendered by
+      `apps/cast-dialog.mjs`; `verdicts(ctx, answer)` feeds `castVerdicts`.
+    - (c) `castingTime(ctx, answer)`, read by `cast-moment.mjs` for R4. The
+      one invocation level that prints its own casting time waits for R2;
+      the Judge's call until then.
+    - (d) `perform(ctx, answer)` runs in `cast-spell.mjs` and
+      `cast-summon.mjs` after `spend()` and before the rows, returning
+      `{proceed, section, rolls, undo}`; the card draws the section;
+      `proceed: false` runs no rows and writes no records.
+    - (e) `lost(ctx, declaration)`, called from `cast-declare.mjs`.
+    - `ctx` = `{actor, spell, tradition, classItem, invocationLevel,
+      casterLevel, isGM, moment, combat, source, roll, now}`; a trinket
+      `source` (4a) skips the procedure. Also needs R3 reading `levelCap`,
+      R4, and B2 landed.
+12. **Before R5 only the dependency half is built** (TOOLCHAIN §10e): C1-C4
+    add no hook and no surface, and a release carries them only with C5.
+
+### 3c slices (`topic/bta`; none starts before the minor ships)
+
+| Slice | Agent | Files | Accept | Mark |
+|---|---|---|---|---|
+| C1 prose figures | implementer | `table-recipes.mjs` `gnosis.gnosisProse` (shared: talk to the TT and importer-books sessions first), importer TESTING | invented prose reads each figure, blank on a miss; a local import reads all four with cites; walk: the Browser lists it | buildable without UI |
+| C2 engine | implementer | `scripts/magic/ceremony-tables.mjs`, `ceremony.mjs`, `tools/test-ceremony.mjs` | invented tables cover every path in ruling 1; pace cells in several wordings; dash and minus forms; negative targets; a blank cell gives null with its cite; an override is cited as the Judge's; mutation checks; Foundry-free | buildable without UI; needs 3c-A, 3c-E |
+| C3 state | implementer | `scripts/magic/ceremony-state.mjs`, `traditionCapAt` in `casting.mjs` (shared with the spell-effects line), tests | a replay writes nothing; purify empties the ledger; damage lowers the effective level; wounds stop at the cap; test-classes unchanged | buildable without UI |
+| C4 corruption kind | implementer | `spell-extras.mjs` (tell the spell-effects line), BTA invocation register rows, lint, full recompile | the only cookbook diff is the authored field | data buildable; Overview field needs /design |
+| C5 surfaces | implementer | `casting.mjs` strip, equipment item sheet, lang, styles | walk with `magic/gnosis-invoker` and `magic/gnosis-implements`: +/− refused on a Player seat; Purify; implement level | needs /design |
+| C6 procedure | implementer | `scripts/magic/ceremony-procedure.mjs`, lang, magic TESTING | walk on a Player seat: a failure adds stigma; a rigged botch shows the mishap; threshold and missing set block the Player and warn the Judge; a hurt hasty declaration botches | needs R5, /design, 3c-B, 3c-C |
+| C7 = B6 effect rows | implementer | register rows, `spell-recipe-rules.mjs` | this plan's row rulings | needs R5 (through C6), R1-R3 |
+| C8 docs | session; doc-scribe for fragments | magic MODEL "Ceremony", DECISIONS, ROADMAP rows (HFH set, mishap execution, a performing-time record, purification as an activity, sigils), fragments | nothing stated twice | with C5 and C6 |
+
+### 3c surfaces awaiting /design
+
+- **D1 cast dialog:** a pace choice from the imported rows (tooltip: time,
+  modifier, band, cite) and a situational modifier.
+- **D2 cast card:** the throw section — target and parts, natural roll,
+  total, outcome; damage mark; mishap throw, degree, face and imported result
+  with cite; stigma as n/threshold; corruption with a wound line and an Open
+  Mortal Wounds press; the Judge's Undo.
+- **D3 casting strip:** stigma chip, Judge-only +/−, Purify.
+- **D4:** the Purify confirm dialog.
+- **D5 casting strip:** corruption chip, Judge-only +/−.
+- **D6 equipment item sheet:** implement level select (cost row in its
+  tooltip); damage with a Judge-only reset.
+- **D7 spell sheet Overview:** corruption kind select.
+- **D8:** ruling 7's warning and block notices.
+
+### 3c owner questions
+
+- **3c-A.** Is every automatic failure p. 120 lists a botch? *Recommended:
+  yes;* p. 121 groups being hurt with a natural roll.
+- **3c-B.** A regular or methodical invocation outside a fight: throw at
+  confirm, the card names the time, the Judge moves the clock and applies any
+  disruption? *Recommended: yes;* a record held for the performing time is a
+  ROADMAP row.
+- **3c-C.** Do mishap results run automatically? *Recommended: no;* the card
+  shows the imported result and the Judge applies it.
+- **3c-D.** No repair is printed for a damaged set: is the Judge's reset the
+  only way back? *Recommended: yes.*
+- **3c-E.** A Judge-built gnosis class uses the grid as printed, the tooltip
+  naming what the grid already counts? *Recommended: yes.*
+
+### 3c risks
+
+- R5 without (a) or (e): the throw is unreachable, or a lost declaration's
+  botch is never written.
+- A misparsed cell blocks every cast.
+- `table-recipes.mjs`, `spell-extras.mjs` and `casting.mjs` are shared.
+- The two marks need the IP reviewer.
+- `levelCap` shares its name with `levelCap()` in `classes/level-cap.mjs`.
+- Without C5 the stigma ledger has no Judge tool.
+
 ## Results
 
 ### Results, 2026-11-17
