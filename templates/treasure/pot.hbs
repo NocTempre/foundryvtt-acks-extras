@@ -1,0 +1,129 @@
+<section class="acks-extras-treasure__root">
+
+  <header class="acks-extras-treasure__bar">
+    <div class="acks-extras-treasure__total">
+      <span class="acks-extras-caption">{{#if staging}}{{localize "ACKS-TREASURE.bar.potValue"}}{{else}}{{localize "ACKS-TREASURE.bar.haul"}}{{/if}}</span>
+      <span class="acks-extras-treasure__figure" data-tooltip-text="{{totalTip}}">{{totalText}}</span>
+    </div>
+    <span class="acks-extras-treasure__turned">{{turnedText}}</span>
+    <ul class="acks-extras-treasure__legend" aria-label="{{localize 'ACKS-TREASURE.bar.bands'}}">
+      {{#each bands}}
+        <li class="acks-extras-treasure__legend-item"><span class="acks-extras-treasure__swatch is-band-{{rank}}" aria-hidden="true"></span>{{name}}</li>
+      {{/each}}
+    </ul>
+    {{#if isGM}}
+      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="closePot">{{localize "ACKS-TREASURE.judge.close"}}</button>
+    {{/if}}
+  </header>
+
+  <div class="acks-extras-treasure__layout">
+
+    {{#if staging}}
+      <aside class="acks-extras-treasure__side">
+        <div class="acks-extras-treasure__field">
+          <span class="acks-extras-caption">{{localize "ACKS-TREASURE.judge.source"}}</span>
+          <span class="acks-extras-treasure__static">{{localize "ACKS-TREASURE.judge.byHand"}}</span>
+          <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.judge.byHandHint"}}</span>
+        </div>
+        <div class="acks-extras-treasure__field" role="group" aria-labelledby="{{@root.partId}}-mode">
+          <span class="acks-extras-caption" id="{{@root.partId}}-mode">{{localize "ACKS-TREASURE.judge.mode"}}</span>
+          <div class="acks-btn-group">
+            <button type="button" class="acks-btn acks-btn--sm {{#unless modeJudge}}acks-btn--secondary{{/unless}}" data-action="setMode" data-mode="judge" aria-pressed="{{modeJudge}}">{{localize "ACKS-TREASURE.judge.modeJudge"}}</button>
+            <button type="button" class="acks-btn acks-btn--sm {{#if modeJudge}}acks-btn--secondary{{/if}}" data-action="setMode" data-mode="table" aria-pressed="{{modeTable}}">{{localize "ACKS-TREASURE.judge.modeTable"}}</button>
+          </div>
+          <span class="acks-extras-treasure__hint">{{modeHint}}</span>
+        </div>
+        <button type="button" class="acks-btn acks-btn--secondary" data-action="addValue">{{localize "ACKS-TREASURE.judge.addValue"}}</button>
+        <button type="button" class="acks-btn acks-btn--lg" data-action="openTable">{{localize "ACKS-TREASURE.judge.open"}}</button>
+      </aside>
+    {{/if}}
+
+    <main class="acks-extras-treasure__main">
+
+      <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
+        {{#each cards}}
+          {{#if ../isGM}}
+            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}">
+              <div class="acks-extras-treasure-card__tag">
+                <span>{{tag}}</span>
+                {{#if seed}}<span class="acks-extras-treasure-card__seed">{{localize "ACKS-TREASURE.card.seed"}}</span>{{/if}}
+                <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
+              </div>
+              <div class="acks-extras-treasure-card__body">
+                <span class="acks-extras-treasure-card__name">{{name}}</span>
+                {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
+                {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.leaks"}}</span>{{/if}}
+                <span class="acks-extras-treasure-card__note">{{worthText}}</span>
+                <span class="acks-extras-treasure-card__note">{{weightText}}</span>
+                <span class="acks-extras-treasure-card__note">{{stateText}}</span>
+              </div>
+              <div class="acks-extras-treasure-card__foot">
+                {{#if claimed}}
+                  <span class="acks-extras-treasure-card__by">{{localize "ACKS-TREASURE.card.to" name=claimedByName}}</span>
+                {{else}}
+                  {{#if canFlip}}<button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="flip" data-card-id="{{id}}" aria-label="{{backLabel}}">{{localize "ACKS-TREASURE.card.turn"}}</button>{{/if}}
+                  {{#if canTake}}<button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="take" data-card-id="{{id}}">{{localize "ACKS-TREASURE.card.take"}}</button>{{/if}}
+                  {{#if ../staging}}<button type="button" class="acks-btn acks-btn--sm acks-btn--quiet" data-action="removeCard" data-card-id="{{id}}" aria-label="{{removeLabel}}">{{localize "ACKS-TREASURE.card.remove"}}</button>{{/if}}
+                {{/if}}
+              </div>
+            </li>
+          {{else}}
+            <li class="acks-extras-treasure__slot" data-card-id="{{id}}">
+              {{#if down}}
+                <button type="button" class="acks-extras-treasure-back is-band-{{band}}" data-action="flip" data-card-id="{{id}}" aria-label="{{backLabel}}" data-tooltip-text="{{tip}}">
+                  <img class="acks-extras-treasure-back__icon" src="{{backIcon}}" alt="">
+                  <span class="acks-extras-treasure-back__pool">{{tag}}</span>
+                  <span class="acks-extras-treasure-back__pips" aria-hidden="true">{{bandPips}}</span>
+                </button>
+              {{else}}
+                <div class="acks-extras-treasure-card{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}">
+                  <div class="acks-extras-treasure-card__tag">
+                    <span>{{tag}}</span>
+                    <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
+                  </div>
+                  <div class="acks-extras-treasure-card__body">
+                    <span class="acks-extras-treasure-card__name">{{name}}</span>
+                    <span class="acks-extras-treasure-card__note">{{worthText}}</span>
+                    <span class="acks-extras-treasure-card__note">{{weightText}}</span>
+                    {{#if aura}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-TREASURE.card.aura"}}</span>{{/if}}
+                  </div>
+                  <div class="acks-extras-treasure-card__foot">
+                    {{#if claimed}}
+                      <span class="acks-extras-treasure-card__by">{{localize "ACKS-TREASURE.card.to" name=claimedByName}}</span>
+                    {{else if canTake}}
+                      <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="take" data-card-id="{{id}}">{{localize "ACKS-TREASURE.card.take"}}</button>
+                    {{/if}}
+                  </div>
+                </div>
+              {{/if}}
+            </li>
+          {{/if}}
+        {{else}}
+          <li class="acks-extras-treasure__empty">{{#if staging}}{{localize "ACKS-TREASURE.judge.emptyPot"}}{{else}}{{localize "ACKS-TREASURE.card.none"}}{{/if}}</li>
+        {{/each}}
+      </ol>
+
+      {{#if staging}}
+        <div class="acks-extras-treasure__buckets">
+          {{#each buckets}}
+            <section class="acks-extras-treasure__bucket" data-accept-drop="{{key}}" aria-labelledby="{{@root.partId}}-bucket-{{key}}">
+              <h3 class="acks-extras-treasure__bucket-title" id="{{@root.partId}}-bucket-{{key}}">{{title}}</h3>
+              <span class="acks-extras-treasure__hint">{{hint}}</span>
+              <ul class="acks-extras-treasure__bucket-list">
+                {{#each rows}}
+                  <li class="acks-extras-treasure__bucket-row">
+                    <span class="acks-extras-treasure__bucket-name">{{name}}</span>
+                    <span class="acks-extras-treasure__bucket-worth">{{worthText}}</span>
+                    <button type="button" class="acks-btn acks-btn--sm acks-btn--quiet" data-action="removeCard" data-card-id="{{id}}" aria-label="{{removeLabel}}">{{localize "ACKS-TREASURE.card.remove"}}</button>
+                  </li>
+                {{/each}}
+              </ul>
+              <span class="acks-extras-treasure__hint">{{drop}}</span>
+            </section>
+          {{/each}}
+        </div>
+      {{/if}}
+
+    </main>
+  </div>
+</section>

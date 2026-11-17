@@ -1,0 +1,456 @@
+/* Treasure: the pot's window, the doorway card and the closing record.
+   Colour, type and line work read the ACKS design tokens bare. Type is a
+   ramp step or an em off a parent that rides one, never a px or a rem.
+   The window scrolls at its part root (`scrollable: [""]`), the grid and the
+   panels reflow, and nothing here sets a width a narrow window cannot shrink. */
+
+.acks-extras-treasure {
+  --acks-extras-treasure-band-0: var(--acks-burgundy-mid);
+  --acks-extras-treasure-band-1: var(--acks-ink-soft);
+  --acks-extras-treasure-band-2: var(--acks-warning-ink);
+  --acks-extras-treasure-band-3: var(--acks-burgundy-deep);
+}
+
+/* Core pins a font-size on the content and on the header; both are re-taken so the type knob reaches the sheet. */
+.acks-extras-treasure .window-content,
+.acks-extras-treasure .window-header {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-treasure .is-band-0 { --band: var(--acks-extras-treasure-band-0); }
+.acks-extras-treasure .is-band-1 { --band: var(--acks-extras-treasure-band-1); }
+.acks-extras-treasure .is-band-2 { --band: var(--acks-extras-treasure-band-2); }
+.acks-extras-treasure .is-band-3 { --band: var(--acks-extras-treasure-band-3); }
+
+/* The part root: the one scroller, shrinking inside the frame. */
+.acks-extras-treasure .acks-extras-treasure__root {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--acks-font-ui);
+  color: var(--acks-ink);
+  background: var(--acks-paper);
+}
+
+/* --- The bar: the haul, the count, the band legend, Close -------------------- */
+.acks-extras-treasure .acks-extras-treasure__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--acks-sp-4) var(--acks-sp-7);
+  padding: var(--acks-sp-5) var(--acks-sp-6) var(--acks-sp-4);
+  border-bottom: var(--acks-rule-heavy) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__total {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras-treasure .acks-extras-treasure__figure {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h2);
+  line-height: 1;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-extras-treasure .acks-extras-treasure__turned {
+  color: var(--acks-ink-soft);
+  padding-bottom: var(--acks-sp-2);
+  margin-inline-end: auto;
+}
+
+.acks-extras-treasure .acks-extras-treasure__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-4) var(--acks-sp-5);
+  list-style: none;
+  margin: 0;
+  padding: 0 0 var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__swatch {
+  display: inline-block;
+  flex: none;
+  width: 0.9em;
+  height: 0.9em;
+  background: var(--band);
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+}
+
+/* --- Layout: a side panel and the pot; the panel drops below when narrow ----- */
+.acks-extras-treasure .acks-extras-treasure__layout {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  align-items: stretch;
+  flex: 1 1 auto;
+}
+
+.acks-extras-treasure .acks-extras-treasure__side {
+  flex: 1 1 14em;
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-6);
+  padding: var(--acks-sp-6);
+  border-inline-end: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__main {
+  flex: 4 1 22em;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.acks-extras-treasure .acks-extras-treasure__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-treasure .acks-extras-treasure__static {
+  font-family: var(--acks-font-body);
+}
+
+.acks-extras-treasure .acks-extras-treasure__hint {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+/* --- The grid of cards -------------------------------------------------------- */
+.acks-extras-treasure .acks-extras-treasure__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5em, 1fr));
+  gap: var(--acks-sp-5);
+  align-content: start;
+  list-style: none;
+  margin: 0;
+  padding: var(--acks-sp-6);
+  background: var(--acks-tint);
+  min-height: 8em;
+}
+
+.acks-extras-treasure .acks-extras-treasure__empty {
+  grid-column: 1 / -1;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .acks-extras-treasure__slot {
+  display: flex;
+  min-width: 0;
+}
+
+/* A face-down card: the pool's icon on the band's colour. */
+.acks-extras-treasure .acks-extras-treasure-back {
+  flex: 1 1 auto;
+  min-height: 10em;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--acks-sp-5);
+  padding: 0;
+  margin: 0;
+  border-radius: 0;
+  cursor: pointer;
+  background: var(--band);
+  color: var(--acks-on-burgundy);
+  border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
+  outline: 3px double color-mix(in srgb, var(--acks-on-burgundy) 75%, transparent);
+  outline-offset: -0.45em;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+}
+
+.acks-extras-treasure .acks-extras-treasure-back:hover {
+  outline-color: var(--acks-on-burgundy);
+}
+
+.acks-extras-treasure .acks-extras-treasure-back:focus-visible,
+.acks-extras-treasure .acks-extras-treasure-card:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+  outline: none;
+}
+
+/* The icons are dark shapes; the back shows them white on the colour. */
+.acks-extras-treasure .acks-extras-treasure-back__icon {
+  width: 2.6em;
+  height: 2.6em;
+  border: 0;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.acks-extras-treasure .acks-extras-treasure-back__pips {
+  font-size: var(--acks-fs-fine);
+  letter-spacing: 0.1em;
+}
+
+/* A face-up card, and the Judge's card, which wears its truth. */
+.acks-extras-treasure .acks-extras-treasure-card {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--acks-paper);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-claimed {
+  opacity: 0.6;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-aura {
+  border-inline-start: 0.3em solid var(--acks-gold);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__tag {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-2) var(--acks-sp-4);
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__tag .acks-extras-treasure__swatch {
+  margin-inline-start: auto;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__seed {
+  font-size: var(--acks-fs-fine);
+  border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
+  padding: 0 var(--acks-sp-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__name {
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-quote);
+  line-height: var(--acks-lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__note {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__warn {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border-top: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card__by {
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-label);
+}
+
+/* A turned card changes colour and brightness; nothing turns in space. */
+@keyframes acks-extras-treasure-swap {
+  from { filter: brightness(0.2); }
+  to { filter: none; }
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-turning {
+  animation: acks-extras-treasure-swap var(--acks-duration) var(--acks-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .acks-extras-treasure .acks-extras-treasure-card.is-turning {
+    animation: none;
+  }
+}
+
+/* --- The seed buckets --------------------------------------------------------- */
+.acks-extras-treasure .acks-extras-treasure__buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14em, 1fr));
+  gap: var(--acks-sp-6);
+  padding: var(--acks-sp-6);
+  border-top: var(--acks-rule) solid var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  min-height: 9em;
+  padding: var(--acks-sp-5);
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket-title {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-spot);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket-row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  background: var(--acks-paper);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-treasure .acks-extras-treasure__bucket-worth {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-treasure .is-dropping {
+  background: var(--acks-tint);
+}
+
+/* --- The doorway card ---------------------------------------------------------- */
+.acks-extras-treasure-door {
+  display: flex;
+  flex-direction: column;
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  padding: var(--acks-sp-4) var(--acks-sp-5);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__title {
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  font-size: var(--acks-fs-banner);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__name {
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-on-burgundy-soft);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-5);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__pips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__pip {
+  width: 1.6em;
+  height: 2.3em;
+  background: var(--acks-burgundy-deep);
+  outline: 3px double var(--acks-on-burgundy);
+  outline-offset: -0.3em;
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__pip.is-up {
+  background: var(--acks-paper);
+  outline: 0;
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+}
+
+.acks-extras-treasure-door .acks-extras-treasure-door__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* --- The closing record -------------------------------------------------------- */
+.acks-extras-treasure-record {
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  padding: var(--acks-sp-5);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-treasure-record h3 {
+  margin: 0 0 var(--acks-sp-3);
+  font-family: var(--acks-font-banner);
+  letter-spacing: var(--acks-tracking-banner);
+  text-transform: uppercase;
+  font-size: var(--acks-fs-banner);
+}
+
+.acks-extras-treasure-record ul {
+  margin: 0;
+  padding-inline-start: 1.2em;
+}
+
+/* --- The dialogs --------------------------------------------------------------- */
+.acks-extras-treasure-dialog label {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-4);
+}

@@ -39,6 +39,8 @@
  *   markets    after location — it consumes lib registries, equipment's gear
  *              grant, henchmen's coin adapter/time/market-class rules, and
  *              location's market subtree; nothing consumes it.
+ *   treasure   after markets — its claims build the item the markets disguise,
+ *              and deliver through lib bundles and money; nothing imports it.
  *   monsters   near-last — no hooks depend on it, but battlemap reads its pure
  *              size-frontage reader (`sizes.mjs`), so it registers first of
  *              the two.
@@ -71,6 +73,7 @@ import "./location/module.mjs";
 import "./factions/module.mjs";
 import "./domains/module.mjs";
 import "./markets/module.mjs";
+import "./treasure/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";
 import "./vehicles/module.mjs";

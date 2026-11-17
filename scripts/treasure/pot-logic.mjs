@@ -1,0 +1,371 @@
+/**
+ * A pot's rules on plain data, Foundry-free. A pot is one core `pile` Cards
+ * document; its flag (`normalizePot`) says where it is in its life and which
+ * cards are in it, and each Card's flag (`normalizeTruth`) holds what the card
+ * truly is. Everything the window shows, and every act the relay allows, is
+ * decided here from a `PotView`: `{id, pot, cards: [{id, face, value, truth}]}`.
+ *
+ * `pot.order` is the authority on what is in the pot. Core lets any user create
+ * a Card in a pile, so a Card whose id is not in `order` is never shown and
+ * never acted on (`cardInPot`). The same holds for the seed buckets, which are
+ * listed in `pot.buckets` and kept out of `order` until the pot opens.
+ *
+ * Hiding is display-level: every seat can read a Card's flag, so what a seat is
+ * SHOWN is chosen here (`cardView`) and is never a security boundary.
+ */
+import { BAND_COUNT, BUCKET, CARD_FLAG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, REFUSAL } from "./constants.mjs";
+
+const refuse = (reason) => ({ ok: false, reason });
+const ids = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string" && x) : []);
+const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
+
+/** A pot's flag with every key present and every id list clean. */
+export function normalizePot(flag) {
+  const f = flag && typeof flag === "object" ? flag : {};
+  return {
+    phase: Object.values(PHASE).includes(f.phase) ? f.phase : PHASE.staging,
+    mode: f.mode === MODE.table ? MODE.table : MODE.judge,
+    flippers: Array.isArray(f.flippers) ? ids(f.flippers) : null,
+    audience: ids(f.audience),
+    partyId: typeof f.partyId === "string" ? f.partyId : null,
+    origin: f.origin ?? null,
+    deal: { toggles: { ...(f.deal?.toggles ?? {}) } },
+    order: ids(f.order),
+    buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },
+    messageId: typeof f.messageId === "string" ? f.messageId : null,
+  };
+}
+
+/** A Card's truth flag with every key present. */
+export function normalizeTruth(flag) {
+  const f = flag && typeof flag === "object" ? flag : {};
+  const coin = f.coin && typeof f.coin === "object"
+    ? { name: String(f.coin.name ?? ""), cv: num(f.coin.cv, 1), count: Math.max(0, Math.floor(num(f.coin.count))) }
+    : null;
+  const mask = f.mask && typeof f.mask === "object" ? { ...f.mask } : null;
+  return {
+    source: { uuid: f.source?.uuid ?? null, data: f.source?.data ?? null },
+    pool: Object.values(POOL).includes(f.pool) ? f.pool : POOL.item,
+    label: String(f.label ?? ""),
+    coin,
+    valueGp: f.valueGp == null ? null : num(f.valueGp),
+    weight6: Math.max(0, num(f.weight6)),
+    mask,
+    magical: !!f.magical,
+    detected: f.detected !== false,
+    identified: f.identified === "partial" || f.identified === "full" ? f.identified : "none",
+    bucket: f.bucket === BUCKET.add || f.bucket === BUCKET.replace ? f.bucket : null,
+    claimedBy: f.claimedBy && typeof f.claimedBy === "object" ? { ...f.claimedBy } : null,
+  };
+}
+
+const isUp = (card) => card?.face !== null && card?.face !== undefined;
+
+/** The card with this id, only if the pot's `order` lists it. */
+export function cardInPot(view, cardId) {
+  if (!view || typeof cardId !== "string" || !view.pot.order.includes(cardId)) return null;
+  return view.cards.find((c) => c.id === cardId) ?? null;
+}
+
+/** The pot's cards in `order`, skipping an id no Card answers. */
+export function potCards(view) {
+  return (view?.pot.order ?? []).map((id) => view.cards.find((c) => c.id === id)).filter(Boolean);
+}
+
+/** The cards of one bucket, in the order the Judge dropped them, skipping an id no Card answers. */
+export function bucketCards(view, bucket) {
+  return (view?.pot.buckets[bucket] ?? []).map((id) => view.cards.find((c) => c.id === id)).filter(Boolean);
+}
+
+/**
+ * The pool a seat is shown. A Judge reads the truth. A player is told `magic`
+ * only once the card's magic is identified past `none`; until then it is an
+ * item, whether or not anyone has detected it.
+ */
+export function shownPool(truth, { isGM = false } = {}) {
+  if (isGM || truth.pool !== POOL.magic) return truth.pool;
+  return truth.identified === "none" ? POOL.item : POOL.magic;
+}
+
+/** The name a seat that has turned the card reads: the mask's, else the card's own. */
+export const apparentName = (truth) => truth.mask?.name || truth.label;
+
+/** The picture a seat that has turned the card sees: the mask's, else the item's, else its pool's. */
+export const apparentImg = (truth) =>
+  truth.mask?.img || truth.source?.data?.img || POOL_BACK_ICON[shownPool(truth)] || POOL_BACK_ICON.item;
+
+/** A card's worth in gp where it states one (coin by its count and rate, or a value card), else null. */
+export function worthOf(truth) {
+  if (truth.coin) return (truth.coin.count * truth.coin.cv) / 100;
+  if (truth.valueGp != null) return truth.valueGp;
+  return null;
+}
+
+/**
+ * The band a new card is written with. Every card is band 0 until the bands
+ * are computed; the computation replaces this one function.
+ * @param {object} _truth
+ * @param {object} _pot
+ */
+export const bandOf = (_truth, _pot) => 0;
+
+/** A band clamped into the ranks that exist. */
+export const clampBand = (v) => Math.min(BAND_COUNT - 1, Math.max(0, Math.floor(num(v))));
+
+/**
+ * The data of a new Card for a truth. The card is face down: no faces, no
+ * `face`. Its `suit` and back name the pool a seat is shown, so a core sheet
+ * reading the Card tells a player nothing the window would not.
+ * @param {object} truth a normalized truth
+ * @param {{band?: number, poolLabel: (pool: string) => string}} opts
+ */
+export function buildCard(truth, { band = 0, poolLabel }) {
+  const shown = shownPool(truth);
+  const label = poolLabel(shown);
+  return {
+    name: label,
+    type: "base",
+    suit: shown,
+    value: clampBand(band),
+    back: { name: label, text: "", img: POOL_BACK_ICON[shown] ?? POOL_BACK_ICON.item },
+    faces: [],
+    face: null,
+    flags: { [MODULE_ID]: { [CARD_FLAG]: truth } },
+  };
+}
+
+/**
+ * The one update that turns a card: its apparent face and `face: 0` together,
+ * so no sheet reading the Card shows a face before it is turned.
+ */
+export function flipUpdate(cardId, truth) {
+  return { _id: cardId, faces: [{ name: apparentName(truth), text: "", img: apparentImg(truth) }], face: 0 };
+}
+
+/**
+ * What one seat is shown of one card. A player's view carries no name, weight
+ * or worth until the card is turned, never says `magic` of a card whose magic
+ * is not identified, and shows an aura only on a turned card whose magic has
+ * been detected. A Judge's view carries the truth, a Seed mark, and a warning
+ * where an undetected magic card has no mask to hide its name behind.
+ * @param {{id: string, face: number|null, value: number, truth: object}} card
+ * @param {{isGM?: boolean}} [seat]
+ */
+export function cardView(card, { isGM = false } = {}) {
+  const { truth } = card;
+  const up = isUp(card);
+  const shows = isGM || up;
+  return {
+    id: card.id,
+    up,
+    down: !up,
+    poolKey: shownPool(truth, { isGM }),
+    backKey: shownPool(truth),
+    band: clampBand(card.value),
+    name: !shows ? "" : isGM ? truth.label : apparentName(truth),
+    maskName: isGM && truth.mask?.name ? truth.mask.name : "",
+    img: shows ? (isGM ? truth.source?.data?.img || apparentImg(truth) : apparentImg(truth)) : "",
+    worthGp: shows ? worthOf(truth) : null,
+    weight6: shows ? truth.weight6 : null,
+    aura: isGM ? truth.magical : up && truth.magical && truth.detected,
+    seed: isGM && !!truth.bucket,
+    leaks: isGM && truth.magical && !truth.detected && !truth.mask?.name,
+    claimed: !!truth.claimedBy,
+    claimedByName: truth.claimedBy?.actorName ?? truth.claimedBy?.placeName ?? "",
+  };
+}
+
+/**
+ * The total worth of the views' cards that state one, with each pool's part.
+ * `all` counts face-down cards too (the Judge's pot value); otherwise only the
+ * turned ones (the haul so far). A card that states no worth adds nothing.
+ * @param {object[]} views `cardView` results
+ * @returns {{totalGp: number, parts: Array<{poolKey: string, gp: number}>}}
+ */
+export function haulOf(views, { all = false } = {}) {
+  const byPool = new Map();
+  for (const v of views) {
+    if (v.worthGp == null || !(all || v.up)) continue;
+    byPool.set(v.poolKey, (byPool.get(v.poolKey) ?? 0) + v.worthGp);
+  }
+  const parts = [...byPool].map(([poolKey, gp]) => ({ poolKey, gp }));
+  return { totalGp: parts.reduce((s, p) => s + p.gp, 0), parts };
+}
+
+/** How many of the pot's cards are turned, and how many there are. */
+export function turnedOf(view) {
+  const cards = potCards(view);
+  return { turned: cards.filter(isUp).length, count: cards.length };
+}
+
+/* -------------------------------------------- */
+/*  Acts a player asks for                       */
+/* -------------------------------------------- */
+
+/** Whether a sender may act on an open pot at all: a Judge, or a seat the pot opened to. */
+const seated = (pot, sender) => !!sender?.isGM || pot.audience.includes(sender?.id);
+
+/**
+ * Turn a card. Refused unless the pot is open, the sender is the Judge or a
+ * seat in the audience that may flip, and the card is in `order` and face down.
+ * @returns {{ok: true, card: object, update: object}|{ok: false, reason: string}}
+ */
+export function planFlip(view, cardId, { sender }) {
+  if (!view) return refuse(REFUSAL.noPot);
+  const { pot } = view;
+  if (pot.phase !== PHASE.open) return refuse(REFUSAL.phase);
+  if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
+  if (!sender.isGM && pot.flippers && !pot.flippers.includes(sender.id)) return refuse(REFUSAL.notAllowed);
+  const card = cardInPot(view, cardId);
+  if (!card) return refuse(REFUSAL.notInPot);
+  if (isUp(card)) return refuse(REFUSAL.alreadyUp);
+  return { ok: true, card, update: flipUpdate(card.id, card.truth) };
+}
+
+/**
+ * Take a card onto an actor. Refused unless the pot is open, the sender is the
+ * Judge or in the audience, the card is in `order`, turned and unclaimed, the
+ * target exists, and a player owns it. A Judge may give to any actor; `warn`
+ * says the actor is one no seat at the table owns.
+ * @param {object} view
+ * @param {string} cardId
+ * @param {{sender: object, hasTarget: boolean, owns: boolean, ownedByTable: boolean}} ctx
+ * @returns {{ok: true, card: object, warn: boolean}|{ok: false, reason: string}}
+ */
+export function planClaim(view, cardId, { sender, hasTarget, owns, ownedByTable }) {
+  if (!view) return refuse(REFUSAL.noPot);
+  const { pot } = view;
+  if (pot.phase !== PHASE.open) return refuse(REFUSAL.phase);
+  if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
+  const card = cardInPot(view, cardId);
+  if (!card) return refuse(REFUSAL.notInPot);
+  if (!isUp(card)) return refuse(REFUSAL.faceDown);
+  if (card.truth.claimedBy) return refuse(REFUSAL.claimed);
+  if (!hasTarget) return refuse(REFUSAL.noTarget);
+  if (!sender.isGM && !owns) return refuse(REFUSAL.notOwner);
+  return { ok: true, card, warn: !!sender.isGM && !ownedByTable };
+}
+
+/* -------------------------------------------- */
+/*  Acts the Judge makes                         */
+/* -------------------------------------------- */
+
+/** The pot with a card put in it (`order`) or in a bucket, during staging only. Returns the new pot, or null. */
+export function stage(pot, id, { bucket = null } = {}) {
+  if (pot.phase !== PHASE.staging || !id) return null;
+  const next = normalizePot(pot);
+  if (bucket) {
+    if (!(bucket in next.buckets)) return null;
+    next.buckets[bucket] = [...next.buckets[bucket].filter((x) => x !== id), id];
+  } else {
+    next.order = [...next.order.filter((x) => x !== id), id];
+  }
+  return next;
+}
+
+/** The pot with a card taken out of `order` and the buckets, during staging only. Returns the new pot, or null. */
+export function unstage(pot, id) {
+  if (pot.phase !== PHASE.staging) return null;
+  const next = normalizePot(pot);
+  next.order = next.order.filter((x) => x !== id);
+  next.buckets.add = next.buckets.add.filter((x) => x !== id);
+  next.buckets.replace = next.buckets.replace.filter((x) => x !== id);
+  return next;
+}
+
+/**
+ * `adds` placed into `order` at a random position each, the position drawn
+ * from the injected `rng` (`() => [0, 1)`). Returns a new list.
+ */
+export function placeAdds(order, adds, rng) {
+  const out = [...order];
+  for (const id of adds) {
+    const at = Math.min(out.length, Math.floor(rng() * (out.length + 1)));
+    out.splice(at, 0, id);
+  }
+  return out;
+}
+
+/**
+ * Open a staged pot to the table: the replace bucket's cards join `order` as
+ * they are (nothing is struck from the roll), the add bucket's land at random
+ * positions, and both buckets empty. `audience` is who gets LIMITED sight.
+ * @returns {{ok: true, flag: object}|{ok: false, reason: string}}
+ */
+export function planOpen(view, { audience, rng }) {
+  if (!view) return refuse(REFUSAL.noPot);
+  const pot = view.pot;
+  if (pot.phase !== PHASE.staging) return refuse(REFUSAL.phase);
+  const known = new Set(view.cards.map((c) => c.id));
+  const order = pot.order.filter((id) => known.has(id));
+  const replace = pot.buckets.replace.filter((id) => known.has(id));
+  const add = pot.buckets.add.filter((id) => known.has(id));
+  if (!order.length && !replace.length && !add.length) return refuse(REFUSAL.empty);
+  const next = normalizePot(pot);
+  next.phase = PHASE.open;
+  next.audience = ids(audience);
+  next.order = placeAdds([...order, ...replace], add, rng);
+  next.buckets = { add: [], replace: [] };
+  return { ok: true, flag: next };
+}
+
+/**
+ * Close a pot: what is still unclaimed in `order` is the leftovers, and the
+ * record lists every card the pot held and where it went.
+ * @returns {{ok: true, flag: object, left: object[], record: object[]}|{ok: false, reason: string}}
+ */
+export function planClose(view) {
+  if (!view) return refuse(REFUSAL.noPot);
+  if (view.pot.phase === PHASE.closed) return refuse(REFUSAL.phase);
+  const cards = potCards(view);
+  const next = normalizePot(view.pot);
+  next.phase = PHASE.closed;
+  return {
+    ok: true,
+    flag: next,
+    left: cards.filter((c) => !c.truth.claimedBy),
+    record: cards.map((c) => cardView(c, { isGM: false })),
+  };
+}
+
+/* -------------------------------------------- */
+/*  What a claim delivers                        */
+/* -------------------------------------------- */
+
+/**
+ * The item data a claim creates from a card's snapshot: the snapshot wearing
+ * the card's mask (`disguise`, the equipment feature's `disguiseData`), and
+ * marked undetected only where the card says it is. Never mutates the card.
+ * @param {object} truth a normalized truth
+ * @param {(data: object, apparent: object) => object} disguise
+ * @returns {object|null} plain item data, or null when the card holds no item
+ */
+export function claimItemData(truth, disguise) {
+  const snapshot = truth.source?.data;
+  if (!snapshot || truth.coin || truth.valueGp != null) return null;
+  const data = structuredClone(snapshot);
+  delete data._id;
+  const out = truth.mask ? disguise(data, truth.mask) : data;
+  if (truth.detected === false) {
+    out.flags = { ...(out.flags ?? {}) };
+    out.flags[MODULE_ID] = { ...(out.flags[MODULE_ID] ?? {}) };
+    out.flags[MODULE_ID].markets = { ...(out.flags[MODULE_ID].markets ?? {}), detected: false };
+  }
+  return out;
+}
+
+/**
+ * The coin credits a claim lands for a coin card, in `creditCoin`'s shape: the
+ * card's own snapshot says which coin it is, else `template` (the world's coin
+ * of that name, looked up by the caller). Null where neither names a coin, so
+ * nothing is written.
+ * @param {object} truth a normalized truth
+ * @param {object|null} [template] plain data of a coin row
+ * @returns {Array<{source: object, count: number}>|null}
+ */
+export function claimCoinCredits(truth, template = null) {
+  if (!truth.coin || !(truth.coin.count > 0)) return null;
+  const snap = truth.source?.data;
+  const source = snap?.type === "money" ? snap : template;
+  return source ? [{ source, count: truth.coin.count }] : null;
+}
