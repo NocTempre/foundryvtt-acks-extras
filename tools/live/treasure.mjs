@@ -791,7 +791,9 @@ try {
   for (const [key, api] of [["gm", gm], ["player", player]]) {
     const s = await run(api, P.styles);
     note(`${key}: module.json styles entry names treasure.css (read of the loaded module)`, s.manifest);
-    check(`${key}: styles/treasure.css is loaded: a stylesheet link, and the computed style only it sets (FAIL here means a world relaunch is needed, since module.json styles are read at world launch)`, (s.links > 0 || s.sheets > 0) && s.overflowY === "auto" && s.bandToken, s);
+    // Core 14 serves module styles without a <link> naming the file, so the computed style is the proof.
+    note(`${key}: a stylesheet link or sheet names treasure.css`, s.links > 0 || s.sheets > 0);
+    check(`${key}: styles/treasure.css is applied: the computed style and the band token only it sets (FAIL here means a world relaunch is needed, since module.json styles are read at world launch)`, s.manifest && s.overflowY === "auto" && s.bandToken, s);
   }
 
   section("fixtures");
