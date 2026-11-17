@@ -42,6 +42,12 @@ for (const [id, recipe] of Object.entries(tables)) {
   check(`${id}: names a page by a phrase`, !!recipe.locate);
   check(`${id}: no anchor holds a figure`, anchors.every((a) => !/\d/.test(a)));
   check(`${id}: reads the Judges Journal`, recipe.book === "jj");
+  if (recipe.over) {
+    const over = recipe.over;
+    check(`${id}: its overlay reads the Treasure Tome`, over.book === "tt");
+    check(`${id}: its overlay names a page by a phrase with no figure in it`, !!over.locate && !/\d/.test(over.locate));
+    check(`${id}: its overlay is a whole recipe`, over.shape === "gridRows" && !!over.rows && !!over.cellColumns && Number.isFinite(over.printedPage));
+  }
 }
 check("every raw key the binding names has a recipe", [...Object.values(LISTS).flatMap((c) => Object.values(c).flat()), ...Object.values(ARMS_RAW_KEYS)].every((k) => k in tables));
 check("a table's raw keys are all produced", Object.keys(PRODUCES[MAGIC_ITEM_DOC_ID]).includes("classicType"));

@@ -42,10 +42,11 @@ const GLUE = 1.5;
  * @param {number} list.labelMaxX the right edge of the label column
  * @param {Array<[string, number, number]>} list.cells the cell windows, `[key, x, width]`
  * @param {boolean} [list.caption] whether the region opens with the table's caption
+ * @param {string} [list.book] the book the page is read from
  */
-export const list = ({ page, locate, column, labelMaxX, cells, caption = false }) => ({
+export const list = ({ book = "jj", page, locate, column, labelMaxX, cells, caption = false }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
   column,
@@ -88,10 +89,12 @@ const RIGHT = { xMin: 300, xMax: 592 };
  * @param {number} grid.labelMaxX the right edge of the type-name column
  * @param {number[]} grid.starts the setting columns' left edges
  * @param {number} grid.end the right edge of the last column
+ * @param {string} [grid.book] the book the page is read from
+ * @param {string} [grid.headRoll] the pattern the second header line's label opens on
  */
-export const settingGrid = ({ page, locate, yMin, yMax, labelMaxX, starts, end }) => ({
+export const settingGrid = ({ book = "jj", page, locate, yMin, yMax, labelMaxX, starts, end, headRoll = "^\\(roll" }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
   column: { xMin: 40, xMax: 590, yMin, yMax },
@@ -104,7 +107,7 @@ export const settingGrid = ({ page, locate, yMin, yMax, labelMaxX, starts, end }
   cellColumns: starts.map((s, i) => ({ key: `s${i + 1}`, x: s + 2, w: (starts[i + 1] ?? end) - s - 2, pattern: "raw", row: true })),
   rows: [
     { key: "head1", labelRe: "^[A-Za-z]", cellPattern: "raw" },
-    { key: "head2", labelRe: "^\\(roll", cellPattern: "raw" },
+    { key: "head2", labelRe: headRoll, cellPattern: "raw" },
     ...Array.from({ length: 14 }, (_, i) => ({ key: `r${i}`, labelRe: "^[A-Za-z]", labelPattern: "labelText", cellPattern: "raw", optional: true })),
   ],
 });
@@ -115,12 +118,25 @@ const P165 = { labelMaxX: 170, starts: [153, 221, 279, 336, 394, 451, 508], end:
 const P165_GRID = { page: 165, locate: "(roll", ...P165 };
 
 /**
+ * A Judges Journal recipe whose whole table the Treasure Tome replaces where
+ * that book is open and the page locates (`tables-binding.mjs`,
+ * `readPlainTable`): `over` is a complete recipe for the Tome's own page.
+ */
+const layered = (recipe, over) => ({ ...recipe, over });
+
+// The Treasure Tome's arms grids sit on folios 52 and 53, their seven columns
+// 60 points apart; the second header line may open on a word before "(roll".
+const TT_P52 = { labelMaxX: 125, starts: [119, 179, 239, 299, 359, 419, 479], end: 540 };
+const TT_P53 = { labelMaxX: 155, starts: [152, 211, 270, 330, 389, 448, 507], end: 567 };
+const ttArms = (page, side, yMin, yMax) => settingGrid({ book: "tt", page, locate: "(roll", yMin, yMax, headRoll: "\\(roll", ...side });
+
+/**
  * The raw tables of the `magicItemTables` document, and the pages they read. A
  * table whose id ends `More` is the next segment of a list the page sets across
  * two print columns or two pages.
  */
 export const MAGIC_ITEM_RECIPES = {
-  source: { book: "ACKS II Judges Journal", pages: "JJ 132-141, 146-148, 164-165" },
+  source: { book: "ACKS II Judges Journal", pages: "JJ 132-141, 146-148, 164-165; TT 51-53" },
   tables: {
     // Random Magic Item Type: the caption names the page.
     randomTypeRaw: list({ page: 132, locate: "Random Magic Item Type", column: { ...RIGHT, yMin: 100, yMax: 230 }, labelMaxX: 350, cells: [["item", 358, 200]], caption: true }),
@@ -162,15 +178,21 @@ export const MAGIC_ITEM_RECIPES = {
     clueCodeRaw: list({ page: 148, locate: "Clue Code", column: { xMin: 40, xMax: 590, yMin: 420, yMax: 760 }, labelMaxX: 76, cells: [["type", 79, 102], ["text", 183, 400]], caption: true }),
     // Arms and armour: the creature types, printed in two halves, and the seven
     // setting grids.
-    creatureTypeRaw: list({ page: 164, locate: "Creature Type", column: { ...LEFT, yMin: 70, yMax: 215 }, labelMaxX: 105, cells: [["item", 110, 185]], caption: true }),
-    creatureTypeMoreRaw: list({ page: 164, locate: "Creature Type", column: { ...RIGHT, yMin: 90, yMax: 215 }, labelMaxX: 350, cells: [["item", 357, 225]] }),
-    armorTypeRaw: settingGrid({ page: 164, locate: "Appropriate Arms and Armor", yMin: 570, yMax: 745, ...P164 }),
-    ammoTypeRaw: settingGrid({ ...P165_GRID, yMin: 78, yMax: 140 }),
-    axeTypeRaw: settingGrid({ ...P165_GRID, yMin: 148, yMax: 212 }),
-    bludgeonTypeRaw: settingGrid({ ...P165_GRID, yMin: 217, yMax: 300 }),
-    bowTypeRaw: settingGrid({ ...P165_GRID, yMin: 309, yMax: 395 }),
-    spearTypeRaw: settingGrid({ ...P165_GRID, yMin: 401, yMax: 470 }),
-    swordTypeRaw: settingGrid({ ...P165_GRID, yMin: 482, yMax: 555 }),
-    otherTypeRaw: settingGrid({ ...P165_GRID, yMin: 562, yMax: 690 }),
+    creatureTypeRaw: layered(
+      list({ page: 164, locate: "Creature Type", column: { ...LEFT, yMin: 70, yMax: 215 }, labelMaxX: 105, cells: [["item", 110, 185]], caption: true }),
+      list({ book: "tt", page: 51, locate: "Creature Type", column: { ...LEFT, yMin: 78, yMax: 220 }, labelMaxX: 105, cells: [["item", 110, 185]], caption: true }),
+    ),
+    creatureTypeMoreRaw: layered(
+      list({ page: 164, locate: "Creature Type", column: { ...RIGHT, yMin: 90, yMax: 215 }, labelMaxX: 350, cells: [["item", 357, 225]] }),
+      list({ book: "tt", page: 51, locate: "Creature Type", column: { ...RIGHT, yMin: 90, yMax: 220 }, labelMaxX: 350, cells: [["item", 357, 225]] }),
+    ),
+    armorTypeRaw: layered(settingGrid({ page: 164, locate: "Appropriate Arms and Armor", yMin: 570, yMax: 745, ...P164 }), ttArms(52, TT_P52, 80, 245)),
+    ammoTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 78, yMax: 140 }), ttArms(52, TT_P52, 254, 310)),
+    axeTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 148, yMax: 212 }), ttArms(52, TT_P52, 334, 390)),
+    bludgeonTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 217, yMax: 300 }), ttArms(52, TT_P52, 488, 570)),
+    bowTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 309, yMax: 395 }), ttArms(52, TT_P52, 581, 663)),
+    spearTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 401, yMax: 470 }), ttArms(52, TT_P52, 675, 745)),
+    swordTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 482, yMax: 555 }), ttArms(53, TT_P53, 80, 150)),
+    otherTypeRaw: layered(settingGrid({ ...P165_GRID, yMin: 562, yMax: 690 }), ttArms(53, TT_P53, 168, 285)),
   },
 };

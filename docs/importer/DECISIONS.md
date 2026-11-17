@@ -2109,7 +2109,18 @@ Magic's 4a is not superseded: no treasure slice writes
   from 1 is not assembled, and its raw table stays.
 - The treasure-type grids are lookups by letter and project as journal pages,
   not RollTables.
-- The Treasure Tome layers by whole table (plan question A, open).
+- The Treasure Tome layers by whole table (plan question A, open for the
+  tables whose shape differs). Built for the tables both books print in the
+  same shape: a recipe's `over` is a whole recipe for the Tome's page, read
+  into the same raw key where the Tome is open and the page locates; a table
+  stored under the Tome's citation is not replaced by a Journal read on a seat
+  without the Tome. Applied to the treasure types, gem and jewelry values and
+  legends, the eleven special lists, Creature Type and the eight arms grids;
+  the Tome's Gritty grid is its own optional table. A Journal segment the Tome
+  prints whole in one piece is stored empty under the Tome's citation, since
+  the Tome's whole list beside the Journal's tail overlaps and is refused. The
+  classic category lists, the heroic rarity lists and the market tables stay
+  unlayered. See MODEL.md, "The treasure tables".
 
 **Rejected:** `kind.rolltable` for these charts (ships band edges as section
 keys); row-by-row merge of a Treasure Tome table over a Journal table (a

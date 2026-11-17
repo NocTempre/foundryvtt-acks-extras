@@ -10,6 +10,8 @@
  */
 import assert from "node:assert";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
+import { citeIsFrom, readPlainTable, recipeLocates, tableRecipeBooks } from "../../scripts/importer/tables-binding.mjs";
+import { recipeCite } from "../../scripts/importer/produces.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { TREASURE_RECIPES, TYPE_LETTERS, bandGrid, typeGrid } from "../../scripts/importer/table-recipes-treasure.mjs";
 import {
@@ -37,9 +39,19 @@ for (const [id, recipe] of Object.entries(tables)) {
   const anchors = [recipe.locate, recipe.startAfter, recipe.stopAt, recipe.locateKey, recipe.locateHeadingKey].filter((a) => a != null);
   check(`${id}: names a page by a phrase`, !!recipe.locate);
   check(`${id}: no anchor holds a figure`, anchors.every((a) => !/\d/.test(a)));
-  check(`${id}: reads the Judges Journal`, recipe.book === "jj");
-  const [from, to = from] = TREASURE_RECIPES.source.pages.replace(/^JJ\s+/, "").split("-").map(Number);
+  // A table of the Treasure Tome alone is optional; every other reads the Journal.
+  check(`${id}: reads the Judges Journal, or is the Tome's own and optional`, recipe.book === "jj" || (recipe.book === "tt" && recipe.optional === true));
+  const cited = (short) => TREASURE_RECIPES.source.pages.match(new RegExp(`${short} (\\d+)-(\\d+)`)).slice(1).map(Number);
+  const [from, to] = cited(recipe.book.toUpperCase());
   check(`${id}: its folio is one the document cites`, recipe.printedPage >= from && recipe.printedPage <= to);
+  if (recipe.over) {
+    const over = recipe.over;
+    const [tFrom, tTo] = cited("TT");
+    check(`${id}: its overlay reads the Treasure Tome`, over.book === "tt");
+    check(`${id}: its overlay names a page by a phrase`, !!over.locate && !/\d/.test(over.locate));
+    check(`${id}: its overlay's folio is one the document cites`, over.printedPage >= tFrom && over.printedPage <= tTo);
+    check(`${id}: its overlay is a whole recipe, or empty`, over.empty === true || (over.shape === "gridRows" && !!over.rows && !!over.cellColumns));
+  }
 }
 const readRaw = new Set(Object.values(PRODUCES[TREASURE_DOC_ID]).flat());
 eq("every raw table is read by some engine table", Object.keys(tables).sort(), [...readRaw].sort());
@@ -126,5 +138,63 @@ eq("nothing read assembles nothing", assembleTreasureTables({}), {});
 
 /* --- the raw keys the binding names -------------------------------------------------- */
 check("every raw key the binding names has a recipe", [...Object.keys(TYPE_RAW_KEYS), ...Object.keys(VALUE_RAW_KEYS), ...Object.values(SPECIAL_RAW_KEYS).flat()].every((k) => k in tables));
+
+/* --- a table the Treasure Tome replaces ------------------------------------------- */
+eq("a bracketed average value is split off without its brackets", [splitTypeHead("Qq (1,234gp)"), splitTypeHead("qq (5 gp)")], [
+  { category: "Qq", avgValue: "1,234gp" },
+  { category: "Qq", avgValue: "5gp" },
+]);
+const gritty = assembleTreasureTables({ typeGrittyRaw: { A: { head: "Qq (5gp)", cp: "0% none" } }, typeGrittyUnitsRaw: { units: { cp: "9zz" } } });
+eq("the Tome's own grid is assembled beside the other two, with its unit", [Object.keys(gritty.typeGritty), gritty.typeUnits], [["A"], { gritty: { cp: "9zz" } }]);
+const grittyRecipe = tables.typeGrittyRaw;
+check("the Tome-only grid is optional, reads the Tome and has no overlay", grittyRecipe.optional === true && grittyRecipe.book === "tt" && !grittyRecipe.over);
+check("its siblings' shapes are unchanged: Classic and Heroic still read the Journal first", tables.typeClassicRaw.book === "jj" && tables.typeHeroicRaw.book === "jj");
+check("the Tome is a book the table recipes read", tableRecipeBooks().has("tt"));
+eq("a recipe with an overlay searches both pages", recipeLocates(tables.gemValueRaw).map((l) => [l.id, l.args.book]), [[null, "jj"], ["over", "tt"]]);
+eq("a recipe without one searches its own", recipeLocates(grittyRecipe).map((l) => l.id), [null]);
+check("a citation is told by its book", citeIsFrom("TT p.19", "tt") && citeIsFrom("JJ p.125; TT p.19-20", "tt") && !citeIsFrom("JJ p.125", "tt") && !citeIsFrom(null, "tt"));
+
+// A fake book: pages of invented runs, found by the phrase each prints.
+const fakeBook = (pages) => ({ numPages: 8, pages });
+const fakeRead = (doc, p) => Promise.resolve({ items: doc.pages[p] ?? [] });
+const jjPage = [run("Qq jj title", 40, 60), run("1", 20, 100), run("jj one", 46, 100), run("2-3", 20, 112), run("jj two", 46, 112)];
+const ttPage = [run("Zz tt title", 40, 60), run("1-3", 20, 100), run("tt whole", 46, 100)];
+const BAND_OPTS = { column: { xMin: 0, xMax: 300, yMin: 0 }, labelMaxX: 40, cells: [["text", 44, 200]] };
+const jjRecipe = { ...bandGrid({ page: 1, locate: "Qq jj title", ...BAND_OPTS }), over: bandGrid({ book: "tt", page: 2, locate: "Zz tt title", ...BAND_OPTS }) };
+const jjDoc = fakeBook({ 3: jjPage });
+const ttDoc = fakeBook({ 4: ttPage });
+const rowsOf = (t) => Object.values(t).map((r) => [r.min, r.max, r.text]);
+
+let got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }], ["tt", { doc: ttDoc }]]), fakeRead);
+eq("with the Tome open, its page replaces the Journal's whole", [rowsOf(got.table), got.used === jjRecipe.over, recipeCite(got.used)], [[[1, 3, "tt whole"]], true, "TT p.2"]);
+
+got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }]]), fakeRead);
+eq("without the Tome, the Journal is read and the Tome is reported as not open", [rowsOf(got.table), got.used === jjRecipe, got.absent, recipeCite(got.used)], [[[1, 1, "jj one"], [2, 3, "jj two"]], true, "tt", "JJ p.1"]);
+
+got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }]]), fakeRead, "TT p.2");
+eq("without the Tome, a table stored under the Tome's citation is kept, not downgraded", [got.kept, got.table, got.absent], [true, undefined, "tt"]);
+
+got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }]]), fakeRead, "JJ p.1");
+check("a table stored under the Journal's citation is read again", !!got.table && !got.kept);
+
+got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }], ["tt", { doc: fakeBook({}) }]]), fakeRead, "TT p.2");
+eq("with the Tome open but its page not found, a stored Tome table stands", [got.kept, got.table, got.missing], [true, undefined, "page not found"]);
+
+got = await readPlainTable(jjRecipe, new Map([["jj", { doc: jjDoc }], ["tt", { doc: fakeBook({}) }]]), fakeRead);
+check("with the Tome open but its page not found and nothing stored, the Journal is read", got.used === jjRecipe && rowsOf(got.table).length === 2);
+
+const tail = { ...jjRecipe, over: { book: "tt", printedPage: 2, locate: "Zz tt title", empty: true } };
+got = await readPlainTable(tail, new Map([["jj", { doc: jjDoc }], ["tt", { doc: ttDoc }]]), fakeRead);
+eq("a segment the Tome prints in one piece with its neighbour is stored empty, under the Tome's citation", [got.table, recipeCite(got.used)], [{}, "TT p.2"]);
+got = await readPlainTable(tail, new Map([["jj", { doc: jjDoc }]]), fakeRead, "TT p.2");
+check("and stays stored empty on a seat without the Tome", got.kept === true);
+
+got = await readPlainTable({ ...jjRecipe, over: undefined }, new Map([["tt", { doc: ttDoc }]]), fakeRead);
+eq("a recipe with no overlay and no book of its own reports the missing book", [got.noBook, got.table], ["jj", undefined]);
+
+const whole = extractTable(ttPage, jjRecipe.over);
+const jjTail = extractTable([run("Qq jj title", 40, 60), run("3", 20, 100), run("jj tail", 46, 100)], jjRecipe);
+check("the Tome's whole list beside a Journal tail overlaps, and the binding refuses it", assembleBands([whole, jjTail], read) === null);
+check("beside an emptied tail it assembles", assembleBands([whole, {}], read)?.length === 1);
 
 console.log(`test-treasure-binding: ${pass} checks passed.`);

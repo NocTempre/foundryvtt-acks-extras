@@ -38,13 +38,13 @@ export const SPECIAL_RAW_KEYS = Object.freeze({
 });
 
 /** The raw treasure-type grids and the engine table each becomes. */
-export const TYPE_RAW_KEYS = Object.freeze({ typeClassicRaw: "typeClassic", typeHeroicRaw: "typeHeroic" });
+export const TYPE_RAW_KEYS = Object.freeze({ typeClassicRaw: "typeClassic", typeHeroicRaw: "typeHeroic", typeGrittyRaw: "typeGritty" });
 
 /** The raw band lists whose rows carry a value and a type, and the engine table each becomes. */
 export const VALUE_RAW_KEYS = Object.freeze({ gemValueRaw: "gemValue", jewelryValueRaw: "jewelryValue" });
 
 /** The raw unit lines printed under each treasure-type grid's coin columns, and the grid each belongs to. */
-export const UNIT_RAW_KEYS = Object.freeze({ typeClassicUnitsRaw: "classic", typeHeroicUnitsRaw: "heroic" });
+export const UNIT_RAW_KEYS = Object.freeze({ typeClassicUnitsRaw: "classic", typeHeroicUnitsRaw: "heroic", typeGrittyUnitsRaw: "gritty" });
 
 /** The raw dice legends printed above the value lists, and the engine table each becomes. */
 export const DICE_RAW_KEYS = Object.freeze({ gemDiceRaw: "gemDice", jewelryDiceRaw: "jewelryDice" });
@@ -106,13 +106,15 @@ export function assembleBands(segments, read) {
 /**
  * A treasure-type row's first cell, the category and the average value
  * stacked, as `{category, avgValue}`; the value is null where the cell holds
- * none, and the whole cell is the category.
+ * none, and the whole cell is the category. The value may be bracketed, as the
+ * Treasure Tome prints it; the brackets are not kept.
  */
 export function splitTypeHead(cell) {
   const s = clean(cell);
   if (!s) return { category: null, avgValue: null };
-  const m = /^(.*?)\s*([\d,]+\s*gp)$/i.exec(s);
-  return m ? { category: m[1] || null, avgValue: m[2].replace(/\s+/g, "") } : { category: s, avgValue: null };
+  const m = /^(.*?)\s*\(?([\d,]+\s*gp)\)?$/i.exec(s);
+  const raised = (t) => t.replace(/^./, (c) => c.toUpperCase());
+  return m ? { category: m[1] ? raised(m[1]) : null, avgValue: m[2].replace(/\s+/g, "") } : { category: raised(s), avgValue: null };
 }
 
 /**
@@ -179,7 +181,7 @@ export function assembleSpecialPer(raw = {}) {
 
 /**
  * The unit printed under the coin columns of each treasure-type grid,
- * `{classic|heroic: {cp, sp, ep, gp, pp}}`, each cell as printed. A grid whose
+ * `{classic|heroic|gritty: {cp, sp, ep, gp, pp}}`, each cell as printed. A grid whose
  * unit line was not read is left out; null when none was.
  */
 export function assembleTypeUnits(raw = {}) {

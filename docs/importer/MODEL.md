@@ -1491,12 +1491,39 @@ it as `gemDice` and `jewelryDice` (`{legend: [{dice, avg, kind}]}`), read by
 RollTable each on a die of its own length (`ownDie`). The type grids are
 lookups by letter and project as JSON pages.
 
-**Units beside the shapes above.** `typeUnits` (`{classic|heroic: {cp, sp, ep,
-gp, pp}}`) is the unit line printed under the grids' coin columns, as printed;
-`specialPer` (`{<kind>: text}`) is what follows "per" in each special list's
-caption. Both are read (`typeClassicUnitsRaw`, `typeHeroicUnitsRaw`, a
-`caption` row on each list's first segment), never a constant, and sit beside
-`typeClassic`, `typeHeroic` and `special` without reshaping them.
+**Units beside the shapes above.** `typeUnits` (`{classic|heroic|gritty: {cp,
+sp, ep, gp, pp}}`) is the unit line printed under the grids' coin columns, as
+printed; `specialPer` (`{<kind>: text}`) is what follows "per" in each special
+list's caption. Both are read (`typeClassicUnitsRaw`, `typeHeroicUnitsRaw`,
+`typeGrittyUnitsRaw`, a `caption` row on each list's first segment), never a
+constant, and sit beside `typeClassic`, `typeHeroic`, `typeGritty` and `special`
+without reshaping them.
+
+**The Treasure Tome layer.** The unit of layering is the whole table. A raw
+recipe of a table both books print in the same shape carries `over`, a complete
+recipe for the Treasure Tome's own page (`book: "tt"`, its folio, its anchor
+phrase and its geometry); `readPlainTable` (`tables-binding.mjs`) reads `over`
+into the same raw key where the Tome is open and the page locates, and the
+recipe's own Journal page otherwise, and the table's citation names the book it
+was read from. `recipeLocates` lists both pages (`id: "over"`) and
+`tableRecipeBooks` both books, so `test-recipe-pages` checks each page where
+each book is local. Two guards keep a Judge's table from being downgraded: a
+table already stored under the Tome's citation is left as it is where the Tome
+is not open (and where its page does not locate), and the Tome is then reported
+as an optional book that is not open. Applied to the type grids, their unit
+lines, the gem and jewelry value lists and their legends (Tome folios 19, 20
+and 22), the eleven special lists (folios 24 and 25) and the Creature Type list
+and the eight arms grids (folios 51 to 53). A list the Tome prints whole in one
+column where the Journal sets it in two segments (copper, gold, gem) has the
+Journal's tail segment overlaid by `over: {empty: true}`, which stores an empty
+table under the Tome's citation; the head segment's whole-list read and the
+Journal's tail would otherwise overlap and `assembleBands` would refuse the
+list. `typeGrittyRaw` and `typeGrittyUnitsRaw` are the Tome's own: book `tt`,
+`optional`, no overlay, assembled to `typeGritty` and `typeUnits.gritty` in the
+shape of Classic and Heroic. The Tome sets a type's average value in brackets
+and a small-capital category in lower case; the binding reads both as the
+Journal's form. Not layered: the classic category lists and the heroic rarity
+lists (the Tome prints them in another shape), and the market tables.
 
 ## The magic-item and arms tables
 

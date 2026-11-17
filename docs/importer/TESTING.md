@@ -3952,6 +3952,25 @@ read, remove it with Remove ALL Imports first.
    `getTable("treasure","specialPer")`, `getTable("treasure","typeUnits")` hold
    a lot unit for each of the eleven lists and a unit for each coin column.
 
+8. **A seat with both books** (the Judges Journal and the Treasure Tome
+   connected). Rerun step 1. *Observable:* `getDoc("treasure").tables` also
+   holds `typeGrittyRaw` and `typeGrittyUnitsRaw`, and `typeGritty` and
+   `typeUnits.gritty` are assembled; the browser's citation for `typeClassic`,
+   `typeHeroic`, `gemValue`, `jewelryValue` and `special` names TT and the
+   folios 19, 20, 22 and 24 to 25 (`getDoc("treasure").cites`); `special`
+   still holds eleven kinds that start at 1 and tile, and the three the Journal
+   splits show their Journal tail segments (`specialCpMoreRaw`,
+   `specialGpMoreRaw`, `specialGemMoreRaw`) as empty tables.
+9. **The downgrade guard.** Disconnect the Tome (Judges Journal only) and
+   rerun step 1. *Observable:* the report names the Treasure Tome as an
+   optional book that is not open, and every table above still cites TT
+   (nothing reverted to JJ); the Gritty tables stay. Remove ALL Imports,
+   rerun with the Journal only, and *observable:* every table cites JJ and
+   there is no `typeGritty`.
+10. **A seat with the Journal only, from the start.** *Observable:* step 1 has
+    no error and no `incomplete` entry, every citation is JJ's, and the
+    report lists the Treasure Tome among the optional books.
+
 ### Teardown
 
 The import is kept. Step 6's override is removed by its own last action;
@@ -3996,6 +4015,12 @@ marker, and are read, never driven.
 6. Open an arms RollTable for the first setting. *Observable:* its rows are the
    page's type names on the die's bands, and the setting name over the column
    is `armsSettings.s1`.
+7. **A seat with both books.** Rerun step 1. *Observable:* `getDoc("magicItemTables").cites`
+   names TT (folios 51 to 53) for `creatureType` and the eight `arms*` tables
+   and JJ for every other table; the arms setting names and the rows per grid
+   match what the Journal-only seat showed. Disconnect the Tome and rerun:
+   *observable:* those tables still cite TT, and the report names the Tome as
+   an optional book that is not open.
 
 ### Teardown
 

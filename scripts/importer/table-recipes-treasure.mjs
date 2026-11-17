@@ -40,10 +40,11 @@ const TYPE_ROWS = TYPE_LETTERS.map((key) => ({ key, labelRe: `^${key}$` }));
  * @param {number} grid.yMin the first y of the first row's lines
  * @param {number} grid.labelMaxX the right edge of the letter column
  * @param {Array<[string, number, number]>} grid.cells the cell windows, left to right
+ * @param {string} [grid.book] the book the page is read from
  */
-export const typeGrid = ({ page, locate, yMin, labelMaxX, cells }) => ({
+export const typeGrid = ({ book = "jj", page, locate, yMin, labelMaxX, cells }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
   column: { xMin: 40, xMax: 590, yMin },
@@ -66,17 +67,21 @@ export const typeGrid = ({ page, locate, yMin, labelMaxX, cells }) => ({
  * @param {{xMin: number, xMax: number, yMin: number, yMax?: number}} grid.column the region
  * @param {number} grid.labelMaxX the right edge of the label column
  * @param {Array<[string, number, number]>} grid.cells the cell windows, `[key, x, width]`
+ * @param {string} [grid.book] the book the page is read from
+ * @param {boolean} [grid.centered] whether a wrapped result's label sits on its middle line
+ * @param {boolean} [grid.smallCaps] whether a small-capital initial is restored
  */
-export const bandGrid = ({ page, locate, column, labelMaxX, cells, wrap = true, caption = false }) => ({
+export const bandGrid = ({ book = "jj", page, locate, column, labelMaxX, cells, wrap = true, caption = false, centered = false, smallCaps = false }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
   column,
   labelMaxX,
   rowTol: 4,
   joinGap: 1,
-  ...(wrap ? { wrapRows: { tol: 12, ...(caption ? { floorKey: "b0" } : {}) } } : {}),
+  ...(smallCaps ? { smallCaps: 1.5 } : {}),
+  ...(wrap ? { wrapRows: { tol: 12, ...(centered ? { centered: true } : {}), ...(caption ? { floorKey: "b0" } : {}) } } : {}),
   cellColumns: cells.map(([key, x, w]) => ({ key, x, w, pattern: "raw", row: true })),
   rows: [...(caption ? [{ key: "caption", labelRe: `^${SPECIAL}`, labelPattern: "labelText" }] : []), ...bandRows()],
 });
@@ -93,10 +98,11 @@ export const bandGrid = ({ page, locate, column, labelMaxX, cells, wrap = true, 
  * @param {{xMin: number, xMax: number, yMin: number, yMax: number}} grid.column the region
  * @param {number} grid.labelMaxX the right edge of the dice column
  * @param {Array<[string, number, number]>} grid.cells the cell windows, `[key, x, width]`
+ * @param {string} [grid.book] the book the page is read from
  */
-const legendGrid = ({ page, locate, column, labelMaxX, cells }) => ({
+const legendGrid = ({ book = "jj", page, locate, column, labelMaxX, cells }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
   column,
@@ -117,13 +123,15 @@ const legendGrid = ({ page, locate, column, labelMaxX, cells }) => ({
  * @param {number} grid.yMin the header line's upper edge
  * @param {number} grid.labelMaxX the right edge of the type-column header
  * @param {Array<[string, number, number]>} grid.cells the five coin cell windows
+ * @param {string} [grid.book] the book the page is read from
+ * @param {number} [grid.height] the header line's reach below `yMin`
  */
-const unitGrid = ({ page, locate, yMin, labelMaxX, cells }) => ({
+const unitGrid = ({ book = "jj", page, locate, yMin, labelMaxX, cells, height = 12 }) => ({
   shape: "gridRows",
-  book: "jj",
+  book,
   printedPage: page,
   locate,
-  column: { xMin: 40, xMax: 340, yMin, yMax: yMin + 12 },
+  column: { xMin: 40, xMax: 340, yMin, yMax: yMin + height },
   labelMaxX,
   rowTol: 4,
   cellColumns: cells.map(([key, x, w]) => ({ key, x, w, pattern: "raw", row: true })),
@@ -140,14 +148,17 @@ const LEFT = { xMin: 40, xMax: 300 };
 const RIGHT = { xMin: 300, xMax: 592 };
 
 /** One special-treasure segment: a column of a page, from `yMin` down to `yMax`. */
-const segment = ({ page, side, yMin, yMax, labelMaxX, x, w, caption = true }) =>
+const segment = ({ book, page, side, yMin, yMax, labelMaxX, x, w, caption = true, centered }) =>
   bandGrid({
+    book,
     page,
     locate: SPECIAL,
     column: { ...side, yMin, ...(yMax ? { yMax } : {}) },
     labelMaxX,
     cells: [["text", x, w]],
     caption,
+    centered,
+    smallCaps: centered,
   });
 
 // Page one of the specials (folio 128): a left column and a right column.
@@ -158,73 +169,156 @@ const P2_LEFT = { page: 129, side: LEFT, labelMaxX: 95, x: 103, w: 190 };
 const P2_RIGHT = { page: 129, side: RIGHT, labelMaxX: 350, x: 360, w: 225 };
 
 /**
+ * A Judges Journal recipe whose whole table the Treasure Tome replaces where
+ * that book is open and the page locates: `over` is a complete recipe for the
+ * Tome's own page, read into the same raw key (`tables-binding.mjs`,
+ * `readPlainTable`).
+ */
+const layered = (recipe, over) => ({ ...recipe, over });
+
+/**
+ * The Tome's counterpart of a segment it does not need: it prints the list in
+ * one piece where the Journal sets it across two columns or pages, so the
+ * Journal's tail segment is stored empty, under the Tome's citation, whenever
+ * the Tome is read.
+ */
+const emptied = (page) => ({ book: "tt", printedPage: page, locate: SPECIAL, empty: true });
+
+// The Treasure Tome sets its treasure-type grids on a recto (Classic, Gritty)
+// and a verso (Heroic). A verso is set 27 points further left, and its jewelry
+// and magic columns less than that.
+const TT_RECTO = { labelMaxX: 90, cells: [["head", 90, 48], ["cp", 140, 36], ["sp", 178, 36], ["ep", 216, 36], ["gp", 254, 33], ["pp", 289, 33], ["gems", 326, 66], ["jewelry", 394, 49], ["magic", 445, 147]] };
+const TT_VERSO = { labelMaxX: 63, cells: [["head", 64, 48], ["cp", 114, 34], ["sp", 150, 36], ["ep", 190, 35], ["gp", 227, 36], ["pp", 264, 35], ["gems", 301, 68], ["jewelry", 373, 49], ["magic", 427, 165]] };
+
+/** A Treasure Tome treasure-type grid and the unit line printed above its coin columns. */
+const ttType = (page, locate, side) => typeGrid({ book: "tt", page, locate, yMin: 124, ...side });
+const ttUnits = (page, locate, side) =>
+  unitGrid({ book: "tt", page, locate, yMin: 100, height: 8, labelMaxX: side.labelMaxX + 45, cells: side.cells.slice(1, 6).map(([key, x, w]) => [key, x, w]) });
+
+// The Tome's special-treasure pages (folios 24 and 25). A list sits whole in one
+// column, its label centred on a result that wraps.
+const TT_P24_LEFT = { ...P1_LEFT, book: "tt", page: 24, centered: true };
+const TT_P24_RIGHT = { ...P1_RIGHT, book: "tt", page: 24, centered: true };
+const TT_P25_LEFT = { ...P2_LEFT, book: "tt", page: 25, w: 195, centered: true };
+const TT_P25_RIGHT = { book: "tt", page: 25, side: RIGHT, labelMaxX: 355, x: 360, w: 230, centered: true };
+
+/**
  * The raw tables of the `treasure` document, and the pages they read. A table
  * whose id ends `Rest` or `More` is the second segment of a list the page sets
  * across two columns or pages.
  */
 export const TREASURE_RECIPES = {
-  source: { book: "ACKS II Judges Journal", pages: "JJ 125-129" },
+  source: { book: "ACKS II Judges Journal", pages: "JJ 125-129; TT 19-25" },
   tables: {
     // Treasure Type (Classic): the caption names the page.
-    typeClassicRaw: typeGrid({
-      page: 125,
-      locate: "Treasure Type Table (Classic)",
-      yMin: 190,
-      labelMaxX: 90,
-      cells: [["head", 90, 48], ["cp", 138, 36], ["sp", 176, 36], ["ep", 214, 37], ["gp", 253, 36], ["pp", 291, 31], ["gems", 327, 63], ["jewelry", 394, 47], ["magic", 443, 140]],
-    }),
+    typeClassicRaw: layered(
+      typeGrid({
+        page: 125,
+        locate: "Treasure Type Table (Classic)",
+        yMin: 190,
+        labelMaxX: 90,
+        cells: [["head", 90, 48], ["cp", 138, 36], ["sp", 176, 36], ["ep", 214, 37], ["gp", 253, 36], ["pp", 291, 31], ["gems", 327, 63], ["jewelry", 394, 47], ["magic", 443, 140]],
+      }),
+      ttType(19, "Treasure Type Table (Classic)", TT_RECTO),
+    ),
     // Treasure Type (Heroic): the same columns, set 27 points further left.
-    typeHeroicRaw: typeGrid({
-      page: 126,
-      locate: "Treasure Type Table (Heroic)",
-      yMin: 106,
-      labelMaxX: 62,
-      cells: [["head", 64, 48], ["cp", 114, 36], ["sp", 151, 36], ["ep", 189, 37], ["gp", 226, 37], ["pp", 263, 36], ["gems", 300, 63], ["jewelry", 367, 47], ["magic", 414, 170]],
-    }),
+    typeHeroicRaw: layered(
+      typeGrid({
+        page: 126,
+        locate: "Treasure Type Table (Heroic)",
+        yMin: 106,
+        labelMaxX: 62,
+        cells: [["head", 64, 48], ["cp", 114, 36], ["sp", 151, 36], ["ep", 189, 37], ["gp", 226, 37], ["pp", 263, 36], ["gems", 300, 63], ["jewelry", 367, 47], ["magic", 414, 170]],
+      }),
+      ttType(20, "Treasure Type Table (Heroic)", TT_VERSO),
+    ),
+    // Treasure Type (Gritty): printed by the Treasure Tome only, so it is read
+    // only where that book is open.
+    typeGrittyRaw: { ...ttType(21, "Treasure Type Table (Gritty)", TT_RECTO), optional: true },
     // The unit printed under the five coin columns of each treasure-type grid.
-    typeClassicUnitsRaw: unitGrid({ page: 125, locate: "Treasure Type Table (Classic)", yMin: 172, labelMaxX: 130, cells: [["cp", 138, 36], ["sp", 176, 36], ["ep", 214, 37], ["gp", 253, 36], ["pp", 291, 31]] }),
-    typeHeroicUnitsRaw: unitGrid({ page: 126, locate: "Treasure Type Table (Heroic)", yMin: 88, labelMaxX: 112, cells: [["cp", 114, 36], ["sp", 151, 36], ["ep", 189, 37], ["gp", 226, 37], ["pp", 263, 36]] }),
+    typeClassicUnitsRaw: layered(
+      unitGrid({ page: 125, locate: "Treasure Type Table (Classic)", yMin: 172, labelMaxX: 130, cells: [["cp", 138, 36], ["sp", 176, 36], ["ep", 214, 37], ["gp", 253, 36], ["pp", 291, 31]] }),
+      ttUnits(19, "Treasure Type Table (Classic)", TT_RECTO),
+    ),
+    typeHeroicUnitsRaw: layered(
+      unitGrid({ page: 126, locate: "Treasure Type Table (Heroic)", yMin: 88, labelMaxX: 112, cells: [["cp", 114, 36], ["sp", 151, 36], ["ep", 189, 37], ["gp", 226, 37], ["pp", 263, 36]] }),
+      ttUnits(20, "Treasure Type Table (Heroic)", TT_VERSO),
+    ),
+    typeGrittyUnitsRaw: { ...ttUnits(21, "Treasure Type Table (Gritty)", TT_RECTO), optional: true },
     // The dice legend printed above each value list: the dice a kind of lot is
-    // rolled on, its average and the kind.
-    gemDiceRaw: legendGrid({ page: 127, locate: "Gem Value", column: { xMin: 250, xMax: 590, yMin: 120, yMax: 156 }, labelMaxX: 296, cells: [["avg", 296, 42], ["type", 340, 240]] }),
-    jewelryDiceRaw: legendGrid({ page: 127, locate: "Jewelry Value", column: { xMin: 60, xMax: 400, yMin: 560, yMax: 595 }, labelMaxX: 125, cells: [["avg", 127, 86], ["type", 214, 190]] }),
+    // rolled on, its average and the kind. The Tome sets the two value lists
+    // side by side on one page, gems left and jewelry right.
+    gemDiceRaw: layered(
+      legendGrid({ page: 127, locate: "Gem Value", column: { xMin: 250, xMax: 590, yMin: 120, yMax: 156 }, labelMaxX: 296, cells: [["avg", 296, 42], ["type", 340, 240]] }),
+      legendGrid({ book: "tt", page: 22, locate: "Gem Value", column: { xMin: 40, xMax: 295, yMin: 288, yMax: 318 }, labelMaxX: 92, cells: [["avg", 94, 44], ["type", 140, 150]] }),
+    ),
+    jewelryDiceRaw: layered(
+      legendGrid({ page: 127, locate: "Jewelry Value", column: { xMin: 60, xMax: 400, yMin: 560, yMax: 595 }, labelMaxX: 125, cells: [["avg", 127, 86], ["type", 214, 190]] }),
+      legendGrid({ book: "tt", page: 22, locate: "Jewelry Value", column: { xMin: 300, xMax: 592, yMin: 258, yMax: 290 }, labelMaxX: 340, cells: [["avg", 344, 52], ["type", 398, 190]] }),
+    ),
     // Gem Value and Jewelry Value: a band, a value, a type. The three rows above
     // the bands name the dice each kind is rolled on and are not bands.
-    gemValueRaw: bandGrid({
-      page: 127,
-      locate: "Gem Value",
-      column: { xMin: 250, xMax: 590, yMin: 155, yMax: 330 },
-      labelMaxX: 295,
-      cells: [["value", 296, 42], ["type", 340, 240]],
-      wrap: false,
-    }),
-    jewelryValueRaw: bandGrid({
-      page: 127,
-      locate: "Jewelry Value",
-      column: { xMin: 60, xMax: 400, yMin: 540 },
-      labelMaxX: 125,
-      cells: [["value", 127, 86], ["type", 214, 190]],
-      wrap: false,
-    }),
+    gemValueRaw: layered(
+      bandGrid({
+        page: 127,
+        locate: "Gem Value",
+        column: { xMin: 250, xMax: 590, yMin: 155, yMax: 330 },
+        labelMaxX: 295,
+        cells: [["value", 296, 42], ["type", 340, 240]],
+        wrap: false,
+      }),
+      bandGrid({
+        book: "tt",
+        page: 22,
+        locate: "Gem Value",
+        column: { xMin: 40, xMax: 295, yMin: 322, yMax: 575 },
+        labelMaxX: 92,
+        cells: [["value", 94, 44], ["type", 140, 150]],
+        centered: true,
+        smallCaps: true,
+      }),
+    ),
+    jewelryValueRaw: layered(
+      bandGrid({
+        page: 127,
+        locate: "Jewelry Value",
+        column: { xMin: 60, xMax: 400, yMin: 540 },
+        labelMaxX: 125,
+        cells: [["value", 127, 86], ["type", 214, 190]],
+        wrap: false,
+      }),
+      bandGrid({
+        book: "tt",
+        page: 22,
+        locate: "Jewelry Value",
+        column: { xMin: 300, xMax: 592, yMin: 292, yMax: 515 },
+        labelMaxX: 340,
+        cells: [["value", 344, 52], ["type", 398, 190]],
+        centered: true,
+        smallCaps: true,
+      }),
+    ),
     // Special treasure per 1,000 coins: copper runs from the left column's foot
     // to the right column's head, gold from the right column's foot to the next
     // page's left column.
-    specialCpRaw: segment({ ...P1_LEFT, yMin: 515 }),
-    specialCpMoreRaw: segment({ ...P1_RIGHT, yMin: 80, yMax: 150, caption: false }),
-    specialSpRaw: segment({ ...P1_RIGHT, yMin: 150, yMax: 380 }),
-    specialEpRaw: segment({ ...P1_RIGHT, yMin: 380, yMax: 636 }),
-    specialGpRaw: segment({ ...P1_RIGHT, yMin: 636 }),
-    specialGpMoreRaw: segment({ ...P2_LEFT, yMin: 80, yMax: 300, caption: false }),
-    specialPpRaw: segment({ ...P2_LEFT, yMin: 300, yMax: 496 }),
+    // The Tome sets each list whole in one column, so a Journal segment that
+    // continues another is stored empty when the Tome is read.
+    specialCpRaw: layered(segment({ ...P1_LEFT, yMin: 515 }), segment({ ...TT_P24_LEFT, yMin: 78, yMax: 355 })),
+    specialCpMoreRaw: layered(segment({ ...P1_RIGHT, yMin: 80, yMax: 150, caption: false }), emptied(24)),
+    specialSpRaw: layered(segment({ ...P1_RIGHT, yMin: 150, yMax: 380 }), segment({ ...TT_P24_LEFT, yMin: 355, yMax: 700 })),
+    specialEpRaw: layered(segment({ ...P1_RIGHT, yMin: 380, yMax: 636 }), segment({ ...TT_P24_RIGHT, yMin: 78, yMax: 355 })),
+    specialGpRaw: layered(segment({ ...P1_RIGHT, yMin: 636 }), segment({ ...TT_P24_RIGHT, yMin: 355, yMax: 700 })),
+    specialGpMoreRaw: layered(segment({ ...P2_LEFT, yMin: 80, yMax: 300, caption: false }), emptied(24)),
+    specialPpRaw: layered(segment({ ...P2_LEFT, yMin: 300, yMax: 496 }), segment({ ...TT_P25_LEFT, yMin: 78, yMax: 288 })),
     // Special treasure per ornamental, gem, brilliant, trinket, jewelry and
     // regalia: the gem list runs from the left column's foot to the right
     // column's head.
-    specialOrnamentalRaw: segment({ ...P2_LEFT, yMin: 496, yMax: 634 }),
-    specialGemRaw: segment({ ...P2_LEFT, yMin: 634 }),
-    specialGemMoreRaw: segment({ ...P2_RIGHT, yMin: 80, yMax: 126, caption: false }),
-    specialBrilliantRaw: segment({ ...P2_RIGHT, yMin: 126, yMax: 248 }),
-    specialTrinketRaw: segment({ ...P2_RIGHT, yMin: 248, yMax: 373 }),
-    specialJewelryRaw: segment({ ...P2_RIGHT, yMin: 373, yMax: 508 }),
-    specialRegaliaRaw: segment({ ...P2_RIGHT, yMin: 508 }),
+    specialOrnamentalRaw: layered(segment({ ...P2_LEFT, yMin: 496, yMax: 634 }), segment({ ...TT_P25_LEFT, yMin: 288, yMax: 438 })),
+    specialGemRaw: layered(segment({ ...P2_LEFT, yMin: 634 }), segment({ ...TT_P25_LEFT, yMin: 438, yMax: 558 })),
+    specialGemMoreRaw: layered(segment({ ...P2_RIGHT, yMin: 80, yMax: 126, caption: false }), emptied(25)),
+    specialBrilliantRaw: layered(segment({ ...P2_RIGHT, yMin: 126, yMax: 248 }), segment({ ...TT_P25_LEFT, yMin: 558, yMax: 745 })),
+    specialTrinketRaw: layered(segment({ ...P2_RIGHT, yMin: 248, yMax: 373 }), segment({ ...TT_P25_RIGHT, yMin: 255, yMax: 388 })),
+    specialJewelryRaw: layered(segment({ ...P2_RIGHT, yMin: 373, yMax: 508 }), segment({ ...TT_P25_RIGHT, yMin: 388, yMax: 528 })),
+    specialRegaliaRaw: layered(segment({ ...P2_RIGHT, yMin: 508 }), segment({ ...TT_P25_RIGHT, yMin: 528, yMax: 745 })),
   },
 };

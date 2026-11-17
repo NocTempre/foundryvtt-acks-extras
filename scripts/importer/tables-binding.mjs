@@ -109,7 +109,55 @@ export function recipeLocates(recipe) {
     ]);
   }
   if (recipe.subTables) return recipe.subTables.map((st) => ({ id: st.id, args: subTableLocate(recipe, st) }));
-  return [{ id: null, args: recipe }];
+  return [{ id: null, args: recipe }, ...(recipe.over ? [{ id: "over", args: recipe.over }] : [])];
+}
+
+/** Whether a stored citation names a page of `book` (`"TT p.19"`). */
+export function citeIsFrom(cite, book) {
+  const short = BOOKS[book]?.short ?? String(book).toUpperCase();
+  return String(cite ?? "").split(/;\s*/).some((part) => part.trim().startsWith(`${short} p.`));
+}
+
+/**
+ * Read one plain table recipe. A recipe carrying `over` is read from that
+ * book's page where the book is open and the page locates, and from its own
+ * book otherwise; `over.empty` stores an empty table, for a segment the
+ * overlaying book prints in one piece with its neighbour. A table already
+ * stored under that book's citation is never replaced by the recipe's own
+ * book's read: a seat without the overlaying book keeps it, and one whose
+ * overlaying page does not locate does too.
+ *
+ * @param {object} recipe one plain `TABLE_RECIPES` table spec
+ * @param {Map} sessionDocs bookId → { doc } for the connected books
+ * @param {Function} read the page reader
+ * @param {string|null} [storedCite] the citation of the table already stored under this id
+ * @returns {Promise<{table?: object, used?: object, kept?: boolean, absent?: string, noBook?: string, missing?: string}>}
+ *   `table` and `used` (the recipe that read it) when a table was read; `kept`
+ *   when the stored table stands; `absent` the overlaying book that is not
+ *   open; `noBook` the recipe's own book when it is not open; `missing` why a
+ *   page was not found.
+ */
+export async function readPlainTable(recipe, sessionDocs, read, storedCite = null) {
+  const over = recipe.over;
+  let absent = null;
+  if (over) {
+    const held = citeIsFrom(storedCite, over.book);
+    const session = sessionDocs.get(over.book);
+    if (session?.doc) {
+      const items = await locatePage(session.doc, over, read);
+      if (items) return { table: over.empty ? {} : extractTable(items, over), used: over };
+      if (held) return { kept: true, missing: "page not found" };
+    } else {
+      absent = over.book;
+      if (held) return { kept: true, absent };
+    }
+  }
+  const session = sessionDocs.get(recipe.book);
+  if (!session?.doc) return { noBook: recipe.book, ...(absent ? { absent } : {}) };
+  const items = await locatePage(session.doc, recipe, read);
+  if (!items) return { missing: "page not found", ...(absent ? { absent } : {}) };
+  const table = recipe.pageSpan ? Object.assign({}, ...items.map((pg) => extractTable(pg, recipe))) : extractTable(items, recipe);
+  return { table, used: recipe, ...(absent ? { absent } : {}) };
 }
 
 /** Every book a table recipe or one of its blocks reads. */
@@ -118,6 +166,7 @@ export function tableRecipeBooks() {
   for (const doc of Object.values(TABLE_RECIPES)) {
     for (const recipe of Object.values(doc.tables)) {
       if (recipe.book) books.add(recipe.book);
+      if (recipe.over?.book) books.add(recipe.over.book);
       for (const block of recipe.blocks ?? []) {
         if (block.book ?? recipe.book) books.add(block.book ?? recipe.book);
         if (block.heading?.book) books.add(block.heading.book);
@@ -287,6 +336,9 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     // The blocks each gathered table actually read, so its citation names the
     // pages that were opened and not a supplement's that was not.
     const readBlocks = {};
+    // The recipe each plain table was read with: a table the Treasure Tome
+    // replaced cites the Tome's page, not the Journal's.
+    const readRecipes = {};
     for (const [tableId, recipe] of Object.entries(docRec.tables)) {
       // Every exit consumes one recipe's worth of the run, so progress reports from `finally`.
       try {
@@ -315,20 +367,15 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
           }
           continue;
         }
-        const session = sessionDocs.get(recipe.book);
-        if (!session?.doc) {
-          bookMissing(recipe.book, recipe.optional);
-          continue;
-        }
         try {
-          const items = await locatePage(session.doc, recipe, read);
-          if (!items) {
-            report.missingTables.push(`${docId}.${tableId} (page not found)`);
-            continue;
+          const got = await readPlainTable(recipe, sessionDocs, read, getLayer(docId, P)?.cites?.[tableId]);
+          if (got.absent) bookMissing(got.absent, true);
+          if (got.noBook) bookMissing(got.noBook, recipe.optional);
+          if (got.missing) report.missingTables.push(`${docId}.${tableId} (${got.missing})`);
+          if (got.table) {
+            fresh[tableId] = got.table;
+            readRecipes[tableId] = got.used;
           }
-          fresh[tableId] = recipe.pageSpan
-            ? Object.assign({}, ...items.map((pg) => extractTable(pg, recipe)))
-            : extractTable(items, recipe);
         } catch (err) {
           report.missingTables.push(`${docId}.${tableId} (${err.message})`);
         }
@@ -345,7 +392,7 @@ export async function importTables(sessionDocs, { priority, onProgress, only = n
     const prior = getLayer(docId, P)?.cites ?? {};
     const cites = Object.fromEntries(Object.keys(existing).filter((k) => prior[k]).map((k) => [k, prior[k]]));
     for (const tableId of Object.keys(fresh)) {
-      const cite = recipeCite(docRec.tables[tableId], readBlocks[tableId]);
+      const cite = recipeCite(readRecipes[tableId] ?? docRec.tables[tableId], readBlocks[tableId]);
       if (cite) cites[tableId] = cite;
       else delete cites[tableId];
     }
