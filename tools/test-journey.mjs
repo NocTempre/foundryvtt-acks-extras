@@ -12,6 +12,7 @@
  * Run: node tools/test-journey.mjs   (also wired into `npm run validate`).
  */
 import assert from "node:assert/strict";
+import { mockRegion, rect } from "./region-fixture.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry mock                                */
@@ -909,17 +910,17 @@ const keyOf = (text) => String(text).split(" ")[0];
  * behaviour's fields as given, every other one at the value that states nothing.
  */
 function makeZone(scene, id, { x, y, width, height }, fields = {}) {
-  const region = {
+  const region = mockRegion({
     id,
     name: id,
-    elevation: {},
+    rings: [rect(x, y, width, height)],
     shapes: [{ type: "rectangle", x, y, width, height }],
     behaviors: [{
       type: "acks-extras.encounterZone",
       disabled: false,
       system: { tableUuid: "", encounterEvery: 0, encounterTarget: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0, ...fields },
     }],
-  };
+  });
   scene.regions.push(region);
   return region;
 }

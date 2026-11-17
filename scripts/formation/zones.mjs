@@ -3,7 +3,7 @@ import { getPartyToken } from "./formation-model.mjs";
 import { roadUnder } from "../battlemap/roads.mjs";
 import { effectiveWhere } from "./settlement.mjs";
 import { truePositionToken } from "./shadow.mjs";
-import { polygonArea } from "./zone-layers.mjs";
+import { regionArea as libRegionArea, regionRings, regionsAt } from "../lib/regions.mjs";
 
 /**
  * Where the party token is standing, in region terms.
@@ -20,165 +20,41 @@ import { polygonArea } from "./zone-layers.mjs";
 /*  Point-in-region testing                     */
 /* -------------------------------------------- */
 
-function rotateInto(px, py, cx, cy, degrees) {
-  if (!degrees) return [px, py];
-  const rad = (-degrees * Math.PI) / 180;
-  const dx = px - cx;
-  const dy = py - cy;
-  return [cx + dx * Math.cos(rad) - dy * Math.sin(rad), cy + dx * Math.sin(rad) + dy * Math.cos(rad)];
-}
-
-function pointInPolygon(points, px, py) {
-  let inside = false;
-  for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
-    const xi = points[i];
-    const yi = points[i + 1];
-    const xj = points[j];
-    const yj = points[j + 1];
-    const intersects = yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi;
-    if (intersects) inside = !inside;
-  }
-  return inside;
-}
-
-function pointInShape(shape, px, py) {
-  switch (shape.type) {
-    case "rectangle": {
-      const cx = shape.x + shape.width / 2;
-      const cy = shape.y + shape.height / 2;
-      const [rx, ry] = rotateInto(px, py, cx, cy, shape.rotation ?? 0);
-      return rx >= shape.x && rx <= shape.x + shape.width && ry >= shape.y && ry <= shape.y + shape.height;
-    }
-    case "circle": {
-      const dx = px - shape.x;
-      const dy = py - shape.y;
-      return dx * dx + dy * dy <= shape.radius * shape.radius;
-    }
-    case "ellipse": {
-      const [rx, ry] = rotateInto(px, py, shape.x, shape.y, shape.rotation ?? 0);
-      if (!shape.radiusX || !shape.radiusY) return false;
-      const nx = (rx - shape.x) / shape.radiusX;
-      const ny = (ry - shape.y) / shape.radiusY;
-      return nx * nx + ny * ny <= 1;
-    }
-    case "polygon":
-      return pointInPolygon(shape.points ?? [], px, py);
-    default:
-      return false;
-  }
-}
-
 /**
- * Does a region contain the point? Prefers the core implementation — on v14,
- * `RegionDocument#testPoint` takes a single ElevatedPoint {x, y, elevation} and
- * works without the canvas (geometry lives on the document). Shape math
- * remains as a fallback.
+ * Does a region contain the point at this elevation? Core's
+ * `RegionDocument#testPoint`, which takes an ElevatedPoint, applies the
+ * region's elevation range and works without the canvas (geometry lives on the
+ * document).
  */
 export function regionContains(regionDoc, point, elevation) {
-  const bottom = regionDoc.elevation?.bottom;
-  const top = regionDoc.elevation?.top;
-  if (typeof bottom === "number" && elevation < bottom) return false;
-  if (typeof top === "number" && elevation > top) return false;
-
-  try {
-    if (typeof regionDoc.testPoint === "function") {
-      return regionDoc.testPoint({ x: point.x, y: point.y, elevation });
-    }
-  } catch (err) {
-    // falls through to the shape math
-  }
-
-  let inside = false;
-  for (const shape of regionDoc.shapes ?? []) {
-    if (shape.hole) continue;
-    if (pointInShape(shape, point.x, point.y)) {
-      inside = true;
-      break;
-    }
-  }
-  if (!inside) return false;
-  for (const shape of regionDoc.shapes ?? []) {
-    if (shape.hole && pointInShape(shape, point.x, point.y)) return false;
-  }
-  return true;
+  return regionDoc.testPoint({ x: point.x, y: point.y, elevation });
 }
 
 /* -------------------------------------------- */
 /*  Region outlines                             */
 /* -------------------------------------------- */
 
-/** A circle or ellipse as a closed ring of points. */
-function ellipseRing(cx, cy, rx, ry, rotation = 0, steps = 24) {
-  const pts = [];
-  for (let i = 0; i < steps; i++) {
-    const a = (i / steps) * Math.PI * 2;
-    const [x, y] = rotateInto(cx + Math.cos(a) * rx, cy + Math.sin(a) * ry, cx, cy, -(rotation ?? 0));
-    pts.push(x, y);
-  }
-  return pts;
-}
-
 /**
- * A region's solid shapes as closed rings of `[x, y, x, y, …]` canvas pixels.
- *
- * For distance questions (the trap sweep), which containment cannot answer.
- * Curves are approximated by a 24-gon. Holes are left out: the sweep measures
- * to the outside of a shape.
+ * A region's solid outlines as closed rings of `[x, y, x, y, …]` canvas
+ * pixels, holes left out. For distance questions (the trap sweep), which
+ * containment cannot answer; `regionRings` has the mechanics.
  */
 export function regionOutlines(regionDoc) {
-  const rings = [];
-  for (const shape of regionDoc?.shapes ?? []) {
-    if (shape.hole) continue;
-    switch (shape.type) {
-      case "rectangle": {
-        const cx = shape.x + shape.width / 2;
-        const cy = shape.y + shape.height / 2;
-        const corners = [
-          [shape.x, shape.y],
-          [shape.x + shape.width, shape.y],
-          [shape.x + shape.width, shape.y + shape.height],
-          [shape.x, shape.y + shape.height],
-        ];
-        rings.push(corners.flatMap(([x, y]) => rotateInto(x, y, cx, cy, -(shape.rotation ?? 0))));
-        break;
-      }
-      case "circle":
-        rings.push(ellipseRing(shape.x, shape.y, shape.radius, shape.radius));
-        break;
-      case "ellipse":
-        rings.push(ellipseRing(shape.x, shape.y, shape.radiusX, shape.radiusY, shape.rotation));
-        break;
-      case "polygon":
-        if ((shape.points?.length ?? 0) >= 6) rings.push([...shape.points]);
-        break;
-      default:
-        // Any other shape (a `grid` shape's cells, a cone, a ring) is read off
-        // core's own outline of it, the tree's solid nodes only.
-        for (const node of shape.polygonTree ?? []) {
-          if (node?.isHole) continue;
-          const points = node?.polygon?.points ?? [];
-          if (points.length >= 6) rings.push([...points]);
-        }
-        break;
-    }
-  }
-  return rings;
+  return regionRings(regionDoc);
 }
 
 /**
- * The area a region covers, in square canvas pixels: the sum of its solid
- * outlines' areas. Holes are not subtracted and overlapping shapes count
- * twice: the figure ranks zones drawn one inside another, and an inner zone's
- * outlines are the smaller unless it is drawn as several overlapping shapes.
+ * The area a region covers, in square canvas pixels (core's `region.area`),
+ * the figure that ranks zones drawn one inside another.
  */
 export function regionArea(regionDoc) {
-  return regionOutlines(regionDoc).reduce((sum, ring) => sum + polygonArea(ring), 0);
+  return libRegionArea(regionDoc);
 }
 
 /** Every edge of a region's outlines, as `[x1, y1, x2, y2]` segments. */
 export function regionEdges(regionDoc) {
   const edges = [];
-  for (const ring of regionOutlines(regionDoc)) {
+  for (const ring of regionRings(regionDoc)) {
     const n = ring.length / 2;
     for (let i = 0; i < n; i++) {
       const j = (i + 1) % n;
@@ -212,12 +88,7 @@ export function findZone(formation, type) {
  * @returns {{region: RegionDocument, behavior: RegionBehavior}|null}
  */
 export function zoneAt(scene, point, elevation, type) {
-  for (const region of scene?.regions ?? []) {
-    const behavior = region.behaviors.find((b) => b.type === type && !b.disabled);
-    if (!behavior) continue;
-    if (regionContains(region, point, elevation)) return { region, behavior };
-  }
-  return null;
+  return regionsAt(scene, point, { elevation }, type)[0] ?? null;
 }
 
 /**
@@ -227,12 +98,7 @@ export function zoneAt(scene, point, elevation, type) {
  * @returns {Array<{region: RegionDocument, behavior: RegionBehavior}>}
  */
 export function zonesAt(scene, point, elevation, type) {
-  const out = [];
-  for (const region of scene?.regions ?? []) {
-    const behavior = region.behaviors.find((b) => b.type === type && !b.disabled);
-    if (behavior && regionContains(region, point, elevation)) out.push({ region, behavior });
-  }
-  return out;
+  return regionsAt(scene, point, { elevation }, type);
 }
 
 /**

@@ -38,6 +38,7 @@ import {
   segmentDistance,
 } from "../scripts/formation/trap-walls.mjs";
 import { regionEdges, regionOutlines } from "../scripts/formation/zones.mjs";
+import { mockRegion, rect } from "./region-fixture.mjs";
 import { spread as spreadMarks } from "../scripts/formation/trap-markers.mjs";
 
 let passed = 0;
@@ -781,33 +782,29 @@ test("a walked path measures to a trap it passed but never reached", () => {
 });
 
 test("a region's outline survives as edges the sweep can measure to", () => {
-  const square = { shapes: [{ type: "polygon", hole: false, points: [0, 0, 100, 0, 100, 100, 0, 100] }] };
+  const square = mockRegion({ rings: [[0, 0, 100, 0, 100, 100, 0, 100]] });
   assert.deepEqual(regionOutlines(square), [[0, 0, 100, 0, 100, 100, 0, 100]]);
   // Four points close into four edges, last back to first.
   assert.equal(regionEdges(square).length, 4);
   assert.deepEqual(regionEdges(square).at(-1), [0, 100, 0, 0]);
 });
 
-test("a rectangle region becomes its four corners; a hole contributes none", () => {
-  const region = {
-    shapes: [
-      { type: "rectangle", x: 10, y: 20, width: 40, height: 30 },
-      { type: "polygon", hole: true, points: [15, 25, 20, 25, 20, 30] },
-    ],
-  };
+test("a region's outline is its solid rings; a hole contributes none", () => {
+  const region = mockRegion({ rings: [rect(10, 20, 40, 30)], holes: [[15, 25, 20, 25, 20, 30]] });
   assert.deepEqual(regionOutlines(region), [[10, 20, 50, 20, 50, 50, 10, 50]]);
 });
 
-test("a grid shape's outline is core's polygon tree, its solid nodes only", () => {
-  // Core's PolygonTree iterates its nodes depth first; a node marks its own hole.
-  const tree = [
-    { isHole: false, polygon: { points: [0, 0, 300, 0, 300, 200, 0, 200] } },
-    { isHole: true, polygon: { points: [100, 50, 200, 50, 200, 150, 100, 150] } },
-  ];
-  const region = { shapes: [{ type: "grid", hole: false, offsets: [{ i: 0, j: 0 }], polygonTree: tree }] };
+test("a grid shape's outline is core's merged polygon tree, its solid nodes only", () => {
+  // The shape's cells are already one outline by the time the Region reports it.
+  const region = mockRegion({
+    shapes: [{ type: "grid", hole: false, offsets: [{ i: 0, j: 0 }] }],
+    rings: [rect(0, 0, 300, 200)],
+    holes: [rect(100, 50, 100, 100)],
+  });
   assert.deepEqual(regionOutlines(region), [[0, 0, 300, 0, 300, 200, 0, 200]]);
-  // Without core's geometry (no canvas data), a grid shape outlines nothing rather than throwing.
-  assert.deepEqual(regionOutlines({ shapes: [{ type: "grid", hole: false, offsets: [] }] }), []);
+  // A Region with no geometry outlines nothing rather than throwing.
+  assert.deepEqual(regionOutlines(mockRegion()), []);
+  assert.deepEqual(regionOutlines({}), []);
 });
 
 /* -------------------------------------------- */

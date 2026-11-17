@@ -1,0 +1,1 @@
+- Encounter and trap zones are read through Foundry's own Region geometry: a zone's area now subtracts its holes and counts overlapping shapes once when the smallest zone wins a field, and a zone drawn with core's grid tool is found like any other.

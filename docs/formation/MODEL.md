@@ -40,7 +40,7 @@ All paths are under `scripts/formation/` unless noted.
 | `membership.mjs` | Who stands in a party as a player decides it: what may march, why a request is refused, the party a token joins, and the Order tab's list (§The player surface). |
 | `frame-view.mjs` | The party sheet's frame, decided offline: the parts and tabs a seat gets, the band's bar, every rail cell with its reading and its press, the reading column, the Key, each tab's head (§The frame). |
 | `party-actor.mjs` | The `acks-extras.party` Actor sub-type (its one field, `description`) and its sheet: the parts, the band moved into the window header, the tab row and its chevron, the GM's member drop, and the refusal of a dropped item. |
-| `zones.mjs` | Point-in-region geometry shared by every zone behavior: core `testPoint` when available, manual shape math as a headless fallback, `findZone(formation, type)` testing the party token's CENTRE at its stored corner (as the movement hook reads it, below), `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
+| `zones.mjs` | Point-in-region geometry shared by every zone behavior: adapters over lib `regions.mjs` (core's `testPoint`, `polygonTree` and `area`; no shape math of its own), `findZone(formation, type)` testing the party token's CENTRE at its stored corner (as the movement hook reads it, below), `zonesAt` for every zone over a point, `regionArea`, `truePartyPoint` (the centre of `truePositionToken`), and `streetUnder(formation, board)` — the one reader of what the party is standing on. |
 | `encounter-zone.mjs` | `acks-extras.encounterZone` RegionBehavior subtype (table UUID, the delve's cadence overrides, the zone's dungeon level, and the journey's cadence and End Day counts), `findEncounterZone` for the delve and `journeyZones` for the journey. |
 | `zone-layers.mjs` | Pure: `polygonArea` and `composeZones`, overlapping zones composed field by field, smallest first. |
 | `encounter-scaling.mjs` | The wrong-floor shift: `tableLevel` reads a table's `monsterLevel` flag, `shiftSources` names the tables a draw came from and the level each is compared at, `encounterShift` / `scaleNumber` do the arithmetic, `announceShift` posts the Judge-only card. Published as `api.formation.encounterScaling`. |
@@ -2696,7 +2696,8 @@ otherwise — and composes them field by field (`composeZones`,
 [zone-layers.mjs](../../scripts/formation/zone-layers.mjs)): for each of
 `tableUuid`, `encounterTarget`, `journeyCadence`, `dayThrows` and
 `nightThrows` the SMALLEST zone that states the field wins it (area by
-`regionArea` over the region's outlines; ties go to scene order), and a zero
+`regionArea`, core's `region.area`: shapes merged, holes subtracted; ties go
+to scene order), and a zero
 or blank states nothing. The delve takes the first zone under the party token
 (`findEncounterZone`) and composes nothing; the journey never reads
 `encounterEvery`, which is in dungeon turns.
