@@ -12,7 +12,8 @@ import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/obstacles.mjs";
 import { canClear } from "../scripts/formation/jumping.mjs";
 import {
-  CLIMB_CHECK, FOOTINGS, REFUSAL, SETTLED, fallFromClimb, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, REFUSAL, SETTLED, crossingHeld, crossingOfHolder, fallFromClimb, heldAfter, jumpRow,
+  landingOutcome, landingRow, memberRow, stepMember,
 } from "../scripts/formation/crossing-logic.mjs";
 
 let passed = 0;
@@ -430,6 +431,36 @@ await ok("the footing reaches landingFailure whole, and a fall with no depth nam
   assert.equal(landingOutcome({}), null);
   resetTables();
   assert.deepEqual(landingOutcome({ footing: "empty", depth: 30 }).unknown, ["shortfallDie", "fall"], "nothing imported is named, not guessed");
+});
+
+// ---- the held conditions ------------------------------------------------------
+await ok("a crossing's held condition names the crossing and the status, under a 16-character id of its own", () => {
+  const a = crossingHeld("AbCdEf0123456789", "vulnerable");
+  assert.equal(a.holder, "crossing:AbCdEf0123456789:vulnerable");
+  assert.equal(a.statusId, "vulnerable");
+  assert.match(a.id, /^[A-Za-z0-9]{16}$/);
+  const b = crossingHeld("ZyXwVu9876543210", "vulnerable");
+  assert.notEqual(a.id, b.id, "two crossings, two effects");
+  assert.match(crossingHeld("id7", "vulnerable").id, /^[A-Za-z0-9]{16}$/, "a short id is padded, not shortened");
+  assert.deepEqual(CROSSING_STATUSES, ["vulnerable"]);
+});
+
+await ok("a holder string gives its crossing back, and any other holder is no crossing's", () => {
+  assert.equal(crossingOfHolder(crossingHeld("AbCdEf0123456789", "vulnerable").holder), "AbCdEf0123456789");
+  assert.equal(crossingOfHolder("mapperKit"), null);
+  assert.equal(crossingOfHolder(undefined), null);
+  assert.equal(crossingOfHolder("crossing:"), null);
+});
+
+await ok("a member holds the grid's status while on the obstacle and none once across or fell, or where nothing is imported", () => {
+  assert.deepEqual(heldAfter({ state: "climbing", vulnerable: true }), ["vulnerable"]);
+  assert.deepEqual(heldAfter({ state: "stalled", vulnerable: true }), ["vulnerable"]);
+  assert.deepEqual(heldAfter({ state: "across", vulnerable: true }), []);
+  assert.deepEqual(heldAfter({ state: "fell", vulnerable: true }), []);
+  assert.deepEqual(heldAfter({ state: "climbing", vulnerable: false }), []);
+  assert.deepEqual(heldAfter({ state: "climbing", vulnerable: null }), [], "a figure nobody imported holds nothing");
+  assert.deepEqual(heldAfter({ state: "climbing" }), []);
+  assert.deepEqual(heldAfter(), []);
 });
 
 // ---- the seam ---------------------------------------------------------------

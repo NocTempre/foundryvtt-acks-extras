@@ -2187,6 +2187,16 @@
   color: var(--acks-ink-soft);
 }
 
+/* A condition the crossing holds on the member: a chip in the cells line, its
+   text being its own accessible name. A rule carries it as well as ink. */
+.acks-extras.party-sheet .acks-extras-crossing-held {
+  font-size: var(--acks-fs-label);
+  padding: 0 var(--acks-sp-2);
+  border: 1px solid var(--acks-ink-soft);
+  border-radius: var(--acks-sp-2);
+  color: var(--acks-ink-soft);
+}
+
 .acks-extras.party-sheet .acks-extras-crossing-block {
   font-size: var(--acks-fs-label);
   color: var(--acks-warning-ink);

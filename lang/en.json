@@ -2876,8 +2876,10 @@
       "carrier": "Carrier",
       "carrierHint": "Carries the downed: each carried body's weight is split evenly among the Carriers (RR p. 271), and the load slows their pace and so the party's"
     },
+    "heldCondition": {
+      "owner": "the party sheet"
+    },
     "mapperVulnerable": {
-      "owner": "the party's mapper",
       "effectDescription": "Held by the module while this character holds the party's Mapper role (RR ch. 6)."
     },
     "winded": {
@@ -7594,6 +7596,8 @@
   "ACKS-FORMATION.crossing.footing.edge": "An edge",
   "ACKS-FORMATION.crossing.footing.empty": "Empty space",
   "ACKS-FORMATION.crossing.tip.landingBonus": "Bonus {bonus}",
+  "ACKS-FORMATION.crossing.tip.held": "{condition}: held by this crossing while the member is on the obstacle",
+  "ACKS-FORMATION.crossing.heldDescription": "Held by the module while this character is on the party's crossing (RR ch. 6, Spelunking).",
   "ACKS-FORMATION.scaling.encounter": "Encounter",
   "ACKS-FORMATION.scaling.flavor": "Wandering monster, off its floor",
   "ACKS-FORMATION.scaling.line": "A level {monster} table drawn on dungeon level {dungeon}: {steps} step(s) {direction}. Number appearing x{multiplier}; reaction {reaction}.",

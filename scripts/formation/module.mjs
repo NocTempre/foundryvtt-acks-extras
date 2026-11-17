@@ -183,8 +183,8 @@ Hooks.once("init", () => {
   registerPartyRoster();
   // On every client: a player's Turn plan column refuses from the same registrations the Judge's client locks by.
   registerFormationActivities();
-  // The mapper's Vulnerable is the formation's to keep and refuses a hand-delete.
-  registerManagedEffect(HELD_CONDITION_FLAG, "ACKS-FORMATION.mapperVulnerable.owner");
+  // A held condition (the mapper's Vulnerable, a crossing's) is the party sheet's to keep and refuses a hand-delete.
+  registerManagedEffect(HELD_CONDITION_FLAG, "ACKS-FORMATION.heldCondition.owner");
   game.settings.register(MODULE_ID, "ownXpDealing", {
     name: "ACKS-FORMATION.xp.settingName",
     hint: "ACKS-FORMATION.xp.settingHint",

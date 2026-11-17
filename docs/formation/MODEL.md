@@ -2807,6 +2807,34 @@ landed. A write unsets the records of members the party no longer holds. The
 crossing does not close when the party moves; the Judge ends it. Only a GM
 client writes.
 
+**Held conditions.** While a member is on an obstacle (`climbing` or `stalled`)
+the crossing holds on the member's body the statuses the Spelunking grid names
+for the obstacle (`CROSSING_STATUSES`; today `vulnerable`, from the grid's
+helpless row through `readThrow`'s `vulnerable`, keyed on the obstacle as
+planned, so a fixed rope reads the easy climb's row). They are held conditions
+(`lib/held-condition.mjs`): one effect per crossing and status, whose marker
+`crossing:<crossing id>:<status>` (`crossingHeld`) is the only thing a hold or a
+release reads or writes, so the same status from a hand, a spell or the mapper's
+kit stands untouched and is counted once with it. The body is `carriersOf`: a
+linked member's world actor, an unlinked member's deployed token's actor. A row
+with the figure not imported, or not a boolean, or false for the obstacle holds
+nothing. `clambering` is not held: the catalogue (`lib/conditions.mjs`) and the
+pages it follows (RR Appendix B, ch. 6) make it a state toward a target creature, not a climber's on a face.
+
+`throwFor` writes the member's record first and then the hold, on the GM client
+that executes the throw, so a relayed player's throw holds it too. The hold is
+released when a throw leaves the member `across` or `fell`; at End, for every
+member the record names (the party's body for one it still holds, the world
+actor of the id for one it dropped); when `pruneMembers` or a write's own prune
+drops a member; and at Begin, which takes off any crossing-held effect whose
+crossing no party has open (`releaseStrays`; another party's open crossing is
+spared). A member removed from the party mid-crossing keeps the effect until the
+next press, the next write or End. The row's chip (`obstacleRowView`) is read off
+the member's body, so it stands only while the effect does, and an across or
+fell row shows none; its tooltip says this crossing holds it and names the
+imported page. A held effect refuses a hand-delete under the label
+`ACKS-FORMATION.heldCondition.owner`, shared with the mapper's kit.
+
 **A row.** `rowFor` reads one member for the seat looking: the Climbing check
 through `resolveCheck(actor, CLIMB_CHECK)`, whether the member holds Climbing
 (the capability or an ability of that name, the union `swimming.mjs`
@@ -2831,8 +2859,8 @@ warns, throws on the member's own figure and marks the card as thrown over a
 refusal. The card prints the imported outcome words escaped, with
 `outcomeProvenance` as their tooltip, says how many stretches are covered, and
 reports a fall's distance and dice (`fallFromClimb`) without writing a hit
-point. A crossing applies no condition, spends no time on the clock and posts no
-damage. `throwAll` throws for each member whose row allows it with no warning.
+point. A crossing spends no time on the clock and posts no damage; what it holds
+on a member is *Held conditions*, below. `throwAll` throws for each member whose row allows it with no warning.
 A jump row is `canClear`'s verdict and range for the member, blank until a
 gap is set, fed with the member's own Dexterity, level, carried stone and
 Acrobatics and the setup's run-up. It has no throw of its own.

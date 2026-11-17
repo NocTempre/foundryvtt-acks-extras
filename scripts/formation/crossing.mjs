@@ -22,8 +22,13 @@
  * (`landFor`), and a failed landing is reported on the footing the Judge
  * picks (`reportLanding`). Both are the Judge's alone; neither writes the flag.
  *
- * A crossing applies no condition, spends no time on the clock and posts no
- * damage: the card reports a fall's distance and dice and touches no hit
+ * A member on an obstacle holds the conditions the Spelunking grid names for it
+ * (`CROSSING_STATUSES`), as held conditions (`lib/held-condition.mjs`) whose
+ * holder names this crossing and the status. A throw writes them after its record
+ * lands, on the member's body (`carriersOf`), and they come off when the member is
+ * across or fell, when the crossing ends, when the party drops the member, and as
+ * strays when a crossing begins. A crossing spends no time on the clock and posts
+ * no damage: the card reports a fall's distance and dice and touches no hit
  * points. A player's client never writes or rolls: its press is relayed
  * (`player-requests.mjs`, kind `crossing`) and the GM client answers it with
  * `throwFor` read for a player's seat.
@@ -31,15 +36,19 @@
 import { MODULE_ID, FORMATION_DOC } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import {
-  carriedLoad, encumbranceOf, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
+  carriedLoad, encumbranceOf, getFormations, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
 } from "./formation-model.mjs";
+import { carriersOf } from "./mapper-kit.mjs";
 import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
 import { NO_ACROBATICS, fallFigures, jumpDistance } from "./jumping.mjs";
 import {
-  CLIMB_CHECK, FOOTINGS, SETTLED, STALLED, fallFromClimb, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, SETTLED, STALLED, crossingHeld, crossingOfHolder, fallFromClimb, heldAfter, jumpRow,
+  landingOutcome, landingRow, memberRow, stepMember,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
+import { HELD_CONDITION_FLAG, heldEffects, holdCondition, releaseCondition } from "../lib/held-condition.mjs";
+import { conditionNameKey } from "../lib/status-effects.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
@@ -63,6 +72,71 @@ const setupPath = (key) => `flags.${MODULE_ID}.${CROSSING_FLAG}.${key}`;
 const inFlight = new Set();
 
 /* -------------------------------------------- */
+/*  Held conditions                             */
+/* -------------------------------------------- */
+
+/** The effect's description: what the module did, read at write time so a changed language reaches the next one made. */
+const describeHeld = () => loc("crossing.heldDescription");
+
+/**
+ * Make each body carry exactly `wanted` of the crossing's statuses: the ones
+ * named are held, the rest of `CROSSING_STATUSES` released. Only effects this
+ * crossing marked are read or written, so the same status from a spell, a hand
+ * or the mapper's kit stands.
+ */
+async function syncHeld(bodies, crossingId, wanted) {
+  for (const body of bodies) {
+    for (const statusId of CROSSING_STATUSES) {
+      const held = crossingHeld(crossingId, statusId);
+      if (wanted.includes(statusId)) await holdCondition(body, held, { description: describeHeld() });
+      else await releaseCondition(body, held);
+    }
+  }
+}
+
+/** The bodies of the members a crossing's record names: a member the party still holds by its own, one it dropped by the world actor of its id. */
+function bodiesOfRecord(formation, ids) {
+  const here = new Map(crossingMembers(formation).map((entry) => [entry.member.actorId, entry.member]));
+  const bodies = new Set();
+  for (const id of ids) {
+    const found = here.has(id) ? carriersOf(here.get(id)) : [game.actors?.get?.(id)].filter(Boolean);
+    for (const body of found) bodies.add(body);
+  }
+  return [...bodies];
+}
+
+/** Every actor that can carry a held condition for these formations: the world's, and the unlinked tokens on the scenes they stand on. */
+function carrierPool(formations) {
+  const pool = [...(game.actors ?? [])];
+  for (const sceneId of new Set(formations.map((f) => f.sceneId).filter(Boolean))) {
+    for (const token of game.scenes?.get?.(sceneId)?.tokens ?? []) if (!token.actorLink && token.actor) pool.push(token.actor);
+  }
+  return pool;
+}
+
+/**
+ * Take off every crossing-held condition whose crossing no party has open: what
+ * a dropped member, a flag removed by hand or a client that went away mid-throw
+ * left. A crossing another party has open is spared.
+ * @returns {Promise<number>} how many actors were written to
+ */
+async function releaseStrays() {
+  const formations = Object.values(getFormations());
+  const open = new Set(formations.map((f) => readCrossing(f)?.id).filter(Boolean));
+  let released = 0;
+  for (const actor of carrierPool(formations)) {
+    let wrote = false;
+    for (const effect of [...(actor.effects ?? [])]) {
+      const holder = effect.getFlag?.(MODULE_ID, HELD_CONDITION_FLAG);
+      const id = crossingOfHolder(holder);
+      if (id && !open.has(id) && (await releaseCondition(actor, { holder }))) wrote = true;
+    }
+    if (wrote) released += 1;
+  }
+  return released;
+}
+
+/* -------------------------------------------- */
 /*  Storage                                     */
 /* -------------------------------------------- */
 
@@ -81,18 +155,22 @@ export function readCrossing(formation) {
 export async function beginCrossing(formation, kind) {
   const actor = getPartyActor(formation);
   if (!actor || !game.user.isGM || !CROSSING_KINDS.includes(kind) || readCrossing(formation)) return null;
+  await releaseStrays();
   const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, members: {} };
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: foundry.data.operators.ForcedReplacement.create(setup) });
   return setup.id;
 }
 
 /**
- * Close the crossing: the flag is unset, members and all.
+ * Close the crossing: what it holds is released from every member its record
+ * names, then the flag is unset, members and all.
  * @returns {Promise<boolean>} whether a crossing was closed
  */
 export async function endCrossing(formation) {
   const actor = getPartyActor(formation);
-  if (!actor || !game.user.isGM || !readCrossing(formation)) return false;
+  const crossing = readCrossing(formation);
+  if (!actor || !game.user.isGM || !crossing) return false;
+  await syncHeld(bodiesOfRecord(formation, Object.keys(crossing.members ?? {})), crossing.id, []);
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: unset() });
   return true;
 }
@@ -143,7 +221,7 @@ export async function applyCrossingForm(formation, form) {
 /**
  * Write one member's record, only while the crossing the caller worked from
  * still stands. A record for a member the party no longer holds is unset at the
- * same write.
+ * same write, and what the crossing held on that member is released.
  * @returns {Promise<boolean>} whether the write was made
  */
 export async function writeMemberStep(formation, crossingId, actorId, step) {
@@ -153,21 +231,23 @@ export async function writeMemberStep(formation, crossingId, actorId, step) {
   if (!current || current.id !== crossingId) return false;
   const update = { [memberPath(actorId)]: step };
   const held = new Set(realMembers(formation).map((m) => m.actorId));
-  for (const id of Object.keys(current.members ?? {})) if (!held.has(id)) update[memberPath(id)] = unset();
+  const dropped = Object.keys(current.members ?? {}).filter((id) => !held.has(id));
+  for (const id of dropped) update[memberPath(id)] = unset();
   await actor.update(update);
+  if (dropped.length) await syncHeld(bodiesOfRecord(formation, dropped), current.id, []);
   return true;
 }
 
-/** Drop the records of members the party no longer holds. @returns {Promise<boolean>} whether any was dropped */
+/** Drop the records of members the party no longer holds, and release what the crossing held on them. @returns {Promise<boolean>} whether any was dropped */
 export async function pruneMembers(formation) {
   const actor = getPartyActor(formation);
   const current = readCrossing(formation);
   if (!actor || !game.user.isGM || !current) return false;
   const held = new Set(realMembers(formation).map((m) => m.actorId));
-  const update = {};
-  for (const id of Object.keys(current.members ?? {})) if (!held.has(id)) update[memberPath(id)] = unset();
-  if (!Object.keys(update).length) return false;
-  await actor.update(update);
+  const dropped = Object.keys(current.members ?? {}).filter((id) => !held.has(id));
+  if (!dropped.length) return false;
+  await actor.update(Object.fromEntries(dropped.map((id) => [memberPath(id), unset()])));
+  await syncHeld(bodiesOfRecord(formation, dropped), current.id, []);
   return true;
 }
 
@@ -376,6 +456,24 @@ function permittedCell(holds, adventuring, effective, kind) {
   };
 }
 
+/**
+ * The chips of the conditions this crossing holds on a member, read off the
+ * member's body and not recomputed from the table, so a chip stands only while
+ * the effect does. A member who is across or fell shows none. Each carries the
+ * condition's own name and a tooltip saying this crossing holds it, with the
+ * page the figure is imported from.
+ */
+function heldChips(crossing, entry, settled) {
+  if (settled) return [];
+  const bodies = carriersOf(entry.member);
+  return CROSSING_STATUSES
+    .filter((statusId) => bodies.some((body) => heldEffects(body, crossingHeld(crossing.id, statusId)).length))
+    .map((statusId) => {
+      const label = game.i18n.localize(conditionNameKey(statusId));
+      return { statusId, label, tip: [loc("crossing.tip.held", { condition: label }), citeFor("spelunking") ?? spelunkingRef()].join(" · ") };
+    });
+}
+
 /** One obstacle row for the template. */
 function obstacleRowView(crossing, entry) {
   const { actor, row, figure } = entry;
@@ -402,6 +500,7 @@ function obstacleRowView(crossing, entry) {
     ...permittedCell(entry.holds, permitted, row.effective, crossing.kind),
     covered: row.stretches === null ? "" : `${row.covered} / ${row.stretches}`,
     coveredTip: stretchTooltip(row.stretches),
+    held: heldChips(crossing, entry, settled),
     throws: row.throws,
     can: row.can && !settled,
     warn: row.warn,
@@ -627,6 +726,11 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
       ? fallFromClimb({ kind: row.effective, covered: record?.covered ?? 0, feet: positive(crossing.length), depth: crossing.depth })
       : null;
     if (!(await writeMemberStep(formation, crossing.id, actorId, stepped))) return { ok: false, refused: "stale" };
+    const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
+    const bodies = carriersOf(entry.member);
+    await syncHeld(bodies, crossing.id, wanted);
+    // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
+    if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
     const message = await postToJudges({
       content: throwCard({ crossing, entry: seen, plan: row.plan, read, roll, natural, stepped, fall }),
       speaker: { alias: formation.name },

@@ -39,7 +39,7 @@ function combatOf(formation, member) {
  * member whose state sits in the party's stash has no actor to hold anything.
  * A stack has no pair of hands.
  */
-function carriersOf(member) {
+export function carriersOf(member) {
   if (isStackMember(member)) return [];
   const own = memberOwnToken(member);
   if (own) return own.actor ? [own.actor] : [];

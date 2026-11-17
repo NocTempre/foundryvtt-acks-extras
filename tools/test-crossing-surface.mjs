@@ -18,6 +18,12 @@
  * prints the imported words escaped, and reports a fall without touching hit
  * points.
  *
+ * The held conditions: a member on an obstacle whose imported grid row says
+ * Vulnerable carries one marked effect and a chip, on every seat and for a
+ * relayed throw; across, fell, End, a dropped member and a new Begin take it
+ * off; a same-status effect from elsewhere is never touched; nothing imported
+ * holds nothing.
+ *
  * Run: node tools/test-crossing-surface.mjs
  */
 import assert from "node:assert/strict";
@@ -66,7 +72,7 @@ globalThis.game = {
   users,
   i18n: { localize: (k) => (typeof lookup(k) === "string" ? lookup(k) : k), format, has: (k) => typeof lookup(k) === "string" },
   settings: { get: (_scope, key) => (key === "formations" ? formations : {}) },
-  actors: new Map(),
+  actors: Object.assign(new Map(), { [Symbol.iterator]() { return this.values(); } }), // iterates its documents, as core's collection does
   scenes: new Map(),
   items: [],
 };
@@ -111,7 +117,7 @@ const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
 const {
-  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, landFor, readCrossing, reportLanding,
+  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, landFor, pruneMembers, readCrossing, reportLanding,
   throwAll, throwFor, writeMemberStep,
 } = crossing;
 const { registerRequestSocket, requestCrossingThrow, requestPartyAction } =await import("../scripts/formation/player-requests.mjs");
@@ -1079,6 +1085,233 @@ await ok("the partial's player rows draw the throw for an owner and the reason a
   assert.ok(row("Birch").includes("Birch cannot attempt this") && row("Birch").includes("acks-extras-crossing-block"), "and the reason as visible text");
   assert.equal(row("Cedar").includes('data-action="crossingThrow"'), false, "another seat's member has none");
   assert.equal(row("Cedar").includes("cannot attempt"), false, "and no words about what this seat can do nothing about");
+});
+
+/* --- held conditions ------------------------------------------------------------ */
+
+/**
+ * Give a stand-in actor the effects collection and the three writes a held
+ * condition reads and makes, each delete checked to authorize itself.
+ */
+function withEffects(actor) {
+  const rows = new Map();
+  const log = { created: 0, deleted: 0 };
+  const make = (data) => {
+    const id = data._id ?? `fx${(++serial).toString().padStart(14, "0")}`;
+    const effect = {
+      id, name: data.name, disabled: !!data.disabled, statuses: new Set(data.statuses ?? []), flags: data.flags ?? {},
+      getFlag(scope, key) { return this.flags?.[scope]?.[key]; },
+      async update(patch) { if (patch.statuses) this.statuses = new Set(patch.statuses); },
+    };
+    rows.set(id, effect);
+    return effect;
+  };
+  actor.rows = rows;
+  actor.log = log;
+  actor.effects = { has: (id) => rows.has(id), get: (id) => rows.get(id), [Symbol.iterator]: () => rows.values() };
+  actor.seed = make;
+  actor.createEmbeddedDocuments = async (_type, list, options = {}) => {
+    log.created += list.length;
+    return list.map((d) => make(options.keepId ? d : { ...d, _id: undefined }));
+  };
+  actor.deleteEmbeddedDocuments = async (_type, ids, options) => {
+    assert.equal(options?.["acks-extras"]?.managedDelete, true, "the delete authorizes itself");
+    for (const id of ids) rows.delete(id);
+    log.deleted += ids.length;
+  };
+  return actor;
+}
+globalThis.CONFIG = { statusEffects: [{ id: "vulnerable", name: "EFFECT.Vulnerable", img: "icons/svg/hazard.svg" }] };
+
+/** The spelunking table with a grid row saying which obstacles leave a climber helpless. */
+const VULNERABLE = { ...SPELUNKING, vulnerable: { sheerClimb: true, easyClimb: false } };
+const HAND_SET = { name: "Vulnerable", statuses: ["vulnerable"] };
+const MAPPER_HELD = { name: "Vulnerable", statuses: ["vulnerable"], flags: { "acks-extras": { heldCondition: "mapperKit" } } };
+/** The crossing-held effects on an actor, whatever else it carries. */
+const crossingHeldOn = (actor) => [...actor.effects].filter((e) => String(e.getFlag("acks-extras", "heldCondition")).startsWith("crossing:"));
+const chipsOf = (view, name) => rowOf(view, name).held.map((c) => c.label);
+const holdersOn = (actor) => [...actor.rows.values()].map((e) => e.getFlag("acks-extras", "heldCondition") ?? "").sort();
+
+/** An obstacle crossing over three stretches, one climber carrying `withEffects`. */
+async function heldWorld({ spelunking = VULNERABLE, kind = "sheerClimb" } = {}) {
+  reset();
+  load({ spelunking });
+  const alder = withEffects(person("Alder", { items: [CLIMBING()], owner: PLAYER.id }));
+  const { formation, actor } = world([alder]);
+  await beginCrossing(formation, kind);
+  await applyCrossingForm(formation, { length: "120" });
+  return { formation, alder, party: actor };
+}
+
+await ok("a member's first throw on an obstacle the grid marks vulnerable holds the condition, marked with the crossing; the chip names it on every seat", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(17);
+  const out = await throwFor(formation, "Alder");
+  assert.equal(out.step, "climbing");
+  const held = crossingHeldOn(alder);
+  assert.equal(held.length, 1);
+  assert.equal(held[0].getFlag("acks-extras", "heldCondition"), `crossing:${readCrossing(formation).id}:vulnerable`);
+  assert.deepEqual([...held[0].statuses], ["vulnerable"]);
+  assert.match(held[0].id, /^[A-Za-z0-9]{16}$/, "the effect's id is 16 letters and digits");
+  for (const seat of [GM, PLAYER, OTHER]) {
+    const view = as(seat, () => buildCrossingView(formation));
+    assert.deepEqual(chipsOf(view, "Alder"), ["Vulnerable"], "the condition's own localized name");
+    const chip = rowOf(view, "Alder").held[0];
+    assert.ok(chip.tip.includes("held by this crossing") && chip.tip.endsWith("XX p.1"), "the tooltip says who holds it and names the imported page");
+  }
+  const html = render({ crossing: buildCrossingView(formation) });
+  assert.ok(/acks-extras-crossing-held[^>]*>Vulnerable</.test(html), "the chip is text in the row's cells line");
+  naturals.push(17);
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1, "a second throw on the obstacle writes no second effect");
+  assert.equal(alder.log.created, 1);
+});
+
+await ok("the hold is released when the member is across, and an across row shows no chip", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(17, 17, 17);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1);
+  const last = await throwFor(formation, "Alder");
+  assert.equal(last.step, "across");
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.deepEqual(rowOf(buildCrossingView(formation), "Alder").held, []);
+  assert.equal(alder.log.deleted, 1);
+});
+
+await ok("a member who crosses in one throw never holds anything", async () => {
+  const { formation, alder } = await heldWorld();
+  await applyCrossingForm(formation, { length: "40" });
+  naturals.push(17);
+  assert.equal((await throwFor(formation, "Alder")).step, "across");
+  assert.equal(alder.log.created, 0);
+  assert.equal(alder.log.deleted, 0);
+});
+
+await ok("the hold is released when the member falls", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(17, 1);
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1);
+  assert.equal((await throwFor(formation, "Alder")).step, "fell");
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.deepEqual(rowOf(buildCrossingView(formation), "Alder").held, []);
+});
+
+await ok("a stalled member stays on the obstacle and keeps the hold", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(5);
+  assert.equal((await throwFor(formation, "Alder")).step, "stalled");
+  assert.equal(crossingHeldOn(alder).length, 1);
+});
+
+await ok("End releases what the crossing holds, and a new Begin starts with none", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(17);
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1);
+  assert.equal(await endCrossing(formation), true);
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.equal(readCrossing(formation), null);
+  assert.ok(await beginCrossing(formation, "sheerClimb"));
+  assert.equal(crossingHeldOn(alder).length, 0);
+});
+
+await ok("a member the party drops is released at the next write, and the crossing's other members are untouched", async () => {
+  reset();
+  load({ spelunking: VULNERABLE });
+  const alder = withEffects(person("Alder", { items: [CLIMBING()] }));
+  const birch = withEffects(person("Birch", { items: [CLIMBING()] }));
+  const { formation } = world([alder, birch]);
+  await beginCrossing(formation, "sheerClimb");
+  await applyCrossingForm(formation, { length: "120" });
+  naturals.push(17, 17);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Birch");
+  formation.members = formation.members.filter((m) => m.actorId !== "Alder");
+  assert.equal(await pruneMembers(formation), true);
+  assert.equal(crossingHeldOn(alder).length, 0, "released on the dropped member");
+  assert.equal(crossingHeldOn(birch).length, 1, "kept on the one still crossing");
+  assert.equal(readCrossing(formation).members.Alder, undefined);
+  // The drop made at a throw's own write releases the same way.
+  const cedar = withEffects(person("Cedar", { items: [CLIMBING()] }));
+  formation.members.push({ actorId: "Cedar" });
+  naturals.push(17);
+  await throwFor(formation, "Cedar");
+  assert.equal(crossingHeldOn(cedar).length, 1);
+  formation.members = formation.members.filter((m) => m.actorId !== "Cedar");
+  naturals.push(17);
+  await throwFor(formation, "Birch");
+  assert.equal(crossingHeldOn(cedar).length, 0, "writeMemberStep released what its own prune dropped");
+});
+
+await ok("a Vulnerable from a hand or the mapper's kit is never touched by a hold or a release", async () => {
+  const { formation, alder } = await heldWorld();
+  alder.seed(HAND_SET);
+  alder.seed(MAPPER_HELD);
+  naturals.push(17, 17, 17);
+  await throwFor(formation, "Alder");
+  assert.equal(alder.rows.size, 3, "the crossing's effect stands beside the two");
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.deepEqual(holdersOn(alder), ["", "mapperKit"], "after the release the other two stand");
+  await endCrossing(formation);
+  assert.deepEqual(holdersOn(alder), ["", "mapperKit"], "End touches neither");
+});
+
+await ok("nothing is held where the grid row is not imported, is not a boolean, or says the obstacle does not leave a climber helpless", async () => {
+  for (const [spelunking, kind] of [
+    [SPELUNKING, "sheerClimb"],
+    [{ ...SPELUNKING, vulnerable: { sheerClimb: "yes" } }, "sheerClimb"],
+    [VULNERABLE, "easyClimb"],
+  ]) {
+    const { formation, alder } = await heldWorld({ spelunking, kind });
+    naturals.push(17);
+    assert.equal((await throwFor(formation, "Alder")).step, "climbing");
+    assert.equal(alder.log.created, 0, "no effect is made");
+    assert.deepEqual(rowOf(buildCrossingView(formation), "Alder").held, []);
+  }
+});
+
+await ok("a player's relayed throw holds the condition on the GM client, and the player's seat reads the chip", async () => {
+  const { formation, alder } = await heldWorld();
+  naturals.push(17);
+  const out = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder"));
+  assert.deepEqual(out, { ok: true });
+  assert.equal(crossingHeldOn(alder).length, 1);
+  assert.deepEqual(chipsOf(as(PLAYER, () => buildCrossingView(formation)), "Alder"), ["Vulnerable"]);
+});
+
+await ok("an End that lands between a throw's record and its hold leaves nothing held", async () => {
+  const { formation, alder } = await heldWorld();
+  const create = alder.createEmbeddedDocuments;
+  alder.createEmbeddedDocuments = async (...args) => {
+    alder.createEmbeddedDocuments = create;
+    await endCrossing(formation);
+    return create(...args);
+  };
+  naturals.push(17);
+  assert.equal((await throwFor(formation, "Alder")).step, "climbing");
+  assert.equal(readCrossing(formation), null);
+  assert.equal(crossingHeldOn(alder).length, 0, "the late hold is taken off again");
+});
+
+await ok("a new Begin releases a stray from an earlier crossing and spares one another party has open", async () => {
+  reset();
+  load({ spelunking: VULNERABLE });
+  const alder = withEffects(person("Alder", { items: [CLIMBING()] }));
+  const { formation } = world([alder]);
+  const other = party("party2");
+  other.store.flags["acks-extras"].crossing = { id: "openelsewhere", kind: "sheerClimb", members: {} };
+  formations.f2 = { id: "f2", name: "Other", actorId: other.id, members: [] };
+  const stray = (id) => alder.seed({ name: "Vulnerable", statuses: ["vulnerable"], flags: { "acks-extras": { heldCondition: `crossing:${id}:vulnerable` } } });
+  stray("longgone");
+  stray("openelsewhere");
+  alder.seed(HAND_SET);
+  assert.ok(await beginCrossing(formation, "sheerClimb"));
+  assert.deepEqual(holdersOn(alder), ["", "crossing:openelsewhere:vulnerable"]);
 });
 
 console.log(`\n${passed} passed`);

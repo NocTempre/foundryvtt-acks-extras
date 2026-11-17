@@ -55,6 +55,51 @@ export const SETTLED = Object.freeze(["across", "fell"]);
 /** The state of a member whose last miss covered no ground; a Judge may rule a re-throw. */
 export const STALLED = "stalled";
 
+/**
+ * The statuses a crossing can hold on a member while they are on an obstacle.
+ * Each is read from a figure the Spelunking grid carries; a status the grid
+ * does not give is not held.
+ */
+export const CROSSING_STATUSES = Object.freeze(["vulnerable"]);
+
+/**
+ * The held condition one crossing keeps for one status: its holder names the
+ * crossing and the status, so a release takes off what this crossing put there
+ * and nothing else, and two statuses under one crossing stand as two effects.
+ * The effect's `_id` is 16 letters and digits, unique to the pair.
+ *
+ * @param {string} crossingId the crossing's id
+ * @param {string} statusId one of `CROSSING_STATUSES`
+ * @returns {{holder: string, statusId: string, id: string}}
+ */
+export function crossingHeld(crossingId, statusId) {
+  const slot = Math.max(0, CROSSING_STATUSES.indexOf(statusId));
+  const id = `c${slot}${String(crossingId).replace(/[^A-Za-z0-9]/g, "")}`.padEnd(16, "0").slice(0, 16);
+  return { holder: `crossing:${crossingId}:${statusId}`, statusId, id };
+}
+
+/** The crossing id a holder string names, or null for a holder that is no crossing's. */
+export function crossingOfHolder(holder) {
+  const match = /^crossing:(.+):[^:]+$/.exec(String(holder ?? ""));
+  return match ? match[1] : null;
+}
+
+/**
+ * The statuses a member holds after a throw: while they are still on the
+ * obstacle (`climbing`, `stalled`), the ones the grid names for it; once they
+ * are across or fell, none. A figure nobody imported (`vulnerable` null) holds
+ * nothing.
+ *
+ * @param {object} o
+ * @param {string} o.state the member's state after the throw
+ * @param {boolean|null} [o.vulnerable] `readThrow`'s `vulnerable`
+ * @returns {string[]} members of `CROSSING_STATUSES`
+ */
+export function heldAfter({ state, vulnerable = null } = {}) {
+  if (SETTLED.includes(state)) return [];
+  return vulnerable === true ? ["vulnerable"] : [];
+}
+
 /** The obstacles a fall is figured on the climb's own progress. */
 const CLIMBS = Object.freeze(["easyClimb", "sheerClimb", "rappel"]);
 

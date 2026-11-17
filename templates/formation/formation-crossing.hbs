@@ -135,6 +135,9 @@
       <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.targetTip}}">{{this.target}}</span>
       <span class="acks-extras-crossing-permitted" data-tooltip-text="{{this.permittedTip}}">{{this.permitted}}</span>
       <span class="acks-nums acks-extras-crossing-covered" data-tooltip-text="{{this.coveredTip}}">{{this.covered}}</span>
+      {{#each this.held}}
+      <span class="acks-extras-crossing-held" data-status="{{this.statusId}}" data-tooltip-text="{{this.tip}}">{{this.label}}</span>
+      {{/each}}
       <span class="acks-extras-crossing-state">{{this.stateLabel}}</span>
       {{#if this.last}}
       <span class="acks-nums acks-extras-crossing-last"><span data-tooltip-text="{{this.last.tip}}">{{this.last.total}}</span>{{#if this.last.outcome}} · <span data-tooltip-text="{{this.last.outcomeTip}}">{{this.last.outcome}}</span>{{/if}}</span>

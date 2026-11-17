@@ -404,3 +404,17 @@ reach as before.
 **Rejected.** Reading `contortionismBonus` off the imported ability: the effect carries the saving-throw bonus only, and the squeeze and the push are proficiency-style throws. A default for any of the four: a world without the import has no figure and the readers say so.
 
 **Cost.** A world must re-run the Rules tables import before a squeeze reads any figure; until then each answers null, and the Judge may set them in the Ruledata Browser. Nothing reads them until the squeeze rows land (slice S15).
+
+## 2026-11-17 — A crossing holds the grid's Vulnerable on a member while they are on the obstacle, and Clambering is not held
+
+**Ruled.** (Dungeon close-out plan finding B10, slice S18.)
+- A member who is `climbing` or `stalled` on an obstacle carries the statuses the Spelunking grid names for it, as held conditions (`lib/held-condition.mjs`), and today that is `vulnerable` from `readThrow`'s `vulnerable`. The effect's marker is `crossing:<crossing id>:<status>`, so a release takes off only what that crossing put there and a same-status effect from a hand, a spell or the mapper's kit stands. The holder carries the status because the lib collapses every marked effect past the first under one holder.
+- It comes off when a throw leaves the member `across` or `fell`, at End, when a member is dropped (`pruneMembers`, `writeMemberStep`'s prune), and at Begin for any crossing-held effect whose crossing no party has open. The write is on the GM client that executes the throw, after the member's record lands, so a relayed player's throw holds it too.
+- The body is `carriersOf` (the mapper kit's reading: a linked member's world actor, an unlinked member's deployed token's actor), not the world actor of every member.
+- A figure nobody imported holds nothing, and a figure that is no boolean reads as not imported.
+- **Clambering is not held.** Its catalogue row (`lib/conditions.mjs`) exposes a target creature and carries attack figures against the creature it names, and the pages it follows (RR Appendix B; RR ch. 6, the Clamber manoeuvre) place it in combat, toward a creature; nothing there gives it to a climber on an obstacle. The plan's brief held it "where it applies"; it applies nowhere here, so no status is invented for it.
+- The one label a held effect's hand-delete refusal names is `ACKS-FORMATION.heldCondition.owner` ("the party sheet"), no longer "the party's mapper", since the marker flag is shared by both holders.
+
+**Rejected.** Holding on every member for the crossing's whole life: a member who has not thrown is not on the obstacle. Releasing by status alone: that would take a hand-set one. Reading the chip from the table: the chip is read off the body so it stands only while the effect does.
+
+**Cost.** A world needs the Rules tables import for the grid's row before anything is held. A member removed from the party keeps the effect until the next press, the next write or End; the world actor of the dropped id carries it, so an unlinked member's token effect is not reached from there. Formation's published names do not change.
