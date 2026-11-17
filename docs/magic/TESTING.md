@@ -706,6 +706,63 @@ cards, each tracked by id as it is made). The fixtures stay; the next walk's
 first step rewrites their size and Hit Dice and blanks the copy's gates, and
 nothing is deleted by name or marker pattern.
 
+### Record lives
+
+Walked by `tools/live/magic-cast-widen.mjs` after the gate steps, on the GM and
+Player seats. A condition row whose `lasts` is `nextTurn` or `rounds` writes a
+record with lib's `turnLife` flag and the flag clock (MODEL, "A record that
+lives"). The walk needs a begun fight, so it makes one: a Combat on
+`magic/cast-scene` created for the run (not a kept fixture: its turn order is the
+state under test), holding the caster's token and `magic/widen-target-a`'s, with
+initiative rolled and the fight started. It is tracked by uuid as it is made and
+swept with the run's other leavings. No figure is printed here: every count is
+the one the walk rigs or reads back.
+
+| Marker | What it is |
+|---|---|
+| `magic/widen-spell-blindingFlash` | The copy of the imported `def.spell.blindingFlash`; its condition row is `lasts: nextTurn` as imported. |
+| `magic/widen-spell-kindleFlame` | The copy of the imported `def.spell.kindleFlame`. Its imported burning row lasts `duration` and the imported `rounds` figure sits on its `ignite` row, which writes no record, so the step writes `lasts: rounds` and a `rounds` formula on the burning row through the row editor (a step's own formula, rigged by the dice) and blanks it again in the step after. |
+
+Each step asserts its shape at its start (the fight's current turn, no record of
+an earlier run on the target, the row as the step needs it).
+
+1. In the fight, on the caster's turn, cast Blinding Flash at the target.
+   *Observable:* one record on the target carrying `blinded`, with
+   `flags["acks-extras"].turnLife` equal to `{combatId, combatantId: <the target's
+   combatant>, edge: "end", count: 1, seen: 0}` and the spell flag's `duration`
+   one round with `startTime` the world time; the entry's tooltip names the end
+   it was written with and the page.
+2. Advance the tracker to the target's turn, and then past it. *Observable:* the
+   record stands at the target's turn start and is gone once its turn ends
+   (poll: lib lifts it on the primary GM's window); the `blinded` state ends with
+   it. Cast again during the target's own turn: the record survives that turn's
+   end, since that turn began before it, and goes at the end of the next.
+3. Outside a fight (the fight ended, or a cast on a token no fight holds), cast
+   it again. *Observable:* the record has no `turnLife`; `game.time.advance` one
+   second short of a round leaves it and a step to the round deletes it by id.
+4. In the fight, cast at a token that is not one of its combatants. *Observable:*
+   the record carries the clock only, and the entry's tooltip says the bearer
+   holds no turn.
+5. On the kindle copy, write the burning row's lifetime, rig the dice for the
+   count, and cast in the fight. *Observable:* the entry reads the formula, the
+   rolled detail and the count; the record's `turnLife` is `{edge: "start",
+   count: <rolled>, seen: 0}`; after one fewer turn starts of the target than the
+   count it stands with `seen` one fewer than the count, and the start that
+   reaches the count deletes it. A step to the round past the clock's end of
+   the rolled rounds, taken instead, deletes it by the clock; whichever comes
+   first, one delete and no second.
+6. Blank the burning row's formula and cast. *Observable:* the record is written
+   with no duration, no start and no `turnLife`; the entry's tooltip is the page
+   reference alone and its line says nothing of a lifetime.
+7. From the Player seat, send `magicCastApply` to the GM's client for a card whose
+   condition entry carries a count outside the formula's reach, one inside it and
+   none. *Observable:* the first and the last are refused with `badRounds`, the
+   middle applies once, and the record's `turnLife.count` is that count.
+
+Teardown: the run's Combat, cast cards and records are swept by the uuids and ids
+the walk tracked as it made them; the copies and the fixtures stay, and the
+kindle copy's row is left blank of a lifetime, as imported.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2

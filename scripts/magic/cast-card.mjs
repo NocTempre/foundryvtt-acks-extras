@@ -114,6 +114,28 @@ function throwDetail(entry, loc) {
   return entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "";
 }
 
+/**
+ * The tooltip of a condition entry that lasts a next turn or a number of rounds:
+ * the count and the roll it came from, then which end the record was written with
+ * (a turn end beside the clock, or the clock alone where the bearer holds no turn
+ * in a begun fight; unsaid until the entry is applied). A count the import left
+ * unread, or whose formula would not roll, carries the page reference alone.
+ */
+function lifeTip(life, card, loc) {
+  const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
+  if (life.kind === "rounds" && life.count == null) return cite;
+  const count = life.kind === "nextTurn" ? 1 : life.count;
+  const lasts = life.kind === "nextTurn" ? loc("tip.lastsNextTurn") : loc("tip.lastsRounds", { count, formula: life.formula, detail: life.detail || count });
+  const ends = life.turn === undefined ? "" : life.turn ? loc(life.kind === "nextTurn" ? "tip.endsTurnEnd" : "tip.endsTurnStart", { count }) : loc("tip.endsClock", { count });
+  return [lasts, ends, cite].filter(Boolean).join(" ");
+}
+
+/** What a condition entry's line says of its life: how many rounds, or until the bearer's next turn ends; nothing where the record is untimed. */
+function lifeDetail(life, loc) {
+  if (life?.kind === "nextTurn") return loc("detail.lastsNextTurn");
+  return life?.kind === "rounds" && life.count != null ? loc("detail.lastsRounds", { count: life.count }) : "";
+}
+
 /** A row's figure tooltip: its dice and the page the procedure is cited to; the citation alone for a blank figure. A count the import gave names its parts first. */
 function rollTip(row, card, loc) {
   const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
@@ -208,11 +230,12 @@ export function castCardView(card, seat, loc) {
             name: target.name,
             total: done && entry.applied != null ? entry.applied : "—",
             // A defense the module does not price leaves the entry to the Judge: its line names the defense and the tooltip is the page reference alone.
-            tooltipText: exempt || (judged ? defenseCiteOf(judged) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : ""),
+            tooltipText: exempt || (judged ? defenseCiteOf(judged) : entry?.life ? lifeTip(entry.life, card, loc) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : ""),
             // The Judge applies it by hand, so the figure rolled stays on the line beside the defense.
             detail: [
               judged ? loc("detail.judgeDefense", { defense: defenseWord(judged, named), cite: defenseCiteOf(judged) }) : "",
               throwDetail(entry, loc),
+              lifeDetail(entry?.life, loc),
             ]
               .filter(Boolean)
               .join(" · "),

@@ -22,7 +22,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-25 — [A creature's repertoire is drawn to its slots (2026-09-25)](DECISIONS-through-v11.14.5.md#a-creatures-repertoire-is-drawn-to-its-slots-2026-09-25)
 - 2026-09-25 — [The order, and the scoping's eleven questions, ruled (2026-09-25)](DECISIONS-through-v11.14.5.md#the-order-and-the-scopings-eleven-questions-ruled-2026-09-25)
 - 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11)
-- 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11)
+- 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11) — its cost line ("a combat's rounds do not age a record") qualified 2026-11-17 by [A condition row can last turns, and lib ends it](#2026-11-17--a-condition-row-can-last-turns-and-lib-ends-it)
 - undated — [Where the lang-key convention is recorded](DECISIONS-through-v11.14.5.md#where-the-lang-key-convention-is-recorded)
 
 ## 2026-11-16 — A cast's modifiers ride one record per recipient, read at the roll by lib
@@ -221,3 +221,50 @@ dialog and card); patching core. *Cost:* a card per cast holds the split and
 every instance, so a large count writes a larger flag, and other seats see the
 caster's targets flicker during a throw. *Counter (medium):* a page that splits
 by creature needs another default; the split is editable.
+
+## 2026-11-17 — A condition row can last turns, and lib ends it
+
+The owner: "cast time and spell duration (and if it requires concentration to
+hold) are the other obvious buckets to think about", "1 stops" (a record that
+runs out stops applying by itself, nothing pressed), "2 spells track separate,
+effects don't stack but can overlap" and "automation with transparency is the
+design principle". A row's `lasts` gains `nextTurn` and `rounds` (plan rulings
+94 and 95; the `rounds` figure is the row's own dice formula, read from the
+page). In a begun fight, with the bearer a combatant of it
+(`cast-moment.mjs` `fightHolding`, the same begun-fight notion `castMoment`
+reads), a condition record carries lib's `turnLife` flag: `nextTurn` ends at the
+end of the bearer's next turn (`{edge: "end", count: 1}`), `rounds` at the start
+of the bearer's turn that reaches the rolled count (`{edge: "start", count}`).
+Every such record also carries its `startTime` and the flag clock of one round,
+or the rolled rounds, at `ROUND_SECONDS`; whichever end comes first deletes the
+record by id, lib's at its turn edge and the clock's at the next step. Outside a
+fight, with the bearer no combatant, or after the fight, the clock alone ends it.
+The turn handling stays lib's (`status-effects.mjs` fires the turn hooks on the
+primary GM and lifts the record); magic registers no tracker hook.
+
+The rounds count is rolled once per target's record on the casting client, at
+the cast, shown on the card, and carried in the apply request; the relay holds it
+to the reach of the spell's own formula (`badRounds`) and reads whether the
+bearer holds a turn on its own client, never from the request. A rolled total
+below one lasts one round, the floor the damage rolls also keep. A blank formula
+leaves the record untimed, with the page reference alone on the card.
+
+*Qualifies the cost line* of "A cast's end is told on a card, read from the
+module's own clock math" (2026-11-11: "a combat's rounds do not age a record"),
+on new evidence: the rows this slice adds last a next turn or a few rounds
+inside one fight, and the world clock does not move while a fight runs, so the
+clock alone would never end them. The ruling's other parts stand: the clock
+remains the only end of a record with no turn to count, and core's `expired` is
+still not read. A turn-anchored record is the one kind a combat's rounds age,
+and only through lib's flag; a record with a duration and no flag is aged as
+before.
+
+*Rejected:* counting the combat's rounds (initiative is rerolled each round, so
+a round is no fixed span of one creature's turns); magic listening on
+`combatTurnChange` (a second owner of turn handling beside lib); one roll per
+row for every target (every target's record would end together, where the
+owner's "spells track separate" treats each record as its own). *Cost:* a write to the record's flag
+at each of the bearer's turn starts for a `rounds` record. *Counter (medium):*
+the end edge of a next turn is not printed on the page it is read from (owner
+question F, at its default), so the Judge deletes the record by hand where a
+table reads it another way.

@@ -11,7 +11,8 @@
  * by hand and the cast it stands for simply stops being tracked.
  */
 import { MODULE_ID, FLAG_SPELL_EFFECT } from "./constants.mjs";
-import { FLAG_ROLL_MODS } from "../lib/constants.mjs";
+import { FLAG_ROLL_MODS, FLAG_TURN_LIFE } from "../lib/constants.mjs";
+import { readTurnLife } from "../lib/turn-life.mjs";
 
 /** The two sides of a cast a record can sit on. */
 export const SPELL_EFFECT_ROLES = Object.freeze(["caster", "recipient"]);
@@ -72,6 +73,8 @@ export function newCastId({ randomID } = {}) {
  * @param {object} [cast.pending]  A declared spell awaiting the caster's turn: `{spellUuid, mode, picks, casterLevel, situational, visibility, item, combatId, round, at}`. Such a record holds no status.
  * @param {{id: string|null, label: string, cite: string, sourceAlignment: string|null, parts: object[]}} [cast.rollMods]
  *   The buff lib reads at the roll (`lib/roll-mods.mjs`), written at lib's flag. A record that carries it holds no status and no changes.
+ * @param {{combatId: string, combatantId: string, edge: "start"|"end", count: number, seen?: number}} [cast.turnLife]
+ *   The turns the record lasts (`lib/turn-life.mjs`), written at lib's flag beside the mark, where lib lifts it at its edge by id. A flag that is not a well-formed record is not written.
  * @returns {object}
  */
 export function spellEffectData({
@@ -93,6 +96,7 @@ export function spellEffectData({
   held,
   tail,
   pending,
+  turnLife,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
   if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
@@ -117,6 +121,8 @@ export function spellEffectData({
     flags: { [MODULE_ID]: { [FLAG_SPELL_EFFECT]: mark } },
   };
   if (rollMods) data.flags[MODULE_ID][FLAG_ROLL_MODS] = rollMods;
+  const life = readTurnLife(turnLife);
+  if (life) data.flags[MODULE_ID][FLAG_TURN_LIFE] = life;
   if (statuses.length) data.statuses = [...statuses];
   const timed = duration && !duration.none && Number.isFinite(duration.value) && duration.units;
   const flagTimed = statuses.length > 0 || changes.length > 0 || Number.isFinite(startTime);
@@ -132,7 +138,8 @@ export function spellEffectData({
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
  * was stamped at (`cast-expiry.mjs`). A buff record's `rollMods` is read back
- * whole, from lib's flag beside the mark.
+ * whole, from lib's flag beside the mark, and so is a `turnLife` (`readTurnLife`'s
+ * record, with the turns seen so far).
  *
  * @param {object} effect  An Active Effect document or its plain data.
  */
@@ -155,6 +162,8 @@ export function spellEffectOf(effect) {
   if (raw.pending && typeof raw.pending === "object") record.pending = raw.pending;
   const mods = effect?.flags?.[MODULE_ID]?.[FLAG_ROLL_MODS] ?? effect?.getFlag?.(MODULE_ID, FLAG_ROLL_MODS);
   if (mods && typeof mods === "object" && Array.isArray(mods.parts)) record.rollMods = mods;
+  const life = readTurnLife(effect?.flags?.[MODULE_ID]?.[FLAG_TURN_LIFE] ?? effect?.getFlag?.(MODULE_ID, FLAG_TURN_LIFE));
+  if (life) record.turnLife = life;
   if (raw.startTime != null && Number.isFinite(Number(raw.startTime))) record.startTime = Number(raw.startTime);
   if (raw.duration && typeof raw.duration === "object" && Number.isFinite(Number(raw.duration.value)) && raw.duration.units) {
     record.duration = { value: Number(raw.duration.value), units: String(raw.duration.units) };

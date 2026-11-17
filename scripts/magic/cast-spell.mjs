@@ -24,7 +24,8 @@ import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
-import { castMoment, declarationOf, MOMENT } from "./cast-moment.mjs";
+import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
+import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
 import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
@@ -107,14 +108,7 @@ export async function rowSpecOf(caster, spell, card, keyed) {
 }
 
 /** The begun fight that holds this actor, with the actor's combatant in it; null where there is none. */
-function castFight(actor) {
-  for (const combat of [game.combat, ...(game.combats ?? [])]) {
-    if (!combat || (combat.started !== true && combat.flags?.acks?.initDone !== true)) continue;
-    const combatant = combat.combatants?.find((c) => c.actor === actor || (c.actor?.uuid && c.actor.uuid === actor.uuid));
-    if (combatant) return { combat, combatant };
-  }
-  return null;
-}
+const castFight = (actor) => fightHolding([game.combat, ...(game.combats ?? [])], { actor });
 
 /**
  * The spell's range and target figures: the copy's own, else its library
@@ -263,7 +257,10 @@ export async function rollResist(actor, save, situational, { against = null, bea
  * the caster, where a row is, takes the rest.
  *
  * `extras` are the gates' figures (`castGateExtrasOf`) and the card's caster level
- * is the level they are read at. A target a row's gate leaves unaffected has the
+ * is the level they are read at. A condition row that lasts a number of rounds
+ * opens its entry with `life {kind, count, formula, detail}`, the formula rolled
+ * once for that target's record (`count` null where it is blank or will not
+ * roll). A target a row's gate leaves unaffected has the
  * entry `{state: "exempt", gate}` for that row, a thrown row's included: nothing
  * is rolled, written or recorded for it. A target the spell's gate leaves with
  * no save keeps the failed resist that says so (`rollResist`). The caster's own
@@ -279,13 +276,29 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   // A thrown row's entry opens at its throw, so it is listed with the rows that open one only to be marked exempt.
   const entered = rows.filter(({ key, row }) => card.rows[key] && (opens(card.rows[key]) || (rowNeedsThrow(row) && card.rows[key].blank !== true)));
   const hasSelf = rows.some(({ row }) => aimedAtSelf(row));
-  const add = (key, target, forRow, gates = null) => {
+  // A condition that lasts a number of rounds opens with its count rolled, once for this target's record and shown on the card; a formula the import left blank, or one that will not roll, opens with no count.
+  const opened = async (row) => {
+    if (row.type !== "conditionGrant" || row.lasts !== "rounds") return {};
+    const formula = roundsFormulaOf(row);
+    const none = { life: { kind: "rounds", count: null, formula } };
+    if (!formula) return none;
+    try {
+      const roll = await new Roll(formula).evaluate();
+      const count = roundsCount(roll.total);
+      if (count == null) return none;
+      rolls.push(roll);
+      return { life: { kind: "rounds", count, formula, detail: String(roll.result ?? roll.total) } };
+    } catch {
+      return none;
+    }
+  };
+  const add = async (key, target, forRow, gates = null) => {
     targets[key] = target;
     for (const { key: rowKey, row } of entered) {
       if (!forRow(row)) continue;
       const gate = gates?.[rowKey];
       if (gate && !gate.affected) entries[entryId(key, rowKey)] = { state: "exempt", gate: gate.why };
-      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending" };
+      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending", ...(await opened(row)) };
     }
   };
   // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes, no
@@ -300,9 +313,9 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
       ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
-    add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates);
+    await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates);
   }
-  if (hasSelf && caster) add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf);
+  if (hasSelf && caster) await add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf);
   return { targets, entries, rolls };
 }
 

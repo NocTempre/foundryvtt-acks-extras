@@ -1463,4 +1463,179 @@ await ta("a cast keeps every row of the picked option on the card", async () => 
   assert.deepEqual(r.calls.asked.groups.normal[0].options.map((o) => o.token), ["flame", "frost"]);
 });
 
+/* ------------------------------------------------------------------ */
+/*  A record that lives (invented spells; no printed figure)           */
+/* ------------------------------------------------------------------ */
+
+const { lifeOf, lifeEntry, roundsBounds, roundsCount } = await import("../scripts/magic/cast-life.mjs");
+const { fightHolding } = await import("../scripts/magic/cast-moment.mjs");
+const { requestOf } = await import("../scripts/magic/cast-throw.mjs");
+const { ROUND_SECONDS } = await import("../scripts/magic/cast-expiry.mjs");
+
+/** A card whose one row is an invented condition that lasts as the given fields say. */
+const lifeCard = (fields, entry = { state: "pending" }) =>
+  card({
+    save: { category: "", effect: "" },
+    rows: { dread: { type: "conditionGrant", key: "dread", conditions: ["afraid"], ...fields } },
+    order: ["dread"],
+    targets: { t1: { uuid: "Scene.s.Token.k1", name: "T", resist: null } },
+    entries: { t1_dread: entry },
+  });
+const BEARER_FIGHT = async () => ({ combatId: "c1", combatantId: "k1" });
+const turnLifeOf = (data) => data.flags["acks-extras"].turnLife;
+
+await ta("in a begun fight a next-turn record carries the turn end and the one-round clock", async () => {
+  const c = lifeCard({ lasts: "nextTurn" });
+  const { deps, log } = fakeDeps({ fight: BEARER_FIGHT });
+  const out = await applyOnTarget(c, "t1", [{ rowKey: "dread" }], deps);
+  assert.deepEqual(turnLifeOf(log.made[0]), { combatId: "c1", combatantId: "k1", edge: "end", count: 1, seen: 0 });
+  assert.deepEqual([spellEffectOf(log.made[0]).duration, spellEffectOf(log.made[0]).startTime], [{ value: 1, units: "rounds" }, 500]);
+  assert.deepEqual(log.made[0].statuses, ["afraid"]);
+  assert.deepEqual(out[0].entry.life, { kind: "nextTurn", count: 1, formula: "", turn: true });
+  assert.deepEqual(spellEffectOf(log.made[0]).turnLife, { combatId: "c1", combatantId: "k1", edge: "end", count: 1, seen: 0 }, "read back whole");
+});
+
+await ta("in a begun fight a rounds record counts the bearer's turn starts and carries the clock of the rolled rounds", async () => {
+  const c = lifeCard({ lasts: "rounds", rounds: "1d4" });
+  const { deps, log } = fakeDeps({ fight: BEARER_FIGHT });
+  const out = await applyOnTarget(c, "t1", [{ rowKey: "dread", rounds: 3 }], deps);
+  assert.deepEqual(turnLifeOf(log.made[0]), { combatId: "c1", combatantId: "k1", edge: "start", count: 3, seen: 0 });
+  assert.deepEqual(spellEffectOf(log.made[0]).duration, { value: 3, units: "rounds" });
+  assert.equal(out[0].entry.life.count, 3);
+  assert.equal(out[0].entry.life.turn, true);
+});
+
+await ta("outside a fight, or with the bearer no combatant of it, the clock alone ends the record", async () => {
+  for (const fight of [undefined, async () => null]) {
+    const next = fakeDeps({ fight });
+    await applyOnTarget(lifeCard({ lasts: "nextTurn" }), "t1", [{ rowKey: "dread" }], next.deps);
+    assert.equal(next.log.made[0].flags["acks-extras"].turnLife, undefined, "no turn flag");
+    assert.deepEqual(spellEffectOf(next.log.made[0]).duration, { value: 1, units: "rounds" });
+    const rounds = fakeDeps({ fight });
+    const out = await applyOnTarget(lifeCard({ lasts: "rounds", rounds: "1d4" }), "t1", [{ rowKey: "dread", rounds: 2 }], rounds.deps);
+    assert.equal(rounds.log.made[0].flags["acks-extras"].turnLife, undefined);
+    assert.deepEqual([spellEffectOf(rounds.log.made[0]).duration, spellEffectOf(rounds.log.made[0]).startTime], [{ value: 2, units: "rounds" }, 500]);
+    assert.equal(out[0].entry.life.turn, false);
+  }
+});
+
+t("a fight that holds the caster and not the bearer gives the bearer no turn; a token is matched before its actor", () => {
+  const caster = { uuid: "Actor.c1" };
+  const bearer = { uuid: "Actor.b1" };
+  const fight = (over = {}) => ({ id: "c1", started: true, combatants: [{ id: "kc", actor: caster, tokenId: "tc" }], ...over });
+  assert.equal(fightHolding([fight()], { actor: bearer }), null, "the bearer is no combatant of it");
+  assert.equal(fightHolding([fight({ started: false })], { actor: caster }), null, "a fight not begun holds nobody");
+  assert.equal(fightHolding([fight({ started: false, flags: { acks: { initDone: true } } })], { actor: caster })?.combatant.id, "kc", "core's own begun mark counts");
+  assert.equal(fightHolding([fight()], { actor: { uuid: "Actor.c1" } })?.combatant.id, "kc", "by uuid");
+  const two = fight({ combatants: [{ id: "k1", actor: bearer, tokenId: "t1" }, { id: "k2", actor: bearer, tokenId: "t2" }] });
+  assert.equal(fightHolding([two], { actor: bearer, token: { id: "t2" } }).combatant.id, "k2", "the second token of a linked actor");
+  assert.equal(fightHolding([null, two], { actor: bearer }).combat.id, "c1", "an absent fight is passed by");
+});
+
+await ta("a rounds row with a blank formula, or no count, leaves its record untimed", async () => {
+  for (const [fields, request] of [
+    [{ lasts: "rounds", rounds: "" }, { rowKey: "dread", rounds: 5 }],
+    [{ lasts: "rounds" }, { rowKey: "dread", rounds: 5 }],
+    [{ lasts: "rounds", rounds: "1d4" }, { rowKey: "dread" }],
+    [{ lasts: "rounds", rounds: "1d4" }, { rowKey: "dread", rounds: 0 }],
+    [{ lasts: "rounds", rounds: "1d4" }, { rowKey: "dread", rounds: 1.5 }],
+  ]) {
+    const { deps, log } = fakeDeps({ fight: BEARER_FIGHT });
+    const out = await applyOnTarget(lifeCard(fields), "t1", [request], deps);
+    const record = spellEffectOf(log.made[0]);
+    assert.deepEqual([record.duration, record.startTime, record.turnLife], [undefined, undefined, undefined], JSON.stringify([fields, request]));
+    assert.equal(out[0].entry.life.count, null);
+    assert.equal(log.made[0].statuses[0], "afraid", "the condition is still written");
+  }
+});
+
+t("the relay takes a rolled count within the formula's reach and refuses any other", () => {
+  const rows = [{ key: "dread", row: { key: "dread", type: "conditionGrant", conditions: ["afraid"], lasts: "rounds", rounds: "1d4" } }];
+  const c = lifeCard({ lasts: "rounds", rounds: "1d4" });
+  const world = (over = {}) => ({ message: { authorId: "p1" }, card: c, ownsCaster: true, spellOfCaster: true, rows, resist: null, boundsOf: () => null, roundsBoundsOf: () => ({ min: 1, max: 4 }), ...over });
+  const req = (rounds) => ({ requestUserId: "p1", messageId: "m", targetKey: "t1", resist: null, entries: [{ rowKey: "dread", ...(rounds === undefined ? {} : { rounds }) }] });
+  for (const ok of [1, 2, 4]) assert.deepEqual(checkApplyRequest(req(ok), world()), { ok: true }, `${ok} is in reach`);
+  for (const bad of [0, 5, 2.5, "x", null, undefined]) assert.equal(checkApplyRequest(req(bad), world()).refused, "badRounds", `${bad} is not`);
+  assert.equal(checkApplyRequest(req(3), world({ roundsBoundsOf: () => null })).refused, "badRounds", "a formula that cannot be read takes no count");
+  assert.deepEqual(checkApplyRequest(req(undefined), world({ roundsBoundsOf: () => null })), { ok: true }, "and none is asked of it");
+  const blank = [{ key: "dread", row: { key: "dread", type: "conditionGrant", conditions: ["afraid"], lasts: "rounds", rounds: "" } }];
+  assert.deepEqual(checkApplyRequest(req(99), world({ rows: blank })), { ok: true }, "a blank formula ignores a count");
+  const next = [{ key: "dread", row: { key: "dread", type: "conditionGrant", conditions: ["afraid"], lasts: "nextTurn" } }];
+  assert.deepEqual(checkApplyRequest(req(99), world({ rows: next })), { ok: true }, "a next turn has no count");
+});
+
+t("a rolled count and a formula's reach are held to a floor of one round, and an unreadable formula has none", () => {
+  assert.equal(roundsCount(0), 1);
+  assert.equal(roundsCount(-2), 1);
+  assert.equal(roundsCount(3.9), 3);
+  assert.equal(roundsCount("x"), null);
+  const reach = (min, max) => () => ({ min, max });
+  assert.deepEqual(roundsBounds("f", reach(-2, 1)), { min: 1, max: 1 }, "a formula that can roll zero or less");
+  assert.deepEqual(roundsBounds("f", reach(1, 4)), { min: 1, max: 4 });
+  assert.equal(roundsBounds("", reach(1, 4)), null);
+  assert.equal(roundsBounds("f", () => { throw new Error("no"); }), null);
+  assert.equal(lifeOf({ lasts: "duration" }), null, "a duration row asks for no life of its own");
+  assert.equal(lifeOf({ lasts: "rounds", rounds: "1d4" }, { count: 2, fight: { combatId: "c", combatantId: "k" } }).turnLife.count, 2);
+  assert.deepEqual(lifeEntry(lifeOf({ lasts: "rounds", rounds: "1d4" }, { count: 2 }), "3"), { kind: "rounds", count: 2, formula: "1d4", detail: "3", turn: false });
+});
+
+t("a spell record's turn flag passes through and a malformed one is not written; the clock deletes it when its rounds pass", () => {
+  const base = { spell: { uuid: "S", name: "N", img: "i" }, caster: { uuid: "C" }, castId: "x", role: "recipient", statuses: ["afraid"], startTime: 100, duration: { value: 3, units: "rounds" } };
+  const good = spellEffectData({ ...base, turnLife: { combatId: "c1", combatantId: "k1", edge: "start", count: 3, seen: 0 } });
+  assert.deepEqual(turnLifeOf(good), { combatId: "c1", combatantId: "k1", edge: "start", count: 3, seen: 0 });
+  assert.equal(spellEffectData({ ...base, turnLife: { combatId: "c1", edge: "start", count: 3 } }).flags["acks-extras"].turnLife, undefined);
+  assert.equal(spellEffectData(base).flags["acks-extras"].turnLife, undefined);
+  const secondsOf = () => null;
+  assert.equal(endAction(good, { worldTime: 100 + 3 * ROUND_SECONDS - 1, secondsOf }), null);
+  assert.equal(endAction(good, { worldTime: 100 + 3 * ROUND_SECONDS, secondsOf }), "delete", "deleted by id past its rounds");
+});
+
+await ta("a card opens a rounds condition with its count rolled and shown, once for each target's record", async () => {
+  const had = globalThis.Roll;
+  globalThis.Roll = class {
+    constructor(formula) {
+      this.formula = formula;
+    }
+    async evaluate() {
+      if (this.formula === "bad") throw new Error("not a formula");
+      this.total = 3;
+      this.result = "1 + 2";
+      return this;
+    }
+  };
+  try {
+    const token = (id) => ({ uuid: `Scene.s.Token.${id}`, name: id, actor: { type: "monster", system: {}, getFlag: () => undefined, effects: [] } });
+    const caster = { uuid: "Actor.c1", name: "Caster" };
+    const run = (row) => buildTargets({ tokens: [token("a"), token("b")], card: { rows: { dread: { type: "conditionGrant", key: "dread", conditions: ["afraid"] } }, casterLevel: {} }, rows: [{ row, key: "dread" }], save: { category: "", effect: "" }, situational: null, caster, randomID: (() => { let i = 0; return () => `r${i++}`; })() });
+    const dread = { key: "dread", type: "conditionGrant", conditions: ["afraid"], lasts: "rounds", rounds: "1d4" };
+    const made = await run(dread);
+    const lives = Object.values(made.entries).map((e) => e.life);
+    assert.deepEqual(lives, [{ kind: "rounds", count: 3, formula: "1d4", detail: "1 + 2" }, { kind: "rounds", count: 3, formula: "1d4", detail: "1 + 2" }]);
+    assert.equal(made.rolls.length, 2, "each roll is on the card");
+    assert.deepEqual(Object.values((await run({ ...dread, rounds: "" })).entries).map((e) => e.life.count), [null, null], "a blank formula opens with no count");
+    assert.deepEqual(Object.values((await run({ ...dread, rounds: "bad" })).entries).map((e) => e.life.count), [null, null], "a formula that will not roll likewise");
+    assert.equal(Object.values((await run({ ...dread, lasts: "nextTurn" })).entries)[0].life, undefined, "a next turn rolls nothing");
+    const card2 = lifeCard({ lasts: "rounds", rounds: "1d4" }, { state: "pending", life: lives[0] });
+    assert.deepEqual(requestOf("dread", card2.entries.t1_dread, card2), { rowKey: "dread", rolled: undefined, critical: false, rounds: 3 }, "the count travels in the request");
+  } finally {
+    globalThis.Roll = had;
+  }
+});
+
+t("the card's entry names the life: the roll, the end it was written with, and the page reference alone where nothing was read", () => {
+  const view = (life, cite = "p. 9") => castCardView({ ...lifeCard({ lasts: life.kind }, { state: "applied", recordIds: ["r1"], life }), cite }, { isGM: true, canPress: false }, realLoc).sections[0].rows[0];
+  const turn = view({ kind: "rounds", count: 3, formula: "1d4", detail: "1 + 2", turn: true });
+  assert.match(turn.tooltipText, /Lasts 3 rounds: 1d4 rolled 1 \+ 2\./);
+  assert.match(turn.tooltipText, /start of the bearer's turn/);
+  assert.match(turn.tooltipText, /p\. 9$/);
+  assert.match(turn.detail, /Lasts 3 rounds/);
+  assert.match(view({ kind: "rounds", count: 3, formula: "1d4", turn: false }).tooltipText, /only the world clock ends it, after 3 rounds/);
+  const next = view({ kind: "nextTurn", count: 1, formula: "", turn: true });
+  assert.match(next.tooltipText, /end of the bearer's next turn/);
+  assert.match(next.detail, /next turn/);
+  const blank = view({ kind: "rounds", count: null, formula: "" });
+  assert.equal(blank.tooltipText, "p. 9", "the page reference alone");
+  assert.equal(blank.detail, "", "no figure and no words saying it is missing");
+});
+
 console.log(`\n${n} magic cast tests passed`);

@@ -123,7 +123,8 @@ export function splitFor(count, targetKeys, typed = null) {
 
 /**
  * One entry's request to apply: the hits of an entry with instances, else the
- * single rolled figure of an entry that has none.
+ * single rolled figure of an entry that has none, with the rolled rounds of a
+ * condition entry that lasts a number of them.
  *
  * @param {string} rowKey
  * @param {object|undefined} entry
@@ -134,7 +135,9 @@ export function requestOf(rowKey, entry, card) {
   if (Array.isArray(entry?.instances)) {
     return { rowKey, instances: entry.instances.filter((i) => i.state === "pending").map((i) => ({ rolled: i.rolled, critical: i.critical === true })) };
   }
-  return { rowKey, rolled: entry?.rolled ?? card.rows?.[rowKey]?.total, critical: entry?.critical === true };
+  // A condition that lasts rounds carries the count its entry was opened with.
+  const rounds = Number.isFinite(entry?.life?.count) ? { rounds: entry.life.count } : {};
+  return { rowKey, rolled: entry?.rolled ?? card.rows?.[rowKey]?.total, critical: entry?.critical === true, ...rounds };
 }
 
 /** The requests for a target's pending entries. */

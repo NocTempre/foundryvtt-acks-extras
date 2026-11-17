@@ -25,6 +25,12 @@
  * An entry in state `exempt` is never open, so nothing is rolled, written or
  * recorded for it.
  *
+ * A condition row that lasts a next turn or a rolled number of rounds
+ * (`cast-life.mjs`) is timed on the writing client from the spell's own row: the
+ * rolled count travels in the request and the relay holds it to the formula's
+ * reach (`badRounds`), and whether the bearer is a combatant of a begun fight is
+ * read there (`deps.fight`), never from the request.
+ *
  * A target's modifier and ward entries are one group: one request writes one
  * buff record (`cast-mods.mjs`) that every entry of the group names, and Undo on
  * one of them takes the record off for all.
@@ -47,6 +53,8 @@ import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
+import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife } from "./cast-life.mjs";
+import { fightHolding } from "./cast-moment.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -109,9 +117,15 @@ const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band,
  * The status-only records one condition row leaves on one target: one per
  * condition the row names. `row` is the spell's own row and `key` its key in the
  * cast; `duration` is the one this client computed or recomputed, never the card's.
+ * A row that lasts a next turn or a number of rounds takes its `life`
+ * (`cast-life.mjs` `lifeOf`) instead: the clock of one round or the rolled
+ * rounds, and lib's turn flag where the bearer holds a turn in a begun fight; a
+ * life with no count leaves the record untimed.
  */
-export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration }) {
-  const timed = row.lasts === "duration" && duration && !duration.none;
+export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null }) {
+  const lived = Boolean(life?.rounds);
+  const timed = lived || (row.lasts === "duration" && duration && !duration.none);
+  const clock = lived ? { value: life.rounds, units: "rounds" } : duration;
   return Array.from(row.conditions ?? []).map((status) =>
     spellEffectData({
       spell: { uuid: card.spellUuid, name: card.spellName, img: spell?.img ?? spellImg },
@@ -121,8 +135,9 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       statuses: [status],
       rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
-      duration: timed ? duration : undefined,
+      duration: timed ? clock : undefined,
       startTime: timed ? startTime : undefined,
+      turnLife: lived ? (life.turnLife ?? undefined) : undefined,
     }),
   );
 }
@@ -174,6 +189,25 @@ function checkInstances(card, targetKey, keyed, e, stored, world) {
 }
 
 /**
+ * Check the rolled rounds a request names for one condition row that lasts a
+ * number of rounds. The count was the casting client's roll, so it cannot be
+ * recomputed: it must be a whole number within the reach of the spell's own
+ * formula (`world.roundsBoundsOf`). A row whose formula is blank is untimed and
+ * takes no count, and a formula that cannot be read takes none either; any other
+ * row's `lasts` asks for none.
+ *
+ * @returns {string|null}  the refusal, or null
+ */
+function checkRounds(row, e, world) {
+  if (row.lasts !== "rounds" || !roundsFormulaOf(row)) return null;
+  const bounds = world.roundsBoundsOf?.(row) ?? null;
+  const asked = e.rounds;
+  if (!bounds) return asked == null ? null : "badRounds";
+  const count = Number(asked);
+  return asked != null && Number.isInteger(count) && count >= bounds.min && count <= bounds.max ? null : "badRounds";
+}
+
+/**
  * Check a relayed request before the GM's client writes anything. Pure: the
  * world's answers arrive in `world`.
  *
@@ -185,6 +219,7 @@ function checkInstances(card, targetKey, keyed, e, stored, world) {
  * @param {boolean} world.spellOfCaster  the card's spell is an item of its caster
  * @param {Array<{row: object, key: string}>} world.rows  the spell's rows for the card's mode and picks
  * @param {(keyed: {row: object, key: string}, critical: boolean) => {min: number, max: number}|null} world.boundsOf
+ * @param {(row: object) => {min: number, max: number}|null} [world.roundsBoundsOf]  the reach of a condition row's own `rounds` formula, null where it cannot be read
  * @param {{target: number|null, min: number, max: number, auto?: boolean}|null} world.resist  the target's save recomputed here; `auto` where the target's defenses pass it with no roll
  * @param {{id: string, name: string}|null} [world.item]  the weapon the card names, where it is a weapon of the target's actor
  * @param {((row: object|null) => {affected: boolean, noSave: boolean}|null)|null} [world.gateOf]  the target's gates recomputed here (`cast-gates.mjs`), for a spell's own row or, with null, the spell's gates alone; null for a target no gate reads
@@ -226,8 +261,13 @@ export function checkApplyRequest(req, world) {
     // An entry the gate exempts is refused on the recomputed gate, whatever state the card's own word gives it.
     if (card.entries?.[entryId(req.targetKey, e.rowKey)]?.state === "exempt" || world.gateOf?.(row.row)?.affected === false) return { refused: "exempt" };
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
-    // A modifier or ward row has no amount: its figure is the spell's, read at the roll.
-    if (row.row.type === "conditionGrant" || isModRow(row.row)) continue;
+    // A condition row has no amount; a rounds count it lasts is checked against its formula's reach. A modifier or ward row has no amount either: its figure is the spell's, read at the roll.
+    if (row.row.type === "conditionGrant") {
+      const refused = checkRounds(row.row, e, world);
+      if (refused) return { refused };
+      continue;
+    }
+    if (isModRow(row.row)) continue;
     if (rowNeedsThrow(row.row)) {
       const stored = card.entries?.[entryId(req.targetKey, e.rowKey)];
       // An entry holding instances is applied by its hits; a request that names none, or more than the entry holds, is not its entry.
@@ -266,7 +306,8 @@ export function checkApplyRequest(req, world) {
  * @param {string|null} [deps.sourceAlignment]  the caster's alignment key
  * @param {(actor: object, row: object|null) => {affected: boolean, noSave: boolean, why: object}|null} [deps.gate]  the target's gates as they stand (`cast-gates.mjs`), for a spell's own row or, with null, the spell's gates alone; absent, nothing is gated
  * @param {(actor: object) => {sources: object[], figures: object}} [deps.defenses]  the target's defenses and resistance's figures; absent, the actor's own (`actorDefenses`) and the world's (`defenseFigures`)
- * @param {(uuid: string) => Promise<{actor: object, hpTarget: object|null}|null>} deps.resolve
+ * @param {(uuid: string) => Promise<{actor: object, token?: object|null, hpTarget: object|null}|null>} deps.resolve
+ * @param {(found: {actor: object, token?: object|null}) => Promise<{combatId: string, combatantId: string}|null>} [deps.fight]  the begun fight the bearer is a combatant of, read on the writing client; absent, a record lasting turns is timed by the clock alone
  * @param {Function} deps.adjustHp  lib's, `(entries, {mode}) -> results`
  * @param {(actor: object, cause: string) => Promise<string[]>} deps.lose
  * @param {(actor: object, datas: object[]) => Promise<string[]>} deps.createRecords  the new records' ids
@@ -321,7 +362,7 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
       const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? card.rows?.[r.rowKey]?.total);
       // A thrown row's hits: the request's, else the ones its entry holds; null for any row that is not applied by instances.
       const hits = Array.isArray(r.instances) ? r.instances : rowNeedsThrow(keyed.row) && Array.isArray(existing.instances) ? existing.instances.filter((i) => i.state === "pending") : null;
-      const entry = await applyRow({ card, keyed, rolled, hits, resist, found, deps, existing });
+      const entry = await applyRow({ card, keyed, rolled, hits, resist, found, deps, existing, rounds: r.rounds });
       await deps.writeEntry(id, entry);
       out.push({ id, entry });
     }
@@ -366,7 +407,7 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
 }
 
 /** One row on one target: the entry it leaves. `keyed` is the spell's own row. */
-async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps, existing }) {
+async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps, existing, rounds = null }) {
   const { row, key } = keyed;
   const by = deps.by ?? null;
   if (hits) return applyInstances({ card, keyed, hits, resist, found, deps, existing });
@@ -375,9 +416,11 @@ async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps,
     const made = saveFractionOf(row, card.save, resist);
     if (made.fraction === null || (made.fraction !== 1 && made.fraction !== 0)) return { ...base, state: "judge", saved: made.saved };
     if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
-    const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell });
+    // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
+    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: row.lasts === "nextTurn" || roundsFormulaOf(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
     const ids = await deps.createRecords(found.actor, records);
-    return { ...base, state: "applied", saved: made.saved, recordIds: ids };
+    return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
   }
   // The defenses are read from the actor this client writes, as they stand now.
   const defenses = deps.defenses ? deps.defenses(found.actor) : { sources: actorDefenses(found.actor), figures: defenseFigures() };
@@ -504,7 +547,12 @@ export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
       const actor = token?.actor ?? (doc?.documentName === "Actor" ? doc : null);
       if (!actor) return null;
       const [hpTarget] = resolveTargets(token ? { tokens: [token] } : { actors: [actor] });
-      return { actor, hpTarget: hpTarget ?? null };
+      return { actor, token, hpTarget: hpTarget ?? null };
+    },
+    // The begun fight the bearer is a combatant of, as this client reads it; none where the bearer holds no turn to count.
+    fight: async ({ actor, token }) => {
+      const held = fightHolding([game.combat, ...(game.combats ?? [])], { actor, token });
+      return held ? { combatId: held.combat.id, combatantId: held.combatant.id } : null;
     },
     createRecords: async (actor, datas) => (await actor.createEmbeddedDocuments("ActiveEffect", datas)).map((e) => e.id),
     deleteRecords: async (actor, ids) => actor.deleteEmbeddedDocuments("ActiveEffect", ids.filter((id) => actor.effects.has(id))),
@@ -599,6 +647,7 @@ async function worldFor(req, message) {
     gateOf: targetDoc?.actor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetDoc.actor, row) : null,
     item: inputs.item,
     inputs,
+    roundsBoundsOf: (row) => roundsBounds(roundsFormulaOf(row), foundryBounds),
     boundsOf: (keyed, critical) => {
       const spec = specs.get(keyed.key);
       return spec ? damageBounds(spec, { critical, thrown: rowNeedsThrow(keyed.row) }, foundryBounds) : null;

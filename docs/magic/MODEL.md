@@ -31,8 +31,11 @@ empty is [DECISIONS.md](DECISIONS.md), "A code enum names a mechanism".
 
 **The spell kinds in `EFFECT_TYPES`** — damage, heal, summon, control,
 transform, wall, detect, dispel, ward, illusion, light, teleport, createObject,
-structural, curse — carry `domain: "spell"`, and `effectTypesFor(domain)`
+structural, curse, ignite — carry `domain: "spell"`, and `effectTypesFor(domain)`
 keeps them out of an ability's picker while a spell may carry every kind.
+`ignite`, setting a thing alight, is a record-and-card-line kind like the
+others that have no arithmetic of their own: it is a line on the cast card from
+`describeSpellEffect` and nothing more is computed from it.
 
 **The spell primitive** (`scripts/magic/spell-extras.mjs`, `SpellExtras`) is
 a DataModel read through `flags["acks-extras"].spell` on the acks system's
@@ -50,14 +53,38 @@ in the shared vocabulary; `notableUse`; `cite`; `unaudited`. Core's `lvl`,
 strings are derived"), so the system sheet, the character sheet and every
 consumer keyed on the strings keep reading.
 
+A spell's effect row carries the fields a cast reads beside the shared
+vocabulary's own (`lib/fields.mjs` `effectField`): `saveEffect`, `delivery`,
+`extraordinary`, `lasts`, `recur`, `pick` and `reversed`; `max`, the ceiling of
+an instance count; and six that name where a row belongs or how it runs:
+`pickOption` (rows sharing a `pick` and a `pickOption` are one option of a choice
+group), `recurAt` (the caster's turn, or the start or the end of the bearer's),
+`recurSave` (blank, or a save whose pass ends the row's record or the whole
+cast), `recurTarget` (blank for the bearer, or a target the caster picks each
+time), `rounds` (the dice formula a `lasts: rounds` row counts, located from the
+page) and `exemptSizeFrom` (the monsters size key at or above which a target is
+exempt from that row). `lasts` is `instant`, `duration`, `nextTurn` or `rounds`
+("A record that lives", below, for the last two); `recur` is `none`,
+`eachRound` or `laterRounds`. No cast reads `recur`, `recurAt`, `recurSave` or
+`recurTarget` yet; they are authored, imported and edited so a recurring row
+exists as data.
+
 **The sheet** (`spell-sheet.mjs`, `createSpellSheet(Base)`) is built at
 ready as a subclass of the system's registered spell sheet and registered as
 the default for `spell` Items. Three tabs: Overview, the stat line as
 structure — a shape picker with its value control per line, the lists, the
-reversal pair; Description, core's own part with its strings editable and
-following the flag; Mechanics, the effect rows through the shared row editor
-(`lib/apps/effect-row-editor.mjs`, over a store the sheet supplies) with the
-system's Active Effects folded in below. A summon row names its creature
+reversal pair, and the two Hit Dice figures a cast gates on, `target.hdCap` and
+`save.exemptBelowHd`, each a level-value control whose tooltip is the spell's
+page reference alone while it is blank; Description, core's own part with its
+strings editable and following the flag; Mechanics, the effect rows through the
+shared row editor (`lib/apps/effect-row-editor.mjs`, over a store the sheet
+supplies; `fieldsForType` lists per kind which fields it edits, every cast field
+above on the kinds that read it and `pick` and `pickOption` on every kind) with
+the system's Active Effects folded in below. Each row of the Mechanics list
+shows its kind, its reading from `describeSpellEffect`, its option where it has
+a `pickOption`, a mark for where it came from (the register's, or a hand's: a
+Judge's edit clears `origin`), and each field the import left blank (`unread`)
+beside the spell's page reference, which is also that blank's tooltip. A summon row names its creature
 where the world can open it: `describeSpellEffect(e, {nameOf})` takes the
 sheet's lookup (lib's `summonRefName`), and with none, or none found, prints
 the ref. `acksExtras.magic` exposes the
@@ -256,7 +283,39 @@ caster: the spell, the caster, the count, and a Dismiss button that runs lib's
 (`castSummons`, matched by the summons' `castId`); the count the card states
 includes the held. The card tells; the creatures stay until someone presses it. A
 recipient's record is never announced, since it carries the same cast. Combat
-does not move this system's clock, so a combat's rounds do not age a record.
+does not move this system's clock, so a combat's rounds age no record by the
+clock; a record anchored to turns is aged by turns instead ("A record that
+lives", below).
+
+**A record that lives** (`cast-life.mjs`, pure; `cast-apply.mjs`). A condition
+row whose `lasts` is `nextTurn` or `rounds` writes its status-only record with
+two ends, and the first to come deletes the record by id. The clock end is the
+record's own flag `duration` and `startTime` (above): one round for `nextTurn`,
+the rolled rounds for `rounds`, counted at `ROUND_SECONDS`. The turn end is lib's
+`turnLife` flag, `flags["acks-extras"].turnLife` beside the `spellEffect` mark,
+`{combatId, combatantId, edge, count, seen}` with `seen` zero, which lib lifts
+at its edge (lib MODEL, "A record that lasts turns"): `nextTurn` is
+`{edge: "end", count: 1}`, the end of the bearer's next turn, and `rounds` is
+`{edge: "start", count: rolled}`, the start of the bearer's turn that makes that
+many begun since the cast. It is written only where the writing client finds the
+bearer a combatant of a begun fight (`cast-moment.mjs` `fightHolding`, over the
+viewed fight and every other, matching a token by its id before an actor, with
+`begun` the notion `castMoment` reads), through `deps.fight`; with no fight, a
+bearer who is no combatant, or a fight that has ended, the clock alone ends the
+record. `lifeOf(row, {count, fight})` answers the kind, the rounds, the flag and
+the row's formula; `spellEffectData` takes the flag as `turnLife` (a malformed
+one is not written) and `spellEffectOf` reads it back.
+
+The count of a `rounds` row is rolled once per target's record, on the casting
+client, as `buildTargets` opens the entry: `life {kind: "rounds", count,
+formula, detail}`, the roll on the message, a total below one held to one round.
+`requestOf` carries `rounds` in the apply request, and `checkApplyRequest` holds
+it to the reach of the spell's own formula (`roundsBounds` over Foundry's
+extremes; `badRounds` for a count that is absent, not whole, or out of reach, or
+sent for a formula that cannot be read). A blank formula, a missing or invalid
+count and a formula that will not roll leave the record untimed; the card then
+carries the page reference alone. A modifier, ward or `ignite` row's `lasts` of
+either kind times nothing: only a condition record lives.
 
 **Casting a spell** (`cast-spell.mjs`, registered at `init` after the
 summoning's). A second claimant (key `acks-extras.magic.castSpell`) takes the
@@ -493,8 +552,11 @@ cancel at any point before the spend costs nothing:
    "a defense" with the figures. A Judge's case reads the defense and its page
    reference on the line, with the page reference alone as the tooltip. A
    condition row writes a status-only record per condition (at most one status
-   to a record, never with changes), timed by the row's `lasts` from the cast's
-   duration; a failed save runs `loseStates` first, so the cast's own grant is
+   to a record, never with changes), timed by the row's `lasts`: from the cast's
+   duration for `duration`, and for `nextTurn` and `rounds` by the record's life
+   ("A record that lives", above), the entry keeping what was written (`life
+   {kind, count, formula, detail, turn}`) for its line and tooltip, which name
+   the count, the roll and which end was written; a failed save runs `loseStates` first, so the cast's own grant is
    not what is lifted. Two casts of one condition leave two records and one
    condition, which stays while either record stands. A target's modifier and
    ward entries are one group: they are applied in one request, write one buff
@@ -514,7 +576,8 @@ thrown row's hits are each checked against that one roll's bounds, the row's
 count is recomputed from the spell's row at the card's caster level and the
 card's split of it may not exceed it, a target's hits may not exceed the hits its
 entry holds, and an entry that holds instances is applied by hits alone:
-`tooManyInstances`, `badAmount`, `badRow`), the
+`tooManyInstances`, `badAmount`, `badRow`; a condition row's rolled rounds are
+within the reach of the spell's own formula: `badRounds`), the
 target's save is recomputed against the caster and the caster's token the card
 keeps (`casterTokenUuid`, read only where it is a token of that caster) and the
 damage its save resists (`resistedDamage` over the spell's own rows), so the

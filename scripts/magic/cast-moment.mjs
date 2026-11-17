@@ -14,7 +14,29 @@
 export const MOMENT = Object.freeze({ free: "free", declare: "declare", resolve: "resolve" });
 
 /** Has this fight begun? */
-const begun = (combat) => Boolean(combat) && (combat.started === true || combat.flags?.acks?.initDone === true);
+export const begun = (combat) => Boolean(combat) && (combat.started === true || combat.flags?.acks?.initDone === true);
+
+/**
+ * The begun fight that holds a creature, with its combatant in it, or null where
+ * no begun fight does. A token, where one is given, is matched to a combatant by
+ * its own id first, since one linked actor can stand in a fight as two tokens;
+ * otherwise the actor is, by identity or by uuid. The first begun fight to hold
+ * it answers.
+ *
+ * @param {Iterable<object|null>} combats  the fights to look in, the viewed one first
+ * @param {{actor: object, token?: {id?: string}|null}} of
+ * @returns {{combat: object, combatant: object}|null}
+ */
+export function fightHolding(combats, { actor, token = null } = {}) {
+  for (const combat of combats ?? []) {
+    if (!begun(combat)) continue;
+    const all = Array.from(combat.combatants ?? []);
+    const combatant =
+      (token?.id ? all.find((c) => (c.tokenId ?? c.token?.id) === token.id) : null) ?? all.find((c) => c.actor === actor || (c.actor?.uuid && c.actor.uuid === actor?.uuid));
+    if (combatant) return { combat, combatant };
+  }
+  return null;
+}
 
 /**
  * The moment of a cast.
