@@ -33,6 +33,8 @@ const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undo
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
+const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -818,6 +820,217 @@ t("the dialog context offers the weapon only for a mode that names one, each mar
   assert.ok(out.weapon.options[1].label.includes("weaponMagic"));
   assert.ok(out.verdicts[0].items[0].text.includes("blocked.oneBearer"));
   assert.deepEqual(dialogContext({ ...ctx, needsWeapon: { normal: false } }, {}).weapon.modes, []);
+});
+
+/* ------------------------------------------------------------------ */
+/*  Held casts and the declaration (slice M2)                         */
+/* ------------------------------------------------------------------ */
+
+t("a concentration answers its kind held, a maximum its cap and a plus shape its tail, and stays untimed for every caller that tests none", () => {
+  const blank = { shape: "", value: null, unit: "", dice: "", plus: { value: null, unit: "" }, concentration: "", maxPerLevel: false };
+  const plain = castDuration({ ...blank, shape: "concentration" });
+  assert.deepEqual(plain, { none: NONE.untimed, held: "mobile" }, "a blank kind is mobile");
+  assert.equal(castDuration({ ...blank, shape: "concentration", concentration: "stationary" }).held, "stationary");
+  assert.deepEqual(castDuration({ ...blank, shape: "concentrationMax", concentration: "mobile", value: 3, unit: "rounds" }).cap, { value: 3, units: "rounds" }, "a flat maximum needs no level");
+  const perLevel = { ...blank, shape: "concentrationMax", value: 2, unit: "turns", maxPerLevel: true };
+  assert.deepEqual(castDuration(perLevel, { casterLevel: 4 }).cap, { value: 2 * 4 * 600, units: "seconds" }, "times the caster level, in the clock's own seconds");
+  assert.deepEqual(castDuration(perLevel).cap, { none: NONE.noLevel }, "a per-level maximum with no level is not guessed");
+  assert.deepEqual(castDuration({ ...blank, shape: "concentrationPlus", plus: { value: 2, unit: "rounds" } }).tail, { value: 2, units: "rounds" });
+  assert.deepEqual(castDuration({ ...blank, shape: "concentrationPlus", plus: { value: null, unit: "rounds" } }).tail, { none: NONE.noFigure }, "a tail the import did not read is a none");
+  assert.deepEqual(castDuration({ ...blank, shape: "concentrationPlus", plus: { value: 1, unit: "fortnights" } }).tail, { none: NONE.unknownUnit });
+  for (const shape of ["concentration", "concentrationMax", "concentrationPlus"]) assert.equal(castDuration({ ...blank, shape, value: 1, unit: "rounds" }).none, NONE.untimed);
+});
+
+t("a per-level concentration maximum asks for a caster level; a flat one does not", () => {
+  assert.equal(levelNeeded({ duration: { shape: "concentrationMax", maxPerLevel: true } }, []), true);
+  assert.equal(levelNeeded({ duration: { shape: "concentrationMax", maxPerLevel: false } }, []), false);
+  assert.equal(levelNeeded({ duration: { shape: "concentration" } }, []), false);
+});
+
+t("a caster record round-trips the kind held, its tail and a pending declaration with its lost stamp; a pending record holds no status", () => {
+  const base = { spell: { uuid: "Actor.c1.Item.s1", name: "Testhold", img: "i.png" }, caster: { uuid: "Actor.c1" }, castId: "c1", role: "caster" };
+  const held = spellEffectData({ ...base, statuses: ["concentratingStationary"], held: "stationary", tail: { value: 2, units: "rounds" }, duration: { value: 10, units: "minutes" }, startTime: 100 });
+  assert.deepEqual(held.statuses, ["concentratingStationary"]);
+  assert.equal(held.duration, undefined, "core's own duration stays unset");
+  const back = spellEffectOf(held);
+  assert.deepEqual([back.held, back.tail, back.duration, back.startTime], ["stationary", { value: 2, units: "rounds" }, { value: 10, units: "minutes" }, 100]);
+  assert.equal(spellEffectOf(spellEffectData({ ...base, statuses: ["concentrating"], held: "mobile", tail: { none: "noFigure" } })).tail.none, "noFigure");
+  const pending = { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, combatId: "k1", round: 2, at: 5, lost: { cause: "damage", at: 9 } };
+  const declared = spellEffectData({ ...base, pending });
+  assert.equal(declared.statuses, undefined);
+  assert.deepEqual(spellEffectOf(declared).pending, pending);
+  assert.throws(() => spellEffectData({ ...base, pending, statuses: ["casting"] }), /no status/);
+  assert.equal(spellEffectOf(spellEffectData({ ...base, statuses: ["casting"] })).pending, undefined);
+});
+
+t("the moment of a cast: free with no begun fight holding the caster, declare at any other moment, resolve on the caster's own rolled turn", () => {
+  const me = { id: "cb1", initiative: 12 };
+  const fight = (over = {}) => ({ started: true, flags: {}, combatant: { id: "cb1" }, ...over });
+  assert.equal(castMoment({}), MOMENT.free);
+  assert.equal(castMoment({ combat: null, combatant: me }), MOMENT.free);
+  assert.equal(castMoment({ combat: fight(), combatant: null }), MOMENT.free, "a fight that does not hold the caster");
+  assert.equal(castMoment({ combat: fight({ started: false }), combatant: me }), MOMENT.free, "a fight not begun");
+  assert.equal(castMoment({ combat: fight({ started: false, flags: { acks: { initDone: true } } }), combatant: { id: "cb1", initiative: null } }), MOMENT.declare, "begun by core's own flag, initiative unrolled");
+  assert.equal(castMoment({ combat: fight({ combatant: { id: "other" } }), combatant: me }), MOMENT.declare, "another's turn");
+  assert.equal(castMoment({ combat: fight(), combatant: { id: "cb1", initiative: null } }), MOMENT.declare, "the caster's turn with initiative unrolled is no turn yet");
+  assert.equal(castMoment({ combat: fight(), combatant: me }), MOMENT.resolve);
+});
+
+t("the declaration, the lost one and another spell's are told apart per fight; a hand-set flag counts only with no record to explain it", () => {
+  const rec = (spellUuid, combatId, over = {}) => ({ castId: `${spellUuid}${combatId}`, pending: { spellUuid, combatId, ...over } });
+  const records = [rec("S1", "k1"), rec("S2", "k1"), rec("S1", "k2"), rec("S3", "k1", { lost: { cause: "damage" } })];
+  const here = declarationOf(records, { spellUuid: "S1", combatId: "k1" });
+  assert.equal(here.valid.castId, "S1k1");
+  assert.equal(here.other.castId, "S2k1");
+  assert.equal(here.lost, null);
+  assert.equal(declarationOf(records, { spellUuid: "S3", combatId: "k1" }).lost.castId, "S3k1");
+  assert.equal(declarationOf(records, { spellUuid: "S9", combatId: "k3" }).valid, null, "another fight's records bear on nothing");
+  assert.equal(declarationOf([], { spellUuid: "S1", combatId: "k1", prepareSpell: true }).hand, true);
+  assert.equal(declarationOf(records, { spellUuid: "S1", combatId: "k1", prepareSpell: true }).hand, false);
+});
+
+t("the new verdicts by seat: concentrating always warns; a lost or missing declaration and a second one block a Player and warn a Judge; a resolution is never short of a slot", () => {
+  const none = { verdict: "none" };
+  const keyed = (isGM, over) => castVerdicts({ isGM, capacity: { verdict: "ok" }, ...over }).map((v) => `${v.key}:${v.severity}`);
+  assert.deepEqual(keyed(false, { held: true }), ["concentrating:warn"], "a Player is warned, never blocked");
+  assert.deepEqual(keyed(true, { held: true }), ["concentrating:warn"]);
+  const decl = (over = {}) => ({ valid: null, lost: null, other: null, hand: false, ...over });
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl({ lost: {} }) }), ["declarationLost:block"]);
+  assert.deepEqual(keyed(true, { moment: "resolve", declaration: decl({ lost: {} }) }), ["declarationLost:warn"]);
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl() }), ["noDeclaration:block"]);
+  assert.deepEqual(keyed(true, { moment: "resolve", declaration: decl() }), ["noDeclaration:warn"]);
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl({ other: {} }) }), ["noDeclaration:block"], "another spell was the one declared");
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl({ hand: true }) }), [], "a hand-set declaration counts");
+  assert.deepEqual(keyed(false, { moment: "declare", declaration: decl({ valid: {} }) }), ["declared:block"]);
+  assert.deepEqual(keyed(true, { moment: "declare", declaration: decl({ other: {} }) }), ["declared:warn"]);
+  assert.deepEqual(keyed(false, { moment: "declare", declaration: decl() }), []);
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl({ valid: {} }), capacity: none }), [], "noSlot is skipped on a resolution");
+  assert.deepEqual(keyed(false, { moment: "resolve", declaration: decl({ lost: {} }), capacity: none }), ["declarationLost:block", "noSlot:block"], "a lost one runs fresh, with a slot");
+  assert.deepEqual(keyed(false, { moment: "declare", declaration: decl(), capacity: none }), ["noSlot:block"], "a declaration spends, so it needs the slot");
+});
+
+/** The run's deps with a fight, a held cast and declarations read from the world, and the module's own writes recorded. */
+function fightDeps({ answer, world = {}, isGM = false, tokens = [] } = {}) {
+  const r = runDeps({ answer, isGM, tokens });
+  const log = [];
+  const read = r.deps.read;
+  r.deps.read = async (s) => ({ ...(await read(s)), ...world });
+  r.deps.record = async (c, data) => r.calls.records.push(data) && log.push("record");
+  r.deps.adjustPool = async () => log.push("pool");
+  r.deps.endHeld = async () => log.push("endHeld");
+  r.deps.post = async (c) => (log.push("post"), r.calls.posts.push(c), { id: "m1", flags: { "acks-extras": { castCard: c } } });
+  r.deps.declare = {
+    declare: async (o) => (log.push("declare"), r.calls.declared = o, { castId: "d1" }),
+    finish: async (o) => (log.push("finish"), r.calls.finished = o),
+    clearHand: async () => log.push("clearHand"),
+  };
+  return { ...r, log };
+}
+const HOLD = { shape: "concentrationPlus", concentration: "stationary", plus: { value: 2, unit: "rounds" } };
+const heal = { key: "mend", type: "heal", roll: "1d6" };
+
+await ta("a concentration cast ends the caster's held records after the spend and before its own, and writes a status-only held record carrying the kind and the tail", async () => {
+  const { deps, calls, log } = fightDeps({ answer: { mode: "normal", picks: {} }, world: { held: true } });
+  let spends = 0;
+  const out = await castSpellRun(spell([heal], { duration: HOLD }), () => { spends++; log.push("spend"); }, deps);
+  assert.equal(out.ok, true);
+  assert.ok(calls.notices.some(([level, key]) => level === "warn" && key === "verdict.concentrating"), "warned, never refused");
+  assert.deepEqual(log.slice(0, 3), ["spend", "endHeld", "record"], "the old concentration ends after the spend and before any record of this cast");
+  const record = spellEffectOf(calls.records[0]);
+  assert.deepEqual([record.role, record.held, record.tail], ["caster", "stationary", { value: 2, units: "rounds" }]);
+  assert.deepEqual(calls.records[0].statuses, ["concentratingStationary"]);
+  assert.equal(calls.records[0].changes.length, 0);
+  assert.equal(record.duration, undefined, "a plus shape has no cap");
+  assert.equal(spends, 1);
+});
+
+await ta("a concentration with a cap is flag-timed by the cap; one with no rows still leaves its held record", async () => {
+  const { deps, calls } = fightDeps({ answer: { mode: "normal", picks: {}, casterLevel: "3" } });
+  await castSpellRun(spell([{ key: "note", type: "ward", appliesTo: "recipient", vsKinds: ["undead"] }], { duration: { shape: "concentrationMax", concentration: "mobile", value: 4, unit: "rounds", maxPerLevel: true } }), () => {}, deps);
+  const record = spellEffectOf(calls.records[0]);
+  assert.deepEqual([record.held, record.duration, record.startTime], ["mobile", { value: 12, units: "rounds" }, 10]);
+  assert.deepEqual(calls.records[0].statuses, ["concentrating"]);
+});
+
+const IN_FIGHT = (over = {}) => ({
+  combat: { id: "k1", started: true, round: 1, turn: 0, turns: [{ id: "cb2" }, { id: "cb1" }], flags: {}, combatant: { id: "cb2" } },
+  combatant: { id: "cb1", initiative: 9 },
+  ...over,
+});
+
+await ta("in a begun fight off the caster's turn the cast declares: it spends once, ends the concentration, hands the answers to the declaration and posts no card", async () => {
+  const { deps, calls, log } = fightDeps({ answer: { mode: "normal", picks: {}, visibility: "gm" }, world: IN_FIGHT() });
+  let spends = 0;
+  const out = await castSpellRun(spell([heal]), () => { spends++; }, deps);
+  assert.deepEqual([out.ok, out.declared, out.castId], [true, true, "d1"]);
+  assert.equal(calls.asked.moment, "declare", "the dialog is told, so its button reads Declare");
+  assert.equal(spends, 1);
+  assert.deepEqual(calls.pools.length, 0, "a capacity of no pool spends no pool");
+  assert.deepEqual(log, ["endHeld", "declare"]);
+  assert.equal(calls.posts.length, 0, "no card is posted at a declaration");
+  assert.equal(calls.declared.answer.visibility, "gm");
+  assert.equal(calls.declared.combatant.id, "cb1");
+});
+
+/** A declaration of the invented spell, as the caster's records read. */
+const pendingRecord = (over = {}) => ({ castId: "d1", role: "caster", pending: { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, item: "", visibility: "gm", combatId: "k1", round: 1, at: 3, ...over } });
+const ON_TURN = () => IN_FIGHT({ combat: { id: "k1", started: true, round: 1, turn: 1, turns: [{ id: "cb2" }, { id: "cb1" }], flags: {}, combatant: { id: "cb1" } } });
+
+await ta("on the caster's turn a good declaration resolves with no dialog, no spend and no capacity check; the declaration is ended and the card posts", async () => {
+  const { deps, calls, log } = fightDeps({ answer: null, world: { ...ON_TURN(), declarations: [pendingRecord()], capacity: { verdict: "none", tradition: "arcane", slotKey: "s1" } } });
+  let spends = 0;
+  const out = await castSpellRun(spell([heal]), () => { spends++; }, deps);
+  assert.equal(out.ok, true);
+  assert.equal(calls.asked, null, "no dialog opened");
+  assert.equal(spends, 0);
+  assert.deepEqual(calls.pools, [], "and no pool was spent");
+  assert.deepEqual(log.slice(0, 2), ["endHeld", "finish"], "the declaration ends before any record of the cast");
+  assert.equal(calls.finished.record.castId, "d1");
+  assert.equal(calls.posts.length, 1);
+  assert.equal(calls.posts[0].picks && Object.keys(calls.posts[0].picks).length, 0);
+});
+
+await ta("a declaration whose weapon is no longer the one target's opens the dialog, still spending nothing", async () => {
+  const buff = { key: "edge", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: 1, gate: { kind: "weaponMundane" }, lasts: "duration" };
+  const { deps, calls } = fightDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken("w1")], world: { ...ON_TURN(), declarations: [pendingRecord({ item: "gone" })] } });
+  let spends = 0;
+  const out = await castSpellRun(spell([buff]), () => { spends++; }, deps);
+  assert.equal(out.ok, true);
+  assert.equal(calls.asked.moment, "resolve");
+  assert.equal(spends, 0);
+});
+
+await ta("a lost declaration blocks a Player before any spend and warns a Judge, whose cast runs fresh with a spend; with none the same; a second declaration is blocked", async () => {
+  const lost = [pendingRecord({ lost: { cause: "damage", at: 4 } })];
+  let spends = 0;
+  let r = fightDeps({ answer: { mode: "normal", picks: {} }, world: { ...ON_TURN(), declarations: lost } });
+  const refused = await castSpellRun(spell([heal]), () => spends++, r.deps);
+  assert.deepEqual([refused.ok, refused.reason, spends], [false, "declarationLost", 0]);
+  r = fightDeps({ answer: { mode: "normal", picks: {} }, isGM: true, world: { ...ON_TURN(), declarations: lost } });
+  assert.equal((await castSpellRun(spell([heal]), () => spends++, r.deps)).ok, true);
+  assert.equal(spends, 1, "a Judge's fresh cast spends");
+  assert.ok(r.calls.notices.some(([, key]) => key === "verdict.declarationLost"));
+  assert.equal(r.calls.finished.record.castId, "d1", "the Judge's fresh cast ends the lost declaration");
+  r = fightDeps({ answer: { mode: "normal", picks: {} }, world: { ...ON_TURN(), declarations: [] } });
+  assert.equal((await castSpellRun(spell([heal]), () => spends++, r.deps)).reason, "noDeclaration");
+  r = fightDeps({ answer: { mode: "normal", picks: {} }, world: { ...IN_FIGHT(), declarations: [pendingRecord()] } });
+  assert.equal((await castSpellRun(spell([heal]), () => spends++, r.deps)).reason, "declared");
+  assert.equal(spends, 1);
+});
+
+await ta("a hand-set declaration lets a fresh cast through, which asks, spends and clears the flag", async () => {
+  const { deps, calls, log } = fightDeps({ answer: { mode: "normal", picks: {} }, world: { ...ON_TURN(), prepareSpell: true } });
+  let spends = 0;
+  assert.equal((await castSpellRun(spell([heal]), () => spends++, deps)).ok, true);
+  assert.deepEqual([spends, calls.asked !== null, log.includes("clearHand")], [1, true, true]);
+});
+
+t("the dialog says Declare's hint at a declaration and names the caster in the concentration verdict", () => {
+  const ctx = { modes: ["normal"], moment: "declare", caster: { name: "Testcaster" }, verdicts: { normal: [{ key: "concentrating", severity: "warn" }] } };
+  const out = dialogContext(ctx, {});
+  assert.ok(out.declaring.includes("dialog.declaring"));
+  assert.ok(out.verdicts[0].items[0].text.includes("verdict.concentrating"));
+  assert.equal(dialogContext({ ...ctx, moment: "free" }, {}).declaring, "");
 });
 
 console.log(`\n${n} magic cast tests passed`);

@@ -12,3 +12,9 @@ export const FLAG_SPELL = "spell";
 export const FLAG_SPELL_EFFECT = "spellEffect";
 /** The capability every spell record's roll-mod part provides, so two spell records never add (`lib/roll-mods.mjs`). */
 export const SPELL_RECORD_CAP = "kw:spellrecord";
+/** The chat-message flag a concentration-ended card carries (`cast-held.mjs`). */
+export const CAST_HELD_END_FLAG = "castHeldEnd";
+/** The handler on lib's sockets through which a seat hands the records it cannot write to the GM's client when a held cast ends. */
+export const HELD_END_HANDLER = "magicHeldEnd";
+/** The handler on lib's sockets through which a seat has the GM's client set or clear a combatant's declared-spell flag. */
+export const DECLARE_FLAG_HANDLER = "magicDeclareFlag";

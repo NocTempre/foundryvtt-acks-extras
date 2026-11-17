@@ -10,6 +10,8 @@
   </div>
   {{/if}}
 
+  {{#if declaring}}<p class="hint">{{declaring}}</p>{{/if}}
+
   {{#each groups}}
   <fieldset class="acks-extras-cast-group" data-cast-for="{{mode}}">
     <legend>{{localize "ACKS-MAGIC.cast.dialog.pick"}}</legend>

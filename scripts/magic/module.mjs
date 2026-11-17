@@ -29,6 +29,8 @@ import {
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { registerCastSpell } from "./cast-spell.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
+import { registerCastHeld } from "./cast-held.mjs";
+import { registerCastDeclare } from "./cast-declare.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 
@@ -118,6 +120,14 @@ Hooks.once("init", () => {
     registerCastSpell();
   } catch (err) {
     console.error(`${MODULE_ID} | the spell cast could not register`, err);
+  }
+  // A cast held by concentration ends in one funnel on the client that deleted the caster's
+  // record; a spell declared in a fight lapses, is lost or resolves through its own hooks.
+  try {
+    registerCastHeld();
+    registerCastDeclare();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the concentration and declaration hooks could not register`, err);
   }
   // A summoning's cast that runs out on the world clock tells its caster's
   // owners and the GMs, with a Dismiss for what it left standing.

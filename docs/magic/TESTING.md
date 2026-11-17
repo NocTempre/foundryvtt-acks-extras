@@ -395,9 +395,9 @@ it rigged.
 ### The buff steps
 
 Walked after step 8 and before the console step. They are numbered here as
-the walk labels them (`buff N`); the numbers between 5 and 11 and after 14 are
-held for the steps the held casts and the declaration add, which sit in the
-walk under a marked place and are not written. Every observable is a relation
+the walk labels them (`buff N`); the numbers between 5 and 11 are the
+steps the held casts add and those after 14 the declaration's, written
+below under "The held-cast steps" and "The declaration steps". Every observable is a relation
 between two things the world holds, and a figure the import left blank fails
 its step as an import finding (the walk never supplies one).
 
@@ -410,7 +410,9 @@ its step as an import finding (the walk never supplies one).
    equal to the caster's alignment key; the ally's record was last written by
    the GM's user and the Player's `isOwner` on the ally is false; every
    modifier entry on the rendered card carries a tooltip naming the spell.
-   Nothing here reads the caster's concentration record.
+   The caster holds one more record of the cast: status-only, the
+   `concentratingStationary` status alone, no change, no `rollMods`, with the
+   kind held in its flag, and the actor stands under the status.
 2. **The foe's claw at the ally** (GM seat, the ally targeted, the dice rigged
    to a hit). *Observable:* the stored attack card's modifier list holds one
    row named as lib words it for the circle on the ally, of minus the ally's
@@ -458,6 +460,75 @@ its step as an import finding (the walk never supplies one).
     off, and cancelling spends nothing and posts nothing; the Judge's dialog
     shows it as a warning with Cast on.
 
+### The held-cast steps
+
+Walked inside the buff steps, between their 5 and 11, on the same fixtures: no
+fixture is added. The circle copy is reshaped before each step to a duration of
+the walk's own (stationary concentration; with a time after; with a longest
+hold), and its figures are invented. The held record is the caster's
+status-only record and the cast's trigger: every observable is the set of
+records the world holds after the end, plus the one card of concentration's end
+(`flags["acks-extras"].castHeldEnd`) found by its cast id since the step began.
+
+6. **The caster is hurt, on the GM's client.** First the status is toggled off
+   as the HUD does (`toggleStatusEffect(id, {active: false})`) on step 1's
+   still-standing cast. *Observable:* one card of that cast, cause `removed`,
+   the caster holding no held record. Then a fresh circle is cast at both
+   tokens, and the caster's hit points are lowered through the token's actor
+   on the GM client. *Observable:* the status and every record of the cast
+   (the caster's and both recipients') are gone, exactly one card of the cast
+   with cause `damage` lists both recipients as ended; the GM's rendering of it
+   has the Restore button and the Player's has none; pressing Restore puts the
+   same records back under the same ids and the status on again.
+7. **The Player hurts its own caster.** The same lowering from the Player's
+   client. *Observable:* every record gone and one card listing both
+   recipients, authored by the Player, though the Player owns neither the ally's
+   token nor its actor: the Player's client ended what it can write and the GM's
+   client, asked through `magicHeldEnd`, ended the ally's.
+8. **A time after concentration.** The copy carries a tail of three minutes.
+   *Observable:* the caster's record carries the tail in its flag; after the
+   loss the caster's record is gone and each recipient's is flag-timed from the
+   world's now for three minutes; the card lists both as running on and none as
+   ended; past the tail the clock removes both.
+9. **A longest hold.** The copy carries a cap of four minutes. *Observable:* the
+   caster's record is flag-timed (start and duration in its flag, no core
+   duration); past the cap the clock ends everything of the cast with one card
+   whose cause is `time`.
+10. **A recast.** With the circle held, the Player opens the damage spell's
+    dialog. *Observable:* the dialog shows the concentrating verdict as a
+    warning with Cast on; confirming it posts the cast card, and the held
+    records end with one card whose cause is `cast`, the caster holding
+    nothing of the circle.
+
+### The declaration steps
+
+Walked at the end of the buff steps, in a Combat of the run's own (the one
+document the run adds, tracked by its uuid). The fight is begun by writing
+`round`, `turn` and `flags.acks.initDone` on it, never by `startCombat`,
+and moved by `combat.update({round, turn})` and `combat.nextTurn()`. Each step
+starts from the shape it needs: no pending record on the caster and the spent
+slots at zero.
+
+15. **A declaration, lost.** The Player opens the damage spell's dialog in the
+    begun fight, before the caster's turn. *Observable:* its confirm button
+    reads the lang string for Declare; confirming leaves a `casting` status, one
+    pending record and the combatant's `prepareSpell` flag (written by the GM's
+    client, which the walk waits for), spends the slot and the spell's count once
+    and posts no cast card. The caster is then hurt: `casting` is gone, the
+    pending record carries `lost` with the cause `damage` and the flag is clear.
+    With initiatives set and the tracker on the caster's turn, the Player's
+    dialog shows the declaration-lost verdict as a block with Cast off, and
+    cancelling spends nothing; the GM's shows it as a warning, and its cast
+    spends once and ends the lost declaration.
+16. **A declaration, resolved.** In the next round a Player's declaration
+    stands, and the tracker moves to the caster's turn. *Observable:* the cast
+    resolves with no dialog, posts its card, spends nothing, and leaves no
+    pending record and no flag.
+17. **A declaration, lapsed.** A declaration made in a round, the tracker
+    reaching the caster's turn and then passing it with no cast. *Observable:*
+    the pending record is still there at the turn, deleted when the turn ends,
+    the flag is clear, and the spend stands.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2
@@ -504,7 +575,24 @@ its step as an import finding (the walk never supplies one).
 - A foe with no class casts through the claimant like any caster: capacity is
   unknown there and gives no verdict.
 - Hit points are written on the GM client, the client whose apply path the
-  step asserts.
+  step asserts (held step 7 writes them on the Player's, the client whose
+  funnel it asserts).
+- `nextTurn()` past the last combatant goes through core's `nextRound`, which
+  resets initiatives and posts a "Round N has started" card with no speaker, a
+  leaving of the run that the card ledger does not list; declaration step 17
+  ends the caster's turn that way, as a user does.
+- The held steps drive concentration's end by the real triggers: hit points
+  written through the token's actor (lib's loss path), `toggleStatusEffect`
+  with `active: false` (the HUD), and the clock (`game.time.advance`). A card of
+  the end is found by its flag and cast id with a `timestamp` at or after the
+  step's start; the funnel posts it asynchronously, so poll for it. Restore is
+  pressed in the chat tab on the GM seat, which has the button; the Player's
+  rendering of the same message has none.
+- The declaration is made by clicking the dialog's confirm, and a Player cannot
+  update a combatant, so the flag lands only after the GM's client has handled
+  `magicDeclareFlag`: poll for it. A resolving cast is started with
+  `item.use({skipDialog: true})` and no dialog should open; the observable is the
+  card appearing with no dialog element.
 - A record is taken off by the Judge's Undo (or by the clock, in the step that
   walks the clock) before the next step counts records, since a standing one
   resolves against the next.
@@ -522,3 +610,8 @@ walk recorded, on the fixtures that carry a marker of this walk's; the tokens
 Nothing is deleted by name, folder or pattern. A record an earlier run that
 died left on the ally, the foe or the stranger fails the buff steps' first
 check: delete it by its id, then run again.
+
+The held and declaration steps add: the caster's held records of the run's casts
+are deleted first, by their cast ids, and the funnel's own cards of those casts
+(found by the `castHeldEnd` flag, the cast ids and the run's start) are tracked
+with the rest; the run's Combat is tracked by its uuid and swept with them.

@@ -23,7 +23,7 @@ questions, ruled"): 2 and 4a before 1b.
   click (a summoning spell's cast is built; MODEL, "Casting a summoning
   spell", and its expiry card, "A cast's end"), the same expiry card for a
   non-summoning spell's record, combat rounds that age a cast record (combat
-  does not move the clock), concentration and disruption
+  does not move the clock), disruption
   prompts, repertoires (a prayerful caster's first-level repertoire among
   them) and the spellbook migration to references, the Magic tab redesign,
   settings and macros. A printed spell executes the effect rows the
@@ -61,3 +61,9 @@ questions, ruled"): 2 and 4a before 1b.
 - **6 — Optional rules.** Overcasting, places of power, spell damage
   against structures, magic in construction, mortal-wounds inputs from
   tracked effects.
+- **A held cast whose caster's whole actor is deleted.** Foundry fires no
+  `deleteActiveEffect` for the embedded records of a deleted actor (confirmed
+  live), so concentration's end (MODEL, "Concentration's end") never runs and
+  that cast's recipient records stay standing untimed. A Judge ends them by
+  hand, from each recipient's effects. A sweep that finds recipient records
+  whose caster no longer exists would close it.

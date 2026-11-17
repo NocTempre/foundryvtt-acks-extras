@@ -234,8 +234,12 @@ async function postEnded({ effect, record, tokens, held = [] }) {
   });
 }
 
-/** A record deleted by its id, from the actor or unlinked token that carries it. */
-const removeRecord = (effect) => effect.parent?.deleteEmbeddedDocuments("ActiveEffect", [effect.id]);
+/**
+ * A record deleted by its id, from the actor or unlinked token that carries it.
+ * The delete names its cause, so a held caster record that runs out reads as
+ * time on the client that deletes it (`cast-held.mjs`).
+ */
+const removeRecord = (effect) => effect.parent?.deleteEmbeddedDocuments("ActiveEffect", [effect.id], { [MODULE_ID]: { endCause: "time" } });
 
 /** What one cast of this caster left standing: its scene tokens and its held summons. */
 const standingOf = (caster, castId) => (caster ? castSummons(caster, castId, { scenes: game.scenes }) : { tokens: [], held: [] });

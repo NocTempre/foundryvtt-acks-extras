@@ -278,13 +278,20 @@ cancel at any point before the spend costs nothing:
 2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
    slot at the spell's level, several targets for a row with a throw, a
    condition that forbids casting, and `oneBearer` where a kept row is gated on
-   the weapon and the seat has not targeted exactly one token. They are checked
-   again after the dialog and before anything is spent.
+   the weapon and the seat has not targeted exactly one token; in a begun fight,
+   `declarationLost`, `noDeclaration` and `declared` ("A declaration", below);
+   and `concentrating`, which is always a warning. They are checked again after
+   the dialog and before anything is spent.
 3. *The spend*, once: the seam's `spend()`, and `adjustPool` for a vancian
    tradition (`cast-capacity.mjs`: the tradition whose key or label a list of the
    spell names, its slot at the spell's level less what the actor spent; a
    points tradition is shown and not spent; with no tradition, core's
    `system.spells` count less the summed `cast`; else unknown and no verdict).
+   The spend also ends what the caster holds by concentration (`concentrating`
+   always warns and never refuses): the caster's held records are deleted by id,
+   naming the cast as the cause, after the spend and before any record of the new
+   cast, and the cast waits for each end's card ("Concentration's end", below). A
+   cast that resolves a declaration spends nothing ("A declaration", below).
 4. *The caster level* (`cast-level.mjs`): the typed figure, else the matching
    tradition's caster-level ladder at the class level (the class level where the
    ladder is blank), else a monster's spellcasting level; never defaulted. It is
@@ -329,8 +336,12 @@ cancel at any point before the spend costs nothing:
 7. *The card* (`cast-card.mjs`): lib's roll card, one section per rolled row, one
    row per target, one entry per target and row in `flags["acks-extras"].castCard`,
    rewritten per seat by a `renderChatMessageHTML` hook. The caster's own record
-   is written first, and only for a cast whose duration is timed and which has a
-   row that lasts.
+   is written first. For a concentration (`castDuration`'s `held`, with its `cap`
+   and `tail`, which leave the duration untimed for every caller that tests
+   `none`) it is written whatever the rows are: status-only, `concentrating` or
+   `concentratingStationary` by the kind held, with `held` and `tail` in the flag,
+   flag-timed by the cap where there is one. For any other duration it is written
+   only where the duration is timed and a row lasts.
 8. *The application* (`cast-apply.mjs`), where the seat had targets, for each
    target on the right client. The amount is the roll through the save's fraction
    and then `amountAfter`'s one rounding, to `adjustHp` with multiplier 1; a
@@ -368,5 +379,67 @@ rolls and an Apply that takes the presser's targets; a thrown row waits on a
 Throw press. Apply and Throw are for a GM and the user who cast; Undo is the
 GM's: the hit points return to what they were and the records are deleted by
 id.
+
+**A declaration** (`cast-moment.mjs`, `cast-declare.mjs`, registered at `init`).
+`castMoment({combat, combatant})` answers where a cast falls: `free` where no
+begun fight (`started`, or core's `acks.initDone`) holds the caster's combatant,
+`resolve` where the tracker's current combatant is the caster's and its
+initiative is rolled, `declare` at any other moment. At `declare` the dialog's
+button reads Declare and, at its confirm, the cast checks capacity, spends once,
+ends the caster's concentration, writes a status-only `casting` record and a
+status-free pending record (`pending {spellUuid, mode, picks, casterLevel,
+situational, visibility, item, combatId, round, at}`), and posts no card. `round`
+is the round whose turn of the caster's takes the declaration back (`lapseRound`:
+this round where the caster's turn is still to come or its initiative unrolled,
+the next once it has passed). The pending record alone is the declaration.
+Core's combatant flag `acks.prepareSpell` follows it, written by the GM's client:
+a Player cannot update a combatant, so a seat asks through `magicDeclareFlag`,
+which accepts it from a user who owns the combatant's actor (and, to set the flag,
+while a declaration of that actor names the fight); with no GM connected the flag
+is left alone and nothing depends on it. A flag set by hand with no record to
+explain it counts as a declaration for the missing-declaration verdict, and its
+cast runs fresh, asks and spends. At `resolve`, an unlost pending record of this
+spell and fight resolves with its stored answers and the seat's current targets:
+no dialog, no capacity check, no spend, the other verdicts still checked. The
+dialog opens, spending nothing, only where a stored weapon is not a weapon of the
+one target. The flag is cleared and both records deleted at the resolution.
+Lib's `STATES_LOST_HOOK`, for ids that hold `casting`, stamps the caster's pending
+records `lost {cause, at}` and clears the flag; a stamped record gives
+`declarationLost` at the turn, no record `noDeclaration`, and each blocks a Player
+and warns a Judge, whose cast then runs fresh with a spend. A second declaration
+gives `declared`, blocked for a Player; a Judge's replaces the first, which stays
+spent. The primary GM deletes the records of a caster's declaration (and clears the
+flag) when that caster's turn that reaches its `round` ends with it unresolved
+(`turnEnded`: the round advances, or the tracker moves forward to another
+combatant; the tracker re-sorting after an initiative roll ends no turn), and when
+the fight is deleted. A Judge's fresh cast through a lost declaration ends it. The
+spend stands.
+
+**Concentration's end** (`cast-held.mjs`, registered at `init`). However the
+caster's held record goes (damage or a failed save through lib's loss path, the
+status's own toggle, a hand delete, another cast, the cap running out) the client
+that deleted it ends the cast, in one funnel on `deleteActiveEffect` for its own
+user's delete, because the cause exists only there. The cause, read before
+anything awaits: the cast's own delete names `cast` or `time` in the operation's
+options (`{"acks-extras": {endCause}}`); else lib's `lossInFlight(actor)` gives
+`damage` or `save`; else `removed`. `heldEndPlan` sorts the cast's recipient
+records, found by `castId` over every actor and unlinked token, by the caster
+record's `tail`: none, deleted by id; a tail, re-timed from now (the earlier start
+and duration kept for Restore); a tail the import did not read, kept and listed
+with End. A record the client cannot write goes to the GM's client through
+`magicHeldEnd` `{casterUuid, castId, cause}`; the GM's client takes the tail from
+the spell, never from the request, and accepts the request only from a user who
+owns the caster once no held record of the cast remains. With no GM connected those
+records stay and are listed with End. One card is posted after the relay answers,
+whispered to the GMs and the caster's owners, in plain HTML: the cause, what ended,
+what runs on (each figure with a tooltip carrying the page reference), what still
+stands with End (the record's owners and GMs), and Restore (GMs only), which puts
+back the caster's record and each ended one with its own id and undoes the
+re-timings. Its flag `castHeldEnd` holds the cause, those lists with each ended
+record's data, and the caster record's data. Restore keeps only the keys this
+module writes of a record whose mark carries the card's own cast and caster, with
+an empty change list. A cast's recipient records are not found when the caster's
+whole actor is deleted, since Foundry fires no per-record hook for it
+([ROADMAP.md](ROADMAP.md)).
 
 What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.

@@ -52,6 +52,8 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
       modes: Object.entries(ctx.needsWeapon ?? {}).filter(([, needed]) => needed).map(([m]) => m),
       options: (ctx.weapons ?? []).map((w) => ({ id: w.id, label: w.magic ? loc("dialog.weaponMagic", { name: w.name }) : w.name })),
     },
+    // At any moment of a begun fight but the caster's turn the button declares the spell.
+    declaring: ctx.moment === "declare" ? loc("dialog.declaring", { name: ctx.caster?.name ?? "" }) : "",
     saves: Boolean(ctx.saves),
     situationalTip: loc("tip.situational"),
     visibility: VISIBILITY_MODES.map((key) => ({ key, label: visibilityLabel(key), selected: key === visibility })),
@@ -62,7 +64,7 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
     targets: ctx.targets ?? [],
     verdicts: (ctx.modes ?? []).map((m) => ({
       mode: m,
-      items: (ctx.verdicts?.[m] ?? []).map((v) => ({ severity: v.severity, text: loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`) })),
+      items: (ctx.verdicts?.[m] ?? []).map((v) => ({ severity: v.severity, text: loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "" }) })),
     })),
   };
 }
@@ -108,7 +110,7 @@ export class CastDialog {
       buttons: [
         {
           action: "cast",
-          label: loc("dialog.cast"),
+          label: ctx.moment === "declare" ? loc("dialog.declare") : loc("dialog.cast"),
           icon: "fa-solid fa-wand-sparkles",
           default: true,
           callback: (_event, button) => {

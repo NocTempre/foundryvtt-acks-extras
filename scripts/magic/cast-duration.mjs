@@ -16,7 +16,10 @@
  * perpetual, indefinite, permanent, special) and one whose figures cannot be
  * read (a missing value, a unit mismatch, a level the shape needs but the
  * caller lacks) answer `{ none: <reason> }`, never a guess; the reasons are
- * the bare ids in `NONE`.
+ * the bare ids in `NONE`. A concentration answers `{ none: "untimed" }` with the
+ * kind held (`held`) and, where the shape has them, its longest hold (`cap`) and
+ * the time the effect outlasts it (`tail`), so a caller that tests `none` is
+ * unchanged and the cast reads the rest.
  */
 import { TIME_UNITS } from "../lib/magic-vocab.mjs";
 import { TURN_SECONDS } from "../lib/constants.mjs";
@@ -49,9 +52,6 @@ const UNIT_MAP = Object.freeze({
 /** Shapes that carry no time to count. */
 const UNTIMED = new Set([
   "instantaneous",
-  "concentration",
-  "concentrationMax",
-  "concentrationPlus",
   "perpetual",
   "indefinite",
   "permanent",
@@ -69,6 +69,31 @@ function convert(count, unit) {
   // The effect's duration value is an integer; a fraction is refused, not rounded.
   if (!Number.isInteger(value)) return none(NONE.fractional);
   return { value, units };
+}
+
+/** The two kinds of concentration a spell prints. */
+const HELD_KINDS = Object.freeze(["mobile", "stationary"]);
+
+/**
+ * What a concentration shape answers: `{none: "untimed", held}` with `held` the
+ * kind the spell prints (mobile where blank), plus `cap`, the longest the
+ * concentration may be held, for a maximum (times the caster level where the
+ * maximum is per level), and `tail`, the time the effect runs on after
+ * concentration ends, for a plus shape. A `cap` or a `tail` whose figures cannot
+ * be read is itself a `{none}`.
+ */
+function concentration(duration, level) {
+  const held = HELD_KINDS.includes(duration.concentration) ? duration.concentration : "mobile";
+  const out = { none: NONE.untimed, held };
+  if (duration.shape === "concentrationMax") {
+    if (duration.maxPerLevel === true) {
+      out.cap = Number.isFinite(level) && level > 0 ? convert(Number(duration.value) * level, duration.unit) : none(NONE.noLevel);
+    } else out.cap = convert(Number(duration.value), duration.unit);
+  } else if (duration.shape === "concentrationPlus") {
+    const plus = duration.plus ?? {};
+    out.tail = convert(Number(plus.value), plus.unit);
+  }
+  return out;
 }
 
 /**
@@ -90,6 +115,7 @@ export function castDuration(duration, { casterLevel, roll } = {}) {
   if (UNTIMED.has(shape)) return none(NONE.untimed);
   const unit = duration.unit;
   const level = Number(casterLevel);
+  if (shape === "concentration" || shape === "concentrationMax" || shape === "concentrationPlus") return concentration(duration, level);
   switch (shape) {
     case "fixed":
       return convert(Number(duration.value), unit);

@@ -84,3 +84,84 @@ between the formula's extremes in the same units, and the shortest otherwise.
 to keep equal. *Cost:* a Judge's edit to the spell between the cast and an
 Apply changes what applies; the edit is the Judge's. The card's caster level and
 the spell's save still come from the card, which the seat's own cast supplies.
+
+## 2026-11-16 — Concentration's end is one funnel on the deleting client
+
+The owner: "automation with transparency is the design principle". Plan ruling
+31 made the end of a concentration end the cast's recipient records, with the
+primary GM's client driving what the seat does not own and a card with a Judge's
+Restore; ruling 24 named the loss and left the trigger to lib's `STATES_LOST_HOOK`.
+That trigger is superseded in part, with new evidence the ruling did not know: the
+cause of an end exists only on the client that deleted the record, and the hook
+fires after the delete and only on the client that ran lib's loss path. It
+therefore misses the status's own toggle on the HUD, a hand delete, a recast and the
+cap running out, which delete the record without going through that path.
+Observed on `main`: `deleteActiveEffect` fires on the deleting client inside
+`toggleStatusEffect` for a linked actor and for an unlinked token's, and the
+operation's options reach it.
+
+The caster's held record (status-only, `concentrating` or
+`concentratingStationary`, carrying the kind held and the tail) is the trigger:
+magic's `deleteActiveEffect` hook acts when `userId` is this user's, reads the
+cause synchronously (the cast's own delete names `cast` or `time` in the
+operation's options, else lib's `lossInFlight` gives `damage` or `save`, else
+`removed`), ends the recipient records that client can write by the tail (deleted,
+re-timed from now, or kept and listed with End), relays the rest to the GM's
+client through `magicHeldEnd`, and posts one card. A cast through the module, or
+a declaration, ends the caster's held records at its spend, after the spend and
+before any record of the new cast (the dialog warns and never refuses, and a
+cancel costs nothing). The GM's client takes the tail from the spell, never from
+the request, and accepts the request from a user who owns the caster once no held
+record of the cast remains; with no GM connected the records stay and are listed.
+Restore is the Judge's: the card's flag holds each ended record's data, and Restore
+writes back only the keys this module writes of a record carrying the card's own
+cast and caster, with no changes. The card is posted by the deleting client, which
+may be a seat, so its flag is the seat's word; the shape check above bounds what a
+forged one can write, and a GM presses Restore knowing what the card says.
+
+*Rejected:* `STATES_LOST_HOOK` as the trigger, for the cases above; the primary
+GM's client as the driver, since it cannot see the cause. *Cost:* a seat that
+disconnects mid-funnel leaves recipients standing with no card, which a Judge ends
+by hand; a cast outside the module ends no concentration (lib ROADMAP); deleting a
+caster's whole actor fires no hook for its records (ROADMAP).
+
+## 2026-11-16 — A declaration spends at its confirm and lapses with the caster's next turn
+
+The owner: "1 stops, 2 spells track separate, effects don't stack but can
+overlap" and "Don't forget to track interaction with spells per day". Plan ruling
+23 has a declaration spend at its confirm, since the seam's `spend` stops working
+once the cast settles and a disrupted declared spell counts as cast; this entry
+builds it and settles what the plan left open.
+
+In a begun fight a cast at any moment but the caster's own rolled turn declares: it
+spends once, ends the caster's concentration, writes a status-only `casting`
+record and a status-free pending record and posts no card; at the turn the pending
+record resolves the cast with its stored answers, no dialog, no capacity check and
+no spend. The pending record alone is the declaration. Core's `acks.prepareSpell`
+follows it, but a Player cannot update a combatant (observed live: "lacks
+permission to update Combatant"), so the GM's client sets and clears it through
+`magicDeclareFlag` on request, checked as the requester owning the combatant's
+actor and a pending record of that caster naming the fight; with no GM connected
+the flag is left alone and nothing depends on it. A flag set by hand counts as a
+declaration for the missing-declaration verdict, as the plan says; its cast then
+runs fresh, asks and spends, since the module cannot tell whether the Judge has
+already lowered core's count.
+
+A declaration lapses when the caster's own turn that follows it ends unresolved
+(`lapseRound`: this round where the caster's turn is still to come or its
+initiative unrolled, next round's once it has passed), and when the fight is
+deleted; the primary GM deletes the records and the spend stands. A turn ends
+when the round advances or the tracker moves forward to another combatant; a
+change of the current combatant that is the tracker re-sorting after an initiative
+roll (the same combatant at a new place, or another taking the same place) ends
+nothing, and neither does a move backward. Core may have reset the initiatives
+of a round that is opening, so an unrolled initiative is no reason to skip a turn
+that ended. A Judge's fresh cast through a lost declaration ends it.
+
+*Rejected:* a pending record that waits any number of rounds, because core resets
+initiative each round and lib lifts `casting` at the turn with no hook, so a later
+round's record could no longer be lost and would resolve unspent; a combatant flag
+as the declaration, since a Player cannot write it. *Cost:* a misclicked
+declaration is spent (the Judge lowers core's count by hand); a declaration made
+after the caster's turn waits for the next round's turn; a Judge's second
+declaration replaces the first, which stays spent.

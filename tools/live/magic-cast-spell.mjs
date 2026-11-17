@@ -43,10 +43,26 @@
  * blocked and the Judge warned. The buff steps assert relations between what a
  * record, a stored attack card, a notice and a stored save hold, never a printed
  * value, and print booleans and counts only; a figure the import left blank
- * fails its step as an import finding. The steps the held casts and the
- * declaration add (concentration's end, the tail and the cap, a recast, a
- * declaration lost, resolved and stale) are not written here; `walkBuffs`
- * leaves their place marked.
+ * fails its step as an import finding.
+ *
+ * Then the held-cast steps (docs/magic/TESTING.md, "The held-cast steps"): the
+ * circle's caster record is a status-only held record, and its end is one
+ * funnel. The status toggled off (the HUD's path) ends step 1's cast with the
+ * cause removed; the GM hurting the caster ends a recast with one card whose
+ * cause is damage and which lists both recipients, the GM's view of it offering
+ * Restore and the Player's not, and Restore putting the same records back under
+ * the same ids; the Player hurting its own caster has the Player's client end
+ * what it can write and the GM's the ally's; a time after concentration
+ * re-times the recipients' records from now and the clock then removes them; a
+ * longest hold ends everything with the cause time; and a recast warns in the
+ * dialog and ends what is held with the cause cast. Durations are the walk's own
+ * invented ones. Then the declaration steps ("The declaration steps"): in the
+ * run's own begun fight the Player's Declare spends once and leaves a casting
+ * status, a pending record and the combatant's flag, no card; damage loses it and
+ * the turn reports it lost; a resolved declaration casts at the turn with no
+ * dialog and no second spend; and an unresolved one lapses with the caster's
+ * turn. All assert relations between records, cards and counters and print
+ * booleans and counts.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
  * `magic/cast-scene` (the field), `magic/cast-class` (a class with one vancian
@@ -63,8 +79,10 @@
  * undead, Chaotic monster) with `magic/cast-foe-claw` and `magic/cast-foe-spell`
  * (a copy of the damage spell), and `magic/cast-stranger` (a monster of no kind
  * and no alignment) with `magic/cast-stranger-claw`. The run's own tokens,
- * cards and records are tracked by uuid and swept alone. The walk moves the world clock forward by a
- * few minutes and restores the dice it rigged.
+ * cards and records are tracked by uuid and swept alone; the declaration steps
+ * add no fixture but the run's own Combat, deleted by its uuid at teardown. The
+ * walk moves the world clock forward by a few minutes and restores the dice it
+ * rigged.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
 import { seats as machineSeats, PORTS } from "./_env.mjs";
@@ -76,9 +94,16 @@ const KEY = "magic-cast-spell-walk";
 const IDS = { damage: "def.spell.desiccate", cure: "def.spell.cureLightInjury", fright: "def.spell.frightenHumanoid" };
 /** The two spells the buff steps copy, imported apart from `IDS` so the first section's three-spell check stands as it was. */
 const BUFF_IDS = { circle: "def.spell.holyCircle", edge: "def.spell.sharpness" };
-/** The durations the buff steps set on their own copies, so a record is timed and the clock can end it. The figures are the walk's own, not the book's. */
-const CIRCLE_DURATION = { shape: "fixed", value: 60, unit: "minutes" };
+/**
+ * The durations the buff and held steps set on their own copies, so a record is timed and the clock can end it. The figures are the walk's
+ * own, not the book's: the circle is held by stationary concentration, with a time after it for one step and a longest hold for another.
+ */
+const CIRCLE_HELD = { shape: "concentration", concentration: "stationary" };
+const CIRCLE_TAIL = { shape: "concentrationPlus", concentration: "stationary", plus: { value: 3, unit: "minutes" } };
+const CIRCLE_CAP = { shape: "concentrationMax", concentration: "stationary", value: 4, unit: "minutes", maxPerLevel: false };
 const EDGE_DURATION = { shape: "fixed", value: 2, unit: "minutes" };
+/** The Combat the declaration steps begin, by uuid, so teardown deletes it by id. */
+let runCombatUuid = null;
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -497,6 +522,123 @@ const P = {
     const part = L.masterworkBonusParts(item, "attack")[0] ?? null;
     return { tier: item.getFlag("acks-extras", "masterwork")?.tier ?? null, attackBonus: Number(item.system.bonus.attack), mwLabel: part?.label ?? "", itemName: item.name, weaponLabel: game.i18n.localize("ACKS.throw.modifier.weapon") };
   },
+
+  /* ---------------------------------------------------------------- */
+  /*  The held-cast and declaration steps                              */
+  /* ---------------------------------------------------------------- */
+
+  /** The caster's held records (those whose mark carries `held`) and the statuses it stands under. */
+  heldRecords: async ({ actorId }) => {
+    const actor = game.actors.get(actorId);
+    const records = [...actor.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect?.held).map((e) => {
+      const m = e.flags["acks-extras"].spellEffect;
+      return { id: e.id, castId: m.castId, held: m.held, statuses: [...e.statuses], changes: e.changes.length, startTime: m.startTime ?? null, duration: m.duration ?? null, tail: m.tail ?? null, coreDuration: e._source.duration?.value ?? null, rollMods: !!e.flags["acks-extras"].rollMods };
+    });
+    return { records, statuses: [...actor.statuses] };
+  },
+  /** The caster's pending declarations and whether it stands under `casting`; with `until`, wait for that many, with `lost`, wait for one stamped lost. */
+  pendingOf: async ({ casterId, until, lost }) => {
+    const H = globalThis.__mcs;
+    const actor = game.actors.get(casterId);
+    const read = () => [...actor.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect?.pending).map((e) => {
+      const p = e.flags["acks-extras"].spellEffect.pending;
+      return { castId: e.flags["acks-extras"].spellEffect.castId, lost: p.lost?.cause ?? null, round: p.round, combatId: p.combatId };
+    });
+    if (until != null) await H.poll(() => read().length === until, { tries: 40, every: 250 });
+    if (lost) await H.poll(() => read().some((p) => p.lost), { tries: 40, every: 250 });
+    return { pending: read(), casting: actor.statuses.has("casting") };
+  },
+  /** The cards of concentration's end made since `since`, with what each lists. */
+  endCards: async ({ since, castId }) => [...game.messages]
+    .filter((m) => m.timestamp >= since && m.flags?.["acks-extras"]?.castHeldEnd && (!castId || m.flags["acks-extras"].castHeldEnd.castId === castId))
+    .map((m) => {
+      const f = m.flags["acks-extras"].castHeldEnd;
+      return { id: m.id, uuid: m.uuid, author: m.author?.id ?? null, cause: f.cause, castId: f.castId, ended: f.ended.map((e) => e.actorUuid), retimed: f.retimed.map((r) => ({ actorUuid: r.actorUuid, startTime: r.startTime, duration: r.duration })), open: f.open.length, restored: !!f.restored };
+    }),
+  /** Wait for a card of this cast's end made since `since`. */
+  waitEnd: async ({ castId, since }) => {
+    const H = globalThis.__mcs;
+    return !!(await H.poll(() => [...game.messages].some((m) => m.timestamp >= since && m.flags?.["acks-extras"]?.castHeldEnd?.castId === castId), { tries: 80, every: 250 }));
+  },
+  /** What a seat's render of a concentration card offers. */
+  heldCard: async ({ messageId }) => {
+    const H = globalThis.__mcs;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    await H.sleep(500);
+    const el = document.querySelector(`[data-message-id="${messageId}"]`);
+    return { found: !!el, restore: !!el?.querySelector("[data-acks-extras-held-restore]"), end: el?.querySelectorAll("[data-acks-extras-held-end]").length ?? 0 };
+  },
+  /** Press Restore as the GM does, and wait for the card to say so. */
+  pressRestore: async ({ messageId }) => {
+    const H = globalThis.__mcs;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    await H.sleep(400);
+    const button = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"] [data-acks-extras-held-restore]:not([disabled])`), { tries: 40, every: 200 });
+    if (!button) return { button: false };
+    button.click();
+    const done = await H.poll(() => game.messages.get(messageId)?.flags?.["acks-extras"]?.castHeldEnd?.restored, { tries: 60, every: 250 });
+    await H.sleep(500);
+    return { button: true, restored: !!done };
+  },
+  /** A Combat of these tokens, begun by writing its round, turn and core's initDone flag (never `startCombat`, which opens the surprise matrix). */
+  combatNew: async ({ sceneId, tokenIds }) => {
+    const scene = game.scenes.get(sceneId);
+    const combat = await Combat.create({ scene: sceneId, active: true });
+    await combat.createEmbeddedDocuments("Combatant", tokenIds.map((id) => ({ tokenId: id, sceneId, actorId: scene.tokens.get(id).actorId })));
+    await combat.update({ round: 1, turn: 0, "flags.acks.initDone": true });
+    return { id: combat.id, uuid: combat.uuid, combatants: combat.combatants.map((c) => ({ id: c.id, tokenId: c.tokenId })) };
+  },
+  /** Set initiatives by combatant id. */
+  combatSet: async ({ combatId, initiatives }) => {
+    const combat = game.combats.get(combatId);
+    for (const [id, initiative] of Object.entries(initiatives)) await combat.combatants.get(id).update({ initiative });
+    await new Promise((r) => setTimeout(r, 600));
+    return combat.turns.map((c) => c.id);
+  },
+  /** Move the tracker by `combat.update` or `nextTurn`, and answer where it stands. */
+  combatMove: async ({ combatId, update, next }) => {
+    const combat = game.combats.get(combatId);
+    if (next) await combat.nextTurn();
+    else await combat.update(update);
+    await new Promise((r) => setTimeout(r, 1200));
+    return { round: combat.round, turn: combat.turn, current: combat.combatant?.id ?? null };
+  },
+  /** A combatant's `prepareSpell`; with `until`, wait for it to read that. */
+  combatInfo: async ({ combatId, combatantId, until }) => {
+    const H = globalThis.__mcs;
+    const read = () => game.combats.get(combatId)?.combatants.get(combatantId)?.flags?.acks?.prepareSpell === true;
+    if (until != null) await H.poll(() => read() === until, { tries: 40, every: 250 });
+    return { prepareSpell: read() };
+  },
+  /** Declare a spell as a user does: open the dialog, read its button, confirm, and wait for the declaration. No cast card is expected. */
+  declare: async ({ casterId, spellId }) => {
+    const H = globalThis.__mcs;
+    const actor = game.actors.get(casterId);
+    const item = actor.items.get(spellId);
+    const before = new Set([...game.messages].map((m) => m.id));
+    const cast0 = item.system.cast;
+    const pool0 = actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0;
+    item.use({ skipDialog: true });
+    const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
+    if (!dialog) return { dialog: false };
+    const button = dialog.closest(".application").querySelector('button[data-action="cast"]');
+    const label = button?.textContent.trim() ?? "";
+    button.click();
+    await H.poll(() => [...actor.effects].some((e) => e.flags?.["acks-extras"]?.spellEffect?.pending), { tries: 60, every: 250 });
+    await H.sleep(800);
+    return { dialog: true, label, casting: actor.statuses.has("casting"), pending: [...actor.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect?.pending).length, cast: item.system.cast - cast0, pool: (actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0) - pool0, cards: [...game.messages].filter((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard).length };
+  },
+  /** Cast a declared spell on the caster's turn as a user does: no dialog should open and the card should post. */
+  castResolve: async ({ casterId, spellId }) => {
+    const H = globalThis.__mcs;
+    const actor = game.actors.get(casterId);
+    const item = actor.items.get(spellId);
+    const before = new Set([...game.messages].map((m) => m.id));
+    item.use({ skipDialog: true });
+    const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 80, every: 250 });
+    await H.sleep(500);
+    return { card: !!message, messageId: message?.id ?? null, dialog: !!document.querySelector(".acks-extras-cast-dialog") };
+  },
   restore: async () => {
     const H = globalThis.__mcs;
     if (!H?.patched) return "never installed";
@@ -588,7 +730,7 @@ const labelWithCite = (rec) => (rec.cite ? `${rec.label} (${rec.cite})` : rec.la
  * counts records. A figure the import left blank fails its step as an import
  * finding, and nothing here fills one in.
  */
-async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload }) {
+async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload, damageId }) {
   const fmt = (key, data) => run(gm, P.format, { key, data });
   const modsOf = (tokenId) => run(gm, P.mods, { sceneId, tokenId });
   const gmId = await run(gm, async () => game.user.id);
@@ -620,7 +762,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   const shapeActors = await run(gm, P.buffActors, { casterId, allyId: ids.ally, foeId: ids.foe, strangerId: ids.stranger });
   check("buff: the caster reads an alignment, the foe an undead of another, the stranger neither a kind nor an alignment, the ally a character with no condition", !!shapeActors.casterKey && !!shapeActors.foeKey && shapeActors.foeEnchanted && shapeActors.strangerKey === null && shapeActors.strangerKinds === 0 && shapeActors.allyCharacter && shapeActors.allyStatuses === 0, { foeEnchanted: shapeActors.foeEnchanted, strangerKinds: shapeActors.strangerKinds });
   check("buff: no spell record stands on the ally, the foe or the stranger before the steps begin", shapeActors.stale === 0, { stale: shapeActors.stale });
-  const shapedCircle = await run(gm, P.buffShape, { casterId, spellId: ids.circle, fresh: freshOf("circle"), duration: CIRCLE_DURATION, values: {} });
+  const shapedCircle = await run(gm, P.buffShape, { casterId, spellId: ids.circle, fresh: freshOf("circle"), duration: CIRCLE_HELD, values: {} });
   const shapedEdge = await run(gm, P.buffShape, { casterId, spellId: ids.edge, fresh: freshOf("edge"), duration: EDGE_DURATION, values: {} });
   const shapedFoeSpell = await run(gm, P.shapeDamage, { actorId: ids.foe, spellId: ids.foeSpell });
   check("buff: each copy carries its rows, and the foe's copy a damage row", shapedCircle.rows > 0 && shapedEdge.rows > 0 && shapedFoeSpell.damageRow, { circle: shapedCircle.rows, edge: shapedEdge.rows });
@@ -658,7 +800,8 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   check("buff 1: the ally's record was written by the GM's client, the Player owning neither the token nor its actor", rec1.ally[0]?.writer === gmId && rec1.ally[0]?.writer !== playerId && allyOwned === false, { gmWrote: rec1.ally[0]?.writer === gmId, playerOwns: allyOwned });
   const seen1 = await run(gm, P.seenMods, { messageId: c1.messageId, spellName: c1.model?.spellName ?? "" });
   check("buff 1: every modifier entry on the card carries a tooltip naming the spell", seen1.found && seen1.cells > 0 && seen1.named === seen1.cells, { cells: seen1.cells, named: seen1.named });
-  // Concentration's record on the caster is the next slice's, and nothing here asserts it.
+  const held1 = await run(gm, P.heldRecords, { actorId: casterId });
+  check("buff 1: the caster holds one status-only concentratingStationary record of the cast, with the kind held in its flag", held1.records.filter((h) => h.castId === c1.model?.castId).length === 1 && held1.records.every((h) => h.statuses.length === 1 && h.statuses[0] === "concentratingStationary" && h.changes === 0 && h.held === "stationary" && !h.rollMods) && held1.statuses.includes("concentratingStationary"), { records: held1.records.length });
 
   const circleRec = rec1.ally[0];
   const acPart = partsOf(circleRec, "ac")[0];
@@ -711,11 +854,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   check("buff 5: the Judge's Undo on one modifier entry took the cast's record off each recipient", c1.card && after1.caster.length === 0 && after1.ally.length === 0, { caster: after1.caster.length, ally: after1.ally.length });
   await run(gm, P.target, { sceneId, tokenIds: [] });
 
-  /* ---------------------------------------------------------------- */
-  /*  Reserved: the held-cast steps (6 to 10 of the design) go here,   */
-  /*  after step 5 and before step 11, and the declaration steps (15   */
-  /*  to 17) after step 14. Neither is written in this slice.          */
-  /* ---------------------------------------------------------------- */
+  await walkHeld({ sceneId, caster, casterId, ids, tCaster, tAlly, c1castId: c1.model?.castId, freshOf, fmt, modsOf, trackCard, spent, recipients, allyOwned, playerId, damageId });
 
   section("buff 11. sharpness on the blade (the Player's cast; the GM's client writes the record)");
   await spent();
@@ -857,6 +996,195 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   await run(gm, P.target, { sceneId, tokenIds: [] });
   const warnText = await fmt("ACKS-MAGIC.cast.notice.verdict.oneBearer", {});
   check("buff 14: the Judge's dialog states the same verdict as a warning and leaves Cast on", warned14.dialog && warned14.verdicts.includes("warn") && !warned14.verdicts.includes("block") && warned14.verdictTexts.includes(warnText) && !warned14.castDisabled, warned14.verdicts);
+  await spent();
+
+  await walkDeclare({ sceneId, casterId, tCaster, tFoe, ids, damageId, fmt, spent, trackCard });
+}
+
+/** Cards of concentration's end the run made since `since`, tracked for the sweep. */
+async function endCardsSince(since, castId) {
+  const cards = await run(gm, P.endCards, { since, castId });
+  for (const c of cards) await track(c.uuid, "ChatMessage");
+  return cards;
+}
+
+/**
+ * The held-cast steps (docs/magic/TESTING.md, "The held-cast steps"): how a cast held by concentration ends and what its card says. The
+ * circle copy is reshaped per step to a duration of the walk's own (a plain concentration, a time after, a longest hold), and the caster's
+ * hit points are written on the client whose loss path the step asserts.
+ */
+async function walkHeld(K) {
+  const { sceneId, caster, casterId, tCaster, tAlly, c1castId, freshOf, fmt, modsOf, trackCard, spent, recipients, allyOwned, playerId, damageId, ids } = K;
+  const heldOf = () => run(gm, P.heldRecords, { actorId: casterId });
+  const standingOf = async (castId) => ({ caster: recipients(await modsOf(tCaster.id), castId), ally: recipients(await modsOf(tAlly.id), castId), held: (await heldOf()).records.filter((h) => h.castId === castId) });
+  const hp = (seat, value) => run(seat, P.setHp, { sceneId, tokenId: tCaster.id, value });
+  const castCircle = async (duration) => {
+    await run(gm, P.buffShape, { casterId, spellId: ids.circle, fresh: freshOf("circle"), duration, values: {} });
+    await spent();
+    await run(player, P.target, { sceneId, tokenIds: [tCaster.id, tAlly.id] });
+    const c = await run(player, P.cast, { casterId, spellId: ids.circle, wait: 80 });
+    await run(player, P.target, { sceneId, tokenIds: [] });
+    await trackCard(c.messageId);
+    if (c.model?.castId) castIds.push(c.model.castId);
+    return c;
+  };
+  const only = (cards, castId) => cards.filter((c) => c.castId === castId);
+  const full = (s) => s.caster.length === 1 && s.ally.length === 1 && s.held.length === 1;
+  const empty = (s) => s.caster.length === 0 && s.ally.length === 0 && s.held.length === 0;
+
+  section("held 6. the caster is hurt (GM client): the cast ends with one card, and Restore puts it back");
+  // Step 1's own record still stands: deleting it through the status toggle, as the HUD does, ends a cast whose recipients were undone earlier.
+  const sinceToggle = Date.now();
+  await run(gm, async ({ casterId: id }) => { await game.actors.get(id).toggleStatusEffect("concentratingStationary", { active: false }); return true; }, { casterId });
+  check("held 6: the status toggle's end posted one card of its cast, with no cause but removed", (await run(gm, P.waitEnd, { castId: c1castId, since: sinceToggle })) && only(await endCardsSince(sinceToggle, c1castId), c1castId).length === 1);
+  const toggled = only(await run(gm, P.endCards, { since: sinceToggle, castId: c1castId }), c1castId);
+  check("held 6: that card's cause is removed and the caster holds nothing", toggled[0]?.cause === "removed" && (await heldOf()).records.length === 0, { cause: toggled[0]?.cause });
+  await hp(gm, 9);
+  const c6 = await castCircle(CIRCLE_HELD);
+  const id6 = c6.model?.castId;
+  const before6 = await standingOf(id6);
+  check("held 6: the recast left the caster's record and each recipient's", c6.card && c6.settled && full(before6), { caster: before6.caster.length, ally: before6.ally.length, held: before6.held.length });
+  const since6 = Date.now();
+  await hp(gm, 8);
+  const ended6 = await run(gm, P.waitEnd, { castId: id6, since: since6 });
+  const after6 = await standingOf(id6);
+  const status6 = await heldOf();
+  check("held 6: the concentration status is gone and the caster's record and every recipient's record of the cast are gone", ended6 && empty(after6) && !status6.statuses.includes("concentratingStationary"), { caster: after6.caster.length, ally: after6.ally.length, held: after6.held.length });
+  const cards6 = only(await endCardsSince(since6, id6), id6);
+  check("held 6: exactly one card of the cast's end, its cause damage, listing both recipients", cards6.length === 1 && cards6[0].cause === "damage" && cards6[0].ended.length === 2, { cards: cards6.length, cause: cards6[0]?.cause });
+  const seenGm = cards6[0] ? await run(gm, P.heldCard, { messageId: cards6[0].id }) : null;
+  const seenPlayer = cards6[0] ? await run(player, P.heldCard, { messageId: cards6[0].id }) : null;
+  check("held 6: the GM's view of the card has Restore and the Player's has none", !!seenGm?.found && seenGm.restore && !!seenPlayer?.found && !seenPlayer.restore, { gm: seenGm?.restore, player: seenPlayer?.restore });
+  const restored = cards6[0] ? await run(gm, P.pressRestore, { messageId: cards6[0].id }) : { button: false };
+  const back6 = await standingOf(id6);
+  const idsBack = [...back6.caster, ...back6.ally, ...back6.held].map((r) => r.id).sort();
+  const idsWere = [...before6.caster, ...before6.ally, ...before6.held].map((r) => r.id).sort();
+  check("held 6: Restore put back the same records under the same ids and the status is on again", restored.button && full(back6) && JSON.stringify(idsBack) === JSON.stringify(idsWere) && (await heldOf()).statuses.includes("concentratingStationary"), { ids: idsBack.length });
+
+  section("held 7. the Player hurts its own caster (Player client): the Player's client ends what it can write and the GM's the rest");
+  await hp(gm, 9);
+  const since7 = Date.now();
+  await hp(player, 8);
+  const ended7 = await run(gm, P.waitEnd, { castId: id6, since: since7 });
+  const cards7 = only(await endCardsSince(since7, id6), id6);
+  const after7 = await standingOf(id6);
+  check("held 7: the cast ended, every record gone, with one card listing both recipients", ended7 && empty(after7) && cards7.length === 1 && cards7[0].ended.length === 2, { cards: cards7.length });
+  check("held 7: the Player's client posted the card, and the ally's record is gone though the Player owns neither its token nor its actor, so the GM's client ended it", cards7[0]?.author === playerId && allyOwned === false && cards7[0].open === 0, { author: cards7[0]?.author === playerId });
+  await hp(gm, 9);
+
+  section("held 8. a time after concentration: the recipients' records run it out");
+  const c8 = await castCircle(CIRCLE_TAIL);
+  const id8 = c8.model?.castId;
+  check("held 8: the caster's record carries the tail in its flag", full(await standingOf(id8)) && (await standingOf(id8)).held[0].tail?.value === 3 && (await standingOf(id8)).held[0].tail?.units === "minutes");
+  const since8 = Date.now();
+  await hp(gm, 8);
+  const ended8 = await run(gm, P.waitEnd, { castId: id8, since: since8 });
+  const now8 = await run(gm, P.time, { now: true });
+  const after8 = await standingOf(id8);
+  const retimed = [...after8.caster, ...after8.ally];
+  check("held 8: the caster's record is gone and each recipient's is re-timed from now to the tail", ended8 && after8.held.length === 0 && retimed.length === 2 && retimed.every((r) => r.startTime === now8 && r.duration?.value === 3 && r.duration?.units === "minutes"), { records: retimed.length });
+  const cards8 = only(await endCardsSince(since8, id8), id8);
+  check("held 8: the card lists both as running on and none as ended", cards8.length === 1 && cards8[0].retimed.length === 2 && cards8[0].ended.length === 0 && cards8[0].retimed.every((r) => r.duration?.value === 3), { retimed: cards8[0]?.retimed.length });
+  await run(gm, P.time, { to: now8 + 3 * 60 + 1 });
+  const gone8 = await standingOf(id8);
+  check("held 8: past the tail the clock removed both", empty(gone8), { caster: gone8.caster.length, ally: gone8.ally.length });
+  await hp(gm, 9);
+
+  section("held 9. a longest hold: the clock ends the cast with the cause time");
+  const c9 = await castCircle(CIRCLE_CAP);
+  const id9 = c9.model?.castId;
+  const s9 = await standingOf(id9);
+  check("held 9: the caster's record is flag-timed by the cap", full(s9) && s9.held[0].duration?.value === 4 && s9.held[0].duration?.units === "minutes" && Number.isFinite(s9.held[0].startTime) && s9.held[0].coreDuration == null, { held: s9.held.length });
+  const since9 = Date.now();
+  if (s9.held[0]) await run(gm, P.time, { to: s9.held[0].startTime + 4 * 60 + 1 });
+  const ended9 = await run(gm, P.waitEnd, { castId: id9, since: since9 });
+  const cards9 = only(await endCardsSince(since9, id9), id9);
+  check("held 9: past the cap everything of the cast is gone, with one card whose cause is time", ended9 && empty(await standingOf(id9)) && cards9.length === 1 && cards9[0].cause === "time", { cards: cards9.length, cause: cards9[0]?.cause });
+
+  section("held 10. a recast: the dialog warns, and confirming ends what is held with the cause cast");
+  const c10 = await castCircle(CIRCLE_HELD);
+  const id10 = c10.model?.castId;
+  await spent();
+  const asked = await run(player, P.cast, { casterId, spellId: damageId, stop: true });
+  const concentrating = await fmt("ACKS-MAGIC.cast.notice.verdict.concentrating", { name: tCaster.actorName });
+  check("held 10: the dialog shows concentrating as a warning and leaves Cast on", asked.dialog && asked.verdicts.includes("warn") && !asked.verdicts.includes("block") && asked.verdictTexts.includes(concentrating) && !asked.castDisabled, asked.verdicts);
+  const since10 = Date.now();
+  const c10b = await run(player, P.cast, { casterId, spellId: damageId, wait: 40 });
+  await trackCard(c10b.messageId);
+  const cards10 = only(await endCardsSince(since10, id10), id10);
+  check("held 10: the cast went through, the held records ended with one card of the cause cast, and the caster holds nothing", c10b.card && cards10.length === 1 && cards10[0].cause === "cast" && empty(await standingOf(id10)), { cards: cards10.length, cause: cards10[0]?.cause });
+  await spent();
+}
+
+/**
+ * The declaration steps (docs/magic/TESTING.md, "The declaration steps"): a spell declared in a begun fight, lost, resolved and let lapse.
+ * The fight is the run's own Combat, begun by writing its round, turn and core's initDone flag, never `startCombat`, and moved by
+ * `combat.update` and `nextTurn`; teardown deletes it by id.
+ */
+async function walkDeclare(K) {
+  const { sceneId, casterId, tCaster, tFoe, damageId, fmt, spent, trackCard } = K;
+  const hp = (value) => run(gm, P.setHp, { sceneId, tokenId: tCaster.id, value });
+  const counters = () => run(gm, P.counters, { casterId, spellId: damageId });
+  await hp(9);
+  await spent();
+  const fight = await run(gm, P.combatNew, { sceneId, tokenIds: [tCaster.id, tFoe.id] });
+  runCombatUuid = fight.uuid;
+  const cbOf = (tokenId) => fight.combatants.find((c) => c.tokenId === tokenId)?.id;
+  const [cbCaster, cbFoe] = [cbOf(tCaster.id), cbOf(tFoe.id)];
+  const prepared = (value) => run(gm, P.combatInfo, { combatId: fight.id, combatantId: cbCaster, until: value });
+  const move = (update) => run(gm, P.combatMove, { combatId: fight.id, update });
+
+  section("declare 15. a declaration is made, lost to damage and reported lost at the turn");
+  const label = await fmt("ACKS-MAGIC.cast.dialog.declare", {});
+  const d15 = await run(player, P.declare, { casterId, spellId: damageId });
+  const flag15 = await prepared(true);
+  check("declare 15: the Player's button reads Declare, and confirming left a casting status, one pending record and the combatant's flag, spent the slot once and posted no cast card", d15.dialog && d15.label === label && d15.casting && d15.pending === 1 && flag15.prepareSpell === true && d15.cast === 1 && d15.pool === 1 && d15.cards === 0, { casting: d15.casting, pending: d15.pending, cast: d15.cast, pool: d15.pool, cards: d15.cards });
+  await hp(8);
+  const lost15 = await run(gm, P.pendingOf, { casterId, lost: true });
+  const flagOff15 = await prepared(false);
+  check("declare 15: the GM hurts the caster: casting is gone, the pending record carries lost with the cause damage and the flag is clear", !lost15.casting && lost15.pending.length === 1 && lost15.pending[0].lost === "damage" && flagOff15.prepareSpell === false, { casting: lost15.casting, lost: lost15.pending[0]?.lost });
+  await run(gm, P.combatSet, { combatId: fight.id, initiatives: { [cbFoe]: 15, [cbCaster]: 10 } });
+  const moved = await move({ turn: 1 });
+  check("declare 15: with the initiatives set the tracker stands on the caster's turn and the lost declaration is still there", moved.current === cbCaster && (await run(gm, P.pendingOf, { casterId })).pending.length === 1, { current: moved.current === cbCaster });
+  const before15 = await counters();
+  const refused = await run(player, P.cast, { casterId, spellId: damageId, stop: true });
+  const lostText = await fmt("ACKS-MAGIC.cast.notice.blocked.declarationLost", {});
+  check("declare 15: the Player's dialog shows declarationLost as a block with Cast off, and cancelling spends nothing and posts no card", refused.dialog && refused.verdicts.includes("block") && refused.verdictTexts.includes(lostText) && refused.castDisabled && refused.cancelled && refused.cast === 0 && refused.pool === 0 && refused.cards === 0, refused.verdicts);
+  const warned = await run(gm, P.cast, { casterId, spellId: damageId, wait: 40 });
+  await trackCard(warned.messageId);
+  const after15 = await counters();
+  check("declare 15: the GM's dialog warns and its cast spends once", warned.dialog && warned.verdicts.includes("warn") && !warned.verdicts.includes("block") && warned.card && after15.cast - before15.cast === 1 && after15.spent - before15.spent === 1, { cast: after15.cast - before15.cast, spent: after15.spent - before15.spent });
+  check("declare 15: the lost declaration ended with that cast", (await run(gm, P.pendingOf, { casterId })).pending.length === 0);
+  await spent();
+  await hp(9);
+
+  section("declare 16. a declaration is resolved on the caster's turn with no dialog and no second spend");
+  await move({ round: 2, turn: 0 });
+  const d16 = await run(player, P.declare, { casterId, spellId: damageId });
+  check("declare 16: the next round's declaration is made: one pending record, the flag set, the slot spent once", d16.dialog && d16.pending === 1 && (await prepared(true)).prepareSpell === true && d16.cast === 1, { pending: d16.pending, cast: d16.cast });
+  await hp(9);
+  const turn16 = await move({ turn: 1 });
+  const before16 = await counters();
+  const r16 = await run(player, P.castResolve, { casterId, spellId: damageId });
+  await trackCard(r16.messageId);
+  const after16 = await counters();
+  check("declare 16: on the caster's turn the cast resolved with no dialog and the card posted", turn16.current === cbCaster && r16.card && r16.dialog === false, { dialog: r16.dialog, card: r16.card });
+  check("declare 16: no second spend, the pending record is gone and the flag is clear", after16.cast === before16.cast && after16.spent === before16.spent && (await run(gm, P.pendingOf, { casterId })).pending.length === 0 && (await prepared(false)).prepareSpell === false, { cast: after16.cast - before16.cast, spent: after16.spent - before16.spent });
+  await spent();
+
+  section("declare 17. a declaration the caster's turn passes unresolved lapses; the spend stands");
+  await move({ round: 3, turn: 0 });
+  const before17 = await counters();
+  const d17 = await run(player, P.declare, { casterId, spellId: damageId });
+  const declared17 = await counters();
+  check("declare 17: the declaration is made and spent once", d17.dialog && d17.pending === 1 && declared17.cast - before17.cast === 1, { cast: declared17.cast - before17.cast });
+  const turn17 = await move({ turn: 1 });
+  check("declare 17: the tracker reaches the caster's turn and the declaration still stands", turn17.current === cbCaster && (await run(gm, P.pendingOf, { casterId })).pending.length === 1);
+  await run(gm, P.combatMove, { combatId: fight.id, next: true });
+  const lapsed = await run(gm, P.pendingOf, { casterId, until: 0 });
+  const stale = await counters();
+  check("declare 17: the caster's turn ended with no cast: the pending record is deleted and the flag is clear", lapsed.pending.length === 0 && (await prepared(false)).prepareSpell === false, { pending: lapsed.pending.length });
+  check("declare 17: the spend stands", stale.cast === declared17.cast && stale.spent === declared17.spent, { cast: stale.cast - before17.cast });
   await spent();
 }
 
@@ -1064,7 +1392,7 @@ try {
 
   // The buff steps run apart, so a throw in one still reaches the console check below.
   try {
-    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage });
+    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage, damageId: spellId.damage });
   } catch (err) {
     console.error("WALK ERROR (buff steps):", err?.stack ?? err);
     checks.push(["the buff steps ran to the end", false]);
@@ -1089,6 +1417,11 @@ try {
   // The run's own leavings: cards speaking as its fixtures since it began, and its caster record, listed by id and then swept.
   try {
     if (gm) {
+      // A held record deleted ends its cast through the funnel, which posts a card and writes the recipients: the held records of this run's casts
+      // go first, and the funnel's cards are given time to land before they are listed.
+      await gm.eval(`(async () => { const c = game.actors.find((a) => a.flags?.world?.fixture === "magic/cast-caster"); const ids = ${JSON.stringify(castIds)}; const held = c ? [...c.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect?.held && ids.includes(e.flags["acks-extras"].spellEffect.castId)).map((e) => e.id) : []; if (held.length) await c.deleteEmbeddedDocuments("ActiveEffect", held); await new Promise((r) => setTimeout(r, 2500)); return held.length; })()`);
+      const endCards = JSON.parse(await gm.eval(`JSON.stringify([...game.messages].filter((m) => m.timestamp >= ${startedAt} && m.flags?.["acks-extras"]?.castHeldEnd && ${JSON.stringify(castIds)}.includes(m.flags["acks-extras"].castHeldEnd.castId)).map((m) => m.uuid))`));
+      for (const uuid of endCards) await track(uuid, "ChatMessage");
       // The buff steps' records are listed by the cast ids they made, on the fixtures that carry a marker of this walk's.
       const ledger = await gm.eval(`(async () => JSON.stringify({ cards: [...game.messages].filter((m) => m.timestamp >= ${startedAt} && game.actors.some((a) => a.flags?.world?.fixture?.startsWith?.("magic/cast-") && a.id === m.speaker?.actor)).map((m) => m.uuid), records: [...game.actors.filter((a) => a.flags?.world?.fixture === "magic/cast-caster").flatMap((a) => [...a.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect && e.flags["acks-extras"].spellEffect.casterUuid === a.uuid).map((e) => e.uuid)), ...game.actors.filter((a) => a.flags?.world?.fixture?.startsWith?.("magic/cast-")).flatMap((a) => [...a.effects].filter((e) => ${JSON.stringify(castIds)}.includes(e.flags?.["acks-extras"]?.spellEffect?.castId)).map((e) => e.uuid))] }))()`);
       const { cards, records } = JSON.parse(ledger);
@@ -1096,6 +1429,7 @@ try {
       for (const uuid of records) await track(uuid, "ActiveEffect");
     }
   } catch (err) { console.error("ledger:", err?.message ?? err); }
+  try { if (gm && runCombatUuid) { await track(runCombatUuid, "Combat"); } } catch (err) { console.error("combat:", err?.message ?? err); }
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
   console.log("fixtures kept: magic/cast-scene, magic/cast-class, magic/cast-caster, magic/cast-spell-damage, magic/cast-spell-cure, magic/cast-spell-fright, magic/cast-target-a, magic/cast-target-b, magic/cast-target-c, magic/cast-monster, magic/cast-monster-weapon, magic/cast-spell-circle, magic/cast-spell-edge, magic/cast-ally, magic/cast-ally-blade, magic/cast-ally-fine, magic/cast-foe, magic/cast-foe-claw, magic/cast-foe-spell, magic/cast-stranger, magic/cast-stranger-claw");
   try { if (player) await player.close(); } catch {}

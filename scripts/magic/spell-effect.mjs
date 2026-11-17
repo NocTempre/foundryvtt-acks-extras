@@ -67,6 +67,9 @@ export function newCastId({ randomID } = {}) {
  * @param {string} [cast.sourceAlignment]  The caster's alignment key, read by a row scoped to it.
  * @param {number} [cast.startTime]  World time the record began; makes it flag-timed.
  * @param {{id: string, name: string}} [cast.item]  The weapon a buff names.
+ * @param {"mobile"|"stationary"} [cast.held]  Marks the caster's record of a concentration spell, naming the kind held.
+ * @param {{value: number, units: string}|{none: string}} [cast.tail]  What the cast's effects outlast the concentration by: a duration, or a `{none}` where the import read none.
+ * @param {object} [cast.pending]  A declared spell awaiting the caster's turn: `{spellUuid, mode, picks, casterLevel, situational, visibility, item, combatId, round, at}`. Such a record holds no status.
  * @param {{id: string|null, label: string, cite: string, sourceAlignment: string|null, parts: object[]}} [cast.rollMods]
  *   The buff lib reads at the roll (`lib/roll-mods.mjs`), written at lib's flag. A record that carries it holds no status and no changes.
  * @returns {object}
@@ -87,12 +90,19 @@ export function spellEffectData({
   startTime,
   item,
   rollMods,
+  held,
+  tail,
+  pending,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
   if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
   if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds no changes");
   if (rollMods && (statuses.length || changes.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
+  if (pending && (statuses.length || changes.length)) throw new Error("spellEffectData: a pending declaration holds no status and no changes");
   const mark = { spellUuid: spell.uuid, castId, casterUuid: caster.uuid, role };
+  if (held) mark.held = held === "stationary" ? "stationary" : "mobile";
+  if (held && tail && typeof tail === "object") mark.tail = tail;
+  if (pending && typeof pending === "object") mark.pending = pending;
   if (rowKey) mark.rowKey = String(rowKey);
   if (resist) mark.resist = resist;
   if (sourceAlignment) mark.sourceAlignment = String(sourceAlignment);
@@ -118,7 +128,7 @@ export function spellEffectData({
 
 /**
  * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }` and
- * whichever of `rowKey`, `resist`, `sourceAlignment`, `item`, `startTime` and `duration` it was written with,
+ * whichever of `rowKey`, `resist`, `sourceAlignment`, `item`, `held`, `tail`, `pending` (with its `lost` stamp where the declaration was lost), `startTime` and `duration` it was written with,
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
  * was stamped at (`cast-expiry.mjs`). A buff record's `rollMods` is read back
@@ -140,6 +150,9 @@ export function spellEffectOf(effect) {
   if (raw.resist && typeof raw.resist === "object") record.resist = raw.resist;
   if (raw.sourceAlignment) record.sourceAlignment = String(raw.sourceAlignment);
   if (raw.item && typeof raw.item === "object" && raw.item.id) record.item = { id: String(raw.item.id), name: String(raw.item.name ?? "") };
+  if (raw.held) record.held = raw.held === "stationary" ? "stationary" : "mobile";
+  if (raw.tail && typeof raw.tail === "object") record.tail = raw.tail;
+  if (raw.pending && typeof raw.pending === "object") record.pending = raw.pending;
   const mods = effect?.flags?.[MODULE_ID]?.[FLAG_ROLL_MODS] ?? effect?.getFlag?.(MODULE_ID, FLAG_ROLL_MODS);
   if (mods && typeof mods === "object" && Array.isArray(mods.parts)) record.rollMods = mods;
   if (raw.startTime != null && Number.isFinite(Number(raw.startTime))) record.startTime = Number(raw.startTime);

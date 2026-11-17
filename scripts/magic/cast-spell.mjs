@@ -24,7 +24,10 @@ import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
-import { spellEffectData, newCastId } from "./spell-effect.mjs";
+import { castMoment, declarationOf, MOMENT } from "./cast-moment.mjs";
+import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
+import { liveDeclare } from "./cast-declare.mjs";
+import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
@@ -87,6 +90,16 @@ export async function rowSpecOf(caster, spell, card, { row, key }) {
   return magicDamageSpec(caster, carrier);
 }
 
+/** The begun fight that holds this actor, with the actor's combatant in it; null where there is none. */
+function castFight(actor) {
+  for (const combat of [game.combat, ...(game.combats ?? [])]) {
+    if (!combat || (combat.started !== true && combat.flags?.acks?.initDone !== true)) continue;
+    const combatant = combat.combatants?.find((c) => c.actor === actor || (c.actor?.uuid && c.actor.uuid === actor.uuid));
+    if (combatant) return { combat, combatant };
+  }
+  return null;
+}
+
 /** The reading of the live world a cast needs, in one place. */
 async function readWorld(spell) {
   const actor = spell.parent;
@@ -101,10 +114,17 @@ async function readWorld(spell) {
   const ladderKey = found?.tradition?.casterLevel;
   const ladder = ladderKey ? ((classItem?.system?.ladders ?? []).find((l) => l.key === ladderKey) ?? { values: [] }) : null;
   const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
+  const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
+  const fight = castFight(actor);
   return {
     actor,
     tokens,
     casterToken: actorToken(actor),
+    combat: fight?.combat ?? null,
+    combatant: fight?.combatant ?? null,
+    held: records.some((r) => r.role === "caster" && r.held),
+    declarations: records.filter((r) => r.pending),
+    prepareSpell: fight?.combatant?.flags?.acks?.prepareSpell === true,
     statuses: [...(actor.statuses ?? [])],
     capacity,
     level: {
@@ -194,6 +214,8 @@ const liveDeps = () => ({
   post: postCastCard,
   apply: requestApply,
   record: async (caster, data) => caster.createEmbeddedDocuments("ActiveEffect", [data]),
+  endHeld: endCasterHeld,
+  declare: liveDeclare(),
   throwRow: async (caster, carrier, skipDialog) => caster.makeAttackThrow({ item: carrier, attackType: MAGIC_ATTACK_TYPE, skipDialog }),
   now: () => game.time.worldTime,
   isGM: () => game.user.isGM,
@@ -257,13 +279,23 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const isGM = deps.isGM();
   const groupsFor = (mode) => pickGroups(all, mode);
   const modeKeys = hasReversedRows(all) ? [CAST_MODES.normal, CAST_MODES.reversed] : [CAST_MODES.normal];
-  const verdictsFor = (mode, picks) => castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM });
+  // Where the cast falls in a fight, and the declaration it resolves.
+  const moment = castMoment({ combat: world.combat, combatant: world.combatant });
+  const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
+  const resolving = moment === MOMENT.resolve && Boolean(declaration.valid);
+  const verdictsFor = (mode, picks) =>
+    castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration });
   const known = casterLevel(world.level);
   // One targeted token can bear a weapon buff, and the dialog lists its weapons.
   const bearerToken = world.tokens.length === 1 ? world.tokens[0] : null;
-  const answer = await deps.ask({
+  // A declaration being resolved answers for itself; the dialog opens only where its stored weapon is not one of the one target's.
+  const stored = resolving ? declaration.valid.pending : null;
+  const storedFits =
+    stored && (!needsBearer(rowsForMode(all, stored.mode, stored.picks ?? {})) || bearerToken?.actor?.items?.get?.(stored.item)?.type === "weapon");
+  const askContext = () => ({
     spell,
     caster,
+    moment,
     modes: modeKeys,
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m)])),
@@ -277,6 +309,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     verdicts: Object.fromEntries(modeKeys.map((m) => [m, verdictsFor(m, {})])),
     isGM,
   });
+  const answer = storedFits
+    ? { mode: stored.mode, picks: stored.picks ?? {}, item: stored.item ?? "", casterLevel: stored.casterLevel ?? "", situational: stored.situational ?? "", visibility: stored.visibility || "public" }
+    : await deps.ask(askContext());
   if (!answer) return { ok: false, reason: "cancelled" };
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
@@ -284,14 +319,26 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const verdicts = verdictsFor(mode, answer.picks);
   const stop = verdicts.find((v) => v.severity === "block");
   if (blocked(verdicts)) {
-    deps.notify("warn", `blocked.${stop.key}`);
+    deps.notify("warn", `blocked.${stop.key}`, { name: caster.name });
     return { ok: false, reason: stop.key };
   }
-  for (const v of verdicts) deps.notify("warn", `verdict.${v.key}`);
+  for (const v of verdicts) deps.notify("warn", `verdict.${v.key}`, { name: caster.name });
 
   const level = casterLevel({ ...world.level, override: answer.casterLevel });
-  await spend();
-  if (spendsFromPool(world.capacity)) await deps.adjustPool(caster, world.capacity.tradition, world.capacity.slotKey);
+  // A declaration being resolved was spent at its declaring.
+  if (!resolving) {
+    await spend();
+    if (spendsFromPool(world.capacity)) await deps.adjustPool(caster, world.capacity.tradition, world.capacity.slotKey);
+  }
+  // The cast, or the declaring of it, ends what the caster holds by concentration, before any record of this cast.
+  await deps.endHeld?.(caster);
+  if (resolving) await deps.declare?.finish({ caster, record: declaration.valid, combat: world.combat, combatant: world.combatant });
+  else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
+  else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
+  if (moment === MOMENT.declare) {
+    const made = await deps.declare?.declare({ caster, spell, answer, combat: world.combat, combatant: world.combatant });
+    return { ok: true, declared: true, castId: made?.castId };
+  }
 
   const castId = deps.castId();
   const card = {
@@ -370,9 +417,14 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     Object.assign(card.rows[keyed.key], entry.row);
   }
 
+  // A concentration leaves a caster record whatever the rows are: the status held, the tail it outlasts by, flag-timed by its cap where it has one.
+  const held = card.duration?.held;
   const timed = card.duration && !card.duration.none && kept.some(({ row }) => row.lasts === "duration");
-  if (timed) {
-    const data = spellEffectData({ spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", duration: card.duration, startTime: deps.now() });
+  if (held || timed) {
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", startTime: deps.now() };
+    const data = held
+      ? spellEffectData({ ...mark, statuses: [heldStatusOf(held)], held, tail: card.duration.tail, duration: card.duration.cap })
+      : spellEffectData({ ...mark, duration: card.duration });
     try {
       await deps.record(caster, data);
     } catch (err) {
