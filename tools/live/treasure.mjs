@@ -361,7 +361,19 @@ const P = {
     const app = await H.poll(() => { const s = H.sheet(potId); return s?.rendered && H.root(s)?.querySelector("li[data-card-id], .acks-extras-treasure__empty") ? s : null; }, { tries: 60, every: 250 });
     if (app && !H.opened.includes(app)) H.opened.push(app);
     await H.sleep(300);
-    return { rendered: !!app };
+    if (app) return { rendered: true };
+    // Not rendered: say what the seat holds, so a failure names its cause.
+    const pile = H.pile(potId);
+    const s = pile?.sheet;
+    return {
+      rendered: false,
+      pile: !!pile,
+      limited: !!pile?.testUserPermission(game.user, "LIMITED"),
+      sheetClass: s?.constructor?.name ?? null,
+      appRendered: !!s?.rendered,
+      root: !!H.root(s),
+      errors: H.errors.slice(-5),
+    };
   },
   /** The sheet the scene control's tool opened, or, where the tool is absent, one made through the feature's API. */
   armTool: async () => {
@@ -933,7 +945,8 @@ try {
   check("the doorway card is on the Player seat and reads 0 of 5 turned", doorP.found && doorP.door && doorP.turned === tTurned0, { found: doorP.found, turned: doorP.turned === tTurned0 });
   const openP = await press(player, PORTS.player, { scope: "doc", sel: `[data-message-id='${messageId}'] [data-action='openTable']` }, "the doorway's Open the table, on the Player seat");
   const sheetP = await run(player, P.waitSheet, { potId });
-  check("Open the table opened the window on the Player seat (LIMITED is enough to render it)", openP.found && sheetP.rendered, { found: openP.found, real: openP.real });
+  check("Open the table opened the window on the Player seat (LIMITED is enough to render it)", openP.found && sheetP.rendered, { found: openP.found, real: openP.real, ...sheetP });
+  if (!sheetP.rendered) throw new Error("the Player seat has no pot window; the steps below read it");
   const p1 = await run(player, P.sheetRead, { potId });
   const tMagic = await t(player, "pool.magic");
   const tItemPool = await t(player, "pool.item");
