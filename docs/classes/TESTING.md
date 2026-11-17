@@ -1522,3 +1522,26 @@ its start; a kept fixture carries what the last walk left.
    the trade-off unticked.
 
 **Teardown:** remove the layer by its tag; the fixture stays.
+
+## A casting row's level cap (unwalked)
+
+Needs the seat's BTA PDF connected and the By This Axe classes imported.
+
+**Fixtures.** An imported gnostic class (the By This Axe class whose Casting
+row has kind gnosis), found by its cookbook id, and a disposable `character`
+bound to it through the driver's ledger. A class imported before this change
+needs its Classes shelf repaired first (Settings tab → Game Settings →
+ACKS II — Extras → Manage imports → Rebuild tab), and the steps start by
+asserting the row's shape.
+
+**Steps and observables.**
+1. Open the class item (Items sidebar → the class → Casting tab). *Observable:*
+   the gnosis row's **Level cap** field holds the invocation-level ladder's
+   key and **Caster-level ladder** is empty; hovering **Level cap** shows its
+   hint.
+2. Set the character's level to one the ladder has a rung for, open the
+   character sheet and read the casting strip. *Observable:* the gnosis
+   row's capacity line shows that rung's figure, the same one the strip
+   showed before the cap had its own key.
+
+**Teardown:** the ledger sweeps the character; the class stays.

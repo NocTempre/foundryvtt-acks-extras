@@ -47,6 +47,17 @@ const optionsOf = (enumObj, current, { blankLabel } = {}) => {
   return out;
 };
 
+/**
+ * A select's options over the class's own ladders: a blank row, one per ladder
+ * key, and the stored key itself when it names no ladder here, so a submit
+ * never wipes a value the select could not show.
+ */
+const ladderOptionsOf = (ladders, current) => {
+  const keys = (ladders ?? []).map((l) => l.key).filter(Boolean);
+  if (current && !keys.includes(current)) keys.push(current);
+  return [{ value: "", label: "—", selected: !current }, ...keys.map((key) => ({ value: key, label: key, selected: key === current }))];
+};
+
 /** The class constructor sheet. */
 export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   static DEFAULT_OPTIONS = {
@@ -257,6 +268,7 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       key: t.key,
       label: t.label,
       casterLevel: t.casterLevel,
+      levelCapOptions: ladderOptionsOf(sys.ladders, t.levelCap),
       kindOptions: optionsOf(CASTING_KINDS, t.kind),
       repertoireOptions: optionsOf(REPERTOIRE_KINDS, t.repertoire, { blankLabel: "—" }),
       // The printed list the picker narrows to, by count: the references

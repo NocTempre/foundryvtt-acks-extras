@@ -126,3 +126,15 @@ This supersedes in part "a template naming a sword copies the imported Sword" in
 - **Filing a skin beside its base.** The folders are the importer's, and the base may sit on another line's shelf.
 
 **Cost.** A world needs a fresh import to get the shared shape; owner (2026-11-11) ruled no tool serves earlier-version data, so old per-class parts keep working as they are and a re-import does not look for them. A Judge can no longer repair a skin for one class only: the edit reaches every class linking it, and a class-only change is made by duplicating the skin onto that class's bundle. A sidebar homebrew class's links to bases that sit on a library shelf go missing after Remove Imports, as its links to any shelf document did before.
+
+## 2026-11-17 — A casting row's level cap is its own key
+
+**Ruled.** A casting row names the ladder that limits what the tradition can reach in `levelCap`, and `casterLevel` stays the ladder (blank: the class level) that says how strong a cast is. The two gnostic rows in the By This Axe register set `levelCap` to the maximum-invocation-level ladder and leave `casterLevel` blank. The capacity strip (`casting.mjs` `poolState`) reads `levelCap`; the cast engine reads `casterLevel` only.
+
+**Evidence.** BTA p. 120 treats the cap and the caster level as separate axes. The earlier rows set `casterLevel` to the cap ladder because the strip had one key to read, so the cast engine resolved a gnostic caster's level as the invocation cap.
+
+**What it changes.** For a gnostic caster the cast engine's caster level (`magic/cast-level.mjs`, source `"ladder"`) becomes the class level (source `"class"`), which is what the printed page says and what per-level durations scale with. The strip's figure and the vancian rows (RR arcane, whose `casterLevel` ladder is a real caster-level lag) do not change. The cast engine does not yet read `levelCap`; the invocation-level choice in the cast dialog is the magic lane's slice.
+
+**Rejected.**
+- **Falling back to `casterLevel` when `levelCap` is blank.** No other compiled row names a ladder in `casterLevel` on a tradition with neither slots nor a pool, so the fallback would serve nothing and would keep the two axes tied for a homebrew row.
+- **A migration of worlds that hold the old rows.** Earlier-version data is not served (docs/DECISIONS.md §29); repairing the Classes shelf in place (docs/guides/classes.md, "Keeping documents current") rewrites the two rows.

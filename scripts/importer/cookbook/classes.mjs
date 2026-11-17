@@ -1009,6 +1009,7 @@ export function bindClass(
       slots,
       pool: [],
       casterLevel: t.casterLevel ?? "",
+      ...(t.levelCap ? { levelCap: t.levelCap } : {}),
     };
   });
 

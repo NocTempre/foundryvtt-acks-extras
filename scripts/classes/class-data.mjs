@@ -126,6 +126,11 @@ export default class ClassData extends foundry.abstract.TypeDataModel {
         // non-vancian capacity (points, gnosis…): one number per class level
         pool: new ArrayField(new SchemaField({ atLevel: int(1, { min: 0 }), value: num() })),
         casterLevel: str(), // ladder key when caster level lags class level ("" = class level)
+        // Ladder key whose rung at the class level caps what this tradition
+        // can perform (the gnostic maximum invocation level). A cap is a
+        // separate axis from caster level: it limits WHICH level may be cast,
+        // while `casterLevel` says how strong the cast is. "" = no cap.
+        levelCap: str(),
       });
 
     /** One granted ability inside a starting template's bundle. */

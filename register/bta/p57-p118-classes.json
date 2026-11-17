@@ -461,7 +461,7 @@
           "key": "gnosis",
           "label": "Gnostic",
           "kind": "gnosis",
-          "casterLevel": "maxInvocationLevel"
+          "levelCap": "maxInvocationLevel"
         }
       ],
       "training": {
@@ -875,7 +875,7 @@
           "key": "gnosis",
           "label": "Gnostic",
           "kind": "gnosis",
-          "casterLevel": "maxInvocationLevel"
+          "levelCap": "maxInvocationLevel"
         }
       ],
       "training": {

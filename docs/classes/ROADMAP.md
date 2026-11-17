@@ -51,8 +51,8 @@ decision with a Foundry-free rules half under test at both answers, and not a
 side effect of whatever comes next.
 
 - **Points/ritual/ceremonial gnosis consumers** — the pool schedules and the
-  strip already carry non-vancian kinds, and the gnostic classes bind a
-  caster-level ladder; their spend/refresh rules arrive with their books'
+  strip already carry non-vancian kinds, and the gnostic classes name a
+  level-cap ladder; their spend/refresh rules arrive with their books'
   recipes (BTA invocation throws, HFH ceremonial).
 - **Builder cookbook, the rest of it** — the JJ import now covers the core
   builder tables, four races (dwarf, elf, people1, people2) and the

@@ -655,7 +655,7 @@
           "key": "gnosis",
           "label": "Gnostic",
           "kind": "gnosis",
-          "casterLevel": "maxInvocationLevel"
+          "levelCap": "maxInvocationLevel"
         }
       ],
       "fields": {
@@ -1700,7 +1700,7 @@
           "key": "gnosis",
           "label": "Gnostic",
           "kind": "gnosis",
-          "casterLevel": "maxInvocationLevel"
+          "levelCap": "maxInvocationLevel"
         }
       ],
       "fields": {

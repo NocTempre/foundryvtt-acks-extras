@@ -28,6 +28,8 @@ import {
 import { classUpdateData, damageBonusLadder, grantFixedAwards, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
+import { poolState } from "../scripts/classes/casting.mjs";
+import { casterLevel as resolveCasterLevel } from "../scripts/magic/cast-level.mjs";
 import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { builderUpdate } from "../scripts/importer/builder-binding.mjs";
 import { awardsAt, awardsThrough, choosableGenerals, spellLanes, admitsSpell, choosableSpells } from "../scripts/classes/grants.mjs";
@@ -1923,6 +1925,54 @@ try {
       assert.equal(findByRef("uuid:Item.c2"), doc);
     } finally {
       delete globalThis.fromUuidSync;
+    }
+  });
+
+  // See docs/classes/DECISIONS.md, "A casting row's level cap is its own key".
+  test("a capacity-only tradition reads its ladder from levelCap, and a blank casterLevel is the class level", () => {
+    const reach = { key: "reachLadder", values: [{ atLevel: 1, value: 1 }, { atLevel: 4, value: 2 }, { atLevel: 7, value: 3 }] };
+    const held = (casting, level) => {
+      const doc = { documentName: "Item", uuid: "Item.cap1", type: CLASS_TYPE, system: { casting, ladders: [reach] } };
+      globalThis.fromUuidSync = (uuid) => (uuid === "Item.cap1" ? doc : null);
+      return { doc, actor: { getFlag: (m, k) => (m === "acks-extras" && k === "classes" ? { uuid: "Item.cap1" } : undefined), system: { details: { level, class: "" } } } };
+    };
+    const row = (extra) => ({ key: "reach", label: "Reach", kind: "gnosis", slots: [], pool: [], casterLevel: "", levelCap: "", ...extra });
+    try {
+      const capped = held([row({ levelCap: "reachLadder" })], 5);
+      assert.deepEqual(poolState(capped.actor), [{ key: "reach", label: "Reach", kind: "gnosis", capacity: "2" }]);
+      assert.equal(poolState(held([row({ levelCap: "reachLadder" })], 9).actor)[0].capacity, "3");
+
+      // The cap is not read from the caster-level key.
+      assert.deepEqual(poolState(held([row({ casterLevel: "reachLadder" })], 5).actor), []);
+      // A cap naming no ladder shows nothing.
+      assert.deepEqual(poolState(held([row({ levelCap: "absent" })], 5).actor), []);
+
+      // The caster level the cast engine resolves: blank is the class level, a named ladder is its rung.
+      const tradition = capped.doc.system.casting[0];
+      const ladderOf = (t) => (t.casterLevel ? (capped.doc.system.ladders.find((l) => l.key === t.casterLevel) ?? { values: [] }) : null);
+      const viaCap = resolveCasterLevel({ matched: true, classLevel: 5, ladder: ladderOf(tradition) });
+      assert.deepEqual([viaCap.value, viaCap.source], [5, "class"]);
+      const viaLadder = resolveCasterLevel({ matched: true, classLevel: 5, ladder: ladderOf(row({ casterLevel: "reachLadder" })) });
+      assert.deepEqual([viaLadder.value, viaLadder.source], [2, "ladder"]);
+    } finally {
+      globalThis.fromUuidSync = () => null;
+    }
+  });
+
+  test("every compiled gnosis casting row names its level cap and leaves the caster level at the class level", () => {
+    const compiled = JSON.parse(readFileSync(new URL("../cookbook/classes.json", import.meta.url), "utf8"));
+    const rows = [];
+    const walk = (node) => {
+      if (Array.isArray(node)) return node.forEach(walk);
+      if (!node || typeof node !== "object") return;
+      if (node.kind === "gnosis" && typeof node.key === "string") rows.push(node);
+      Object.values(node).forEach(walk);
+    };
+    walk(compiled);
+    assert.ok(rows.length >= 1, "the compiled cookbook holds a gnosis row");
+    for (const r of rows) {
+      assert.ok(r.levelCap, `${r.key} names a level cap`);
+      assert.equal(r.casterLevel ?? "", "", `${r.key} leaves caster level blank`);
     }
   });
 

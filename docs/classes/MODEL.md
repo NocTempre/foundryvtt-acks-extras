@@ -944,11 +944,18 @@ document is authoritative for CAPACITY (slot row or pool schedule at the
 character's level); the actor stores only what is SPENT
 (`flags["acks-extras"].classes.pools`). The character sheet gains a
 per-tradition strip — slot pips to spend/refund, a +/− pair on a points
-pool, a capacity line for a ladder-backed tradition (the gnostic invocation
-level), and a rest control that DELETES the pools key (update merges
+pool, a capacity line for a tradition whose `levelCap` names a ladder (the
+gnostic invocation level), and a rest control that DELETES the pools key (update merges
 objects, so writing an empty object resets nothing). It is the only surface
 that can show two traditions at once. The system's own `spells.1..6.max`
 grid stays the single-tradition compatibility surface applyClass writes.
+
+A casting row carries two ladder keys on separate axes. `casterLevel` names
+the ladder the cast engine reads for the caster level (blank: the class
+level); `levelCap` names the ladder whose rung at the class level is the
+highest level the tradition can reach, and only the strip reads it
+([DECISIONS.md](DECISIONS.md), 2026-11-17). Both are edited on the class
+sheet's Casting tab.
 
 A tradition's `spellList` holds entry ids of the spells the class's own
 printed repertoire lists — written by the importer from the repertoire pages

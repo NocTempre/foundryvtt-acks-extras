@@ -58,9 +58,10 @@ export function poolState(actor) {
       continue;
     }
     // No slots and no pool schedule: a tradition whose capacity is a LADDER
-    // rung (the gnostic classes' maximum invocation level) still shows what
-    // the character can reach — the slot-equivalent, without a spend.
-    const ladder = t.casterLevel ? (classItem.system.ladders ?? []).find((l) => l.key === t.casterLevel) : null;
+    // rung (the gnostic classes' maximum invocation level, named by the row's
+    // `levelCap`) still shows what the character can reach — the
+    // slot-equivalent, without a spend.
+    const ladder = t.levelCap ? (classItem.system.ladders ?? []).find((l) => l.key === t.levelCap) : null;
     if (ladder) {
       const rungs = (ladder.values ?? []).filter((v) => v.atLevel <= level);
       const rung = rungs.length ? rungs.reduce((b, r) => (r.atLevel > b.atLevel ? r : b)) : null;
