@@ -1,0 +1,100 @@
+[
+ {
+  "id": "def.spell.invocationOfTheMountainsBones",
+  "icon": "icons/magic/earth/projectile-boulder-dust.webp",
+  "kind": "kind.spell",
+  "book": "bta",
+  "name": "Invocation of the Mountain's Bones",
+  "anchor": {
+   "subheading": "Invocation of the Mountain’s Bones"
+  },
+  "pages": [
+   130
+  ],
+  "meta": {
+   "category": "spell"
+  },
+  "assists": {
+   "statBeside": "Range:"
+  }
+ },
+ {
+  "id": "def.spell.invocationOfTheEternalForge",
+  "icon": "icons/magic/earth/lava-stone-fire-yellow.webp",
+  "kind": "kind.spell",
+  "book": "bta",
+  "name": "Invocation of the Eternal Forge",
+  "anchor": {
+   "subheading": "Invocation of the Eternal Forge"
+  },
+  "pages": [
+   130,
+   131
+  ],
+  "meta": {
+   "category": "spell"
+  },
+  "assists": {
+   "statBeside": "Range:"
+  }
+ },
+ {
+  "id": "def.spell.invocationOfTheIronCrucible",
+  "icon": "icons/magic/earth/orb-ringed-lava-black-orange.webp",
+  "kind": "kind.spell",
+  "book": "bta",
+  "name": "Invocation of the Iron Crucible",
+  "anchor": {
+   "subheading": "Invocation of the Iron Crucible"
+  },
+  "pages": [
+   131
+  ],
+  "meta": {
+   "category": "spell"
+  },
+  "assists": {
+   "statBeside": "Range:"
+  }
+ },
+ {
+  "id": "def.spell.invocationOfTheOpenGate",
+  "icon": "icons/magic/death/skeleton-glow-yellow-black.webp",
+  "kind": "kind.spell",
+  "book": "bta",
+  "name": "Invocation of the Open Gate",
+  "anchor": {
+   "subheading": "Invocation of the Open Gate"
+  },
+  "pages": [
+   132
+  ],
+  "meta": {
+   "category": "spell"
+  },
+  "assists": {
+   "statBeside": "Range:"
+  }
+ },
+ {
+  "id": "def.spell.invocation5",
+  "icon": "icons/magic/fire/blast-jet-stream-embers-orange.webp",
+  "kind": "kind.spell",
+  "book": "bta",
+  "name": "Invocation 5",
+  "anchor": {
+   "hash": "1uvru2g",
+   "as": "subheading"
+  },
+  "pages": [
+   132,
+   133
+  ],
+  "meta": {
+   "category": "spell"
+  },
+  "assists": {
+   "statBeside": "Range:"
+  }
+ }
+]

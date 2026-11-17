@@ -1078,6 +1078,21 @@ refuse an amount followed by a unit of game time ("three rounds", "a turn",
 "10-minute"), at any length (`TIME_PHRASE`). Whether a remark
 paraphrases the rule is left to review: no pattern tells the two apart.
 
+**A heading beside its stat run.** A sub-heading entry whose book sets the title
+on the line that carries the stat run's first label states that label in
+`assists.statBeside` (`"Range:"`). Its headings are then the lines with exactly
+one run left of the label (`besideHeads`), not the solo lines; the sibling
+stop, the column flow and the page turn use the same test, since a title also
+recurs in the section's intro prose and only the labelled line is the entry's.
+The `stat` value op reads two boxes, `boxes: [tagBox, statBox]`: the level
+tag set left of the duration label first, then the stat run's line and the
+duration's, so the stat parser finds the tag first. `calloutRuns` leaves an
+inset callout (an `EXAMPLE:` block set in from the column edge) out of the
+paragraphs, which split around it. A turn onto the next page continues through
+every column of that page, up to the next heading, for such a row; the first
+paragraph of each carried chunk is marked `continues` when the text before it
+ends on no stop, so the executor joins it whatever its first word is.
+
 **Spell recipes.** A spell register row (`kind.spell`) may carry the same
 `effects` and `values` recipes, and `bindSpell` reads them only when the
 entry has them: `executeEntry` runs `effectScan` over every spell's prose,

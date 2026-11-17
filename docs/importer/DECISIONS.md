@@ -2037,3 +2037,29 @@ on a gridless scene, so a polygon is the native free-form Region there.
 *Cost:* a whole-plan zone is a few hundred cells rather than four corners;
 core stores the list and tests a point by its key. Worlds holding a dungeon
 zone as one polygon keep it until they re-import.
+
+## 2026-11-16 — Five invocations are spell rows anchored on the Range line
+
+By This Axe sets each invocation's title on the same line as its `Range:` run
+(BTA ch. 5), with the level tag and `Duration:` on the line under it. The
+sub-heading anchor branch finds solo lines only, and a title recurs in the
+section's intro prose, so no title could be found by its text.
+
+**Ruled.** The anchor is the line that carries the Range run, and the stat
+value reads the level tag before the stat run, because in natural reading order
+the tag lands inside the range text and `parseStatBlock` returns no lists; the
+mechanics are MODEL, "A heading beside its stat run". Inset worked examples
+stay out of the description. The rows are `kind.spell` in
+`register/bta/p129-p132-invocations.json`, through `bindSpell` with no change to
+it: the lists come from the page's tag (`gnostic`), and the four level
+paragraphs stay prose.
+
+Invocations 1 to 4 are named in common words and ship under their titles, with
+ids matching their sigils'. The fifth's title holds the book's name for a being,
+so it ships as "Invocation 5", `def.spell.invocation5`, located by a hash of the
+title's letters (the `def.spell.ritual10` precedent); its name arrives at import
+from the Judge's own copy.
+
+**Rejected:** one row per invocation level (the invoker picks the level at cast
+time, so one document holds all five), and widening the solo-line test for every
+kind (it would move every spell and power already compiled).

@@ -145,6 +145,50 @@ function soloLines(pd, cols) {
 }
 
 /**
+ * The headings of a book that sets a title on the same line as its stat run
+ * (`assists.statBeside`, the label that run opens with): a run with exactly one
+ * body-size run to its left on the label's line, in the label's column. Titles
+ * recur in the section's intro prose, so only the line that carries the label
+ * is a heading; the intro mentions sit mid-sentence and never have the label
+ * beside them. The shape `soloLines` returns, for a heading that is not alone.
+ */
+export function besideHeads(pd, cols, label) {
+  const bodySized = (it) => it.h >= 7 && it.h < DEF_BODY_MAX_H + 0.5;
+  return pd.items
+    .filter((it) => it.str.trim().startsWith(label) && bodySized(it))
+    .flatMap((stat) => {
+      const left = pd.items.filter(
+        (it) => it !== stat && bodySized(it) && Math.abs(it.y - stat.y) <= 2 && colOf(it.x, cols) === colOf(stat.x, cols) && it.x < stat.x && it.str.trim(),
+      );
+      return left.length === 1 ? [left[0]] : [];
+    });
+}
+
+/**
+ * The runs of an entry's own callouts among the body runs of one column: an
+ * inset block opened by a `CALLOUT_RE` label, running down the lines set in
+ * from the column's prose edge. A worked example is the page's, never the
+ * entry's description, and its lines are left out of the paragraphs so the
+ * boxes split around it. Applies only where the row opts in
+ * (`assists.statBeside`); every other kind reads a callout as it always did.
+ */
+export function calloutRuns(items) {
+  const lines = toLines(items);
+  const out = new Set();
+  if (!lines.length) return out;
+  const edge = Math.min(...lines.flatMap((ln) => ln.items.map((it) => it.x)));
+  const first = (ln) => [...ln.items].sort((a, b) => a.x - b.x)[0];
+  let inside = false;
+  for (const ln of lines) {
+    const head = first(ln);
+    if (!inside && head.x >= edge + 6 && CALLOUT_RE.test(head.str.trim())) inside = true;
+    else if (inside && head.x < edge + 6) inside = false;
+    if (inside) for (const it of ln.items) out.add(it);
+  }
+  return out;
+}
+
+/**
  * The continuation of a column-flowed definition block: everything in the NEXT
  * column above the first anchor there. Returns [] when the block ended normally
  * (a stop anchor was found in its own column) or there is no next column.
@@ -5618,7 +5662,13 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // letters, among the solo lines exactly as `axOpen` does among display
     // heads and run-ins; its name is then a `heading`, read for the binding.
     const hash = entry.anchor?.hash != null ? String(entry.anchor.hash) : null;
-    const solo = soloLines(pd, cols);
+    // `assists.statBeside` names the label of a stat run the book sets on the
+    // heading's own line; its headings are the lines carrying that label, found
+    // by the same test here, in the sibling stop, the column flow and the page
+    // turn.
+    const beside = assists.statBeside ?? null;
+    const headsOf = (p, c) => (beside ? besideHeads(p, c, beside) : soloLines(p, c));
+    const solo = headsOf(pd, cols);
     const anchor = hash
       ? solo.find((it) => printKey(it.str) === hash)
       : (solo.find((it) => it.str.trim() === want) ?? solo.find((it) => it.str.trim().startsWith(want)));
@@ -5639,14 +5689,27 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       .filter((it) => it.h >= HEADING_MIN_H && colOf(it.x, cols) === col && it.y > anchor.y + 2)
       .sort((a, b) => a.y - b.y)[0];
     const yMax = Math.min(stop?.y ?? pd.height, nextHead?.y ?? pd.height) - 2;
-    const nameBox = { x0: anchor.x - 2, x1: anchor.x + (anchor.w ?? 60) + 2, y0: anchor.y - 5, y1: anchor.y + 4 };
+    // The stat run set beside the title: it ends the title's box, and it is
+    // the first run of the stat value read below.
+    const statRun = beside
+      ? pd.items.find((it) => it.str.trim().startsWith(beside) && Math.abs(it.y - anchor.y) <= 2 && colOf(it.x, cols) === col && it.x > anchor.x)
+      : null;
+    const nameBox = {
+      x0: anchor.x - 2,
+      x1: Math.min(anchor.x + (anchor.w ?? 60) + 2, statRun ? statRun.x - 1 : Infinity),
+      y0: anchor.y - 5,
+      y1: anchor.y + 4,
+    };
     fields.name = hash ? withFixes({ op: "heading", page, box: nameBox, hash }, pd) : { op: "expect", page, box: nameBox, text: want };
     // A glyph in the page margin (the chapter tab) falls in the column by x
     // but outside its box; let in, it leads the lines and the stat block opens
     // on the heading row, so the title is read as the magic type.
-    const body = pd.items.filter(
+    const bodyAll = pd.items.filter(
       (it) => it !== anchor && it.h < DEF_BODY_MAX_H && colOf(it.x, cols) === col && it.x >= box.x0 && it.y > anchor.y + 2 && it.y < yMax,
     );
+    // A worked example inset in the entry is left out of its paragraphs.
+    const calloutGone = beside ? calloutRuns(bodyAll) : new Set();
+    const body = bodyAll.filter((it) => !calloutGone.has(it));
     let lines = toLines(body);
     // A kind with a STAT BLOCK opens every entry with labelled lines the seat
     // reads whole: from the block's first line through the one carrying the
@@ -5654,7 +5717,28 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     // one raw value and never as prose, and what it says is the page's.
     if (kindRow.fields?.stat) {
       const at = lines.findIndex((ln) => ln.items.some((it) => /^Duration:/.test(it.str.trim())));
-      if (at >= 0 && at < 4) {
+      if (at >= 0 && at < 4 && statRun) {
+        // The title shares its line with the stat run, so the block reads in
+        // two boxes: the level tag set left of the duration label first, then
+        // the stat run's line and the duration's. The tag leads, as the stat
+        // block's own order has it, so the lists come before the labelled runs.
+        const duration = lines[at].items.find((it) => /^Duration:/.test(it.str.trim()));
+        const split = Math.min(statRun.x, duration.x) - 2;
+        fields.stat = withFixes(
+          {
+            op: "value",
+            page,
+            boxes: [
+              { x0: box.x0, x1: split, y0: lines[0].y - 3, y1: lines[at].y + 3 },
+              { x0: split, x1: box.x1, y0: anchor.y - 3, y1: lines[at].y + 3 },
+            ],
+            pattern: "raw",
+          },
+          pd,
+          tabs,
+        );
+        lines = lines.slice(at + 1);
+      } else if (at >= 0 && at < 4) {
         fields.stat = withFixes(
           { op: "value", page, box: { x0: box.x0, x1: box.x1, y0: lines[0].y - 3, y1: lines[at].y + 3 }, pattern: "raw" },
           pd,
@@ -5666,11 +5750,21 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
     const kept = lines.flatMap((ln) => ln.items);
     bodyText = joinBody(kept);
     const paras = paragraphBoxes(lines, box.x0, box.x1).map((p) => withFixes(p, pd, tabs));
-    const cont = columnFlow(pd, cols, col, !!stop, sibling, null, bracketDepth(bodyText));
+    // A chunk the flow carries over (a column, a page) opens mid-sentence when
+    // what came before it does not end on a stop, whatever its first word is,
+    // so a statBeside row marks it and the executor joins it to that
+    // paragraph (it otherwise joins only on a lower-case opening).
+    const joinsOn = (before, chunk) => {
+      if (beside && chunk[0] && !/[.!?:;"”’)\]]$/.test(before.trim())) chunk[0].continues = true;
+      return chunk;
+    };
+    const contAll = columnFlow(pd, cols, col, !!stop, sibling, null, bracketDepth(bodyText));
+    const contGone = beside ? calloutRuns(contAll) : new Set();
+    const cont = contAll.filter((it) => !contGone.has(it));
     if (cont.length) {
       const cx0 = cols[col + 1] - 5;
       const cx1 = cols[col + 2] ? cols[col + 2] - 6 : pd.width;
-      paras.push(...paragraphBoxes(toLines(cont), cx0, cx1).map((p) => withFixes(p, pd, tabs)));
+      paras.push(...joinsOn(bodyText, paragraphBoxes(toLines(cont), cx0, cx1).map((p) => withFixes(p, pd, tabs))));
       bodyText = `${bodyText} ${joinBody(cont)}`.trim();
     } else if (!stop && col + 1 >= cols.length && page + 1 <= doc.numPages) {
       // Nothing stopped this block and it held the LAST column, so it runs on
@@ -5703,7 +5797,7 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       // body-sized and off the body face, and it opens lower-case, which no
       // sub-heading does. Without this test it ends the turn mid-passage.
       const bodyFace = dominantAlias(pd2);
-      const stopAt = soloLines(pd2, cols2)
+      const stopAt = headsOf(pd2, cols2)
         .filter((it) => inFirst(it) && it.alias !== bodyFace && (it.h ?? 0) >= 7 && /^[A-Z]/.test(it.str.trim()))
         .sort((a, b) => a.y - b.y)[0];
       const yStop = Math.min(stopAt?.y ? stopAt.y - 2 : pd2.height, headingTop(pd2, cols2) ?? pd2.height);
@@ -5714,18 +5808,41 @@ async function compileDefinition(doc, entry, kindRow, siblings = []) {
       // it was going to. Excluded here rather than left to the drop fixes, so
       // an entry with no real continuation gets no paragraph at all.
       const tabs2 = marginTabs(pd2);
-      const carried = pd2.items.filter(
+      const carriedAll = pd2.items.filter(
         (it) => it.h < DEF_BODY_MAX_H && !tabs2.has(it) && inFirst(it) && it.y < yStop,
       );
+      const carriedGone = beside ? calloutRuns(carriedAll) : new Set();
+      const carried = carriedAll.filter((it) => !carriedGone.has(it));
       if (carried.length) {
         const px0 = cols2[0] - 5;
         const px1 = cols2[1] ? cols2[1] - 6 : pd2.width;
         paras.push(
-          ...paragraphBoxes(toLines(carried), px0, px1).map((p) =>
-            withFixes({ ...p, page: page + 1 }, pd2, marginTabs(pd2)),
+          ...joinsOn(
+            bodyText,
+            paragraphBoxes(toLines(carried), px0, px1).map((p) => withFixes({ ...p, page: page + 1 }, pd2, marginTabs(pd2))),
           ),
         );
         bodyText = `${bodyText} ${joinBody(carried)}`.trim();
+      }
+      // A statBeside entry sets its levels in flowing columns, so what the
+      // turn carries out of the first column resumes at the top of the next
+      // on that page, up to the next entry's heading or a display heading.
+      if (beside && cols2.length > 1) {
+        const heads2 = new Set(headsOf(pd2, cols2));
+        const nextAll = columnFlow(pd2, cols2, 0, !!stopAt || headingTop(pd2, cols2) != null, (it) => heads2.has(it), null, bracketDepth(bodyText));
+        const nextGone = calloutRuns(nextAll);
+        const next = nextAll.filter((it) => !nextGone.has(it));
+        if (next.length) {
+          paras.push(
+            ...joinsOn(
+              bodyText,
+              paragraphBoxes(toLines(next), cols2[1] - 5, cols2[2] ? cols2[2] - 6 : pd2.width).map((p) =>
+                withFixes({ ...p, page: page + 1 }, pd2, marginTabs(pd2)),
+              ),
+            ),
+          );
+          bodyText = `${bodyText} ${joinBody(next)}`.trim();
+        }
       }
     }
     fields.description = { op: "text", page, paras: appendFrames(paras, assists, pd, tabs) };

@@ -2,6 +2,1241 @@
   "schema": "acks-cookbook/2",
   "content": "spells",
   "entries": {
+    "def.spell.invocationOfTheMountainsBones": {
+      "id": "def.spell.invocationOfTheMountainsBones",
+      "kind": "kind.spell",
+      "name": "Invocation of the Mountain's Bones",
+      "book": "bta",
+      "cite": "BTA p.129",
+      "pages": [
+        130
+      ],
+      "meta": {
+        "category": "spell"
+      },
+      "icon": "icons/magic/earth/projectile-boulder-dust.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 130,
+          "box": {
+            "x0": 52,
+            "x1": 187.53899999999987,
+            "y0": 193.84000000000003,
+            "y1": 202.84000000000003
+          },
+          "text": "Invocation of the Mountain’s Bones"
+        },
+        "stat": {
+          "op": "value",
+          "page": 130,
+          "boxes": [
+            {
+              "x0": 45,
+              "x1": 196,
+              "y0": 207.84000000000003,
+              "y1": 213.84000000000003
+            },
+            {
+              "x0": 196,
+              "x1": 314,
+              "y0": 195.84000000000003,
+              "y1": 213.84000000000003
+            }
+          ],
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              5,
+              6
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 130,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 225,
+                "y1": 327
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 345,
+                "y1": 471
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 621,
+                "y1": 687
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 705,
+                "y1": 735
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 81,
+                "y1": 111
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              },
+              "continues": true
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 129,
+                "y1": 171
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 189,
+                "y1": 219
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 237,
+                "y1": 279
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  6,
+                  7,
+                  10,
+                  11,
+                  12,
+                  13
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 297,
+                "y1": 339
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 357,
+                "y1": 387
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 405,
+                "y1": 531
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  19
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.spell.invocationOfTheEternalForge": {
+      "id": "def.spell.invocationOfTheEternalForge",
+      "kind": "kind.spell",
+      "name": "Invocation of the Eternal Forge",
+      "book": "bta",
+      "cite": "BTA p.129",
+      "pages": [
+        130,
+        131
+      ],
+      "meta": {
+        "category": "spell"
+      },
+      "icon": "icons/magic/earth/lava-stone-fire-yellow.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 130,
+          "box": {
+            "x0": 322,
+            "x1": 442.15000000000043,
+            "y0": 541.84,
+            "y1": 550.84
+          },
+          "text": "Invocation of the Eternal Forge"
+        },
+        "stat": {
+          "op": "value",
+          "page": 130,
+          "boxes": [
+            {
+              "x0": 315,
+              "x1": 466,
+              "y0": 555.84,
+              "y1": 561.84
+            },
+            {
+              "x0": 466,
+              "x1": 612,
+              "y0": 543.84,
+              "y1": 561.84
+            }
+          ],
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              3,
+              4
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 130,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 573,
+                "y1": 651
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 669,
+                "y1": 735
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  11,
+                  12,
+                  13,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 81,
+                "y1": 111
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  6,
+                  7,
+                  9,
+                  10
+                ]
+              },
+              "continues": true
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 213,
+                "y1": 279
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 297,
+                "y1": 327
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 345,
+                "y1": 423
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 441,
+                "y1": 543
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 561,
+                "y1": 615
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  9,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 633,
+                "y1": 711
+              },
+              "page": 131,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  8,
+                  9,
+                  11,
+                  12,
+                  14,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  21,
+                  22
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.spell.invocationOfTheIronCrucible": {
+      "id": "def.spell.invocationOfTheIronCrucible",
+      "kind": "kind.spell",
+      "name": "Invocation of the Iron Crucible",
+      "book": "bta",
+      "cite": "BTA p.130",
+      "pages": [
+        131
+      ],
+      "meta": {
+        "category": "spell"
+      },
+      "icon": "icons/magic/earth/orb-ringed-lava-black-orange.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 131,
+          "box": {
+            "x0": 304,
+            "x1": 423.63000000000045,
+            "y0": 75.79989999999998,
+            "y1": 84.79989999999998
+          },
+          "text": "Invocation of the Iron Crucible"
+        },
+        "stat": {
+          "op": "value",
+          "page": 131,
+          "boxes": [
+            {
+              "x0": 305,
+              "x1": 448,
+              "y0": 89.79989999999998,
+              "y1": 95.79989999999998
+            },
+            {
+              "x0": 448,
+              "x1": 612,
+              "y0": 77.79989999999998,
+              "y1": 95.79989999999998
+            }
+          ],
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              4,
+              5,
+              6
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 131,
+          "paras": [
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 105,
+                "y1": 207
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  13
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 225,
+                "y1": 315
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6,
+                  7,
+                  9,
+                  10,
+                  11,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 333,
+                "y1": 351
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 369,
+                "y1": 399
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 417,
+                "y1": 471
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  13,
+                  14,
+                  15,
+                  17,
+                  18,
+                  19,
+                  20,
+                  22
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 489,
+                "y1": 543
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  12,
+                  13,
+                  14,
+                  15,
+                  17,
+                  18,
+                  19,
+                  23
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 561,
+                "y1": 675
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  12,
+                  13,
+                  14,
+                  16,
+                  17,
+                  18,
+                  22,
+                  23,
+                  24,
+                  25,
+                  27,
+                  28,
+                  29,
+                  30,
+                  31,
+                  32
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.spell.invocationOfTheOpenGate": {
+      "id": "def.spell.invocationOfTheOpenGate",
+      "kind": "kind.spell",
+      "name": "Invocation of the Open Gate",
+      "book": "bta",
+      "cite": "BTA p.131",
+      "pages": [
+        132
+      ],
+      "meta": {
+        "category": "spell"
+      },
+      "icon": "icons/magic/death/skeleton-glow-yellow-black.webp",
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 132,
+          "box": {
+            "x0": 52,
+            "x1": 161.39999999999992,
+            "y0": 75.79989999999998,
+            "y1": 84.79989999999998
+          },
+          "text": "Invocation of the Open Gate"
+        },
+        "stat": {
+          "op": "value",
+          "page": 132,
+          "boxes": [
+            {
+              "x0": 45,
+              "x1": 196,
+              "y0": 89.79989999999998,
+              "y1": 95.79989999999998
+            },
+            {
+              "x0": 196,
+              "x1": 314,
+              "y0": 77.79989999999998,
+              "y1": 95.79989999999998
+            }
+          ],
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              4,
+              5
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 132,
+          "paras": [
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 105,
+                "y1": 267
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 285,
+                "y1": 327
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 345,
+                "y1": 363
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 381,
+                "y1": 471
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  11,
+                  12,
+                  13,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 489,
+                "y1": 603
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 45,
+                "x1": 314,
+                "y0": 621,
+                "y1": 699
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 381,
+                "y1": 423
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "def.spell.invocation5": {
+      "id": "def.spell.invocation5",
+      "kind": "kind.spell",
+      "name": "Invocation 5",
+      "book": "bta",
+      "cite": "BTA p.131",
+      "pages": [
+        132,
+        133
+      ],
+      "meta": {
+        "category": "spell"
+      },
+      "icon": "icons/magic/fire/blast-jet-stream-embers-orange.webp",
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 132,
+          "box": {
+            "x0": 322,
+            "x1": 438.0600000000004,
+            "y0": 565.84,
+            "y1": 574.84
+          },
+          "hash": "1uvru2g"
+        },
+        "stat": {
+          "op": "value",
+          "page": 132,
+          "boxes": [
+            {
+              "x0": 315,
+              "x1": 465.99850000000004,
+              "y0": 579.84,
+              "y1": 585.84
+            },
+            {
+              "x0": 465.99850000000004,
+              "x1": 612,
+              "y0": 567.84,
+              "y1": 585.84
+            }
+          ],
+          "pattern": "raw",
+          "fixes": {
+            "joinSpace": [
+              0,
+              1,
+              2,
+              4
+            ]
+          }
+        },
+        "description": {
+          "op": "text",
+          "page": 132,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 597,
+                "y1": 651
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 612,
+                "y0": 669,
+                "y1": 735
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  12
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 393,
+                "y1": 423
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  2,
+                  3,
+                  4
+                ]
+              },
+              "continues": true
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 441,
+                "y1": 459
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 477,
+                "y1": 627
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18,
+                  19,
+                  20,
+                  23,
+                  24,
+                  25,
+                  26,
+                  27,
+                  28
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 35,
+                "x1": 304,
+                "y0": 645,
+                "y1": 711
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  8,
+                  9,
+                  11,
+                  12,
+                  16,
+                  17
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 81,
+                "y1": 123
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  7,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 305,
+                "x1": 612,
+                "y0": 141,
+                "y1": 195
+              },
+              "page": 133,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  11
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
     "def.spell.adjustSelf": {
       "id": "def.spell.adjustSelf",
       "kind": "kind.spell",
