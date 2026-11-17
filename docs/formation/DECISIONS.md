@@ -436,7 +436,7 @@ The positions the attempt takes:
 - A dialog dismissed on the save keeps the rolled distance and leaves the state `landing`; the next press finishes the save without rolling the die again.
 - A hanging jumper climbs up on the climb rows' logic: `memberRow` on one obstacle (`HANG_CLIMB`), a stretch long, the jumper's own figure, `stepMember` for where it leaves them, and a fall from it is the setup's depth. The page prints no column for climbing back up, so which obstacle it is is the crossing's reading, held in one constant.
 - A player's press is relayed as a `crossing` request that names its step (`attempt` or `climbUp`) and is declared publicly (OQ10 b); the GM client checks it again. Core's save dialog would open on the Judge's seat for a save nobody there is making, so a relayed save carries the system's skip-dialog key.
-- The Judge's landing save press and footing pick stand as the override: the save press until an attempt stands, the footing pick after a failed one. The pick still posts a card and writes nothing.
+- The Judge's landing save press and footing pick stand as the override: the save press until an attempt stands, the footing pick after a failed one. The pick after an attempt writes the footing to the member's record, and the row, its state and Climb up follow it; a pick with no attempt behind it posts a card and writes nothing.
 
 | Position | Strongest counter | Strength |
 |---|---|---|

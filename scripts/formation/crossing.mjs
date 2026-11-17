@@ -1110,6 +1110,7 @@ function jumpCard({ seen, result, face, save, over }) {
     tooltipText: rolledTooltip(seen.options, face),
     target: result.gap,
     targetTooltip: gapTooltip(),
+    targetSuffix: " ft",
     detail: loc("crossing.card.jumpDetail", { face }),
     outcome: loc(result.clears ? "crossing.result.clears" : "crossing.result.short"),
     emphasis: result.clears ? "success" : "failure",
