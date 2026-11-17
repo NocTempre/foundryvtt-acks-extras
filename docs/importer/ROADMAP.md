@@ -646,14 +646,6 @@ would undo "a re-read that finds nothing keeps what it had".
 - **A repair check for a token that names an inactive package.** Uninstalling
   the source leaves a broken path until Restore.
 
-## A pregen's portrait and spellbook
-
-AX1's pregens import as characters from their write-ups (DECISIONS,
-2026-10-24, "A pregen is a write-up read across its columns"). The portrait
-the page prints does not reach the sheet: the rows carry no `art` op, so each
-character takes the default image. An inhabitant's art path
-(`adventureActorArt`) would serve once the rows name the picture's placement.
-
 ## A book's Adventure in another world
 
 A world compendium is world-scoped, so a second world needs the pack moved by
