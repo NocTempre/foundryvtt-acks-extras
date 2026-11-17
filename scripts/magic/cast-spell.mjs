@@ -36,6 +36,7 @@ import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
+import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
@@ -132,6 +133,17 @@ export function castFiguresOf(spell, lookups) {
 }
 
 /**
+ * The figures the target gates read (`cast-gates.mjs`): the Hit Dice cap from the
+ * target figures (the copy's own, else its twin's, as `castFiguresOf` reads
+ * them) and the Hit Dice below which no save is made from the copy's own save.
+ * The cast, the card's presses and the relay's GM client all read them here, so
+ * a gate is the same on each.
+ */
+export function castGateExtrasOf(spell, lookups) {
+  return { target: castFiguresOf(spell, lookups).target, save: flagOf(spell).save ?? null };
+}
+
+/**
  * What the spell's range and target count say of the targeted tokens at a caster
  * level: the range verdict inputs (`cast-range.mjs`) and the count cap, each
  * null or empty where the import read nothing. A per-level figure reads only
@@ -215,8 +227,15 @@ async function rollRow(caster, spell, card, keyed) {
  * to all of it passes with no roll, and its resist is `{success: true, total:
  * null, auto: {label, source, types, cite}}`. A defense case the module does not
  * price is listed as `defensePending` and changes nothing in the throw.
+ *
+ * `gate` is the spell-wide gate of this target (`cast-gates.mjs`): a target it
+ * leaves unaffected rolls nothing and keeps no resist, and a target below the Hit
+ * Dice that save rolls nothing and keeps a failed save marked as no save
+ * (`noSaveResist`).
  */
-export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null } = {}) {
+export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null, gate = null } = {}) {
+  if (gate?.affected === false) return { resist: null, roll: null };
+  if (gate?.noSave === true) return { resist: noSaveResist(save, gate.why), roll: null };
   const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage });
   const auto = made.auto ?? null;
   if (!auto && (made.target == null || made.total == null)) return { resist: null, roll: null };
@@ -242,27 +261,46 @@ export async function rollResist(actor, save, situational, { against = null, bea
  * a thrown row waits for its throw and the rest wait for their application.
  * Targets the cast is aimed at take the rows that are not the caster's own;
  * the caster, where a row is, takes the rest.
+ *
+ * `extras` are the gates' figures (`castGateExtrasOf`) and the card's caster level
+ * is the level they are read at. A target a row's gate leaves unaffected has the
+ * entry `{state: "exempt", gate}` for that row, a thrown row's included: nothing
+ * is rolled, written or recorded for it. A target the spell's gate leaves with
+ * no save keeps the failed resist that says so (`rollResist`). The caster's own
+ * target is gated by none. With no `extras` nothing is gated.
  */
-export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID }) {
+export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID, extras = null }) {
   const targets = {};
   const entries = {};
   const rolls = [];
+  const level = card.casterLevel?.value ?? null;
   const opens = (r) => (r.type === "conditionGrant" ? r.conditions.length : isModRow(r) ? r.blank !== true : r.total != null);
   const open = rows.filter(({ key }) => card.rows[key] && opens(card.rows[key]));
+  // A thrown row's entry opens at its throw, so it is listed with the rows that open one only to be marked exempt.
+  const entered = rows.filter(({ key, row }) => card.rows[key] && (opens(card.rows[key]) || (rowNeedsThrow(row) && card.rows[key].blank !== true)));
   const hasSelf = rows.some(({ row }) => aimedAtSelf(row));
-  const add = (key, target, forRow) => {
+  const add = (key, target, forRow, gates = null) => {
     targets[key] = target;
-    for (const { key: rowKey, row } of open) if (forRow(row) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending" };
+    for (const { key: rowKey, row } of entered) {
+      if (!forRow(row)) continue;
+      const gate = gates?.[rowKey];
+      if (gate && !gate.affected) entries[entryId(key, rowKey)] = { state: "exempt", gate: gate.why };
+      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending" };
+    }
   };
-  // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes and no
-  // throw decides. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
-  const resisting = spellSaves(save) && open.some(({ row }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row));
+  // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes, no
+  // throw decides and no gate exempts. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
+  const saves = spellSaves(save);
   // What the save resists is read from the spell's rows for the mode and picks, as the relay reads it, so a defense joins the throw the same way on both clients.
   const damage = resistedDamage(rows);
   for (const token of tokens) {
-    const made = resisting ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage }) : { resist: null, roll: null };
+    const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
+    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row) && gates[key].affected);
+    const made = resisting
+      ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, gate: targetGate({ actor: token.actor, extras, level }) })
+      : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
-    add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row));
+    add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates);
   }
   if (hasSelf && caster) add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf);
   return { targets, entries, rolls };
@@ -506,7 +544,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     } else card.lines.push(describeSpellEffect(keyed.row).text);
   }
 
-  const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null });
+  const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null, extras: castGateExtrasOf(spell, deps.lookups) });
   rolls.push(...built.rolls);
   card.targets = built.targets;
   card.entries = built.entries;
@@ -524,7 +562,11 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   for (const keyed of thrown) {
     const count = card.rows[keyed.key].count.value;
     if (!targetKeys.length || count == null) continue;
-    const split = splitFor(count, targetKeys, answer.allocation?.[keyed.key]);
+    // A target the row's gate exempts is thrown at never: the default split deals only among the others, and a throw a typed split assigns to an exempt target is spent.
+    const exempt = (k) => card.entries[entryId(k, keyed.key)]?.state === "exempt";
+    const typed = answer.allocation?.[keyed.key];
+    const dealt = count > 1 && typed ? splitFor(count, targetKeys, typed) : splitFor(count, targetKeys.filter((k) => !exempt(k)), null);
+    const split = Object.fromEntries(targetKeys.map((k) => [k, exempt(k) ? 0 : (dealt[k] ?? 0)]));
     card.allocation[keyed.key] = Object.fromEntries(Object.entries(split).filter(([, n]) => n > 0));
     for (const targetKey of targetKeys) {
       if (!split[targetKey]) continue;
@@ -637,7 +679,7 @@ async function pressApplyTargets(message) {
   const { spell, caster } = rowOfCard(card, "");
   if (!spell || !caster) return;
   const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks);
-  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster) });
+  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()) });
   await addTargets(message, built.targets, built.entries);
   const fresh = cardOf(message);
   for (const targetKey of Object.keys(built.targets)) {
@@ -658,6 +700,11 @@ async function pressThrow(message, { target, row }) {
   const token = target ? fromUuidSync(card.targets[target]?.uuid) : ([...(game.user.targets ?? [])][0]?.document ?? null);
   if (!canPressCard(message) || !spell || !caster?.isOwner || !keyed || !token?.actor) {
     ui.notifications?.warn(loc("notice.noTargets"));
+    return;
+  }
+  // With no target on the card the row's gate is read here, before a throw is spent on a creature the spell does not reach.
+  if (!target && !targetGate({ actor: token.actor, extras: castGateExtrasOf(spell, worldLookups()), row: keyed.row, level: card.casterLevel?.value ?? null }).affected) {
+    ui.notifications?.warn(loc("notice.exempt", { name: token.name ?? token.actor.name }));
     return;
   }
   const targetKey = target || newTargetKey();

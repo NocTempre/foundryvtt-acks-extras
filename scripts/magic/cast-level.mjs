@@ -56,8 +56,9 @@ export function casterLevel({ override, matched = false, classLevel, ladder = nu
 /**
  * Does this cast read a caster level at all? True when the duration scales with
  * one (a per-level shape, or a concentration maximum that is per level), the
- * range is a distance per level, the target count or the area's size is not
- * flat, or any of the rows' figures is not flat. A cast that never reads it does not ask for
+ * range is a distance per level, the target count, the area's size, the Hit
+ * Dice cap or the Hit Dice below which a target makes no save is not flat, or
+ * any of the rows' figures is not flat. A cast that never reads it does not ask for
  * it.
  *
  * @param {{duration?: {shape?: string}}|null} extras  the spell's flag
@@ -69,5 +70,6 @@ export function levelNeeded(extras, rows) {
   if (extras?.range?.shape === "distancePerLevel") return true;
   const target = extras?.target;
   if (scaled(target?.count) || scaled(target?.area?.size) || scaled(target?.area?.width)) return true;
+  if (scaled(target?.hdCap) || scaled(extras?.save?.exemptBelowHd)) return true;
   return (rows ?? []).some((row) => scaled(row?.value) || scaled(row?.max));
 }

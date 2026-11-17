@@ -652,6 +652,60 @@ target, the row's count and cap) and never relies on the last step's leavings.
 Teardown: sweep the run's tracked uuids; restore no seat's targets by hand, since
 the cast restores them and step 3 asserts it.
 
+### Gates
+
+Walked by `tools/live/magic-cast-widen.mjs` after the instance steps, on the
+GM and Player seats, with the fixtures of "Fixtures" and "Instances" and these.
+Every figure a step asserts is one the walk wrote at its start: the size key is
+read from the world's imported monsters vocabulary (`Object.keys` of
+`acksExtras.monsters.config.SIZES`, the last key being the largest), and the Hit
+Dice and thresholds are the walk's own numbers, so no printed figure appears here.
+
+| Marker | What it is |
+|---|---|
+| `magic/widen-huge` | A monster only the GM owns, with a linked token on `magic/cast-scene`; its stat block's size is set at the start of each step to the largest key the world imported, and its Hit Dice to the walk's own figure. |
+| `magic/widen-spell-<id>` | The copy of the instance steps (one damage row with no `delivery`, a flat roll and a save), whose Overview `hdCap` and `exemptBelowHd` are written at the start of each step through the sheet's Overview tab, and whose row's `exemptSizeFrom` is written through the row editor. Blank unless a step sets it. |
+
+Each step asserts the shape it needs at its start (the target's Hit Dice and
+size read back through lib's `monsterHd` and `sizeKeyOf`, hit points reset, no
+record on the target) and never relies on the last step's leavings.
+
+1. Set `hdCap` to one below the target's Hit Dice and cast at the target and at
+   `magic/widen-target-a` (Hit Dice at or under the cap). *Observable:* the
+   over-cap target's line reads Exempt with a tooltip naming its Hit Dice, the
+   cap and the page; no save is rolled for it (the cast's rolls hold one save,
+   not two), no Apply press stands, its hit points do not move and no record
+   lands on it; the other target is saved against and applied as before.
+2. Set `hdCap` equal to the target's Hit Dice. *Observable:* the cap is
+   inclusive, so the target is applied as any other.
+3. Blank `hdCap` and set `exemptBelowHd` one above the target's Hit Dice.
+   *Observable:* the card shows No save in the target's save column with a
+   tooltip naming the Hit Dice, the threshold and the page; no save die is among
+   the cast's rolls; with a "half" save the whole amount is applied; a condition
+   row's record lands. Set it equal to the Hit Dice: the save is rolled.
+4. Give the damage row `exemptSizeFrom` equal to the target's size key, and add
+   a second row (a condition) with none. *Observable:* the damage line reads
+   Exempt with a tooltip naming both sizes; the condition row on the same target
+   applies. Set the row's key one size larger than the target's: both apply.
+5. Scale `hdCap` by level and cast on a caster with no resolvable level, the
+   dialog's level field left blank. *Observable:* the dialog asks for a caster
+   level; confirm with none and the cap gates nothing, since a level is never
+   defaulted.
+6. From the Player seat, send `magicCastApply` to the GM's client for a card
+   whose over-cap target's entry the Judge wrote pending for the check, and for
+   a card whose no-save target carries a rolled pass. *Observable:* each is
+   refused, with `exempt` and `badResist`, and no hit points move. Send one for
+   the card of step 3 as it stands: it applies once, as a failed save.
+7. Reshape the row with a `delivery` and a count of two, `hdCap` under the
+   target's Hit Dice, and cast at `magic/widen-huge` and `magic/widen-target-a`.
+   *Observable:* no core attack card is made at the exempt token, and both throws
+   are dealt to the other.
+
+Teardown: sweep the run's tracked uuids (tokens, cast cards and the core attack
+cards, each tracked by id as it is made). The fixtures stay; the next walk's
+first step rewrites their size and Hit Dice and blanks the copy's gates, and
+nothing is deleted by name or marker pattern.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2

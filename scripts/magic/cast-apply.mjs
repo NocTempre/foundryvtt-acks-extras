@@ -18,6 +18,13 @@
  * applies once. With no GM connected the entry stays pending with its Apply
  * press.
  *
+ * The target gates (`cast-gates.mjs`) are recomputed on the writing client from
+ * the spell's figures and the card's caster level: the relay refuses an entry the
+ * gate exempts (`exempt`), whatever the card holds, and a target that makes no
+ * save takes every row as on a failed save, whatever resist the card carries.
+ * An entry in state `exempt` is never open, so nothing is rolled, written or
+ * recorded for it.
+ *
  * A target's modifier and ward entries are one group: one request writes one
  * buff record (`cast-mods.mjs`) that every entry of the group names, and Undo on
  * one of them takes the record off for all.
@@ -39,6 +46,7 @@ import { spellEffectData } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
+import { targetGate, noSaveResist } from "./cast-gates.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -179,6 +187,7 @@ function checkInstances(card, targetKey, keyed, e, stored, world) {
  * @param {(keyed: {row: object, key: string}, critical: boolean) => {min: number, max: number}|null} world.boundsOf
  * @param {{target: number|null, min: number, max: number, auto?: boolean}|null} world.resist  the target's save recomputed here; `auto` where the target's defenses pass it with no roll
  * @param {{id: string, name: string}|null} [world.item]  the weapon the card names, where it is a weapon of the target's actor
+ * @param {((row: object|null) => {affected: boolean, noSave: boolean}|null)|null} [world.gateOf]  the target's gates recomputed here (`cast-gates.mjs`), for a spell's own row or, with null, the spell's gates alone; null for a target no gate reads
  * @returns {{ok: true}|{refused: string}}
  */
 export function checkApplyRequest(req, world) {
@@ -197,17 +206,25 @@ export function checkApplyRequest(req, world) {
   if (stored) {
     const sameFigure = ["total", "target", "success"].every((k) => stored[k] === asked[k]);
     const ground = world.resist;
-    // An `auto` pass has no roll to bound. It stands only where this client recomputes it from the target's defenses; the card's word and the request's are never enough.
+    const noSaveHere = world.gateOf?.(null)?.noSave === true;
+    // A no-save failure has no roll to bound. It stands only where this client recomputes that the target makes no save, and a rolled save never stands for a target that makes none.
+    // An `auto` pass has no roll to bound either. It stands only where this client recomputes it from the target's defenses; the card's word and the request's are never enough.
     const fits =
-      stored.auto || asked.auto
-        ? Boolean(stored.auto) && Boolean(asked.auto) && ground?.auto === true && ground.target === stored.target && stored.success === true && stored.total == null
-        : ground && ground.target === stored.target && stored.success === (stored.total >= stored.target) && stored.total >= ground.min && stored.total <= ground.max;
+      stored.noSave || asked.noSave
+        ? Boolean(stored.noSave) && Boolean(asked.noSave) && noSaveHere && stored.success === false && stored.total == null
+        : noSaveHere
+          ? false
+          : stored.auto || asked.auto
+            ? Boolean(stored.auto) && Boolean(asked.auto) && ground?.auto === true && ground.target === stored.target && stored.success === true && stored.total == null
+            : ground && ground.target === stored.target && stored.success === (stored.total >= stored.target) && stored.total >= ground.min && stored.total <= ground.max;
     if (!sameFigure || !fits) return { refused: "badResist" };
   }
   if (!Array.isArray(req.entries) || !req.entries.length) return { refused: "noEntries" };
   for (const e of req.entries) {
     const row = world.rows.find((r) => r.key === e.rowKey);
     if (!row) return { refused: "badRow" };
+    // An entry the gate exempts is refused on the recomputed gate, whatever state the card's own word gives it.
+    if (card.entries?.[entryId(req.targetKey, e.rowKey)]?.state === "exempt" || world.gateOf?.(row.row)?.affected === false) return { refused: "exempt" };
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
     // A modifier or ward row has no amount: its figure is the spell's, read at the roll.
     if (row.row.type === "conditionGrant" || isModRow(row.row)) continue;
@@ -247,6 +264,7 @@ export function checkApplyRequest(req, world) {
  * @param {{id: string, name: string}|null} [deps.item]  the weapon a buff names, for the target the card's `item` names
  * @param {{uuid: string, name: string, img?: string, id?: string|null, cite?: string}} [deps.spell]  read from the spell document
  * @param {string|null} [deps.sourceAlignment]  the caster's alignment key
+ * @param {(actor: object, row: object|null) => {affected: boolean, noSave: boolean, why: object}|null} [deps.gate]  the target's gates as they stand (`cast-gates.mjs`), for a spell's own row or, with null, the spell's gates alone; absent, nothing is gated
  * @param {(actor: object) => {sources: object[], figures: object}} [deps.defenses]  the target's defenses and resistance's figures; absent, the actor's own (`actorDefenses`) and the world's (`defenseFigures`)
  * @param {(uuid: string) => Promise<{actor: object, hpTarget: object|null}|null>} deps.resolve
  * @param {Function} deps.adjustHp  lib's, `(entries, {mode}) -> results`
@@ -265,11 +283,20 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
     for (const r of requests) out.push({ id: entryId(targetKey, r.rowKey), skipped: "noTarget" });
     return out;
   }
-  const resist = target.resist ?? null;
+  // The gates are read from the actor written to, as they stand now; the caster's own target has none.
+  const gateOf = (row) => (target.self ? null : (deps.gate?.(found.actor, row) ?? null));
+  // A target that makes no save takes every row as on a failed save, whatever the card's resist says.
+  const noSaved = target.resist && gateOf(null)?.noSave === true;
+  const resist = noSaved ? noSaveResist(card.save, gateOf(null).why) : (target.resist ?? null);
   const claimed = [];
   for (const r of requests) {
     const id = entryId(targetKey, r.rowKey);
     const key = `${deps.messageId}:${id}`;
+    const keyedRow = (deps.rows ?? []).find((k) => k.key === r.rowKey);
+    if (card.entries?.[id]?.state === "exempt" || (keyedRow && gateOf(keyedRow.row)?.affected === false)) {
+      out.push({ id, skipped: "exempt" });
+      continue;
+    }
     if (inFlight.has(key) || !OPEN_STATES.includes(card.entries?.[id]?.state)) {
       out.push({ id, skipped: "applied" });
       continue;
@@ -517,14 +544,19 @@ async function recomputeDuration(spell, card) {
  */
 async function castInputs(card, targetDoc, { recompute = false } = {}) {
   const { byCookbookId, cookbookId } = await import("../lib/library.mjs");
+  const { castGateExtrasOf } = await import("./cast-spell.mjs");
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   const spell = card ? fromUuidSync(card.spellUuid) : null;
-  const rows = spell ? rowsForMode(rowsOf(spell, { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) }).rows, card.mode, card.picks) : [];
+  const lookups = { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) };
+  const rows = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks) : [];
   const pick = card?.item?.id ? targetDoc?.actor?.items?.get?.(card.item.id) : null;
+  // The gates read the spell's figures as they stand now and the card's caster level.
+  const extras = spell ? castGateExtrasOf(spell, lookups) : null;
   return {
     caster,
     spell,
     rows,
+    gate: (actor, row) => targetGate({ actor, extras, row, level: card?.casterLevel?.value ?? null }),
     item: pick?.type === "weapon" ? { id: pick.id, name: pick.name } : null,
     spellMeta: spell ? { uuid: spell.uuid, name: spell.name, img: spell.img, id: cookbookId(spell) || null, cite: spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "" } : null,
     sourceAlignment: caster ? actorAlignment(caster) || null : null,
@@ -564,6 +596,7 @@ async function worldFor(req, message) {
     spellOfCaster: Boolean(spell && caster && spell.parent?.uuid === caster.uuid),
     rows,
     resist,
+    gateOf: targetDoc?.actor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetDoc.actor, row) : null,
     item: inputs.item,
     inputs,
     boundsOf: (keyed, critical) => {
@@ -574,7 +607,7 @@ async function worldFor(req, message) {
 }
 
 /** What `applyOnTarget` reads of a cast, from `castInputs`. */
-const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment });
+const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment, gate: inputs.gate });
 
 /**
  * The relay's handler, on the GM's client: check, then apply. Answers

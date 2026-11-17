@@ -6,6 +6,9 @@
  * One section per rolled row and per modifier or ward row, one table row per
  * target with what was applied, a tooltip on every figure saying where it came
  * from. A modifier entry's figure is its part's value, which lib reads at the roll.
+ * An entry the spell's gates exempt (`cast-gates.mjs`) reads `Exempt` with the
+ * gate's parts in its tooltip, and a target that makes no save shows `No save`
+ * for its resist, likewise.
  *
  * The flag holds the cast (the spell, the caster, the level and its source,
  * the spell's save, each row's roll), the targets with the resist each rolled,
@@ -29,6 +32,7 @@ import { defenseCiteOf, defenseWord, namesDefense } from "../lib/attack-apply.mj
 import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
 import { instancesTip } from "./cast-instances.mjs";
+import { gateTip } from "./cast-gates.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
 export const CAST_CARD_FLAG = "castCard";
@@ -183,8 +187,9 @@ export function castCardView(card, seat, loc) {
     for (const [targetKey, target] of targets) {
       const entry = card.entries?.[`${targetKey}_${rowKey}`];
       // A row with a throw was resisted by the throw, not by the spell's save.
-      // A buff is not resisted either.
-      const resist = row.delivery || isMod ? null : (target.resist ?? null);
+      // A buff is not resisted either, and neither is a row the target is exempt from: it makes no save for it.
+      const exempt = entry?.state === "exempt" ? gateTip(entry.gate, loc, { name: target.name, cite: card.cite }) : "";
+      const resist = row.delivery || isMod || entry?.state === "exempt" ? null : (target.resist ?? null);
       const done = entry?.state === "applied" || entry?.state === "undone";
       const yields = card.yields?.[`${targetKey}_${rowKey}`];
       // The defense a figure names is the Judge's and the target's owners' to read; every other seat reads "a defense".
@@ -194,7 +199,7 @@ export function castCardView(card, seat, loc) {
         ? {
             name: target.name,
             total: done && row.total != null ? row.total : "—",
-            tooltipText: partTip(row, card, targetKey, loc),
+            tooltipText: exempt || partTip(row, card, targetKey, loc),
             detail: yields ? loc("detail.yields", { name: yields }) : "",
             ...outcomeOf(entry, loc),
             actions: entryActions(entry, { targetKey, rowKey }, seat, loc, { group: true, name: target.name }),
@@ -203,7 +208,7 @@ export function castCardView(card, seat, loc) {
             name: target.name,
             total: done && entry.applied != null ? entry.applied : "—",
             // A defense the module does not price leaves the entry to the Judge: its line names the defense and the tooltip is the page reference alone.
-            tooltipText: judged ? defenseCiteOf(judged) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : "",
+            tooltipText: exempt || (judged ? defenseCiteOf(judged) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : ""),
             // The Judge applies it by hand, so the figure rolled stays on the line beside the defense.
             detail: [
               judged ? loc("detail.judgeDefense", { defense: defenseWord(judged, named), cite: defenseCiteOf(judged) }) : "",
@@ -214,7 +219,9 @@ export function castCardView(card, seat, loc) {
             ...outcomeOf(entry, loc),
             actions: entryActions(entry, { targetKey, rowKey }, seat, loc),
           };
-      if (resist) {
+      if (resist?.noSave) {
+        Object.assign(line, { target: loc("save.none"), targetTooltip: gateTip(resist.noSave, loc, { name: target.name, cite: card.cite }), detail: [loc("detail.noSave"), line.detail].filter(Boolean).join(" · ") });
+      } else if (resist) {
         const shown = resist.auto ? loc("detail.saveAuto", { defense: defenseWord(resist.auto, named) }) : loc("detail.save", { total: resist.total });
         Object.assign(line, { target: resist.auto ? loc("save.auto") : resist.target, targetTooltip: saveTip(resist, loc, named), detail: [shown, line.detail].filter(Boolean).join(" · ") });
       }

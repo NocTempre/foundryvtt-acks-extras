@@ -399,10 +399,59 @@ cancel at any point before the spend costs nothing:
    the situational figure, the roll kept as labelled parts. The throw is rolled
    only where the save governs an entry the cast opens on the target: a damage,
    heal or condition row with a figure, aimed at the target and decided by no
-   attack throw. A buff, the caster's own row, a thrown row and a row that is
+   attack throw, and that no gate exempts (below). A buff, the caster's own row, a thrown row and a row that is
    only a card line call for none. A row's `saveEffect`
    wins over the spell's. A passed save leaves nothing (negates) or half (half);
    any other effect is left to the Judge (`saveFractionOf`).
+
+   *The gates* (`cast-gates.mjs`, pure). `targetGate({actor, extras, row,
+   level})` answers `{affected, noSave, why: {key, parts}}` for one target and
+   one of the spell's own rows. Three figures, each read from the world and none
+   shipped: `target.hdCap`, the most Hit Dice a target may have for the spell to
+   touch it, so a target over it is unaffected on every row (the cap is
+   inclusive: a target at it is affected); `save.exemptBelowHd`, the Hit Dice
+   below which a target makes no save and takes the effect as on a failed save;
+   and a row's `exemptSizeFrom`, a monsters size key, from which a target of that
+   size or a larger one in the monsters feature's size ladder is exempt from that
+   row only (lib's `actor-read.mjs` `sizeKeyOf` and `rankOfSize`, which lib's
+   conditions also read through `sizeRank`). A target's Hit Dice are
+   `hitDiceOrLevel` (a character's class level; a monster's rating with its
+   bonus ignored). Both Hit Dice figures are LevelValues read at the card's
+   caster level through `modifierFigure`, so one that scales by level and meets
+   no level gives no gate, a blank one gates nothing, and a target whose Hit
+   Dice are unread (blank or none) is gated by no Hit Dice figure. The cap is
+   checked before the size, and a target that is unaffected makes no save to
+   skip. `why` names the gate that decided (`hd`, `size`, `noSave`) with its
+   parts: the target's figure, the threshold, and the caster level where the
+   threshold scales. `levelNeeded` reads `hdCap` and `exemptBelowHd`, so the
+   dialog asks for a level where either scales. The spell's figures come from
+   one reader, `castGateExtrasOf` (`target` from the copy or its twin as
+   `castFiguresOf` reads it, `save` from the copy), on the casting client, the
+   card's presses and the GM's relay alike.
+
+   `buildTargets` asks the gate per token and row. A row the target is exempt
+   from has the entry `{state: "exempt", gate: why}`, a thrown row's and a
+   modifier row's included, and nothing is rolled, thrown, written or recorded
+   for it: the cast's throw loop skips the target, dealing the default split
+   among the others, and a throw a typed split assigns to an exempt target is
+   spent. A save is rolled only for a target with a governed row left. For a
+   target below `exemptBelowHd`, `rollResist` rolls nothing and returns a failed
+   save marked as no save (`noSaveResist`: `success` false, no `total` or
+   `target`, `noSave: why`), so the application reads it as a failure: the whole
+   amount where the save would have halved it, the loss a failed save runs
+   (`loseStates`), the record's `resist`. The caster's own target is gated by
+   none. The card prints Exempt, or No save in the target's save column, each with a
+   tooltip naming the target, the parts and the spell's page reference; the Throw
+   press with no target on the card reads the gate before it throws.
+
+   The relay recomputes it on the GM's client. `worldFor` builds `gateOf(row)`
+   from the target's actor, the spell's own figures and the card's caster level;
+   `checkApplyRequest` refuses an entry the card holds as exempt, or the
+   recompute exempts, whatever state the card calls it (`exempt`); a no-save
+   failure stands only where the recompute says the target makes no save, and a
+   rolled save never stands for a target that makes none (`badResist`); and
+   `applyOnTarget` skips an exempt entry (`skipped: "exempt"`) and applies a
+   no-save target as a failure whatever resist the card carries.
 
    *The save meets the target's defenses.* The throw is made against the damage it
    resists: `resistedDamage` is the union of the types of the spell's own damage

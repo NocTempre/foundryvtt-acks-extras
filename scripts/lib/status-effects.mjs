@@ -23,7 +23,7 @@ import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
-import { getMonsterExtras } from "./senses.mjs";
+import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
@@ -278,20 +278,6 @@ function attackKind(item, type) {
   if (type === "melee" || type === "missile" || type === "thrown") return type;
   const sys = item?.system ?? {};
   return sys.missile && !sys.melee ? "missile" : "melee";
-}
-
-/** The size a character with no stat block of its own is. */
-const CHARACTER_SIZE = "man";
-
-/**
- * A creature's size as its place in the monsters feature's size ladder, or
- * null when no ladder or no size is known.
- */
-function sizeRank(actor) {
-  const order = Object.keys(globalThis.acksExtras?.monsters?.config?.SIZES ?? {});
-  if (!order.length || !actor) return null;
-  const size = getMonsterExtras(actor)?.size ?? (actor.type === "character" ? CHARACTER_SIZE : null);
-  return size && order.includes(size) ? order.indexOf(size) : null;
 }
 
 /** The conditions' reading of one attack, or null when neither side has any. */

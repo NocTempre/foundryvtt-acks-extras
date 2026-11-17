@@ -24,7 +24,7 @@ function authored(lv) {
 }
 
 /** Is a LevelValue anything but a flat figure? */
-const scaled = (lv) => Boolean(lv) && typeof lv === "object" && (lv.kind ?? "flat") !== "flat";
+export const scaled = (lv) => Boolean(lv) && typeof lv === "object" && (lv.kind ?? "flat") !== "flat";
 
 /** A count nothing could read. */
 const blank = () => ({ value: null, parts: [] });

@@ -85,6 +85,30 @@ export const actorAlignment = (actor) => alignmentKey(actor?.system?.details?.al
  */
 const MONSTER_EXTRAS = Object.freeze({ scope: "acks-extras", key: "extras" });
 
+/** The size a character with no stat block of its own is. */
+const CHARACTER_SIZE = "man";
+
+/** The monsters feature's size keys, smallest first, read off its published config; empty where that feature is not loaded. */
+const sizeOrder = () => Object.keys(globalThis.acksExtras?.monsters?.config?.SIZES ?? {});
+
+/** A size key's place in the monsters feature's size ladder, or null when the ladder or the key is unknown. */
+export function rankOfSize(key) {
+  const order = sizeOrder();
+  return key && order.includes(key) ? order.indexOf(key) : null;
+}
+
+/**
+ * The size key a creature is: a monster's stat block states one, a character
+ * with no stat block is man-sized, and anything else is unknown (null).
+ */
+export function sizeKeyOf(actor) {
+  if (!actor) return null;
+  return actor.getFlag?.(MONSTER_EXTRAS.scope, MONSTER_EXTRAS.key)?.size || (actor.type === ACTOR_TYPE.character ? CHARACTER_SIZE : null);
+}
+
+/** A creature's size as its place in the monsters feature's size ladder, or null when no ladder or no size is known. */
+export const sizeRank = (actor) => rankOfSize(sizeKeyOf(actor));
+
 /** The monster types that are enchanted creatures by definition (RR p. 227, the defined term). */
 const ENCHANTED_TYPES = Object.freeze(["construct", "enchanted", "incarnation", "undead"]);
 
