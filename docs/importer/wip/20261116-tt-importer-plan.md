@@ -134,4 +134,45 @@ to be registered; these slices add none.
 
 ## Results
 
-(Appended by each slice.)
+**2026-11-17: S0, S1 (as S1a and S1b), S2 and S4a landed on `main`** (not
+pushed): S1a `28e3635c`, S1b `8fe8c29f`, S2 `c0c9f54a`, the walk `2d80da5d`,
+S4a `74c87fa1`.
+
+- Offline, on the local books: `check-treasure-tables` reads 20 Journal
+  tables (13 band lists tile) and the Tome side; `check-magic-item-tables` reads
+  34 lists that tile, 8 of 8 Random Type rows resolving; every Journal row count
+  agrees with the wiki oracle; `test-recipe-pages` 2974 checks; `npm test` 251
+  suites; validate green.
+- S0's probe: the shipping extractor gives no U+008D or U+FFFD in any Tome
+  table region, so `books.mjs` `tt` needs no glyph. Recto and verso pages take
+  two geometries. The Tome's small-capital initials extract as lone lower-case
+  runs (`smallCaps`).
+- Built beyond the slice lines, on a consumer's request (the treasure plan's
+  hoard generator): the coin columns' unit (`typeUnits`), each special list's
+  lot unit (`specialPer`) and the gem and jewelry dice legends.
+- Live, lane C (`FIXTURE_OWN=tt`, so recorded partial):
+  `tools/live/importer-treasure-tables.mjs` passed 21 of 21 with the Journal and
+  the Tome connected (the import, both documents' counts and tiling, the Tome's
+  cite where it layers and the Journal's where it does not, the Browser's
+  entries, two exported RollTables against their bands, the Player seat's read).
+  A one-off probe of S4a's `magic-item-roll` service with Foundry's own dice:
+  classic two steps, one with a category, heroic and gritty one each, no rarity
+  refused, a rigged top face rolling the tail's inner die, every step carrying
+  a caption and a cite.
+- Not walked: the edit-and-drop steps of both TESTING sections and a
+  Journal-only seat (the downgrade guard).
+- Findings, not fixed here: a Judge's override of one classic list replaces the
+  whole `classic` table (lib's per-table layering), so the other lists drop out
+  of the roller's choices; BtA's `wrapRows.boxed` and this plan's
+  `wrapRows.centered` may fold into one mode, with the two table gates as proof.
+
+Next: S4b (the Judge's roller dialog, card and macro) waits on a `/design`
+approval (`.claude/rules/ui-layout.md`); no UI is written. S3, S6 and S8 add
+Tome book facts, which the owner wants per book ("They should be building
+separate importer files per book"): they go under `scripts/importer/books/tt/`
+once that seam is built, and S3 waits on A as well, S6 to S8 on C and E. The
+code already landed stays where it is until the owner's cleanup. D was closed
+by the treasure plan, not by an owner answer. Question **F** (from S4's design): does
+"Roll a magic item" get a Token controls button as well as the macro?
+Recommended: the macro and the api only. Counter (moderate): a compendium
+macro is the least discoverable control.
