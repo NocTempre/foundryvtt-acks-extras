@@ -639,7 +639,7 @@ run in that order; the rest share only `lang/en.json` and
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
 | U14 | `main` | implementer | The Skill audit's mechanics: an id per party, a re-render when the party or an ability item changes, the scroll on a part root, `PressFocus`, sizes off the ramp, columns that scroll and do not clip. `tools/live/formation-audit.mjs` finds the window by its new id. **Done**: `c3bce7a2`, and `b388e2cd` for what the walk found; `formation-audit` 47 of 47 (§14). | §10 Skill audit 1-4, 11-15; Skill tab 5 | nothing |
-| U15 | `main` | implementer | The audit's and the Skill tab's figures and names: one cited-parts helper shared with `rollCheckFor`; names on the Used-for selects and check names in their options; the Sheet target and the progression table with their sources; core's tooltip in place of `title`. | §10 Skill audit 5, 6, 8, 9, 10; Skill tab 1-3 | U14 |
+| U15 | `main` | implementer | The audit's and the Skill tab's figures and names: one cited-parts helper shared with `rollCheckFor`; names on the Used-for selects and check names in their options; the Sheet target and the progression table with their sources; core's tooltip in place of `title`. **Done**: `a55dd9c5`, and `736dccfa` for what the walk found; `formation-audit` 60 of 60, twice (§15). | §10 Skill audit 5, 6, 8, 9, 10; Skill tab 1-3 | U14 |
 | U16 | `main` | implementer | The trap sheet and the trap zone's config: the level strip's state in text; the pit's damage with its parts, and its page reference alone when a part is not imported; the trigger band shown with its source; a scrolling part root; the State select's labels and the `known` field's label. **Done**: `eb51e9b2`; `formation-trap-sheet` 23 of 23 (§14). | §10 Trap sheet 1-8; configs 1, 2 | nothing |
 | U17 | `main` | architect, then implementer | The party token's HUD: a named button; `addTokensToParty` as the `architect` rules it against the 2026-11-14 ruling and formation's MODEL. `module.mjs` is shared with S1, S11, S13 and `topic/summons-formation`: check them first. The picker's part is done: on the owner's "Fix it now" (2026-11-16) `dbdf1ecf` put both openers of the picker on `marching-templates.mjs` `carryOutPick`, walked by `formation-marching-picker`, 19 of 19 on the GM seat. | §10 HUD 1, 3 (2 closed by `dbdf1ecf`) | the ruling |
 | U18 | `main` | implementer | The Walls and Regions layers: the wall's trap row names its trap, opens it and takes it off; the canvas drop is tested by seat; the two tools told apart; the door tool's `order`; the Place row's button named. | §10 Walls 1-5; configs 5 | U1, U3 |
@@ -1352,3 +1352,101 @@ Commits, none pushed:
 - `formation/trap-sheet-pit@u14-u16`, `formation/trap-sheet-scene@u14-u16` and
   `formation/trap-sheet-zone@u14-u16`.
 - The walks swept their own cards and probe items by tracked id.
+
+## 15. Phase 3c results: U15
+
+Run 2026-11-17 in `main`'s tree by a session started for U15. A fresh
+`implementer` built the slice, and the session drove the walks itself.
+
+No `/design` was run. The visible changes stay within the design fence the
+brief set:
+- check names in the Skill tab's options, in place of flag ids;
+- skill names on the progression rows, in place of ladder keys;
+- an empty Sheet target cell in place of `0+`;
+- the level tag read from a lang string, the same text in English.
+
+Every page reference is in a tooltip. Nothing new was added as a column, an
+element or inline text. Finding 8 was ruled before the brief: the column stays
+the sheet's stored target, blank when that is not a positive number. The
+resolved figure is not shown there.
+
+Commits, none pushed:
+- `a55dd9c5`: U15. `party-rolls.mjs` exports `citedParts`, `citedSource`,
+  `checkTip` and `usedForOptions`. `rollCheckFor`'s `sourceTip` comes from
+  `citedSource`, unchanged byte for byte (pinned in `test-skill-audit-roll`).
+  `skill-ladders.mjs` exports `importedSkillFor`. The walk section is in the
+  same commit.
+- `736dccfa`: what the walk found. A Used-for option is named by its own
+  `audit.flag.<flag>` string.
+
+The landing adopted orphan session `db28ad96` under the owner's "Adopt orphans
+as necessary" (2026-11-14). Its last ledger record is from 2026-11-12. The one
+hunk it shared was the deletion of `skill-audit.mjs`'s old option builder,
+whose lines date from `569d7d67`.
+
+### Exercised live
+
+- `tools/live/formation-audit.mjs`: 60 of 60 on lane B with `FIXTURE_OWN=u15`,
+  once on `a55dd9c5`'s tree and once with the fix. Both runs are recorded as
+  partial. The load recorder was attached before `init`, and both seats loaded
+  with no error through `ready`. The new section "names and sources" checked
+  each of the following against the module's own `resolveCheck` and
+  `usedForOptions` on the same seat:
+  - finding 6: a member's Methodical Search cell carries `audit.checkTip`
+    with the part's page ("QA p. 9"), and core's tooltip shows that text when
+    activated;
+  - finding 8: a stored target reads `13+` with the sheet-target tooltip, and an
+    imported item with no stored target shows an empty cell whose tooltip is
+    its page alone;
+  - finding 5: each select's `aria-label` names its item, `data-item-uuid` and
+    `data-field` are kept, and the options read the binding names in order;
+  - finding 9: the progression row is named for the imported skill, its
+    tooltip is its page, and a rung with no value is blank;
+  - finding 10: the level column reads `audit.levelTag`;
+  - no `title` attribute anywhere in the audit;
+  - Skill tab 1-3 on the GM seat: the select is named, editable and bound, with
+    binding names; the Throw bonus has an `aria-label` and core's tooltip and no
+    `title`; the resolution's tooltip cites the part's page, and core shows it;
+  - the Skill tab on a Player seat that owns the member: read-only, named, with
+    binding names and the cited tooltip. Ownership was put back after the step.
+
+### Found by the walk
+
+- A Used-for option was named by the first check that takes its flag, so the
+  search binding read "Hasty Search" and the trapbreaking binding read "Hasty
+  Trapbreaking", though each serves both of its checks. The audit had shown
+  this before U15, and U15 carried it to the Skill tab. Fixed in `736dccfa`;
+  the second walk read "Search".
+
+### Checked offline only
+
+- `test-skill-audit-window` (20 checks), `test-skill-audit-roll` (18 checks, plus
+  the binding-name assertion in `736dccfa`), `test-skill-ladders` (12 checks).
+- `npm test` and `validate` at each landing's gate. `a55dd9c5`: test 145 s,
+  validate 622 s. `736dccfa`: test 151 s, validate 587 s.
+- The first gate of `a55dd9c5` timed out after 10218 s with no output. At the
+  time about six validates from several worktrees were compiling the cookbook
+  at once in `check-cookbook-drift.mjs`, one of them since 02:36. A rerun was
+  green.
+
+### Not checked
+
+- A screen reader reading the selects. The names were checked as attributes.
+- A quote passing through a `data-tooltip-text` value. `esc` is core's
+  `escapeHTML`, and the select's `aria-label` escape is tested offline.
+- Any page against the printed book. The fixture's pages ("QA p. 9", "QA p. 11",
+  "QA p. 13") are invented.
+- An item with no cookbook page on a progression row. The table lists imported
+  skills only.
+- The Strength term on a bash, which is U20.
+
+### Fixtures kept
+
+- `formation/audit-party@u15` with `formation/audit-member-1@u15` to `-3@u15`,
+  and `formation/combat-party@u15` and `formation/combat-scene@u15` with their
+  members, built by the first run on lane B.
+- `formation/audit-skill-ladder@u15`: a world ability item, "QA Audit Ladder",
+  carrying an invented `def.skill.qaauditladder` ladder and page. Every Skill
+  audit in the world lists it as a progression row.
+- The three probe items on member 1 and the run's cards were swept by tracked
+  id each run.
