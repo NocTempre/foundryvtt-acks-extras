@@ -1,33 +1,50 @@
 /**
- * The book-silo gate: book-specific code stays inside its silo.
+ * The book gate: book-specific code stays in its silo, and an ACKS book's code
+ * stays in its folder.
  *
- * A silo owns book ids. One is declared, `ose`: the books `REGISTRY` marks
- * `stats: "ose"`, the id prefix `ose.`, the kinds `kind.oseMonster` and
- * `kind.oseLocation`, and the member files `OSE_SILO.members` lists. Its books
- * and members have left `main` for the parked `ose` branch, so today it owns
- * none and the gate keeps the ids and kinds out of `scripts/`. The
- * ACKS books are the engine's own library and own no silo. The ruling and its
- * rejected alternatives are docs/importer/DECISIONS.md, "Book-specific code
- * lives in a silo, and a gate keeps it there".
+ * A silo owns book ids and is kept out of the zip. One is declared, `ose`: the
+ * books `REGISTRY` marks `stats: "ose"`, the id prefix `ose.`, the kinds
+ * `kind.oseMonster` and `kind.oseLocation`, and the member files
+ * `OSE_SILO.members` lists. Its books and members have left `main` for the
+ * parked `ose` branch, so today it owns none and the gate keeps the ids and
+ * kinds out of `scripts/`. The ACKS books own no silo: they ship, and each one's
+ * print facts live in `scripts/importer/books/<id>/`, which the seam
+ * `scripts/importer/books/index.mjs` imports. The rulings are
+ * docs/importer/DECISIONS.md, "Book-specific code lives in a silo, and a gate
+ * keeps it there" and "An ACKS book's importer code lives in its own folder,
+ * and the silo gate counts what is left".
  *
- * Four rules, each a pure function over facts a parse extracts (import edges,
- * string and template literals, comments), never a regex over source:
+ * Seven rules, each a pure function over facts a parse extracts (import edges,
+ * string and template literals, `book` roles, comments), never a regex over
+ * source:
  *
- *   imports    a file outside the silo imports a member (static, `export from`,
- *              literal `import()`), or calls `import()` with a non-literal
- *              argument under `scripts/`
- *   literals   under `scripts/`, a file outside the silo holds a literal that
- *              names a silo book id, the silo id, a silo kind or a member path;
- *              a `// silo-ok: <reason>` comment on or just above the line
- *              excuses it, and one with no reason is itself a violation
- *   closure    a member is reachable from `module.json`'s entry points, other
- *              than through the silo's manifest edge
- *   agreement  the manifest imports the silo's entry exactly when `module.json`
- *              declares its stylesheet; applicable once the manifest exists
+ *   imports       a file outside the silo imports a member (static, `export
+ *                 from`, literal `import()`), or calls `import()` with a
+ *                 non-literal argument under `scripts/`
+ *   literals      under `scripts/`, a file outside the silo holds a literal that
+ *                 names a silo book id, the silo id, a silo kind or a member path;
+ *                 a `// silo-ok: <reason>` comment on or just above the line
+ *                 excuses it, and one with no reason is itself a violation
+ *   closure       a member is reachable from `module.json`'s entry points, other
+ *                 than through the silo's manifest edge
+ *   agreement     the manifest imports the silo's entry exactly when `module.json`
+ *                 declares its stylesheet; applicable once the manifest exists
+ *   book-roles    a file in `scripts/importer/` outside `books/`, or
+ *                 `tools/importer/compile-cookbook.mjs`, holds a `book:` value or
+ *                 a `.book ===`/`!==` test naming an ACKS book id (a registry id
+ *                 that names no silo). The ROLE is matched, never the bare
+ *                 literal: `"cat"` is also a form field. Hits are counted per
+ *                 file and id, and `silo-ok` excuses them as it does a literal
+ *   book-imports  nothing under `books/<a>/` imports from `books/<b>/`, and
+ *                 under `scripts/` nothing but `books/index.mjs` imports a book
+ *                 folder
+ *   book-manifest every `books/<id>/` is a registry id with an `index.mjs`, and
+ *                 `books/index.mjs` imports exactly the folders there are
  *
- * Today's violations are `tools/importer/silo-baseline.json`. The gate fails
- * on a violation the baseline lacks and on a baseline entry that no longer
- * occurs, so the file only shrinks. `--write-baseline` rewrites it.
+ * Today's violations are `tools/importer/silo-baseline.json`, each with a count
+ * where it repeats. The gate fails on a violation the baseline lacks or holds
+ * more of, and on a baseline entry that no longer occurs or occurs less, so the
+ * file only shrinks. `--write-baseline` rewrites it.
  *
  * A script's facts come from the acorn Node bundles, which needs
  * `--expose-internals`, as `tools/free-variables.mjs` does; the flag is refused
@@ -59,7 +76,19 @@ export const ROOT = path.resolve(HERE, "..", "..");
 export const BASELINE_PATH = path.join(HERE, "silo-baseline.json");
 
 /** The rules, in the order a report lists them. */
-export const RULES = ["imports", "literals", "closure", "agreement"];
+export const RULES = ["imports", "literals", "closure", "agreement", "book-roles", "book-imports", "book-manifest"];
+
+/**
+ * Where an ACKS book's code lives. `dir` holds one folder per book, `manifest`
+ * is the one file that imports them, `scope` lists the paths (a prefix ending in
+ * `/`, or an exact file) whose `book` roles are counted outside `dir`, and
+ * `ids` is filled in by `loadBookTree` from the registry.
+ */
+export const BOOK_TREE = Object.freeze({
+  dir: "scripts/importer/books/",
+  manifest: "scripts/importer/books/index.mjs",
+  scope: ["scripts/importer/", "tools/importer/compile-cookbook.mjs"],
+});
 
 /** The longest literal a violation's `target` carries; a longer one is cut. */
 const TARGET_MAX = 80;
@@ -104,6 +133,21 @@ export async function loadSilo(root = ROOT, base = OSE_SILO) {
   return { ...base, books };
 }
 
+/**
+ * The book tree with its ids filled in from the registry: every id whose
+ * `stats` names no silo. A book added to the registry joins the role rule with
+ * no edit here.
+ *
+ * @param {string} [root] repository root holding `scripts/importer/books.mjs`
+ * @param {object} [silo] the silo whose books are left out
+ * @returns {Promise<object>} `BOOK_TREE` plus `ids`
+ */
+export async function loadBookTree(root = ROOT, silo = OSE_SILO) {
+  const { REGISTRY } = await import(pathToFileURL(path.join(root, "scripts/importer/books.mjs")).href);
+  const ids = Object.keys(REGISTRY).filter((id) => REGISTRY[id].stats !== silo.id);
+  return { ...BOOK_TREE, ids };
+}
+
 /* ------------------------------------------------------------------ facts */
 
 /** The text of a string literal, or of a template with no interpolation; null for anything else. */
@@ -122,9 +166,12 @@ function staticText(node) {
  * template quasi outside an import specifier, with the line it opens on.
  * `comments` holds each comment with the lines it spans, a block's leading
  * stars removed, and whether code stands before it on its first line.
+ * `roles` holds each string a file uses AS a book: a `book:` property value
+ * (`kind: "value"`), and a string a `.book` member is compared to with `===`,
+ * `!==`, `==` or `!=`, or matched against by a `switch` (`kind: "test"`).
  *
  * @param {string} source
- * @returns {{imports: {kind: string, spec: string|null}[], literals: {text: string, line: number}[], comments: {text: string, line: number, last: number, trailing: boolean}[]}}
+ * @returns {{imports: {kind: string, spec: string|null}[], literals: {text: string, line: number}[], roles: {kind: string, text: string, line: number}[], comments: {text: string, line: number, last: number, trailing: boolean}[]}}
  */
 export function factsOf(source) {
   const comments = [];
@@ -144,9 +191,30 @@ export function factsOf(source) {
   });
   const imports = [];
   const literals = [];
+  const roles = [];
+  const isBookMember = (n) => {
+    const m = n?.type === "ChainExpression" ? n.expression : n;
+    return m?.type === "MemberExpression" && (m.computed ? staticText(m.property) === "book" : m.property.type === "Identifier" && m.property.name === "book");
+  };
+  const role = (kind, valueNode) => {
+    const text = staticText(valueNode);
+    if (text !== null) roles.push({ kind, text, line: valueNode.loc.start.line });
+  };
   const visit = (node) => {
     if (!node || typeof node.type !== "string") return;
     switch (node.type) {
+      case "Property":
+        if (!node.computed && !node.shorthand && (node.key.name === "book" || node.key.value === "book")) role("value", node.value);
+        break;
+      case "BinaryExpression":
+        if (["===", "!==", "==", "!="].includes(node.operator)) {
+          if (isBookMember(node.left)) role("test", node.right);
+          if (isBookMember(node.right)) role("test", node.left);
+        }
+        break;
+      case "SwitchStatement":
+        if (isBookMember(node.discriminant)) for (const c of node.cases) if (c.test) role("test", c.test);
+        break;
       case "ImportDeclaration":
         imports.push({ kind: "static", spec: node.source.value });
         return;
@@ -180,7 +248,7 @@ export function factsOf(source) {
     }
   };
   visit(ast);
-  return { imports, literals, comments };
+  return { imports, literals, roles, comments };
 }
 
 /* ------------------------------------------------------------------- tree */
@@ -304,7 +372,7 @@ function namesSilo(text, silo, members) {
 }
 
 /**
- * The four rules over one tree's facts.
+ * The rules over one tree's facts.
  *
  * @param {object} tree
  * @param {Map<string, ReturnType<typeof factsOf>>} tree.facts parsed `.mjs` files
@@ -312,15 +380,21 @@ function namesSilo(text, silo, members) {
  * @param {object} tree.silo the definition, `books` filled in
  * @param {string[]} tree.members the silo's member files
  * @param {{esmodules?: string[], styles?: string[]}} tree.moduleJson
- * @returns {{violations: {rule: string, file: string, target: string}[], notes: string[]}}
- *   violations carry no line numbers; a repeat of one `(rule, file, target)` is one
+ * @param {object|null} [tree.bookTree] `BOOK_TREE` with `ids`; the three book rules run only when given
+ * @returns {{violations: {rule: string, file: string, target: string, count: number}[], notes: string[]}}
+ *   violations carry no line numbers; a repeat of one `(rule, file, target)` is one entry whose `count` is the repeats
  */
-export function findViolations({ facts, present, silo, members, moduleJson }) {
+export function findViolations({ facts, present, silo, members, moduleJson, bookTree = null }) {
   const memberSet = new Set(members);
   const isMember = (f) => memberSet.has(f) || f.startsWith(silo.dir);
   const presentSet = new Set(present);
   const found = new Map();
-  const add = (rule, file, target) => found.set(`${rule}\0${file}\0${target}`, { rule, file, target });
+  const add = (rule, file, target) => {
+    const k = `${rule}\0${file}\0${target}`;
+    const held = found.get(k);
+    if (held) held.count++;
+    else found.set(k, { rule, file, target, count: 1 });
+  };
   const notes = [];
 
   for (const [file, f] of facts) {
@@ -374,32 +448,105 @@ export function findViolations({ facts, present, silo, members, moduleJson }) {
     notes.push(`agreement: manifest ${imports ? "imports" : "does not import"} ${silo.id}; the SILOS.${silo.id}.active half is not yet checked`);
   }
 
+  if (bookTree) bookRules({ facts, present: presentSet, silo, isMember, bookTree, add, notes });
+
   const violations = [...found.values()].sort((a, b) => key(a).localeCompare(key(b)));
   return { violations, notes };
 }
 
-/** A violation's identity in a baseline. */
+/**
+ * The three ACKS-book rules: `book-roles`, `book-imports` and `book-manifest`.
+ * `add` records one hit; `notes` takes what the tree cannot be asked yet.
+ */
+function bookRules({ facts, present, silo, isMember, bookTree, add, notes }) {
+  const ids = new Set(bookTree.ids);
+  const inScope = (file) => !file.startsWith(bookTree.dir) && bookTree.scope.some((s) => (s.endsWith("/") ? file.startsWith(s) : file === s));
+  /** The book folder a path sits in, or null for a path outside every folder (the manifest and `books/` files included). */
+  const folderOf = (file) => {
+    if (!file.startsWith(bookTree.dir)) return null;
+    const rest = file.slice(bookTree.dir.length);
+    const slash = rest.indexOf("/");
+    return slash < 0 ? null : rest.slice(0, slash);
+  };
+
+  for (const [file, f] of facts) {
+    // book-roles: the role a string plays, never the bare literal
+    if (inScope(file) && !silo.literalExempt.includes(file) && !isMember(file)) {
+      const ok = siloOk(f.comments);
+      // a bare `silo-ok` under scripts/ is the literals rule's to report, once
+      if (ok.bare && !file.startsWith("scripts/")) add("book-roles", file, "silo-ok without a reason");
+      for (const r of f.roles) {
+        if (!ids.has(r.text) || ok.lines.has(r.line)) continue;
+        add("book-roles", file, r.kind === "value" ? `book: ${r.text}` : `.book === ${r.text}`);
+      }
+    }
+    // book-imports: books never reach into each other, and only the manifest names a folder
+    const own = folderOf(file);
+    for (const imp of f.imports) {
+      if (imp.spec === null) continue;
+      const target = resolveSpec(file, imp.spec, present);
+      const into = target ? folderOf(target) : null;
+      if (into === null) continue;
+      if (own !== null ? own !== into : file.startsWith("scripts/") && file !== bookTree.manifest) add("book-imports", file, target);
+    }
+  }
+
+  // book-manifest: the folders, the registry and the manifest's imports agree
+  const folders = new Map();
+  for (const p of present) {
+    const id = folderOf(p);
+    if (id !== null) folders.set(id, [...(folders.get(id) ?? []), p]);
+  }
+  for (const [id, files] of folders) {
+    if (!ids.has(id)) add("book-manifest", `${bookTree.dir}${id}/`, "folder is not a registry book id");
+    if (!files.includes(`${bookTree.dir}${id}/index.mjs`)) add("book-manifest", `${bookTree.dir}${id}/`, "folder has no index.mjs");
+  }
+  if (!present.has(bookTree.manifest)) {
+    if (folders.size) add("book-manifest", bookTree.manifest, "missing while book folders exist");
+    else notes.push(`book-manifest: not yet applicable (no ${bookTree.manifest})`);
+    return;
+  }
+  const imported = new Set();
+  for (const imp of facts.get(bookTree.manifest)?.imports ?? []) {
+    const target = imp.spec === null ? null : resolveSpec(bookTree.manifest, imp.spec, present);
+    const id = target ? folderOf(target) : null;
+    if (id === null) continue;
+    if (target !== `${bookTree.dir}${id}/index.mjs`) add("book-manifest", bookTree.manifest, `imports ${target}, not a folder's index.mjs`);
+    else imported.add(id);
+  }
+  for (const id of imported) if (!folders.has(id)) add("book-manifest", bookTree.manifest, `imports ${id}, which has no folder`);
+  for (const id of folders.keys()) if (!imported.has(id)) add("book-manifest", bookTree.manifest, `does not import ${id}`);
+  notes.push(`book-manifest: ${folders.size} book folder(s), ${imported.size} imported`);
+}
+
+/** A violation's identity in a baseline, its count apart. */
 function key(v) {
   return `${v.rule}\0${v.file}\0${v.target}`;
 }
 
+/** How many times a violation occurs; an entry with no `count` occurs once. */
+const countOf = (v) => v.count ?? 1;
+
 /**
- * A scan against a baseline.
+ * A scan against a baseline. An entry is identified by rule, file and target and
+ * carries a count, so a second use where one is held is a rise, not a repeat.
  *
- * @param {{rule: string, file: string, target: string}[]} violations
- * @param {{members?: string[], violations?: {rule: string, file: string, target: string}[]}} baseline
+ * @param {{rule: string, file: string, target: string, count?: number}[]} violations
+ * @param {{members?: string[], violations?: {rule: string, file: string, target: string, count?: number}[]}} baseline
  * @param {string[]} members
  * @returns {{added: object[], stale: object[], membersAdded: string[], membersGone: string[]}}
- *   `added` occur and are not in the baseline; `stale` are in it and no longer occur
+ *   `added` occur and are not in the baseline or occur more often (`was` is the
+ *   baseline's count); `stale` are in it and no longer occur or occur less often
+ *   (`now` is the scan's count)
  */
 export function compareBaseline(violations, baseline, members) {
-  const have = new Set(violations.map(key));
-  const want = new Set((baseline.violations ?? []).map(key));
+  const have = new Map(violations.map((v) => [key(v), countOf(v)]));
+  const want = new Map((baseline.violations ?? []).map((v) => [key(v), countOf(v)]));
   const was = new Set(baseline.members ?? []);
   const is = new Set(members);
   return {
-    added: violations.filter((v) => !want.has(key(v))),
-    stale: (baseline.violations ?? []).filter((v) => !have.has(key(v))),
+    added: violations.filter((v) => countOf(v) > (want.get(key(v)) ?? 0)).map((v) => ({ ...v, was: want.get(key(v)) ?? 0 })),
+    stale: (baseline.violations ?? []).filter((v) => countOf(v) > (have.get(key(v)) ?? 0)).map((v) => ({ ...v, now: have.get(key(v)) ?? 0 })),
     membersAdded: members.filter((m) => !was.has(m)),
     membersGone: [...was].filter((m) => !is.has(m)),
   };
@@ -412,9 +559,10 @@ export function compareBaseline(violations, baseline, members) {
  * @param {string} options.root
  * @param {object} options.silo the definition, `books` filled in
  * @param {string[]} [options.present] the repository paths; a directory walk when absent
+ * @param {object|null} [options.bookTree] `loadBookTree`'s result; the book rules are skipped without it
  * @returns {{members: string[], missing: string[], violations: object[], notes: string[], errors: string[]}}
  */
-export function analyse({ root, silo, present = listFiles(root) }) {
+export function analyse({ root, silo, present = listFiles(root), bookTree = null }) {
   const { members, missing } = expandMembers(silo, present);
   const { facts, errors } = loadFacts(root, present);
   let moduleJson = {};
@@ -423,25 +571,27 @@ export function analyse({ root, silo, present = listFiles(root) }) {
   } catch {
     /* a tree with no manifest has no entry points */
   }
-  const { violations, notes } = findViolations({ facts, present, silo, members, moduleJson });
+  const { violations, notes } = findViolations({ facts, present, silo, members, moduleJson, bookTree });
   return { members, missing, violations, notes, errors };
 }
 
-/** Per-rule counts of a violation list. */
+/** Per-rule counts of a violation list: every occurrence, a repeat included. */
 export function countByRule(violations) {
-  return Object.fromEntries(RULES.map((rule) => [rule, violations.filter((v) => v.rule === rule).length]));
+  return Object.fromEntries(RULES.map((rule) => [rule, violations.filter((v) => v.rule === rule).reduce((n, v) => n + countOf(v), 0)]));
 }
 
-/** The baseline file's text for a scan. */
+/** The baseline file's text for a scan; `count` is written only where it is above one. */
 export function baselineText(members, violations) {
-  return `${JSON.stringify({ members, violations: violations.map(({ rule, file, target }) => ({ rule, file, target })) }, null, 2)}\n`;
+  const entry = ({ rule, file, target, count }) => (count > 1 ? { rule, file, target, count } : { rule, file, target });
+  return `${JSON.stringify({ members, violations: violations.map(entry) }, null, 2)}\n`;
 }
 
 /* -------------------------------------------------------------------- CLI */
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const silo = await loadSilo(ROOT);
+  const bookTree = await loadBookTree(ROOT, silo);
   const present = listFiles(ROOT, true);
-  const { members, missing, violations, notes, errors } = analyse({ root: ROOT, silo, present });
+  const { members, missing, violations, notes, errors } = analyse({ root: ROOT, silo, present, bookTree });
   const counts = countByRule(violations);
   const summary = RULES.map((r) => `${r} ${counts[r]}`).join(", ");
 
@@ -463,8 +613,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     failures.push(`cannot read tools/importer/silo-baseline.json — ${err.message}; \`--write-baseline\` makes it`);
   }
   const diff = compareBaseline(violations, baseline, members);
-  for (const v of diff.added) failures.push(`new ${v.rule} violation: ${v.file} → ${v.target} (move the code into the silo, or add \`// silo-ok: <reason>\` for a literal)`);
-  for (const v of diff.stale) failures.push(`stale baseline entry, no longer occurs: ${v.rule} ${v.file} → ${v.target} (the baseline only shrinks: \`--write-baseline\`)`);
+  const fix = (rule) => (rule.startsWith("book-") ? "put the book's code in scripts/importer/books/<id>/, or add `// silo-ok: <reason>` for a role" : "move the code into the silo, or add `// silo-ok: <reason>` for a literal");
+  for (const v of diff.added) failures.push(`new ${v.rule} violation: ${v.file} → ${v.target}${v.was || countOf(v) > 1 ? ` (${v.was} held, ${countOf(v)} now)` : ""} (${fix(v.rule)})`);
+  for (const v of diff.stale) failures.push(`stale baseline entry, ${v.now ? `fewer than the ${countOf(v)} held (${v.now} now)` : "no longer occurs"}: ${v.rule} ${v.file} → ${v.target} (the baseline only shrinks: \`--write-baseline\`)`);
   for (const m of diff.membersAdded) failures.push(`silo member not in the baseline: ${m} (\`--write-baseline\`)`);
   for (const m of diff.membersGone) failures.push(`baseline member is no longer a member: ${m} (\`--write-baseline\`)`);
 
@@ -474,5 +625,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     console.error(`\ncheck-silos: ${failures.length} problem(s)`);
     process.exit(1);
   }
-  console.log(`  ok: silo "${silo.id}" (${silo.books.length} book(s), ${members.length} member file(s)) holds to its baseline — ${summary}`);
+  console.log(`  ok: silo "${silo.id}" (${silo.books.length} book(s), ${members.length} member file(s)) and ${bookTree.ids.length} ACKS book id(s) hold to the baseline — ${summary}`);
 }

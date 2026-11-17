@@ -251,7 +251,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-10 — [A copy dragged out of the library never stands in for a family's template](DECISIONS-through-v11.14.5.md#2026-11-10--a-copy-dragged-out-of-the-library-never-stands-in-for-a-familys-template)
 - 2026-11-10 — [A rebuild deletes only what a loaded owner can put back](DECISIONS-through-v11.14.5.md#2026-11-10--a-rebuild-deletes-only-what-a-loaded-owner-can-put-back)
 - 2026-11-10 — [The books statted for OSE are switched off, and their code kept](DECISIONS-through-v11.14.5.md#2026-11-10--the-books-statted-for-ose-are-switched-off-and-their-code-kept) — superseded in part by "2026-11-13 — The books statted for OSE leave `main` for a parked branch"
-- 2026-11-10 — [Book-specific code lives in a silo, and a gate keeps it there](DECISIONS-through-v11.14.5.md#2026-11-10--book-specific-code-lives-in-a-silo-and-a-gate-keeps-it-there) — superseded in part by "2026-11-13 — The books statted for OSE leave `main` for a parked branch"
+- 2026-11-10 — [Book-specific code lives in a silo, and a gate keeps it there](DECISIONS-through-v11.14.5.md#2026-11-10--book-specific-code-lives-in-a-silo-and-a-gate-keeps-it-there) — superseded in part by "2026-11-13 — The books statted for OSE leave `main` for a parked branch"; "2026-11-17 — An ACKS book's importer code lives in its own folder, and the silo gate counts what is left"
 - 2026-11-11 — [A borrowed throw is a recipe, and a typed row names its mode](DECISIONS-through-v11.14.5.md#2026-11-11--a-borrowed-throw-is-a-recipe-and-a-typed-row-names-its-mode)
 - 2026-11-11 — [One repair, in place, and the Judge chooses what it writes over](DECISIONS-through-v11.14.5.md#2026-11-11--one-repair-in-place-and-the-judge-chooses-what-it-writes-over) — superseded in part by "2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select"
 - 2026-11-11 — [The manager draws only the one repair, and Repair everything replaces the Mode select](DECISIONS-through-v11.14.5.md#2026-11-11--the-manager-draws-only-the-one-repair-and-repair-everything-replaces-the-mode-select)
@@ -554,7 +554,7 @@ the printed value this ruling removes.
 ships no template until a Judge sets one. The nine are read from the Revised
 Rulebook; a supplement's culture would need its own block.
 
-## 2026-11-13 — cookbook.mjs is split by kind and layer, not by book
+## 2026-11-13 — cookbook.mjs is split by kind and layer, not by book — SUPERSEDED IN PART 2026-11-17
 
 **Ruled.** `scripts/importer/cookbook.mjs` held 487 top-level declarations in
 one file of 13,600 lines. It is now a facade plus fourteen files under
@@ -2289,3 +2289,81 @@ susceptibility, which would write a wrong multiple on a creature whose next
 sentence is about its bite; a null is the Judge's call, a wrong figure is
 applied silently. *Cost:* a creature that prints its multiple two sentences
 away, or a save modifier with no sign, reads blank until the Judge types it.
+
+## 2026-11-17 — An ACKS book's importer code lives in its own folder, and the silo gate counts what is left
+
+**Ruled by the owner.** "They should be building separate importer files per
+book. Even if there is work mangled together already, new work should be
+building that clean version until I get time for the full cleanup." Landed code
+is not moved; that cleanup is the owner's. So no book's existing recipes leave
+`table-recipes.mjs` with this change, and the seam starts with no book folder.
+
+**New evidence, superseding in part "Book-specific code lives in a silo, and a
+gate keeps it there" (2026-11-10) and "cookbook.mjs is split by kind and layer,
+not by book" (2026-11-13).** Both rested on "no ACKS book owns code". On
+2026-11-16 and 2026-11-17 two sessions put one book's tables into
+`table-recipes.mjs` (the Treasure Tome's treasure and magic-item recipes, the
+By This Axe gnosis group) and a wrap mode each into `table-extract.mjs`, and
+`compile-cookbook.mjs` branches on one book's id for a cell gap. The gate held
+only `ose`, and its baseline, keyed by rule, file and target, cannot see a
+repeated literal. The owner's words above.
+
+**Ruled.**
+
+- **Layout.** A book's print facts (a page, a locate phrase, coordinates, a
+  branch on its id) live under `scripts/importer/books/<id>/`, each folder with
+  an `index.mjs` exporting what it contributes (`tableRecipes` to start:
+  `{docId: {pages?, tables}}`). `books/index.mjs` imports each folder with a
+  static import (the gate forbids a computed `import()`), lists them in
+  `BOOK_CODE`, and is the only file that names the folders. The engine stands:
+  the `table-extract.mjs` modes, the executor, the compiler ops, the bindings
+  and the `cookbook/` kind files. The test for a file: code that holds a book's
+  print facts is book code; code a recipe or assist field selects, and that
+  holds no book's facts, is engine, whichever book prompted it.
+- **The merge.** `table-recipes.mjs` keeps its shared recipes as
+  `SHARED_TABLE_RECIPES` and exports `TABLE_RECIPES`, which
+  `mergeBookTableRecipes` (`books/merge.mjs`) builds: each book's tables join a
+  doc's one at a time, after the shared ones and in `BOOK_CODE` order (because
+  `cookbook/rebuild.mjs` takes a doc's book from the first table that carries
+  one), stamped with `book`. A table id defined twice throws, naming both
+  places; so does a book table that names another book. A book's `pages` joins
+  the doc's `source.pages`. A doc spanning books (`encounters` spans the Judges
+  Journal and the Revised Rulebook) works because the merge is per table.
+  `tools/importer/test-book-recipes.mjs` pins the order and the throws on
+  invented ids.
+- **The gate.** `check-silos.mjs` keeps its parse, its `silo-ok` excuse and a
+  baseline that only shrinks, and adds three rules over the registry ids that
+  name no silo. **book-roles** counts, per file and id, a `book:` property value
+  and a `.book ===`/`!==` test (or a `switch` on `.book`) naming such an id, in
+  `scripts/importer/` outside `books/` and in
+  `tools/importer/compile-cookbook.mjs`. The role is matched, never the bare
+  literal: `"cat"` is also a form field. A baseline entry now carries a
+  `count`, and a count that rises or falls fails. **book-imports** refuses an
+  import from one `books/<a>/` into `books/<b>/` and, under `scripts/`, an
+  import of a book folder from anywhere but the manifest. **book-manifest**
+  requires each `books/<id>/` to be a registry id with an `index.mjs`, and the
+  manifest to import exactly the folders there are.
+- **Today's baseline** is everything landed: the Treasure Tome's recipes in
+  `table-recipes-treasure.mjs` and `table-recipes-magic-items.mjs`, the
+  `gnosis` group and the other books' `book:` rows in `table-recipes.mjs`, and
+  `compile-cookbook.mjs`'s `entry.book === "bta"` cell gap.
+- **For work in flight.** New code holding one book's print facts goes in its
+  folder, never into a shared file. A book that needs a shared op changes the
+  engine file: named by geometry, off unless a recipe selects it, tested on
+  invented runs, after checking that no existing mode already does the job.
+  Work that has not landed moves before it lands.
+
+**Rejected:** a silo per ACKS book (a silo's closure rule keeps its code out of
+the zip, and these books ship); exact-literal matching (`"cat"` is a form
+field, so a bare literal misfires); moving landed code now (the owner's
+cleanup, listed in ROADMAP, "Landed code that waits for the per-book cleanup").
+
+**What the gate cannot see:** an engine mode named for one book's page, which
+carries no book id, so that stays a reviewer's check. It also misses a book id
+written against a bare variable (`book === "x"`) or in a
+`[...].includes(e.book)`; the roles it counts are the forms above.
+
+*Cost:* until the cleanup a doc's tables can sit in two files, and the Tome's
+`over` layering waits for it. The merge order is load-bearing and a test pins
+it. A book's files may not import `table-recipes.mjs` (it imports the
+manifest), so a helper a book needs from there lives in an engine file.

@@ -1,4 +1,100 @@
 {
   "members": [],
-  "violations": []
+  "violations": [
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/armor-tables.mjs",
+      "target": "book: rr"
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/builder-binding.mjs",
+      "target": "book: jj"
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/hitpoint-tables.mjs",
+      "target": "book: jj"
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/hitpoint-tables.mjs",
+      "target": "book: rr"
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/recipes.mjs",
+      "target": "book: mm"
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/recipes.mjs",
+      "target": "book: rr",
+      "count": 7
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes-magic-items.mjs",
+      "target": "book: tt",
+      "count": 3
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes-treasure.mjs",
+      "target": "book: tt",
+      "count": 11
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: ax3",
+      "count": 2
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: axc",
+      "count": 4
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: bta",
+      "count": 6
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: jj",
+      "count": 86
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: mm",
+      "count": 11
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/table-recipes.mjs",
+      "target": "book: rr",
+      "count": 161
+    },
+    {
+      "rule": "book-roles",
+      "file": "scripts/importer/weapon-tables.mjs",
+      "target": "book: rr"
+    },
+    {
+      "rule": "book-roles",
+      "file": "tools/importer/compile-cookbook.mjs",
+      "target": ".book === ax2",
+      "count": 3
+    },
+    {
+      "rule": "book-roles",
+      "file": "tools/importer/compile-cookbook.mjs",
+      "target": ".book === bta"
+    }
+  ]
 }

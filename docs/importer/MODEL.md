@@ -2412,10 +2412,12 @@ listed before it, `state.mjs` imports no sibling, and nothing under
 helpers and the repair's memo, shared by the binders and the repair: one place
 where an entry is read off the book.
 
-**Cross-book seams.** No file is per book, and none is cross-book: the join of
-a place two books print lives in the file where its kind lives
-(`adventure-places.mjs`, `adventure-maps.mjs`), not in a file of its own. The
-rule for that join is "A place two books print", above.
+**Cross-book seams.** No file under `cookbook/` is per book, and none is
+cross-book: the join of a place two books print lives in the file where its kind
+lives (`adventure-places.mjs`, `adventure-maps.mjs`), not in a file of its own.
+The rule for that join is "A place two books print", above. A book's own print
+facts are the exception to "per kind": they go in `scripts/importer/books/<id>/`
+("Silos", below).
 
 A suite that pins what the cookbook's source says reads it through
 `cookbookSource()` (`tools/importer/cookbook-source.mjs`), the facade and every
@@ -2431,18 +2433,34 @@ them. One silo is declared, `ose` (`stats: "ose"`; prefix `ose.`; kinds
 `kind.oseMonster` and `kind.oseLocation`; `OSE_SILO` in
 `tools/importer/check-silos.mjs`); its books and members left `main` for the
 `parked/ose` branch, so it owns none today and the gate keeps those ids and
-kinds out of `scripts/`. The ACKS books are the engine's own library
-and own no silo: a row keyed to one of them is data in a shared recipe. Two
-helpers that only look like silo code are shared: the place an adventure's rooms
+kinds out of `scripts/`. The ACKS books ship and own no silo; each one's print
+facts (a page, a locate phrase, coordinates, a branch on its id) belong in a
+folder of its own, `scripts/importer/books/<id>/`, which only
+`scripts/importer/books/index.mjs` imports. The folder's `index.mjs` exports
+what the book contributes, `tableRecipes` to start (`{docId: {pages?, tables}}`),
+and `table-recipes.mjs` builds `TABLE_RECIPES` from its own shared recipes plus
+each book's, table by table, after the shared ones and in the order
+`BOOK_CODE` lists the books (`mergeBookTableRecipes`, `books/merge.mjs`; a doc's
+book is read from its first table that names one, so the order is load-bearing).
+Every merged table is stamped with its book; a table id defined twice, or a
+book's table naming another book, throws. No book has a folder yet: what landed
+before the seam waits in the shared files for the owner's cleanup
+(ROADMAP, "Landed code that waits for the per-book cleanup"), and new code goes
+in a folder. A file is book code when it holds a book's print facts; code that a
+recipe or assist field selects and that holds none (the `table-extract.mjs`
+modes, the executor, the compiler ops, the bindings, the `cookbook/` kind
+files) is engine, whichever book prompted it, and an engine mode is named for
+its geometry. Two helpers that only look like silo code are shared: the place an adventure's rooms
 nest under (`adventurePlaceId`, `adventurePlaceData`, in `poi-binding.mjs`),
 built for every adventure book, and the generator-id grammar
 `<book>.group.<key>` (`groupId`, `groupBookOf`, in `import-kinds.mjs`), which
 repair and rebuild read. The `ose` flag and `kind.oseAdventure` on that place
 are the stamp worlds already hold, so both names stay.
 
-`tools/importer/check-silos.mjs` holds every file outside a silo to four rules,
-each a pure function over facts parsed from source (Node's bundled acorn, so it
-runs behind `--expose-internals`, re-exec'd from `tools/validate-extra.mjs`):
+`tools/importer/check-silos.mjs` holds every file to seven rules, four for the
+silo and three for the ACKS books' folders, each a pure function over facts
+parsed from source (Node's bundled acorn, so it runs behind
+`--expose-internals`, re-exec'd from `tools/validate-extra.mjs`):
 
 - **imports** (`scripts/` and `tools/`): no static import, `export from` or
   literal `import()` of a member. Under `scripts/` no file, a member included,
@@ -2460,11 +2478,32 @@ runs behind `--expose-internals`, re-exec'd from `tools/validate-extra.mjs`):
 - **agreement**: the manifest imports the silo's entry exactly when
   `module.json` declares its stylesheet. It applies once the manifest exists;
   until then the gate prints it as not yet applicable.
+- **book-roles**: in `scripts/importer/` outside `books/`, and in
+  `tools/importer/compile-cookbook.mjs`, no `book:` property value and no
+  `.book ===`/`!==`/`==`/`!=` test (nor a `switch` on `.book`) names an ACKS
+  book id, which is a registry id that declares no silo. The role is matched,
+  never the bare literal, because a book id can also be a form field
+  (`"cat"`). `silo-ok` excuses a role as it does a literal, and the registry
+  file and silo members are outside the rule. What it misses: a bare variable
+  compared to an id, a `.includes(e.book)`, and an engine mode named for a
+  book's page, which stay a reviewer's check.
+- **book-imports**: no file under `books/<a>/` imports from `books/<b>/`, and
+  under `scripts/` no file but `books/index.mjs` imports a book folder. A tool
+  or a suite may import a book's file directly.
+- **book-manifest**: every `books/<id>/` is a registry id with an `index.mjs`,
+  and `books/index.mjs` imports exactly the folders there are, each one's
+  `index.mjs` and nothing deeper. A tree with no manifest and no folder prints
+  it as not yet applicable.
 
 `tools/importer/silo-baseline.json` is every violation that exists today
-(`{rule, file, target}`, no line numbers) and the member list. The gate fails on
-a violation the baseline lacks and on a baseline entry that no longer occurs, so
-the file only shrinks; `--write-baseline` rewrites it. A baseline entry is
-identified by rule, file and target, so a second use of the same literal in a
-file that already has it is not seen. The suite is
-`tools/importer/test-check-silos.mjs`.
+(`{rule, file, target, count}`, no line numbers, `count` written only above one)
+and the member list. Today it holds `book-roles` entries only: the Treasure
+Tome's recipe files, the `gnosis` group and the other books' rows in
+`table-recipes.mjs`, `recipes.mjs` and three small table files, and
+`compile-cookbook.mjs`'s per-book cell gap. A violation is identified by rule,
+file and target, and its count is how often it occurs, so a second use of a
+target a file already holds is a rise. The gate fails on a violation the
+baseline lacks or holds more of, and on an entry that no longer occurs or occurs
+less, so the file only shrinks; `--write-baseline` rewrites it. The suites are
+`tools/importer/test-check-silos.mjs` and `tools/importer/test-book-recipes.mjs`
+(the merge, on invented ids).

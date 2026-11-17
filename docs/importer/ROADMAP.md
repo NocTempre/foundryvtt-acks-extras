@@ -958,3 +958,36 @@ and 2026-11-14, the entries on the JJ's scenarios). Left:
   ignores one-letter words; `stat` reports unmatched word boxes on a line a
   correction re-tokens; `whole` misses a heading on one page; `propose` merges
   a framed box with its neighbours.
+
+## Landed code that waits for the per-book cleanup
+
+A book's importer code belongs in `scripts/importer/books/<id>/` (DECISIONS
+2026-11-17, "An ACKS book's importer code lives in its own folder, and the silo
+gate counts what is left"). The seam is built and no book has a folder yet; what
+landed before it is mixed into shared files and moves at the owner's cleanup,
+not before. `tools/importer/silo-baseline.json` is the machine list of the
+`book:` rows and `.book` tests (each count is to shrink to nothing); the
+declarations that carry a book's print facts without one are listed here:
+
+- **The Treasure Tome's `over` layering** (`recipe.over`, read by
+  `readPlainTable` and listed by `recipeLocates` in `tables-binding.mjs`): a
+  table's Tome read laid over its Journal one. It is engine in shape and keyed
+  to a book pair by its recipes; a per-book merge has no `over` form, so it
+  moves with the Tome's recipes.
+- **`table-recipes-treasure.mjs` and `table-recipes-magic-items.mjs`:** the
+  Journal's and the Tome's treasure and magic-item recipes, their `tt` and `jj`
+  rows interleaved. Each table moves to the `books/<id>/` of the book that
+  prints it; the geometry builders `bandGrid` and `segment` stay engine.
+- **`table-extract.mjs`'s `centered`, `floorKey`, `smallCaps` and `boxed`
+  modes.** A recipe selects each and none names a book, so all four are engine.
+  `centered` and `boxed` both place the wrapped lines of a grid whose labels
+  sit centred on rows of uneven height (`centreWrapLines` splits so the mean of
+  a row's lines is nearest its label; `boxWrapLines` reflects the box about the
+  label). That one folds into the other is an inference from their docstrings,
+  untested: try `centered` on the two recipes that select `boxed` (the BTA
+  mishap table and one RR table) and drop `boxed` if the cells match.
+- **The BTA `gnosis` group and `GNOSIS_GRID_COLUMNS`** in `table-recipes.mjs`
+  move to `books/bta/table-recipes.mjs`, by the session that holds that
+  topic's work, before it lands.
+- **`compile-cookbook.mjs`'s `entry.book === "bta"` cell gap** is a per-book
+  figure; it moves to a field on the book's typography.

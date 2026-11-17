@@ -20,6 +20,8 @@ import { MERCHANDISE_KEYS } from "../markets/merchandise-keys.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { TREASURE_RECIPES } from "./table-recipes-treasure.mjs";
 import { MAGIC_ITEM_RECIPES } from "./table-recipes-magic-items.mjs";
+import { BOOK_CODE } from "./books/index.mjs";
+import { mergeBookTableRecipes } from "./books/merge.mjs";
 
 // Henchman/mercenary availability rows share the RR market-class grid: a label
 // column, six market-class cells (dice strings kept raw), and — for henchmen —
@@ -484,11 +486,11 @@ const GNOSIS_GRID_COLUMNS = [143, 188, 232, 277, 321, 366, 410, 455, 499, 543].m
 }));
 
 /**
- * The table recipes by ruledata document id: each document's `source` and its
- * `tables`, one recipe per raw table. Raw reads only; the bindings assemble the
- * engine-shaped documents from them.
+ * The recipes not owned by one book, by ruledata document id: each document's
+ * `source` and its `tables`, one recipe per raw table. A book's own recipes live
+ * in `books/<id>/` and join these in `TABLE_RECIPES`.
  */
-export const TABLE_RECIPES = {
+const SHARED_TABLE_RECIPES = {
   // The wilderness encounter chain: the JJ's territory, rarity, civilized and
   // monster grids and the terrain-encounter sidebars, and the RR's distance and
   // evasion grids with their prose figures; `encounters-binding.mjs` assembles
@@ -5580,3 +5582,11 @@ export const TABLE_RECIPES = {
     },
   },
 };
+
+/**
+ * The table recipes by ruledata document id: the shared ones, then each book's
+ * own table by table in the manifest's order (`books/index.mjs`), every merged
+ * table stamped with its book. Raw reads only; the bindings assemble the
+ * engine-shaped documents from them.
+ */
+export const TABLE_RECIPES = mergeBookTableRecipes(SHARED_TABLE_RECIPES, BOOK_CODE);

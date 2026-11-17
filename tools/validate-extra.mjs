@@ -236,10 +236,12 @@ apart.push([path.join(ROOT, "tools", "validate-producers.mjs")]);
    prints a note and passes. */
 apart.push(["--expose-internals", path.join(ROOT, "tools", "validate-macro-names.mjs")]);
 
-/* --- 10. Book-specific code stays in its silo -----------------------------
-   A silo owns book ids and the files written for them. `check-silos.mjs` holds
-   every other file to four rules (imports, literals, closure, agreement)
-   against `tools/importer/silo-baseline.json`, which only shrinks. It parses
+/* --- 10. Book-specific code stays in its silo or its folder ---------------
+   A silo owns book ids and the files written for them; an ACKS book's print
+   facts live in `scripts/importer/books/<id>/`. `check-silos.mjs` holds every
+   other file to seven rules (imports, literals, closure, agreement, book-roles,
+   book-imports, book-manifest) against `tools/importer/silo-baseline.json`,
+   which only shrinks. It parses
    with the same bundled acorn as §7, so it re-execs behind `--expose-internals`. */
 apart.push(["--expose-internals", path.join(ROOT, "tools", "importer", "check-silos.mjs")]);
 
