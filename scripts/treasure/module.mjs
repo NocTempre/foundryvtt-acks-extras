@@ -11,6 +11,7 @@ import { MODULE_ID, LANG, POT_HANDLER } from "./constants.mjs";
 import { installDoorway } from "./doorway.mjs";
 import PotSheet from "./pot-sheet.mjs";
 import { createPotRelay, findPot, newPot } from "./pot.mjs";
+import "./search.mjs";
 
 registerHandler(POT_HANDLER, createPotRelay().handle);
 

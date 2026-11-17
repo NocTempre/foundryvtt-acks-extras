@@ -1,0 +1,31 @@
+<article class="acks-extras-treasure-door acks-extras-treasure-search">
+  <header class="acks-porphyry acks-extras-treasure-door__head">
+    <span class="acks-extras-treasure-door__title">{{localize "ACKS-TREASURE.search.title"}}</span>
+  </header>
+  <div class="acks-extras-treasure-door__body">
+    <ul class="acks-extras-treasure-search__list">
+      {{#each rows}}
+      <li class="acks-extras-treasure-door__row">
+        <span class="acks-extras-treasure-search__name">{{name}}</span>
+        <span class="acks-extras-treasure-search__facts">
+          <span class="acks-extras-treasure-search__items" data-tooltip="ACKS-TREASURE.search.itemsTip" aria-label="{{localize 'ACKS-TREASURE.search.itemsTip'}}">{{localize "ACKS-TREASURE.search.items" n=items}}</span>
+          {{#if letter}}
+          <span class="acks-extras-treasure-search__letter" data-tooltip="ACKS-TREASURE.search.letterTip" aria-label="{{localize 'ACKS-TREASURE.search.letterTip'}}">{{localize "ACKS-TREASURE.search.letter" letter=letter}}</span>
+          {{/if}}
+          {{#if hasTable}}
+          <span class="acks-extras-treasure-search__table" data-tooltip="ACKS-TREASURE.search.tableTip" aria-label="{{localize 'ACKS-TREASURE.search.tableTip'}}">{{localize "ACKS-TREASURE.search.table"}}</span>
+          {{/if}}
+        </span>
+      </li>
+      {{/each}}
+    </ul>
+    {{#if hasLetters}}
+    <p class="acks-extras-treasure-search__note">{{localize "ACKS-TREASURE.search.letterNote"}}</p>
+    {{/if}}
+    <div class="acks-extras-treasure-search__textwrap" data-field="textWrap" hidden>
+      <p>{{localize "ACKS-TREASURE.search.textTitle"}}</p>
+      <ul class="acks-extras-treasure-search__text" data-field="text"></ul>
+    </div>
+    <button type="button" class="acks-btn acks-btn--block" data-action="stagePot">{{localize "ACKS-TREASURE.search.stage"}}</button>
+  </div>
+</article>
