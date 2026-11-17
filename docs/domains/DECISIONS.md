@@ -18,5 +18,5 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-22 — [The pickers offer the system's people and the realm's domains (2026-10-22)](DECISIONS-through-v11.14.5.md#the-pickers-offer-the-systems-people-and-the-realms-domains-2026-10-22)
 - 2026-10-22 — [A place and an organisation refuse a dropped domain, through the api (2026-10-22)](DECISIONS-through-v11.14.5.md#a-place-and-an-organisation-refuse-a-dropped-domain-through-the-api-2026-10-22)
 - 2026-10-22 — [The treasury row stands empty until the month writes it (2026-10-22)](DECISIONS-through-v11.14.5.md#the-treasury-row-stands-empty-until-the-month-writes-it-2026-10-22)
-- 2026-10-25 — [Territory on the map: a hex is painted into a domain (2026-10-25)](DECISIONS-through-v11.14.5.md#territory-on-the-map-a-hex-is-painted-into-a-domain-2026-10-25)
+- 2026-10-25 — [Territory on the map: a hex is painted into a domain (2026-10-25)](DECISIONS-through-v11.14.5.md#territory-on-the-map-a-hex-is-painted-into-a-domain-2026-10-25) — qualified by "2026-11-16 — Paint is a core grid shape per value" (docs/battlemap/DECISIONS.md): the layer is the same, but the painted cells are the region's core grid shape and no `domainHexes` flag
 - 2026-10-25 — [Territory rows from the map (2026-10-25)](DECISIONS-through-v11.14.5.md#territory-rows-from-the-map-2026-10-25)

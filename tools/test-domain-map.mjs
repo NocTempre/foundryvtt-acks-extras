@@ -19,6 +19,7 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { cellGrid, paintRegion, paintScene } from "./region-fixture.mjs";
 
 /* ------------------------- the world --------------------------------------- */
 const hasProperty = (obj, path) => path.split(".").reduce((o, k) => (o !== null && typeof o === "object" && k in o ? o[k] : undefined), obj) !== undefined;
@@ -56,46 +57,15 @@ const d5 = domain("d5", "Domain 5");
 const place = { documentName: "Actor", type: "acks-extras.location", id: "p1", uuid: "Actor.p1", name: "Place 1", system: {} };
 const actors = [d3, d1, d4, d2, d5, place];
 
-let rid = 0;
 const flags = {};
-const scene = {
+const scene = paintScene({
   id: "s1",
   uuid: "Scene.s1",
   name: "Scene 1",
-  grid: {
-    type: 2,
-    size: 100,
-    getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
-    getVertices: ({ i, j }) => [
-      { x: j * 100, y: i * 100 }, { x: j * 100 + 100, y: i * 100 },
-      { x: j * 100 + 100, y: i * 100 + 100 }, { x: j * 100, y: i * 100 + 100 },
-    ],
-  },
-  regions: [],
+  grid: { ...cellGrid(), type: 2 },
   walls: [],
   getFlag: (ns, key) => flags[ns]?.[key],
-  async createEmbeddedDocuments(_name, data) {
-    const made = data.map((d) => ({
-      id: `r${++rid}`,
-      name: d.name,
-      color: d.color,
-      visibility: d.visibility,
-      shapes: [...d.shapes],
-      flags: structuredClone(d.flags),
-      getFlag(ns, key) { return this.flags[ns]?.[key]; },
-      toObject() { return { shapes: [...this.shapes] }; },
-      async update(patch) {
-        for (const [path, value] of Object.entries(patch)) {
-          if (path === "shapes") this.shapes = value;
-          else this.flags[path.split(".")[1]][path.split(".")[2]] = value;
-        }
-      },
-      async delete() { scene.regions.splice(scene.regions.indexOf(this), 1); },
-    }));
-    scene.regions.push(...made);
-    return made;
-  },
-};
+});
 const square = { ...scene, id: "s2", uuid: "Scene.s2", grid: { ...scene.grid, type: 1 }, regions: [] };
 globalThis.game = {
   actors,
@@ -124,7 +94,7 @@ const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
 
 /* ------------------------- the layer --------------------------------------- */
 assert.equal(DOMAIN_LAYER, "domain");
-assert.deepEqual({ ...PAINT_LAYERS.domain }, { flag: "domain", hexesFlag: "domainHexes" }, "the layer's two region flags");
+assert.deepEqual({ ...PAINT_LAYERS.domain }, { flag: "domain" }, "the layer's one region flag: its cells are the region's own grid shape");
 assert.deepEqual(paintableValues("domain"), ["Actor.d1", "Actor.d2", "Actor.d3", "Actor.d4", "Actor.d5"],
   "every domain of the world in realm order, and no other actor");
 assert.deepEqual([layerLabelFor("Actor.d2", "domain"), layerLabelFor("Actor.gone", "domain")], ["Domain 2", "ACKS-DOMAINS.map.unknownDomain"],
@@ -151,7 +121,8 @@ assert.equal(await paintHexAt(scene, centre(1, 1), "Actor.d1", "domain"), true);
 assert.equal(await paintHexAt(scene, centre(1, 2), "Actor.gone", "domain"), false, "a uuid no domain answers to is no value to paint");
 const [painted] = scene.regions;
 assert.deepEqual([painted.visibility, painted.name, painted.color, painted.flags[MODULE_ID]],
-  [CONST.REGION_VISIBILITY.LAYER, "Domain 1", d1Color, { domain: "Actor.d1", domainHexes: ["1:1"] }]);
+  [CONST.REGION_VISIBILITY.LAYER, "Domain 1", d1Color, { domain: "Actor.d1" }]);
+assert.deepEqual(painted.toObject().shapes, [{ type: "grid", hole: false, offsets: [{ i: 1, j: 1 }] }], "its hex is a cell of one core grid shape");
 await paintHexAt(scene, centre(1, 2), "Actor.d1", "domain");
 await paintHexAt(scene, centre(1, 3), "Actor.d2", "domain");
 await paintHexAt(scene, centre(1, 4), "Actor.d4", "domain");
@@ -223,6 +194,18 @@ assert.deepEqual(hexCountFor(d1), { total: 3, unknown: 0 });
 assert.deepEqual(paintedHexesOf(d3), [], "a domain with nothing painted reads only its record");
 assert.deepEqual(paintedHexesOf(null), []);
 
+// A cell added or removed with core's grid tool is the region's own offsets, so the rows follow it at once.
+const d1Region = scene.regions.find((r) => r.getFlag(MODULE_ID, "domain") === "Actor.d1");
+d1Region.shapes[0].offsets.push({ i: 2, j: 2 });
+assert.deepEqual(paintedHexesOf(d1).map((h) => h.key), ["1:1", "1:2", "2:2"], "a cell added by hand is a painted hex");
+d1Region.shapes[0].offsets = d1Region.shapes[0].offsets.filter((o) => o.i !== 1 || o.j !== 2);
+assert.deepEqual(paintedHexesOf(d1).map((h) => h.key), ["1:1", "2:2"], "and a cell removed by hand is not");
+// Two regions claiming one hex: the first claim is the hex's domain, and the second domain reads none there.
+scene.regions.push(paintRegion({ grid: scene.grid, flag: "domain", value: "Actor.d2", cells: ["2:2"], id: "rival" }));
+assert.deepEqual(paintedHexesOf(d2).map((h) => h.key), ["1:3"], "a hex a region before claimed is not this domain's");
+assert.equal(layerPlan(scene, "domain").filter((h) => h.key === "2:2").length, 1, "and the mode draws it once");
+d1Region.shapes[0].offsets = [{ i: 1, j: 1 }, { i: 1, j: 2 }];
+scene.regions.pop();
 /* ------------------------- telling the map --------------------------------- */
 installDomainMap();
 const fire = (name, ...args) => (hooks.get(name) ?? []).forEach((fn) => fn(...args));

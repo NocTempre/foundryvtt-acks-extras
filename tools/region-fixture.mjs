@@ -203,3 +203,164 @@ export function mockRegion({ rings = [], holes = [], shapes = [], behaviors = []
     },
   };
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Painted Regions: grid shapes, as the country brush and core's grid tool    */
+/*  leave them                                                                 */
+/* -------------------------------------------------------------------------- */
+
+/** An offset as `{i, j}` from `"i:j"` or an object. */
+const offsetOf = (cell) => {
+  if (typeof cell !== "string") return { i: cell.i, j: cell.j };
+  const [i, j] = cell.split(":").map(Number);
+  return { i, j };
+};
+
+/**
+ * A grid of `size`-pixel cells, offset `(i, j)` = (row, column), the part of
+ * core's grid the paint code asks: the cell containing a point, a cell's
+ * centre and its corners. The cells are square whatever `type` says; the
+ * suites that care about hex geometry bring a lattice of their own.
+ *
+ * @param {{size?: number, type?: number}} [options] `type` is the scene's
+ *   `grid.type` (2, a pointy hex, by default)
+ */
+export function cellGrid({ size = 100, type = 2 } = {}) {
+  return {
+    type,
+    size,
+    getOffset: (p) => ({ i: Math.floor(p.y / size), j: Math.floor(p.x / size) }),
+    getCenterPoint: ({ i, j }) => ({ x: (j + 0.5) * size, y: (i + 0.5) * size }),
+    getVertices: ({ i, j }) => [[j, i], [j + 1, i], [j + 1, i + 1], [j, i + 1]].map(([x, y]) => ({ x: x * size, y: y * size })),
+  };
+}
+
+/**
+ * A `grid` shape as core's `GridShapeData` holds it: `offsets`, a `hole` mark,
+ * and a `testPoint` that looks the point's cell up in the offsets as they stand
+ * now (a suite may reshape the offsets in place) on the grid it was handed.
+ *
+ * @param {Array<string|{i: number, j: number}>} cells offsets, as `"i:j"` keys or objects
+ * @param {{grid: object, hole?: boolean}} options
+ */
+export function gridShape(cells, { grid, hole = false }) {
+  return {
+    type: "grid",
+    hole,
+    offsets: cells.map(offsetOf),
+    grid,
+    testPoint(point) {
+      const { i, j } = this.grid.getOffset(point);
+      return this.offsets.some((o) => o.i === i && o.j === j);
+    },
+  };
+}
+
+/** A shape as plain data, the way `toObject` hands it back: no grid, no test. */
+const plainShape = ({ grid: _grid, testPoint: _test, ...data }) => structuredClone(data);
+
+/** A shape's data as a shape: a `grid` one gets its `testPoint`, any other is kept as given. */
+const hydrate = (data, grid) => (data.type === "grid" ? gridShape(data.offsets ?? [], { grid, hole: !!data.hole }) : { ...data });
+
+/**
+ * A painted Region as a document: flags, `shapes` (each a live `gridShape`),
+ * `toObject`, `update` and `delete`, the parts of `RegionDocument` the paint
+ * code reads and writes. Its `behaviors` are empty, as a paint region's are.
+ *
+ * @param {object} spec
+ * @param {object} spec.grid the grid its shapes test points on
+ * @param {string} [spec.flag] the layer's value flag
+ * @param {*} [spec.value] the value painted
+ * @param {Array<string|{i: number, j: number}>} [spec.cells] the cells of its one grid shape; none gives no grid shape
+ * @param {object[]} [spec.shapes] shapes as data, in place of `cells` (several grid shapes, a hole, a polygon)
+ * @param {object} [spec.flags] further module flags
+ * @param {object} [spec.extra] any other field the suite reads (`id`, `name`, `visibility`)
+ */
+export function paintRegion({ grid, flag, value, cells, shapes, flags = {}, id = null, ...extra }) {
+  const held = { ...flags, ...(flag ? { [flag]: value } : {}) };
+  const data = shapes ?? (cells ? [{ type: "grid", hole: false, offsets: cells.map(offsetOf) }] : []);
+  const region = {
+    id,
+    behaviors: [],
+    locked: false,
+    flags: { "acks-extras": held },
+    ...extra,
+    shapes: data.map((s) => hydrate(s, grid)),
+    getFlag(ns, key) { return this.flags[ns]?.[key]; },
+    toObject() {
+      return {
+        _id: this.id, name: this.name, color: this.color, visibility: this.visibility, locked: this.locked,
+        shapes: this.shapes.map(plainShape), flags: structuredClone(this.flags),
+      };
+    },
+    /** The cells of its first grid shape, set in place the way a hand edit would. */
+    setCells(next) { this.shapes.find((s) => s.type === "grid").offsets = next.map(offsetOf); },
+    /** The painted value, set in place. */
+    setValue(next) { this.flags["acks-extras"][flag] = next; },
+    applyPatch(patch) {
+      for (const [path, value] of Object.entries(patch)) {
+        if (path === "shapes") this.shapes = value.map((s) => hydrate(s, grid));
+        else if (path.startsWith("flags.")) {
+          const [, ns, key] = path.split(".");
+          (this.flags[ns] ??= {})[key] = value;
+        } else this[path] = value;
+      }
+    },
+  };
+  return region;
+}
+
+/**
+ * A scene that holds its regions in memory and is written the way core writes
+ * documents: a create, an update and a delete each answer after a tick, so
+ * writes started together interleave as they do against a server, and a write
+ * built from a stale read overwrites a newer one. `calls` records every
+ * embedded-document call as `{op, count}`, in order, and `created` the data each
+ * create was handed.
+ *
+ * @param {object} [spec]
+ * @param {object} [spec.grid] default `cellGrid()`
+ * @param {object[]} [spec.regions] `paintRegion`s already on the scene
+ * @param {object} [spec.extra] any other field the suite reads (`id`, `uuid`, `dimensions`, `walls`)
+ */
+export function paintScene({ grid = cellGrid(), regions = [], ...extra } = {}) {
+  let serial = 0;
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+  const scene = {
+    id: "scene",
+    grid,
+    regions: [],
+    calls: [],
+    created: [],
+    ...extra,
+    async createEmbeddedDocuments(name, data) {
+      if (name !== "Region") throw new Error(`paintScene holds no ${name}`);
+      scene.calls.push({ op: "create", count: data.length });
+      scene.created.push(...data);
+      await tick();
+      const made = data.map((d) => {
+        const { shapes = [], flags = {}, ...rest } = d;
+        return paintRegion({ id: `r${++serial}`, grid: scene.grid, shapes, flags: flags["acks-extras"], ...rest });
+      });
+      scene.regions.push(...made);
+      return made;
+    },
+    async updateEmbeddedDocuments(name, updates) {
+      if (name !== "Region") throw new Error(`paintScene holds no ${name}`);
+      scene.calls.push({ op: "update", count: updates.length });
+      await tick();
+      for (const { _id, ...patch } of updates) scene.regions.find((r) => r.id === _id)?.applyPatch(patch);
+    },
+    async deleteEmbeddedDocuments(name, ids) {
+      if (name !== "Region") throw new Error(`paintScene holds no ${name}`);
+      scene.calls.push({ op: "delete", count: ids.length });
+      await tick();
+      scene.regions = scene.regions.filter((r) => !ids.includes(r.id));
+    },
+  };
+  for (const region of regions) {
+    region.id ??= `r${++serial}`;
+    scene.regions.push(region);
+  }
+  return scene;
+}

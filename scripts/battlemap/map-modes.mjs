@@ -18,8 +18,8 @@
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import {
-  PAINT_LAYERS, PAINT_LAYER_CHANGED_HOOK, climateLabelFor, derivedHexes, hexKeyOf, isHexScene, layerColorFor,
-  layerLabelFor, layerRegionsOf, paintableValues, terrainPaint,
+  PAINT_LAYERS, PAINT_LAYER_CHANGED_HOOK, climateLabelFor, derivedHexes, hexKeyOf, isHexScene, layerCellsOf, layerColorFor,
+  layerLabelFor, paintableValues, terrainPaint,
 } from "./terrain-paint.mjs";
 import { sceneCountry } from "./scene-setup.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
@@ -149,15 +149,14 @@ export function registerMapViewSetting() {
 /*  The plan and its borders (pure over the scene document)             */
 /* -------------------------------------------------------------------- */
 
-/** A paint layer's painted hexes as a plan: `[{key, value, color}]`, one per hex, coloured as the layer colours the value. */
+/**
+ * A paint layer's painted hexes as a plan: `[{key, value, color}]`, one per hex
+ * (the first region of the layer to claim it, as the read answers), coloured
+ * as the layer colours the value.
+ */
 export function layerPlan(scene, layer) {
-  const spec = PAINT_LAYERS[layer];
-  if (!spec) return [];
-  return layerRegionsOf(scene, layer).flatMap((region) => {
-    const value = region.getFlag(MODULE_ID, spec.flag);
-    const color = layerColorFor(value, layer);
-    return (region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).map((key) => ({ key, value, color }));
-  });
+  if (!PAINT_LAYERS[layer]) return [];
+  return layerCellsOf(scene, layer).map(({ key, value }) => ({ key, value, color: layerColorFor(value, layer) }));
 }
 
 const centreOf = (corners) => ({

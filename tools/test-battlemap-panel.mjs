@@ -13,6 +13,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import Handlebars from "handlebars";
+import { paintRegion } from "./region-fixture.mjs";
 
 const MODULE_ID = "acks-extras";
 const FLAG = "battlemap";
@@ -100,7 +101,7 @@ function makeScene({ id = "S1", name = `Scene ${id}`, type = 0, size = 100, dist
     writeOptions: [],
     afterWrite: null,
     get dimensions() {
-      return { sceneWidth: scene.width, sceneHeight: scene.height, sceneX: 0, sceneY: 0, width: scene.width, height: scene.height };
+      return { sceneWidth: scene.width, sceneHeight: scene.height, sceneX: -scene.shiftX, sceneY: -scene.shiftY, width: scene.width, height: scene.height };
     },
     getFlag: (m, k) => scene.flags?.[m]?.[k],
     clone(data) {
@@ -377,64 +378,92 @@ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a}
 }
 
 {
-  // The painted cells are re-keyed to the grid as written, once, after a write
-  // that asked core to move the map; a write that did not, or a non-GM's, touches no region.
+  // Every grid-shape cell on the scene is re-keyed to the grid as written, once, after a write that asked core
+  // to move the map: each cell keeps its place as a fraction of the scene rectangle and becomes the cell of the
+  // new grid beneath it. A write that did not ask, a gridless scene and a non-GM touch no region.
   Object.assign(CONST.GRID_TYPES, { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 });
   try {
-    // An invented lattice: square cells of the scene's own grid size, so a size change re-cuts every cell.
-    const square = (n, s) => ({ type: "polygon", hole: false, points: [n * s, n * s, (n + 1) * s, n * s, (n + 1) * s, (n + 1) * s, n * s, (n + 1) * s] });
-    const painted = (type, size) => {
-      const scene = makeScene({ type, size });
-      scene.grid.getOffset = (p) => ({ i: Math.floor(p.y / scene.grid.size), j: Math.floor(p.x / scene.grid.size) });
-      scene.grid.getCenterPoint = ({ i, j }) => ({ x: (j + 0.5) * scene.grid.size, y: (i + 0.5) * scene.grid.size });
-      scene.grid.getVertices = ({ i, j }) => {
-        const s = scene.grid.size;
-        return [[j, i], [j + 1, i], [j + 1, i + 1], [j, i + 1]].map(([x, y]) => ({ x: x * s, y: y * s }));
+    const polygon = { type: "polygon", hole: false, points: [0, 0, 9, 0, 0, 9] };
+    const scene = (type, size, { paint = ["3:3"], zone = ["5:5"], gridless = false } = {}) => {
+      const s = makeScene({ type, size });
+      // An invented lattice: square cells of the scene's own grid size, so a size change re-cuts every cell.
+      Object.assign(s.grid, {
+        isGridless: gridless,
+        getOffset: (p) => ({ i: Math.floor(p.y / s.grid.size), j: Math.floor(p.x / s.grid.size) }),
+        getCenterPoint: ({ i, j }) => ({ x: (j + 0.5) * s.grid.size, y: (i + 0.5) * s.grid.size }),
+      });
+      // A paint region, and a zone an import drew: a grid shape beside a polygon of its own.
+      const painted = paintRegion({ id: "R1", grid: s.grid, flag: "terrain", value: "grassland", cells: paint });
+      const zoned = paintRegion({ id: "Z1", grid: s.grid, shapes: [polygon, { type: "grid", hole: false, offsets: zone.map((k) => ({ i: +k.split(":")[0], j: +k.split(":")[1] })) }] });
+      s.regions = Object.defineProperty([painted, zoned], "size", { get() { return this.length; } });
+      s.regionCalls = [];
+      s.updateEmbeddedDocuments = async (kind, updates) => {
+        s.regionCalls.push([kind, updates]);
+        for (const { _id, ...patch } of updates) s.regions.find((r) => r.id === _id).applyPatch(patch);
       };
-      const region = {
-        id: "R1",
-        flags: { terrain: "grassland", terrainHexes: ["3:3"] },
-        shapes: [square(3, 100)],
-        getFlag: (m, k) => (m === MODULE_ID ? region.flags[k] : undefined),
-        toObject: () => ({ shapes: region.shapes }),
+      s.deleteEmbeddedDocuments = async (kind, ids) => {
+        s.regionCalls.push([`delete ${kind}`, ids]);
+        for (const id of ids) s.regions.splice(s.regions.findIndex((r) => r.id === id), 1);
       };
-      scene.regions = Object.defineProperty([region], "size", { get() { return this.length; } });
-      scene.regionCalls = [];
-      scene.updateEmbeddedDocuments = async (kind, updates) => {
-        scene.regionCalls.push([kind, updates]);
-        for (const u of updates) {
-          region.shapes = u.shapes;
-          region.flags.terrainHexes = u[`flags.${MODULE_ID}.terrainHexes`];
-        }
-      };
-      scene.deleteEmbeddedDocuments = async (kind, ids) => scene.regionCalls.push([`delete ${kind}`, ids]);
-      return { scene, region };
+      const cells = (id) => s.regions.find((r) => r.id === id).shapes.filter((x) => x.type === "grid").flatMap((x) => x.offsets.map((o) => `${o.i}:${o.j}`));
+      return { scene: s, painted, zoned, cells };
     };
+    const answer = (extra = {}, gridSize = 100, gridType = 2) => ({
+      solution: { gridType, gridSize, distance: 5, units: "ft" },
+      update: { "grid.size": gridSize, "grid.type": gridType, "grid.distance": 5, ...extra },
+    });
+    const apply = (w, update = answer(), family = "hexRows") => writeSetup(w.scene, update, { family, autoScale: false });
 
-    const resize = painted(2, 100);
-    const answer = { solution: { gridType: 2, gridSize: 120, distance: 5, units: "ft" }, update: { "grid.size": 120, "grid.type": 2, "grid.distance": 5 } };
-    await writeSetup(resize.scene, answer, { family: "hexRows", autoScale: false });
+    const resize = scene(2, 100);
+    await apply(resize, answer({}, 120));
     assert.equal(resize.scene.regionCalls.length, 1, "every changed region is written in one call");
     assert.equal(resize.scene.regionCalls[0][0], "Region");
-    assert.deepEqual(resize.region.flags.terrainHexes, ["2:2"], "the cell is the one its centroid now lies in on the grid as written");
-    assert.deepEqual(resize.region.shapes, [square(2, 120)], "and the shape is that cell's own");
+    assert.deepEqual(resize.scene.regionCalls[0][1].map((u) => u._id), ["R1", "Z1"], "the paint region and the zone alike");
+    assert.deepEqual(resize.cells("R1"), ["2:2"], "the cell is the one its place now lies in on the grid as written");
+    assert.deepEqual(resize.cells("Z1"), ["4:4"], "a zone's cell is moved the same way");
+    assert.deepEqual(resize.zoned.toObject().shapes[0], polygon, "and the polygon beside it is left as core had it");
     assert.equal(notes.at(-1)[0], "info");
 
-    const kept = painted(2, 100);
-    await writeSetup(kept.scene, { solution: { gridType: 2, gridSize: 100, distance: 5, units: "ft" }, update: { "grid.size": 100, "grid.type": 2, "grid.distance": 5 } }, { family: "hexRows", autoScale: false });
+    // A write that changes the scene's rectangle moves the cell with the map, not with the pixel: half the width
+    // puts the column's place at half the x, and a shift moves the scene's origin under it.
+    const squeezed = scene(2, 100);
+    await apply(squeezed, answer({ width: 2000 }));
+    assert.deepEqual(squeezed.cells("R1"), ["3:1"], "a cell at 350 px of 4000 lies at 175 px of 2000, in column 1");
+    const shifted = scene(2, 100);
+    await apply(shifted, answer({ shiftX: 100 }));
+    assert.deepEqual(shifted.cells("R1"), ["3:2"], "the origin 100 px left carries the cell's place to 250 px: column 2");
+
+    // Two cells of the layer landing on one: the one nearer the new cell's centre stays, and the region keeps it.
+    const merged = scene(2, 100, { paint: ["3:3", "3:4"] });
+    await apply(merged, answer({ width: 800 }));
+    assert.deepEqual(merged.cells("R1"), ["3:0"], "350 px and 450 px of 4000 are 70 px and 90 px of 800: one cell, the nearer cell's");
+
+    // The same collision across two regions of one layer: one value per hex, so the nearer cell's region keeps it and the other is emptied and deleted.
+    const rivals = scene(2, 100, { paint: ["3:3"] });
+    rivals.scene.regions.splice(1, 0, paintRegion({ id: "R2", grid: rivals.scene.grid, flag: "terrain", value: "hills", cells: ["3:4"] }));
+    await apply(rivals, answer({ width: 800 }));
+    assert.deepEqual([rivals.cells("R1"), rivals.scene.regions.some((r) => r.id === "R2")], [["3:0"], false], "two regions of a layer landing on one cell: the nearer keeps it, the other region is deleted");
+    assert.ok(rivals.scene.regionCalls.some(([kind]) => kind === "delete Region"));
+
+    const kept = scene(2, 100);
+    await apply(kept, answer());
     assert.equal(kept.scene.regionCalls.length, 0, "a write that changes nothing under the cells rewrites no region");
 
-    const scaleOnly = painted(2, 100);
-    await writeSetup(scaleOnly.scene, { solution: { gridSize: 100, distance: 8, units: "ft" }, update: { "grid.size": 100, "grid.distance": 8 } }, { family: "scale", autoScale: false });
+    const scaleOnly = scene(2, 100);
+    await apply(scaleOnly, { solution: { gridSize: 100, distance: 8, units: "ft" }, update: { "grid.size": 100, "grid.distance": 8 } }, "scale");
     assert.equal(scaleOnly.scene.regionCalls.length, 0, "a scale-only write that leaves the grid size alone rewrites no region");
 
-    const squareScene = painted(1, 100);
-    await writeSetup(squareScene.scene, { solution: { gridType: 1, gridSize: 120, distance: 5, units: "ft" }, update: { "grid.size": 120, "grid.distance": 5 } }, { family: "square", autoScale: false });
-    assert.equal(squareScene.scene.regionCalls.length, 0, "a square grid holds no painted cells to re-key");
+    const square = scene(1, 100);
+    await apply(square, answer({}, 120, 1), "square");
+    assert.deepEqual([square.cells("R1"), square.cells("Z1")], [["2:2"], ["4:4"]], "a square map's zone cells are re-keyed too: they are grid shapes all the same");
+
+    const gridless = scene(0, 100, { gridless: true });
+    await apply(gridless, answer({}, 120, 0), "square");
+    assert.equal(gridless.scene.regionCalls.length, 0, "a gridless scene has no cell to re-key");
 
     game.user.isGM = false;
-    const player = painted(2, 100);
-    await writeSetup(player.scene, answer, { family: "hexRows", autoScale: false });
+    const player = scene(2, 100);
+    await apply(player, answer({}, 120));
     assert.equal(player.scene.regionCalls.length, 0, "only a GM re-keys");
   } finally {
     game.user.isGM = true;

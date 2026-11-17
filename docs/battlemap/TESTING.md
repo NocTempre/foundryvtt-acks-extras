@@ -51,7 +51,10 @@ part is blocked without it.
   scene data with nothing embedded, then one wall across the middle, one token
   of `battlemap/plain-character` on a hex centre, and one terrain hex painted
   with the Country brush. A step asserts its grid at its start; it is left at
-  whatever grid the last walk applied.
+  whatever grid the last walk applied. A copy painted before paint became a
+  core grid shape holds a polygon Region no read finds: delete that Region
+  (the marker lookup returns the scene, and its Region is its own) and paint
+  the hex again.
 
 ## Drive mechanics (non-obvious)
 
@@ -331,17 +334,23 @@ part is blocked without it.
     (assert its grid first; it holds a wall, a token of
     `battlemap/plain-character` and one painted hex), read each one's place as
     a fraction of the scene's rectangle (`canvas.dimensions.sceneX/Y/Width/
-    Height`), the painted region's `flags.acks-extras.terrainHexes` and the
-    hex under its centroid (`canvas.grid.getOffset`). Draw boxes and apply the
-    hex grid at a different hex size.
-    *Observable:* the wall's ends and the region's polygon keep their fraction
-    (within a pixel), so does the token's top-left corner, and its centre
+    Height`), the painted region's grid-shape offsets and each offset's centre
+    (`canvas.grid.getCenterPoint`) as a fraction of that rectangle. Draw boxes
+    and apply the hex grid at a different hex size.
+    *Observable:* the wall's ends keep their fraction (within a pixel), and so
+    does the centre of the cell each offset now names, so does the token's
+    top-left corner, and its centre
     stays inside the hex it was over, off that hex's centre by about half the
     change in its pixel size (2.5 px for 45 → 51 px hexes, 12 px for a 100 px
-    gridless cell → 41 px hexes), the region's key
-    is the hex now under its centroid with a shape that hex's size, and the map
+    gridless cell → 41 px hexes), the region's offset
+    is the hex now under the place it had (core left the offset as it was; the
+    apply re-keyed it, through the read taken before the write), and the map
     reads that terrain there (`layerValueAt`). `grid.size` reads back as
-    applied.
+    applied. Change the scene's width as well (an apply that draws on a map of
+    another size, not only another hex size) and read again: the offset follows
+    the place as a fraction of the rectangle, not the pixel. A zone an import
+    drew on the same scene (a `grid` shape on a Region with a behavior) is
+    re-keyed the same way, on a square scene as on a hex one.
 14c. **A unit edited in Scene configuration.** With the window open on a
     scene, change Scene configuration → Grid → Distance Units, then the grid
     type between the two hex parities.
@@ -420,19 +429,30 @@ read).
 2. Click and drag across the hex scene with two different brushes.
    *Observable:* one Region per painted terrain kind appears (name = the
    terrain's label, its colour the swatch's), `flags.acks-extras.terrain`
-   set and `terrainHexes` holding one `i:j` key per painted cell, aligned
-   with `shapes`; a drag writes each cell once; repainting a cell with the
-   OTHER brush moves it between regions (never two claims).
+   set, **unlocked**, and its `shapes` ONE `grid` shape whose `offsets` are
+   the painted cells as `{i, j}`: no polygon, and no cell flag; a drag
+   writes each cell once; repainting a cell with the OTHER brush moves it
+   between regions in one update (never two claims). Open the Region's own
+   configuration: it is core's grid shape and its cells are core's to edit.
    Then move the palette window over an unpainted hex, pick a swatch with a
    few pixels of drag, drag the palette by its header, and drag one stroke
    from the board across the palette and back onto the board.
    *Observable:* no hex under the palette is painted by the pick, the header
    drag or the stroke's crossing; the stroke paints again once it is back on
    the board. A scripted drive fires `pointermove` at the palette element and
-   reads `terrainHexes` back, since PIXI hears that event on the document.
-3. Erase a painted cell; erase a region's last cell.
-   *Observable:* the key and its shape leave together; the emptied region is
-   deleted.
+   reads `layerCellsOf(scene)` back, since PIXI hears that event on the document.
+   Then fire a stroke at pointer speed: a press and nine `pointermove`s over
+   ten adjacent hexes in one tick, with no pause between them.
+   *Observable:* all ten hexes read the brush's value afterwards and sit in
+   one Region (the scene's writes run one after another, so none is lost).
+3. Erase a painted cell; erase a region's last cell. Then, with core's grid
+   tool on the Regions layer, remove a painted cell from a Region that holds
+   several and put it back.
+   *Observable:* the offset leaves the grid shape; the emptied region is
+   deleted. With the cell removed by the grid tool, the map reads it as
+   unpainted (`layerValueAt`), the Territory or Domains mode stops drawing it
+   and a domain's territory row for it reads as unpainted, with no repaint;
+   put back, all three read it again.
 4. Click the square-grid scene with the brush armed.
    *Observable:* the hex-only warning, once per stroke; no region appears.
 5. Journey read: begin a journey on the painted hex scene and move the party
@@ -642,8 +662,8 @@ bubbling `change`.
    *Observable:* the swatches become the four territories, each in its own
    colour, with the eraser; `paintHexAt` and a real click both paint. Paint two
    hexes one territory and a third, already painted with a terrain, another.
-   One region per territory value appears, flagged `territory` and
-   `territoryHexes`, with `visibility` 0 (LAYER, the Regions control alone): a
+   One region per territory value appears, flagged `territory`, its cells one
+   core grid shape and the region unlocked, with `visibility` 0 (LAYER, the Regions control alone): a
    player seat sees no territory drawn, and the GM sees it as the Territory
    map mode (§Map modes). The terrain region of the third hex still lists that hex.
 2. Look for a **Climate** pill, and paint the third hex with a climate from

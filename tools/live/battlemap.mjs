@@ -401,9 +401,11 @@ const P = {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
     const spec = H.B.terrain.PAINT_LAYERS[layer];
+    // A region's cells are its own grid shape; the enumeration lists each cell under the first region to claim it.
+    const cells = H.m.paint.layerCellsOf(scene, layer);
     return H.B.terrain.layerRegionsOf(scene, layer).map((r) => ({
-      id: r.id, uuid: r.uuid, value: r.getFlag("acks-extras", spec.flag), hexes: r.getFlag("acks-extras", spec.hexesFlag) ?? [],
-      visibility: r.visibility, shapes: r.shapes?.length ?? 0,
+      id: r.id, uuid: r.uuid, value: r.getFlag("acks-extras", spec.flag), hexes: cells.filter((c) => c.region === r).map((c) => c.key),
+      visibility: r.visibility, shapes: r.shapes?.length ?? 0, locked: r.locked,
     }));
   },
 
@@ -434,16 +436,17 @@ const P = {
     return { id: wall.id, uuid: wall.uuid, road: wall.getFlag("acks-extras", "road") ?? null };
   },
 
-  /** A terrain region written by hand, as a map painted before the brush took its present vocabulary holds one. */
+  /**
+   * A terrain region written by hand, as core's grid tool leaves one: a value the brush will not lay down (a bare
+   * ground, a river kind a map painted before rivers were lines) on one grid shape holding the cell.
+   */
   handRegion: async ({ sceneId, offset, value }) => {
     const H = globalThis.__rb;
     const scene = game.scenes.get(sceneId);
-    const key = `${offset.i}:${offset.j}`;
-    const vertices = scene.grid.getVertices(offset);
     const [made] = await scene.createEmbeddedDocuments("Region", [{
       name: `QA hand-flagged ${value}`, color: "#7a7a7a", visibility: CONST.REGION_VISIBILITY?.GAMEMASTER ?? 1,
-      shapes: [{ type: "polygon", hole: false, points: vertices.flatMap((v) => [v.x, v.y]) }],
-      flags: { "acks-extras": { terrain: value, terrainHexes: [key] } },
+      shapes: [{ type: "grid", hole: false, offsets: [{ i: offset.i, j: offset.j }] }],
+      flags: { "acks-extras": { terrain: value } },
     }]);
     await H.sleep(400);
     return { id: made.id, uuid: made.uuid, read: H.B.terrain.layerValueAt(scene, scene.grid.getCenterPoint(offset), "terrain") };
@@ -551,6 +554,67 @@ const P = {
     b.click();
     await H.sleep(600);
     return { found: true, brush: H.m.paint.terrainPaint.brush, layer: H.m.paint.terrainPaint.layer };
+  },
+
+  /**
+   * A stroke at pointer speed: the press on the first cell, a move to each next one in the same tick with
+   * no pause, and the release, so every cell's write is started before the first has answered. Reports what
+   * the layer reads on each cell afterwards and the regions that hold them.
+   */
+  strokeCells: async ({ sceneId, cells, layer = "terrain" }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    const points = cells.map((c) => scene.grid.getCenterPoint(c));
+    // The catcher's hit area is the screen: bring the row's middle into view, then check every cell is on it.
+    const mid = points[Math.floor(points.length / 2)];
+    await canvas.animatePan({ x: mid.x, y: mid.y, duration: 0 });
+    await H.sleep(500);
+    const s = points.map((pt) => H.screen(pt));
+    const view = canvas.app.view.getBoundingClientRect();
+    const offscreen = s.some((at) => at.x < view.left || at.x > view.right || at.y < view.top || at.y > view.bottom);
+    H.pointer("pointerover", s[0]);
+    H.pointer("pointermove", s[0]);
+    await H.sleep(40);
+    H.pointer("pointerdown", s[0], { buttons: 1 });
+    for (const at of s.slice(1)) H.pointer("pointermove", at, { buttons: 1 });
+    H.pointer("pointerup", s.at(-1));
+    await H.sleep(3000);
+    const held = H.m.paint.layerCellsOf(scene, layer);
+    return {
+      offscreen,
+      read: points.map((pt) => H.B.terrain.layerValueAt(scene, pt, layer)),
+      held: cells.map((c) => held.some((h) => h.key === `${c.i}:${c.j}`)),
+      regions: H.B.terrain.layerRegionsOf(scene, layer).map((r) => ({ id: r.id, value: r.getFlag("acks-extras", H.B.terrain.PAINT_LAYERS[layer].flag), cells: held.filter((h) => h.region === r).length })),
+    };
+  },
+
+  /**
+   * What core's grid tool writes when it removes or restores a cell of a painted region: the region's grid
+   * shape rewritten with that offset out of, or back in, its list. Reports what each reader says after it.
+   */
+  gridToolEdit: async ({ sceneId, layer, value, point, remove }) => {
+    const H = globalThis.__rb;
+    const scene = game.scenes.get(sceneId);
+    const spec = H.B.terrain.PAINT_LAYERS[layer];
+    const { i, j } = scene.grid.getOffset(point);
+    const region = H.B.terrain.layerRegionsOf(scene, layer).find((r) => r.getFlag("acks-extras", spec.flag) === value);
+    if (!region) return { found: false };
+    const shapes = region.toObject().shapes.map((sh) => {
+      if (sh.type !== "grid" || sh.hole) return sh;
+      const rest = sh.offsets.filter((o) => !(o.i === i && o.j === j));
+      return { ...sh, offsets: remove ? rest : [...rest, { i, j }] };
+    });
+    await region.update({ shapes });
+    await H.sleep(600);
+    const key = `${i}:${j}`;
+    return {
+      found: true,
+      read: H.B.terrain.layerValueAt(scene, point, layer),
+      held: H.m.paint.layerCellsOf(scene, layer).some((c) => c.key === key),
+      planned: H.m.modes.layerPlan(scene, layer).some((h) => h.key === key),
+      coreTest: region.testPoint({ x: point.x, y: point.y, elevation: 0 }),
+      locked: region.locked,
+    };
   },
 
   /** A real click on the map at a point; reports what the two layers read there afterwards. */
@@ -1854,7 +1918,7 @@ async function walkLayers(W) {
   regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
   note("territory regions", regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
   note("regions tracked", await track());
-  check("L1: one region per territory value, flagged territory and territoryHexes, on the Regions control alone", regs.length === 2 && regs.find((g) => g.value === X)?.hexes.length === 2 && regs.find((g) => g.value === Y)?.hexes.length === 1 && regs.every((g) => g.visibility === 0), regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
+  check("L1: one region per territory value, flagged territory with its cells one core grid shape, unlocked, on the Regions control alone", regs.length === 2 && regs.every((g) => g.shapes === 1 && g.locked === false) && regs.find((g) => g.value === X)?.hexes.length === 2 && regs.find((g) => g.value === Y)?.hexes.length === 1 && regs.every((g) => g.visibility === 0), regs.map((g) => ({ value: g.value, hexes: g.hexes.length, visibility: g.visibility })));
   const lv = await page(gm, P.layerValues, { sceneId: hex.id, point: pt("C") });
   check("L1: the terrain region of the third hex still lists that hex", lv.terrain === forest && lv.territory === Y, lv);
   note("player views the hex scene", await page(player, P.viewScene, hex.id));
@@ -1884,6 +1948,28 @@ async function walkLayers(W) {
   regs = await page(gm, P.regions, { sceneId: hex.id, layer: "territory" });
   note("regions tracked", await track());
   check("L3: the repaint moves hex A between territory regions", repaintA.territory === Y && regs.find((g) => g.value === X)?.hexes.length === 1 && regs.find((g) => g.value === Y)?.hexes.length === 1, regs.map((g) => ({ value: g.value, hexes: g.hexes.length })));
+
+  section("layers 3b. core's grid tool removes and restores a painted cell");
+  // Y holds hex A; a second Y hex keeps the region (and its grid shape) non-empty while A is taken out. The grid
+  // tool writes the region's grid shape; the read, the Territory mode's plan and the enumeration all answer from that
+  // shape, so each follows the edit with no repaint.
+  note("E Y (paintHexAt)", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("E"), value: Y, layer: "territory" }));
+  const gridOut = await page(gm, P.gridToolEdit, { sceneId: hex.id, layer: "territory", value: Y, point: pt("A"), remove: true });
+  note("grid tool removes A", gridOut);
+  check("G1: with the cell out of the region's grid shape, the read says unpainted, the enumeration and the mode's plan drop it, and core's own point test agrees", gridOut.found && gridOut.read === null && gridOut.held === false && gridOut.planned === false && gridOut.coreTest === false, gridOut);
+  const gridIn = await page(gm, P.gridToolEdit, { sceneId: hex.id, layer: "territory", value: Y, point: pt("A"), remove: false });
+  note("grid tool restores A", gridIn);
+  check("G1: restored, the read says the value again, the enumeration and the mode's plan list the cell, and core's test agrees", gridIn.found && gridIn.read === Y && gridIn.held === true && gridIn.planned === true && gridIn.coreTest === true, gridIn);
+  note("E erased", await page(gm, P.paintAt, { sceneId: hex.id, point: pt("E"), value: null, layer: "territory" }));
+
+  section("layers 3c. a stroke at pointer speed keeps every cell");
+  note("pick terrain pill", (await page(gm, P.pickLayer, { layer: "terrain" })).pressed);
+  note("pick the forest swatch", await page(gm, P.pickBrush, { value: forest }));
+  const row = Array.from({ length: 10 }, (_, n) => ({ i: 1, j: 1 + n }));
+  const stroke = await page(gm, P.strokeCells, { sceneId: hex.id, cells: row, layer: "terrain" });
+  note("no-delay stroke over ten cells", stroke);
+  note("regions tracked", await track());
+  check("G2: ten pointer moves with no pause between them paint all ten cells with the one value, in one region", !stroke.offscreen && stroke.read.every((v) => v === forest) && stroke.held.every(Boolean) && stroke.regions.filter((g) => g.value === forest).length === 1, stroke);
   note("palette closed", await page(gm, P.closePalette));
 
   section("layers 4. the River and Coastline presets");

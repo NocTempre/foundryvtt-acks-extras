@@ -140,7 +140,8 @@ const { ENCOUNTERS_DOC } = await import("../scripts/formation/encounters.mjs");
 const { SEARCHING_DOC } = await import("../scripts/formation/searching.mjs");
 const { freshDay } = await import("../scripts/formation/travel.mjs");
 const { getFormation } = await import("../scripts/formation/formation-model.mjs");
-const { TERRAIN_FLAG, HEXES_FLAG } = await import("../scripts/battlemap/terrain-paint.mjs");
+const { TERRAIN_FLAG } = await import("../scripts/battlemap/terrain-paint.mjs");
+const { cellGrid, paintRegion } = await import("./region-fixture.mjs");
 const stockRun = await import("../scripts/formation/hex-stock-run.mjs");
 const { runSearchHour } = await import("../scripts/formation/search-run.mjs");
 const view = await import("../scripts/formation/formation-view.mjs");
@@ -221,9 +222,8 @@ function makeScene(id, { tokens = [], regions = [] } = {}) {
   return scene;
 }
 
-const paintedRegion = (ground, hexes) => ({
-  getFlag: (ns, key) => (key === TERRAIN_FLAG ? ground : key === HEXES_FLAG ? hexes : undefined),
-});
+/** A terrain region of these cells, as a core grid shape on the scene's 100-pixel grid. */
+const paintedRegion = (ground, hexes) => paintRegion({ grid: cellGrid(), flag: TERRAIN_FLAG, value: ground, cells: hexes });
 
 const mkActor = (id, abilities = []) => {
   const actor = {

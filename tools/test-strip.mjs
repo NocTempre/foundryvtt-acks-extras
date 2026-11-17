@@ -12,6 +12,7 @@
  * Run: node tools/test-strip.mjs   (also wired into `npm run validate`).
  */
 import assert from "node:assert/strict";
+import { paintRegion } from "./region-fixture.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry mock                                */
@@ -802,10 +803,7 @@ const stripOf = (id) => {
   assert.ok(!/is-override|is-declared|is-paint|data-provenance/.test(toldPlayer), "without the Judge's marks");
 
   // Painted, the hex offers no brush for that layer.
-  land.regions.push({
-    behaviors: [],
-    getFlag: (_ns, key) => (key === "territory" ? "unsettled" : key === "territoryHexes" ? ["0:0"] : undefined),
-  });
+  land.regions.push(paintRegion({ grid: land.grid, flag: "territory", value: "unsettled", cells: ["0:0"] }));
   assert.deepEqual(
     Object.values(cardsOf(told, true)).filter((c) => c.paintable).map((c) => c.key), ["ground"],
     "a layer the map has painted under the token is not offered again");

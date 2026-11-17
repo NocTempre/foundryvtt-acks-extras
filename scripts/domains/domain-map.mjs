@@ -6,7 +6,7 @@
  * battlemap's, and everything registered here reads the world's domain actors.
  *
  * A hex is painted into a domain by the domain's uuid
- * (`flags["acks-extras"].domain`, the cells as offset keys in `domainHexes`),
+ * (`flags["acks-extras"].domain`, the cells the region's core `grid` shape holds),
  * on the Regions control alone, since the Domains mode draws it. The layer
  * derives the hex's territory — the domain's class — which a territory painted
  * on the hex overrides. A domain deleted leaves regions naming a uuid nothing
@@ -15,7 +15,7 @@
  *
  * See docs/domains/MODEL.md, "Territory on the map".
  */
-import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
+import { LANG_PREFIX } from "./constants.mjs";
 import { allDomains, isDomain } from "./domains.mjs";
 import {
   borderTier, domainColors, domainRecord, hexCountOf, realmChain, realmOrder, rowsOf, territoryRows,
@@ -23,7 +23,7 @@ import {
 import { indexPlaces } from "../lib/place-logic.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import {
-  hexLabelFromOffset, isHexScene, layerRegionsOf, paintLayerChanged, registerPaintLayer,
+  hexLabelFromOffset, isHexScene, layerCellsOf, paintLayerChanged, registerPaintLayer,
 } from "../battlemap/terrain-paint.mjs";
 import { layerPlan, registerMapMode } from "../battlemap/map-modes.mjs";
 
@@ -34,9 +34,6 @@ export const DOMAIN_LAYER = "domain";
 
 /** Region flag holding the painted value: the domain's uuid. */
 export const DOMAIN_FLAG = "domain";
-
-/** Region flag holding the painted cells, as offset keys. */
-export const DOMAIN_HEXES_FLAG = "domainHexes";
 
 /** The colour of a hex painted into a domain no longer in the world. */
 export const ORPHAN_COLOR = "#8a8a8a";
@@ -61,7 +58,6 @@ const labelOf = (uuid) => domainAt(uuid)?.name || loc("map.unknownDomain");
 registerPaintLayer({
   key: DOMAIN_LAYER,
   flag: DOMAIN_FLAG,
-  hexesFlag: DOMAIN_HEXES_FLAG,
   regionsOnly: true,
   title: `${LANG_PREFIX}.map.layer`,
   values: () => realmOrder(realm().records),
@@ -118,12 +114,13 @@ registerMapMode({
 export function paintedHexesOf(domain) {
   const uuid = domain?.uuid;
   if (!uuid) return [];
-  return [...(game.scenes ?? [])].filter(isHexScene).flatMap((scene) => layerRegionsOf(scene, DOMAIN_LAYER)
-    .filter((region) => region.getFlag(MODULE_ID, DOMAIN_FLAG) === uuid)
-    .flatMap((region) => (region.getFlag(MODULE_ID, DOMAIN_HEXES_FLAG) ?? []).map((key) => {
-      const [i, j] = String(key).split(":").map(Number);
+  // A hex is the layer's first claim before it is a domain's, so one two regions hold counts for the first alone.
+  return [...(game.scenes ?? [])].filter(isHexScene).flatMap((scene) => layerCellsOf(scene, DOMAIN_LAYER)
+    .filter((cell) => cell.value === uuid)
+    .map(({ key }) => {
+      const [i, j] = key.split(":").map(Number);
       return { sceneUuid: scene.uuid, sceneName: scene.name ?? "", key, label: hexLabelFromOffset({ i, j }) };
-    })));
+    }));
 }
 
 /** A domain's territory with the map read in (`territoryRows`): its stored rows, then a row per painted hex none names. */

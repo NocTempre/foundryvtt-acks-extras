@@ -14,6 +14,10 @@
  * - `regionDistance` — how far a path lies from a Region, for the trap sweep.
  * - `regionArea` — the area a Region covers.
  *
+ * A fifth, `gridCellsOf`, is for a Region whose shapes ARE cells: the grid
+ * offsets its `grid` shapes claim, read as data, for a feature that keeps one
+ * value per cell (the country brush) and enumerates them.
+ *
  * Both finders answer `{region, behavior}` pairs in the scene's own region
  * order, so a caller that takes the first keeps the same "first zone" answer
  * wherever it asks from. A Region carrying two enabled behaviors of the type
@@ -158,4 +162,29 @@ export function regionDistance(region, seg) {
  */
 export function regionArea(region) {
   return region?.area ?? 0;
+}
+
+/**
+ * The grid offsets a Region claims: the union of its `grid` shapes' offsets, a
+ * hole shape left out, each cell once in the order first met. Read off the
+ * shapes' own data, so a cell a Judge added or removed with core's grid tool
+ * is in the answer the moment the document says so; no polygon is built and
+ * nothing is cached here (core keeps the offsets as a set of its own).
+ *
+ * @param {RegionDocument} region
+ * @returns {Array<{i: number, j: number}>}
+ */
+export function gridCellsOf(region) {
+  const seen = new Set();
+  const out = [];
+  for (const shape of region?.shapes ?? []) {
+    if (shape.type !== "grid" || shape.hole) continue;
+    for (const { i, j } of shape.offsets ?? []) {
+      const key = `${i}:${j}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ i, j });
+    }
+  }
+  return out;
 }

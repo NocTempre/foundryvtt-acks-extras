@@ -184,7 +184,11 @@ imports nothing of this feature.
 
 **The domain layer.** The Country brush gains a Domain pill. A hex is painted
 into a domain by the domain's uuid (`flags["acks-extras"].domain`, its cells
-in `domainHexes`), one region per domain, drawn on the Regions control alone.
+the region's own core `grid` shape: no cell flag, and a hex a Judge adds or
+removes with core's grid tool is read at once), one region per domain, drawn on
+the Regions control alone. A hex two domains' regions both claim is the first
+region's, in the scene's order, for the map, the Domains mode and the rows
+read from it.
 The palette lists the world's domains in realm order (`realmOrder`: each
 sovereign by name, its vassals depth first under it, a domain caught in a loop
 of lieges last), its swatches folded under each realm's sovereign.

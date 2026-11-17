@@ -255,7 +255,8 @@ one `select[name="choice"]`, as the other pickers are.
    the Country brush, press the **Domain** pill, Realm 1's swatch, and stroke
    one hex. *Observable:* the palette's context lists the domains in realm
    order, Realm 1 and Vassal 1 under Realm 1, Realm 2 under itself; one region
-   flagged `domain` with Realm 1's uuid and `domainHexes` naming the hex, at
+   flagged `domain` with Realm 1's uuid, its cells one core `grid` shape
+   naming the hex (no `domainHexes` flag on the region), unlocked, at
    `visibility` 0. Paint by `paintHexAt` two more Realm 1 hexes, two Vassal 1
    hexes beside them and two Realm 2 hexes beside Realm 1's.
 2. **The Domains mode.** *Observable:* `mapView().mode` is "domain"; the
@@ -287,6 +288,9 @@ one `select[name="choice"]`, as the other pickers are.
    naming the scene, with the paintbrush mark and a Keep press; the hexes rail
    is the stored rows' count plus the painted hexes. Paint a fourth Realm 1
    hex with the sheet open. *Observable:* within a moment a read row more.
+   Remove one of Realm 1's hexes from its Region with core's grid tool and put
+   it back. *Observable:* the read row for it goes, and the Domains mode stops
+   drawing the hex, with no repaint; put back, both return.
 7. **Keep.** Press Keep on a read row. *Observable:* the picker offers a row
    of its own and the count-1 row, not the count-3 row. Pick the count-1 row.
    *Observable:* that row's `map` is `{sceneUuid, key}` of the hex, the read

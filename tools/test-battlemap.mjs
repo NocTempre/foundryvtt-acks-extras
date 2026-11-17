@@ -13,6 +13,7 @@ import { hexAlignment } from "../scripts/battlemap/hex-fit.mjs";
 import { SIZES } from "../scripts/monsters/config.mjs";
 import { SIZE_DOC, SIZE_TABLE, SIZE_ROW, SQUARE_TABLE, sizeSquares, sizeSquareFeet, sizeCite, parseFrontage } from "../scripts/monsters/sizes.mjs";
 import { PRIORITY, registerTable, unregisterTable, resetTables } from "../scripts/lib/tables.mjs";
+import { cellGrid, paintRegion, paintScene } from "./region-fixture.mjs";
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} !~ ${b} (tol ${tol})`);
 
@@ -1844,16 +1845,15 @@ console.log("test-battlemap: all assertions passed");
 import {
   hexKeyOf,
   hexLabelFromOffset,
-  withHexAdded,
-  withHexRemoved,
-  rekeyPaintedCells,
+  withCellAdded,
+  withCellRemoved,
+  rekeyGridCells,
   TERRAIN_COLORS,
   UNPAINTABLE,
   paintableTerrains,
   colorFor,
   paintedTerrainAt,
   TERRAIN_FLAG,
-  HEXES_FLAG,
 } from "../scripts/battlemap/terrain-paint.mjs";
 import { TERRAIN } from "../scripts/vehicles/vehicle-speed.mjs";
 import { ENCOUNTER_TERRAINS } from "../scripts/formation/encounter-terrains.mjs";
@@ -1865,17 +1865,38 @@ assert.equal(hexLabelFromOffset({ i: 0, j: 25 }), "Z1");
 assert.equal(hexLabelFromOffset({ i: 9, j: 26 }), "AA10", "columns run past Z the way spreadsheets do");
 assert.equal(hexLabelFromOffset({ i: 0, j: 27 }), "AB1");
 
-const shape = (n) => ({ type: "polygon", hole: false, points: [n, n, n + 1, n, n, n + 1] });
-let pair = withHexAdded([], [], "1:1", shape(1));
-assert.ok(pair.changed && pair.hexKeys.length === 1 && pair.shapes.length === 1, "first paint lands");
-pair = withHexAdded(pair.hexKeys, pair.shapes, "1:1", shape(1));
-assert.ok(!pair.changed, "painting the same cell again writes nothing");
-pair = withHexAdded(pair.hexKeys, pair.shapes, "2:2", shape(2));
-assert.equal(pair.hexKeys.length, 2, "cells accumulate");
-pair = withHexRemoved(pair.hexKeys, pair.shapes, "1:1");
-assert.ok(pair.changed && pair.hexKeys.length === 1 && pair.shapes.length === 1, "erase drops the pair together");
-assert.equal(pair.hexKeys[0], "2:2", "and drops the RIGHT pair — keys and shapes stay aligned");
-assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an unpainted cell writes nothing");
+/* --- one cell in and out of a region's shape data --------------------------
+   The cell lives in a `grid` shape's offsets and nowhere else. Adding lands in
+   the first non-hole grid shape (a new one where there is none); removing takes
+   the cell out of every non-hole grid shape and drops one it empties; any other
+   shape a Judge put there is passed through. */
+{
+  let shapes = withCellAdded([], "1:1");
+  assert.ok(shapes.changed && shapes.shapes.length === 1, "the first cell makes the region's one grid shape");
+  assert.deepEqual(shapes.shapes[0], { type: "grid", hole: false, offsets: [{ i: 1, j: 1 }] });
+  assert.ok(!withCellAdded(shapes.shapes, "1:1").changed, "painting the same cell again writes nothing");
+  shapes = withCellAdded(shapes.shapes, "2:2");
+  assert.deepEqual(shapes.shapes[0].offsets, [{ i: 1, j: 1 }, { i: 2, j: 2 }], "cells accumulate in the first grid shape");
+  assert.equal(shapes.shapes.length, 1, "and no second shape is made for them");
+
+  const hole = { type: "grid", hole: true, offsets: [{ i: 5, j: 5 }] };
+  const poly = { type: "polygon", hole: false, points: [0, 0, 1, 0, 0, 1] };
+  const mixed = withCellAdded([hole, poly], "3:3");
+  assert.deepEqual(mixed.shapes.map((s) => s.type + (s.hole ? "-hole" : "")), ["grid-hole", "polygon", "grid"],
+    "a hole is no place for a painted cell: a new grid shape follows the others");
+  assert.ok(withCellAdded([hole, poly], "5:5").changed, "a cell a hole holds is still not painted");
+
+  const gone = withCellRemoved(shapes.shapes, "1:1");
+  assert.ok(gone.changed);
+  assert.deepEqual(gone.shapes[0].offsets, [{ i: 2, j: 2 }], "erase drops the right cell");
+  assert.ok(!withCellRemoved(shapes.shapes, "9:9").changed, "erasing an unpainted cell writes nothing");
+  assert.equal(withCellRemoved(shapes.shapes, "9:9").shapes, shapes.shapes, "and hands the same shapes back");
+  const emptied = withCellRemoved([{ type: "grid", hole: false, offsets: [{ i: 4, j: 4 }] }], "4:4");
+  assert.deepEqual(emptied, { shapes: [], changed: true }, "a grid shape left with no cell is dropped, and the region with it");
+  const kept = withCellRemoved([{ type: "grid", hole: false, offsets: [{ i: 4, j: 4 }] }, poly, hole], "4:4");
+  assert.deepEqual(kept.shapes, [poly, hole], "a polygon a Judge drew and a hole survive the rewrite");
+  assert.ok(!withCellRemoved([hole], "5:5").changed, "a hole is not a claim, so removing from it changes nothing");
+}
 
 {
   const fine = Object.keys(ENCOUNTER_TERRAINS);
@@ -1938,16 +1959,16 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 }
 
 /* --- the painted hex, read in both vocabularies ---------------------------
-   A region fake carries only the two flags the read uses; the grid fake maps
-   a point straight to an offset. Keys are the register's; the scene is not. */
+   A region carries its cells as a core grid shape, which tests a point itself;
+   the grid fake maps a point straight to an offset. Keys are the register's;
+   the scene is not. */
 {
   globalThis.CONST ??= {};
   CONST.GRID_TYPES ??= { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 };
-  const region = (key, hexes) => ({
-    getFlag: (_ns, flag) => (flag === TERRAIN_FLAG ? key : flag === HEXES_FLAG ? hexes : undefined),
-  });
+  const grid = { type: CONST.GRID_TYPES.HEXODDR, getOffset: (p) => ({ i: p.y, j: p.x }) };
+  const region = (key, hexes) => paintRegion({ grid, flag: TERRAIN_FLAG, value: key, cells: hexes });
   const scene = {
-    grid: { type: CONST.GRID_TYPES.HEXODDR, getOffset: (p) => ({ i: p.y, j: p.x }) },
+    grid,
     regions: [region("forestTaiga", ["1:1"]), region("forest", ["2:2"]), region("riverLand", ["3:3"]), region("ashWaste", ["4:4"])],
   };
   const at = (i, j) => paintedTerrainAt(scene, { x: j, y: i });
@@ -2224,8 +2245,9 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
    written the way documents are. See docs/battlemap/DECISIONS.md, "The
    country brush paints three layers" and "The climate is the map's". */
 {
+  const { gridCellsOf } = await import("../scripts/lib/regions.mjs");
   const {
-    PAINT_LAYERS, TERRITORY_COLORS, paintableValues, layerColorFor, layerLabelFor, layerRegionsOf,
+    PAINT_LAYERS, TERRITORY_COLORS, paintableValues, layerColorFor, layerLabelFor, layerRegionsOf, layerCellsOf,
     layerValueAt, paintHexAt, registerPaintLayer, terrainPaint, TerrainPaletteApp, openCountryBrush,
     climateLabelFor,
   } = await import("../scripts/battlemap/terrain-paint.mjs");
@@ -2239,9 +2261,9 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 
   // What each layer may paint, and the names the sheet already gives them.
   assert.deepEqual(Object.keys(PAINT_LAYERS), ["terrain", "territory"]);
-  const flags = Object.values(PAINT_LAYERS).flatMap((l) => [l.flag, l.hexesFlag]);
+  const flags = Object.values(PAINT_LAYERS).map((l) => l.flag);
   assert.equal(new Set(flags).size, flags.length, "no two layers share a flag");
-  assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }, "terrain keeps its flags");
+  assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG }, "terrain keeps its flag, and holds no cell flag: the cells are the region's own shapes");
   assert.deepEqual(paintableValues("territory"), [...TERRITORY_KEYS]);
   assert.deepEqual(paintableValues("climate"), [], "the climate is the map's, and the brush paints none");
   assert.deepEqual(paintableValues("terrain"), paintableTerrains());
@@ -2259,42 +2281,8 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.equal(climateLabelFor("Q9"), "Q9", "an unknown climate is shown as itself");
   assert.ok(Object.hasOwn(CLIMATES, "Csb"), "the label's case is a climate the module knows");
 
-  let rid = 0;
-  /** A hex scene of 100-pixel cells, offset (i, j) = (row, column), its regions held in memory. */
-  const scene = {
-    id: "scene-layers",
-    grid: {
-      type: CONST.GRID_TYPES.HEXODDR,
-      size: 100,
-      getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
-      getVertices: (o) => [
-        { x: o.j * 100, y: o.i * 100 }, { x: o.j * 100 + 100, y: o.i * 100 }, { x: o.j * 100 + 50, y: o.i * 100 + 100 },
-      ],
-    },
-    regions: [],
-    async createEmbeddedDocuments(name, data) {
-      assert.equal(name, "Region");
-      const made = data.map((d) => ({
-        id: `r${++rid}`,
-        name: d.name,
-        color: d.color,
-        visibility: d.visibility,
-        shapes: [...d.shapes],
-        flags: structuredClone(d.flags),
-        getFlag(ns, key) { return this.flags[ns]?.[key]; },
-        toObject() { return { shapes: [...this.shapes] }; },
-        async update(patch) {
-          for (const [path, value] of Object.entries(patch)) {
-            if (path === "shapes") this.shapes = value;
-            else this.flags[path.split(".")[1]][path.split(".")[2]] = value;
-          }
-        },
-        async delete() { scene.regions.splice(scene.regions.indexOf(this), 1); },
-      }));
-      scene.regions.push(...made);
-      return made;
-    },
-  };
+  /** A hex scene of 100-pixel cells, offset (i, j) = (row, column), its regions held in memory and written as documents are. */
+  const scene = paintScene({ id: "scene-layers", grid: cellGrid() });
   const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
   const values = (i, j) => Object.fromEntries(
     Object.keys(PAINT_LAYERS).map((layer) => [layer, layerValueAt(scene, centre(i, j), layer)]));
@@ -2320,8 +2308,9 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     "a region left with no hex is deleted");
 
   assert.equal(await paintHexAt(scene, centre(1, 2), "civilized", "territory"), true);
-  assert.deepEqual(layerRegionsOf(scene, "territory")[0].getFlag(MODULE_ID, "territoryHexes"), ["1:1", "1:2"],
+  assert.deepEqual(gridCellsOf(layerRegionsOf(scene, "territory")[0]).map(hexKeyOf), ["1:1", "1:2"],
     "a second hex of the same value joins its region");
+  assert.equal(layerRegionsOf(scene, "territory")[0].shapes.length, 1, "as a cell of its one grid shape, never a shape of its own");
   assert.equal(await paintHexAt(scene, centre(1, 2), "civilized", "territory"), false, "painting it again writes nothing");
 
   assert.equal(await paintHexAt(scene, centre(1, 1), null, "territory"), true);
@@ -2336,6 +2325,98 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.equal(await paintHexAt(scene, centre(2, 2), "outlands", "territory"), false, "a player paints nothing");
   game.user = { isGM: true };
   assert.deepEqual(values(2, 2), { terrain: null, territory: null });
+
+  /* --- the cells are core grid shapes, one Region per value ----------------
+     A value's region holds its cells as offsets of one `grid` shape. A paint
+     is one region update per cell however many regions it touches, a Region
+     left with no cell goes, the read and the enumeration answer alike where a
+     hand edit left two regions claiming a cell, and a drag that fires faster
+     than the server answers loses no cell. */
+  {
+    const fresh = paintScene({ id: "scene-cells", grid: cellGrid() });
+    const held = (layer = "terrain") => layerRegionsOf(fresh, layer).map((r) => [r.getFlag(MODULE_ID, PAINT_LAYERS[layer].flag), gridCellsOf(r).map(hexKeyOf)]);
+    const ops = (from = 0) => fresh.calls.slice(from).map((c) => `${c.op}${c.count}`);
+
+    await paintHexAt(fresh, centre(3, 4), "forestTaiga");
+    await paintHexAt(fresh, centre(3, 5), "forestTaiga");
+    assert.deepEqual(held(), [["forestTaiga", ["3:4", "3:5"]]], "forest on 3:4 and 3:5 is one region");
+    assert.deepEqual(fresh.regions[0].toObject().shapes, [{ type: "grid", hole: false, offsets: [{ i: 3, j: 4 }, { i: 3, j: 5 }] }],
+      "with one grid shape holding both offsets, and no polygon");
+    assert.equal(fresh.created[0].locked, false, "a brush region is made unlocked, so core's grid tool reaches it");
+    assert.deepEqual(ops(), ["create1", "update1"], "the first cell makes the region and the next is one update");
+
+    // A cell moves from one value's region to another's in one update that carries both.
+    await paintHexAt(fresh, centre(3, 9), "grassland");
+    const mark = fresh.calls.length;
+    assert.equal(await paintHexAt(fresh, centre(3, 5), "grassland"), true);
+    assert.deepEqual(held(), [["forestTaiga", ["3:4"]], ["grassland", ["3:9", "3:5"]]], "the cell left the forest and joined the grass");
+    assert.deepEqual(ops(mark), ["update2"], "one update call, the two regions in it");
+    assert.equal(layerValueAt(fresh, centre(3, 5)), "grassland");
+    assert.equal(await paintHexAt(fresh, centre(3, 5), "grassland"), false, "the same value again writes nothing");
+    assert.deepEqual(ops(mark), ["update2"]);
+
+    // An erase that empties a region deletes it, and says nothing of the other layers.
+    await paintHexAt(fresh, centre(3, 4), "outlands", "territory");
+    const before = fresh.calls.length;
+    assert.equal(await paintHexAt(fresh, centre(3, 4), null), true);
+    assert.deepEqual(held(), [["grassland", ["3:9", "3:5"]]], "the forest region held one cell and is gone with it");
+    assert.deepEqual(ops(before), ["delete1"]);
+    assert.deepEqual(held("territory"), [["outlands", ["3:4"]]], "the territory painted on the cell stays");
+
+    // Two regions of a layer claiming one cell, as a hand edit can leave them: the read and the enumeration agree.
+    const second = paintRegion({ grid: fresh.grid, flag: TERRAIN_FLAG, value: "forestTaiga", cells: ["3:5", "7:7"], id: "hand" });
+    fresh.regions.push(second);
+    const claim = layerCellsOf(fresh).find((c) => c.key === "3:5");
+    assert.deepEqual([claim.value, claim.region.id === second.id], ["grassland", false], "the enumeration lists the cell once, to the first region");
+    assert.equal(layerValueAt(fresh, centre(3, 5)), claim.value, "and the point read answers with the same region");
+    assert.deepEqual(layerCellsOf(fresh).map((c) => c.key).toSorted(), ["3:5", "3:9", "7:7"], "each cell once");
+    await paintHexAt(fresh, centre(3, 5), "forestTaiga");
+    assert.deepEqual(held(), [["grassland", ["3:9"]], ["forestTaiga", ["3:5", "7:7"]]], "painting the later claim's value takes the cell from the first");
+
+    // A hole a Judge added claims nothing, and a Region with no grid shape is no layer's.
+    second.shapes.push({ type: "grid", hole: true, offsets: [{ i: 9, j: 9 }], grid: fresh.grid, testPoint() { return true; } });
+    assert.equal(layerValueAt(fresh, centre(9, 9)), null, "a hole's cell is not painted");
+    assert.deepEqual(layerCellsOf(fresh).map((c) => c.key).toSorted(), ["3:5", "3:9", "7:7"]);
+    fresh.regions.push(paintRegion({ grid: fresh.grid, flag: TERRAIN_FLAG, value: "desertSandy", shapes: [{ type: "polygon", hole: false, points: [0, 0, 9, 0, 0, 9] }] }));
+    assert.equal(layerRegionsOf(fresh).length, 2, "a region carrying the flag and no grid shape paints nothing, and is no region of the layer");
+  }
+
+  {
+    // Ten paints started together, none awaited: a new value's region is made once and no cell is lost.
+    const burst = paintScene({ id: "scene-burst", grid: cellGrid() });
+    const runs = Array.from({ length: 10 }, (_, n) => paintHexAt(burst, centre(0, n), "grassland"));
+    assert.deepEqual(await Promise.all(runs), Array(10).fill(true));
+    assert.equal(layerRegionsOf(burst).length, 1, "one region for the value, not one per racing paint");
+    assert.deepEqual(gridCellsOf(layerRegionsOf(burst)[0]).map(hexKeyOf), Array.from({ length: 10 }, (_, n) => `0:${n}`), "all ten cells, in order");
+    assert.deepEqual(burst.calls.map((c) => c.op), ["create", ...Array(9).fill("update")]);
+
+    // Two values interleaved over one stroke, and an erase in it, keep each cell at its last word.
+    const mixed = Array.from({ length: 8 }, (_, n) => paintHexAt(burst, centre(1, n), n % 2 ? "forestTaiga" : "grassland"));
+    mixed.push(paintHexAt(burst, centre(0, 3), null), paintHexAt(burst, centre(1, 0), "forestTaiga"));
+    await Promise.all(mixed);
+    assert.deepEqual(Object.fromEntries(layerCellsOf(burst).map((c) => [c.key, c.value])), {
+      "0:0": "grassland", "0:1": "grassland", "0:2": "grassland", "0:4": "grassland", "0:5": "grassland", "0:6": "grassland",
+      "0:7": "grassland", "0:8": "grassland", "0:9": "grassland",
+      "1:0": "forestTaiga", "1:1": "forestTaiga", "1:2": "grassland", "1:3": "forestTaiga", "1:4": "grassland",
+      "1:5": "forestTaiga", "1:6": "grassland", "1:7": "forestTaiga",
+    }, "every cell holds the last value asked of it");
+
+    // A write that fails rejects to its caller and the queue keeps going.
+    const flaky = paintScene({ id: "scene-flaky", grid: cellGrid() });
+    const update = flaky.updateEmbeddedDocuments;
+    let failNext = false;
+    flaky.updateEmbeddedDocuments = async (...args) => {
+      if (failNext) { failNext = false; throw new Error("refused"); }
+      return update(...args);
+    };
+    await paintHexAt(flaky, centre(0, 0), "grassland");
+    failNext = true;
+    const doomed = paintHexAt(flaky, centre(0, 1), "grassland");
+    const after = paintHexAt(flaky, centre(0, 2), "grassland");
+    await assert.rejects(doomed, /refused/);
+    assert.equal(await after, true, "the write queued behind a failed one still runs");
+    assert.deepEqual(gridCellsOf(layerRegionsOf(flaky)[0]).map(hexKeyOf), ["0:0", "0:2"]);
+  }
 
   const square = { ...scene, grid: { ...scene.grid, type: 1 } };
   assert.equal(layerValueAt(square, centre(1, 2), "territory"), null, "a square grid is never painted");
@@ -2357,7 +2438,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   const demoLayer = () => ({
     key: "demo",
     flag: "demoKind",
-    hexesFlag: "demoHexes",
     values: () => demoValues,
     label: (v) => `demo ${v}`,
     color: (v) => (v === "a1" ? "#112233" : "#445566"),
@@ -2369,9 +2449,9 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   let disposeHollow = () => {};
   try {
     assert.deepEqual(Object.keys(PAINT_LAYERS), [...builtIns, "demo"], "a registered layer joins the set, last");
-    assert.deepEqual(PAINT_LAYERS.demo, { flag: "demoKind", hexesFlag: "demoHexes" });
+    assert.deepEqual(PAINT_LAYERS.demo, { flag: "demoKind" });
     assert.ok(Object.hasOwn(PAINT_LAYERS, "demo") && "demo" in PAINT_LAYERS);
-    assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG, hexesFlag: HEXES_FLAG }, "the others keep their flags");
+    assert.deepEqual(PAINT_LAYERS.terrain, { flag: TERRAIN_FLAG }, "the others keep their flags");
     assert.deepEqual(paintableValues("demo"), demoValues);
     assert.notEqual(paintableValues("demo"), demoValues, "the brush gets a copy of what the layer offers");
     assert.equal(layerLabelFor("a1", "demo"), "demo a1");
@@ -2384,14 +2464,14 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     assert.equal(layerValueAt(scene, centre(5, 5), "terrain"), null, "and the other layers do not see it");
     const [region] = layerRegionsOf(scene, "demo");
     assert.deepEqual(
-      [region.name, region.color, region.visibility, region.getFlag(MODULE_ID, "demoKind"), region.getFlag(MODULE_ID, "demoHexes")],
+      [region.name, region.color, region.visibility, region.getFlag(MODULE_ID, "demoKind"), gridCellsOf(region).map(hexKeyOf)],
       ["demo a1", "#112233", 1, "a1", ["5:5"]],
       "a region is named, tinted and flagged by its layer's own functions and flags");
     assert.equal(await paintHexAt(scene, centre(5, 5), "zz", "demo"), false, "a value the layer does not offer is refused");
     assert.equal(await paintHexAt(scene, centre(5, 5), null, "demo"), true);
     assert.deepEqual(layerRegionsOf(scene, "demo"), [], "erasing the last cell deletes the region");
 
-    disposeOpen = registerPaintLayer({ ...demoLayer(), key: "open", flag: "openKind", hexesFlag: "openHexes", visible: true });
+    disposeOpen = registerPaintLayer({ ...demoLayer(), key: "open", flag: "openKind", visible: true });
     assert.equal(await paintHexAt(scene, centre(5, 6), "a1", "open"), true);
     assert.deepEqual(layerRegionsOf(scene, "open").map((r) => r.visibility), [2], "a layer that says `visible` is drawn for everyone");
     assert.equal(await paintHexAt(scene, centre(5, 6), null, "open"), true);
@@ -2425,7 +2505,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 
     // A layer with no value to offer is registered but left out of the palette.
     let pool = [];
-    disposeHollow = registerPaintLayer({ ...demoLayer(), key: "hollow", flag: "hollowKind", hexesFlag: "hollowHexes", values: () => pool });
+    disposeHollow = registerPaintLayer({ ...demoLayer(), key: "hollow", flag: "hollowKind", values: () => pool });
     assert.ok(Object.hasOwn(PAINT_LAYERS, "hollow"));
     assert.deepEqual(paintableValues("hollow"), []);
     assert.deepEqual(await pillKeys(), [...builtIns, "demo"], "an empty layer stays hidden");
@@ -2434,14 +2514,11 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     disposeHollow();
 
     // Refusals leave the registry as it was.
-    const plain = { flag: "dupKind", hexesFlag: "dupHexes", values: () => [], label: String, color: () => "#000000" };
+    const plain = { flag: "dupKind", values: () => [], label: String, color: () => "#000000" };
     assert.throws(() => registerPaintLayer({ ...plain, key: "terrain" }), /registered twice/, "a built-in's key is taken");
     assert.throws(() => registerPaintLayer({ ...plain, key: "demo" }), /registered twice/, "so is a later one's");
     assert.throws(() => registerPaintLayer({ ...plain, key: "dup", flag: "territory" }), /flag is shared/);
-    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", hexesFlag: "demoKind" }), /flag is shared/,
-      "a flag held in the other role is held all the same");
-    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", hexesFlag: "dupKind" }), /must differ/,
-      "a layer's two flags are two");
+    assert.throws(() => registerPaintLayer({ ...plain, key: "dup", flag: "demoKind" }), /flag is shared/);
     assert.throws(() => registerPaintLayer({ ...plain, key: "" }), /non-empty/);
     assert.throws(() => registerPaintLayer(), /non-empty/);
     assert.throws(() => registerPaintLayer({ ...plain, key: "dup", values: null }), /values must be a function/);
@@ -2452,7 +2529,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
     assert.equal(layerLabelFor("a1", "demo"), "demo a1", "and the first registration still stands");
 
     // The flag map is a view, not a place to add a layer.
-    assert.throws(() => { PAINT_LAYERS.rogue = { flag: "x", hexesFlag: "y" }; }, TypeError);
+    assert.throws(() => { PAINT_LAYERS.rogue = { flag: "x" }; }, TypeError);
     assert.throws(() => { PAINT_LAYERS.terrain = {}; }, TypeError);
     assert.throws(() => { delete PAINT_LAYERS.terrain; }, TypeError);
     assert.throws(() => Object.defineProperty(PAINT_LAYERS, "rogue", { value: {} }), TypeError);
@@ -2485,8 +2562,7 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
    paints only over it. The catcher is built against a stand-in stage whose
    handlers the test calls as PIXI would. */
 {
-  const { onBoard, terrainPaint } = await import("../scripts/battlemap/terrain-paint.mjs");
-  const { MODULE_ID } = await import("../scripts/lib/constants.mjs");
+  const { onBoard, terrainPaint, layerCellsOf } = await import("../scripts/battlemap/terrain-paint.mjs");
 
   const board = { id: "board" };
   const palette = { id: "palette" };
@@ -2498,26 +2574,8 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   CONST.GRID_TYPES ??= { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 };
   CONST.REGION_VISIBILITY ??= { LAYER: 0, GAMEMASTER: 1, ALWAYS: 2 };
   game.user = { isGM: true };
-  const painted = [];
-  const scene = {
-    grid: {
-      type: CONST.GRID_TYPES.HEXODDR,
-      getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
-      getVertices: (o) => [{ x: o.j * 100, y: o.i * 100 }, { x: o.j * 100 + 100, y: o.i * 100 }, { x: o.j * 100 + 50, y: o.i * 100 + 100 }],
-    },
-    regions: [],
-    async createEmbeddedDocuments(_name, data) {
-      const made = data.map((d) => ({
-        ...d,
-        getFlag(ns, key) { return this.flags[ns]?.[key]; },
-        toObject() { return { shapes: [...this.shapes] }; },
-        async update(patch) { this.flags[MODULE_ID].terrainHexes = patch[`flags.${MODULE_ID}.terrainHexes`]; },
-      }));
-      scene.regions.push(...made);
-      painted.push(...data.flatMap((d) => d.flags[MODULE_ID].terrainHexes));
-      return made;
-    },
-  };
+  const scene = paintScene({ grid: cellGrid() });
+  const painted = () => layerCellsOf(scene).map((c) => c.key);
   /** A PIXI display object that keeps its handlers so the test can fire them. */
   class Node {
     handlers = {};
@@ -2535,27 +2593,35 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   };
   globalThis.canvas = { stage: new Node(), app: { screen: {}, view: board }, scene };
   const at = (target, x, y, buttons = 1) => ({ nativeEvent: { target }, buttons, getLocalPosition: () => ({ x, y }) });
-  const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+  // A paint is a few writes, each answering a tick later: wait them all out.
+  const settle = async () => { for (let n = 0; n < 6; n++) await new Promise((resolve) => setTimeout(resolve, 0)); };
   try {
     terrainPaint.arm("grassland", { layer: "terrain" });
     const fire = async (name, ev) => { catcher.handlers[name](ev); await settle(); };
 
     await fire("pointermove", at(board, 150, 150));
-    assert.deepEqual(painted, [], "a held button with no stroke opened on the board paints nothing");
+    assert.deepEqual(painted(), [], "a held button with no stroke opened on the board paints nothing");
     await fire("pointerdown", at(palette, 150, 150));
     await fire("pointermove", at(palette, 250, 150));
-    assert.deepEqual(painted, [], "a click on the palette opens no stroke, and its travel paints nothing");
+    assert.deepEqual(painted(), [], "a click on the palette opens no stroke, and its travel paints nothing");
     await fire("pointerup", at(palette, 250, 150, 0));
 
     await fire("pointerdown", at(board, 150, 150));
-    assert.deepEqual(painted, ["1:1"], "a press on the board paints its hex");
+    assert.deepEqual(painted(), ["1:1"], "a press on the board paints its hex");
     await fire("pointermove", at(palette, 250, 150));
-    assert.deepEqual(painted, ["1:1"], "a stroke dragged over a window paints nothing under it");
+    assert.deepEqual(painted(), ["1:1"], "a stroke dragged over a window paints nothing under it");
     await fire("pointermove", at(board, 350, 150));
-    assert.equal(scene.regions[0].getFlag(MODULE_ID, "terrainHexes").at(-1), "1:3", "and resumes on the board");
+    assert.equal(painted().at(-1), "1:3", "and resumes on the board");
     await fire("pointerup", at(board, 350, 150, 0));
     await fire("pointermove", at(board, 450, 150));
-    assert.equal(scene.regions[0].getFlag(MODULE_ID, "terrainHexes").includes("1:4"), false, "the stroke ends on release");
+    assert.equal(painted().includes("1:4"), false, "the stroke ends on release");
+
+    // A stroke that outruns the server: ten pointer moves with no pause between them keep all ten cells.
+    await fire("pointerdown", at(board, 50, 250));
+    for (let n = 1; n < 10; n++) catcher.handlers.pointermove(at(board, n * 100 + 50, 250));
+    await settle();
+    await fire("pointerup", at(board, 950, 250, 0));
+    assert.deepEqual(painted().filter((k) => k.startsWith("2:")), Array.from({ length: 10 }, (_, n) => `2:${n}`), "a drag with no delay between its cells loses none");
   } finally {
     terrainPaint.disarm();
     delete globalThis.PIXI;
@@ -2606,15 +2672,13 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   const { invalidateRoadGraph } = await import("../scripts/battlemap/roads.mjs");
 
   CONST.GRID_TYPES ??= { HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 };
-  const region = (flag, value, hexesFlag, hexes) => ({
-    getFlag: (_ns, key) => (key === flag ? value : key === hexesFlag ? hexes : undefined),
-  });
-  const terrain = (value, hexes) => region(TERRAIN_FLAG, value, HEXES_FLAG, hexes);
-  const territory = (value, hexes) => region("territory", value, "territoryHexes", hexes);
+  const grid = cellGrid();
+  const terrain = (value, hexes) => paintRegion({ grid, flag: TERRAIN_FLAG, value, cells: hexes });
+  const territory = (value, hexes) => paintRegion({ grid, flag: "territory", value, cells: hexes });
   const line = (c, layer) => ({ c, move: 0, flags: { [MODULE_ID]: layer } });
   const sceneOf = ({ regions = [], walls = [], country = null, type = CONST.GRID_TYPES.HEXODDR, id = "scene-country" } = {}) => ({
     id,
-    grid: { type, size: 100, getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }) },
+    grid: { ...grid, type },
     regions,
     walls,
     getFlag: (_ns, key) => (key === "battlemap" && country ? { country } : undefined),
@@ -2793,41 +2857,12 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
 
   // A layer's plan, and the borders it draws.
   const flags = { [MODULE_ID]: { battlemap: { calibrated: true, country: { territory: "outlands", climate: "Csb" } } } };
-  let rid = 0;
-  const scene = {
+  const scene = paintScene({
     id: "scene-modes",
-    grid: {
-      type: CONST.GRID_TYPES.HEXODDR,
-      size: 100,
-      getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
-      getVertices: ({ i, j }) => [
-        { x: j * 100, y: i * 100 }, { x: j * 100 + 100, y: i * 100 },
-        { x: j * 100 + 100, y: i * 100 + 100 }, { x: j * 100, y: i * 100 + 100 },
-      ],
-    },
-    regions: [],
+    grid: cellGrid(),
     getFlag: (ns, key) => flags[ns]?.[key],
     setFlag: async (ns, key, value) => { flags[ns] = { ...(flags[ns] ?? {}), [key]: structuredClone(value) }; },
-    async createEmbeddedDocuments(_name, data) {
-      const made = data.map((d) => ({
-        id: `m${++rid}`,
-        visibility: d.visibility,
-        shapes: [...d.shapes],
-        flags: structuredClone(d.flags),
-        getFlag(ns, key) { return this.flags[ns]?.[key]; },
-        toObject() { return { shapes: [...this.shapes] }; },
-        async update(patch) {
-          for (const [path, value] of Object.entries(patch)) {
-            if (path === "shapes") this.shapes = value;
-            else this.flags[path.split(".")[1]][path.split(".")[2]] = value;
-          }
-        },
-        async delete() { scene.regions.splice(scene.regions.indexOf(this), 1); },
-      }));
-      scene.regions.push(...made);
-      return made;
-    },
-  };
+  });
   const centre = (i, j) => ({ x: j * 100 + 50, y: i * 100 + 50 });
 
   assert.deepEqual(layerPlan(scene, "territory"), [], "a map with nothing painted plans nothing");
@@ -2919,7 +2954,6 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   const spec = (over = {}) => ({
     key: "demoRealm",
     flag: "demoRealm",
-    hexesFlag: "demoRealmHexes",
     values: () => Object.keys(classOf),
     label: (v) => v,
     color: () => "#123456",
@@ -2931,25 +2965,15 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   assert.throws(() => registerPaintLayer(spec({ derives: { key: "territory" } })), /needs an `of`/);
   const dispose = registerPaintLayer(spec());
   try {
-    assert.throws(() => registerPaintLayer(spec({ key: "demoRival", flag: "demoRival", hexesFlag: "demoRivalHexes" })),
+    assert.throws(() => registerPaintLayer(spec({ key: "demoRival", flag: "demoRival" })),
       /"demoRealm" already derives territory/, "one layer to a derived key, as one to a flag");
 
-    const region = (flag, value, hexesFlag, hexes) => ({
-      getFlag: (_ns, key) => (key === flag ? value : key === hexesFlag ? hexes : undefined),
-    });
-    const realm = (value, hexes) => region("demoRealm", value, "demoRealmHexes", hexes);
-    const territory = (value, hexes) => region("territory", value, "territoryHexes", hexes);
+    const grid = cellGrid();
+    const realm = (value, hexes) => paintRegion({ grid, flag: "demoRealm", value, cells: hexes });
+    const territory = (value, hexes) => paintRegion({ grid, flag: "territory", value, cells: hexes });
     const scene = {
       id: "scene-derived",
-      grid: {
-        type: CONST.GRID_TYPES.HEXODDR,
-        size: 100,
-        getOffset: (p) => ({ i: Math.floor(p.y / 100), j: Math.floor(p.x / 100) }),
-        getVertices: ({ i, j }) => [
-          { x: j * 100, y: i * 100 }, { x: j * 100 + 100, y: i * 100 },
-          { x: j * 100 + 100, y: i * 100 + 100 }, { x: j * 100, y: i * 100 + 100 },
-        ],
-      },
+      grid,
       regions: [
         realm("realm1", ["1:1", "1:2", "1:3"]), realm("realm2", ["2:1"]), realm("realm3", ["1:4"]), realm("realmGone", ["1:5"]),
         territory("outlands", ["1:2"]), territory("civilized", ["1:3"]), territory("borderlands", ["1:6"]),
@@ -3358,13 +3382,13 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
   resetTables();
 }
 
-/* --- re-keying painted cells under a moved grid ----------------------------
-   Proves the pure decision behind Apply's re-key: each painted shape keeps its
-   place on the map, its key becomes the cell of the NEW grid its centroid lies
-   in, and its shape is rebuilt as that cell's. Two old cells landing on one new
-   cell leave the one nearest the new cell's centre, across regions; an
-   unchanged grid changes nothing. The lattice is invented: pointy cells of
-   `size` across, from an origin. */
+/* --- re-keying grid cells under a moved grid -------------------------------
+   Proves the pure decision behind Apply's re-key: a grid shape's cell stays
+   where it is on the map, and its offset becomes the cell of the NEW grid that
+   place lies in. Two old cells of one group landing on one new cell leave the
+   one nearest the new cell's centre; a group is a paint layer's regions
+   together, or one shape alone; an unchanged grid changes nothing. The lattice
+   is invented: pointy cells of `size` across, from an origin. */
 {
   const lattice = (size, ox = 0, oy = 0) => {
     const radius = size / Math.sqrt(3);
@@ -3381,74 +3405,72 @@ assert.ok(!withHexRemoved(pair.hexKeys, pair.shapes, "9:9").changed, "erasing an
       }
       return { i: best.i, j: best.j };
     };
-    const shapeOf = (o) => {
-      const c = centreOf(o);
-      const points = [0, 1, 2, 3, 4, 5].flatMap((k) => {
-        const a = Math.PI / 6 + (k * Math.PI) / 3;
-        return [c.x + radius * Math.cos(a), c.y + radius * Math.sin(a)];
-      });
-      return { type: "polygon", hole: false, points };
-    };
-    return { centreOf, offsetOf, shapeOf };
+    return { centreOf, offsetOf };
   };
   const key = (o) => hexKeyOf(o);
   const oldGrid = lattice(41);
   const cells = [{ i: 4, j: 5 }, { i: 4, j: 6 }, { i: 5, j: 5 }, { i: 8, j: 2 }];
-  const region = (id, list, grid = oldGrid) => ({ id, hexKeys: list.map(key), shapes: list.map(grid.shapeOf) });
+  /** A region's cells as Apply hands them over: each with the place it lies on the map. */
+  const region = (id, list, { group = "layer:terrain", index = 0 } = {}) => ({
+    id, shapes: [{ index, group, cells: list.map((c) => ({ ...c, ...oldGrid.centreOf(c) })) }],
+  });
+  const offsetsOf = (result, n = 0) => result.shapes[n].offsets.map(key);
 
-  // Size 41 to 45 with a shift: each key is the cell its centroid is in, and its shape that cell's.
+  // Size 41 to 45 with a shift: each offset is the cell its place now lies in.
   const grown = lattice(45, 7, -3);
-  const [moved] = rekeyPaintedCells([region("a", cells)], grown);
+  const [moved] = rekeyGridCells([region("a", cells)], grown);
   assert.equal(moved.changed, true);
-  assert.equal(moved.hexKeys.length, cells.length, "no two of these cells land on one");
+  assert.equal(moved.shapes[0].offsets.length, cells.length, "no two of these cells land on one");
   cells.forEach((cell, n) => {
     const at = oldGrid.centreOf(cell);
     const expected = grown.offsetOf(at);
-    assert.equal(moved.hexKeys[n], key(expected), `${key(cell)} becomes the cell its centroid now lies in`);
-    assert.deepEqual(moved.shapes[n], grown.shapeOf(expected), `${key(cell)}'s shape is rebuilt for that cell`);
-    assert.ok(Math.hypot(grown.centreOf(expected).x - at.x, grown.centreOf(expected).y - at.y) < 45, "the cell is the one beneath the old shape");
+    assert.equal(offsetsOf(moved)[n], key(expected), `${key(cell)} becomes the cell its place now lies in`);
+    assert.ok(Math.hypot(grown.centreOf(expected).x - at.x, grown.centreOf(expected).y - at.y) < 45, "the cell is the one beneath the old one");
   });
-  assert.notDeepEqual(moved.hexKeys, cells.map(key), "the keys moved with the grid");
+  assert.notDeepEqual(offsetsOf(moved), cells.map(key), "the offsets moved with the grid");
 
-  // Two old cells landing on one new cell: the one whose centroid is nearest its centre keeps it.
+  // Two old cells landing on one new cell: the one nearest its centre keeps it, whichever came first.
   const coarse = lattice(90);
   const pair = [{ i: 4, j: 5 }, { i: 5, j: 5 }];
-  const [merged] = rekeyPaintedCells([region("a", pair)], coarse);
   const landed = pair.map((c) => key(coarse.offsetOf(oldGrid.centreOf(c))));
   assert.equal(landed[0], landed[1], "the fixture puts both old cells in one new cell");
-  assert.deepEqual(merged.hexKeys, [landed[0]], "one key remains");
-  assert.equal(merged.shapes.length, 1, "and one shape, aligned with it");
+  const [merged] = rekeyGridCells([region("a", pair)], coarse);
+  assert.deepEqual(offsetsOf(merged), [landed[0]], "one offset remains");
   const target = coarse.centreOf(coarse.offsetOf(oldGrid.centreOf(pair[0])));
   const dist = (c) => Math.hypot(oldGrid.centreOf(c).x - target.x, oldGrid.centreOf(c).y - target.y);
   const nearest = dist(pair[0]) <= dist(pair[1]) ? pair[0] : pair[1];
   const farthest = nearest === pair[0] ? pair[1] : pair[0];
   assert.ok(dist(nearest) < dist(farthest), "the fixture's two cells are not equally near");
-  // Reversed order: the winner is the nearest, not the first seen.
-  const [reversed] = rekeyPaintedCells([region("a", [farthest, nearest])], coarse);
-  assert.equal(reversed.hexKeys.length, 1);
-  const forward = rekeyPaintedCells([region("a", [nearest, farthest])], coarse)[0];
-  assert.deepEqual(reversed.hexKeys, forward.hexKeys, "the same cell survives whichever came first");
+  assert.deepEqual(offsetsOf(rekeyGridCells([region("a", [farthest, nearest])], coarse)[0]),
+    offsetsOf(rekeyGridCells([region("a", [nearest, farthest])], coarse)[0]), "the same cell survives whichever came first");
 
-  // Across regions of one layer: one value per hex, so the farther region loses the cell and, holding no other, goes empty.
-  const [lost, won] = rekeyPaintedCells([region("far", [farthest]), region("near", [nearest])], coarse);
-  assert.deepEqual([lost.id, lost.empty, won.id, won.empty], ["far", true, "near", false], "the region whose cell was farther is emptied");
-  assert.equal(won.hexKeys.length, 1);
+  // Across the regions of one layer: one value per hex, so the farther region loses the cell and is left holding none.
+  const [lost, won] = rekeyGridCells([region("far", [farthest]), region("near", [nearest])], coarse);
+  assert.deepEqual([lost.id, lost.shapes[0].offsets.length, won.id, won.shapes[0].offsets.length], ["far", 0, "near", 1],
+    "the region whose cell was farther is left with none");
+  assert.ok(lost.changed && won.changed === true, "and both are rewritten");
+
+  // A shape no layer owns stands alone: another region's cell on the same new cell is no rival, and nor is its own other shape.
+  const zones = rekeyGridCells([
+    region("zoneA", [farthest], { group: null }), region("zoneB", [nearest], { group: null }),
+    { id: "zoneC", shapes: [region("c", [farthest], { group: null }).shapes[0], { ...region("c", [nearest], { group: null }).shapes[0], index: 1 }] },
+  ], coarse);
+  assert.deepEqual(zones.map((r) => r.shapes.map((sh) => sh.offsets.length)), [[1], [1], [1, 1]], "a zone's cell is dropped only by a cell of its own shape");
+
+  // A hole in a paint region is a shape of its own: it never costs the layer a painted cell, nor the layer's cell it.
+  const withHole = { id: "p", shapes: [region("p", [nearest]).shapes[0], { ...region("p", [farthest], { group: null }).shapes[0], index: 1 }] };
+  const [holed] = rekeyGridCells([withHole], coarse);
+  assert.deepEqual(holed.shapes.map((sh) => sh.offsets.length), [1, 1], "a hole's cell and a painted cell landing together both stay");
 
   // An unchanged grid changes nothing, in any region.
-  const unchanged = rekeyPaintedCells([region("a", cells), region("b", [{ i: 10, j: 10 }])], oldGrid);
-  assert.ok(unchanged.every((r) => !r.changed && !r.empty), "nothing is rewritten under a grid that did not move");
-  assert.deepEqual(unchanged[0].hexKeys, cells.map(key));
+  const unchanged = rekeyGridCells([region("a", cells), region("b", [{ i: 10, j: 10 }])], oldGrid);
+  assert.ok(unchanged.every((r) => !r.changed), "nothing is rewritten under a grid that did not move");
+  assert.deepEqual(offsetsOf(unchanged[0]), cells.map(key));
 
-  // A shape the re-key cannot read keeps its key and its shape.
-  const odd = { type: "circle", x: 10, y: 10, radius: 5 };
-  const [mixed] = rekeyPaintedCells([{ id: "m", hexKeys: ["9:9", key(cells[0])], shapes: [odd, oldGrid.shapeOf(cells[0])] }], grown);
-  assert.equal(mixed.hexKeys[0], "9:9");
-  assert.equal(mixed.shapes[0], odd);
-  assert.equal(mixed.hexKeys[1], key(grown.offsetOf(oldGrid.centreOf(cells[0]))));
-
-  // Keys and shapes that do not line up are left alone rather than guessed at.
-  const [ragged] = rekeyPaintedCells([{ id: "r", hexKeys: ["1:1", "2:2"], shapes: [oldGrid.shapeOf(cells[0])] }], grown);
-  assert.equal(ragged.changed, false);
+  // A cell whose place names no cell keeps its offset.
+  const blind = { centreOf: grown.centreOf, offsetOf: () => null };
+  const [kept] = rekeyGridCells([region("a", [cells[0]])], blind);
+  assert.deepEqual([offsetsOf(kept), kept.changed], [[key(cells[0])], false]);
 }
 
-console.log("test-battlemap: OK (hex keys, labels, aligned paint/erase pairs, palette coverage, the re-key of painted cells under a moved grid, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");
+console.log("test-battlemap: OK (hex keys, labels, one cell in and out of a region's grid shape, a cell two regions claim, paints moving between values and a burst of ten, palette coverage, the re-key of grid cells under a moved grid, open vocabulary, road row escaping, whole-line segments, road distance, the territory layer, the brush over a window, the scene's default country, the country under a point, the map modes and their borders, a layer deriving the territory, its stripes and weighed sides, the hex preview's outlines and cap, the not-to-scale predicate, the footprint a token is judged by, the mark's listener, key and readout, capture keys left to a typed field, the scene config button's scene, the size chips)");

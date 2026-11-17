@@ -24,14 +24,27 @@ Clicks and drags paint hex cells into scene REGIONS (a drag paints only
 inside a stroke that began on the board, and only while the pointer is over
 it, never through a window in front): one region per value per
 layer per scene, tinted from the module's own palette and flagged with the
-layer's pair — the value (`terrain`, `territory`) and the painted cells as
-OFFSET KEYS beside the shapes (`terrainHexes`, `territoryHexes`, aligned
-index-for-index). The keys are what make erasing
-exact and every read geometry-free: "what territory is this hex?" is a flag
-read that answers identically on a client with no canvas. A hex holds one
-value per layer: painting a cell removes it from every other region of that
-layer first, the eraser unpaints the armed layer alone, and a region whose
-last cell goes is deleted. A terrain and a territory answer different
+layer's value (`terrain`, `territory`). Its cells are core's own `grid`
+shape (`GridShapeData`): forest painted on hexes 3:4 and 3:5 is one region,
+`terrain = "forestDeciduous"`, with one shape `{type: "grid", offsets:
+[{i: 3, j: 4}, {i: 3, j: 5}]}`, no polygon and no cell flag, so a Judge adds
+or removes a cell with core's grid tool as readily as the brush does, and a
+brush region is created unlocked for that (locked is for the regions an
+import draws). The cell is the grid offset and nothing else, and every read
+is canvas-free: "what territory is this hex?" is core's `testPoint` on each
+non-hole grid shape of the layer, the regions in the scene's order and the
+first to claim the hex answering, which answers identically on a client with
+no canvas. The enumerations (the map
+modes' plan, `derivedHexes`, a domain's painted hexes) read the same shapes'
+offsets through `layerCellsOf`, each hex listed once under the first region
+to claim it, so a hex two regions claim after a hand edit is listed once and
+agrees with the point read. A hex holds one value per layer: a paint takes
+the cell out of every other region of that layer and into the value's region
+in one region update, the eraser unpaints the armed layer alone, and a
+region whose last cell goes is deleted. The writes of a scene run one after
+another, so a drag that fires faster than the server answers loses no cell.
+A hole, or a shape that is no grid shape, which a Judge adds paints nothing
+and is left as it is by the next paint. A terrain and a territory answer different
 questions about the same hex, so a write on one layer never touches the
 other's regions. Terrain regions are visible to everyone (a hex map's terrain
 is the map); territory regions are drawn on the Regions control alone, since
@@ -57,8 +70,8 @@ Each layer's vocabulary is structural:
 
 **The layer registry.** No code in the painter names a layer: each is
 registered, and the two above register through the same call at the foot of
-`terrain-paint.mjs`. `registerPaintLayer({key, flag, hexesFlag, values, label,
-color, visible, regionsOnly, title, groups, derives})` takes the layer's two region flags;
+`terrain-paint.mjs`. `registerPaintLayer({key, flag, values, label,
+color, visible, regionsOnly, title, groups, derives})` takes the layer's region flag;
 `values()`, asked on every read so a vocabulary may come from the world;
 `label(value)` and `color(value)`; `visible`, true where the layer's regions
 are drawn for everyone and otherwise the Judge's alone; `regionsOnly`, true
@@ -69,7 +82,7 @@ default); optional `groups` (`of(value)` and `label(group)`), which fold the
 swatches under group headings in order of first appearance; and an optional
 `derives` (`{key, of(value)}`), the country key a hex painted on the layer
 answers — `DERIVED_KEYS`, the territory alone — and that key's value for one of
-the layer's, or null where it implies none (§One reader). Paint, erase, the reads (`layerValueAt`, `layerRegionsOf`), `paintableValues`,
+the layer's, or null where it implies none (§One reader). Paint, erase, the reads (`layerValueAt`, `layerCellsOf`, `layerRegionsOf`), `paintableValues`,
 `layerLabelFor`, `layerColorFor`, `openCountryBrush` and the palette all read the
 registry; a key it does not hold paints nothing, reads null and arms on terrain.
 `derivedValueAt(scene, point, key)` reads a derived key at a point, `{value,
@@ -78,7 +91,7 @@ derived for. The palette leaves out the pill of a layer whose `values()` is empt
 registers its layer from its own module, so battlemap imports no feature.
 
 Registration throws, naming the layer, on a key already taken, a flag another
-layer holds (or one flag standing for both of a layer's), a missing function,
+layer holds, a missing function,
 a half-given `groups`, or a `derives` naming a key outside `DERIVED_KEYS` or
 one another layer already derives. It returns a handle that takes the layer out again; a
 brush on it returns to terrain, and a handle already spent removes nothing.
@@ -86,8 +99,7 @@ A feature whose values change MEANING with no region written — a value
 renamed, recoloured, or deriving another key — calls `paintLayerChanged(key)`,
 which calls `acksExtrasPaintLayerChanged`; the map modes and an open palette
 redraw on it.
-`PAINT_LAYERS` is a live read-only view of the registered pairs, `{flag,
-hexesFlag}` by key: it answers `Object.keys`, `Object.hasOwn` and a key read,
+`PAINT_LAYERS` is a live read-only view of the registered entries, `{flag}` by key: it answers `Object.keys`, `Object.hasOwn` and a key read,
 and refuses every write.
 
 `paintedTerrainAt` reads the terrain layer alone in both of its
@@ -221,9 +233,9 @@ nothing rewrites it.
 | `capture.mjs` | Canvas overlay: screen-space pointer catcher (core GridConfig's preview pattern), sample glyphs, live fitted-grid preview (GridMesh for square fits, drawn lattice lines for an affine one, hex outlines from the probe's vertices for a hex fit, capped at `HEX_PREVIEW_MAX`), eraser and undo; it leaves Ctrl+Z and Escape to a field being typed in (`isEditableTarget`). |
 | `session.mjs` | The calibration session: samples (each with what it represents), the armed mode, the setup choices (family, hex parity, units, party system), the fit toggles and the GM's entered values, plus the overlay. Owns the state both surfaces read; notifies subscribers on every change. |
 | `assistant-app.mjs` | The Map setup window, a VIEW over the session: the Grid and scale section (the family, the units and cell worth, the needs list, the fit card and the samples), the Scale section, the fit toggles and Bake, "Saved as you choose" (the party system and the country), the Token sizes section (its chips and the whole-scene rescale), and a pinned footer carrying the Apply action and the rows it rewrites. One module-level instance, so a second press focuses rather than stacks and a dragged position survives a close; it subscribes to the session while open and unsubscribes on close. Two PARTS — a part renders one root element, and the footer must be the body's sibling to stay pinned, which is why `.window-content` is the flex column. |
-| `apply.mjs` | Scene writes. One side-effect-free solve per family, `solveGridCalibration` (square), `solveHexCalibration` (hex) and `solveScaleOnly` (no geometry), each answering the solution and its exact update; `writeSetup`, the one writer (confirm, one `scene.update` under `autoReposition`, read back, re-key the painted hexes, done notice); plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
+| `apply.mjs` | Scene writes. One side-effect-free solve per family, `solveGridCalibration` (square), `solveHexCalibration` (hex) and `solveScaleOnly` (no geometry), each answering the solution and its exact update; `writeSetup`, the one writer (confirm, one `scene.update` under `autoReposition`, read back, re-key every grid-shape cell, done notice); plus `bakeCorrectedBackground` (render-to-texture de-skew, upload, repoint). |
 | `scene-setup.mjs` | What a scene has been set up AS: the flag record (`sceneSetup` / `writeSceneSetup`), its declared travel system, its default country (`sceneCountry`), the family it already uses, and `hexProbe` — a hex's bounding box, the lattice basis and one hex's vertex offsets, measured off a clone rather than restated. |
-| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value keyed by cell, each layer's vocabulary, colours and labels, the reads (`layerValueAt`, `paintedTerrainAt`, and the derived `derivedValueAt` / `derivedHexes`), `paintLayerChanged`, the writer `paintHexAt`, the re-key after a grid change (`rekeyPaintedHexes`, over the pure `rekeyPaintedCells`), and the palette window with its layer pills. |
+| `terrain-paint.mjs` | The country brush: the paint-layer registry (`registerPaintLayer`, with the two built-in layers registered through it) as one region per value whose cells are a core grid shape, each layer's vocabulary, colours and labels, the reads (`layerValueAt` over core's `testPoint`, `layerCellsOf`, `paintedTerrainAt`, and the derived `derivedValueAt` / `derivedHexes`), `paintLayerChanged`, the queued per-scene writer `paintHexAt`, the re-key after a grid change (`captureGridCells` before the write, `rekeyPaintedHexes` after, over the pure `rekeyGridCells`), and the palette window with its layer pills. |
 | `country.mjs` | `countryAt`, the one reader of the country under a point: the painted layers, a derived territory, the drawn lines and the scene default, and which of them answered each key. |
 | `map-modes.mjs` | The map modes: the mode registry with Territory registered through it, this client's view (mode, opacity, handout), the plan with its border segments, side weights and stripes, the overlay in the regions layer, following the brush, and the Map modes window. |
 | `hex-fit.mjs` | `hexAlignment` — the shift that lays Foundry's lattice over a drawn cell centre, asked of a zero-shift clone. The one owner of lattice alignment. Document methods only. |
@@ -308,10 +320,17 @@ nothing rewrites it.
   old value. The update is written under core's `autoReposition`, so every
   token, tile, wall, note, drawing and region keeps its place on the picture
   as the image is rescaled and shifted (a scale-only apply asks for it only
-  when `grid.size` changes); once the write reads back, `rekeyPaintedHexes`
-  re-keys each painted terrain, territory and domain region to the hexes now
-  under its shapes, and where two painted hexes fall into one, the one nearer
-  that hex's centre is kept. A token moves by its top-left corner while its
+  when `grid.size` changes); core moves every
+  shape with the image but leaves a grid shape's offsets as they were, so
+  `writeSetup` reads each grid cell's centre as a fraction of the scene
+  rectangle before the write (`captureGridCells`) and, once the write reads
+  back, `rekeyPaintedHexes` looks that place up on the new grid and the cell
+  there becomes the offset. Every grid shape on the scene is re-keyed, the
+  paint layers' and the zones an import drew alike, on a square grid as on a
+  hex one; a gridless scene has none to move. Where two cells of one paint
+  layer fall into one, the one nearer that cell's centre is kept (a zone's
+  shape, or a hole, drops a duplicate within itself only), and the regions are written in
+  one call from their shapes as they stand after core's own move. A token moves by its top-left corner while its
   pixel size changes with the cell, so its centre stays inside the cell it was
   over but leaves that cell's centre by about half the change in size. The shift comes from `solveShift` (pure, in `calibrate-logic.mjs`) fed the
   `sceneX`/`sceneY` of a preview clone whose shift is zeroed, so core's

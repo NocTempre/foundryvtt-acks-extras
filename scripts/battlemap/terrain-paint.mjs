@@ -2,13 +2,14 @@
 /**
  * Hex terrain painting — map prep for the overland journey. A hex-gridded
  * scene's terrain is painted into scene REGIONS: one region per terrain
- * kind, its shapes the painted cells, tinted and flagged `terrain: <key>`.
- * Each region also carries the painted cells as OFFSET KEYS
- * (`terrainHexes`, aligned index-for-index with `shapes`), so "what terrain
- * is this hex?" is a flag read, never a point-in-polygon test. One terrain
- * per hex; painting is GM-only, hex grids only. The PAINT SESSION is armed
- * by the battlemap control group's terrain tool, a screen-space pointer
- * catcher (capture.mjs's pattern) turning clicks and drags into cell writes.
+ * kind, flagged `terrain: <key>` and tinted, whose shape is core's own `grid`
+ * shape (`GridShapeData`) holding the painted cells as grid offsets. "What
+ * terrain is this hex?" is core's `testPoint` on those shapes, and a Judge
+ * adds or removes a cell with core's grid tool as readily as the brush does.
+ * One terrain per hex; painting is GM-only, hex grids only. The PAINT SESSION
+ * is armed by the battlemap control group's terrain tool, a screen-space
+ * pointer catcher (capture.mjs's pattern) turning clicks and drags into cell
+ * writes, one queued write per cell.
  *
  * Terrain is one LAYER of a registry (`registerPaintLayer`): territory is
  * painted the same way into regions of its own, under flags of its own, one
@@ -19,8 +20,7 @@
  * never a hex's. The terrain names below keep their meaning; each
  * layer-aware form takes a trailing `layer`, "terrain" by default.
  *
- * See docs/battlemap/DECISIONS.md, "Terrain paints as regions, and the
- * cell key is the identity."
+ * See docs/battlemap/DECISIONS.md, "Paint is a core grid shape per value."
  */
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { TERRAIN, readTable, TRAVEL_DOC } from "../vehicles/vehicle-speed.mjs";
@@ -28,19 +28,17 @@ import { ENCOUNTER_TERRAINS } from "../formation/encounter-terrains.mjs";
 import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
 import { lighten } from "../lib/color.mjs";
+import { gridCellsOf } from "../lib/regions.mjs";
 
-/** Region flags: the terrain kind, and the painted cells as offset keys. */
+/** The region flag naming the terrain kind a terrain region paints. */
 export const TERRAIN_FLAG = "terrain";
-/** The region flag holding the painted cells as offset keys. */
-export const HEXES_FLAG = "terrainHexes";
 
 /**
  * Every registered layer's entry, by key, in registration order. A layer is a
- * pair of region flags (the value a region paints, and its painted cells as
- * offset keys) and the functions that say what its brush may lay down. A hex
- * holds one value per layer, and a layer's write never touches another's
- * regions: a terrain and a territory answer different questions about the
- * same hex.
+ * region flag (the value a region paints; its cells are the region's own grid
+ * shapes) and the functions that say what its brush may lay down. A hex holds
+ * one value per layer, and a layer's write never touches another's regions: a
+ * terrain and a territory answer different questions about the same hex.
  */
 const layers = new Map();
 
@@ -70,10 +68,10 @@ export function paintLayerChanged(layer) {
 }
 
 /**
- * The registered layers' region flags, `{flag, hexesFlag}` by layer key: a live
- * read-only view of the registry, so a layer registered later appears in it. It
- * answers `Object.keys`, `Object.hasOwn` and a key read as a plain map of the
- * pairs would; every write is refused, since a layer joins only through
+ * The registered layers' region flags, `{flag}` by layer key: a live read-only
+ * view of the registry, so a layer registered later appears in it. It answers
+ * `Object.keys`, `Object.hasOwn` and a key read as a plain map of the entries
+ * would; every write is refused, since a layer joins only through
  * `registerPaintLayer`.
  */
 export const PAINT_LAYERS = new Proxy({}, {
@@ -91,13 +89,12 @@ export const PAINT_LAYERS = new Proxy({}, {
 });
 
 /**
- * Register a layer for the country brush. The key and both flags are the
+ * Register a layer for the country brush. The key and the flag are the
  * layer's alone: a key or a flag another layer holds is refused with a throw,
  * since two layers on one flag would read and erase each other's regions.
  * @param {object} layer
  * @param {string} layer.key          the layer's name, as the palette and `openCountryBrush` give it
  * @param {string} layer.flag         the module flag a region carries to name its value
- * @param {string} layer.hexesFlag    the module flag holding the painted cells as offset keys
  * @param {() => string[]} layer.values  every value the brush may lay down now; a layer with none is left out of the palette
  * @param {(value: string) => string} layer.label  a value's name
  * @param {(value: string) => string} layer.color  a value's swatch and region colour
@@ -114,13 +111,13 @@ export const PAINT_LAYERS = new Proxy({}, {
  * @returns {() => void} removes the layer again; the brush returns to terrain if it was on it
  */
 export function registerPaintLayer({
-  key, flag, hexesFlag, values, label, color, visible = false, regionsOnly = false, title = null, groups = null,
+  key, flag, values, label, color, visible = false, regionsOnly = false, title = null, groups = null,
   derives = null,
 } = {}) {
   const refuse = (why) => {
     throw new Error(`${MODULE_ID} | paint layer "${key}" refused: ${why}`);
   };
-  for (const [name, text] of Object.entries({ key, flag, hexesFlag })) {
+  for (const [name, text] of Object.entries({ key, flag })) {
     if (typeof text !== "string" || !text) refuse(`${name} must be a non-empty string`);
   }
   for (const [name, fn] of Object.entries({ values, label, color })) {
@@ -136,14 +133,12 @@ export function registerPaintLayer({
     if (other) refuse(`"${other.key}" already derives ${derives.key}, one layer to a key`);
   }
   if (layers.has(key)) refuse("registered twice, one layer to a key");
-  if (flag === hexesFlag) refuse("flag and hexesFlag must differ");
   if (visible && regionsOnly) refuse("visible and regionsOnly cannot both hold");
-  const held = [...layers.values()].flatMap((l) => [l.flag, l.hexesFlag]);
-  if ([flag, hexesFlag].some((f) => held.includes(f))) refuse("a flag is shared with another layer");
+  if ([...layers.values()].some((l) => l.flag === flag)) refuse("a flag is shared with another layer");
   const entry = Object.freeze({
-    key, flag, hexesFlag, values, label, color, visible: !!visible, regionsOnly: !!regionsOnly, title, groups,
+    key, flag, values, label, color, visible: !!visible, regionsOnly: !!regionsOnly, title, groups,
     derives: derives ? Object.freeze({ key: derives.key, of: derives.of }) : null,
-    pair: Object.freeze({ flag, hexesFlag }),
+    pair: Object.freeze({ flag }),
   });
   layers.set(key, entry);
   return () => {
@@ -309,7 +304,6 @@ export function layerLabelFor(key, layer = "terrain") {
 registerPaintLayer({
   key: "terrain",
   flag: TERRAIN_FLAG,
-  hexesFlag: HEXES_FLAG,
   visible: true,
   values: paintableTerrains,
   label: labelFor,
@@ -319,7 +313,6 @@ registerPaintLayer({
 registerPaintLayer({
   key: "territory",
   flag: "territory",
-  hexesFlag: "territoryHexes",
   regionsOnly: true,
   values: () => [...TERRITORY_KEYS],
   label: (key) => (TERRITORY_KEYS.includes(key) ? game.i18n.localize(`ACKS-FORMATION.travel.territory.${key}`) : String(key ?? "")),
@@ -349,103 +342,99 @@ export function hexLabelFromOffset(offset) {
 }
 
 /**
- * A cell added to a region's aligned (hexKeys, shapes) pair — unchanged when
- * the cell is already painted there.
+ * One cell taken out of a region's shape data: out of every non-hole `grid`
+ * shape that holds it, a grid shape left with no cell dropped. Other shapes
+ * (a hole, a polygon a Judge drew) are passed through untouched, so a rewrite
+ * of the array loses nothing it did not mean to.
+ * @param {object[]} shapes the region's `shapes` as plain data
+ * @param {string} key the cell's `i:j` key
+ * @returns {{shapes: object[], changed: boolean}} `shapes` is empty when nothing is left of the region
  */
-export function withHexAdded(hexKeys, shapes, key, shape) {
-  if ((hexKeys ?? []).includes(key)) return { hexKeys, shapes, changed: false };
-  return { hexKeys: [...(hexKeys ?? []), key], shapes: [...(shapes ?? []), shape], changed: true };
+export function withCellRemoved(shapes, key) {
+  let changed = false;
+  const next = [];
+  for (const shape of shapes ?? []) {
+    if (shape?.type !== "grid" || shape.hole || !(shape.offsets ?? []).some((o) => hexKeyOf(o) === key)) {
+      next.push(shape);
+      continue;
+    }
+    changed = true;
+    const offsets = shape.offsets.filter((o) => hexKeyOf(o) !== key);
+    if (offsets.length) next.push({ ...shape, offsets });
+  }
+  return { shapes: changed ? next : shapes, changed };
 }
 
-/** A cell removed from the pair — unchanged when it was never there. */
-export function withHexRemoved(hexKeys, shapes, key) {
-  const i = (hexKeys ?? []).indexOf(key);
-  if (i < 0) return { hexKeys, shapes, changed: false };
+/**
+ * One cell added to a region's shape data: to the first non-hole `grid` shape,
+ * or to a new one where the region holds none. Unchanged when a non-hole grid
+ * shape already holds it.
+ * @param {object[]} shapes the region's `shapes` as plain data
+ * @param {string} key the cell's `i:j` key
+ * @returns {{shapes: object[], changed: boolean}}
+ */
+export function withCellAdded(shapes, key) {
+  const list = shapes ?? [];
+  const held = (s) => s?.type === "grid" && !s.hole;
+  if (list.some((s) => held(s) && (s.offsets ?? []).some((o) => hexKeyOf(o) === key))) return { shapes: list, changed: false };
+  const [i, j] = key.split(":").map(Number);
+  const at = list.findIndex(held);
+  if (at < 0) return { shapes: [...list, { type: "grid", hole: false, offsets: [{ i, j }] }], changed: true };
   return {
-    hexKeys: hexKeys.filter((_k, n) => n !== i),
-    shapes: (shapes ?? []).filter((_s, n) => n !== i),
+    shapes: list.map((s, n) => (n === at ? { ...s, offsets: [...(s.offsets ?? []), { i, j }] } : s)),
     changed: true,
   };
 }
 
-/** A polygon shape's vertex centroid, or null for a shape that is no polygon of three points or more. */
-function centroidOf(shape) {
-  const p = shape?.type === "polygon" ? shape.points : null;
-  if (!Array.isArray(p) || p.length < 6 || p.length % 2 || !p.every(Number.isFinite)) return null;
-  const n = p.length / 2;
-  let x = 0;
-  let y = 0;
-  for (let k = 0; k < p.length; k += 2) {
-    x += p[k];
-    y += p[k + 1];
-  }
-  return { x: x / n, y: y / n };
-}
-
-/** Whether two shapes are the one polygon, vertex for vertex within a thousandth of a pixel. */
-function sameShape(a, b) {
-  if (a === b) return true;
-  const pa = a?.points;
-  const pb = b?.points;
-  return a?.type === b?.type && Array.isArray(pa) && Array.isArray(pb) && pa.length === pb.length
-    && pa.every((v, n) => Math.abs(v - pb[n]) <= 1e-3);
-}
-
 /**
- * Re-key one layer's painted cells after the grid moved under them. Each
- * painted shape stays where it is on the map; what changes is which cell of
- * the grid as it now stands lies under it. A shape's centroid names that cell,
- * the key becomes the cell's, and the shape is rebuilt as the cell's own. Where
- * two old cells land on one new cell the one whose centroid is nearest the new
- * cell's centre keeps it, across every region of the layer (one value per hex
- * per layer), and the other is dropped. A shape that is no polygon, or whose
- * centroid names no cell, is kept as it was and keeps its key.
+ * Re-key grid cells after the grid moved under them. Each cell stays where it
+ * is on the map: the caller says which point of the NEW grid it lands on, and
+ * the cell becomes the cell of the new grid that point lies in. Where two old
+ * cells of one group land on one new cell, the one whose point is nearest the
+ * new cell's centre keeps it and the other is dropped. A group is a paint
+ * layer's cell shapes together (one value per hex per layer), or, for a shape
+ * no layer owns (a zone's, a hole), that shape alone. A cell whose point names
+ * no cell keeps its key.
  *
- * Pure: the grid arrives as three functions, so no scene is read.
- * @param {Array<{id: string, hexKeys: string[], shapes: object[]}>} regions
- *   a layer's regions, each with its cell keys aligned index-for-index with its shapes
+ * Pure: the grid arrives as two functions, so no scene is read.
+ * @param {Array<{id: string, shapes: Array<{index: number, group: string|null, cells: Array<{i: number, j: number, x: number, y: number}>}>}>} regions
+ *   each region's grid shapes by index with their collision group (null for a shape of its own), every cell with the point it lands on
  * @param {object} grid
  * @param {(point: {x: number, y: number}) => {i: number, j: number}|null} grid.offsetOf  the cell containing a point
  * @param {(offset: {i: number, j: number}) => {x: number, y: number}} grid.centreOf  a cell's centre
- * @param {(offset: {i: number, j: number}) => object} grid.shapeOf  a cell's polygon shape data
- * @returns {Array<{id: string, hexKeys: string[], shapes: object[], changed: boolean, empty: boolean}>}
- *   one entry per region in the order given; `changed` says its keys or shapes differ from what was given
+ * @returns {Array<{id: string, shapes: Array<{index: number, offsets: Array<{i: number, j: number}>}>, changed: boolean}>}
+ *   one entry per region in the order given; `changed` says some shape's cells differ from what was given
  */
-export function rekeyPaintedCells(regions, { offsetOf, centreOf, shapeOf }) {
+export function rekeyGridCells(regions, { offsetOf, centreOf }) {
   const best = new Map();
-  const entries = regions.map((region) => {
-    const keys = region.hexKeys ?? [];
-    const shapes = region.shapes ?? [];
-    if (keys.length !== shapes.length) return { aligned: false, items: [] };
-    const items = keys.map((key, n) => {
-      const centroid = centroidOf(shapes[n]);
-      const offset = centroid ? offsetOf(centroid) : null;
-      if (!offset || !Number.isFinite(offset.i) || !Number.isFinite(offset.j)) {
-        const kept = { key, shape: shapes[n], d: -1 };
-        if (!best.has(key) || best.get(key).d > -1) best.set(key, kept);
-        return kept;
-      }
-      const to = centreOf(offset);
-      const item = { key: hexKeyOf(offset), shape: shapeOf(offset), d: Math.hypot(centroid.x - to.x, centroid.y - to.y) };
-      const rival = best.get(item.key);
-      if (!rival || item.d < rival.d) best.set(item.key, item);
-      return item;
+  const claimed = regions.map((region) => region.shapes.map((shape) => shape.cells.map((cell) => {
+    const offset = offsetOf(cell);
+    const valid = offset && Number.isFinite(offset.i) && Number.isFinite(offset.j);
+    const to = valid ? centreOf(offset) : null;
+    const item = {
+      from: { i: cell.i, j: cell.j },
+      to: valid ? { i: offset.i, j: offset.j } : { i: cell.i, j: cell.j },
+      d: valid ? Math.hypot(cell.x - to.x, cell.y - to.y) : -1,
+      domain: `${shape.group ?? `${region.id}#${shape.index}`}|${valid ? hexKeyOf(offset) : hexKeyOf(cell)}`,
+    };
+    const rival = best.get(item.domain);
+    if (!rival || item.d < rival.d) best.set(item.domain, item);
+    return item;
+  })));
+  return regions.map((region, r) => {
+    let changed = false;
+    const shapes = region.shapes.map((shape, s) => {
+      const kept = claimed[r][s].filter((item) => best.get(item.domain) === item);
+      const offsets = kept.map((item) => item.to);
+      if (kept.length !== shape.cells.length || kept.some((item) => item.to.i !== item.from.i || item.to.j !== item.from.j)) changed = true;
+      return { index: shape.index, offsets };
     });
-    return { aligned: true, items };
-  });
-  return entries.map((entry, r) => {
-    const { id, hexKeys = [], shapes = [] } = regions[r];
-    if (!entry.aligned) return { id, hexKeys, shapes, changed: false, empty: false };
-    const kept = entry.items.filter((item) => best.get(item.key) === item);
-    const next = { hexKeys: kept.map((item) => item.key), shapes: kept.map((item) => item.shape) };
-    const changed = next.hexKeys.length !== hexKeys.length
-      || next.hexKeys.some((key, n) => key !== hexKeys[n] || !sameShape(next.shapes[n], shapes[n]));
-    return { id, ...next, changed, empty: next.hexKeys.length === 0 };
+    return { id: region.id, shapes, changed };
   });
 }
 
 /* -------------------------------------------------------------------- */
-/*  Scene reads and writes                                              */
+/*  Scene reads                                                          */
 /* -------------------------------------------------------------------- */
 
 /** Is this scene's grid one the painter works in? */
@@ -455,11 +444,15 @@ export function isHexScene(scene) {
   return [T.HEXODDR, T.HEXEVENR, T.HEXODDQ, T.HEXEVENQ].includes(type);
 }
 
-/** Every region a layer has painted on a scene. */
+/**
+ * Every region a layer has painted on a scene, in the scene's order: one that
+ * carries the layer's value flag and at least one `grid` shape. A region the
+ * flag names but no grid shape backs paints nothing.
+ */
 export function layerRegionsOf(scene, layer = "terrain") {
   const spec = layerSpec(layer);
   if (!spec) return [];
-  return (scene?.regions ?? []).filter((r) => !!r.getFlag?.(MODULE_ID, spec.flag));
+  return (scene?.regions ?? []).filter((r) => !!r.getFlag?.(MODULE_ID, spec.flag) && (r.shapes ?? []).some((s) => s.type === "grid"));
 }
 
 /** Every terrain region of a scene. */
@@ -468,16 +461,40 @@ export function terrainRegionsOf(scene) {
 }
 
 /**
- * A layer's painted value in the hex containing `point`, or null. A flag read
- * over the cell key — exact, and canvas-free, so the journey's movement
- * handler can ask it on any client.
+ * Every cell a layer holds on a scene: `[{key, value, region}]`, one per cell,
+ * its region the first of the layer (in the scene's order) to claim it. This
+ * is the one enumeration behind the map modes, the derived hexes and a
+ * domain's painted hexes, and it agrees with `layerValueAt` where a hand edit
+ * has left two regions claiming a cell: both answer with the first.
+ */
+export function layerCellsOf(scene, layer = "terrain") {
+  const spec = layerSpec(layer);
+  if (!spec) return [];
+  const seen = new Set();
+  const out = [];
+  for (const region of layerRegionsOf(scene, layer)) {
+    const value = region.getFlag(MODULE_ID, spec.flag);
+    for (const cell of gridCellsOf(region)) {
+      const key = hexKeyOf(cell);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push({ key, value, region });
+    }
+  }
+  return out;
+}
+
+/**
+ * A layer's painted value in the hex containing `point`, or null: core's
+ * `testPoint` on each of the layer's non-hole `grid` shapes, the regions in the
+ * scene's order, the first to claim the hex answering. Canvas-free, so the
+ * journey's movement handler can ask it on any client.
  */
 export function layerValueAt(scene, point, layer = "terrain") {
   const spec = layerSpec(layer);
   if (!spec || !isHexScene(scene)) return null;
-  const key = hexKeyOf(scene.grid.getOffset(point));
   for (const region of layerRegionsOf(scene, layer)) {
-    if ((region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).includes(key)) {
+    if (region.shapes.some((s) => s.type === "grid" && !s.hole && s.testPoint(point))) {
       return region.getFlag(MODULE_ID, spec.flag);
     }
   }
@@ -501,15 +518,15 @@ export function derivedValueAt(scene, point, key) {
 /**
  * Every hex of a scene for which a layer derives `key`: `[{key, value, layer}]`
  * by offset key, as `derivedValueAt` would answer at each, so a map mode can
- * draw them all without asking hex by hex.
+ * draw them all without asking hex by hex. A hex is the layer's first claim
+ * before it is derived from, so one the layer holds twice answers once.
  */
 export function derivedHexes(scene, key) {
   const spec = derivingLayer(key);
   if (!spec || !isHexScene(scene)) return [];
-  return layerRegionsOf(scene, spec.key).flatMap((region) => {
-    const value = spec.derives.of(region.getFlag(MODULE_ID, spec.flag)) ?? null;
-    if (value == null) return [];
-    return (region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).map((hex) => ({ key: hex, value, layer: spec.key }));
+  return layerCellsOf(scene, spec.key).flatMap((cell) => {
+    const value = spec.derives.of(cell.value) ?? null;
+    return value == null ? [] : [{ key: cell.key, value, layer: spec.key }];
   });
 }
 
@@ -535,61 +552,53 @@ export function paintedTerrainAt(scene, point) {
   return { key, ground: key, encounterTerrain: "" };
 }
 
-/** The cell's polygon shape data, from the scene's own grid. */
-function hexShapeAt(scene, offset) {
-  const vertices = scene.grid.getVertices(offset);
-  return { type: "polygon", hole: false, points: vertices.flatMap((v) => [v.x, v.y]) };
+/* -------------------------------------------------------------------- */
+/*  Scene writes                                                         */
+/* -------------------------------------------------------------------- */
+
+/** Each scene's write queue: the tail of the promise chain, which never rejects. */
+const queues = new WeakMap();
+
+/**
+ * Run a write after every write queued before it on the same scene. The
+ * brush fires one write per pointer move without awaiting it, and a cell's
+ * write reads the regions as the last one left them: run side by side, two
+ * writes each start from the same stale shapes and one cell is lost. A write
+ * that throws rejects to its own caller and leaves the queue running.
+ */
+function serialized(scene, task) {
+  const run = (queues.get(scene) ?? Promise.resolve()).then(task);
+  queues.set(scene, run.catch(() => {}));
+  return run;
+}
+
+/** Send a batch of region writes: updates in one call, then deletions. */
+async function sendRegionWrites(scene, { updates = [], removals = [] }) {
+  if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
+  if (removals.length) await scene.deleteEmbeddedDocuments("Region", removals);
 }
 
 /**
- * Re-key every registered layer's painted cells against the grid the scene
- * holds now (`rekeyPaintedCells`), after a write that moved the grid under the
- * painted regions. The grid is read off `scene.grid`, the instance core builds
- * from the scene's own data, so it answers the moment the update has landed,
- * with no canvas redraw behind it. Every region that changed is written in one
- * call, and one a layer lost all its cells from is deleted.
- * @returns {Promise<number>} how many regions were rewritten or deleted
+ * The writes that take one cell out of a layer's regions, `except` one aside:
+ * each region still holding other cells is updated with its shapes rewritten,
+ * one left with nothing is deleted.
  */
-export async function rekeyPaintedHexes(scene) {
-  if (!scene.grid?.getOffset || !game.user.isGM || !isHexScene(scene)) return 0;
-  const grid = {
-    offsetOf: (point) => scene.grid.getOffset(point),
-    centreOf: (offset) => scene.grid.getCenterPoint(offset),
-    shapeOf: (offset) => hexShapeAt(scene, offset),
-  };
+function cellStrips(regions, key, except = null) {
   const updates = [];
   const removals = [];
-  for (const spec of layers.values()) {
-    const regions = layerRegionsOf(scene, spec.key);
-    const asked = regions.map((region) => ({
-      id: region.id,
-      hexKeys: region.getFlag(MODULE_ID, spec.hexesFlag) ?? [],
-      shapes: region.toObject().shapes ?? [],
-    }));
-    for (const next of rekeyPaintedCells(asked, grid)) {
-      if (!next.changed) continue;
-      if (next.empty) removals.push(next.id);
-      else updates.push({ _id: next.id, shapes: next.shapes, [`flags.${MODULE_ID}.${spec.hexesFlag}`]: next.hexKeys });
-    }
+  for (const region of regions) {
+    if (region === except) continue;
+    const next = withCellRemoved(region.toObject().shapes ?? [], key);
+    if (!next.changed) continue;
+    if (next.shapes.length) updates.push({ _id: region.id, shapes: next.shapes });
+    else removals.push(region.id);
   }
-  if (updates.length) await scene.updateEmbeddedDocuments("Region", updates);
-  if (removals.length) await scene.deleteEmbeddedDocuments("Region", removals);
-  return updates.length + removals.length;
+  return { updates, removals };
 }
 
 /** Remove one cell from every region of one layer it appears in; the other layers keep theirs. */
-async function eraseHexEverywhere(scene, key, { except = null, layer = "terrain" } = {}) {
-  const { hexesFlag } = layerSpec(layer);
-  for (const region of layerRegionsOf(scene, layer)) {
-    if (region.id === except) continue;
-    const next = withHexRemoved(region.getFlag(MODULE_ID, hexesFlag) ?? [], region.toObject().shapes ?? [], key);
-    if (!next.changed) continue;
-    if (!next.hexKeys.length) {
-      await region.delete();
-    } else {
-      await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${hexesFlag}`]: next.hexKeys });
-    }
-  }
+async function eraseHexEverywhere(scene, key, layer = "terrain") {
+  await sendRegionWrites(scene, cellStrips(layerRegionsOf(scene, layer), key));
 }
 
 /** The visibility a layer's regions are made with: everyone's, the Regions control's alone, or a GM's. */
@@ -600,52 +609,145 @@ function regionVisibilityOf(spec) {
   return V.GAMEMASTER ?? 1;
 }
 
+/** One cell's paint, read and written as one step of the scene's queue. */
+async function paintCell(scene, spec, key, value, layer) {
+  const regions = layerRegionsOf(scene, layer);
+  if (value == null) {
+    await eraseHexEverywhere(scene, key, layer);
+    return true;
+  }
+  const target = regions.find((r) => r.getFlag(MODULE_ID, spec.flag) === value) ?? null;
+  const { updates, removals } = cellStrips(regions, key, target);
+  if (target) {
+    const next = withCellAdded(target.toObject().shapes ?? [], key);
+    if (!next.changed && !updates.length && !removals.length) return false;
+    if (next.changed) updates.push({ _id: target.id, shapes: next.shapes });
+    await sendRegionWrites(scene, { updates, removals });
+    return true;
+  }
+  await sendRegionWrites(scene, { updates, removals });
+  await scene.createEmbeddedDocuments("Region", [
+    {
+      // The layer's label and colour functions, never the frozen maps: an
+      // imported terrain has no entry in either, and TERRAIN[key].label
+      // would throw on it.
+      name: layerLabelFor(value, layer),
+      color: layerColorFor(value, layer),
+      visibility: regionVisibilityOf(spec),
+      // Unlocked, so core's grid tool reaches the cells; locking is for the
+      // regions an import draws.
+      locked: false,
+      shapes: withCellAdded([], key).shapes,
+      flags: { [MODULE_ID]: { [spec.flag]: value } },
+    },
+  ]);
+  return true;
+}
+
 /**
  * Paint the hex containing `point` with a layer's value (or erase it from that
- * layer, when `value` is null). One value per hex per layer; the region is
- * created on first use and tinted. A region is visible to everyone where its
- * layer is registered `visible` (a hex map's terrain is the map), only on the
- * Regions control where it is `regionsOnly` (a territory, which its map mode
- * draws), and for a GM otherwise.
+ * layer, when `value` is null). One value per hex per layer: the cell is taken
+ * out of the layer's other regions and added to the value's region, in one
+ * region update, the region created on first use and tinted, and one left
+ * with no cell deleted. A region is visible to everyone where its layer is
+ * registered `visible` (a hex map's terrain is the map), only on the Regions
+ * control where it is `regionsOnly` (a territory, which its map mode draws),
+ * and for a GM otherwise. Writes to a scene run one after another, so a drag
+ * that fires faster than the server answers loses no cell.
+ * @returns {Promise<boolean>} whether anything was written
  */
 export async function paintHexAt(scene, point, value, layer = "terrain") {
   const spec = layerSpec(layer);
-  if (!spec || !game.user.isGM || !isHexScene(scene) || !scene.grid.getVertices) return false;
-  const offset = scene.grid.getOffset(point);
-  const key = hexKeyOf(offset);
+  if (!spec || !game.user.isGM || !isHexScene(scene)) return false;
+  if (value != null && !paintableValues(layer).includes(value)) return false;
+  const key = hexKeyOf(scene.grid.getOffset(point));
+  return serialized(scene, () => paintCell(scene, spec, key, value, layer));
+}
 
-  if (value == null) {
-    await eraseHexEverywhere(scene, key, { layer });
-    return true;
+/**
+ * The cells of every grid shape on a scene, each as a fraction of the scene
+ * rectangle: the part of Apply's re-key that has to be read BEFORE the write,
+ * since the grid it names is the old one. Core's own reposition moves every
+ * placed object by the same fractions and leaves a grid shape's offsets as
+ * they were, so what changes under a cell is which centre lies beneath it.
+ * @param {Scene} scene
+ * @returns {object|null} what `rekeyPaintedHexes` takes, or null where the scene has no grid to read
+ */
+export function captureGridCells(scene) {
+  const grid = scene?.grid;
+  const d = scene?.dimensions;
+  if (!grid?.getCenterPoint || grid.isGridless || !(d?.sceneWidth > 0) || !(d?.sceneHeight > 0)) return null;
+  const groupOf = new Map();
+  for (const key of layers.keys()) for (const region of layerRegionsOf(scene, key)) if (!groupOf.has(region.id)) groupOf.set(region.id, `layer:${key}`);
+  // A hole claims no cell, so it shares no collision group with the layer's cells.
+  const groupFor = (region, shape) => (shape.hole ? null : groupOf.get(region.id) ?? null);
+  const regions = [];
+  for (const region of scene.regions ?? []) {
+    const shapes = [];
+    (region.shapes ?? []).forEach((shape, index) => {
+      if (shape.type !== "grid" || !shape.offsets?.length) return;
+      shapes.push({
+        index,
+        group: groupFor(region, shape),
+        cells: shape.offsets.map(({ i, j }) => {
+          const c = grid.getCenterPoint({ i, j });
+          return { i, j, fx: (c.x - d.sceneX) / d.sceneWidth, fy: (c.y - d.sceneY) / d.sceneHeight };
+        }),
+      });
+    });
+    if (shapes.length) regions.push({ id: region.id, shapes });
   }
-  if (!paintableValues(layer).includes(value)) return false;
+  return { regions };
+}
 
-  let region = layerRegionsOf(scene, layer).find((r) => r.getFlag(MODULE_ID, spec.flag) === value);
-  const already = region && (region.getFlag(MODULE_ID, spec.hexesFlag) ?? []).includes(key);
-  if (already) return false;
-
-  await eraseHexEverywhere(scene, key, { except: region?.id ?? null, layer });
-  const shape = hexShapeAt(scene, offset);
-  if (!region) {
-    const visibility = regionVisibilityOf(spec);
-    const [made] = await scene.createEmbeddedDocuments("Region", [
-      {
-        // The layer's label and colour functions, never the frozen maps: an
-        // imported terrain has no entry in either, and TERRAIN[key].label
-        // would throw on it.
-        name: layerLabelFor(value, layer),
-        color: layerColorFor(value, layer),
-        visibility,
-        shapes: [shape],
-        flags: { [MODULE_ID]: { [spec.flag]: value, [spec.hexesFlag]: [key] } },
-      },
-    ]);
-    region = made;
-  } else {
-    const next = withHexAdded(region.getFlag(MODULE_ID, spec.hexesFlag) ?? [], region.toObject().shapes ?? [], key, shape);
-    await region.update({ shapes: next.shapes, [`flags.${MODULE_ID}.${spec.hexesFlag}`]: next.hexKeys });
-  }
-  return true;
+/**
+ * Re-key every grid shape on a scene against the grid the scene holds now,
+ * after a write that moved the grid under them: `captured` (from
+ * `captureGridCells`, read before the write) says where each cell lay on the
+ * map as fractions of the scene rectangle, and each becomes the cell of the new
+ * grid beneath that place (`rekeyGridCells`). The paint layers' shapes and the
+ * zones an import drew are the same kind of shape and are moved alike. The
+ * grid is read off `scene.grid`, the instance core builds from the scene's own
+ * data, so it answers the moment the update has landed, with no canvas redraw
+ * behind it. The shapes are rewritten from the regions as they stand now, so
+ * what core repositioned in the same write is kept. Every region that changed
+ * is written in one call, and one left with no cell is deleted.
+ * @returns {Promise<number>} how many regions were rewritten or deleted
+ */
+export async function rekeyPaintedHexes(scene, captured) {
+  if (!captured?.regions?.length || !scene.grid?.getOffset || scene.grid.isGridless || !game.user.isGM) return 0;
+  const d = scene.dimensions;
+  if (!(d?.sceneWidth > 0) || !(d?.sceneHeight > 0)) return 0;
+  const landed = captured.regions.map((region) => ({
+    ...region,
+    shapes: region.shapes.map((shape) => ({
+      index: shape.index,
+      group: shape.group,
+      cells: shape.cells.map((c) => ({ i: c.i, j: c.j, x: d.sceneX + c.fx * d.sceneWidth, y: d.sceneY + c.fy * d.sceneHeight })),
+    })),
+  }));
+  const next = rekeyGridCells(landed, {
+    offsetOf: (point) => scene.grid.getOffset(point),
+    centreOf: (offset) => scene.grid.getCenterPoint(offset),
+  });
+  return serialized(scene, async () => {
+    const updates = [];
+    const removals = [];
+    for (const result of next) {
+      if (!result.changed) continue;
+      const region = [...(scene.regions ?? [])].find((r) => r.id === result.id);
+      if (!region) continue;
+      const shapes = region.toObject().shapes ?? [];
+      for (const { index, offsets } of result.shapes) {
+        if (shapes[index]?.type === "grid") shapes[index] = { ...shapes[index], offsets };
+      }
+      const kept = shapes.filter((s) => s.type !== "grid" || (s.offsets ?? []).length);
+      if (kept.length) updates.push({ _id: result.id, shapes: kept });
+      else removals.push(result.id);
+    }
+    await sendRegionWrites(scene, { updates, removals });
+    return updates.length + removals.length;
+  });
 }
 
 /* -------------------------------------------------------------------- */

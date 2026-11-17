@@ -22,7 +22,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-20 — [Verify scene writes by reading back; never emit NaN](DECISIONS-through-v11.14.5.md#2026-08-20--verify-scene-writes-by-reading-back-never-emit-nan)
 - 2026-08-20 — [Calibration gets a control group; the session owns the state](DECISIONS-through-v11.14.5.md#2026-08-20--calibration-gets-a-control-group-the-session-owns-the-state)
 - 2026-08-25 — [The panel is a sidebar tab, and the preview mesh is deaf](DECISIONS-through-v11.14.5.md#2026-08-25--the-panel-is-a-sidebar-tab-and-the-preview-mesh-is-deaf) — superseded in part by "2026-08-26 — The panel is a window again, dismissed by the toolbar"
-- 2026-08-28 — [Terrain paints as regions, and the cell key is the identity](DECISIONS-through-v11.14.5.md#2026-08-28--terrain-paints-as-regions-and-the-cell-key-is-the-identity) — superseded in part by "2026-10-24 — The map shows one mode at a time"
+- 2026-08-28 — [Terrain paints as regions, and the cell key is the identity](DECISIONS-through-v11.14.5.md#2026-08-28--terrain-paints-as-regions-and-the-cell-key-is-the-identity) — superseded in part by "2026-10-24 — The map shows one mode at a time"; "2026-11-16 — Paint is a core grid shape per value"
 - 2026-08-29 — [The terrain vocabulary opens to imported keys](DECISIONS-through-v11.14.5.md#2026-08-29--the-terrain-vocabulary-opens-to-imported-keys)
 - 2026-08-29 — [Mud and snow leave the brush](DECISIONS-through-v11.14.5.md#2026-08-29--mud-and-snow-leave-the-brush)
 - 2026-08-29 — [A hex has sides, corners and centres, and a road is a declared path](DECISIONS-through-v11.14.5.md#2026-08-29--a-hex-has-sides-corners-and-centres-and-a-road-is-a-declared-path) — superseded in part by "2026-09-12 — A road is a wall, on every grid"; "2026-11-13 — Only what the module and the current system write is served"
@@ -31,7 +31,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-09 — [A recipe's grid is aligned the way the calibration aligns one](DECISIONS-through-v11.14.5.md#2026-10-09--a-recipes-grid-is-aligned-the-way-the-calibration-aligns-one)
 - 2026-10-15 — [A river or a coast is a line](DECISIONS-through-v11.14.5.md#2026-10-15--a-river-or-a-coast-is-a-line)
 - 2026-10-15 — [The country brush paints three layers](DECISIONS-through-v11.14.5.md#2026-10-15--the-country-brush-paints-three-layers) — superseded in part by "2026-10-24 — The climate is the map's"; "2026-10-24 — The map shows one mode at a time"
-- 2026-10-17 — [The country brush's layers are a registry](DECISIONS-through-v11.14.5.md#2026-10-17--the-country-brushs-layers-are-a-registry)
+- 2026-10-17 — [The country brush's layers are a registry](DECISIONS-through-v11.14.5.md#2026-10-17--the-country-brushs-layers-are-a-registry) — superseded in part by "2026-11-16 — Paint is a core grid shape per value"
 - 2026-10-24 — [The brush paints the board alone](DECISIONS-through-v11.14.5.md#2026-10-24--the-brush-paints-the-board-alone)
 - 2026-10-24 — [The climate is the map's](DECISIONS-through-v11.14.5.md#2026-10-24--the-climate-is-the-maps) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
 - 2026-10-24 — [The map shows one mode at a time](DECISIONS-through-v11.14.5.md#2026-10-24--the-map-shows-one-mode-at-a-time) — superseded in part by "2026-11-14 — 32. Four one-time conversions go, one slice per feature" (docs/DECISIONS.md)
@@ -242,7 +242,7 @@ it comes from.
 auto-sized small token carries the mark, since the floor draws it larger than
 it is. Canvas text does not follow the type-size setting.
 
-## 2026-11-16 — Apply moves what is placed with the map
+## 2026-11-16 — Apply moves what is placed with the map — SUPERSEDED IN PART 2026-11-16
 
 **Ruled** (owner, asked whether Apply should move placed walls, tiles, notes,
 drawings, regions and tokens with the map, after a live probe, or keep them in
@@ -336,3 +336,80 @@ most (ledger T-0611).
 switches its party to journey without a word on the panel.
 
 **Cost.** None found.
+
+## 2026-11-16 — Paint is a core grid shape per value
+
+**Ruled** (owner, 2026-11-16, on the maps' regions): "Both should be fixed to
+using the foundry native regions instead of polygons with unreachable
+ack-extra code"; "The new actor types like districts are a UI for the more
+complex needs, not a replacement for a fundamental object type"; "Design
+principles, composition (extend) better than bespoke"; "Non grid regions for
+gridless maps like city districts", and imported Regions "Keep locked". The
+owner's "no legacy support" stands for worlds painted before this.
+
+**Decision.** A paint layer's value is still one Region flag and still one
+Region per value per layer, but the Region's cells are core's own `grid` shape
+(`GridShapeData`): forest on hexes 3:4 and 3:5 is one Region,
+`terrain = "forestDeciduous"`, with one shape holding both offsets and no
+polygon. `terrainHexes`, `territoryHexes` and `domainHexes` (the paint flag,
+not the vassal row's field of the same name) are gone, and a `PAINT_LAYERS`
+entry is `{flag}`.
+- **Point reads** are core's `testPoint` on each non-hole grid shape of the
+  layer, the Regions in the scene's order, the first to claim the hex winning.
+  **Enumerations** (`layerPlan`, `derivedHexes`, a domain's `paintedHexesOf`)
+  read the same shapes' offsets through `layerCellsOf`, each hex once under its
+  first claim, so the two agree where a hand edit left a hex doubly claimed.
+  `lib/regions.mjs` `gridCellsOf(region)` is the offsets read.
+- **Writes** are one Region update per cell: the cell leaves every grid shape
+  of the layer and enters the value's Region's first grid shape, a Region
+  emptied is deleted and a missing one created, and the writes of a scene run
+  one after another. A brush Region is created unlocked, so core's grid tool
+  reaches it; "Keep locked" is for the Regions an import draws.
+- **Apply** reads every grid shape's cell centres as fractions of the scene
+  rectangle before `scene.update` and looks each up on the new grid after it,
+  the nearest centre keeping a collision. It covers every grid shape on the
+  scene, the paint layers' and the zones an import drew alike, which closes a
+  drift the zone Regions of the native-regions slices had under Apply.
+- **Old worlds** keep their polygon Regions, which core still draws; they hold
+  no grid shape, so no read or brush write finds them and the brush paints a
+  new Region beside them. No notice, check or lang string says so.
+
+**Supersedes in part** three entries. *2026-08-28 Terrain paints as regions*:
+the cell key as aligned flag and the claim that a point test "needs a rendered
+placeable". *2026-10-17 The country brush's layers are a registry*: a layer's
+pair of flags, `hexesFlag`, and `PAINT_LAYERS` as pairs. *2026-11-16 Apply
+moves what is placed with the map* (under seven days old): the re-key's
+mechanism, a polygon's centroid naming the cell. Kept from all three: one
+Region per value, one value per hex per layer, the layers' visibility, hex
+grids only.
+
+**New evidence** for the 2026-11-16 entry: a grid shape carries no pixels, so
+there is no polygon to move with the image and nothing to read a centroid off,
+and core's reposition leaves a grid shape's offsets as they were
+(`Scene#repositionObjects`, `case "grid"` moves only `origin`). What drifts is
+which cell lies under each offset, which a read of the cell's place taken
+before the write and looked up after it answers exactly. The earlier entry
+rebuilt a polygon per hex because the cell had to be stored beside its shape;
+the shape now is the cell.
+
+**Rejected.**
+- *A RegionBehavior sub-type for the value.* Its value would be a per-client
+  registry's (a raw uuid in core's form for a domain), it changes
+  `documentTypes` and so needs a world relaunch, and the palette is already
+  the UI that sets a value. Counter-argument (medium): a behavior would let
+  core's Region config set the value and reuse the zone reads of the
+  native-regions slices; it loses on a vocabulary that is dynamic (imported
+  terrains, the world's domains) and on the relaunch.
+- *`region.testPoint` for paint reads.* It rebuilds the Region's clipper
+  polygons on each ask, so a drag pays for it per stroke; it cannot match the
+  enumeration, which reads offsets; and it answers false where the elevation is
+  undefined.
+- *A stored cell index* (a set kept beside the shapes). Core caches the offset
+  set in each grid shape already; a second copy is the aligned-flags problem
+  this entry removes.
+
+**Cost.** A map drawn before this reads empty until it is painted again. A hole
+or a non-grid shape a Judge adds to a paint Region paints nothing, and is
+carried through the next write untouched. Every write replaces the Region's
+whole `shapes` array (about 16 bytes a cell; the offsets field has no maximum),
+and an Apply takes a read of every grid cell before it writes.

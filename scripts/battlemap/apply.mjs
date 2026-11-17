@@ -29,7 +29,7 @@ import { solveShift } from "./calibrate-logic.mjs";
 import { backgroundSrc, backgroundTexture, setBackgroundSrc } from "./scene-image.mjs";
 import { hexProbe } from "./scene-setup.mjs";
 import { hexAlignment } from "./hex-fit.mjs";
-import { rekeyPaintedHexes } from "./terrain-paint.mjs";
+import { captureGridCells, rekeyPaintedHexes } from "./terrain-paint.mjs";
 import { DISTANCE_UNITS } from "../lib/distance-units.mjs";
 import { escape as escapeHtml, makeLoc } from "../lib/util.mjs";
 
@@ -234,8 +234,11 @@ export function solveScaleOnly({ size, distance, units }) {
 /**
  * The one writer: confirm a solved answer, write its `update` with the module's
  * flag record, read the scene back, and say what was applied. The write moves
- * every placed object with the image (`autoReposition`), and the painted hexes
- * are then re-keyed to the grid as written (`rekeyPaintedHexes`). `autoScale` is
+ * every placed object with the image (`autoReposition`), and every grid-shape
+ * cell on the scene (the painted hexes and the zones an import drew) is then
+ * re-keyed to the grid as written (`rekeyPaintedHexes`): core leaves a grid
+ * shape's offsets as they were, so the cell's place on the map is read before
+ * the write and looked up on the new grid after it. `autoScale` is
  * the planner's answer (`plan.autoScale`), written as given — never carried over
  * from the scene's own flag, so a mile-scale apply leaves token auto-sizing off
  * where it was on.
@@ -256,6 +259,7 @@ export async function writeSetup(scene, { solution, update }, { family, autoScal
   if (!(await confirmApply({ act: text.act, lines, shifts: family !== "scale" && holdsPlaceables(scene) }))) return false;
 
   const options = writeOptions(scene, update, family);
+  const gridCells = options.autoReposition ? captureGridCells(scene) : null;
   await scene.update({
     ...update,
     ...setupPatch({ calibrated: true, distance: solution.distance, autoScale: !!autoScale }),
@@ -266,8 +270,8 @@ export async function writeSetup(scene, { solution, update }, { family, autoScal
     ui.notifications.error(loc("warn.applyRejected"));
     return false;
   }
-  // The painted cells are keyed by the grid, and the grid just moved under them.
-  if (options.autoReposition) await rekeyPaintedHexes(scene);
+  // Grid-shape cells are keyed by the grid, and the grid just moved under them.
+  if (gridCells) await rekeyPaintedHexes(scene, gridCells);
   ui.notifications.info(loc(text.done, figures));
   return true;
 }

@@ -12,7 +12,7 @@
  * Run: node tools/test-journey.mjs   (also wired into `npm run validate`).
  */
 import assert from "node:assert/strict";
-import { mockRegion, rect, standOnRegions } from "./region-fixture.mjs";
+import { mockRegion, paintRegion, rect, standOnRegions } from "./region-fixture.mjs";
 
 /* -------------------------------------------- */
 /*  Foundry mock                                */
@@ -1328,23 +1328,17 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   }, { priority: PRIORITY.WORLD, source: "test" });
 
   /**
-   * A region painting one layer's value on these hexes; `state` is repainted
-   * in place. A painted region carries no behaviour, so no zone reads it.
+   * A region painting one layer's value on these hexes, as a core grid shape;
+   * `setCells` and `setValue` repaint it in place. A painted region carries
+   * no behaviour, so no zone reads it.
    */
-  const painted = (flag, value, hexes) => {
-    const state = { value, hexes };
-    return {
-      state,
-      behaviors: [],
-      getFlag: (_ns, key) => (key === flag ? state.value : key === `${flag}Hexes` ? state.hexes : undefined),
-    };
-  };
+  const painted = (scene, flag, value, hexes) => paintRegion({ grid: scene.grid, flag, value, cells: hexes });
   const defaults = (ns, key) =>
     (ns === MODULE_ID && key === "battlemap" ? { country: { ground: "grasslandSteppe", territory: "borderlands" } } : undefined);
 
   const scene = makeScene("S.country", { kind: "hex", miles: TABLE_MILES });
-  const forest = painted("terrain", "forestTaiga", ["0:1"]);
-  scene.regions.push(forest, painted("territory", "outlands", ["0:1"]));
+  const forest = painted(scene, "terrain", "forestTaiga", ["0:1"]);
+  scene.regions.push(forest, painted(scene, "territory", "outlands", ["0:1"]));
   scene.getFlag = defaults;
   const token = makeToken(scene, "t.country");
   const id = makeFormation(scene, token, { travel: { ground: "desert" } });
@@ -1398,7 +1392,7 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
     for (let n = 0; n < 5; n++) await new Promise((resolve) => setImmediate(resolve));
   };
 
-  forest.state.hexes = ["0:1", "0:0"];
+  forest.setCells(["0:1", "0:0"]);
   refresh("S.country");
   refresh("S.country");
   refresh("S.country", { walls: true });
@@ -1418,7 +1412,7 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
   await patchFormation(id, (record) => {
     record.travel.map = { ...record.travel.map, road: "earth", source: { ...record.travel.map.source, road: "map" } };
   });
-  forest.state.value = "desertSandy";
+  forest.setValue("desertSandy");
   refresh("S.country");
   await runTimers();
   let map = getFormation(id).travel.map;
@@ -1445,7 +1439,7 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
     const { partyScenesPaintedWith } = await import("../scripts/formation/travel.mjs");
     const classOf = { realm1: "civilized" };
     const dispose = registerPaintLayer({
-      key: "demoRealm", flag: "demoRealm", hexesFlag: "demoRealmHexes",
+      key: "demoRealm", flag: "demoRealm",
       values: () => Object.keys(classOf), label: (v) => v, color: () => "#123456",
       derives: { key: "territory", of: (v) => classOf[v] ?? null },
     });
@@ -1455,7 +1449,7 @@ function makeZone(scene, id, { x, y, width, height }, fields = {}) {
     };
     try {
       assert.deepEqual(partyScenesPaintedWith("demoRealm"), [], "a layer no party stands on the paint of names no scene");
-      const realm = painted("demoRealm", "realm1", ["0:0"]);
+      const realm = painted(scene, "demoRealm", "realm1", ["0:0"]);
       scene.regions.push(realm);
       assert.deepEqual(partyScenesPaintedWith("demoRealm"), ["S.country"], "painted, the scene the party stands on is named");
 
@@ -1855,7 +1849,7 @@ function makeShadow(scene, formationId, x, y) {
 
   // The shadow's hex painted, and the party token placed on another scene
   // mid-episode: the truth is still read where the shadow stands.
-  scene.regions.push({ behaviors: [], getFlag: (_ns, key) => (key === "terrain" ? "hills" : key === "terrainHexes" ? ["2:8"] : undefined) });
+  scene.regions.push(paintRegion({ grid: scene.grid, flag: "terrain", value: "hills", cells: ["2:8"] }));
   const underShadow = trueTravelOf(getFormation(id));
   assert.deepEqual([underShadow.ground, underShadow.provenance.ground], ["hills", "map"], "the painted ground under the shadow");
   const elsewhere = makeScene("S.truth.elsewhere", { kind: "hex", miles: TABLE_MILES });
