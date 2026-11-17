@@ -1032,6 +1032,35 @@ await test("a row's hop survives a drop where its range stands, and a tail row i
   assert.deepEqual(back.data.qq, [{ min: 1, max: 9, item: "Qq one" }, { min: 10, max: 10, sub: [{ min: 1, max: 30, item: "Qq a" }, { min: 31, max: 100, item: "Zz b", cues: "note" }] }]);
 });
 
+await test("a hopping list keeps every band's hop, and a tail's inner hops, across a drop where the same range stood", async () => {
+  world({
+    registry: {
+      magicItemTables: {
+        classic: {
+          qq: [
+            { min: 1, max: 5, item: "Qq one", hop: "subtables.qq1" },
+            { min: 6, max: 6, hop: null, sub: [{ min: 1, max: 40, item: "Qq two", hop: "subtables.qq2" }, { min: 41, max: 100, item: "Qq three", hop: "subtables.qq3" }] },
+          ],
+        },
+        subtables: { qq1: [{ min: 1, max: 100, item: "Zz leaf", cues: "dim" }] },
+      },
+    },
+  });
+  const list = entryAt("magicItemTables.classic.qq");
+  assert.ok(list?.rollable);
+  const back = await parseDrop(list, droppedTable([{ range: [1, 5], description: "Qq one (edited)" }, { range: [6, 6], description: "1-40: Qq two (edited) · 41-90: Qq three · 91-100: Qq four" }]));
+  assert.deepEqual(back.data.qq, [
+    { min: 1, max: 5, item: "Qq one (edited)", hop: "subtables.qq1" },
+    { min: 6, max: 6, hop: null, sub: [{ min: 1, max: 40, item: "Qq two (edited)", hop: "subtables.qq2" }, { min: 41, max: 90, item: "Qq three" }, { min: 91, max: 100, item: "Qq four" }] },
+  ], "the inner hop stays on the face and inner range that stood; a range that moved has none");
+  const sub = entryAt("magicItemTables.subtables.qq1");
+  assert.ok(sub?.rollable, "a subtable is rollable");
+  await materializeAll();
+  const made = tableNamed(sub.label);
+  assert.equal(made?.formula, "1d100");
+  assert.deepEqual([...made.results].map((r) => r.description), ["Zz leaf — dim"]);
+});
+
 await test("a value list whose dice are a legend carries the legend in its description and never claims one formula for it", async () => {
   world({ registry: itemRegistry() });
   await materializeAll();

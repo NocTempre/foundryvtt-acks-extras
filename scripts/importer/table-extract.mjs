@@ -95,6 +95,9 @@ export function applyCellPattern(text, pattern = "raw") {
   switch (pattern) {
     case "raw":
       return t;
+    case "rawCapital":
+      // A name whose small-capital opening was set in one run with the rest of its word keeps its capital.
+      return t.replace(/^[a-z]/, (c) => c.toUpperCase());
     case "tidyNames":
       // A comma list of printed names, each part's small-capped opening letter
       // restored (`tidyRowName`).

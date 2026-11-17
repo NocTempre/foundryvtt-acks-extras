@@ -176,4 +176,49 @@ const tables = () => ({
   eq("with no item field the text is the first text field", out.item.text, "Qq");
 }
 
+/* --- a banded chain: type, category, subtable ------------------------------------ */
+const banded = () => ({
+  kinds: { bands: [{ min: 1, max: 6, item: "Zq Alpha", hop: "cats.alpha" }, { min: 7, max: 10, item: "Zq Beta", hop: "cats.beta" }] },
+  cats: {
+    alpha: [
+      { min: 1, max: 9, item: "Zq Alpha One", hop: "subs.alpha1" },
+      { min: 10, max: 10, hop: null, sub: [{ min: 1, max: 50, item: "Zq Alpha One", hop: "subs.alpha1" }, { min: 51, max: 100, item: "Zq Alpha Two", hop: "subs.alpha2" }] },
+    ],
+    beta: [{ min: 1, max: 20, item: "Zq Beta One", hop: "subs.alpha2" }],
+  },
+  subs: { alpha1: [{ min: 1, max: 100, item: "Xx six" }], alpha2: [{ min: 1, max: 6, item: "Xx seven", cues: "faint" }, { min: 7, max: 8, item: "Xx eight" }] },
+  rarities: { common: [{ min: 1, max: 100, item: "Zq Alpha One", hop: "subs.alpha1" }] },
+});
+{
+  const r = rig(3, 4, 99);
+  const out = await walkChain({ tables: banded(), from: "kinds.bands", roll: r.roll });
+  eq("a three-stage walk rolls the type, the category and the subtable", out.steps.map((s) => s.list), ["kinds.bands", "cats.alpha", "subs.alpha1"]);
+  eq("each stage's die is its own list's", r.exprs, ["1d10", "1d10", "1d100"]);
+  eq("the item is the subtable's row", [out.item.text, out.item.flag, out.item.list], ["Xx six", null, "subs.alpha1"]);
+}
+{
+  const r = rig(2, 10, 51, 7);
+  const out = await walkChain({ tables: banded(), from: "kinds.bands", roll: r.roll });
+  eq("a roll that lands in a category's tail follows the inner band's hop", out.steps.map((s) => s.list), ["kinds.bands", "cats.alpha", "subs.alpha2"]);
+  eq("the tail's inner roll is a step's inner", out.steps[1].inner, { die: "1d100", total: 51, band: { min: 51, max: 100 } });
+  eq("the walk ends on an item, not flagged", [out.item.text, out.item.flag], ["Xx eight", null]);
+}
+{
+  const tables = banded();
+  delete tables.cats.alpha[1].sub[1].hop;
+  const out = await walkChain({ tables, from: "kinds.bands", roll: rig(2, 10, 51).roll });
+  eq("an inner band with no hop ends the walk flagged unresolved-hop", [out.item.flag, out.steps.length], ["unresolved-hop", 2]);
+}
+{
+  const r = rig(3, 8);
+  const out = await walkChain({ tables: banded(), from: "rarities.common", roll: r.roll });
+  eq("a two-stage heroic walk rolls the rarity list and the subtable", [out.steps.map((s) => s.list), out.item.text], [["rarities.common", "subs.alpha1"], "Xx six"]);
+}
+{
+  // A type list whose hop names a category list that holds items (no hop of its own) ends on an unflagged item.
+  const tables = { kinds: { bands: [{ min: 1, max: 4, item: "Zq Alpha", hop: "cats.items" }] }, cats: { items: [{ min: 1, max: 100, item: "Xx plain" }] } };
+  const out = await walkChain({ tables, from: "kinds.bands", roll: rig(2, 40).roll });
+  eq("a hop into a list that holds items ends on the item, unflagged", [out.item.text, out.item.flag], ["Xx plain", null]);
+}
+
 console.log(`test-magic-item-chain: ${pass} checks passed.`);

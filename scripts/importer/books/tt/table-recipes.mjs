@@ -1,0 +1,137 @@
+/**
+ * The Treasure Tome's table recipes for the `magicItemTables` document: the
+ * Classic and Heroic or Gritty item-generation chains (TT folios 30 to 50) and
+ * the scroll sub-tables its scroll entries print (folios 94 to 98). Geometry
+ * and anchors only; every band edge, caption and name is read from the Judge's
+ * own copy at import (docs/importer/RECIPES.md), and `magic-item-lists.mjs` says
+ * which of these tables join into which list of the engine's document.
+ *
+ * Every table is optional: a seat without the Tome reads none of them, and the
+ * Judges Journal's lists stand. A page is found by a phrase it prints, never by
+ * a figure; a page that prints no heading is found by words every row of its
+ * column carries (`bare`), the exact folio being searched first.
+ *
+ * The Tome sets its pages in two geometries, a verso at one left margin and a
+ * recto 27 points to its right, and sets a category's subtables one under
+ * another, or three across.
+ */
+import { list } from "../../table-recipes-magic-items.mjs";
+
+/** The Tome's printed folio of each page a table is read from. */
+const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
+
+/**
+ * One Tome list. `bare` names the page by words with the spaces taken out (a
+ * page with no heading of its own).
+ */
+const tt = ({ bare = false, ...spec }) => ({ ...list({ book: "tt", ...spec }), optional: true, ...(bare ? { locateBare: true } : {}) });
+
+const LEFT = { xMin: 40, xMax: 300 };
+const RIGHT = { xMin: 300, xMax: 592 };
+const FULL = { xMin: 40, xMax: 592 };
+
+/** A potion subtable's cells on a verso page and on a recto page: the name, then the physical cues. */
+const POTION_VERSO = { labelMaxX: 82, cells: [["item", 83, 166], ["cues", 250, 330]] };
+const POTION_RECTO = { labelMaxX: 109, cells: [["item", 110, 166], ["cues", 277, 310]] };
+/** The potion subtables' page phrase: every row of every one prints it. */
+const POTION_PAGE = { locate: "Potion of", bare: true };
+
+/** Category lists on the Classic page: left column (potions and scrolls carry a tail, so their labels sit further in), right column. */
+const CLASSIC = { page: PAGE.classic, locate: "Magic Item Tables (Classic)" };
+const LEFT_TAIL = { labelMaxX: 104, cells: [["item", 105, 190]] };
+const LEFT_PLAIN = { labelMaxX: 79, cells: [["item", 80, 215]] };
+const RIGHT_COL = { labelMaxX: 340, cells: [["item", 341, 245]] };
+
+/** Rarity lists on the Heroic page. */
+const HEROIC = { page: PAGE.heroic, locate: "(Heroic or Gritty)" };
+const HEROIC_RIGHT = { labelMaxX: 366, cells: [["item", 367, 220]] };
+
+/** Ring subtables, three across on a verso page. */
+const RINGS = { page: PAGE.rings, locate: "Ring Subtables" };
+const RING_COL1 = { labelMaxX: 82, cells: [["item", 83, 118]] };
+const RING_COL2 = { labelMaxX: 237, cells: [["item", 238, 136]] };
+const RING_COL3 = { labelMaxX: 414, cells: [["item", 415, 175]] };
+
+/** Scroll subtables, one under another in the left column of a recto page. */
+const SCROLLS = { page: PAGE.scrolls, locate: "Scroll Subtables", column: { xMin: 40, xMax: 325 }, labelMaxX: 109, cells: [["item", 110, 212]] };
+
+/** A list whose item names are read with their first letter raised, for a row the page sets in one lower-case run. */
+const capitalFirst = (recipe) => ({ ...recipe, cellColumns: recipe.cellColumns.map((c) => ({ ...c, pattern: "rawCapital" })) });
+
+/** Top-aligned wrapped lines: a continuation line belongs to the row above it. */
+const topWrap = (recipe) => ({ ...recipe, wrapRows: { tol: 12, floorKey: "b0" } });
+
+/**
+ * The spell-level grid's six side-by-side lists: a band and the level it gives,
+ * under the "1d100" header line, whose row also carries the column's
+ * remaining-levels figure (read as the caption row's `level`).
+ */
+const spellLevel = ({ xMin, xMax, labelMaxX }) => {
+  const base = tt({ page: PAGE.spellLevels, locate: "Spell Level by Total", column: { xMin, xMax, yMin: 104, yMax: 192 }, labelMaxX, cells: [["level", labelMaxX + 1, 40]], caption: true });
+  return { ...base, wrapRows: undefined, rowTol: 5, rows: [{ key: "caption", labelRe: "^\\d*d\\d+$", labelPattern: "labelText" }, ...base.rows.slice(1)] };
+};
+
+/**
+ * The Treasure Tome's own raw tables by ruledata document id, each optional and
+ * read only where the Tome is open. `books/merge.mjs` joins them after the
+ * shared recipes; `books/tt/magic-item-lists.mjs` says which engine list each
+ * assembles into.
+ */
+export const tableRecipes = {
+  magicItemTables: {
+    pages: "TT 30-37, 94-98",
+    tables: {
+      // Random Magic Item Type, and the eight category lists, which name subtables.
+      tomeTypeRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 135, yMax: 258 }, labelMaxX: 82, cells: [["item", 83, 200]], caption: true }),
+      tomePotionsRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 258, yMax: 405 }, ...LEFT_TAIL, caption: true }),
+      tomeRingsRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 405, yMax: 495 }, ...LEFT_PLAIN, caption: true }),
+      tomeScrollsRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 495, yMax: 605 }, ...LEFT_TAIL, caption: true }),
+      tomeImplementsRaw: tt({ ...CLASSIC, column: { ...RIGHT, yMin: 136, yMax: 236 }, ...RIGHT_COL, caption: true }),
+      tomeMiscRaw: tt({ ...CLASSIC, column: { ...RIGHT, yMin: 237, yMax: 383 }, ...RIGHT_COL, caption: true }),
+      tomeSwordsRaw: tt({ ...CLASSIC, column: { ...RIGHT, yMin: 383, yMax: 464 }, ...RIGHT_COL, caption: true }),
+      tomeWeaponsRaw: tt({ ...CLASSIC, column: { ...RIGHT, yMin: 464, yMax: 542 }, ...RIGHT_COL, caption: true }),
+      tomeArmorsRaw: tt({ ...CLASSIC, column: { ...RIGHT, yMin: 542, yMax: 640 }, ...RIGHT_COL, caption: true }),
+      // The five rarity lists.
+      tomeHeroicCommonRaw: tt({ ...HEROIC, column: { ...LEFT, yMin: 116, yMax: 215 }, labelMaxX: 110, cells: [["item", 111, 190]], caption: true }),
+      tomeHeroicUncommonRaw: tt({ ...HEROIC, column: { ...RIGHT, xMin: 325, yMin: 70, yMax: 207 }, ...HEROIC_RIGHT, caption: true }),
+      tomeHeroicRareRaw: tt({ ...HEROIC, column: { ...RIGHT, xMin: 325, yMin: 207, yMax: 387 }, ...HEROIC_RIGHT, caption: true }),
+      tomeHeroicVeryRareRaw: tt({ ...HEROIC, column: { ...RIGHT, xMin: 325, yMin: 387, yMax: 545 }, ...HEROIC_RIGHT, caption: true }),
+      tomeHeroicLegendaryRaw: tt({ ...HEROIC, column: { ...RIGHT, xMin: 325, yMin: 545, yMax: 660 }, ...HEROIC_RIGHT, caption: true }),
+
+      // Potion subtables: three then three then one, one under another, the fourth running onto the next page.
+      tomePotions1Raw: tt({ page: PAGE.potionsA, ...POTION_PAGE, column: { ...FULL, yMin: 134, yMax: 328 }, ...POTION_VERSO, caption: true }),
+      tomePotions2Raw: tt({ page: PAGE.potionsA, ...POTION_PAGE, column: { ...FULL, yMin: 330, yMax: 600 }, ...POTION_VERSO, caption: true }),
+      tomePotions3Raw: tt({ page: PAGE.potionsB, ...POTION_PAGE, column: { ...FULL, yMin: 70, yMax: 425 }, ...POTION_RECTO, caption: true }),
+      tomePotions4Raw: tt({ page: PAGE.potionsB, ...POTION_PAGE, column: { ...FULL, yMin: 426, yMax: 745 }, ...POTION_RECTO, caption: true }),
+      tomePotions4MoreRaw: tt({ page: PAGE.potionsC, ...POTION_PAGE, column: { ...FULL, yMin: 75, yMax: 240 }, ...POTION_VERSO }),
+      tomePotions5Raw: tt({ page: PAGE.potionsC, ...POTION_PAGE, column: { ...FULL, yMin: 242, yMax: 728 }, ...POTION_VERSO, caption: true }),
+      tomePotions6Raw: tt({ page: PAGE.potionsD, ...POTION_PAGE, column: { ...FULL, yMin: 205, yMax: 662 }, ...POTION_RECTO, caption: true }),
+      tomePotions7Raw: tt({ page: PAGE.potionsD, ...POTION_PAGE, column: { ...FULL, yMin: 662, yMax: 748 }, ...POTION_RECTO, caption: true }),
+
+      // Ring subtables: three across, then three across again, the fourth running into the middle column.
+      tomeRings1Raw: tt({ ...RINGS, column: { xMin: 40, xMax: 198, yMin: 95, yMax: 400 }, ...RING_COL1, caption: true }),
+      tomeRings2Raw: capitalFirst(tt({ ...RINGS, column: { xMin: 198, xMax: 376, yMin: 95, yMax: 400 }, ...RING_COL2, caption: true })),
+      tomeRings3Raw: tt({ ...RINGS, column: { xMin: 376, xMax: 592, yMin: 95, yMax: 400 }, ...RING_COL3, caption: true }),
+      tomeRings4Raw: tt({ ...RINGS, column: { xMin: 40, xMax: 198, yMin: 404, yMax: 748 }, ...RING_COL1, caption: true }),
+      tomeRings4MoreRaw: tt({ ...RINGS, column: { xMin: 205, xMax: 376, yMin: 422, yMax: 748 }, labelMaxX: 242, cells: [["item", 243, 131]] }),
+      tomeRings5Raw: tt({ ...RINGS, column: { xMin: 376, xMax: 592, yMin: 404, yMax: 575 }, ...RING_COL3, caption: true }),
+
+      // Scroll subtables: five, one under another.
+      tomeScrolls1Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 95, yMax: 176 }, caption: true }),
+      tomeScrolls2Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 176, yMax: 371 }, caption: true }),
+      tomeScrolls3Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 371, yMax: 536 }, caption: true }),
+      tomeScrolls4Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 536, yMax: 644 }, caption: true }),
+      tomeScrolls5Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 644, yMax: 748 }, caption: true }),
+
+      // The sub-tables the scroll entries print.
+      tomeScrollLanguagesRaw: tt({ page: PAGE.languages, locate: "Scroll Languages", column: { ...LEFT, yMin: 262, yMax: 400 }, labelMaxX: 82, cells: [["item", 83, 215]], caption: true }),
+      ...Object.fromEntries(
+        [[40, 130, 95], [130, 213, 178], [213, 297, 260], [297, 380, 342], [380, 461, 424], [461, 592, 507]].map(([xMin, xMax, labelMaxX], i) => [`tomeSpellLevel${i + 1}Raw`, spellLevel({ xMin, xMax, labelMaxX })]),
+      ),
+      tomeMapContentsRaw: topWrap(tt(({ page: PAGE.mapContents, locate: "Treasure Map Contents", column: { ...RIGHT, yMin: 612, yMax: 735 }, labelMaxX: 360, cells: [["place", 368, 112], ["clues", 483, 60]], caption: true }))),
+      tomeClueSpecificsRaw: topWrap(tt(({ page: PAGE.clues, locate: "Clue Specifics", column: { xMin: 60, xMax: 592, yMin: 80, yMax: 192 }, labelMaxX: 130, cells: [["detail", 135, 135], ["content", 271, 224], ["obscurity", 496, 94]], caption: true }))),
+      tomeClueConcealmentRaw: topWrap(tt(({ page: PAGE.clues, locate: "Clue Concealment", column: { xMin: 60, xMax: 592, yMin: 358, yMax: 750 }, labelMaxX: 98, cells: [["type", 99, 86], ["text", 186, 404]], caption: true }))),
+      tomeClueCodeRaw: topWrap(tt(({ page: PAGE.code, locate: "Clue Code", column: { xMin: 40, xMax: 592, yMin: 80, yMax: 470 }, labelMaxX: 71, cells: [["type", 72, 112], ["text", 183, 405]], caption: true }))),
+    },
+  },
+};

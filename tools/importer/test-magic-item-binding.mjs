@@ -27,7 +27,9 @@ import {
   applyMagicItemImport,
   hopOf,
   listCitesOf,
+  magicItemPlacement,
 } from "../../scripts/importer/magic-item-binding.mjs";
+import { printKey } from "../../scripts/importer/printed-name.mjs";
 import * as services from "../../scripts/lib/services.mjs";
 import { PRIORITY, registerTable, resetTables } from "../../scripts/lib/tables.mjs";
 import { assembleLegend, assembleSpecialPer, assembleTypeUnits } from "../../scripts/importer/treasure-binding.mjs";
@@ -39,7 +41,9 @@ const eq = (label, got, want) => { assert.deepStrictEqual(got, want, label); pas
 const run = (str, x, y, w = str.length * 5) => ({ str, x, y, w, h: 9 });
 
 /* --- the shipped recipes ----------------------------------------------------- */
-eq("the doc is joined into the recipes under its id", TABLE_RECIPES[MAGIC_ITEM_DOC_ID], MAGIC_ITEM_RECIPES);
+const merged = TABLE_RECIPES[MAGIC_ITEM_DOC_ID];
+eq("the shared recipes are joined into the doc under its id, ahead of any book's", Object.keys(merged.tables).slice(0, Object.keys(MAGIC_ITEM_RECIPES.tables).length), Object.keys(MAGIC_ITEM_RECIPES.tables));
+check("every shared table is the shared recipe", Object.entries(MAGIC_ITEM_RECIPES.tables).every(([id, t]) => merged.tables[id] === t));
 const tables = MAGIC_ITEM_RECIPES.tables;
 for (const [id, recipe] of Object.entries(tables)) {
   const anchors = [recipe.locate, recipe.startAfter, recipe.stopAt, recipe.locateKey, recipe.locateHeadingKey].filter((a) => a != null);
@@ -161,5 +165,92 @@ eq("a special list's lot unit is what follows its caption's 'per'", assembleSpec
 eq("no caption read leaves no unit", assembleSpecialPer({ specialCpRaw: {} }), null);
 eq("the unit under each coin column is kept as printed", assembleTypeUnits({ typeClassicUnitsRaw: { units: { cp: "9zz", sp: "9zz" } } }), { classic: { cp: "9zz", sp: "9zz" } });
 eq("a legend row is its dice, its average and its kind", assembleLegend({ d0: { label: "9d9", avg: "avg. 5", type: "Qq" }, d1: { __missing: true } }), [{ dice: "9d9", avg: "avg. 5", kind: "Qq" }]);
+
+/* --- a book's list map: placement, key sets, hops by id --------------------------- */
+// Every caption, name and figure below is made up. The shared recipes stand for
+// one book's printing; the invented book `zz` prints its own chain.
+const seg = (label, ...rows) => ({ ...(label ? { caption: { label } } : {}), ...Object.fromEntries(rows.map((r, i) => [`b${i}`, r])) });
+const one = (item, min = 1, max = 100) => ({ min, max, item });
+const inner = (item, min, max, face) => ({ min, max, parent: face, sub: { min, max }, item });
+const zz = (alsoKeys = {}) => ({
+  zz: {
+    magicItemLists: {
+      lists: {
+        classicType: { hops: "classic", lists: { bands: ["zzTypeRaw"] } },
+        classic: { hops: "subtables", lists: { potions: ["zzPotionsRaw"], rings: ["zzRingsRaw"] } },
+        subtables: { lists: { potions1: ["zzSub1Raw"], potions2: ["zzSub2Raw"] } },
+        scrollSpellLevels: { whole: true, lists: { col1: ["zzLv1Raw"], col2: ["zzLv2Raw"] } },
+      },
+      alsoKeys,
+    },
+  },
+});
+const BLADE = { "classic.swords": [printKey("Zz Blade")] };
+const sharedRaw = () => ({
+  randomTypeRaw: seg("Qq Kinds", one("Zz Potions", 1, 5), one("Zz Rings", 6, 8), one("Zz Swords", 9, 10)),
+  potionsRaw: seg("Zz Potions", one("Shared potion")),
+  ringsRaw: seg("Zz Rings", one("Shared ring")),
+  swordsRaw: seg("Zz Swords", one("Shared sword")),
+});
+const zzRaw = () => ({
+  zzTypeRaw: seg("Qq Kinds", one("Zz Draughts", 1, 5), one("Zz Rings", 6, 8), one("Zz Blade", 9, 10)),
+  zzPotionsRaw: seg("Zz Draughts", one("Zz Draughts One", 1, 9), inner("Zz Draughts Two", 1, 50, 10), inner("Zz Draughts One", 51, 100, 10)),
+  zzSub1Raw: seg("Zz Draughts One", one("Item a")),
+  zzSub2Raw: seg("Zz Draughts Two", one("Item b")),
+});
+const place = (raw, books = zz(BLADE)) => magicItemPlacement(raw, { books });
+
+{
+  const p = place({ ...sharedRaw(), ...zzRaw() });
+  eq("a placed book list replaces the shared list under its id, a tail's inner bands carrying their own hop", p.engine.classic.potions, [
+    { min: 1, max: 9, item: "Zz Draughts One", hop: "subtables.potions1" },
+    { min: 10, max: 10, hop: null, sub: [{ min: 1, max: 50, item: "Zz Draughts Two", hop: "subtables.potions2" }, { min: 51, max: 100, item: "Zz Draughts One", hop: "subtables.potions1" }] },
+  ]);
+  eq("the book's subtables are an engine table of their own", Object.keys(p.engine.subtables).sort(), ["potions1", "potions2"]);
+  eq("a shared list the book's list does not replace stands, with no hop on it", [p.engine.classic.swords, p.engine.classic.rings], [[{ min: 1, max: 100, item: "Shared sword" }], [{ min: 1, max: 100, item: "Shared ring" }]]);
+  eq("a book list whose pages were not read is not reported", p.unplaced, []);
+  eq("the book's type list places once its hops resolve, into a book's list and a shared one", p.engine.classicType.bands.map((b) => b.hop), ["classic.potions", "classic.rings", "classic.swords"]);
+  eq("the placed type list is the book's", p.engine.classicType.bands.map((b) => b.item), ["Zz Draughts", "Zz Rings", "Zz Blade"]);
+  eq("a caption and a cite follow the list that stands", [p.engine.captions["classic.potions"], p.engine.captions["classic.rings"], p.keysOf["classic.potions"], p.keysOf["classic.rings"]], ["Zz Draughts", "Zz Rings", ["zzPotionsRaw"], ["ringsRaw"]]);
+  eq("listCites read the standing lists' own raw segments", listCitesOf({ zzPotionsRaw: "ZZ p.5", potionsRaw: "XX p.9", ringsRaw: "XX p.8" }, p.keysOf)["classic.potions"], "ZZ p.5");
+}
+{
+  // A hop names an id by every caption either book prints for it, so the shared
+  // type list still reaches the id the book's potions list replaced.
+  const raw = { ...sharedRaw(), ...zzRaw() };
+  delete raw.zzTypeRaw;
+  const p = place(raw);
+  eq("a shared type list keeps its hop into an id whose list the book replaced", p.engine.classicType.bands.map((b) => b.hop), ["classic.potions", "classic.rings", "classic.swords"]);
+  check("and that id holds the book's list", Array.isArray(p.engine.classic.potions[1].sub));
+  eq("a book's type list reaches the id a shared list still stands under", place({ ...sharedRaw(), ...zzRaw() }).engine.classicType.bands[1].hop, "classic.rings");
+}
+{
+  const p = place({ ...sharedRaw(), ...zzRaw() }, zz());
+  eq("a spelling no caption or hashed key names has no hop, so the book's type list waits", [p.unplaced, p.engine.classicType.bands.map((b) => b.item)], [["classicType.bands"], ["Zz Potions", "Zz Rings", "Zz Swords"]]);
+}
+{
+  // A hop never leaves its declared table: a row naming a classic caption is no subtable.
+  const p = place({ ...sharedRaw(), zzRingsRaw: seg("Zz Rings", one("Zz Rings")), zzSub1Raw: seg("Zz Draughts One", one("Item a")) });
+  eq("a row naming a caption of another tier does not resolve, and its list is not placed", [p.unplaced, p.engine.classic.rings[0].item], [["classic.rings"], "Shared ring"]);
+}
+{
+  // A key two ids share is no hop, so the list that names it waits.
+  const p = place({ ...sharedRaw(), ...zzRaw(), zzSub2Raw: seg("Zz Draughts One", one("Item b")) });
+  eq("a key shared by two ids is no hop and the list is not placed", [p.unplaced, p.engine.classic.potions[0].item], [["classic.potions"], "Shared potion"]);
+}
+{
+  const p = place({ ...sharedRaw(), zzPotionsRaw: zzRaw().zzPotionsRaw });
+  eq("a list waits for the subtables it names, and the shared list stands", [p.unplaced, p.engine.classic.potions], [["classic.potions"], [{ min: 1, max: 100, item: "Shared potion" }]]);
+}
+{
+  const lv = (n) => seg(null, one(n, 1, 100));
+  const shared = { ...sharedRaw(), spellLevel1Raw: lv("1"), spellLevel2Raw: lv("2"), spellLevel3Raw: lv("3") };
+  const whole = place({ ...shared, zzLv1Raw: lv("4"), zzLv2Raw: lv("5") });
+  eq("a whole grid replaces every column of the shared table", Object.keys(whole.engine.scrollSpellLevels).sort(), ["col1", "col2"]);
+  const part = place({ ...shared, zzLv1Raw: lv("4"), zzLv2Raw: seg(null, one("5", 1, 100), one("6", 102, 110)) });
+  eq("a grid with a list that does not tile replaces none", [Object.keys(part.engine.scrollSpellLevels).sort(), part.unplaced], [["col1", "col2", "col3"], ["scrollSpellLevels.col1", "scrollSpellLevels.col2"]]);
+}
+eq("no book's map: no list is unplaced and no subtables table", [place(sharedRaw(), {}).unplaced, "subtables" in place(sharedRaw(), {}).engine], [[], false]);
+check("PRODUCES carries the engine tables the Journal's lists make", Object.keys(PRODUCES[MAGIC_ITEM_DOC_ID]).includes("classicType"));
 
 console.log(`test-magic-item-binding: ${pass} checks passed.`);

@@ -76,7 +76,8 @@ const ASSEMBLED = Object.freeze([
   { id: ENCOUNTERS_DOC_ID, label: "encounter", assemble: applyEncountersImport, shown: (r) => r.assembled.length },
   { id: VOYAGES_DOC_ID, label: "voyage", assemble: applyVoyagesImport, shown: (r) => r.assembled },
   { id: TREASURE_DOC_ID, label: "treasure", assemble: applyTreasureImport, shown: (r) => r.assembled },
-  { id: MAGIC_ITEM_DOC_ID, label: "magic-item", assemble: applyMagicItemImport, shown: (r) => r.assembled },
+  // A book list that was read and could not place is named: the Journal's list still stands in its place.
+  { id: MAGIC_ITEM_DOC_ID, label: "magic-item", assemble: applyMagicItemImport, shown: (r) => (r.unplaced?.length ? { assembled: r.assembled, unplaced: r.unplaced } : r.assembled) },
 ]);
 
 /**

@@ -1549,8 +1549,9 @@ list. `typeGrittyRaw` and `typeGrittyUnitsRaw` are the Tome's own: book `tt`,
 `optional`, no overlay, assembled to `typeGritty` and `typeUnits.gritty` in the
 shape of Classic and Heroic. The Tome sets a type's average value in brackets
 and a small-capital category in lower case; the binding reads both as the
-Journal's form. Not layered: the classic category lists and the heroic rarity
-lists (the Tome prints them in another shape), and the market tables.
+Journal's form. The classic category lists and the heroic rarity lists are the
+Tome's by the list map, not by `over` ("The magic-item and arms tables"). Not
+layered: the market tables.
 
 ## The magic-item and arms tables
 
@@ -1594,7 +1595,8 @@ is joined from, `joinCites` of their cites, so a list the Tome's version replace
 cites the Tome; the document's `cites` name only a whole table's pages, and the
 magic-items roll's tooltip reads this one). Each
 Random Type row carries `hop`: the id `<table>.<column>` of the one list whose
-folded caption (`printKey`) is the folded words of the row, else null.
+folded caption (`printKey`) is the folded words of the row, else null (a book's
+hopping lists carry it on every band, resolved as the Tome paragraph below says).
 `check-magic-item-tables.mjs` reads the real pages and fails on a refused or
 untiled list, a list ending on no die's face, a cell that is empty, opens on a
 lower-case letter, or ends on a stranded letter, a list with no caption, a hop
@@ -1608,6 +1610,39 @@ result on its face reading "a-b: fields · a-b: fields", and a drop splits it
 back. A row's `hop` is kept across a drop where the same range stood. The arms
 grids are one RollTable per setting column. The captions and settings are
 plain JSON pages.
+
+**The Treasure Tome's chain.** Where the Judges Journal's category and rarity
+lists hold items, the Tome's name subtables (TT folios 30 to 50), so its lists
+are not a layer over the Journal's (`over`) but their own, joined by a list map.
+`books/tt/table-recipes.mjs` holds the Tome's raw tables (optional, book `tt`),
+and `books/tt/magic-item-lists.mjs` says which join into which list id, which
+tables hop and into which (`hops`), which printed grid replaces its table whole
+(`whole`) and which hashed spellings a list id is also named by (`ALSO_KEYS`);
+`books/index.mjs` collects it and `magic-item-binding.mjs`'s `magicItemPlacement`
+reads it. The Tome's Random Type is `classicType.bands`, its category lists
+`classic.<key>`, its rarity lists `heroic.<key>`, its subtables a new table,
+`subtables.<key>` (neutral ordinal keys in page order within a category), and its
+scroll sub-tables (folios 94 to 98) the same ids the Journal's fill.
+A raw table the Tome sets across two columns or a page break is a `...More`
+segment of its list. A band's `hop` stays an id `<table>.<column>`.
+
+A list is placed when its bands tile and, for a hopping list, every leaf band
+(outer or inner) names an id under which a list stands; a placed list replaces
+the shared list under its id, and a list that cannot place leaves the Journal's
+standing (`unplaced` names it in the import log). Placement runs to a fixed point,
+subtables first. A hop resolves against an id's key set (the folded caption of
+every raw segment of either book that joins under the id, and its `ALSO_KEYS`),
+and only among the ids of the table its list declares, so it holds whichever
+book's list stands there; a key two ids share is no hop. Every band of a standing
+hopping list carries `hop`, a tail's outer band null and each inner band its own.
+`captions` and `listCites` follow the list that stands. `check-magic-item-tables.mjs`
+reads the Tome's lists, places them as the import does, and fails on a refused or
+untiled list, a leaf of a standing hopping list that does not resolve, a key two
+ids share, a subtable no row names, a classic list naming another category's
+subtable, and a list unplaced where everything it names is in the map; a list
+waiting for a category whose subtables a later batch adds is reported. The
+projection keeps `hop` on `classic` and `heroic` and on a tail's inner bands, and
+`subtables` is a RollTable per list like the others.
 
 ## The weapon lists
 
@@ -2443,7 +2478,8 @@ each book's, table by table, after the shared ones and in the order
 `BOOK_CODE` lists the books (`mergeBookTableRecipes`, `books/merge.mjs`; a doc's
 book is read from its first table that names one, so the order is load-bearing).
 Every merged table is stamped with its book; a table id defined twice, or a
-book's table naming another book, throws. No book has a folder yet: what landed
+book's table naming another book, throws. The Treasure Tome has one (`books/tt/`: its magic-item table
+recipes and list map); what landed
 before the seam waits in the shared files for the owner's cleanup
 (ROADMAP, "Landed code that waits for the per-book cleanup"), and new code goes
 in a folder. A file is book code when it holds a book's print facts; code that a

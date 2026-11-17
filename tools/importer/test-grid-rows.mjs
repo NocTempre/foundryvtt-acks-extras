@@ -108,6 +108,8 @@ const rate = (t) => JSON.stringify(applyCellPattern(t, "gpRate"));
 check("a ranged rate reads both ends and its unit", rate("7 – 11gp / barrel") === '{"min":7,"max":11,"per":"barrel"}');
 check("one rate is both ends, silver read as gp", rate("6sp/ cart") === '{"min":0.6,"max":0.6,"per":"cart"}');
 check("a word for a rate is null", applyCellPattern("Ask", "gpRate") === null);
+check("a name set in one lower-case run keeps its capital under rawCapital, and under raw it does not", applyCellPattern("qq of zz", "rawCapital") === "Qq of zz" && applyCellPattern("qq of zz", "raw") === "qq of zz");
+check("rawCapital leaves a capital, a digit and an empty cell as they are", ["Qq", "9q", ""].every((t) => applyCellPattern(t, "rawCapital") === t));
 check("a signed list reads each figure", JSON.stringify(applyCellPattern("+2/+4", "signedList")) === "[2,4]" && JSON.stringify(applyCellPattern("−5", "signedList")) === "[-5]");
 check("a list with a word in it is no list", applyCellPattern("+2/some", "signedList") === null);
 check("a word list drops its closing and, its quotes, its bracket of examples and the word items",

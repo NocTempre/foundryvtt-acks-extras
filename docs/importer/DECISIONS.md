@@ -2133,7 +2133,7 @@ each kind on dice of its own. Slice S1b (see "The magic-item tables join the
 treasure wave" below) reads the legend and carries it in the RollTable's
 description.
 
-## 2026-11-16 — The magic-item tables join the treasure wave
+## 2026-11-16 — The magic-item tables join the treasure wave — SUPERSEDED IN PART 2026-11-17
 
 **Asked.** TT importer plan slice S1b: the Judges Journal's magic-item
 generation and arms-and-armour tables, under the same owner goal and the same
@@ -2367,3 +2367,75 @@ written against a bare variable (`book === "x"`) or in a
 `over` layering waits for it. The merge order is load-bearing and a test pins
 it. A book's files may not import `table-recipes.mjs` (it imports the
 manifest), so a helper a book needs from there lives in an engine file.
+
+## 2026-11-17 — The Tome's chain replaces the Journal's lists by list id, placed once its hops resolve
+
+**Asked.** TT importer plan slice S3, batch 1: the Treasure Tome's item-generation
+chain. The owner's rulings, in their words. A, "Whole tables": the Tome's whole
+table replaces the Journal's, including where it splits one into a chain of
+subtables. "They should be building separate importer files per book." The Tome
+prints Random Type (TT p. 30), eight classic category lists (p. 30) and five
+rarity lists (p. 31) whose rows name subtables (pp. 32 to 50), where the Journal's
+lists hold items.
+
+**Ruled.**
+
+- **The Tome's lists fill the same ids the Journal's do.** Random Type is
+  `classicType.bands`, the category lists are `classic.<key>`, the rarity lists
+  `heroic.<key>`; the subtables are a new engine table, `subtables.<key>`, with
+  neutral ordinal keys in page order within a category (`potions1`, ...). The
+  scroll sub-tables of TT 94 to 98 fill `scrollLanguages`, `scrollSpellLevels` and
+  `treasureMaps`. `walkChain` is unchanged; `starts()` lists only `classic` and
+  `heroic`.
+- **A list map, not `over`.** Each Tome table is a TT-only raw table
+  (`books/tt/table-recipes.mjs`, optional), and `books/tt/magic-item-lists.mjs`
+  says which raw tables join into which list id, which tables hop and into which
+  table, and which lists are one printed grid (`whole`). The seam
+  (`books/index.mjs`) collects it and `magic-item-binding.mjs` reads it by
+  `declarationsOf`. `over` is not used: it would put Tome pages and coordinates in
+  the shared Journal recipes against the books-layout ruling, it replaces a list
+  the moment its page reads whether or not its subtables did, and it cannot say
+  that one book's list hops and the other's does not without the engine reading a
+  book id.
+- **A book's list is placed, or the shared list stands.** A list is placed when its
+  bands tile and, for a hopping list, every leaf band's hop resolves to an id under
+  which a list stands; placement runs to a fixed point (subtables, then categories
+  and rarities, then the type list). A printed grid (`whole`) replaces its table
+  whole or not at all. A Judge whose Tome lacks a page keeps the Journal's list
+  there rather than a list whose rolls end flagged, and the import log names each
+  list read and not placed (`unplaced`).
+- **Hops are by id, against a key set.** An id's key set is the folded caption
+  (`printKey`) of every raw segment, of either book, that joins into a list under
+  that id, plus the id's hashed spellings (`ALSO_KEYS`, the `printKey` hash of a
+  row's spelling where it differs from its list's caption by an inflection; one is
+  needed, for the armour list). A row resolves to the one id of its declared target
+  table whose key set holds its key; none, or more than one, is null. The key set
+  belongs to the id, not the standing list, so a Journal type row still reaches a
+  list the Tome replaced and a Tome type row reaches a list the Journal still
+  holds.
+- **`hop` is on every band of a hopping list, inner bands included.** A leaf band
+  carries its id or null; a tail's outer band carries null, which the walk never
+  reads. The projection keeps `hop` across a drop for `classic` and `heroic` too,
+  and a tail's inner bands keep theirs where the same face and inner range stood.
+
+**Supersedes in part** "2026-11-16 — The magic-item tables join the treasure wave",
+the clause "No other row is matched": rows of a book's category and rarity lists
+are matched too, each against the table its list declares. That entry is under seven
+days old; what it did not know is A (2026-11-17) and the Tome's chain, whose
+category and rarity lists name subtables (TT pp. 30 and 31).
+
+**Rejected:** merging the Tome's lists into the Journal's row by row (a re-banded
+list overlaps); one `over` per Journal segment; a subtables table per category
+(one `subtables` table needs one projection row); a hop key set built from the
+standing list alone (the first Tome batch would cut every Journal chain into the
+lists it replaced).
+
+*Cost:* between batches a classic roll can start on the Tome's type list and end on
+a list the Journal still holds; each list is whole and each roll's tooltip cites
+the book its list came from, but the chain mixes printings until the last batch
+lands. After batch 1 the type list, the potion, ring and scroll category lists and
+every scroll sub-table are the Tome's; the other five category lists and all five
+rarity lists are the Journal's until their subtables are read. A key two ids share
+(a caption either book prints twice) makes every row naming it null, so the list
+waits; the gate fails on one on the author's copy. `ref` and the S6 entries are not
+part of this entry.

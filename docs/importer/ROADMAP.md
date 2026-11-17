@@ -447,8 +447,15 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    ahead of the wave order"), with the gem and jewelry dice legend, the coin
    columns' unit and each special list's lot unit; the Journal's magic-item
    generation tables and its arms-and-armour tables are read too (DECISIONS
-   2026-11-16, "The magic-item tables join the treasure wave"). Not yet: the
-   Treasure Tome layer and its entries, and the generators that use them
+   2026-11-16, "The magic-item tables join the treasure wave"). The Tome's
+   item-generation chain is read from `books/tt/` in three batches (DECISIONS
+   2026-11-17, "The Tome's chain replaces the Journal's lists by list id"):
+   batch 1 is built (Random Type, the potion, ring and scroll category lists and
+   their subtables, and the scroll sub-tables of folios 94 to 98); batch 2
+   (implements, miscellaneous items: folios 37 to 45) and batch 3 (swords,
+   miscellaneous weapons, armour: folios 46 to 50) are not, and the five rarity
+   lists switch to the Tome only once every subtable they name is read. Not yet:
+   the Tome's entries, and the generators that use them
    (a gem or jewelry RollTable still rolls one die, its description carrying
    the legend)
    (`docs/importer/wip/20261116-tt-importer-plan.md`).

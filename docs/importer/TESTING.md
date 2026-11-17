@@ -4025,6 +4025,37 @@ marker, and are read, never driven.
    match what the Journal-only seat showed. Disconnect the Tome and rerun:
    *observable:* those tables still cite TT, and the report names the Tome as
    an optional book that is not open.
+8. **The Tome's chain (S3 batch 1).** On the seat with both books, rerun step 1.
+   *Observable:* `getDoc("magicItemTables").tables.subtables` has 17 keys (seven
+   `potions<n>`, five `rings<n>`, five `scrolls<n>`), the import log's
+   "magic-item tables assembled" line names `unplaced` only for lists the Tome's
+   pages did not read, and `getTable("magicItemTables","classic")` has three
+   lists whose rows carry `hop: "subtables.<key>"` (potions, rings, scrolls) and
+   five that carry none (implements, misc, swords, armors, weapons: still the
+   Journal's until batches 2 and 3 land). With both books, `unplaced` lists
+   exactly those five and the five rarity lists, since each names subtables not
+   read yet.
+9. `getTable("magicItemTables","classicType").bands.map((b) => b.hop)`, with the
+   Tome open. *Observable:* eight `classic.<list>` ids, one per row, the armour
+   row included. Roll the classic style from the type list a few times with
+   the magic-items roller. *Observable:* a card whose chain shows a type step, a
+   category step and a subtable step for a potion, ring or scroll, and a type
+   step then a category step for the others; no card ends flagged
+   `unresolved-hop`.
+10. Roll with `from: "classic.potions"` until the category's tail row lands (the
+    last face), by setting the dice rig (`TEST_ENVIRONMENT.md`) to throw the top of the d100 and then any inner band.
+    *Observable:* the card's category step shows the tail's inner roll and the
+    walk continues into a `subtables.potions<n>` list; the item is a potion
+    carrying its cues. Each roll's tooltip cites the Tome's page.
+11. Disconnect the Tome and rerun step 1 (the Judges Journal only). *Observable:*
+    the Tome's raw tables stay in the document, the same lists still stand as the
+    Tome's, and the report names the Tome as an optional book that is not open.
+    A seat that never had the Tome shows the Journal's lists only: no
+    `subtables` table, and `classic.potions` rows carry no `hop`.
+12. Open the Ruledata Browser. *Observable:* `magicItemTables.subtables.<key>`
+    entries are rollable, each reading "name — cue" for a potion subtable, and a
+    drop of a classic category list back over its entry keeps every `hop`,
+    inner bands included.
 
 ### Teardown
 

@@ -108,8 +108,9 @@ const COLUMN_GRIDS = [
   // stands. `fieldsBy` names the fields of each list of a set whose lists
   // differ.
   { docId: "magicItemTables", tableId: "classicType", field: "item", keep: ["hop"] },
-  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true },
-  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true },
+  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["hop"] },
+  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true, keep: ["hop"] },
+  { docId: "magicItemTables", tableId: "subtables", field: "item", fields: ["item", "cues"], ownDie: true },
   { docId: "magicItemTables", tableId: "scrollLanguages", field: "item" },
   { docId: "magicItemTables", tableId: "scrollSpellLevels", field: "level", ownDie: true },
   {
@@ -472,6 +473,11 @@ function parseRollTable(entry, table) {
         // same range stood before.
         const before = (grid.keep ?? []).length ? (current[entry.subId] ?? []).find((b) => b.min === min && b.max === max) : null;
         for (const f of grid.keep ?? []) if (before && before[f] !== undefined) band[f] = before[f];
+        // A tail's inner bands keep the same fields where the same face and inner range stood.
+        for (const inner of band.sub ?? []) {
+          const was = (before?.sub ?? []).find((s) => s.min === inner.min && s.max === inner.max);
+          for (const f of grid.keep ?? []) if (was && was[f] !== undefined) inner[f] = was[f];
+        }
         return band;
       });
     return current;
