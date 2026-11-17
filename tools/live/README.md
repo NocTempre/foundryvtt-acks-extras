@@ -18,10 +18,12 @@ node tools/live/run.mjs
 ```
 
 runs every walk, and `node tools/live/run.mjs markets henchmen` runs the named
-ones in that order. A walk takes both seats, so one runs at a time, and a peer
-session's run is waited for: the runner refuses to start while a browser
-already answers on either seat's port, because a second driver would attach to
-the first walk's browser and drive the same world beside it. The runner writes
+ones in that order. A walk takes both seats, so one runs at a time on a seat
+pair, and a peer session's run on the same pair is waited for: the runner
+refuses to start while a browser already answers on either seat's port,
+because a second driver would attach to the first walk's browser and drive the
+same world beside it. A run given another seat pair (`SEAT_GM`, `SEAT_PLAYER`)
+and its own ports (`CAPTURE_PORT_GM`, `CAPTURE_PORT_PLAYER`) runs beside it. The runner writes
 each walk's whole output to a
 log under `aia-tmp/live/` (ignored) and shows only the headings and the verdict
 lines on the console: a log can hold figures the world imported from a book, so

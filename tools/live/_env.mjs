@@ -9,6 +9,8 @@
  *   CAPTURE_BROWSER     the Chromium the driver launches
  *   CAPTURE_ORIGIN      the test server
  *   SEAT_GM, SEAT_PLAYER  the user name of each seat
+ *   CAPTURE_PORT_GM, CAPTURE_PORT_PLAYER  each seat's CDP port; default
+ *                       9483 and 9484
  *   ACKS_CAPTURE_DRIVER   the capture driver, when it is not the template's
  *                         bin/foundry-capture.mjs beside this repository
  *   ACKS_TEST_BOOKS     a JSON map of book id to the path the Books tab
@@ -44,8 +46,21 @@ export function seats() {
   return { browser: need("CAPTURE_BROWSER"), origin: need("CAPTURE_ORIGIN"), gm: need("SEAT_GM"), player: need("SEAT_PLAYER"), own: process.env.FIXTURE_OWN || null };
 }
 
-/** The CDP port the driver opens for each seat. One browser per seat is why two walks never run at once. */
-export const PORTS = { gm: 9483, player: 9484 };
+/**
+ * The CDP port the driver opens for each seat: CAPTURE_PORT_GM and
+ * CAPTURE_PORT_PLAYER, else 9483 and 9484. One browser per seat is why two
+ * walks on the same ports never run at once; a run given another seat pair
+ * (SEAT_GM, SEAT_PLAYER) and its own ports runs beside them.
+ */
+export const PORTS = { gm: port("CAPTURE_PORT_GM", 9483), player: port("CAPTURE_PORT_PLAYER", 9484) };
+
+function port(name, fallback) {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1024 || value > 65535) throw new Error(`${name} is not a port number: ${raw}`);
+  return value;
+}
 
 /** The version in module.json, which names the release directory a plate lands in. */
 export function version() {
