@@ -944,6 +944,25 @@ export const TABLE_RECIPES = {
           { key: "breath", find: "breath for", take: "window", span: 35 },
         ],
       },
+      // Squeezing (RR ch. 6): the length a chokepoint is told by, the bonus
+      // Contortionism adds to the squeeze throw, the distance either way out
+      // of being stuck carries, and the penalty each failed push adds to the
+      // next attempt. One window per figure; formation-binding parses them
+      // into the engine figures.
+      squeezingProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 271,
+        locate: "Squeezing",
+        column: { xMin: 40, xMax: 592 },
+        values: [
+          { key: "chokepoint", find: "narrows for less than", take: "window", span: 20 },
+          { key: "contortion", find: "contortionism proficiency gains a", take: "window", span: 25 },
+          { key: "retreat", find: "adventurer retreats", take: "window", span: 15 },
+          { key: "advance", find: "adventurer advances", take: "window", span: 15 },
+          { key: "penalty", find: "cumulative", take: "window", span: 20 },
+        ],
+      },
       restProse: {
         shape: "proseValues",
         book: "rr",

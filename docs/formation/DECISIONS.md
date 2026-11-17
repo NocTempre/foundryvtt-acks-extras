@@ -393,3 +393,14 @@ enters and leaves, not how far it passes. *Cost:* a party standing in a hole
 of a trap zone is now outside it and measured to the hole's rim, so at a reach
 of 0 it no longer reaches that trap; a trap zone on another elevation stays in
 reach as before.
+
+## 2026-11-17 — The squeeze's printed figures are imported, and Contortionism's bonus there is the passage's own
+
+**Ruled.** (Dungeon close-out plan §6 item 5, slice S14.)
+- A `squeezingProse` recipe in `TABLE_RECIPES.formation` reads the Squeezing passage (RR ch. 6, which runs on from the foot of one column to the head of the next, so its column is the page's whole width) into one window per figure. `assembleSqueezing` yields `chokepointFeet`, `contortionismBonus`, `escapeFeet` and `escapePenaltyStep` as flat keys of the `formation` document, beside `swimmingBonus` and the trap figures, listed in `PRODUCES` and in the feature's `expectTables`.
+- The bonus and the step are stored as magnitudes, as `swimmingBonus` is; the reader adds the first and subtracts the second. A figure of nothing is not read. `escapeFeet` is one key because the page prints one distance for both ways out; two windows that print different ones answer none, since neither is then the figure.
+- Contortionism's bonus on the squeeze throw and on the push throw is this passage's figure: the ability's own granted effect (RR ch. 3, the cookbook's Contortionism row) is a situational Paralysis-save modifier for escaping, plus its own throw, and prices neither, because neither is a saving throw. The wiggle-back save takes its bonus from that effect through core's save, if the effect is applied to it; a reader that also adds `contortionismBonus` there counts it twice.
+
+**Rejected.** Reading `contortionismBonus` off the imported ability: the effect carries the saving-throw bonus only, and the squeeze and the push are proficiency-style throws. A default for any of the four: a world without the import has no figure and the readers say so.
+
+**Cost.** A world must re-run the Rules tables import before a squeeze reads any figure; until then each answers null, and the Judge may set them in the Ruledata Browser. Nothing reads them until the squeeze rows land (slice S15).

@@ -23,13 +23,13 @@ import { registerTable, unregisterTable, getLayer, PRIORITY } from "../scripts/l
 import {
   FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, assembleFall, assembleFormationTables,
   assembleTrapFigures, parseBandTop, parseBotchBand,
-  assembleJumping, assembleSpelunking, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
+  assembleJumping, assembleSpelunking, assembleSqueezing, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
-import { FORMATION_DOC, carriedBody, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
+import { FORMATION_DOC, carriedBody, formationValue, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
 import { WATER, drowning, rescueStone, swimSpeed, swimmingThrow, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
 import { navigationCompetence } from "../scripts/formation/travel.mjs";
 import { TRAVEL_DOC } from "../scripts/vehicles/vehicle-speed.mjs";
@@ -324,9 +324,10 @@ const engine = assembleFormationTables(raw);
 const FRONTAGE_KEYS = ["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFeet"];
 const TRAP_PROSE = ["searchProse", "trapProse", "actionProse", "pitSpikeProse"];
 const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PROSE.includes(PRODUCES[FORMATION_DOC_ID][k]));
+const SQUEEZE_PROSE_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => PRODUCES[FORMATION_DOC_ID][k] === "squeezingProse");
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
-    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS].includes(k)).sort());
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS].includes(k)).sort());
 eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -401,6 +402,61 @@ eq("a drifted window costs its own figure and nothing beside it",
   Object.keys(assembleTrapFigures(trapRaw)).filter((k) => k !== "poleLeadFeet").sort());
 eq("a bonus of nothing is not a bonus", "trapbreakMethodicalBonus" in assembleTrapFigures({ trapProse: { methodical: " one turn and a throw." } }), false);
 eq("nothing assembles from an absent passage", Object.keys(assembleTrapFigures({})), []);
+
+/* --- the squeezing passage: invented prose through the recipe ---------------- */
+// The passage runs down the left column and on into the right, and a phrase
+// breaks across the two: the recipe flows them in reading order. Each figure is
+// read from its own window, so the retreat and the push (both a distance in
+// feet) and the two bonuses (a throw bonus, a cumulative penalty) never read
+// each other's number.
+const twoColumns = (left, right) => [
+  ...left.map((str, i) => ({ x: 60, y: 100 + i * 12, str })),
+  ...right.map((str, i) => ({ x: 320, y: 100 + i * 12, str })),
+];
+const SQUEEZE_LEFT = [
+  "Squeezing",
+  "Mole tunnels hold gaps. A gap is a chokepoint when it narrows for less than 4’ of length.",
+  "A mole who wants through must throw each round. A mole with Contortionism",
+];
+const SQUEEZE_RIGHT = [
+  "proficiency gains a +2 bonus to the throw. Moles caught fast may wriggle out.",
+  "A mole that wiggles out the way it came, the adventurer retreats 12’ and is free. A mole that digs on, the adventurer advances 12’ and is free.",
+  "Fail again and expect a cumulative −3 penalty to every later try.",
+];
+const squeezeRaw = extractTable(twoColumns(SQUEEZE_LEFT, SQUEEZE_RIGHT), recipes.squeezingProse);
+eq("every window of the recipe reads from the invented page", Object.keys(squeezeRaw).sort(),
+  ["advance", "chokepoint", "contortion", "penalty", "retreat"]);
+const SQUEEZE_KEYS = ["contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep"];
+eq("every squeezing figure is produced from the one passage",
+  SQUEEZE_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), SQUEEZE_KEYS.map(() => "squeezingProse"));
+eq("each squeezing figure reads from its own window", assembleFormationTables({ squeezingProse: squeezeRaw }),
+  { chokepointFeet: 4, contortionismBonus: 2, escapeFeet: 12, escapePenaltyStep: 3 });
+eq("assembleSqueezing is what the binding calls", assembleSqueezing(squeezeRaw), assembleFormationTables({ squeezingProse: squeezeRaw }));
+eq("a figure with no feet mark is not read",
+  assembleSqueezing({ chokepoint: " 4 of length.", retreat: " 12 and is", advance: " 12 and is" }), {});
+eq("a bonus of nothing is not a bonus, nor a penalty of nothing a step",
+  assembleSqueezing({ contortion: " +0 to the throw.", penalty: " -0 to later" }), {});
+eq("a bonus with no sign is not read", assembleSqueezing({ contortion: " 2 to the throw.", penalty: " 3 to later" }), {});
+eq("a figure past the full stop is the next rule's",
+  assembleSqueezing({ contortion: " nothing special. Then +9 for owls", chokepoint: " a hair. Then 8’ more" }), {});
+eq("an escape distance both ways agree on is one figure", assembleSqueezing({ retreat: " 7’ and", advance: " 7’ and" }), { escapeFeet: 7 });
+eq("an escape distance only one window read stands", assembleSqueezing({ retreat: " 7’ and", advance: " a lot and" }), { escapeFeet: 7 });
+eq("two escape distances that differ are no one figure", assembleSqueezing({ retreat: " 7’ and", advance: " 9’ and" }), {});
+eq("a drifted window costs its own figure and nothing beside it",
+  Object.keys(assembleSqueezing({ ...squeezeRaw, contortion: " a good deal" })).sort(),
+  ["chokepointFeet", "escapeFeet", "escapePenaltyStep"]);
+eq("nothing assembles from an absent passage", [assembleSqueezing(), assembleSqueezing({}), assembleFormationTables({ restProse: raw.restProse })].map((o) => SQUEEZE_KEYS.filter((k) => k in o)), [[], [], []]);
+// The figures read through the registry like every other: blank until
+// imported, the import's layer under a Judge's override.
+eq("with nothing registered every squeezing figure reads null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null]);
+registerTable({ id: FORMATION_DOC_ID, tables: assembleSqueezing(squeezeRaw) }, { priority: PRIORITY.WORLD });
+eq("an imported figure reads through", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 12, 3]);
+registerTable({ id: FORMATION_DOC_ID, tables: { escapeFeet: 14 } }, { priority: PRIORITY.OVERRIDE });
+eq("a Judge's override wins its own figure and leaves the others", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 14, 3]);
+unregisterTable(FORMATION_DOC_ID);
+registerTable({ id: FORMATION_DOC_ID, tables: { restProse: raw.restProse } }, { priority: PRIORITY.WORLD });
+eq("a registered document that lacks a figure still answers null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null]);
+unregisterTable(FORMATION_DOC_ID);
 
 /* --- absent input is absent output, never a default ------------------------ */
 eq("nothing assembles from nothing", assembleFormationTables({}), {});

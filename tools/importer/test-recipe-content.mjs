@@ -34,7 +34,7 @@ import { SIZES } from "../../scripts/monsters/config.mjs";
 import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -113,9 +113,9 @@ const TABLES = {
   monsters: ["sizeFrontage", "sizeSquare", "loadRule", "defaultScore", "naturalWeaponDamage", "extraordinaryRule", "bodyForms"],
   // The armour limits on abilities, and the weapon-narrowing penalty's two figures.
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
-  // The jumping and fall figures, the Spelunking grids' stretch and targets
+  // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
   // and their missed-throw outcomes, and the street's two dice.
-  formation: ["jumpingProse", "jumpingLandingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
+  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
   // The cultures' name lists and appearance palettes, each read by the keys of
   // its page; a culture's name list may be in a supplement. The supplement's
@@ -706,6 +706,14 @@ const missingFigures = (table, keys, fail) => {
 VERIFY["formation.jumpingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   missingFigures(assembleJumping(out, {}), ["leapPlus", "leapMinimum", "jumpDie", "feetPerStone", "runUpFeet", "standingShare"], fail);
+};
+// The Squeezing passage: every window must read through the binding's own
+// parsers into its figure, each a positive number. Shape only; no figure is named.
+VERIFY["formation.squeezingProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const figures = assembleSqueezing(out);
+  missingFigures(figures, ["chokepointFeet", "contortionismBonus", "escapeFeet", "escapePenaltyStep"], fail);
+  for (const [key, n] of Object.entries(figures)) if (!(n > 0)) fail(`${key}: not above zero`);
 };
 VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);

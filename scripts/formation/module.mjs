@@ -382,6 +382,8 @@ Hooks.once("init", () => {
     "searchReachFeet", "poleSearchReachFeet", "poleLeadFeet", "trapTriggerDie", "trapTriggerOn",
     "trapbreakReachFeet", "trapbreakHastyBotch", "trapbreakMethodicalBotch", "trapbreakMethodicalBonus",
     "pitSpikeCount", "pitSpikeDie",
+    // The squeeze and its two ways out (`assembleSqueezing`).
+    "contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep",
   ]);
   // The delve's wandering throw (`getEncounterParams`): with no die and target
   // no throw is made, and with no dice no distance is rolled.

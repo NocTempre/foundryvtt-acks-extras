@@ -30,7 +30,10 @@
  * (`assembleTrapFigures`): the search reach bare and with a pole, the pole's
  * lead, the secret die and the band that springs it, the botch band of each
  * Trapbreaking mode, the methodical bonus, the trapbreak reach, and the spiked
- * pit's two dice.
+ * pit's two dice. The Squeezing passage (RR ch. 6) gives four more
+ * (`assembleSqueezing`): the length a chokepoint is told by, the bonus
+ * Contortionism adds, the distance an escape carries and the penalty each
+ * failed escape adds to the next.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -79,6 +82,10 @@ export const PRODUCES = Object.freeze({
     trapbreakReachFeet: "actionProse",
     pitSpikeCount: "pitSpikeProse",
     pitSpikeDie: "pitSpikeProse",
+    contortionismBonus: "squeezingProse",
+    chokepointFeet: "squeezingProse",
+    escapeFeet: "squeezingProse",
+    escapePenaltyStep: "squeezingProse",
   },
 });
 
@@ -523,6 +530,29 @@ export function assembleTrapFigures(raw = {}) {
   return out;
 }
 
+/**
+ * The Squeezing figures, one window each: `chokepointFeet`, the length below
+ * which a narrowing is a chokepoint; `contortionismBonus`, the magnitude
+ * Contortionism adds to the squeeze throw and the push-forward throw; `escapeFeet`, the
+ * distance a successful escape carries, read from the retreat window and the
+ * push window; and `escapePenaltyStep`, the magnitude each failed escape adds
+ * to the next. A window that does not read leaves its figure out. Both escape
+ * windows that read must print one distance — one figure stands for both, so
+ * two that differ answer none.
+ */
+export function assembleSqueezing(raw = {}) {
+  const out = {};
+  const chokepoint = parseFeet(raw.chokepoint);
+  if (chokepoint != null) out.chokepointFeet = chokepoint;
+  const bonus = parseBonusMagnitude(raw.contortion);
+  if (bonus != null && bonus > 0) out.contortionismBonus = bonus;
+  const ways = [parseFeet(raw.retreat), parseFeet(raw.advance)].filter((n) => n != null);
+  if (ways.length && ways.every((n) => n === ways[0])) out.escapeFeet = ways[0];
+  const step = parseBonusMagnitude(raw.penalty);
+  if (step != null && step > 0) out.escapePenaltyStep = step;
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -578,6 +608,7 @@ export function assembleFormationTables(raw = {}) {
   }
 
   Object.assign(out, assembleTrapFigures(raw));
+  Object.assign(out, assembleSqueezing(raw.squeezingProse));
 
   return out;
 }
