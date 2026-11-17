@@ -4773,3 +4773,82 @@ clock and starts the combat):
 summoners and no summon members. Delete only what the run's ledger names: the
 creature tokens it placed or restored, the cast and end cards it posted, and
 a world copy where none stood before.
+
+## The crossing (added with S7 of the dungeon close-out)
+
+Built for the party sheet's Dungeon tab section "The crossing" (MODEL, "The
+crossing"): the party's way over one obstacle or gap, a member at a time. A
+mock cannot prove that the partial draws for each seat, that a press keeps the
+tab's scroll and returns focus to the pressed row's button, that a throw's card
+reaches the Judges alone, or that two seats see one crossing. Path: Actors
+sidebar → party sheet → Dungeon tab → The crossing.
+
+Before the first step the Rules tables must be imported in the test world: the
+walk reads the stretch, the Adventuring column, the outcomes with `advances`,
+the Spelunking grid's `vulnerable` and botch band, the fall dice and the
+jumping figures, and a standing import from before those keys existed holds
+none of them. Without them step 6 passes on the absent-figure path and proves
+nothing.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`). Seats:
+the GM; the Player seat that owns the adventurer; one seat that owns nobody.
+The walk writes the party fixture, so with a peer on this surface it connects
+with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
+- `formation/crossing-party` — a party actor in Dungeon mode with its token on
+  a scene, holding the four members below.
+- `formation/crossing-adventurer` — a character the Player seat owns, with no
+  Climbing.
+- `formation/crossing-climber` — a character holding the world's imported
+  Climbing, added from the imported library as a user adds it.
+  (`formation/imported-climber`, kept by "Jumping, the fall, the Spelunking
+  table", is a plain character with no proficiency, whatever its name.)
+- `formation/crossing-acrobat` — a character holding the imported Acrobatics.
+- `formation/crossing-beast` — a monster actor, which carries no Adventuring
+  field. It is a member of the party the way a hireling is.
+
+**Drive mechanics.**
+- Begin is the pick and the button, in that order: set the select
+  `[data-pick="crossing-kind"]` and press `[data-action="crossingBegin"]`. The
+  pick has no `name`, so it is no part of the form's submit.
+- A setup field submits on change: set the input's value and dispatch a
+  bubbling `change`, then wait for the render. Read the result from the flag,
+  `game.actors.get(partyId).getFlag("acks-extras", "crossing")`, not from the
+  field.
+- A throw is the row's own button,
+  `[data-action="crossingThrow"][data-actor-id="<id>"]`, clicked. The die is
+  rigged with `CONFIG.Dice.randomUniform`, which reads from the top on core 14:
+  0.025 throws a 20 and 0.975 a 1. Restore it in a `finally`.
+- The press returns nothing to the page, so a card is found as the messages
+  that appear across it (the set of `game.messages` ids before and after),
+  each of which the run `api.track`s by uuid. A card is a whisper to the GMs
+  from the party's name.
+- A seat's DOM is read from that seat's own pane; a GM pane reads a Judge's
+  section whatever it is told to impersonate.
+- Focus is read from `document.activeElement` of the sheet's own document
+  after the render settles, with the sheet's `element.ownerDocument` for a
+  detached window.
+
+| # | Step | Observable |
+|---|---|---|
+| 0 | Re-import the Rulebook's tables in the test world | `advances` on an outcome cell, `vulnerable` on the grid, the Acrobatics cap and bands, each read back through `formationValue` |
+| 1 | Assert the start: no `crossing` flag, the four tables present | End the crossing if one stands |
+| 2 | The GM begins a sheer climb with a length | Rows on both seats; kind labels with no parentheticals; each figure's tooltip in its shape (a target's parts with their pages, a stretch count's page, the outcome's provenance); the beast's target blank, its tooltip the page reference |
+| 3 | The player's seat | No `crossing.*` field in the DOM; the adventurer's Throw absent or blocked, its reason as text on the row |
+| 4 | Rope fixed | The sheer face's rows flip to the easy climb's on both seats |
+| 5 | The player presses Throw on the adventurer | The player is told the throw is the Judge's to make; nothing is written to the flag and no card appears. Then the GM throws for the adventurer with the die rigged: a card to the Judges alone, the member's record one stretch on |
+| 6 | A miss that does not advance, then a make | The member is stalled, not across, and `covered` is 0; the row now warns the Judge. The make is the Judge's press over that warning, its card says so, and `covered` is 1 |
+| 7 | The Judge modifier set so the lowest face meets the target, the lowest face rigged | The botch row's words on the card |
+| 8 | A fall | The card and the row report the distance and the dice; the member's hit points are unchanged |
+| 9 | The GM throws for a refused member (the adventurer on a face the table refuses) | A warning, then the throw; the card says it was thrown over a refusal |
+| 10 | A jump: gap and run-up | The rows' verdicts equal `acksExtras.formation.jumping.canClear` read in page context for each member |
+| 11 | Precarious | The checkbox is stored and nothing else changes; the landing's save and footing belong to a later slice |
+| 12 | A member removed mid-crossing, with the removed member's record already in the flag | The row is gone at the next render; the stale record is dropped at the next member's throw, which lands |
+| 13 | End, then Begin | A fresh id; no member state carried |
+| 14 | A second party sheet, a detached window, the type size on a fresh window | The tab's scroll kept after a press; focus back on the pressed row's button; the rows reflow and nothing clips |
+| 15 | A hover pass | Each figure's parts against the page it names; a blank figure's tooltip is the reference alone |
+| 16 | Teardown | End; the cards tracked by the ids the run saw appear, then `api.sweepTracked()`, its result quoted; fixtures kept |
+
+Step 5's first half is the seam the player relay will complete: until it does,
+a Player seat's press writes nothing, which is the observable. A step that
+needs a known shape asserts it at its start: step 2 needs no `crossing` flag
+and step 9 needs the adventurer to have no Climbing.

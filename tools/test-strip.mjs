@@ -487,7 +487,7 @@ const stripOf = (id) => {
   hb.registerHelper("checked", (v) => (v ? "checked" : ""));
   hb.registerHelper("eq", (a, b) => a === b);
   for (const path of [
-    "formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs",
+    "formation/formation-strip.hbs", "formation/formation-player-actions.hbs", "formation/formation-crossing.hbs", "formation/formation-cell.hbs", "formation/formation-country-card.hbs",
     "formation/formation-country.hbs", "formation/formation-plate.hbs", "lib/station-chip.hbs",
   ]) {
     hb.registerPartial(`modules/acks-extras/templates/${path}`, hb.compile(read(path)));

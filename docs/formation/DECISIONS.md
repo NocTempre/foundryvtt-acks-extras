@@ -313,3 +313,31 @@ append-only, keep them; they are marked superseded in part.
 **Rejected.** Clamping a score past the top band to the top band's bonus, or reading the system's table where no band is imported: the passage prices those scores itself, and the system's table is not the page. Keeping a score uncapped where no ceiling is imported: it is a score the book does not allow, written to a card as a figure. A ceiling or band in source "until the import lands": the value rule.
 
 **Cost.** A world must re-run the Rules tables import before an acrobat's raised leap or jump reads a figure; until then both read unknown, which is the failure the doctrine asks for. `leapHeight`'s `bonus` can be null, `dexModifier` takes `score` and `raised`, `scoreModifier`, `acrobaticsDexCap` and `extendedDexBands` are published on `api.formation.jumping`, and formation `apiVersion` is 28.
+
+## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time
+
+**Asked.** The dungeon close-out's audit found no surface for the Spelunking obstacles beyond a card that rolled a whole climb for a party in one press, and no surface at all for a jump. The surface was designed read-only on 2026-11-16 and its first slice (S7) built.
+
+**Ruled.** The owner's standing ruling, 2026-11-14: "players get blocks, judges get warnings". An automation refuses a player where the table says a member may not try, and warns a Judge, whose throw proceeds on the member's own figure. Example: a member without Climbing at an obstacle whose imported row refuses them is blocked for the player who owns them and warned for the Judge, and the card the Judge's throw posts says it was thrown over a refusal. An absence is the one refusal that stops a Judge too, since proceeding would roll against a guess (2026-11-11, the import entry). The positions the surface takes:
+
+- "The crossing" is a section of the party sheet's Dungeon tab, drawn from `buildCrossingView`, with the state in the party actor's own flag (`crossing`). A press throws one stretch for one member; `crossingThrowAll` throws a stretch for each member a row allows with no warning. A jump is a verdict row with no throw.
+- The member's figure is `resolveCheck` on a climb configuration local to the crossing. The imported Adventuring column is read for whether a member may try and for nothing else.
+- Cards go to the Judges (`postToJudges`), with row state on every seat, as the default of OQ10, option (b); the owner has not ruled on it.
+- A miss that does not advance stalls the member and nothing throws it again; the Judge may rule a re-throw by pressing the row.
+- A setup edit writes the setup keys it changed by dotted path, and a throw writes its member's record by dotted path; only Begin and End write the flag whole. An in-flight set keyed by crossing and member and a check of the crossing's id before each write guard the two.
+- The first slice applies no condition, spends no time on the clock and reports a fall's distance and dice without touching hit points. A player's press reaches `requestCrossingThrow`, which writes nothing and rolls nothing; the relay is the next slice's.
+
+| Position | Strongest counter | Strength |
+|---|---|---|
+| A tab section, not a dialog | Trapbreaking's precedent is a dialog, and the tab gets busier | Medium: that dialog has no refresh, a fixed id and a footer that scrolls away |
+| A climb configuration local to the crossing, not a `PARTY_CHECKS` entry | An entry would give the Skill audit a climb column | Medium: every check consumer would pick it up |
+| Cards to the Judges | A climb is seen at the table | Medium: OQ10 is open |
+| One press, one throw | `attemptObstacle` rolls a whole climb | Medium: `crossingThrowAll` throws a stretch for everyone |
+| A miss that does not advance stalls, with no re-throw | The audit reads a re-throw | Medium: a re-throw has no printed bound, and a cap would be an invented figure |
+| Absence refuses the Judge too | The block-or-warn ruling reads as universal | Medium: the import entry rules that a guess is never rolled |
+| Setup edits by dotted path, not the whole flag | The turn plan writes whole | Low: the whole flag also holds the members, so a whole write drops a step in flight |
+| No clock until a later slice | A crossing takes time | Low |
+
+**Rejected.** A Trapbreak-style dialog. The crossing as a turn-plan activity: `memberBlock` refuses after a move and in combat, and a move cancels the plan. A `PARTY_CHECKS` climb entry. Writing the whole flag per throw. Producing `.unless`, `progress` or `vulnerable` before its reader. Closing the crossing when the party moves. Reading Mountaineering as permitted before it is ruled: a holder of it alone is treated by the grid's column and the Judge may proceed. A row for a stack standing for several bodies, which has no single pair of hands. Putting a throw's imported words in the card's row tooltip: the card has one slot per card for it, so the words go in the note and the provenance on the note.
+
+**Cost.** The Dungeon tab gains a section. `formation-model.mjs` exports `encumbranceOf`, which a jump row reads for a member who carries nothing for the party. Nothing is published on `api.formation`. A world must hold the Rules tables import (the stretch, the Adventuring column, the outcomes) before a row reads a figure; until then the rows are blank with their page references and refuse every seat. A player cannot throw until the relay lands, and is told so.

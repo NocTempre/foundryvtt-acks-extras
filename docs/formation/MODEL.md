@@ -67,6 +67,7 @@ All paths are under `scripts/formation/` unless noted.
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |
 | `audit-roll.mjs` | The skill audit's whole-party roll: one ability, every member who holds it, one grouped card (§The audit roll). |
+| `crossing.mjs`, `crossing-logic.mjs` | The crossing (§The crossing): the party actor's crossing flag, the seat's rows, the throw and its card, and the Dungeon tab section's view; the rows' refusals, a member's step and a fall's distance, Foundry-free. |
 | `turn-plan.mjs`, `turn-plan-logic.mjs` | The turn plan (§The turn plan): the party actor's plan flag, the formation's registered activities, the lock and its relay, the column's view, the planned turn's resolution, and the move and fight that cancel it; the party's stops and the turn's order, Foundry-free. |
 | `journey.mjs` | The journey's movement engine: the dispatcher on the movement seam, miles measured on any grid, the one record patch for trace and spend, the running world clock, `nextHex`, `spendSearchHour`, `hexContext`, and the two hooks `acksExtras.hexEntered` / `acksExtras.searchHourSpent`. |
 | `march.mjs` | The march as arithmetic, Foundry-free: the day's budget in hours, the cadence by grid or by miles, a spend carried across drags, and whether the day is spent. |
@@ -2726,6 +2727,84 @@ or blank states nothing. The delve takes the first zone under the party token
   resting night; a count of 0 leaves its half to the imported cells. Under
   both, `acksExtras.hexEntered` still fires per unit, with `throwOwed: false`.
 - The card names the zones that supplied a field on a line of its own.
+
+## The crossing
+
+The party's way over one obstacle or one gap, a member at a time (RR ch. 6,
+Spelunking and Jumping and Leaping). It is a section of the party sheet's
+Dungeon tab, `formation-crossing.hbs`, drawn from `buildCrossingView`
+(`crossing.mjs`), which `buildFormationView` places on the tab's context beside
+the turn plan. The rules are `crossing-logic.mjs`'s (no Foundry, no dice); the
+state, the roll, the card and the view are `crossing.mjs`'s.
+
+**Who sees what.** A Judge always has the begin row: a kind pick (the six
+obstacles and a jump) and Begin. While a crossing is open every seat has the
+member rows, and the Judge also the setup fields (length, depth, rope fixed and
+the Judge modifier; for a jump, gap, run-up, precarious and charging) and
+*Throw all* and *End*. A player has no section while none is open, and no
+setup field in the DOM while one is. A stack standing for several bodies has no
+row.
+
+**State.** The party actor's `flags["acks-extras"].crossing` holds the setup
+(`id`, `kind`, `length`, `depth`, `ropeFixed`, `judgeMod`, `gap`, `runUp`,
+`precarious`, `charging`) and `members`, one record per actor id: `covered`,
+`throws`, `state` (`climbing`, `across`, `fell`, `stalled`) and `last`, the
+throw's total, natural result, success and the imported words. Begin replaces
+the whole flag with a fresh id and no members and End unsets it. Every other
+write is a dotted path: a setup edit writes the keys it changed (a blank number
+unsets its key) and a throw writes `crossing.members.<actorId>`, so neither
+drops the other's write. A throw rolls, reads the flag again and writes only if
+the crossing it rolled for still has its id; an in-flight set keyed by crossing
+and member refuses a second throw for the same member until the first has
+landed. A write unsets the records of members the party no longer holds. The
+crossing does not close when the party moves; the Judge ends it. Only a GM
+client writes.
+
+**A row.** `rowFor` reads one member for the seat looking: the Climbing check
+through `resolveCheck(actor, CLIMB_CHECK)`, whether the member holds Climbing
+(the capability or an ability of that name, the union `swimming.mjs`
+`holdsSwimming` reads), the party's own standing (left behind, detached, down)
+and, for a jump, the actor's Dexterity score, level, Acrobatics and carried
+stone (`carriedLoad`'s share for a Carrier, else the member's own encumbrance).
+`memberRow` and `jumpRow` answer what the seat may do (`can`, `warn`,
+`refusal`); the view and the throw take those and derive nothing of their own.
+
+A refusal has a class that decides who it stops (`crossing-logic.mjs`): a seat
+refusal stops the seat it names, a permission refusal stops a player and warns
+a Judge, an absence refusal stops every seat. A refusal with words is shown as
+text on the row (`crossing.refusal.*`); an absence has none, only a blank
+figure and the page reference. The Adventuring column of the imported table
+says whether a member who holds no Climbing may try (a holder's row does not show it) and is never read as the member's figure: a
+member with no figure of their own has a blank target.
+
+**Throwing.** `throwFor` runs on a GM client: one d20 for one stretch, read by
+`readThrow`, placed by `stepMember`, written, and posted to the Judges with
+`renderRollCard` and `postToJudges`. A Judge's press over a permission refusal
+warns, throws on the member's own figure and marks the card as thrown over a
+refusal. The card prints the imported outcome words escaped, with
+`outcomeProvenance` as their tooltip, says how many stretches are covered, and
+reports a fall's distance and dice (`fallFromClimb`) without writing a hit
+point. A crossing applies no condition, spends no time on the clock and posts no
+damage. `throwAll` throws for each member whose row allows it with no warning.
+A jump row is `canClear`'s verdict for the member, blank until a gap is set;
+it has no throw on this surface.
+
+A player's press on a member they own reaches `requestCrossingThrow`, which
+writes nothing, rolls nothing and tells the seat the throw is the Judge's to
+make.
+
+**Tooltips.** A target names the figure's source, each part with the page its
+import cites, and the Judge modifier; a permitted-or-not and a stretch count
+name the imported page; a fall names its parts and the imported dice; a jump
+names the parts of its distance. A figure nobody imported is blank and its
+tooltip is the page reference alone, which `lang/` ships.
+
+**Layout.** The section renders inside the mode part, which scrolls at its
+root, so a press keeps the scroll. A label wraps its control, a glyph is
+`inert`, and the rows' names take `minmax(0, 1fr)`. `PartySheet` is not a frame
+sheet, so `lib/press-focus.mjs`'s `PressFocus` is wired by hand: a capture
+click on the root notes the press and `_postRender` restores focus to the
+pressed row's button, which carries its member's id on itself.
 
 ## Deliberate non-features
 

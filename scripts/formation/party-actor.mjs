@@ -10,6 +10,7 @@ import { travelOf } from "./travel.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
 import { isPick, readPicks, restorePicks } from "../lib/picks.mjs";
+import { PressFocus } from "../lib/press-focus.mjs";
 import { atTypeScale } from "../lib/util.mjs";
 import { clockReading } from "../lib/world-time.mjs";
 
@@ -159,7 +160,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     mode: {
       template: `${T}/${MODE_TEMPLATES.journey}`,
       templates: [
-        `${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`, `${T}/formation-country.hbs`, `${T}/formation-country-card.hbs`,
+        `${T}/formation-strip.hbs`, `${T}/formation-player-actions.hbs`, `${T}/formation-crossing.hbs`, `${T}/formation-country.hbs`, `${T}/formation-country-card.hbs`,
       ],
       scrollable: [""],
     },
@@ -196,6 +197,9 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
 
   /** Hook ids for the watch on the members' hit points, which the figures rail reads. */
   #watch = [];
+
+  /** The press whose render is pending: where keyboard focus returns once the part's HTML is replaced. */
+  #press = new PressFocus();
 
   /** The debounced re-render the watch calls, made at first render. */
   #renderSoon = null;
@@ -442,6 +446,27 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     if (this.#readAt < generation && this.#askedAt < generation) {
       this.#askedAt = generation;
       this.render();
+    }
+  }
+
+  /**
+   * Note every `[data-action]` press as it lands, in the capture phase so it
+   * runs ahead of the action's own handler. The root persists across renders;
+   * only its parts' HTML is replaced.
+   */
+  _attachFrameListeners() {
+    super._attachFrameListeners();
+    const root = this.element;
+    root.addEventListener("click", (event) => this.#press.note(event.target, root), { capture: true });
+  }
+
+  /** After every hook has run: focus back on the control a press re-rendered (`lib/press-focus.mjs`). */
+  async _postRender(context, options) {
+    await super._postRender(context, options);
+    try {
+      this.#press.restore(this.element);
+    } catch (err) {
+      console.error(`${MODULE_ID} | party sheet: restoring focus failed`, err);
     }
   }
 

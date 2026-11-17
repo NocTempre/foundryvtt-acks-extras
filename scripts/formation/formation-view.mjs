@@ -99,6 +99,7 @@ import { fractionLabel } from "../lib/util.mjs";
 import { collectMapItems } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { planView } from "./turn-plan.mjs";
+import { buildCrossingView } from "./crossing.mjs";
 import { formatTurns, parseSpellTurns, turnDistance } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { provisionForecast, daysCarried } from "./provisions.mjs";
@@ -408,6 +409,8 @@ export function buildFormationView(formation) {
   // The delve's Turn plan: what each member spends the stationary turn on.
   const mode = travelOf(formation).mode;
   view.plan = mode === "journey" || mode === "settlement" ? null : planView(formation);
+  // The crossing: the Dungeon tab's section, drawn from the party actor's own flag.
+  view.crossing = mode === "journey" || mode === "settlement" ? null : buildCrossingView(formation);
 
   view.warnings = buildWarnings(formation, speed);
   return view;

@@ -1,0 +1,125 @@
+{{!-- The crossing: the party's way over one obstacle or gap, a member at a time.
+      The Judge always has the begin row; every seat has the member rows while a
+      crossing is open, the Judge the setup fields too. A figure nobody imported
+      is blank and its tooltip is the page reference alone. A label wraps its
+      control, so no control needs an id of its own. --}}
+{{#if crossing}}
+<section class="acks-extras-crossing">
+  <h3>{{localize "ACKS-FORMATION.crossing.title"}}</h3>
+
+  {{#unless crossing.open}}
+  <div class="acks-extras-crossing-begin">
+    <label class="acks-extras-crossing-field">
+      <span>{{localize "ACKS-FORMATION.crossing.kindLabel"}}</span>
+      <select data-pick="crossing-kind">
+        {{#each crossing.kinds}}
+        <option value="{{this.value}}">{{this.label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <button type="button" data-action="crossingBegin" aria-label="{{localize 'ACKS-FORMATION.crossing.beginHint'}}" data-tooltip="">
+      <i class="fa-solid fa-route" inert></i> {{localize "ACKS-FORMATION.crossing.begin"}}
+    </button>
+  </div>
+  {{else}}
+
+  <div class="acks-extras-crossing-head">
+    <strong class="acks-extras-crossing-kind">{{crossing.kindLabel}}</strong>
+    {{#if crossing.isGM}}
+    <span class="acks-extras-crossing-head-actions">
+      {{#if crossing.canThrowAll}}
+      <button type="button" data-action="crossingThrowAll" aria-label="{{localize 'ACKS-FORMATION.crossing.throwAllHint'}}" data-tooltip="">
+        <i class="fa-solid fa-dice-d20" inert></i> {{localize "ACKS-FORMATION.crossing.throwAll"}}
+      </button>
+      {{/if}}
+      <button type="button" data-action="crossingEnd" aria-label="{{localize 'ACKS-FORMATION.crossing.endHint'}}" data-tooltip="">
+        <i class="fa-solid fa-flag-checkered" inert></i> {{localize "ACKS-FORMATION.crossing.end"}}
+      </button>
+    </span>
+    {{/if}}
+  </div>
+
+  {{#if crossing.isGM}}
+  <div class="acks-extras-crossing-setup">
+    {{#if crossing.jump}}
+    <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.jumping}}">
+      <span>{{localize "ACKS-FORMATION.crossing.gap"}}</span>
+      <input type="number" name="crossing.gap" value="{{crossing.setup.gap}}" min="0" step="any">
+    </label>
+    <label class="acks-extras-crossing-check" data-tooltip-text="{{crossing.refs.jumping}}">
+      <input type="checkbox" name="crossing.runUp"{{#if crossing.setup.runUp}} checked{{/if}}>
+      <span>{{localize "ACKS-FORMATION.crossing.runUp"}}</span>
+    </label>
+    <label class="acks-extras-crossing-check" data-tooltip-text="{{crossing.refs.jumping}}">
+      <input type="checkbox" name="crossing.precarious"{{#if crossing.setup.precarious}} checked{{/if}}>
+      <span>{{localize "ACKS-FORMATION.crossing.precarious"}}</span>
+    </label>
+    <label class="acks-extras-crossing-check" data-tooltip-text="{{crossing.refs.jumping}}">
+      <input type="checkbox" name="crossing.charging"{{#if crossing.setup.charging}} checked{{/if}}>
+      <span>{{localize "ACKS-FORMATION.crossing.charging"}}</span>
+    </label>
+    {{else}}
+    <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.spelunking}}">
+      <span>{{localize "ACKS-FORMATION.crossing.length"}}</span>
+      <input type="number" name="crossing.length" value="{{crossing.setup.length}}" min="0" step="any">
+    </label>
+    <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.spelunking}}">
+      <span>{{localize "ACKS-FORMATION.crossing.depth"}}</span>
+      <input type="number" name="crossing.depth" value="{{crossing.setup.depth}}" min="0" step="any">
+    </label>
+    <label class="acks-extras-crossing-check" data-tooltip-text="{{crossing.refs.spelunking}}">
+      <input type="checkbox" name="crossing.ropeFixed"{{#if crossing.setup.ropeFixed}} checked{{/if}}>
+      <span>{{localize "ACKS-FORMATION.crossing.ropeFixed"}}</span>
+    </label>
+    <label class="acks-extras-crossing-field" data-tooltip="{{localize 'ACKS-FORMATION.crossing.tip.judgeSet'}}">
+      <span>{{localize "ACKS-FORMATION.crossing.judgeMod"}}</span>
+      <input type="number" name="crossing.judgeMod" value="{{crossing.setup.judgeMod}}" step="1">
+    </label>
+    {{/if}}
+  </div>
+  {{/if}}
+
+  {{#if crossing.rows.length}}
+  <ul class="acks-extras-crossing-rows">
+    {{#if crossing.jump}}
+    {{#each crossing.rows}}
+    <li class="acks-extras-crossing-row" data-verdict="{{this.verdict}}">
+      <span class="acks-extras-crossing-name">{{this.name}}{{#if this.holdsAcrobatics}} <span class="acks-extras-crossing-badge">{{localize "ACKS-FORMATION.crossing.holdsAcrobatics"}}</span>{{/if}}</span>
+      <span class="acks-extras-crossing-cells">
+      <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.verdictTip}}">{{this.range}}</span>
+      <span class="acks-extras-crossing-verdict" data-tooltip-text="{{this.verdictTip}}">{{this.verdictLabel}}</span>
+      {{#if this.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.said}}</span>{{/if}}
+      </span>
+    </li>
+    {{/each}}
+    {{else}}
+    {{#each crossing.rows}}
+    <li class="acks-extras-crossing-row" data-state="{{this.state}}">
+      <span class="acks-extras-crossing-name">{{this.name}}{{#if this.holds}} <span class="acks-extras-crossing-badge">{{this.holdsLabel}}</span>{{/if}}</span>
+      {{#if this.can}}
+      <button type="button" data-action="crossingThrow" data-actor-id="{{this.actorId}}"
+              aria-label="{{localize 'ACKS-FORMATION.crossing.throwFor' name=this.name}}" data-tooltip="">
+        <i class="fa-solid fa-dice-d20" inert></i> {{#if this.warn}}{{localize "ACKS-FORMATION.crossing.throwAnyway"}}{{else}}{{localize "ACKS-FORMATION.crossing.throw"}}{{/if}}
+      </button>
+      {{/if}}
+      <span class="acks-extras-crossing-cells">
+      <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.targetTip}}">{{this.target}}</span>
+      <span class="acks-extras-crossing-permitted" data-tooltip-text="{{this.permittedTip}}">{{this.permitted}}</span>
+      <span class="acks-nums acks-extras-crossing-covered" data-tooltip-text="{{this.coveredTip}}">{{this.covered}}</span>
+      <span class="acks-extras-crossing-state">{{this.stateLabel}}</span>
+      {{#if this.last}}
+      <span class="acks-nums acks-extras-crossing-last"><span data-tooltip-text="{{this.last.tip}}">{{this.last.total}}</span>{{#if this.last.outcome}} · <span data-tooltip-text="{{this.last.outcomeTip}}">{{this.last.outcome}}</span>{{/if}}</span>
+      {{/if}}
+      {{#if this.fall}}
+      <span class="acks-nums acks-extras-crossing-fall" data-tooltip-text="{{this.fall.tip}}">{{this.fall.text}}</span>
+      {{/if}}
+      {{#if this.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.said}}</span>{{/if}}
+      </span>
+    </li>
+    {{/each}}
+    {{/if}}
+  </ul>
+  {{/if}}
+  {{/unless}}
+</section>
+{{/if}}

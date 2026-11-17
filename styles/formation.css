@@ -2098,6 +2098,103 @@
   white-space: nowrap;
 }
 
+/* --- The crossing --- */
+.acks-extras.party-sheet .acks-extras-crossing-begin,
+.acks-extras.party-sheet .acks-extras-crossing-head,
+.acks-extras.party-sheet .acks-extras-crossing-setup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-2);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-kind {
+  flex: 1 1 8em;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-field,
+.acks-extras.party-sheet .acks-extras-crossing-check {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-field input[type="number"] {
+  width: 6em;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-begin select {
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing button {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 8px;
+  line-height: 1.7;
+  white-space: nowrap;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px var(--acks-sp-2);
+  padding: 2px 0;
+  border-bottom: 1px solid var(--acks-rule, currentColor);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: bold;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-cells {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--acks-sp-2);
+  min-width: 0;
+}
+
+.acks-extras.party-sheet :is(.acks-extras-crossing-figure, .acks-extras-crossing-permitted, .acks-extras-crossing-covered) {
+  min-width: 2em;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-badge,
+.acks-extras.party-sheet .acks-extras-crossing-state,
+.acks-extras.party-sheet .acks-extras-crossing-permitted {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-block {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-block.is-warn {
+  font-style: italic;
+}
+
 /* Secondary prose recedes in ink, not opacity. See docs/lib/DECISIONS.md,
    "Secondary and muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {

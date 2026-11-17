@@ -37,6 +37,9 @@ import {
   saveTemplate,
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
+import {
+  applyCrossingForm, beginCrossing, endCrossing, readCrossing, requestCrossingThrow, throwAll, throwFor,
+} from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestBringIn, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
@@ -934,6 +937,50 @@ export const SHARED_ACTIONS = {
     await requestPartyAction(formation.id, "plan", { actorId, unlock: true });
   },
 
+  /** Open a crossing of the kind the begin row's pick names. The Judge's alone. */
+  async crossingBegin(_event, target) {
+    const formation = gmFormation(this);
+    const kind = target.closest(".acks-extras-crossing")?.querySelector("[data-pick='crossing-kind']")?.value;
+    if (!formation || !kind) return;
+    await beginCrossing(formation, kind);
+    this.render?.();
+  },
+
+  /** Close the crossing, members and all. The Judge's alone. */
+  async crossingEnd() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    await endCrossing(formation);
+    this.render?.();
+  },
+
+  /** One stretch thrown for every member whose row allows it with no warning. The Judge's alone. */
+  async crossingThrowAll() {
+    const formation = gmFormation(this);
+    if (!formation) return;
+    const { left } = await throwAll(formation);
+    if (left) ui.notifications.info(loc("crossing.leftForJudge", { count: left }));
+    this.render?.();
+  },
+
+  /**
+   * One member's throw. The Judge's seat throws it; a player's seat hands the
+   * press to `requestCrossingThrow`, which writes nothing.
+   */
+  async crossingThrow(_event, target) {
+    const formation = this.formation;
+    const actorId = target.dataset.actorId;
+    if (!formation || !actorId) return;
+    if (!game.user.isGM) {
+      if (ownsActor(actorId)) await requestCrossingThrow(formation, actorId);
+      return;
+    }
+    const result = await throwFor(formation, actorId);
+    const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+    if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
+    this.render?.();
+  },
+
   async encounterNow() {
     const formation = gmFormation(this);
     if (!formation) return;
@@ -1156,6 +1203,11 @@ export async function onChangeForm(event, form, formData) {
     }
   }
   if (changed) await updateFormation(formation);
+  // The crossing's setup fields: each changed one is written by its own path.
+  if (game.user.isGM && data.crossing && readCrossing(formation)) {
+    await applyCrossingForm(formation, data.crossing);
+    redraw = true;
+  }
   // The travel fields ride the same form and write through their own
   // TARGETED patches. The whole write above carries only the fields this
   // handler set on the copy, none of them travel, so it leaves what the

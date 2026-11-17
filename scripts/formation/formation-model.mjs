@@ -574,7 +574,7 @@ export function mapperIsProficient(formation) {
 const seatLacksDerived = (actor) => actor?.type === ACTOR_TYPE.character && actor.isOwner === false && !game.user?.isGM;
 
 /** A character's encumbrance in stone. A seat core gave no figure weighs what the character bears. */
-const encumbranceOf = (actor) => (seatLacksDerived(actor)
+export const encumbranceOf = (actor) => (seatLacksDerived(actor)
   ? Math.round(borneWeight6(actor) / STONE)
   : Number(actor?.system?.encumbrance?.value ?? 0));
 
