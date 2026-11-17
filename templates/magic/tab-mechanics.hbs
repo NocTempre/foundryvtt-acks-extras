@@ -21,6 +21,15 @@
           <li class="acks-magic-effect">
             <span class="acks-magic-effect-kind">{{row.kind}}</span>
             <span class="acks-magic-effect-text">{{row.text}}</span>
+            {{#if row.option}}<span class="acks-magic-effect-option" data-tooltip-text="{{localize 'ACKS-MAGIC.mech.optionTip'}}">{{row.option}}</span>{{/if}}
+            <span class="acks-magic-effect-origin" tabindex="0"
+                  data-tooltip-text="{{#if (eq row.origin 'register')}}{{localize 'ACKS-MAGIC.mech.originRegister'}}{{else}}{{localize 'ACKS-MAGIC.mech.originHand'}}{{/if}}">
+              <i class="fa-solid {{#if (eq row.origin 'register')}}fa-book{{else}}fa-hand{{/if}}" aria-hidden="true"></i>
+              <span class="acks-sr-only">{{#if (eq row.origin 'register')}}{{localize 'ACKS-MAGIC.mech.originRegister'}}{{else}}{{localize 'ACKS-MAGIC.mech.originHand'}}{{/if}}</span>
+            </span>
+            {{#if row.unread}}
+              <span class="acks-magic-effect-unread hint" tabindex="0" data-tooltip-text="{{row.cite}}">{{row.unread}}{{#if row.cite}} · {{row.cite}}{{/if}}</span>
+            {{/if}}
             {{#if @root.editable}}
               <span class="acks-magic-effect-ctls">
                 {{#unless @first}}

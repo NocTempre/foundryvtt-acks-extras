@@ -167,6 +167,22 @@
   align-self: center;
 }
 
+/* A row's option in its choice group, who wrote it, and the fields left blank (on a line of their own). */
+.acks-magic-effect {
+  flex-wrap: wrap;
+}
+
+.acks-magic-effect-option,
+.acks-magic-effect-origin,
+.acks-magic-effect-unread {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-magic-effect-unread {
+  flex: 0 0 100%;
+}
+
 .acks-magic-active-effects {
   min-inline-size: 0;
 }

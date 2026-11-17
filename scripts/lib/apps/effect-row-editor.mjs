@@ -27,8 +27,11 @@
  *
  * A spell row's cast behaviour is edited here too: what a passed save does
  * (`saveEffect`), the attack throw it waits on (`delivery`), whether it lasts
- * or repeats, the choice group it belongs to (`pick`) and the reversed form
- * (`reversed`). `extraordinary` is nullable, since a capture that read none is
+ * or repeats (with where a repeat resolves, what its bearer throws first and
+ * who it meets), the choice group it belongs to and its option within it
+ * (`pick`, `pickOption`), the ceiling on an instance count (`max`), the
+ * rounds a `rounds` lasting counts, the size at which a target is exempt, and
+ * the reversed form (`reversed`). `extraordinary` is nullable, since a capture that read none is
  * not a "no": its select offers unset, yes and no, and unset stores null. A
  * row's `key` is shown and never edited.
  */
@@ -113,8 +116,18 @@ const FIELD_SPECS = {
   extraordinary: { kind: "select", choices: () => ({ true: loc("field.extraordinaryYes"), false: loc("field.extraordinaryNo") }) },
   lasts: { kind: "select", choices: () => vocabChoices("effectLasts") },
   recur: { kind: "select", choices: () => vocabChoices("effectRecur") },
+  recurAt: { kind: "select", choices: () => vocabChoices("effectRecurMoment") },
+  recurSave: { kind: "select", choices: () => vocabChoices("effectRecurSave") },
+  recurTarget: { kind: "select", choices: () => vocabChoices("effectRecurTarget") },
+  // The dice a `rounds` lasting counts: a formula the importer reads from the page.
+  rounds: { kind: "text" },
+  // A monsters size key, offered from the size vocabulary where the client has it; free text keeps any stored key.
+  exemptSizeFrom: { kind: "text", list: () => sizeChoices() },
+  max: { kind: "levelValue" },
   pick: { kind: "text" },
+  pickOption: { kind: "text" },
   reversed: { kind: "boolean" },
+  stacksWith: { kind: "list" },
   notStacksWith: { kind: "list" },
   // A limitation's armour limit, written on the row's `gate`: the rung the worn
   // suit may not exceed and whether a shield breaks it. Setting either marks
@@ -125,6 +138,17 @@ const FIELD_SPECS = {
   // the roll. Shown disabled while the row carries a gate of another kind.
   "gate.light": { kind: "select", choices: () => Object.fromEntries(LIGHT_LEVELS.map((level) => [level, game.i18n.localize(`${LANG_PREFIX}.light.level.${level}`)])) },
 };
+
+/**
+ * The size keys a size field offers, `{key: label}`. Lib sits below the
+ * monsters feature, so the vocabulary is read off the feature's published
+ * config when it is there and is empty otherwise; the field is free text
+ * either way.
+ */
+function sizeChoices() {
+  const sizes = globalThis.acksExtras?.monsters?.config?.SIZES ?? {};
+  return Object.fromEntries(Object.entries(sizes).map(([key, v]) => [key, game.i18n.localize(v.label ?? key)]));
+}
 
 /** The gate kind a limitation row takes once an armour limit field is set on it. */
 const GATE_KIND = "armourCeiling";
@@ -137,7 +161,7 @@ const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMod
 
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
-  modifier: ["appliesTo", "target", "mode", "value", "forWhat", "notStacksWith", ...SCOPE_FIELDS, "gate.light"],
+  modifier: ["appliesTo", "target", "mode", "value", "forWhat", "stacksWith", "notStacksWith", ...SCOPE_FIELDS, "gate.light"],
   ward: ["appliesTo", "value", "range", ...SCOPE_FIELDS],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
@@ -159,29 +183,42 @@ const TYPE_FIELDS = {
   spellLike: ["spell", "frequency", "castingTime"],
   spellcastingMod: ["school", "casterLevelDelta"],
   resource: ["resource", "action", "amount"],
-  conditionGrant: ["appliesTo", "conditions", "saveEffect", "lasts", "recur", "reversed"],
-  conditionRemove: ["appliesTo", "conditions", "pick"],
+  conditionGrant: ["appliesTo", "conditions", "saveEffect", "lasts", "rounds", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "reversed"],
+  conditionRemove: ["appliesTo", "conditions"],
+  ignite: ["appliesTo", "lasts", "rounds", "reversed"],
   economic: ["amount", "unit", "period"],
   capability: ["frequency", "restriction"],
-  damage: ["appliesTo", "roll", "damage", "value", "saveEffect", "delivery", "extraordinary", "recur", "pick", "reversed"],
-  heal: ["appliesTo", "healKind", "roll", "value", "saveEffect", "pick", "reversed"],
+  damage: ["appliesTo", "roll", "damage", "value", "max", "saveEffect", "delivery", "extraordinary", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "reversed"],
+  heal: ["appliesTo", "healKind", "roll", "value", "max", "saveEffect", "reversed"],
   summon: ["summonFormat", "ref", "amount", "value", "control"],
   control: ["appliesTo", "control"],
 };
 const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 const TAIL_FIELDS = ["condition", "note"];
 const SET_FIELDS = new Set(["damage", "effects", "conditions"]);
-const LIST_FIELDS = new Set(["refs", "vsKinds", "notStacksWith"]);
+const LIST_FIELDS = new Set(["refs", "vsKinds", "stacksWith", "notStacksWith"]);
+/** The fields edited as a level value, which a merge lays over the stored one rather than replacing. */
+const LEVEL_VALUE_FIELDS = ["value", "max"];
+
+/** The choice group a row belongs to and its option within it: offered on every kind a spell's row can be. */
+const PICK_FIELDS = ["pick", "pickOption"];
 
 /** The fields whose control carries a tooltip saying what the field does; each reads `tip.<name>`. */
-const TIPPED_FIELDS = new Set(["key", "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed", "notStacksWith"]);
+const TIPPED_FIELDS = new Set([
+  "key", "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed", "stacksWith", "notStacksWith",
+  "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom",
+]);
 
 /** The fields only a spell's row edits: what a cast does with the row, which no ability row has. */
-const SPELL_ONLY_FIELDS = new Set(["saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed"]);
+const SPELL_ONLY_FIELDS = new Set([
+  "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed",
+  "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom", "stacksWith",
+]);
 
 /** The fields a row of this type edits in a store of this domain; outside a spell the cast's fields are left out. */
-export const fieldsForType = (type, domain = "spell") =>
-  [...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name));
+export const fieldsForType = (type, domain = "spell") => [
+  ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name))),
+];
 
 /**
  * The row an edit makes: the window's fields laid over the stored row, so a
@@ -199,7 +236,9 @@ export function mergeRowEdit(current, form) {
   // The row's key names it for a repair and is never an edit; an unset mark is null, not a "no".
   if (current.key !== undefined) next.key = current.key;
   if ("extraordinary" in form) next.extraordinary = form.extraordinary === true || form.extraordinary === "true" ? true : form.extraordinary === false || form.extraordinary === "false" ? false : null;
-  if (form.value && typeof form.value === "object") next.value = { ...(current.value ?? {}), ...form.value };
+  // A level value arrives as the fragment its controls hold, merged into the stored one
+  // so a ladder the controls do not show keeps its rungs.
+  for (const name of LEVEL_VALUE_FIELDS) if (form[name] && typeof form[name] === "object") next[name] = { ...(current[name] ?? {}), ...form[name] };
   // A frequency picked here is the Judge's own: the phrase the importer read
   // for the previous one no longer describes it.
   if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;

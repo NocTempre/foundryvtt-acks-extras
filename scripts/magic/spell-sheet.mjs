@@ -16,7 +16,7 @@
  */
 import { MODULE_ID, FLAG_SPELL, LANG_PREFIX, SPELL_TYPE } from "./constants.mjs";
 import SpellExtras from "./spell-extras.mjs";
-import { describeSpellEffect } from "./describe.mjs";
+import { effectRowView } from "./describe.mjs";
 import { displayRange, displayDuration, coreFieldsFrom, retiredWith } from "./spell-logic.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
@@ -79,6 +79,26 @@ function levelValue(name, value, label) {
 
 /** A level value's figure when it is a flat one; a figure that varies by level has none to show. */
 const flatFigure = (value) => ((value?.kind || "flat") === "flat" ? (value?.flat ?? null) : null);
+
+/**
+ * The tooltip of a gate figure the Overview edits (the Hit Dice cap, the Hit Dice
+ * below which no save is made): the figure held, when there is one, then the
+ * page reference. A blank figure carries the page reference alone.
+ */
+function figureTip(value, cite) {
+  const parts = [];
+  const flat = flatFigure(value);
+  if (flat !== null) parts.push(loc("overview.figureTip.value", { value: String(flat) }));
+  else if (value?.kind && value.kind !== "flat") parts.push(V.VALUE_KINDS[value.kind]?.label ?? value.kind);
+  if (cite) parts.push(loc("overview.figureTip.cite", { cite }));
+  return parts.join(" · ");
+}
+
+/** An effect row's editor label: the editor's own field name for it, else the field's key. */
+function fieldLabel(name) {
+  const key = `ACKS-LIB.effectEditor.field.${name}`;
+  return game.i18n.has?.(key) ? game.i18n.localize(key) : name;
+}
 
 /**
  * The Overview's normalized area extent: the text the field shows and the
@@ -228,6 +248,12 @@ export function createSpellSheet(Base) {
         areaSize: levelValue(`${FLAG_PATH}.target.area.size`, data.target?.area?.size, loc("overview.areaSize")),
         areaWidth: levelValue(`${FLAG_PATH}.target.area.width`, data.target?.area?.width, loc("overview.areaWidth")),
         saveModifier: levelValue(`${FLAG_PATH}.save.modifier`, data.save?.modifier, loc("overview.saveModifier")),
+        hdCap: levelValue(`${FLAG_PATH}.target.hdCap`, data.target?.hdCap, loc("overview.hdCap")),
+        exemptBelowHd: levelValue(`${FLAG_PATH}.save.exemptBelowHd`, data.save?.exemptBelowHd, loc("overview.exemptBelowHd")),
+      };
+      context.figureTips = {
+        hdCap: figureTip(data.target?.hdCap, data.cite),
+        exemptBelowHd: figureTip(data.save?.exemptBelowHd, data.cite),
       };
       context.areaExtent = areaExtentView(data.target?.area, data.cite);
       const ticked = new Set(data.target?.filters ?? []);
@@ -245,7 +271,7 @@ export function createSpellSheet(Base) {
       context.provenance = { id, imported: !!id, cite: data.cite ?? "" };
       // A summon row names its creature as the world resolves its ref.
       const nameOf = (ref) => summonRefName(ref, { fromUuidSync: (uuid) => fromUuidSync(uuid), byCookbookId });
-      context.effectRows = (data.effects ?? []).map((e, i) => ({ index: i, ...describeSpellEffect(e, { nameOf }) }));
+      context.effectRows = (data.effects ?? []).map((e, i) => effectRowView(e, i, { nameOf, cite: data.cite ?? "", fieldLabel, say: loc }));
       return context;
     }
 

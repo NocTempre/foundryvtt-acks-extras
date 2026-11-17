@@ -219,16 +219,49 @@ export const EFFECT_DELIVERIES = Object.freeze({
   missile: { label: "Missile attack throw" },
 });
 
-/** Whether a row is spent in the cast (`instant`) or lasts as long as the spell (`duration`). */
+/**
+ * Whether a row is spent in the cast (`instant`), lasts as long as the spell
+ * (`duration`), ends with the bearer's next turn (`nextTurn`) or after a
+ * number of the bearer's rounds read from the page (`rounds`, with the row's
+ * `rounds` formula).
+ */
 export const EFFECT_LASTS = Object.freeze({
   instant: { label: "Once, at the cast" },
   duration: { label: "For the duration" },
+  nextTurn: { label: "Until the bearer's next turn ends" },
+  rounds: { label: "For a number of rounds" },
 });
 
-/** Whether a row repeats while the spell lasts (`recur`). */
+/**
+ * Whether a row repeats while the spell lasts (`recur`): `eachRound` resolves
+ * at the cast and again every round, `laterRounds` only from the round after.
+ */
 export const EFFECT_RECURRENCES = Object.freeze({
   none: { label: "Does not repeat" },
   eachRound: { label: "Each round" },
+  laterRounds: { label: "Each later round" },
+});
+
+/** Whose turn a recurring row resolves on (`recurAt`). */
+export const EFFECT_RECUR_MOMENTS = Object.freeze({
+  casterTurn: { label: "On the caster's turn" },
+  bearerStart: { label: "At the start of the bearer's turn" },
+  bearerEnd: { label: "At the end of the bearer's turn" },
+});
+
+/**
+ * What a recurring row asks of its bearer before it resolves (`recurSave`):
+ * blank asks nothing; `row` is a saving throw whose pass ends the bearer's
+ * record of the row, `cast` one whose pass ends the cast.
+ */
+export const EFFECT_RECUR_SAVES = Object.freeze({
+  row: { label: "A pass ends this row" },
+  cast: { label: "A pass ends the cast" },
+});
+
+/** Who a recurring row resolves against (`recurTarget`): blank is its bearer, `pick` a target the caster picks each time. */
+export const EFFECT_RECUR_TARGETS = Object.freeze({
+  pick: { label: "A target the caster picks" },
 });
 
 /**
@@ -316,6 +349,9 @@ export const MAGIC_VOCAB = Object.freeze({
   effectDelivery: EFFECT_DELIVERIES,
   effectLasts: EFFECT_LASTS,
   effectRecur: EFFECT_RECURRENCES,
+  effectRecurMoment: EFFECT_RECUR_MOMENTS,
+  effectRecurSave: EFFECT_RECUR_SAVES,
+  effectRecurTarget: EFFECT_RECUR_TARGETS,
   healKind: HEAL_KINDS,
   controlKind: CONTROL_KINDS,
   summonFormat: SUMMON_FORMATS,

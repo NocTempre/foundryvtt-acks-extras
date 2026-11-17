@@ -4,7 +4,7 @@
  * ability's row would. Foundry-free.
  */
 import * as V from "../lib/vocab.mjs";
-import { vocabLabel, printedFrequencyText } from "../lib/magic-vocab.mjs";
+import { vocabLabel, printedFrequencyText, REGISTER_ORIGIN } from "../lib/magic-vocab.mjs";
 
 const label = (enumObj, key) => enumObj?.[key]?.label ?? key ?? "";
 const signed = (x) => (x == null ? "" : `${x >= 0 ? "+" : ""}${x}`);
@@ -33,14 +33,65 @@ const qualifier = (e, extra = []) => {
 };
 
 /**
+ * What a spell row says about when it lasts, where it repeats and who is
+ * exempt, as short phrases from the vocabulary's own labels: a lasting that is
+ * not the plain once or the whole duration, a repeat with its moment, throw and
+ * target, and a size exemption. The figure of a `rounds` lasting is the row's
+ * formula as it was read, shown beside the lasting.
+ */
+function castParts(e) {
+  const out = [];
+  if (e.lasts === "nextTurn") out.push(vocabLabel("effectLasts", e.lasts));
+  else if (e.lasts === "rounds") out.push([vocabLabel("effectLasts", e.lasts), e.rounds].filter(Boolean).join(" "));
+  if (e.recur && e.recur !== "none") {
+    out.push(
+      [vocabLabel("effectRecur", e.recur), e.recurAt && vocabLabel("effectRecurMoment", e.recurAt), e.recurSave && vocabLabel("effectRecurSave", e.recurSave), e.recurTarget && vocabLabel("effectRecurTarget", e.recurTarget)]
+        .filter(Boolean)
+        .join(", "),
+    );
+  }
+  if (e.exemptSizeFrom) out.push(`exempt from size: ${label(globalThis.acksExtras?.monsters?.config?.SIZES, e.exemptSizeFrom)}`);
+  return out;
+}
+
+/**
  * A row's reading. A summon row names its creature through `nameOf`, a
  * synchronous lookup the caller passes (the spell sheet resolves the ref in
  * the world); a ref it cannot name reads as written.
  * @param {object} e  the effect row
  * @param {{nameOf?: (ref: string) => string|null}} [o]
- * @returns {{kind: string, text: string}} the row's kind label and its reading
+ * @returns {{kind: string, text: string, option: string}} the row's kind label, its
+ *   reading, and the name of its option within its choice group (blank for none)
  */
-export function describeSpellEffect(e, { nameOf } = {}) {
+export function describeSpellEffect(e, o = {}) {
+  return { ...readEffect(e, o), option: e.pickOption || "" };
+}
+
+/**
+ * One effect row as the Mechanics tab lists it: its reading and option, whether
+ * the import wrote it (`register`) or a hand did, and the fields a capture left
+ * blank, named by the editor's labels. The page reference rides beside the list;
+ * no wording says the figure is missing beyond that the field is blank.
+ * @param {object} row  the effect row
+ * @param {number} index  its place in the spell's rows
+ * @param {object} [o]
+ * @param {(ref: string) => string|null} [o.nameOf]  a summon row's creature lookup
+ * @param {string} [o.cite]  the spell's page reference
+ * @param {(name: string) => string} [o.fieldLabel]  a field's editor label
+ * @param {(key: string, data?: object) => string} [o.say]  the sheet's lang reader, `ACKS-MAGIC.<key>`
+ */
+export function effectRowView(row, index, { nameOf, cite = "", fieldLabel = (name) => name, say = (key) => key } = {}) {
+  const blank = [...(row.unread ?? [])].map(fieldLabel);
+  return {
+    index,
+    ...describeSpellEffect(row, { nameOf }),
+    origin: row.origin === REGISTER_ORIGIN ? "register" : "hand",
+    unread: blank.length ? say("mech.unread", { fields: blank.join(", ") }) : "",
+    cite,
+  };
+}
+
+function readEffect(e, { nameOf } = {}) {
   const kind = label(V.EFFECT_TYPES, e.type);
   const n = valueText(e.value);
   switch (e.type) {
@@ -53,9 +104,11 @@ export function describeSpellEffect(e, { nameOf } = {}) {
       };
     }
     case "damage":
-      return { kind, text: `${subject(e)}${[e.roll || n, list(e.damage)].filter(Boolean).join(" ")}${qualifier(e)}` };
+      return { kind, text: `${subject(e)}${[e.roll || n, list(e.damage)].filter(Boolean).join(" ")}${qualifier(e, castParts(e))}` };
     case "heal":
-      return { kind, text: `${subject(e)}${[vocabLabel("healKind", e.healKind), e.roll || n].filter(Boolean).join(": ")}${qualifier(e)}` };
+      return { kind, text: `${subject(e)}${[vocabLabel("healKind", e.healKind), e.roll || n].filter(Boolean).join(": ")}${qualifier(e, castParts(e))}` };
+    case "ignite":
+      return { kind, text: `${subject(e)}${qualifier(e, castParts(e)).trim()}`.trim() || "—" };
     case "summon": {
       let creature = e.ref || "";
       if (creature && typeof nameOf === "function") {
@@ -77,7 +130,7 @@ export function describeSpellEffect(e, { nameOf } = {}) {
     case "conditionGrant":
     case "conditionRemove": {
       const conds = [...(e.conditions ?? [])].map((c) => label(V.CONDITION_KEYS, c)).join(", ");
-      return { kind, text: `${subject(e)}${e.type === "conditionRemove" ? "cures " : ""}${conds || "—"}${qualifier(e)}` };
+      return { kind, text: `${subject(e)}${e.type === "conditionRemove" ? "cures " : ""}${conds || "—"}${qualifier(e, castParts(e))}` };
     }
     case "immunity":
     case "resistance":

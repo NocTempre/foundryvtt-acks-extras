@@ -267,6 +267,14 @@
         </div>
       </div>
     {{/if}}
+    <div class="form-group"{{#if figureTips.hdCap}} data-tooltip-text="{{figureTips.hdCap}}"{{/if}}>
+      {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.hdCap"}}</label>
+      <div class="form-fields">
+        {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.hdCap}}
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.hdCapHint"}}</p>
+    </div>
     {{#if show.area}}
       <div class="form-group">
         <label>{{localize "ACKS-MAGIC.overview.areaShape"}}</label>
@@ -372,6 +380,14 @@
       <div class="form-fields">
         {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.saveModifier}}
       </div>
+    </div>
+    <div class="form-group"{{#if figureTips.exemptBelowHd}} data-tooltip-text="{{figureTips.exemptBelowHd}}"{{/if}}>
+      {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.exemptBelowHd"}}</label>
+      <div class="form-fields">
+        {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.exemptBelowHd}}
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.exemptBelowHdHint"}}</p>
     </div>
     <div class="form-group">
       <label>{{localize "ACKS-MAGIC.overview.note"}}</label>

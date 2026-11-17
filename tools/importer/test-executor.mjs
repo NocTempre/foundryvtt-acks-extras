@@ -212,6 +212,99 @@ t("a ladder whose groups are all unreadable drops the effect", () => {
 });
 
 /* ------------------------------------------------------------------ */
+/*  effects: accumulated counts, articles, sizes, rounds                */
+/* ------------------------------------------------------------------ */
+
+// An invented count that grows: one at the start, one more at each later rung.
+const GROWTH_PROSE =
+  "Each casting of the spell summons a lantern-bolt. Adepts of 4th rank gain one extra bolt, as do adepts of the ranks that follow in steps of three (7th, 10th, 13th), the extra bolt being an additional lantern-bolt each time.";
+const GROWTH_SHARED =
+  "summons\\s*(a)\\s*lantern.*?of\\s*(\\d+)\\w*\\s*rank.*?\\((\\d+)\\w*,\\s*(\\d+)\\w*,\\s*(\\d+)\\w*\\).*?being\\s*(an)\\s*additional";
+
+t("an accumulating ladder adds the shared increment at each rung the page names, reading articles as one", () => {
+  const [e] = materializeEffects(
+    [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", accumulate: true, articles: true, pattern: GROWTH_SHARED } }],
+    paras(GROWTH_PROSE),
+  );
+  assert.deepEqual(e.value, {
+    kind: "breakpoints",
+    breakpoints: [
+      { atLevel: 1, value: 1 },
+      { atLevel: 4, value: 2 },
+      { atLevel: 7, value: 3 },
+      { atLevel: 10, value: 4 },
+      { atLevel: 13, value: 5 },
+    ],
+  });
+});
+
+t("a paired accumulating ladder adds each rung's own increment to the count before it", () => {
+  const [e] = materializeEffects(
+    [
+      {
+        type: "damage",
+        from: {
+          into: "value",
+          on: "level",
+          pairs: true,
+          accumulate: true,
+          pattern: "starts\\s*with\\s*(two)[\\s\\S]*?at\\s*(\\d+)\\w*\\s*level\\s*it\\s*gains\\s*(one)[\\s\\S]*?at\\s*(\\d+)\\w*\\s*level\\s*it\\s*gains\\s*(three)",
+        },
+      },
+    ],
+    paras("The swarm starts with two motes. At 3rd level it gains one more, and at 8th level it gains three more."),
+  );
+  assert.deepEqual(e.value.breakpoints, [
+    { atLevel: 1, value: 2 },
+    { atLevel: 3, value: 3 },
+    { atLevel: 8, value: 6 },
+  ]);
+});
+
+t("an article reads as one only inside the locator that asks, and never as a rung", () => {
+  const spec = (articles) => ({ type: "damage", onMiss: "blank", from: { into: "value", on: "level", accumulate: true, ...(articles ? { articles } : {}), pattern: GROWTH_SHARED } });
+  const [plain] = materializeEffects([spec(false)], paras(GROWTH_PROSE));
+  assert.equal(plain.value, undefined, "an article is no number without the option");
+  assert.deepEqual(plain.unread, ["value"]);
+  const [asked] = materializeEffects([spec(true)], paras(GROWTH_PROSE));
+  assert.equal(asked.value.breakpoints.length, 5);
+  const [rung] = materializeEffects(
+    [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", accumulate: true, articles: true, pattern: "(a)\\s*start[\\s\\S]*?(an)\\s*level[\\s\\S]*?(an)\\s*extra" } }],
+    paras("A start, then an level, then an extra."),
+  );
+  assert.equal(rung.value, undefined, "an article in a rung's place misses the whole ladder");
+  const [count] = materializeEffects([{ type: "damage", onMiss: "blank", from: { into: "max", on: "level", pairs: true, pattern: "(a)" } }], paras("a"));
+  assert.equal(count.max, undefined, "articles are off wherever a locator does not ask");
+});
+
+t("a ladder whose rungs do not climb is a miss, never a wrong sum", () => {
+  const [e] = materializeEffects(
+    [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", accumulate: true, articles: true, pattern: "(a)\\s*orb[\\s\\S]*?(9)th[\\s\\S]*?(5)th[\\s\\S]*?(an)\\s*extra" } }],
+    paras("An orb at 9th and 5th brings an extra."),
+  );
+  assert.equal(e.value, undefined);
+  assert.deepEqual(e.unread, ["value"]);
+});
+
+t("a size word reads onto a size key, and a word no size answers to is a miss", () => {
+  const spec = { type: "conditionGrant", onMiss: "blank", from: { into: "exemptSizeFrom", pattern: "any\\s*being\\s*of\\s*([\\w-]+)\\s*build" } };
+  assert.equal(materializeEffects([spec], paras("Any being of Huge build is unmoved."))[0].exemptSizeFrom, "huge");
+  assert.equal(materializeEffects([spec], paras("Any being of man-sized build is unmoved."))[0].exemptSizeFrom, "man", "a hyphenated label reads onto its key");
+  const [miss] = materializeEffects([spec], paras("Any being of vast build is unmoved."));
+  assert.equal(miss.exemptSizeFrom, undefined);
+  assert.deepEqual(miss.unread, ["exemptSizeFrom"]);
+});
+
+t("a rounds formula is read like a roll, and left unset with its path listed when the page prints none", () => {
+  const spec = { type: "conditionGrant", lasts: "rounds", onMiss: "blank", from: { into: "rounds", pattern: "fades\\s*after\\s*(\\d*d\\d+(?:\\s*[+-]\\s*\\d+)?)\\s*rounds" } };
+  assert.equal(materializeEffects([spec], paras("The glow fades after 2d4 + 1 rounds."))[0].rounds, "2d4+1");
+  const [none] = materializeEffects([spec], paras("The glow fades at dawn."));
+  assert.equal(none.rounds, undefined);
+  assert.deepEqual(none.unread, ["rounds"]);
+  assert.equal(none.lasts, "rounds", "the structure still ships");
+});
+
+/* ------------------------------------------------------------------ */
 /*  rolls: unchanged by the shared ladder builder                      */
 /* ------------------------------------------------------------------ */
 

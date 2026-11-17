@@ -18,6 +18,7 @@ import { scenarioRoutines } from "./statline-attacks.mjs";
 import { levelFraction, DAMAGE_TYPES, SAVE_CATEGORIES, TARGET_FILTERS } from "../lib/vocab.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
+import { SIZES } from "../monsters/config.mjs";
 import { effectsOriginOf } from "./effects-origin.mjs";
 
 /** Monster description sections that no mechanics scan reads (see `executeEntry`). */
@@ -383,9 +384,15 @@ const WORD_NUMERALS = {
   double: 2,
 };
 
-/** A located number: digits, "1,000", "1/2", or a word proportion. */
-function readNumber(raw, allowFraction) {
+/**
+ * A located number: digits, "1,000", "1/2", or a word proportion. With
+ * `articles` an indefinite article reads as one; a locator asks for that only
+ * where its own page wording counts by "a" or "an", so no other locator reads
+ * one into a figure.
+ */
+function readNumber(raw, allowFraction, { articles = false } = {}) {
   const s = String(raw ?? "").trim().toLowerCase();
+  if (articles && /^an?$/.test(s)) return 1;
   const word = WORD_NUMERALS[s.replace(/\s+/g, " ")];
   if (word != null) return allowFraction ? word : Math.round(word);
   const ratio = /^(\d+)\s*\/\s*(\d+)$/.exec(s);
@@ -406,10 +413,55 @@ function readNumber(raw, allowFraction) {
  * `steps`). Paired (`pairs`): the groups alternate rung and value, so the rungs
  * are read off the page too; a leading odd group is the first rung's value,
  * whose rung is implicit.
+ *
+ * `accumulate` reads a COUNT the page grows by increments, each captured rung
+ * adding to the one before. With `pairs`, the groups alternate rung and
+ * increment (a leading odd group is the count at level one) and every
+ * increment is added to the running count. Without it, the first group is the
+ * count at level one, the last is the one increment every later rung adds, and
+ * the groups between are the later rungs. A group that reads no number misses
+ * the whole ladder: a partial sum is never returned. `articles` reads "a" or
+ * "an" as one in a VALUE group (a count or an increment), never in a rung.
  */
-function ladderFrom(match, { pairs = false, steps = null } = {}) {
+function ladderFrom(match, { pairs = false, steps = null, accumulate = false, articles = false } = {}) {
   const groups = match.slice(1).filter((g) => g != null);
   const out = [];
+  if (accumulate) {
+    const value = (g) => readNumber(g, true, { articles });
+    const rung = (g) => readNumber(g, false);
+    const rungs = [];
+    let total = 0;
+    if (pairs) {
+      let i = 0;
+      if (groups.length % 2) {
+        total = value(groups[0]);
+        if (!Number.isFinite(total)) return [];
+        rungs.push({ atLevel: 1, value: total });
+        i = 1;
+      }
+      for (; i + 1 < groups.length; i += 2) {
+        const atLevel = rung(groups[i]);
+        const step = value(groups[i + 1]);
+        if (!Number.isFinite(atLevel) || !Number.isFinite(step)) return [];
+        total += step;
+        rungs.push({ atLevel, value: total });
+      }
+    } else {
+      if (groups.length < 3) return [];
+      total = value(groups[0]);
+      const step = value(groups[groups.length - 1]);
+      if (!Number.isFinite(total) || !Number.isFinite(step)) return [];
+      rungs.push({ atLevel: 1, value: total });
+      for (const g of groups.slice(1, -1)) {
+        const atLevel = rung(g);
+        if (!Number.isFinite(atLevel)) return [];
+        total += step;
+        rungs.push({ atLevel, value: total });
+      }
+    }
+    // The running count follows the page's order, so rungs that do not climb read as a miss.
+    return rungs.every((r, i) => i === 0 || r.atLevel > rungs[i - 1].atLevel) ? rungs : [];
+  }
   if (pairs) {
     let i = 0;
     if (groups.length % 2) {
@@ -438,7 +490,8 @@ function ladderFrom(match, { pairs = false, steps = null } = {}) {
  * save category, a target filter, a mark) are locatable; every other effect
  * field is shape, which the recipe states. `value` is a LevelValue SchemaField
  * and needs the object form; `amount` and `belowFraction` may be fractional;
- * `armourRung` is read through `ceilingOf`. The `dice`, `damageType`, `flag`,
+ * `armourRung` is read through `ceilingOf`, and `sizeKey` maps a size word onto
+ * a `SIZES` key. The `dice`, `damageType`, `flag`, `sizeKey`,
  * `saveCategory` and `filters` shapes serve a spell recipe (`materializeEffects`,
  * "Spell recipes"), and the paths under `save` and `target` name SpellExtras
  * fields a spell's `values` spec fills.
@@ -466,6 +519,10 @@ export const LOCATABLE_FIELDS = Object.freeze({
   damage: "damageType",
   extraordinary: "flag",
   max: "levelValue",
+  // The dice a `rounds` lasting counts, and the size word at or above which a
+  // target is exempt from the row (`sizeKey`: a word onto a monsters `SIZES` key).
+  rounds: "dice",
+  exemptSizeFrom: "sizeKey",
   // A spell's own SpellExtras fields.
   "save.category": "saveCategory",
   "save.modifier": "levelValue",
@@ -582,7 +639,7 @@ function memberOf(vocab, word, skip = []) {
 function locateField(loc, kind, m) {
   // A ladder reads every capture group at once, before the single-value path.
   if (kind === "levelValue" && loc.on) {
-    const breakpoints = ladderFrom(m, { pairs: loc.pairs, steps: loc.steps });
+    const breakpoints = ladderFrom(m, { pairs: loc.pairs, steps: loc.steps, accumulate: loc.accumulate === true, articles: loc.articles === true });
     if (!breakpoints.length) return MISS;
     return loc.on === "level"
       ? { kind: "breakpoints", breakpoints, ...(loc.round ? { round: loc.round } : {}) }
@@ -592,6 +649,7 @@ function locateField(loc, kind, m) {
   const raw = String(m[loc.group ?? 1] ?? m[0]);
   if (kind === "armourRung") return ceilingOf(raw) ?? MISS; // a rung is a word; a clause naming none reads none
   if (kind === "dice") return readDice(raw);
+  if (kind === "sizeKey") return memberOf(SIZES, raw) ?? MISS;
   if (kind === "damageType") {
     const key = memberOf(DAMAGE_TYPES, raw, ["varies"]);
     return key ? [key] : MISS;
@@ -603,7 +661,7 @@ function locateField(loc, kind, m) {
   }
   // The punctuation strip keeps the decimal point for every field but an
   // integer one; `value` may be a fraction of class level (RR pp. 41, 60; JJ p. 311).
-  const n = readNumber(raw, kind !== "integer");
+  const n = readNumber(raw, kind !== "integer", { articles: loc.articles === true });
   if (!Number.isFinite(n)) return MISS;
   // A rate printed apart from the base is read from its own group; `perSign`
   // is the direction the page's verb states (-1 for "reduces").
@@ -665,7 +723,11 @@ function locateField(loc, kind, m) {
  * formula); `damage` a damage word, written as a one-member set;
  * `extraordinary` is true where its pattern matches; `save.category` reads a
  * word onto a save category; `target.filters` reads target words onto the
- * filter keys it knows. A word no vocabulary member answers to is a miss.
+ * filter keys it knows; `rounds` reads a dice formula like `roll`, and
+ * `exemptSizeFrom` a size word onto a monsters size key. A locator for a count
+ * the page writes with "a" or "an" sets `articles: true`, which reads an
+ * article as one inside that locator only; a count that grows by increments sets
+ * `accumulate` (see `ladderFrom`). A word no vocabulary member answers to is a miss.
  *
  * `"onMiss": "blank"` on a spec changes what a miss costs: the locator that
  * missed leaves its field unset, the row keeps every other field it located,

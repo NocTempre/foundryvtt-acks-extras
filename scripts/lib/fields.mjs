@@ -42,6 +42,9 @@ import {
   EFFECT_DELIVERIES,
   EFFECT_LASTS,
   EFFECT_RECURRENCES,
+  EFFECT_RECUR_MOMENTS,
+  EFFECT_RECUR_SAVES,
+  EFFECT_RECUR_TARGETS,
 } from "./vocab.mjs";
 import { LIGHT_LEVELS } from "./light.mjs";
 import { OCCUPANT_KIND } from "./place-logic.mjs";
@@ -352,14 +355,27 @@ export function effectField() {
     // it (a missed capture is not a "no"); `lasts` and `recur` say whether the
     // row is spent in the cast or runs with the spell; `pick` names a choice
     // group of which the caster takes one row; `reversed` marks the reverse
-    // form's rows; `max` is a ceiling (reserved). `origin` is "register" on a
+    // form's rows; `max` is the ceiling on a damage or heal row's instance
+    // count, its `value`. `origin` is "register" on a
     // row the importer wrote, and cleared when a Judge edits it, which is how
     // a repair tells the two apart. `unread` lists the fields a capture missed.
     // `key` names the row for the life of the spell: the register authors one
     // on each row it writes (a module word, unique within the spell), and a row
     // a Judge adds gets `_` and a random id, which no register key can equal. A
     // repair matches a stored row to the register's by it.
+    // `pickOption` names the option of the `pick` group a row belongs to (rows
+    // sharing both are one option). `recurAt`, `recurSave` and `recurTarget` say
+    // where a recurring row resolves, what its bearer throws first and who it
+    // meets; `rounds` is the dice formula a `rounds` lasting counts, and
+    // `exemptSizeFrom` the monsters size key at or above which a target is
+    // exempt from this row; the importer locates both from the page.
     key: str(),
+    pickOption: str(),
+    recurAt: choice(EFFECT_RECUR_MOMENTS),
+    recurSave: choice(EFFECT_RECUR_SAVES),
+    recurTarget: choice(EFFECT_RECUR_TARGETS),
+    rounds: str(),
+    exemptSizeFrom: str(),
     saveEffect: choice(SAVE_EFFECTS),
     delivery: choice(EFFECT_DELIVERIES),
     extraordinary: new (F().BooleanField)({ required: false, nullable: true, initial: null }),

@@ -447,6 +447,59 @@ t("a row's scope rides through materialize and bind untouched, a nested anyOf in
   assert.deepEqual(spellRecipeProblems({ effects: [specs[0]] }), [], "and the rules accept them");
 });
 
+t("a row's recurrence, pick option, rounds and size exemption materialize, bind, and pass the rules", () => {
+  const prose = paras("A creature that fails takes 2d8 + 3 acidic damage, and is held for 1d4 rounds. Any being of Huge build is unmoved.");
+  const specs = [
+    {
+      ...ROW,
+      key: "pulse",
+      lasts: "rounds",
+      recur: "laterRounds",
+      recurAt: "bearerStart",
+      recurSave: "row",
+      recurTarget: "pick",
+      pick: "mode",
+      pickOption: "held",
+      onMiss: "blank",
+      from: [
+        ...ROW.from,
+        { into: "rounds", pattern: "held\\s*for\\s*(\\d*d\\d+)\\s*rounds" },
+        { into: "exemptSizeFrom", pattern: "any\\s*being\\s*of\\s*(\\w+)\\s*build" },
+      ],
+    },
+  ];
+  const [row] = materializeEffects(specs, prose);
+  assert.equal(row.rounds, "1d4");
+  assert.equal(row.exemptSizeFrom, "huge");
+  for (const field of ["recur", "recurAt", "recurSave", "recurTarget", "pick", "pickOption", "lasts"]) assert.equal(row[field], specs[0][field], `${field} ships as authored`);
+  const built = bindSpell(entryFor(specs, null), { fields: { ...nodeFor(specs, null).fields, description: prose, effects: [row] } }, "def.spell.glimmerfrost");
+  const written = built.flags[MODULE_ID].spell.effects[0];
+  for (const field of ["rounds", "exemptSizeFrom", "recurAt", "recurSave", "recurTarget", "pickOption"]) assert.equal(written[field], row[field], `${field} survives the binder`);
+  assert.deepEqual(spellRecipeProblems({ effects: specs }), [], "and the rules accept them");
+});
+
+t("the recipe rules refuse a literal count, a loose recurrence field, a stray option and an unread rounds", () => {
+  const base = { key: "k", type: "damage", from: [{ into: "roll", pattern: "(\\d+d\\d+)" }] };
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  const ladder = { into: "value", on: "level", pattern: "(\\d+)" };
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ ...ladder, count: 2 }] }] }), "from[0].count is a literal figure");
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ ...ladder, increment: 1 }] }] }), "from[0].increment is a literal figure");
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ ...ladder, steps: [1, 3] }] }] }), "from[0].steps is a literal figure");
+  has(spellRecipeProblems({ effects: [{ ...base, rounds: "1d4" }] }), "effects[0].rounds is located from the page");
+  has(spellRecipeProblems({ effects: [{ ...base, exemptSizeFrom: "huge" }] }), "effects[0].exemptSizeFrom is located from the page");
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ ...ladder, accumulate: 1 }] }] }), "accumulate is true or absent");
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ into: "value", accumulate: true, pattern: "(\\d+)" }] }] }), 'accumulate reads a ladder and needs "on"');
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ ...ladder, articles: "yes" }] }] }), "articles is true or absent");
+  has(spellRecipeProblems({ effects: [{ ...base, recurAt: "bearerStart" }] }), "recurAt needs a recur");
+  has(spellRecipeProblems({ effects: [{ ...base, recur: "eachRound", recurAt: "sometime" }] }), "is not a recurrence moment");
+  has(spellRecipeProblems({ effects: [{ ...base, recur: "eachRound", recurSave: "both" }] }), "is not a recurrence save");
+  has(spellRecipeProblems({ effects: [{ ...base, recur: "eachRound", recurTarget: "all" }] }), "is not a recurrence target");
+  has(spellRecipeProblems({ effects: [{ ...base, pickOption: "a" }] }), "pickOption names an option of a pick group");
+  has(spellRecipeProblems({ effects: [{ ...base, lasts: "rounds" }] }), "no locator reads its rounds");
+  has(spellRecipeProblems({ effects: [{ ...base, from: [{ into: "rounds", pattern: "(\\d+d\\d+)" }] }] }), "its lasts is not rounds");
+  assert.deepEqual(spellRecipeProblems({ effects: [{ ...base, lasts: "nextTurn", recur: "eachRound", recurAt: "casterTurn", recurTarget: "pick" }] }), []);
+});
+
 t("a values spec carries the area's measure and unit, and locates its size and its width", () => {
   const prose = paras("The spell fills a strip of mist, 20’ in length and 6’ wide.");
   const spec = {

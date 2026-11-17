@@ -30,7 +30,7 @@ import {
   headingCase,
   retiredWith,
 } from "../scripts/magic/spell-logic.mjs";
-import { describeSpellEffect } from "../scripts/magic/describe.mjs";
+import { describeSpellEffect, effectRowView } from "../scripts/magic/describe.mjs";
 import { areaExtent } from "../scripts/magic/cast-area.mjs";
 import { DISTANCE_UNITS as SCENE_UNITS } from "../scripts/lib/distance-units.mjs";
 import { castDuration, NONE } from "../scripts/magic/cast-duration.mjs";
@@ -317,6 +317,37 @@ t("effect rows read as one line each, spell kinds and shared kinds alike", () =>
   assert.equal(line({ type: "wall", appliesTo: "area", value: { kind: "flat", flat: 10 }, note: "stone" }), "Everything in the area: 10 (stone)");
   assert.equal(line({ type: "illusion" }), "—");
   assert.equal(describeSpellEffect({ type: "curse" }).kind, "Curse");
+});
+
+t("a row's lasting, repeat, size exemption and ignite kind read as card lines, and its option rides beside the reading", () => {
+  const line = (e) => describeSpellEffect(e).text;
+  assert.equal(line({ type: "damage", roll: "1d4", damage: ["fire"], recur: "laterRounds", recurAt: "bearerStart" }), "1d4 fire (Each later round, At the start of the bearer's turn)");
+  assert.equal(line({ type: "damage", roll: "1d4", recur: "eachRound", recurAt: "casterTurn", recurSave: "cast", recurTarget: "pick" }), "1d4 (Each round, On the caster's turn, A pass ends the cast, A target the caster picks)");
+  assert.equal(line({ type: "conditionGrant", appliesTo: "area", conditions: ["blinded"], lasts: "nextTurn" }), "Everything in the area: Blinded (Until the bearer's next turn ends)");
+  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds", rounds: "1d3" }), "Blinded (For a number of rounds 1d3)");
+  assert.equal(line({ type: "conditionGrant", conditions: ["blinded"], lasts: "rounds" }), "Blinded (For a number of rounds)", "a blank formula reads as the lasting alone");
+  assert.equal(line({ type: "conditionGrant", conditions: ["prone"], exemptSizeFrom: "huge" }), "Prone (exempt from size: huge)");
+  assert.equal(line({ type: "ignite", appliesTo: "target", lasts: "rounds", rounds: "1d2" }), "The target: (For a number of rounds 1d2)");
+  assert.equal(line({ type: "ignite" }), "—");
+  assert.equal(describeSpellEffect({ type: "ignite" }).kind, "Ignite");
+  assert.equal(describeSpellEffect({ type: "damage", pick: "mode", pickOption: "left" }).option, "left");
+  assert.equal(describeSpellEffect({ type: "damage" }).option, "");
+  assert.equal(line({ type: "damage", roll: "1d4", pickOption: "left" }), "1d4", "the option is not part of the reading");
+});
+
+t("the Mechanics list marks each row's origin and names its blank fields without saying they were not imported", () => {
+  const say = (key, data) => (data ? `${key}:${Object.values(data).join("|")}` : key);
+  const fieldLabel = (name) => ({ roll: "Dice", extraordinary: "Mark" })[name] ?? name;
+  const imported = effectRowView({ type: "damage", origin: "register", roll: "1d4", unread: ["extraordinary", "roll"] }, 2, { cite: "QQ p.1", fieldLabel, say });
+  assert.equal(imported.index, 2);
+  assert.equal(imported.origin, "register");
+  assert.equal(imported.unread, "mech.unread:Mark, Dice");
+  assert.equal(imported.cite, "QQ p.1");
+  const hand = effectRowView({ type: "damage", origin: "", roll: "1d4" }, 0, { cite: "QQ p.1", fieldLabel, say });
+  assert.equal(hand.origin, "hand");
+  assert.equal(hand.unread, "", "a row with nothing blank lists nothing");
+  assert.equal(effectRowView({ type: "damage" }, 0).origin, "hand", "a row with no origin is a hand's");
+  assert.ok(!/import/i.test(imported.unread), "the list names fields and never says a figure was not imported");
 });
 
 t("a summon row names its creature through the lookup it is given, and reads its ref as written where none answers", () => {
@@ -1337,11 +1368,13 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     const { readFileSync } = await import("node:fs");
     const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
     const kinds = {
-      damage: ["saveEffect", "delivery", "extraordinary", "recur", "pick", "reversed"],
-      heal: ["saveEffect", "pick", "reversed"],
-      conditionGrant: ["saveEffect", "lasts", "recur", "reversed"],
-      conditionRemove: ["pick"],
-      modifier: ["notStacksWith"],
+      damage: ["saveEffect", "delivery", "extraordinary", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "max", "pick", "pickOption", "reversed"],
+      heal: ["saveEffect", "max", "pick", "pickOption", "reversed"],
+      conditionGrant: ["saveEffect", "lasts", "rounds", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "pick", "pickOption", "reversed"],
+      conditionRemove: ["pick", "pickOption"],
+      modifier: ["stacksWith", "notStacksWith", "pick", "pickOption"],
+      ignite: ["lasts", "rounds", "reversed", "pick", "pickOption"],
+      summon: ["pick", "pickOption"],
     };
     for (const [kind, names] of Object.entries(kinds)) {
       for (const name of names) {
@@ -1353,6 +1386,7 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     for (const word of ["Yes", "No"]) assert.ok(Object.values(lang).includes(word));
     assert.ok(lang["ACKS-LIB.effectEditor.field.key"] && lang["ACKS-LIB.effectEditor.tip.key"], "the read-only key has its words");
     assert.ok(!fieldsForType("damage").includes("key"), "the key is shown from the row, not offered as a kind's field");
+    assert.ok(fieldsForType("ignite").includes("appliesTo") && !fieldsForType("ignite").includes("value"), "an ignite row names whom it lights and carries no figure");
   });
 
   t("the extraordinary select is three-state: unset stores null, yes and no store the booleans, and a form without it leaves it", () => {
@@ -1385,9 +1419,41 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
   t("an ability's row is offered none of a cast's fields", () => {
     for (const type of ["modifier", "conditionGrant", "conditionRemove", "damage"]) {
       const fields = fieldsForType(type, "ability");
-      for (const name of ["saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed"]) assert.ok(!fields.includes(name), `${type} offers ${name} to an ability`);
+      for (const name of [
+        "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed",
+        "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom", "stacksWith",
+      ]) assert.ok(!fields.includes(name), `${type} offers ${name} to an ability`);
     }
     assert.ok(fieldsForType("conditionGrant", "spell").includes("saveEffect"));
+  });
+
+  t("an edit keeps every field the window does not carry, a ladder in a count ceiling and the new cast fields included", () => {
+    const row = {
+      type: "damage", key: "arc", origin: "register", roll: "1d4",
+      value: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }] },
+      max: { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 2 }] },
+      pick: "mode", pickOption: "left", recur: "laterRounds", recurAt: "bearerEnd", recurSave: "cast", recurTarget: "pick",
+      rounds: "1d3", exemptSizeFrom: "large", stacksWith: ["kw:a"], unread: ["max"],
+    };
+    const next = mergeRowEdit(row, { note: "x", max: { kind: "breakpoints" }, value: { kind: "breakpoints" } });
+    for (const [name, value] of Object.entries(row)) {
+      if (name === "origin") assert.equal(next.origin, "", "an edit hands the row to the Judge");
+      else assert.deepEqual(next[name], value, `${name} survives an edit that does not touch it`);
+    }
+    assert.deepEqual(mergeRowEdit(row, { max: { kind: "flat", flat: 3 } }).max, { kind: "flat", flat: 3, breakpoints: row.max.breakpoints }, "a count ceiling fragment merges into the stored one as a value does");
+    const edited = mergeRowEdit(row, { pickOption: "right", recurAt: "casterTurn", recurSave: "", recurTarget: "", rounds: "2d3", exemptSizeFrom: "huge" });
+    assert.deepEqual([edited.pickOption, edited.recurAt, edited.recurSave, edited.recurTarget, edited.rounds, edited.exemptSizeFrom], ["right", "casterTurn", "", "", "2d3", "huge"]);
+  });
+
+  t("the new recurrence and lasting members, and the ignite kind, have their words and are spell-only", async () => {
+    const { readFileSync } = await import("node:fs");
+    const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+    for (const family of ["effectRecurMoment", "effectRecurSave", "effectRecurTarget"]) assert.ok(MAGIC_VOCAB[family], `${family} is registered`);
+    for (const key of ["nextTurn", "rounds"]) assert.ok(V.EFFECT_LASTS[key] && lang[`ACKS-LIB.enum.effectLasts.${key}`], `lasts ${key}`);
+    assert.ok(V.EFFECT_RECURRENCES.laterRounds && lang["ACKS-LIB.enum.effectRecur.laterRounds"]);
+    assert.equal(V.EFFECT_TYPES.ignite.domain, "spell");
+    assert.ok(!Object.hasOwn(V.effectTypesFor("ability"), "ignite"), "an ability's picker does not offer a spell kind");
+    assert.ok(Object.hasOwn(V.effectTypesFor("spell"), "ignite"));
   });
 
   t("only a modifier row edits a light level", () => {

@@ -1132,6 +1132,27 @@ miss. The damage mark's colour is not in the text layer (`glyphWords` writes
 its word), so the extraordinary mark of a printed damage cannot be read from
 text.
 
+Four more row fields are located. `rounds` (a row's dice formula, read like
+`roll`, for a `lasts: "rounds"` row) and `exemptSizeFrom` (`sizeKey`: a size
+word onto a monsters `SIZES` key, by key or label, so a word no size answers to
+is a miss) are in `LOCATABLE_FIELDS`; a row that locates `rounds` states `lasts:
+"rounds"` and the other way round, and the lint holds it to that. A count the
+page grows by increments is read by a `value` locator with `on: "level"` and
+`accumulate`: with `pairs` the groups alternate rung and increment, a leading odd
+group being the count at level one; without it the first group is the count at
+level one, the last the one increment every later rung adds, and the groups
+between are the later rungs (`ladderFrom`). Each rung's value is the running
+total, rungs that do not climb read as a miss, and a group that reads no number
+misses the whole ladder. A locator whose page counts with "a" or "an" sets
+`articles: true`, which reads an article as one in a value group of that locator
+only (never in a rung, never in another locator, never in `WORD_NUMERALS`). A
+literal count in a locator (`per`, `steps`, `flat`, `base`, `count`,
+`increment`, `rungs`) fails the lint, and `accumulate` and `articles` take only
+`true`. The structure a row states beside them is `pickOption` (the option of
+its `pick` group it belongs to), `recurAt` (`EFFECT_RECUR_MOMENTS`), `recurSave`
+(`EFFECT_RECUR_SAVES`) and `recurTarget` (`EFFECT_RECUR_TARGETS`), each needing a
+`recur` of `eachRound` or `laterRounds`; `lasts` takes `nextTurn` and `rounds`.
+
 A spec with `"onMiss": "blank"` keeps its row when a locator misses: the field
 is left unset, its path is listed in the row's `unread`, and the later
 locators still read. Without `onMiss` a miss drops the row, as above. A

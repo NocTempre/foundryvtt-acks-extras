@@ -569,7 +569,65 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "damage",
+        "type": "damage",
+        "appliesTo": "area",
+        "saveEffect": "negates",
+        "delivery": "none",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      },
+      {
+        "key": "blind",
+        "type": "conditionGrant",
+        "appliesTo": "area",
+        "conditions": [
+          "blinded"
+        ],
+        "saveEffect": "negates",
+        "lasts": "nextTurn"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "sphere",
+            "measure": "radius"
+          }
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.bloodyFlux",
@@ -943,7 +1001,68 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "choke",
+        "type": "damage",
+        "appliesTo": "target",
+        "saveEffect": "negates",
+        "delivery": "none",
+        "lasts": "duration",
+        "recur": "eachRound",
+        "recurAt": "casterTurn",
+        "recurSave": "cast",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "immediately\\s*suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "immediately\\s*suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      },
+      {
+        "key": "grip",
+        "type": "conditionGrant",
+        "appliesTo": "target",
+        "conditions": [
+          "choking"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.filters",
+            "pattern": "throat\\s*of\\s*an?\\s*(\\w+)\\s*target"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.circleOfAgony",
@@ -2590,7 +2709,85 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "damage",
+        "type": "damage",
+        "appliesTo": "area",
+        "saveEffect": "half",
+        "delivery": "none",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          },
+          {
+            "into": "value",
+            "as": "perLevel",
+            "pattern": "suffers\\s*(\\d+)\\s*d\\s*\\d+\\s*(?:extraordinary\\s*)?\\w+\\s*damage\\s*per\\s*caster\\s*level"
+          },
+          {
+            "into": "max",
+            "pattern": "per\\s*caster\\s*level\\s*\\(\\s*(\\d+)\\s*d\\s*\\d+\\s*maximum\\s*\\)"
+          }
+        ]
+      },
+      {
+        "key": "knock",
+        "type": "conditionGrant",
+        "appliesTo": "area",
+        "conditions": [
+          "prone"
+        ],
+        "saveEffect": "negates",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "exemptSizeFrom",
+            "pattern": "creatures\\s*of\\s*(\\w+)\\s*size\\s*or\\s*greater"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "sphere",
+            "measure": "diameter"
+          }
+        },
+        "save": {
+          "effect": "half",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.area.size",
+            "pattern": "area\\s*of\\s*earth\\s*(\\d+)\\S?\\s*in\\s*diameter"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.earthsMire",
@@ -2810,7 +3007,61 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "damage",
+        "type": "damage",
+        "appliesTo": "area",
+        "saveEffect": "half",
+        "delivery": "none",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      },
+      {
+        "key": "ignite",
+        "type": "ignite",
+        "appliesTo": "area",
+        "lasts": "instant"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "cone",
+            "measure": "length"
+          }
+        },
+        "save": {
+          "effect": "half",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.fate",
@@ -3074,7 +3325,42 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "fear",
+        "type": "conditionGrant",
+        "appliesTo": "target",
+        "conditions": [
+          "frightened"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.filters",
+            "pattern": "frighten\\s*an?\\s*(\\w+\\s+\\w+)\\s*target"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.frightenHumanoid",
@@ -4184,7 +4470,97 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "ignite",
+        "type": "ignite",
+        "appliesTo": "target",
+        "pick": "use",
+        "pickOption": "objects",
+        "lasts": "rounds",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "rounds",
+            "pattern": "burn\\s*out\\s*naturally\\s*in\\s*(\\d*\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)\\s*rounds"
+          }
+        ]
+      },
+      {
+        "key": "burn",
+        "type": "damage",
+        "appliesTo": "target",
+        "saveEffect": "negates",
+        "delivery": "none",
+        "lasts": "duration",
+        "recur": "laterRounds",
+        "recurAt": "bearerStart",
+        "pick": "use",
+        "pickOption": "creature",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffer\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)\\s*(?:extraordinary\\s*)?\\w+\\s*damage\\s*at\\s*the\\s*start"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffer\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage\\s*at\\s*the\\s*start"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "suffer\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*extraordinary"
+          }
+        ]
+      },
+      {
+        "key": "flames",
+        "type": "conditionGrant",
+        "appliesTo": "target",
+        "conditions": [
+          "burning"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration",
+        "pick": "use",
+        "pickOption": "creature"
+      },
+      {
+        "key": "quench",
+        "type": "ignite",
+        "appliesTo": "target",
+        "lasts": "instant",
+        "reversed": true
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "sphere",
+            "measure": "diameter"
+          }
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          },
+          {
+            "into": "target.area.size",
+            "pattern": "within\\s*a\\s*single\\s*(\\d+)\\S?\\s*diameter\\s*sphere"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.layOfTheLand",
@@ -4536,7 +4912,41 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "missile",
+        "type": "damage",
+        "appliesTo": "target",
+        "delivery": "none",
+        "lasts": "duration",
+        "recur": "eachRound",
+        "recurAt": "casterTurn",
+        "recurTarget": "pick",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "deals\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.magicCarpet",
@@ -5680,7 +6090,45 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "blow",
+        "type": "damage",
+        "appliesTo": "target",
+        "delivery": "missile",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "deals\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          },
+          {
+            "into": "value",
+            "on": "level",
+            "accumulate": true,
+            "articles": true,
+            "pattern": "(an?)\\s*vicious.*?at\\s*(\\d+)\\s*\\w*\\s*level.*?\\((\\d+)\\s*\\w*,\\s*(\\d+)\\s*\\w*,\\s*(\\d+)\\s*\\w*,\\s*(\\d+)\\s*\\w*,\\s*and\\s*(\\d+).*?inflict\\s*(an?)\\s*additional"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.slickness",
@@ -5724,7 +6172,43 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "stone",
+        "type": "damage",
+        "appliesTo": "target",
+        "delivery": "missile",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "deals\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "deals\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*extraordinary"
+          },
+          {
+            "into": "value",
+            "as": "perLevel",
+            "pattern": "up\\s*to\\s*(one)\\s*object\\s*per\\s*level"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "creature"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.slumber",
@@ -6692,7 +7176,68 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "damage",
+        "type": "damage",
+        "appliesTo": "area",
+        "saveEffect": "half",
+        "delivery": "none",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "roll",
+            "pattern": "suffers\\s*(\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?)"
+          },
+          {
+            "into": "damage",
+            "pattern": "suffers\\s*\\d+\\s*d\\s*\\d+(?:\\s*[+-]\\s*\\d+)?\\s*(?:extraordinary\\s*)?(\\w+)\\s*damage"
+          },
+          {
+            "into": "extraordinary",
+            "pattern": "extraordinary\\s*\\w+\\s*damage"
+          }
+        ]
+      },
+      {
+        "key": "deafen",
+        "type": "conditionGrant",
+        "appliesTo": "area",
+        "conditions": [
+          "deafened"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration",
+        "recur": "laterRounds",
+        "recurAt": "bearerEnd",
+        "recurSave": "row"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "sphere",
+            "measure": "radius"
+          }
+        },
+        "save": {
+          "effect": "half",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.tongues",

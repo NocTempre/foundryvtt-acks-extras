@@ -663,6 +663,9 @@ export const EFFECT_TYPES = {
   createObject: { label: "Create Object", domain: "spell" },
   structural: { label: "Structural Damage", domain: "spell" },
   curse: { label: "Curse", domain: "spell" },
+  // Sets things alight: a record and a card line, with no arithmetic. What burns
+  // is the Judge's call, so the row's `appliesTo` and `note` carry the rest.
+  ignite: { label: "Ignite", domain: "spell" },
 };
 
 /**

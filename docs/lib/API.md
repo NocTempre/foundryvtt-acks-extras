@@ -1,4 +1,4 @@
-# lib API (apiVersion 54)
+# lib API (apiVersion 55)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 54,
+  apiVersion: 55,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -349,6 +349,10 @@ to `{ key: label }` for DataModel `choices`.
   `RANGE_SHAPES`, `DISTANCE_UNITS`, `DURATION_SHAPES`, `TIME_UNITS`,
   `CONCENTRATION_KINDS`, `CASTING_TIME_SHAPES`, `TARGET_MODELS`,
   `AREA_SHAPES`, `TARGET_FILTERS`, `SAVE_CATEGORIES`, `SAVE_EFFECTS`,
+  `EFFECT_LASTS` (`instant`, `duration`, `nextTurn`, `rounds`),
+  `EFFECT_RECURRENCES` (`none`, `eachRound`, `laterRounds`) and the three a
+  recurring spell row names: `EFFECT_RECUR_MOMENTS` (`recurAt`),
+  `EFFECT_RECUR_SAVES` (`recurSave`), `EFFECT_RECUR_TARGETS` (`recurTarget`),
   `HEAL_KINDS`, `CONTROL_KINDS`, `SUMMON_FORMATS`, `SPELL_LIKE_FREQ` (the
   one frequency table; the monsters feature's `USAGE` is this), the
   `MAGIC_VOCAB` registry keyed by lang id, and `vocabLabel(family, key)` /
@@ -398,7 +402,10 @@ defensive row (a bonus a recipient gains against an attacker) it describes the
 ATTACKER, and `enemy` is the attacker's side against the recipient's, the
 bearer's, never the caster's. The readers are lib's: `alignmentKey(text)` folds a free-text alignment
 to a key (null for "None", blank or anything else), `actorAlignment(actor)`,
-`creatureKinds(actor)` and `areEnemies(tokenA, tokenB)` (`actorRead`).
+`creatureKinds(actor)` and `areEnemies(tokenA, tokenB)` (`actorRead`). `actorRead`
+also reads a creature's size: `sizeKeyOf(actor)`, `rankOfSize(key)` and
+`sizeRank(actor)`, its place in the monsters feature's size ladder, null where no
+ladder or size is known.
 `hasScope(effect)` is true when an effect declares any target-side clause, and
 is what `modifierDisposition` and influence's target gating ask; a tone is the
 roll's, not the target's, and does not count.
@@ -516,6 +523,10 @@ definition). Leaf helpers `num/str/bool/html/choice/choiceSet`, plus:
 - `effectField()` / `effectsField()` — one typed effect primitive (wide
   all-optional schema discriminated by `type` ∈ `EFFECT_TYPES`) and the array of
   them. This is what the abilities feature stores as an ability's `effects[]`.
+  A spell row also carries `pickOption` (its option within a `pick` group),
+  `recurAt`, `recurSave`, `recurTarget`, `rounds` (a dice formula for a `rounds`
+  lasting) and `exemptSizeFrom` (a monsters size key, a string: lib sits below
+  the monsters feature). `ignite` is a spell kind with no arithmetic.
 
 ### Relational effects — requires / grants / modifies, stacking and chaining
 
