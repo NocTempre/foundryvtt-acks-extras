@@ -215,12 +215,12 @@ else importing the definition from its own pipeline — and reports what it
 could not resolve; it never throws on content. The specialty suffix lands
 on the embedded copy's name only. No provider ⇒ consumers skip granting.
 
-### Contract `party-roster` v2
+### Contract `party-roster` v3
 
 Provider: formation (`scripts/formation/party-roster.mjs`). Consumers: the
-hit-point tool (`lib/hp.mjs`), which works on a whole party at once, and the
-summons (`lib/summons.mjs`), which reach a summon riding in a party token.
-Shape:
+hit-point tool (`lib/hp.mjs`), which works on a whole party at once, the
+summons (`lib/summons.mjs`), which reach a summon riding in a party token, and
+the treasure pot's Quick grab (`pace`). Shape:
 
 ```
 {
@@ -229,11 +229,13 @@ Shape:
   members(id) → [{actorId, actor, name, document, stashed, unlinked, hp, summonedBy, summon}],
   adjustStashedHp(partyId, actorId, next) → Promise<{before, after, max} | null>,
   memberOfToken(tokenDoc) → {partyId, actorId} | null,
-  release(partyId, ids) → Promise<{released: number}>
+  release(partyId, ids) → Promise<{released: number}>,
+  // v3 (additive)
+  pace(partyId, actorId, {adding6}) → {rank, speed} | null
 }
 ```
 
-`summonedBy`, `summon`, `memberOfToken` and `release` are optional to a
+`summonedBy`, `summon`, `memberOfToken`, `release` and `pace` are optional to a
 consumer: each is read with an optional call, and with one absent the consumer
 does what it does with no party in play.
 
@@ -262,6 +264,18 @@ is an ordinary token to the tool, and there are no party rows.
 `memberOfToken(tokenDoc)` names the member a live scene token is, by the id
 that member's row carries as `actorId`, or null for a token that is no
 member's.
+
+`pace(partyId, actorId, {adding6})` answers the pace the member would move at
+if it bore `adding6` more weight, in sixths of a stone, than it does now: `speed`
+in feet per turn and `rank`, its negative, so a larger rank is slower and ranks
+compare as paces. The figure is formation's own, through the pacing carrier, the
+Carrier's share of a casualty and core's movement calculation, so no encumbrance
+step is stated by a caller. The added weight reads as the stone core will round
+the member's load to, which is what the sheet shows once it has landed. A rider's
+weight loads the carrier that sets the pace; two riders of one wagon are each
+priced alone, not together. `adding6` below zero, absent or not a number is 0.
+It is null for a member the party does not hold and where no figure answers. It
+reads only and runs on any seat.
 
 `release(partyId, ids)` ends the named members' membership, `ids` being row
 `actorId`s, whether each is stashed or deployed at the time it runs. It removes

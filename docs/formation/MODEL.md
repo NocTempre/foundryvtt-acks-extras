@@ -62,7 +62,7 @@ All paths are under `scripts/formation/` unless noted.
 | `column-trail.mjs` | The primary GM's write of the party token's trail (`flags.acks-extras.trail`), from the token's own update. |
 | `column-light-logic.mjs`, `column-light.mjs` | The column's lights: which bearers shed light and from which cell (pure), and the client light sources that shine there, with `carriedLightPoints` for the Night Vision sweep. |
 | `column-view.mjs` | The column drawn behind the party token on every client: a tinted square and a portrait per body, and the column's lights kept where the column is. |
-| `party-roster.mjs` | Provides lib's `party-roster` contract (docs/lib/API.md): the parties, each member with the document an update reaches them through, and the write of a stashed unlinked member's hit points into their stash. |
+| `party-roster.mjs` | Provides lib's `party-roster` contract (docs/lib/API.md): the parties, each member with the document an update reaches them through, and the write of a stashed unlinked member's hit points into their stash, plus `pace`, a member's pace were it to bear more weight (priced by the pace code in `formation-model.mjs`, called as it stands). |
 | `marching-templates.mjs` | Saved marching orders (world setting `acks-extras.marchingTemplates`): capturing an arrangement, reconciling it against the party as it now stands, and forming up. |
 | `obstacles.mjs`, `swimming.mjs`, `jumping.mjs` | The chapter 6 obstacle derivations, published on `api.formation`. Deep water and chasms sit *beside* the Spelunking table rather than in it; each file's header says what it does not share with the others. |
 | `announce.mjs` | One formation chat card (public, or whispered to the GMs). |

@@ -127,3 +127,126 @@ its chat card, the planted Card and the rows the claims and the close built on
 the character and the place were created by this run and are tracked by their
 ids as they are made: the rows by the ids read back from the actor and the
 place, the chat card by the message id in the pile flag.
+
+## Search the fallen (Judge seat, a real fight)
+
+Offline coverage is `tools/test-treasure-search.mjs` (who is fallen, the record,
+staging, the take-off). The hooks, the card and the take-off need this walk.
+
+### Fixtures
+
+All invented, found by `flags.world.fixture`; built through `api.fixture`.
+
+- `treasure/search-scene` — a scene with two tokens placed.
+- `treasure/search-hostile` — a `monster` actor with two goods items (an invented
+  item and an invented coin row) and `system.details.treasure.type` set to a
+  letter; its token on the scene has disposition HOSTILE, unlinked.
+- `treasure/search-hostile-2` — a second HOSTILE monster with one goods item, on
+  the scene, the body whose token is deleted in step 5.
+- `treasure/search-friend` — a FRIENDLY `character` with a goods item, on the
+  scene.
+- `treasure/search-table` — a `RollTable` with two results, an invented item
+  result (a document result pointing at an invented world item) and an invented
+  text result, linked on `treasure/search-hostile` through
+  `system.details.treasure.table` as `@UUID[...]` for step 4.
+- `treasure/search-hostile` also carries a natural-weapon row (a weapon item with
+  `flags.acks-extras.naturalWeapon` set): it is never a card and never leaves the
+  body.
+- A combat is not a kept fixture: the run makes it, and it is deleted by step 2.
+
+### Steps
+
+1. **Begin a combat** with the three tokens (Combat tracker → Begin Combat).
+   Knock `treasure/search-hostile` and the friend to 0 hit points (or mark both
+   defeated in the tracker); leave `treasure/search-hostile-2` at 0 too.
+2. **End the combat** (Combat tracker → End Combat). Observables: the **Chat
+   sidebar** shows a "Search the fallen" card on the Judge seat, listing both
+   hostile bodies with item counts and the first one's letter, with the note that
+   letters are dealt when the treasure tables are imported; the friend is not
+   listed; the Player seat sees no card. A second Judge seat sees it once.
+3. **Stage a pot** on the card. Observables: a pot window opens in staging; its
+   cards are the hostile bodies' goods (three cards); the pot flag's `origin.kind`
+   is `combat` with `carried` mapping each card id to the body's actor uuid and
+   item id; the bodies still carry their items; the card's button now reads
+   "Open the staged pot"; pressing it again opens the same pot and makes no
+   second one.
+4. **A linked table.** With `treasure/search-table` linked, run steps 1 to 3 again
+   (the pot from step 3 is closed first). Observables: no chat message from the
+   draw; the item result is a card whose item stays in the world after Open (it
+   is not in `origin.carried`), the text result is listed on the Search card.
+5. **Delete one body before Open:** delete `treasure/search-hostile-2`'s token.
+6. **Open to the table.** Observables: `origin.takenOff` is true; the surviving
+   body no longer carries the goods that are cards in the pot; the deleted body's
+   card is still in the pot and still claims; a card removed from the pot in
+   staging (a repeat run) left its item on its body; the Player seat sees the
+   doorway only now.
+
+### Teardown
+
+`api.sweepTracked()` over the run's own ids (the combat, the pot, the chat card);
+the marked fixtures, `treasure/search-table` among them, stay.
+
+## Bands, backs, faces and deal toggles (both seats)
+
+Not yet walked live: `tools/live/treasure.mjs` does not drive these steps, and
+its fixtures and selectors are unchanged by this slice. Offline coverage is
+`tools/test-treasure.mjs`'s R2 blocks.
+
+**Fixtures** (found by marker, built through `api.fixture`):
+
+- `treasure/item-plain` — a physical item with invented name and `system.cost`
+  of 5, not magical.
+- `treasure/item-masked-cheap` — `treasure/item-masked` with the disguise's
+  apparent `cost` set to 5 and a true `system.cost` of 5000, so the mask and the
+  truth fall in different bands.
+- `treasure/item-detected` — a magical item marked detected, identification `none`.
+- `treasure/item-identified` — a magical item marked detected, identification
+  `full`, with `markets.cursed: true` and `curseKnown: true`.
+- `treasure/coin` and an expensive plain item (cost 500) to fill the top band.
+  Together with the above, at least four distinct worths.
+
+**Steps** (a fresh pot per run, as the Judge seat above builds one):
+
+1. **Bands and pips.** Drop the fixtures. Observables: each Judge tile shows a
+   band swatch and a row of pips (one to four marks) that agree with the legend
+   (Low, Middling, High, Highest), and the lowest-worth card is band Low. Tiles
+   hold the staging preview; every Card's `value` is still 0 in the pile.
+2. **Frozen at open.** Open to the table. Observable: every Card's `value` is
+   now its band; change a source item's cost in the world and reopen the window:
+   no card's band changes.
+3. **An undetected card's back matches a plain card's (Player seat).** The
+   masked fixture (mask cost 5) and the plain item (cost 5) sit face down. Observable: same
+   icon, same label, same colour, same pips, same accessible name
+   ("Item card, <band> band, face down; turn it over"), same tooltip. Only the
+   detected fixture's back wears a different icon (the aura), with its accessible
+   name adding that an aura was detected. Read the pile's own Card data as the
+   Player: `back.img` and `suit` of the masked and the plain card are equal.
+4. **Faces after identification and curse (Player seat).** Turn the masked,
+   detected and identified fixtures. Observables: the masked card's face is
+   plain; the detected one's is plain with the Aura tag; the identified one's
+   face is cursed-coloured with "Cursed" as its tag, because its curse is known.
+   Clear `curseKnown` on the item before the deal and repeat: the face turns
+   the magic colour and not the cursed one. On the **Judge seat** every
+   magical tile wears the magic colour and a cursed one the cursed colour,
+   face down or up.
+5. **Toggles (Judge seat, staging).** The panel stands to the right of the pot
+   and drops below it when the window is narrow (drag the frame narrower than
+   about 46 type units). Each button reads `aria-pressed`, and the keyboard
+   reaches both.
+   - **No magic** on, then Open: observables: every magic card (the masked one,
+     seeds included) is gone from the pot and from the pile; tiles it was to
+     strike said "Removed when the pot opens" beforehand; one whisper to the
+     Judge only, "deal toggles", names them; the Player seat sees no whisper.
+     A pot of magic cards only refuses to open ("The deal toggles would leave
+     nothing in the pot").
+   - **Force cursed** on, then Open, as the Player seat takes a magic card: the
+     item that lands on the character has `markets.cursed` true and
+     `curseKnown` not true, and the sheet shows no curse to the player.
+   - Both on: no magic card remains; the whisper's second row says "none".
+6. **Narrow and keyboard.** At a narrow width the grid, the toggles and the
+   bucket panels reflow and the part root scrolls; every toggle and card button is
+   reached by Tab and named; `prefers-reduced-motion` turns off the turn's
+   brightness beat and the face's colour transition.
+
+**Teardown:** the run's own pots and whispers are tracked and swept; the kept
+fixtures stay.

@@ -12,8 +12,18 @@
  */
 import * as services from "../lib/services.mjs";
 import { summonOfData } from "../lib/summons-logic.mjs";
+import { ATTACH_ROLES, attachmentOf, rootCarrierOf } from "../lib/attachment.mjs";
+import { capacityStone, explorationSpeedBearing } from "../lib/capacity.mjs";
+import { STONE } from "../lib/item-model.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { ROLES } from "./constants.mjs";
+import { monsterExplorationSpeed } from "./monster-traits.mjs";
 import { findDeployedMember } from "./deployment.mjs";
 import {
+  carriedLoad,
+  carrierSpeedFor,
+  encumbranceOf,
+  explorationSpeedOf,
   formationForToken,
   getFormation,
   getMemberActor,
@@ -144,6 +154,58 @@ export async function endFallenSummon(actor) {
   return (await release(found.formation.id, [found.member.actorId])).released > 0;
 }
 
+/**
+ * A character's pace in feet per turn bearing `adding6` more than they do,
+ * through the system's own movement calculation (`explorationSpeedBearing`),
+ * with `share` stone added for a casualty they carry. The stone is rounded the
+ * way core rounds `encumbrance.value`, so the figure is the one the sheet will
+ * show after the weight lands. Null with no maximum to bear against.
+ */
+function bearingWith(actor, adding6, share = 0) {
+  const max = capacityStone(actor);
+  if (max == null) return null;
+  const exact = Number(actor.system?.encumbrance?.value6);
+  const base6 = Number.isFinite(exact) ? exact : encumbranceOf(actor) * STONE;
+  const stone = Math.round((base6 + adding6) / STONE) + (Number(share) || 0);
+  return explorationSpeedBearing({ stone, max, mod: actor.system?.movement?.mod });
+}
+
+/**
+ * What `memberPace` answers, with `adding6` more weight on the member: the
+ * pacing carrier priced with it (a wagon's tier takes the load in stone), a
+ * Carrier's own bearing with the casualties' share, a character on automatic
+ * movement by their bearing, and everything else (a monster's speed table, a
+ * fixed speed, a mount) at the figure it already has.
+ */
+function paceAdding(formation, member, actor, adding6) {
+  const carrier = ATTACH_ROLES[attachmentOf(actor)?.role]?.setsPace ? rootCarrierOf(actor) : null;
+  if (carrier) return carrierSpeedFor(carrier, formation, { adding: adding6 / STONE });
+  if (member.roles?.includes(ROLES.CARRIER)) {
+    const load = carriedLoad(formation);
+    if (load.down.length) return bearingWith(actor, adding6, load.sharePerCarrier);
+  }
+  if (actor.type === ACTOR_TYPE.character && actor.system?.config?.movementAuto && typeof monsterExplorationSpeed(actor) !== "number") {
+    const speed = bearingWith(actor, adding6);
+    if (speed != null) return speed;
+  }
+  return explorationSpeedOf(actor);
+}
+
+/**
+ * The member's pace if it bore `adding6` more weight than now: `{rank, speed}`
+ * with `speed` in feet per turn and `rank` larger for slower (so it compares
+ * as a pace), or null where no figure answers. Read-only and any seat.
+ */
+function pace(partyId, actorId, { adding6 = 0 } = {}) {
+  const formation = getFormation(partyId);
+  const member = realMembers(formation).find((m) => m?.actorId === actorId);
+  const actor = member ? getMemberActor(member) : null;
+  if (!actor) return null;
+  const more = Number.isFinite(Number(adding6)) ? Math.max(0, Number(adding6)) : 0;
+  const speed = paceAdding(formation, member, actor, more);
+  return typeof speed === "number" && Number.isFinite(speed) ? { rank: 0 - speed, speed } : null;
+}
+
 /** Provide the `party-roster` contract. Called once, at init. */
 export function registerPartyRoster() {
   services.register("party-roster", {
@@ -153,5 +215,6 @@ export function registerPartyRoster() {
     adjustStashedHp,
     memberOfToken,
     release,
+    pace,
   });
 }
