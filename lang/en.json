@@ -3437,6 +3437,13 @@
       "throwBonus": "Throw bonus (±)",
       "throwBonusHint": "Flat adjustment to this item's party-roll throw: +2 makes the target 2 lower. Leave 0 for none.",
       "flagNone": "— by name —",
+      "flag": {
+        "listen": "Listen",
+        "search": "Search",
+        "bash": "Bash Door",
+        "trapbreak": "Trapbreaking",
+        "track": "Track"
+      },
       "noItems": "No ability items.",
       "table": "Skill progressions (imported from your books)",
       "tableHint": "A borrowed throw reads these rows at the level its own ability names. The rows are read from your own books at import — import skills to populate this.",

@@ -437,8 +437,9 @@ show through Dice So Nice to the Judges.
   The level a scaled source names (`Searching (L3)`) comes from the lang string
   `audit.levelTag`, in the source and in the member's cell.
 - **Used for.** The select's choices are `usedForOptions` (`party-rolls.mjs`): the
-  unbound choice, then one per check flag, each named by the first check that takes
-  it. The audit's selects and the item sheet's Skill tab draw the one list. Each
+  unbound choice, then one per check flag, each named by its own `audit.flag.<flag>`
+  string: one binding serves every check sharing the flag, so a search binding
+  reads "Search", never one check's "Hasty Search". The audit's selects and the item sheet's Skill tab draw the one list. Each
   select's `aria-label` names its item; the audit's keep `data-item-uuid` and
   `data-field`, which the focus restore finds them by.
 - **Sheet target.** The column is the item's stored `system.rollTarget` as `N+`, or

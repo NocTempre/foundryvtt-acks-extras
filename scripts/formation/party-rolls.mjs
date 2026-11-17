@@ -208,21 +208,20 @@ export function checkTip(check, extra = []) {
 }
 
 /**
- * The Used-for choices, one per `flagKey` a party check binds on: the first
- * option is the unbound one, and a flag is named by the first check that takes
- * it. The one list the audit window's selects and an ability sheet's Skill tab
- * both draw.
+ * The Used-for choices, one per `flagKey` a party check binds on, in
+ * `PARTY_CHECKS` order: the first option is the unbound one. A flag is named by
+ * its own `audit.flag.<flagKey>` string, never by one check's label, since one
+ * binding serves every check that shares the flag (a search binding takes both
+ * the hasty and the methodical search). The one list the audit window's selects
+ * and an ability sheet's Skill tab both draw.
  *
  * @returns {Array<{value: string, label: string}>}
  */
 export function usedForOptions() {
-  const named = new Map();
-  for (const cfg of Object.values(PARTY_CHECKS)) {
-    if (!named.has(cfg.flagKey)) named.set(cfg.flagKey, game.i18n.localize(cfg.label));
-  }
+  const flags = [...new Set(Object.values(PARTY_CHECKS).map((cfg) => cfg.flagKey))];
   return [
     { value: "", label: game.i18n.localize("ACKS-FORMATION.audit.flagNone") },
-    ...[...named].map(([value, label]) => ({ value, label })),
+    ...flags.map((value) => ({ value, label: game.i18n.localize(`ACKS-FORMATION.audit.flag.${value}`) })),
   ];
 }
 

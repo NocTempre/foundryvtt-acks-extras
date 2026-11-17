@@ -340,6 +340,11 @@ await ok("the cited-parts helper prints a part's page after it, and the roll row
   assert.equal(usedForOptions().filter((o) => o.value === "search").length, 1, "one option per flag");
   assert.deepEqual(usedForOptions().map((o) => o.value), ["", "listen", "search", "bash", "trapbreak", "track"]);
   assert.equal(usedForOptions()[0].label, "— by name —");
+  assert.deepEqual(
+    usedForOptions().filter((o) => o.value === "search" || o.value === "trapbreak").map((o) => o.label),
+    ["Search", "Trapbreaking"],
+    "a flag two checks share is named for itself, not for its first check",
+  );
 });
 
 await ok("a bonus whose ifHas the character does not hold, or a renamed holder of it, does not change the figure", async () => {
