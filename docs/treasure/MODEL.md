@@ -19,6 +19,7 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | `audience` | user ids given LIMITED sight at open |
 | `order` | the card ids that are in the pot, **the authority** |
 | `buckets` | `{add: [ids], replace: [ids]}`, the seed cards kept out of `order` until open |
+| `replaced` | `[{seedId, struck: [lot ids], shortGp}]`, what each replacing seed took when the pot opened; empty until then |
 | `messageId` | the doorway's chat message, so closing can rewrite it |
 | `deal.toggles` | `{noMagic, forceCursed}`, both booleans, set while staging and applied at open |
 | `partyId` | the party the aside lists and Quick grab shares among; nothing writes it, so `resolveParty` reads it while the roster lists it, else the only party the roster has (see "The party aside") |
@@ -96,9 +97,12 @@ window is narrow.
 
 ## Opening, the relay and closing
 
-**Open** (`planOpen`): the replace bucket's cards join `order` as they are,
-nothing struck; the add bucket's cards land at random positions in `order`
-(`placeAdds`, an injected rng); both buckets empty; the pile's ownership becomes
+**Open** (`planOpen`): each replace seed takes the slot in `order` of the first
+lot it strikes and the struck lots leave `order` (their Cards stay in the pile,
+unlisted, so no window shows them and no relay act reaches them: see "The
+replace planner"); a seed that takes no lot and every add seed land at random
+positions in `order` (`placeAdds`, an injected rng), so no seed waits at the
+tail; both buckets empty, and the plan is written to the flag's `replaced`; the pile's ownership becomes
 LIMITED for every non-Judge seat and never OWNER, which would let a seat pass or
 delete cards around the relay; the doorway is posted.
 
@@ -332,6 +336,36 @@ through `dealOf`:
 - A pot that the toggles would leave empty refuses to open.
 - When any toggle is on, `openPot` whispers the Judges a card listing, per
   toggle, the true names of the cards it changed. No card is posted otherwise.
+
+## The replace planner
+
+Source: `replace-logic.mjs` (`planReplace`, pure, import-free) and `pot-logic.mjs`
+`dealOf`, which runs it once for the staging preview and for `planOpen`, so the
+two cannot differ. A lot is a card in `order`; a seed is a card in the replace
+bucket. Worth is `rankWorth`, the apparent worth the bands rank by: a masked
+undetected magic lot counts as its mask's cost, and an undetected magic seed
+with no mask is worth nothing.
+
+The plan runs after the deal toggles, over the lots and seeds they leave. Each
+seed in bucket order takes the **fewest** free lots whose worths cover its own;
+among sets of that size the **smallest total** wins; a tie goes to the set that
+comes **first in the pot**. A lot is taken whole, and a lot taken by one seed is
+not offered to the next. Worths compare in hundredths of a gp. The search is
+exact up to `REPLACE_NODE_LIMIT` nodes per seed, and past it keeps the best set
+found, or the heaviest lots that cover, so a very large pot still plans.
+
+- A seed worth nothing takes nothing. A seed the free lots cannot cover is a
+  typed `shortfall` (`{worthGp, availableGp, shortGp}`) and takes **none**: no
+  partial strike.
+- A struck lot is in `dealOf().struck`, never in `removed`, so its Card is kept.
+  Bands are ranked over what the pot will hold, struck lots out.
+- Staging shows the plan: a struck lot's tile reads "Replaced by <seed>", the
+  seed's bucket row reads what it takes and how far over, with the figures in a
+  tooltip, and the pot value counts the lots held and every seed. Both "Who rolls"
+  modes take the planner's pick, since the staging design draws no tick control.
+- At open the plan is kept on the flag as `replaced`, and the Judges' whisper
+  gains a "Replace seeds" row listing, per seed, the true names of its lots, the
+  overshoot or the shortfall.
 
 ## The hoard adapter
 

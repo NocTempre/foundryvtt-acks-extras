@@ -28,6 +28,8 @@ const DIALOG_CLASSES = ["acks-ui", "acks", "acks-extras", "acks-extras-scroll", 
 
 /** A gp figure to the copper, without a trailing zero. */
 const gpText = (gp) => (Math.round(gp * 100) / 100).toLocaleString(game.i18n.lang);
+/** A card's true name (the Judge's own view), or empty where no Card answers. */
+const bucketNameOf = (view, id) => view.cards.find((c) => c.id === id)?.truth.label ?? "";
 
 /** A weight in sixths of a stone, as the stones it is. */
 const stoneText = (w6) => loc("card.weight", { n: Math.round((w6 / 6) * 10) / 10 });
@@ -102,7 +104,10 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const open = pot.phase === PHASE.open;
     const seat = potCards(view).map((c) => cardView(c, { isGM }));
     const table = potCards(view).map((c) => cardView(c, { isGM: false }));
-    const total = staging ? haulOf(seat, { all: true }) : haulOf(table);
+    const deal = staging ? dealOf(view) : null;
+    const struck = new Set(deal ? [...deal.removed, ...deal.struck] : []);
+    const seeds = [BUCKET.add, BUCKET.replace].flatMap((key) => bucketCards(view, key)).map((c) => cardView(c, { isGM: true }));
+    const total = staging ? haulOf([...seat.filter((v) => !struck.has(v.id)), ...seeds.filter((v) => !deal.removed.includes(v.id))], { all: true }) : haulOf(table);
     const cite = loc("cite.haul");
     const { turned, count } = turnedOf(view);
 
@@ -115,8 +120,13 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       : loc("tip.haulNone", { cite });
     context.turnedText = loc("bar.turned", { turned, count });
     context.bands = Array.from({ length: BAND_COUNT }, (_, rank) => ({ rank, name: loc(`band.${rank}`) }));
-    const struck = new Set(staging ? dealOf(view).removed : []);
-    context.cards = seat.map((v) => ({ ...this.#cardContext(v, { open, staging }), struck: struck.has(v.id) }));
+    const takenBy = new Map();
+    for (const p of deal?.replace ?? []) for (const id of p.struck) takenBy.set(id, bucketNameOf(view, p.seedId));
+    context.cards = seat.map((v) => ({
+      ...this.#cardContext(v, { open, staging }),
+      struck: struck.has(v.id),
+      struckText: takenBy.has(v.id) ? loc("card.replacedBy", { name: takenBy.get(v.id) }) : loc("card.struck"),
+    }));
     context.toggles = Object.values(DEAL_TOGGLE).map((key) => ({
       key,
       label: loc(`toggle.${key}`),
@@ -134,7 +144,9 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       drop: loc("judge.bucket.drop"),
       rows: bucketCards(view, key).map((c) => {
         const v = cardView(c, { isGM: true });
-        return { id: v.id, name: v.name, worthText: this.#worthText(v), removeLabel: loc("card.removeLabel", { name: v.name }) };
+        const row = { id: v.id, name: v.name, worthText: this.#worthText(v), removeLabel: loc("card.removeLabel", { name: v.name }) };
+        const plan = key === BUCKET.replace ? deal?.replace.find((p) => p.seedId === v.id) : null;
+        return plan ? { ...row, ...this.#takesText(view, plan) } : row;
       }),
     }));
     return context;
@@ -182,6 +194,24 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       leftover: left.length ? loc("party.leftover", { names: left.map((x) => x.name).join(", ") }) : "",
       leftoverTip: left.map((x) => loc("tip.leftoverPart", { name: x.name, why: loc(`grab.code.${x.code}`) })).join(" · "),
     };
+  }
+
+  /**
+   * What a replace seed takes, worded for its bucket row: the lots by their
+   * true names and how far they overshoot, with a tooltip of the figures. A seed
+   * the lots cannot cover, or one stating no worth, takes none and says so. The
+   * planner is the module's own procedure, so the tooltip names its parts and
+   * cites no page.
+   */
+  #takesText(view, plan) {
+    if (!plan.ok) {
+      const figures = { worth: gpText(plan.worthGp), available: gpText(plan.availableGp) };
+      return { takes: loc("bucket.takesShort", { short: gpText(plan.shortGp) }), takesTip: loc("tip.takesShort", figures) };
+    }
+    if (!plan.struck.length) return { takes: loc("bucket.takesNone"), takesTip: "" };
+    const lots = plan.struck.map((id) => bucketNameOf(view, id)).join(", ");
+    const figures = { worth: gpText(plan.worthGp), taken: gpText(plan.takenGp), over: gpText(plan.overGp) };
+    return { takes: plan.overGp > 0 ? loc("bucket.takesOver", { lots, over: figures.over }) : loc("bucket.takes", { lots }), takesTip: loc("tip.takes", figures) };
   }
 
   #worthText(v) {

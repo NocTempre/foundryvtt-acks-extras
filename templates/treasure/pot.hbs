@@ -52,7 +52,7 @@
               </div>
               <div class="acks-extras-treasure-card__body">
                 <span class="acks-extras-treasure-card__name">{{name}}</span>
-                {{#if struck}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.struck"}}</span>{{/if}}
+                {{#if struck}}<span class="acks-extras-treasure-card__warn">{{struckText}}</span>{{/if}}
                 {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
                 {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.leaks"}}</span>{{/if}}
                 <span class="acks-extras-treasure-card__note">{{worthText}}</span>
@@ -118,6 +118,7 @@
                     <span class="acks-extras-treasure__bucket-name">{{name}}</span>
                     <span class="acks-extras-treasure__bucket-worth">{{worthText}}</span>
                     <button type="button" class="acks-btn acks-btn--sm acks-btn--quiet" data-action="removeCard" data-card-id="{{id}}" aria-label="{{removeLabel}}">{{localize "ACKS-TREASURE.card.remove"}}</button>
+                    {{#if takes}}<span class="acks-extras-treasure__bucket-takes" data-tooltip-text="{{takesTip}}">{{takes}}</span>{{/if}}
                   </li>
                 {{/each}}
               </ul>

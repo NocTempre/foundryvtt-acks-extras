@@ -11,6 +11,7 @@ import {
   normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, setToggle, shownPool, stage,
   turnedOf, unstage, withBands, worthOf,
 } from "../scripts/treasure/pot-logic.mjs";
+import { planReplace } from "../scripts/treasure/replace-logic.mjs";
 
 let checks = 0;
 const ok = (cond, msg) => {
@@ -165,7 +166,7 @@ const view = (cards, pot = {}) => ({
   const opened = planOpen({ id: "p", pot: c, cards }, { audience: [ANNA.id], rng: () => 0 });
   ok(opened.ok);
   eq(opened.flag.phase, PHASE.open);
-  eq(opened.flag.order, ["c2", "c1", "c3"], "an add card lands at the drawn position, a replace card joins as it is");
+  eq(opened.flag.order, ["c2", "c3", "c1"], "a seed that takes no lot lands at a drawn position like an add card, so none waits at the tail");
   eq(opened.flag.buckets, { add: [], replace: [] });
   eq(opened.flag.audience, [ANNA.id]);
   eq(planOpen({ id: "p", pot: opened.flag, cards }, { audience: [], rng: () => 0 }).reason, REFUSAL.phase, "an open pot is not opened again");
@@ -468,6 +469,130 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
     ok(!curseKnowledge(made, { isGM: false }).showCurse, `${f.id}: and shows a player nothing`);
   }
   eq(plan.forced.length, 2);
+}
+
+/* ====== T3: the replace planner ====== */
+
+const rows = (...worths) => worths.map((w, i) => ({ id: `L${i + 1}`, worth: w }));
+const planOf = (seeds, lots) => planReplace({ seeds: seeds.map((w, i) => ({ id: `S${i + 1}`, worth: w })), lots });
+
+/* --- the rule: fewest lots, then the smaller overshoot, then pot order --- */
+{
+  const fewest = planOf([250], rows(400, 150, 100));
+  eq(fewest.plans[0].struck, ["L1"], "one lot that covers beats two that cover exactly");
+  eq(fewest.plans[0].overGp, 150, "and its overshoot is reported");
+
+  eq(planOf([250], rows(400, 300)).plans[0].struck, ["L2"], "of two lots that each cover, the smaller overshoot wins over pot order");
+  eq(planOf([230], rows(200, 180, 60)).plans[0].struck, ["L2", "L3"], "the pair with the least total is found where a greedy largest-first pick takes 200 and 180");
+  eq(planOf([230], rows(200, 180, 60)).plans[0].overGp, 10);
+
+  eq(planOf([90], rows(100, 100, 100)).plans[0].struck, ["L1"], "equal overshoot goes to the earliest lot in the pot");
+  eq(planOf([150], rows(100, 100, 100)).plans[0].struck, ["L1", "L2"], "and the earliest set when the sets are the same size");
+  eq(planOf([110], rows(60, 70, 50, 60)).plans[0].struck, ["L1", "L3"], "the earliest of the equal-total pairs wins (60+50 = 110 before 70+50 = 120 and 60+60 = 120)");
+
+  const exact = planOf([250], rows(400, 150, 100, 90, 10));
+  eq(exact.plans[0].struck, ["L1"], "an exact cover in more lots never beats a single covering lot");
+  eq(planOf([250], rows(150, 100)).plans[0], { seedId: "S1", ok: true, struck: ["L1", "L2"], worthGp: 250, takenGp: 250, overGp: 0 }, "an exact cover reports no overshoot");
+  eq(planOf([0.3], rows(0.1, 0.2)).plans[0].struck, ["L1", "L2"], "hundredths of a gp compare without float noise");
+  eq(planOf([0.3], rows(0.1, 0.2)).plans[0].overGp, 0);
+}
+
+/* --- shortfall, zero worths, several seeds --- */
+{
+  const short = planOf([100], rows(50, 40));
+  eq(short.plans[0], { seedId: "S1", ok: false, code: "shortfall", struck: [], worthGp: 100, availableGp: 90, shortGp: 10 }, "lots that cannot cover the seed are a typed shortfall");
+  eq(short.struck, [], "and a shortfall takes nothing");
+
+  eq(planOf([0], rows(50)).plans[0].struck, [], "a seed worth nothing takes nothing");
+  ok(planOf([0], rows(50)).plans[0].ok, "and is no shortfall");
+  eq(planOf([20], rows(0, 0, 30)).plans[0].struck, ["L3"], "a lot worth nothing is never taken");
+  eq(planOf([20], []).plans[0].code, "shortfall", "a pot with no lots cannot cover a seed");
+  eq(planReplace().plans, [], "no input plans nothing");
+
+  const two = planOf([80, 80, 80], rows(100, 100));
+  eq(two.plans.map((p) => p.struck), [["L1"], ["L2"], []], "each seed takes its own lot, and none is reused");
+  eq(two.plans[2].code, "shortfall", "a seed that finds the lots gone is a shortfall");
+  eq(two.plans[2].availableGp, 0);
+  eq(two.struck, ["L1", "L2"], "the struck list is in pot order");
+
+  const turns = planOf([50, 120], rows(60, 100, 40));
+  eq(turns.plans[0].struck, ["L1"], "the first seed is planned first, from every lot");
+  eq(turns.plans[1].struck, ["L2", "L3"], "the second is planned from what is left");
+  eq(planOf([120, 50], rows(60, 100, 40)).plans.map((p) => p.struck), [["L2", "L3"], ["L1"]], "the seeds' order is the order of turns");
+
+  const many = planOf([2500], Array.from({ length: 40 }, (_, i) => ({ id: `M${i}`, worth: 37 + (i % 9) * 13 })));
+  ok(many.plans[0].ok && many.plans[0].takenGp >= 2500, "a large pot is planned within the node bound and still covers the seed");
+}
+
+/* --- the deal: the plan runs over what the toggles leave, by apparent worth --- */
+{
+  const lot = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id }));
+  const seed = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id, bucket: BUCKET.replace }));
+  const hold = (cards, order, replace, pot = {}) => stagingView(cards, { order, buckets: { add: [], replace }, ...pot });
+
+  const cards = [lot("a", 400), lot("b", 150), lot("c", 100), seed("s", 250)];
+  const v = hold(cards, ["a", "b", "c"], ["s"]);
+  const deal = dealOf(v);
+  eq(deal.struck, ["a"], "the deal strikes the planned lot");
+  eq(deal.removed, [], "a struck lot is not a removed card, so its Card is kept");
+  ok(!(("a") in deal.bands) && "s" in deal.bands, "bands are ranked over what the pot will hold: the struck lot out, the seed in");
+  eq(withBands(v).cards.find((c) => c.id === "a").value, 0, "a struck lot keeps its stored value");
+
+  const opened = planOpen(v, { audience: [ANNA.id], rng: () => { throw new Error("a seed that took a lot needs no drawn position"); } });
+  ok(opened.ok);
+  eq(opened.flag.order, ["s", "b", "c"], "the seed takes the struck lot's slot");
+  eq(opened.flag.replaced, [{ seedId: "s", struck: ["a"], shortGp: null }], "the plan is kept on the flag");
+  eq(opened.struck, ["a"]);
+  eq(normalizePot(opened.flag).replaced, opened.flag.replaced, "and survives a normalize");
+  eq(normalizePot({ replaced: [{ seedId: "x", struck: ["p", 3], shortGp: 4 }, { seedId: "" }, null, "y"] }).replaced, [{ seedId: "x", struck: ["p"], shortGp: 4 }], "a record of junk is cleaned");
+  eq(normalizePot({}).replaced, [], "a pot never opened has no record");
+  eq(opened.audit.map((r) => r.toggle), ["replace"], "the Judge's audit lists the plan though no toggle is on");
+  eq(opened.audit[0].lines, [{ seed: "s", lots: ["a"], overGp: 150, shortGp: null }]);
+
+  const live = { ...v, pot: opened.flag, cards: v.cards.map((c) => (c.id === "a" ? c : { ...c })) };
+  eq(planClaim(live, "a", { sender: GM, hasTarget: true, owns: true, ownedByTable: true }).reason, REFUSAL.notInPot, "a struck lot is never claimed");
+  eq(planFlip(live, "a", { sender: ANNA }).reason, REFUSAL.notInPot, "and never turned");
+  ok(!potCards(live).some((c) => c.id === "a"), "and never listed in the pot");
+  const closed = planClose(live);
+  ok(!closed.left.some((c) => c.id === "a"), "a struck lot is not left over when the pot closes");
+  eq(closed.record.length, 3, "and is not in the record of the haul");
+
+  const pair = [lot("a", 100), lot("b", 50), lot("c", 100), seed("s", 200)];
+  const slot = planOpen(hold(pair, ["a", "b", "c"], ["s"]), { audience: [], rng: () => 0.999 });
+  eq(slot.flag.order, ["s", "b"], "a seed taking two lots stands in the first one's slot and the second leaves");
+  eq(slot.struck, ["a", "c"]);
+
+  const two = [lot("a", 100), lot("b", 100), seed("s1", 80), seed("s2", 80)];
+  const both = planOpen(hold(two, ["a", "b"], ["s1", "s2"]), { audience: [], rng: () => 0 });
+  eq(both.flag.order, ["s1", "s2"], "two seeds do not take one lot");
+  eq(both.flag.replaced.map((r) => r.struck), [["a"], ["b"]]);
+
+  const short = planOpen(hold([lot("a", 50), seed("s", 400)], ["a"], ["s"]), { audience: [], rng: () => 0 });
+  eq(short.flag.order, ["s", "a"], "a shortfall strikes nothing, and the seed lands at a drawn position");
+  eq(short.flag.replaced, [{ seedId: "s", struck: [], shortGp: 350 }]);
+  eq(short.struck, []);
+
+  const adds = hold([lot("a", 100), lot("b", 100), seed("s", 80), cardOf("x", truth({ valueGp: 1, label: "x", bucket: BUCKET.add }))], ["a", "b"], ["s"], { buckets: { add: ["x"], replace: ["s"] } });
+  eq(planOpen(adds, { audience: [], rng: () => 0.999 }).flag.order, ["s", "b", "x"], "an add card still lands at a drawn position beside a replacing seed");
+
+  const pot = (cards2, toggles, order, replace) => hold(cards2, order, replace, { deal: { toggles } });
+  const noMagicCards = [cardOf("m", magicItem("Wand", 500, { mask: { name: "Stick", cost: 500 } })), lot("a", 100), seed("s", 400)];
+  const nm = planOpen(pot(noMagicCards, { noMagic: true }, ["m", "a"], ["s"]), { audience: [], rng: () => 0 });
+  eq(nm.removed, ["m"], "No magic removes the magic lot first");
+  eq(nm.flag.replaced, [{ seedId: "s", struck: [], shortGp: 300 }], "so the plan covers the seed from the lots left, and falls short");
+  const magicSeed = [lot("a", 100), cardOf("s", magicItem("Wand", 900, { bucket: BUCKET.replace }))];
+  const gone = planOpen(pot(magicSeed, { noMagic: true }, ["a"], ["s"]), { audience: [], rng: () => 0 });
+  eq(gone.flag.replaced, [], "a seed No magic removed plans nothing");
+  eq(gone.struck, []);
+
+  const masked = [cardOf("m", magicItem("Wand", 900, { detected: false, mask: { name: "Stick", cost: 60 } })), lot("a", 100), seed("s", 70)];
+  eq(dealOf(hold(masked, ["m", "a"], ["s"])).struck, ["a"], "a lot is worth what it appears to be worth: the masked wand counts as 60, not its own cost");
+  const bare = [lot("a", 100), cardOf("s", magicItem("Wand", 900, { detected: false, bucket: BUCKET.replace }))];
+  eq(dealOf(hold(bare, ["a"], ["s"])).struck, [], "an undetected seed with no mask is worth nothing to the plan, and takes nothing");
+
+  eq(dealOf(stagingView([lot("a", 100), lot("b", 100)])).replace, [], "a pot with no replace seed plans nothing");
+  const open = { ...v, pot: normalizePot({ ...opened.flag }) };
+  eq(planOpen(open, { audience: [], rng: () => 0 }).reason, REFUSAL.phase, "a pot already open is not planned again");
 }
 
 console.log(`test-treasure: ${checks} checks passed`);

@@ -75,7 +75,7 @@ it the card's own coin row, else the world's coin of that name found with
 `coinTemplate`, and writes nothing where neither exists. A value card pays
 through `mintCoin`.
 
-## 2026-11-17 — Seed buckets are Cards in the pile
+## 2026-11-17 — Seed buckets are Cards in the pile — SUPERSEDED IN PART 2026-11-17
 
 Add and Replace are Cards in the same pile, kept out of `order` and listed in
 `pot.buckets` until the pot opens, so a seed is already a card and only one
@@ -399,3 +399,46 @@ documents. The choices, each of which the engine's contracts left open:
   magic-item roll replaces; until then the Judge sees the no-mask warning.
 - **A column the type row leaves empty is not reported when skipped.** A legend
   gap names a skipped column only where the dealt cell has something in it.
+
+## 2026-11-17 — The replace planner takes the fewest whole lots, and the seed stands in their slot
+
+Supersedes, in part, "Seed buckets are Cards in the pile", whose last sentence
+had replace cards join the pot as they are until a planner existed. **New
+evidence:** the planner now exists, and with it the sentence's other half was
+found to leak: a replace seed appended at the tail of `order` is a card a
+player can tell from the rolled ones by where it sits, which the plan's walk
+criterion for T3 forbids ("A seeded card cannot be told apart on the Player
+seat").
+
+Owner question A, "Judge chooses per pot", and question B's default, which no
+owner has answered, so it stands: a replacing seed takes the fewest lots that
+cover its value, pre-ticked; in "Judge deals" mode the Judge can change the
+ticks; in "table rolls" mode the auto-pick stands.
+
+- **The rule.** Fewest lots, then the smaller total, then pot order
+  (`planReplace`, MODEL "The replace planner"). Seeds are planned in turn and no
+  lot is taken twice. Worth is `rankWorth`, the apparent worth the bands use, so
+  a masked magic lot counts as what it passes for and an undetected unmasked
+  magic seed is worth nothing.
+- **Where the seed goes.** In the slot of the first lot it strikes, so it
+  neither trails the pot nor needs a drawn position. A seed that strikes nothing
+  (worth nothing, or a shortfall) lands at a drawn position like an add card.
+- **A shortfall strikes nothing.** Where the free lots cannot cover a seed it
+  takes none rather than emptying the pot; the staging row and the audit say
+  how far short. The alternative (strike every free lot) was rejected: it
+  deletes the roll to place one seed.
+- **Struck Cards stay in the pile.** They leave `order`, which is the authority
+  on what is in the pot, so no window, relay act, haul or close reaches them,
+  and the flag's `replaced` is the record. Deleting them, as No magic does, was
+  rejected: the Judge's audit and a later look at the pile read the lots that
+  went.
+- **Counter to B's default (moderate, from the plan):** a whole lot can overshoot
+  by a gem's worth where exact coin in proportion would stay within a coin. The
+  Judge sees the overshoot on the seed's row and in the audit; exact coin is a
+  ROADMAP row.
+- **Ticks are not built.** The approved staging design shows struck cards and a
+  "Takes ..." line and draws no tick control, so changing a pick has no control
+  to live on; both "Who rolls" modes take the planner's pick until one is
+  designed (ROADMAP, "Replace ticks").
+- **Staging's pot value now counts the pot as it will be:** the lots held plus
+  every seed's stated worth, as the design's total does.

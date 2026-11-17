@@ -336,3 +336,52 @@ its fixtures and selectors are unchanged by this slice. Offline coverage is
 
 **Teardown:** the run's own pots and whispers are tracked and swept; the kept
 fixtures stay.
+
+## Replace seeds at open (both seats)
+
+Not yet walked live. Offline coverage is `tools/test-treasure.mjs`'s T3 blocks
+(the planner and `planOpen`); nothing offline renders the window or writes a
+Card.
+
+**Fixtures** (found by marker, built through `api.fixture`):
+
+- `treasure/lot-high`, `treasure/lot-mid`, `treasure/lot-low` — value-card or
+  coin-card sources worth 400, 150 and 100 gp, so their worths are known.
+- `treasure/seed-replace` — a plain item with `system.cost` 250, dropped into
+  the Replace bucket.
+- `treasure/seed-replace-big` — a plain item costing 1000, for the shortfall.
+
+**Steps** (a fresh pot per run; drop the three lots on the pot, the seed in the
+Replace bucket):
+
+1. **The plan shows (Judge seat, staging).** Observables: the 400 lot's tile is
+   struck through and reads "Replaced by <seed>"; the seed's bucket row reads
+   "Takes <lot> (150 gp over)" and its tooltip gives the seed's worth against the
+   lots taken; the 150 and 100 tiles are untouched; the pot value counts the 150
+   and 100 lots plus the seed.
+2. **Open, Judge deals.** Observables: the pot's `order` lists the seed where the
+   400 lot stood, and not the 400 lot; the pile still holds the 400 lot's Card;
+   `flags.acks-extras.treasure.replaced` is `[{seedId, struck: [<400 lot>],
+   shortGp: null}]`; every listed Card's `value` is a band ranked without the
+   struck lot; a whisper to the Judge only lists the seed, the lot's true name and
+   the overshoot, and the Player seat sees no whisper.
+3. **Open, table rolls.** Repeat step 2 on a pot whose mode is Table.
+   Observable: the same plan and the same record, since no tick control exists.
+4. **Struck is never delivered (Player seat).** The Player sees one card fewer
+   than the lots dropped plus the seed, and none carries the struck lot's name
+   or worth. As the Judge, run a `claim` for the struck lot's Card id through
+   the relay: refused as not in the pot. Close the pot: the doorway record lists
+   no struck lot, and the haul counts none.
+5. **A seed cannot be told apart (Player seat).** The seed's back and the lots'
+   backs differ only by band; the seed does not sit last. Repeat with the
+   shortfall seed: it sits at a drawn position, not at the tail on every run.
+6. **A shortfall (Judge seat, staging).** Drop only `treasure/seed-replace-big`
+   in the Replace bucket. Observables: its row reads "No lots cover it (<n> gp
+   short); takes none", and no tile is struck; open: `replaced` holds
+   `shortGp` and an empty `struck`, and the pot keeps every lot.
+7. **No magic first.** Add a magical lot (disguised as a 150 gp item) and turn
+   No magic on. Observable: the plan ignores it and its tile says "Removed when
+   the pot opens", not "Replaced by".
+
+**Teardown:** the run's own pots and whispers are tracked and swept; the kept
+fixtures stay.

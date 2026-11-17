@@ -28,6 +28,7 @@ import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot
 import { createRelay } from "./pot-relay.mjs";
 
 const loc = makeLoc(LANG);
+const gpText = (gp) => (Math.round(gp * 100) / 100).toLocaleString(game.i18n.lang);
 
 const potPath = `flags.${MODULE_ID}.${POT_FLAG}`;
 const cardPath = `flags.${MODULE_ID}.${CARD_FLAG}`;
@@ -201,6 +202,14 @@ export async function openPot(pile) {
 async function postDealAudit(pile, audit) {
   const esc = foundry.utils.escapeHTML;
   const rows = audit.map((row) => {
+    if (row.lines) {
+      const lines = row.lines.map((l) => {
+        if (l.shortGp !== null) return esc(loc("audit.replaceShort", { seed: l.seed, short: gpText(l.shortGp) }));
+        if (!l.lots.length) return esc(loc("audit.replaceNone", { seed: l.seed }));
+        return esc(loc("audit.replaceTook", { seed: l.seed, lots: l.lots.join(", "), over: gpText(l.overGp) }));
+      });
+      return `<li><strong>${esc(loc("toggle.replace"))}</strong>: ${lines.join("; ")}</li>`;
+    }
     const what = row.names.length ? row.names.map(esc).join(", ") : esc(loc("audit.none"));
     return `<li><strong>${esc(loc(`toggle.${row.toggle}`))}</strong>: ${esc(loc(`audit.${row.toggle}`, { n: row.names.length }))} ${what}</li>`;
   });

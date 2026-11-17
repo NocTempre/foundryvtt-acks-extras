@@ -15,6 +15,7 @@
  */
 import { curseKnowledge, magicKnowledge, weight6Of } from "../lib/item-model.mjs";
 import { BAND_COUNT, BUCKET, CARD_FLAG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, REFUSAL } from "./constants.mjs";
+import { planReplace } from "./replace-logic.mjs";
 
 const refuse = (reason) => ({ ok: false, reason });
 const ids = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string" && x) : []);
@@ -61,6 +62,17 @@ function normalizeGrab(g) {
   };
 }
 
+/**
+ * The record of what each replacing seed took when the pot opened: the seed's
+ * card id, the lot ids it took (none for a shortfall or a seed worth nothing)
+ * and, for a shortfall, the gp the free lots fell short by.
+ */
+function normalizeReplaced(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && typeof x.seedId === "string" && x.seedId)
+    .map((x) => ({ seedId: x.seedId, struck: ids(x.struck), shortGp: x.shortGp == null ? null : num(x.shortGp) }));
+}
+
 /** A pot's flag with every key present and every id list clean. */
 export function normalizePot(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
@@ -75,6 +87,7 @@ export function normalizePot(flag) {
     deal: { toggles: normalizeToggles(f.deal?.toggles) },
     order: ids(f.order),
     buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },
+    replaced: normalizeReplaced(f.replaced),
     messageId: typeof f.messageId === "string" ? f.messageId : null,
   };
 }
@@ -413,7 +426,14 @@ export function setToggle(pot, key, on) {
  * since what a full identification reveals includes the curse; a card
  * identified in part or not at all is left with the curse unknown. `audit` has one row per toggle that is on, with the
  * true names of the cards it changed, for the Judge's whisper.
- * @returns {{removed: string[], kept: string[], bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[]}>}}
+ *
+ * The replace plan (`planReplace`) runs after the toggles, over the cards left
+ * in `order` and the replace seeds left in the bucket, both by apparent worth
+ * (`rankWorth`). A struck lot is in `struck`, never in `removed` (its Card is
+ * kept), and bands are ranked over `held`: what the pot will hold, struck lots
+ * out. `replace` is the plan's entries; `audit` ends with a `replace` row of
+ * `{seed, lots, overGp, shortGp}` lines (true names) when a replace seed stands.
+ * @returns {{removed: string[], kept: string[], held: string[], struck: string[], replace: object[], bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[], lines?: object[]}>}}
  */
 export function dealOf(view) {
   const { pot } = view;
@@ -433,12 +453,29 @@ export function dealOf(view) {
           return { id, flags };
         })
     : [];
-  const ranks = bandsOf(kept.map((id) => rankWorth(byId.get(id).truth)));
-  const bands = Object.fromEntries(kept.map((id, i) => [id, ranks[i]]));
+  const seedIds = pot.buckets.replace.filter((id) => kept.includes(id));
+  const addIds = new Set(pot.buckets.add);
+  const lotIds = pot.order.filter((id) => kept.includes(id) && !seedIds.includes(id) && !addIds.has(id));
+  const worth = (id) => rankWorth(byId.get(id).truth);
+  const { plans, struck } = planReplace({
+    seeds: seedIds.map((id) => ({ id, worth: worth(id) })),
+    lots: lotIds.map((id) => ({ id, worth: worth(id) })),
+  });
+  const held = kept.filter((id) => !struck.includes(id));
+  const ranks = bandsOf(held.map(worth));
+  const bands = Object.fromEntries(held.map((id, i) => [id, ranks[i]]));
+  const label = (id) => byId.get(id).truth.label;
   const audit = [];
-  if (noMagic) audit.push({ toggle: DEAL_TOGGLE.noMagic, names: removed.map((id) => byId.get(id).truth.label) });
-  if (forceCursed) audit.push({ toggle: DEAL_TOGGLE.forceCursed, names: forced.map((f) => byId.get(f.id).truth.label) });
-  return { removed, kept, bands, forced, audit };
+  if (noMagic) audit.push({ toggle: DEAL_TOGGLE.noMagic, names: removed.map(label) });
+  if (forceCursed) audit.push({ toggle: DEAL_TOGGLE.forceCursed, names: forced.map((f) => label(f.id)) });
+  if (plans.length) {
+    audit.push({
+      toggle: "replace",
+      names: [],
+      lines: plans.map((p) => ({ seed: label(p.seedId), lots: p.struck.map(label), overGp: p.ok ? p.overGp : null, shortGp: p.ok ? null : p.shortGp })),
+    });
+  }
+  return { removed, kept, held, struck, replace: plans, bands, forced, audit };
 }
 
 /**
@@ -454,11 +491,13 @@ export function withBands(view) {
 }
 
 /**
- * Open a staged pot to the table: the deal toggles are applied, the replace
- * bucket's cards join `order` as they are (nothing is struck from the roll),
- * the add bucket's land at random positions, and both buckets empty. Bands are
- * ranked here and never again. `audience` is who gets LIMITED sight.
- * @returns {{ok: true, flag: object, bands: object, removed: string[], forced: object[], audit: object[]}|{ok: false, reason: string}}
+ * Open a staged pot to the table: the deal toggles are applied, each replace
+ * seed takes the slot of the first lot it strikes (`dealOf`'s plan; the struck
+ * lots leave `order` and their Cards stay in the pile unshown), every seed with
+ * no slot and every add seed land at random positions, and both buckets empty.
+ * The plan is kept on the flag as `replaced`. Bands are ranked here and never
+ * again. `audience` is who gets LIMITED sight.
+ * @returns {{ok: true, flag: object, bands: object, removed: string[], struck: string[], forced: object[], audit: object[]}|{ok: false, reason: string}}
  */
 export function planOpen(view, { audience, rng }) {
   if (!view) return refuse(REFUSAL.noPot);
@@ -475,9 +514,16 @@ export function planOpen(view, { audience, rng }) {
   const next = normalizePot(pot);
   next.phase = PHASE.open;
   next.audience = ids(audience);
-  next.order = placeAdds([...order, ...replace].filter((id) => !gone.has(id)), add.filter((id) => !gone.has(id)), rng);
+  const struck = new Set(deal.struck);
+  const slot = new Map();
+  for (const p of deal.replace) if (p.struck.length) slot.set(order.find((id) => p.struck.includes(id)), p.seedId);
+  const base = order.filter((id) => !gone.has(id) && (!struck.has(id) || slot.has(id))).map((id) => slot.get(id) ?? id);
+  const placed = new Set(slot.values());
+  const loose = [...replace, ...add].filter((id) => !gone.has(id) && !placed.has(id));
+  next.order = placeAdds(base, loose, rng);
   next.buckets = { add: [], replace: [] };
-  return { ok: true, flag: next, bands: deal.bands, removed: deal.removed, forced: deal.forced, audit: deal.audit };
+  next.replaced = deal.replace.map((p) => ({ seedId: p.seedId, struck: p.struck, shortGp: p.ok ? null : p.shortGp }));
+  return { ok: true, flag: next, bands: deal.bands, removed: deal.removed, struck: deal.struck, forced: deal.forced, audit: deal.audit };
 }
 
 /**
