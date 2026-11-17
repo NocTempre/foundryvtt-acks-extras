@@ -226,14 +226,19 @@ ones its slices need, once, and builds what they do not touch meanwhile.
   **Answered 2026-11-17: (a)** (§13, "Owner answers").
 - **OQ2, the Cat Burglary no-fall (A2, B11).** RR ch. 6 and RR ch. 3 state it
   differently. (a) Ch. 6 governs on this surface. (b) Ch. 3 governs. (c)
-  Either route exempts, and ch. 3's extras apply.
+  Either route exempts, and ch. 3's extras apply. **Answered 2026-11-17:
+  (a)** (§12, "Phase 3's questions").
 - **OQ3, where the Spelunking grid and its prose disagree (A2, A4).** (a) The
   grid governs. (b) The prose governs. (c) Clause by clause, the stricter.
+  **Answered 2026-11-17: (c), applied to conditions only** (§12, "Phase 3's
+  questions").
 - **OQ4, Mountaineering without its kit (A4, B11).** (a) The ch. 3 rule
-  applies everywhere. (b) Only where a ch. 6 cell names gear.
+  applies everywhere. (b) Only where a ch. 6 cell names gear. **Answered
+  2026-11-17: (a)** (§12, "Phase 3's questions").
 - **OQ5, which Acrobatics terms the landing save takes.** (a) The ch. 6 term
   only, read from the item's situational effect. (b) Both ch. 3 terms. (c) The
-  ch. 6 term plus the class-level term.
+  ch. 6 term plus the class-level term. **Answered 2026-11-17: (a)** (§12,
+  "Phase 3's questions").
 - **OQ6, the archived DECISIONS entries that state figures (C9).** (a) Leave
   them. (b) Amend the frozen archive. (c) Run the leak procedure.
 - **OQ7, what the UI pass covers.** (a) The crossing surface and the
@@ -587,7 +592,8 @@ built to those boards.
 
 ### Phase 3: the windows it joins, and the proficiency terms
 
-Asks OQ2 to OQ5 at its start. The UI slices are §10's findings.
+OQ2 to OQ5 were answered 2026-11-17 (§12, "Phase 3's questions"); it asks
+none of them again, and S24's brief puts OQ11. The UI slices are §10's findings.
 
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
@@ -1143,6 +1149,83 @@ reads these before its first agent:
   surface: written in `main`'s tree, by one `implementer`, before S12.
 - S10's shot is of a crossing a user set up through the section; Phase 1's
   fixtures (§13) are API-built and are not shot.
+
+### Phase 3's questions, put for one pass
+
+Phase 2 read RR ch. 3 and ch. 6 against §5's OQ2 to OQ5 (an `architect`,
+read-only, 2026-11-17) so the owner can answer all four in one reply, e.g.
+"2a 3c 4a 5a". No printed rule says which of two statements in the same book
+wins (a phrase search of the RR introduction, ch. 3 and ch. 6, not a full
+read), and "later printing wins" is between books only.
+**Answered 2026-11-17**, the owner's words relayed by the managing session:
+"Yes, all four", to taking the recommendations 2a, 3c (conditions only), 4a
+and 5a. Each question below carries its answer; OQ11 stays open. The test applied: an
+option is printed procedure when every clause it applies is printed and it
+drops none that bears on the case; the owner ruled no house rules ship.
+
+- **OQ2, the Cat Burglary no-fall.** Ch. 6 (grid and prose agree) lifts the
+  fall for a member holding both Climbing and Cat Burglary, at the base pace
+  only, and lifts the fall alone. Ch. 3 lifts it for a Cat Burglary holder
+  alone, at any pace; on the precarious path its wording can be read as a
+  success rule. **(a)** ch. 6's conditions. **(b)** ch. 3's (§5's (c) is the
+  same as (b): everyone ch. 6 exempts, ch. 3 exempts too). **(d)** ch. 6's
+  conditions, with ch. 3's precarious wording read as a success rule.
+  *Recommended: (a)* — the imported cell names both proficiencies, so the
+  exemption has one source and a Judge's override reaches it; (b) needs a
+  rule in source that contradicts the imported cell. *Strongest counter
+  (moderate):* ch. 3 is the proficiency's own grant, and under (a) a holder
+  without Climbing gains nothing on a narrow ledge. *Build:* S20 parses the
+  pair from the cell and reads the pace from S16. Under every option an
+  exempted miss lifts the fall and does not advance, which `obstacleStep`
+  answers as stalled; ch. 3's other Cat Burglary terms apply whatever the
+  answer. **Answered: (a).**
+- **OQ3, where the Spelunking grid and its prose disagree.** Mostly one side
+  is silent where the other prints a condition: the prose adds the base-pace
+  condition to the exemptions on five columns, and the grid's cells name gear
+  on the rappel and the crawl. One real conflict: the grid's proficiency row
+  admits Mountaineering on the precarious path, the prose Climbing only.
+  **(a)** the grid. **(b)** the prose. **(c)** every printed condition
+  applies (pace and gear both), and on the precarious path Climbing only.
+  *Recommended: (c), applied to conditions only* — (a) and (b) each drop a
+  printed clause; "the stricter" is not extended to who may try, which would
+  also refuse the supervised and assisted routes the grid admits. *Strongest
+  counter (moderate):* the prose's rappel sentence reads as unconditional,
+  though the grid on the same page prints the gear. *Build:* S20 parses
+  proficiencies and gear per cell, gear being S24's per-member input, and
+  waits on S16's pace pick. **Answered: (c), conditions only.**
+- **OQ4, Mountaineering without its kit.** Ch. 3 makes its kit the
+  condition for the leader's and the party's level-based throws, and refuses
+  a sheer climb without it. Ch. 6 names gear only in the exemption for a
+  member holding Climbing and Mountaineering. **(a)** the kit gates every
+  Mountaineering benefit. **(b)** only the exemption. *Recommended: (a)* —
+  it reads the page whole; (b) is a house rule on the sheer face, where
+  ch. 3 says no. *Strongest counter (moderate; weak on the sheer face):*
+  ch. 6 is the procedure the surface performs and names gear selectively.
+  *Build:* S24's rows (the kit, the party cap; blank with their page
+  reference until imported); under (a) a Mountaineering member counts as
+  proficient only with the kit, the supervised and assisted routes need the
+  leader's kit and each member's, a missing kit warns a Judge and blocks a
+  player. A per-member gear control is a visible control: `/design` first.
+  **Answered: (a).**
+- **OQ5, which Acrobatics terms the landing save takes.** Ch. 6 names one
+  term for the landing; ch. 3 grants two save terms under different
+  conditions, the agility term and a class-level term against falling down.
+  Each procedure in the book names one of the two, never both, and the
+  landing names the agility term. **(a)** the agility term only, read from
+  the proficiency's situational save effect. **(b)** both. (§5's (c) is
+  (b) if the ch. 6 term is the agility term restated.) *Recommended: (a)*
+  — the landing names one term, and the archived 2026-08-15 ruling (in
+  force) holds that the save bonus belongs to the proficiency. *Strongest
+  counter (moderate):* a failed landing on solid ground leaves the jumper
+  prone, which is the class-level term's own condition. *Build:* S26
+  replaces `NO_ACROBATICS.saveBonus` at `rowFor`, no import needed; (b) adds
+  the actor's level, which `rowFor` already reads. **Answered: (a).**
+
+Not asked by §5 and found on the way: whose level an assisted member throws
+at on the rappel and the crawl (ch. 6 prose: the member's own; ch. 3
+Mountaineering: the mountaineer's) — S24 needs it, so it is put as
+**OQ11**, (a) the member's own, (b) the mountaineer's, with no
+recommendation until S24's brief reads both passages in full.
 
 ## 13. Phase 1 results
 
