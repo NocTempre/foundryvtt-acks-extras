@@ -196,3 +196,25 @@ level 1 matrix, LOCAL-ONLY.
 - **Next:** B4 (a word with the Treasure Tome session first), then B2 once the
   spell-effects line has answered on ruling 6; B6 waits on R1-R3 and owner
   question B.
+
+### Results, B4 (2026-11-17)
+
+- **Landed** on `main` as `c8eeaac9` (not pushed), as built: the owner's
+  "get the done code released" overrode moving it into the per-book layout
+  first; new book-specific importer code goes under
+  `scripts/importer/books/<id>/` once that seam lands. The `boxed` wrap mode
+  stands beside the Treasure Tome's `centered` (agreed with that session; a
+  later cleanup may fold them).
+- **Offline:** test-grid-rows 73, test-recipe-content 187 tables (local),
+  test-recipe-pages 2415, npm test 247 suites, validate; the treasure and
+  magic-item table checks pass on the merged extractor.
+- **Walk, importer TESTING "The gnostic tables", steps 1-3,** on main from
+  the seat's own BTA PDF (seat lane, `FIXTURE_OWN`, partial): the gnosis-only
+  import ran with no page notice; the five tables read their full shapes with
+  no empty or missing row, the mishap table's thirty cells each a whole
+  sentence; each cites its BTA page; the Ruledata Browser lists and renders
+  the five with cites. 13 of 13 observables (one check first misread the pace
+  table's named fields as missing columns). **Not walked:** step 4, the import
+  with the book closed.
+- **Owner, 2026-11-17:** "Wait for 1b's seam" for the invocation throw (B7),
+  and no new BTA slice starts until the minor ships.
