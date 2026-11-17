@@ -7486,6 +7486,7 @@
   "ACKS-FORMATION.crossing.relay.notOwner": "{name} is not yours to throw for.",
   "ACKS-FORMATION.crossing.relay.settled": "{name} has nothing left to throw.",
   "ACKS-FORMATION.crossing.relay.member": "{name} is no longer in the party.",
+  "ACKS-FORMATION.crossing.relay.unnamed": "That member",
   "ACKS-FORMATION.crossing.card.title": "{kind}",
   "ACKS-FORMATION.crossing.card.overRefusal": "Thrown over a refusal: {reason}",
   "ACKS-FORMATION.crossing.card.overRefusalBare": "Thrown over a refusal",

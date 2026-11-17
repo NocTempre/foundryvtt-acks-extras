@@ -1,0 +1,1 @@
+- A crossing's refusal names the member it refuses, and a player who asks to move a member the party no longer holds is told so (the party sheet's Crossing panel, Actors sidebar → the party actor). The panel's buttons follow ACKS font size (Settings tab → Game Settings → ACKS II — Extras).

@@ -2140,6 +2140,7 @@
 .acks-extras.party-sheet .acks-extras-crossing button {
   flex: 0 0 auto;
   width: auto;
+  font-size: 1em;
   padding: 0 8px;
   line-height: 1.7;
   white-space: nowrap;

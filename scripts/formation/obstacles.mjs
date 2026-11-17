@@ -205,7 +205,7 @@ export function readThrow({ plan, natural, total }) {
   const band = botchBand(kind);
   const botch = band !== null && Number.isFinite(natural) && natural >= band.min && natural <= band.max;
   const success = !botch && total >= plan.target;
-  if (success) return { ok: true, success: true, outcome: "progress", ends: false, vulnerable };
+  if (success) return { ok: true, success: true, outcome: "progress", ends: false, botch: false, vulnerable };
   const outcome = obstacleOutcome(kind, botch ? "botch" : "fail");
   return {
     ok: true,

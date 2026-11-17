@@ -312,7 +312,7 @@ function refusalText(refusal, actor) {
 export function relayRefusalWords(reason, actor) {
   const key = SETTLED.includes(reason) ? "settled" : reason;
   for (const path of [`ACKS-FORMATION.crossing.relay.${key}`, `ACKS-FORMATION.crossing.refusal.${key}`]) {
-    if (game.i18n.has(path)) return game.i18n.format(path, { name: actor?.name ?? "?" });
+    if (game.i18n.has(path)) return game.i18n.format(path, { name: actor?.name ?? game.i18n.localize("ACKS-FORMATION.crossing.relay.unnamed") });
   }
   return "";
 }

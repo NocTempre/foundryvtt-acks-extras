@@ -305,7 +305,12 @@ async function executeRequest(formation, user, type, payload) {
       const actorId = typeof payload.actorId === "string" ? payload.actorId : null;
       const actor = actorId ? game.actors.get(actorId) : null;
       const refuse = (reason) => whisperCrossingRefusal(formation, user, reason, actor);
-      if (!actorId || !userOwnsMember(formation, user, actorId)) return refuse("notOwner");
+      if (!actorId) return refuse("notOwner");
+      // An actor the player owns that the party no longer holds is told so, not
+      // called someone else's; an actor they do not own learns nothing more.
+      if (!userOwnsMember(formation, user, actorId)) {
+        return refuse(actor?.testUserPermission?.(user, "OWNER") ? "member" : "notOwner");
+      }
       // The crossing id the requester saw, or "" for none, which matches no crossing.
       const crossingId = typeof payload.crossingId === "string" ? payload.crossingId : "";
       // The declaration is made once every check has passed and the member's
