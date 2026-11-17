@@ -423,7 +423,12 @@ show through Dice So Nice to the Judges.
 - **Focus.** `PressFocus` returns focus to a pressed `[data-action]` control after the
   render, wired by hand as `lib/frame.mjs` wires it. A Used-for select is no action
   control, so the window remembers the item and field a change was made in and
-  focuses that select after the render, until focus is held again.
+  focuses that select after the render, until focus is held again; the change also
+  drops a press still remembered, so a ruling pressed just before does not take the
+  focus back.
+- **Ladders.** The first draw reads the skill ladders fresh (`refreshLadders`, which
+  opens every world compendium); later draws read the cache the item hooks keep, so a
+  redraw stays inside the press-focus window.
 - **Corner.** The drag corner is the lib's `window-resize.mjs`, granted by the
   window's `acks-extras` class; the window declares none.
 

@@ -1,6 +1,6 @@
 /* global game, foundry, fromUuidSync, Hooks, document */
 import { atTypeScale, elementOf, escape as esc, makeLoc } from "../lib/util.mjs";
-import { PRESS_FOCUS_TTL_MS, PressFocus } from "../lib/press-focus.mjs";
+import { PressFocus } from "../lib/press-focus.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import {
   abilityKey,
@@ -18,6 +18,14 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/**
+ * How long a Used-for change keeps its select remembered for the render it
+ * causes. The audit's render reads the ladders fresh and can outlast the press
+ * window `press-focus.mjs` gives an action control, so a select waits longer;
+ * focus held anywhere else drops it sooner.
+ */
+const FIELD_FOCUS_MS = 10000;
 
 /** The window id every Skill audit takes before its party's id is added. */
 const AUDIT_ID_ROOT = "acks-formation-skill-audit";
@@ -218,21 +226,27 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
     if (!pending) return;
     const doc = root.ownerDocument;
     const held = doc.activeElement && doc.activeElement !== doc.body && doc.activeElement !== doc.documentElement;
-    if (held || Date.now() - pending.at > PRESS_FOCUS_TTL_MS) {
+    if (held || Date.now() - pending.at > FIELD_FOCUS_MS) {
       this.#fieldFocus = null;
       return;
     }
     const field = [...root.querySelectorAll("[data-item-uuid][data-field]")].find(
       (el) => el.dataset.itemUuid === pending.uuid && el.dataset.field === pending.field,
     );
-    field?.focus({ preventScroll: true });
+    if (!field) return;
+    field.focus({ preventScroll: true });
+    // One write can draw the window more than once; each draw that puts focus
+    // back keeps the select remembered for the next.
+    pending.at = Date.now();
   }
 
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    // Reads the ladders fresh, not from the hook-invalidated cache.
-    await refreshLadders();
+    // The first draw reads the ladders fresh; later draws read the cache the
+    // item hooks keep. A fresh read opens every world compendium, which takes
+    // seconds, so on every draw it would outlast the press-focus window.
+    if (options.isFirstRender) await refreshLadders();
     const formation = this.formation;
     context.formation = formation;
     if (!formation) return context;
@@ -299,6 +313,9 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         const { itemUuid, field } = event.currentTarget.dataset;
         const item = fromUuidSync(itemUuid);
         if (!item) return;
+        // The select replaces any press still remembered: noting a control that
+        // is no action drops it, so the render returns focus here, not there.
+        this.#press.note(event.currentTarget, this.element);
         this.#fieldFocus = { uuid: itemUuid, field, at: Date.now() };
         const value = event.currentTarget.value;
         if (value === "" || value === null) await item.unsetFlag(MODULE_ID, field);
@@ -307,7 +324,8 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         if (field === "checkKey" && value) {
           await item.setFlag(MODULE_ID, "isSkill", true);
         }
-        this.render();
+        // The item watch draws the window again; a render of its own here would
+        // be one more render inside the focus window.
       });
     }
   }

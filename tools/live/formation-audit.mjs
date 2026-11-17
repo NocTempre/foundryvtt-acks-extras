@@ -73,6 +73,26 @@ const P = {
     H.model = await import(`${base}formation/formation-model.mjs`);
     H.audit = await import(`${base}formation/skill-audit.mjs`);
     H.F = acksExtras.formation;
+    // Every audit render, counted, so a step waits for the redraw it causes instead of a fixed sleep.
+    if (!H.renderWatch) {
+      H.renderWatch = true;
+      H.renders = 0;
+      H.lastRender = 0;
+      // With `H.watchId` set, only that audit's renders count: another party's open audit draws for its own members.
+      H.renderLog = [];
+      Hooks.on("renderSkillAuditApp", (app) => {
+        H.renderLog.push({ at: Date.now(), id: app.id });
+        if (H.watchId && app.id !== H.watchId) return;
+        H.renders += 1;
+        H.lastRender = Date.now();
+      });
+    }
+    /** Wait for a render after `n0`, then for the renders to stop. */
+    H.settle = async (n0, quiet = 1200) => {
+      const drew = await H.poll(() => H.renders > n0, { tries: 100, every: 200 });
+      if (drew) await H.poll(() => Date.now() - H.lastRender > quiet, { tries: 100, every: 200 });
+      return !!drew;
+    };
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0]) ?? null;
     if (!H.notes) {
       H.notes = [];
@@ -385,7 +405,7 @@ const P = {
     await H.sleep(300);
     const before = foundry.applications.instances.get(H.audit.auditWindowId(fid)) ?? null;
     H.root(sheet)?.querySelector('[data-action="openSkillAudit"]')?.click();
-    const app = await H.poll(() => { const a = foundry.applications.instances.get(H.audit.auditWindowId(fid)); return a?.rendered ? a : null; }, { tries: 60, every: 150 });
+    const app = await H.poll(() => { const a = foundry.applications.instances.get(H.audit.auditWindowId(fid)); return a?.rendered ? a : null; }, { tries: 200, every: 200 });
     await H.sleep(400);
     await sheet.close({ animate: false });
     return { id: app?.id ?? null, same: !!before && before === app, audits: [...foundry.applications.instances.values()].filter((a) => a.constructor.name === "SkillAuditApp").map((a) => a.id) };
@@ -413,17 +433,38 @@ const P = {
     await H.sleep(800);
     return { pressed: true, since };
   },
+  /* Each write below waits for the audit's redraw (or for none, `drew: false`) before it returns. */
   itemCreate: async ({ actorId, data }) => {
+    const H = globalThis.__aud;
+    const n0 = H.renders;
+    const since = Date.now();
     const [item] = await game.actors.get(actorId).createEmbeddedDocuments("Item", [data]);
-    return { id: item.id, uuid: item.uuid };
+    const drew = await H.settle(n0);
+    return { id: item.id, uuid: item.uuid, drew, drawn: H.renderLog.filter((r) => r.at >= since).map((r) => (r.id === H.watchId ? "watched" : "other")), watching: !!H.watchId };
   },
-  itemRename: async ({ uuid, name }) => { await fromUuidSync(uuid).update({ name }); return true; },
-  itemDelete: async ({ uuid }) => { await fromUuidSync(uuid)?.delete(); return true; },
+  itemRename: async ({ uuid, name }) => {
+    const H = globalThis.__aud;
+    const n0 = H.renders;
+    await fromUuidSync(uuid).update({ name });
+    return { drew: await H.settle(n0) };
+  },
+  itemDelete: async ({ uuid }) => {
+    const H = globalThis.__aud;
+    const n0 = H.renders;
+    await fromUuidSync(uuid)?.delete();
+    return { drew: await H.settle(n0) };
+  },
   dropMember: async ({ fid, actorId }) => {
     const H = globalThis.__aud;
+    const n0 = H.renders;
     await H.model.removeMember(H.model.getFormation(fid), actorId);
-    return H.model.getFormation(fid).members.filter((m) => m?.actorId).map((m) => m.actorId);
+    return { members: H.model.getFormation(fid).members.filter((m) => m?.actorId).map((m) => m.actorId), drew: await H.settle(n0) };
   },
+  renderCount: async () => globalThis.__aud.renders,
+  /** Wait until the watched audit has drawn nothing for `ms`: a write's last redraw can trail its first. */
+  quiet: async ({ ms }) => { const H = globalThis.__aud; return !!(await H.poll(() => Date.now() - H.lastRender > ms, { tries: 150, every: 200 })); },
+  watchAudit: async ({ fid }) => { const H = globalThis.__aud; H.watchId = fid ? H.audit.auditWindowId(fid) : null; return H.watchId; },
+  settleAfter: async ({ n0 }) => globalThis.__aud.settle(n0),
   /** Scroll the body down, press a ruling with a real click on a focused button, and read scroll and focus back. */
   scrollFocus: async ({ fid, name }) => {
     const H = globalThis.__aud;
@@ -437,15 +478,16 @@ const P = {
     const top0 = body.scrollTop;
     const press = async () => {
       const button = H.root(app).querySelector(`[data-ability-name="${name}"] [data-action="toggleAbility"]`);
+      const n0 = H.renders;
       button.focus();
       button.click();
-      await H.sleep(900);
+      return { drew: await H.settle(n0, 600), replaced: !button.isConnected };
     };
-    await press();
+    const first = await press();
     const body1 = H.root(app).querySelector(".acks-formation-body");
     const active = document.activeElement;
     const out = {
-      scrolls, top0, top1: body1.scrollTop, sameBody: body1 === body,
+      scrolls, top0, top1: body1.scrollTop, sameBody: body1 === body, drew: first.drew, replaced: first.replaced,
       focus: { action: active?.dataset?.action ?? null, row: active?.closest?.("[data-ability-name]")?.dataset.abilityName ?? null, inWindow: root.contains(active) },
     };
     // Two more presses bring the ruling round to automatic.
@@ -462,18 +504,25 @@ const P = {
     const select = pick();
     if (!select) return { found: false };
     const was = select.value;
+    // A binding also turns the item's Skill flag on; the step puts both back.
+    const item = fromUuidSync(itemUuid);
+    const wasSkill = item.getFlag("acks-extras", "isSkill");
     const other = [...select.options].map((o) => o.value).find((v) => v && v !== was);
+    let n0 = H.renders;
     select.focus();
     select.value = other;
     select.dispatchEvent(new Event("change", { bubbles: true }));
-    await H.sleep(1200);
-    const focused = document.activeElement === pick();
+    const drew = await H.settle(n0, 600);
+    const focused = document.activeElement === pick() && !select.isConnected;
     const back = pick();
+    n0 = H.renders;
     back.focus();
     back.value = was;
     back.dispatchEvent(new Event("change", { bubbles: true }));
-    await H.sleep(1200);
-    return { found: true, focused, restored: pick()?.value === was, changedTo: !!other };
+    await H.settle(n0, 600);
+    if (wasSkill === undefined) await item.unsetFlag("acks-extras", "isSkill");
+    else await item.setFlag("acks-extras", "isSkill", wasSkill);
+    return { found: true, drew, focused, restored: pick()?.value === was, changedTo: !!other };
   },
   /** Narrow the window and read the resolution table's sideways scroll. */
   columns: async ({ fid }) => {
@@ -790,40 +839,39 @@ try {
 
     // Redraw: an ability item created, renamed and deleted on a member; one on an outsider; a member leaving and rejoining.
     const probe = { name: "QA Audit Probe", type: "ability", system: { roll: "1d20", rollType: "above", rollTarget: 11 } };
+    await run(gm, P.watchAudit, { fid });
     const made = await run(gm, P.itemCreate, { actorId: members[0].id, data: probe });
     tracked.push(gm.track(made.uuid, "Item"));
-    await sleep(700);
     let rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: an ability created on a member shows with no reopen", rows?.abilities.includes("QA Audit Probe"), rows?.abilities);
-    await run(gm, P.itemRename, { uuid: made.uuid, name: "QA Audit Probe Renamed" });
-    await sleep(700);
+    const had3 = !!rows?.members.some((t) => t?.includes("QA Auditor 3"));
+    check("7 redraw: an ability created on a member shows with no reopen", made.drew && rows?.abilities.includes("QA Audit Probe"), { drew: made.drew, rows: rows?.abilities });
+    const renamed = await run(gm, P.itemRename, { uuid: made.uuid, name: "QA Audit Probe Renamed" });
     rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: renaming it redraws the row", rows?.abilities.includes("QA Audit Probe Renamed") && !rows.abilities.includes("QA Audit Probe"), rows?.abilities);
-    await run(gm, P.itemDelete, { uuid: made.uuid });
-    await sleep(700);
+    check("7 redraw: renaming it redraws the row", renamed.drew && rows?.abilities.includes("QA Audit Probe Renamed") && !rows.abilities.includes("QA Audit Probe"), { drew: renamed.drew, rows: rows?.abilities });
+    const deleted = await run(gm, P.itemDelete, { uuid: made.uuid });
     rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: deleting it takes the row away", !!rows && !rows.abilities.some((n) => n.startsWith("QA Audit Probe")), rows?.abilities);
-    const foreign = await run(gm, P.itemCreate, { actorId: outsider.id, data: { ...probe, name: "QA Outsider Probe" } });
+    check("7 redraw: deleting it takes the row away", deleted.drew && !!rows && !rows.abilities.some((n) => n.startsWith("QA Audit Probe")), { drew: deleted.drew, rows: rows?.abilities });
+    await run(gm, P.quiet, { ms: 5000 });
+    const foreign = await run(gm, P.itemCreate,{ actorId: outsider.id, data: { ...probe, name: "QA Outsider Probe" } });
     tracked.push(gm.track(foreign.uuid, "Item"));
-    await sleep(700);
     rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: an ability on an actor outside the party adds no row", !!rows && !rows.abilities.includes("QA Outsider Probe"), rows?.abilities);
+    check("7 redraw: an ability on an actor outside the party draws nothing and adds no row", !foreign.drew && !!rows && !rows.abilities.includes("QA Outsider Probe"), { drew: foreign.drew, drawn: foreign.drawn, watching: foreign.watching, rows: rows?.abilities });
     note("outsider probe swept", await sweepNow(gm, [foreign.uuid]));
-    await run(gm, P.dropMember, { fid, actorId: members[2].id });
-    await sleep(800);
+    const left = await run(gm, P.dropMember, { fid, actorId: members[2].id });
     rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: a member leaving is gone from the open window", !!rows && !rows.members.some((t) => t?.includes("QA Auditor 3")) && rows.members.some((t) => t?.includes("QA Auditor 1")), rows?.members);
+    check("7 redraw: a member leaving is gone from the open window", had3 && left.drew && !!rows && !rows.members.some((t) => t?.includes("QA Auditor 3")) && rows.members.some((t) => t?.includes("QA Auditor 1")), { had3, drew: left.drew, rows: rows?.members });
+    const n0 = await run(gm, P.renderCount);
     await run(gm, P.seat, { partyId: party.id, fid, actorIds: members.map((m) => m.id) });
-    await sleep(800);
+    const rejoinDrew = await run(gm, P.settleAfter, { n0 });
     rows = await run(gm, P.auditRows, { fid });
-    check("7 redraw: the member rejoining shows again", !!rows && rows.members.some((t) => t?.includes("QA Auditor 3")), rows?.members);
+    check("7 redraw: the member rejoining shows again", rejoinDrew && !!rows && rows.members.some((t) => t?.includes("QA Auditor 3")), { drew: rejoinDrew, rows: rows?.members });
 
     // Scroll and focus.
     const sf = await run(gm, P.scrollFocus, { fid, name: ABILITY });
-    check("7 scroll: the body part is the scroller and keeps its position across a ruling's render", sf.scrolls && sf.top0 > 0 && Math.abs(sf.top1 - sf.top0) <= 2, sf);
+    check("7 scroll: the body part is the scroller and keeps its position across a ruling's render", sf.drew && sf.replaced && sf.scrolls && sf.top0 > 0 && Math.abs(sf.top1 - sf.top0) <= 2, sf);
     check("7 focus: after the ruling, focus is on that row's ruling button", sf.focus.action === "toggleAbility" && sf.focus.row === ABILITY && sf.focus.inWindow, sf.focus);
     const sel = await run(gm, P.selectFocus, { fid, itemUuid: null });
-    check("7 focus: after a Used-for change, focus is on that select, and the value went back", sel.found && sel.changedTo && sel.focused && sel.restored, sel);
+    check("7 focus: after a Used-for change, focus is on that select, and the value went back", sel.found && sel.changedTo && sel.drew && sel.focused && sel.restored, sel);
 
     // Columns and type.
     const col = await run(gm, P.columns, { fid });
