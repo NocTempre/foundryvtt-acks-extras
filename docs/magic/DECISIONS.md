@@ -165,3 +165,25 @@ as the declaration, since a Player cannot write it. *Cost:* a misclicked
 declaration is spent (the Judge lowers core's count by hand); a declaration made
 after the caster's turn waits for the next round's turn; a Judge's second
 declaration replaces the first, which stays spent.
+
+## 2026-11-17 — A cast's save meets defenses over the spell's rows, not the rolled ones
+
+The damage a target's save resists (plan ruling 71) is the union of the types of
+the spell's own damage rows for the mode and picks that the save governs, whether
+or not a row's figure was read. The cast and the relay both compute it the same
+way from the spell, so the throw the relay recomputes is the throw that was
+rolled; a union built from the rows the card opened could not be reproduced on
+the GM's client without trusting the card. An unstated quality is stated only
+where every such row states the same one, else it is undetermined and a band that
+waits on it is the Judge's. A defense case the module does not price changes no
+number: the resist lists it as `defensePending` and the card's save tooltip says
+so, so a throw that went undefended is never silent about it.
+
+*Rejected:* building the union from the card's rows (the relay cannot check it);
+skipping rows whose figure is blank (a second source of truth for the relay to
+reproduce). *Cost:* a spell with a damage row whose figure was left unread beside
+a damage row of another type reads as dealing both types, so a defense covering
+only the rolled row's type is partial and the save is rolled; and a spell whose
+save effect the module cannot price (neither negation nor half) is the Judge's
+before its defense stage, so an immune target of such a spell is also the
+Judge's.

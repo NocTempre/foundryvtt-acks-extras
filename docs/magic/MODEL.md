@@ -363,6 +363,21 @@ cancel at any point before the spend costs nothing:
    only a card line call for none. A row's `saveEffect`
    wins over the spell's. A passed save leaves nothing (negates) or half (half);
    any other effect is left to the Judge (`saveFractionOf`).
+
+   *The save meets the target's defenses.* The throw is made against the damage it
+   resists: `resistedDamage` is the union of the types of the spell's own damage
+   rows for the mode and picks that the save governs (no throw decides the row and
+   it is not the caster's own), and its extraordinary mark where every such row
+   states the same one, else none. A condition alone resists no damage and the
+   throw meets no defense. `lib/saves.mjs` adds the target's defenses against it
+   (lib MODEL, "Damage against defenses"): a creature immune to every type passes
+   with no roll (the resist is `{success: true, total: null, auto: {label,
+   source, types, cite}}`), a resistant one gains resistance's save modifier as a
+   labelled part, and a case the module does not price (a blank figure, a defense
+   covering only some of the types dealt, an unstated quality a band waits on) is
+   listed on the resist as `defensePending` and changes nothing in the number.
+   A spell whose rows deal different types is thus saved by a defense only when
+   the target's defenses cover all of them.
 7. *The card* (`cast-card.mjs`): lib's roll card, one section per rolled row, one
    row per target, one entry per target and row in `flags["acks-extras"].castCard`,
    rewritten per seat by a `renderChatMessageHTML` hook. The caster's own record
@@ -373,8 +388,21 @@ cancel at any point before the spend costs nothing:
    flag-timed by the cap where there is one. For any other duration it is written
    only where the duration is timed and a row lasts.
 8. *The application* (`cast-apply.mjs`), where the seat had targets, for each
-   target on the right client. The amount is the roll through the save's fraction
-   and then `amountAfter`'s one rounding, to `adjustHp` with multiplier 1; a
+   target on the right client. The amount is the roll through the save's fraction,
+   then the target's defenses, then `amountAfter`'s one rounding, to `adjustHp`
+   with multiplier 1. The defense stage is `defenseStage` over `actorDefenses` of
+   the actor the writing client resolves (read there, as it stands) and the types
+   and extraordinary mark of the spell's own keyed row; a heal row takes no stage
+   and neither does a condition row. An immune target is 0 and writes nothing; a
+   case the module does not compute (lib MODEL, "Damage against defenses") is the
+   Judge's, in the state the partial save already has: no amount is written, and
+   the entry keeps `defense {label, band, types, source, cite, why}`. An entry
+   stores every step (`steps`: the fraction, each defense, the rounding). The
+   card's tooltip on an applied figure lists the roll, each step and the amount
+   applied; a defense is named there, on the save's part and on the line of a
+   Judge's case to a Judge and to the target's owners, and every other seat reads
+   "a defense" with the figures. A Judge's case reads the defense and its page
+   reference on the line, with the page reference alone as the tooltip. A
    condition row writes a status-only record per condition (at most one status
    to a record, never with changes), timed by the row's `lasts` from the cast's
    duration; a failed save runs `loseStates` first, so the cast's own grant is
@@ -394,8 +422,12 @@ spell's rows for the card's mode and picks, each amount is within the bounds of
 the row's own roll as recomputed there (a thrown row keeps the system's floor of
 one and doubles its dice on a critical; a modifier or ward row has none), the
 target's save is recomputed against the caster and the caster's token the card
-keeps (`casterTokenUuid`, read only where it is a token of that caster) and its
-total lies within its formula, a weapon the card names is a weapon of the
+keeps (`casterTokenUuid`, read only where it is a token of that caster) and the
+damage its save resists (`resistedDamage` over the spell's own rows), so the
+target's defenses join the recomputed throw as they joined the rolled one, and its
+total lies within its formula (a save the card keeps as an `auto` pass has no roll:
+it stands only where the GM's client recomputes the same pass from the target's
+defenses, and neither the card's word nor the request's is enough), a weapon the card names is a weapon of the
 target's actor (`badItem`), a request naming one entry of a modifier group
 names every open entry of it (`badGroup`), and the entry is neither written nor
 in flight. Every record is built from the spell's own rows for the card's mode
@@ -403,7 +435,10 @@ and picks, never from the card's display rows, on whichever client writes: the
 GM's client recomputes the duration from the spell and the card's caster level
 (a `dice` duration cannot be recomputed, so the card's figure stands where it
 lies between the formula's extremes, else the shortest), and reads the spell's
-id, page and the caster's alignment from the documents. With no GM connected the entry stays
+id, page and the caster's alignment from the documents, and the amount is the one
+the seat's path makes, with the defenses read from the target's actor on the GM's
+client (step 8); nothing of it is taken from the request but the rolled figure within
+its bounds. With no GM connected the entry stays
 pending and the card's Apply stays. A card cast with nothing targeted posts the
 rolls and an Apply that takes the presser's targets; a thrown row waits on a
 Throw press. Apply and Throw are for a GM and the user who cast; Undo is the

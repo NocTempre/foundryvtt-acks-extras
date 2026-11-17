@@ -529,6 +529,73 @@ slots at zero.
     the pending record is still there at the turn, deleted when the turn ends,
     the flag is clear, and the spend stands.
 
+### The defense steps
+
+Damage against a target's immunities, resistances and susceptibilities, for a
+cast and for a weapon hit (lib MODEL, "Damage against defenses"). The spell is
+`magic/cast-spell-damage` (a flat roll, a half save, no throw), cast by the Player
+at one targeted token at a time. The walk reads the type its damage row lists
+(`rowsOf(spell)`, the row's `damage`) and writes it into the bands below; it never
+types a figure or a type of its own, and asserts relations.
+
+Fixtures, found by marker and kept. Each step starts by writing the shape it needs
+on the stat block (`flags.acks-extras.extras.defenses`: each of `immunities`,
+`resistances` and `susceptibilities` with `damage` set to the row's type, the
+quality flags false, no `note`) and by resetting the hit points to 20, since a
+kept fixture carries whatever the last walk left.
+
+| Marker | What it is |
+|---|---|
+| `magic/defense-immune` | A GM-owned monster, a hostile linked token on `magic/cast-scene`, whose `immunities` band lists the row's type. |
+| `magic/defense-resistant` | The same, whose `resistances` band lists it. |
+| `magic/defense-susceptible` | The same, whose `susceptibilities` band lists it and whose `factor` the step writes (a whole number above 1). |
+
+The `defenses` document's resistance figures (`fraction` and `saveBonus`, read with
+`defenseFigures()` in page context) are the import's where the world has them;
+where they are blank the resistant steps walk the Judge path, and the report says
+which path ran. The walk never writes a figure into the Ruledata Browser.
+
+18. **Immune.** Cast at `magic/defense-immune`. The target passes its save with no
+    roll. *Observable:* the stored resist has `auto` and a null `total`, the card's
+    save column reads the lang string for Auto, the entry is `applied` with
+    `applied` 0, its `steps` hold one defense step whose `band` is `immunities`
+    and whose `types` are the row's, and the hit points stay 20 with no write. The
+    GM's tooltip on the figure names the source; the Player's, who owns neither
+    the token nor its actor, reads the lang string for "a defense", and the stored
+    card content names neither.
+19. **Resistant.** Cast at `magic/defense-resistant`. With the figures imported:
+    the save's target is the base less `saveBonus` (a part labelled by the band),
+    and with the save failed and then passed (the dice rigged both ways) the
+    applied amount equals the rolled amount through the fraction, the resistance
+    and one half-even rounding, read back from `steps` and checked against
+    `amountAfter` run in page context over the same figures. With them blank: the
+    save's target is the base, the resist lists `defensePending`, the entry is
+    `judge` with a `defense` whose `why` is `figure`, the hit points stay 20, the
+    line names the defense and the page reference and its tooltip is that
+    reference alone, and no Apply shows on it.
+20. **Susceptible, and the cases between.** Cast at `magic/defense-susceptible`
+    with the factor written: the applied amount is the rolled amount times the
+    factor, through the same rounding. With `factor` blank the entry is `judge`
+    (`why` `figure`). With the row's own type in the susceptibility band and in
+    the resistance band at once, the entry is `judge` too (`why` `mixed`), and
+    so is the row's mark read as unstated against a band that sets a quality flag
+    (`why` `quality`).
+21. **The relay.** The Player casts at a token it does not own: the GM's client
+    applies the same amount the owner's path would, read from the target's actor
+    on the GM's client, and the entry's `by` is the Player. *Observable:* the
+    entry matches step 19's relations; a request the walk sends with an `auto`
+    resist at the resistant target (where the GM's client recomputes no pass) is
+    answered `badResist` and writes nothing.
+22. **A weapon hit's Apply.** The weapon stamp carries the weapon's own types
+    (`system.damage.base`), not the spell's, so the step first rewrites the three
+    bands to those types. The GM's weapon attack at each of the three targets
+    (the dice rigged to hit) leaves a card with no core `applyDamage` button and
+    the lib block under it. *Observable:* an Apply at the amount `planAttackApply`
+    gives in page context at the immune and susceptible targets; no Apply, and the
+    defense named with its page, at a target on the Judge path. Pressing Apply
+    writes once and Undo puts the hit points back. A carrier's card (a spell's
+    thrown row) has no block, since the cast applies it.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2
@@ -619,3 +686,8 @@ The held and declaration steps add: the caster's held records of the run's casts
 are deleted first, by their cast ids, and the funnel's own cards of those casts
 (found by the `castHeldEnd` flag, the cast ids and the run's start) are tracked
 with the rest; the run's Combat is tracked by its uuid and swept with them.
+
+The defense steps add the cast cards and the weapon attack cards they posted, each
+tracked by its id as it is made, and the hit points are reset to 20 on the
+three fixtures, which stay. A band the steps wrote on a fixture is rewritten by the
+next walk's first step, never deleted by a search for it.

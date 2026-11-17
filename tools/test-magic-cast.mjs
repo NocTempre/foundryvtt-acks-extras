@@ -9,6 +9,7 @@
  * Usage: node tools/test-magic-cast.mjs
  */
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 globalThis.foundry = { utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) } };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
@@ -23,7 +24,9 @@ globalThis.Roll = class {
   }
 };
 
-const { rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows } = await import("../scripts/magic/cast-rows.mjs");
+const { rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows, damageOfRow, resistedDamage } = await import("../scripts/magic/cast-rows.mjs");
+const Tables = await import("../scripts/lib/tables.mjs");
+const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/magic/cast-capacity.mjs");
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
@@ -634,6 +637,291 @@ t("amountOf prices a row through its save and a throw row ignores the spell's sa
 });
 
 /* ------------------------------------------------------------------ */
+/*  Damage against defenses (every creature, band and figure invented) */
+/* ------------------------------------------------------------------ */
+
+/** A stored defense band, as the sheet and the importer write one. */
+const band = (b = {}) => ({ damage: [], effects: [], conditions: [], mundane: false, extraordinary: false, silverFlaw: false, note: "", ...b });
+/** An invented creature whose stat block carries the given bands. */
+const defended = (name, { immune, resist, weak } = {}) => ({
+  name,
+  id: "a1",
+  type: "monster",
+  system: { saves: { spell: { value: 14 } } },
+  effects: [],
+  getFlag: (s, k) => (s === "acks-extras" && k === "extras" ? { defenses: { immunities: band(immune), resistances: band(resist), susceptibilities: band(weak) } } : undefined),
+});
+/** The resistance figures an import registers; invented stand-ins. */
+const FRACTION = 0.7;
+const SAVE_BONUS = 6;
+const importResistance = () => Tables.registerTable({ id: DEFENSES_DOC, source: { pages: "ZZ p. 4" }, tables: { [RESISTANCE_TABLE]: { fraction: FRACTION, saveBonus: SAVE_BONUS } } }, { priority: Tables.PRIORITY.WORLD });
+const forgetResistance = () => Tables.unregisterTable(DEFENSES_DOC);
+/** The spell's own row: its types and its mark are what the stage reads. */
+const SCORCH = { key: "burn", type: "damage", roll: "2d4", damage: ["fire"], extraordinary: false };
+/** A card whose save was failed, so the whole amount is the target's, or passed (the spell's half). */
+const failedCard = () => card({ targets: { t1: { ...card().targets.t1, resist: { ...card().targets.t1.resist, total: 5, success: false } } } });
+const cardAgainst = (actor, over = {}) => ({ actor, rows: [{ key: "burn", row: SCORCH }], ...over });
+/** Apply the row to a creature; its defenses are read from the actor the way a live write reads them. */
+async function strike(actor, { rolled = 10, row = SCORCH, cardOf = failedCard() } = {}) {
+  const fake = fakeDeps({ resolve: async () => ({ actor, hpTarget: { key: "Scene.s.Token.k1", hp: { value: 20, max: 20 } } }) });
+  await applyOnTarget(cardOf, "t1", [{ rowKey: row.key, rolled }], { ...fake.deps, rows: [{ key: row.key, row }] });
+  return { entry: fake.log.entries[`t1_${row.key}`], hp: fake.log.hp, log: fake.log };
+}
+
+await ta("immune: the amount is 0, nothing is written, and the entry keeps the defense step with the spell's own type", async () => {
+  const { entry, hp } = await strike(defended("Quillback", { immune: { damage: ["fire"] } }));
+  assert.equal(entry.state, "applied");
+  assert.equal(entry.applied, 0);
+  assert.deepEqual(hp, [], "no hit points are written for 0");
+  const step = entry.steps.find((s) => s.key === "defense");
+  assert.deepEqual({ band: step.band, types: step.types, source: step.source, before: step.before, after: step.after }, { band: "immunities", types: ["fire"], source: "Quillback", before: 10, after: 0 });
+});
+
+await ta("a card that forges its row's types changes nothing: the types come from the spell's own row", async () => {
+  const forged = failedCard();
+  forged.rows.burn = { ...forged.rows.burn, types: ["cold"] };
+  const fake = fakeDeps({ resolve: async () => ({ actor: defended("Quillback", { immune: { damage: ["fire"] } }), hpTarget: { key: "k", hp: { value: 20, max: 20 } } }) });
+  await applyOnTarget(forged, "t1", [{ rowKey: "burn", rolled: 10 }], { ...fake.deps, rows: [{ key: "burn", row: SCORCH }] });
+  assert.equal(fake.log.entries.t1_burn.applied, 0);
+});
+
+await ta("resistant with a figure: the save's fraction and the resistance each apply once and the rounding is done once at the end", async () => {
+  importResistance();
+  try {
+    const half = await strike(defended("Quillback", { resist: { damage: ["fire"] } }), { rolled: 5, cardOf: card() });
+    // 5 halved is 2.5, times 0.7 is 1.75, one rounding gives 2; rounding the half first would give 1.
+    assert.equal(half.entry.applied, 2);
+    assert.deepEqual(half.entry.steps.map((s) => s.key), ["fraction", "defense", "round"]);
+    assert.equal(half.entry.steps[1].cite, "ZZ p. 4");
+    assert.deepEqual(half.hp, [{ mode: "damage", amount: 2, multiplier: 1 }]);
+    const whole = await strike(defended("Quillback", { resist: { damage: ["fire"] }, immune: { damage: ["fire"] } }), { rolled: 5 });
+    assert.equal(whole.entry.applied, 0, "a type that is immune and resistant counts once, as immune");
+    const odd = await strike(defended("Quillback", { resist: { damage: ["fire"] } }), { rolled: 5 });
+    assert.equal(odd.entry.applied, 4, "5 times 0.7 is 3.5, to the even 4");
+  } finally {
+    forgetResistance();
+  }
+});
+
+await ta("resistant with no figure imported is the Judge's: no amount is written and the entry names the defense", async () => {
+  forgetResistance();
+  const { entry, hp } = await strike(defended("Quillback", { resist: { damage: ["fire"] } }));
+  assert.equal(entry.state, "judge");
+  assert.deepEqual(hp, []);
+  assert.equal(entry.defense.band, "judge");
+  assert.equal(entry.defense.why, "figure");
+  assert.equal(entry.defense.source, "Quillback");
+  assert.equal(entry.applied, undefined, "no amount is stored for the Judge's case");
+});
+
+await ta("susceptible takes the creature's own factor; a susceptibility with no factor is the Judge's", async () => {
+  const doubled = await strike(defended("Quillback", { weak: { damage: ["fire"], factor: 2 } }), { rolled: 7 });
+  assert.equal(doubled.entry.applied, 14);
+  assert.deepEqual(doubled.hp, [{ mode: "damage", amount: 14, multiplier: 1 }]);
+  const blank = await strike(defended("Quillback", { weak: { damage: ["fire"] } }));
+  assert.equal(blank.entry.state, "judge");
+});
+
+await ta("a heal meets no defense, whatever the target holds", async () => {
+  const mend = { key: "mend", type: "heal", roll: "1d6" };
+  const healCard = card({ save: { category: "", effect: "" }, rows: { mend: { type: "heal", key: "mend", total: 5, conditions: [] } }, order: ["mend"], targets: { t1: { uuid: "Scene.s.Token.k1", name: "T", resist: null } }, entries: { t1_mend: { state: "pending" } } });
+  const { entry, hp } = await strike(defended("Quillback", { immune: { extraordinary: true }, resist: { mundane: true } }), { rolled: 5, row: mend, cardOf: healCard });
+  assert.equal(entry.applied, 5);
+  assert.deepEqual(hp, [{ mode: "heal", amount: 5, multiplier: 1 }]);
+  assert.ok(!entry.steps.some((s) => s.key === "defense"));
+});
+
+await ta("a quality the row does not state meets a band that waits on it as the Judge's; a stated one decides", async () => {
+  const guard = defended("Quillback", { immune: { damage: ["fire"], mundane: true } });
+  const unread = await strike(guard, { row: { ...SCORCH, extraordinary: null } });
+  assert.equal(unread.entry.state, "judge");
+  assert.equal(unread.entry.defense.why, "quality");
+  const mundane = await strike(guard, { row: { ...SCORCH, extraordinary: false } });
+  assert.equal(mundane.entry.applied, 0, "damage stated mundane meets a mundane-only band");
+  const marked = await strike(guard, { row: { ...SCORCH, extraordinary: true }, rolled: 6 });
+  assert.equal(marked.entry.applied, 6, "damage stated extraordinary is not covered by it");
+  assert.equal(marked.entry.steps.some((s) => s.key === "defense"), false);
+});
+
+await ta("a thrown row's damage meets the defense too; a condition row meets none", async () => {
+  const bolt = { ...SCORCH, key: "bolt", delivery: "missile" };
+  const thrown = card({ rows: { bolt: { ...card().rows.burn, key: "bolt", delivery: "missile" } }, order: ["bolt"], entries: { t1_bolt: { state: "pending", throw: { total: 15, target: 10 } } } });
+  const hit = await strike(defended("Quillback", { immune: { damage: ["fire"] } }), { row: bolt, cardOf: thrown, rolled: 6 });
+  assert.equal(hit.entry.applied, 0);
+  const dread = { key: "dread", type: "conditionGrant", conditions: ["afraid"], damage: ["fire"] };
+  const fake = fakeDeps({ resolve: async () => ({ actor: defended("Quillback", { immune: { damage: ["fire"] } }), hpTarget: { key: "k", hp: { value: 20, max: 20 } } }) });
+  const cond = card({ rows: { dread: { type: "conditionGrant", key: "dread", conditions: ["afraid"] } }, order: ["dread"], entries: { t1_dread: { state: "pending" } }, targets: { t1: { ...card().targets.t1, resist: { ...card().targets.t1.resist, success: false, total: 5 } } } });
+  await applyOnTarget(cond, "t1", [{ rowKey: "dread" }], { ...fake.deps, rows: [{ key: "dread", row: dread }] });
+  assert.equal(fake.log.made.length, 1, "defenses against damage do not touch a condition");
+});
+
+await ta("the same cast applies the same amount on the seat and on the GM's client: the figure is read from the actor each resolves", async () => {
+  importResistance();
+  try {
+    const seat = await strike(defended("Quillback", { resist: { damage: ["fire"] } }), { rolled: 9 });
+    const gm = await strike(defended("Quillback", { resist: { damage: ["fire"] } }), { rolled: 9 });
+    assert.deepEqual(gm.entry.steps, seat.entry.steps);
+    assert.equal(gm.entry.applied, seat.entry.applied);
+    assert.equal(seat.entry.applied, 6, "9 times 0.7 is 6.3, to 6");
+  } finally {
+    forgetResistance();
+  }
+});
+
+t("the damage a save resists is the union of the spell's own damage rows no throw decides; none, none", () => {
+  const keyed = (rows) => rows.map((row) => ({ row, key: row.key }));
+  assert.equal(resistedDamage(keyed([{ key: "g", type: "conditionGrant", conditions: ["afraid"] }])), null, "a condition alone meets no defense on its save");
+  assert.equal(resistedDamage(keyed([{ ...SCORCH, delivery: "missile" }, { key: "m", type: "heal", roll: "1d4" }])), null, "a thrown row is decided by its throw");
+  assert.equal(resistedDamage(keyed([{ ...SCORCH, appliesTo: "self" }])), null, "the caster's own row is not resisted");
+  const both = resistedDamage(keyed([SCORCH, { key: "c", type: "damage", roll: "1d4", damage: ["cold", "fire"], extraordinary: false }]));
+  assert.deepEqual(both, { types: ["fire", "cold"], extraordinary: false });
+  const mixed = resistedDamage(keyed([SCORCH, { ...SCORCH, key: "x", extraordinary: true }]));
+  assert.equal(mixed.extraordinary, null, "rows that disagree on quality state none");
+  assert.equal(resistedDamage(keyed([{ ...SCORCH, extraordinary: undefined }])).extraordinary, null, "an unread mark is no mundane one");
+  assert.deepEqual(damageOfRow({ damage: ["fire"], extraordinary: true }), { types: ["fire"], extraordinary: true });
+});
+
+await ta("the save: immune to all the damage dealt passes with no roll; resistant lowers the number with its figure; a blank figure is listed and changes nothing", async () => {
+  const save = { category: "spell" };
+  const keyed = (...rows) => rows.map((row) => ({ row, key: row.key }));
+  const cold = { key: "c", type: "damage", roll: "1d4", damage: ["cold"], extraordinary: false };
+  const damage = resistedDamage(keyed(SCORCH, cold));
+  const immune = await rollResist(defended("Quillback", { immune: { damage: ["fire", "cold"] } }), save, null, { damage });
+  assert.equal(immune.roll, null, "nothing is rolled");
+  assert.equal(immune.resist.success, true);
+  assert.equal(immune.resist.total, null);
+  assert.deepEqual({ label: immune.resist.auto.label, source: immune.resist.auto.source, types: immune.resist.auto.types }, { label: "Immune", source: "Quillback", types: ["fire", "cold"] });
+  const partial = await rollResist(defended("Quillback", { immune: { damage: ["fire"] } }), save, null, { damage });
+  assert.equal(partial.resist.auto, undefined, "a defense covering only some of the types is not a pass");
+  assert.equal(partial.resist.defensePending?.length, 1, "the case is listed for the Judge");
+  assert.equal(partial.resist.target, 14, "and the number to roll is the creature's own");
+  importResistance();
+  try {
+    const resisted = await rollResist(defended("Quillback", { resist: { damage: ["fire", "cold"] } }), save, null, { damage });
+    assert.equal(resisted.resist.target, 14 - SAVE_BONUS);
+    assert.ok(resisted.resist.parts.some((p) => p.key === "defense" && p.label === "Resistant" && p.value === SAVE_BONUS), "the part carries the band's label");
+    const clean = await rollResist(defended("Quillback", { immune: { damage: ["fire"] } }), save, null, { damage: resistedDamage(keyed(SCORCH)) });
+    assert.equal(clean.resist.auto.label, "Immune");
+  } finally {
+    forgetResistance();
+  }
+  const noDamage = await rollResist(defended("Quillback", { immune: { damage: ["fire"] } }), save, null, { damage: null });
+  assert.equal(noDamage.resist.auto, undefined, "a save against no damage meets no defense");
+});
+
+await ta("buildTargets passes the union of the spell's damage rows to the save, so a target immune to every type passes it unrolled", async () => {
+  const quill = defended("Quillback", { immune: { damage: ["fire", "cold"] } });
+  const token = { uuid: "Scene.s.Token.k1", name: "Target", actor: quill };
+  const cold = { key: "c", type: "damage", roll: "1d4", damage: ["cold"], extraordinary: false };
+  const keyedOf = (rows) => rows.map((row, index) => ({ row, key: row.key, index }));
+  const cardRows = { burn: { type: "damage", key: "burn", total: 6, delivery: "" }, c: { type: "damage", key: "c", total: 3, delivery: "" } };
+  const caster = { uuid: "Actor.c1", name: "Caster", getRollData: () => ({}) };
+  const built = await buildTargets({ tokens: [token], card: { rows: cardRows }, rows: keyedOf([SCORCH, cold]), save: { category: "spell", effect: "half" }, situational: null, caster, randomID: () => "x" });
+  const resist = Object.values(built.targets)[0].resist;
+  assert.equal(resist.success, true);
+  assert.ok(resist.auto);
+  assert.deepEqual(built.rolls, []);
+  token.actor = defended("Quillback", { immune: { damage: ["fire"] } });
+  const part = await buildTargets({ tokens: [token], card: { rows: cardRows }, rows: keyedOf([SCORCH, cold]), save: { category: "spell", effect: "half" }, situational: null, caster, randomID: () => "x" });
+  assert.equal(Object.values(part.targets)[0].resist.auto, undefined, "a defense that covers one row's type and not the other's is no pass");
+  assert.equal(part.rolls.length, 1);
+});
+
+t("the relay accepts an auto pass it recomputes, and refuses one it does not or one the request adds or drops", () => {
+  const auto = { kind: "save", category: "spell", formula: "1d20", total: null, target: 13, baseTarget: 13, success: true, auto: { label: "Immune", source: "Quillback", types: ["fire"] }, parts: [] };
+  const autoCard = card({ targets: { t1: { ...card().targets.t1, resist: auto } } });
+  const world = (over = {}) => ({
+    message: { authorId: "p1" },
+    card: autoCard,
+    ownsCaster: true,
+    spellOfCaster: true,
+    rows: [{ row: SCORCH, key: "burn" }],
+    resist: { target: 13, min: 1, max: 20, auto: true },
+    boundsOf: () => ({ min: 0, max: 8 }),
+    ...over,
+  });
+  const req = (over = {}) => ({ requestUserId: "p1", messageId: "m", targetKey: "t1", resist: auto, entries: [{ rowKey: "burn", rolled: 7 }], ...over });
+  assert.deepEqual(checkApplyRequest(req(), world()), { ok: true });
+  assert.equal(checkApplyRequest(req(), world({ resist: { target: 13, min: 1, max: 20, auto: false } })).refused, "badResist", "the GM's client does not recompute an auto pass");
+  assert.equal(checkApplyRequest(req(), world({ resist: { target: 13, min: 1, max: 20 } })).refused, "badResist");
+  assert.equal(checkApplyRequest(req({ resist: { ...auto, auto: undefined } }), world()).refused, "badResist", "a request that drops the pass");
+  assert.equal(checkApplyRequest(req({ resist: card().targets.t1.resist }), world()).refused, "badResist", "a request that swaps it for a roll");
+  assert.equal(checkApplyRequest(req(), world({ card: autoCard, resist: { target: 12, min: 1, max: 20, auto: true } })).refused, "badResist", "the target is recomputed too");
+  const forged = card({ targets: { t1: { ...card().targets.t1, resist: { ...auto, success: false } } } });
+  assert.equal(checkApplyRequest(req({ resist: { ...auto, success: false } }), world({ card: forged })).refused, "badResist", "an auto pass is a success");
+  const rolled = card();
+  assert.equal(checkApplyRequest(req({ resist: { ...rolled.targets.t1.resist, auto: auto.auto } }), world({ card: rolled })).refused, "badResist", "an auto claimed on a rolled save, which the card did not store");
+});
+
+/** The strings lib and magic localize, read from the lang file, so a card's naming is checked against the real words. */
+const LANG = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+const withLang = (fn) => {
+  const keep = game.i18n;
+  game.i18n = { ...keep, has: (key) => key in LANG, localize: (key) => LANG[key] ?? key };
+  try {
+    return fn();
+  } finally {
+    game.i18n = keep;
+  }
+};
+const realLoc = (key, data = {}) => (LANG[`ACKS-MAGIC.cast.${key}`] ?? key).replace(/\{(\w+)\}/g, (_m, name) => String(data[name] ?? ""));
+
+t("the card lists every stored step of an amount, a defense named to a Judge and a target's owner and 'a defense' to any other seat", () => {
+  withLang(() => {
+    const steps = [
+      { key: "fraction", before: 5, after: 2.5 },
+      { key: "defense", label: "Resistant", band: "resistances", types: ["fire"], source: "Quillback", cite: "ZZ p. 4", before: 2.5, after: 1.75 },
+      { key: "round", before: 1.75, after: 2 },
+    ];
+    const c = card({ entries: { t1_burn: { state: "applied", rolled: 5, applied: 2, fraction: 0.5, saved: true, steps } } });
+    const tipFor = (seat) => castCardView(c, seat, realLoc).sections[0].rows[0].tooltipText;
+    const judge = tipFor({ isGM: true, canPress: true });
+    assert.equal(judge, "Rolled 5 · Times 0.5: 5 to 2.5 · Resistant (Quillback): 2.5 to 1.75 · Rounded 1.75 to 2 · Applied 2");
+    assert.equal(tipFor({ isGM: false, canPress: false, ownsTarget: () => true }), judge, "the target's owner reads the same");
+    const other = tipFor({ isGM: false, canPress: false });
+    assert.equal(other, "Rolled 5 · Times 0.5: 5 to 2.5 · a defense: 2.5 to 1.75 · Rounded 1.75 to 2 · Applied 2");
+    assert.ok(!other.includes("Quillback") && !other.includes("Resistant"));
+    assert.ok(!castCardContent(c, realLoc).includes("Quillback"), "the stored content is the card as no seat may read it");
+  });
+});
+
+t("a defense the module does not price names itself on the line, with the page reference alone as the tooltip", () => {
+  withLang(() => {
+    const defense = { label: "Judge's call", band: "judge", types: ["fire"], source: "Quillback", cite: "ZZ p. 4", why: "figure" };
+    const c = card({ entries: { t1_burn: { state: "judge", rolled: 7, saved: true, fraction: 0.5, steps: [], defense } } });
+    const row = (seat) => castCardView(c, seat, realLoc).sections[0].rows[0];
+    assert.equal(row({ isGM: true, canPress: true }).tooltipText, "ZZ p. 4");
+    assert.ok(row({ isGM: true, canPress: true }).detail.includes("Judge's call (Quillback) meets this damage"));
+    assert.ok(row({ isGM: true, canPress: true }).detail.includes("(ZZ p. 4)"));
+    assert.ok(row({ isGM: false, canPress: false }).detail.includes("a defense meets this damage"));
+    assert.ok(!row({ isGM: false, canPress: false }).detail.includes("Quillback"));
+    assert.ok(row({ isGM: true, canPress: true }).detail.endsWith("Rolled 7"), "the figure rolled stays on the line for the Judge who applies it by hand");
+    assert.deepEqual(row({ isGM: true, canPress: true }).actions, [], "the Judge applies it by hand");
+    const none = card({ entries: { t1_burn: { state: "judge", rolled: 7, saved: true } } });
+    assert.equal(castCardView(none, { isGM: true, canPress: true }, realLoc).sections[0].rows[0].tooltipText, "", "the save's own judge case is as it was");
+  });
+});
+
+t("a save passed by a defense shows no total, names the band to the seats that may read it, and a defense part's label is kept from the others", () => {
+  withLang(() => {
+    const auto = { kind: "save", category: "spell", formula: "1d20", total: null, target: 13, baseTarget: 13, success: true, auto: { label: "Immune", source: "Quillback", types: ["fire"], cite: "ZZ p. 4" }, parts: [] };
+    const c = card({ targets: { t1: { ...card().targets.t1, resist: auto } }, entries: { t1_burn: { state: "applied", rolled: 7, applied: 0, fraction: 0.5, saved: true, steps: [] } } });
+    const named = castCardView(c, { isGM: true, canPress: false }, realLoc).sections[0].rows[0];
+    assert.equal(named.target, "Auto");
+    assert.ok(named.detail.startsWith("Immune (Quillback): no roll"));
+    assert.ok(named.targetTooltip.includes("ZZ p. 4"));
+    const other = castCardView(c, { isGM: false, canPress: false }, realLoc).sections[0].rows[0];
+    assert.ok(other.detail.startsWith("a defense: no roll") && !other.targetTooltip.includes("Quillback") && !other.targetTooltip.includes("Immune"));
+    const part = { kind: "save", category: "spell", formula: "1d20", total: 9, target: 8, baseTarget: 14, success: true, parts: [{ key: "defense", label: "Resistant", value: 6 }, { key: "x", label: "Testward", value: 2 }] };
+    const resisted = card({ targets: { t1: { ...card().targets.t1, resist: { ...part, defensePending: [{ label: "Judge's call" }] } } } });
+    const gm = castCardView(resisted, { isGM: true, canPress: false }, realLoc).sections[0].rows[0].targetTooltip;
+    assert.ok(gm.includes("Resistant +6") && gm.includes("Testward +2") && gm.includes("Not priced into this number: Judge's call"));
+    const player = castCardView(resisted, { isGM: false, canPress: false }, realLoc).sections[0].rows[0].targetTooltip;
+    assert.ok(player.includes("a defense +6") && player.includes("Testward +2") && !player.includes("Resistant"), "the figure shows; the band's name does not");
+  });
+});
+
+/* ------------------------------------------------------------------ */
 /*  The card                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -652,9 +940,9 @@ t("the card shows each seat the buttons it may press, and a Judge's Undo; none i
 });
 
 t("every figure on the card carries a tooltip naming where it came from; a blank figure carries the page reference alone", () => {
-  const applied = card({ cite: "p. 9", entries: { t1_burn: { state: "applied", rolled: 7, applied: 4, fraction: 0.5, saved: true } } });
+  const applied = card({ cite: "p. 9", entries: { t1_burn: { state: "applied", rolled: 7, applied: 4, fraction: 0.5, saved: true, steps: [{ key: "fraction", before: 7, after: 3.5 }, { key: "round", before: 3.5, after: 4 }] } } });
   const row = castCardView(applied, { isGM: false, canPress: false }, loc).sections[0].rows[0];
-  assert.ok(row.tooltipText.includes("tip.applied"), "the applied figure names its roll and fraction");
+  assert.ok(row.tooltipText.includes("tip.rolled") && row.tooltipText.includes("tip.stepFraction") && row.tooltipText.includes("tip.appliedTotal"), "the applied figure names its roll and fraction");
   assert.ok(row.targetTooltip.includes("tip.save"), "the save target names its parts");
   const view = castCardView(applied, { isGM: false, canPress: false }, loc);
   assert.ok(view.sections[0].titleTooltip.includes("tip.roll"), "the rolled total names its dice");

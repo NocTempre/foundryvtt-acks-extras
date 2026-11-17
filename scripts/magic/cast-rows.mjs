@@ -138,3 +138,39 @@ export function saveFractionOf(row, spellSave, resist) {
 
 /** Does the spell call for a saving throw by the target? A category of none, or a blank one, calls for none. */
 export const spellSaves = (save) => Boolean(save?.category) && save.category !== "none" && (save.kind || "save") === "save";
+
+/** Does this row apply to the caster rather than to what the cast is aimed at? */
+export const aimedAtSelf = (row) => row?.appliesTo === "self";
+
+/**
+ * The damage one of the spell's own rows deals, as `lib/defenses.mjs` reads it:
+ * the types it lists and its extraordinary mark. The mark is three-valued, and a
+ * row whose mark was never read (null) is not read as mundane. Read off the
+ * spell's row, never off the card's display of it, which keeps only a boolean.
+ *
+ * @param {object} row
+ * @returns {{types: string[], extraordinary: boolean|null}}
+ */
+export function damageOfRow(row) {
+  const q = row?.extraordinary;
+  return { types: Array.from(row?.damage ?? []).filter((t) => typeof t === "string" && t), extraordinary: q === true ? true : q === false ? false : null };
+}
+
+/**
+ * The damage a target's save is rolled against: the union of every damage row the
+ * save governs (no throw decides it and it is not the caster's own), over the
+ * spell's keyed rows for the cast's mode and picks. Its quality is stated only
+ * where every row states the same one. Null where no row qualifies, so a spell
+ * with no damage (a condition alone) meets no defense on its save. The cast and
+ * the relay both call this over the spell's rows, so the save the relay
+ * recomputes is the save that was rolled.
+ *
+ * @param {Array<{row: object}>} keyed
+ * @returns {{types: string[], extraordinary: boolean|null}|null}
+ */
+export function resistedDamage(keyed) {
+  const dealt = (keyed ?? []).map(({ row }) => row).filter((row) => row?.type === "damage" && !aimedAtSelf(row) && !rowNeedsThrow(row)).map(damageOfRow);
+  if (!dealt.length) return null;
+  const marks = new Set(dealt.map((d) => d.extraordinary));
+  return { types: [...new Set(dealt.flatMap((d) => d.types))], extraordinary: marks.size === 1 ? [...marks][0] : null };
+}

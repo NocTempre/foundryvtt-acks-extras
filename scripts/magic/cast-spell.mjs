@@ -19,7 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, CAST_MODES } from "./cast-rows.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, CAST_MODES } from "./cast-rows.mjs";
 import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
@@ -40,6 +40,7 @@ import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken } from "../lib/patches/attack-throw.mjs";
 import { saveThrow } from "../lib/saves.mjs";
+import { defenseCite } from "../lib/defenses.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { tokenGapFeet } from "../lib/distance-units.mjs";
 import { isMagical } from "../lib/item-model.mjs";
@@ -184,9 +185,6 @@ async function readWorld(spell) {
 /** A target as the card keeps it. */
 const targetOf = (token) => ({ uuid: token.uuid, name: token.name || token.actor?.name || "" });
 
-/** Does this row apply to the caster rather than to what the cast is aimed at? */
-const aimedAtSelf = (row) => row?.appliesTo === "self";
-
 /** The Roll of one non-thrown row, with the figures the card shows. */
 async function rollRow(caster, spell, card, keyed) {
   const spec = await rowSpecOf(caster, spell, card, keyed);
@@ -200,20 +198,30 @@ async function rollRow(caster, spell, card, keyed) {
  * stored target. `against` is the caster and its token, what the throw is made
  * against, and `bearerToken` the saver's own; the relay recomputes the target
  * with the same two, so a scoped figure never reads as a forged one.
+ *
+ * `damage` is what the save resists (`cast-rows.mjs` `resistedDamage`): the
+ * target's defenses against it join the throw (`lib/saves.mjs`). A target immune
+ * to all of it passes with no roll, and its resist is `{success: true, total:
+ * null, auto: {label, source, types, cite}}`. A defense case the module does not
+ * price is listed as `defensePending` and changes nothing in the throw.
  */
-export async function rollResist(actor, save, situational, { against = null, bearerToken = null } = {}) {
-  const made = await saveThrow(actor, save.category, { situational, against, bearerToken });
-  if (made.target == null || made.total == null) return { resist: null, roll: null };
+export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null } = {}) {
+  const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage });
+  const auto = made.auto ?? null;
+  if (!auto && (made.target == null || made.total == null)) return { resist: null, roll: null };
   const { roll, ...kept } = made;
+  const pending = (kept.pending ?? []).filter((p) => p.when === "defense").map(({ label, why }) => ({ label, ...(why ? { why } : {}) }));
   const resist = {
     kind: "save",
     category: save.category,
     formula: kept.formula,
-    total: kept.total,
+    total: auto ? null : kept.total,
     target: kept.target,
     baseTarget: kept.baseTarget,
     success: kept.success,
-    parts: kept.parts.map(({ label, value }) => ({ label, value })),
+    ...(auto ? { auto: { label: auto.label, source: auto.source, types: [...auto.types], cite: defenseCite() } } : {}),
+    parts: kept.parts.map(({ key, label, value }) => ({ key, label, value })),
+    ...(pending.length ? { defensePending: pending } : {}),
   };
   return { resist, roll };
 }
@@ -238,8 +246,10 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes and no
   // throw decides. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
   const resisting = spellSaves(save) && open.some(({ row }) => !isModRow(row) && !aimedAtSelf(row) && !rowNeedsThrow(row));
+  // What the save resists is read from the spell's rows for the mode and picks, as the relay reads it, so a defense joins the throw the same way on both clients.
+  const damage = resistedDamage(rows);
   for (const token of tokens) {
-    const made = resisting ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token }) : { resist: null, roll: null };
+    const made = resisting ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage }) : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
     add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row));
   }

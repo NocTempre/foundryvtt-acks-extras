@@ -16,13 +16,17 @@
  *
  * The stored content is the card as a viewer with no rights sees it. A render
  * hook rebuilds the body per seat, so each seat gets exactly the buttons it
- * may press: Apply and Throw for the caster's author and a GM, Undo for a GM.
+ * may press: Apply and Throw for the caster's author and a GM, Undo for a GM. A
+ * defense an amount or a save met is named to a GM and to the target's owners;
+ * every other seat reads "a defense" and the figures.
  * The buttons carry actions of this feature's own (`magicCast…`) and never
  * the system's `.card-buttons`.
  */
 import { MODULE_ID } from "./constants.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { defenseCiteOf, defenseWord, namesDefense } from "../lib/attack-apply.mjs";
+import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
@@ -42,15 +46,39 @@ export const newTargetKey = (randomID = () => Math.random().toString(36).slice(2
 /** A damage type's label: its inline English label, or the key. */
 const typeLabel = (key) => DAMAGE_TYPES[key]?.label ?? key;
 
-/** The saving-throw figure's tooltip: its labelled parts with the creature's own numbers. */
-function saveTip(resist, loc) {
-  const parts = (resist.parts ?? []).map((p) => `${p.label} ${Number(p.value) > 0 ? "+" : ""}${p.value}`);
-  return loc("tip.save", { target: resist.target, base: resist.baseTarget ?? "—", formula: resist.formula, parts: parts.join(" · ") || "—" });
+/**
+ * The saving-throw figure's tooltip: its labelled parts with the creature's own
+ * numbers. A part that is a defense names its band only where the seat may
+ * (`named`), and shows its figure either way. A save a defense passed says so
+ * with the page, and a defense case the module did not price is listed.
+ */
+function saveTip(resist, loc, named) {
+  const cite = defenseCiteOf(resist.auto);
+  if (resist.auto) return loc("tip.saveAuto", { defense: defenseWord(resist.auto, named), cite });
+  const parts = (resist.parts ?? []).map((p) => `${p.key === "defense" ? defenseWord({ label: p.label }, named) : p.label} ${Number(p.value) > 0 ? "+" : ""}${p.value}`);
+  const tip = loc("tip.save", { target: resist.target, base: resist.baseTarget ?? "—", formula: resist.formula, parts: parts.join(" · ") || "—" });
+  const unpriced = (resist.defensePending ?? []).map((p) => loc("tip.savePending", { defense: defenseWord({ label: p.label }, named), cite }));
+  return [tip, ...unpriced].join(" ");
 }
 
-/** The tooltip of an applied figure: what the roll and the save's fraction made of it. */
-const appliedTip = (entry, loc) =>
-  entry.applied == null ? "" : loc("tip.applied", { rolled: entry.rolled, fraction: entry.fraction ?? 1, applied: entry.applied });
+/**
+ * The tooltip of an applied figure: the roll, then each step the amount took (the
+ * save's fraction, each defense, the rounding), then what was applied. A defense
+ * step names its band and source only where the seat may (`named`), and shows its
+ * figures either way.
+ */
+function appliedTip(entry, loc, named) {
+  if (entry.applied == null) return "";
+  const lines = [loc("tip.rolled", { rolled: entry.rolled })];
+  for (const step of entry.steps ?? []) {
+    const figures = { before: step.before, after: step.after };
+    if (step.key === "fraction") lines.push(loc("tip.stepFraction", { fraction: entry.fraction ?? "", ...figures }));
+    else if (step.key === "defense") lines.push(loc("tip.stepDefense", { defense: defenseWord(step, named), ...figures }));
+    else if (step.key === "round") lines.push(loc("tip.stepRound", figures));
+  }
+  lines.push(loc("tip.appliedTotal", { applied: entry.applied }));
+  return lines.join(" · ");
+}
 
 /** A row's figure tooltip: its dice and the page the procedure is cited to; the citation alone for a blank figure. */
 function rollTip(row, card, loc) {
@@ -109,7 +137,7 @@ function outcomeOf(entry, loc) {
  * The roll card a cast card is drawn as, for one seat.
  *
  * @param {object} card  the model
- * @param {{isGM: boolean, canPress: boolean}} seat
+ * @param {{isGM: boolean, canPress: boolean, ownsTarget?: (target: object) => boolean}} seat  `ownsTarget` says whether the seat owns a card target's actor; absent, no target is
  * @param {(key: string, data?: object) => string} loc  the cast's strings, under the magic root's `cast` branch
  * @returns {object} `renderRollCard`'s argument
  */
@@ -128,6 +156,9 @@ export function castCardView(card, seat, loc) {
       const resist = row.delivery || isMod ? null : (target.resist ?? null);
       const done = entry?.state === "applied" || entry?.state === "undone";
       const yields = card.yields?.[`${targetKey}_${rowKey}`];
+      // The defense a figure names is the Judge's and the target's owners' to read; every other seat reads "a defense".
+      const named = namesDefense({ isGM: seat.isGM === true, ownsTarget: seat.ownsTarget?.(target) === true });
+      const judged = entry?.state === "judge" && entry.defense ? entry.defense : null;
       const line = isMod
         ? {
             name: target.name,
@@ -140,12 +171,22 @@ export function castCardView(card, seat, loc) {
         : {
             name: target.name,
             total: done && entry.applied != null ? entry.applied : "—",
-            tooltipText: entry ? appliedTip(entry, loc) : "",
-            detail: entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "",
+            // A defense the module does not price leaves the entry to the Judge: its line names the defense and the tooltip is the page reference alone.
+            tooltipText: judged ? defenseCiteOf(judged) : entry ? appliedTip(entry, loc, named) : "",
+            // The Judge applies it by hand, so the figure rolled stays on the line beside the defense.
+            detail: [
+              judged ? loc("detail.judgeDefense", { defense: defenseWord(judged, named), cite: defenseCiteOf(judged) }) : "",
+              entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "",
+            ]
+              .filter(Boolean)
+              .join(" · "),
             ...outcomeOf(entry, loc),
             actions: entryActions(entry, { targetKey, rowKey }, seat, loc),
           };
-      if (resist) Object.assign(line, { target: resist.target, targetTooltip: saveTip(resist, loc), detail: [loc("detail.save", { total: resist.total }), line.detail].filter(Boolean).join(" · ") });
+      if (resist) {
+        const shown = resist.auto ? loc("detail.saveAuto", { defense: defenseWord(resist.auto, named) }) : loc("detail.save", { total: resist.total });
+        Object.assign(line, { target: resist.auto ? loc("save.auto") : resist.target, targetTooltip: saveTip(resist, loc, named), detail: [shown, line.detail].filter(Boolean).join(" · ") });
+      }
       rows.push(line);
     }
     if (!targets.length) {
@@ -225,6 +266,13 @@ export async function addTargets(message, targets, entries) {
 /** Can this seat press Apply and Throw on the card: a GM, or the user who cast it. */
 export const canPressCard = (message) => game.user.isGM || message?.author?.id === game.user.id || message?.isAuthor === true;
 
+/** Does this seat own the actor a card target names? The target's uuid is read as it stands; a target no longer in the world is no one's. */
+function ownsCardTarget(target) {
+  const doc = docOf(target?.uuid);
+  const actor = doc?.documentName === "Token" ? doc.actor : doc?.documentName === "Actor" ? doc : null;
+  return actor?.testUserPermission?.(game.user, "OWNER") === true;
+}
+
 /** The handlers the card's buttons call, set by the cast engine; a card with none presses nothing. */
 let actions = {};
 
@@ -235,7 +283,7 @@ function onRender(message, html) {
   if (!card || !root) return;
   const body = root.querySelector?.(".message-content");
   if (!body) return;
-  const seat = { isGM: game.user.isGM, canPress: canPressCard(message) };
+  const seat = { isGM: game.user.isGM, canPress: canPressCard(message), ownsTarget: ownsCardTarget };
   body.innerHTML = renderRollCard(castCardView(card, seat, cardLoc));
   body.querySelectorAll("[data-action^='magicCast']").forEach((button) => {
     button.addEventListener("click", (event) => {

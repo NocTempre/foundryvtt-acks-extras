@@ -1,8 +1,9 @@
 /* global game, fromUuid, fromUuidSync, Roll */
 /**
  * Applying a cast: what one rolled amount does to one target, whichever client
- * writes it. The amount is the roll, the save's fraction, then one rounding
- * (`lib/hp-logic.mjs` `amountAfter`) and goes to `adjustHp`; a condition is a
+ * writes it. The amount is the roll, the save's fraction, the target's defenses
+ * against the row's own types, then one rounding (`lib/hp-logic.mjs`
+ * `amountAfter`, `lib/defenses.mjs`) and goes to `adjustHp`; a condition is a
  * status-only record on the target (`spell-effect.mjs`); a failed save runs
  * lib's loss path first, so the cast's own grant is never the thing lifted.
  *
@@ -23,10 +24,17 @@
  *
  * The card's flag (`cast-card.mjs`) keeps what each entry did, and the Judge's
  * Undo puts the hit points back and deletes the records by id.
+ *
+ * A damage entry meets the defenses of the actor the writing client resolves,
+ * read there and then; the types and the extraordinary mark are the spell's own
+ * row's, never the card's or the request's. A heal takes no defense stage. A case
+ * the module does not compute is the Judge's: no amount is written and the entry
+ * keeps the defense it names.
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf } from "./cast-rows.mjs";
+import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage } from "./cast-rows.mjs";
 import { spellEffectData } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
@@ -64,16 +72,29 @@ export function damageBounds(spec, { critical = false, thrown = false } = {}, bo
  * The amount one entry applies: the roll through the target's save, with what
  * each step did. A row whose save leaves a figure the module cannot compute is
  * the Judge's (`judge`), and a row with a throw is not saved against (the
- * throw was its resist).
+ * throw was its resist). A damage row then meets the target's defenses against
+ * its own types and extraordinary mark; a heal row meets none. A defense case
+ * the module does not compute is also the Judge's, and answers the defense it
+ * names as `defense`, with the steps taken before it.
  *
- * @returns {{judge: boolean, saved: boolean|null, fraction: number|null, rolled: number, applied: number|null, steps: object[]}}
+ * @param {object} row  the spell's own row
+ * @param {object} card
+ * @param {object|null} resist
+ * @param {number} rolled
+ * @param {{sources?: object[], figures?: object}} [defenses]  the target's defenses (`actorDefenses`) and resistance's figures (`defenseFigures`); absent, the target meets none
+ * @returns {{judge: boolean, saved: boolean|null, fraction: number|null, rolled: number, applied: number|null, steps: object[], defense?: object}}
  */
-export function amountOf(row, card, resist, rolled) {
+export function amountOf(row, card, resist, rolled, defenses = {}) {
   const made = saveFractionOf(row, card.save, rowNeedsThrow(row) ? null : resist);
   if (made.fraction === null) return { judge: true, saved: made.saved, fraction: null, rolled, applied: null, steps: [] };
-  const out = amountAfter(rolled, { fraction: made.fraction });
+  const stage = row?.type === "heal" || !defenses.sources ? null : defenseStage(defenses.sources, damageOfRow(row), defenses.figures ?? {});
+  const out = amountAfter(rolled, { fraction: made.fraction, stages: [stage] });
+  if (out.judge) return { judge: true, saved: made.saved, fraction: made.fraction, rolled, applied: null, steps: out.steps, defense: defenseOf(out.judge) };
   return { judge: false, saved: made.saved, fraction: made.fraction, rolled, applied: out.applied, steps: out.steps };
 }
+
+/** What an entry keeps of a judge stage to name the defense: `{label, band, types, source, cite, why}`. */
+const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band, types: [...(types ?? [])], source, cite: cite ?? null, ...(why ? { why } : {}) });
 
 /**
  * The status-only records one condition row leaves on one target: one per
@@ -130,7 +151,7 @@ export function missingGroupKeys(card, targetKey, requests, rows) {
  * @param {boolean} world.spellOfCaster  the card's spell is an item of its caster
  * @param {Array<{row: object, key: string}>} world.rows  the spell's rows for the card's mode and picks
  * @param {(keyed: {row: object, key: string}, critical: boolean) => {min: number, max: number}|null} world.boundsOf
- * @param {{target: number|null, min: number, max: number}|null} world.resist  the target's save recomputed here
+ * @param {{target: number|null, min: number, max: number, auto?: boolean}|null} world.resist  the target's save recomputed here; `auto` where the target's defenses pass it with no roll
  * @param {{id: string, name: string}|null} [world.item]  the weapon the card names, where it is a weapon of the target's actor
  * @returns {{ok: true}|{refused: string}}
  */
@@ -150,7 +171,11 @@ export function checkApplyRequest(req, world) {
   if (stored) {
     const sameFigure = ["total", "target", "success"].every((k) => stored[k] === asked[k]);
     const ground = world.resist;
-    const fits = ground && ground.target === stored.target && stored.success === (stored.total >= stored.target) && stored.total >= ground.min && stored.total <= ground.max;
+    // An `auto` pass has no roll to bound. It stands only where this client recomputes it from the target's defenses; the card's word and the request's are never enough.
+    const fits =
+      stored.auto || asked.auto
+        ? Boolean(stored.auto) && Boolean(asked.auto) && ground?.auto === true && ground.target === stored.target && stored.success === true && stored.total == null
+        : ground && ground.target === stored.target && stored.success === (stored.total >= stored.target) && stored.total >= ground.min && stored.total <= ground.max;
     if (!sameFigure || !fits) return { refused: "badResist" };
   }
   if (!Array.isArray(req.entries) || !req.entries.length) return { refused: "noEntries" };
@@ -187,6 +212,7 @@ export function checkApplyRequest(req, world) {
  * @param {{id: string, name: string}|null} [deps.item]  the weapon a buff names, for the target the card's `item` names
  * @param {{uuid: string, name: string, img?: string, id?: string|null, cite?: string}} [deps.spell]  read from the spell document
  * @param {string|null} [deps.sourceAlignment]  the caster's alignment key
+ * @param {(actor: object) => {sources: object[], figures: object}} [deps.defenses]  the target's defenses and resistance's figures; absent, the actor's own (`actorDefenses`) and the world's (`defenseFigures`)
  * @param {(uuid: string) => Promise<{actor: object, hpTarget: object|null}|null>} deps.resolve
  * @param {Function} deps.adjustHp  lib's, `(entries, {mode}) -> results`
  * @param {(actor: object, cause: string) => Promise<string[]>} deps.lose
@@ -288,8 +314,10 @@ async function applyRow({ card, keyed, rolled, resist, found, deps, existing }) 
     const ids = await deps.createRecords(found.actor, records);
     return { ...base, state: "applied", saved: made.saved, recordIds: ids };
   }
-  const amount = amountOf(row, card, resist, rolled);
-  if (amount.judge) return { ...base, state: "judge", saved: amount.saved };
+  // The defenses are read from the actor this client writes, as they stand now.
+  const defenses = deps.defenses ? deps.defenses(found.actor) : { sources: actorDefenses(found.actor), figures: defenseFigures() };
+  const amount = amountOf(row, card, resist, rolled, defenses);
+  if (amount.judge) return { ...base, state: "judge", saved: amount.saved, ...(amount.defense ? { fraction: amount.fraction, steps: amount.steps, defense: amount.defense } : {}) };
   const entry = { ...base, state: "applied", saved: amount.saved, fraction: amount.fraction, applied: amount.applied, steps: amount.steps };
   const before = found.hpTarget?.hp?.value ?? null;
   if (amount.applied > 0 && found.hpTarget) {
@@ -440,13 +468,15 @@ async function worldFor(req, message) {
     const { saveSpec } = await import("../lib/saves.mjs");
     const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
     const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
+    // What the save resists is the spell's own rows' damage, as the cast read it, so the target's defenses join this throw as they joined that one.
     const spec = saveSpec(targetDoc.actor, card.save.category, {
       situational: card.situational ?? null,
       against,
       bearerToken: targetDoc.documentName === "Token" ? targetDoc : null,
+      damage: resistedDamage(rows),
     });
     const bounds = foundryBounds(spec.formula);
-    resist = { target: spec.target, min: bounds.min, max: bounds.max };
+    resist = { target: spec.target, min: bounds.min, max: bounds.max, auto: Boolean(spec.auto) };
   }
   const { rowSpecOf } = await import("./cast-spell.mjs");
   const specs = new Map();
