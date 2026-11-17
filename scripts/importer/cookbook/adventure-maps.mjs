@@ -959,14 +959,14 @@ function liveFrame(recipe, scene) {
 }
 
 /**
- * Every cell of a live hex grid whose centre lies on the picture, with that
- * centre: core's `getOffsetRange` over the picture's rectangle, else the
- * grid's rows and columns. A square or gridless scene has none to snap to.
+ * Every cell of a live hex or square grid whose centre lies on the picture,
+ * with that centre: core's `getOffsetRange` over the picture's rectangle, else
+ * the grid's rows and columns. A gridless scene has none to snap to.
  * @returns {{i: number, j: number, x: number, y: number}[]}
  */
 function pictureCells(scene, dims) {
   const grid = scene.grid;
-  if (!grid?.isHexagonal || !grid.getCenterPoint) return [];
+  if (!grid || grid.isGridless || !grid.getCenterPoint) return [];
   const x = Number(dims.sceneX) || 0;
   const y = Number(dims.sceneY) || 0;
   const w = Number(dims.sceneWidth ?? scene.width) || 0;
@@ -1005,9 +1005,9 @@ async function zoneFigures(bookId, id, row) {
  * in the world; is held (counted, and its list relinked) when the map already
  * carries a Region flagged with its id. The figures are read from the zone's
  * own book; the list is the imported table, or blank until a later run
- * relinks it. On a hex map the outline is snapped to the live grid's cells
- * whose centres it holds, laid as core's grid shape, and a zone holding no
- * cell is refused; on any other
+ * relinks it. On a hex or square map the outline is snapped to the live
+ * grid's cells whose centres it holds, laid as core's grid shape, and a zone
+ * holding no cell is refused; on a gridless
  * map the outline is carried through the frame. Counts into `counts`.
  */
 async function ensureZone({ bookId, id, row }, counts) {
@@ -1026,12 +1026,15 @@ async function ensureZone({ bookId, id, row }, counts) {
   const { placed, dims } = liveFrame(recipe, scene);
   const ring = ringToScene(zone.outline, placed);
   const cells = pictureCells(scene, dims);
-  const hexes = cells.length ? offsetsInside(ring, cells) : [];
+  const whole = coversCrop(zone.outline, recipe.crop);
+  // A zone over the whole picture holds every cell on it, the edge cells whose
+  // centres a point-in-ring test leaves out included.
+  const hexes = !cells.length ? [] : whole ? cells.map(({ i, j }) => ({ i, j })) : offsetsInside(ring, cells);
   if (cells.length && !hexes.length) return void counts.zonesRefused++;
   const n = Number(/(\d+)$/.exec(id)?.[1]) || 1;
   const name = game.i18n.format(`${LANG_PREFIX}.ui.sceneZone`, { n, book: BOOKS[bookId]?.short ?? bookId.toUpperCase() });
   const source = zoneRegionData(zone, placed, {
-    name, tableUuid: list?.uuid ?? "", ...figures, hexes, whole: coversCrop(zone.outline, recipe.crop), book: bookId, id,
+    name, tableUuid: list?.uuid ?? "", ...figures, hexes, whole, book: bookId, id,
   });
   const [made] = (await scene.createEmbeddedDocuments("Region", [source])) ?? [];
   if (!made) return void counts.zonesRefused++;

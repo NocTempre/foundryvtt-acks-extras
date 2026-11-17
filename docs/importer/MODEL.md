@@ -844,10 +844,11 @@ cookbook id, or blank until a later run relinks it (`repairHeldMap` relinks a
 zone Region's list the way it relinks a quarter's). The outline is carried
 through the target recipe's frame at the scale the map was made at (the
 cookbook flag's `pixelsPerPoint`, else probed again on the live scene) and
-moved to the picture's corner (`dimensions.sceneX/Y`). On a hex map the cells
-are the live grid's (`getOffsetRange` over the picture, `getCenterPoint` per
-offset), snapped by `offsetsInside` and laid as one grid shape of their
-offsets, and a zone holding no cell is refused; on a square or gridless map the outline is the
+moved to the picture's corner (`dimensions.sceneX/Y`). On a hex or square map
+the cells are the live grid's (`getOffsetRange` over the picture,
+`getCenterPoint` per offset), snapped by `offsetsInside` (a zone over the whole
+picture takes every cell on it) and laid as one grid shape of their offsets,
+and a zone holding no cell is refused; on a gridless map the outline is the
 shape. The Region is named `Zone <n> (<book short>)` from a lang key.
 
 ### A way between maps

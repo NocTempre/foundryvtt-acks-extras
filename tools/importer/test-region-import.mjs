@@ -169,7 +169,7 @@ function makeGrid(type = 1, size = 100) {
     return { width, height, x, y, rows: rws, columns: cols };
   };
   return {
-    type, size, sizeX, sizeY, isHexagonal: hex,
+    type, size, sizeX, sizeY, isHexagonal: hex, isGridless: type === 0, isSquare: type === 1,
     calculateDimensions,
     getOffset,
     getCenterPoint: (c) => (type === 0 ? { x: c.x, y: c.y } : centre("i" in c ? c : getOffset(c))),
@@ -1026,8 +1026,17 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("the plan is explored a turn at a time", plan?.flags[MODULE_ID].battlemap.mapSystem, "delve");
   const level = plan?.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.zone === "ww.zone1");
   const delve = level?.behaviors.find(() => true)?.system;
-  check("the level's zone is laid over the plan whole, on no cell, drawn on the Regions layer alone",
-    [out.zones, level?.shapes.map((s) => s.type), level?.visibility], [1, ["polygon"], 0]);
+  // A zone over the whole plan holds every square whose centre lies on the picture.
+  const pd = plan.getDimensions();
+  const squares = [];
+  const [si0, sj0, si1, sj1] = plan.grid.getOffsetRange({ x: pd.sceneX, y: pd.sceneY, width: pd.sceneWidth, height: pd.sceneHeight });
+  for (let i = si0; i < si1; i++) for (let j = sj0; j < sj1; j++) {
+    const c = plan.grid.getCenterPoint({ i, j });
+    if (c.x >= pd.sceneX && c.x <= pd.sceneX + pd.sceneWidth && c.y >= pd.sceneY && c.y <= pd.sceneY + pd.sceneHeight) squares.push({ i, j });
+  }
+  ok("the plan is on a square grid with squares on its picture", plan.grid.isSquare && squares.length > 0);
+  check("the level's zone is core's grid shape over every square of the plan, drawn on the Regions layer alone",
+    [out.zones, level?.shapes.map((s) => [s.type, s.offsets]), level?.visibility], [1, [["grid", squares]], 0]);
   check("it carries the chance, the interval and the dungeon level read off its page",
     [delve?.encounterTarget, delve?.encounterEvery, delve?.dungeonLevel, delve?.journeyCadence], [4, 3, 2, ""]);
   sessions.delete("ww");

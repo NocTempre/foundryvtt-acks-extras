@@ -1985,7 +1985,7 @@ age, having no key, stays and is joined by the fresh row once. A Judge's edit
 to a stat-block field outside `values` (range, duration) is still overwritten:
 only `values` leaves carry a stamp.
 
-## 2026-11-16 — A zone's cells are core's grid shape
+## 2026-11-16 — A zone's cells are core's grid shape — SUPERSEDED IN PART 2026-11-16
 
 The owner: "the maps that import have zones defined (good) but are
 unreachable reimplementation of regions (bad)". In the test world, AX4's forest
@@ -2013,3 +2013,27 @@ already fits that exactly.
 *Cost:* a world that already holds zones as per-cell polygons keeps them.
 Re-importing replaces them, and that is the one upgrade path (no repair
 pass, per the 2026-11-11 ruling against tools for earlier versions' data).
+
+## 2026-11-16 — A square-grid zone's cells are core's grid shape too
+
+Supersedes in part the entry above, from the same day: the rejection of
+snapping square-grid zones to cells. **New evidence:** the owner's ruling,
+given after that entry was written. Told that each dungeon-plan zone was
+already one core polygon, the owner answered "Both should be fixed to using
+the foundry native regions instead of polygons with unreachable ack-extra
+code", then "Design principles, composition (extend) better than bespoke", and
+approved the slice "Dungeon zones as cells". The rest of the programme is
+`docs/lib/wip/20261116-native-regions-plan.md`.
+
+**Ruled.** On a square grid, a zone is laid as a hex zone is: one `grid` shape
+over the cells whose centres its outline holds (`pictureCells` now answers on
+any grid but a gridless one). A zone that covers its recipe's crop
+(`coversCrop`, a dungeon level's) takes every cell on the picture. A
+point-in-ring test leaves out a far column or row whose centres lie exactly on
+the picture's edge, and on a whole plan that edge belongs to the level. Only a
+gridless map, a city's, keeps the outline polygon: core's grid shape is empty
+on a gridless scene, so a polygon is the native free-form Region there.
+
+*Cost:* a whole-plan zone is a few hundred cells rather than four corners;
+core stores the list and tests a point by its key. Worlds holding a dungeon
+zone as one polygon keep it until they re-import.
