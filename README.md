@@ -25,6 +25,10 @@ manifest URL:
 https://github.com/NocTempre/foundryvtt-acks-extras/releases/latest/download/module.json
 ```
 
+Foundry offers to install the two required modules, lib-wrapper and socketlib,
+along with it; accept. Updates arrive the same way, from **Add-on Modules →
+Update All**.
+
 **Requirements**
 
 | | |
@@ -40,7 +44,7 @@ for ability icons in the ACKS-shaped corners of the imported corpus (Acrobatics,
 Blind Fighting, Caving, Mapping). Without it those fall back to core Foundry
 icons. [Automated Animations](https://foundryvtt.com/packages/autoanimations),
 with Sequencer and JB2A, animates attacks and spells on the map, a miss included
-([guide](docs/guides/appearance.md#animate-attacks-and-spells-on-the-map)).
+([guide](https://noctempre.github.io/foundryvtt-acks-extras/guides/appearance/#animate-attacks-and-spells-on-the-map)).
 
 ### Installing from source
 
@@ -78,7 +82,8 @@ so a tag is enough to get that release running, with or without its zip.
 
 ## Getting started
 
-1. Enable the module in **Settings tab → Manage Modules**. Nothing is
+1. Enable the module in **Settings tab → Manage Modules**, and accept when
+   Foundry offers to enable lib-wrapper and socketlib with it. Nothing is
    mandatory — every feature is opt-in through its own settings, and the
    defaults are RAW.
 2. Open **Settings tab → Game Settings → ACKS II — Extras**. World-scoped
@@ -88,10 +93,15 @@ so a tag is enough to get that release running, with or without its zip.
    one **Configure Sheet** away. See
    [The character sheet](https://noctempre.github.io/foundryvtt-acks-extras/guides/character-sheet/).
 4. If you own the books, open the **Compendium Packs tab → ACKS II — Extras →
-   Macros → ACKS Extras Macros** compendium, run **Your ACKS Books (this
-   seat)** to connect a PDF, then **Import Everything (GM)**: classes, spells,
-   proficiencies, equipment, monsters, tables and more arrive from your own
-   copy. See [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
+   Macros → ACKS Extras Macros** compendium. Both macros you need sit in
+   folders inside it:
+   - **ACKS Extras → Your Books → Your ACKS Books (this seat)** connects a PDF
+     from this computer.
+   - **ACKS Extras → Import from your books → Import Everything (GM)**, run by
+     the GM, brings in classes, spells, proficiencies, equipment, monsters,
+     tables and more from that copy. Players who own no books read the result.
+
+   See [Importing from your books](https://noctempre.github.io/foundryvtt-acks-extras/guides/importer/).
 
 ---
 
