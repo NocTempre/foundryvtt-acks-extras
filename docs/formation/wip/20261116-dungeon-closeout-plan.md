@@ -628,9 +628,9 @@ run in that order; the rest share only `lang/en.json` and
 
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
-| U14 | `main` | implementer | The Skill audit's mechanics: an id per party, a re-render when the party or an ability item changes, the scroll on a part root, `PressFocus`, sizes off the ramp, columns that scroll and do not clip. `tools/live/formation-audit.mjs` finds the window by its new id. | §10 Skill audit 1-4, 11-15; Skill tab 5 | nothing |
+| U14 | `main` | implementer | The Skill audit's mechanics: an id per party, a re-render when the party or an ability item changes, the scroll on a part root, `PressFocus`, sizes off the ramp, columns that scroll and do not clip. `tools/live/formation-audit.mjs` finds the window by its new id. **Done**: `c3bce7a2`, and `b388e2cd` for what the walk found; `formation-audit` 47 of 47 (§14). | §10 Skill audit 1-4, 11-15; Skill tab 5 | nothing |
 | U15 | `main` | implementer | The audit's and the Skill tab's figures and names: one cited-parts helper shared with `rollCheckFor`; names on the Used-for selects and check names in their options; the Sheet target and the progression table with their sources; core's tooltip in place of `title`. | §10 Skill audit 5, 6, 8, 9, 10; Skill tab 1-3 | U14 |
-| U16 | `main` | implementer | The trap sheet and the trap zone's config: the level strip's state in text; the pit's damage with its parts, and its page reference alone when a part is not imported; the trigger band shown with its source; a scrolling part root; the State select's labels and the `known` field's label. | §10 Trap sheet 1-8; configs 1, 2 | nothing |
+| U16 | `main` | implementer | The trap sheet and the trap zone's config: the level strip's state in text; the pit's damage with its parts, and its page reference alone when a part is not imported; the trigger band shown with its source; a scrolling part root; the State select's labels and the `known` field's label. **Done**: `eb51e9b2`; `formation-trap-sheet` 23 of 23 (§14). | §10 Trap sheet 1-8; configs 1, 2 | nothing |
 | U17 | `main` | architect, then implementer | The party token's HUD: a named button; `addTokensToParty` as the `architect` rules it against the 2026-11-14 ruling and formation's MODEL. `module.mjs` is shared with S1, S11, S13 and `topic/summons-formation`: check them first. The picker's part is done: on the owner's "Fix it now" (2026-11-16) `dbdf1ecf` put both openers of the picker on `marching-templates.mjs` `carryOutPick`, walked by `formation-marching-picker`, 19 of 19 on the GM seat. | §10 HUD 1, 3 (2 closed by `dbdf1ecf`) | the ruling |
 | U18 | `main` | implementer | The Walls and Regions layers: the wall's trap row names its trap, opens it and takes it off; the canvas drop is tested by seat; the two tools told apart; the door tool's `order`; the Place row's button named. | §10 Walls 1-5; configs 5 | U1, U3 |
 | U19 | `main` | implementer | The experience dialog: the gain's parts, the unread adjustment's page reference where it can be hovered, a re-read at confirm, a total below nothing refused; the two unescaped names; the overview's `title`. | §10 small dialogs 1-5, 7, 8 | U2 |
@@ -1240,3 +1240,90 @@ The Foundry server process died mid-walk, not stopped by this session; the
 app was restarted and the world relaunched, and the crossing and the import
 survived. The pane's in-page fixture ledger did not, so the run's own cards
 were listed by author, time and fixture, and swept by that list.
+
+## 14. Phase 3c results: U14 and U16
+
+Run 2026-11-16/17 by a session started beside Phase 1, in `main`'s tree. Each
+slice was built by a fresh `implementer`. The walks were driven by the session
+itself. U15 follows U14 and is not built.
+
+Commits, none pushed:
+- `c3bce7a2`: U14.
+- `b388e2cd`: what the U14 walk found.
+- `eb51e9b2`: U16, with its walk.
+
+### Exercised live
+
+- `tools/live/formation-audit.mjs`: 47 of 47 on lane A (the GM and Player
+  seats), before the seat lanes existed. The load recorder was attached before
+  `init`. Its new section "the audit window" covered:
+  - two parties' audits open together, the first still posting its card;
+  - a second press bringing the open window forward;
+  - a redraw on an ability's create, rename and delete on a member, none for
+    an actor outside the party, and a redraw on a member leaving and
+    rejoining;
+  - the body part's scroll kept across a ruling's render;
+  - focus back on the ruling button and on a Used-for select;
+  - the Resolution table scrolling sideways to its last column at 340 px;
+  - the window and its select growing with the type size.
+- `tools/live/formation-trap-sheet.mjs` (new): 23 of 23 on lane C with
+  `FIXTURE_OWN=u14-u16`. It is recorded as partial, so the release lane walks
+  it again without the tag. It covered TESTING steps 1, 2, 5, 6, 7 and 8:
+  - the strip's caption, its `aria-current` and each step's words;
+  - the pit line's figure equal to the world's formula, its depth, fall and
+    spike parts each ending in the imported page, and spiked and unspiked;
+  - the band in force when blank, typed and 0;
+  - the form part keeping a mid offset across a changed field;
+  - the State labels and the Known label and hint;
+  - the width at the largest type size, on a fresh instance.
+- `tools/live/window-contract.mjs`: 247 of 248 on lane C. Every trap sheet
+  check passes. The failure is in the importer's own window, under Found below.
+
+### Found by the walks
+
+- Each draw of the audit read every world compendium through
+  `refreshLadders`. That took about 2 s warm and 14 s cold on the test seat,
+  past `PressFocus`'s 3 s, so focus came back only by luck. Fixed in
+  `b388e2cd`: the first draw only reads the ladders fresh.
+- A Used-for change rendered twice and lost its focus. A ruling pressed just
+  before a change took the focus back. Both fixed in `b388e2cd`.
+- The first walk's redraw checks read before the redraw landed, so three of
+  them passed on nothing. The walk now counts the watched audit's renders.
+- Core puts an auto-height window back to `height: auto` on every render, a
+  bare `ApplicationV2` included. A trap sheet the user shrinks therefore
+  regrows when a field changes. This is core's behaviour, not U16's, and
+  TESTING step 6 says so.
+- An item keeps one sheet instance, and its width is decided when that
+  instance is built. A trap sheet opened once keeps its width until reload
+  after the type size changes. TESTING step 8 says so.
+- Not this plan's: `window-contract`'s "settings menu importManager: every
+  control is reachable in a short window" fails. Its Open and Remove buttons
+  are lost at 300 px.
+- The U16 implementer flagged two more: `traps.hint.level` still says "1st to
+  6th", and `searchLock` has no `TRAP_ZONE.FIELDS` label.
+
+### Checked offline only
+
+- `test-skill-audit-window` (12 checks; written against a stand-in
+  application, with no mutation check).
+- `test-trap-sheet-view` (13 checks).
+- `npm test` and `validate` at each landing's gate.
+- U16's TESTING steps 3 and 4 (spike tables cleared, `fall` cleared). They
+  clear tables every lane of the shared world reads.
+
+### Not checked
+
+- U16 on a Player seat: the trap sheet and the zone config are the Judge's.
+- Any tooltip's page against the printed page with the book open. The pit's
+  shipped fallback references are `crossing.ref.jumping` for the fall (its
+  dice come from the landing passage) and "JJ ch. 8" for the spikes.
+
+### Fixtures kept
+
+- `formation/audit-party` with `formation/audit-member-1` to `-3` (lane A, no
+  tag).
+- `formation/combat-party` and `formation/combat-member-1` (read as the second
+  party).
+- `formation/trap-sheet-pit@u14-u16`, `formation/trap-sheet-scene@u14-u16` and
+  `formation/trap-sheet-zone@u14-u16`.
+- The walks swept their own cards and probe items by tracked id.
