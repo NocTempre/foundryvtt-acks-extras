@@ -2023,7 +2023,8 @@ already one core polygon, the owner answered "Both should be fixed to using
 the foundry native regions instead of polygons with unreachable ack-extra
 code", then "Design principles, composition (extend) better than bespoke", and
 approved the slice "Dungeon zones as cells". The rest of the programme is
-`docs/lib/wip/20261116-native-regions-plan.md`.
+recorded in lib DECISIONS 2026-11-16, "The core Region is the object, and the module's
+types compose onto it".
 
 **Ruled.** On a square grid, a zone is laid as a hex zone is: one `grid` shape
 over the cells whose centres its outline holds (`pictureCells` now answers on

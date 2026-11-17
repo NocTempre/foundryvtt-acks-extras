@@ -431,3 +431,39 @@ reads it as removed.
 *Cost:* a concentrating creature that is struck or fails a save loses the state,
 where before nothing ended it. This narrows the conditions ROADMAP row to what
 the module still does not do.
+
+## 2026-11-16 — The core Region is the object, and the module's types compose onto it
+
+The owner, 2026-11-16: "the maps that import have zones defined (good) but are
+unreachable reimplementation of regions (bad). This needs repaired following
+the module development principles"; "Both should be fixed to using the foundry
+native regions instead of polygons with unreachable ack-extra code" (dungeon
+zones and city quarters); "The new actor types like districts are a UI for the
+more complex needs, not a replacement for a fundamental object type"; "Design
+principles, composition (extend) better than bespoke". On scope: every slice
+went ahead, with "Non grid regions for gridless maps like city districts",
+party membership by "Core's footprint", and imported Regions "Keep locked".
+
+**Ruled.** The core Region owns shape, Levels, elevation, membership and area.
+The module's behaviour types (`district`, `encounterZone`, `trapZone`) are
+configuration on it, and a location actor names and links one through the
+Region's `acks-extras.location` flag; that is the UI layer. Nothing in the
+module computes geometry or membership that core keeps: `regions.mjs` asks
+core (`token.regions`, `testPoint`, `polygonTree`, `area`, `findClosestPoint`),
+and a hex or square zone, and every paint layer's cells, are core `grid`
+shapes. Each feature's ruling is its own entry: importer 2026-11-16 (a zone's
+cells, on hex and square grids), formation 2026-11-16 (footprint membership)
+and 2026-11-17 (the trap sweep), location 2026-11-16 (a place's parent is its
+filing), battlemap 2026-11-16 (paint is a grid shape per value).
+
+**Kept.** Formation still polls `updateToken` rather than reacting to core's
+Region behaviour events: core's movement events never carry the module's own
+update options (halt, travel, resize, the true position; core's
+`movement.updateOptions` whitelist), and the clock must advance before a trap
+is checked, which needs one trigger. Imported Regions stay locked; a brush
+Region is created unlocked so core's grid tool reaches it.
+
+*Cost:* old worlds' per-hex paint polygons and module-computed zone outlines
+are still drawn and are read as nothing (no migration, the owner's standing
+ruling); a Region shape a feature does not read (a polygon on a paint layer, a
+hole on a grid zone) is core's to draw and the module's to ignore.
