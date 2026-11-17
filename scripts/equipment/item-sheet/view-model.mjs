@@ -13,7 +13,7 @@
  *   goods      qty (number|null), stackable, weight6, cost
  *   currency   {perStone, declared, system} | null — how many make a stone
  *   wear       wearable, worn, wornSlot, slotGuess, favorite (bool|null), split
- *   magic      {is, aura, identified, known?, detected?}  disguise {enabled, active, trueName,
+ *   magic      {is, aura, identified, known?, detected?, cursed?, curseKnown?, curseShown?}  disguise {enabled, active, trueName,
  *              trueDescription, trueCost, apparentName}
  *   named      {given, trueName, revealed, unlocked, total, cats[], by} | null
  *   container  {holds, capacityStone, capacityStated, capacityTip, load6, cap6, locked, lockMod, quality,
@@ -154,6 +154,10 @@ export function buildItemSheetModel(snap, viewer = {}) {
   // a snapshot that says `false` changes what a sheet shows.
   const undetected = !gm && magic.is && magic.known === false;
   const showAura = gm || !magic.is || (know >= 2 && !undetected);
+  // The curse is a knowledge mark: a Judge sees it from the moment it is set, a
+  // player only once it is known (`curseShown`, read by `curseKnowledge` as a
+  // player). A snapshot with neither mark counts as not cursed.
+  const showCurse = gm ? magic.cursed === true : magic.curseShown === true;
   const dis = snap.disguise ?? { enabled: false, active: false };
   // A player looking at a disguised item sees the document, which IS the mask.
   const masked = !gm && dis.active;
@@ -318,6 +322,10 @@ export function buildItemSheetModel(snap, viewer = {}) {
       valueReason: value.reason,
       valueTip: value.tip,
       valueUnknown: value.reason === "unknown",
+      // The curse tag, null where nothing is shown. `tip` is the lang key under
+      // `itemSheet.curse` its tooltip reads: `told` once the players know,
+      // `secret` while only a Judge does.
+      curse: showCurse ? { known: magic.curseKnown === true, tip: magic.curseKnown === true ? "told" : "secret" } : null,
       // Editable only where the badge reads the plain value (see
       // docs/equipment/MODEL.md, "The band types the two numbers it reads.").
       valueEditable: value.reason === "value",
@@ -405,6 +413,9 @@ export function buildItemSheetModel(snap, viewer = {}) {
           know,
           // The Judge's mark; an absent key counts as detected.
           detected: magic.detected !== false,
+          // The Judge's curse marks; both absent counts as not cursed, not told.
+          cursed: magic.cursed === true,
+          curseKnown: magic.curseKnown === true,
           steps: KNOW_STEPS.map((s) => ({ ...s, on: s.n === know })),
           disguisable: !!dis.enabled,
           disguised: !!dis.active,

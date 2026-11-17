@@ -453,6 +453,19 @@ party's find.
   value badge on an undetected item carries the ordinary value tooltip, never
   "apparent worth" or the disguise's (`view-model.mjs` `valueBadge`, `tip`), and
   the sell dialog reads the ordinary basis label instead of "apparent value".
+- **The curse mark.** `flags["acks-extras"].markets.cursed` is the truth and
+  `curseKnown` is whether the players have been told; both read false when
+  absent and neither applies an effect. `lib/item-model.mjs` `curseKnowledge`
+  is the one reader (`{cursed, curseKnown, showCurse}`): a Judge sees a curse
+  from the moment it is set, a player once it is known, and only on a magical
+  item. Clearing Cursed clears `curseKnown` with it. `markIdentified` sets
+  `curseKnown` on a full identification of a cursed item. The item sheet's
+  Appearance tab holds a Cursed checkbox beside Detected (and a Curse known
+  checkbox once cursed), a magical item and a Judge only, written through
+  `toggleCursed` / `toggleCurseKnown`. Where the curse is shown, the band
+  carries a Cursed tag (`view-model.mjs` `band.curse`; a Judge's tooltip says
+  whether the players have been told), and a Judge previewing as a player sees
+  what a player sees.
 
 ## A market whose class is not known
 

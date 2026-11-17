@@ -29,7 +29,7 @@ import { isSilvered } from "../silver.mjs";
 import { ITEM_FLAG as MARKETS_FLAG } from "../../markets/constants.mjs";
 import {
   isWearable, isWorn, wornSlotOf, capacityOf, contentsIn, weight6Of, sumWeight6, bundleSizeOf, isClothing, isAmmoItem, STONE,
-  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear, magicKnowledge,
+  isCurrency, perStoneOf, systemCoinsPerStone, stackCountOf, gearOf, holdsGear, magicKnowledge, curseKnowledge,
 } from "../../lib/item-model.mjs";
 import { coinTotalGC } from "../../lib/money-logic.mjs";
 import { lightControl, writesMagicLight } from "../../lib/light.mjs";
@@ -460,16 +460,22 @@ function namedSnapshot(item, gm) {
  * item's magic, whoever is looking: a Judge previewing as a player reads the
  * same figure, and the view-model ignores it for a Judge. `detected` is the
  * Judge's mark itself, true when absent, for the Appearance tab's control.
+ * `cursed` and `curseKnown` are the curse marks themselves, for the Judge's
+ * controls and view; `curseShown` is what a PLAYER may be shown (`curseKnowledge`).
  * @param {Item} item
  * @param {object} markets the item's markets flag
  */
 export function magicSnapshotOf(item, markets) {
+  const curse = curseKnowledge(item, { isGM: false });
   return {
     is: !!markets.magic,
     aura: markets.aura ?? null,
     identified: markets.identified ?? "none",
     known: magicKnowledge(item, { isGM: false }).known,
     detected: magicKnowledge(item, { isGM: false }).detected,
+    cursed: curse.cursed,
+    curseKnown: curse.curseKnown,
+    curseShown: curse.showCurse,
   };
 }
 

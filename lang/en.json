@@ -2080,6 +2080,7 @@
         "conditionHint": "Visible to everyone — damage cannot be disguised.",
         "masked": "Masked",
         "maskedHint": "Players see the disguise. You see the true item.",
+        "cursed": "Cursed",
         "judgeView": "Judge view"
       },
       "condition": {
@@ -2136,6 +2137,10 @@
         "divine": "Divine aura",
         "eldritch": "Eldritch aura",
         "hint": "Detectable before identification — a disguise does not mask it."
+      },
+      "curse": {
+        "told": "The players have been told this item is cursed (JJ ch. 4, Identifying Magic Items).",
+        "secret": "Judge's mark: this item is cursed and the players have not been told (JJ ch. 4, Identifying Magic Items)."
       },
       "editor": {
         "edit": "Edit this item",
@@ -2335,6 +2340,12 @@
         "detected": "Detected",
         "detectedHint": "Judge's mark: the players are told this item is magic only once it is detected. Identification marks it detected (JJ ch. 4, Identifying Magic Items).",
         "detectedAria": "Mark this item's magic as detected by the players",
+        "cursed": "Cursed",
+        "cursedHint": "Judge's mark: this item is cursed. The players see nothing of it until the curse is known; the mark applies no effect (JJ ch. 4, Identifying Magic Items).",
+        "cursedAria": "Mark this item as cursed",
+        "curseKnown": "Curse known",
+        "curseKnownHint": "Judge's mark: the players are told the item is cursed without a full identification. A full identification sets it (JJ ch. 4, Identifying Magic Items).",
+        "curseKnownAria": "Tell the players this item is cursed",
         "hint": {
           "none": "Held and handled; nothing magical is apparent.",
           "partial": "Its nature is known, not its effect or worth.",

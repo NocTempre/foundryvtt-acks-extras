@@ -240,3 +240,37 @@ item, with the same apparent figure.
 
 *Cost:* the control does not stop a Judge un-detecting an item that is already
 identified; whether it should is an open owner question.
+
+## 2026-11-17 — A curse is two Judge marks, `cursed` and `curseKnown`, and nothing is applied
+
+The treasure table's cards turn a cursed colour once a curse is known, and the
+owner: "Replace the right for clicking toggles like no magic or force cursed
+etc.", with "card face color for special status like magic and curse once
+identified". A curse was stored nowhere, so two optional keys join
+`flags["acks-extras"].markets`: `cursed` (the truth) and `curseKnown` (whether
+the players have been told), each absent meaning false and written only by a
+Judge's click or by a full identification.
+
+- **A knowledge mark, not automation.** The module marks the item and tells the
+  table; it applies no curse effect and prevents no use. What a curse does is
+  each item's own text, not a procedure the module performs, so automating it
+  would be a house rule, and none ships (JJ ch. 4, Identifying Magic Items, is
+  the page the tooltips cite). Rejected: effects on the item, a lang string
+  describing what a curse does.
+- **A full identification sets `curseKnown`**, in `markIdentified`, the one
+  write every `identified` writer goes through, and only where `cursed` is
+  true. A partial identification does not: the item is known to be magic and
+  not yet known to be cursed.
+- **The Judge can tell the players earlier.** A Curse known checkbox beside
+  Cursed (Appearance tab → What The Players Know, a magical item, Judge only,
+  armed by the pencil, `lib/item-model.mjs` `toggleCursed` / `toggleCurseKnown`).
+  It is shown only on a cursed item. Un-cursing clears `curseKnown` too, so a
+  curse ticked again later is not shown to the players at once.
+- **One reader.** `curseKnowledge(item, {isGM})` is the only gate: a Judge
+  sees a curse once `cursed`, a player once `curseKnown`, and only on a
+  magical item, since the controls live on the magic block and vanish with it.
+  It is separate from `magicKnowledge`, whose result shape other callers pin.
+- *Cost:* `curseKnown` on an undetected item shows a player the curse mark
+  without the magic being detected. It is the Judge's explicit word, and
+  `markIdentified` detects the item whenever it sets `curseKnown`, so only
+  the Judge's own checkbox reaches that state.

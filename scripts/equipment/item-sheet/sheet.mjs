@@ -29,7 +29,7 @@ import { PRISTINE, recomputeItemFields, layerDeltas, baseForTyped } from "../pro
 import { containerOf, setLocked, storeIn, takeOut, setContainerRecord } from "../containers.mjs";
 import { isSpellbook, spellbookSpells, setSpellbookSpells, parseSpellList, formatSpellList } from "../spellbook.mjs";
 import * as named from "../overlays/named.mjs";
-import { containedIn, siblingsOf, isEquippable, isWorn, markIdentified, toggleDetected } from "../../lib/item-model.mjs";
+import { containedIn, siblingsOf, isEquippable, isWorn, markIdentified, toggleDetected, toggleCursed, toggleCurseKnown } from "../../lib/item-model.mjs";
 import { isLightShuttered, setLightShutter } from "../../lib/light.mjs";
 import { EFFECT_STARTS, effectStartData } from "./effect-starts.mjs";
 import { wearableSlots } from "../profiles.mjs";
@@ -114,6 +114,8 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
       knowStep: AcksItemSheet.#onKnowStep,
       toggleMagic: AcksItemSheet.#onToggleMagic,
       toggleDetected: AcksItemSheet.#onToggleDetected,
+      toggleCursed: AcksItemSheet.#onToggleCursed,
+      toggleCurseKnown: AcksItemSheet.#onToggleCurseKnown,
       removeDisguise: AcksItemSheet.#onRemoveDisguise,
       previewAsPlayer: AcksItemSheet.#onPreviewAsPlayer,
       judgeView: AcksItemSheet.#onJudgeView,
@@ -822,6 +824,16 @@ export default class AcksItemSheet extends PicksMixin(HandlebarsApplicationMixin
   static async #onToggleDetected() {
     const f = this.item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
     await this.item.setFlag(MODULE_ID, MARKETS_FLAG, toggleDetected(f));
+  }
+
+  static async #onToggleCursed() {
+    const f = this.item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
+    await this.item.setFlag(MODULE_ID, MARKETS_FLAG, toggleCursed(f));
+  }
+
+  static async #onToggleCurseKnown() {
+    const f = this.item.getFlag(MODULE_ID, MARKETS_FLAG) ?? {};
+    await this.item.setFlag(MODULE_ID, MARKETS_FLAG, toggleCurseKnown(f));
   }
 
   static async #onToggleMagic() {

@@ -1,6 +1,7 @@
 /**
  * What a player may be told of an item's magic: the `detected` mark, the one
- * reader `magicKnowledge`, the item sheet and slot label gated on it while the
+ * reader `magicKnowledge`, the curse marks and their reader `curseKnowledge`,
+ * the item sheet and slot label gated on it while the
  * slot rule still counts the truth, the disguise field rules shared by
  * `disguiseItem` and `disguiseData`, and the identification listener that
  * lifts a name and reveals. All data is invented; no Foundry.
@@ -22,7 +23,7 @@ globalThis.foundry = {
   applications: { api: { ApplicationV2: class {}, HandlebarsApplicationMixin: (B) => class extends B {}, DialogV2: class {} }, handlebars: {} },
 };
 
-const { magicKnowledge, markIdentified, toggleDetected, slotUse, isMagical } = await import("../scripts/lib/item-model.mjs");
+const { magicKnowledge, curseKnowledge, markIdentified, toggleDetected, toggleCursed, toggleCurseKnown, slotUse, isMagical } = await import("../scripts/lib/item-model.mjs");
 const T = await import("../scripts/lib/tables.mjs");
 const vocab = await import("../scripts/lib/vocab.mjs");
 const { buildItemSheetModel } = await import("../scripts/equipment/item-sheet/view-model.mjs");
@@ -259,6 +260,126 @@ await test("a player's view follows the write: undetected, then known once ident
   const flag = magicFlag({ detected: false });
   assert.equal(magicKnowledge(mockItem({ markets: flag }), { isGM: false }).known, false);
   assert.equal(magicKnowledge(mockItem({ markets: markIdentified(flag, "partial") }), { isGM: false }).known, true);
+});
+
+console.log("the curse mark");
+
+const curseOf = (markets, isGM) => curseKnowledge(mockItem({ markets }), { isGM });
+
+await test("absent keys show no curse to anyone", () => {
+  assert.deepEqual(curseOf(magicFlag(), false), { cursed: false, curseKnown: false, showCurse: false });
+  assert.deepEqual(curseOf(magicFlag(), true), { cursed: false, curseKnown: false, showCurse: false });
+  assert.equal(curseOf({}, true).showCurse, false, "a mundane item too");
+  assert.equal(curseOf(magicFlag({ curseKnown: true }), false).showCurse, false, "a known curse with nothing cursed shows nothing");
+  assert.equal(curseOf(magicFlag({ cursed: "yes" }), true).cursed, false, "only a boolean true is a curse");
+});
+
+await test("a cursed item is hidden from a player until the curse is known, and a Judge always sees it", () => {
+  const hidden = magicFlag({ cursed: true });
+  assert.deepEqual(curseOf(hidden, false), { cursed: true, curseKnown: false, showCurse: false });
+  assert.equal(curseOf(hidden, true).showCurse, true);
+  assert.equal(curseOf({ ...hidden, curseKnown: true }, false).showCurse, true);
+  assert.equal(curseOf({ ...hidden, curseKnown: false }, false).showCurse, false);
+});
+
+await test("the viewer defaults to the current user's seat", () => {
+  const item = mockItem({ markets: magicFlag({ cursed: true }) });
+  game.user.isGM = true;
+  assert.equal(curseKnowledge(item).showCurse, true);
+  game.user.isGM = false;
+  assert.equal(curseKnowledge(item).showCurse, false);
+});
+
+await test("the reader takes plain item data, as a card's snapshot is", () => {
+  const plain = (markets) => ({ flags: { "acks-extras": { markets } } });
+  assert.deepEqual(curseKnowledge(plain({ magic: true, cursed: true, curseKnown: true }), { isGM: false }), { cursed: true, curseKnown: true, showCurse: true });
+  assert.equal(curseKnowledge(plain({ magic: true, cursed: true }), { isGM: false }).showCurse, false);
+  assert.deepEqual(curseKnowledge(plain({ cursed: true, curseKnown: true }), { isGM: true }), { cursed: false, curseKnown: true, showCurse: false }, "a curse mark on an item that is not magic counts for no one");
+  assert.equal(curseKnowledge(plain({}), { isGM: true }).showCurse, false);
+  assert.equal(curseKnowledge(null, { isGM: true }).showCurse, false);
+});
+
+await test("a full identification sets curseKnown on a cursed item, and a partial one does not", () => {
+  assert.deepEqual(markIdentified({ magic: true, cursed: true }, "full"), { magic: true, cursed: true, identified: "full", curseKnown: true });
+  assert.equal("curseKnown" in markIdentified({ magic: true, cursed: true }, "partial"), false);
+  assert.equal("curseKnown" in markIdentified({ magic: true, cursed: true }, "none"), false);
+  const flag = { magic: true, cursed: true };
+  markIdentified(flag, "full");
+  assert.equal("curseKnown" in flag, false, "the input is not mutated");
+});
+
+await test("a full identification writes no curseKnown where nothing is cursed", () => {
+  assert.equal("curseKnown" in markIdentified({ magic: true }, "full"), false);
+  assert.equal("curseKnown" in markIdentified({ magic: true, cursed: false }, "full"), false);
+  assert.deepEqual(markIdentified({ magic: true, cursed: true, curseKnown: false }, "full").curseKnown, true);
+});
+
+await test("a player's view follows the write: nothing, then the curse once identified in full", () => {
+  const flag = magicFlag({ cursed: true });
+  assert.equal(curseOf(markIdentified(flag, "partial"), false).showCurse, false);
+  assert.equal(curseOf(markIdentified(flag, "full"), false).showCurse, true);
+});
+
+await test("toggleCursed sets an absent or false mark, clears a true one, and keeps every other key", () => {
+  assert.deepEqual(toggleCursed({ magic: true, identified: "partial" }), { magic: true, identified: "partial", cursed: true });
+  assert.deepEqual(toggleCursed({ magic: true, cursed: false }), { magic: true, cursed: true });
+  assert.deepEqual(toggleCursed({ magic: true, cursed: true, curseKnown: true }), { magic: true, cursed: false, curseKnown: false }, "un-cursing untells the players");
+  assert.deepEqual(toggleCursed(toggleCursed({ magic: true, cursed: true, curseKnown: true })), { magic: true, cursed: true, curseKnown: false }, "a curse ticked again is not shown at once");
+  const flag = { magic: true };
+  toggleCursed(flag);
+  assert.equal("cursed" in flag, false, "the input is not mutated");
+});
+
+await test("toggleCurseKnown tells and untells the players, and keeps every other key", () => {
+  assert.deepEqual(toggleCurseKnown({ magic: true, cursed: true }), { magic: true, cursed: true, curseKnown: true });
+  assert.deepEqual(toggleCurseKnown({ magic: true, cursed: true, curseKnown: true }), { magic: true, cursed: true, curseKnown: false });
+  const flag = { magic: true, cursed: true };
+  toggleCurseKnown(flag);
+  assert.equal("curseKnown" in flag, false, "the input is not mutated");
+  assert.equal(curseOf(toggleCurseKnown(flag), false).showCurse, true, "the Judge's word reveals it without an identification");
+});
+
+console.log("the curse on the item sheet");
+
+await test("a player's sheet shows no curse mark until the curse is known", () => {
+  assert.equal(sheetFor(magicFlag({ cursed: true }), { isGM: false }).band.curse, null);
+  assert.equal(sheetFor(magicFlag(), { isGM: false }).band.curse, null);
+  assert.deepEqual(sheetFor(magicFlag({ cursed: true, curseKnown: true }), { isGM: false }).band.curse, { known: true, tip: "told" });
+  assert.equal(sheetFor(magicFlag({ cursed: true }), { isGM: false }).appearance, null, "and no control");
+});
+
+await test("a Judge's band shows the curse from the moment it is set, and says whether it is told", () => {
+  assert.equal(sheetFor(magicFlag(), { isGM: true }).band.curse, null);
+  assert.deepEqual(sheetFor(magicFlag({ cursed: true }), { isGM: true }).band.curse, { known: false, tip: "secret" });
+  assert.deepEqual(sheetFor(magicFlag({ cursed: true, curseKnown: true }), { isGM: true }).band.curse, { known: true, tip: "told" });
+});
+
+await test("a Judge previewing as a player sees what a player sees", () => {
+  assert.equal(sheetFor(magicFlag({ cursed: true }), { isGM: true, previewAsPlayer: true }).band.curse, null);
+  assert.deepEqual(sheetFor(magicFlag({ cursed: true, curseKnown: true }), { isGM: true, previewAsPlayer: true }).band.curse, { known: true, tip: "told" });
+});
+
+await test("a Judge's controls read the two marks, absent as off", () => {
+  const unmarked = sheetFor(magicFlag(AURA), { isGM: true }).appearance;
+  assert.equal(unmarked.cursed, false);
+  assert.equal(unmarked.curseKnown, false);
+  const marked = sheetFor(magicFlag({ ...AURA, cursed: true, curseKnown: true }), { isGM: true }).appearance;
+  assert.equal(marked.cursed, true);
+  assert.equal(marked.curseKnown, true);
+  assert.equal(sheetFor({}, { isGM: true }).appearance.magic, false, "a mundane item gets the group without its magic block, which holds the controls");
+});
+
+await test("the controls sit inside the Appearance tab's magic block, Curse known only for a cursed item", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const hbs = await readFile(new URL("../templates/equipment/item-sheet/appearance.hbs", import.meta.url), "utf8");
+  const open = hbs.indexOf("{{#if appearance.magic}}");
+  const close = hbs.indexOf('data-mount="magic"');
+  for (const action of ["toggleCursed", "toggleCurseKnown"]) {
+    const at = hbs.indexOf(`data-action="${action}"`);
+    assert.ok(open !== -1 && at > open && at < close, `${action} is inside the magic block`);
+  }
+  const cursedBlock = hbs.indexOf("{{#if appearance.cursed}}");
+  assert.ok(cursedBlock > hbs.indexOf('data-action="toggleCursed"') && cursedBlock < hbs.indexOf('data-action="toggleCurseKnown"'));
 });
 
 console.log("disguiseData");

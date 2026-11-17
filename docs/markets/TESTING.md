@@ -1346,6 +1346,30 @@ A step that needs the shape asserts it at its start: read
 7. **Judge's panel and Appearance tab:** on an undetected copy, raise
    Identification to Partly identified, in the magic panel and again on a fresh
    copy through the Appearance tab's steps. *Observable:* `detected` is `true` after the same write.
+8. **The curse:** **Fixture** `treasure/cursed-item`, found by that marker and
+   built when nothing carries it: a weapon on the Player seat's character with
+   `markets` = `{magic: true, identified: "none", cursed: false}`. Not driven by
+   `tools/live/markets-undetected.mjs`, which covers steps 1 to 7. Assert
+   `cursed` is not `true` and `curseKnown` is not `true` before walking; a flag
+   write merges, so "shape again" means writing `identified: "none"` and
+   `curseKnown: false` (an absent key cannot be restored). GM seat,
+   pencil armed: Appearance tab → What The Players Know, tick Cursed.
+   *Observable:* `markets.cursed` is `true`; the GM's band shows a Cursed tag
+   whose tooltip says the players have not been told; the Player seat's open
+   sheet shows no Cursed tag and no control; a **Curse known** checkbox appears
+   on the GM's tab.
+   - **Full identification:** shape the fixture again (`curseKnown: false`), then
+     raise Identification to Fully identified (the Appearance tab's steps).
+     *Observable:* `curseKnown` is `true` in the same write; the Player seat's
+     sheet now shows the Cursed tag with the "told" tooltip.
+   - **A partial identification does not:** shape again, raise to Partly
+     identified. *Observable:* `curseKnown` is not `true` and the Player seat sees
+     no tag.
+   - **The Judge's word:** shape again, tick Curse known. *Observable:* the
+     Player seat shows the tag with `identified` still `none`; untick it and the
+     tag goes. Untick Cursed: the GM's tag goes and the Curse known checkbox
+     disappears. The controls are absent on a mundane item and on a Player
+     seat's sheet.
 
 **Teardown:** the marked fixtures stay; delete only what the run made beyond
 them (step 7's copy, the identification cards) by its tracked ids. A kept

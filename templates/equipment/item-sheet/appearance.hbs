@@ -25,6 +25,18 @@
              aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.know.detectedAria'}}">
       <span>{{localize 'ACKS-EQUIPMENT.itemSheet.know.detected'}}</span>
     </label>
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.know.cursedHint'}}">
+      <input type="checkbox" data-action="toggleCursed" {{checked appearance.cursed}} {{disabled (not editing)}}
+             aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.know.cursedAria'}}">
+      <span>{{localize 'ACKS-EQUIPMENT.itemSheet.know.cursed'}}</span>
+    </label>
+    {{#if appearance.cursed}}
+    <label class="acks-check" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.know.curseKnownHint'}}">
+      <input type="checkbox" data-action="toggleCurseKnown" {{checked appearance.curseKnown}} {{disabled (not editing)}}
+             aria-label="{{localize 'ACKS-EQUIPMENT.itemSheet.know.curseKnownAria'}}">
+      <span>{{localize 'ACKS-EQUIPMENT.itemSheet.know.curseKnown'}}</span>
+    </label>
+    {{/if}}
     <label class="acks-extras-item-sheet__field is-md">
       <span class="acks-extras-item-sheet__field-label">{{localize 'ACKS-EQUIPMENT.itemSheet.aura.title'}}</span>
       <select class="acks-input acks-input--line" name="flags.acks-extras.markets.aura" {{disabled (not editing)}}>

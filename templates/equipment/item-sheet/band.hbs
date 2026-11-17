@@ -67,6 +67,9 @@
   {{#if band.masked}}
   <span class="acks-tag acks-tag--solid" data-tooltip="{{localize 'ACKS-EQUIPMENT.itemSheet.band.maskedHint'}}">{{localize 'ACKS-EQUIPMENT.itemSheet.band.masked'}}</span>
   {{/if}}
+  {{#if band.curse}}
+  <span class="acks-tag acks-tag--solid" data-tooltip="{{localize (concat 'ACKS-EQUIPMENT.itemSheet.curse.' band.curse.tip)}}">{{localize 'ACKS-EQUIPMENT.itemSheet.band.cursed'}}</span>
+  {{/if}}
   {{#if previewAsPlayer}}
   <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="judgeView">{{localize 'ACKS-EQUIPMENT.itemSheet.band.judgeView'}}</button>
   {{/if}}

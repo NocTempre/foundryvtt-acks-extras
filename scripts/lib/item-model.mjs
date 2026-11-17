@@ -251,16 +251,41 @@ export function magicKnowledge(item, { isGM = !!globalThis.game?.user?.isGM } = 
 /**
  * The markets flag after an item's identification state is set to `state`.
  * Raising it past `none` marks an undetected item detected (an item whose
- * magic is being identified is one its holders know is magic); every other key
- * is carried unchanged, and `detected` is never written where it is absent.
- * Returns a new object.
+ * magic is being identified is one its holders know is magic), and a full
+ * identification of a cursed item marks the curse known (`curseKnown`), so
+ * both rules live in this one write. Every other key is carried unchanged,
+ * and neither `detected` nor `curseKnown` is written where nothing calls for
+ * it. Returns a new object.
  * @param {object} flag the item's current markets flag
  * @param {"none"|"partial"|"full"} state
  */
 export function markIdentified(flag, state) {
   const next = { ...flag, identified: state };
   if (state !== "none" && flag?.detected === false) next.detected = true;
+  if (state === "full" && flag?.cursed === true) next.curseKnown = true;
   return next;
+}
+
+/**
+ * What a viewer knows of an item's curse. A curse is a Judge's knowledge mark,
+ * never an effect the module applies: `cursed` is the item's
+ * `flags.acks-extras.markets.cursed` (the truth, false when absent), and
+ * `curseKnown` is whether the players have been told, set by a full
+ * identification (`markIdentified`) or by the Judge (`toggleCurseKnown`).
+ * `showCurse` is whether this viewer may be shown the item as cursed: it is
+ * cursed and the viewer is a Judge or the curse is known. Display code (the
+ * item sheet, a treasure card's face) gates on `showCurse`. The mark counts
+ * only on a magical item (`isMagical`), since the Judge's controls live on the
+ * magic block and vanish with it.
+ * @param {Item} item
+ * @param {{isGM?: boolean}} [viewer] defaults to the current user's seat
+ * @returns {{cursed: boolean, curseKnown: boolean, showCurse: boolean}}
+ */
+export function curseKnowledge(item, { isGM = !!globalThis.game?.user?.isGM } = {}) {
+  const flag = item?.getFlag?.(MODULE_ID, "markets") ?? item?.flags?.[MODULE_ID]?.markets ?? {};
+  const cursed = flag.cursed === true && isMagical(item);
+  const curseKnown = flag.curseKnown === true;
+  return { cursed, curseKnown, showCurse: cursed && (isGM || curseKnown) };
 }
 
 /**
@@ -272,6 +297,28 @@ export function markIdentified(flag, state) {
  */
 export function toggleDetected(flag) {
   return { ...flag, detected: flag?.detected === false };
+}
+
+/**
+ * The markets flag after a Judge's click on the Cursed control: an absent or
+ * false mark is set, a true one cleared. Clearing it also clears `curseKnown`,
+ * so a curse ticked again later is not shown to the players at once. Every
+ * other key is carried unchanged. Returns a new object.
+ * @param {object} flag the item's current markets flag
+ */
+export function toggleCursed(flag) {
+  if (flag?.cursed === true) return { ...flag, cursed: false, curseKnown: false };
+  return { ...flag, cursed: true };
+}
+
+/**
+ * The markets flag after a Judge's click on the Curse known control: the
+ * players are told the item is cursed, or no longer told. Every other key,
+ * `cursed` included, is carried unchanged. Returns a new object.
+ * @param {object} flag the item's current markets flag
+ */
+export function toggleCurseKnown(flag) {
+  return { ...flag, curseKnown: flag?.curseKnown !== true };
 }
 
 /** Every ammunition name RAW recognises, across all three launcher families. */
