@@ -2,8 +2,9 @@
  * The crossing's rules as arithmetic: no dice, no documents, no Foundry. A
  * crossing sends the party over one obstacle or one gap, a member at a time
  * (RR ch. 6, Spelunking and Jumping and Leaping). `crossing.mjs` supplies the
- * flag, the roll and the card; this file answers what a row may do, where a
- * throw leaves a member and how far a fall is.
+ * flag, the roll and the card; this file answers what a row may do, what a
+ * landing asks for and costs, where a throw leaves a member and how far a
+ * fall is.
  *
  * Every figure comes from the readers `obstacles.mjs` and `jumping.mjs` hold,
  * so nothing here is a printed value. A figure the world has not imported
@@ -27,7 +28,7 @@
  * When more than one applies the row reports the first of that order.
  */
 import { OBSTACLES, obstaclePlan, obstacleStep, stretchFeet, throwsFor } from "./obstacles.mjs";
-import { canClear, fallFigures } from "./jumping.mjs";
+import { canClear, fallFigures, landingFailure, landingSave } from "./jumping.mjs";
 import { pitDamage } from "./trap-rules.mjs";
 
 /**
@@ -263,4 +264,52 @@ export function jumpRow(gapFeet, { options = {}, seat = {}, standing = null } = 
   if (cleared.verdict === "unknown") refusals.push({ cls: REFUSAL.absence, reason: "jump" });
   if (cleared.verdict === "impossible") refusals.push({ cls: REFUSAL.permission, reason: "impossible" });
   return { ...cleared, ...settle(refusals, seat?.judge) };
+}
+
+/**
+ * What a jump row offers about the landing: `landingSave`'s answer, and whether
+ * the row's own refusals let a seat press it. A plain landing asks for no
+ * throw, so nothing is offered; a precarious one, or a charging jump, asks for
+ * the save. The save inherits the row's refusals whole: an unknown jump stops
+ * every seat, an unreachable gap warns a Judge and stops a player.
+ *
+ * @param {{can: boolean, warn: boolean}} row a `jumpRow` result
+ * @param {object} [o]
+ * @param {boolean} [o.precarious] the setup marks the far side precarious
+ * @param {boolean} [o.charging] the jump is made charging
+ * @param {boolean} [o.acrobatics] the member holds Acrobatics
+ * @param {number} [o.saveBonus] what Acrobatics is worth to the save, passed in
+ * @returns {{needed: boolean, save: string, bonus: number, can: boolean, warn: boolean}}
+ */
+export function landingRow(row, { precarious = false, charging = false, acrobatics = false, saveBonus = 0 } = {}) {
+  const asked = landingSave({ precarious, charging, acrobatics, saveBonus });
+  return { ...asked, can: asked.needed && !!row?.can, warn: asked.needed && !!row?.can && !!row?.warn };
+}
+
+/** The footings a Judge picks after a failed landing, in the order a pick lists them. */
+export const FOOTINGS = Object.freeze(["solid", "edge", "empty"]);
+
+/**
+ * What a failed landing costs on the footing the Judge picked: `landingFailure`
+ * whole, with the footing and the fall's distance beside it. A footing that is
+ * no footing answers null. A fall over empty space with no depth given has no
+ * distance and names `depth` in `unknown`; nothing is rolled and no hit point
+ * moves here.
+ *
+ * @param {object} o
+ * @param {string} o.footing one of `FOOTINGS`
+ * @param {number|string|null} [o.depth] the drop under a fall, in feet
+ * @returns {{footing: string, outcome: string, shortBy: string|null, damage: string|null, feet: number|null, unknown: string[]}|null}
+ */
+export function landingOutcome({ footing, depth = null } = {}) {
+  if (!FOOTINGS.includes(footing)) return null;
+  const drop = Number(depth) > 0 ? Number(depth) : 0;
+  const failure = landingFailure(footing, drop);
+  const falls = failure.outcome === "fall";
+  return {
+    footing,
+    ...failure,
+    feet: falls && drop > 0 ? drop : null,
+    unknown: falls && !drop ? [...failure.unknown, "depth"] : failure.unknown,
+  };
 }

@@ -38,7 +38,7 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
-  applyCrossingForm, beginCrossing, endCrossing, readCrossing, throwAll, throwFor,
+  applyCrossingForm, beginCrossing, endCrossing, landFor, readCrossing, reportLanding, throwAll, throwFor,
 } from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
@@ -976,6 +976,35 @@ export const SHARED_ACTIONS = {
       return;
     }
     const result = await throwFor(formation, actorId);
+    const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+    if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
+    this.render?.();
+  },
+
+  /**
+   * A member's landing save, rolled through the system's own save roll. The
+   * Judge's alone: a player's seat has no press for it.
+   */
+  async crossingLand(event, target) {
+    const formation = gmFormation(this);
+    const actorId = target.dataset.actorId;
+    if (!formation || !actorId) return;
+    const result = await landFor(formation, actorId, { event });
+    const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+    if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
+    this.render?.();
+  },
+
+  /**
+   * A failed landing reported on the footing the row's pick names, with the
+   * figures it yields. The Judge's alone; nothing is applied.
+   */
+  async crossingLandingFailed(_event, target) {
+    const formation = gmFormation(this);
+    const actorId = target.dataset.actorId;
+    const footing = target.closest(".acks-extras-crossing-landing")?.querySelector("[data-pick='crossing-footing']")?.value;
+    if (!formation || !actorId) return;
+    const result = await reportLanding(formation, actorId, footing);
     const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
     if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
     this.render?.();

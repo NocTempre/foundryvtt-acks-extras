@@ -12,7 +12,7 @@ import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/obstacles.mjs";
 import { canClear } from "../scripts/formation/jumping.mjs";
 import {
-  CLIMB_CHECK, REFUSAL, SETTLED, fallFromClimb, jumpRow, memberRow, stepMember,
+  CLIMB_CHECK, FOOTINGS, REFUSAL, SETTLED, fallFromClimb, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
 } from "../scripts/formation/crossing-logic.mjs";
 
 let passed = 0;
@@ -389,6 +389,47 @@ await ok("a jump row is stopped by the seat before the verdict, and a down jumpe
   assert.equal(judge.can, true);
   assert.equal(judge.warn, true);
   assert.equal(jumpRow(15, { options: { dex: 12 }, seat: OWNER, standing: "down" }).can, false);
+});
+
+// ---- the landing -------------------------------------------------------------
+await ok("a precarious or charging landing offers the save and a plain one does not", () => {
+  load();
+  const row = jumpRow(15, { options: { dex: 12 }, seat: OWNER });
+  const plain = landingRow(row, {});
+  assert.deepEqual([plain.needed, plain.can, plain.warn], [false, false, false], "no throw is asked and none is offered");
+  for (const setup of [{ precarious: true }, { charging: true }, { precarious: true, charging: true }]) {
+    const asked = landingRow(row, setup);
+    assert.deepEqual([asked.needed, asked.can, asked.warn, asked.save, asked.bonus], [true, true, false, "paralysis", 0], JSON.stringify(setup));
+  }
+  assert.equal(landingRow(row, { precarious: true, acrobatics: true, saveBonus: 7 }).bonus, 7, "a bonus passed in is carried");
+  assert.equal(landingRow(row, { precarious: true, saveBonus: 7 }).bonus, 0, "and only for a holder");
+});
+
+await ok("the landing save takes the jump row's refusals: unreachable warns a Judge and stops a player, unknown stops both", () => {
+  load();
+  const judge = landingRow(jumpRow(90, { options: { dex: 12 }, seat: JUDGE }), { precarious: true });
+  assert.deepEqual([judge.can, judge.warn], [true, true]);
+  const player = landingRow(jumpRow(90, { options: { dex: 12 }, seat: OWNER }), { precarious: true });
+  assert.deepEqual([player.can, player.warn], [false, false]);
+  resetTables();
+  for (const seat of [JUDGE, OWNER]) {
+    const unknown = landingRow(jumpRow(15, { options: { dex: 12 }, seat }), { charging: true });
+    assert.deepEqual([unknown.needed, unknown.can, unknown.warn], [true, false, false]);
+  }
+});
+
+await ok("the footing reaches landingFailure whole, and a fall with no depth names it", () => {
+  load({ jumping: { ...JUMPING, shortfallDie: "1d3" } });
+  assert.deepEqual(FOOTINGS, ["solid", "edge", "empty"]);
+  assert.deepEqual(landingOutcome({ footing: "solid" }), { footing: "solid", outcome: "prone", shortBy: "1d3", damage: null, feet: null, unknown: [] });
+  assert.equal(landingOutcome({ footing: "edge" }).outcome, "hanging");
+  assert.deepEqual(landingOutcome({ footing: "empty", depth: 30 }), { footing: "empty", outcome: "fall", shortBy: "1d3", damage: "2d8", feet: 30, unknown: [] });
+  assert.deepEqual(landingOutcome({ footing: "empty", depth: 6 }), { footing: "empty", outcome: "fall", shortBy: "1d3", damage: null, feet: 6, unknown: [] });
+  assert.deepEqual(landingOutcome({ footing: "empty" }), { footing: "empty", outcome: "fall", shortBy: "1d3", damage: null, feet: null, unknown: ["depth"] });
+  assert.equal(landingOutcome({ footing: "lava" }), null, "a footing that is no footing yields nothing");
+  assert.equal(landingOutcome({}), null);
+  resetTables();
+  assert.deepEqual(landingOutcome({ footing: "empty", depth: 30 }).unknown, ["shortfallDie", "fall"], "nothing imported is named, not guessed");
 });
 
 // ---- the seam ---------------------------------------------------------------

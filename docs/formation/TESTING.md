@@ -4845,13 +4845,19 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 7 | The Judge modifier set so the lowest face meets the target, the lowest face rigged | The botch row's words on the card |
 | 8 | A fall | The card and the row report the distance and the dice; the member's hit points are unchanged |
 | 9 | The GM throws for a refused member (the adventurer on a face the table refuses) | A warning, then the throw; the card says it was thrown over a refusal |
-| 10 | A jump: gap and run-up | The rows' verdicts equal `acksExtras.formation.jumping.canClear` read in page context for each member |
-| 11 | Precarious | The checkbox is stored and nothing else changes; the landing's save and footing belong to a later slice |
+| 10 | A jump: gap and run-up, for several gaps (one inside every member's range, one inside some, one past all) with the run-up on, then off | Each row's range and verdict equal `acksExtras.formation.jumping.canClear` read in page context for that member's own Dexterity score, level, carried stone and Acrobatics, with `runningStart` the setup's run-up; turning the run-up off moves the range and the verdict for the same gap; the verdict tooltip lists the distance's parts and the faces that clear |
+| 11 | Precarious off, then on; then charging with precarious off | Off and off: no landing line on any row. Either on: every row carries a Landing save label with its tooltip (the save's name, then the page); the Judge's pane also has the roll button and the footing pick with its failed button, and the Player's pane has neither |
+| 11a | The Judge presses the landing save on a member | The system's own save dialog opens for that member (or none with its skip key held); the rolled card is the system's own, and one more card follows, whispered to the Judges, with the total. The flag is unchanged |
+| 11b | Cancel the system's dialog | Nothing is posted; the Judge is told the save was not rolled |
+| 11c | The gap set past a member's range, precarious on | That member's row says it cannot reach, the roll button reads Roll anyway and the press warns the Judge and goes ahead; on the Player's pane the same row blocks with the reason as text and no press. With the jumping table blanked, the verdict is blank and no seat can roll, with no words |
+| 11d | After a save, pick each footing and press Failed, with the setup's depth set and then blank | One card to the Judges each: solid and edge name the outcome (prone, hanging) and what the imported die gives; empty names a fall with the depth's dice, or reads the distance as unknown with no depth. No hit point, status or flag value changes on the member or the party |
 | 12 | A member removed mid-crossing, with the removed member's record already in the flag | The row is gone at the next render; the stale record is dropped at the next member's throw, which lands |
 | 13 | End, then Begin | A fresh id; no member state carried |
 | 14 | A second party sheet, a detached window, the type size on a fresh window | The tab's scroll kept after a press; focus back on the pressed row's button; the rows reflow and nothing clips |
 | 15 | A hover pass | Each figure's parts against the page it names; a blank figure's tooltip is the reference alone |
 | 16 | Teardown | End; the cards tracked by the ids the run saw appear, then `api.sweepTracked()`, its result quoted; fixtures kept |
+
+Steps 11 to 11d use a member holding no Acrobatics unless the walk has imported the Acrobatics ceiling and bands, since a holder's jump reads unknown without them (`formation/crossing-acrobat` covers the holder). The landing save's bonus is read as nothing until the granted-modifier read lands, so a holder's tooltip names no bonus. A player's landing save is not relayed: the system's roll opens a dialog on the client that calls it, so the Player's pane shows the label and no press. The cards of 11a and 11d are found by the set of `game.messages` ids before and after and tracked by uuid, and the system's own card of 11a is the run's too.
 
 Steps 5 to 5e are the player seat: a Player's press is relayed and the GM
 client throws, so a GM pane must be seated or the press has nothing to answer

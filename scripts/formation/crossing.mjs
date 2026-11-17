@@ -16,6 +16,12 @@
  * rolled for still stands; an in-flight set keyed by crossing and member
  * refuses a second throw for the same member until the first has landed.
  *
+ * A jump is a distance against a gap, so its rows carry a verdict and no throw.
+ * Where the setup marks the landing precarious or the jump charging, a Judge's
+ * press rolls the member's landing save through the system's own `rollSave`
+ * (`landFor`), and a failed landing is reported on the footing the Judge
+ * picks (`reportLanding`). Both are the Judge's alone; neither writes the flag.
+ *
  * A crossing applies no condition, spends no time on the clock and posts no
  * damage: the card reports a fall's distance and dice and touches no hit
  * points. A player's client never writes or rolls: its press is relayed
@@ -29,8 +35,11 @@ import {
 } from "./formation-model.mjs";
 import { partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
-import { fallFigures, jumpDistance } from "./jumping.mjs";
-import { CLIMB_CHECK, SETTLED, STALLED, fallFromClimb, jumpRow, memberRow, stepMember } from "./crossing-logic.mjs";
+import { NO_ACROBATICS, fallFigures, jumpDistance } from "./jumping.mjs";
+import {
+  CLIMB_CHECK, FOOTINGS, SETTLED, STALLED, fallFromClimb, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
+} from "./crossing-logic.mjs";
+import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { citeOf } from "../lib/tables.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
@@ -215,7 +224,12 @@ export function rowFor(formation, crossing, { member, actor }, { judge = game.us
       runningStart: crossing.runUp !== false,
     };
     const gap = positive(crossing.gap);
-    return { actor, member, jump: true, standing, options, gapSet: gap !== null, row: jumpRow(gap ?? 0, { options, seat, standing }) };
+    const row = jumpRow(gap ?? 0, { options, seat, standing });
+    // What Acrobatics is worth to the save is passed in as the logic's neutral figure.
+    const landing = landingRow(row, {
+      precarious: !!crossing.precarious, charging: !!crossing.charging, acrobatics: options.acrobatics, saveBonus: NO_ACROBATICS.saveBonus,
+    });
+    return { actor, member, jump: true, standing, options, gapSet: gap !== null, row, landing };
   }
   const figure = resolveCheck(actor, CLIMB_CHECK);
   const holds = holdsClimbing(actor);
@@ -382,12 +396,52 @@ function obstacleRowView(crossing, entry) {
   };
 }
 
+/** The system's key for the save a landing asks for. */
+const saveKeyOf = (landing) => BOOK_TO_RELEASED_SAVES[landing.save] ?? landing.save;
+
+/** The save's name as the system words it, or the crossing's own words for it. */
+function saveName(landing) {
+  const key = `ACKS.saves.${saveKeyOf(landing)}.long`;
+  return game.i18n.has(key) ? game.i18n.localize(key) : loc("crossing.landing.label");
+}
+
+/** A landing save's working as a tooltip: its name, a bonus where one is held, then the page. */
+function landingTooltip(landing) {
+  const parts = [saveName(landing)];
+  if (landing.bonus) parts.push(loc("crossing.tip.landingBonus", { bonus: landing.bonus }));
+  return [...parts, citeFor("jumping") ?? jumpingRef()].join(" · ");
+}
+
+/**
+ * The landing's part of a jump row: null where the landing asks for no throw.
+ * A Judge's row carries the press and the footing pick; any other seat reads
+ * that a save is asked for, with its working in the tooltip.
+ */
+function landingView(entry) {
+  const { landing, actor } = entry;
+  if (!landing.needed) return null;
+  const isGM = game.user.isGM;
+  return {
+    label: saveName(landing),
+    tip: landingTooltip(landing),
+    ref: jumpingRef(),
+    canRoll: isGM && landing.can,
+    warn: landing.warn,
+    rollLabel: loc(landing.warn ? "crossing.landing.rollAnyway" : "crossing.landing.roll"),
+    rollAria: loc("crossing.landing.rollFor", { name: actor.name }),
+    canReport: isGM,
+    failedAria: loc("crossing.landing.failedFor", { name: actor.name }),
+    footings: FOOTINGS.map((value) => ({ value, label: loc(`crossing.footing.${value}`) })),
+  };
+}
+
 /** One jump row for the template. */
 function jumpRowView(crossing, entry) {
   const { actor, row, options } = entry;
   const said = refusalText(row.refusal, actor);
   const range = row.min === null ? "" : `${row.min}–${row.max}`;
   return {
+    landing: landingView(entry),
     actorId: entry.member.actorId,
     name: actor.name,
     verdict: entry.gapSet ? row.verdict : "",
@@ -575,4 +629,104 @@ export async function throwAll(formation) {
     } else out.left++;
   }
   return out;
+}
+
+/* -------------------------------------------- */
+/*  The landing                                 */
+/* -------------------------------------------- */
+
+/** The open crossing, a jump, and the member's entry with its row read for a Judge; or the reason there is none. */
+function landingEntry(formation, actorId) {
+  if (!game.user.isGM) return { refused: "notGM" };
+  const crossing = readCrossing(formation);
+  if (!crossing) return { refused: "closed" };
+  if (crossing.kind !== JUMP_KIND) return { refused: "notJump" };
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  if (!entry) return { refused: "member" };
+  return { crossing, seen: { ...entry, ...rowFor(formation, crossing, entry, { judge: true }) } };
+}
+
+/**
+ * Roll one member's landing save, from a GM client: the system's own `rollSave`
+ * on the member, whose dialog and card are the system's. The row is read for a
+ * Judge, so an unreachable gap or a member who is down warns and goes ahead,
+ * and a jump nobody imported the figures for rolls nothing. Nothing is written
+ * to the flag. The save's bonus is not an argument of the system's roll; a
+ * situational bonus is the dialog's field. A card to the Judges records the
+ * total.
+ *
+ * @param {object} formation
+ * @param {string} actorId the member's actor id
+ * @param {object} [o]
+ * @param {Event|null} [o.event] the press, so the system's skip-dialog key reads from it
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, total?: number}>}
+ *   `refused` is `notGM`, `closed`, `notJump`, `member`, `noSave`, `noCell`, `busy`, `cancelled`,
+ *   `absence` (a figure was never imported) or the row's refusal reason
+ */
+export async function landFor(formation, actorId, { event = null } = {}) {
+  const { crossing, seen, refused } = landingEntry(formation, actorId);
+  if (refused) return { ok: false, refused };
+  if (!seen.landing.needed) return { ok: false, refused: "noSave" };
+  if (!seen.landing.can) return { ok: false, refused: seen.row.refusal?.cls === "absence" ? "absence" : seen.row.refusal?.reason ?? "member" };
+  // The system's roll reads the save's cell unguarded and throws where a member has none.
+  if (seen.actor.system?.saves?.[saveKeyOf(seen.landing)]?.value == null) return { ok: false, refused: "noCell" };
+  const key = `${crossing.id}:${actorId}:landing`;
+  if (inFlight.has(key)) return { ok: false, refused: "busy" };
+  if (seen.landing.warn) ui.notifications.warn(refusalText(seen.row.refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
+  inFlight.add(key);
+  try {
+    const roll = await seen.actor.rollSave(saveKeyOf(seen.landing), { event });
+    if (!roll) return { ok: false, refused: "cancelled" };
+    const foot = [];
+    if (seen.landing.warn) foot.push(loc("crossing.card.overRefusal", { reason: refusalText(seen.row.refusal, seen.actor) || loc("crossing.card.overRefusalBare") }));
+    const message = await postToJudges({
+      content: renderRollCard({
+        title: loc("crossing.card.landingTitle"),
+        subtitle: seen.actor.name,
+        sections: [{ rows: [{ name: seen.actor.name, total: roll.total, detail: saveName(seen.landing), tooltipText: landingTooltip(seen.landing) }] }],
+        footnote: foot.join(" · "),
+      }),
+      speaker: { alias: formation.name },
+    });
+    return { ok: true, message, total: roll.total };
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/**
+ * Report a failed landing on the footing the Judge picked, from a GM client:
+ * `landingOutcome`'s answer on a card to the Judges. A fall's distance is the
+ * setup's depth. The figures are reported and applied to nothing: no hit point,
+ * condition or position changes, and the flag is not written.
+ *
+ * @param {object} formation
+ * @param {string} actorId the member's actor id
+ * @param {string} footing one of `FOOTINGS`
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, outcome?: object}>}
+ *   `refused` is `notGM`, `closed`, `notJump`, `member` or `footing`
+ */
+export async function reportLanding(formation, actorId, footing) {
+  const { crossing, seen, refused } = landingEntry(formation, actorId);
+  if (refused) return { ok: false, refused };
+  const outcome = landingOutcome({ footing, depth: crossing.depth });
+  if (!outcome) return { ok: false, refused: "footing" };
+  const foot = [];
+  if (outcome.shortBy) foot.push(loc("crossing.card.landingShort", { die: outcome.shortBy }));
+  if (outcome.outcome === "fall") {
+    foot.push(outcome.feet === null
+      ? loc("crossing.card.fallUnknown")
+      : loc(outcome.damage ? "crossing.card.fall" : "crossing.card.fallNoDice", { feet: outcome.feet, damage: outcome.damage ?? "" }));
+  }
+  const message = await postToJudges({
+    content: renderRollCard({
+      title: loc("crossing.card.landingFailed"),
+      subtitle: seen.actor.name,
+      note: citeFor("jumping") ?? jumpingRef(),
+      sections: [{ rows: [{ name: seen.actor.name, total: "", outcome: loc(`crossing.landing.outcome.${outcome.outcome}`) }] }],
+      footnote: foot.join(" · "),
+    }),
+    speaker: { alias: formation.name },
+  });
+  return { ok: true, message, outcome };
 }

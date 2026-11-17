@@ -58,6 +58,10 @@
       <input type="checkbox" name="crossing.charging"{{#if crossing.setup.charging}} checked{{/if}}>
       <span>{{localize "ACKS-FORMATION.crossing.charging"}}</span>
     </label>
+    <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.jumping}}">
+      <span>{{localize "ACKS-FORMATION.crossing.depth"}}</span>
+      <input type="number" name="crossing.depth" value="{{crossing.setup.depth}}" min="0" step="any">
+    </label>
     {{else}}
     <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.spelunking}}">
       <span>{{localize "ACKS-FORMATION.crossing.length"}}</span>
@@ -89,6 +93,31 @@
       <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.verdictTip}}">{{this.range}}</span>
       <span class="acks-extras-crossing-verdict" data-tooltip-text="{{this.verdictTip}}">{{this.verdictLabel}}</span>
       {{#if this.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.said}}</span>{{/if}}
+      {{#if this.landing}}
+      <span class="acks-extras-crossing-landing" data-landing="{{this.actorId}}">
+        <span class="acks-extras-crossing-verdict" data-tooltip-text="{{this.landing.tip}}">{{this.landing.label}}</span>
+        {{#if this.landing.canRoll}}
+        <button type="button" data-action="crossingLand" data-actor-id="{{this.actorId}}"
+                aria-label="{{this.landing.rollAria}}" data-tooltip="">
+          <i class="fa-solid fa-dice-d20" inert></i> {{this.landing.rollLabel}}
+        </button>
+        {{/if}}
+        {{#if this.landing.canReport}}
+        <label class="acks-extras-crossing-field" data-tooltip-text="{{this.landing.ref}}">
+          <span>{{localize "ACKS-FORMATION.crossing.landing.footing"}}</span>
+          <select data-pick="crossing-footing">
+            {{#each this.landing.footings}}
+            <option value="{{this.value}}">{{this.label}}</option>
+            {{/each}}
+          </select>
+        </label>
+        <button type="button" data-action="crossingLandingFailed" data-actor-id="{{this.actorId}}"
+                aria-label="{{this.landing.failedAria}}" data-tooltip="">
+          <i class="fa-solid fa-person-falling" inert></i> {{localize "ACKS-FORMATION.crossing.landing.failed"}}
+        </button>
+        {{/if}}
+      </span>
+      {{/if}}
       </span>
     </li>
     {{/each}}

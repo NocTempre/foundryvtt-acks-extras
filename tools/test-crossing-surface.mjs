@@ -51,7 +51,9 @@ const GM = { id: "gm1", name: "Judge", isGM: true };
 const PLAYER = { id: "pl1", name: "Pat", isGM: false };
 const OTHER = { id: "pl2", name: "Quinn", isGM: false };
 
-const seen = { created: [], warned: [], told: [], updates: [] };
+const seen = { created: [], warned: [], told: [], updates: [], saves: [] };
+/** What a stand-in `rollSave` returns: a roll with a total, or nothing for a dialog that was cancelled. */
+let saveResult = { total: 11 };
 const naturals = [];
 let rollDelay = 0;
 let serial = 0;
@@ -109,8 +111,8 @@ const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
 const {
-  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, readCrossing, throwAll, throwFor,
-  writeMemberStep,
+  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, landFor, readCrossing, reportLanding,
+  throwAll, throwFor, writeMemberStep,
 } = crossing;
 const { registerRequestSocket, requestCrossingThrow } = await import("../scripts/formation/player-requests.mjs");
 
@@ -151,16 +153,17 @@ const CLIMBING = () => item("Probe Climb", [throwOf("climb", ladder([1, 15], [5,
 const ACROBATICS = () => item("Probe Tumble", [], { provides: ["kw:acrobatics"], cite: "XX p.3" });
 
 /** A person on the world's actor list. `owner` is the user id who owns them besides the GM. */
-function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character" } = {}) {
+function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0 } = {}) {
   const actor = {
     id: name, name, type, img: `${name}.webp`, statuses: new Set(), appliedEffects: [],
     system: {
       details: { level, morale: 0 }, adventuring: adventuring ? { ...adventuring } : undefined, hp: { value: hp, max: 10 },
-      encumbrance: { value: 0 }, scores: { dex: { value: dex, mod: 0 } }, saves: {}, attack: { throw: 10 }, surprise: {}, initiative: {},
+      encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 } }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
     },
     getFlag: () => undefined,
     testUserPermission: (user) => !!user?.isGM || user?.id === owner,
     isOwner: false,
+    async rollSave(key, options) { seen.saves.push([name, key, options]); return saveResult; },
     async update(data) { seen.updates.push(["member", data]); },
   };
   for (const i of items) i.actor = actor;
@@ -251,6 +254,8 @@ const reset = () => {
   seen.warned.length = 0;
   seen.told.length = 0;
   seen.updates.length = 0;
+  seen.saves.length = 0;
+  saveResult = { total: 11 };
   naturals.length = 0;
   for (const id of Object.keys(formations)) delete formations[id];
   game.actors.clear();
@@ -764,6 +769,159 @@ await ok("a setup form writes the keys it changes and unsets a blank number", as
   assert.equal(readCrossing(formation).length, undefined);
   assert.equal(await as(PLAYER, () => applyCrossingForm(formation, { length: "5" })), false);
   assert.equal(readCrossing(formation).members && Object.keys(readCrossing(formation)).includes("id"), true, "id and members survive every edit");
+});
+
+await ok("each member's row equals canClear on their own score, level, load and Acrobatics, and the run-up reaches it", async () => {
+  reset();
+  load({ jumping: { ...JUMPING, acrobaticsDexCap: 16, extendedDexBands: [{ min: 3, max: 18, mod: 1 }] } });
+  const plain = person("Alder", { dex: 12, level: 6 });
+  const laden = person("Birch", { dex: 15, level: 3, stone: 3 });
+  const tumbler = person("Cedar", { dex: 12, level: 6, items: [ACROBATICS()] });
+  const { formation } = world([plain, laden, tumbler]);
+  await beginCrossing(formation, "jump");
+  const { canClear } = await import("../scripts/formation/jumping.mjs");
+  const own = {
+    Alder: { dex: 12, encumbrance: 0, acrobatics: false, level: 6 },
+    Birch: { dex: 15, encumbrance: 3, acrobatics: false, level: 3 },
+    Cedar: { dex: 12, encumbrance: 0, acrobatics: true, level: 6 },
+  };
+  const verdicts = new Set();
+  for (const gap of [5, 8, 12, 15, 19, 25]) {
+    for (const runUp of [true, false]) {
+      await applyCrossingForm(formation, { gap: String(gap), runUp });
+      for (const [name, options] of Object.entries(own)) {
+        const expected = canClear(gap, { ...options, runningStart: runUp });
+        const row = rowOf(buildCrossingView(formation), name);
+        assert.equal(row.verdict, expected.verdict, `${name} gap ${gap} run-up ${runUp}`);
+        assert.equal(row.range, `${expected.min}–${expected.max}`, `${name} range, gap ${gap} run-up ${runUp}`);
+        if (expected.clearing) assert.ok(row.verdictTip.includes(`${expected.clearing} of ${expected.faces} faces clear`), "the faces that clear are in the tooltip");
+        verdicts.add(expected.verdict);
+      }
+    }
+  }
+  assert.deepEqual([...verdicts].sort(), ["certain", "chance", "impossible"], "the gaps cover every verdict");
+  const view = buildCrossingView(formation);
+  const ranges = ["Alder", "Birch", "Cedar"].map((name) => rowOf(view, name).range);
+  assert.equal(new Set(ranges).size, 3, "the members' own figures give three different ranges");
+  await applyCrossingForm(formation, { gap: "8", runUp: true });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").verdict, "certain");
+  await applyCrossingForm(formation, { runUp: false });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").verdict, "chance", "the same gap, the standing jump");
+});
+
+await ok("a precarious or charging setup offers a Judge the landing save and a plain one does not; a player reads it with no press", async () => {
+  reset();
+  load();
+  const a = person("Alder", { dex: 12, owner: PLAYER.id });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15" });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").landing, null, "a plain landing asks for none");
+  await applyCrossingForm(formation, { precarious: true });
+  const judge = rowOf(buildCrossingView(formation), "Alder").landing;
+  assert.deepEqual([judge.canRoll, judge.canReport, judge.warn], [true, true, false]);
+  assert.deepEqual(judge.footings.map((f) => f.value), ["solid", "edge", "empty"]);
+  assert.ok(judge.tip.endsWith("XX p.3"), "the save's working names the imported page");
+  await applyCrossingForm(formation, { precarious: false, charging: true });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").landing.canRoll, true, "charging asks for it too");
+  const player = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder").landing;
+  assert.deepEqual([player.canRoll, player.canReport], [false, false], "a player has no press");
+  assert.ok(player.label && player.tip);
+});
+
+await ok("the landing save is core's own rollSave on the member, from the Judge's press, with the press's event", async () => {
+  reset();
+  load();
+  const a = person("Alder", { dex: 12, owner: PLAYER.id });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15" });
+  assert.deepEqual(await landFor(formation, "Alder"), { ok: false, refused: "noSave" }, "a plain landing rolls nothing");
+  await applyCrossingForm(formation, { precarious: true });
+  const event = { shiftKey: true };
+  const out = await landFor(formation, "Alder", { event });
+  assert.equal(out.ok, true);
+  assert.equal(out.total, 11);
+  assert.deepEqual(seen.saves, [["Alder", "paralysis", { event }]], "the system's roll, on the member, against the landing's save");
+  assert.equal(seen.created.length, 1, "one card, to the Judges");
+  assert.deepEqual(seen.created[0].whisper, [GM.id]);
+  assert.equal(Object.keys(readCrossing(formation).members).length, 0, "nothing is written to the flag");
+  saveResult = undefined;
+  assert.deepEqual(await landFor(formation, "Alder"), { ok: false, refused: "cancelled" }, "a dialog dismissed posts no card");
+  assert.equal(seen.created.length, 1);
+  assert.deepEqual(await asAsync(PLAYER, () => landFor(formation, "Alder")), { ok: false, refused: "notGM" }, "a player's client rolls nothing");
+  assert.equal(seen.saves.length, 2);
+});
+
+await ok("an unreachable gap warns a Judge and still rolls; a player is blocked; an unknown jump stops the Judge", async () => {
+  reset();
+  load();
+  const a = person("Alder", { dex: 12, owner: PLAYER.id });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "90", precarious: true });
+  const judge = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([judge.warn, judge.landing.warn, judge.landing.canRoll], [true, true, true]);
+  assert.equal(judge.landing.rollLabel, "Roll anyway");
+  assert.equal(judge.verdict, "impossible");
+  const out = await landFor(formation, "Alder");
+  assert.equal(out.ok, true);
+  assert.equal(seen.warned.length, 1, "the Judge is warned");
+  assert.equal(seen.created.length, 1, "and the card is posted");
+  const player = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder");
+  assert.equal(player.blocked, true, "a player is blocked, with words");
+  assert.equal(player.landing.canRoll, false);
+  seen.created.length = 0;
+  seen.saves.length = 0;
+  load({ jumping: null });
+  const unknown = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([unknown.landing.canRoll, unknown.blocked], [false, false], "an unknown jump stops the Judge, with no words");
+  assert.deepEqual(await landFor(formation, "Alder"), { ok: false, refused: "absence" });
+  assert.equal(seen.saves.length, 0, "and nothing is rolled");
+});
+
+await ok("the footing the Judge picks reaches landingFailure on a card to the Judges, and nothing is applied", async () => {
+  reset();
+  load({ jumping: { ...JUMPING, shortfallDie: "1d3" } });
+  const a = person("Alder", { dex: 12 });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15", precarious: true, depth: "30" });
+  seen.updates.length = 0;
+  const empty = await reportLanding(formation, "Alder", "empty");
+  assert.deepEqual(empty.outcome, { footing: "empty", outcome: "fall", shortBy: "1d3", damage: "2d8", feet: 30, unknown: [] });
+  assert.deepEqual(empty.message.whisper, [GM.id]);
+  const solid = await reportLanding(formation, "Alder", "solid");
+  assert.deepEqual([solid.outcome.outcome, solid.outcome.damage, solid.outcome.feet], ["prone", null, null]);
+  assert.equal((await reportLanding(formation, "Alder", "lava")).refused, "footing");
+  assert.equal((await reportLanding(formation, "Alder", undefined)).refused, "footing");
+  assert.equal(seen.updates.length, 0, "no flag, no hit point and no condition is written");
+  assert.equal((await asAsync(PLAYER, () => reportLanding(formation, "Alder", "solid"))).refused, "notGM");
+  assert.equal((await reportLanding(formation, "Nobody", "solid")).refused, "member");
+  await endCrossing(formation);
+  assert.equal((await reportLanding(formation, "Alder", "solid")).refused, "closed");
+});
+
+await ok("a member with no save recorded is refused and nothing is rolled", async () => {
+  reset();
+  load();
+  const wolf = person("Wolf", { type: "monster", adventuring: null, saves: {} });
+  const { formation } = world([wolf]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15", charging: true });
+  assert.deepEqual(await landFor(formation, "Wolf"), { ok: false, refused: "noCell" });
+  assert.equal(seen.saves.length, 0);
+  assert.equal(seen.created.length, 0);
+});
+
+await ok("a landing needs a jump: an obstacle crossing refuses both presses", async () => {
+  reset();
+  load();
+  const a = person("Alder", { dex: 12 });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "easyClimb");
+  assert.equal((await landFor(formation, "Alder")).refused, "notJump");
+  assert.equal((await reportLanding(formation, "Alder", "solid")).refused, "notJump");
 });
 
 /* --- the partial -------------------------------------------------------------- */

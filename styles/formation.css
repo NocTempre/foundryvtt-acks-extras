@@ -2195,6 +2195,18 @@
   font-style: italic;
 }
 
+.acks-extras.party-sheet .acks-extras-crossing-landing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--acks-sp-2);
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-landing select {
+  min-width: 0;
+}
+
 /* Secondary prose recedes in ink, not opacity. See docs/lib/DECISIONS.md,
    "Secondary and muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {

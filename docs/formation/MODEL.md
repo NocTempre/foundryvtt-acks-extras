@@ -2740,7 +2740,8 @@ state, the roll, the card and the view are `crossing.mjs`'s.
 **Who sees what.** A Judge always has the begin row: a kind pick (the six
 obstacles and a jump) and Begin. While a crossing is open every seat has the
 member rows, and the Judge also the setup fields (length, depth, rope fixed and
-the Judge modifier; for a jump, gap, run-up, precarious and charging) and
+the Judge modifier; for a jump, gap, run-up, precarious, charging and the depth
+a fall over empty space is figured on) and
 *Throw all* and *End*. A player has no section while none is open, and no
 setup field in the DOM while one is. A stack standing for several bodies has no
 row.
@@ -2786,8 +2787,28 @@ refusal. The card prints the imported outcome words escaped, with
 reports a fall's distance and dice (`fallFromClimb`) without writing a hit
 point. A crossing applies no condition, spends no time on the clock and posts no
 damage. `throwAll` throws for each member whose row allows it with no warning.
-A jump row is `canClear`'s verdict for the member, blank until a gap is set;
-it has no throw on this surface.
+A jump row is `canClear`'s verdict and range for the member, blank until a
+gap is set, fed with the member's own Dexterity, level, carried stone and
+Acrobatics and the setup's run-up. It has no throw of its own.
+
+**A jump's landing.** Where the setup marks the landing precarious, or the jump
+charging, `landingRow` (`landingSave` plus the row's refusals) offers the
+landing save on every member's row, and a plain landing offers nothing. The
+save inherits the row's refusals: an unreachable gap warns a Judge and stops a
+player, and a jump whose figures are not imported stops every seat.
+`landFor` (GM client) rolls it through the system's own `rollSave` on the
+member, passing the press's event so the system's skip-dialog key reads from
+it; the module rolls no die of its own, and the system's save takes no bonus
+argument, so a situational bonus is the dialog's field. What Acrobatics is
+worth to the save is passed in as `NO_ACROBATICS`'s zero. The system's own
+card follows the roll mode its dialog took; the crossing adds a card to the
+Judges with the total. After a failed save the Judge picks a footing on the
+row (`FOOTINGS`) and `reportLanding` posts `landingOutcome` (`landingFailure`
+with the setup's depth as the fall's distance, which a fall over empty space
+without a depth names as unknown) on a card to the Judges. Both are the Judge's
+alone and neither writes the flag, a hit point or a condition; a player's row
+reads that a save is asked for and has no press. A press from a player's seat
+is not relayed: the system's roll opens its dialog on the client that calls it.
 
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the
@@ -2813,7 +2834,8 @@ crossing, read from the same rows the section draws.
 
 **Tooltips.** A target names the figure's source, each part with the page its
 import cites, and the Judge modifier; a permitted-or-not and a stretch count
-name the imported page; a fall names its parts and the imported dice; a jump
+name the imported page; a fall names its parts and the imported dice; a landing
+save names the save and a bonus where one is held, then the page; a jump
 names the parts of its distance. A figure nobody imported is blank and its
 tooltip is the page reference alone, which `lang/` ships.
 
