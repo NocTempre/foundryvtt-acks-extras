@@ -62,6 +62,10 @@
       <span>{{localize "ACKS-FORMATION.crossing.depth"}}</span>
       <input type="number" name="crossing.depth" value="{{crossing.setup.depth}}" min="0" step="any">
     </label>
+    <label class="acks-extras-crossing-check" data-tooltip-text="{{crossing.refs.spelunking}}">
+      <input type="checkbox" name="crossing.ropeFixed"{{#if crossing.setup.ropeFixed}} checked{{/if}}>
+      <span>{{localize "ACKS-FORMATION.crossing.ropeFixed"}}</span>
+    </label>
     {{else}}
     <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.spelunking}}">
       <span>{{localize "ACKS-FORMATION.crossing.length"}}</span>
@@ -87,12 +91,44 @@
   <ul class="acks-extras-crossing-rows">
     {{#if crossing.jump}}
     {{#each crossing.rows}}
-    <li class="acks-extras-crossing-row" data-verdict="{{this.verdict}}">
+    <li class="acks-extras-crossing-row" data-verdict="{{this.verdict}}" data-state="{{this.state}}">
       <span class="acks-extras-crossing-name">{{this.name}}{{#if this.holdsAcrobatics}} <span class="acks-extras-crossing-badge">{{localize "ACKS-FORMATION.crossing.holdsAcrobatics"}}</span>{{/if}}</span>
+      {{#if this.attempt.can}}
+      <button type="button" data-action="crossingAttempt" data-actor-id="{{this.actorId}}"
+              aria-label="{{this.attempt.aria}}" data-tooltip="">
+        <i class="fa-solid fa-person-running" inert></i> {{this.attempt.label}}
+      </button>
+      {{/if}}
+      {{#if this.climb.can}}
+      <button type="button" data-action="crossingClimbUp" data-actor-id="{{this.actorId}}"
+              aria-label="{{this.climb.aria}}" data-tooltip="">
+        <i class="fa-solid fa-hand" inert></i> {{this.climb.label}}
+      </button>
+      {{/if}}
       <span class="acks-extras-crossing-cells">
       <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.verdictTip}}">{{this.range}}</span>
       <span class="acks-extras-crossing-verdict" data-tooltip-text="{{this.verdictTip}}">{{this.verdictLabel}}</span>
       {{#if this.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.said}}</span>{{/if}}
+      {{#if this.stateLabel}}<span class="acks-extras-crossing-state">{{this.stateLabel}}</span>{{/if}}
+      {{#if this.result}}
+      <span class="acks-extras-crossing-result">
+        <span class="acks-nums acks-extras-crossing-rolled" data-tooltip-text="{{this.result.rolledTip}}">{{this.result.rolled}} — {{this.result.clearsLabel}}</span>
+        {{#if this.result.save}}
+        <span class="acks-nums acks-extras-crossing-save{{#if this.result.save.passed}} is-passed{{else}} is-failed{{/if}}" data-tooltip-text="{{this.result.save.tip}}">{{this.result.save.text}} — {{this.result.save.label}}</span>
+        {{/if}}
+        {{#if this.result.pending}}<span class="acks-extras-crossing-block">{{localize "ACKS-FORMATION.crossing.result.pending"}}</span>{{/if}}
+        {{#if this.result.footing}}
+        <span class="acks-nums acks-extras-crossing-footing" data-tooltip-text="{{this.result.footing.tip}}">{{this.result.footing.text}} → {{this.result.footing.footing}}: {{this.result.footing.outcome}}</span>
+        {{#if this.result.footing.fall}}
+        <span class="acks-nums acks-extras-crossing-fall" data-tooltip-text="{{this.result.footing.fall.tip}}">{{this.result.footing.fall.text}}</span>
+        {{/if}}
+        {{/if}}
+      </span>
+      {{/if}}
+      {{#if this.climb}}
+      <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.climb.targetTip}}">{{this.climb.target}}</span>
+      {{#if this.climb.said}}<span class="acks-extras-crossing-block{{#if this.climb.warn}} is-warn{{/if}}">{{this.climb.said}}</span>{{/if}}
+      {{/if}}
       {{#if this.landing}}
       <span class="acks-extras-crossing-landing" data-landing="{{this.actorId}}">
         <span class="acks-extras-crossing-verdict" data-tooltip-text="{{this.landing.tip}}">{{this.landing.label}}</span>

@@ -16,11 +16,15 @@
  * rolled for still stands; an in-flight set keyed by crossing and member
  * refuses a second throw for the same member until the first has landed.
  *
- * A jump is a distance against a gap, so its rows carry a verdict and no throw.
- * Where the setup marks the landing precarious or the jump charging, a Judge's
- * press rolls the member's landing save through the system's own `rollSave`
- * (`landFor`), and a failed landing is reported on the footing the Judge
- * picks (`reportLanding`). Both are the Judge's alone; neither writes the flag.
+ * A jump row carries the verdict first, and an attempt (`jumpFor`) rolls the
+ * distance's die against the gap: the record keeps the die's face, the
+ * distance, the landing save where one was asked (core's own `rollSave`, then
+ * the imported shortfall die for a failed one) and the footing that follows
+ * (`jumpResult`), so a later reader of the round's movement finds the feet in
+ * `members.<id>.jump.distance`. A jumper left hanging at the edge climbs up
+ * through the climb rows' own throw (`climbUpRow`, `stepMember`). The Judge's
+ * own landing save press (`landFor`) and footing pick (`reportLanding`) stand
+ * beside it, as an override; neither writes the flag.
  *
  * A member on an obstacle holds the conditions the Spelunking grid names for it
  * (`CROSSING_STATUSES`), as held conditions (`lib/held-condition.mjs`) whose
@@ -41,12 +45,14 @@ import {
 import { carriersOf } from "./mapper-kit.mjs";
 import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
-import { NO_ACROBATICS, fallFigures, jumpDistance } from "./jumping.mjs";
+import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallDie } from "./jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, SETTLED, STALLED, crossingHeld, crossingOfHolder, fallFromClimb, heldAfter, jumpRow,
-  landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, HANGING, LANDING, SETTLED, STALLED, climbUpRow, crossingHeld, crossingOfHolder, fallFromClimb,
+  fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
+import { skipDialogKey } from "../lib/roll-dialog.mjs";
+import { saveSpec } from "../lib/saves.mjs";
 import { HELD_CONDITION_FLAG, heldEffects, holdCondition, releaseCondition } from "../lib/held-condition.mjs";
 import { conditionNameKey } from "../lib/status-effects.mjs";
 import { citeOf } from "../lib/tables.mjs";
@@ -304,12 +310,17 @@ export function rowFor(formation, crossing, { member, actor }, { judge = game.us
       runningStart: crossing.runUp !== false,
     };
     const gap = positive(crossing.gap);
-    const row = jumpRow(gap ?? 0, { options, seat, standing });
+    const row = jumpRow(gap ?? 0, { options, seat, standing, member: record });
     // What Acrobatics is worth to the save is passed in as the logic's neutral figure.
     const landing = landingRow(row, {
       precarious: !!crossing.precarious, charging: !!crossing.charging, acrobatics: options.acrobatics, saveBonus: NO_ACROBATICS.saveBonus,
     });
-    return { actor, member, jump: true, standing, options, gapSet: gap !== null, row, landing };
+    const hanging = isHanging(record);
+    // A jumper hanging at the edge climbs up: the member's own climb figure, on the climb rows' logic.
+    const figure = hanging ? resolveCheck(actor, CLIMB_CHECK) : null;
+    const holds = hanging ? holdsClimbing(actor) : false;
+    const climb = hanging ? climbUpRow({ ropeFixed: !!crossing.ropeFixed, holds, figure, seat, standing, member: record }) : null;
+    return { actor, member, jump: true, standing, options, gapSet: gap !== null, row, landing, record, hanging, figure, holds, climb };
   }
   const figure = resolveCheck(actor, CLIMB_CHECK);
   const holds = holdsClimbing(actor);
@@ -404,14 +415,20 @@ export function relayRefusalWords(reason, actor) {
 }
 
 /**
- * Whether this seat may press a throw now: a crossing over an obstacle is open
- * and a member this seat owns has a row that allows it and a throw left. This
- * is the question the player panel asks, answered from the rows the section
- * draws.
+ * Whether this seat may press a throw now: a crossing is open and a member this
+ * seat owns has a row that allows it and a throw left, or, over a gap, an
+ * attempt or a climb up to make. This is the question the player panel asks,
+ * answered from the rows the section draws.
  */
 export function canCross(formation) {
   const crossing = readCrossing(formation);
-  if (!crossing || crossing.kind === JUMP_KIND) return false;
+  if (!crossing) return false;
+  if (crossing.kind === JUMP_KIND) {
+    return crossingMembers(formation).some((entry) => {
+      const seen = { ...entry, ...rowFor(formation, crossing, entry) };
+      return attemptRefusal(seen) === null || climbRefusal(seen) === null;
+    });
+  }
   return crossingMembers(formation).some((entry) => {
     const { row } = rowFor(formation, crossing, entry);
     return row.can && !SETTLED.includes(row.state);
@@ -566,13 +583,145 @@ function landingView(entry) {
   };
 }
 
+/**
+ * Why an attempt cannot be made for this member now, or null. The row's own
+ * refusal comes first, an absence reading as `absence` so the words a throw's
+ * refusal carries are never borrowed for it; then what the attempt needs
+ * beyond the row: a gap, and, where the landing asks for a save, the member's
+ * save cell and the imported shortfall die its failure is rolled on.
+ */
+function attemptRefusal(seen) {
+  if (!seen.row.can) return seen.row.refusal?.cls === "absence" ? "absence" : seen.row.refusal?.reason ?? "member";
+  if (!seen.gapSet) return "noGap";
+  if (seen.landing.needed) {
+    if (seen.actor.system?.saves?.[saveKeyOf(seen.landing)]?.value == null) return "noCell";
+    if (shortfallDie() === null) return "absence";
+  }
+  return null;
+}
+
+/** Why a hanging jumper's climb up cannot be thrown now, or null; `stale` where the member is not hanging. */
+function climbRefusal(seen) {
+  if (!seen.hanging) return "stale";
+  const row = seen.climb;
+  return row.can && row.plan ? null : row.refusal?.reason ?? "member";
+}
+
+/**
+ * Why this client's seat cannot press `step` ("attempt" or "climbUp") for a
+ * member of an open jump now, or null: the refusal `jumpFor` would give, read
+ * for the seat the row is read for. A relayed press is checked here first so
+ * one that cannot succeed is never sent.
+ */
+export function jumpPressRefusal(formation, crossing, entry, step) {
+  if (step !== "attempt" && step !== "climbUp") return "stale";
+  const seen = { ...entry, ...rowFor(formation, crossing, entry) };
+  return step === "climbUp" ? climbRefusal(seen) : attemptRefusal(seen);
+}
+
+/** The rolled distance as a tooltip: the die's face, each part of the distance, then the page. */
+function rolledTooltip(options, face) {
+  const distance = jumpDistance(options);
+  const parts = distance.parts.map((part) => `${loc(`crossing.jumpPart.${part.key}`)} ${part.value}`);
+  return [loc("crossing.tip.face", { face }), ...parts, citeFor("jumping") ?? jumpingRef()].join(" · ");
+}
+
+/** The fall a failed jump reports, in the shape `fallTooltip` reads, or null where the jumper does not fall. */
+function jumpFall(result) {
+  if (result?.footing !== "empty") return null;
+  return { feet: result.feet, damage: result.damage, parts: result.feet === null ? [] : [{ key: "depth", value: result.feet }] };
+}
+
+/** The words of a fall's distance and dice, on the card (hit points said to stand) or on the row; unknown where the depth is blank. */
+function fallWords(fall, onCard) {
+  if (fall.feet === null) return loc(onCard ? "crossing.card.fallUnknown" : "crossing.fellUnknown");
+  const key = onCard ? (fall.damage ? "crossing.card.fall" : "crossing.card.fallNoDice") : (fall.damage ? "crossing.fell" : "crossing.fellNoDice");
+  return loc(key, { feet: fall.feet, damage: fall.damage ?? "" });
+}
+
+/** What an attempt left on the row: the rolled distance, the save, the slip and the footing. Null before an attempt. */
+function resultView(crossing, entry) {
+  const jump = entry.record?.jump;
+  if (!jump) return null;
+  const result = jumpResult({
+    gap: jump.gap, distance: jump.distance, save: jump.save ? { passed: jump.save.passed === true } : null, slip: jump.slip ?? null, depth: crossing.depth,
+  });
+  if (!result) return null;
+  const fall = jumpFall(result);
+  const cite = citeFor("jumping") ?? jumpingRef();
+  const slipped = result.slip !== null;
+  return {
+    rolled: loc("crossing.result.rolled", { distance: result.distance }),
+    rolledTip: rolledTooltip(entry.options, jump.face),
+    clears: result.clears,
+    clearsLabel: loc(result.clears ? "crossing.result.clears" : "crossing.result.short"),
+    save: jump.save
+      ? {
+        text: loc("crossing.result.save", { total: jump.save.total, target: jump.save.target ?? "" }),
+        passed: jump.save.passed === true,
+        label: loc(jump.save.passed === true ? "crossing.result.saved" : "crossing.result.failed"),
+        tip: landingTooltip(entry.landing),
+      }
+      : null,
+    pending: entry.record.state === LANDING,
+    footing: !result.clears || slipped
+      ? {
+        text: loc(slipped ? "crossing.result.slip" : "crossing.result.shortBy", { feet: slipped ? result.slip : result.shortBy }),
+        outcome: result.outcome ? loc(`crossing.landing.outcome.${result.outcome}`) : "",
+        footing: result.footing ? loc(`crossing.footing.${result.footing}`) : "",
+        tip: [loc("crossing.tip.footingParts", { distance: result.distance, gap: result.gap, slip: result.slip ?? 0 }), cite].join(" · "),
+        fall: fall ? { text: fallWords(fall, false), tip: fallTooltip(fall) } : null,
+      }
+      : null,
+  };
+}
+
+/** The climb up a hanging jumper has to make: the press, the member's own figure and the reason where it is blocked. */
+function climbView(entry) {
+  if (!entry.hanging || !entry.climb) return null;
+  const { climb, actor, figure } = entry;
+  const target = Number.isFinite(climb.target) ? climb.target : null;
+  const said = refusalText(climb.refusal, actor);
+  return {
+    can: climbRefusal(entry) === null,
+    warn: climb.warn,
+    label: loc(climb.warn ? "crossing.climbUp.anyway" : "crossing.climbUp.press"),
+    aria: loc("crossing.climbUp.for", { name: actor.name }),
+    target: target === null ? "" : `${target}+`,
+    targetTip: target === null ? spelunkingRef() : targetTooltip(figure, 0),
+    said,
+    blocked: !climb.can && !!said,
+  };
+}
+
+/** The attempt's press for a row: its label, and whether this seat is offered it. */
+function attemptView(entry) {
+  const refusal = attemptRefusal(entry);
+  const resume = entry.record?.state === LANDING;
+  return {
+    can: refusal === null,
+    warn: refusal === null && entry.row.warn,
+    label: loc(resume ? "crossing.attempt.resume" : entry.row.warn ? "crossing.attempt.anyway" : "crossing.attempt.press"),
+    aria: loc(resume ? "crossing.attempt.resumeFor" : "crossing.attempt.for", { name: entry.actor.name }),
+  };
+}
+
 /** One jump row for the template. */
 function jumpRowView(crossing, entry) {
   const { actor, row, options } = entry;
   const said = refusalText(row.refusal, actor);
   const range = row.min === null ? "" : `${row.min}–${row.max}`;
+  const state = entry.record?.state ?? "";
+  const attempted = !!entry.record?.jump;
+  const landing = landingView(entry);
+  if (landing && attempted) landing.canRoll = false;
   return {
-    landing: landingView(entry),
+    landing,
+    attempt: attemptView(entry),
+    result: resultView(crossing, entry),
+    climb: climbView(entry),
+    state,
+    stateLabel: state && game.i18n.has(`ACKS-FORMATION.crossing.state.${state}`) ? loc(`crossing.state.${state}`) : "",
     actorId: entry.member.actorId,
     name: actor.name,
     verdict: entry.gapSet ? row.verdict : "",
@@ -633,7 +782,7 @@ export function buildCrossingView(formation) {
 /* -------------------------------------------- */
 
 /** The card for one throw, from what `readThrow`, `stepMember` and `fallFromClimb` answered. */
-function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall }) {
+function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, title = "" }) {
   const { actor, row, figure } = entry;
   const target = Number.isFinite(plan.target) ? plan.target : null;
   const foot = [];
@@ -650,7 +799,7 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall }
   }
   const missed = !read.success && read.outcome?.text;
   return renderRollCard({
-    title: loc("crossing.card.title", { kind: kindLabel(row.effective ?? crossing.kind) }),
+    title: title || loc("crossing.card.title", { kind: kindLabel(row.effective ?? crossing.kind) }),
     subtitle: actor.name,
     note: missed ? read.outcome.text : "",
     noteTooltip: missed ? outcomeProvenance(read.outcome) : "",
@@ -717,29 +866,52 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
   inFlight.add(key);
   try {
     await beforeRoll?.();
-    const roll = await new Roll("1d20").evaluate();
-    const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
-    const read = readThrow({ plan: row.plan, natural, total: roll.total });
     const record = crossing.members?.[actorId] ?? null;
-    const stepped = stepMember({ member: record, stretches: row.stretches, read, natural, total: roll.total });
-    const fall = stepped.state === "fell"
-      ? fallFromClimb({ kind: row.effective, covered: record?.covered ?? 0, feet: positive(crossing.length), depth: crossing.depth })
-      : null;
-    if (!(await writeMemberStep(formation, crossing.id, actorId, stepped))) return { ok: false, refused: "stale" };
-    const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
-    const bodies = carriersOf(entry.member);
-    await syncHeld(bodies, crossing.id, wanted);
-    // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
-    if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
-    const message = await postToJudges({
-      content: throwCard({ crossing, entry: seen, plan: row.plan, read, roll, natural, stepped, fall }),
-      speaker: { alias: formation.name },
-      rolls: [roll],
+    return await rollStretch(formation, crossing, seen, {
+      record,
+      fallOf: () => fallFromClimb({ kind: row.effective, covered: record?.covered ?? 0, feet: positive(crossing.length), depth: crossing.depth }),
     });
-    return { ok: true, message, step: stepped.state, fall };
   } finally {
     inFlight.delete(key);
   }
+}
+
+/**
+ * One stretch thrown for one member, the roll and everything after it: the
+ * natural die read against the row's plan, where the throw leaves the member
+ * (`stepMember`), the record written while the crossing still stands, the
+ * conditions held or released, and the card to the Judges. The caller has made
+ * every check and holds the member's in-flight key.
+ *
+ * @param {object} formation
+ * @param {object} crossing the open crossing as read before the roll
+ * @param {object} seen the member's entry with its row, read for the pressing seat
+ * @param {object} o
+ * @param {object|null} o.record the member's record the step starts from
+ * @param {Function} o.fallOf the fall a failed step reports, read only when the member fell
+ * @param {object} [o.row] the row thrown; the entry's own by default
+ * @param {string} [o.title] the card's title, in place of the obstacle's
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string, fall?: object|null}>}
+ */
+async function rollStretch(formation, crossing, seen, { record, fallOf, row = seen.row, title = "" }) {
+  const actorId = seen.member.actorId;
+  const roll = await new Roll("1d20").evaluate();
+  const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
+  const read = readThrow({ plan: row.plan, natural, total: roll.total });
+  const stepped = stepMember({ member: record, stretches: row.stretches, read, natural, total: roll.total });
+  const fall = stepped.state === "fell" ? fallOf() : null;
+  if (!(await writeMemberStep(formation, crossing.id, actorId, stepped))) return { ok: false, refused: "stale" };
+  const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
+  const bodies = carriersOf(seen.member);
+  await syncHeld(bodies, crossing.id, wanted);
+  // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
+  if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
+  const message = await postToJudges({
+    content: throwCard({ crossing, entry: { ...seen, row }, plan: row.plan, read, roll, natural, stepped, fall, title }),
+    speaker: { alias: formation.name },
+    rolls: [roll],
+  });
+  return { ok: true, message, step: stepped.state, fall };
 }
 
 /**
@@ -865,4 +1037,181 @@ export async function reportLanding(formation, actorId, footing) {
     speaker: { alias: formation.name },
   });
   return { ok: true, message, outcome };
+}
+
+/* -------------------------------------------- */
+/*  The jump attempt and the climb up           */
+/* -------------------------------------------- */
+
+/**
+ * The event a landing save is rolled with. A relayed player's press has no
+ * event of its own on the GM client, and the system's dialog would open there
+ * for a save nobody at that seat is making, so it carries the system's own
+ * skip-dialog key where the setting names one.
+ */
+function saveEvent(event, player) {
+  if (!player) return event;
+  const key = skipDialogKey();
+  return typeof key === "string" && key ? { [key]: true } : event;
+}
+
+/** The card for a jump attempt: the distance against the gap, the landing save where one was rolled, and where the jumper stands. */
+function jumpCard({ seen, result, face, save, over }) {
+  const { actor } = seen;
+  const rows = [{
+    name: actor.name,
+    total: result.distance,
+    target: result.gap,
+    targetTooltip: rolledTooltip(seen.options, face),
+    detail: loc("crossing.card.jumpDetail", { face }),
+    outcome: loc(result.clears ? "crossing.result.clears" : "crossing.result.short"),
+    emphasis: result.clears ? "success" : "failure",
+  }];
+  if (save) {
+    rows.push({
+      name: actor.name,
+      total: save.total,
+      target: save.target ?? undefined,
+      targetTooltip: landingTooltip(seen.landing),
+      detail: saveName(seen.landing),
+      outcome: loc(save.passed ? "crossing.result.saved" : "crossing.result.failed"),
+      emphasis: save.passed ? "success" : "failure",
+    });
+  }
+  const foot = [];
+  if (over) foot.push(loc("crossing.card.overRefusal", { reason: refusalText(seen.row.refusal, actor) || loc("crossing.card.overRefusalBare") }));
+  if (result.footing) {
+    foot.push(loc(result.slip !== null ? "crossing.result.slip" : "crossing.result.shortBy", { feet: result.slip !== null ? result.slip : result.shortBy }));
+    foot.push(`${loc(`crossing.footing.${result.footing}`)}: ${loc(`crossing.landing.outcome.${result.outcome}`)}`);
+    const fall = jumpFall(result);
+    if (fall) foot.push(fallWords(fall, true));
+  }
+  if (result.unknown.includes("shortfallDie")) foot.push(loc("crossing.card.slipUnknown"));
+  return renderRollCard({
+    title: loc("crossing.card.jumpTitle"),
+    subtitle: actor.name,
+    note: citeFor("jumping") ?? jumpingRef(),
+    sections: [{ rows }],
+    footnote: foot.join(" · "),
+  });
+}
+
+/**
+ * Roll a member's jump, the attempt at the gap: the distance's die, the
+ * distance it gives against the gap, and, where the landing asks for a save and
+ * the jump reaches, core's own save and, for a failed one, the imported
+ * shortfall die. `jumpResult` says where the jumper stands, and the record
+ * keeps it under `jump` (the face, the distance in feet, the save, the slip,
+ * the footing). Only the first press rolls the die: a dialog dismissed on the
+ * save leaves the distance rolled and the state `landing`, and the press that
+ * follows finishes the save without rolling the die again.
+ *
+ * `step: "climbUp"` throws a hanging jumper's climb up: one stretch of
+ * `HANG_CLIMB` through the climb rows' own throw, the member's own figure
+ * against it, and a fall from it is the setup's depth.
+ *
+ * Every check is made before the first die; the row is read for the pressing
+ * seat, so a permission refusal warns a Judge and blocks a player, and an
+ * absence (a figure not imported, no gap set, the shortfall die a precarious
+ * landing rolls on) rolls nothing for anyone. `beforeRoll` runs once those
+ * checks pass and the member's in-flight key is held.
+ *
+ * @param {object} formation
+ * @param {string} actorId the member's actor id
+ * @param {object} [o]
+ * @param {"attempt"|"climbUp"} [o.step] which press this is; any other is refused as `stale`
+ * @param {boolean} [o.player] read the row for a player's seat
+ * @param {string|null} [o.crossingId] the crossing id the requester held; null skips the check
+ * @param {Function|null} [o.beforeRoll] awaited after the checks, before the die
+ * @param {Event|null} [o.event] the press, so the system's skip-dialog key reads from it
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string, result?: object}>}
+ *   `refused` is `notGM`, `closed`, `stale`, `notJump`, `member`, `noGap`, `noCell`, `busy`, `cancelled`,
+ *   `absence`, or the row's refusal reason
+ */
+export async function jumpFor(formation, actorId, { step = "attempt", player = false, crossingId = null, beforeRoll = null, event = null } = {}) {
+  if (!game.user.isGM) return { ok: false, refused: "notGM" };
+  const crossing = readCrossing(formation);
+  if (!crossing) return { ok: false, refused: "closed" };
+  if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
+  if (crossing.kind !== JUMP_KIND) return { ok: false, refused: "notJump" };
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  if (!entry) {
+    await pruneMembers(formation);
+    return { ok: false, refused: "member" };
+  }
+  if (step !== "attempt" && step !== "climbUp") return { ok: false, refused: "stale" };
+  const seen = { ...entry, ...rowFor(formation, crossing, entry, player ? { judge: false, owns: true } : { judge: true }) };
+  const refused = step === "climbUp" ? climbRefusal(seen) : attemptRefusal(seen);
+  if (refused) return { ok: false, refused };
+  const key = `${crossing.id}:${actorId}`;
+  if (inFlight.has(key)) return { ok: false, refused: "busy" };
+  const over = step === "climbUp" ? seen.climb.warn : seen.row.warn;
+  if (over) {
+    const refusal = step === "climbUp" ? seen.climb.refusal : seen.row.refusal;
+    ui.notifications.warn(refusalText(refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
+  }
+  inFlight.add(key);
+  try {
+    await beforeRoll?.();
+    if (step === "climbUp") {
+      const record = { ...(seen.record ?? {}), state: "climbing", covered: 0 };
+      return await rollStretch(formation, crossing, seen, {
+        record,
+        row: seen.climb,
+        title: loc("crossing.card.climbUp"),
+        fallOf: () => fallFromDepth(crossing.depth),
+      });
+    }
+    return await attemptJump(formation, crossing, seen, { event: saveEvent(event, player), over });
+  } finally {
+    inFlight.delete(key);
+  }
+}
+
+/** The attempt itself, once `jumpFor` has made its checks and holds the member's key. */
+async function attemptJump(formation, crossing, seen, { event, over }) {
+  const { actor } = seen;
+  const actorId = seen.member.actorId;
+  const gap = positive(crossing.gap);
+  const prior = seen.record;
+  const resume = prior?.state === LANDING && prior.jump;
+  const throws = Math.max(0, Number(prior?.throws) || 0) + (resume ? 0 : 1);
+  const rolls = [];
+  let face;
+  let distance;
+  if (resume) ({ face, distance } = prior.jump);
+  else {
+    const die = await new Roll(`1d${jumpFaces()}`).evaluate();
+    face = die.dice?.[0]?.results?.[0]?.result ?? die.dice?.[0]?.total ?? die.total;
+    distance = jumpAt(seen.options, face);
+    rolls.push(die);
+  }
+  if (distance === null) return { ok: false, refused: "absence" };
+  const clears = distance >= gap;
+  let save = null;
+  let slip = null;
+  if (clears && seen.landing.needed) {
+    const key = saveKeyOf(seen.landing);
+    const target = saveSpec(actor, key, { magical: false }).target;
+    const rolled = await actor.rollSave(key, { event });
+    if (!rolled) {
+      await writeMemberStep(formation, crossing.id, actorId, { state: LANDING, covered: 0, throws, jump: { face, distance, gap, clears, save: null, slip: null, footing: null } });
+      return { ok: false, refused: "cancelled" };
+    }
+    save = { total: rolled.total, target, passed: target !== null && rolled.total >= target };
+    if (!save.passed) {
+      const lost = await new Roll(shortfallDie()).evaluate();
+      slip = lost.total;
+      rolls.push(lost);
+    }
+  }
+  const result = jumpResult({ gap, distance, save: save && { passed: save.passed }, slip, depth: crossing.depth });
+  const jump = { face, distance, gap, clears, save, slip, footing: result.footing };
+  if (!(await writeMemberStep(formation, crossing.id, actorId, { state: result.state, covered: 0, throws, jump }))) return { ok: false, refused: "stale" };
+  const message = await postToJudges({
+    content: jumpCard({ seen, result, face, save, over }),
+    speaker: { alias: formation.name },
+    rolls,
+  });
+  return { ok: true, message, step: result.state, result };
 }

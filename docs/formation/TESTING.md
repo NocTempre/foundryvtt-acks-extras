@@ -4842,7 +4842,7 @@ summoners and no summon members. Delete only what the run's ledger names: the
 creature tokens it placed or restored, the cast and end cards it posted, and
 a world copy where none stood before.
 
-## The crossing (added with S7 of the dungeon close-out)
+## The crossing (added with S7 of the dungeon close-out; the jump attempt with S19)
 
 Built for the party sheet's Dungeon tab section "The crossing" (MODEL, "The
 crossing"): the party's way over one obstacle or gap, a member at a time. A
@@ -4887,6 +4887,11 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
   `[data-action="crossingThrow"][data-actor-id="<id>"]`, clicked. The die is
   rigged with `CONFIG.Dice.randomUniform`, which reads from the top on core 14:
   0.025 throws a 20 and 0.975 a 1. Restore it in a `finally`.
+- The jump's presses are `[data-action="crossingAttempt"]` and
+  `[data-action="crossingClimbUp"]`, each carrying `data-actor-id`. The
+  jump die rolls through `Roll` too, so the same rig reads it: the imported
+  die's top face is 0.025 and its first 0.975. Setting the gap to the row's
+  range top less the slip rigged puts a failed landing exactly on the edge.
 - The press returns nothing to the page, so a card is found as the messages
   that appear across it (the set of `game.messages` ids before and after),
   each of which the run `api.track`s by uuid. A card is a whisper to the GMs
@@ -4921,13 +4926,21 @@ with `own: <tag>` and every marker below becomes `<marker>@<tag>`.
 | 11b | Cancel the system's dialog | Nothing is posted; the Judge is told the save was not rolled |
 | 11c | The gap set past a member's range, precarious on | That member's row says it cannot reach, the roll button reads Roll anyway and the press warns the Judge and goes ahead; on the Player's pane the same row blocks with the reason as text and no press. With the jumping table blanked, the verdict is blank and no seat can roll, with no words |
 | 11d | After a save, pick each footing and press Failed, with the setup's depth set and then blank | One card to the Judges each: solid and edge name the outcome (prone, hanging) and what the imported die gives; empty names a fall with the depth's dice, or reads the distance as unknown with no depth. No hit point, status or flag value changes on the member or the party |
+| 11e | A plain landing (precarious and charging off), a gap inside every range, the die rigged to its top face; the Judge presses Attempt on the adventurer | The verdict and the range stay on the row; beside them "Rolled N ft, clears" with N the range's top, the state Across, the Attempt button gone. One card, a whisper to the Judges alone, a row for the distance against the gap. The record holds `jump.face`, `jump.distance` (N), `jump.gap`, `jump.footing` null, and the hit points are unchanged. The distance's tooltip lists the die's face, the distance's parts and the imported page |
+| 11f | A new crossing, a gap inside the range, the die rigged to its first face, whose distance falls short of it | "Rolled N ft, short", "Short of the far side by M ft", the footing Empty space, Falls, the state Fell; with the depth set a fall of that distance with the imported dice, and with it blank "Fell, depth not set". No save is asked even with precarious on. A fall's tooltip names its parts and the imported page |
+| 11g | Precarious on, a gap inside the range, the system's save dialog accepted with the total rigged to meet the member's save, then to miss it | A save made: the row shows the total against the target and "saved", the member is across, and the shortfall die is not rolled (the rig's counter). A save missed: "failed", and the shortfall die is rolled once. The system's own save card is posted and one more card goes to the Judges; the standalone Roll press on the row is gone once an attempt stands. The save's tooltip names the save and the page |
+| 11h | A failed save with the shortfall die rigged three ways against a gap whose margin over the rolled distance is fixed: a slip under the margin, equal to it, over it | Under: "Landing short by S ft", Solid ground, Prone, the member across. Equal: An edge, Hanging, the member hanging, a Climb up button in place of Attempt, and the climb's target with its parts as a tooltip. Over: Empty space, Falls, Fell, with the depth's dice. Each is one card to the Judges and a record whose `jump.slip` is the die's result |
+| 11i | The hanging member: the Judge presses Climb up (the adventurer, whom the grid refuses the sheer face: a warning first), then a second hanging member who holds Climbing | A card titled for the climb up, over a refusal where the grid refused, with the member's own figure as the target. A make: across, the row's Climb up gone, `jump.footing` still the edge. A miss that holds on: stalled and still hanging, Climb up still offered to the Judge. A botch: fell, and the card's fall is the setup's depth, not a stretch's midpoint. With Rope fixed ticked in the setup the same face is the easy climb |
+| 11j | The Player's pane presses Attempt on the adventurer it owns, the GM seat connected; then Climb up for a hanging member it owns; then, from a seat that owns nobody, `requestPartyAction(<formationId>, "crossing", { crossingId, actorId, step: "attempt" })` in page context | The Player's pane writes and rolls nothing: a public declaration from the party's name ("<Player's name> declares: <member> jumps." and "… climbs up."), the die and the save rolled on the GM client with the system's save dialog not opened on the Judge's seat, one card to the Judges, the record written. The owner-less seat is whispered that the member is not theirs and nothing is rolled or declared |
+| 11k | The jumping table blanked (the die), then restored with the shortfall die blanked and precarious on; then the gap blank; then a monster with no saves | Each refuses every seat, the Judge too, with no words and no die rolled (the rig's counter unmoved) and no card, the Attempt button absent; a blank gap shows no button. A member with no save recorded is refused with its own words |
+| 11l | The save dialog cancelled on a precarious attempt, then the Judge presses again | The state reads "Save to roll", the rolled distance stays on the row, no card is posted yet, and the button reads "Roll the save"; the second press opens the dialog without rolling the die again and finishes the attempt as 11g |
 | 12 | A member removed mid-crossing, with the removed member's record already in the flag | The row is gone at the next render; the stale record is dropped at the next member's throw, which lands |
 | 13 | End, then Begin | A fresh id; no member state carried |
 | 14 | A second party sheet, a detached window, the type size on a fresh window | The tab's scroll kept after a press; focus back on the pressed row's button; the rows reflow and nothing clips |
 | 15 | A hover pass | Each figure's parts against the page it names; a blank figure's tooltip is the reference alone |
 | 16 | Teardown | End; the cards tracked by the ids the run saw appear, then `api.sweepTracked()`, its result quoted; fixtures kept |
 
-Steps 11 to 11d use a member holding no Acrobatics unless the walk has imported the Acrobatics ceiling and bands, since a holder's jump reads unknown without them (`formation/crossing-acrobat` covers the holder). The landing save's bonus is read as nothing until the granted-modifier read lands, so a holder's tooltip names no bonus. A player's landing save is not relayed: the system's roll opens a dialog on the client that calls it, so the Player's pane shows the label and no press. The cards of 11a and 11d are found by the set of `game.messages` ids before and after and tracked by uuid, and the system's own card of 11a is the run's too.
+Steps 11 to 11d use a member holding no Acrobatics unless the walk has imported the Acrobatics ceiling and bands, since a holder's jump reads unknown without them (`formation/crossing-acrobat` covers the holder). The landing save's bonus is read as nothing until the granted-modifier read lands, so a holder's tooltip names no bonus. A Player's pane has no landing save press of its own: its landing save is rolled inside its relayed attempt (step 11j), with the system's skip-dialog key so no dialog opens on the Judge's seat. The cards of 11a and 11d are found by the set of `game.messages` ids before and after and tracked by uuid, and the system's own card of 11a is the run's too.
 
 Steps 5 to 5e are the player seat: a Player's press is relayed and the GM
 client throws, so a GM pane must be seated or the press has nothing to answer

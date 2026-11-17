@@ -22,7 +22,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-07-19 — [The ladders come from the GM's own book (2026-07-19)](DECISIONS-through-v11.14.5.md#the-ladders-come-from-the-gms-own-book-2026-07-19)
 - 2026-08-15 — [2026-08-15 — A marching block's heading is the token's rotation, and south is zero](DECISIONS-through-v11.14.5.md#2026-08-15--a-marching-blocks-heading-is-the-tokens-rotation-and-south-is-zero)
 - 2026-08-15 — [2026-08-15 — A saved marching order restores an arrangement, not a roster](DECISIONS-through-v11.14.5.md#2026-08-15--a-saved-marching-order-restores-an-arrangement-not-a-roster)
-- 2026-08-15 — [2026-08-15 — Jumping is a distance, not a throw, so it is not an obstacle](DECISIONS-through-v11.14.5.md#2026-08-15--jumping-is-a-distance-not-a-throw-so-it-is-not-an-obstacle) — superseded in part by "2026-11-16 — The Acrobatics ceiling and the leap's bonus bands are imported, and the leap reads the raised score" (its premises are stale; the ruling stands)
+- 2026-08-15 — [2026-08-15 — Jumping is a distance, not a throw, so it is not an obstacle](DECISIONS-through-v11.14.5.md#2026-08-15--jumping-is-a-distance-not-a-throw-so-it-is-not-an-obstacle) — superseded in part by "2026-11-16 — The Acrobatics ceiling and the leap's bonus bands are imported, and the leap reads the raised score" (its premises are stale; the ruling stands) and by "2026-11-17 — A jump is attempted: the die is rolled at the press, and the footing follows" (its rejection of rolling the die; the jump stays a distance beside the Spelunking table)
 - 2026-08-15 — [2026-08-15 — Jumping holds no printed value that already has an owner](DECISIONS-through-v11.14.5.md#2026-08-15--jumping-holds-no-printed-value-that-already-has-an-owner) — superseded in part by "2026-11-16 — The Acrobatics ceiling and the leap's bonus bands are imported, and the leap reads the raised score" (the ceiling's owner)
 - 2026-08-15 — [2026-08-15 — The marching-order API is guarded at the boundary, not renamed](DECISIONS-through-v11.14.5.md#2026-08-15--the-marching-order-api-is-guarded-at-the-boundary-not-renamed) — superseded in part 2026-11-14
 - 2026-08-15 — [2026-08-15 — A trap is a document; the region and the wall only place it](DECISIONS-through-v11.14.5.md#2026-08-15--a-trap-is-a-document-the-region-and-the-wall-only-place-it)
@@ -328,7 +328,7 @@ append-only, keep them; they are marked superseded in part.
 
 **Cost.** A world must re-run the Rules tables import before the crossing offers a size. Removing `waterModifier` and `WATER.calm` breaks any caller of the published names. The throw prices whatever size it is passed; the crossing's picker (slice S13) is where "an imported size or larger" is held.
 
-## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time
+## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time — SUPERSEDED IN PART 2026-11-17 (a jump is attempted: the die is rolled and recorded)
 
 **Asked.** The dungeon close-out's audit found no surface for the Spelunking obstacles beyond a card that rolled a whole climb for a party in one press, and no surface at all for a jump. The surface was designed read-only on 2026-11-16 and its first slice (S7) built.
 
@@ -418,3 +418,33 @@ reach as before.
 **Rejected.** Holding on every member for the crossing's whole life: a member who has not thrown is not on the obstacle. Releasing by status alone: that would take a hand-set one. Reading the chip from the table: the chip is read off the body so it stands only while the effect does.
 
 **Cost.** A world needs the Rules tables import for the grid's row before anything is held. A member removed from the party keeps the effect until the next press, the next write or End; the world actor of the dropped id carries it, so an unlinked member's token effect is not reached from there. Formation's published names do not change.
+
+## 2026-11-17 — A jump is attempted: the die is rolled at the press, and the footing follows
+
+**Asked.** OQ8 of the dungeon close-out: whether a jump row stays a verdict only, with the Judge picking the footing after a failed landing, or the press rolls the distance's die and the footing follows. The imported shortfall die and the footings (`landingFailure`) had readers nothing could feed without an attempt's result.
+
+**Ruled.** The owner's, 2026-11-17: "8a", option (a), "At the attempt the distance's die is rolled and the footing follows; the verdict is still shown first." Example: a member whose range reads "13–20, clears on 6 of 8" on a 15 ft gap shows that verdict before anything is rolled; the press rolls the die, say a 6, which carries them 18 ft, and they are across. On a precarious landing the same press then rolls core's Paralysis save, and a failed one rolls the imported shortfall die for the feet they slip back, so a slip of 3 from a distance that carried them 3 ft past the gap leaves them exactly on the edge, hanging.
+
+This supersedes in part the 2026-08-15 entry "Jumping is a distance, not a throw, so it is not an obstacle", which rejected rolling the die and reporting one distance because a single roll tells a Judge nothing about whether to allow the attempt. It also supersedes in part the 2026-11-16 entry on the crossing, whose "a jump is a verdict row with no throw" and "reports and applies nothing" no longer hold for the roll and the record. What stands from both: the jump stays a distance beside the Spelunking table and not a row of it; the verdict and its faces are shown first and unchanged; a save is asked only where the landing is precarious or the jump charging; the landing save is core's own, and nothing is applied to a hit point or a condition. **The new evidence** is the owner's answer, and that the imported shortfall die, the three footings and the fall dice had readers (`landingFailure`, `fallFigures`, the footing pick) that no code path could feed without the result of an attempt.
+
+The positions the attempt takes:
+
+- `jumpFor` (a GM client) checks everything before the first die: the row read for the seat, a gap set, the member's save cell and the imported shortfall die where the landing asks for a save, the crossing's id. An absence refuses every seat, a Judge included, and nothing is rolled; a permission refusal blocks a player and warns a Judge (2026-11-14, "players get blocks, judges get warnings").
+- The die is the imported single die, carried to a distance by `jumpAt`, the same score and conditions `jumpDistance` reads its range from.
+- A distance that reaches the gap lands. A save made is across; a save failed rolls the shortfall die for the slip. **Where the jumper stands is the crossing's own reading, since the page names the three footings and not how a jump decides among them:** the slip is taken off the distance and the result is set against the far edge: past it is solid ground and prone (across), exactly on it is the edge and hanging, short of it is empty space and a fall. A distance that does not reach the gap rolls no save and no slip and falls short over empty space. A fall's distance is the setup's depth, its dice `landingFailure`'s.
+- The record keeps the die's face, the distance, the save, the slip and the footing under the member's `jump` key, states `across`, `hanging`, `fell` and `landing`. The feet jumped are `jump.distance`, which is what the round's movement will read; the crossing tracks no rounds yet (S17), so nothing is counted against one.
+- A dialog dismissed on the save keeps the rolled distance and leaves the state `landing`; the next press finishes the save without rolling the die again.
+- A hanging jumper climbs up on the climb rows' logic: `memberRow` on one obstacle (`HANG_CLIMB`), a stretch long, the jumper's own figure, `stepMember` for where it leaves them, and a fall from it is the setup's depth. The page prints no column for climbing back up, so which obstacle it is is the crossing's reading, held in one constant.
+- A player's press is relayed as a `crossing` request that names its step (`attempt` or `climbUp`) and is declared publicly (OQ10 b); the GM client checks it again. Core's save dialog would open on the Judge's seat for a save nobody there is making, so a relayed save carries the system's skip-dialog key.
+- The Judge's landing save press and footing pick stand as the override: the save press until an attempt stands, the footing pick after a failed one. The pick still posts a card and writes nothing.
+
+| Position | Strongest counter | Strength |
+|---|---|---|
+| The footing is read from the distance, the slip and the gap | The ground under a failed landing is the dungeon's, which the module does not know | Medium: the Judge's pick stays as the override, and the reading is the only one the three footings admit without a new setup field |
+| A distance short of the gap falls with no save | The book asks for the save only for a precarious landing or a charge, and says nothing of a jump that does not reach | Medium: a jump that does not reach has no landing to save |
+| The climb up is one stretch of the sheer climb, easy with a fixed rope | The page names no obstacle for it, and the sheer column may be harsher than a Judge would rule | Medium: the Judge's warned press over a refusal proceeds, and one constant changes it |
+| The save's target is `saveSpec`'s | The system's wrapped roll reads the target itself and the two may drift | Medium: both read the stored figure less the conditions' and records' shifts |
+
+**Rejected.** Rolling a save on every jump: 2026-08-15's second rejection stands. Rolling the slip for a jump that did not reach. A setup field naming what lies beneath the landing, which would be a table of options. Writing the footing pick's result to the record: the pick is the override of a card, not a second path to state. Counting the distance against a round the crossing does not track.
+
+**Cost.** `jumping.mjs` publishes `jumpAt` on `api.formation.jumping`, so formation's `apiVersion` is 31. A world needs the jumping table (the die) and, for a precarious or charging landing, the shortfall die, before the press rolls anything; until then the attempt is refused for every seat with no words. A member may be left in `landing` until the Judge presses again or the crossing ends.

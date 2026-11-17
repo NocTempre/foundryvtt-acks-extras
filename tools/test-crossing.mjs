@@ -10,10 +10,10 @@ import fs from "node:fs";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
 import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/obstacles.mjs";
-import { canClear } from "../scripts/formation/jumping.mjs";
+import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, REFUSAL, SETTLED, crossingHeld, crossingOfHolder, fallFromClimb, heldAfter, jumpRow,
-  landingOutcome, landingRow, memberRow, stepMember,
+  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
+  fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember,
 } from "../scripts/formation/crossing-logic.mjs";
 
 let passed = 0;
@@ -523,6 +523,98 @@ await ok("the real reader resolves the climb: a holder on the skill's figure, an
   const other = resolveCheck(actorWith([skill("Probe Mountaineering", ["kw:mountaineering"], 5)]), CLIMB_CHECK);
   assert.equal(other.target, 9);
   assert.equal(resolveCheck(actorWith([], null), CLIMB_CHECK), null, "no stored figure and no skill resolves nothing");
+});
+
+// ---- the die's face, and where a rolled jump leaves the jumper ----------------------
+await ok("the distance a face carries is what canClear counts its clearing faces from, and no face outside the die has one", () => {
+  load();
+  for (const options of [{ dex: 12 }, { dex: 12, encumbrance: 2, runningStart: false }, { dex: 9, encumbrance: 1 }]) {
+    for (const gap of [4, 8, 10, 13, 15, 17, 20, 25]) {
+      let clearing = 0;
+      for (let face = 1; face <= 8; face++) if (jumpAt(options, face) >= gap) clearing++;
+      assert.equal(clearing, canClear(gap, options).clearing, `gap ${gap}`);
+    }
+  }
+  assert.equal(jumpAt({ dex: 12 }, 1), 13);
+  assert.equal(jumpAt({ dex: 12 }, 8), 20);
+  for (const face of [0, 9, 2.5, "x"]) assert.equal(jumpAt({ dex: 12 }, face), null, `face ${face}`);
+  assert.equal(jumpAt({ dex: 12, encumbrance: 2, runningStart: false }, 4), 5, "the conditions apply to the rolled face as to the range");
+  resetTables();
+  assert.equal(jumpAt({ dex: 12 }, 3), null, "nothing imported, no distance");
+});
+
+await ok("a jump that reaches is across; one that does not falls short of the far side over empty space, with no save and no slip", () => {
+  load({ jumping: { ...JUMPING, shortfallDie: "1d3" } });
+  const clean = jumpResult({ gap: 15, distance: 18 });
+  assert.deepEqual([clean.clears, clean.state, clean.footing, clean.outcome, clean.slip, clean.unknown], [true, "across", null, null, null, []]);
+  const exact = jumpResult({ gap: 15, distance: 15 });
+  assert.deepEqual([exact.clears, exact.state], [true, "across"], "reaching the gap exactly is reaching it");
+  const short = jumpResult({ gap: 15, distance: 14, depth: 30 });
+  assert.deepEqual([short.clears, short.shortBy, short.state, short.footing, short.outcome, short.slip], [false, 1, "fell", "empty", "fall", null]);
+  assert.deepEqual([short.feet, short.damage], [30, "2d8"], "the fall is the depth, with the imported dice");
+  assert.deepEqual(jumpResult({ gap: 15, distance: 14 }).unknown, ["depth"], "a blank depth reads unknown");
+  load({ jumping: JUMPING });
+  assert.deepEqual(jumpResult({ gap: 15, distance: 9, depth: 30 }).unknown, [], "a short jump never needs the shortfall die");
+});
+
+await ok("a failed landing slips back by the shortfall: past the edge is solid and prone, on it hanging, short of it a fall", () => {
+  load({ jumping: { ...JUMPING, shortfallDie: "1d3" } });
+  const failed = { passed: false };
+  const at = (slip, depth) => jumpResult({ gap: 15, distance: 18, save: failed, slip, depth });
+  assert.deepEqual([at(2).footing, at(2).outcome, at(2).state], ["solid", "prone", "across"]);
+  assert.deepEqual([at(3).footing, at(3).outcome, at(3).state], ["edge", "hanging", HANGING]);
+  assert.deepEqual([at(5, 30).footing, at(5, 30).outcome, at(5, 30).state, at(5, 30).feet, at(5, 30).damage], ["empty", "fall", "fell", 30, "2d8"]);
+  assert.equal(at(3).slip, 3);
+  assert.equal(jumpResult({ gap: 15, distance: 17.5, save: failed, slip: 2 }).footing, "solid", "a fractional distance is held against the edge as it is");
+  assert.equal(jumpResult({ gap: 15, distance: 18, save: { passed: true }, slip: 4 }).state, "across", "a save made slips nowhere");
+  const unrolled = jumpResult({ gap: 15, distance: 18, save: failed, slip: null });
+  assert.deepEqual([unrolled.state, unrolled.footing, unrolled.unknown], [LANDING, null, ["shortfallDie"]], "no slip, no footing: the Judge's pick is the route");
+  assert.equal(jumpResult({ gap: 0, distance: 3 }), null);
+  assert.equal(jumpResult({ gap: 15, distance: null }), null);
+});
+
+await ok("a jump row stops a jumper who is across or fell, and one hanging at the edge climbs up instead", () => {
+  load();
+  for (const state of SETTLED) {
+    const row = jumpRow(15, { options: { dex: 12 }, seat: JUDGE, member: { state } });
+    assert.deepEqual([row.can, row.refusal.cls, row.refusal.reason], [false, REFUSAL.seat, state], `${state} stops a Judge`);
+  }
+  for (const seat of [JUDGE, OWNER]) {
+    const hanging = jumpRow(15, { options: { dex: 12 }, seat, member: { state: HANGING, jump: { footing: "edge" } } });
+    assert.deepEqual([hanging.can, hanging.refusal.reason], [false, HANGING]);
+    const stalled = jumpRow(15, { options: { dex: 12 }, seat, member: { state: "stalled", jump: { footing: "edge" } } });
+    assert.equal(stalled.can, false, "a stalled climb up is still hanging");
+  }
+  assert.equal(jumpRow(15, { options: { dex: 12 }, seat: JUDGE, member: { state: LANDING, jump: {} } }).can, true, "a save left to roll is pressed again");
+  assert.equal(isHanging({ state: "stalled", jump: { footing: "solid" } }), false);
+  assert.equal(isHanging({ state: "across", jump: { footing: "edge" } }), false, "across after the climb up");
+  assert.equal(isHanging(null), false);
+});
+
+await ok("the climb up is the climb rows' own: one stretch of the sheer climb, a fixed rope makes it the easy one, and the classes stand", () => {
+  load();
+  const player = climbUpRow({ figure: climber, seat: OWNER, member: { state: HANGING } });
+  assert.deepEqual([player.kind, player.stretches, player.can], [HANG_CLIMB, 1, false]);
+  assert.deepEqual(player.refusal, { cls: REFUSAL.permission, reason: "notPermitted" }, "the grid refuses the sheer climb to one who does not hold Climbing");
+  const judge = climbUpRow({ figure: climber, seat: JUDGE, member: { state: HANGING } });
+  assert.deepEqual([judge.can, judge.warn], [true, true]);
+  const holder = climbUpRow({ figure: climber, holds: true, seat: OWNER, member: { state: HANGING } });
+  assert.deepEqual([holder.can, holder.target], [true, 12]);
+  const roped = climbUpRow({ figure: climber, ropeFixed: true, seat: OWNER, member: { state: HANGING } });
+  assert.deepEqual([roped.effective, roped.can], ["easyClimb", true]);
+  const stalled = climbUpRow({ figure: climber, holds: true, seat: OWNER, member: { state: "stalled" } });
+  assert.deepEqual(stalled.refusal, { cls: REFUSAL.seat, reason: "stalled" }, "a player is stopped after a stall, as on any climb");
+  assert.equal(climbUpRow({ figure: climber, holds: true, seat: JUDGE, member: { state: "stalled" } }).warn, true);
+  resetTables();
+  assert.equal(climbUpRow({ figure: climber, holds: true, seat: JUDGE, member: { state: HANGING } }).refusal.cls, REFUSAL.absence, "nothing imported stops every seat");
+});
+
+await ok("a fall from the edge is the Judge's depth with the imported dice, and a blank depth reads unknown", () => {
+  load({ jumping: JUMPING });
+  const out = fallFromDepth(30);
+  assert.deepEqual([out.feet, out.damage, out.unknown, out.parts], [30, "2d8", [], [{ key: "depth", value: 30 }]]);
+  assert.deepEqual([fallFromDepth().feet, fallFromDepth().unknown], [null, ["depth"]]);
+  assert.deepEqual(fallFromDepth(30).unknown, [], "the shortfall die is not part of a climb's fall");
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);

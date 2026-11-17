@@ -18,6 +18,11 @@
  * prints the imported words escaped, and reports a fall without touching hit
  * points.
  *
+ * The jump attempt: the distance's die is rolled at the press, the footing
+ * follows from the distance, the gap, the landing save (core's own) and the
+ * shortfall die, a jumper hanging at the edge climbs up on the climb rows'
+ * logic, a player's press is relayed and declared, and an absence rolls nothing.
+ *
  * The held conditions: a member on an obstacle whose imported grid row says
  * Vulnerable carries one marked effect and a chip, on every seat and for a
  * relayed throw; across, fell, End, a dropped member and a new Begin take it
@@ -71,7 +76,7 @@ globalThis.game = {
   user: GM,
   users,
   i18n: { localize: (k) => (typeof lookup(k) === "string" ? lookup(k) : k), format, has: (k) => typeof lookup(k) === "string" },
-  settings: { get: (_scope, key) => (key === "formations" ? formations : {}) },
+  settings: { get: (_scope, key) => (key === "formations" ? formations : key === "skip-dialog-key" ? "shiftKey" : {}) },
   actors: Object.assign(new Map(), { [Symbol.iterator]() { return this.values(); } }), // iterates its documents, as core's collection does
   scenes: new Map(),
   items: [],
@@ -117,7 +122,7 @@ const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
 const {
-  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, landFor, pruneMembers, readCrossing, reportLanding,
+  CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, jumpFor, landFor, pruneMembers, readCrossing, reportLanding,
   throwAll, throwFor, writeMemberStep,
 } = crossing;
 const { registerRequestSocket, requestCrossingThrow, requestPartyAction } =await import("../scripts/formation/player-requests.mjs");
@@ -1085,6 +1090,346 @@ await ok("the partial's player rows draw the throw for an owner and the reason a
   assert.ok(row("Birch").includes("Birch cannot attempt this") && row("Birch").includes("acks-extras-crossing-block"), "and the reason as visible text");
   assert.equal(row("Cedar").includes('data-action="crossingThrow"'), false, "another seat's member has none");
   assert.equal(row("Cedar").includes("cannot attempt"), false, "and no words about what this seat can do nothing about");
+});
+
+/* --- the jump attempt and the climb up ----------------------------------------- */
+const J3 = { ...JUMPING, shortfallDie: "1d3" };
+/** A jump crossing over a 15 ft gap, 30 ft deep, with the member's attempt left to press. */
+async function gapWorld({ landing = {}, ...options } = {}) {
+  reset();
+  load({ jumping: J3 });
+  const alder = person("Alder", { dex: 12, owner: PLAYER.id, ...options });
+  const { formation, actor } = world([alder]);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15", depth: "30", ...landing });
+  return { alder, formation, actor };
+}
+const recordOf = (formation, name = "Alder") => readCrossing(formation).members[name];
+
+await ok("an attempt rolls the distance's die against the gap and a reach needs nothing more: across, one card, the feet kept", async () => {
+  const { formation, alder } = await gapWorld();
+  const before = rowOf(buildCrossingView(formation), "Alder");
+  assert.equal(before.verdict, "chance", "the verdict is shown first");
+  assert.equal(before.attempt.can, true);
+  naturals.push(6);
+  const out = await jumpFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step], [true, "across"], "12 and the face 6 is 18 feet, past 15");
+  const record = recordOf(formation);
+  assert.deepEqual([record.state, record.throws, record.jump.face, record.jump.distance, record.jump.gap, record.jump.clears], ["across", 1, 6, 18, 15, true]);
+  assert.equal(record.jump.save, null, "a plain landing asks for no save");
+  assert.equal(seen.saves.length, 0);
+  assert.equal(seen.created.length, 1);
+  assert.deepEqual(seen.created[0].whisper, [GM.id], "the card goes to the Judges alone");
+  assert.ok(seen.created[0].content.includes("acks-extras-roll-card") && seen.created[0].content.includes("Jump"));
+  assert.equal(alder.system.hp.value, 8, "hit points are untouched");
+  assert.equal(seen.updates.filter(([who]) => who === "member").length, 0, "no member document is written");
+  const after = rowOf(buildCrossingView(formation), "Alder");
+  assert.equal(after.verdict, "chance", "the verdict stands beside the result");
+  assert.deepEqual([after.result.rolled, after.result.clearsLabel, after.stateLabel, after.attempt.can], ["Rolled 18 ft", "clears", "Across", false]);
+  assert.ok(after.result.rolledTip.includes("Rolled 6") && after.result.rolledTip.endsWith("XX p.3"), "the working and the imported page");
+  assert.equal(after.result.save, null);
+  assert.equal(after.result.footing, null);
+  assert.deepEqual((await jumpFor(formation, "Alder")).refused, "across", "a jumper who is across has nothing left to jump");
+  assert.equal(naturals.length, 0);
+});
+
+await ok("a die that falls short is over empty space: the fall is the setup's depth with the imported dice, and a blank depth is unknown", async () => {
+  const { formation } = await gapWorld();
+  naturals.push(1);
+  const out = await jumpFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step], [true, "fell"], "13 feet against 15");
+  assert.equal(recordOf(formation).state, "fell");
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.result.rolled, row.result.clearsLabel, row.stateLabel], ["Rolled 13 ft", "short", "Fell"]);
+  assert.deepEqual([row.result.footing.text, row.result.footing.footing, row.result.footing.outcome], ["Short of the far side by 2 ft", "Empty space", "Falls"]);
+  assert.equal(row.result.footing.fall.text, "Fell 30 ft, 2d8");
+  assert.ok(row.result.footing.fall.tip.endsWith("XX p.2"), "the fall names its imported page");
+  assert.ok(seen.created[0].content.includes("Fall: 30 ft, 2d8. Hit points unchanged."));
+  assert.equal(seen.saves.length, 0, "a jump that does not reach asks for no save");
+  assert.equal(seen.updates.filter(([, data]) => Object.keys(data).some((k) => k.includes("hp"))).length, 0, "no hit point is written");
+  await applyCrossingForm(formation, { depth: "" });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").result.footing.fall.text, "Fell, depth not set");
+});
+
+await ok("a landing save is core's own, from the Judge's press; a save made lands the jump and rolls no slip", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  saveResult = { total: 12 };
+  naturals.push(6, 3);
+  const event = { shiftKey: true };
+  const out = await jumpFor(formation, "Alder", { event });
+  assert.deepEqual([out.ok, out.step], [true, "across"], "12 meets the save's 12");
+  assert.deepEqual(seen.saves, [["Alder", "paralysis", { event }]], "the system's roll, on the member, with the press's event");
+  const record = recordOf(formation);
+  assert.deepEqual([record.jump.save.total, record.jump.save.target, record.jump.save.passed, record.jump.slip], [12, 12, true, null]);
+  assert.deepEqual(naturals, [3], "the shortfall die is not rolled for a save made");
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.result.save.text, row.result.save.label], ["Save 12 against 12", "saved"]);
+  assert.ok(row.result.save.tip.endsWith("XX p.3"), "the save's working names the page");
+  assert.equal(row.landing.canRoll, false, "the standalone save press is spent once an attempt stands");
+});
+
+await ok("a failed save slips back by the shortfall die: solid is prone and across, the edge is hanging, empty space is a fall", async () => {
+  const cases = [
+    { slip: 2, state: "across", footing: "Solid ground", outcome: "Prone" },
+    { slip: 3, state: "hanging", footing: "An edge", outcome: "Hanging" },
+    { slip: 5, state: "fell", footing: "Empty space", outcome: "Falls" },
+  ];
+  for (const { slip, state, footing, outcome } of cases) {
+    const { formation } = await gapWorld({ landing: { precarious: true } });
+    saveResult = { total: 11 };
+    naturals.push(6, slip);
+    const out = await jumpFor(formation, "Alder");
+    assert.deepEqual([out.ok, out.step], [true, state], `slip ${slip}`);
+    const row = rowOf(buildCrossingView(formation), "Alder");
+    assert.deepEqual([row.result.save.label, row.result.save.text], ["failed", "Save 11 against 12"]);
+    assert.deepEqual([row.result.footing.text, row.result.footing.footing, row.result.footing.outcome], [`Landing short by ${slip} ft`, footing, outcome], `slip ${slip}`);
+    assert.ok(row.result.footing.tip.includes(`gap 15 ft, landing short ${slip} ft`) && row.result.footing.tip.endsWith("XX p.3"));
+    assert.equal(row.result.footing.fall?.text, state === "fell" ? "Fell 30 ft, 2d8" : undefined);
+    assert.equal(recordOf(formation).jump.slip, slip);
+    assert.equal(naturals.length, 0);
+    assert.equal(seen.created.length, 1, "one card to the Judges; the system posts the save's own");
+  }
+});
+
+await ok("a hanging jumper climbs up on the climb rows' logic: the member's own figure, one stretch, across on a make, a fall of the depth on a botch", async () => {
+  const hang = async (options = {}) => {
+    const world = await gapWorld({ landing: { precarious: true }, ...options });
+    saveResult = { total: 11 };
+    naturals.push(6, 3);
+    await jumpFor(world.formation, "Alder");
+    assert.equal(recordOf(world.formation).state, "hanging");
+    seen.created.length = 0;
+    seen.warned.length = 0;
+    return world;
+  };
+  const { formation } = await hang();
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.attempt.can, row.climb.can, row.climb.warn, row.stateLabel], [false, true, true, "Hanging"], "a Judge is warned where the grid refuses the sheer climb");
+  assert.equal(row.climb.target, "14+", "the member's own figure");
+  assert.ok(row.climb.targetTip.length > 0);
+  assert.deepEqual(await jumpFor(formation, "Alder"), { ok: false, refused: "hanging" }, "a hanging jumper does not jump again");
+  naturals.push(14);
+  const made = await jumpFor(formation, "Alder", { step: "climbUp" });
+  assert.deepEqual([made.ok, made.step], [true, "across"]);
+  assert.equal(seen.warned.length, 1, "the Judge is warned first");
+  assert.equal(recordOf(formation).state, "across");
+  assert.equal(recordOf(formation).jump.footing, "edge", "what the jump left stays on the record");
+  assert.ok(seen.created[0].content.includes("Climb up") && seen.created[0].content.includes("Thrown over a refusal"));
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").climb, null, "nothing left to climb");
+  assert.equal((await jumpFor(formation, "Alder", { step: "climbUp" })).refused, "stale", "a climb up for a jumper who is not hanging");
+
+  const stalled = await hang();
+  naturals.push(5);
+  assert.deepEqual([(await jumpFor(stalled.formation, "Alder", { step: "climbUp" })).step], ["stalled"], "a miss that holds on");
+  const again = rowOf(buildCrossingView(stalled.formation), "Alder");
+  assert.deepEqual([again.climb.can, again.attempt.can], [true, false], "still hanging, and a Judge may rule another");
+  naturals.push(1);
+  const fell = await jumpFor(stalled.formation, "Alder", { step: "climbUp" });
+  assert.deepEqual([fell.step, fell.fall.feet, fell.fall.damage], ["fell", 30, "2d8"], "a botch falls the setup's depth, not a stretch's midpoint");
+  assert.ok(seen.created.at(-1).content.includes("Fall: 30 ft, 2d8"));
+
+  const roped = await hang();
+  await applyCrossingForm(roped.formation, { ropeFixed: true });
+  naturals.push(5);
+  assert.equal((await jumpFor(roped.formation, "Alder", { step: "climbUp" })).step, "across", "a fixed rope makes it the easy climb, whose miss still covers the ground");
+});
+
+await ok("a holder of Climbing climbs up for a player's press; one the grid refuses is blocked with the reason", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true }, items: [CLIMBING()] });
+  saveResult = { total: 11 };
+  naturals.push(6, 3);
+  await jumpFor(formation, "Alder");
+  seen.created.length = 0;
+  const view = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder");
+  assert.deepEqual([view.climb.can, view.climb.warn, view.climb.target], [true, false, "12+"], "the skill's own figure, no warning");
+  naturals.push(13);
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "climbUp")), { ok: true });
+  assert.equal(recordOf(formation).state, "across");
+  const { declarations, cards } = posted();
+  assert.ok(declarations[0].content.includes("Pat declares: Alder climbs up."), "public, in the requester's name");
+  assert.equal(cards.length, 1);
+
+  const plain = await gapWorld({ landing: { precarious: true } });
+  saveResult = { total: 11 };
+  naturals.push(6, 3);
+  await jumpFor(plain.formation, "Alder");
+  seen.created.length = 0;
+  const blocked = rowOf(as(PLAYER, () => buildCrossingView(plain.formation)), "Alder");
+  assert.deepEqual([blocked.climb.can, blocked.climb.blocked, blocked.climb.said], [false, true, "Alder cannot attempt this"]);
+  naturals.length = 0;
+  naturals.push(14);
+  const out = await asAsync(PLAYER, () => requestCrossingThrow(plain.formation, "Alder", "climbUp"));
+  assert.deepEqual([out.ok, out.refused], [false, "notPermitted"]);
+  assert.equal(naturals.length, 1, "nothing was rolled");
+});
+
+await ok("a player's attempt is relayed: declared publicly, rolled and recorded on the GM client, the system's dialog skipped; a non-owner is refused", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  saveResult = { total: 12 };
+  naturals.push(6);
+  const direct = await asAsync(PLAYER, () => jumpFor(formation, "Alder"));
+  assert.deepEqual([direct.ok, direct.refused], [false, "notGM"], "the player's own client rolls nothing");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "attempt")), { ok: true });
+  assert.deepEqual(seen.told, ["Declared — sent to the Judge."]);
+  const { declarations, cards } = posted();
+  assert.ok(declarations[0].content.includes("Pat declares: Alder jumps."));
+  assert.equal(cards.length, 1);
+  assert.deepEqual(seen.saves.map(([, , options]) => options.event), [{ shiftKey: true }], "a relayed save carries the skip key, so no dialog opens on the Judge's seat");
+  assert.equal(recordOf(formation).state, "across");
+  assert.ok(seen.created.indexOf(declarations[0]) < seen.created.indexOf(cards[0]), "declared before the card");
+
+  const other = await gapWorld();
+  naturals.length = 0;
+  naturals.push(6);
+  const id = readCrossing(other.formation).id;
+  await relay(OTHER, other.formation, "crossing", { crossingId: id, actorId: "Alder", step: "attempt" });
+  const sent = posted();
+  assert.deepEqual([sent.declarations.length, sent.cards.length, sent.whispers.length], [0, 0, 1]);
+  assert.equal(sent.whispers[0].content, "Alder is not yours to throw for.");
+  assert.equal(naturals.length, 1, "no die was rolled");
+  await relay(PLAYER, other.formation, "crossing", { crossingId: "other", actorId: "Alder", step: "attempt" });
+  assert.equal(posted().whispers.length, 2, "a press for another crossing is told so");
+  assert.equal(naturals.length, 1);
+  assert.equal(
+    (await asAsync(PLAYER, () => requestCrossingThrow(other.formation, "Alder", "bogus"))).refused,
+    "stale", "a step that is neither the attempt nor the climb up is refused before it is sent",
+  );
+});
+
+await ok("an absence rolls nothing, for a Judge too: the die's figures, no gap, the shortfall die of a precarious landing, a member with no save", async () => {
+  const { formation } = await gapWorld();
+  load({ jumping: null });
+  naturals.push(6);
+  assert.deepEqual(await jumpFor(formation, "Alder"), { ok: false, refused: "absence" });
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").attempt.can, false);
+  assert.deepEqual([naturals.length, seen.created.length, seen.saves.length], [1, 0, 0]);
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "attempt")), { ok: false, refused: "absence" }, "and a player's seat is not sent");
+
+  await applyCrossingForm(formation, { precarious: true });
+  load({ jumping: JUMPING });
+  assert.equal((await jumpFor(formation, "Alder")).refused, "absence", "a save that fails would be rolled against a die nobody imported");
+  assert.equal(naturals.length, 1);
+
+  load({ jumping: J3 });
+  await applyCrossingForm(formation, { gap: "" });
+  assert.equal((await jumpFor(formation, "Alder")).refused, "noGap");
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").attempt.can, false);
+
+  const wolf = await (async () => {
+    reset();
+    load({ jumping: J3 });
+    const w = person("Wolf", { type: "monster", adventuring: null, saves: {} });
+    const made = world([w]);
+    await beginCrossing(made.formation, "jump");
+    await applyCrossingForm(made.formation, { gap: "15", charging: true });
+    return made;
+  })();
+  naturals.push(6);
+  assert.equal((await jumpFor(wolf.formation, "Wolf")).refused, "noCell");
+  assert.deepEqual([naturals.length, seen.created.length, seen.saves.length], [1, 0, 0]);
+});
+
+await ok("a permission refusal warns a Judge and blocks a player: an out-of-reach gap rolls over the warning and a player's press is not sent", async () => {
+  const { formation } = await gapWorld({ landing: {} });
+  await applyCrossingForm(formation, { gap: "90" });
+  const player = rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder");
+  assert.deepEqual([player.attempt.can, player.blocked, player.said], [false, true, "Alder cannot reach"]);
+  assert.equal((await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "attempt"))).refused, "impossible");
+  const judge = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([judge.attempt.can, judge.attempt.warn, judge.attempt.label], [true, true, "Jump anyway"]);
+  naturals.push(8);
+  seen.warned.length = 0;
+  const out = await jumpFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step], [true, "fell"]);
+  assert.equal(seen.warned.length, 1);
+  assert.ok(seen.created[0].content.includes("Thrown over a refusal"));
+});
+
+await ok("a dismissed save dialog keeps the rolled distance and the next press finishes the save without rolling the die again", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  saveResult = undefined;
+  naturals.push(6, 2);
+  assert.deepEqual(await jumpFor(formation, "Alder"), { ok: false, refused: "cancelled" });
+  const record = recordOf(formation);
+  assert.deepEqual([record.state, record.throws, record.jump.distance, record.jump.save], ["landing", 1, 18, null]);
+  assert.equal(seen.created.length, 0, "no card until the jump is settled");
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.attempt.can, row.attempt.label, row.result.pending, row.stateLabel], [true, "Roll the save", true, "Save to roll"]);
+  assert.equal(row.landing.canRoll, false);
+  saveResult = { total: 11 };
+  const out = await jumpFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step], [true, "across"], "the slip of 2 leaves 1 foot past the edge");
+  assert.deepEqual(naturals, [], "the die was not rolled again; the shortfall die was");
+  const done = recordOf(formation);
+  assert.deepEqual([done.throws, done.jump.distance, done.jump.slip, done.jump.footing], [1, 18, 2, "solid"]);
+  assert.equal(seen.created.length, 1);
+});
+
+await ok("an attempt needs an open jump and a member: an obstacle crossing, none open and a stranger are refused", async () => {
+  reset();
+  load();
+  const a = person("Alder", { dex: 12 });
+  const { formation } = world([a]);
+  assert.equal((await jumpFor(formation, "Alder")).refused, "closed");
+  await beginCrossing(formation, "easyClimb");
+  assert.equal((await jumpFor(formation, "Alder")).refused, "notJump");
+  await endCrossing(formation);
+  await beginCrossing(formation, "jump");
+  assert.equal((await jumpFor(formation, "Nobody")).refused, "member");
+  assert.equal((await jumpFor(formation, "Alder", { crossingId: "stale" })).refused, "stale");
+  assert.equal((await throwFor(formation, "Alder")).refused, "jump", "a stretch is not thrown over a gap");
+  assert.equal(naturals.length, 0);
+});
+
+await ok("an interleaved second press for the same member is refused as busy and a crossing ended mid-attempt records nothing", async () => {
+  const { formation } = await gapWorld();
+  rollDelay = 10;
+  naturals.push(6, 6);
+  const first = jumpFor(formation, "Alder");
+  const second = await jumpFor(formation, "Alder");
+  assert.equal(second.refused, "busy");
+  await first;
+  assert.equal(naturals.length, 1, "one die");
+  await endCrossing(formation);
+  await beginCrossing(formation, "jump");
+  await applyCrossingForm(formation, { gap: "15" });
+  seen.created.length = 0;
+  const ending = jumpFor(formation, "Alder");
+  await endCrossing(formation);
+  assert.equal((await ending).refused, "stale");
+  rollDelay = 0;
+  assert.equal(seen.created.length, 0, "no card for a crossing that ended");
+});
+
+await ok("a player's panel offers a jump while an attempt or a climb up is open to a member they own", async () => {
+  const { formation } = await gapWorld();
+  assert.equal(as(PLAYER, () => canCross(formation)), true);
+  assert.equal(as(OTHER, () => canCross(formation)), false);
+  naturals.push(6);
+  await jumpFor(formation, "Alder");
+  assert.equal(as(PLAYER, () => canCross(formation)), false, "a jumper who is across has nothing left");
+});
+
+await ok("the partial draws the attempt for a Judge and an owner and not another seat, the climb up for a hanging jumper, and the result with its tooltips", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  const judge = render({ crossing: buildCrossingView(formation) });
+  assert.ok(judge.includes('data-action="crossingAttempt"') && judge.includes('data-actor-id="Alder"'));
+  assert.ok(judge.includes('name="crossing.ropeFixed"'), "the climb up reads the setup's rope");
+  assert.ok(render({ crossing: as(PLAYER, () => buildCrossingView(formation)) }).includes('data-action="crossingAttempt"'), "the owner's");
+  assert.equal(render({ crossing: as(OTHER, () => buildCrossingView(formation)) }).includes("crossingAttempt"), false, "another seat's none");
+  saveResult = { total: 11 };
+  naturals.push(6, 3);
+  await jumpFor(formation, "Alder");
+  const hanging = render({ crossing: buildCrossingView(formation) });
+  assert.ok(hanging.includes('data-action="crossingClimbUp"'), "a hanging jumper's climb up");
+  assert.equal(hanging.includes('data-action="crossingAttempt"'), false, "and no second jump");
+  for (const word of ["Rolled 18 ft", "clears", "Hanging", "Save 11 against 12", "failed", "Landing short by 3 ft", "An edge"]) assert.ok(hanging.includes(word), word);
+  for (const html of [judge, hanging]) {
+    assert.equal(/\sid=/.test(html), false, "no literal id");
+    assert.equal(/<summary/.test(html), false, "nothing in a summary");
+    for (const glyph of html.matchAll(/<i [^>]*>/g)) assert.ok(glyph[0].includes("inert"), "a glyph is inert");
+  }
+  assert.ok(/acks-extras-crossing-rolled" data-tooltip-text="[^"]+/.test(hanging), "the rolled distance carries its working");
 });
 
 /* --- held conditions ------------------------------------------------------------ */

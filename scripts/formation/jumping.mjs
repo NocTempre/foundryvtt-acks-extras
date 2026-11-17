@@ -1,9 +1,10 @@
 /**
  * Jumping and leaping (RR ch. 6, pp. 270-271): a distance the character has,
- * compared against a gap the dungeon has, reported as a range rather than
- * rolled. See docs/formation/DECISIONS.md, "Jumping is a distance, not a
- * throw, so it is not an obstacle" and the entry that moved its figures onto
- * the importer.
+ * compared against a gap the dungeon has, reported as a range (`jumpDistance`,
+ * `canClear`) and, for one roll of the die, as the distance a face carries
+ * (`jumpAt`; the crossing rolls it). See docs/formation/DECISIONS.md, "Jumping
+ * is a distance, not a throw, so it is not an obstacle", the entry that moved
+ * its figures onto the importer and "A jump is attempted".
  *
  * This file knows the procedure: a leap is a bonus plus a constant held to a
  * floor, a jump is a score plus a die, a stone of encumbrance takes a distance
@@ -352,6 +353,25 @@ export function jumpDistance({
     parts: [{ key: "dex", value: score }, { key: "die", value: `1d${faces}` }, ...held.parts],
     unknown,
   };
+}
+
+/**
+ * The distance one face of the jump's die carries this jumper: the same score
+ * and conditions `jumpDistance` reports its range from, at the face a roll
+ * gave. Null while any figure the jump rests on is not imported, or for a face
+ * the imported die has no side for.
+ *
+ * @param {object} [options] `jumpDistance`'s options
+ * @param {number} face the die's result, from 1 to the imported faces
+ * @returns {number|null} feet
+ */
+export function jumpAt(options = {}, face = 1) {
+  const faces = jumpFaces();
+  const n = Number(face);
+  if (faces === null || !Number.isInteger(n) || n < 1 || n > faces) return null;
+  const { score, unknown } = scoreFigures(options);
+  if (unknown.length) return null;
+  return conditions(options).apply(score + n);
 }
 
 /**

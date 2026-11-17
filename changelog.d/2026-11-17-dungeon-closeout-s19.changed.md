@@ -1,0 +1,1 @@
+- **Macros and companion modules → `acksExtras.formation.jumping`:** adds `jumpAt(options, face)`, the distance one face of the jump's die carries a jumper (the same score and conditions `jumpDistance` reads its range from), null until the figures are imported. Formation `apiVersion` 31. Nothing is renamed or removed.

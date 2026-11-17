@@ -2786,8 +2786,9 @@ state, the roll, the card and the view are `crossing.mjs`'s.
 **Who sees what.** A Judge always has the begin row: a kind pick (the six
 obstacles and a jump) and Begin. While a crossing is open every seat has the
 member rows, and the Judge also the setup fields (length, depth, rope fixed and
-the Judge modifier; for a jump, gap, run-up, precarious, charging and the depth
-a fall over empty space is figured on) and
+the Judge modifier; for a jump, gap, run-up, precarious, charging, the depth
+a fall over empty space is figured on and the rope a climb up from the edge
+reads) and
 *Throw all* and *End*. A player has no section while none is open, and no
 setup field in the DOM while one is. A stack standing for several bodies has no
 row.
@@ -2863,7 +2864,8 @@ point. A crossing spends no time on the clock and posts no damage; what it holds
 on a member is *Held conditions*, below. `throwAll` throws for each member whose row allows it with no warning.
 A jump row is `canClear`'s verdict and range for the member, blank until a
 gap is set, fed with the member's own Dexterity, level, carried stone and
-Acrobatics and the setup's run-up. It has no throw of its own.
+Acrobatics and the setup's run-up. Its verdict is shown first; the press that
+follows is the attempt (*The jump attempt*, below).
 
 **A jump's landing.** Where the setup marks the landing precarious, or the jump
 charging, `landingRow` (`landingSave` plus the row's refusals) offers the
@@ -2881,14 +2883,62 @@ row (`FOOTINGS`) and `reportLanding` posts `landingOutcome` (`landingFailure`
 with the setup's depth as the fall's distance, which a fall over empty space
 without a depth names as unknown) on a card to the Judges. Both are the Judge's
 alone and neither writes the flag, a hit point or a condition; a player's row
-reads that a save is asked for and has no press. A press from a player's seat
-is not relayed: the system's roll opens its dialog on the client that calls it.
+reads that a save is asked for and has no press of its own. The landing save
+press stands until an attempt has been made on the row; the footing pick
+remains after it, as the Judge's override of the footing the attempt reached.
+
+**The jump attempt.** `jumpFor` (GM client) answers the Attempt press on a
+member of an open jump. Every check comes before the first die: the row read
+for the seat, a gap set, the crossing's id, and where the landing asks for a
+save, the member's save cell and the imported shortfall die. An absence refuses
+every seat, a Judge included, and rolls nothing (`absence`, with no words); a
+permission refusal (a gap out of reach) blocks a player and warns a Judge. The
+die is the single die `jumpFaces` reads; `jumpAt` carries a face through the
+same score and conditions `jumpDistance` reads its range from, so a rolled
+distance lies inside the row's range and the faces that reach the gap are the
+ones `canClear` counts. A distance that reaches the gap lands. Where the
+landing asks for a save it is core's own `rollSave` on the member, and a pass
+is the total reaching the target `saveSpec` gives (the stored figure less the
+conditions' and records' shifts, the figure the system's wrapped roll is made
+against); a failed one rolls the imported shortfall die for the feet the jumper
+slips back. `jumpResult` sets the jumper against the far edge: the distance
+less the slip less the gap is past the edge (solid ground, prone, across),
+exactly on it (the edge, hanging) or short of it (empty space, a fall of the
+setup's depth with the imported dice, `landingFailure`'s). A distance that does
+not reach the gap rolls no save and no slip and falls short over empty space.
+How a jump decides among the three footings is not on the page, so this is the
+crossing's reading, and the Judge's footing pick stays beside it.
+
+The member's record gains `jump`: `{face, distance, gap, clears, save: {total,
+target, passed}|null, slip, footing}`, beside `state` (`across`, `hanging`,
+`fell` or `landing`), `covered` 0 and `throws`. `jump.distance` is the feet
+the jump covered; the crossing tracks no rounds and spends none, so a reader of
+the round's movement takes it from there. A dialog dismissed on the save keeps
+the rolled distance and leaves the state `landing`: the next press is the same
+press and finishes the save without rolling the die again. The row shows
+"Rolled N ft, clears or short", the save's total against its target, "short by
+N ft" with the footing and what it costs, and the state, each with its working
+and the imported page as the tooltip. The card goes to the Judges, a row for
+the distance against the gap, a row for the save, a footnote for the slip, the
+footing and a fall's figures; hit points are untouched.
+
+**The climb up.** A jumper left hanging has the climb up to make, in place of a
+second jump. `climbUpRow` is `memberRow` on `HANG_CLIMB` (one obstacle, held in
+one place; the page prints no column for climbing back up), a stretch long,
+the jumper's own figure the target, a fixed rope (the setup's) making it the
+easy climb; `jumpFor`'s `climbUp` step throws it through the same
+`rollStretch` as an obstacle's stretch, `stepMember` placing the result, so a
+make is across, a miss that holds on stalls (the jumper is still hanging and a
+Judge may rule another), and a fall is the setup's depth (`fallFromDepth`). A
+Judge is warned where the grid refuses the member and a player is blocked, as
+on any climb.
 
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the
 row for the seat, says a refusal where it has words and otherwise relays
 `crossing` with the formation id, the crossing id the seat saw and the actor id,
-and nothing else; the player's client never writes, rolls or posts. The GM
+and, over a gap, the step pressed (`attempt` or `climbUp`) and nothing else; the
+player's client never writes, rolls or posts. The GM
 client's `executeRequest` case checks again, in this order: the requesting user
 owns the member (`userOwnsMember`, against the sender the server attests, and an
 actor id must be named); a crossing is open and its id is the one sent; the row
@@ -2896,15 +2946,17 @@ read with `judge: false, owns: true` allows the throw, so a permission, absence
 or seat refusal stops a player where a permission refusal only warns a Judge;
 and no throw for that member is in flight. The in-flight key is claimed in the
 same synchronous run as the checks, and `announceDeclaration` runs after it and
-before the die (`throwFor`'s `beforeRoll`), so a refused or busy request
-declares nothing. A pass posts the public declaration and the card goes to the
+before the die (`throwFor`'s and `jumpFor`'s `beforeRoll`), so a refused or busy request
+declares nothing. A relayed attempt's landing save carries the system's skip-dialog key, since
+its dialog would otherwise open on the Judge's seat for a save nobody there is making. A pass posts the public declaration and the card goes to the
 Judges as for a Judge's throw. A refusal is whispered to the requesting user
 with `crossing.relay.*` or `crossing.refusal.*` words, and an absence refusal,
 which has none, is not whispered. Two requests for two members interleave and
 both land, since each writes its own member's path; two for one member land once
 and the second is whispered as busy. `buildPlayerPanel` carries `canCross`, true
 where the seat owns a member whose row allows a throw in an open obstacle
-crossing, read from the same rows the section draws.
+crossing, or an attempt or a climb up in an open jump, read from the same rows
+the section draws.
 
 **Tooltips.** A target names the figure's source, each part with the page its
 import cites, and the Judge modifier; a permitted-or-not and a stretch count

@@ -38,7 +38,7 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
-  applyCrossingForm, beginCrossing, endCrossing, landFor, readCrossing, reportLanding, throwAll, throwFor,
+  applyCrossingForm, beginCrossing, endCrossing, jumpFor, landFor, readCrossing, reportLanding, throwAll, throwFor,
 } from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
@@ -134,6 +134,25 @@ async function adjustTrackedSpell(app, target, delta) {
   if (!formation) return;
   await adjustSpell(formation, target.closest("[data-spell-id]")?.dataset.spellId, delta);
   app.render();
+}
+
+/**
+ * A press over a gap, for one member: the Judge's seat rolls it, a player's
+ * seat relays it for a member they own, and a refusal the Judge's client gives
+ * is said as a warning where it has words.
+ */
+async function crossingJumpPress(sheet, event, target, step) {
+  const formation = sheet.formation;
+  const actorId = target.dataset.actorId;
+  if (!formation || !actorId) return;
+  if (!game.user.isGM) {
+    if (ownsActor(actorId)) await requestCrossingThrow(formation, actorId, step);
+    return;
+  }
+  const result = await jumpFor(formation, actorId, { step, event });
+  const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+  if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
+  sheet.render?.();
 }
 
 /** The Judge-facing action handlers shared by the formation windows, run with the window as `this`. */
@@ -979,6 +998,19 @@ export const SHARED_ACTIONS = {
     const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
     if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
     this.render?.();
+  },
+
+  /**
+   * One member's jump attempt over a gap. The Judge's seat rolls it; a
+   * player's seat hands the press to `requestCrossingThrow`, which relays it.
+   */
+  async crossingAttempt(event, target) {
+    return crossingJumpPress(this, event, target, "attempt");
+  },
+
+  /** A hanging jumper's climb up, pressed the same way as the attempt. */
+  async crossingClimbUp(event, target) {
+    return crossingJumpPress(this, event, target, "climbUp");
   },
 
   /**

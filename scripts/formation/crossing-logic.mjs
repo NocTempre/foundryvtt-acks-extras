@@ -3,8 +3,9 @@
  * crossing sends the party over one obstacle or one gap, a member at a time
  * (RR ch. 6, Spelunking and Jumping and Leaping). `crossing.mjs` supplies the
  * flag, the roll and the card; this file answers what a row may do, what a
- * landing asks for and costs, where a throw leaves a member and how far a
- * fall is.
+ * landing asks for and costs, where a throw leaves a member, how far a fall is,
+ * and where a rolled jump leaves a jumper (`jumpResult`) and what a jumper
+ * hanging at the edge climbs (`climbUpRow`).
  *
  * Every figure comes from the readers `obstacles.mjs` and `jumping.mjs` hold,
  * so nothing here is a printed value. A figure the world has not imported
@@ -54,6 +55,21 @@ export const SETTLED = Object.freeze(["across", "fell"]);
 
 /** The state of a member whose last miss covered no ground; a Judge may rule a re-throw. */
 export const STALLED = "stalled";
+
+/** The state of a jumper at the gap's edge, hanging, who has a climb up to make. */
+export const HANGING = "hanging";
+
+/** The state of a jumper whose distance is rolled and whose landing save is not: the save is what is left to make. */
+export const LANDING = "landing";
+
+/**
+ * The obstacle a hanging jumper's climb up is thrown on. Spelunking prints no
+ * column for climbing back up from an edge, so this is the crossing's own
+ * reading: the face under the jumper's hands is a sheer one, which a fixed rope
+ * (`ropeFixed`) makes the easy climb. One place, so a ruling that names another
+ * obstacle changes one line.
+ */
+export const HANG_CLIMB = "sheerClimb";
 
 /**
  * The statuses a crossing can hold on a member while they are on an obstacle.
@@ -291,6 +307,21 @@ export function fallFromClimb({ kind, covered = 0, feet = null, depth = null } =
 }
 
 /**
+ * What a fall over empty space deals when its distance is the depth the Judge
+ * gave: the fall `landingOutcome` reports for the empty footing, without the
+ * shortfall die, which only a landing that slipped rolls. A blank depth reads
+ * unknown and nothing is dealt.
+ *
+ * @param {number|string|null} depth the drop, in feet
+ * @returns {{feet: number|null, damage: string|null, unknown: string[], parts: Array<{key: string, value: number}>}}
+ */
+export function fallFromDepth(depth = null) {
+  const out = landingOutcome({ footing: "empty", depth });
+  const drop = Number(depth) > 0 ? Number(depth) : null;
+  return { feet: out.feet, damage: out.damage, unknown: out.unknown.filter((key) => key !== "shortfallDie"), parts: drop ? [{ key: "depth", value: drop }] : [] };
+}
+
+/**
  * One member's row against a gap: `canClear`'s answer whole, with what this
  * seat may do about it. An unreachable gap is a permission refusal, so a Judge
  * is warned and a player is stopped; a jump whose figures are not imported is an
@@ -301,11 +332,14 @@ export function fallFromClimb({ kind, covered = 0, feet = null, depth = null } =
  * @param {object} [o.options] `canClear`'s options: dex, encumbrance, acrobatics, level, dexCap, runningStart, runSpeed
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
  * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
+ * @param {{state?: string, jump?: {footing?: string}}|null} [o.member] the member's crossing record; a jumper who is
+ *   across or fell has nothing left to jump, and one hanging at the edge climbs up (`climbUpRow`) instead
  * @returns {object} the `canClear` result with `refusal`, `can` and `warn`
  */
-export function jumpRow(gapFeet, { options = {}, seat = {}, standing = null } = {}) {
+export function jumpRow(gapFeet, { options = {}, seat = {}, standing = null, member = null } = {}) {
   const cleared = canClear(gapFeet, options);
-  const refusals = seatRefusals({ seat, standing, state: null });
+  const refusals = seatRefusals({ seat, standing, state: SETTLED.includes(member?.state) ? member.state : null });
+  if (isHanging(member) && !SETTLED.includes(member?.state)) refusals.push({ cls: REFUSAL.seat, reason: HANGING });
   if (cleared.verdict === "unknown") refusals.push({ cls: REFUSAL.absence, reason: "jump" });
   if (cleared.verdict === "impossible") refusals.push({ cls: REFUSAL.permission, reason: "impossible" });
   return { ...cleared, ...settle(refusals, seat?.judge) };
@@ -356,5 +390,100 @@ export function landingOutcome({ footing, depth = null } = {}) {
     ...failure,
     feet: falls && drop > 0 ? drop : null,
     unknown: falls && !drop ? [...failure.unknown, "depth"] : failure.unknown,
+  };
+}
+
+/**
+ * Whether a member's record is a jumper hanging at the gap's edge with a climb
+ * up still to make: `hanging`, or `stalled` after a climb up that covered no
+ * ground. A jumper who is across or fell is not.
+ *
+ * @param {{state?: string, jump?: {footing?: string}}|null} [member] the member's crossing record
+ */
+export function isHanging(member) {
+  if (!member || SETTLED.includes(member.state)) return false;
+  return member.state === HANGING || (member.state === STALLED && member.jump?.footing === "edge");
+}
+
+/**
+ * A hanging jumper's row for the climb up: `memberRow` on `HANG_CLIMB`, one
+ * stretch long (a blank length is one), the jumper's own figure the target and
+ * a stalled climb up read as a stalled member. Everything `memberRow` answers
+ * stands: the table's refusals, the three classes and the Judge's warning.
+ *
+ * @param {object} o
+ * @param {boolean} [o.ropeFixed] a rope is fixed to the face
+ * @param {boolean} [o.holds] the member holds Climbing
+ * @param {{target: number|null, parts?: object[]}|null} [o.figure] `resolveCheck` for `CLIMB_CHECK`
+ * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
+ * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
+ * @param {{state?: string, throws?: number}|null} [o.member] the member's crossing record
+ * @returns {object} a `memberRow` result
+ */
+export function climbUpRow({ ropeFixed = false, holds = false, figure = null, seat = {}, standing = null, member = null } = {}) {
+  return memberRow({
+    kind: HANG_CLIMB,
+    ropeFixed,
+    feet: null,
+    holds,
+    figure,
+    seat,
+    standing,
+    member: { state: member?.state === STALLED ? STALLED : "climbing", covered: 0, throws: member?.throws ?? 0 },
+  });
+}
+
+/**
+ * Where a rolled jump leaves the jumper, from the distance the die gave, the
+ * gap, the landing save (where one was asked) and the feet a failed landing
+ * fell short by.
+ *
+ * A distance that reaches the gap lands, and with no save asked, or one made,
+ * the jumper is across. A distance that does not reach it falls short of the
+ * far side by the difference and over empty space. A failed landing slips back
+ * by the shortfall, and where that leaves the jumper against the far edge is
+ * the footing: past it, solid ground and prone; exactly on it, the edge and
+ * hanging; short of it, empty space and a fall, whose distance is the
+ * Judge's depth. Footing names and what each costs are `landingFailure`'s.
+ *
+ * `footing` is null where the jumper is across clean, or where the failed
+ * landing's slip was not rolled (`unknown` names the shortfall die). A short
+ * jump rolls no save and no slip, so its `unknown` never names the die.
+ *
+ * @param {object} o
+ * @param {number} o.gap the distance to be cleared, in feet
+ * @param {number} o.distance the distance the die gave, in feet
+ * @param {{passed: boolean}|null} [o.save] the landing save, null where none was asked
+ * @param {number|null} [o.slip] the feet a failed landing fell short by
+ * @param {number|string|null} [o.depth] the drop under a fall, in feet
+ * @returns {{gap: number, distance: number, clears: boolean, shortBy: number, saved: boolean|null, slip: number|null,
+ *   position: number|null, footing: string|null, outcome: string|null, state: string,
+ *   feet: number|null, damage: string|null, unknown: string[]}|null} null where the gap or the distance is no figure
+ */
+export function jumpResult({ gap, distance, save = null, slip = null, depth = null } = {}) {
+  const need = Number(gap);
+  const reach = distance === null || distance === undefined ? NaN : Number(distance);
+  if (!(need > 0) || !Number.isFinite(reach)) return null;
+  const clears = reach >= need;
+  const base = { gap: need, distance: reach, clears, shortBy: clears ? 0 : need - reach, saved: save ? save.passed === true : null };
+  const across = { slip: null, position: reach - need, footing: null, outcome: null, state: "across", feet: null, damage: null, unknown: [] };
+  if (clears && (!save || save.passed)) return { ...base, ...across };
+  const slipped = clears ? (slip === null || slip === undefined ? NaN : Number(slip)) : 0;
+  if (!Number.isFinite(slipped)) {
+    return { ...base, ...across, state: LANDING, position: null, unknown: ["shortfallDie"] };
+  }
+  const position = reach - slipped - need;
+  const footing = Math.abs(position) < 1e-9 ? "edge" : position > 0 ? "solid" : "empty";
+  const failure = landingOutcome({ footing, depth });
+  return {
+    ...base,
+    slip: clears ? slipped : null,
+    position,
+    footing,
+    outcome: failure.outcome,
+    state: footing === "solid" ? "across" : footing === "edge" ? HANGING : "fell",
+    feet: failure.feet,
+    damage: failure.damage,
+    unknown: clears ? failure.unknown : failure.unknown.filter((key) => key !== "shortfallDie"),
   };
 }
