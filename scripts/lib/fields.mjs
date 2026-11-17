@@ -205,11 +205,14 @@ export function spellRefField() {
 /**
  * The defences an ability or monster carries: `immunities`, `resistances` and
  * `susceptibilities`, each a band of damage types, effects and conditions with
- * the mundane/extraordinary and silver-flaw flags.
+ * the mundane/extraordinary and silver-flaw flags. A susceptibility also
+ * carries the creature's own two figures, `factor` (the multiple of damage it
+ * takes) and `save` (the signed modifier to its saving throw), blank until
+ * read: `defenses.mjs` applies them, and neither has a default.
  */
 export function defensesField() {
   const { SchemaField } = F();
-  const band = () =>
+  const band = (figures = {}) =>
     new SchemaField({
       damage: choiceSet(DAMAGE_TYPES),
       effects: choiceSet(EFFECT_KEYS),
@@ -223,8 +226,13 @@ export function defensesField() {
       // Printed qualifiers the closed sets cannot carry ("except from its own
       // kind", a named spell). Prose for the reader; the sets are the machine's.
       note: str(),
+      ...figures,
     });
-  return new SchemaField({ immunities: band(), resistances: band(), susceptibilities: band() });
+  return new SchemaField({
+    immunities: band(),
+    resistances: band(),
+    susceptibilities: band({ factor: num(), save: num() }),
+  });
 }
 
 /* --- Movement / senses / vision (shapes shared w/ monster Speed & Senses) --- */

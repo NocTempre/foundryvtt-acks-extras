@@ -10,8 +10,10 @@
  * Wisdom modifier, only when the throw is against magic), the creature's
  * conditions through `rollMath("save", …)` the way the conditions' own
  * wrapper lowers the target, the `save` parts of the creature's records
- * (`roll-mods.mjs`, scoped against what the throw is made against), and
- * whatever the caller adds. `saveThrow` rolls
+ * (`roll-mods.mjs`, scoped against what the throw is made against), the
+ * creature's defenses against the damage the throw resists (`defenses.mjs`,
+ * only when the caller names the damage), and whatever the caller adds.
+ * `saveThrow` rolls
  * the spec. It never takes states off the creature: the loss a failed save
  * costs is the caller's, through `loseStates` (`status-effects.mjs`), so one
  * place decides who is asked to write it.
@@ -19,6 +21,7 @@
 import { LANG_PREFIX } from "./constants.mjs";
 import { rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
+import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs";
 import { saveModParts } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
@@ -62,15 +65,20 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {{actor: object, token?: object}|null} [options.against]  what the throw is made against: the saver's scoped `save` parts (`roll-mods.mjs`) are settled against it
  * @param {object|null} [options.bearerToken]  the saver's token, read for an enemy test against `against.token`
  * @param {boolean} [options.rollMods=conditions]  the saver's records' `save` parts join the target; off with the conditions, so a caller that opts out of the one opts out of the other
+ * @param {{types?: Iterable<string>, extraordinary?: boolean|null, silver?: boolean}|null} [options.damage]  the damage the throw resists (`extraordinary` null or absent is a quality not stated, which a band waiting on it sends to `pending`): the saver's defenses (`defenses.mjs`) then join the throw, and the spec carries `auto`. Absent, the spec has no defense part and no `auto` key
+ * @param {{sources?: object[], figures?: object}} [options.defenses]  the defenses read and the resistance's figures, in place of the saver's own (`actorDefenses`) and the world's (`defenseFigures`)
  * @returns {{save: string, kind: string, formula: string, baseTarget: number|null,
  *   target: number|null, parts: Array<{key: string, label: string, value: number|string, side: "roll"|"target"}>,
- *   pending: Array<{condition: string, value: number, when: string}|{label: string, value: number, when: "source"}>, unpriced: string[]}}
- *   a condition's pending row names its `condition`; a record's names its `label`
+ *   pending: Array<{condition: string, value: number, when: string}|{label: string, value: number, when: "source"}|{label: string, value: null, when: "defense", why?: string}>, unpriced: string[],
+ *   auto?: {label: string, source: string, types: string[]}|null}}
+ *   a condition's pending row names its `condition`; a record's names its `label`; a defense's has no figure
+ *   (blank, or the Judge's case) and says so by `when: "defense"`. `auto` (only with `damage`) is a success with
+ *   no roll: every type dealt is one the saver is immune to
  */
 export function saveSpec(
   actor,
   save,
-  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions } = {},
+  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions, damage = null, defenses = null } = {},
 ) {
   const kind = saveKindOf(save);
   const stored = actor?.system?.saves?.[save]?.value;
@@ -117,6 +125,16 @@ export function saveSpec(
     }
     pending = [...pending, ...mods.pending];
   }
+  let auto;
+  if (damage) {
+    const made = defenseSaveParts(defenses?.sources ?? actorDefenses(actor), damage, defenses?.figures ?? defenseFigures());
+    for (const p of made.parts) {
+      targetParts.push(p);
+      shift += p.value;
+    }
+    pending = [...pending, ...made.pending];
+    auto = made.auto;
+  }
   return {
     save,
     kind,
@@ -126,13 +144,16 @@ export function saveSpec(
     parts: [...listed, ...targetParts],
     pending,
     unpriced,
+    ...(damage ? { auto } : {}),
   };
 }
 
 /**
  * Make the throw `saveSpec` describes. With no target the creature has no
  * throw to make: nothing is rolled and `roll`, `total` and `success` are null.
- * A total at or above the target succeeds.
+ * A total at or above the target succeeds. A spec with `auto` is a success
+ * with nothing rolled: `roll` and `total` are null and `success` is true, with
+ * or without a target.
  *
  * @param {Actor} actor
  * @param {string} save
@@ -142,6 +163,7 @@ export function saveSpec(
  */
 export async function saveThrow(actor, save, { roll = null, ...options } = {}) {
   const spec = saveSpec(actor, save, options);
+  if (spec.auto) return { ...spec, roll: null, total: null, success: true };
   if (spec.target === null) return { ...spec, roll: null, total: null, success: null };
   const made = roll ? await roll(spec.formula) : await new Roll(spec.formula).evaluate();
   const total = Number(made?.total);

@@ -34,6 +34,11 @@
  * caller passed. A contributor sees a carrier's attack or damage only where
  * it declared `carriers` for that question. See docs/lib/DECISIONS.md, "A
  * spell's damage is a fourth attack type on a carrier".
+ *
+ * The system's Apply button writes raw hit points and cannot be wrapped, so
+ * the card of every attack in flight loses it before it is stored and gains a
+ * stamp of the weapon's damage (`ATTACK_APPLY_FLAG`); `attack-apply.mjs` draws
+ * the press that applies it through the target's defenses.
  */
 import { MODULE_ID } from "../constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "../vocab.mjs";
@@ -374,18 +379,83 @@ export function stripApplyDamage(html) {
     .replace(/<div\b[^>]*class="[^"]*\bcard-buttons\b[^"]*"[^>]*>\s*<\/div>/g, "");
 }
 
-/** Before a message is stored: the card of a carrier attack in flight loses its Apply and is marked. */
+/** The key under `flags[MODULE_ID]` that holds what a weapon card's Apply press needs (`attack-apply.mjs`). */
+export const ATTACK_APPLY_FLAG = "attackApply";
+
+/** The damage of the weapon attacks in flight, by the attacker's uuid: `{types, extraordinary, silver}`. */
+const attackDamageInFlight = new Map();
+
+/**
+ * The damage an attack made with `item` deals, as the system's builder reads
+ * it: the types and the extraordinary mark of its base damage, and whether the
+ * weapon is silver (`system.special.silver`). An attack with no weapon deals
+ * damage with no type.
+ *
+ * @param {Item|null} item
+ * @returns {{types: string[], extraordinary: boolean, silver: boolean}}
+ */
+export function attackDamageOf(item) {
+  const base = item?.system?.damage?.base;
+  return {
+    types: Array.from(base?.types ?? []).filter((t) => typeof t === "string" && t),
+    extraordinary: base?.extraordinary === true,
+    silver: item?.system?.special?.silver === true,
+  };
+}
+
+/** The attribute `name` of the first apply-damage button in a card's markup, or null. */
+function applyAttribute(content, name) {
+  const tag = /<button\b[^>]*data-action="applyDamage"[^>]*>/.exec(content)?.[0];
+  return tag ? (new RegExp(`\\sdata-${name}="([^"]*)"`).exec(tag)?.[1] ?? null) : null;
+}
+
+/**
+ * What a weapon attack card in flight carries for its Apply press, or null:
+ * the speaker's actor has an attack in flight (`byUuid`), the content is the
+ * system's attack card, and its apply button names a damage figure and a
+ * target. Pure over what it is given; a card it cannot read whole is null, so
+ * nothing is changed on it.
+ *
+ * @param {{actorUuid?: string|null, content?: string}} data  the speaker's actor and the message's content
+ * @param {Map<string, {types: string[], extraordinary: boolean, silver: boolean}>} byUuid
+ * @returns {{targetUuid: string, rolled: number, types: string[], extraordinary: boolean, silver: boolean}|null}
+ */
+export function attackApplyMatch({ actorUuid = null, content = "" } = {}, byUuid = attackDamageInFlight) {
+  if (!actorUuid || typeof content !== "string" || !content.includes("attack-throw-card")) return null;
+  const damage = byUuid.get(actorUuid);
+  const targetUuid = applyAttribute(content, "target-uuid");
+  const text = applyAttribute(content, "damage");
+  const rolled = text === null || text.trim() === "" ? NaN : Number(text);
+  if (!damage || !targetUuid || !Number.isFinite(rolled) || rolled < 0) return null;
+  return { targetUuid, rolled, types: [...damage.types], extraordinary: damage.extraordinary, silver: damage.silver };
+}
+
+/**
+ * Before a message is stored: the card of a carrier attack in flight loses its
+ * Apply and is marked as a cast's; the card of any other attack in flight that
+ * still has an Apply loses it, in the same update that stamps what lib's own
+ * Apply (`attack-apply.mjs`) needs, so a card is never stripped without it.
+ */
 function onPreCreateMessage(message) {
   try {
     const actor = ChatMessage.getSpeakerActor(message?.speaker);
-    const info = carrierCardMatch({ actorUuid: actor?.uuid ?? null, content: message?.content }, carrierInFlight);
-    if (!info) return;
+    const data = { actorUuid: actor?.uuid ?? null, content: message?.content };
+    const info = carrierCardMatch(data, carrierInFlight);
+    if (info) {
+      message.updateSource({
+        content: stripApplyDamage(message.content),
+        [`flags.${MODULE_ID}.${MAGIC_ATTACK_FLAG}`]: { ...info },
+      });
+      return;
+    }
+    const apply = attackApplyMatch(data, attackDamageInFlight);
+    if (!apply) return;
     message.updateSource({
       content: stripApplyDamage(message.content),
-      [`flags.${MODULE_ID}.${MAGIC_ATTACK_FLAG}`]: { ...info },
+      [`flags.${MODULE_ID}.${ATTACK_APPLY_FLAG}`]: apply,
     });
   } catch (err) {
-    console.error(`${MODULE_ID} | a spell's attack card could not be marked; it keeps its apply button`, err);
+    console.error(`${MODULE_ID} | an attack card could not be marked; it keeps its apply button`, err);
   }
 }
 
@@ -480,6 +550,9 @@ async function onMakeAttackThrow(wrapped, options = {}) {
   const carried = carrierOf(ctx.item);
   const priorCarried = carried ? (carrierInFlight.get(this.uuid) ?? null) : null;
   if (carried) carrierInFlight.set(this.uuid, { castId: carried.castId, rowKey: carried.rowKey, spellUuid: carried.spellUuid });
+  // Any other attack is known by its weapon's damage, for the card's Apply press.
+  const priorDamage = carried ? null : (attackDamageInFlight.get(this.uuid) ?? null);
+  if (!carried) attackDamageInFlight.set(this.uuid, attackDamageOf(ctx.item));
   let outcome = null;
   try {
     outcome = await wrapped({ ...options, item: ctx.item, attackType: ctx.type ?? undefined });
@@ -491,6 +564,10 @@ async function onMakeAttackThrow(wrapped, options = {}) {
     if (carried) {
       if (priorCarried) carrierInFlight.set(this.uuid, priorCarried);
       else carrierInFlight.delete(this.uuid);
+    } else if (priorDamage) {
+      attackDamageInFlight.set(this.uuid, priorDamage);
+    } else {
+      attackDamageInFlight.delete(this.uuid);
     }
   }
   if (outcome) {

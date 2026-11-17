@@ -2086,10 +2086,111 @@ apply-damage button and the group it empties (`stripApplyDamage`) and stamps
 `flags["acks-extras"].magicAttack`, because the system's handler would write
 raw hit points outside the one amount path.
 
+**The card a weapon hit owns.** Every other attack in flight is known by its
+weapon's damage (`attackDamageOf`: the base damage's types and extraordinary
+mark, and core's `system.special.silver`), by the attacker's uuid, restored
+when the attack resolves or throws. The same listener (`attackApplyMatch`)
+reads `data-damage` and `data-target-uuid` off the card's apply button and,
+in one `updateSource`, strips the button and stamps
+`flags["acks-extras"].attackApply`, `{targetUuid, rolled, types,
+extraordinary, silver}`. A card whose figure or target cannot be read is left
+untouched and keeps the system's button. `attack-apply.mjs` draws the press
+that replaces it ("Damage against defenses").
+
 **The label.** The system has no label for the kind; at ready the seam copies
 `ACKS-LIB.attack.type.magic` into the translations at the system's own key,
 unless the system has one. Ruling: DECISIONS, "A spell's damage is a fourth
 attack type on a carrier".
+
+## Damage against defenses
+
+`defenses.mjs` is the one place a damage type meets a creature's immunities,
+resistances and susceptibilities, for a weapon's hit and a spell's alike. The
+procedure ships; its figures are read.
+
+**Where the figures come from.** Immunity prints no figure: it removes the
+damage and passes the save. Resistance's amount fraction and save modifier are
+the `defenses` document's `resistanceProse` table (keys `fraction` and
+`saveBonus`), declared with `expectTables` the way `senses.mjs` declares its
+own and edited in the Ruledata Browser's override layer. `defenseFigures()`
+answers each, null until read (a fraction outside 0 to 1 is no fraction), and
+`defenseCite()` the page through `citeOf`. A susceptibility's `factor` (the
+multiple of damage) and `save` (a signed modifier, positive helping the saver)
+are the creature's own, on its band in `defensesField()`; blank until read.
+
+**The sources.** `actorDefenses(actor)` is the actor's
+`flags["acks-extras"].extras.defenses` and each owned item's, each source
+named, and leaves out a source none of whose bands lists a damage type or sets
+a quality flag. `effects` and `conditions` are not read here.
+
+**Coverage.** A band covers a type dealt when it lists the type, or lists none
+and sets a quality flag. A set flag must also match the damage's quality: the
+damage is extraordinary when it is marked so, or when a silver weapon meets a
+defense's `silverFlaw` (a susceptibility has none), and mundane when it is
+marked so. The mark is three-valued: an imported spell row whose mark the import
+could not read states none (null), and that is never read as mundane. A band
+whose coverage waits on the quality (it sets exactly one flag and would cover
+the type if it matched) is undetermined then; the hit is the Judge's, with
+`why: "quality"`, unless the outcome is the same whether such bands cover or
+not. A band with no flag, or both, covers either quality. A
+band that lists a type and sets a flag needs both. A band with no flag and no
+type covers nothing, so a creature's three empty default bands are no
+defense. Damage with no type (none listed, or one that varies by weapon) is
+covered only by a band that lists no type and sets a flag it meets; an empty
+type list is never "every type". `defenseCoverage(sources, damage)` classifies a
+hit:
+
+- every type covered by an immunity: **immune**;
+- every type covered by an immunity or a resistance, one by a resistance:
+  **resist**;
+- every type covered by a susceptibility: **susceptible**;
+- anything else is the **Judge's**: a type met by a susceptibility and another
+  band, a susceptibility on some types, a type no band covers beside one that
+  is covered, an applying band that carries a `note`, a blank figure, or
+  figures that differ between the applying bands.
+
+A type covered twice counts once, so a fraction or a factor never applies
+twice; a type met by an immunity and a resistance is immune.
+
+**The stage.** `defenseStage(sources, damage, figures)` is pure and returns
+the stage `amountAfter` takes, or null where nothing covers the hit: `{factor:
+0}`, `{factor: fraction}` or the creature's `{factor}`, or `{judge: true,
+why}`. Each carries the transparency fields `{key: "defense", label, band,
+types, source, cite}` (`cite` is the imported page, null for a susceptibility
+whose figure is the creature's). `amountAfter` keeps a defense's step even
+where it changed nothing, copies those fields onto the step, and answers a
+judge stage with `applied: null`, the steps before it and the stage as
+`judge`; nothing after it runs and nothing is rounded.
+
+**The save.** `defenseSaveParts(sources, damage, figures)` reads the same
+coverage: immune is an `auto` success; resist is a target part of `saveBonus`;
+susceptible is a target part of the creature's `save`; a figure that is blank,
+or any case that is the Judge's, is one `pending` row `{label, value: null,
+when: "defense", why}`. `saveSpec` calls it when given `damage` ("Saving
+throws as parts").
+
+**The weapon Apply.** `attack-apply.mjs` adds a block under a stamped weapon
+card (`flags["acks-extras"].attackApply`), outside the system's
+`.card-buttons`. For a Judge it offers Apply with the amount the target's
+defenses leave: `planAttackApply` is `amountAfter` over the stamp's rolled
+figure (the system's floored `damageTotal`, so a defense can take a hit to 0)
+and the stage; a press recomputes it against the target's defenses as they
+stand, writes it through `adjustHp` at multiplier 1, and stores `{state,
+applied, steps, before, after, by}` on the message's flag. An amount of 0
+stores a result and writes nothing; a target `adjustHp` refuses, or a write
+that fails, stores nothing. A Judge's Undo puts the hit points back with
+`restoreHp`. A judge stage offers no Apply: the line names the defense with
+its page reference (the import's, else the section the module cites), and the
+hit is applied by hand with the hit-point tool. A defense is named to Judges
+and to the target's owners, who also read the target's hit points before and
+after; every other seat reads "a defense" and the amount alone. Only a Judge
+presses, as in the system.
+
+**What does not use it.** The hit-point tool and `adjustTargets`,
+`planHpChange` and provision-day: their amounts are untyped, and the tool's
+multiplier is the Judge's way to apply a defense by hand. Rulings: DECISIONS,
+"Damage against defenses is one lib stage, and a weapon hit is applied by
+lib".
 
 ## A record's modifiers at the roll
 
@@ -2168,7 +2269,7 @@ through a lib flag, resolved beside the weapon's own bonus".
 
 `saves.mjs` composes a saving throw as named parts and makes it. `saveSpec(actor,
 save, {magical, conditions, situational, parts, values, against, bearerToken,
-rollMods})` is pure: the stored
+rollMods, damage, defenses})` is pure: the stored
 target, the roll's parts (a character's own modifier and Wisdom modifier when the
 throw is against magic, a situational figure, the caller's parts), and the
 creature's conditions through `rollMath("save", …)`, which lower the target as the
@@ -2186,9 +2287,17 @@ unchanged. A save rolled from a sheet goes through `onRollSave`
 unscoped parts join the shift and each scoped one is told and left out. Numbers on the roll
 sum into one signed term (`1d20 + 3`), a part that is not a number is appended,
 a zero part is not listed. Rows bound to a circumstance come back `pending` and
-a figure nobody imported `unpriced`, and neither moves the target. `saveThrow`
-rolls it (a Foundry `Roll`, or an injected roll) and succeeds at the target or
-above; with no stored target nothing is rolled. It never runs the loss path: the
+a figure nobody imported `unpriced`, and neither moves the target. Given
+`damage` (`{types, extraordinary, silver}`, what the throw resists), the spec
+also reads the saver's defenses against it (`defenseSaveParts`, "Damage against
+defenses"): a target part labelled with the band, a `pending` row
+`{label, value: null, when: "defense"}` where the figure is blank or the case is
+the Judge's, and `auto`, `{label, source, types}` where the saver is immune to
+every type dealt, else null. With no `damage` the spec has no defense part and
+no `auto` key. `saveThrow` rolls it (a Foundry `Roll`, or an injected roll) and
+succeeds at the target or above; with no stored target nothing is rolled; a
+spec with `auto` succeeds with nothing rolled (`roll` and `total` null,
+`success` true), target or no. It never runs the loss path: the
 caller that applies a failed save calls `loseStates`. The party's save
 (`formation/turn-engine.mjs`) calls it with `conditions: false`.
 
@@ -2913,11 +3022,14 @@ value that is already below it. The **After** column previews each row with
 `planHpChange` whenever the amount is a whole number.
 
 **A spell's amount rounds differently.** `planHpChange` rounds up, as core does,
-and stays the preview of what core writes. The amount a cast applies is
-`amountAfter(rolled, {fraction, stages})`: the save's fraction, then each
-defenses stage in order, then one rounding of the half to the even whole
-(`roundHalfEven`), with no floor, and the steps it took returned for the card
-to show.
+and stays the preview of what core writes. The amount a cast or a weapon hit
+applies is `amountAfter(rolled, {fraction, stages})`: the save's fraction, then
+each stage in order (the defenses stage, `defenses.mjs` `defenseStage`), then
+one rounding of the half to the even whole (`roundHalfEven`), with no floor,
+and the steps it took returned for the card to show. A stage with `judge` set
+ends it with `applied: null` and no rounding ("Damage against defenses").
+This tool still rounds up, so two rounding rules remain; the tool is the Judge's
+manual route.
 
 **Core does the arithmetic.** Damage and healing are written by core's
 `applyDamage`, so the stored value is exactly what core stores. Core rounds

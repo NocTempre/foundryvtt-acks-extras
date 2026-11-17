@@ -318,7 +318,7 @@ await ok("a carrier attack's card is stripped and marked before it is stored, an
   assert.deepEqual(after.updates, [], "once the attack has resolved nothing is marked");
   const ordinary = message();
   await makeAttackThrow.call(actor, async () => { hook(ordinary); return null; }, { item: new FakeItem({ name: "Pole", type: "weapon", system: {} }, { parent: actor }) });
-  assert.deepEqual(ordinary.updates, [], "an ordinary weapon's card keeps its Apply");
+  assert.deepEqual(ordinary.updates, [], "a card whose apply button names no figure or target (this fixture's) is left as it is, whoever the weapon is");
   const failing = message();
   failing.updateSource = () => { throw new Error("refused"); };
   const quiet = console.error;
@@ -339,6 +339,87 @@ await ok("a carrier attack in flight is released when the attack throws", async 
   const m = { speaker: { actorRef: actor }, content: '<div class="attack-throw-card"></div>', updates: [], updateSource(u) { this.updates.push(u); } };
   hook(m);
   assert.deepEqual(m.updates, []);
+});
+
+/** An attack card as core's template writes one, with its Apply button. */
+const hitCard = ({ damage = "11", target = "Scene.s1.Token.t9" } = {}) =>
+  `<section class="acksii chat-card attack-throw-card"><div class="card-buttons"><button type="button" data-action="applyDamage" data-damage="${damage}" data-target-uuid="${target}"><i inert></i><span>Apply</span></button></div><footer>after</footer></section>`;
+const sword = (actor, { types = ["slashing", "variesByWeapon"], extraordinary = false, silver = false } = {}) =>
+  new FakeItem({ name: "Test Blade", type: "weapon", system: { damage: { base: { formula: "1d8", types: new Set(types), extraordinary } }, special: { silver } } }, { parent: actor });
+
+await ok("attackDamageOf reads the weapon's base damage and core's silver field, and an attack with no weapon has no type", () => {
+  const actor = makeActor("Actor.reader");
+  assert.deepEqual(seam.attackDamageOf(sword(actor, { types: ["fire", "slashing"], extraordinary: true, silver: true })), { types: ["fire", "slashing"], extraordinary: true, silver: true });
+  assert.deepEqual(seam.attackDamageOf(sword(actor)), { types: ["slashing", "variesByWeapon"], extraordinary: false, silver: false });
+  assert.deepEqual(seam.attackDamageOf(null), { types: [], extraordinary: false, silver: false });
+  assert.equal(seam.attackDamageOf({ system: { silver: true } }).silver, false, "the field is special.silver, not silver");
+});
+
+await ok("attackApplyMatch reads the figure and the target off the apply button, and nothing it cannot read whole", () => {
+  const map = new Map([["Actor.a", { types: ["cold"], extraordinary: true, silver: false }]]);
+  assert.deepEqual(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard() }, map), {
+    targetUuid: "Scene.s1.Token.t9", rolled: 11, types: ["cold"], extraordinary: true, silver: false,
+  });
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "0" }) }, map).rolled, 0, "a floor of 0 is still a hit");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "x" }) }, map), null, "no figure");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "" }) }, map), null, "a blank figure is not zero");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "-3" }) }, map), null);
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ target: "" }) }, map), null, "no target");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: '<section class="attack-throw-card"><button data-action="applyDamage">x</button></section>' }, map), null, "a button with neither attribute");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: '<section class="attack-throw-card">a miss</section>' }, map), null, "a miss has no button");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.b", content: hitCard() }, map), null, "another actor");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: "<p>hello</p>" }, map), null, "another kind of message");
+  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard() }, new Map()), null, "nothing in flight");
+  assert.equal(seam.attackApplyMatch({}, map), null);
+});
+
+await ok("a weapon attack's card loses its Apply and gains the stamp in one update, only while that attack is in flight", async () => {
+  const hook = hooks.preCreateChatMessage.at(-1);
+  const actor = makeActor("Actor.smith");
+  const blade = sword(actor, { types: ["slashing"], extraordinary: false, silver: true });
+  const message = (content = hitCard()) => ({ speaker: { actorRef: actor }, content, updates: [], updateSource(u) { this.updates.push(u); } });
+  const during = message();
+  await makeAttackThrow.call(actor, async () => { hook(during); return null; }, { item: blade });
+  assert.equal(during.updates.length, 1, "one update: a card is never stripped without its stamp");
+  assert.equal(during.updates[0].content, '<section class="acksii chat-card attack-throw-card"><footer>after</footer></section>');
+  assert.deepEqual(during.updates[0][`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}`], {
+    targetUuid: "Scene.s1.Token.t9", rolled: 11, types: ["slashing"], extraordinary: false, silver: true,
+  });
+  assert.equal(`flags.acks-extras.${MAGIC_ATTACK_FLAG}` in during.updates[0], false, "it is no cast's card");
+  const after = message();
+  hook(after);
+  assert.deepEqual(after.updates, [], "once the attack has resolved nothing is marked");
+  const unreadable = message(hitCard({ damage: "x" }));
+  await makeAttackThrow.call(actor, async () => { hook(unreadable); return null; }, { item: blade });
+  assert.deepEqual(unreadable.updates, [], "a card it cannot read keeps its Apply");
+  const bare = message();
+  await makeAttackThrow.call(actor, async () => { hook(bare); return null; }, {});
+  assert.deepEqual(bare.updates[0][`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}`].types, [], "an attack with no weapon is stamped with no type");
+  const carrier = spellCarrier(actor, SCORCH, { spell, castId: "c5", rowKey: "scorch" });
+  const cast = message();
+  await makeAttackThrow.call(actor, async () => { hook(cast); return null; }, { item: carrier });
+  assert.equal(`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}` in cast.updates[0], false, "a carrier's card is marked as a cast's, not stamped");
+  assert.ok(`flags.acks-extras.${MAGIC_ATTACK_FLAG}` in cast.updates[0]);
+});
+
+await ok("a nested attack of one actor restores the outer one's damage, and a thrown attack leaves none behind", async () => {
+  const hook = hooks.preCreateChatMessage.at(-1);
+  const actor = makeActor("Actor.nest");
+  const outer = sword(actor, { types: ["cold"] });
+  const inner = sword(actor, { types: ["fire"] });
+  const stamped = async () => {
+    const m = { speaker: { actorRef: actor }, content: hitCard(), updates: [], updateSource(u) { this.updates.push(u); } };
+    hook(m);
+    return m.updates[0]?.[`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}`]?.types ?? null;
+  };
+  await makeAttackThrow.call(actor, async () => {
+    await makeAttackThrow.call(actor, async () => null, { item: inner });
+    assert.deepEqual(await stamped(), ["cold"], "the outer attack's damage is back");
+    return null;
+  }, { item: outer });
+  assert.equal(await stamped(), null, "nothing is left in flight");
+  await assert.rejects(makeAttackThrow.call(actor, async () => { throw new Error("dialog failed"); }, { item: outer }), /dialog failed/);
+  assert.equal(await stamped(), null, "a throw releases it");
 });
 
 await ok("core gets a label for the magic kind at its own key, unless it already has one", () => {

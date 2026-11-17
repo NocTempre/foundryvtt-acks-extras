@@ -1,4 +1,4 @@
-# lib API (apiVersion 52)
+# lib API (apiVersion 53)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 52,
+  apiVersion: 53,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -505,8 +505,11 @@ definition). Leaf helpers `num/str/bool/html/choice/choiceSet`, plus:
 - `spellRefField()` — **placeholder** (`{uuid, name}`) pointing at the core
   system's existing spell item. See *Not yet consumed* below.
 - `defensesField()` — `{ immunities, resistances, susceptibilities }`, each
-  `{ damage:Set, effects:Set, conditions:Set, mundane, extraordinary }`
-  (the shape the monsters feature’s defenses adopt on migration).
+  `{ damage:Set, effects:Set, conditions:Set, mundane, extraordinary,
+  silverFlaw, note }` (the shape the monsters feature’s defenses adopt on
+  migration); a susceptibility also holds the creature's own nullable `factor`
+  and `save`. How the bands act on damage is `lib/defenses.mjs`, not yet on this
+  api (docs/lib/MODEL.md, "Damage against defenses").
 - `speedsField()` / `sensesField()` / `visionField()` — Speed/Senses/Vision
   shapes shared with the monster sheet.
 - `effectField()` / `effectsField()` — one typed effect primitive (wide
@@ -1019,9 +1022,12 @@ acksExtras.lib.attack = {
 }
 acksExtras.lib.saves = {
   saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values,
-                         against = null, bearerToken = null, rollMods = conditions})
+                         against = null, bearerToken = null, rollMods = conditions,
+                         damage = null, defenses = null})   // damage: {types, extraordinary, silver}
     → {save, kind, formula, baseTarget, target, parts: [{key, label, value, side}],
-       pending: [{condition, value, when} | {label, value, when: "source"}], unpriced},
+       pending: [{condition, value, when} | {label, value, when: "source"}
+                 | {label, value: null, when: "defense", why}], unpriced,
+       auto?: {label, source, types} | null},   // `auto` only with `damage`: an immunity, a success with no roll
   saveThrow(actor, save, {…saveSpec options, roll}) → Promise<{…spec, roll, total, success}>
 }
 acksExtras.lib.rollMods = {
@@ -1059,7 +1065,8 @@ receives the delivery kind (`melee` or `missile`) as `attackType` and sees
 `ctx.type` as `"magic"`. A `saveSpec` target part's `value` is the figure that
 lowers the number to roll, so a positive value helps the roller on either side.
 `saveThrow` rolls nothing and answers `roll`, `total` and `success` null for a
-creature with no stored target, and never calls `loseStates`.
+creature with no stored target (and `success` true, nothing rolled, for a spec
+with `auto`), and never calls `loseStates`.
 
 ## Turn activities (`scripts/lib/turn-activities.mjs`)
 
@@ -1091,6 +1098,17 @@ missing}`. `resolve(actor, option, ctx)` runs when the entry's last turn ends.
 `status` is `"resolved"`, `"dropped"` (the activity, option or member is gone)
 or `"failed"` (`resolve` threw). Write the plan `advanceTurn` returns before
 calling `resolveDue`.
+
+## `distance-units` — scene distance in feet (module-internal, not on the api)
+
+`scripts/lib/distance-units.mjs`, imported directly, Foundry-free: `feetPerUnit`,
+`feetToUnits` and `sceneFeetPerCell` read a scene's `grid.units` through the
+unit table, and `tokenGapFeet(a, b)` is the centre-to-centre gap in feet of two
+token documents on one scene, measured by the grid's own `measurePath`
+(diagonals count as the scene's ruler counts them). It answers null for a
+missing token, tokens on different scenes, or a grid that cannot measure, so a
+caller judges nothing rather than guessing. A token's centre is its document's
+`getCenterPoint`, else its corner plus half its size.
 
 ## Versioning
 

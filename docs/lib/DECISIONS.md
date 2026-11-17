@@ -467,3 +467,82 @@ Region is created unlocked so core's grid tool reaches it.
 are still drawn and are read as nothing (no migration, the owner's standing
 ruling); a Region shape a feature does not read (a polygon on a paint layer, a
 hole on a grid zone) is core's to draw and the module's to ignore.
+
+## 2026-11-16 — Damage against defenses is one lib stage, and a weapon hit is applied by lib
+
+**Ruled.** Governed by the owner's "Yes to damage types/resistances/immunities
+interactions" and "automation with transparency is the design principle": a
+damage type meets a target's immunities, resistances and susceptibilities once,
+in lib, for weapons and spells alike, reading the defenses the monster import
+already writes.
+
+- **Figures are read, procedure ships.** Immunity prints no figure and is
+  procedure. Resistance's amount fraction and save modifier are the `defenses`
+  document's `resistanceProse` table, declared like `senses`; a
+  susceptibility's `factor` and `save` are the creature's own, on its band.
+  Nothing imported means null, and a null figure sends the case to the Judge
+  with the page reference, never to a default.
+- **One reducer.** `amountAfter` applies the save's fraction, then one defense
+  stage (`defenses.mjs` `defenseStage`), then one half-even rounding. A stage
+  can be the Judge's (`judge`), which answers `applied: null` and rounds
+  nothing. `adjustHp` stays the one writer, at multiplier 1.
+- **A weapon hit is applied by lib.** The system's Apply writes raw hit points
+  from a private handler and cannot be wrapped, so the attack seam strips it
+  from every card in flight that is not a spell's and stamps what a press
+  needs; `attack-apply.mjs` draws the press. A failure to read the card leaves
+  the system's button.
+- **The save side is built with it** (`saveSpec`'s `damage`): immunity is an
+  automatic success, resistance and susceptibility a target part, a blank
+  figure or a mixed case a `pending` row.
+- **Transparency.** A defense step is `{key: "defense", label, band, types,
+  source, cite}`. Judges and the target's owners read the defense named; any
+  other seat reads "a defense".
+
+**Decided where the rulings were silent.**
+
+- Damage with no type (an attack with no weapon, or a type that varies by
+  weapon) is covered only by a band that lists no type and sets a quality flag
+  it meets, and an empty type list is never "every type". Otherwise a
+  creature's untyped hit would be immune to everything a typed band names, or
+  to everything at all.
+- A damage's quality is three-valued (the plan's ruling 101, from the S3
+  architect's finding F3: every imported spell damage row has
+  `extraordinary: null`, since the print marks it by glyph colour, which no
+  locator reads). Null is never read as mundane: a band whose coverage waits on
+  the quality is the Judge's (`why: "quality"`, with the page reference), in the
+  stage and in the save (`pending`, never `auto`), unless the outcome is the same
+  whether such bands cover or not. A silver weapon meeting `silverFlaw` is still
+  extraordinary; a band with no quality flag covers either. This extends ruling
+  70's "otherwise it is mundane".
+- A band that lists a type and sets a quality flag needs both to cover.
+- An applying band with a `note` is the Judge's whatever else covers the hit; a
+  band that covers none of the types dealt is not applying, so its note and its
+  blank effects and conditions say nothing.
+- A type no band covers, beside one that a band does, is the Judge's: one
+  rolled amount cannot be split by type.
+- Susceptibility bands that cover the hit but state different or blank
+  factors are the Judge's; two that state one factor apply it once.
+- `silverFlaw` makes a silver weapon's hit extraordinary against that band
+  only, and is no part of a susceptibility.
+- Silver is read from core's `system.special.silver`, the field the system
+  has. Equipment's own silvered flag (a plating the Equipment feature
+  tracks) is not read.
+- A result is stored on the stamp, `attackApply.result`, and an Undo marks it
+  `undone`, which offers Apply again against the target's defenses as they
+  then stand.
+
+**Rejected.** The resistance fraction as structure on `saveFractionOf`'s word
+map; a world setting; a table on the `monsters` document (characters need the
+figures too). Wrapping `AcksActor#applyDamage`, which core's card never calls
+and lib's own writer does, so a cast would be reduced twice; a
+`preUpdateActor` reducer; a second button beside the system's, which is two
+writers, one of them blind to defenses; a capture-phase listener that swallows
+the system's click. *Counter (medium):* every weapon card changes shape, and
+tables meet more Judge entries than they expect. A failure at `preCreate`
+leaves the system's button, and the bands come from a prose scan, so sending a
+doubtful case to the Judge is the honest answer.
+
+*Cost:* two rounding rules remain, since the hit-point tool still rounds up as
+the system does; it is the Judge's manual route. Until the importer reads
+`resistanceProse`, every resistant hit is the Judge's, and the producer gate
+carries a waiver for it that the importer's recipe removes.

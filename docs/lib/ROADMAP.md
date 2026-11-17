@@ -98,6 +98,43 @@ An unlinked token is found as a rider, a passenger or a draft animal
 - **An undo that outlives the window.** Undo covers the last change while the
   window is open, and restores values without checking whether anything else
   changed them since.
+- **A damage type pick, and the printed rounding.** The tool's amounts are
+  untyped and it still rounds up as the system does, where a spell's and a
+  weapon's amount round half to the even whole. Its multiplier is the Judge's
+  way to apply a defense by hand. A type pick would send the row through
+  `defenseStage` and one rounding.
+
+## What damage against defenses does not do yet
+
+The procedure is built ([MODEL.md](MODEL.md), "Damage against defenses"). Not
+built:
+
+- **The resistance figures have no recipe.** The `defenses` document's
+  `resistanceProse` table is declared and nothing imports it, so a resistant
+  hit is the Judge's until the importer reads `fraction` and `saveBonus`, and
+  `defenseScan` reads the silver flaw and a susceptibility's `factor` and
+  `save` from the creature's clause. The producer gate's waiver for
+  `defenses` document (`tools/validate-producers.mjs`) goes with that recipe. The monster sheet edits
+  `factor` and `save`.
+- **A weapon Apply a player can press.** Only a Judge presses, as in the
+  system. A player's press would go through a relay the Judge's client
+  re-checks, as a cast's does.
+- **Quality per type within one band.** A band holds one quality flag for all
+  its types, so a defense that is mundane-only against one type and absolute
+  against another is two bands or the Judge's.
+- **The incorporeal-weapon rule.** Which weapons hurt an incorporeal creature
+  is not read.
+- **Spell records as defense sources.** A defense a spell grants lives on the
+  record the cast writes, and `actorDefenses` reads only the stat block and
+  owned items.
+- **Magic resistance.** A creature's resistance to magic as such is not read.
+- **Core's sheet save.** A save rolled from the system's sheet gets no defense
+  part, because the sheet knows nothing of what is resisted; the notice is the
+  Judge's cue.
+- **Effect and condition bands.** A band's `effects` and `conditions` act on
+  the grant path, not on damage, and are not read here.
+- **A silvered weapon in Equipment's sense.** Only core's `special.silver`
+  meets a silver flaw; a plating the Equipment feature records is not read.
 
 ## Who carries `acks`, and whether that is deliberate
 

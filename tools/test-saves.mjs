@@ -205,4 +205,87 @@ await ok("two records' save parts give one figure, and a monster bearer's record
   assert.equal(saveSpec(character(), "blast", { against: source() }).target, 14, "a creature with no records adds nothing");
 });
 
+/** A stored defense band; invented figures throughout. */
+const defBand = (b = {}) => ({ damage: [], effects: [], conditions: [], mundane: false, extraordinary: false, silverFlaw: false, note: "", ...b });
+const bearsDefenses = (name, bands, base = monster()) => ({
+  ...base,
+  name,
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { defenses: { immunities: defBand(), resistances: defBand(), susceptibilities: defBand(), ...bands } } : undefined),
+  items: [],
+});
+const READ = { fraction: 0.7, saveBonus: 6, cite: null };
+
+await ok("without damage a spec carries no defense: the output is what it was, and has no auto key", () => {
+  const warded = bearsDefenses("Zorp", { immunities: defBand({ damage: ["fire"] }) });
+  const spec = saveSpec(warded, "blast");
+  assert.equal("auto" in spec, false);
+  assert.deepEqual(Object.keys(spec), ["save", "kind", "formula", "baseTarget", "target", "parts", "pending", "unpriced"]);
+  assert.equal(spec.target, 14);
+  assert.deepEqual(spec.parts, []);
+});
+
+await ok("damage an immune saver resists is an automatic success, and saveThrow rolls nothing for it", async () => {
+  const warded = bearsDefenses("Zorp", { immunities: defBand({ damage: ["fire"] }) });
+  const spec = saveSpec(warded, "blast", { damage: { types: ["fire"] }, defenses: { figures: READ } });
+  assert.equal(spec.auto.source, "Zorp");
+  assert.deepEqual(spec.auto.types, ["fire"]);
+  assert.equal(spec.target, 14, "the number stays what it was");
+  let rolled = false;
+  const throwOne = await saveThrow(warded, "blast", { damage: { types: ["fire"] }, defenses: { figures: READ }, roll: async () => { rolled = true; return { total: 1 }; } });
+  assert.deepEqual([throwOne.success, throwOne.total, throwOne.roll, rolled], [true, null, null, false]);
+  const noTarget = bearsDefenses("Zorp", { immunities: defBand({ damage: ["fire"] }) }, monster({ saves: {} }));
+  assert.equal((await saveThrow(noTarget, "blast", { damage: { types: ["fire"] }, defenses: { figures: READ } })).success, true, "no number to roll against is still a pass for an immunity");
+  const other = await saveThrow(warded, "blast", { damage: { types: ["cold"] }, roll: async () => ({ total: 20 }) });
+  assert.equal(other.auto, null);
+  assert.equal(other.success, true, "damage it is not immune to is rolled as ever");
+  assert.equal(other.total, 20);
+});
+
+await ok("a resistant saver's imported modifier lowers the target as a labelled part; with none imported the Judge is told", () => {
+  const mantled = bearsDefenses("Zorp", { resistances: defBand({ damage: ["fire"] }) });
+  const spec = saveSpec(mantled, "blast", { damage: { types: ["fire"] }, defenses: { figures: READ } });
+  assert.equal(spec.target, 8, "14 - 6");
+  assert.deepEqual(spec.parts.map((p) => [p.key, p.label, p.value, p.side]), [["defense", "Resistant", 6, "target"]]);
+  assert.equal(spec.auto, null);
+  const unread = saveSpec(mantled, "blast", { damage: { types: ["fire"] }, defenses: { figures: { ...READ, saveBonus: null } } });
+  assert.equal(unread.target, 14);
+  assert.deepEqual(unread.pending, [{ label: "Resistant", value: null, when: "defense", why: "figure" }]);
+  const world = saveSpec(mantled, "blast", { damage: { types: ["fire"] } });
+  assert.equal(world.target, 14, "nothing imported in this world: no figure stands in");
+  assert.equal(world.pending[0].when, "defense");
+});
+
+await ok("a susceptible saver takes its own figure, a mixed case goes to pending, and the defense joins the conditions' parts", () => {
+  const frail = bearsDefenses("Zorp", { susceptibilities: defBand({ damage: ["cold"], factor: 2.5, save: -9 }) });
+  const spec = saveSpec(frail, "blast", { damage: { types: ["cold"] }, defenses: { figures: READ } });
+  assert.equal(spec.target, 23, "14 + 9");
+  assert.deepEqual(spec.parts.map((p) => [p.key, p.value]), [["defense", -9]]);
+  const mixed = bearsDefenses("Zorp", { susceptibilities: defBand({ damage: ["cold"], factor: 2.5, save: -9 }), resistances: defBand({ damage: ["cold"] }) });
+  const held = saveSpec(mixed, "blast", { damage: { types: ["cold"] }, defenses: { figures: READ } });
+  assert.deepEqual([held.target, held.pending.map((p) => p.why)], [14, ["mixed"]]);
+  const hungry = bearsDefenses("Zorp", { resistances: defBand({ damage: ["fire"] }) }, monster({ statuses: ["hungry"] }));
+  const both = saveSpec(hungry, "blast", { values: VALUES, damage: { types: ["fire"] }, defenses: { figures: READ } });
+  assert.equal(both.target, 14 + 3 - 6, "the condition's penalty and the defense's bonus");
+  assert.deepEqual(both.parts.filter((p) => p.side === "target").map((p) => p.key), ["hungry", "defense"]);
+});
+
+await ok("a quality-only immunity needs the damage's quality: mundane damage passes automatically, extraordinary damage is rolled", () => {
+  const hollow = bearsDefenses("Zorp", { immunities: defBand({ mundane: true }) });
+  assert.ok(saveSpec(hollow, "blast", { damage: { types: ["fire"], extraordinary: false }, defenses: { figures: READ } }).auto);
+  assert.equal(saveSpec(hollow, "blast", { damage: { types: ["fire"], extraordinary: true }, defenses: { figures: READ } }).auto, null);
+  assert.ok(saveSpec(hollow, "blast", { damage: { types: [], extraordinary: false }, defenses: { figures: READ } }).auto, "untyped mundane damage is covered by a band that lists no type");
+  const typedOnly = bearsDefenses("Zorp", { immunities: defBand({ damage: ["fire"] }) });
+  assert.equal(saveSpec(typedOnly, "blast", { damage: { types: [] }, defenses: { figures: READ } }).auto, null, "an empty type list is not every type");
+});
+
+await ok("a damage whose quality is unstated is pending for a band that waits on it, and normal for one that does not", () => {
+  const hollow = bearsDefenses("Zorp", { immunities: defBand({ mundane: true }) });
+  const held = saveSpec(hollow, "blast", { damage: { types: ["fire"], extraordinary: null }, defenses: { figures: READ } });
+  assert.equal(held.auto, null);
+  assert.deepEqual(held.pending.map((p) => [p.when, p.why]), [["defense", "quality"]]);
+  assert.equal(held.target, 14);
+  const typed = bearsDefenses("Zorp", { immunities: defBand({ damage: ["fire"] }) });
+  assert.ok(saveSpec(typed, "blast", { damage: { types: ["fire"] }, defenses: { figures: READ } }).auto, "no quality flag: both qualities");
+});
+
 console.log(`\n${passed} passed`);

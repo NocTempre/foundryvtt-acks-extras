@@ -96,6 +96,8 @@ import { drawQuietly } from "./roll-audience.mjs";
 import { installGoodsDrag } from "./patches/goods-drag.mjs";
 import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surprise-card.mjs";
 import { installAnimationBridge } from "./animations.mjs";
+import { installAttackApply } from "./attack-apply.mjs";
+import { declareDefenseTables } from "./defenses.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installTurnOrderPatch } from "./patches/turn-order.mjs";
@@ -154,7 +156,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 52,
+  apiVersion: 53,
   vocab,
   fields,
   /**
@@ -497,6 +499,7 @@ Hooks.once("init", () => {
   installLegacyCombatRescue();
   light.declareLightTables();
   senses.declareSenseTables();
+  declareDefenseTables();
   movementScales.declareMovementTables();
   vocab.declareWearSlotTables();
   vocab.declareGearAccessTables();
@@ -946,6 +949,7 @@ Hooks.once("ready", () => {
   // "The attack seam rides the system's labelled modifiers". At ready: the
   // system's Actor class and data models are final here.
   installAttackThrowPatch();
+  installAttackApply();
   installAnimationBridge();
 
   // Conditions on every roll they reach; the attack half registers into the

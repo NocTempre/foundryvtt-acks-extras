@@ -83,31 +83,42 @@ export function roundHalfEven(x) {
   return Math.abs(floor) % 2 === 0 ? floor : floor + 1;
 }
 
+/** The fields of a stage that its step keeps, so a card can say what the stage was (`defenses.mjs` writes them). */
+const STEP_DETAIL = ["band", "types", "source", "cite", "why"];
+
 /**
  * The amount a creature takes from a rolled amount: the save's `fraction`
  * first, then each of `stages` in order, then ONE rounding at the end. A stage
- * is a function of the amount so far, or `{key?, label?, factor}`. No floor is
- * applied: the amount may come out zero.
+ * is a function of the amount so far, or `{key?, label?, factor}`; a null stage
+ * is skipped. A stage that names a `band` is a defense (`defenses.mjs`
+ * `defenseStage`): its step is kept even where it changed nothing, and carries
+ * the stage's `band`, `types`, `source`, `cite` and `why`. A stage with `judge`
+ * set is a case the module does not compute: the answer has `applied: null`,
+ * the steps taken so far and the stage as `judge`, and nothing is rounded.
+ * No floor is applied: the amount may come out zero.
  *
  * @param {number} rolled  the dice's total
- * @param {{fraction?: number, stages?: Array<Function|{key?: string, label?: string, factor: number}>}} [how]
- * @returns {{rolled: number, applied: number|null, steps: Array<{key: string, label?: string, before: number, after: number}>}}
- *   `steps` lists each stage that changed the amount, then the rounding when it moved it; `applied` is null for a rolled amount that is no number
+ * @param {{fraction?: number, stages?: Array<Function|{key?: string, label?: string, factor?: number, judge?: boolean}|null>}} [how]
+ * @returns {{rolled: number, applied: number|null, steps: Array<{key: string, label?: string, before: number, after: number}>, judge?: object}}
+ *   `steps` lists each stage that changed the amount, then the rounding when it moved it; `applied` is null for a rolled amount that is no number, and for a judge stage
  */
 export function amountAfter(rolled, { fraction = 1, stages = [] } = {}) {
   const start = Number(rolled);
   if (!Number.isFinite(start)) return { rolled, applied: null, steps: [] };
   const steps = [];
   let amount = start;
-  const apply = (key, next, label) => {
-    if (next !== amount) steps.push({ key, ...(label ? { label } : {}), before: amount, after: next });
+  const apply = (key, next, label, stage = null) => {
+    const kept = stage?.band ? Object.fromEntries(STEP_DETAIL.filter((k) => stage[k] != null).map((k) => [k, stage[k]])) : null;
+    if (next !== amount || kept) steps.push({ key, ...(label ? { label } : {}), ...(kept ?? {}), before: amount, after: next });
     amount = next;
   };
   const factor = Number(fraction);
   if (Number.isFinite(factor)) apply("fraction", amount * factor);
   for (const [i, stage] of stages.entries()) {
+    if (!stage) continue;
+    if (stage.judge) return { rolled: start, applied: null, steps, judge: stage };
     const next = typeof stage === "function" ? Number(stage(amount)) : amount * Number(stage?.factor);
-    if (Number.isFinite(next)) apply(stage?.key ?? `stage${i}`, next, stage?.label);
+    if (Number.isFinite(next)) apply(stage?.key ?? `stage${i}`, next, stage?.label, typeof stage === "function" ? null : stage);
   }
   apply("round", roundHalfEven(amount));
   return { rolled: start, applied: amount, steps };
