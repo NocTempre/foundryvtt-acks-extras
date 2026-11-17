@@ -1482,10 +1482,74 @@ ends on no die's face; it skips without the local Journal.
 
 **Projection.** The value lists project as one RollTable each, a result reading
 "value — type" (`fields` in the `COLUMN_GRIDS` row of
-`location/table-docs.mjs`), rolled on `1d<top band>`: the page rolls two dice
-for each kind of stone or piece, which the one table does not model. The
-special lists are one RollTable each on a die of its own length (`ownDie`). The
-type grids are lookups by letter and project as JSON pages.
+`location/table-docs.mjs`), rolled on `1d<top band>`. The page rolls each kind
+of stone or piece on dice of its own over the one list, which one formula
+cannot express, so the RollTable's description carries the legend the page
+prints (`legend` in the row; the Judge's own imported text) and the doc keeps
+it as `gemDice` and `jewelryDice` (`{legend: [{dice, avg, kind}]}`), read by
+`gemDiceRaw` and `jewelryDiceRaw`, for a generator. The special lists are one
+RollTable each on a die of its own length (`ownDie`). The type grids are
+lookups by letter and project as JSON pages.
+
+**Units beside the shapes above.** `typeUnits` (`{classic|heroic: {cp, sp, ep,
+gp, pp}}`) is the unit line printed under the grids' coin columns, as printed;
+`specialPer` (`{<kind>: text}`) is what follows "per" in each special list's
+caption. Both are read (`typeClassicUnitsRaw`, `typeHeroicUnitsRaw`, a
+`caption` row on each list's first segment), never a constant, and sit beside
+`typeClassic`, `typeHeroic` and `special` without reshaping them.
+
+## The magic-item and arms tables
+
+The `magicItemTables` registry document (not markets' `magicItems`) reads the
+Judges Journal's item-generation tables (JJ ch. 4, folios 132 to 141) and its
+arms-and-armour tables (folios 146 to 148 and 164 to 165) from the Judge's own
+copy. `table-recipes-magic-items.mjs` carries geometry and anchors only.
+
+**Raw reads.** Every band list is a `list(...)` of `gridRows`: a label that
+parses to a band by `rollBandNested`, windowed cells (`item`, and `cues` on
+potions), and optionally a first `caption` row read as `label`
+(`labelText`). Small-capital initials arrive as a lone lower-case run set flush
+against the next, which `smallCaps` raises; `labelGap` reads the label
+gap-aware, so an outer face and its inner band stay two numbers;
+`wrapRows.floorKey` keeps a header above the first row from joining it. A list
+the page sets across two columns or pages is two raw tables (`...MoreRaw`).
+The scroll sub-tables are Languages, the six side-by-side spell-level lists
+(each headed by its own remaining-levels figure, read as the caption row's
+`level`), Treasure Map Contents, Clue Specifics, Clue Concealment and Clue
+Code. The arms grids are `settingGrid`s: two header lines name seven settings, a
+row is a type name and seven band cells placed by run centre, and the creature
+types are two halves.
+
+**Tails.** Five lists end in a tail of the d100 printed as inner bands under an
+outer face (a face of 98, 99 or 100). The face stands beside the middle inner
+band, alone on a row between them, or repeated beside every one, so
+`assembleNested` classifies rows by order: main bands tile from 1, then each
+group of inner bands that restarts at 1 hangs from the next face, and a printed
+face that is not the face the order gives refuses the table.
+
+**Assembly.** `magic-item-binding.mjs` writes, beside the raw tables:
+`classicType`, `classic`, `heroic`, `scrollLanguages`, `scrollSpellLevels`,
+`treasureMaps`, `creatureType` (each `{<column>: [band]}`, a band `{min, max,
+item, ...cells}`, a tail band `{min, max, sub: [inner bands]}`),
+`armsArmor`, `armsAmmo`, `armsAxe`, `armsBludgeon`, `armsBow`, `armsSpear`,
+`armsSword`, `armsOther` (`{s1..s7: [{min, max, type}]}`, one column per
+setting), `armsSettings` (`{s1..s7: name}`) and `captions` (`{<table>.<column>:
+caption as printed}`, a spell-level list named by its header figure). Each
+Random Type row carries `hop`: the id `<table>.<column>` of the one list whose
+folded caption (`printKey`) is the folded words of the row, else null.
+`check-magic-item-tables.mjs` reads the real pages and fails on a refused or
+untiled list, a list ending on no die's face, a cell that is empty, opens on a
+lower-case letter, or ends on a stranded letter, a list with no caption, a hop
+that does not resolve to one list, and an arms grid that does not read seven
+tiling columns with the same setting names as the others; it skips without the
+local Journal.
+
+**Projection.** Each list is a RollTable on a die of its own (`ownDie`) from
+`COLUMN_GRIDS`: a result reads its fields joined by " — "; a tail band is one
+result on its face reading "a-b: fields · a-b: fields", and a drop splits it
+back. A row's `hop` is kept across a drop where the same range stood. The arms
+grids are one RollTable per setting column. The captions and settings are
+plain JSON pages.
 
 ## The weapon lists
 

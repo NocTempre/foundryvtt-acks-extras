@@ -22,6 +22,8 @@
  *   - a band list that does not tile from 1 with no gap or overlap, one that
  *     ends on no die's face, or a value list that does not end where its dice
  *     legend says.
+ * It also requires every coin column's unit on both type grids, a lot unit on
+ * every special list's caption, and a whole dice legend above each value list.
  * The die each list is thrown on is read off its own bands, so no face is
  * written here.
  *
@@ -35,7 +37,7 @@ import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { locatePageNumber } from "../../scripts/importer/tables-binding.mjs";
-import { SPECIAL_RAW_KEYS, TYPE_RAW_KEYS, VALUE_RAW_KEYS, assembleBands } from "../../scripts/importer/treasure-binding.mjs";
+import { DICE_RAW_KEYS, SPECIAL_RAW_KEYS, TYPE_RAW_KEYS, UNIT_RAW_KEYS, VALUE_RAW_KEYS, assembleBands, assembleLegend, assembleSpecialPer, assembleTypeUnits } from "../../scripts/importer/treasure-binding.mjs";
 import { TYPE_LETTERS } from "../../scripts/importer/table-recipes-treasure.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -163,6 +165,7 @@ for (const rawKey of Object.values(SPECIAL_RAW_KEYS).flat()) {
   rawSpecial[rawKey] = got.rows;
   rowsRead[rawKey] = 0;
   for (const [rowKey, row] of Object.entries(got.rows)) {
+    if (rowKey === "caption") continue;
     if (row?.__missing) {
       fail(`${rawKey} ${rowKey}`, "row not found on the page");
       continue;
@@ -181,6 +184,25 @@ for (const [kind, rawKeys] of Object.entries(SPECIAL_RAW_KEYS)) {
   if (wrong) fail(`special.${kind}`, wrong);
   else if (!bands) fail(`special.${kind}`, "the binding refuses its bands");
   else if (!DICE.has(bands.at(-1).max)) fail(`special.${kind}`, `ends at ${bands.at(-1).max}, which is no die's face`);
+}
+
+/* --- caption units, the unit line and the dice legends ---------------------- */
+const rawAll = { ...rawSpecial };
+for (const rawKey of [...Object.keys(UNIT_RAW_KEYS), ...Object.keys(DICE_RAW_KEYS), ...Object.values(SPECIAL_RAW_KEYS).map((keys) => keys[0])]) {
+  const got = await readGrid(rawKey);
+  if (got) rawAll[rawKey] = got.rows;
+}
+const per = assembleSpecialPer(rawAll);
+for (const kind of Object.keys(SPECIAL_RAW_KEYS)) if (!per?.[kind]) fail(`specialPer.${kind}`, "no lot unit read off the list's caption");
+const units = assembleTypeUnits(rawAll);
+for (const grid of Object.values(UNIT_RAW_KEYS)) {
+  for (const coin of ["cp", "sp", "ep", "gp", "pp"]) if (!units?.[grid]?.[coin]) fail(`typeUnits.${grid}.${coin}`, "no unit read under the coin column");
+}
+for (const [rawKey, key] of Object.entries(DICE_RAW_KEYS)) {
+  const legend = assembleLegend(rawAll[rawKey]);
+  rowsRead[rawKey] = legend?.length ?? 0;
+  if (!legend || legend.length !== 3) fail(key, `${legend?.length ?? 0} legend rows read, not one per kind of lot`);
+  else for (const [i, row] of legend.entries()) for (const col of ["dice", "avg", "kind"]) if (!row[col]) fail(`${key} ${i}`, `empty ${col}`);
 }
 
 const counts = Object.entries(rowsRead).map(([k, n]) => `${k} ${n}`).join(", ");

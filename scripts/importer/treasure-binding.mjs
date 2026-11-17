@@ -4,7 +4,11 @@
  * Browser projects as RollTables. The raw tables keep the page's shape, two of
  * the special-treasure lists in two segments; this step joins the segments,
  * reads each row's band, and splits the treasure types' first cell into its
- * category and average value. Nothing ships: every band edge, name and figure
+ * category and average value. Beside those it keeps the coin columns' unit
+ * (`typeUnits`), each special list's lot unit read off its caption
+ * (`specialPer`) and the dice legends above the gem and jewelry value lists
+ * (`gemDice`, `jewelryDice`), which a generator needs and a RollTable cannot
+ * express. Nothing ships: every band edge, name and figure
  * is read from the Judge's own copy, and a table whose bands do not tile from 1
  * with no gap or overlap is not assembled, so a lost row never reads as a
  * smaller die.
@@ -39,6 +43,15 @@ export const TYPE_RAW_KEYS = Object.freeze({ typeClassicRaw: "typeClassic", type
 /** The raw band lists whose rows carry a value and a type, and the engine table each becomes. */
 export const VALUE_RAW_KEYS = Object.freeze({ gemValueRaw: "gemValue", jewelryValueRaw: "jewelryValue" });
 
+/** The raw unit lines printed under each treasure-type grid's coin columns, and the grid each belongs to. */
+export const UNIT_RAW_KEYS = Object.freeze({ typeClassicUnitsRaw: "classic", typeHeroicUnitsRaw: "heroic" });
+
+/** The raw dice legends printed above the value lists, and the engine table each becomes. */
+export const DICE_RAW_KEYS = Object.freeze({ gemDiceRaw: "gemDice", jewelryDiceRaw: "jewelryDice" });
+
+/** The coin columns a unit line sits under. */
+const COIN_KEYS = Object.freeze(["cp", "sp", "ep", "gp", "pp"]);
+
 /**
  * The engine tables this binding assembles, each with the raw table(s) it is
  * read from: the producer list `tools/validate-producers.mjs` checks readers
@@ -48,24 +61,27 @@ export const PRODUCES = Object.freeze({
   [TREASURE_DOC_ID]: {
     ...Object.fromEntries(Object.entries(TYPE_RAW_KEYS).map(([raw, key]) => [key, raw])),
     ...Object.fromEntries(Object.entries(VALUE_RAW_KEYS).map(([raw, key]) => [key, raw])),
+    ...Object.fromEntries(Object.entries(DICE_RAW_KEYS).map(([raw, key]) => [key, raw])),
     special: Object.values(SPECIAL_RAW_KEYS).flat(),
+    specialPer: Object.values(SPECIAL_RAW_KEYS).map((keys) => keys[0]),
+    typeUnits: Object.keys(UNIT_RAW_KEYS),
   },
 });
 
 /** A cell's text, whitespace folded; null when nothing is left. */
-const clean = (cell) => String(cell ?? "").replace(/\s+/g, " ").trim() || null;
+export const clean = (cell) => String(cell ?? "").replace(/\s+/g, " ").trim() || null;
 
 /**
  * A band list's text: the small-caps initial a drop cap leaves lower-case rises,
  * and nothing else is changed.
  */
-const sentence = (cell) => {
+export const sentence = (cell) => {
   const s = clean(cell);
   return s && s.replace(/^./, (c) => c.toUpperCase());
 };
 
 /** Whether ascending bands start at 1 and meet with no gap and no overlap. */
-const tiles = (bands) => bands.length > 0 && bands[0].min === 1 && bands.every((b, i) => b.min <= b.max && (i === 0 || b.min === bands[i - 1].max + 1));
+export const tiles = (bands) => bands.length > 0 && bands[0].min === 1 && bands.every((b, i) => b.min <= b.max && (i === 0 || b.min === bands[i - 1].max + 1));
 
 /**
  * The bands of one or more raw segments, ascending, each carrying the fields
@@ -135,7 +151,58 @@ export function assembleTreasureTables(raw = {}) {
     if (bands) special[kind] = bands;
   }
   if (Object.keys(special).length) out.special = special;
+  const per = assembleSpecialPer(raw);
+  if (per) out.specialPer = per;
+  const units = assembleTypeUnits(raw);
+  if (units) out.typeUnits = units;
+  for (const [rawKey, key] of Object.entries(DICE_RAW_KEYS)) {
+    const legend = assembleLegend(raw[rawKey]);
+    if (legend) out[key] = { legend };
+  }
   return out;
+}
+
+/**
+ * The lot unit each special-treasure list is rolled per, `{<kind>: text}`: what
+ * follows "per" in the caption the page opens the list with, as printed. A list
+ * whose caption was not read is left out; null when none was.
+ */
+export function assembleSpecialPer(raw = {}) {
+  const out = {};
+  for (const [kind, rawKeys] of Object.entries(SPECIAL_RAW_KEYS)) {
+    const label = clean(raw[rawKeys[0]]?.caption?.label);
+    const per = label && /\bper\s+(.+)$/i.exec(label)?.[1];
+    if (per) out[kind] = per;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * The unit printed under the coin columns of each treasure-type grid,
+ * `{classic|heroic: {cp, sp, ep, gp, pp}}`, each cell as printed. A grid whose
+ * unit line was not read is left out; null when none was.
+ */
+export function assembleTypeUnits(raw = {}) {
+  const out = {};
+  for (const [rawKey, grid] of Object.entries(UNIT_RAW_KEYS)) {
+    const row = raw[rawKey]?.units;
+    if (!row || row.__missing) continue;
+    const cells = Object.fromEntries(COIN_KEYS.map((c) => [c, clean(row[c])]).filter(([, v]) => v));
+    if (Object.keys(cells).length) out[grid] = cells;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/**
+ * A value list's dice legend, `[{dice, avg, kind}]` in the page's order: the
+ * dice each kind of lot is rolled on, the average it comes to and the kind, as
+ * printed. Null when no row was read.
+ */
+export function assembleLegend(raw) {
+  const rows = Object.values(raw ?? {})
+    .filter((r) => r && !r.__missing && clean(r.label) && clean(r.type))
+    .map((r) => ({ dice: clean(r.label), avg: clean(r.avg), kind: clean(r.type) }));
+  return rows.length ? rows : null;
 }
 
 /**

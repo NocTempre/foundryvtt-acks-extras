@@ -100,20 +100,69 @@ const COLUMN_GRIDS = [
   { docId: "encounters", tableId: "civilized", field: "name" },
   { docId: "encounters", prefix: "monsters.", field: "name" },
   { docId: "encounters", tableId: "terrainSubTables", field: "name", ownDie: true },
-  { docId: "treasure", tableId: "gemValue", field: "value", fields: ["value", "type"] },
-  { docId: "treasure", tableId: "jewelryValue", field: "value", fields: ["value", "type"] },
+  { docId: "treasure", tableId: "gemValue", field: "value", fields: ["value", "type"], legend: "gemDice" },
+  { docId: "treasure", tableId: "jewelryValue", field: "value", fields: ["value", "type"], legend: "jewelryDice" },
   { docId: "treasure", tableId: "special", field: "result", ownDie: true },
+  // The magic-item chain. A list's rows may carry a field beyond the ones shown
+  // (a hop into another list), kept across a drop where the row's range still
+  // stands. `fieldsBy` names the fields of each list of a set whose lists
+  // differ.
+  { docId: "magicItemTables", tableId: "classicType", field: "item", keep: ["hop"] },
+  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true },
+  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true },
+  { docId: "magicItemTables", tableId: "scrollLanguages", field: "item" },
+  { docId: "magicItemTables", tableId: "scrollSpellLevels", field: "level", ownDie: true },
+  {
+    docId: "magicItemTables",
+    tableId: "treasureMaps",
+    field: "place",
+    ownDie: true,
+    fieldsBy: { contents: ["place", "clues"], clueSpecifics: ["detail", "content", "obscurity"], clueConcealment: ["type", "text"], clueCode: ["type", "text"] },
+  },
+  { docId: "magicItemTables", tableId: "creatureType", field: "item" },
+  { docId: "magicItemTables", prefix: "arms", field: "type", ownDie: true },
 ];
 
 /** How a band with several `fields` reads as one result, and splits back. */
 const FIELD_JOIN = " — ";
 
-/** A result's text split into `fields`: the first parts one each, the last field the rest. */
+/** How the inner bands of a tail row read as one result, and split back. */
+const SUB_JOIN = " · ";
+
+/** The fields a grid's column shows: the first is required, the rest print where the band has them. */
+const fieldsOf = (grid, subId) => grid.fieldsBy?.[subId] ?? grid.fields ?? [grid.field];
+
+/** A result's text split into `fields`: the first parts one each, the last field the rest; an empty part is no field. */
 function splitFields(text, fields) {
   const parts = text.split(FIELD_JOIN);
   const head = parts.slice(0, fields.length - 1);
   const rest = parts.slice(fields.length - 1).join(FIELD_JOIN);
-  return Object.fromEntries(fields.map((f, i) => [f, i < head.length ? head[i] : i === head.length ? rest : ""]));
+  return Object.fromEntries(fields.map((f, i) => [f, i < head.length ? head[i] : i === head.length ? rest : ""]).filter(([, v]) => v !== ""));
+}
+
+/**
+ * One band's result text. A tail row (`sub`, inner bands under an outer face)
+ * reads as its inner bands, each "a-b: fields", so one result stands on the
+ * face and the table still has one result per face.
+ */
+function bandText(b, grid, subId) {
+  const fields = fieldsOf(grid, subId);
+  const one = (x) => fields.map((f) => x[f]).filter((v) => v != null).join(FIELD_JOIN);
+  return Array.isArray(b.sub) ? b.sub.map((s) => `${s.min}-${s.max}: ${one(s)}`).join(SUB_JOIN) : one(b);
+}
+
+/** The inverse of `bandText` for one result: a band, or a tail row when the text reads as inner bands. */
+function textBand(min, max, text, grid, subId) {
+  const fields = fieldsOf(grid, subId);
+  const inner = text.split(SUB_JOIN).map((part) => /^(\d+)-(\d+): (.*)$/s.exec(part));
+  if (inner.length && inner.every(Boolean)) return { min, max, sub: inner.map(([, a, z, rest]) => ({ min: +a, max: +z, ...splitFields(rest, fields) })) };
+  return { min, max, ...splitFields(text, fields) };
+}
+
+/** The legend a value list prints above its bands, as one line the RollTable's description carries; null with none imported. */
+function legendText(grid, docId) {
+  const rows = lib().tables.getTable(docId, grid.legend)?.legend;
+  return rows?.length ? rows.map((r) => `${r.dice} ${r.kind} (${r.avg})`).join(SUB_JOIN) : null;
 }
 
 /** Tables whose data is a set of LISTS, `{kind: [text, …]}`, each read with one die of its own length. */
@@ -301,13 +350,16 @@ function rollTableSpec(entry, data) {
     const table = lib().tables.getTable(docId, tableId) ?? {};
     const bands = grid.ownDie ? (data ?? []) : Object.values(table).flat();
     const top = Math.max(1, ...bands.map((b) => Number(b?.max ?? b?.min) || 0));
+    const first = fieldsOf(grid, entry.subId)[0];
+    const legend = grid.legend ? legendText(grid, docId) : null;
     return {
       formula: `1d${top}`,
+      ...(legend ? { description: legend } : {}),
       results: (data ?? [])
-        .filter((b) => b?.min != null && (grid.fields ?? [grid.field]).every((f) => b[f] != null))
+        .filter((b) => b?.min != null && (Array.isArray(b.sub) || b[first] != null))
         .map((b) => ({
           range: [b.min, b.max ?? b.min],
-          description: grid.fields ? grid.fields.map((f) => b[f]).join(FIELD_JOIN) : grid.keyed ? humanize(b[grid.field]) : String(b[grid.field]),
+          description: grid.keyed ? humanize(b[grid.field]) : bandText(b, grid, entry.subId),
         })),
     };
   }
@@ -414,8 +466,13 @@ function parseRollTable(entry, table) {
       .filter((r) => textOf(r))
       .map((r) => {
         const [min, max] = r.range ?? [1, 1];
-        if (grid.fields) return { min, max, ...splitFields(textOf(r), grid.fields) };
-        return { min, max, [grid.field]: keys ? keyFor(textOf(r), keys) : textOf(r) };
+        if (grid.keyed) return { min, max, [grid.field]: keyFor(textOf(r), keys) };
+        const band = textBand(min, max, textOf(r), grid, entry.subId);
+        // A field the row carried that no result shows (a hop) is kept where the
+        // same range stood before.
+        const before = (grid.keep ?? []).length ? (current[entry.subId] ?? []).find((b) => b.min === min && b.max === max) : null;
+        for (const f of grid.keep ?? []) if (before && before[f] !== undefined) band[f] = before[f];
+        return band;
       });
     return current;
   }
@@ -717,12 +774,20 @@ function resultsMatch(table, results) {
   return stored.every((row, i) => row === wanted[i]);
 }
 
+/**
+ * The description a table carries: the legend the entry's source prints when
+ * its dice cannot be one formula, else the note saying where it was exported
+ * from. The legend is the Judge's own imported text, shown as text.
+ */
+const descriptionOf = (entry, spec) =>
+  spec.description ? `<p>${esc(spec.description)}</p>` : game.i18n.format("ACKS-LOCATION.tables.exportedFrom", { key: entry.key });
+
 /** The creation data for one entry's RollTable. */
 const tableCreateData = (entry, spec, folderId) => ({
   name: entry.label,
   folder: folderId,
   formula: spec.formula,
-  description: game.i18n.format("ACKS-LOCATION.tables.exportedFrom", { key: entry.key }),
+  description: descriptionOf(entry, spec),
   results: spec.results,
   flags: { [MODULE_ID]: { [FLAG_KEY]: entry.key } },
 });
@@ -733,6 +798,7 @@ const tableUpdateData = (entry, spec, folderId, id) => ({
   name: entry.label,
   folder: folderId,
   formula: spec.formula,
+  ...(spec.description ? { description: descriptionOf(entry, spec) } : {}),
   [`flags.${MODULE_ID}.${FLAG_KEY}`]: entry.key,
 });
 
@@ -744,6 +810,7 @@ const tableIsCurrent = (table, entry, spec, folderId) =>
   table.name === entry.label &&
   (table.folder?.id ?? null) === folderId &&
   table.formula === spec.formula &&
+  (!spec.description || table.description === descriptionOf(entry, spec)) &&
   table.getFlag(MODULE_ID, FLAG_KEY) === entry.key;
 
 /** The starting page for a table nobody has supplied: a hint and an empty object. */

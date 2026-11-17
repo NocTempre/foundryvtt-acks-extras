@@ -994,4 +994,50 @@ await test("the special lists are one table each on a die of their own, and a ty
   assert.equal(tableNamed("Special — Ornamental").formula, "1d4", "not the set's furthest band");
 });
 
+/**
+ * An invented `magicItemTables` doc: a type list whose rows hop into a list,
+ * a list whose rows carry a second field and end in a tail of inner bands under
+ * an outer face, and a value list with a dice legend. Every word and figure is
+ * made up.
+ */
+const itemRegistry = () => ({
+  magicItemTables: {
+    classicType: { bands: [{ min: 1, max: 6, item: "Qq things", hop: "classic.qq" }, { min: 7, max: 10, item: "Zz things", hop: null }] },
+    classic: {
+      qq: [
+        { min: 1, max: 4, item: "Qq one", cues: "smells of zz" },
+        { min: 5, max: 9, item: "Qq two" },
+        { min: 10, max: 10, sub: [{ min: 1, max: 50, item: "Qq grand" }, { min: 51, max: 100, item: "Zz grand" }] },
+      ],
+    },
+  },
+  treasure: {
+    gemValue: { bands: [{ min: 1, max: 60, value: "7", type: "Qq stone" }] },
+    gemDice: { legend: [{ dice: "9d9", avg: "avg. 5", kind: "Qq" }, { dice: "d9+9", avg: "avg. 6", kind: "Zz" }] },
+  },
+});
+
+await test("a row's hop survives a drop where its range stands, and a tail row is one result of inner bands", async () => {
+  world({ registry: itemRegistry() });
+  const type = entryAt("magicItemTables.classicType.bands");
+  assert.ok(type?.rollable, "the type list is rollable");
+  const { data } = await parseDrop(type, droppedTable([{ range: [1, 6], description: "Qq things (edited)" }, { range: [7, 9], description: "Zz things" }]));
+  assert.deepEqual(data.bands, [{ min: 1, max: 6, item: "Qq things (edited)", hop: "classic.qq" }, { min: 7, max: 9, item: "Zz things" }], "the hop stays on the range that stood; a range that moved has none");
+  const list = entryAt("magicItemTables.classic.qq");
+  await materializeAll();
+  const made = tableNamed(list.label);
+  assert.equal(made?.formula, "1d10");
+  assert.deepEqual([...made.results].map((r) => r.description), ["Qq one — smells of zz", "Qq two", "1-50: Qq grand · 51-100: Zz grand"]);
+  const back = await parseDrop(list, droppedTable([{ range: [1, 9], description: "Qq one" }, { range: [10, 10], description: "1-30: Qq a · 31-100: Zz b — note" }]));
+  assert.deepEqual(back.data.qq, [{ min: 1, max: 9, item: "Qq one" }, { min: 10, max: 10, sub: [{ min: 1, max: 30, item: "Qq a" }, { min: 31, max: 100, item: "Zz b", cues: "note" }] }]);
+});
+
+await test("a value list whose dice are a legend carries the legend in its description and never claims one formula for it", async () => {
+  world({ registry: itemRegistry() });
+  await materializeAll();
+  const made = tableNamed(entryAt("treasure.gemValue.bands").label);
+  assert.match(made.description, /9d9 Qq \(avg\. 5\) · d9\+9 Zz \(avg\. 6\)/);
+  assert.equal(made.formula, "1d60", "the formula is still the list's own furthest band");
+});
+
 console.log(`test-table-docs: ${passed} tests passed`);

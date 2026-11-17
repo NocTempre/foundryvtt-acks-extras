@@ -121,6 +121,8 @@ const TABLES = {
   people: ["cultures", "cultureAppearance", "dwarvenCastes", "hirelingAttributes"],
   // The Judges Journal's treasure types, value bands and special-treasure lists.
   treasure: Object.keys(TABLE_RECIPES.treasure.tables),
+  // The Judges Journal's magic-item generation and arms-and-armour tables.
+  magicItemTables: Object.keys(TABLE_RECIPES.magicItemTables.tables),
 };
 
 /** Whether a recipe's book is on this machine. */
@@ -1157,12 +1159,37 @@ for (const id of Object.keys(TABLE_RECIPES.treasure.tables)) {
   VERIFY[`treasure.${id}`] = (out, recipe, fail) => {
     const rows = Object.entries(out ?? {});
     if (!rows.length) return fail("no rows read");
-    const band = !!recipe.rows[0].labelPattern;
-    if (!band && rows.length !== recipe.rows.length) fail("rows: count differs from the declared letters");
+    const band = recipe.rows.some((r) => r.labelPattern === "rollBand");
+    const letters = recipe.rows.every((r) => !r.optional);
+    if (letters && rows.length !== recipe.rows.length) fail("rows: count differs from the declared rows");
     for (const [key, row] of rows) {
       if (isMissingRow(row)) { fail(`row ${key}: __missing placeholder`); continue; }
+      // A special-treasure list's first row is its caption, read as the label.
+      if (key === "caption") { if (!isText(row.label)) fail("caption is empty"); continue; }
       if (band && !(isNum(row.min) && isNum(row.max) && row.min <= row.max)) fail(`row ${key}: band label did not parse`);
       for (const c of recipe.cellColumns) if (!isText(row[c.key])) fail(`row ${key}: ${c.key} is empty`);
+    }
+  };
+}
+
+// The magic-item and arms tables (JJ ch. 4): every row found with a band that
+// parsed. A tail's outer face stands alone, and an arms grid's dash cells and
+// two header lines are read raw, so cells are checked only where a row prints
+// one; the tiling, the hops and the setting names are
+// `check-magic-item-tables.mjs`, which reads them across their segments.
+for (const id of Object.keys(TABLE_RECIPES.magicItemTables.tables)) {
+  VERIFY[`magicItemTables.${id}`] = (out, recipe, fail) => {
+    const rows = Object.entries(out ?? {});
+    if (!rows.length) return fail("no rows read");
+    const arms = recipe.rows.some((r) => r.key === "head1");
+    for (const [key, row] of rows) {
+      if (isMissingRow(row)) { fail(`row ${key}: __missing placeholder`); continue; }
+      if (key === "caption") { if (!isText(row.label)) fail("caption is empty"); continue; }
+      if (arms) {
+        for (const c of recipe.cellColumns) if (!isText(row[c.key])) fail(`row ${key}: ${c.key} is empty`);
+        continue;
+      }
+      if (!(isNum(row.min) && isNum(row.max) && row.min <= row.max)) fail(`row ${key}: band label did not parse`);
     }
   };
 }

@@ -444,10 +444,13 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    which is the one standing exception to the rule that a book id must unlock
    something. The Journal's treasure types, gem and jewelry values and
    special treasures are read (DECISIONS 2026-11-16, "The treasure wave runs
-   ahead of the wave order"); not yet: the dice legend above the gem and
-   jewelry value lists (their RollTables roll one die to the top band), the
-   magic-item chain, arms and armour, the Treasure Tome layer and its
-   entries, and the generators that use them
+   ahead of the wave order"), with the gem and jewelry dice legend, the coin
+   columns' unit and each special list's lot unit; the Journal's magic-item
+   generation tables and its arms-and-armour tables are read too (DECISIONS
+   2026-11-16, "The magic-item tables join the treasure wave"). Not yet: the
+   Treasure Tome layer and its entries, and the generators that use them
+   (a gem or jewelry RollTable still rolls one die, its description carrying
+   the legend)
    (`docs/importer/wip/20261116-tt-importer-plan.md`).
 8. **The custom-class, custom-spell and magic-type remainders**, gated on the
    magic work.

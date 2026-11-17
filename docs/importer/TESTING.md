@@ -3946,7 +3946,58 @@ read, remove it with Remove ALL Imports first.
    keeps its value and type as two fields (`getTable("treasure","gemValue").bands[0]`).
    Remove the override.
 
+7. Open Gem Value's RollTable. *Observable:* its description lists the three
+   legend rows (dice, kind, average) as the page prints them above the list;
+   `getTable("treasure","gemDice").legend` holds the same three rows, and
+   `getTable("treasure","specialPer")`, `getTable("treasure","typeUnits")` hold
+   a lot unit for each of the eleven lists and a unit for each coin column.
+
 ### Teardown
 
 The import is kept. Step 6's override is removed by its own last action;
+nothing is swept.
+
+## The magic-item and arms tables
+
+The `magicItemTables` registry document (JJ ch. 4), read from the seat's own
+Judges Journal and projected as RollTables. `check-magic-item-tables.mjs` proves
+the pages read whole offline; this walk proves the import writes them, the
+browser lists them, and the RollTables hold them, tail rows included.
+
+### Fixtures
+
+The Judges Journal connected on the seat. Nothing is built; the imported
+document and its RollTables are the world's, carry no `flags.world.fixture`
+marker, and are read, never driven.
+
+### Steps
+
+1. Run **Reimport One Shelf (GM)** (`Compendium Packs → ACKS II — Extras →
+   Macros → ACKS Extras Macros → Import from your books`), **Rules tables**,
+   **magicItemTables only**. *Observable:* no error notice;
+   `getDoc("magicItemTables").tables` holds the raw reads beside `classicType`,
+   `classic`, `heroic`, `scrollLanguages`, `scrollSpellLevels`, `treasureMaps`,
+   `creatureType`, the eight `arms*` tables, `armsSettings` and `captions`.
+2. `getTable("magicItemTables","classicType").bands.map((b) => b.hop)`.
+   *Observable:* eight values, each a `classic.<list>` id, no two alike, and
+   every id a key of `getTable("magicItemTables","classic")`.
+3. Open the Ruledata Browser. *Observable:* `magicItemTables.classic.<list>`,
+   `.heroic.<rarity>`, `.treasureMaps.<list>`, `.scrollSpellLevels.col1` to
+   `col6`, `.creatureType.bands` and `.arms<Kind>.s1` to `s7` are rollable,
+   each row naming JJ and its folio; `captions` and `armsSettings` are JSON
+   pages.
+4. Open the Swords RollTable and its last result. *Observable:* a result on the
+   top face reads the inner bands as "a-b: name · a-b: name", and the table's
+   formula reaches that face. Edit one inner name, drop the table back over
+   its entry, and read `getTable("magicItemTables","classic").swords.at(-1).sub`.
+   *Observable:* three or more inner bands, the edited name changed.
+5. Open a potions result. *Observable:* it reads "name — cue", the cue being the
+   page's physical-cues cell.
+6. Open an arms RollTable for the first setting. *Observable:* its rows are the
+   page's type names on the die's bands, and the setting name over the column
+   is `armsSettings.s1`.
+
+### Teardown
+
+The import is kept. Step 4's edit is removed by Remove override on that entry;
 nothing is swept.

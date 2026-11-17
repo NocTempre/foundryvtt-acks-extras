@@ -2116,6 +2116,50 @@ keys); row-by-row merge of a Treasure Tome table over a Journal table (a
 re-banded d100 list merged by row overlaps).
 
 *Cost:* the gem and jewelry value lists project as a RollTable rolled on one
-die up to their top band; the dice legend the page prints above them is not
-read yet, so a roll from that RollTable is not the printed procedure's.
-ROADMAP wave 7 carries it.
+die up to their top band, which is not the printed procedure: the page rolls
+each kind on dice of its own. Slice S1b (see "The magic-item tables join the
+treasure wave" below) reads the legend and carries it in the RollTable's
+description.
+
+## 2026-11-16 — The magic-item tables join the treasure wave
+
+**Asked.** TT importer plan slice S1b: the Judges Journal's magic-item
+generation and arms-and-armour tables, under the same owner goal and the same
+2026-11-16 ruling above. The coordinator added a consumer's three requests for
+the `treasure` doc: the coin columns' unit, each special list's lot unit, and
+the gem and jewelry dice legend.
+
+**Ruled.**
+
+- The tables are registry doc `magicItemTables` (`magicItems` stays markets'),
+  read at import, every band edge, name and caption from the Judge's own copy;
+  a list that does not tile its die is not assembled.
+- **A tail is nested, not flattened.** The last faces of a d100 print inner
+  bands (a face of 98, 99 or 100); the doc keeps them as `{min, max, sub: [...]}`
+  and a RollTable shows one result on the face reading its inner bands, because
+  Foundry draws every result whose range holds the roll and three results on
+  face 100 would all be drawn. Rejected: one result per inner band; dropping the
+  tail.
+- **A hop is recorded at assembly.** Each list's caption is stored as printed
+  (`captions`), and a Random Type row carries the id of the one list whose
+  folded caption (`printKey`) is its folded words, else null. No other row is
+  matched; a caption never ships in source (a caption is a `locate` only where
+  it is a common phrase).
+- **The gem and jewelry legend is carried in the RollTable's description.** One
+  list is rolled on three dice, which one formula cannot express, so the
+  description shows the legend read from the page and the doc keeps it
+  (`gemDice`, `jewelryDice`) for a generator. Rejected: one RollTable per kind
+  with the shared results (duplicated results that diverge on an edit, and a
+  second set of entry ids).
+- The special lists' lot unit (`specialPer`) and the coin columns' unit
+  (`typeUnits`) are read beside the existing shapes, which are unchanged.
+- Columns that differ in their fields (the treasure-map lists) are described by
+  `fieldsBy` in the `COLUMN_GRIDS` row, and a row's `hop` survives a drop where
+  its range stands (`keep`).
+
+*Cost:* a Judge who edits a tail result's text edits inner bands as text, and
+the text must keep the "a-b: " form to stay a tail. A hop is not re-resolved on
+a drop; it stays on the range that stood, so an edit that renames a row leaves
+its hop pointing at the old list. The Clue Concealment and Clue Code lists
+carry sentences of the book in their cells, imported at the Judge's own copy
+like any other cell.

@@ -149,6 +149,19 @@ export function applyCellPattern(text, pattern = "raw") {
       if (!nums.length) return undefined;
       return { min: Math.min(...nums), max: Math.max(...nums) };
     }
+    case "rollBandNested": {
+      // A band label that may carry the outer face its inner band hangs from:
+      // "n a-b" -> {min: n, max: n, parent: n, sub: {min: a, max: b}}; any other
+      // label reads as `rollBand`. A band printed bare ("a-b") is an inner band
+      // whose outer face stands on another line; the binding places it.
+      const nested = t.match(/^(\d+)\s+(\d+)\s*[-–—]\s*(\d+)$/);
+      if (nested) return { min: +nested[1], max: +nested[1], parent: +nested[1], sub: { min: +nested[2], max: +nested[3] } };
+      return applyCellPattern(t, "rollBand");
+    }
+    case "labelText": {
+      // The label as printed, for a caption read as data: -> {label}.
+      return t ? { label: t.replace(/\s+/g, " ") } : null;
+    }
     case "rollBand": {
       // "a-b" | "n or lower" | "a–b" -> {min?, max?}
       const range = t.match(/(\d+)\s*[-–]\s*(\d+)/);
@@ -371,7 +384,8 @@ function centreWrapLines(rows, claimed, blocks, start, end, recipe, tol) {
  * between the grid's first and last claimed rows joins the claimed row nearest
  * it by y, and one outside them joins only within `wrapRows.tol` (default 12).
  * A line holding a label-zone run — a heading, prose, another table's label —
- * is never a continuation. Returns claimed row index → its lines, top to
+ * is never a continuation. `wrapRows.floorKey` names the row spec that opens
+ * the body, so a line above its claim joins only within `tol`. Returns claimed row index → its lines, top to
  * bottom; empty unless the recipe asks. Windowed `cellColumns` read the lines.
  */
 function wrapLines(rows, claims, recipe, start, end) {
@@ -383,6 +397,11 @@ function wrapLines(rows, claims, recipe, start, end) {
   const first = Math.min(...claimed);
   const last = Math.max(...claimed);
   for (const idx of claimed) blocks.set(idx, [rows[idx]]);
+  // `floorKey`: the row spec whose claim opens the body. A line above it
+  // further than `tol` from it is a header, never a wrapped line, so a
+  // caption's header does not join row one.
+  const floor = claims.find((c) => c.spec.key === recipe.wrapRows.floorKey && c.idx >= 0);
+  if (floor) for (let i = start; i < floor.idx; i++) if (!blocks.has(i) && Math.abs(rows[floor.idx].y - rows[i].y) > tol) blocks.set(i, []);
   if (recipe.wrapRows.centered) {
     centreWrapLines(rows, claimed, blocks, start, end, recipe, tol);
     return blocks;
@@ -404,6 +423,22 @@ function wrapLines(rows, claims, recipe, start, end) {
 }
 
 /**
+ * `smallCaps` (a gap in points): the book's small-capital initial extracts as a
+ * lone lower-case letter set flush against the run after it (a gap under
+ * `gap`), and reads as the capital it is. Runs are returned x-ordered and
+ * copied; `gap` null leaves them as they are. A run on another line of a
+ * wrapped cell is never the one it sits flush against.
+ */
+export function capitalInitials(runs, gap) {
+  if (gap == null) return runs;
+  return runs.map((run, i) => {
+    const next = runs[i + 1];
+    const flush = /^[a-z]$/.test(run.str) && next && (next._line ?? 0) === (run._line ?? 0) && next.x - (run.x + (run.w ?? 0)) < gap;
+    return flush ? { ...run, str: run.str.toUpperCase() } : run;
+  });
+}
+
+/**
  * `gridRows`: a label column followed by N market-class cells, with optional
  * `leading` columns (container, price…) before the grid and `trailing`
  * columns (wage etc.) after it. Runs left of `labelMaxX` form the row label
@@ -422,7 +457,9 @@ function wrapLines(rows, claims, recipe, start, end) {
  * executor's grids use) and sets the row's `label` to that label's tidied
  * print; the specs are then a generic run, each one only claiming the next
  * row, and a row whose label folds to no key or to one already minted is
- * dropped.
+ * dropped. `smallCaps` restores a small-capital initial in the label and the
+ * cells (`capitalInitials`), and `labelGap` joins the label gap-aware
+ * (`joinRuns`'s `gapMin`): a gap wider than that many points is a word space.
  */
 export function extractGridRows(items, recipe) {
   const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
@@ -451,7 +488,7 @@ export function extractGridRows(items, recipe) {
     // is empty and which carries a cell.
     const re = spec.unlabelled ? null : new RegExp(spec.labelRe, "i");
     for (let i = cursor; i < end; i++) {
-      const label = joinRuns(rows[i].items.filter((it) => it.x < recipe.labelMaxX));
+      const label = joinRuns(capitalInitials(rows[i].items.filter((it) => it.x < recipe.labelMaxX), recipe.smallCaps), recipe.labelGap ?? null);
       const hit = re ? !!label && re.test(label) : !label && rows[i].items.some((it) => it.x >= recipe.labelMaxX);
       if (hit) {
         // minCells: a prose line can echo a row label (JJ repeats tier names
@@ -564,7 +601,7 @@ export function extractGridRows(items, recipe) {
           ? joinRuns(sorted, gap)
           : sorted.map((r) => r.str).join("").replace(/\s+/g, " ").trim());
         const byLine = new Map();
-        for (const run of runs.sort((a, b) => a.x - b.x)) {
+        for (const run of capitalInitials(runs.sort((a, b) => (a._line ?? 0) - (b._line ?? 0) || a.x - b.x), recipe.smallCaps)) {
           const line = run._line ?? 0;
           if (!byLine.has(line)) byLine.set(line, []);
           byLine.get(line).push(run);
