@@ -822,10 +822,12 @@ nothing. What no single compile can see — that the scene is a compiled recipe
 in some cookbook, that the table is the zone's own book's, and that the
 outline lies inside the recipe's crop — is asserted by
 `test-cookbook-coherence`. `zoneRegionData` shapes the Region: visible to the
-GM only, locked, one polygon per snapped cell (else the outline carried
-through the frame), the `acks-extras.encounterZone` behaviour with the list,
-target, interval, dungeon level, cadence and throws, and flags naming the zone
-and the cells it covers. An adventure's dungeon level is one zone over the
+GM only, locked, core's own `grid` shape over the snapped cells (else the
+outline carried through the frame), the `acks-extras.encounterZone` behaviour
+with the list, target, interval, dungeon level, cadence and throws, and a flag
+naming the zone. The cells are the Region's, so a Judge unlocks it and adds or
+removes one with the Regions layer's grid tool, and formation reads the zone
+through core's `testPoint` and polygon tree like any drawn Region. An adventure's dungeon level is one zone over the
 whole of its plan, so a party anywhere on the level reads its rule. A zone
 whose outline covers its recipe's crop (`coversCrop`) is drawn on the
 Regions layer alone.
@@ -844,8 +846,8 @@ through the target recipe's frame at the scale the map was made at (the
 cookbook flag's `pixelsPerPoint`, else probed again on the live scene) and
 moved to the picture's corner (`dimensions.sceneX/Y`). On a hex map the cells
 are the live grid's (`getOffsetRange` over the picture, `getCenterPoint` per
-offset, `getVertices` per kept cell), snapped by `offsetsInside`, and a zone
-holding no cell is refused; on a square or gridless map the outline is the
+offset), snapped by `offsetsInside` and laid as one grid shape of their
+offsets, and a zone holding no cell is refused; on a square or gridless map the outline is the
 shape. The Region is named `Zone <n> (<book short>)` from a lang key.
 
 ### A way between maps

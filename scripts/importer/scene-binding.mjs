@@ -862,20 +862,21 @@ export function coversCrop(outline, crop) {
   return area > 0 && polygonArea(outline) >= area * (1 - 1e-6);
 }
 
-/** A hex's vertices, as `{x, y}` points or a flat list, flattened to whole pixels. */
-const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v === "number" ? [v] : [v?.x, v?.y])).map((n) => Math.round(Number(n)));
+/** An offset list as core's grid shape stores it: whole `{i, j}` pairs, any other entry dropped. */
+const gridOffsets = (hexes) => (hexes ?? [])
+  .map((h) => ({ i: Number(h?.i), j: Number(h?.j) }))
+  .filter((h) => Number.isInteger(h.i) && Number.isInteger(h.j));
 
 /**
  * Region data for one zone: visible to the Judge only and locked against a
  * stray drag, carrying the encounter-zone behaviour with the zone's list and
- * figures, and flagged with the zone it answers to and the cells it covers.
- * A zone over its map's whole picture (`whole`) is drawn on the Regions layer
- * alone.
+ * figures, and flagged with the zone it answers to. A zone over its map's
+ * whole picture (`whole`) is drawn on the Regions layer alone.
  *
- * Its shapes are one polygon per snapped cell when `hexes` are given — the
- * offsets `offsetsInside` kept, with `cells` holding each one's vertices in
- * scene pixels, index for index, from the live grid — else the outline carried
- * through the frame.
+ * Its shape is core's own `grid` shape over the snapped cells when `hexes` are
+ * given — the offsets `offsetsInside` kept — so the cells are the Region's and
+ * a Judge adds or removes one with the Regions layer's grid tool; else the
+ * outline carried through the frame.
  *
  * @param {object} zone the compiled row's `zone` block
  * @param {object} frame `sceneFrame` of the recipe it lies over
@@ -888,19 +889,17 @@ const flatVertices = (vertices) => (vertices ?? []).flatMap((v) => (typeof v ===
  * @param {string} [p.cadence] defaults to the row's own
  * @param {number} [p.dayThrows] read off the page; 0 inherits
  * @param {number} [p.nightThrows]
- * @param {{i: number, j: number}[]} [p.hexes]
- * @param {Array<{x: number, y: number}[]|number[]>} [p.cells]
+ * @param {{i: number, j: number}[]} [p.hexes] the live grid's offsets the zone covers
  * @param {boolean} [p.whole] the outline covers the recipe's crop (`coversCrop`)
  * @param {string} p.book the zone's book
  * @param {string} p.id the zone's cookbook id
  */
 export function zoneRegionData(zone, frame, {
-  name, tableUuid = "", target = 0, every = 0, dungeonLevel = 0, cadence = zone?.cadence ?? "", dayThrows = 0, nightThrows = 0, hexes = [], cells = [], whole = false, book, id,
+  name, tableUuid = "", target = 0, every = 0, dungeonLevel = 0, cadence = zone?.cadence ?? "", dayThrows = 0, nightThrows = 0, hexes = [], whole = false, book, id,
 }) {
-  const snapped = (hexes ?? []).map((h, k) => ({ i: h.i, j: h.j, points: flatVertices(cells?.[k]) }))
-    .filter((h) => h.points.length >= 6 && h.points.every(Number.isFinite));
-  const shapes = snapped.length
-    ? snapped.map((h) => ({ type: "polygon", points: h.points, hole: false }))
+  const offsets = gridOffsets(hexes);
+  const shapes = offsets.length
+    ? [{ type: "grid", offsets, origin: null, hole: false }]
     : [{ type: "polygon", points: ringToScene(zone.outline, frame), hole: false }];
   return {
     name,
@@ -920,25 +919,27 @@ export function zoneRegionData(zone, frame, {
         nightThrows: Number(nightThrows) || 0,
       },
     }],
-    flags: { [MODULE_ID]: { cookbook: { zone: id, book }, zoneHexes: snapped.map(({ i, j }) => ({ i, j })) } },
+    flags: { [MODULE_ID]: { cookbook: { zone: id, book } } },
   };
 }
 
 /**
  * A zone's region source carried onto a map whose picture's corner sits at
  * another point of the canvas: every shape moved by `by`, the new corner less
- * the old, and each snapped cell read again off the polygon it is, by
- * `offsetOf` on the new canvas, since a hex lattice's offsets do not move by
- * whole rows. The source is returned as it is when the corner has not moved,
- * and a cell list that no longer matches its polygons one for one is left as
- * it was.
+ * the old. A `grid` shape's cells are read again, each cell's centre on the
+ * old lattice (`centreOf`) moved by `by` and looked up on the new one
+ * (`offsetOf`), since a hex lattice's offsets do not move by whole rows;
+ * without both lattices its cells are kept. The source is returned as it is
+ * when the corner has not moved.
  *
  * @param {object} zone a region's source (`toObject()`)
  * @param {{x: number, y: number}} by
- * @param {((p: {x: number, y: number}) => {i: number, j: number})|null} [offsetOf]
+ * @param {object} [lattices]
+ * @param {((p: {x: number, y: number}) => {i: number, j: number})|null} [lattices.offsetOf] the new canvas's
+ * @param {((o: {i: number, j: number}) => {x: number, y: number})|null} [lattices.centreOf] the old canvas's
  * @returns {object}
  */
-export function zoneMovedBy(zone, by, offsetOf = null) {
+export function zoneMovedBy(zone, by, { offsetOf = null, centreOf = null } = {}) {
   const dx = Number(by?.x) || 0;
   const dy = Number(by?.y) || 0;
   if (!dx && !dy) return zone;
@@ -947,23 +948,17 @@ export function zoneMovedBy(zone, by, offsetOf = null) {
     if (Array.isArray(shape.points)) moved.points = shape.points.map((v, k) => v + (k % 2 ? dy : dx));
     if (Number.isFinite(shape.x)) moved.x = shape.x + dx;
     if (Number.isFinite(shape.y)) moved.y = shape.y + dy;
+    if (Number.isFinite(shape.origin?.x) && Number.isFinite(shape.origin?.y)) moved.origin = { x: shape.origin.x + dx, y: shape.origin.y + dy };
+    if (shape.type === "grid" && offsetOf && centreOf) {
+      moved.offsets = gridOffsets((shape.offsets ?? []).map((o) => {
+        const c = centreOf(o);
+        const { i, j } = offsetOf({ x: c.x + dx, y: c.y + dy });
+        return { i, j };
+      }));
+    }
     return moved;
   });
-  const own = zone.flags?.[MODULE_ID] ?? {};
-  const hexes = own.zoneHexes ?? [];
-  const polygons = shapes.filter((s) => Array.isArray(s.points) && s.points.length >= 6);
-  const reread = offsetOf && hexes.length && polygons.length === hexes.length
-    ? polygons.map((s) => {
-      const n = s.points.length / 2;
-      let x = 0;
-      let y = 0;
-      for (let k = 0; k < s.points.length; k += 2) { x += s.points[k]; y += s.points[k + 1]; }
-      const { i, j } = offsetOf({ x: x / n, y: y / n });
-      return { i, j };
-    })
-    : hexes;
-  if (!("zoneHexes" in own)) return { ...zone, shapes };
-  return { ...zone, shapes, flags: { ...zone.flags, [MODULE_ID]: { ...own, zoneHexes: reread } } };
+  return { ...zone, shapes };
 }
 
 /** The page corner of storey `level` of a recipe: its crop's for 0, else that corner of `levels`. */

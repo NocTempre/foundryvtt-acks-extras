@@ -764,24 +764,27 @@ const recipe = REGION_MAP.scene;
   const grid = makeGrid(4, 100);
   const hexes = [{ i: 2, j: 3 }, { i: 2, j: 4 }, { i: 3, j: 3 }];
   const frame = sceneFrame(REGION_MAP.scene, { pixelsPerPoint: 1 });
-  const zone = zoneRegionData({ outline: ZZ_OUTLINE }, frame, { name: "Zone", hexes, cells: hexes.map((h) => grid.getVertices(h)), book: "zz", id: "zz.zone" });
+  const zone = zoneRegionData({ outline: ZZ_OUTLINE }, frame, { name: "Zone", hexes, book: "zz", id: "zz.zone" });
   const from = grid.getCenterPoint({ i: 2, j: 3 });
   const to = grid.getCenterPoint({ i: 5, j: 8 });
   const by = { x: to.x - from.x, y: to.y - from.y };
-  const moved = zoneMovedBy(zone, by, (p) => grid.getOffset(p));
+  // The old and the new canvas share one lattice here; only the corner moved.
+  const lattices = { offsetOf: (p) => grid.getOffset(p), centreOf: (o) => grid.getCenterPoint(o) };
+  const moved = zoneMovedBy(zone, by, lattices);
   const want = hexes.map((h) => {
     const c = grid.getCenterPoint(h);
     return grid.getOffset({ x: c.x + by.x, y: c.y + by.y });
   });
-  check("a carried zone's cells are read again where its polygons now lie", moved.flags[MODULE_ID].zoneHexes, want);
+  check("a carried zone's grid cells are read again where their centres now lie", moved.shapes[0].offsets, want);
   ok("and not merely shifted by whole rows", JSON.stringify(want) !== JSON.stringify(hexes.map((h) => ({ i: h.i + 3, j: h.j + 5 }))));
-  ok("its polygons move by the corner's change",
-    moved.shapes.every((s, k) => s.points.every((v, n) => near(v, zone.shapes[k].points[n] + (n % 2 ? by.y : by.x)))));
-  ok("its behaviours and name ride along", moved.name === zone.name && moved.behaviors === zone.behaviors && moved.flags[MODULE_ID].cookbook === zone.flags[MODULE_ID].cookbook);
-  ok("a zone whose corner has not moved is the same source", zoneMovedBy(zone, { x: 0, y: 0 }, (p) => grid.getOffset(p)) === zone && zoneMovedBy(zone, null) === zone);
-  check("without a lattice its cells are kept", zoneMovedBy(zone, by).flags[MODULE_ID].zoneHexes, zone.flags[MODULE_ID].zoneHexes);
-  const outlined = { ...zone, flags: { [MODULE_ID]: { cookbook: zone.flags[MODULE_ID].cookbook } } };
-  ok("a zone with no cell list gains none", !("zoneHexes" in zoneMovedBy(outlined, by, (p) => grid.getOffset(p)).flags[MODULE_ID]));
+  check("it stays one grid shape", moved.shapes.map((s) => s.type), ["grid"]);
+  ok("its behaviours, name and flags ride along", moved.name === zone.name && moved.behaviors === zone.behaviors && moved.flags === zone.flags);
+  ok("a zone whose corner has not moved is the same source", zoneMovedBy(zone, { x: 0, y: 0 }, lattices) === zone && zoneMovedBy(zone, null) === zone);
+  check("without both lattices its cells are kept", zoneMovedBy(zone, by, { offsetOf: lattices.offsetOf }).shapes[0].offsets, hexes);
+  const outlined = zoneRegionData({ outline: ZZ_OUTLINE }, frame, { name: "Zone", book: "zz", id: "zz.zone" });
+  const shifted = zoneMovedBy(outlined, by, lattices);
+  ok("an outlined zone's polygon moves by the corner's change",
+    shifted.shapes[0].points.every((v, n) => near(v, outlined.shapes[0].points[n] + (n % 2 ? by.y : by.x))));
 }
 
 // --- a city map's creation data is what it always was -----------------------------------------
@@ -937,8 +940,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
     if (pointInRing(c.x, c.y, ring)) want.push({ i, j });
   }
   ok("the outline holds cells", want.length > 0);
-  check("the zone is snapped to the cells whose centres its outline holds", own?.flags[MODULE_ID].zoneHexes, want);
-  check("one shape per cell", own?.shapes.length, want.length);
+  check("the zone is core's grid shape over the cells whose centres its outline holds", own?.shapes.map((s) => [s.type, s.offsets]), [["grid", want]]);
   check("visible to the Judge only", own?.visibility, 1);
 
   const cross = zoneOf(map, "yy.zone1");
@@ -947,7 +949,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   check("a list the world lacks is left blank", crossed?.system.tableUuid, null);
 
   const flat = zoneOf(city, "zz.zone2");
-  check("on a gridless map no cell is snapped", flat?.flags[MODULE_ID].zoneHexes, []);
+  check("on a gridless map no cell is snapped", flat?.shapes.map((s) => s.type), ["polygon"]);
   check("the outline is carried through the frame", flat?.shapes, [{ type: "polygon", points: ringToScene(XX_OUTLINE, sceneFrame(CITY_RECIPE)), hole: false }]);
   check("a zone with no figures inherits", flat?.behaviors.find(() => true)?.system, { tableUuid: null, encounterTarget: 0, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0 });
   ok("the run names every region it made", first.created.regions.length === 3);
@@ -1025,7 +1027,7 @@ const map = game.scenes.find((s) => s.getFlag(MODULE_ID, "cookbook")?.id === "zz
   const level = plan?.regions.find((r) => r.getFlag(MODULE_ID, "cookbook")?.zone === "ww.zone1");
   const delve = level?.behaviors.find(() => true)?.system;
   check("the level's zone is laid over the plan whole, on no cell, drawn on the Regions layer alone",
-    [out.zones, level?.shapes.length, level?.flags[MODULE_ID].zoneHexes, level?.visibility], [1, 1, [], 0]);
+    [out.zones, level?.shapes.map((s) => s.type), level?.visibility], [1, ["polygon"], 0]);
   check("it carries the chance, the interval and the dungeon level read off its page",
     [delve?.encounterTarget, delve?.encounterEvery, delve?.dungeonLevel, delve?.journeyCadence], [4, 3, 2, ""]);
   sessions.delete("ww");

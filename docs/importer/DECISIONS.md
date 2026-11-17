@@ -1984,3 +1984,32 @@ key: its first repair replaces them from the build, and an edited row of that
 age, having no key, stays and is joined by the fresh row once. A Judge's edit
 to a stat-block field outside `values` (range, duration) is still overwritten:
 only `values` leaves carry a stamp.
+
+## 2026-11-16 — A zone's cells are core's grid shape
+
+The owner: "the maps that import have zones defined (good) but are
+unreachable reimplementation of regions (bad)". In the test world, AX4's forest
+zone was 208 Region shapes, one hex polygon each, beside a `zoneHexes` flag
+copying the same 208 offsets. No code read the flag but `zoneMovedBy`, which
+kept it up to date. Core 14 has a `grid` shape whose `offsets` are the cells.
+The Regions layer's grid tool edits it, and core's `testPoint`, area and
+polygon tree read it. The module's per-cell polygons duplicated that shape in a
+form no core tool edits as cells.
+
+**Ruled.** A zone snapped to a hex map's cells is one `grid` shape of their
+offsets, and the Region carries no cell flag. A square or gridless map still
+gets the outline as one core polygon. Formation's `regionOutlines` reads any
+other shape type from core's polygon tree, so the area a zone ranks by
+(`journeyZones`, smallest first) and the trap sweep's edges come from core.
+A held map's zones carried into an Adventure re-read their grid offsets
+through both lattices (`zoneMovedBy`'s `centreOf` and `offsetOf`).
+
+**Rejected:** keeping the per-cell polygons and teaching formation the flag,
+which would keep a second region model beside core's. Snapping square-grid
+zones to cells too: core's grid tool works there, but the only shipped
+square-grid zones each cover a whole dungeon plan, and an outline polygon
+already fits that exactly.
+
+*Cost:* a world that already holds zones as per-cell polygons keeps them.
+Re-importing replaces them, and that is the one upgrade path (no repair
+pass, per the 2026-11-11 ruling against tools for earlier versions' data).

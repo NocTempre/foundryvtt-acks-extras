@@ -601,16 +601,14 @@ ok("a point on a far edge a float's sum falls short of is inside the crop", inCr
 ok("a point a hundredth past the edge is not", !inCropOf({ x: 40.8, y: 80, w: 531.4, h: 676.5 })(572.21, 80));
 const delved = zoneRegionData(soundZone(), given, { ...zoneArgs, every: 3, dungeonLevel: 2 }).behaviors[0].system;
 check("a delve's interval and dungeon level ride the behaviour", [delved.encounterEvery, delved.dungeonLevel], [3, 2]);
-check("and remembers which zone it is, covering no cells", outlined.flags[MODULE_ID], { cookbook: { zone: "zy.zone1", book: "zy" }, zoneHexes: [] });
-const hexVerts = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 15, y: 8.6 }, { x: 10, y: 17.3 }, { x: 0, y: 17.3 }, { x: -5, y: 8.6 }];
-const snapped = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 2, j: 3 }, { i: 3, j: 3 }], cells: [hexVerts, [20, 0, 30, 0, 25, 9]] });
-check("with cells it is one polygon per cell, to whole pixels", snapped.shapes, [
-  { type: "polygon", points: [0, 0, 10, 0, 15, 9, 10, 17, 0, 17, -5, 9], hole: false },
-  { type: "polygon", points: [20, 0, 30, 0, 25, 9], hole: false },
+check("and remembers which zone it is", outlined.flags[MODULE_ID], { cookbook: { zone: "zy.zone1", book: "zy" } });
+const snapped = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 2, j: 3 }, { i: 3, j: 3 }] });
+check("with cells it is core's one grid shape over them, so the Regions layer's grid tool edits them", snapped.shapes, [
+  { type: "grid", offsets: [{ i: 2, j: 3 }, { i: 3, j: 3 }], origin: null, hole: false },
 ]);
-check("and records the cells it covers", snapped.flags[MODULE_ID].zoneHexes, [{ i: 2, j: 3 }, { i: 3, j: 3 }]);
-const unvertexed = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 1, j: 1 }], cells: [] });
-check("a cell the grid gave no vertices for falls back to the outline", [unvertexed.shapes.length, unvertexed.flags[MODULE_ID].zoneHexes], [1, []]);
+check("and no flag of its own copies the cells", Object.keys(snapped.flags[MODULE_ID]), ["cookbook"]);
+const malformed = zoneRegionData(soundZone(), given, { ...zoneArgs, hexes: [{ i: 1.5, j: 1 }, { i: "x" }] });
+check("cells core would refuse fall back to the outline", malformed.shapes.map((x) => x.type), ["polygon"]);
 const bareZone = zoneRegionData({ scene: "zz.region", outline: [10, 10, 90, 10, 90, 60] }, given, { name: "Zone", book: "zy", id: "zy.zone2" });
 check("a zone with no list or figures says so with a null list and zeroes", bareZone.behaviors[0].system, {
   tableUuid: null, encounterTarget: 0, encounterEvery: 0, dungeonLevel: 0, journeyCadence: "", dayThrows: 0, nightThrows: 0,

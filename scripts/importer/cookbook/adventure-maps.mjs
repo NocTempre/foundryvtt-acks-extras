@@ -1006,7 +1006,8 @@ async function zoneFigures(bookId, id, row) {
  * carries a Region flagged with its id. The figures are read from the zone's
  * own book; the list is the imported table, or blank until a later run
  * relinks it. On a hex map the outline is snapped to the live grid's cells
- * whose centres it holds, and a zone holding no cell is refused; on any other
+ * whose centres it holds, laid as core's grid shape, and a zone holding no
+ * cell is refused; on any other
  * map the outline is carried through the frame. Counts into `counts`.
  */
 async function ensureZone({ bookId, id, row }, counts) {
@@ -1030,8 +1031,7 @@ async function ensureZone({ bookId, id, row }, counts) {
   const n = Number(/(\d+)$/.exec(id)?.[1]) || 1;
   const name = game.i18n.format(`${LANG_PREFIX}.ui.sceneZone`, { n, book: BOOKS[bookId]?.short ?? bookId.toUpperCase() });
   const source = zoneRegionData(zone, placed, {
-    name, tableUuid: list?.uuid ?? "", ...figures, hexes,
-    cells: hexes.map((h) => scene.grid.getVertices({ i: h.i, j: h.j })), whole: coversCrop(zone.outline, recipe.crop), book: bookId, id,
+    name, tableUuid: list?.uuid ?? "", ...figures, hexes, whole: coversCrop(zone.outline, recipe.crop), book: bookId, id,
   });
   const [made] = (await scene.createEmbeddedDocuments("Region", [source])) ?? [];
   if (!made) return void counts.zonesRefused++;
@@ -1556,7 +1556,10 @@ async function bookAdventureSource(bookId) {
     const lattice = moved ? new Scene({ name: row.name, grid: built.grid }).grid : null;
     for (const region of held?.regions ?? []) {
       if (!zoneIdOf(region) && !linkIdOf(region)) continue;
-      const zone = zoneMovedBy(region.toObject(), moved, lattice ? (p) => lattice.getOffset(p) : null);
+      const zone = zoneMovedBy(region.toObject(), moved, lattice ? {
+        offsetOf: (p) => lattice.getOffset(p),
+        centreOf: (o) => held.grid.getCenterPoint(o),
+      } : {});
       for (const behavior of zone.behaviors ?? []) await tableAt(behavior.system?.tableUuid);
       scene.regions = [...(scene.regions ?? []), zone];
     }

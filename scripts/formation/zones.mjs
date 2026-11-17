@@ -152,6 +152,13 @@ export function regionOutlines(regionDoc) {
         if ((shape.points?.length ?? 0) >= 6) rings.push([...shape.points]);
         break;
       default:
+        // Any other shape (a `grid` shape's cells, a cone, a ring) is read off
+        // core's own outline of it, the tree's solid nodes only.
+        for (const node of shape.polygonTree ?? []) {
+          if (node?.isHole) continue;
+          const points = node?.polygon?.points ?? [];
+          if (points.length >= 6) rings.push([...points]);
+        }
         break;
     }
   }

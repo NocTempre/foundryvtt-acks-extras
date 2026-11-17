@@ -798,6 +798,18 @@ test("a rectangle region becomes its four corners; a hole contributes none", () 
   assert.deepEqual(regionOutlines(region), [[10, 20, 50, 20, 50, 50, 10, 50]]);
 });
 
+test("a grid shape's outline is core's polygon tree, its solid nodes only", () => {
+  // Core's PolygonTree iterates its nodes depth first; a node marks its own hole.
+  const tree = [
+    { isHole: false, polygon: { points: [0, 0, 300, 0, 300, 200, 0, 200] } },
+    { isHole: true, polygon: { points: [100, 50, 200, 50, 200, 150, 100, 150] } },
+  ];
+  const region = { shapes: [{ type: "grid", hole: false, offsets: [{ i: 0, j: 0 }], polygonTree: tree }] };
+  assert.deepEqual(regionOutlines(region), [[0, 0, 300, 0, 300, 200, 0, 200]]);
+  // Without core's geometry (no canvas data), a grid shape outlines nothing rather than throwing.
+  assert.deepEqual(regionOutlines({ shapes: [{ type: "grid", hole: false, offsets: [] }] }), []);
+});
+
 /* -------------------------------------------- */
 /*  The drop row on a wall's own sheet          */
 /* -------------------------------------------- */

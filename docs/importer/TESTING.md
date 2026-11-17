@@ -2376,9 +2376,9 @@ it by that collection id, and only if its index is empty by then.
    - a zone the world laid over a map is among that scene's regions, and its
      list is in `o.tables`. Where the world map's picture corner
      (`dimensions.sceneX/Y`) differs from the Adventure scene's, as on a map
-     made before grid maps carried `GRID_SCENE_PADDING`, each zone polygon is
-     moved by the difference and its centroid lies in the cell its
-     `zoneHexes` names on the Adventure scene's lattice;
+     made before grid maps carried `GRID_SCENE_PADDING`, a zone's grid
+     shape names, on the Adventure scene's lattice, the cells under the world
+     map's cells moved by the difference;
    - tokens are all hidden; `active` and `navigation` are false; `thumb` is
      null;
    - every carried document has `ownership.default === 0`;
@@ -2647,8 +2647,17 @@ a mocked lattice; only a live run proves core's grid answers the same way.
    *Observable:* each carries an `acks-extras.encounterZone` behaviour whose
    `tableUuid` resolves to its row's list, whose target and day and night
    throws match the zone's printed figures on the Judge's own page (compare
-   by eye; never copy the figures into a report), and whose shapes cover the
+   by eye; never copy the figures into a report), and whose one shape is
+   core's `grid` shape (`r.shapes[0].type === "grid"`), its `offsets` the
    hexes inside the zone's printed outline. Visible to the GM only.
+   *Reachable:* on the Regions layer, unlock the zone, open its config and
+   remove one cell with core's grid shape tool (scripted:
+   `r.update({shapes: [{...r.shapes[0].toObject(), offsets: kept}]})`, the
+   same write the tool makes). *Observable:* the region's `testPoint` at
+   that cell's centre answers false, and
+   `acksExtras.formation.encounters.journeyZones(formation)` for a party
+   whose token stands there lists no layer from it; put the cell back and
+   both answer as before.
 7. A site token stands on its hex: each hidden token sits on the printed site
    marker, its centre inside the marker's hex; a market-bound site's token is
    the market's place.
