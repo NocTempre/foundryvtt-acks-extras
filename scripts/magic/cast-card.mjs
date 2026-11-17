@@ -28,6 +28,7 @@ import { DAMAGE_TYPES } from "../lib/vocab.mjs";
 import { defenseCiteOf, defenseWord, namesDefense } from "../lib/attack-apply.mjs";
 import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
+import { instancesTip } from "./cast-instances.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
 export const CAST_CARD_FLAG = "castCard";
@@ -80,12 +81,42 @@ function appliedTip(entry, loc, named) {
   return lines.join(" · ");
 }
 
-/** A row's figure tooltip: its dice and the page the procedure is cited to; the citation alone for a blank figure. */
+/**
+ * The tooltip of an entry whose instances were thrown: each hit's roll and what it
+ * applied (a hit's steps, as `appliedTip` tells them), with every throw's figures
+ * where there are several, and the total they came to.
+ */
+function instancesEntryTip(entry, loc, named) {
+  const many = entry.instances.length > 1;
+  const lines = entry.instances
+    .filter((i) => i.state !== "throw")
+    .map((i) => {
+      const thrown = many && i.throw ? loc("detail.throw", { total: i.throw.total, target: i.throw.target }) : "";
+      const result = i.state === "missed" ? loc("state.missed") : appliedTip({ ...i, fraction: entry.fraction }, loc, named);
+      return [thrown, result].filter(Boolean).join(" · ");
+    })
+    .filter(Boolean);
+  if (many && entry.applied != null) lines.push(loc("tip.appliedTotal", { applied: entry.applied }));
+  return entry.applied == null ? "" : lines.join("; ");
+}
+
+/** What an entry's line says of its throws: the one throw's figures, or how many of the throws hit. */
+function throwDetail(entry, loc) {
+  if (Array.isArray(entry?.instances)) {
+    const thrown = entry.instances.filter((i) => i.state !== "throw");
+    if (entry.instances.length === 1) return thrown[0]?.throw ? loc("detail.throw", { total: thrown[0].throw.total, target: thrown[0].throw.target }) : "";
+    return thrown.length ? loc("detail.instances", { hits: thrown.filter((i) => i.throw?.hit).length, count: entry.instances.length }) : "";
+  }
+  return entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "";
+}
+
+/** A row's figure tooltip: its dice and the page the procedure is cited to; the citation alone for a blank figure. A count the import gave names its parts first. */
 function rollTip(row, card, loc) {
   const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
-  if (row.total == null) return cite;
+  const count = instancesTip(row.count, card.cite, loc);
+  if (row.total == null) return count || cite;
   const dice = loc("tip.roll", { formula: row.formula, detail: row.detail || row.total, total: row.total });
-  return [dice, cite].filter(Boolean).join(" · ");
+  return [dice, count || cite].filter(Boolean).join(" · ");
 }
 
 /**
@@ -172,11 +203,11 @@ export function castCardView(card, seat, loc) {
             name: target.name,
             total: done && entry.applied != null ? entry.applied : "—",
             // A defense the module does not price leaves the entry to the Judge: its line names the defense and the tooltip is the page reference alone.
-            tooltipText: judged ? defenseCiteOf(judged) : entry ? appliedTip(entry, loc, named) : "",
+            tooltipText: judged ? defenseCiteOf(judged) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : "",
             // The Judge applies it by hand, so the figure rolled stays on the line beside the defense.
             detail: [
               judged ? loc("detail.judgeDefense", { defense: defenseWord(judged, named), cite: defenseCiteOf(judged) }) : "",
-              entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "",
+              throwDetail(entry, loc),
             ]
               .filter(Boolean)
               .join(" · "),
@@ -195,7 +226,7 @@ export function castCardView(card, seat, loc) {
         name: loc("noTarget"),
         total: row.total ?? "—",
         tooltipText: isMod ? partTip(row, card, "", loc) : rollTip(row, card, loc),
-        actions: needsThrow && seat.canPress ? [{ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data: { row: rowKey } }] : [],
+        actions: needsThrow && !row.blank && seat.canPress ? [{ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data: { row: rowKey } }] : [],
       });
     }
     const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";

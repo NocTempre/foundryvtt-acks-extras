@@ -76,6 +76,22 @@
     {{/if}}
   </section>
 
+  {{#each splits}}
+  <fieldset class="acks-extras-cast-split" data-cast-for="{{mode}}" data-alloc-row="{{key}}" data-alloc-count="{{count}}"{{#if pick}} data-alloc-pick="{{pick}}" data-alloc-option="{{option}}"{{/if}} data-tooltip-text="{{tip}}">
+    <legend>{{label}}</legend>
+    <p class="hint">{{rowLabel}}</p>
+    {{#each inputs}}
+    <div class="form-group">
+      <label>
+        <span>{{name}}</span>
+        <input type="number" min="0" step="1" value="{{value}}" data-alloc-index="{{index}}">
+      </label>
+    </div>
+    {{/each}}
+    <p class="hint" data-alloc-over data-alloc-severity="{{severity}}" hidden>{{over}}</p>
+  </fieldset>
+  {{/each}}
+
   {{#if rangeNote}}<p class="hint">{{rangeNote}}</p>{{/if}}
 
   {{#each verdicts}}

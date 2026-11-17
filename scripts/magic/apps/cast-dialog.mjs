@@ -7,7 +7,10 @@
  * weapons, a situational modifier for the targets' saves, the card's
  * visibility, the targets the seat has, and each verdict that stands in the
  * way. A verdict that blocks a Player disables the Cast button for the form
- * it belongs to; a Judge reads it as a warning. The range verdict's tooltip
+ * it belongs to; a Judge reads it as a warning. Where a thrown row's count is
+ * above one and several targets are had, a split of its throws among them is
+ * offered, defaulting to round-robin; a split over the count shows its verdict
+ * as the seat types, and blocks a Player the same way. The range verdict's tooltip
  * names the targets out of range, each distance and the range's parts, and a
  * note says where the range could not be measured. Cancel and a closed window
  * both answer null, so nothing is spent.
@@ -17,6 +20,7 @@
  */
 import { MODULE_ID } from "../constants.mjs";
 import { describeSpellEffect } from "../describe.mjs";
+import { instancesTip } from "../cast-instances.mjs";
 
 const TEMPLATE = `modules/${MODULE_ID}/templates/magic/cast-dialog.hbs`;
 
@@ -49,7 +53,24 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
   }
   const level = ctx.level ?? {};
   const cap = ctx.capacity;
+  // A thrown row's split of its throws among the targets, one figure per target by position.
+  const splits = (ctx.modes ?? []).flatMap((m) =>
+    (ctx.instances?.[m] ?? []).map((item) => ({
+      mode: m,
+      key: item.key,
+      pick: item.pick,
+      option: item.option,
+      count: item.count.value,
+      label: loc("dialog.allocate", { count: item.count.value }),
+      rowLabel: describeSpellEffect(item.row).text,
+      tip: instancesTip(item.count, ctx.cite ?? "", loc),
+      inputs: (ctx.targets ?? []).map((t, index) => ({ index, name: t.name, value: item.split?.[String(index)] ?? 0 })),
+      severity: ctx.isGM ? "warn" : "block",
+      over: loc(`notice.${ctx.isGM ? "verdict" : "blocked"}.tooManyInstances`, { name: ctx.caster?.name ?? "", max: item.count.value, over: "" }),
+    })),
+  );
   return {
+    splits,
     hasModes: (ctx.modes?.length ?? 0) > 1,
     modes: (ctx.modes ?? []).map((key) => ({ key, label: modeLabel(key), selected: key === mode })),
     groups,
@@ -85,9 +106,15 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
   };
 }
 
-/** Show the selected mode's form alone, and gate the Cast button on that mode's blocking verdicts. */
+/**
+ * Show the selected mode's form alone, and gate the Cast button on that mode's
+ * blocking verdicts. A throw split belongs to its form and, where it belongs to
+ * a choice, to the option chosen; its total is read as the seat types, and a
+ * total over the row's count shows its verdict and stops a Player.
+ */
 function bind(root, { isGM }) {
   const select = root.querySelector?.("[data-cast-mode]");
+  const picks = [...(root.querySelectorAll?.("select[data-pick]") ?? [])];
   const sync = () => {
     const mode = select?.value ?? root.querySelector?.("[data-cast-for]")?.dataset.castFor;
     let stopped = false;
@@ -96,10 +123,22 @@ function bind(root, { isGM }) {
       el.hidden = !here;
       if (here && !isGM && el.querySelector?.('[data-severity="block"]')) stopped = true;
     }
+    for (const group of root.querySelectorAll?.("[data-alloc-row]") ?? []) {
+      const chosen = group.dataset.allocPick ? picks.find((p) => p.dataset.pick === group.dataset.allocPick) : null;
+      const here = (!mode || group.dataset.castFor === mode) && (!chosen || chosen.value === group.dataset.allocOption);
+      group.hidden = !here;
+      const total = [...group.querySelectorAll("input[data-alloc-index]")].reduce((sum, input) => sum + (Number.isInteger(Number(input.value)) && Number(input.value) > 0 ? Number(input.value) : 0), 0);
+      const over = total > Number(group.dataset.allocCount);
+      const note = group.querySelector("[data-alloc-over]");
+      if (note) note.hidden = !over;
+      if (here && over && !isGM) stopped = true;
+    }
     const cast = root.querySelector?.('button[data-action="cast"]');
     if (cast) cast.disabled = stopped;
   };
   select?.addEventListener("change", sync);
+  for (const pick of picks) pick.addEventListener("change", sync);
+  for (const input of root.querySelectorAll?.("input[data-alloc-index]") ?? []) input.addEventListener("input", sync);
   sync();
 }
 
@@ -107,8 +146,8 @@ function bind(root, { isGM }) {
 export class CastDialog {
   /**
    * Ask for a cast's choices.
-   * @param {object} ctx  the cast's context: `spell`, `modes`, `groups`, `level`, `levelNeeded`, `weapons`, `needsWeapon`, `targets`, `saves`, `verdicts`, `capacity`, `isGM`
-   * @returns {Promise<{mode: string, picks: Record<string, string>, item: string, casterLevel: string, situational: string, visibility: string}|null>}
+   * @param {object} ctx  the cast's context: `spell`, `modes`, `groups`, `level`, `levelNeeded`, `weapons`, `needsWeapon`, `targets`, `instances`, `saves`, `verdicts`, `capacity`, `isGM`
+   * @returns {Promise<{mode: string, picks: Record<string, string>, allocation: Record<string, Record<string, string>>, item: string, casterLevel: string, situational: string, visibility: string}|null>}
    */
   static async wait(ctx) {
     const modeLabel = (key) => loc(`dialog.mode.${key}`);
@@ -133,7 +172,14 @@ export class CastDialog {
             const form = button.form;
             const picks = {};
             for (const el of form.querySelectorAll("select[data-pick]")) picks[el.dataset.pick] = el.value;
+            // The split of each shown row's throws, by target position; a form or option not chosen is hidden and answers none.
+            const allocation = {};
+            for (const input of form.querySelectorAll("[data-alloc-row]:not([hidden]) input[data-alloc-index]")) {
+              const row = input.closest("[data-alloc-row]").dataset.allocRow;
+              (allocation[row] ??= {})[input.dataset.allocIndex] = input.value;
+            }
             return {
+              allocation,
               mode: form.elements.mode?.value ?? ctx.modes[0],
               picks,
               item: form.querySelector("[data-cast-for]:not([hidden]) select[data-weapon]")?.value ?? "",

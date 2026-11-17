@@ -19,7 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, CAST_MODES } from "./cast-rows.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, CAST_MODES } from "./cast-rows.mjs";
 import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
@@ -33,6 +33,8 @@ import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } 
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
 import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
+import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
+import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
@@ -86,8 +88,17 @@ export function castDurationOf(spell, lookups, level, roll) {
   return castDuration(duration, { casterLevel: level, roll });
 }
 
-/** The roll spec of one row, as the cast and its relay both read it: a damage row through lib's magic question, a heal row its own dice. */
-export async function rowSpecOf(caster, spell, card, { row, key }) {
+/**
+ * The roll spec of one row, as the cast and its relay both read it: a damage row
+ * through lib's magic question, a heal row its own dice. A row with no throw
+ * rolls once for all its instances, so its roll is scaled by its count at the
+ * card's caster level (`cast-instances.mjs`), here, where both clients read it,
+ * so the roll and its bounds are one formula. A row with a throw is the spec of
+ * one instance.
+ */
+export async function rowSpecOf(caster, spell, card, keyed) {
+  const row = rowNeedsThrow(keyed.row) ? keyed.row : instanceRow(keyed.row, card.casterLevel?.value);
+  const { key } = keyed;
   if (row.type === "heal") return row.roll ? { formula: String(row.roll), data: caster.getRollData?.() ?? {} } : null;
   if (row.type !== "damage") return null;
   const carrier = spellCarrier(caster, row, { spell, castId: card.castId, rowKey: key });
@@ -272,15 +283,22 @@ const liveDeps = () => ({
   record: async (caster, data) => caster.createEmbeddedDocuments("ActiveEffect", [data]),
   endHeld: endCasterHeld,
   declare: liveDeclare(),
-  throwRow: async (caster, carrier, skipDialog) => caster.makeAttackThrow({ item: carrier, attackType: MAGIC_ATTACK_TYPE, skipDialog }),
+  // One core throw, with the seat's targets narrowed to the token it is for and restored after; a token off the viewed scene is not thrown at.
+  throwRow: async (caster, carrier, skipDialog, token = null) => {
+    const run = () => caster.makeAttackThrow({ item: carrier, attackType: MAGIC_ATTACK_TYPE, skipDialog });
+    if (!token) return run();
+    const done = await withOnlyTarget(token, run);
+    return done.ok ? done.value : OFF_SCENE;
+  },
   now: () => game.time.worldTime,
   isGM: () => game.user.isGM,
 });
 
-/** The card's row, as the card keeps it. */
-const cardRow = (keyed, rolled) => ({
+/** The card's row, as the card keeps it; `count` is a damage or heal row's instance count (`cast-instances.mjs`). */
+const cardRow = (keyed, rolled, count = null) => ({
   type: keyed.row.type,
   key: keyed.key,
+  ...(count ? { count } : {}),
   types: Array.from(keyed.row.damage ?? []),
   extraordinary: keyed.row.extraordinary === true,
   formula: rolled.formula ?? "",
@@ -343,10 +361,32 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const known = casterLevel(world.level);
   // What the range and the target count say of the targeted tokens at a caster level.
   const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: world.tokens, gaps: world.gaps });
-  const verdictsFor = (mode, picks, levelValue) => {
-    const reach = reachAt(levelValue);
-    return castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count });
+  // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count).
+  const instancesFor = (mode, picks, levelValue, typed = null) => {
+    const counts = {};
+    const assigned = {};
+    for (const { row, key } of rowsForMode(all, mode, picks)) {
+      if (!rowNeedsThrow(row)) continue;
+      counts[key] = instanceCount(row, levelValue).value;
+      const split = counts[key] > 1 && typed?.[key] ? wholeSplit(typed[key]) : null;
+      // A typed split counts only the targets the seat has.
+      assigned[key] = split ? assignedOf(Object.fromEntries(Object.entries(split).filter(([i]) => Number(i) < world.tokens.length))) : (counts[key] ?? 0);
+    }
+    return { counts, assigned };
   };
+  const verdictsFor = (mode, picks, levelValue, typed = null) => {
+    const reach = reachAt(levelValue);
+    return castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed) });
+  };
+  // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each.
+  const splitsFor = (mode) =>
+    world.tokens.length < 2
+      ? []
+      : rowsOfMode(all, mode).flatMap(({ row, key }) => {
+          if (!rowNeedsThrow(row)) return [];
+          const count = instanceCount(row, known.value);
+          return count.value > 1 ? [{ key, row, count, pick: String(row.pick ?? "").trim(), option: optionTokenOf(row, key), split: allocate(count.value, world.tokens.map((_, i) => String(i))) }] : [];
+        });
   // One targeted token can bear a weapon buff, and the dialog lists its weapons.
   const bearerToken = world.tokens.length === 1 ? world.tokens[0] : null;
   // A declaration being resolved answers for itself; the dialog opens only where its stored weapon is not one of the one target's.
@@ -361,13 +401,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m)])),
     level: known,
-    levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m))),
+    // `levelNeeded` reads the rows themselves, not the keyed pairs.
+    levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m).map(({ row }) => row))),
     weapons: bearerToken ? weaponsOf(bearerToken.actor) : [],
     needsWeapon: Object.fromEntries(modeKeys.map((m) => [m, needsBearer(rowsForMode(all, m, {}))])),
     targets: world.tokens.map(targetOf),
     saves: spellSaves(extras.save),
     capacity: world.capacity,
     verdicts: Object.fromEntries(modeKeys.map((m) => [m, verdictsFor(m, {}, known.value)])),
+    // Per form, the thrown rows a seat with several targets may split, each with its count and the default split by target position.
+    instances: Object.fromEntries(modeKeys.map((m) => [m, splitsFor(m)])),
     rangeUnmeasured: moment !== MOMENT.declare && reachAt(known.value).range.unmeasured,
     cite: figures.cite || extras.cite || "",
     isGM,
@@ -380,7 +423,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   const kept = rowsForMode(all, mode, answer.picks);
   const level = casterLevel({ ...world.level, override: answer.casterLevel });
-  const verdicts = verdictsFor(mode, answer.picks, level.value);
+  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
   if (blocked(verdicts)) {
@@ -423,6 +466,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     order: [],
     targets: {},
     entries: {},
+    // A thrown row's throws by target key: `{[rowKey]: {[targetKey]: throws}}`.
+    allocation: {},
     lines: [],
   };
   // The weapon the seat named, kept only where exactly one token is targeted and the weapon is one of its own.
@@ -434,12 +479,14 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     const { row } = keyed;
     if (isModRow(row)) continue;
     if (row.type === "damage" || row.type === "heal") {
+      const count = instanceCount(row, level.value);
       if (rowNeedsThrow(row)) {
-        card.rows[keyed.key] = cardRow(keyed, {});
+        // A thrown row whose count the import left blank is thrown at nobody: the card carries the page reference alone.
+        card.rows[keyed.key] = { ...cardRow(keyed, {}, count), ...(count.value == null ? { blank: true } : {}) };
       } else {
         const rolled = await rollRow(caster, spell, card, keyed);
         if (rolled.roll) rolls.push(rolled.roll);
-        card.rows[keyed.key] = cardRow(keyed, rolled);
+        card.rows[keyed.key] = cardRow(keyed, rolled, count);
       }
       card.order.push(keyed.key);
     } else if (row.type === "conditionGrant") {
@@ -471,14 +518,21 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     card.yields = Object.fromEntries(Object.entries(yields).map(([rowKey, to]) => [entryId(bearerKey, rowKey), to]));
   }
 
-  // A thrown row is thrown at the one target the seat has; with none its card carries a Throw press.
+  // A thrown row is thrown as many times as its count, split among the targets (the seat's split, else round-robin), one at a time; with no target its card carries a Throw press.
   const thrown = kept.filter(({ row }) => rowNeedsThrow(row));
-  const first = Object.entries(card.targets).find(([, t]) => !t.self);
+  const targetKeys = Object.entries(card.targets).filter(([, t]) => !t.self).map(([k]) => k);
   for (const keyed of thrown) {
-    if (!first) continue;
-    const entry = await throwEntry({ caster, spell, card, keyed, deps, skipDialog: options.skipDialog === true });
-    card.entries[entryId(first[0], keyed.key)] = entry.entry;
-    Object.assign(card.rows[keyed.key], entry.row);
+    const count = card.rows[keyed.key].count.value;
+    if (!targetKeys.length || count == null) continue;
+    const split = splitFor(count, targetKeys, answer.allocation?.[keyed.key]);
+    card.allocation[keyed.key] = Object.fromEntries(Object.entries(split).filter(([, n]) => n > 0));
+    for (const targetKey of targetKeys) {
+      if (!split[targetKey]) continue;
+      const token = world.tokens.find((t) => t.uuid === card.targets[targetKey].uuid) ?? null;
+      const made = await throwEntry({ caster, spell, card, keyed, deps, skipDialog: options.skipDialog === true, token, instances: waitingInstances(split[targetKey]) });
+      card.entries[entryId(targetKey, keyed.key)] = made.entry;
+      Object.assign(card.rows[keyed.key], made.row);
+    }
   }
 
   // A concentration leaves a caster record whatever the rows are: the status held, the tail it outlasts by, flag-timed by its cap where it has one.
@@ -501,20 +555,23 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   return { ok: true, castId, messageId: message?.id, applied: results };
 }
 
-/** One thrown row at the first target: the throw's entry and what it adds to the card's row. */
-async function throwEntry({ caster, spell, card, keyed, deps, skipDialog }) {
-  const carrier = spellCarrier(caster, keyed.row, { spell, castId: card.castId, rowKey: keyed.key });
-  const outcome = await deps.throwRow(caster, carrier, skipDialog);
-  if (!outcome) return { entry: { state: "throw" }, row: {} };
-  const resolution = outcome.resolution ?? {};
-  const made = { total: Number(outcome.attackRoll?.total), target: Number(resolution.targetValue) };
-  const throwFigures = { ...made, hit: resolution.isHit === true, critical: resolution.isCritical === true };
-  if (!resolution.isHit) return { entry: { state: "missed", throw: throwFigures }, row: {} };
-  const damage = outcome.damageRoll;
-  return {
-    entry: { state: "pending", rolled: outcome.damageTotal, critical: throwFigures.critical, throw: throwFigures },
-    row: { formula: damage?.formula ?? "", total: outcome.damageTotal, detail: String(damage?.result ?? outcome.damageTotal) },
-  };
+/**
+ * One thrown row at one target: its instances thrown in turn, each core throw
+ * aimed at that one token, and the entry they leave with what it adds to the
+ * card's row. An instance whose throw is cancelled, or whose token is off the
+ * viewed scene (said in a notice), stays at Throw with those after it. The card
+ * row takes the damage roll's figures where the row is one throw; a count above
+ * one has no single roll to show, so only the formula is kept.
+ */
+async function throwEntry({ caster, spell, card, keyed, deps, skipDialog, token, instances }) {
+  const done = await throwInstances(instances, () => {
+    const carrier = spellCarrier(caster, keyed.row, { spell, castId: card.castId, rowKey: keyed.key });
+    return deps.throwRow(caster, carrier, skipDialog, token);
+  });
+  if (done.stopped === "offScene") deps.notify?.("warn", "offScene", { name: token?.name ?? "" });
+  const single = (card.rows?.[keyed.key]?.count?.value ?? 1) === 1;
+  const row = !done.damage ? {} : single ? done.damage : { formula: done.damage.formula };
+  return { entry: { state: instancesState(done.instances), instances: done.instances }, row };
 }
 
 /** Apply every target's open entries, on the right client each. An entry that cannot be applied stays pending. */
@@ -522,9 +579,7 @@ async function applyAll(message, deps) {
   const results = [];
   for (const [targetKey] of Object.entries(cardOf(message)?.targets ?? {})) {
     const card = cardOf(message);
-    const requests = Object.entries(card.entries)
-      .filter(([id, e]) => id.startsWith(`${targetKey}_`) && e.state === "pending")
-      .map(([id, e]) => ({ rowKey: id.slice(targetKey.length + 1), rolled: e.rolled ?? card.rows[id.slice(targetKey.length + 1)]?.total, critical: e.critical === true }));
+    const requests = pendingRequests(card, targetKey);
     if (!requests.length) continue;
     const done = await deps.apply(message, targetKey, requests);
     if (!done?.ok) deps.notify("warn", done?.reason === "noGm" ? "noGm" : "pendingApply", { name: card.targets[targetKey].name });
@@ -566,7 +621,7 @@ async function pressApply(message, { target, row }) {
   if (!canPressCard(message)) return;
   if (target) {
     const entry = card.entries[entryId(target, row)];
-    const result = await requestApply(message, target, [{ rowKey: row, rolled: entry?.rolled ?? card.rows[row]?.total, critical: entry?.critical === true }]);
+    const result = await requestApply(message, target, [requestOf(row, entry, card)]);
     if (!result.ok) ui.notifications?.warn(loc(`notice.${result.reason === "noGm" ? "noGm" : "pendingApply"}`, { name: card.targets[target]?.name ?? "" }));
   }
 }
@@ -586,14 +641,17 @@ async function pressApplyTargets(message) {
   await addTargets(message, built.targets, built.entries);
   const fresh = cardOf(message);
   for (const targetKey of Object.keys(built.targets)) {
-    const requests = Object.entries(fresh.entries)
-      .filter(([id, e]) => id.startsWith(`${targetKey}_`) && e.state === "pending")
-      .map(([id]) => ({ rowKey: id.slice(targetKey.length + 1), rolled: fresh.rows[id.slice(targetKey.length + 1)]?.total }));
+    const requests = pendingRequests(fresh, targetKey);
     if (requests.length) await requestApply(message, targetKey, requests);
   }
 }
 
-/** A Throw press: the presser's first target is thrown at, and a hit applies. */
+/**
+ * A Throw press: the instances still waiting at the target are thrown, each at
+ * that one token, and the hits apply once none waits. With no target on the card
+ * the presser's first target takes all the row's throws, and the card keeps that
+ * split.
+ */
 async function pressThrow(message, { target, row }) {
   const card = cardOf(message);
   const { spell, caster, keyed } = rowOfCard(card, row);
@@ -602,12 +660,18 @@ async function pressThrow(message, { target, row }) {
     ui.notifications?.warn(loc("notice.noTargets"));
     return;
   }
-  const made = await throwEntry({ caster, spell, card, keyed, deps: liveDeps(), skipDialog: false });
   const targetKey = target || newTargetKey();
-  if (!target) await addTargets(message, { [targetKey]: { ...targetOf(token), resist: null } }, {});
+  const held = target ? card.entries?.[entryId(target, row)] : null;
+  // An entry from before instances held one throw waiting; a row with no target yet takes all its throws at the presser's token.
+  const instances = Array.isArray(held?.instances) ? held.instances : waitingInstances(held ? 1 : (card.rows[row]?.count?.value ?? 1));
+  const made = await throwEntry({ caster, spell, card, keyed, deps: liveDeps(), skipDialog: false, token, instances });
+  if (!target) {
+    await addTargets(message, { [targetKey]: { ...targetOf(token), resist: null } }, {});
+    await message.update({ [`flags.${MODULE_ID}.castCard.allocation.${row}.${targetKey}`]: instances.length });
+  }
   await updateEntry(message, entryId(targetKey, row), made.entry);
-  if (made.row.total != null) await message.update({ [`flags.${MODULE_ID}.castCard.rows.${row}`]: { ...card.rows[row], ...made.row } });
-  if (made.entry.state === "pending") await requestApply(message, targetKey, [{ rowKey: row, rolled: made.entry.rolled, critical: made.entry.critical === true }]);
+  if (Object.keys(made.row).length) await message.update({ [`flags.${MODULE_ID}.castCard.rows.${row}`]: { ...card.rows[row], ...made.row } });
+  if (made.entry.state === "pending") await requestApply(message, targetKey, [requestOf(row, made.entry, card)]);
 }
 
 /** An Undo press: the Judge's. */

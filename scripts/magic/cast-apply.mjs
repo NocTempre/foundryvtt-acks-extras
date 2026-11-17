@@ -38,6 +38,7 @@ import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resist
 import { spellEffectData } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
+import { instanceCount, assignedOf } from "./cast-instances.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -140,6 +141,31 @@ export function missingGroupKeys(card, targetKey, requests, rows) {
 }
 
 /**
+ * Check the hits a request names for one thrown row of one target. The count is
+ * recomputed from the spell's own row at the card's caster level, the card's
+ * split of it among the targets may not exceed it, a target's hits may not
+ * exceed the hits its entry holds, and each hit is within the bounds of the
+ * row's one roll (`boundsOf`, critical or not).
+ *
+ * @returns {string|null}  the refusal, or null
+ */
+function checkInstances(card, targetKey, keyed, e, stored, world) {
+  if (!Array.isArray(e.instances) || !e.instances.length) return "badAmount";
+  const count = instanceCount(keyed.row, card.casterLevel?.value).value;
+  if (count == null) return "badRow";
+  const split = card.allocation?.[keyed.key];
+  if (split && assignedOf(split) > count) return "tooManyInstances";
+  const room = Array.isArray(stored?.instances) ? stored.instances.filter((i) => i.state === "pending").length : (split?.[targetKey] ?? count);
+  if (e.instances.length > room) return "tooManyInstances";
+  for (const hit of e.instances) {
+    const bounds = world.boundsOf(keyed, hit?.critical === true);
+    const rolled = Number(hit?.rolled);
+    if (!bounds || !Number.isFinite(rolled) || rolled < bounds.min || rolled > bounds.max) return "badAmount";
+  }
+  return null;
+}
+
+/**
  * Check a relayed request before the GM's client writes anything. Pure: the
  * world's answers arrive in `world`.
  *
@@ -185,6 +211,15 @@ export function checkApplyRequest(req, world) {
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
     // A modifier or ward row has no amount: its figure is the spell's, read at the roll.
     if (row.row.type === "conditionGrant" || isModRow(row.row)) continue;
+    if (rowNeedsThrow(row.row)) {
+      const stored = card.entries?.[entryId(req.targetKey, e.rowKey)];
+      // An entry holding instances is applied by its hits; a request that names none, or more than the entry holds, is not its entry.
+      if (Array.isArray(e.instances) || Array.isArray(stored?.instances)) {
+        const refused = checkInstances(card, req.targetKey, row, e, stored, world);
+        if (refused) return { refused };
+        continue;
+      }
+    }
     const bounds = world.boundsOf(row, e.critical === true);
     const rolled = Number(e.rolled);
     if (!bounds || !Number.isFinite(rolled) || rolled < bounds.min || rolled > bounds.max) return { refused: "badAmount" };
@@ -257,7 +292,9 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
       }
       const existing = card.entries?.[id] ?? {};
       const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? card.rows?.[r.rowKey]?.total);
-      const entry = await applyRow({ card, keyed, rolled, resist, found, deps, existing });
+      // A thrown row's hits: the request's, else the ones its entry holds; null for any row that is not applied by instances.
+      const hits = Array.isArray(r.instances) ? r.instances : rowNeedsThrow(keyed.row) && Array.isArray(existing.instances) ? existing.instances.filter((i) => i.state === "pending") : null;
+      const entry = await applyRow({ card, keyed, rolled, hits, resist, found, deps, existing });
       await deps.writeEntry(id, entry);
       out.push({ id, entry });
     }
@@ -302,9 +339,10 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
 }
 
 /** One row on one target: the entry it leaves. `keyed` is the spell's own row. */
-async function applyRow({ card, keyed, rolled, resist, found, deps, existing }) {
+async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps, existing }) {
   const { row, key } = keyed;
   const by = deps.by ?? null;
+  if (hits) return applyInstances({ card, keyed, hits, resist, found, deps, existing });
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
   if (row.type === "conditionGrant") {
     const made = saveFractionOf(row, card.save, resist);
@@ -323,6 +361,44 @@ async function applyRow({ card, keyed, rolled, resist, found, deps, existing }) 
   if (amount.applied > 0 && found.hpTarget) {
     const mode = row.type === "heal" ? HP_MODE.heal : HP_MODE.damage;
     const [result] = await deps.adjustHp([{ target: found.hpTarget, amount: amount.applied, multiplier: 1 }], { mode });
+    if (!result?.ok) return { ...entry, state: "refused", before, after: before, why: result?.why ?? "failed" };
+    return { ...entry, before: result.before, after: result.after, targetUuid: found.hpTarget.key };
+  }
+  return { ...entry, before, after: before, targetUuid: found.hpTarget?.key ?? null };
+}
+
+/**
+ * A thrown row's hits on one target as one entry: each hit rounds and meets the
+ * target's defenses alone (`amountOf`), the amounts are summed, and one
+ * `adjustHp` writes the sum, so one Undo takes it back. A hit the module cannot
+ * compute makes the whole entry the Judge's and writes nothing. The entry keeps
+ * every instance, the missed ones as they were thrown and each hit with what it
+ * applied.
+ */
+async function applyInstances({ card, keyed, hits, resist, found, deps, existing }) {
+  const { row } = keyed;
+  const by = deps.by ?? null;
+  const defenses = deps.defenses ? deps.defenses(found.actor) : { sources: actorDefenses(found.actor), figures: defenseFigures() };
+  const amounts = hits.map((hit) => amountOf(row, card, resist, Number(hit.rolled), defenses));
+  const held = Array.isArray(existing.instances) && existing.instances.length ? existing.instances : hits.map((hit) => ({ ...hit, state: "pending" }));
+  const judged = amounts.find((a) => a.judge);
+  const first = amounts[0];
+  let next = 0;
+  const instances = held.map((inst) => {
+    if (inst.state !== "pending" || next >= hits.length) return inst;
+    const at = next++;
+    const made = amounts[at];
+    const hit = { ...inst, rolled: Number(hits[at].rolled), critical: hits[at].critical === true };
+    // A judged entry writes nothing, so none of its hits reads as applied.
+    if (judged) return made.judge ? { ...hit, state: "judge", ...(made.defense ? { defense: made.defense } : {}) } : hit;
+    return { ...hit, state: "applied", applied: made.applied, steps: made.steps };
+  });
+  if (judged) return { by, state: "judge", saved: judged.saved, instances, ...(judged.defense ? { fraction: judged.fraction, defense: judged.defense } : {}) };
+  const applied = amounts.reduce((sum, a) => sum + a.applied, 0);
+  const entry = { by, state: "applied", saved: first?.saved ?? null, fraction: first?.fraction ?? null, applied, instances };
+  const before = found.hpTarget?.hp?.value ?? null;
+  if (applied > 0 && found.hpTarget) {
+    const [result] = await deps.adjustHp([{ target: found.hpTarget, amount: applied, multiplier: 1 }], { mode: HP_MODE.damage });
     if (!result?.ok) return { ...entry, state: "refused", before, after: before, why: result?.why ?? "failed" };
     return { ...entry, before: result.before, after: result.after, targetUuid: found.hpTarget.key };
   }

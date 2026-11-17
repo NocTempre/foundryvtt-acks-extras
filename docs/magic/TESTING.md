@@ -596,6 +596,62 @@ which path ran. The walk never writes a figure into the Ruledata Browser.
     writes once and Undo puts the hit points back. A carrier's card (a spell's
     thrown row) has no block, since the cast applies it.
 
+### Instances
+
+Walked by `tools/live/magic-cast-widen.mjs` after the defense steps, with the
+fixtures of "Fixtures" and these. The spells are copies of imported spells on
+the caster whose rows the walk reshapes from the library original's flag, as the
+buff steps do: the walk writes the counts, caps and rolls it needs, so every
+figure it asserts is one it wrote and no printed count appears in the recipe.
+
+| Marker | What it is |
+|---|---|
+| `magic/widen-spell-<id>` | A copy of an imported spell on `magic/cast-caster` with one damage row carrying a `delivery`, a flat roll and a per-level `value` with a flat `max` (both written by the walk), and a second copy with the same row and no `delivery`. `<id>` is the cookbook id the copy came from. |
+| `magic/widen-target-a`, `-b` | Monsters only the GM owns, each reset to 40 hit points, with a linked token on `magic/cast-scene`. |
+| `magic/widen-token-off` | A token of `magic/widen-target-b` on a second scene that is not in view. |
+
+Each step asserts the shape it needs at its start (hit points, no record on a
+target, the row's count and cap) and never relies on the last step's leavings.
+
+1. Cast the thrown copy at two targeted tokens, the caster level raised past
+   the cap. *Observable:* the dialog offers a split with one input per target,
+   defaulting to round-robin; its tooltip names the count, the caster level, the
+   cap and the page; the card's row holds the count equal to the cap, and
+   `card.allocation[rowKey]` the typed split, summing to the count.
+2. Type a split that sums to one more than the count. *Observable:* the Player's
+   dialog shows the verdict as a block, Cast disabled and nothing spent after
+   Cancel; the Judge's shows a warning and Cast stays on, and the Judge's cast
+   throws the split as typed.
+3. Cast with the dice rigged to alternate hit and miss across the throws.
+   *Observable:* one core attack card per instance, in order, each aimed at its
+   own target (the card names that token); one entry per target and row holding
+   one instance per allotted throw; the amount applied is the sum of each hit
+   rounded alone through that target's defenses, the token's hit points fall by
+   exactly that sum in one write, and one Undo restores them. The seat's targets
+   after the cast equal the targets it had before it. Check first, in page
+   context, that `game.user.targets` holds the one token immediately after
+   `canvas.tokens.setTargets`, with no wait.
+4. Cancel core's dialog on the second throw. *Observable:* the entry reads
+   Throw, its first instance holds its figures, and the Throw press throws only
+   the instances that wait, each at its own token, then applies.
+5. Show the second scene and cast at the token on the first: the instance stays
+   at Throw and a notice names the token. Press Throw with the scene shown again.
+6. The Player seat casts at a token it does not own. *Observable:* the GM's
+   client applies each entry. In page context on the GM client, send
+   `magicCastApply` for the same card with one more hit than the entry holds,
+   with a hit outside the roll's bounds, and with a card whose split sums over
+   the count (written by the Judge for the check): each is refused with
+   `tooManyInstances` or `badAmount` and the target's hit points do not move.
+7. The copy with no throw, cast with the count above one. *Observable:* one
+   roll, its formula the row's dice times the count, its total within that
+   formula's bounds, and the relay accepts it as the amount.
+8. Reshape a copy so `unread` lists `value`, and cast it. *Observable:* no roll
+   and no throw, the card's row shows the page reference alone, no entry, no
+   Throw press.
+
+Teardown: sweep the run's tracked uuids; restore no seat's targets by hand, since
+the cast restores them and step 3 asserts it.
+
 ### Drive mechanics
 
 - A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2

@@ -279,9 +279,16 @@ cancel at any point before the spend costs nothing:
    with a `pick` and no `pickOption` is its own option keyed by its row key
    (`cast-rows.mjs` `optionTokenOf`), and the choice stores the option token.
    Its label joins the `describeSpellEffect` reading of each of its rows. Where
-   a range could not be measured the dialog says so beside the targets.
+   a range could not be measured the dialog says so beside the targets. A
+   thrown row whose count is above one, with several targets, offers a split of
+   its throws: a number per target, round-robin by default, its tooltip naming
+   the count's parts; the total is read as it is typed, and a total over the
+   count shows its verdict and stops a Player (a split shown for a choice's
+   option or a form not chosen is hidden and answers none).
 2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
-   slot at the spell's level, several targets for a row with a throw, a
+   slot at the spell's level, several targets for a thrown row whose count is
+   one or blank, a split of throws over the row's count (`tooManyInstances`,
+   judged on the answer, before the spend), a
    condition that forbids casting, and `oneBearer` where a kept row is gated on
    the weapon and the seat has not targeted exactly one token; in a begun fight,
    `declarationLost`, `noDeclaration` and `declared` ("A declaration", below);
@@ -321,17 +328,50 @@ cancel at any point before the spend costs nothing:
    tradition's caster-level ladder at the class level (the class level where the
    ladder is blank), else a monster's spellcasting level; never defaulted. It is
    asked for only where the duration, the range, the target count, the area's
-   size or a row scales with it.
+   size or a row (its `value` or `max`) scales with it.
 5. *The rows*: the mode's rows less the rows of each choice group's unpicked options.
    A damage row with no throw and a heal row are rolled once for the cast; a
    damage row is asked through lib's `magicDamageSpec`, so the caster's
    modifiers that opted in apply and no melee row does. A damage row with a
    `delivery` is thrown through the system's own pipeline as the `magic` attack
-   type on a carrier (lib MODEL, "A spell's damage on the attack seam"), at the
-   seat's one target; a hit's `damageTotal` is the amount. A modifier or ward
+   type on a carrier (lib MODEL, "A spell's damage on the attack seam"), once
+   per instance (below); a hit's `damageTotal` is that instance's amount. A modifier or ward
    row is a buff part where it waits for a roll (`cast-mods.mjs`, below) and a
    section of the card with an entry per target; any other row kind, and a
    modifier that stands, is a line on the card from `describeSpellEffect`.
+
+   *Instances* (`cast-instances.mjs`, `cast-throw.mjs`). A damage or heal row's
+   `value` is its instance count, a LevelValue read at the caster level
+   (`modifierFigure`, never a defaulted level) and held to its `max`; a row that
+   never authored one acts once, and `instanceCount(row, level)` answers
+   `{value, parts}` with the figure, the level and the cap as the parts. A
+   count the import left unread (`value` or `max` in `unread`), one that needs a
+   level none resolved, and one that resolves below one are blank
+   (`value: null`): nothing is rolled or thrown and the card carries the page
+   reference alone. A row with no throw rolls once for its count: its roll is
+   `scaledRoll(roll, count)` (a single `NdM` term takes `count` times its dice,
+   any other formula repeats joined with " + "), derived in `rowSpecOf`, which
+   the cast and the relay's bounds both read. A row with a throw is thrown
+   `count` times, split among the non-self targets: the seat's typed split by
+   target position, else `allocate` (round-robin, the first targets taking the
+   remainder), kept on the card as `allocation[rowKey][targetKey]`. A count of
+   one is the first target's alone (a Judge warned of the rest, as
+   `severalTargets` says). Each target and row has one entry, `instances:
+   [{state, throw, rolled, critical}]`, thrown in turn with one core
+   `makeAttackThrow` each. Before a throw the seat's targets are set to that
+   instance's one token (`canvas.tokens.setTargets([id], {mode: "replace"})`,
+   `withOnlyTarget`) and restored in `finally`, so core aims the throw and its
+   card at the token the instance is for; a token off the viewed scene is not
+   thrown at, its instance stays at Throw and a notice says so. A cancelled
+   core dialog stops the sequence: that instance and those after it wait at
+   Throw, and the entry with them, so it applies whole when a Throw press has
+   thrown them all. The Throw press narrows the targets the same way, and with
+   no target on the card takes all the row's throws at the presser's first
+   target. A request to apply an entry carries its hits (`requestOf`); `amountOf` runs
+   per hit, so each hit rounds and meets the target's defenses alone, the
+   amounts are summed, and the entry writes one `adjustHp` and takes one Undo; a
+   hit the module cannot price makes the whole entry the Judge's and writes
+   nothing.
 
    *A buff.* A recipient's modifier and ward rows are one record, which carries
    lib's flag `flags["acks-extras"].rollMods` and holds no status and no change.
@@ -420,7 +460,12 @@ authorizes against `requestUserId`: the message's author is the requester and
 owns the caster, the card's spell is an item of the caster, each row is in the
 spell's rows for the card's mode and picks, each amount is within the bounds of
 the row's own roll as recomputed there (a thrown row keeps the system's floor of
-one and doubles its dice on a critical; a modifier or ward row has none), the
+one and doubles its dice on a critical; a modifier or ward row has none; a
+thrown row's hits are each checked against that one roll's bounds, the row's
+count is recomputed from the spell's row at the card's caster level and the
+card's split of it may not exceed it, a target's hits may not exceed the hits its
+entry holds, and an entry that holds instances is applied by hits alone:
+`tooManyInstances`, `badAmount`, `badRow`), the
 target's save is recomputed against the caster and the caster's token the card
 keeps (`casterTokenUuid`, read only where it is a token of that caster) and the
 damage its save resists (`resistedDamage` over the spell's own rows), so the

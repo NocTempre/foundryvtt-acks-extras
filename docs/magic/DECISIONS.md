@@ -187,3 +187,37 @@ only the rolled row's type is partial and the save is rolled; and a spell whose
 save effect the module cannot price (neither negation nor half) is the Judge's
 before its defense stage, so an immune target of such a spell is also the
 Judge's.
+
+## 2026-11-17 — A throw row is thrown once per instance, split among the targets
+
+The owner: "Spells want their proper effects, damage/effects should apply with
+correct amount and type", "Damage should just use "magic" as a weapon roller
+type" and "automation with transparency is the design principle". A damage or
+heal row's `value` is its instance count (plan ruling 88), held to `max` and
+read at the caster level; a row with no throw rolls once for the count, and a
+row with a throw is thrown that many times, each throw one core
+`makeAttackThrow` on the spell's carrier, split among the targets in the
+cast dialog (round-robin by default, the split editable). An entry per target
+and row holds the instances; each hit rounds and meets the target's defenses
+alone, the amounts are summed, and the entry writes one `adjustHp` and takes one
+Undo. Over-allocation is `tooManyInstances` (a Player blocked, a Judge warned),
+and `severalTargets` is left for a count of one or a blank one.
+
+*Supersedes plan ruling 41 in part* (2026-11-16: a throw row takes one target,
+several targets block a Player), on new evidence: two of this slice's rows print
+several throws per cast split among targets, which no earlier row did. Ruling 41
+stands for a count of one. The cast also owns the seat's targets around each
+core throw (plan ruling 89): exactly the instance's token, the prior targets
+restored in `finally`, because core aims a throw at the seat's targets and the
+presser's were wrong for a Throw press.
+
+A blank count (unread, or needing a level none resolved) makes no throw and no
+roll and posts the page reference: a count is never defaulted.
+
+*Rejected:* an entry id per instance (the relay, Undo and the card's keys all
+address an entry by target and row); one throw per target (a count above the
+target count would lose throws); core's `buildAttackThrow` (it skips core's
+dialog and card); patching core. *Cost:* a card per cast holds the split and
+every instance, so a large count writes a larger flag, and other seats see the
+caster's targets flicker during a throw. *Counter (medium):* a page that splits
+by creature needs another default; the split is editable.

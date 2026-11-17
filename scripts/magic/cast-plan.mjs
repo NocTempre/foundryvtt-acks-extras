@@ -23,6 +23,7 @@ export const VERDICT = Object.freeze({
   declared: "declared",
   outOfRange: "outOfRange",
   tooManyTargets: "tooManyTargets",
+  tooManyInstances: "tooManyInstances",
 });
 
 /**
@@ -48,9 +49,10 @@ export const VERDICT = Object.freeze({
  * @param {{valid: object|null, lost: object|null, other: object|null, hand: boolean}|null} [from.declaration]  `declarationOf`'s answer
  * @param {{limit: number|null, parts: object[], out: object[]}|null} [from.range]  `rangeVerdicts`' answer; any target out of range is one verdict, carrying the targets, the limit and the range's parts
  * @param {number|null} [from.count]  the target count the import read, a cap; null where it was left blank
+ * @param {{counts: Record<string, number|null>, assigned?: Record<string, number>}|null} [from.instances]  by row key, each thrown row's instance count (`cast-instances.mjs`) and how many throws the seat's split assigns; a thrown row with no count here counts as one
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -60,7 +62,12 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
   }
   if (moment === MOMENT.declare && (declaration?.valid || declaration?.other)) out.push({ key: VERDICT.declared, severity });
   if (!resolving && capacity?.verdict === CAPACITY.none) out.push({ key: VERDICT.noSlot, severity });
-  if (targets.length > 1 && rows.some(({ row }) => rowNeedsThrow(row))) out.push({ key: VERDICT.severalTargets, severity });
+  // One throw is aimed at one target; a count above one is split among targets, so only a count of one or a blank one is left with several.
+  const thrown = rows.filter(({ row }) => rowNeedsThrow(row));
+  if (targets.length > 1 && thrown.some(({ key }) => !(Number(instances?.counts?.[key]) > 1))) out.push({ key: VERDICT.severalTargets, severity });
+  // A split that assigns more throws than the count is a verdict of its own: the first row over names its figures.
+  const over = thrown.find(({ key }) => Number(instances?.assigned?.[key]) > Number(instances?.counts?.[key]));
+  if (over) out.push({ key: VERDICT.tooManyInstances, severity, max: instances.counts[over.key], over: instances.assigned[over.key] - instances.counts[over.key] });
   // A declared spell takes its targets when it resolves, so neither check belongs to the declaring.
   if (moment !== MOMENT.declare) {
     if (range?.out?.length) out.push({ key: VERDICT.outOfRange, severity, out: range.out, limit: range.limit, parts: range.parts });
