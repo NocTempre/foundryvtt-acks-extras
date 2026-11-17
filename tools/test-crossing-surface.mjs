@@ -1336,7 +1336,7 @@ await ok("a permission refusal warns a Judge and blocks a player: an out-of-reac
   assert.deepEqual([player.attempt.can, player.blocked, player.said], [false, true, "Alder cannot reach"]);
   assert.equal((await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "attempt"))).refused, "impossible");
   const judge = rowOf(buildCrossingView(formation), "Alder");
-  assert.deepEqual([judge.attempt.can, judge.attempt.warn, judge.attempt.label], [true, true, "Jump anyway"]);
+  assert.deepEqual([judge.attempt.can, judge.attempt.warn, judge.attempt.label], [true, true, "Attempt anyway"]);
   naturals.push(8);
   seen.warned.length = 0;
   const out = await jumpFor(formation, "Alder");
