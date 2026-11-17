@@ -1,6 +1,6 @@
 /**
  * The Treasure Tome's table recipes for the `magicItemTables` document: the
- * Classic and Heroic or Gritty item-generation chains (TT folios 30 to 50) and
+ * Classic and Heroic or Gritty item-generation chains (TT folios 30 to 45) and
  * the scroll sub-tables its scroll entries print (folios 94 to 98). Geometry
  * and anchors only; every band edge, caption and name is read from the Judge's
  * own copy at import (docs/importer/RECIPES.md), and `magic-item-lists.mjs` says
@@ -18,7 +18,7 @@
 import { list } from "../../table-recipes-magic-items.mjs";
 
 /** The Tome's printed folio of each page a table is read from. */
-const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
+const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, implementsB: 38, misc1: 39, misc2: 40, misc3: 41, misc4: 42, misc5: 43, misc6: 44, misc7: 45, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
 
 /**
  * One Tome list. `bare` names the page by words with the spaces taken out (a
@@ -55,6 +55,35 @@ const RING_COL3 = { labelMaxX: 414, cells: [["item", 415, 175]] };
 /** Scroll subtables, one under another in the left column of a recto page. */
 const SCROLLS = { page: PAGE.scrolls, locate: "Scroll Subtables", column: { xMin: 40, xMax: 325 }, labelMaxX: 109, cells: [["item", 110, 212]] };
 
+/**
+ * Implement subtables: the first in the right column of the scroll page (under
+ * its section heading), then five on the next page, a verso set three columns
+ * across with a second table under the first in the left and middle columns.
+ * Each prints its item name only.
+ */
+const IMPLEMENTS_A = { page: PAGE.scrolls, locate: "Implement Subtables", column: { xMin: 325, xMax: 592, yMin: 155, yMax: 560 }, labelMaxX: 366, cells: [["item", 367, 222]] };
+const IMPLEMENTS_B = { page: PAGE.implementsB, locate: "Implement", bare: true };
+const IMPLEMENT_COL1 = { labelMaxX: 82, cells: [["item", 83, 122]] };
+const IMPLEMENT_COL2 = { labelMaxX: 248, cells: [["item", 249, 126]] };
+const IMPLEMENT_COL3 = { labelMaxX: 417, cells: [["item", 418, 172]] };
+
+/**
+ * Miscellaneous item subtables, ten of them over seven pages. A verso page sets
+ * its labels at one left margin and a recto page at another, 27 points on, and
+ * the right column of each starts where its page puts it. A table too long for
+ * one column runs on into the other column of its page as a `...More` segment
+ * with no caption of its own.
+ */
+const MISC_PAGE = { locate: "Miscellaneous Item", bare: true };
+/** The right column of the first miscellaneous page, under its section heading. */
+const MISC_FIRST = { page: PAGE.misc1, locate: "Item Subtables", column: { xMin: 325, xMax: 592, yMin: 115, yMax: 500 }, labelMaxX: 366, cells: [["item", 367, 222]] };
+const MISC_VERSO_L = { column: { xMin: 40, xMax: 298 }, labelMaxX: 82, cells: [["item", 83, 212]] };
+const MISC_VERSO_R = { column: { xMin: 298, xMax: 592 }, labelMaxX: 328, cells: [["item", 330, 260]] };
+const MISC_RECTO_L = { column: { xMin: 40, xMax: 325 }, labelMaxX: 110, cells: [["item", 111, 212]] };
+const MISC_RECTO_R = { column: { xMin: 325, xMax: 592 }, labelMaxX: 357, cells: [["item", 358, 232]] };
+/** One column of a miscellaneous page between two heights; `side` is one of the four column specs above. */
+const miscCol = (page, side, yMin, yMax) => ({ page, ...MISC_PAGE, ...side, column: { ...side.column, yMin, yMax } });
+
 /** A list whose item names are read with their first letter raised, for a row the page sets in one lower-case run. */
 const capitalFirst = (recipe) => ({ ...recipe, cellColumns: recipe.cellColumns.map((c) => ({ ...c, pattern: "rawCapital" })) });
 
@@ -79,7 +108,7 @@ const spellLevel = ({ xMin, xMax, labelMaxX }) => {
  */
 export const tableRecipes = {
   magicItemTables: {
-    pages: "TT 30-37, 94-98",
+    pages: "TT 30-45, 94-98",
     tables: {
       // Random Magic Item Type, and the eight category lists, which name subtables.
       tomeTypeRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 135, yMax: 258 }, labelMaxX: 82, cells: [["item", 83, 200]], caption: true }),
@@ -122,6 +151,33 @@ export const tableRecipes = {
       tomeScrolls3Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 371, yMax: 536 }, caption: true }),
       tomeScrolls4Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 536, yMax: 644 }, caption: true }),
       tomeScrolls5Raw: tt({ ...SCROLLS, column: { ...SCROLLS.column, yMin: 644, yMax: 748 }, caption: true }),
+
+      // Implement subtables: the first beside the scroll subtables, then five on a verso page, two of them under another.
+      tomeImplements1Raw: tt({ ...IMPLEMENTS_A, caption: true }),
+      tomeImplements2Raw: tt({ ...IMPLEMENTS_B, column: { xMin: 40, xMax: 205, yMin: 70, yMax: 330 }, ...IMPLEMENT_COL1, caption: true }),
+      tomeImplements3Raw: tt({ ...IMPLEMENTS_B, column: { xMin: 40, xMax: 205, yMin: 331, yMax: 750 }, ...IMPLEMENT_COL1, caption: true }),
+      tomeImplements4Raw: tt({ ...IMPLEMENTS_B, column: { xMin: 205, xMax: 375, yMin: 70, yMax: 556 }, ...IMPLEMENT_COL2, caption: true }),
+      tomeImplements5Raw: tt({ ...IMPLEMENTS_B, column: { xMin: 205, xMax: 375, yMin: 557, yMax: 750 }, ...IMPLEMENT_COL2, caption: true }),
+      tomeImplements6Raw: tt({ ...IMPLEMENTS_B, column: { xMin: 375, xMax: 592, yMin: 70, yMax: 750 }, ...IMPLEMENT_COL3, caption: true }),
+
+      // Miscellaneous item subtables: one, two running across both columns, then a pair of columns each, in page order.
+      tomeMisc1Raw: tt({ ...MISC_FIRST, caption: true }),
+      tomeMisc2Raw: tt({ ...miscCol(PAGE.misc2, MISC_VERSO_L, 76, 497), caption: true }),
+      tomeMisc2MoreRaw: tt(miscCol(PAGE.misc2, MISC_VERSO_R, 92, 497)),
+      tomeMisc3Raw: tt({ ...miscCol(PAGE.misc2, MISC_VERSO_L, 498, 750), caption: true }),
+      tomeMisc3MoreRaw: tt(miscCol(PAGE.misc2, MISC_VERSO_R, 498, 750)),
+      tomeMisc4Raw: tt({ ...miscCol(PAGE.misc3, MISC_RECTO_L, 76, 305), caption: true }),
+      tomeMisc4MoreRaw: tt(miscCol(PAGE.misc3, MISC_RECTO_R, 92, 305)),
+      tomeMisc5Raw: tt({ ...miscCol(PAGE.misc3, MISC_RECTO_L, 306, 600), caption: true }),
+      tomeMisc5MoreRaw: tt(miscCol(PAGE.misc3, MISC_RECTO_R, 306, 600)),
+      tomeMisc6Raw: tt({ ...miscCol(PAGE.misc4, { ...MISC_VERSO_L, labelMaxX: 84, cells: [["item", 85, 210]] }, 76, 430), caption: true }),
+      tomeMisc7Raw: tt({ ...miscCol(PAGE.misc4, { column: { xMin: 300, xMax: 592 }, labelMaxX: 339, cells: [["item", 340, 250]] }, 76, 575), caption: true }),
+      tomeMisc8Raw: tt({ ...miscCol(PAGE.misc5, MISC_RECTO_L, 216, 750), caption: true }),
+      tomeMisc8MoreRaw: tt(miscCol(PAGE.misc5, MISC_RECTO_R, 232, 750)),
+      tomeMisc9Raw: tt({ ...miscCol(PAGE.misc6, MISC_VERSO_L, 216, 750), caption: true }),
+      tomeMisc9MoreRaw: tt(miscCol(PAGE.misc6, MISC_VERSO_R, 232, 750)),
+      tomeMisc10Raw: tt({ ...miscCol(PAGE.misc7, MISC_RECTO_L, 76, 460), caption: true }),
+      tomeMisc10MoreRaw: tt(miscCol(PAGE.misc7, MISC_RECTO_R, 92, 460)),
 
       // The sub-tables the scroll entries print.
       tomeScrollLanguagesRaw: tt({ page: PAGE.languages, locate: "Scroll Languages", column: { ...LEFT, yMin: 262, yMax: 400 }, labelMaxX: 82, cells: [["item", 83, 215]], caption: true }),

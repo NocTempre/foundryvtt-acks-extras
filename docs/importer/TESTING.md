@@ -4025,22 +4025,23 @@ marker, and are read, never driven.
    match what the Journal-only seat showed. Disconnect the Tome and rerun:
    *observable:* those tables still cite TT, and the report names the Tome as
    an optional book that is not open.
-8. **The Tome's chain (S3 batch 1).** On the seat with both books, rerun step 1.
-   *Observable:* `getDoc("magicItemTables").tables.subtables` has 17 keys (seven
-   `potions<n>`, five `rings<n>`, five `scrolls<n>`), the import log's
-   "magic-item tables assembled" line names `unplaced` only for lists the Tome's
-   pages did not read, and `getTable("magicItemTables","classic")` has three
-   lists whose rows carry `hop: "subtables.<key>"` (potions, rings, scrolls) and
-   five that carry none (implements, misc, swords, armors, weapons: still the
-   Journal's until batches 2 and 3 land). With both books, `unplaced` lists
-   exactly those five and the five rarity lists, since each names subtables not
-   read yet.
+8. **The Tome's chain (S3 batches 1 and 2).** On the seat with both books, rerun
+   step 1. *Observable:* `getDoc("magicItemTables").tables.subtables` has 33 keys
+   (seven `potions<n>`, five `rings<n>`, five `scrolls<n>`, six
+   `implements<n>` and ten `misc<n>`), the import log's "magic-item tables
+   assembled" line names `unplaced` only for lists the Tome's pages did not read,
+   and `getTable("magicItemTables","classic")` has five lists whose rows carry
+   `hop: "subtables.<key>"` (potions, rings, scrolls, implements, misc) and three
+   that carry none (swords, armors, weapons: still the Journal's until batch 3
+   lands). `getTable("magicItemTables","heroic").common` rows carry a `hop` too.
+   With both books, `unplaced` lists exactly those three and the four other
+   rarity lists, since each names subtables not read yet.
 9. `getTable("magicItemTables","classicType").bands.map((b) => b.hop)`, with the
    Tome open. *Observable:* eight `classic.<list>` ids, one per row, the armour
    row included. Roll the classic style from the type list a few times with
    the magic-items roller. *Observable:* a card whose chain shows a type step, a
-   category step and a subtable step for a potion, ring or scroll, and a type
-   step then a category step for the others; no card ends flagged
+   category step and a subtable step for a potion, ring, scroll, implement or
+   miscellaneous item, and a type step then a category step for the others; no card ends flagged
    `unresolved-hop`.
 10. Roll with `from: "classic.potions"` until the category's tail row lands (the
     last face), by setting the dice rig (`TEST_ENVIRONMENT.md`) to throw the top of the d100 and then any inner band.

@@ -451,10 +451,12 @@ and ruin lookups, and the throw now rolls them (DECISIONS, 2026-09-30). In order
    item-generation chain is read from `books/tt/` in three batches (DECISIONS
    2026-11-17, "The Tome's chain replaces the Journal's lists by list id"):
    batch 1 is built (Random Type, the potion, ring and scroll category lists and
-   their subtables, and the scroll sub-tables of folios 94 to 98); batch 2
-   (implements, miscellaneous items: folios 37 to 45) and batch 3 (swords,
-   miscellaneous weapons, armour: folios 46 to 50) are not, and the five rarity
-   lists switch to the Tome only once every subtable they name is read. Not yet:
+   their subtables, and the scroll sub-tables of folios 94 to 98), and so is
+   batch 2 (the implement and miscellaneous item subtables: folios 37 to 45, with
+   their category lists and the common rarity list); batch 3 (swords,
+   miscellaneous weapons, armour: folios 46 to 50) is not, and the other four
+   rarity lists switch to the Tome only once every subtable they name is read.
+   Not yet:
    the Tome's entries, and the generators that use them
    (a gem or jewelry RollTable still rolls one die, its description carrying
    the legend)
