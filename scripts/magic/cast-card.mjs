@@ -3,8 +3,9 @@
  * The cast card: one chat message per cast, drawn by lib's roll card
  * (`lib/roll-card.mjs`), whose flag `flags["acks-extras"].castCard` is the
  * model the card is drawn from and the anchor the cast's relay checks against.
- * One section per rolled row, one table row per target with what was applied,
- * a tooltip on every figure saying where it came from.
+ * One section per rolled row and per modifier or ward row, one table row per
+ * target with what was applied, a tooltip on every figure saying where it came
+ * from. A modifier entry's figure is its part's value, which lib reads at the roll.
  *
  * The flag holds the cast (the spell, the caster, the level and its source,
  * the spell's save, each row's roll), the targets with the resist each rolled,
@@ -22,6 +23,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { isModRow } from "./cast-mods.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
 export const CAST_CARD_FLAG = "castCard";
@@ -58,6 +60,18 @@ function rollTip(row, card, loc) {
   return [dice, cite].filter(Boolean).join(" · ");
 }
 
+/**
+ * The tooltip of a modifier or ward entry's figure: the spell, the weapon it is
+ * on where the card names one for this target, and the page the procedure is
+ * cited to. A figure the import left unread carries the page reference alone.
+ */
+function partTip(row, card, targetKey, loc) {
+  if (row.blank) return rollTip(row, card, loc);
+  const item = card.item?.targetKey === targetKey ? card.item.name : "";
+  if (!card.cite) return [card.spellName, item].filter(Boolean).join(" · ");
+  return loc(item ? "tip.part" : "tip.partNoItem", { spell: card.spellName, item, cite: card.cite });
+}
+
 /** The caster level's tooltip: where the figure came from, or that a hand set it. */
 function levelTip(card, loc) {
   const source = card.casterLevel?.source;
@@ -70,14 +84,14 @@ function titleOf(row, loc) {
   return types.length ? `${loc(`row.${row.type}`)} (${types.join(", ")})` : loc(`row.${row.type}`);
 }
 
-/** The buttons one entry offers this seat. */
-function entryActions(entry, ids, { isGM, canPress }, loc) {
+/** The buttons one entry offers this seat. A modifier entry's Undo says it takes the whole group off. */
+function entryActions(entry, ids, { isGM, canPress }, loc, { group = false, name = "" } = {}) {
   const out = [];
   const data = { target: ids.targetKey, row: ids.rowKey };
   if (entry?.state === "pending" && canPress) out.push({ action: CARD_ACTIONS.apply, label: loc("button.apply"), icon: "fa-solid fa-check", data });
   if (entry?.state === "throw" && canPress) out.push({ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data });
   if (entry?.state === "applied" && isGM && (entry.applied > 0 || entry.recordIds?.length)) {
-    out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip: loc("tip.undo") });
+    out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip: group ? loc("tip.undoGroup", { name }) : loc("tip.undo") });
   }
   return out;
 }
@@ -105,20 +119,32 @@ export function castCardView(card, seat, loc) {
   for (const rowKey of card.order ?? []) {
     const row = card.rows?.[rowKey];
     if (!row) continue;
+    const isMod = isModRow(row);
     const rows = [];
     for (const [targetKey, target] of targets) {
       const entry = card.entries?.[`${targetKey}_${rowKey}`];
       // A row with a throw was resisted by the throw, not by the spell's save.
-      const resist = row.delivery ? null : (target.resist ?? null);
+      // A buff is not resisted either.
+      const resist = row.delivery || isMod ? null : (target.resist ?? null);
       const done = entry?.state === "applied" || entry?.state === "undone";
-      const line = {
-        name: target.name,
-        total: done && entry.applied != null ? entry.applied : "—",
-        tooltipText: entry ? appliedTip(entry, loc) : "",
-        detail: entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "",
-        ...outcomeOf(entry, loc),
-        actions: entryActions(entry, { targetKey, rowKey }, seat, loc),
-      };
+      const yields = card.yields?.[`${targetKey}_${rowKey}`];
+      const line = isMod
+        ? {
+            name: target.name,
+            total: done && row.total != null ? row.total : "—",
+            tooltipText: partTip(row, card, targetKey, loc),
+            detail: yields ? loc("detail.yields", { name: yields }) : "",
+            ...outcomeOf(entry, loc),
+            actions: entryActions(entry, { targetKey, rowKey }, seat, loc, { group: true, name: target.name }),
+          }
+        : {
+            name: target.name,
+            total: done && entry.applied != null ? entry.applied : "—",
+            tooltipText: entry ? appliedTip(entry, loc) : "",
+            detail: entry?.throw ? loc("detail.throw", { total: entry.throw.total, target: entry.throw.target }) : entry?.rolled != null ? loc("detail.rolled", { rolled: entry.rolled }) : "",
+            ...outcomeOf(entry, loc),
+            actions: entryActions(entry, { targetKey, rowKey }, seat, loc),
+          };
       if (resist) Object.assign(line, { target: resist.target, targetTooltip: saveTip(resist, loc), detail: [loc("detail.save", { total: resist.total }), line.detail].filter(Boolean).join(" · ") });
       rows.push(line);
     }
@@ -127,11 +153,12 @@ export function castCardView(card, seat, loc) {
       rows.push({
         name: loc("noTarget"),
         total: row.total ?? "—",
-        tooltipText: rollTip(row, card, loc),
+        tooltipText: isMod ? partTip(row, card, "", loc) : rollTip(row, card, loc),
         actions: needsThrow && seat.canPress ? [{ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data: { row: rowKey } }] : [],
       });
     }
-    sections.push({ title: titleOf(row, loc), titleTooltip: rollTip(row, card, loc), rows });
+    const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
+    sections.push({ title: titleOf(row, loc), titleTooltip: isMod ? cite : rollTip(row, card, loc), rows });
   }
   const loose = !targets.length && (card.order ?? []).some((k) => !card.rows?.[k]?.delivery);
   const buttons = loose && seat.canPress ? [{ action: CARD_ACTIONS.applyTargets, label: loc("button.applyTargets"), icon: "fa-solid fa-crosshairs", tooltip: loc("tip.applyTargets") }] : [];

@@ -6,9 +6,10 @@
 import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
 import { CAPACITY } from "./cast-capacity.mjs";
 import { rowNeedsThrow } from "./cast-rows.mjs";
+import { needsBearer } from "./cast-mods.mjs";
 
 /** The verdict ids. */
-export const VERDICT = Object.freeze({ noSlot: "noSlot", severalTargets: "severalTargets", forbidden: "forbidden" });
+export const VERDICT = Object.freeze({ noSlot: "noSlot", severalTargets: "severalTargets", forbidden: "forbidden", oneBearer: "oneBearer" });
 
 /**
  * The verdicts for one cast.
@@ -19,13 +20,15 @@ export const VERDICT = Object.freeze({ noSlot: "noSlot", severalTargets: "severa
  * @param {Array<{row: object}>} from.rows  the rows the cast keeps
  * @param {Iterable<string>} [from.statuses]  the caster's status ids
  * @param {boolean} from.isGM
+ * @param {number} [from.bearers]  how many tokens could bear a weapon buff; the targets by default
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[]}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   if (capacity?.verdict === CAPACITY.none) out.push({ key: VERDICT.noSlot, severity });
   if (targets.length > 1 && rows.some(({ row }) => rowNeedsThrow(row))) out.push({ key: VERDICT.severalTargets, severity });
+  if (needsBearer(rows) && bearers !== 1) out.push({ key: VERDICT.oneBearer, severity });
   const stopped = forbiddenBy(conditionSet(statuses), "cast");
   if (stopped.length) out.push({ key: VERDICT.forbidden, severity, conditions: stopped });
   return out;

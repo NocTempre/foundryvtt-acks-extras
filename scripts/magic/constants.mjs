@@ -10,3 +10,5 @@ export const SPELL_TYPE = "spell";
 export const FLAG_SPELL = "spell";
 /** Flag key under flags["acks-extras"] on an Active Effect a cast left behind. */
 export const FLAG_SPELL_EFFECT = "spellEffect";
+/** The capability every spell record's roll-mod part provides, so two spell records never add (`lib/roll-mods.mjs`). */
+export const SPELL_RECORD_CAP = "kw:spellrecord";

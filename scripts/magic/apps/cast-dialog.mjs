@@ -3,7 +3,8 @@
  * The cast dialog: what the seat decides before a spell spends anything. The
  * form of a reversible spell, the pick of each choice group, the caster level
  * where nothing resolved one (typed, and marked as set by hand in its
- * tooltip), a situational modifier for the targets' saves, the card's
+ * tooltip), the weapon a buff is cast on where the one targeted creature has
+ * weapons, a situational modifier for the targets' saves, the card's
  * visibility, the targets the seat has, and each verdict that stands in the
  * way. A verdict that blocks a Player disables the Cast button for the form
  * it belongs to; a Judge reads it as a warning. Cancel and a closed window
@@ -47,6 +48,10 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
       line: level.value ? loc("dialog.levelLine", { value: level.value }) : "",
       tip: level.source ? loc(`tip.level.${level.source}`, { value: level.value }) : loc("tip.level.hand", { value: "" }),
     },
+    weapon: {
+      modes: Object.entries(ctx.needsWeapon ?? {}).filter(([, needed]) => needed).map(([m]) => m),
+      options: (ctx.weapons ?? []).map((w) => ({ id: w.id, label: w.magic ? loc("dialog.weaponMagic", { name: w.name }) : w.name })),
+    },
     saves: Boolean(ctx.saves),
     situationalTip: loc("tip.situational"),
     visibility: VISIBILITY_MODES.map((key) => ({ key, label: visibilityLabel(key), selected: key === visibility })),
@@ -84,8 +89,8 @@ function bind(root, { isGM }) {
 export class CastDialog {
   /**
    * Ask for a cast's choices.
-   * @param {object} ctx  the cast's context: `spell`, `modes`, `groups`, `level`, `levelNeeded`, `targets`, `saves`, `verdicts`, `capacity`, `isGM`
-   * @returns {Promise<{mode: string, picks: Record<string, string>, casterLevel: string, situational: string, visibility: string}|null>}
+   * @param {object} ctx  the cast's context: `spell`, `modes`, `groups`, `level`, `levelNeeded`, `weapons`, `needsWeapon`, `targets`, `saves`, `verdicts`, `capacity`, `isGM`
+   * @returns {Promise<{mode: string, picks: Record<string, string>, item: string, casterLevel: string, situational: string, visibility: string}|null>}
    */
   static async wait(ctx) {
     const modeLabel = (key) => loc(`dialog.mode.${key}`);
@@ -113,6 +118,7 @@ export class CastDialog {
             return {
               mode: form.elements.mode?.value ?? ctx.modes[0],
               picks,
+              item: form.querySelector("[data-cast-for]:not([hidden]) select[data-weapon]")?.value ?? "",
               casterLevel: form.elements.casterLevel?.value ?? "",
               situational: form.elements.situational?.value ?? "",
               visibility: form.elements.visibility?.value ?? "public",

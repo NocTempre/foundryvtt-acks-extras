@@ -10,18 +10,26 @@
  * GM's client, which a seat reaches through the `magicCastApply` handler on
  * lib's socket transport. That handler authorizes against the server-attested
  * `requestUserId`, checks the request against the cast card and the caster's
- * spell (`checkApplyRequest`, pure), and builds the record from the spell's
- * row, never from the request. The cast card is the anchor: an entry already
- * written or in flight is refused, so a repeated press applies once. With no
- * GM connected the entry stays pending with its Apply press.
+ * spell (`checkApplyRequest`, pure), and builds every record from the spell's
+ * own rows for the card's mode and picks, never from the request and never from
+ * the card's display rows, on whichever client writes. The cast card is the
+ * anchor: an entry already written or in flight is refused, so a repeated press
+ * applies once. With no GM connected the entry stays pending with its Apply
+ * press.
+ *
+ * A target's modifier and ward entries are one group: one request writes one
+ * buff record (`cast-mods.mjs`) that every entry of the group names, and Undo on
+ * one of them takes the record off for all.
  *
  * The card's flag (`cast-card.mjs`) keeps what each entry did, and the Judge's
  * Undo puts the hit points back and deletes the records by id.
  */
-import { MODULE_ID } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
 import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf } from "./cast-rows.mjs";
 import { spellEffectData } from "./spell-effect.mjs";
+import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
+import { actorAlignment } from "../lib/actor-read.mjs";
 
 /** The relay's handler name on lib's socket transport. */
 export const CAST_APPLY_HANDLER = "magicCastApply";
@@ -67,9 +75,13 @@ export function amountOf(row, card, resist, rolled) {
   return { judge: false, saved: made.saved, fraction: made.fraction, rolled, applied: out.applied, steps: out.steps };
 }
 
-/** The status-only records one condition row leaves on one target: one per condition the row names. */
-export function conditionRecords(row, card, { resist, startTime, spell, spellImg }) {
-  const timed = row.lasts === "duration" && card.duration && !card.duration.none;
+/**
+ * The status-only records one condition row leaves on one target: one per
+ * condition the row names. `row` is the spell's own row and `key` its key in the
+ * cast; `duration` is the one this client computed or recomputed, never the card's.
+ */
+export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration }) {
+  const timed = row.lasts === "duration" && duration && !duration.none;
   return Array.from(row.conditions ?? []).map((status) =>
     spellEffectData({
       spell: { uuid: card.spellUuid, name: card.spellName, img: spell?.img ?? spellImg },
@@ -77,12 +89,33 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       castId: card.castId,
       role: "recipient",
       statuses: [status],
-      rowKey: row.key,
+      rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
-      duration: timed ? card.duration : undefined,
+      duration: timed ? duration : undefined,
       startTime: timed ? startTime : undefined,
     }),
   );
+}
+
+/** Is this entry's state one an apply may start from? */
+const isOpen = (entry) => Boolean(entry) && OPEN_STATES.includes(entry.state);
+
+/**
+ * The entries of a target's modifier group that are still open and that a
+ * request left out. The group is applied whole or not at all, so a request that
+ * names one of its entries names them all.
+ *
+ * @param {object} card
+ * @param {string} targetKey
+ * @param {Array<{rowKey: string}>} requests
+ * @param {Array<{row: object, key: string}>} rows  the spell's keyed rows for the cast
+ * @returns {string[]} row keys
+ */
+export function missingGroupKeys(card, targetKey, requests, rows) {
+  const keyed = new Map(rows.map((r) => [r.key, r.row]));
+  if (!requests.some((r) => isModRow(keyed.get(r.rowKey)))) return [];
+  const named = new Set(requests.map((r) => r.rowKey));
+  return rows.filter(({ row, key }) => isModRow(row) && !named.has(key) && isOpen(card.entries?.[entryId(targetKey, key)])).map(({ key }) => key);
 }
 
 /**
@@ -98,6 +131,7 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
  * @param {Array<{row: object, key: string}>} world.rows  the spell's rows for the card's mode and picks
  * @param {(keyed: {row: object, key: string}, critical: boolean) => {min: number, max: number}|null} world.boundsOf
  * @param {{target: number|null, min: number, max: number}|null} world.resist  the target's save recomputed here
+ * @param {{id: string, name: string}|null} [world.item]  the weapon the card names, where it is a weapon of the target's actor
  * @returns {{ok: true}|{refused: string}}
  */
 export function checkApplyRequest(req, world) {
@@ -124,10 +158,15 @@ export function checkApplyRequest(req, world) {
     const row = world.rows.find((r) => r.key === e.rowKey);
     if (!row) return { refused: "badRow" };
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
-    if (row.row.type === "conditionGrant") continue;
+    // A modifier or ward row has no amount: its figure is the spell's, read at the roll.
+    if (row.row.type === "conditionGrant" || isModRow(row.row)) continue;
     const bounds = world.boundsOf(row, e.critical === true);
     const rolled = Number(e.rolled);
     if (!bounds || !Number.isFinite(rolled) || rolled < bounds.min || rolled > bounds.max) return { refused: "badAmount" };
+  }
+  if (req.entries.some((e) => isModRow(world.rows.find((r) => r.key === e.rowKey)?.row))) {
+    if (card.item?.targetKey === req.targetKey && !world.item) return { refused: "badItem" };
+    if (missingGroupKeys(card, req.targetKey, req.entries, world.rows).length) return { refused: "badGroup" };
   }
   return { ok: true };
 }
@@ -143,6 +182,11 @@ export function checkApplyRequest(req, world) {
  * @param {Array<{rowKey: string, rolled?: number}>} requests
  * @param {object} deps
  * @param {string} deps.messageId
+ * @param {Array<{row: object, key: string}>} deps.rows  the spell's keyed rows for the card's mode and picks; the only source of what a record holds
+ * @param {{value: number, units: string}|{none: string}} [deps.duration]  the cast's duration as this client computed or recomputed it
+ * @param {{id: string, name: string}|null} [deps.item]  the weapon a buff names, for the target the card's `item` names
+ * @param {{uuid: string, name: string, img?: string, id?: string|null, cite?: string}} [deps.spell]  read from the spell document
+ * @param {string|null} [deps.sourceAlignment]  the caster's alignment key
  * @param {(uuid: string) => Promise<{actor: object, hpTarget: object|null}|null>} deps.resolve
  * @param {Function} deps.adjustHp  lib's, `(entries, {mode}) -> results`
  * @param {(actor: object, cause: string) => Promise<string[]>} deps.lose
@@ -174,33 +218,74 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
   }
   try {
     if (resist?.success === false && claimed.length) await deps.lose(found.actor, "save");
+    const group = [];
     for (const { r, id } of claimed) {
-      const row = card.rows?.[r.rowKey];
-      if (!row) {
+      const keyed = (deps.rows ?? []).find((k) => k.key === r.rowKey);
+      if (!keyed) {
         out.push({ id, skipped: "noRow" });
         continue;
       }
+      if (isModRow(keyed.row)) {
+        group.push({ keyed, id });
+        continue;
+      }
       const existing = card.entries?.[id] ?? {};
-      const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? row.total);
-      const entry = await applyRow({ card, row, rolled, resist, found, deps, existing });
+      const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? card.rows?.[r.rowKey]?.total);
+      const entry = await applyRow({ card, keyed, rolled, resist, found, deps, existing });
       await deps.writeEntry(id, entry);
       out.push({ id, entry });
     }
+    if (group.length) await applyGroup({ card, targetKey, group, resist, found, deps, out });
   } finally {
     for (const { key } of claimed) inFlight.delete(key);
   }
   return out;
 }
 
-/** One row on one target: the entry it leaves. */
-async function applyRow({ card, row, rolled, resist, found, deps, existing }) {
+/**
+ * One target's modifier and ward entries: one buff record from the spell's own
+ * rows, which every entry of the group names. The weapon is the one the card
+ * names for this target, as `deps.item` has checked it; with no parts to write
+ * (a blank figure, a row that is a line) the entries are applied with no record.
+ */
+async function applyGroup({ card, targetKey, group, resist, found, deps, out }) {
+  const by = deps.by ?? null;
+  const named = card.item?.targetKey === targetKey ? (deps.item ?? null) : null;
+  const level = Number(card.casterLevel?.value);
+  const made = modParts(
+    group.map((g) => g.keyed),
+    { level: Number.isFinite(level) ? level : null, actorType: found.actor.type, itemId: named?.id ?? null },
+  );
+  const data = deps.spell
+    ? modRecordData(card, made.parts, {
+        spell: deps.spell,
+        startTime: deps.now(),
+        item: named,
+        sourceAlignment: deps.sourceAlignment ?? null,
+        resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
+        duration: deps.duration,
+        lasting: made.lasting,
+      })
+    : null;
+  const recordIds = data ? await deps.createRecords(found.actor, [data]) : [];
+  for (const { id } of group) {
+    const entry = { by, state: "applied", recordIds: [...recordIds] };
+    await deps.writeEntry(id, entry);
+    out.push({ id, entry });
+  }
+}
+
+/** One row on one target: the entry it leaves. `keyed` is the spell's own row. */
+async function applyRow({ card, keyed, rolled, resist, found, deps, existing }) {
+  const { row, key } = keyed;
   const by = deps.by ?? null;
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
   if (row.type === "conditionGrant") {
     const made = saveFractionOf(row, card.save, resist);
     if (made.fraction === null || (made.fraction !== 1 && made.fraction !== 0)) return { ...base, state: "judge", saved: made.saved };
     if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
-    const ids = await deps.createRecords(found.actor, conditionRecords(row, card, { resist, startTime: deps.now() }));
+    const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell });
+    const ids = await deps.createRecords(found.actor, records);
     return { ...base, state: "applied", saved: made.saved, recordIds: ids };
   }
   const amount = amountOf(row, card, resist, rolled);
@@ -232,6 +317,32 @@ export async function undoEntry(entry, target, deps) {
   }
   if (found?.actor && entry.recordIds?.length) await deps.deleteRecords(found.actor, entry.recordIds);
   return { ...entry, state: "undone" };
+}
+
+/**
+ * Take one entry back, and with it every applied entry of its target that names
+ * the same record: a modifier group's entries share one buff record, so the
+ * record is deleted once and all of them are marked undone.
+ *
+ * @param {object} card
+ * @param {string} targetKey
+ * @param {string} rowKey  the entry the Judge pressed
+ * @param {object} deps  as `undoEntry`
+ * @returns {Promise<Record<string, object>>} the entries to write, by id
+ */
+export async function undoEntries(card, targetKey, rowKey, deps) {
+  const id = entryId(targetKey, rowKey);
+  const first = card.entries?.[id];
+  const target = card.targets?.[targetKey];
+  const out = {};
+  if (!first || !target) return out;
+  out[id] = await undoEntry(first, target, deps);
+  if (first.state !== "applied" || !first.recordIds?.length) return out;
+  for (const [otherId, other] of Object.entries(card.entries)) {
+    if (otherId === id || !otherId.startsWith(`${targetKey}_`) || other.state !== "applied") continue;
+    if (other.recordIds?.some((r) => first.recordIds.includes(r))) out[otherId] = { ...other, state: "undone" };
+  }
+  return out;
 }
 
 /* -------------------------------------------- */
@@ -269,19 +380,71 @@ export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
   };
 }
 
-/** The spell and rows a card's request is checked against, read as the live world gives them. */
-async function worldFor(req, message) {
+/** Is this a token of the caster whose spell the card names? The card's token uuid is the seat's word, so it is read only where it checks. */
+const tokenOfCaster = (token, caster) => Boolean(token && caster && (token.actor === caster || (token.actor?.uuid && token.actor.uuid === caster.uuid)));
+
+/**
+ * The duration the cast's records are timed by, recomputed from the spell and the
+ * card's caster level. A `dice` duration cannot be recomputed (the roll was the
+ * casting client's), so the card's figure stands where it lies between the
+ * formula's extremes in the same units, and the shortest otherwise.
+ */
+async function recomputeDuration(spell, card) {
+  const { castDurationOf } = await import("./cast-spell.mjs");
   const { byCookbookId } = await import("../lib/library.mjs");
-  const card = message?.flags?.[MODULE_ID]?.castCard ?? null;
+  const lookups = { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) };
+  const level = card.casterLevel?.value;
+  const exact = castDurationOf(spell, lookups, level);
+  if (exact?.none !== "noRoll") return exact;
+  const low = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).min);
+  const high = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).max);
+  const asked = card.duration;
+  const fits = asked && !asked.none && !low.none && !high.none && asked.units === low.units && asked.units === high.units && asked.value >= low.value && asked.value <= high.value;
+  return fits ? { value: asked.value, units: asked.units } : low;
+}
+
+/**
+ * What the cast's records are built from, read off the spell and the caster the
+ * card names and never off the card's own display: the spell's keyed rows for the
+ * card's mode and picks, the spell as a record names it, the caster's alignment,
+ * the duration, and the weapon the card names where it is a weapon of the
+ * target's actor. `recompute` takes the duration from the spell again (the GM's
+ * client); otherwise the card's own stands (the client that cast it).
+ */
+async function castInputs(card, targetDoc, { recompute = false } = {}) {
+  const { byCookbookId, cookbookId } = await import("../lib/library.mjs");
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const rows = spell ? rowsForMode(rowsOf(spell, { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) }).rows, card.mode, card.picks) : [];
+  const pick = card?.item?.id ? targetDoc?.actor?.items?.get?.(card.item.id) : null;
+  return {
+    caster,
+    spell,
+    rows,
+    item: pick?.type === "weapon" ? { id: pick.id, name: pick.name } : null,
+    spellMeta: spell ? { uuid: spell.uuid, name: spell.name, img: spell.img, id: cookbookId(spell) || null, cite: spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "" } : null,
+    sourceAlignment: caster ? actorAlignment(caster) || null : null,
+    duration: spell && recompute ? await recomputeDuration(spell, card) : (card?.duration ?? { none: "noDuration" }),
+  };
+}
+
+/** The spell and rows a card's request is checked against, read as the live world gives them. */
+async function worldFor(req, message) {
+  const card = message?.flags?.[MODULE_ID]?.castCard ?? null;
   const user = game.users.get(req.requestUserId);
   const targetDoc = card?.targets?.[req.targetKey] ? fromUuidSync(card.targets[req.targetKey].uuid) : null;
+  const inputs = await castInputs(card, targetDoc, { recompute: true });
+  const { caster, spell, rows } = inputs;
   let resist = null;
   if (targetDoc?.actor && card?.save?.category) {
     const { saveSpec } = await import("../lib/saves.mjs");
-    const spec = saveSpec(targetDoc.actor, card.save.category, { situational: card.situational ?? null });
+    const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
+    const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
+    const spec = saveSpec(targetDoc.actor, card.save.category, {
+      situational: card.situational ?? null,
+      against,
+      bearerToken: targetDoc.documentName === "Token" ? targetDoc : null,
+    });
     const bounds = foundryBounds(spec.formula);
     resist = { target: spec.target, min: bounds.min, max: bounds.max };
   }
@@ -295,12 +458,17 @@ async function worldFor(req, message) {
     spellOfCaster: Boolean(spell && caster && spell.parent?.uuid === caster.uuid),
     rows,
     resist,
+    item: inputs.item,
+    inputs,
     boundsOf: (keyed, critical) => {
       const spec = specs.get(keyed.key);
       return spec ? damageBounds(spec, { critical, thrown: rowNeedsThrow(keyed.row) }, foundryBounds) : null;
     },
   };
 }
+
+/** What `applyOnTarget` reads of a cast, from `castInputs`. */
+const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment });
 
 /**
  * The relay's handler, on the GM's client: check, then apply. Answers
@@ -313,7 +481,7 @@ export async function magicCastRelay(payload = {}) {
   const verdict = checkApplyRequest(payload, world);
   if (verdict.refused) return { ok: false, reason: verdict.refused };
   const { updateEntry } = await import("./cast-card.mjs");
-  const deps = await liveApplyDeps(payload.messageId, { writeEntry: (id, entry) => updateEntry(message, id, entry), by: payload.requestUserId ?? game.user.id });
+  const deps = { ...(await liveApplyDeps(payload.messageId, { writeEntry: (id, entry) => updateEntry(message, id, entry), by: payload.requestUserId ?? game.user.id })), ...castDeps(world.inputs) };
   const done = await applyOnTarget(world.card, payload.targetKey, payload.entries, deps);
   return { ok: true, applied: done.filter((d) => d.entry).length };
 }
@@ -329,14 +497,16 @@ export async function requestApply(message, targetKey, requests) {
   const doc = card?.targets?.[targetKey] ? await fromUuid(card.targets[targetKey].uuid) : null;
   if (!doc) return { ok: false, reason: "noTarget" };
   const { updateEntry } = await import("./cast-card.mjs");
+  const inputs = await castInputs(card, doc);
+  const asked = [...requests, ...missingGroupKeys(card, targetKey, requests, inputs.rows).map((rowKey) => ({ rowKey }))];
   if (game.user.isGM || doc.actor?.isOwner) {
-    const deps = await liveApplyDeps(message.id, { writeEntry: (id, entry) => updateEntry(message, id, entry) });
-    await applyOnTarget(card, targetKey, requests, deps);
+    const deps = { ...(await liveApplyDeps(message.id, { writeEntry: (id, entry) => updateEntry(message, id, entry) })), ...castDeps(inputs) };
+    await applyOnTarget(card, targetKey, asked, deps);
     return { ok: true };
   }
   if (!game.users.activeGM) return { ok: false, reason: "noGm" };
   const { executeAsGM } = await import("../lib/sockets.mjs");
-  const answer = await executeAsGM(CAST_APPLY_HANDLER, { messageId: message.id, targetKey, resist: card.targets[targetKey].resist ?? null, entries: requests });
+  const answer = await executeAsGM(CAST_APPLY_HANDLER, { messageId: message.id, targetKey, resist: card.targets[targetKey].resist ?? null, entries: asked });
   return answer?.ok ? { ok: true } : { ok: false, reason: answer?.reason ?? "noAnswer" };
 }
 

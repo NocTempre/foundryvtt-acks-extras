@@ -35,13 +35,17 @@ import { RULEDATA_DOC } from "./overlays/scavenged.mjs";
 import { registerWeaponRows, rowsReady } from "./weapon-rows.mjs";
 import { librarySource } from "./weapon-source.mjs";
 import { registerWeaponSource } from "../lib/weapons.mjs";
-
+import { registerItemBonusSource } from "../lib/roll-mods.mjs";
+import { masterworkBonusParts } from "./printed-layers.mjs";
 
 Hooks.once("init", () => {
   registerSettings();
   // The loadout effect is machinery, not a note: a hand must not delete it.
   registerManagedEffect(LOADOUT_EFFECT_FLAG, "ACKS-LIB.managedEffect.ownerLoadout");
   buildApi();
+  // A spell record's buff on a weapon resolves against the masterwork figure
+  // core already carries in the weapon's bonus (lib's attack seam).
+  registerItemBonusSource(masterworkBonusParts);
   // Mounted combat's save prompts hang off the post-attack and pre-update
   // seams; every handler gates on the overlay's own setting.
   registerMountedOverlay();

@@ -22,6 +22,17 @@
   </fieldset>
   {{/each}}
 
+  {{#each weapon.modes}}
+  <div class="form-group" data-cast-for="{{this}}">
+    <label>
+      <span>{{localize "ACKS-MAGIC.cast.dialog.weapon"}}</span>
+      <select data-weapon>
+        {{#each ../weapon.options}}<option value="{{id}}">{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </div>
+  {{/each}}
+
   {{#if level.show}}
   <div class="form-group">
     <label>

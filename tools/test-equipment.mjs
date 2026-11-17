@@ -2829,6 +2829,35 @@ provenanceItem._flags.masterwork = { tier: "weaponToHit" };
 provenanceItem._flags.silvered = true;
 check("layerProvenance joins one clause per layer the item carries", layerProvenance(provenanceItem).split(" · ").length === 2);
 check("and is empty for an item with neither", layerProvenance(mockDoc("weapon", { name: "Sword", damage: "1d6" })) === "");
+
+/* --- MASTERWORK as an item bonus source: lib resolves it beside a spell record's part --- */
+const { masterworkBonusParts } = printedLayers;
+const tiered = (tier) => {
+  const item = mockDoc("weapon", { name: "Sword", damage: "1d6" });
+  if (tier) item._flags.masterwork = { tier };
+  return item;
+};
+const mwAttack = masterworkBonusParts(tiered("weaponBoth"), "attack");
+check("the tier's attack figure is one part that provides the masterwork capability", mwAttack.length === 1 && mwAttack[0].key === "masterwork" && mwAttack[0].value === FIG.both.bonus && mwAttack[0].provides.join() === "kw:masterwork");
+check("its damage figure is a part on the damage field", masterworkBonusParts(tiered("weaponBoth"), "damage")[0]?.value === FIG.both.damage);
+check("each part cites where its figure was read, as the sheet's tooltip does", mwAttack[0].cite.startsWith("ACKS-EQUIPMENT.printed.fromPage") && mwAttack[0].cite.includes("Invented p. 1"));
+check("a field the tier leaves at zero has no part", masterworkBonusParts(tiered("weaponToHit"), "damage").length === 0 && masterworkBonusParts(tiered("weaponToDamage"), "attack").length === 0);
+check("a roll the source does not answer, and an item with no tier, have none", masterworkBonusParts(tiered("weaponBoth"), "ac").length === 0 && masterworkBonusParts(tiered(null), "attack").length === 0 && masterworkBonusParts(tiered("none"), "attack").length === 0);
+libraryAbsent();
+check("a tier whose document is not imported has no part: the printed clause has nothing to resolve against", masterworkBonusParts(tiered("weaponBoth"), "attack").length === 0);
+useLibrary(IMPORTED_VARIATIONS);
+const appliedTo = (item, key, over = {}) => {
+  item.id = "w1";
+  useLibrary([...IMPORTED_VARIATIONS, { ...variationItem(key, over), id: `applied-${key}`, flags: { "acks-extras": { containedIn: "w1" } } }]);
+  return item;
+};
+const viaVariation = appliedTo(tiered(null), "masterwork.weaponBoth", { deltas: { bonus: FIG.both.bonus + 1, damage: 0 } });
+check("an applied masterwork variation answers with its own document's figures", masterworkBonusParts(viaVariation, "attack")[0]?.value === FIG.both.bonus + 1 && masterworkBonusParts(viaVariation, "damage").length === 0);
+const flagOwns = appliedTo(tiered("weaponToHit"), "masterwork.weaponBoth");
+check("where the flag names a tier it owns its family: an applied masterwork variation is not added", masterworkBonusParts(flagOwns, "attack").length === 1 && masterworkBonusParts(flagOwns, "attack")[0].value === FIG.hit.bonus);
+const platedByVariation = appliedTo(tiered(null), "material.silver");
+check("a variation of another family is no masterwork part", masterworkBonusParts(platedByVariation, "attack").length === 0);
+useLibrary(IMPORTED_VARIATIONS);
 const { priceLedger } = await import(new URL("item-sheet/price-ledger.mjs", S));
 const led = priceLedger({
   base: 10,

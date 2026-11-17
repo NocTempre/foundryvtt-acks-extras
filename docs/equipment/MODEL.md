@@ -250,6 +250,19 @@ tab, which carries Weapon type, Class, Size, Grips and Worn at.
 effect collectors, `config`, `HOOKS`, `VIOLATION`, `roomForLight(actor, type)`,
 `unlitInHand(actor, type)`, plus the hand and gear surfaces below.
 
+**Masterwork as an item bonus source.** At `init` equipment registers
+`printed-layers.mjs` `masterworkBonusParts(item, on)` with lib's
+`registerItemBonusSource` (`lib/roll-mods.mjs`), so a spell record's buff on a
+weapon resolves beside the masterwork figure core already carries in the
+weapon's bonus. For `attack` it answers the `bonus` figure and for `damage` the
+`damage` figure, from the flag's tier through `masterworkFigure`, else from an
+applied `masterwork.*` variation's own document (a flag that names a tier owns
+the family, so the two never both answer). A part is `{key: "masterwork", label,
+value, provides: ["kw:masterwork"], cite}` with the sheet's provenance tooltip
+as its cite; a zero figure, a tier whose document is not imported and any other
+roll have none, so the printed clause has nothing to resolve against. It reads
+the item and never writes it.
+
 ### Hands: free, committed, spare
 
 Three numbers on the Loadout, and asking for the wrong one is the classic bug:

@@ -29,9 +29,9 @@ const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
-const { damageBounds, checkApplyRequest, applyOnTarget, amountOf, undoEntry, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
+const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
-const { castSpellClaims, castSpellClaimant, castSpellRun, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
+const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
 
 let n = 0;
@@ -298,6 +298,12 @@ t("a relayed request is refused for every wrong thing about it, and passes when 
   assert.equal(checkApplyRequest(req({ requestUserId: null, entries: [{ rowKey: "dread" }] }), world()).ok, true, "a GM's own request, and a condition row has no amount");
 });
 
+/** The spell's own keyed rows, as the relay reads them off the spell; these fixtures' card rows carry the same fields. */
+const spellRowsOf = (c) => Object.values(c.rows).map((r) => ({ key: r.key, row: r }));
+const SPELL_AS_READ = { uuid: "Actor.c1.Item.s1", name: "Testscorch", img: "i.png", id: "def.spell.testScorch", cite: "p. 9" };
+/** `applyOnTarget` with the inputs a live write takes from the spell and not from the card. */
+const applyOnTarget = (c, targetKey, requests, deps) => applyRaw(c, targetKey, requests, { rows: spellRowsOf(c), duration: c.duration, spell: SPELL_AS_READ, ...deps });
+
 /** The writes an apply makes, recorded. */
 function fakeDeps(over = {}) {
   const log = { hp: [], lost: [], made: [], entries: {} };
@@ -431,6 +437,134 @@ await ta("undo puts the hit points back and deletes the records it made by id, o
   assert.equal(calls.restored.length, 1, "a second undo writes nothing");
 });
 
+/* ------------------------------------------------------------------ */
+/*  A cast's modifiers: one record per recipient                      */
+/* ------------------------------------------------------------------ */
+
+const MOD_ROWS = {
+  ac: { type: "modifier", key: "ac", target: "ac", appliesTo: "recipient", value: 2, vsKinds: ["undead"], lasts: "duration" },
+  save: { type: "modifier", key: "save", target: "save", appliesTo: "recipient", value: 1, vsKinds: ["undead"], lasts: "duration" },
+  ward: { type: "ward", key: "ward", appliesTo: "recipient", vsKinds: ["undead"], lasts: "duration" },
+};
+const modSpellRows = () => Object.values(MOD_ROWS).map((row) => ({ row, key: row.key }));
+const modCard = (over = {}) =>
+  card({
+    save: { category: "", effect: "" },
+    rows: Object.fromEntries(Object.values(MOD_ROWS).map((r) => [r.key, { type: r.type, key: r.key, total: r.value ?? null, blank: false, conditions: [] }])),
+    order: ["ac", "save", "ward"],
+    targets: { t1: { uuid: "Scene.s.Token.k1", name: "Ally", resist: null } },
+    entries: { t1_ac: { state: "pending" }, t1_save: { state: "pending" }, t1_ward: { state: "pending" } },
+    casterLevel: { value: 3, source: "hand" },
+    ...over,
+  });
+const GROUP = ["ac", "save", "ward"].map((rowKey) => ({ rowKey }));
+
+t("a buff record round-trips its weapon and its roll-mods flag, and holds no status", () => {
+  const flag = { id: "def.spell.testEdge", label: "Testedge", cite: "p. 1", sourceAlignment: "lawful", parts: [{ key: "k", on: "attack", value: 1, provides: ["kw:spellrecord"] }] };
+  const data = spellEffectData({ ...base, item: { id: "w1", name: "Testblade" }, rollMods: flag, startTime: 5 });
+  assert.deepEqual(data.flags["acks-extras"].rollMods, flag, "written at lib's flag");
+  const read = spellEffectOf(data);
+  assert.deepEqual([read.item, read.rollMods, read.startTime], [{ id: "w1", name: "Testblade" }, flag, 5]);
+  assert.throws(() => spellEffectData({ ...base, statuses: ["a"], rollMods: flag }), /buff record holds no status/);
+  const plain = spellEffectOf(spellEffectData({ ...base }));
+  assert.deepEqual([plain.item, plain.rollMods], [undefined, undefined]);
+});
+
+await ta("a group of three modifier entries writes one record, every entry names it, and the record is built from the spell's rows", async () => {
+  const { deps, log } = fakeDeps({ rows: modSpellRows(), sourceAlignment: "lawful" });
+  const out = await applyOnTarget(modCard(), "t1", GROUP, deps);
+  assert.equal(log.made.length, 1, "one record for the target");
+  const [data] = log.made;
+  assert.deepEqual(data.changes, []);
+  assert.equal(data.statuses, undefined);
+  const flag = data.flags["acks-extras"].rollMods;
+  assert.deepEqual(flag.parts.map((p) => [p.key, p.on, p.value ?? null]), [["ac", "ac", 2], ["save", "save", 1], ["ward", "ward", null]]);
+  assert.deepEqual([flag.id, flag.sourceAlignment, flag.cite], ["def.spell.testScorch", "lawful", "p. 9"]);
+  assert.deepEqual(flag.parts[0].vsKinds, ["undead"]);
+  assert.deepEqual([spellEffectOf(data).startTime, spellEffectOf(data).duration], [500, { value: 60, units: "seconds" }], "timed by the duration the client computed, because the rows last");
+  assert.deepEqual(out.map((o) => o.entry.recordIds), [["r10"], ["r10"], ["r10"]]);
+  assert.deepEqual(Object.keys(log.entries).sort(), ["t1_ac", "t1_save", "t1_ward"]);
+});
+
+await ta("a group's figures come from the spell, so a card that forges its rows changes nothing; a spell with no such row writes none", async () => {
+  const forged = modCard({ rows: { ac: { type: "modifier", key: "ac", total: 99 }, save: { type: "modifier", key: "save", total: 99 }, ward: { type: "ward", key: "ward", total: null } } });
+  const { deps, log } = fakeDeps({ rows: modSpellRows() });
+  await applyOnTarget(forged, "t1", GROUP, deps);
+  assert.deepEqual(log.made[0].flags["acks-extras"].rollMods.parts.map((p) => p.value ?? null), [2, 1, null]);
+  const bare = fakeDeps({ rows: [] });
+  const none = await applyOnTarget(modCard(), "t1", GROUP, bare.deps);
+  assert.deepEqual(none.map((o) => o.skipped), ["noRow", "noRow", "noRow"]);
+  assert.equal(bare.log.made.length, 0);
+});
+
+await ta("a condition's record is built from the spell's row on either client, never from card.rows", async () => {
+  const spellRow = { type: "conditionGrant", key: "dread", conditions: ["afraid"], lasts: "duration" };
+  const forged = card({ save: { category: "", effect: "" }, rows: { dread: { type: "conditionGrant", key: "dread", conditions: ["paralysed", "stunned"], lasts: "" } }, order: ["dread"], targets: { t1: { uuid: "x", name: "T", resist: null } }, entries: { t1_dread: { state: "pending" } } });
+  const { deps, log } = fakeDeps({ rows: [{ row: spellRow, key: "dread" }] });
+  await applyOnTarget(forged, "t1", [{ rowKey: "dread" }], deps);
+  assert.deepEqual(log.made.map((d) => d.statuses), [["afraid"]], "the spell's one condition, not the card's two");
+  assert.deepEqual(spellEffectOf(log.made[0]).duration, { value: 60, units: "seconds" }, "timed by the spell's row");
+  const stale = fakeDeps();
+  const noDuration = await applyRaw(forged, "t1", [{ rowKey: "dread" }], { ...stale.deps, rows: [{ row: spellRow, key: "dread" }] });
+  assert.equal(spellEffectOf(stale.log.made[0]).duration, undefined, "no duration passed in, none taken from the card");
+  assert.equal(noDuration[0].entry.state, "applied");
+});
+
+await ta("undo of one entry of a group deletes the record once and marks every entry of the group undone", async () => {
+  const { deps, log } = fakeDeps({ rows: modSpellRows() });
+  const c = modCard();
+  await applyOnTarget(c, "t1", GROUP, deps);
+  const deleted = [];
+  const undoDeps = { resolve: async () => ({ actor: { id: "a" }, hpTarget: null }), restoreHp: async () => deleted.push("hp"), deleteRecords: async (a, ids) => deleted.push(ids) };
+  const written = await undoEntries({ ...c, entries: log.entries }, "t1", "save", undoDeps);
+  assert.deepEqual(Object.keys(written).sort(), ["t1_ac", "t1_save", "t1_ward"]);
+  assert.ok(Object.values(written).every((e) => e.state === "undone"));
+  assert.deepEqual(deleted, [["r10"]], "one delete, no hit points");
+  assert.deepEqual(await undoEntries({ ...c, entries: written }, "t1", "save", undoDeps), { t1_save: written.t1_save }, "a second undo finds nothing applied");
+});
+
+t("the relay refuses a weapon that is not the target's and a group request that leaves an open entry out; bounds are skipped for a buff", () => {
+  const world = (over = {}) => ({ message: { authorId: "p1" }, card: modCard({ item: { targetKey: "t1", id: "w1", name: "Testblade" } }), ownsCaster: true, spellOfCaster: true, rows: modSpellRows(), resist: null, boundsOf: () => null, item: { id: "w1", name: "Testblade" }, ...over });
+  const req = (entries = GROUP) => ({ requestUserId: "p1", messageId: "m", targetKey: "t1", resist: null, entries });
+  assert.deepEqual(checkApplyRequest(req(), world()), { ok: true }, "no amount to bound");
+  assert.equal(checkApplyRequest(req(), world({ item: null })).refused, "badItem");
+  assert.equal(checkApplyRequest(req(), world({ card: modCard({ item: { targetKey: "t9", id: "w1", name: "x" } }), item: null })).ok, true, "an item the card names for another target is not this one's");
+  assert.equal(checkApplyRequest(req([{ rowKey: "ac" }]), world()).refused, "badGroup");
+  assert.deepEqual(missingGroupKeys(modCard(), "t1", [{ rowKey: "ac" }], modSpellRows()), ["save", "ward"]);
+  assert.deepEqual(missingGroupKeys(modCard(), "t1", [], modSpellRows()), [], "a request with no modifier names no group");
+  const done = modCard({ entries: { t1_ac: { state: "pending" }, t1_save: { state: "applied" }, t1_ward: { state: "pending" } } });
+  assert.deepEqual(missingGroupKeys(done, "t1", [{ rowKey: "ac" }], modSpellRows()), ["ward"], "an entry already applied is not open");
+});
+
+t("a Player is blocked and a Judge warned where a weapon buff has no one bearer", () => {
+  const rows = [{ row: { key: "edge", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: 1, gate: { kind: "weaponMundane" } } }];
+  const ok = { capacity: { verdict: "ok" }, rows };
+  assert.deepEqual(castVerdicts({ ...ok, targets: [1], isGM: false }), []);
+  assert.deepEqual(castVerdicts({ ...ok, targets: [], isGM: false }).map((v) => [v.key, v.severity]), [["oneBearer", "block"]]);
+  assert.deepEqual(castVerdicts({ ...ok, targets: [1, 2], isGM: true }).map((v) => [v.key, v.severity]), [["oneBearer", "warn"]]);
+});
+
+await ta("the resist is rolled and recomputed against the caster, so a scoped save figure reads as the relay will", async () => {
+  const types = ["undead"];
+  const holder = (kinds) => ({
+    type: "monster",
+    system: { saves: { spell: { value: 14 } } },
+    getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { types: kinds } : undefined),
+    effects: [],
+  });
+  const saver = holder([]);
+  saver.effects = [{ id: "fx", disabled: false, flags: { "acks-extras": { rollMods: { id: "def.spell.testWard", label: "Testward", cite: "p. 2", sourceAlignment: null, parts: [{ key: "s", on: "save", value: 2, vsKinds: types, provides: ["kw:spellrecord"] }] } } } }];
+  const save = { category: "spell" };
+  const against = (kinds) => ({ actor: holder(kinds), token: null });
+  const near = await rollResist(saver, save, null, { against: against(types), bearerToken: null });
+  assert.equal(near.resist.target, 12, "a source the part is scoped to lowers the number to roll");
+  assert.ok(near.resist.parts.some((p) => p.label === "Testward" && p.value === 2));
+  const far = await rollResist(saver, save, null, { against: against(["animal"]), bearerToken: null });
+  assert.equal(far.resist.target, 14, "a source it is not scoped to adds nothing");
+  const unknown = await rollResist(saver, save, null);
+  assert.equal(unknown.resist.target, 14, "with no source the scoped figure is told, not added");
+});
+
 t("amountOf prices a row through its save and a throw row ignores the spell's save", () => {
   const c = card();
   assert.equal(amountOf(c.rows.burn, c, c.targets.t1.resist, 6).applied, 3);
@@ -521,14 +655,17 @@ t("the claimant takes a flagged spell with rows on an actor the seat owns, and d
 });
 
 /** The dependencies of a run, recorded. */
-function runDeps({ answer, capacity = { verdict: "ok" }, isGM = false, tokens = [] } = {}) {
-  const calls = { notices: [], posts: [], spends: 0, pools: [], records: [], applied: [] };
+function runDeps({ answer, capacity = { verdict: "ok" }, isGM = false, tokens = [], casterToken = null } = {}) {
+  const calls = { notices: [], posts: [], spends: 0, pools: [], records: [], applied: [], asked: null };
   return {
     calls,
     deps: {
       lookups: NO_TWIN,
-      read: async () => ({ actor: {}, tokens, statuses: [], capacity, level: { matched: false } }),
-      ask: async () => answer,
+      read: async () => ({ actor: {}, tokens, casterToken, statuses: [], capacity, level: { matched: false } }),
+      ask: async (ctx) => {
+        calls.asked = ctx;
+        return answer;
+      },
       notify: (level, key) => calls.notices.push([level, key]),
       adjustPool: async (...args) => calls.pools.push(args.slice(1)),
       castId: () => "castX",
@@ -600,6 +737,87 @@ await ta("the reversed form casts only its own rows, and a thrown row with no ta
   assert.equal(posted.rows.touch.delivery, "melee");
   assert.equal(posted.rows.touch.total, null, "unrolled until thrown");
   assert.deepEqual(posted.entries, {});
+});
+
+/** A targeted token whose actor carries one weapon, invented. */
+const bearerToken = (weaponId = "w1") => {
+  const blade = { id: weaponId, name: "Testblade", type: "weapon", flags: {}, parent: { items: [] } };
+  const items = [blade];
+  items.get = (id) => items.find((i) => i.id === id);
+  return { uuid: "Scene.s.Token.k1", name: "Ally", actor: { name: "Ally", type: "character", items, effects: [], appliedEffects: [] } };
+};
+const EDGE = { key: "edge", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: 1, gate: { kind: "weaponMundane" }, lasts: "duration" };
+const CIRCLE = { key: "circle", type: "ward", appliesTo: "recipient", vsKinds: ["undead"], lasts: "duration" };
+
+await ta("a cast of a weapon buff names the weapon of the one target, opens one entry per row, and keeps the caster's token on the card", async () => {
+  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken()], casterToken: { uuid: "Scene.s.Token.c1" } });
+  const out = await castSpellRun(spell([EDGE, CIRCLE]), () => {}, r.deps);
+  assert.equal(out.ok, true);
+  assert.deepEqual(r.calls.asked.weapons, [{ id: "w1", name: "Testblade", magic: false }]);
+  assert.deepEqual(r.calls.asked.needsWeapon, { normal: true });
+  const posted = r.calls.posts[0];
+  const key = Object.keys(posted.targets)[0];
+  assert.deepEqual(posted.item, { targetKey: key, id: "w1", name: "Testblade" });
+  assert.equal(posted.casterTokenUuid, "Scene.s.Token.c1");
+  assert.deepEqual(posted.order, ["edge", "circle"]);
+  assert.deepEqual([posted.rows.edge.total, posted.rows.edge.weapon, posted.rows.circle.total, posted.rows.circle.blank], [1, true, null, false]);
+  assert.deepEqual(Object.keys(posted.entries).sort(), [`${key}_circle`, `${key}_edge`]);
+  assert.deepEqual(r.calls.applied[0][2].map((q) => q.rowKey).sort(), ["circle", "edge"], "both entries go to the apply as one group");
+});
+
+await ta("a weapon row with no weapon of the target's named is a line, written for nobody; a ward alone needs none", async () => {
+  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "not-its-weapon" }, tokens: [bearerToken()], isGM: true });
+  await castSpellRun(spell([EDGE, CIRCLE]), () => {}, r.deps);
+  const posted = r.calls.posts[0];
+  assert.equal(posted.item, undefined);
+  assert.deepEqual(posted.order, ["circle"]);
+  assert.equal(posted.lines.length, 1, "the weapon row is listed on the card");
+  assert.equal(typeof posted.lines[0], "string");
+  const two = runDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken(), { ...bearerToken(), uuid: "Scene.s.Token.k2" }], isGM: true });
+  await castSpellRun(spell([EDGE]), () => {}, two.deps);
+  assert.equal(two.calls.posts[0].item, undefined, "with two tokens no weapon is named");
+  assert.ok(two.calls.notices.some(([level, key]) => level === "warn" && key === "verdict.oneBearer"));
+});
+
+await ta("a Player who targets no one is blocked from a weapon buff before the spend", async () => {
+  let spends = 0;
+  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "" }, tokens: [] });
+  const out = await castSpellRun(spell([EDGE]), () => spends++, r.deps);
+  assert.deepEqual([out.ok, out.reason, spends], [false, "oneBearer", 0]);
+});
+
+t("the card shows a modifier section per row: the part's figure with the spell, the weapon and the page; a blank figure the page alone; what yields; one Undo for the group", () => {
+  const applied = modCard({
+    cite: "p. 9",
+    item: { targetKey: "t1", id: "w1", name: "Testblade" },
+    yields: { t1_ac: "Test fine" },
+    rows: { ...modCard().rows, save: { type: "modifier", key: "save", total: null, blank: true, conditions: [] } },
+    entries: { t1_ac: { state: "applied", recordIds: ["r1"] }, t1_ward: { state: "applied", recordIds: ["r1"] } },
+  });
+  const view = castCardView(applied, { isGM: true, canPress: true }, loc);
+  const [acRow, saveRow, wardRow] = view.sections.map((s) => s.rows[0]);
+  assert.equal(acRow.total, 2);
+  assert.ok(acRow.tooltipText.includes("tip.part|") && acRow.tooltipText.includes("Testblade"), "the spell, the weapon and the page");
+  assert.equal(acRow.detail, 'detail.yields|{"name":"Test fine"}');
+  assert.equal(saveRow.total, "—");
+  assert.equal(saveRow.tooltipText, 'tip.cite|{"cite":"p. 9"}', "a blank figure carries the page reference alone");
+  assert.equal(wardRow.total, "—", "a ward has no figure");
+  assert.ok(acRow.actions[0].tooltip.includes("tip.undoGroup"));
+  assert.equal(view.sections[0].title, "row.modifier");
+  assert.equal(view.sections[2].title, "row.ward");
+  const noItem = castCardView(modCard({ cite: "p. 9" }), { isGM: false, canPress: false }, loc).sections[0].rows[0];
+  assert.ok(noItem.tooltipText.includes("tip.partNoItem"));
+});
+
+t("the dialog context offers the weapon only for a mode that names one, each marked where it is magic", () => {
+  const ctx = { modes: ["normal"], weapons: [{ id: "w1", name: "Testblade", magic: false }, { id: "w2", name: "Testglaive", magic: true }], needsWeapon: { normal: true }, verdicts: { normal: [{ key: "oneBearer", severity: "block" }] } };
+  const out = dialogContext(ctx, {});
+  assert.deepEqual(out.weapon.modes, ["normal"]);
+  assert.deepEqual(out.weapon.options.map((o) => o.id), ["w1", "w2"]);
+  assert.equal(out.weapon.options[0].label, "Testblade");
+  assert.ok(out.weapon.options[1].label.includes("weaponMagic"));
+  assert.ok(out.verdicts[0].items[0].text.includes("blocked.oneBearer"));
+  assert.deepEqual(dialogContext({ ...ctx, needsWeapon: { normal: false } }, {}).weapon.modes, []);
 });
 
 console.log(`\n${n} magic cast tests passed`);

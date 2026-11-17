@@ -269,13 +269,17 @@ cancel at any point before the spend costs nothing:
 
 1. *The dialog* (`apps/cast-dialog.mjs`, template `cast-dialog.hbs`): the form of
    a reversible spell, the pick of each choice group, the caster level where
-   nothing resolved one (marked as set by hand in its tooltip), a situational
-   save modifier, the card's visibility, the seat's targets and each verdict.
-   A verdict that blocks a Player disables Cast for that form.
+   nothing resolved one (marked as set by hand in its tooltip), the weapon a
+   buff is cast on, a situational save modifier, the card's visibility, the
+   seat's targets and each verdict. The weapon is a select of the weapon items
+   of the one targeted token's actor, each marked magic where lib's `isMagical`
+   says so, offered for a form that holds a row gated on the weapon. A verdict
+   that blocks a Player disables Cast for that form.
 2. *The verdicts* (`cast-plan.mjs`), a Player blocked and a Judge warned: no
    slot at the spell's level, several targets for a row with a throw, a
-   condition that forbids casting. They are checked again after the dialog and
-   before anything is spent.
+   condition that forbids casting, and `oneBearer` where a kept row is gated on
+   the weapon and the seat has not targeted exactly one token. They are checked
+   again after the dialog and before anything is spent.
 3. *The spend*, once: the seam's `spend()`, and `adjustPool` for a vancian
    tradition (`cast-capacity.mjs`: the tradition whose key or label a list of the
    spell names, its slot at the spell's level less what the actor spent; a
@@ -291,8 +295,32 @@ cancel at any point before the spend costs nothing:
    modifiers that opted in apply and no melee row does. A damage row with a
    `delivery` is thrown through the system's own pipeline as the `magic` attack
    type on a carrier (lib MODEL, "A spell's damage on the attack seam"), at the
-   seat's one target; a hit's `damageTotal` is the amount. Any other row kind is
-   a line on the card from `describeSpellEffect`.
+   seat's one target; a hit's `damageTotal` is the amount. A modifier or ward
+   row is a buff part where it waits for a roll (`cast-mods.mjs`, below) and a
+   section of the card with an entry per target; any other row kind, and a
+   modifier that stands, is a line on the card from `describeSpellEffect`.
+
+   *A buff.* A recipient's modifier and ward rows are one record, which carries
+   lib's flag `flags["acks-extras"].rollMods` and holds no status and no change.
+   `modParts` turns a row into a part (`{key, on, value, itemId, gate,
+   stacksWith, notStacksWith, provides}` and the row's scope fields) only where
+   `modifierDisposition(row, {bearer: true})` says it waits for a roll and its
+   target is attack, damage, AC or a save; a ward row is a part with no figure.
+   A figure is the row's flat value, or its level-scaled value where the cast
+   has a caster level, and a blank one writes no part and shows its page
+   reference alone. Every part provides `SPELL_RECORD_CAP`, so two spell
+   records never add and the larger applies. A row gated on the weapon names it:
+   the seat's one targeted token and the weapon it picked are `card.item`, the
+   part carries the weapon's `itemId`, and lib's item gates (`weaponMundane`,
+   `weaponMagical`) are read at the roll, so a magic weapon is never refused at
+   the pick. With no weapon named such a row is a line, written for nobody. The
+   record is timed by the cast's duration only where the cast is timed and the
+   rows last, carries its own `startTime`, names the caster's alignment as
+   `sourceAlignment`, and is read by lib at the attack, the attack against its
+   bearer and the bearer's save (lib MODEL, "A record's modifiers at the roll").
+   A dry run at the cast reads which of the weapon's parts would yield to the
+   weapon's own bonus (`registerItemBonusSource`; equipment registers masterwork)
+   and tells it on the card; the roll decides again.
 6. *The resists*: where the spell saves (`save.kind` blank or `save`, a category
    other than none), each target rolls lib's `saveThrow` once for the cast, with
    the situational figure, the roll kept as labelled parts. A row's `saveEffect`
@@ -307,10 +335,15 @@ cancel at any point before the spend costs nothing:
    target on the right client. The amount is the roll through the save's fraction
    and then `amountAfter`'s one rounding, to `adjustHp` with multiplier 1; a
    condition row writes a status-only record per condition (at most one status
-   to a record, never with changes), timed by the row's `lasts` from the card's
+   to a record, never with changes), timed by the row's `lasts` from the cast's
    duration; a failed save runs `loseStates` first, so the cast's own grant is
    not what is lifted. Two casts of one condition leave two records and one
-   condition, which stays while either record stands.
+   condition, which stays while either record stands. A target's modifier and
+   ward entries are one group: they are applied in one request, write one buff
+   record, and each entry names that record, so the Judge's Undo on one of them
+   takes the record off for all (its tooltip says so). A buff is not resisted
+   and has no amount, so the save is not rolled for it and the amount bounds
+   skip it.
 
 *The relay.* A seat writes the targets it owns and sends any other to the GM's
 client through `magicCastApply` on lib's socket transport. The handler
@@ -318,9 +351,18 @@ authorizes against `requestUserId`: the message's author is the requester and
 owns the caster, the card's spell is an item of the caster, each row is in the
 spell's rows for the card's mode and picks, each amount is within the bounds of
 the row's own roll as recomputed there (a thrown row keeps the system's floor of
-one and doubles its dice on a critical), the target's save is recomputed and its
-total lies within its formula, and the entry is neither written nor in flight.
-The record is built from the spell's row. With no GM connected the entry stays
+one and doubles its dice on a critical; a modifier or ward row has none), the
+target's save is recomputed against the caster and the caster's token the card
+keeps (`casterTokenUuid`, read only where it is a token of that caster) and its
+total lies within its formula, a weapon the card names is a weapon of the
+target's actor (`badItem`), a request naming one entry of a modifier group
+names every open entry of it (`badGroup`), and the entry is neither written nor
+in flight. Every record is built from the spell's own rows for the card's mode
+and picks, never from the card's display rows, on whichever client writes: the
+GM's client recomputes the duration from the spell and the card's caster level
+(a `dice` duration cannot be recomputed, so the card's figure stands where it
+lies between the formula's extremes, else the shortest), and reads the spell's
+id, page and the caster's alignment from the documents. With no GM connected the entry stays
 pending and the card's Apply stays. A card cast with nothing targeted posts the
 rolls and an Apply that takes the presser's targets; a thrown row waits on a
 Throw press. Apply and Throw are for a GM and the user who cast; Undo is the

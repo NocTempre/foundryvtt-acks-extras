@@ -17,10 +17,13 @@
  * where a Judge changed the figures the import stamped as read.
  */
 import { libraryItems, cookbookId } from "../lib/library.mjs";
-import { containedIn, capacityOf } from "../lib/item-model.mjs";
-import { MODULE_ID, VARIATION_ITEM_TYPE } from "./constants.mjs";
+import { containedIn, capacityOf, contentsIn } from "../lib/item-model.mjs";
+import { MODULE_ID, ITEM_FLAGS, VARIATION_ITEM_TYPE } from "./constants.mjs";
 import { MASTERWORK, SILVER } from "./config.mjs";
-import { sumDeltas, definitionFrom, entryOf } from "./variations.mjs";
+import { sumDeltas, definitionFrom, entryOf, familyOf } from "./variations.mjs";
+
+/** The key family the masterwork variations share. */
+const MASTERWORK_FAMILY = "masterwork";
 
 /**
  * The library's variation document carrying `key`, or null. A variation
@@ -93,6 +96,45 @@ export const silverFigure = () => figureOf(SILVER.variation);
  * imported.
  */
 export const masterworkFigure = (tier) => figureOf(MASTERWORK[tier]);
+
+/**
+ * The masterwork share of a weapon's bonus on one roll, as lib's attack seam
+ * reads an item bonus source (`registerItemBonusSource`): the parts of what core
+ * already carries in the weapon's `system.bonus` and damage, so a spell record's
+ * buff that names `kw:masterwork` can yield to it or take it back out. `on` is
+ * `attack` (the `bonus` figure) or `damage`; any other roll has none.
+ *
+ * The figures are the imported ones: the flag's tier through `masterworkFigure`,
+ * else an applied `masterwork.*` variation's own (a flag that names a tier owns
+ * its family, so a variation beside it is not added). A figure of zero, a tier
+ * whose document is not imported, and an item with neither have no part. Each part
+ * provides `kw:masterwork` and cites its document the way the sheet's tooltip does.
+ *
+ * @param {object} item
+ * @param {"attack"|"damage"|string} on
+ * @returns {{key: string, label: string, value: number, provides: string[], cite: string}[]}
+ */
+export function masterworkBonusParts(item, on) {
+  const field = on === "attack" ? "bonus" : on === "damage" ? "damage" : null;
+  if (!field || !item) return [];
+  const tier = (item.getFlag?.(MODULE_ID, ITEM_FLAGS.MASTERWORK) ?? item.flags?.[MODULE_ID]?.[ITEM_FLAGS.MASTERWORK])?.tier ?? null;
+  const figures = [];
+  if (tier && tier !== "none") {
+    const figure = masterworkFigure(tier);
+    if (figure) figures.push(figure);
+  } else {
+    // Not `variationItemsOf`: that file imports `properties.mjs`, which imports this one.
+    for (const doc of contentsIn(item)) {
+      if (doc?.type !== VARIATION_ITEM_TYPE || familyOf(doc.system?.key) !== MASTERWORK_FAMILY) continue;
+      const def = definitionFrom(doc);
+      if (!def) continue;
+      const total = sumDeltas([entryOf(doc)], (k) => (k === def.key ? def : null), { item });
+      if (says(total)) figures.push({ ...total, source: sourceOf(doc) });
+    }
+  }
+  const label = game.i18n.localize("ACKS-EQUIPMENT.props.masterwork");
+  return figures.filter((f) => f[field] !== 0).map((f) => ({ key: "masterwork", label, value: f[field], provides: ["kw:masterwork"], cite: provenanceTip(f.source) }));
+}
 
 /** The tooltip for a figure: the page it was read from, that it was typed by hand, or that a Judge edited it. */
 export function provenanceTip(source) {

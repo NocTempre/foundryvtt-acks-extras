@@ -11,6 +11,7 @@
  * by hand and the cast it stands for simply stops being tracked.
  */
 import { MODULE_ID, FLAG_SPELL_EFFECT } from "./constants.mjs";
+import { FLAG_ROLL_MODS } from "../lib/constants.mjs";
 
 /** The two sides of a cast a record can sit on. */
 export const SPELL_EFFECT_ROLES = Object.freeze(["caster", "recipient"]);
@@ -65,6 +66,9 @@ export function newCastId({ randomID } = {}) {
  * @param {object} [cast.resist]  `{kind, category, total, target, success}` of the recipient's saving throw.
  * @param {string} [cast.sourceAlignment]  The caster's alignment key, read by a row scoped to it.
  * @param {number} [cast.startTime]  World time the record began; makes it flag-timed.
+ * @param {{id: string, name: string}} [cast.item]  The weapon a buff names.
+ * @param {{id: string|null, label: string, cite: string, sourceAlignment: string|null, parts: object[]}} [cast.rollMods]
+ *   The buff lib reads at the roll (`lib/roll-mods.mjs`), written at lib's flag. A record that carries it holds no status and no changes.
  * @returns {object}
  */
 export function spellEffectData({
@@ -81,14 +85,18 @@ export function spellEffectData({
   resist,
   sourceAlignment,
   startTime,
+  item,
+  rollMods,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
   if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
   if (statuses.length && changes.length) throw new Error("spellEffectData: a record that holds a status holds no changes");
+  if (rollMods && (statuses.length || changes.length)) throw new Error("spellEffectData: a buff record holds no status and no changes");
   const mark = { spellUuid: spell.uuid, castId, casterUuid: caster.uuid, role };
   if (rowKey) mark.rowKey = String(rowKey);
   if (resist) mark.resist = resist;
   if (sourceAlignment) mark.sourceAlignment = String(sourceAlignment);
+  if (item?.id) mark.item = { id: String(item.id), name: String(item.name ?? "") };
   const data = {
     name: name ?? spell.name,
     img: spell.img,
@@ -98,6 +106,7 @@ export function spellEffectData({
     changes,
     flags: { [MODULE_ID]: { [FLAG_SPELL_EFFECT]: mark } },
   };
+  if (rollMods) data.flags[MODULE_ID][FLAG_ROLL_MODS] = rollMods;
   if (statuses.length) data.statuses = [...statuses];
   const timed = duration && !duration.none && Number.isFinite(duration.value) && duration.units;
   const flagTimed = statuses.length > 0 || changes.length > 0 || Number.isFinite(startTime);
@@ -109,10 +118,11 @@ export function spellEffectData({
 
 /**
  * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }` and
- * whichever of `rowKey`, `resist`, `sourceAlignment`, `startTime` and `duration` it was written with,
+ * whichever of `rowKey`, `resist`, `sourceAlignment`, `item`, `startTime` and `duration` it was written with,
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
- * was stamped at (`cast-expiry.mjs`).
+ * was stamped at (`cast-expiry.mjs`). A buff record's `rollMods` is read back
+ * whole, from lib's flag beside the mark.
  *
  * @param {object} effect  An Active Effect document or its plain data.
  */
@@ -129,6 +139,9 @@ export function spellEffectOf(effect) {
   if (raw.rowKey) record.rowKey = String(raw.rowKey);
   if (raw.resist && typeof raw.resist === "object") record.resist = raw.resist;
   if (raw.sourceAlignment) record.sourceAlignment = String(raw.sourceAlignment);
+  if (raw.item && typeof raw.item === "object" && raw.item.id) record.item = { id: String(raw.item.id), name: String(raw.item.name ?? "") };
+  const mods = effect?.flags?.[MODULE_ID]?.[FLAG_ROLL_MODS] ?? effect?.getFlag?.(MODULE_ID, FLAG_ROLL_MODS);
+  if (mods && typeof mods === "object" && Array.isArray(mods.parts)) record.rollMods = mods;
   if (raw.startTime != null && Number.isFinite(Number(raw.startTime))) record.startTime = Number(raw.startTime);
   if (raw.duration && typeof raw.duration === "object" && Number.isFinite(Number(raw.duration.value)) && raw.duration.units) {
     record.duration = { value: Number(raw.duration.value), units: String(raw.duration.units) };

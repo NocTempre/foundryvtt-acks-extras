@@ -389,8 +389,8 @@ it rigged.
   picks the form, with a bubbling `change` after the value is set.
 - Rig the dice with `CONFIG.Dice.randomUniform` (reads from the top: 0.025
   throws a 20, 0.975 a 1) and restore it in `finally`.
-- Targets are set with `token.object.setTarget(true, {user, releaseOthers:
-  false, groupSelection: true})` on the viewed scene.
+- Targets are set with `canvas.tokens.setTargets(ids, {mode: "replace"})` on
+  the viewed scene, which replaces the seat's targets whole.
 - A card button is pressed by its `data-action` (and `data-target`,
   `data-row`) inside `[data-message-id]` with the chat tab up; the entry
   settles when none is `pending` or `applying`.
