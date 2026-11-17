@@ -223,6 +223,7 @@ ones its slices need, once, and builds what they do not touch meanwhile.
   penalty sizes or types a larger one, and ticks the conditions as the reason.
   (b) The Judge types the penalty; the imported sizes show in the tooltip. (c)
   Keep a price per condition, which the page does not print. Recommended: (a).
+  **Answered 2026-11-17: (a)** (§13, "Owner answers").
 - **OQ2, the Cat Burglary no-fall (A2, B11).** RR ch. 6 and RR ch. 3 state it
   differently. (a) Ch. 6 governs on this surface. (b) Ch. 3 governs. (c)
   Either route exempts, and ch. 3's extras apply.
@@ -511,15 +512,15 @@ permitted before OQ2 and OQ4.
   Verdict only; the Judge picks the footing. Recommended: (a). It supersedes
   in part the 2026-08-15 entry's rejection of a single roll; the new evidence
   is that the imported shortfall die and the footings have readers nothing can
-  feed without an attempt's result.
+  feed without an attempt's result. **Answered 2026-11-17: (a).**
 - **OQ9, the per-round throw in combat (unblocks S13, S15).** (a) A prompt
   card at the member's turn, whose button throws. (b) The throw rolls itself
   at the start of the turn. (c) No driver; presses from the section only.
-  Recommended: (a).
+  Recommended: (a). **Answered 2026-11-17: (a).**
 - **OQ10, the crossing card's audience (S7 ships (b)).** (a) A public card.
   (b) A public notice for a player's press, the card to the Judges, row state
   on every seat. (c) The card to the Judges and the rows hidden from players.
-  Recommended: (b).
+  Recommended: (b). **Answered 2026-11-17: (b).**
 
 ## 9. Slices
 
@@ -560,7 +561,7 @@ feature is not reported built until that walk has run.
 
 ### Phase 2: the round rules
 
-Asks OQ1, OQ8, OQ9, OQ10 at its start and builds what they do not touch.
+OQ1, OQ8, OQ9 and OQ10 were answered on 2026-11-17 (§13, "Owner answers"), so nothing in this phase waits on the owner.
 
 | Id | Tree | Agent | Scope | Closes | Blocked on |
 |---|---|---|---|---|---|
@@ -1240,6 +1241,16 @@ The Foundry server process died mid-walk, not stopped by this session; the
 app was restarted and the world relaunched, and the crossing and the import
 survived. The pane's in-page fixture ledger did not, so the run's own cards
 were listed by author, time and fixture, and swept by that list.
+
+### Owner answers
+
+Given 2026-11-17 in reply to Phase 1's report, in the owner's words:
+"1a 8a 9a 10b". OQ1 (a): the Judge picks an imported penalty size or types
+a larger one, ticking the conditions as the reason (S11). OQ8 (a): the
+attempt rolls the distance's die and the footing follows, the verdict still
+shown first (S19). OQ9 (a): a prompt card at the member's turn whose button
+throws (S13, S15). OQ10 (b): S7's shipped audience stands. Phase 2 asks none
+of the four again.
 
 ## 14. Phase 3c results: U14 and U16
 
