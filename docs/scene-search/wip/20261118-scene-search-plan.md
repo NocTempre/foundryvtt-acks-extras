@@ -149,3 +149,18 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
   1. Where the stack lives: "Everything to a place that can apply effects to a region. All to region if easiest". Close-out's architect picks the carrier by build cost, and S2 waits on that pick.
   2. Harvest time between printed steps: "Round up" (S7b).
   3. A dual-typed creature: "Any of its rows" qualifies a harvester, and the Judge overrides per body (S7b).
+
+### 2026-11-18 — S1, S3 and R-I1 landed and walked; the rest held (scene-search orchestrator)
+
+- Landed on main with `branch.mjs land`, tip eb4db7a2, fast-forwarded from 9b7b65e2: the thing-shape entry 4a8a7d0f, S1 997c57d7 and cea5a898, the carrier on the place a5fc4827 (the owner's "Everything to a place that can apply effects to a region", close-out's architect's pick), S3 3e35a628 and 1b331e6f, the Hazard ref 048c37b3 (H1's `acks-extras.hazard` Item, keyed by `system.key`), and R-I1 eb4db7a2. The orchestrator pushed eb4db7a2.
+- S3 is walked on main: `tools/live/scene-search.mjs`, 20 of 20 on lane A, after a world relaunch on eb4db7a2. The walk found that the deal answered each lot with the wrong card. The fix is 0aecb809, not pushed: `lotsInPot` finds a lot's card by its key, and a new offline check fails on the old code. A lane B attempt was blocked before its first step because its GM was not the active GM. TESTING records the drive mechanics.
+- Held under the orchestrator's convergence order (the owner: "Orchestrate the agents toward completion so this can get back to serial work ASAP, it seems like the parallel work path is not saving time in the end"): S2, S4–S8 and R-I1b (`docs/scene-search/ROADMAP.md`). The next slice is S2. `topic/scene-search` stays open; sync it before S2.
+- Findings registered for S2 and S4, not worked:
+  - `seatView` does not redact unfound yields, so a player projection is needed.
+  - Lot keys stay in the session record and never in the place's authored `yields.lots`.
+  - A body's keys come back in `missing`.
+  - Set the pot's `partyId`.
+  - Search targets come per actor from `PARTY_CHECKS` and `resolveCheck`.
+  - The thief's-bonus reading is unverified.
+- S3 has no changelog fragment yet. S8 writes it with the feature's others.
+- Owners of what is held: S2–S8 are this phase's, started when the orchestrator dispatches them. The B-slices (H2, H3, P3, H0) are obstacle regions', on dungeon close-out (local_bfe7fed4), held the same way.
