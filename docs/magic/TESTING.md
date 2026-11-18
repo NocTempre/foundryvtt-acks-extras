@@ -182,6 +182,16 @@ clicks. The Cast button is pressed without awaiting it, because `item.use()`
 does not await the cast. The prompt is the answer, and the count is read in
 three states.
 
+Placing is also a pointer problem. While `TokenLayer#placeTokens` is pending,
+a pointer inside the 50 px edge band edge-pans the canvas until it clamps, and
+the Place button leaves the pointer in that band, so a scan taken then reads a
+view that keeps moving and finds no bare point. The walk sends a CDP
+`mouseMoved` to the viewport's middle before every pan, scans only points at
+least 60 px from every edge, and on a miss logs the view it scanned (pivot,
+scale, the root pointer event's client point, `document.hidden`). A walk that
+fails with a placement pending right-clicks it away, so the next step does not
+inherit a live preview.
+
 **Steps, from the Player seat** (the sheet open on the Magic tab):
 1. Press the spell row's Cast (Character sheet → Magic tab → Cast).
    *Observable:* the creature prompt, titled for the spell, offers the row's one
@@ -985,12 +995,14 @@ fails that check; re-import it (the Spells repair).
 
 1. *Each tracked kind, cast from the Player seat with no target held.*
    *Observable:* the card carries one line for the row, its footnote is that line,
-   and the cast made one message and no roll, with no row, target or entry in the
-   card's model. A row that lasts the duration leaves exactly one caster record
+   and the cast made one cast card beside the system's spell card the spend
+   posts, with no roll and no row, target or entry in the card's model. A row that lasts the duration leaves exactly one caster record
    timed by the walk's duration; the instant detect and the dispel leave none.
 2. *A reversed twin, cast in each mode.* *Observable:* the dialog offers the
-   reverse mode; each form posts one line, the reverse card says it is reversed,
-   the two footnotes differ, and each cast writes its own one caster record.
+   reverse mode; each form posts one line, the reverse card's note says
+   reversed and the normal card's does not, each footnote is its card's own line
+   (the two lines may read alike: the twins differ in key and the reversed flag
+   alone), and each cast writes its own one caster record.
 3. *A dispel row with no delivery, cast untargeted and aimed at a token.*
    *Observable:* the card has no section, no button and no entry either way.
 4. *The five summon rows, read through the module's own reader on the Player
@@ -999,7 +1011,8 @@ fails that check; re-import it (the Spells repair).
    amount is refused `badCount` and the amount is not; the spell that states
    no amount refuses no count, and the one carrying a caster-level ceiling
    carries it unresolved on the row. The two rows that name a creature resolve
-   to one when the monster is imported (SKIP otherwise, naming why). Pressing
+   to one: the walk imports the creature as setup when the Monster Manual is
+   open on the GM seat (SKIP only when it is not, naming why). Pressing
    Cast on those two from the GM seat opens the creature prompt with the row's
    one choice, labelled, the count open above one; closing it writes no record.
 5. *A concentration summoning, on each seat* (Character sheet → Magic tab →
@@ -1026,7 +1039,8 @@ fails that check; re-import it (the Spells repair).
   every framed window, real CDP clicks, and `item.use()` unawaited (the prompt is
   the answer). Each seat's page is brought to the front before its clicks, since
   both seats place here, and each click point is chosen apart from the earlier
-  ones so a placement never lands on a standing token.
+  ones so a placement never lands on a standing token. The pointer is parked
+  mid-viewport before each pan, as "Casting a summoning spell" describes.
 - The order of a warning and an end is read from the world and never from
   clocks: the warning patch logs, at the moment it fires, the caster's held
   cast ids and the cast ids with an end card.

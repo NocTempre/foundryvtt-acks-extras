@@ -88,3 +88,7 @@ questions, ruled"): 2 and 4a before 1b.
   compose a concentration's held record (the status by kind, `held`, `tail`, the
   start time, the cap). One `cast-held` function would own it, and
   `cast-summon` would stop repeating the composition.
+- **One card per cast.** A cast posts two cards: the system's spell card, from
+  the `spend()` that runs core's `_useSpell` (docs/lib/API.md, the cast seam), and
+  the cast card. Both show on every cast, so a Judge sees the spell twice;
+  folding the module's card into the system's, or suppressing one, is not built.

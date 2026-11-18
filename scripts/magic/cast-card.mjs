@@ -309,6 +309,7 @@ export function castCardView(card, seat, loc) {
       : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : ""].filter(Boolean).join(" · "),
     noteTooltip: levelTip(card, loc),
     sections,
+    bare: true,
     footnote: (card.lines ?? []).join(" · "),
     buttons,
     labels: { total: loc("col.applied"), target: loc("col.target"), result: loc("col.result"), actions: loc("col.actions") },

@@ -26,7 +26,7 @@ globalThis.Roll = class {
 const { rowsOf, rowNeedsThrow, hasReversedRows } = await import("../scripts/magic/cast-rows.mjs");
 const { isModRow } = await import("../scripts/magic/cast-mods.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
-const { castCardView } = await import("../scripts/magic/cast-card.mjs");
+const { castCardView, castCardContent } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellRun } = await import("../scripts/magic/cast-spell.mjs");
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
@@ -147,6 +147,19 @@ await ta("a reversed twin brings the reverse mode: each form posts only its own 
   assert.equal(reversed.card.lines[0], describeSpellEffect(rows[1]).text);
   assert.equal(normal.calls.records.length, 1);
   assert.equal(reversed.calls.records.length, 1);
+  const html = (c) => castCardContent(c.card, (key) => key);
+  assert.ok(html(reversed).includes("note.reversed"), "the reverse card says it is reversed");
+  assert.ok(!html(normal).includes("note.reversed"), "and the normal card does not");
+});
+
+await ta("a card whose rows are all lines still renders: the banner and the footnote carry every line", async () => {
+  const { card } = await cast(spell([track("illusion", { key: "a" }), track("wall", { key: "c" })]));
+  assert.deepEqual(card.order, [], "no row, so no section");
+  const html = castCardContent(card, (key) => key);
+  assert.ok(html !== "", "a tracked-only card is posted");
+  assert.ok(html.includes("acks-extras-roll-footnote"), "the footnote is there");
+  assert.ok(html.includes(card.lines.join(" · ")), "and it holds every line");
+  assert.ok(!html.includes("<table"), "with no table");
 });
 
 await ta("a ward row counts as a mod row: a section of the card and no line, and it lasts like the others", async () => {

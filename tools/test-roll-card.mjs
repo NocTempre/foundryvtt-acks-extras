@@ -127,6 +127,16 @@ ok("a card with no rows still posts its banner, line and buttons when it has an 
   assert.equal(renderRollCard({ title: "T", buttons: [{ action: "x", label: "X" }] }), "", "and none at all without it");
 });
 
+ok("a bare card with no rows renders its banner, note and footnote, and the default stays \"\"", () => {
+  const card = { title: "T", note: "N", footnote: "Line one · Line two", sections: [] };
+  const html = renderRollCard({ ...card, bare: true });
+  assert.ok(html.includes('<h3 class="acks-chat-title">T</h3>') && html.includes(">N</p>"));
+  assert.ok(html.includes('<p class="acks-extras-roll-footnote">Line one · Line two</p>'));
+  assert.ok(!html.includes("<table"), "no table and no empty line");
+  assert.equal(renderRollCard(card), "", "without the flag the card is not posted");
+  assert.equal(renderRollCard({ ...card, bare: false }), "");
+});
+
 ok("a target word opens the Target column, prints escaped with no suffix, and carries the row's tooltip", () => {
   const html = renderRollCard({
     title: "T",

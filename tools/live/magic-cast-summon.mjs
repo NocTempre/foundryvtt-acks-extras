@@ -217,7 +217,9 @@ const P = {
     try { ui.notifications.clear?.(); } catch { /* a notice left standing is only chrome over the map */ }
     return true;
   },
-  /** One client point per entry of `cells`, found by scanning the viewport; each says whether the bare canvas lies under it and well inside the scene. */
+  /** The viewport's middle in client points, where the driver parks the pointer before the view is panned. */
+  middle: async () => ({ x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) }),
+  /** One client point per entry of `cells`, found by scanning the viewport at least 60 px from every edge; each says whether the bare canvas lies under it and well inside the scene. */
   pointsFor: async ({ cells, avoid = [] }) => {
     const r = canvas.dimensions.sceneRect;
     // Core clamps the zoom, and an animation can still be moving the view, so the pan is repeated until two reads half a second apart agree on the view.
@@ -234,14 +236,16 @@ const P = {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const found = [];
-    for (let y = 20; y < H - 20; y += 30) {
-      for (let x = 20; x < W - 20; x += 30) {
+    // Core's placement edge-pans the view while the pointer stands within 50 px of an edge, so no point is taken from that band.
+    for (let y = 60; y <= H - 60; y += 30) {
+      for (let x = 60; x <= W - 60; x += 30) {
         if (document.elementFromPoint(x, y) !== canvas.app.view) continue;
         const back = canvas.canvasCoordinatesFromClient({ x, y });
         if (back.x >= r.x + 100 && back.y >= r.y + 100 && back.x <= r.x + r.width - 100 && back.y <= r.y + r.height - 100) found.push({ x, y, back });
       }
     }
-    const view = [W, H, window.devicePixelRatio, Number(canvas.stage.scale.x.toFixed(3)), found.length];
+    const pointer = canvas.app?.renderer?.events?.rootPointerEvent;
+    const view = [W, H, window.devicePixelRatio, Number(canvas.stage.scale.x.toFixed(3)), found.length, [Math.round(canvas.stage.pivot.x), Math.round(canvas.stage.pivot.y)], pointer ? [Math.round(pointer.clientX), Math.round(pointer.clientY)] : null, document.hidden];
     if (!found.length) return cells.map(() => ({ x: 0, y: 0, onCanvas: false, cover: "no bare spot inside the scene", view, scene: null }));
     const cx = found.reduce((a, p) => a + p.x, 0) / found.length;
     const cy = found.reduce((a, p) => a + p.y, 0) / found.length;
@@ -454,6 +458,18 @@ async function frontSeat(port) {
   s.close();
   await sleep(1200);
 }
+/**
+ * Click points for a seat, with its pointer parked in the viewport's middle first: core's placement pans the canvas while the pointer stands in the 50 px edge band
+ * (where the Place button left it), and the scan reads a view that is still moving.
+ */
+async function pointsFor(seat, port, args) {
+  const { x, y } = await run(seat, P.middle);
+  const s = await pageSession(port);
+  await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+  s.close();
+  await sleep(400);
+  return run(seat, P.pointsFor, args);
+}
 /** A real click on a seat's page: the pointer moves there first, so core's preview follows it. */
 async function clickAt(port, { x, y }, button = "left") {
   const s = await pageSession(port);
@@ -566,7 +582,7 @@ try {
   check("1: with the prompt up the cast count is unchanged and no card has posted", mid.cast === pressed.before && mid.cards.length === 0, { cast: mid.cast, cards: mid.cards.length });
   const answered = await run(player, P.answer, { count: 2 });
   check("Place on the map is pressed and the windows are cleared off the map", answered.prompt && answered.pressed);
-  const points = await run(player, P.pointsFor, { cells: CELLS.cast });
+  const points = await pointsFor(player, PORTS.player, { cells: CELLS.cast });
   check("every click point lies on the bare canvas", points.every((p) => p.onCanvas), points.map((p) => ({ onCanvas: p.onCanvas, nudged: p.nudged, cover: p.cover, view: p.view, scene: p.scene })));
   const worldTime = await run(player, P.worldTime);
   const pending = await run(player, P.state, { casterId, spellId });
@@ -575,8 +591,12 @@ try {
   // Each point is read again just before its own click, the view panned back first, so a view that moved since the first read cannot send a click off the scene.
   const clicked = [];
   for (const cell of CELLS.cast) {
-    const [p] = await run(player, P.pointsFor, { cells: [cell], avoid: clicked });
-    if (!p.onCanvas) throw new Error("a click point left the bare canvas before its click");
+    const [p] = await pointsFor(player, PORTS.player, { cells: [cell], avoid: clicked });
+    if (!p.onCanvas) {
+      // The placement is still pending: a right click cancels it before the walk stops.
+      try { await clickAt(PORTS.player, await run(player, P.middle), "right"); } catch { /* the failure below is the one to report */ }
+      throw new Error(`a click point left the bare canvas before its click: ${JSON.stringify(p.view)}`);
+    }
     await clickAt(PORTS.player, p);
     clicked.push(p);
   }
@@ -617,7 +637,7 @@ try {
   check("3: the Cast button is pressed again", press3.button && press3.before === baseCast);
   check("3: the prompt opens", (await run(player, P.prompt, { spellName })).prompt);
   await run(player, P.answer, { count: 1 });
-  const [cancelAt] = await run(player, P.pointsFor, { cells: [CELLS.cancel] });
+  const [cancelAt] = await pointsFor(player, PORTS.player, { cells: [CELLS.cancel] });
   await clickAt(PORTS.player, cancelAt, "right");
   await sleep(2500);
   const cancelled = await run(player, P.state, { casterId, spellId });
@@ -662,7 +682,7 @@ try {
     const gmPrompt = await run(gm, P.answer, { count: 1, source: shelfCreature });
     check("5: the prompt opens for the GM seat and Place on the map is pressed", gmPrompt.prompt && gmPrompt.pressed);
     await frontSeat(PORTS.gm);
-    const [bareAt] = await run(gm, P.pointsFor, { cells: [CELLS.bare] });
+    const [bareAt] = await pointsFor(gm, PORTS.gm, { cells: [CELLS.bare] });
     check("5: the click point lies on the bare canvas", bareAt.onCanvas, { onCanvas: bareAt.onCanvas, cover: bareAt.cover, view: bareAt.view, scene: bareAt.scene });
     note("5: the GM seat's placement state before the click", await run(gm, P.diag));
     await clickAt(PORTS.gm, bareAt);

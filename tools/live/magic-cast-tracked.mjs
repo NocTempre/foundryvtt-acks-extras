@@ -12,8 +12,9 @@
  * from the library original's flag, with a duration of the walk's own (a fixed
  * two hours) so a record's absence is the row's doing and never an untimed
  * import's. A stage that throws records a failed check and lets the next one run.
- * A missing creature import (the Monster Manual) prints SKIP for the one check
- * that needs it. Machine values arrive through ./_env.mjs.
+ * A creature the Monster Manual prints is imported as setup on the GM seat when
+ * the book is open; with it closed the one check that needs it prints SKIP.
+ * Machine values arrive through ./_env.mjs.
  *
  * Fixtures, kept and found by marker: `magic/tracked-scene`,
  * `magic/tracked-class`, `magic/tracked-caster` (a character the Player owns),
@@ -144,6 +145,8 @@ const P = {
   },
   /** The localized text of a cast notice, built from this seat's own strings (the key is split so the key scan reads a root, not a whole key). */
   notice: async ({ key, data }) => game.i18n.format("ACKS-" + "MAGIC.cast.notice." + key, data),
+  /** This seat's localized card note for the reverse mode (the key is split, as in `notice`). */
+  reversedNote: async () => game.i18n.localize("ACKS-" + "MAGIC.cast.note.reversed"),
   drain: async () => {
     const H = globalThis.__mct;
     const out = { errors: H.errors.slice(), uncaught: H.uncaught.slice() };
@@ -253,9 +256,12 @@ const P = {
     if (!message) return { ...shown, card: false };
     await H.sleep(1500);
     const fresh = [...game.messages].filter((m) => !before.has(m.id) && m.author?.id === game.user.id);
-    return { ...shown, card: true, messageId: message.id, model: game.messages.get(message.id).flags["acks-extras"].castCard, fresh: fresh.length, rolled: fresh.filter((m) => (m.rolls?.length ?? 0) > 0).length, freshIds: fresh.map((m) => m.id) };
+    // A cast posts two cards: core's spell card (the spend's own showChatCard, speaking as the caster) and the module's cast card, which carries the flag.
+    const castCards = fresh.filter((m) => !!m.flags?.["acks-extras"]?.castCard).length;
+    const spellCards = fresh.filter((m) => !m.flags?.["acks-extras"]?.castCard && m.speaker?.actor === casterId).length;
+    return { ...shown, card: true, messageId: message.id, model: game.messages.get(message.id).flags["acks-extras"].castCard, fresh: fresh.length, castCards, spellCards, rolled: fresh.filter((m) => (m.rolls?.length ?? 0) > 0).length, freshIds: fresh.map((m) => m.id) };
   },
-  /** What a card's rendered body shows: its sections, its footnote, its buttons. */
+  /** What a card's rendered body shows: its sections, its note, its footnote, its buttons. */
   seen: async ({ messageId }) => {
     const H = globalThis.__mct;
     try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
@@ -265,6 +271,7 @@ const P = {
     return {
       found: !!el,
       sections: el?.querySelectorAll("h4.acks-extras-roll-section").length ?? 0,
+      note: el?.querySelector(".acks-extras-roll-note")?.textContent?.trim() ?? null,
       footnote: el?.querySelector(".acks-extras-roll-footnote")?.textContent?.trim() ?? null,
       buttons: card ? card.querySelectorAll("button").length : 0,
       actions: [...(el?.querySelectorAll("[data-action^='magicCast'], [data-action^='libAttack']") ?? [])].map((b) => b.dataset.action),
@@ -289,7 +296,7 @@ const P = {
   /** The status's own toggle off, as the HUD does it: the real trigger of a concentration's end that needs no cause of its own. */
   endHeld: async ({ casterId, status }) => { await game.actors.get(casterId).toggleStatusEffect(status, { active: false }); return true; },
   /** The summon rows of a copy as the module reads them, as booleans and the row's own words, and what the policy says to counts (a refusal word or null). */
-  summonRead: async ({ casterId, itemId, counts }) => {
+  summonRead: async ({ casterId, itemId, counts, importMissing }) => {
     const S = await import("/modules/acks-extras/scripts/magic/cast-summon.mjs");
     const M = await import("/modules/acks-extras/scripts/magic/summon-spell.mjs");
     const L = await import("/modules/acks-extras/scripts/lib/library.mjs");
@@ -299,8 +306,21 @@ const P = {
     const refusal = {};
     for (const n of counts) refusal[n] = row ? S.summonRefusal({ spell: item, count: n, user: game.user, source: null, sourceRef: row.ref || "any-creature" }) : "norow";
     let resolves = null;
-    if (row?.ref) resolves = !!(await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId }));
+    let imported = false;
+    const mmOpen = !!acksExtras.importer?.bookOpen?.("mm");
+    const resolve = async () => !!(await M.resolveSummonRef(row.ref, { fromUuid: (u) => fromUuid(u), byCookbookId: L.byCookbookId }));
+    if (row?.ref) {
+      resolves = await resolve();
+      // On the GM seat a missing creature is imported here, page-side, so the ref id never reaches the walk's log: a creature the Monster Manual prints is setup, not a gap.
+      if (!resolves && importMissing && mmOpen) {
+        await acksExtras.importer.cookbookImportIds([row.ref]);
+        imported = true;
+        resolves = await resolve();
+      }
+    }
     return {
+      mmOpen,
+      imported,
       rows: rows.length,
       hasRef: !!row?.ref,
       format: !!row?.summonFormat,
@@ -378,7 +398,12 @@ const P = {
     try { ui.notifications.clear?.(); } catch { /* a notice left standing is only chrome over the map */ }
     return true;
   },
-  /** One client point, found by scanning the viewport for bare canvas well inside the scene and at least a grid cell and a half from every point in `avoid`. */
+  /** The viewport's middle in client points, where the driver parks the pointer before the view is panned. */
+  middle: async () => ({ x: Math.round(window.innerWidth / 2), y: Math.round(window.innerHeight / 2) }),
+  /**
+   * One client point, found by scanning the viewport for bare canvas well inside the scene, at least 60 px from every viewport edge (core's placement pans the view while the pointer is in
+   * the edge band) and at least a grid cell and a half from every point in `avoid`. Always answers the view it scanned, so a miss is read from the log.
+   */
   pointFor: async ({ avoid = [] }) => {
     const r = canvas.dimensions.sceneRect;
     const snap = () => `${canvas.stage.scale.x.toFixed(3)}:${Math.round(canvas.stage.pivot.x)}:${Math.round(canvas.stage.pivot.y)}`;
@@ -393,20 +418,22 @@ const P = {
     const W = window.innerWidth;
     const H = window.innerHeight;
     const found = [];
-    for (let y = 20; y < H - 20; y += 30) {
-      for (let x = 20; x < W - 20; x += 30) {
+    for (let y = 60; y <= H - 60; y += 30) {
+      for (let x = 60; x <= W - 60; x += 30) {
         if (document.elementFromPoint(x, y) !== canvas.app.view) continue;
         const back = canvas.canvasCoordinatesFromClient({ x, y });
         if (back.x >= r.x + 100 && back.y >= r.y + 100 && back.x <= r.x + r.width - 100 && back.y <= r.y + r.height - 100) found.push({ x, y });
       }
     }
-    if (!found.length) return { x: 0, y: 0, onCanvas: false };
+    const pointer = canvas.app?.renderer?.events?.rootPointerEvent;
+    const view = { pivot: [Math.round(canvas.stage.pivot.x), Math.round(canvas.stage.pivot.y)], scale: Number(canvas.stage.scale.x.toFixed(3)), pointer: pointer ? [Math.round(pointer.clientX), Math.round(pointer.clientY)] : null, hidden: document.hidden, viewport: [W, H], found: found.length };
+    if (!found.length) return { x: 0, y: 0, onCanvas: false, view };
     const cx = found.reduce((a, p) => a + p.x, 0) / found.length;
     const cy = found.reduce((a, p) => a + p.y, 0) / found.length;
     found.sort((a, b) => Math.hypot(a.x - cx, a.y - cy) - Math.hypot(b.x - cx, b.y - cy));
     const apart = Math.max(120, canvas.dimensions.size * canvas.stage.scale.x * 1.5);
     const pick = found.find((p) => avoid.every((o) => Math.hypot(p.x - o.x, p.y - o.y) >= apart));
-    return pick ? { x: pick.x, y: pick.y, onCanvas: true } : { x: 0, y: 0, onCanvas: false };
+    return pick ? { x: pick.x, y: pick.y, onCanvas: true, view } : { x: 0, y: 0, onCanvas: false, view };
   },
   /** The cast count and the cards made since the last press, each as its kind. */
   state: async ({ casterId, spellId }) => {
@@ -435,7 +462,8 @@ const P = {
   },
   /** Whether any combatant of the fight carries a declared-spell flag of this module (the flag names are read, not guessed). */
   declared: async ({ combatId }) => game.combats.get(combatId)?.combatants.filter((c) => Object.keys(c.flags?.["acks-extras"] ?? {}).some((k) => /declar/iu.test(k))).length ?? null,
-  combatDrop: async ({ combatId }) => { await game.combats.get(combatId)?.delete(); return true; },
+  /** Delete the Combat; true once the world no longer holds it. */
+  combatDrop: async ({ combatId }) => { await game.combats.get(combatId)?.delete(); return !game.combats.get(combatId); },
   restore: async () => {
     const H = globalThis.__mct;
     if (!H?.patched) return "never installed";
@@ -493,16 +521,28 @@ async function frontSeat(port) {
   s.close();
   await sleep(1200);
 }
-/** A real left click on a seat's page: the pointer moves there first, so core's preview follows it. */
-async function clickAt(port, { x, y }) {
+/** A real click on a seat's page: the pointer moves there first, so core's preview follows it. */
+async function clickAt(port, { x, y }, button = "left") {
   const s = await pageSession(port);
   await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
   await sleep(250);
-  await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button: "left", buttons: 1, clickCount: 1 });
+  await s.send("Input.dispatchMouseEvent", { type: "mousePressed", x, y, button, buttons: button === "left" ? 1 : 2, clickCount: 1 });
   await sleep(80);
-  await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button: "left", buttons: 0, clickCount: 1 });
+  await s.send("Input.dispatchMouseEvent", { type: "mouseReleased", x, y, button, buttons: 0, clickCount: 1 });
   s.close();
   await sleep(700);
+}
+/**
+ * Park the seat's pointer in the viewport's middle. Core's placement pans the canvas while the pointer stands in the 50 px edge band (where the Place button left it),
+ * which would move the view under the scan; this runs before every pan.
+ */
+async function centerPointer(seat, port) {
+  const { x, y } = await run(seat, P.middle);
+  const s = await pageSession(port);
+  await s.send("Input.dispatchMouseEvent", { type: "mouseMoved", x, y });
+  s.close();
+  await sleep(400);
+  return { x, y };
 }
 
 let gm = null;
@@ -575,6 +615,7 @@ async function castRecords(castId, want) {
 
 /**
  * Cast a summoning spell as a user does: press its Cast on the Magic tab, read the prompt, place by one real click per creature, and report what changed.
+ * The pointer is parked mid-viewport before each pan and a failure after the prompt is answered right-clicks the pending placement away (docs/magic/TESTING.md, "Casting a summoning spell").
  * @returns {Promise<{pressed: boolean, prompt: object, fresh: object[], castId: string|null, cast: number, cards: object[]}>}
  */
 async function place(label, who, spellId, count = 1) {
@@ -585,13 +626,21 @@ async function place(label, who, spellId, count = 1) {
   const pressed = await run(seat, P.press, { casterId: W.caster, spellId });
   if (!pressed.button) throw new Error(`${label}: no Cast button on the Magic tab`);
   const prompt = await run(seat, P.prompt, { spellName: W.names[spellId] });
+  if (!prompt.prompt) throw new Error(`${label}: the creature prompt did not open`);
   await run(seat, P.answer, { count });
-  await frontSeat(port);
-  for (let n = 0; n < count; n++) {
-    const p = await run(seat, P.pointFor, { avoid: used[who] });
-    if (!p.onCanvas) throw new Error(`${label}: no bare canvas point for a click`);
-    used[who].push(p);
-    await clickAt(port, p);
+  try {
+    await frontSeat(port);
+    for (let n = 0; n < count; n++) {
+      await centerPointer(seat, port);
+      const p = await run(seat, P.pointFor, { avoid: used[who] });
+      if (!p.onCanvas) throw new Error(`${label}: no bare canvas point for a click: ${JSON.stringify(p.view)}`);
+      used[who].push({ x: p.x, y: p.y });
+      await clickAt(port, p);
+    }
+  } catch (err) {
+    // The placement is still pending: a right click cancels it, so the next stage does not inherit a live preview.
+    try { await clickAt(port, await run(seat, P.middle), "right"); } catch { /* the original failure is the one to report */ }
+    throw err;
   }
   const after = await until(tokensOf, (l) => l.filter((t) => !standing.has(t.uuid)).length >= count, { tries: 40, every: 300 });
   await sleep(1500);
@@ -688,7 +737,7 @@ async function stageTracked() {
     check(`B ${t.slug}: the card carries one line for the row and it says something`, lines.length === 1 && lines[0].length > 0, { lines: lines.length });
     const view = await run(seat, P.seen, { messageId: c.messageId });
     check(`B ${t.slug}: the card's footnote shows the line`, view.found && view.footnote === lines.join(" · "), { found: view.found });
-    check(`B ${t.slug}: nothing is rolled: no row, no target, no entry, and the cast made one message and no roll`, (model.order ?? []).length === 0 && Object.keys(model.rows ?? {}).length === 0 && Object.keys(model.targets ?? {}).length === 0 && Object.keys(model.entries ?? {}).length === 0 && c.fresh === 1 && c.rolled === 0, { fresh: c.fresh, rolled: c.rolled });
+    check(`B ${t.slug}: nothing is rolled: no row, no target, no entry, and the cast made one cast card beside the system's spell card the spend posts, and no roll`, (model.order ?? []).length === 0 && Object.keys(model.rows ?? {}).length === 0 && Object.keys(model.targets ?? {}).length === 0 && Object.keys(model.entries ?? {}).length === 0 && c.castCards === 1 && c.spellCards === 1 && c.fresh === 2 && c.rolled === 0, { fresh: c.fresh, castCards: c.castCards, spellCards: c.spellCards, rolled: c.rolled });
     const records = await castRecords(model.castId, t.lasts === "duration" ? 1 : 0);
     const casters = records.filter((r) => r.role === "caster");
     if (t.lasts === "duration") check(`B ${t.slug}: a row that lasts the duration writes exactly one caster record, timed by the walk's duration`, records.length === 1 && casters.length === 1 && casters[0].duration?.value === DURATION.value && casters[0].duration?.units === DURATION.unit && !casters[0].pending, records.map((r) => ({ role: r.role, duration: r.duration })));
@@ -705,10 +754,14 @@ async function stageReversed() {
     if (!(normal.c.card && reversed.c.card)) continue;
     const a = normal.c.model;
     const b = reversed.c.model;
-    check(`C ${t.slug}: each form posts only its own line, and the reverse mode's card says it is reversed`, a.mode !== "reversed" && b.mode === "reversed" && (a.lines ?? []).length === 1 && (b.lines ?? []).length === 1 && a.lines[0] !== b.lines[0], { normal: a.mode, reversed: b.mode });
+    check(`C ${t.slug}: each form posts only its own line, and the reverse mode's card is in the reverse mode`, a.mode !== "reversed" && b.mode === "reversed" && (a.lines ?? []).length === 1 && (b.lines ?? []).length === 1, { normal: a.mode, reversed: b.mode });
+    // The register's twins differ in key and the reversed flag alone, so the two lines read alike; the reverse card is told apart by its note.
     const viewA = await run(normal.seat, P.seen, { messageId: normal.c.messageId });
     const viewB = await run(reversed.seat, P.seen, { messageId: reversed.c.messageId });
-    check(`C ${t.slug}: the footnotes are the cards' own lines and differ`, viewA.footnote === a.lines.join(" · ") && viewB.footnote === b.lines.join(" · ") && viewA.footnote !== viewB.footnote);
+    const word = await run(reversed.seat, P.reversedNote);
+    const wordA = await run(normal.seat, P.reversedNote);
+    check(`C ${t.slug}: the reverse card's note says reversed and the normal card's does not`, !!word && !!wordA && (viewB.note ?? "").includes(word) && !(viewA.note ?? "").includes(wordA), { normalNote: viewA.note !== null, reversedNote: viewB.note !== null });
+    check(`C ${t.slug}: each footnote is its own card's line`, viewA.footnote === a.lines.join(" · ") && viewB.footnote === b.lines.join(" · "), { normal: viewA.footnote !== null, reversed: viewB.footnote !== null });
     const ra = await castRecords(a.castId, 1);
     const rb = await castRecords(b.castId, 1);
     check(`C ${t.slug}: each form's cast writes its own one caster record`, ra.length === 1 && rb.length === 1 && ra[0].role === "caster" && rb[0].role === "caster" && a.castId !== b.castId, { normal: ra.length, reversed: rb.length });
@@ -739,12 +792,14 @@ async function stageSummonRows() {
     await run(gm, P.shapeSpell, { casterId: W.caster, itemId: W.spell[s.slug], original: W.lib.payload[s.slug]?.flags?.["acks-extras"]?.spell, duration: null, unlimited: false });
     const read = await run(player, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [2, 5] });
     // The GM's client resolves a row's creature, so whether a ref resolves is read on that seat.
-    read.resolves = (await run(gm, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [] })).resolves;
+    const onGm = await run(gm, P.summonRead, { casterId: W.caster, itemId: W.spell[s.slug], counts: [], importMissing: true });
+    read.resolves = onGm.resolves;
     check(`E ${s.slug}: the module reads one summon row from the copy, and the copy is a summoning spell`, read.rows === 1 && read.isSummonSpell, { rows: read.rows });
     check(`E ${s.slug}: the row carries a control${s.format ? " and a summon format" : ""}${s.ref ? " and a creature ref" : ", and no creature ref"}`, read.control && read.format === s.format && read.hasRef === s.ref, { control: read.control, format: read.format, hasRef: read.hasRef });
     if (s.ref) {
-      if (read.resolves) check(`E ${s.slug}: the ref resolves to a creature in this world`, true);
-      else skip(`E ${s.slug}: the ref does not resolve: the creature is not imported in this world (import the Monster Manual's creature to check it)`);
+      if (read.resolves) check(`E ${s.slug}: the ref resolves to a creature in this world${onGm.imported ? " (imported by the walk as setup)" : ""}`, true);
+      else if (!onGm.mmOpen) skip(`E ${s.slug}: the ref does not resolve and the Monster Manual is not open on the GM seat (connect it through the Your ACKS Books macro to import the creature)`);
+      else check(`E ${s.slug}: the ref resolves to a creature in this world`, false, { imported: onGm.imported });
     }
     if (s.counted) {
       if (!(read.amount > 0)) gap(`E ${s.slug}: the page's count did not locate, so the row carries no amount and the cast is not capped`);
@@ -870,7 +925,8 @@ async function stageFight() {
     const all = await recordsOf();
     check("G: it leaves its one caster record and no declaration: no casting status, no pending record, no declared flag, no declared notice", recs.length === 1 && recs[0].role === "caster" && !all.some((r) => r.statuses.includes("casting") || r.pending) && (await run(gm, P.declared, { combatId: cm.id })) === 0 && !(await run(player, P.logs)).infos.some((i) => /declare/iu.test(i)), { records: recs.length, declared: await run(gm, P.declared, { combatId: cm.id }) });
   } finally {
-    await run(gm, P.combatDrop, { combatId: cm.id });
+    // The Combat is the run's own delete here, so the sweep has nothing of it to find.
+    if (await run(gm, P.combatDrop, { combatId: cm.id })) own.splice(own.indexOf(cm.uuid), 1);
   }
 }
 

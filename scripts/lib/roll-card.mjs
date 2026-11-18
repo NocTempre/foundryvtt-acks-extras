@@ -129,8 +129,9 @@ function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
 }
 
 /**
- * Build the card. Returns "" when every section is empty, so a caller can post
- * conditionally without counting rows itself.
+ * Build the card. Returns "" when every section is empty (and neither `empty`
+ * nor `bare` is given), so a caller can post conditionally without counting
+ * rows itself.
  *
  * @param {object}   card
  * @param {string}   card.title       Banner text, already localized.
@@ -145,21 +146,26 @@ function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
  *                                    returns "" unless this is given, in which
  *                                    case the banner, this line and the footnote
  *                                    are the whole card.
+ * @param {boolean} [card.bare]       Render the card with no rows and no `empty`
+ *                                    line: the banner, note and footnote alone.
+ *                                    For a card whose information is its
+ *                                    footnote. Off by default, so a caller that
+ *                                    posts on a non-empty return keeps its "".
  * @param {RollCardAction[]} [card.buttons]  Buttons in a footer under the tables and the
  *                                    footnote, classed `acks-extras-roll-actions`.
  * @param {{name?: string, total?: string, target?: string, result?: string, actions?: string}} [card.labels]
  *                                    Column headings in place of the defaults, already localized.
  * @returns {string} HTML, or "" if there is nothing to show.
  */
-export function renderRollCard({ title, subtitle, note, noteTooltip, sections = [], footnote, empty, buttons, labels = {} } = {}) {
+export function renderRollCard({ title, subtitle, note, noteTooltip, sections = [], footnote, empty, bare, buttons, labels = {} } = {}) {
   const tables = sections.map((section) => sectionHtml(section, labels)).join("");
-  if (!tables && !empty) return "";
+  if (!tables && !empty && !bare) return "";
   let html = `<div class="acks-extras-roll-card acks-chat">`;
   html += `<header class="acks-chat-header"><h3 class="acks-chat-title">${esc(title)}</h3>`;
   if (subtitle) html += `<span class="acks-chat-subtitle">${esc(subtitle)}</span>`;
   html += `</header><div class="acks-chat-body">`;
   if (note) html += `<p class="acks-extras-roll-note"${noteTooltip ? ` data-tooltip-text="${esc(noteTooltip)}"` : ""}>${esc(note)}</p>`;
-  html += tables || `<p class="acks-extras-roll-note">${esc(empty)}</p>`;
+  html += tables || (empty ? `<p class="acks-extras-roll-note">${esc(empty)}</p>` : "");
   if (footnote) html += `<p class="acks-extras-roll-footnote">${esc(footnote)}</p>`;
   if (buttons?.length) html += `<footer class="acks-extras-roll-actions">${buttons.map(buttonHtml).join("")}</footer>`;
   return `${html}</div></div>`;
