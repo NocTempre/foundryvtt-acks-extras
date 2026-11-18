@@ -2966,9 +2966,11 @@ step (`swimWaterPenaltySteps`) or a figure larger than every step
 size is a permission refusal, which stops a player and warns a Judge, and a
 holder's bonus not imported is an absence refusal that stops every seat. The pace
 is the imported share of the member's combat and running speeds (`swimSpeedShare`),
-each null while it is unknown. A creature that carries nothing the module reads
-has no stone, so its throw is refused for every seat with no words and its row
-shows a blank target whose tooltip is the page. Each figure that is not imported
+each null while it is unknown. A monster's stone is the load it carries (lib's
+`loadStone`, its own items and coin, with a carrier's share), named as that
+source in each part's tooltip; where lib cannot read a load the monster has no
+stone, its throw is refused for every seat with no words and its row shows a
+blank target whose tooltip is the page. Each figure that is not imported
 reads null and is named in its own `unknown`; only the throw's own figures refuse
 the row. Each carries the `{key, value}` parts a tooltip lists.
 
@@ -3088,8 +3090,9 @@ the record also keeps `covered` (feet), `throws`, `tries` and `plight` (failed
 pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
 `squeezing.mjs` owns the procedure and `crossing-logic.mjs` `squeezeRow` the row.
 
-- **The squeezing throw** is a bare d20 against the stone carried (a creature
-  whose stone nobody has gets no throw for any seat), less Contortionism's
+- **The squeezing throw** is a bare d20 against the stone carried (a monster's
+  stone is the load it carries; one whose load nobody can read gets no throw for
+  any seat), less Contortionism's
   imported figure for a holder and the Judge's modifier. A holder whose figure
   is not imported has no target. A squeeze with no length set has none either,
   and a chokepoint needs no length. A chokepoint whose set length reaches the

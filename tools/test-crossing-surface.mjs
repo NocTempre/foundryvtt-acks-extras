@@ -169,8 +169,11 @@ const CLIMBING = () => item("Probe Climb", [throwOf("climb", ladder([1, 15], [5,
 const ACROBATICS = () => item("Probe Tumble", [], { provides: ["kw:acrobatics"], cite: "XX p.3" });
 
 /** A person on the world's actor list. `owner` is the user id who owns them besides the GM. */
-function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0 } = {}) {
+function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0, load = null } = {}) {
+  // A monster's carried load is the weight of what it holds, read by lib; `load` is that many stone as one physical item.
+  if (load !== null) items = [...items, { id: `i${++serial}`, type: "item", name: "Pack", system: { cost: {}, weight6: load * 6 }, getFlag: () => undefined }];
   const actor = {
+    ...(load !== null ? { documentName: "Actor" } : {}),
     id: name, name, type, img: `${name}.webp`, statuses: new Set(), appliedEffects: [],
     system: {
       details: { level, morale: 0 }, adventuring: adventuring ? { ...adventuring } : undefined, hp: { value: hp, max: 10 },
@@ -2061,10 +2064,19 @@ await ok("Throw for all throws every member with a throw this round, one card ea
   assert.equal(naturals.length, 1, "no die was rolled for anyone else");
 });
 
-await ok("a creature that carries nothing the module reads has no throw: its row is refused for every seat", async () => {
-  const { formation } = await swimWorld([["Wolf", { type: "monster" }]]);
-  assert.deepEqual(await throwFor(formation, "Wolf"), { ok: false, refused: "stone" });
-  assert.equal(naturals.length, 0);
+await ok("a monster with no swim figure throws against the load it carries, and its tooltip names that source; a carrier's share is added to it", async () => {
+  const { formation } = await swimWorld([["Wolf", { type: "monster", load: 4 }], ["Alder", { stone: 5, hp: 0 }], ["Fetch", { type: "monster", load: 2 }]]);
+  formation.members[2].roles = ["carrier"];
+  const wolf = crossingRow(formation, "Wolf");
+  assert.equal(wolf.row.target, 4, "its own load is the stone");
+  const tip = rowOf(buildCrossingView(formation), "Wolf").targetTip;
+  assert.ok(tip.includes("Load it carries (its own items and coin, MM ch. 1) 4"), tip);
+  assert.equal(tip.includes("Carrying"), false, "the character's wording is not used for a monster");
+  assert.equal(crossingRow(formation, "Alder").row.target, 5, "a character reads as before");
+  assert.equal(crossingRow(formation, "Fetch").row.target, 2 + 23, "a carrier takes on the casualty's body (the fixture holds no kit, so no share of gear)");
+  naturals.push(9);
+  const out = await throwFor(formation, "Wolf");
+  assert.deepEqual([out.ok, out.success], [true, true]);
 });
 
 await ok("a water penalty and the Judge's modifier price the throw, and a penalty the page does not set warns the Judge", async () => {
@@ -2130,7 +2142,7 @@ await ok("a swim row for each seat: the target, No throw for a holder, a blank f
   assert.deepEqual([holder.noThrow, holder.target, holder.can, holder.holdsLabel], ["No throw", "", false, "Swimming"]);
   assert.ok(holder.targetTip.includes("Swimming 7"), "the proficiency's part is in the working");
   const beast = rowOf(judge, "Wolf");
-  assert.deepEqual([beast.target, beast.targetTip, beast.can, beast.said, beast.noThrow], ["", PAGE, false, "", ""], "a blank figure with the page alone, and no words");
+  assert.deepEqual([beast.target, beast.can, beast.said, beast.noThrow], ["0+", true, "", ""], "a monster that carries nothing throws against none");
   const player = swimView(formation, PLAYER);
   assert.equal(player.swim.round, 3);
   assert.deepEqual([rowOf(player, "Alder").can, rowOf(player, "Birch").can], [true, false], "the owner's press, and none on a member they do not own");
@@ -2480,6 +2492,19 @@ await ok("the push takes the member's Strength, named in its tooltip with the mo
   assert.ok(tip.includes("Strength (modifier +2, RR ch. 1) −8"), tip);
   assert.equal(crossing.escapeTargetTip(plain, "push").includes("Strength"), false, "no modifier, no part");
   assert.equal(crossing.escapeTargetTip(strong, "wiggle").includes("Strength"), false);
+});
+
+await ok("a monster squeezes against the load it carries, named as its source in the tooltip and with no Strength term on its push", async () => {
+  const { formation } = await squeezeWorld([["Wolf", { type: "monster", load: 3, str: 3 }], ["Alder", { stone: 5 }]]);
+  const wolf = rowOf(buildCrossingView(formation), "Wolf");
+  assert.deepEqual([wolf.target, wolf.can], ["3+", true]);
+  assert.ok(wolf.targetTip.includes("Load it carries (its own items and coin, MM ch. 1) +3"), wolf.targetTip);
+  assert.equal(wolf.targetTip.includes("Encumbrance"), false);
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").target, "5+", "a character reads as before");
+  await stuckAt(formation, "Wolf");
+  const stuck = crossingRow(formation, "Wolf");
+  assert.equal(stuck.row.escape.wiggle.parts.find((p) => p.key === "encumbrance").source, "load");
+  assert.equal(stuck.row.escape.push.parts.some((p) => p.key === "strength"), false, "a monster has no Strength term");
 });
 
 await ok("a squeeze with no length set has no throw, for a Judge too", async () => {

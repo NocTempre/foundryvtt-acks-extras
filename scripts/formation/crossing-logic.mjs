@@ -875,6 +875,18 @@ export const ESCAPES = Object.freeze(["wiggle", "push"]);
 /** The saving throw a wiggle back is made against, by the system's key (RR ch. 6, Squeezing). */
 export const WIGGLE_SAVE = "paralysis";
 
+/**
+ * A monster's stone for a swim or squeeze throw: the load it carries (lib's
+ * `loadStone`, null where it cannot be known) with the share it takes on as a
+ * carrier of the party's casualties. A load nobody can read stays null, which
+ * the row refuses as an absence rather than throwing against nothing.
+ *
+ * @param {number|null} load the creature's own carried stone
+ * @param {number} [share] the carrier's share of the casualties' weight
+ * @returns {number|null}
+ */
+export const monsterStone = (load, share = 0) => (load === null || !Number.isFinite(Number(load)) ? null : Number(load) + (Number(share) || 0));
+
 /** A positive number, else null. */
 const positiveFeet = (value) => {
   const n = value === null || value === undefined || value === "" ? NaN : Number(value);

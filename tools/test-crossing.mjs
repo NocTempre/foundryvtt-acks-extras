@@ -13,7 +13,7 @@ import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/ob
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting, paceRow, paceStep,
+  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting, paceRow, paceStep,
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
@@ -963,6 +963,14 @@ await ok("a creature whose stone nobody has gets no squeeze throw and no escape,
   const row = squeezeRow({ encumbrance: null, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE });
   assert.deepEqual([row.target, row.can, row.escape.wiggle.can, row.escape.push.can, row.unknown], [null, false, false, false, ["encumbrance"]]);
   assert.deepEqual(row.refusal, { cls: REFUSAL.absence, reason: "stone" });
+});
+
+await ok("a monster's stone is the load it carries with a carrier's share, and a load nobody can read stays unknown and refuses every seat", () => {
+  loadSqueeze();
+  assert.deepEqual([monsterStone(4), monsterStone(4, 2.5), monsterStone(0, 3), monsterStone(null, 3), monsterStone(undefined), monsterStone(NaN, 1)], [4, 6.5, 3, null, null, null]);
+  const unread = squeezeRow({ encumbrance: monsterStone(null), shape: "chokepoint", seat: JUDGE });
+  assert.deepEqual([unread.target, unread.can, unread.refusal], [null, false, { cls: REFUSAL.absence, reason: "stone" }]);
+  assert.deepEqual([squeezeRow({ encumbrance: monsterStone(4, 2), shape: "chokepoint", seat: JUDGE }).target], [6]);
 });
 
 await ok("a member who has thrown this round has no throw or escape left; another round has", () => {

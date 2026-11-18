@@ -4963,7 +4963,7 @@ Before the first step the Rules tables must be imported in the test world: the w
 - `formation/swim-friend` — a second character the same Player seat owns, to be the rescuer.
 - `formation/swim-stranger` — a character the second player seat owns, to prove a seat cannot name a rescuer it does not own.
 - `formation/swim-swimmer` — a character holding the imported Swimming, whose row reads No throw while the target is zero or less.
-- `formation/swim-beast` — a monster actor with no carried stone, whose row has a blank target and no press for any seat.
+- `formation/swim-beast` — a monster actor with no swim speed, carrying one item of known weight (say 3 stone), so its throw has a stone to read. With the Pack removed it carries nothing and its target reads that nothing, not blank.
 - `formation/swim-fight` — a combat on that scene with a combatant for each token, begun.
 
 **Drive mechanics.**
@@ -4979,6 +4979,7 @@ Before the first step the Rules tables must be imported in the test world: the w
 | S1 | The GM begins a swim crossing | Rows for every member on the GM and Player seats; the Judge's pane has the three condition boxes, Penalty, Larger penalty (disabled), Movement and Judge modifier; the Player's pane has none of them and reads "Penalty in force: …" |
 | S2 | Penalty set to each imported step, then Larger… with a figure, then with no steps imported (clear `swimWaterPenaltySteps` in the Ruledata Browser) | Each pick's value is the imported size; the target of the owner's row moves by that size; the in-force line on the Player's pane reads the size and the conditions ticked; hovering the Penalty names the step, what was ticked and the page; with no steps the pick offers None and Larger… alone and the tooltip is the page alone |
 | S3 | The hover pass over a row | The target's parts (carrying, Swimming, water, Judge modifier) against the page; the pace's parts (speed, share); a blank figure's tooltip is the page reference alone, hovered on its (empty) cell; No throw on the Swimming holder, with the working |
+| S3b | On `formation/swim-beast`: read the row, then add 2 stone to its Pack, then give the beast the Carrier role with a casualty in the party | The target is the load it carries, to the stone; the tooltip's first part reads "Load it carries … MM ch. 1" with that figure, and never "Carrying"; the 2 stone move the target by 2; as a carrier the casualty's share is added; a character's row beside it still reads "Carrying"; the beast's press throws for the Judge |
 | S4 | Movement set to Running, then a hand-set Prone on the owner's character | The pace for Running; "Cannot run" with the condition named in its tooltip on the Prone member; Combat still reads a pace |
 | S5 | The fight's turn reaches the owner's character (`combat.nextTurn()`) | One prompt card, a whisper to the owner and the Judges, titled for that member's turn with "Swimming throw N+" and a Throw button; no die rolled; a second turn change in the same round posts no second card; a bystander seat sees none |
 | S6 | The owner presses the card's Throw, the die rigged to miss | The card keeps the line "N vs T+ — starts drowning" and loses its button; the member's record is drowning with one round counted; the row reads Drowning, Breath {left} of {rounds} rounds, Sinks {feet} ft / round and a Vulnerable chip; the owner's pane reads "Cannot throw while drowning", the Judge's pane reads no such line; the member carries one held effect `crossing:<id>:drowning` |
@@ -5004,7 +5005,7 @@ Before the first step the Rules tables must be imported (re-run it after an upgr
 - `formation/squeeze-owner` — a character the Player seat owns, carrying a stone figure the target reads and a Dungeonbashing figure, no Contortionism.
 - `formation/squeeze-holder` — a character holding the imported Contortionism, the same stone as the owner, to read the bonus once on the squeeze and the push and not on the wiggle.
 - `formation/squeeze-stranger` — a character the second player seat owns, to prove a seat cannot press for a member it does not own.
-- `formation/squeeze-beast` — a monster with no carried stone, whose row has a blank target and no press for any seat.
+- `formation/squeeze-beast` — a monster carrying one item of known weight (say 3 stone), whose squeezing throw targets that stone.
 - `formation/squeeze-fight` — a combat on that scene with a combatant for each token, begun.
 
 **Drive mechanics.**
@@ -5016,6 +5017,7 @@ Before the first step the Rules tables must be imported (re-run it after an upgr
 | Step | Do | Observable |
 |---|---|---|
 | Q1 | Begin a squeeze on the party; set Shape to Chokepoint, the Judge modifier 0 | The section lists a row for each member: the target is the stone, "Contortionism" badges the holder, whose target is the owner's less the imported bonus once; hover each target for its parts and page |
+| Q1b | On `formation/squeeze-beast`, read its row, hover the target, then mark it stuck and hover each escape | The target is the load it carries; the tooltip names "Load it carries … MM ch. 1" and no Encumbrance; the push's parts hold no Strength; the wiggle's parts name the same load |
 | Q2 | Set Shape to Squeeze and leave Length blank | Every target is blank with the page alone; a press is refused with no card; set Length 30 and the targets return, with "covered 0 / 30′", which a made throw does not move (no distance is ruled) |
 | Q3 | Set Shape to Chokepoint and Length to the imported figure or more | The Judge's press warns and goes ahead, "Thrown over a refusal" on the card; the Player's seat is stopped in words |
 | Q4 | Rig a 20 and press Throw on the owner (chokepoint) | The row reads Through, no condition on the member, one card to the Judges |

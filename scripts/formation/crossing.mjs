@@ -56,11 +56,11 @@ import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallD
 import {
   CLIMB_CHECK, CROSSING_STATUSES, DROWNING, ESCAPES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, STUCK, SWIMMING, WIGGLE_SAVE, climbUpRow, crossingHeld, crossingOfHolder,
   fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
-  swimThrowStep, withFooting, escapeStep, squeezeRow, squeezeThrowStep, paceStep,
+  swimThrowStep, withFooting, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, paceStep,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
-import { capacityStone, movementBearing } from "../lib/capacity.mjs";
+import { capacityStone, loadStone, movementBearing } from "../lib/capacity.mjs";
 import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
 import { saveSpec } from "../lib/saves.mjs";
@@ -334,6 +334,35 @@ function carriedBy(actor, load) {
   return carrier ? carrier.effEnc : encumbranceOf(actor);
 }
 
+/**
+ * The stone a member throws a swim or a squeeze against. A character's is what
+ * `carriedBy` reads. A monster's is the load it carries (lib's `loadStone`) with
+ * a carrier's share, or null where that cannot be read: a living creature with
+ * no swim figure throws against what it carries (docs/formation/DECISIONS.md,
+ * "A swim crossing holds drowning ...").
+ */
+function stoneFor(actor, load) {
+  if (actor.type !== "monster") return carriedBy(actor, load);
+  const carrier = load.carriers.find((c) => c.actor?.id === actor.id);
+  return monsterStone(loadStone(actor), carrier ? carrier.effEnc - carrier.baseEnc : 0);
+}
+
+/** A monster's row with its stone parts marked as its own load, so each tooltip names that source. */
+function markLoad(row, monster) {
+  if (!monster) return row;
+  const mark = (parts) => parts?.map((part) => (part.key === "encumbrance" ? { ...part, source: "load" } : part));
+  const way = (w) => (w ? { ...w, parts: mark(w.parts) } : w);
+  return {
+    ...row,
+    parts: mark(row.parts),
+    ...(row.drown ? { drown: { ...row.drown, parts: mark(row.drown.parts) } } : {}),
+    ...(row.escape ? { escape: { ...row.escape, wiggle: way(row.escape.wiggle), push: way(row.escape.push) } } : {}),
+  };
+}
+
+/** The key a part's words are under: a monster's own load names its source. */
+const partKey = (part) => (part.source === "load" ? "load" : part.key);
+
 /** The members a crossing lists: real members with an actor, not a stack standing for several bodies. */
 export function crossingMembers(formation) {
   return realMembers(formation)
@@ -427,16 +456,16 @@ function swimSpeeds(actor, stone, lifted) {
 /** One member's swim row for a seat, with what the view and the throw read beside it. */
 function swimEntry(formation, crossing, { member, actor }, { seat, standing, record, load }) {
   const monster = actor.type === "monster";
-  const stone = monster ? null : carriedBy(actor, load);
+  const stone = stoneFor(actor, load);
   const bodyId = record?.hauling ?? null;
   const bodyEntry = bodyId ? crossingMembers(formation).find((e) => e.member.actorId === bodyId) : null;
   const hauled = bodyEntry ? { stone: rescueStone(carriedBy(bodyEntry.actor, load)) } : null;
   const turn = crossingTurn(formation, member);
-  const row = swimRow({
+  const row = markLoad(swimRow({
     encumbrance: stone, holds: holdsSwimming(actor), own: ownSwimSpeed(actor), speeds: swimSpeeds(actor, (stone ?? 0) + (hauled?.stone ?? 0), !!hauled),
     conMod: Number(actor.system?.scores?.con?.mod) || 0, penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
     judgeMod: crossing.judgeMod, hauled, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
-  });
+  }), monster);
   const windedBy = forbiddenBy(conditionSet(actor.statuses ?? []), "run");
   return { actor, member, swim: true, standing, row, record, stone, hauled, bodyId, turn, winded: windedBy.length > 0, windedBy };
 }
@@ -1267,7 +1296,7 @@ export function swimTargetTip(seen) {
   const { row } = seen;
   if (row.target === null) return swimmingRef();
   const parts = row.parts.map((part) => {
-    const words = loc(`swimming.part.${part.key}`);
+    const words = loc(`swimming.part.${partKey(part)}`);
     const conditions = part.conditions?.length ? ` (${part.conditions.map((key) => loc(`swimming.water.${key}`)).join(", ")})` : "";
     return `${words} ${part.value}${conditions}`;
   });
@@ -1358,7 +1387,7 @@ function swimPaceView(crossing, entry) {
 function swimDrownView(row) {
   const { drown } = row;
   const part = (key) => drown.parts.find((p) => p.key === key);
-  const named = (key, root = "drownPart") => (part(key) ? `${loc(`swimming.${root}.${key}`)} ${part(key).value}` : "");
+  const named = (key, root = "drownPart") => (part(key) ? `${loc(`swimming.${root}.${partKey(part(key))}`)} ${part(key).value}` : "");
   const breath = drown.rounds === null
     ? { text: "", tip: swimCite("breathRounds") }
     : {
@@ -1859,7 +1888,7 @@ const squeezeCite = (table) => citeFor(table) ?? squeezingRef();
 const signed = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
 
 /** A target's parts as words, each signed by what it adds to the number to roll. */
-const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${part.key}`, { mod: signed(part.mod ?? 0) })} ${signed(part.value)}`);
+const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${partKey(part)}`, { mod: signed(part.mod ?? 0) })} ${signed(part.value)}`);
 
 /** The squeezing throw's target as a tooltip: its parts, then the page; the page alone where no target stands. */
 export function squeezeTargetTip(row) {
@@ -2009,15 +2038,15 @@ async function rollSqueeze(formation, crossing, seen, step, { event = null } = {
 /** One squeezer's entry for a seat: the logic's row with what the view and the throw read beside it. */
 function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, record, load }) {
   const monster = actor.type === "monster";
-  const stone = monster ? null : carriedBy(actor, load);
+  const stone = stoneFor(actor, load);
   const turn = crossingTurn(formation, member);
   const save = { base: actor.system?.saves?.[WIGGLE_SAVE]?.value == null ? null : saveSpec(actor, WIGGLE_SAVE, { magical: false }).target };
   const pushFigure = resolveCheck(actor, PARTY_CHECKS.dungeonbashing);
   const holds = holdsContortionism(actor);
-  const row = squeezeRow({
+  const row = markLoad(squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
     pushFigure, strMod: monster ? 0 : abilityMod(actor, "str"), save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
-  });
+  }), monster);
   return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };
 }
 
