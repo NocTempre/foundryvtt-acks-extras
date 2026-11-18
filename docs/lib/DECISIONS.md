@@ -735,3 +735,74 @@ rulings are the plan's; what follows are the calls the build made.
   warning stay the cast plan's.
 
 *Cost:* lib `apiVersion` is 61.
+
+## 2026-11-18 — A place carries its things, one list in one shape for every feature
+
+Co-signed by scene-search and obstacle regions. The
+owner's words that set it, 2026-11-18: on obstacles, "Conditions are present
+when added, most easily by dragging. This is akin to a natural trap. Not doing
+a big switchboard of possibilities.", "Traps, obstacles, conditions can stack
+arbitrarily." and "This is some variation of location."; on scene search, "This
+is becoming a whole scene tool and could incorporate things like inspecting
+statues/art", and "No picked clean state, only checked hastily and checked
+methodically for each inspectable".
+
+**Ruled.** The carrier is the place, the `acks-extras.location` actor. What
+the Judge drags onto a place is a THING, kept in one list at
+`flags["acks-extras"].things`, written whole by a GM client as a
+`ForcedReplacement`. Any number of things of any kind stack on one place, and a
+nested place carries its own. The list is called "things", never "stack":
+`place.mjs` already means identical places by "stack" (`isStacked`). Every
+thing has one shape:
+
+```
+{id, kind, ref, hidden, hint, point, params, layers: {hasty?, methodical?}, state}
+```
+
+- `kind` — one of `body`, `container`, `fixture`, `exit`, `trap`, `obstacle`,
+  `condition`, `lot`, `floor`. A feature registers the kinds it accepts in
+  one `kindOfDrop` table (`place-things-logic.mjs`); there is no second table.
+- `ref` — the uuid of the document the thing stands for: a trap Item, a Hazard
+  (an obstacle or a condition), stored goods, a JournalEntryPage, an Actor.
+  The thing points and never copies. The Hazard is provisional: its document
+  type waits on the obstacle redesign's boards, and `ref` points at whatever
+  drag source the approved design makes.
+- `hidden` — authored: the thing starts unseen by players.
+- `hint` — the Judge's optional line the table sees when something more
+  remains, or null for the generic words.
+- `point` — `{x, y}` in scene pixels where a map drop put it, null for a
+  sheet drop. Reach is measured from it.
+- `params` — the kind's own authored figures, owned by the kind's registrant
+  (an obstacle's `length`, `gap` and `depth`, each nullable, blank meaning the
+  Judge sets it at the table; a condition's is empty).
+- `layers` — authored per check: `hasty` (a round) and `methodical` (a turn),
+  each optional. Scene search owns their keys.
+- `state` — runtime progress only, and the only part a Reset clears. Its keys
+  belong to the kind's registrant (a trap's `known`, `searchLock`,
+  `repeatLock`, armed state) and to scene search (`state.layers`, what each
+  check found and who failed it); a thing shown to players by a check carries
+  it here, so a Reset hides it again.
+
+**Owners.** lib: the shape, `normalizeThings`, the writes. location: the drop
+branches on the sheet, the token and the area's Region, `placesAround`, and the
+sheet's Things here list. formation (close-out): trap and obstacle semantics,
+area triggers and doors, and trap-zone's third `Placement` source, which reads
+a trap thing and keeps no copy. scene-search: layers, activities, the screen
+and the session. treasure: the pot.
+
+**Derived, never stored:** doors (core walls touching the place's area, where
+`door === 2` is a hidden exit), old-style trap zones and trap walls in the area
+(hidden unless `known`), and a fight's bodies (read from Search the fallen's
+record). Goods dropped on a place still go to its goods, as today.
+
+*Rejected:* an embedded copy of the trap or Hazard (two sources of truth, and a
+book's text copied into a world flag); a list per feature (two writers of one
+place, and the owner's stacking across kinds needs one list); a per-kind
+switchboard of authored options (the owner's "Not doing a big switchboard").
+*Counter (medium):* one flag written whole means two GMs editing one place's
+things at once lose the earlier write; the write is GM-only and rare, and the
+other branch, a document per thing, costs a document type for what is a row.
+
+*Cost:* a thing whose `ref` was deleted stays until the Judge removes it, and
+reads as a missing document rather than vanishing; nothing migrates, since no
+earlier shape shipped.
