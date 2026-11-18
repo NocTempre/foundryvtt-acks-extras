@@ -16,7 +16,7 @@
  * roll path".
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
-import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText } from "./ability-rolls.mjs";
+import { rollAbility, rollsOf, keyOf, defaultKeyOf, throwText, throwProvenance } from "./ability-rolls.mjs";
 import { THROW_TAG_CLASS, THROW_DEFAULT_CLASS } from "./sheet-rolls.mjs";
 import { escape as esc } from "../lib/util.mjs";
 
@@ -60,7 +60,9 @@ function onGetTags(wrapped) {
     if (!text) return "";
     const key = keyOf(r, i);
     const isDefault = rolls.length > 1 && key === current;
-    return `<li class='tag ${THROW_TAG_CLASS}${isDefault ? ` ${THROW_DEFAULT_CLASS}` : ""}' data-acks-throw='${esc(key)}'>${esc(text)}</li>`;
+    // Where the figure came from, only where a spell record moved it: assembled text, never a lang key.
+    const tip = throwProvenance(r, this.actor, this);
+    return `<li class='tag ${THROW_TAG_CLASS}${isDefault ? ` ${THROW_DEFAULT_CLASS}` : ""}' data-acks-throw='${esc(key)}'${tip ? ` data-tooltip-text='${esc(tip)}'` : ""}>${esc(text)}</li>`;
   });
 
   return `${tag(this.system.requirements)}${parts.join("")}`;

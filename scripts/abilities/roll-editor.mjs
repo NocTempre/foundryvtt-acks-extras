@@ -16,7 +16,7 @@
  * world holds — resolved through the classes registry at roll time.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { blankRoll, keyOf, labelOf, measures, readRolls, rollAbility, rollsOf, scoreApplies, scoreTerm, scoreText, throwOutcome, writeRolls, scalesFor } from "./ability-rolls.mjs";
+import { autoText, blankRoll, keyOf, labelOf, measures, readRolls, rollAbility, rollsOf, scoreApplies, scoreTerm, scoreText, throwOutcome, writeRolls, scalesFor } from "./ability-rolls.mjs";
 import {
   ATTRIBUTES,
   choicesOf,
@@ -205,6 +205,7 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
     const where = { scale: VALUE_SCALES[scaleKey]?.label ?? scaleKey, at: at ?? "?", formula: roll.formula || "1d20" };
     // An automatic or unavailable rung previews as such, not as an unresolved
     // target.
+    if (verdict.outcome === "auto" && verdict.record?.auto) return autoText(verdict);
     if (verdict.outcome !== "throw") {
       return game.i18n.format(
         verdict.outcome === "auto" ? "ACKS-ABILITIES.roll.previewAuto" : "ACKS-ABILITIES.roll.previewNone",

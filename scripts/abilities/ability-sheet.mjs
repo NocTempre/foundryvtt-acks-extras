@@ -12,7 +12,7 @@ import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import { definitionId } from "../lib/capabilities.mjs";
 import { libraryItems, openPacks } from "../lib/library.mjs";
 import AbilityExtras, { storedSelections } from "./ability-extras.mjs";
-import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf, citeOf } from "./ability-rolls.mjs";
+import { keyOf, rollsOf, scalesFor, measures, throwText, throwOutcome, labelOf, citeOf, autoText } from "./ability-rolls.mjs";
 import { ladderRungs, classByKey, effectiveLevel } from "../classes/registry.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { PROGRESSION_CLASSES, levelFactorLabel, nameWithSelections, capabilityForId, isCapabilityToken } from "../lib/vocab.mjs";
@@ -563,7 +563,7 @@ export function createAbilitySheet(Base) {
           // The row already shows the cell; this is what makes it a sentence.
           note:
             verdict.outcome === "auto"
-              ? game.i18n.format("ACKS-ABILITIES.roll.autoDetail", { cell: verdict.text || "—" })
+              ? autoText(verdict)
               : verdict.outcome === "none"
                 ? game.i18n.format("ACKS-ABILITIES.roll.noneDetail", { cell: verdict.text || "—" })
                 : "",

@@ -19,7 +19,7 @@
  * control would outlive its node. Ours are removed and re-added instead.
  */
 import { MODULE_ID, ABILITY_TYPE } from "./constants.mjs";
-import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText } from "./ability-rolls.mjs";
+import { rollsOf, keyOf, rollAbility, defaultKeyOf, setDefaultKey, nextKeyAfter, throwText, throwProvenance } from "./ability-rolls.mjs";
 import { elementOf, escape as esc } from "../lib/util.mjs";
 
 /** Marks a tag in the strip as one of an ability's throws (carries its key). */
@@ -130,7 +130,10 @@ function injectFavorites(root, actor) {
       const a = document.createElement("a");
       a.className = FAV_CLASS;
       a.dataset.acksThrow = keyOf(roll, i);
-      a.dataset.tooltip = `${esc(item.name)} — ${esc(throwLabel(roll, actor, item))}`;
+      // Where a spell record moved the figure the tooltip says so, as assembled text.
+      const provenance = throwProvenance(roll, actor, item);
+      if (provenance) a.dataset.tooltipText = `${item.name} — ${throwLabel(roll, actor, item)} · ${provenance}`;
+      else a.dataset.tooltip = `${esc(item.name)} — ${esc(throwLabel(roll, actor, item))}`;
       a.innerHTML = `<i class="fa-solid fa-dice-d20"></i><span>${esc(throwText(roll, actor, item))}</span>`;
       return a;
     });

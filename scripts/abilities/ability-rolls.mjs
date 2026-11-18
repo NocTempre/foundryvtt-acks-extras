@@ -11,8 +11,9 @@
 import { MODULE_ID, FLAG_EXTRAS, ABILITY_TYPE } from "./constants.mjs";
 import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure, ITEM_TYPE, capabilityForId, satisfies } from "../lib/vocab.mjs";
-import { cookbookId } from "../lib/library.mjs";
+import { cookbookId, byCookbookId } from "../lib/library.mjs";
 import { resolveStacking } from "../lib/typed-modifiers.mjs";
+import { throwResolution, recordParts } from "../lib/roll-mods.mjs";
 import { hasCapability } from "../lib/capabilities.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { escape as esc } from "../lib/util.mjs";
@@ -61,6 +62,52 @@ const refOf = (item) => ({ id: cookbookId(item) || null, provides: item?.getFlag
 
 /** The capabilities an ability provides, its own id's included, folded. */
 const capsOf = (ref) => [...(ref.id ? [capabilityForId(ref.id)] : []), ...ref.provides.map((p) => String(p).toLowerCase())];
+
+/**
+ * The handle a spell record's `rollKey` is tested against: the throw's own key,
+ * or the `roll<index>` that stands for a keyless one (`keyOf`). Undefined where
+ * the caller names no throw, which sends every part scoped to a throw to pending.
+ */
+function handleOf(item, roll) {
+  if (!roll) return undefined;
+  if (roll.key) return roll.key;
+  const index = rollsOf(item).indexOf(roll);
+  return index >= 0 ? `roll${index}` : undefined;
+}
+
+/** What `throwResolution` answers for a bearer with no record on a throw. */
+const noRecord = () => ({ outcome: "throw", add: [], total: 0, set: null, auto: null, dropped: [], pending: [] });
+
+/**
+ * What a bearer's spell records do to one throw: `throwResolution` over the
+ * throw parts that name this ability, read live at the roll, so a part is gone
+ * the moment its record ends. A `set` figure is read as the throw's own type
+ * orients it (`below` makes the higher target the better).
+ */
+function recordThrow(actor, item, roll) {
+  if (!actor || !item) return noRecord();
+  return throwResolution(actor, { subject: refOf(item), rollKey: handleOf(item, roll), rollType: roll?.rollType || "above" });
+}
+
+/** A record's part as the `{label, cite, value}` a surface prints: the spell's name, its page and its figure. */
+const spoken = (p) => ({ label: p.spell, cite: p.cite ?? "", value: p.value });
+
+/**
+ * What a verdict tells of its records, or null where no record touched the
+ * throw: the part that made it automatic, the target a part set, the parts that
+ * were added, those that yielded (each naming what it yielded to) and those that
+ * could not be told.
+ */
+function recordNote(record, { set = record.set, added = record.add, yielded = [] } = {}) {
+  const note = {
+    auto: record.auto ? spoken(record.auto) : null,
+    set: set ? spoken(set) : null,
+    added: added.map(spoken),
+    dropped: [...record.dropped.map((p) => ({ ...spoken(p), set: p.mode === "set", yieldsTo: p.yieldsTo })), ...yielded],
+    pending: record.pending.map((p) => ({ label: p.label })),
+  };
+  return note.auto || note.set || note.added.length || note.dropped.length || note.pending.length ? note : null;
+}
 
 /**
  * The `modifies` rows of the character's abilities that act on a subject's
@@ -134,13 +181,20 @@ export function modifiesParts(actor, subject, { roll = null, unskilled = false }
  * unapplied. See docs/abilities/DECISIONS.md, "A modifier must name what it
  * modifies, and may name the throw".
  *
+ * A third source is the character's spell records (`recordThrow`): the bonuses
+ * they add, resolved among themselves, join `bonus` and `parts`, each part
+ * named for its spell with its page. The `set` and `auto` of a record are not
+ * a bonus and belong to `throwOutcome`.
+ *
  * @param {object} [roll] the throw being resolved; omit for the ability's
  *   unscoped total
+ * @param {object} [opts]
+ * @param {object} [opts.record] `throwResolution`'s answer for this throw, when the caller already holds it
  * @returns {{bonus: number, pending: Array<{name: string, amount: number, condition: string}>,
- *   parts: Array<{label: string, value: number, cite: string, itemId: string}>}}
- *   `parts` itemizes `bonus`, one entry per ability that contributed
+ *   parts: Array<{label: string, value: number, cite: string, itemId: string|null}>}}
+ *   `parts` itemizes `bonus`, one entry per ability or spell record that contributed
  */
-export function throwModifiers(actor, item, roll = null) {
+export function throwModifiers(actor, item, roll = null, { record = null } = {}) {
   const out = { bonus: 0, pending: [], parts: [] };
   if (!actor || !item) return out;
   const mine = slug(item.name);
@@ -185,6 +239,10 @@ export function throwModifiers(actor, item, roll = null) {
   for (const part of modifiesParts(actor, refOf(item), { roll }).kept) {
     out.bonus += part.value;
     out.parts.push(part);
+  }
+  for (const part of (record ?? recordThrow(actor, item, roll)).add) {
+    out.bonus += part.value;
+    out.parts.push({ ...spoken(part), itemId: null });
   }
   return out;
 }
@@ -261,21 +319,51 @@ function scoreWritten(term) {
  * the `progression` kind lib cannot see).
  *
  * @param {object} [opts]
+ * A spell record on the character acts here, the one place every surface reads:
+ * a record's `auto` answers "auto" with no roll, a `set` target is the figure
+ * the throw is rolled against (the better of two by the throw's type, and
+ * nothing else is added to it but the character's conditions), and a record's
+ * bonuses join `parts`. `record` on the answer names what each did.
+ *
+ * @param {object} [opts]
  * @param {boolean} [opts.conditions=true] fold the character's conditions into
  *   the target; false leaves them out, for a caller whose own roll applies them
+ * @param {number|null} [opts.level] read the target at this level, not the character's (a granted proficiency's `atLevel`)
+ * @param {{spell: string, cite: string, value: number|null}|null} [opts.grant] a granted proficiency's set target,
+ *   which competes with a record's own `set`; a null `value` is a blank figure and leaves the target unresolved
  * @returns {{outcome: string, target: number|null, text: string,
- *   parts?: Array<{kind: string, label: string, value: number, cite: string}>}}
+ *   parts?: Array<{kind: string, label: string, value: number, cite: string}>,
+ *   record?: {auto: object|null, set: object|null, added: object[], dropped: object[], pending: object[]}}}
  *   `outcome` is "throw" (roll against `target`), "auto" (no roll — it happens)
  *   or "none" (not available to this character yet); `text` is the printed cell.
- *   `parts` itemizes what moved the target, one entry per ability, score and
- *   conditions source, and is present on a throw.
+ *   `parts` itemizes what moved the target, one entry per ability, spell, score and
+ *   conditions source, and is present on a throw. `record` is present only where a spell touched it.
  */
-export function throwOutcome(roll, actor, item, { conditions = true } = {}) {
+export function throwOutcome(roll, actor, item, { conditions = true, level = null, grant = null } = {}) {
   const none = (target = null, text = "") => ({ outcome: "throw", target, text });
   // A measure has no target, whatever the target fields still hold.
   if (measures(roll)) return none();
+  const record = recordThrow(actor, item, roll);
+  if (record.auto) return { outcome: "auto", target: null, text: "", record: recordNote(record) };
+  const set = betterTarget(roll?.rollType || "above", [grant, record.set]);
+  if (set) {
+    const standing = conditions && actor ? conditionParts(actor) : [];
+    const to = set.cite ? `${set.spell} (${set.cite})` : set.spell;
+    const yielded = [
+      ...record.add.map((p) => ({ ...spoken(p), yieldsTo: to })),
+      ...[grant, record.set].filter((p) => p && p !== set).map((p) => ({ ...spoken(p), set: true, yieldsTo: to })),
+    ];
+    return {
+      outcome: "throw",
+      target: set.value == null ? null : withModifiers(Number(set.value), roll, standing),
+      text: "",
+      parts: itemized(standing),
+      record: recordNote(record, { set, added: [], yielded }),
+    };
+  }
   const target = roll?.target;
   const scales = scalesFor(actor, item);
+  if (level != null) scales.level = level;
   const at = scales[roll?.scale || "level"];
   // A scale nothing here supplies (Arcane Value, Hit Dice): a flat target still
   // answers; a ladder does not, and the sheet shows it whole.
@@ -289,8 +377,27 @@ export function throwOutcome(roll, actor, item, { conditions = true } = {}) {
     return none(target?.flat ?? null);
   }
   if (verdict.outcome !== "throw") return verdict;
-  const parts = typeof verdict.target === "number" ? targetModifiers(roll, actor, item, { conditions }) : [];
-  return { ...verdict, target: withModifiers(verdict.target, roll, parts), parts: itemized(parts) };
+  const parts = typeof verdict.target === "number" ? targetModifiers(roll, actor, item, { conditions, record }) : [];
+  const note = recordNote(record);
+  return { ...verdict, target: withModifiers(verdict.target, roll, parts), parts: itemized(parts), ...(note ? { record: note } : {}) };
+}
+
+/**
+ * The target among `sets` the throw takes: the better figure by the throw's
+ * type (the lower for "above" and an exact match, the higher for "below"), or
+ * the first with no figure where none has one, or null with nothing to choose.
+ */
+function betterTarget(type, sets) {
+  const live = sets.filter(Boolean);
+  const figured = live.filter((p) => p.value != null && Number.isFinite(Number(p.value)));
+  if (!figured.length) return live[0] ?? null;
+  return figured.reduce((best, p) => ((type === "below" ? Number(p.value) > Number(best.value) : Number(p.value) < Number(best.value)) ? p : best));
+}
+
+/** What a character's conditions do to a proficiency throw, as the one part they make, or none. */
+function conditionParts(actor) {
+  const value = rollMath("throw", subjectOf(actor)).total;
+  return value ? [{ kind: "conditions", label: "", value }] : [];
 }
 
 /**
@@ -317,7 +424,11 @@ function itemized(parts) {
  */
 export function throwText(roll, actor, item) {
   if (measures(roll)) return roll?.formula || "1d20";
-  const { outcome, target, text } = throwOutcome(roll, actor, item);
+  return readText(roll, throwOutcome(roll, actor, item));
+}
+
+/** A verdict as the cell a control prints: the target with its sign, the table's cell, "auto", or "—". */
+function readText(roll, { outcome, target, text }) {
   if (outcome !== "throw") return text || (outcome === "auto" ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : "—");
   if (target == null) return text || "—";
   const type = roll?.rollType || "above";
@@ -339,17 +450,18 @@ export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).t
  *
  * @param {object} [opts]
  * @param {boolean} [opts.conditions=true] false leaves the conditions source out
+ * @param {object} [opts.record] `throwResolution`'s answer for this throw, when the caller already holds it
  * @returns {Array<{kind: "abilities"|"score"|"conditions", label: string, value: number}>}
  *   sources that come to nothing are left out; `[]` with no character
  */
-export function targetModifiers(roll, actor, item, { conditions = true } = {}) {
+export function targetModifiers(roll, actor, item, { conditions = true, record = null } = {}) {
   if (!actor) return [];
   const term = scoreTerm(roll, actor);
-  const mods = throwModifiers(actor, item, roll);
+  const mods = throwModifiers(actor, item, roll, { record });
   return [
     { kind: "abilities", label: "", value: mods.bonus, parts: mods.parts },
     { kind: "score", label: term?.label ?? "", value: term?.bonus ?? 0 },
-    { kind: "conditions", label: "", value: conditions ? rollMath("throw", subjectOf(actor)).total : 0 },
+    ...(conditions ? conditionParts(actor) : []),
   ].filter((part) => part.value);
 }
 
@@ -576,6 +688,16 @@ function missingTargetText(target, actor) {
 }
 
 /**
+ * Why a throw is automatic, as a sentence: the spell that made it
+ * automatic where a record did, else the table's own cell.
+ */
+export function autoText(verdict) {
+  const by = verdict?.record?.auto;
+  if (by) return game.i18n.format("ACKS-ABILITIES.roll.autoRecord", { spell: by.cite ? `${by.label} (${by.cite})` : by.label });
+  return game.i18n.format("ACKS-ABILITIES.roll.autoDetail", { cell: verdict?.text || "—" });
+}
+
+/**
  * The card's context in the shape core's template reads. The target rides
  * core's success row; the details slot carries the natural die behind a total
  * that is more than dice, the throw's condition and any unresolved-target
@@ -588,11 +710,7 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
     evaluated ? esc(auditLine(evaluated)) : "",
     // An automatic or unavailable rung prints its cell, not a missing-target line.
     outcome !== "throw"
-      ? esc(
-          game.i18n.format(outcome === "auto" ? "ACKS-ABILITIES.roll.autoDetail" : "ACKS-ABILITIES.roll.noneDetail", {
-            cell: verdict.text || "—",
-          }),
-        )
+      ? esc(outcome === "auto" ? autoText(verdict) : game.i18n.format("ACKS-ABILITIES.roll.noneDetail", { cell: verdict.text || "—" }))
       : measures(roll)
         ? ""
         : esc(missingTargetText(target, actor)),
@@ -617,7 +735,7 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
       isSuccess: success === true,
       isFailure: success === false,
       // On an automatic rung the success row carries the printed cell.
-      target: outcome === "auto" ? verdict.text : target == null ? "" : `${target}${suffix}`,
+      target: outcome === "auto" ? verdict.text || game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : target == null ? "" : `${target}${suffix}`,
     },
   };
 }
@@ -627,14 +745,14 @@ async function cardData(item, actor, roll, { target, success, suffix, verdict, e
  * by `key`, else the ability's default, else the first. No key means the
  * default throw: every route that cannot pass one arrives so.
  *
+ * @param {Actor|null} [actor] the holder; the ability's own parent by default
  * @returns {{roll: object, actor: Actor|null, verdict: object}|null} null when the ability has no throw
  */
-function pickThrow(item, key) {
+function pickThrow(item, key, actor = item.actor ?? null) {
   const rolls = rollsOf(item);
   const wanted = key ?? defaultKeyOf(item);
   const roll = rolls.find((r, i) => keyOf(r, i) === wanted) ?? rolls[0];
   if (!roll) return null;
-  const actor = item.actor ?? null;
   return { roll, actor, verdict: throwOutcome(roll, actor, item) };
 }
 
@@ -700,7 +818,7 @@ export async function evaluateThrow(item, key, { bonus = 0 } = {}) {
     type,
     target,
   });
-  const modifiers = target == null ? [] : targetModifiers(roll, actor, item);
+  const modifiers = target == null ? [] : verdict.record?.set ? verdict.parts : targetModifiers(roll, actor, item);
   // An exact-match throw takes no bonus, so its base is its target.
   const shift = type === "result" ? 0 : type === "below" ? -modifierTotal(modifiers) : modifierTotal(modifiers);
   return { ...out, total, target, base: target == null ? null : target + shift, modifiers, success, evaluated };
@@ -729,6 +847,11 @@ export async function evaluateThrow(item, key, { bonus = 0 } = {}) {
 export async function rollAbility(item, key, { event, skipDialog, bonus = 0, messageMode } = {}) {
   const picked = pickThrow(item, key);
   if (!picked) return null;
+  return rollPicked(item, picked, { event, skipDialog, bonus, messageMode });
+}
+
+/** Roll and post a throw `pickThrow` (or a granted one) resolved; the one place a throw is posted. */
+async function rollPicked(item, picked, { event, skipDialog, bonus = 0, messageMode } = {}) {
   const { roll, actor, verdict } = picked;
 
   // An unavailable rung posts nothing; the clicker is told why.
@@ -838,11 +961,181 @@ async function postAutomatic(item, actor, roll, verdict, messageMode) {
       ...(content
         ? { content }
         : {
-            content: `<p>${esc(label)} — <strong>${esc(
-              game.i18n.format("ACKS-ABILITIES.roll.autoDetail", { cell: verdict.text || "—" }),
-            )}</strong></p>`,
+            content: `<p>${esc(label)} — <strong>${esc(autoText(verdict))}</strong></p>`,
           }),
     },
     { messageMode },
   );
+}
+
+/* -------------------------------------------- */
+/*  What spell records tell of a throw           */
+/* -------------------------------------------- */
+
+/** The throw's sign: "-" under, nothing on an exact match, "+" otherwise. */
+const suffixOf = (roll) => (roll?.rollType === "below" ? "-" : roll?.rollType === "result" ? "" : "+");
+
+/** A spoken part with its page: "Spell (RR p.1)". */
+const cited = (p) => (p.cite ? `${p.label} (${p.cite})` : p.label);
+
+/**
+ * The parts behind a throw a spell record touched, as one line for a tooltip:
+ * what made it automatic, the target a part set, every bonus with its source
+ * (abilities, spells, the score, conditions) and what yielded to what. Empty
+ * where no record touched the throw.
+ */
+function provenance(roll, verdict) {
+  const note = verdict?.record;
+  if (!note) return "";
+  const bits = [];
+  if (note.auto) bits.push(`${cited(note.auto)} ${game.i18n.localize("ACKS-ABILITIES.roll.autoShort")}`);
+  if (note.set) bits.push(note.set.value == null ? cited(note.set) : `${cited(note.set)} = ${note.set.value}${suffixOf(roll)}`);
+  for (const part of verdict.parts ?? []) {
+    const label = part.kind === "conditions" ? game.i18n.localize("ACKS-LIB.statusPalette.source.condition") : part.label;
+    bits.push(`${part.cite ? `${label} (${part.cite})` : label} ${signed(part.value)}`.trim());
+  }
+  for (const p of note.dropped) {
+    const name = `${cited(p)} ${p.set ? (p.value == null ? "" : `${p.value}${suffixOf(roll)}`) : signed(p.value)}`.trim();
+    bits.push(game.i18n.format("ACKS-LIB.rollMods.yields", { name, to: p.yieldsTo }));
+  }
+  return bits.join(" · ");
+}
+
+/**
+ * Where a throw's figure came from, for `data-tooltip-text`: the parts a spell
+ * record added or set, each with its page, and what yielded. The empty string
+ * where no record touched the throw, so the surface keeps the tooltip it had.
+ */
+export function throwProvenance(roll, actor, item) {
+  if (!roll || measures(roll)) return "";
+  return provenance(roll, throwOutcome(roll, actor, item));
+}
+
+/* -------------------------------------------- */
+/*  Throws a spell record grants                 */
+/* -------------------------------------------- */
+
+/** The level a grant's `atLevel` names: a number, or `{value, parts}`; null where it names none. */
+function levelOf(atLevel) {
+  const raw = atLevel && typeof atLevel === "object" ? atLevel.value : atLevel;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * A stand-in for the proficiency a grant names, shaped as the ability the roller
+ * reads (its cookbook id, what it provides, a name and an image) and held by no
+ * one: the grant makes the character count as holding it only while its record
+ * lasts, so nothing is added to the character.
+ */
+function standIn(actor, ref, def, spell) {
+  const flags = { [MODULE_ID]: { cookbook: { id: ref }, [FLAG_EXTRAS]: { provides: def?.getFlag?.(MODULE_ID, FLAG_EXTRAS)?.provides ?? [] } } };
+  return {
+    id: null,
+    type: ABILITY_TYPE,
+    name: def?.name || spell,
+    img: def?.img || actor?.img || "icons/svg/d20.svg",
+    system: {},
+    flags,
+    actor,
+    getFlag: (scope, key) => flags[scope]?.[key],
+  };
+}
+
+/** The throw of a grant whose definition is not imported: a die and no target. */
+const blankGrantRoll = () => ({ key: "grant", label: "", formula: coreThrowDie(), rollType: "above", scale: "level", target: { kind: "flat", flat: null }, condition: "" });
+
+/**
+ * The tooltip of a granted throw's figure: the spell with its page alone where
+ * there is no figure; else the spell, the level the definition is read at with
+ * what that level is made of, and the parts behind the figure.
+ */
+function grantTip(hit, roll, verdict, level) {
+  if (verdict.target == null && verdict.outcome !== "auto") return hit.label;
+  const bits = [];
+  if (!verdict.record?.set) bits.push(hit.label);
+  if (level != null && !verdict.record?.set) {
+    const made = (hit.atLevel?.parts ?? []).map((p) => `${p?.label ?? ""} ${p?.value ?? ""}`.trim()).filter(Boolean);
+    bits.push([game.i18n.format("ACKS-ABILITIES.roll.grantedAt", { level }), ...made].join(" · "));
+  }
+  bits.push(provenance(roll, verdict));
+  return bits.filter(Boolean).join(" · ");
+}
+
+/**
+ * The throws a character's spell records grant: one per throw of each
+ * proficiency a `grant` part names, while that record lasts and the character
+ * holds no ability that provides it. Read live at every call.
+ *
+ * A grant with a `set` mode is rolled against its figure (a blank one has no
+ * target: "—"); a grant with no mode is the definition's own throw, read at
+ * the grant's `atLevel` or the character's level. A definition that is not
+ * imported leaves the figure blank. Two grants of one proficiency leave the
+ * better target for that throw's type (`recordParts`).
+ *
+ * @param {Actor} actor
+ * @returns {Array<{id: string, effectId: string, ref: string, key: string, name: string, label: string,
+ *   spell: string, cite: string, tip: string, text: string, outcome: string, target: number|null,
+ *   type: string, level: number|null, roll: object, item: object, verdict: object}>}
+ *   `id` is `grant:<effectId>:<key>`, stable for as long as the record lasts; `text` is
+ *   what the throw reads as (`throwText`'s cell); `tip` is for `data-tooltip-text`
+ */
+export function grantedThrows(actor) {
+  if (!actor) return [];
+  const probe = recordParts(actor, "grant", {});
+  const refs = new Set(
+    [...probe.kept, ...probe.dropped, ...probe.pending.map((p) => ({ refTo: [].concat(p.part?.ref ?? p.part?.refs ?? [])[0] }))]
+      .map((p) => p.refTo)
+      .filter(Boolean),
+  );
+  const out = [];
+  for (const ref of refs) {
+    const def = byCookbookId("Item", ref, { original: true });
+    const all = def ? rollsOf(def) : [];
+    const throws = all.map((roll, i) => ({ roll, key: keyOf(roll, i) })).filter(({ roll }) => !measures(roll));
+    for (const { roll, key } of throws.length ? throws : [{ roll: blankGrantRoll(), key: "grant" }]) {
+      const hit = recordParts(actor, "grant", { rollType: roll.rollType || "above", rollKey: key }).kept.find((p) => p.refTo === ref);
+      if (!hit) continue;
+      const item = standIn(actor, ref, def, hit.spell);
+      const set = hit.mode === "set" ? { spell: hit.spell, cite: hit.cite ?? "", value: hit.value } : null;
+      const level = set ? null : levelOf(hit.atLevel);
+      const verdict = throwOutcome(roll, actor, item, { level, grant: set });
+      out.push({
+        id: `grant:${hit.effect?.id ?? ""}:${key}`,
+        effectId: hit.effect?.id ?? "",
+        ref,
+        key,
+        name: item.name,
+        label: roll.label || "",
+        spell: hit.spell,
+        cite: hit.cite ?? "",
+        tip: grantTip(hit, roll, verdict, level),
+        text: readText(roll, verdict),
+        outcome: verdict.outcome,
+        target: verdict.target ?? null,
+        type: roll.rollType || "above",
+        level,
+        roll,
+        item,
+        verdict,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Roll a throw `grantedThrows` listed and post it on the system's own card.
+ * Resolved afresh: a grant whose record has ended since the list was read is
+ * gone, and nothing is rolled (null). Takes `rollAbility`'s options.
+ *
+ * @param {Actor} actor
+ * @param {{id: string}} grant a `grantedThrows` entry
+ * @returns {Promise<{total: number|null, target: number|null, success: boolean|null, outcome: string}|null>}
+ */
+export async function rollGrantedThrow(actor, grant, opts = {}) {
+  const live = grantedThrows(actor).find((g) => g.id === grant?.id);
+  if (!live) return null;
+  return rollPicked(live.item, { roll: live.roll, actor, verdict: live.verdict }, opts);
 }
