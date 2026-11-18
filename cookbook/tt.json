@@ -69328,7 +69328,7 @@
     },
     "tt.item637": {
       "kind": "kind.magicItem",
-      "name": "Item 637",
+      "name": "Galdrtré Seed",
       "cite": "TT p.170",
       "pages": [
         172
@@ -69339,7 +69339,7 @@
       },
       "fields": {
         "name": {
-          "op": "heading",
+          "op": "expect",
           "page": 172,
           "box": {
             "x0": 46.5,
@@ -69347,7 +69347,7 @@
             "y0": 519,
             "y1": 538
           },
-          "hash": "1ov7vqz"
+          "text": "Galdrtré Seed"
         },
         "description": {
           "op": "text",
