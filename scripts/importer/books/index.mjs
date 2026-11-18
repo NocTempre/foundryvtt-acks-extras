@@ -19,10 +19,11 @@
  * cleanup (docs/importer/DECISIONS.md, "An ACKS book's importer code lives in
  * its own folder, and the silo gate counts what is left").
  */
+import * as rr from "./rr/index.mjs";
 import * as tt from "./tt/index.mjs";
 
 /**
  * Each book's contribution by book id, in merge order:
  * `{<id>: {tableRecipes?, magicItemLists?, axBands?}}`.
  */
-export const BOOK_CODE = Object.freeze({ tt });
+export const BOOK_CODE = Object.freeze({ rr, tt });

@@ -2537,7 +2537,8 @@ each book's, table by table, after the shared ones and in the order
 book is read from its first table that names one, so the order is load-bearing).
 Every merged table is stamped with its book; a table id defined twice, or a
 book's table naming another book, throws. The Treasure Tome has one (`books/tt/`: its magic-item table
-recipes and list map); what landed
+recipes and list map), and so has the Revised Rulebook (`books/rr/`: the formation document's
+climbing pace recipes); what landed
 before the seam waits in the shared files for the owner's cleanup
 (ROADMAP, "Landed code that waits for the per-book cleanup"), and new code goes
 in a folder. A file is book code when it holds a book's print facts; code that a
