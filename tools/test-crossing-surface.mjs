@@ -1240,6 +1240,45 @@ await ok("a hanging jumper climbs up on the climb rows' logic: the member's own 
   assert.equal((await jumpFor(roped.formation, "Alder", { step: "climbUp" })).step, "across", "a fixed rope makes it the easy climb, whose miss still covers the ground");
 });
 
+await ok("the result line keeps the landing's footing and its outcome follows the climb up: climbed up on a make, the setup's fall on a botch, hanging while it holds on", async () => {
+  const hang = async () => {
+    const world = await gapWorld({ landing: { precarious: true } });
+    saveResult = { total: 11 };
+    naturals.push(6, 3);
+    await jumpFor(world.formation, "Alder");
+    assert.equal(recordOf(world.formation).state, "hanging");
+    const before = rowOf(buildCrossingView(world.formation), "Alder").result.footing;
+    assert.deepEqual([before.footing, before.outcome, before.fall], ["An edge", "Hanging", null], "the landing leaves the jumper hanging");
+    return world;
+  };
+  const made = await hang();
+  naturals.push(14);
+  assert.equal((await jumpFor(made.formation, "Alder", { step: "climbUp" })).step, "across");
+  let line = rowOf(buildCrossingView(made.formation), "Alder").result.footing;
+  assert.deepEqual([line.text, line.footing, line.outcome, line.fall], ["Landing short by 3 ft", "An edge", "Climbed up", null], "where they landed stays; the outcome is the climb up's");
+  assert.ok(line.tip.includes("Natural 14, total 14") && line.tip.endsWith("XX p.3"), "the climb up's throw is in the working, the page ends it");
+  const shown = render({ crossing: buildCrossingView(made.formation) });
+  assert.ok(shown.includes("An edge: Climbed up") && !shown.includes("An edge: Hanging"), "the rendered line reads the climb up");
+
+  const missed = await hang();
+  naturals.push(5);
+  assert.equal((await jumpFor(missed.formation, "Alder", { step: "climbUp" })).step, "stalled");
+  line = rowOf(buildCrossingView(missed.formation), "Alder").result.footing;
+  assert.deepEqual([line.outcome, line.fall], ["Hanging", null], "a miss that holds on is still hanging");
+  naturals.push(1);
+  assert.equal((await jumpFor(missed.formation, "Alder", { step: "climbUp" })).step, "fell");
+  const row = rowOf(buildCrossingView(missed.formation), "Alder");
+  assert.deepEqual([row.stateLabel, row.result.footing.footing, row.result.footing.outcome], ["Fell", "An edge", "Fell"], "the state and the line agree");
+  assert.equal(row.result.footing.fall.text, "Fell 30 ft, 2d8", "the climb up's fall is the setup's depth with the imported dice");
+  assert.ok(row.result.footing.fall.tip.endsWith("XX p.2"), "the fall names its imported page");
+  assert.ok(row.result.footing.tip.includes("Natural 1, total 1"));
+  const fellHtml = render({ crossing: buildCrossingView(missed.formation) });
+  assert.ok(fellHtml.includes("An edge: Fell") && fellHtml.includes("Fell 30 ft, 2d8") && !fellHtml.includes("An edge: Hanging"));
+
+  await reportLanding(missed.formation, "Alder", "edge");
+  assert.equal(rowOf(buildCrossingView(missed.formation), "Alder").result.footing.outcome, "Hanging", "a Judge's pick of the edge hangs the jumper again");
+});
+
 await ok("the Judge's footing pick on an attempted jump writes the record, and the row, the climb up and the state follow it", async () => {
   const hang = async () => {
     const world = await gapWorld({ landing: { precarious: true } });

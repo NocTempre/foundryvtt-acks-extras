@@ -7620,6 +7620,7 @@
   "ACKS-FORMATION.crossing.result.shortBy": "Short of the far side by {feet} ft",
   "ACKS-FORMATION.crossing.result.pending": "Landing save to roll",
   "ACKS-FORMATION.crossing.result.override": "Footing set by the Judge",
+  "ACKS-FORMATION.crossing.result.climbedUp": "Climbed up",
   "ACKS-FORMATION.crossing.tip.face": "Rolled {face}",
   "ACKS-FORMATION.crossing.tip.footingParts": "Rolled {distance} ft, gap {gap} ft, landing short {slip} ft",
   "ACKS-FORMATION.crossing.fellUnknown": "Fell, depth not set",

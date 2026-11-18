@@ -659,9 +659,14 @@ function resultView(crossing, entry) {
   if (!reached) return null;
   const overridden = FOOTINGS.includes(jump.footing) && jump.footing !== reached.footing;
   const result = overridden ? withFooting(reached, jump.footing, crossing.depth) : reached;
-  const fall = jumpFall(result);
+  // A record that settled (across or fell) on a footing of the edge got there through the climb up: the
+  // landing and a footing pick both leave an edge hanging, so the outcome follows the climb up's result.
+  const state = entry.record.state;
+  const climbed = result.footing === "edge" && SETTLED.includes(state);
+  const fall = climbed && state === "fell" ? fallFromDepth(crossing.depth) : jumpFall(result);
   const cite = citeFor("jumping") ?? jumpingRef();
   const slipped = result.slip !== null;
+  const last = climbed ? entry.record.last : null;
   return {
     rolled: loc("crossing.result.rolled", { distance: result.distance }),
     rolledTip: rolledTooltip(entry.options, jump.face),
@@ -681,11 +686,16 @@ function resultView(crossing, entry) {
         text: result.clears && !slipped
           ? loc("crossing.result.override")
           : loc(slipped ? "crossing.result.slip" : "crossing.result.shortBy", { feet: slipped ? result.slip : result.shortBy }),
-        outcome: result.outcome ? loc(`crossing.landing.outcome.${result.outcome}`) : "",
+        outcome: climbed
+          ? loc(state === "across" ? "crossing.result.climbedUp" : "crossing.state.fell")
+          : result.outcome ? loc(`crossing.landing.outcome.${result.outcome}`) : "",
         footing: result.footing ? loc(`crossing.footing.${result.footing}`) : "",
         tip: [
           loc("crossing.tip.footingParts", { distance: result.distance, gap: result.gap, slip: result.slip ?? 0 }),
           ...(overridden ? [loc("crossing.tip.judgeSet")] : []),
+          ...(last && Number.isFinite(last.natural) && Number.isFinite(last.total)
+            ? [`${loc("crossing.climbUp.press")}: ${loc("crossing.tip.lastThrow", { natural: last.natural, total: last.total })}`]
+            : []),
           cite,
         ].join(" · "),
         fall: fall ? { text: fallWords(fall, false), tip: fallTooltip(fall) } : null,

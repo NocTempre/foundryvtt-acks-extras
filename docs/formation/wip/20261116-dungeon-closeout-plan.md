@@ -1657,15 +1657,23 @@ with no other GM seated.
 ### Found by the walk
 
 - After a climb-up fall the row's state reads Fell while its result line
-  still reads "An edge: Hanging".
-- No warning was seen before the Judge's "Climb up anyway" press; a toast
-  may have expired before the read. Not captured.
+  still reads "An edge: Hanging". Fixed on `main` as `59f2aa34` and walked
+  there with Gamemaster 2 in a capture-driver seat, the die rigged (a 20 on
+  the distance, a 1 on the shortfall and the save, then 7s): the member hung
+  on the edge, and the climb-up miss left the row reading "Landing short by
+  1 ft → An edge: Fell" with "Fell 20 ft, 2d6" priced at the depth, and the
+  footing tooltip ending "Climb up: Natural 7, total 7 · RR p.270-271". The
+  run's three cards were swept by id: asked 3, left 0.
+- The Judge's "Climb up anyway" press is preceded by a warn toast and no
+  dialog: "<member> cannot attempt this", raised at the press, after which
+  the climb up throws (captured on the same run; a Judge is warned where a
+  Player is blocked).
 - The covered cell's tooltip reads "1 stretches"; older than this phase.
 - T-0642 (`tooltip:2026-11-17`): the target's base figure carries no page,
   since `resolveCheck` drops the winning item's cite.
 - Found offline, not by the walk: `acks-rules`' formation RULES.md §11 has
   the narrow and precarious botched-throw cells swapped against the printed
-  grid (local-only, not fixed); `tools/rules-tests/test-obstacles.mjs`
+  grid (local-only; corrected there, uncommitted by design); `tools/rules-tests/test-obstacles.mjs`
   (gitignored) still calls the `assisted` name S6 renamed.
 
 ### Checked offline only
