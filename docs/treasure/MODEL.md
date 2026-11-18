@@ -460,8 +460,9 @@ by the lang name of its column (`ACKS-TREASURE.hoard.coin.<key>`), found with
 stack's. A world with no such coin gets `coin-missing` and no card for that
 coin; no rate is assumed. A gem or jewelry card carries `valueGp` and its
 band's type as the label. A magic card is a placeholder: pool `magic`, magical,
-undetected, no mask, with a `tableRef` that is not part of a stored truth and
-that the magic-item roll resolves. Dice are `CONFIG.Dice.randomUniform` through
+undetected, no mask, with a `tableRef` (the noun its cell printed, null for a
+magic column that prints none) that is not part of a stored truth; the letter
+deal rolls it ("Magic cards are rolled", below). Dice are `CONFIG.Dice.randomUniform` through
 `rollerFrom`, or a roller the caller passes.
 
 ## Dealing letters
@@ -513,3 +514,43 @@ row `{actorId, name, count, letter}`. The letter is read from the token's own
 actor (`system.details.treasure.type`), the first one a group carries; a kind
 with none is listed with `letter: null`. A row deals one hoard of its letter,
 whatever its `count`; two kinds with one letter deal it twice.
+
+## Magic cards are rolled
+
+Source: `magic-deal-logic.mjs` (pure), bound in `deal.mjs` `rollMagicCards`,
+called from `runLetterDeal`'s `rollMagic` seam once per letter, after the hoard
+is dealt and before any truth is staged. The pass has no table of nouns,
+captions or list ids: everything it matches arrives from the import.
+
+- **Noun to start.** Each magic placeholder's `tableRef` is matched against the
+  captions of the lists a roll may begin at for the deal's style (`starts()` of
+  the magic-items API: the category lists for classic, the rarity lists for
+  heroic and gritty), by `lib/vocab.mjs` `creatureKeys`, so a plural noun meets a
+  singular caption and a caption's name forms are read. The one list it names is
+  the roll's `from`. A noun that names no list, two lists, or none (a magic
+  column that prints no noun) does not roll, and nor does a style with no list
+  imported.
+- **One roll per card**, through the `magic-item-roll` contract
+  (`docs/lib/API.md`; treasure imports nothing of `magic-items`), on core's dice
+  unless `dealLettersIntoPot` is given a `roller`.
+- **The result is the card.** An item that links to a document is that
+  document's truths as a dropped item stores them (`pot.mjs` `truthsFromItem`),
+  each made a dealt find (`unknownTruth`): pool `magic`, magical, undetected,
+  unidentified, with the snapshot's own `markets.identified` and `curseKnown`
+  cleared and `detected` set false, so a claim creates an item that knows no
+  more than the card does. A coin a bundle delivers stays coin. An item with no
+  document is a magic placeholder named for the item. Force cursed and No magic
+  read the card like any other magic card: No magic strikes it, Force cursed
+  marks it where it holds a snapshot.
+- **A refusal keeps the placeholder.** The roll's own refusal (`not-imported`,
+  `rarity-required`, a walk error), an item the chain did not reach (`flag` set,
+  no name), a roll or resolver that throws, a missing contract or list set, and
+  the no-match cases each leave the card as dealt and add one error
+  `{code: "magic-not-rolled", reason, noun}`; `dealMessages` says so once per
+  letter. No name or figure is invented.
+- **Audit.** A letter's entry in `runLetterDeal`'s `dealt` carries `audit`: the
+  hoard's own throw rows and, per magic roll, one row per die in the hoard's
+  shape (`where` `<letter>.magic`, `expr`, `sides`, `min`, `max`, `total`,
+  `cite`) with `magic: true`, `start`, `list`, `caption`, `inner` for a tail
+  roll, and the item's name on the last row. Nothing posts these rows as a chat
+  card; the open-time whisper is the toggles' (`planOpen`).

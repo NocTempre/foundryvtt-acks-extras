@@ -57,6 +57,9 @@ export const POOL_BACK_ICON = Object.freeze({
   item: "icons/svg/item-bag.svg",
 });
 
+/** The `services` contract the magic-items feature rolls an item under (docs/lib/API.md); the name is repeated here so treasure imports nothing of that feature. */
+export const MAGIC_ITEM_ROLL_CONTRACT = "magic-item-roll";
+
 /** Why a request was refused. Each is a lang key under the `refuse` group of the feature's root. */
 export const REFUSAL = Object.freeze({
   noUser: "noUser",

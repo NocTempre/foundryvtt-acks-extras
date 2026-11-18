@@ -24,8 +24,9 @@
  *   prints for the kind (matched whole, case and accent folded, plural forms
  *   listed by the caller); `column` is the treasure-type column the kind
  *   belongs to; a gem or jewelry kind names its band list in `values` and the
- *   dice it is thrown with in `die`; a magic kind's `tableRef` is the
- *   placeholder T6 resolves.
+ *   dice it is thrown with in `die`; a magic kind's `tableRef` is the noun the
+ *   placeholder is rolled by (`magic-deal-logic.mjs`), null for a kind that
+ *   prints none.
  * - **Tables**: `{type: {rows, cite}, values: {<key>: band table},
  *   special?: {<kind key>: band table}}`; a band table is `{bands, die, cite,
  *   per?, keep?}` with bands `{min|lo, max|hi, ...}`. `per` is a coin list's
@@ -331,7 +332,7 @@ export function dealHoard({ type, tables, kinds, roll, units = {}, special = tru
           thrown.push({ card, kind });
         }
       } else if (kind.pool === "magic") {
-        for (let i = 0; i < count; i++) cards.push({ pool: "magic", tableRef: kind.tableRef ?? kind.key, label: labelOf(kind), cite: typeCite });
+        for (let i = 0; i < count; i++) cards.push({ pool: "magic", tableRef: kind.tableRef ?? null, label: labelOf(kind), cite: typeCite });
       } else fail(err("unknown-pool", { pool: kind.pool ?? null }), where);
     }
   }

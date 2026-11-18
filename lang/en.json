@@ -10047,6 +10047,7 @@
   "ACKS-TREASURE.deal.error.column-skipped": "Type {letter}: the {column} column could not be read and was left out.",
   "ACKS-TREASURE.deal.error.special-missing": "Type {letter}: the special lists are not imported, so special treasure was left out.",
   "ACKS-TREASURE.deal.error.coin-missing": "Type {letter}: this world has no coin item for one of its coin lots, so that lot was left out.",
+  "ACKS-TREASURE.deal.error.magic-not-rolled": "Type {letter}: some magic was not rolled on the imported item tables, so those finds stay unnamed.",
   "ACKS-TREASURE.deal.error.other": "Type {letter}: part of the deal could not be made ({code}).",
   "ACKS-TREASURE.deal.tip.letter": "Treasure type {letter}, read from {name}'s sheet ({cite})",
   "ACKS-TREASURE.deal.tip.noLetter": "{name}'s sheet states no treasure type, so there is nothing to deal ({cite})",

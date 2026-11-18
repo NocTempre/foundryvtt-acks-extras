@@ -10,6 +10,7 @@
  * not multiplied by the bodies in it. `deal.mjs` is the Foundry side.
  */
 import { PHASE, REFUSAL } from "./constants.mjs";
+import { MAGIC_ERROR } from "./magic-deal-logic.mjs";
 import { letterOf } from "./search-logic.mjs";
 
 /** Reasons a letter deal refuses, beside `REFUSAL`'s: the lair was neither met nor confirmed. */
@@ -75,12 +76,17 @@ export function groupMonsters(tokens) {
  * @param {object} args.pot the pot's normalized flag
  * @param {Array<string|{letter: string|null}>} args.letters
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
- * @param {(args: {letter: string, toggles: object}) => Promise<{truths: object[], errors: object[], cite: string|null}>} args.deal
+ * @param {(args: {letter: string, toggles: object}) => Promise<{truths: object[], errors: object[], cite: string|null, audit?: object[]}>} args.deal
  *   one letter dealt (`dealHoard`, with the style and special choice already bound)
+ * @param {(args: {letter: string, truths: object[]}) => Promise<{truths: object[], errors: object[], audit: object[]}>} [args.rollMagic]
+ *   rolls the magic placeholders of one letter's truths (`magic-deal-logic.mjs`
+ *   `rollMagicTruths`, bound); its errors and audit rows join the letter's, and
+ *   without it the placeholders are staged as dealt
  * @param {(truths: object[]) => Promise<string[]>} args.stage puts truths in the pot, returning the new card ids
- * @returns {Promise<{ok: true, dealt: Array<{letter: string, cards: number, errors: object[], cite: string|null}>, staged: string[]}|{ok: false, reason: string}>}
+ * @returns {Promise<{ok: true, dealt: Array<{letter: string, cards: number, errors: object[], cite: string|null, audit?: object[]}>, staged: string[]}|{ok: false, reason: string}>}
+ *   a letter's `audit` is the deal's throws and the magic rolls' steps, and is present only where there are rows
  */
-export async function runLetterDeal({ isGM, pot, letters, confirmLair, deal, stage }) {
+export async function runLetterDeal({ isGM, pot, letters, confirmLair, deal, rollMagic, stage }) {
   if (!isGM) return { ok: false, reason: REFUSAL.notAllowed };
   if (!pot || pot.phase !== PHASE.staging) return { ok: false, reason: REFUSAL.phase };
   const list = lettersOf(letters);
@@ -94,8 +100,17 @@ export async function runLetterDeal({ isGM, pot, letters, confirmLair, deal, sta
   const truths = [];
   for (const letter of list) {
     const result = await deal({ letter, toggles: pot.deal?.toggles ?? {} });
-    truths.push(...result.truths);
-    dealt.push({ letter, cards: result.truths.length, errors: result.errors, cite: result.cite });
+    let cards = result.truths;
+    let errors = result.errors;
+    let audit = result.audit ?? [];
+    if (typeof rollMagic === "function") {
+      const magic = await rollMagic({ letter, truths: cards });
+      cards = magic.truths;
+      errors = [...errors, ...magic.errors];
+      audit = [...audit, ...magic.audit];
+    }
+    truths.push(...cards);
+    dealt.push({ letter, cards: cards.length, errors, cite: result.cite, ...(audit.length ? { audit } : {}) });
   }
   const staged = truths.length ? await stage(truths) : [];
   return { ok: true, dealt, staged };
@@ -135,7 +150,7 @@ export function dealLines(deal) {
 }
 
 /** The per-letter error codes a deal words by name; any other code is worded generically with the code in it. */
-export const DEAL_ERROR_CODES = Object.freeze(["not-imported", "unknown-type", "unknown-style", "column-skipped", "special-missing", "coin-missing"]);
+export const DEAL_ERROR_CODES = Object.freeze(["not-imported", "unknown-type", "unknown-style", "column-skipped", "special-missing", "coin-missing", MAGIC_ERROR]);
 
 /** The reasons a deal refuses that the window words itself; the two lair reasons are the warning's, so the window says nothing for them. */
 export const DEAL_REFUSAL_WORDED = Object.freeze([REFUSAL.notAllowed, REFUSAL.phase, REFUSAL.empty]);

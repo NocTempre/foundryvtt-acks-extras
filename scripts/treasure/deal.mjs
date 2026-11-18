@@ -1,16 +1,21 @@
-/* global game, canvas */
+/* global game, canvas, fromUuid */
 /**
  * Dealing treasure letters into a staged pot: the Foundry side of
  * `deal-logic.mjs`. It reads the selected tokens as monster groups, and deals
  * letters through the hoard generator (`hoard.mjs`) into a pot the way Search
- * the fallen stages one (`pot.mjs` `addTruths`), behind the lair warning. The
+ * the fallen stages one (`pot.mjs` `addTruths`), behind the lair warning, with
+ * each magic card rolled on the imported item tables first. The
  * pot window (`pot-sheet.mjs`) asks for a deal and supplies `confirmLair`; the
  * monster sheet and the scene control open a pot staged with monster rows
  * (`newDealPot`).
  */
+import { acksExtras } from "../namespace.mjs";
+import * as services from "../lib/services.mjs";
+import { MAGIC_ITEM_ROLL_CONTRACT } from "./constants.mjs";
 import { groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
 import { dealHoard } from "./hoard.mjs";
-import { addTruths, newPot, potOf } from "./pot.mjs";
+import { rollMagicTruths } from "./magic-deal-logic.mjs";
+import { addTruths, newPot, potOf, truthsFromItem } from "./pot.mjs";
 
 /**
  * The selected monster tokens (a character or any other actor type is skipped),
@@ -61,13 +66,41 @@ export function newDealPot(groups = selectedMonsterGroups()) {
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  * @returns {Promise<{ok: boolean, reason?: string, dealt?: object[], staged?: string[]}>}
  */
-export function dealLettersIntoPot(pile, { letters, style, special, confirmLair } = {}) {
+export function dealLettersIntoPot(pile, { letters, style, special, confirmLair, roller } = {}) {
   return runLetterDeal({
     isGM: !!game.user?.isGM,
     pot: pile ? potOf(pile) : null,
     letters,
     confirmLair,
     deal: ({ letter, toggles }) => dealHoard({ letter, style, toggles, special }),
+    rollMagic: ({ letter, truths }) => rollMagicCards({ letter, truths, style, roller }),
     stage: (truths) => addTruths(pile, truths),
+  });
+}
+
+/**
+ * One letter's magic placeholders rolled on the imported magic-item tables
+ * (`magic-deal-logic.mjs`). The roll is the `magic-item-roll` contract's and
+ * the lists a roll may begin at are the magic-items API's `starts()`; with
+ * either absent the cards stay placeholders and say so. A rolled item that
+ * links to a document is that document, dealt as a dropped item is.
+ * @param {object} args
+ * @param {string} args.letter
+ * @param {object[]} args.truths the letter's truths
+ * @param {"classic"|"heroic"|"gritty"} [args.style] the deal's style; classic by default, as the hoard is
+ * @param {(expr: string) => {total: number, sides: number}|Promise<{total: number, sides: number}>} [args.roller] dice for the walk; core's by default
+ */
+function rollMagicCards({ letter, truths, style = "classic", roller }) {
+  const provider = services.get(MAGIC_ITEM_ROLL_CONTRACT);
+  return rollMagicTruths({
+    truths,
+    style,
+    where: `${letter}.magic`,
+    lists: acksExtras.magicItems?.starts?.() ?? null,
+    roll: typeof provider?.roll === "function" ? (args) => provider.roll({ ...args, roller }) : null,
+    resolve: async (uuid) => {
+      const item = await fromUuid(uuid);
+      return item ? truthsFromItem(item) : null;
+    },
   });
 }

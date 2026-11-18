@@ -413,12 +413,14 @@ fixtures stay.
 ## Dealing letters (Judge seat)
 
 Walked by `tools/live/treasure-deal.mjs` (`node tools/live/run.mjs
-treasure-deal`), one section per step; its header lists the gestures that are
-scripted and what it does not reach. Offline coverage is
-`tools/test-treasure-deal.mjs` (the stored deal state, the rows, the letters a
-Deal sends, the warning, the fake world's deal) and `tools/test-hoard-map.mjs`;
-nothing offline renders the rail, the monster sheet's button or the token
-control.
+treasure-deal`), one section per step to step 7; step 8 is not yet walked. Its
+header lists the gestures that are scripted and what it does not reach.
+Offline coverage is `tools/test-treasure-deal.mjs` (the stored deal state, the
+rows, the letters a Deal sends, the warning, the fake world's deal),
+`tools/test-treasure-magic-deal.mjs` (the magic cards rolled at the deal) and
+`tools/test-hoard-map.mjs`; nothing offline renders the rail, the monster
+sheet's button or the token control, and nothing offline holds the item tables
+or the cookbook documents a real import writes.
 
 **Fixtures** (found by marker, built through `api.fixture`):
 
@@ -428,7 +430,9 @@ control.
 - `treasure/monster-bare` — a `monster` actor whose treasure type is `none`,
   with one token on the same scene.
 - The world's `treasure` registry must be imported (the importer's Treasure
-  Tome book); without it every Deal reports "not imported", which is step 6.
+  Tome book); without it every Deal reports "not imported", which is step 7.
+  Step 8 also needs the `magicItemTables` registry document, and the cookbook
+  documents for any item to be linked.
 
 **Steps:**
 
@@ -458,5 +462,21 @@ control.
 7. **Refusals.** On a pot opened to the table, the rail is gone. In a world
    with the registry unimported (or a style whose table is missing), Deal
    reports the not-imported error by lang string and nothing throws.
+8. **Magic cards are rolled at the deal.** With the world's item tables
+   (`magicItemTables`) imported and a letter whose magic cell names a kind the
+   tables hold a list for, press Deal. Observables: the pot gains a card for
+   the item rolled, not a placeholder; as Judge, its tile names the item and
+   reads magic, while a Player seat is shown it as an ordinary item with no aura
+   (undetected, unidentified, even where the linked document is identified in
+   its own sheet). Where the item links to a world or compendium document the
+   card claims as that document, with no identification and no curse
+   known; where it links to none, the card is named for the item. A
+   second Deal in the Heroic style rolls on the rarity lists instead. Turn on No
+   magic and press Deal again: the rolled cards are struck when the pot opens,
+   as the placeholders were. A magic cell whose noun matches no list (or two)
+   leaves its card the placeholder it was and the deal's notice says some magic
+   was not rolled; so does a world with no item tables imported. Read the rolls
+   from the deal's result (`dealt[].audit`, the rows with `magic: true`); the
+   deal posts no card for them (`MODEL.md`).
 
 **Teardown:** the run's pots are tracked and swept; the kept fixtures stay.
