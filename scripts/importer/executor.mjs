@@ -422,7 +422,8 @@ function readNumber(raw, allowFraction, { articles = false } = {}) {
  * count at level one, the last is the one increment every later rung adds, and
  * the groups between are the later rungs. A group that reads no number misses
  * the whole ladder: a partial sum is never returned. `articles` reads "a" or
- * "an" as one in a VALUE group (a count or an increment), never in a rung.
+ * "an" as one in a VALUE group (a count or an increment, in a paired ladder
+ * too), never in a rung.
  */
 function ladderFrom(match, { pairs = false, steps = null, accumulate = false, articles = false } = {}) {
   const groups = match.slice(1).filter((g) => g != null);
@@ -466,13 +467,13 @@ function ladderFrom(match, { pairs = false, steps = null, accumulate = false, ar
   if (pairs) {
     let i = 0;
     if (groups.length % 2) {
-      const value = readNumber(groups[0], true);
+      const value = readNumber(groups[0], true, { articles });
       if (!Number.isNaN(value)) out.push({ atLevel: 1, value });
       i = 1;
     }
     for (; i + 1 < groups.length; i += 2) {
       const atLevel = readNumber(groups[i], false);
-      const value = readNumber(groups[i + 1], true);
+      const value = readNumber(groups[i + 1], true, { articles });
       if (!Number.isNaN(atLevel) && !Number.isNaN(value)) out.push({ atLevel, value });
     }
   } else {

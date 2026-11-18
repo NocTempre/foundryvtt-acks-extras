@@ -326,6 +326,18 @@ t("destroy dead's slay row opens with no figure and is governed by the spell's s
   assert.deepEqual(entryOf(smash, armed), { item: { id: "w1", name: "Invented blade" } });
 });
 
+t("shatter blade's count locator reads an article as the base count, so the ladder has a level-1 rung", () => {
+  const count = valuesOf(ID.blade)[0].from.find((l) => l.into === "target.count");
+  assert.equal(count.articles, true);
+  const prose = "The spell can destroy a weapon. A caster of 3rd level or higher can shatter two weapons, and one of 7th level or higher can shatter four weapons.";
+  const [row] = materializeEffects(valuesOf(ID.blade).map((v) => ({ ...v, onMiss: "blank" })), [{ text: prose }]);
+  assert.deepEqual(row.target.count, {
+    kind: "breakpoints",
+    breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 2 }, { atLevel: 7, value: 4 }],
+  });
+  assert.equal(resolveLevelValue(row.target.count, 1), 1);
+});
+
 t("shatter blade's count is a LevelValue the cast reads at the caster level; a blank one caps nothing", () => {
   const ladder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 5, value: 2 }, { atLevel: 9, value: 3 }] };
   assert.deepEqual([1, 4, 5, 9].map((level) => modifierFigure({ value: ladder }, level)), [1, 1, 2, 3]);

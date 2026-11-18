@@ -277,6 +277,33 @@ t("an article reads as one only inside the locator that asks, and never as a run
   assert.equal(count.max, undefined, "articles are off wherever a locator does not ask");
 });
 
+t("a plain paired ladder opens on an article when the locator asks, and never reads one as a rung", () => {
+  const prose = "The lamp can bind a spark. An adept of 4th rank or higher can bind two sparks, and one of 9th rank or higher can bind three sparks.";
+  const pattern = "bind\\s*(an?)\\s*spark.*?(\\d+)\\w*\\s*rank\\s*\\w+\\s*higher\\s*can\\s*bind\\s*(\\w+)\\s*sparks.*?(\\d+)\\w*\\s*rank\\s*\\w+\\s*higher\\s*can\\s*bind\\s*(\\w+)";
+  const spec = (articles) => ({ type: "damage", onMiss: "blank", from: { into: "value", on: "level", pairs: true, ...(articles ? { articles } : {}), pattern } });
+  const [asked] = materializeEffects([spec(true)], paras(prose));
+  assert.deepEqual(asked.value.breakpoints, [
+    { atLevel: 1, value: 1 },
+    { atLevel: 4, value: 2 },
+    { atLevel: 9, value: 3 },
+  ]);
+  const [plain] = materializeEffects([spec(false)], paras(prose));
+  assert.deepEqual(plain.value.breakpoints, [
+    { atLevel: 4, value: 2 },
+    { atLevel: 9, value: 3 },
+  ], "without the option the article rung drops and the rest read");
+  const [later] = materializeEffects(
+    [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", pairs: true, articles: true, pattern: "at\\s*(\\d+)\\w*\\s*rank\\s*bind\\s*(an?)\\s*spark" } }],
+    paras("At 5th rank bind a spark."),
+  );
+  assert.deepEqual(later.value.breakpoints, [{ atLevel: 5, value: 1 }], "an article in a later value group reads as one");
+  const [rung] = materializeEffects(
+    [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", pairs: true, articles: true, pattern: "(an)\\s*rank[\\s\\S]*?(two)" } }],
+    paras("An rank, then two."),
+  );
+  assert.equal(rung.value, undefined, "an article in a rung's place reads no rung");
+});
+
 t("a ladder whose rungs do not climb is a miss, never a wrong sum", () => {
   const [e] = materializeEffects(
     [{ type: "damage", onMiss: "blank", from: { into: "value", on: "level", accumulate: true, articles: true, pattern: "(a)\\s*orb[\\s\\S]*?(9)th[\\s\\S]*?(5)th[\\s\\S]*?(an)\\s*extra" } }],

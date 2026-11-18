@@ -29008,7 +29008,8 @@
                   "into": "target.count",
                   "on": "level",
                   "pairs": true,
-                  "pattern": "(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)\\s*weapons.*?(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)"
+                  "articles": true,
+                  "pattern": "destroy\\s*(an?)\\s*weapon.*?(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)\\s*weapons.*?(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)"
                 }
               ]
             }
