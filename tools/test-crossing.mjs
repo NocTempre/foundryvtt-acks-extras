@@ -16,6 +16,7 @@ import {
   DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting, paceRow, paceStep,
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
+import { PACE_RATE_TABLE, PACE_SPEEDS, PACE_TABLE, paceRates } from "../scripts/formation/climb-pace.mjs";
 import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
 import { bashStrBonus } from "../scripts/formation/doors.mjs";
 
@@ -1141,6 +1142,50 @@ await ok("a pair with one size imported prices that pace alone", () => {
   assert.deepEqual(holder("sheerClimb").pace.options, [], "a size that is no positive number is not a size");
   load({ pace: { climbPacePenalties: "3,8" } });
   assert.deepEqual(holder("sheerClimb").pace.options, [], "a pair that is no list is not read");
+});
+
+/** The paces' speeds, invented and told apart per way of crossing. */
+const RATES = {
+  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.2, speed: "combat" }, fastest: { share: 0.7, speed: "combat" } },
+  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.3, speed: "run" }, fastest: { share: 1, speed: "run" } },
+  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.4, speed: "run" }, fastest: { share: 0.9, speed: "run" } },
+};
+
+await ok("paceRates answers each way of crossing from its own table, and none for an obstacle that prices no pace", () => {
+  load({ pace: RATES });
+  assert.deepEqual(paceRates("easyClimb"), RATES.climbPaceRates);
+  assert.deepEqual(paceRates("sheerClimb"), RATES.climbPaceRates);
+  assert.deepEqual(paceRates("crawl"), RATES.crawlPaceRates);
+  assert.deepEqual(paceRates("narrowLedge"), RATES.balancePaceRates);
+  assert.deepEqual(paceRates("precariousLedge"), RATES.balancePaceRates);
+  assert.equal(paceRates("rappel"), null, "a rappel prints no pace's speed");
+  assert.equal(paceRates("nowhere"), null);
+  assert.deepEqual(Object.keys(PACE_RATE_TABLE), Object.keys(PACE_TABLE), "the rates and the penalties price the same obstacles");
+  assert.deepEqual([...PACE_SPEEDS], ["exploration", "combat", "run"]);
+});
+
+await ok("with nothing imported every pace's rate reads null", () => {
+  resetTables();
+  assert.deepEqual(paceRates("sheerClimb"), { normal: null, faster: null, fastest: null });
+  load({ pace: PACES });
+  assert.deepEqual(paceRates("sheerClimb"), { normal: null, faster: null, fastest: null }, "the penalties are not the rates");
+});
+
+await ok("a rate is one share of a named speed, and a Judge's override counts only as such", () => {
+  load({ pace: { climbPaceRates: { normal: { share: "0.5", speed: "exploration" }, faster: { share: 0, speed: "run" }, fastest: { share: 0.7, speed: "swim" } } } });
+  const rates = paceRates("easyClimb");
+  assert.deepEqual(rates.normal, { share: 0.5, speed: "exploration" }, "a share typed as text is read as a number");
+  assert.equal(rates.faster, null, "a share of nothing is no share");
+  assert.equal(rates.fastest, null, "a speed the module does not name is no speed");
+  for (const bad of [{ share: -1, speed: "run" }, { share: "", speed: "run" }, { share: "x", speed: "run" }, { share: 1 }, { speed: "run" }, 3, "run", null, []]) {
+    load({ pace: { crawlPaceRates: { faster: bad } } });
+    assert.equal(paceRates("crawl").faster, null, JSON.stringify(bad));
+  }
+  load({ pace: { climbPaceRates: "combat" } });
+  assert.deepEqual(paceRates("easyClimb"), { normal: null, faster: null, fastest: null }, "a table that is no object reads none");
+  load({ pace: { climbPaceRates: { faster: { share: 0.2, speed: "combat" } } } });
+  assert.deepEqual(paceRates("easyClimb"), { normal: null, faster: { share: 0.2, speed: "combat" }, fastest: null }, "a pace reads on its own");
+  assert.equal(paceRates("crawl").faster, null, "and another way of crossing's table is its own");
 });
 
 await ok("a pick is for a member the seat owns who can still be moved: a player is blocked where a Judge is warned", () => {

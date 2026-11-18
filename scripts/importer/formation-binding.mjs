@@ -36,7 +36,8 @@
  * failed escape adds to the next. The faster paces of a proficient climber (RR
  * pp. 269-270) give three pairs (`assemblePacePenalties`): the two penalties a
  * climb, a crawling traverse and a balancing traverse each price a faster pace
- * at, in printed order, the pace nearer the base one first.
+ * at, in printed order, the pace nearer the base one first, and the same
+ * paragraphs give the speed each pace moves at (`assemblePaceRates`).
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -93,6 +94,9 @@ export const PRODUCES = Object.freeze({
     climbPacePenalties: "climbPaceProse",
     crawlPacePenalties: "crawlPaceProse",
     balancePacePenalties: "balancePaceProse",
+    climbPaceRates: "climbPaceProse",
+    crawlPaceRates: "crawlPaceProse",
+    balancePaceRates: "balancePaceProse",
   },
 });
 
@@ -118,7 +122,8 @@ const COUNT = "\\d+(?:\\.\\d+)?|one|two|three|four|five|six|seven|eight|nine|ten
  * whole for `parseShare`. Bounded on both sides, so "half" is never read out
  * of a longer word.
  */
-const SHARE = /(?<![\w-])(one-half|one half|one-third|two-thirds|one-quarter|half|\d+\s*\/\s*\d+|\d+(?:\.\d+)?\s*%)(?![\w-])/;
+const SHARE_WORDS = String.raw`one-half|one half|one-third|two-thirds|one-quarter|half|\d+\s*\/\s*\d+|\d+(?:\.\d+)?\s*%`;
+const SHARE = new RegExp(String.raw`(?<![\w-])(${SHARE_WORDS})(?![\w-])`);
 
 /**
  * A window's first sentence, lowercased and whitespace-collapsed. Windows are
@@ -171,6 +176,94 @@ export function parseWaterPenaltySteps(window) {
 export function parsePacePenalties(window) {
   const sizes = signedFigures(firstSentence(window)).map(Math.abs);
   return sizes.length === 2 && sizes.every((n) => n > 0) ? sizes : null;
+}
+
+/**
+ * The speeds a pace paragraph can name, each by the word the page prints for it,
+ * keyed by the module's own names for them (`formation/climb-pace.mjs`
+ * `PACE_SPEEDS`). Apart from `PROGRESS_SPEED_WORDS` on purpose: the base pace
+ * names the exploration speed, which a progress cell never does, and the two
+ * sets are published as separate lists. The edges are letter tests.
+ */
+export const PACE_SPEED_WORDS = Object.freeze({
+  exploration: /(?<![a-z])exploration(?![a-z])/,
+  combat: /(?<![a-z])combat(?![a-z])/,
+  run: /(?<![a-z])run(?:ning)?(?![a-z])/,
+});
+
+/**
+ * One share-and-speed phrase of a pace sentence: an optional share (a share
+ * word, a fraction, a percentage, or the whole-speed word) and the word before
+ * "speed", with a possessive allowed between them. The seams are `\s+`: a
+ * phrase whose words extraction welded together does not read, and the window
+ * answers null rather than another rate.
+ */
+const PACE_PHRASE = new RegExp(
+  String.raw`(?:(?<![\w-])(${SHARE_WORDS}|full)\s+(?:(?:his|her|their|the)\s+)?)?(?<![a-z])([a-z]+)\s+speed(?![a-z])`,
+  "g",
+);
+
+/**
+ * The share-and-speed phrases of a window's first sentence, in printed order,
+ * each `{share, speed}` (`share` null where the phrase prints none). Null when
+ * a phrase names no speed of `PACE_SPEED_WORDS`, or when the sentence says
+ * "speed" anywhere a phrase does not read, so a speed never goes unclaimed.
+ */
+function paceSpeedPhrases(window) {
+  const text = firstSentence(window);
+  const phrases = [...text.matchAll(PACE_PHRASE)];
+  if ((text.match(/(?<![a-z])speed(?![a-z])/g) ?? []).length !== phrases.length) return null;
+  const out = [];
+  for (const m of phrases) {
+    const named = Object.keys(PACE_SPEED_WORDS).filter((key) => PACE_SPEED_WORDS[key].test(m[2]));
+    if (named.length !== 1) return null;
+    const share = m[1] == null ? null : m[1] === "full" ? 1 : parseShare(m[1], SHARE);
+    if (m[1] != null && !(share > 0)) return null;
+    out.push({ share, speed: named[0] });
+  }
+  return out;
+}
+
+/**
+ * The rate the base pace moves at, from the window that holds only the
+ * exploration-speed branch: `{share, speed}` with `speed` `"exploration"`, the
+ * share a printed one or the whole speed where the branch prints none. A window
+ * with another count of speeds, one that names a speed other than the
+ * exploration one (the round-tracked branch), a share that is no share, or a
+ * figure left in the sentence that no phrase read (a multiple, a share the
+ * vocabulary lacks) answers null, so no such cell is read as the whole speed.
+ *
+ * @returns {{share: number, speed: string}|null}
+ */
+export function parsePaceBase(window) {
+  const phrases = paceSpeedPhrases(window);
+  if (phrases?.length !== 1 || phrases[0].speed !== "exploration") return null;
+  // A figure the phrase did not read (a share in words the vocabulary lacks, a multiple, a
+  // fraction with a word between it and the speed) is never the whole speed.
+  const rest = firstSentence(window).replace(new RegExp(PACE_PHRASE.source, "g"), " ");
+  if (/\d|%|half|third|quarter|fifth|sixth|eighth|tenth|full|whole|twice|double|triple|times/.test(rest)) return null;
+  return { share: phrases[0].share ?? 1, speed: "exploration" };
+}
+
+/**
+ * The rates of the two faster paces, in printed order, the pace nearer the base
+ * one first: exactly two phrases, each a share and the one speed it is a share
+ * of, so a share that is not said is not guessed. The pair must also order its
+ * paces: its two penalties (`parsePacePenalties`) are read and must differ, and
+ * two shares of one speed must rise. Anything else answers null, because a pair
+ * that cannot be told which pace is which would put each pace on the other's
+ * speed.
+ *
+ * @returns {Array<{share: number, speed: string}>|null} `[faster, fastest]`
+ */
+export function parsePaceRates(window) {
+  const phrases = paceSpeedPhrases(window);
+  if (phrases?.length !== 2 || phrases.some((p) => p.share == null)) return null;
+  const sizes = parsePacePenalties(window);
+  if (!sizes || sizes[0] === sizes[1]) return null;
+  const [a, b] = phrases;
+  if (a.speed === b.speed && !(b.share > a.share)) return null;
+  return phrases.map(({ share, speed }) => ({ share, speed }));
 }
 
 /** A bonus as a magnitude: the first signed figure of the sentence; null when none. */
@@ -491,6 +584,30 @@ export function assembleSpelunking(grid = {}, outcomes = {}) {
   return out;
 }
 
+/** The number words a round count may be written in, the numerals' own range of words (`COUNT`). */
+const ROUND_COUNT = new RegExp(
+  String.raw`(?<![\w./-])(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty)\s*rounds?(?![a-z])`,
+  "gi",
+);
+
+/**
+ * The rounds a cell's words count: a positive whole number, as a numeral or a
+ * number word, right before a round noun. A cell that prints its count twice
+ * in forms that agree reads it; two that disagree decide nothing, and so does a
+ * cell with no count before a round noun. A turn is not a round.
+ *
+ * @returns {number|null}
+ */
+function roundsOf(text) {
+  const counts = new Set();
+  for (const m of String(text).matchAll(ROUND_COUNT)) {
+    const n = parseCount(m[1].toLowerCase());
+    if (!Number.isInteger(n) || n <= 0) return null;
+    counts.add(n);
+  }
+  return counts.size === 1 ? [...counts][0] : null;
+}
+
 /**
  * One failed- or botched-throw cell as the obstacle procedure reads it: the
  * cell's words, kept whole for the card to print, `falls`, whether they name a
@@ -504,12 +621,17 @@ export function assembleSpelunking(grid = {}, outcomes = {}) {
  * nothing and leaves the key off: the procedure treats an undecided outcome as
  * one that does not advance. A cell with no words is null, so its obstacle is
  * left out.
- * @returns {{text: string, falls: boolean, advances?: boolean}|null}
+ *
+ * `rounds`, the duration the outcome costs, is present only where the cell
+ * prints a positive whole count right before a round noun (`roundsOf`).
+ * @returns {{text: string, falls: boolean, advances?: boolean, rounds?: number}|null}
  */
 export function parseOutcomeCell(cell) {
   const text = String(cell ?? "").replace(/\s+/g, " ").trim();
   if (!text) return null;
   const out = { text: text[0].toUpperCase() + text.slice(1), falls: /\bfall(?:s|ing)?\b/i.test(text) };
+  const rounds = roundsOf(text);
+  if (rounds != null) out.rounds = rounds;
   // Seams are `\s*` and the noun's end is a letter test: extraction welds a figure onto the word after it.
   if (/\b(?:no|without)\s*progress(?![a-z])|\b(?:not|cannot|can't)\s*(?:progress|advance)(?![a-z])/i.test(text)) out.advances = false;
   else if (/\b(?:speed|pace)\b/i.test(text)) out.advances = true;
@@ -641,6 +763,32 @@ export function assemblePacePenalties(raw = {}) {
   return out;
 }
 
+/**
+ * The rates each way of crossing moves at, each read from its own paragraph:
+ * `climbPaceRates`, `crawlPaceRates` and `balancePaceRates`, each
+ * `{normal, faster, fastest}` of `{share, speed}`, with a member present only
+ * where it read. `normal` is the exploration-speed branch (`parsePaceBase`, the
+ * recipe's `base` window); `faster` and `fastest` are the two faster paces'
+ * shares of the speed the paragraph names (`parsePaceRates`, the same `pace`
+ * window as the penalties). A paragraph that read none leaves its key out.
+ */
+export function assemblePaceRates(raw = {}) {
+  const out = {};
+  for (const [key, table] of [
+    ["climbPaceRates", raw.climbPaceProse],
+    ["crawlPaceRates", raw.crawlPaceProse],
+    ["balancePaceRates", raw.balancePaceProse],
+  ]) {
+    const rates = {};
+    const normal = parsePaceBase(table?.base);
+    if (normal) rates.normal = normal;
+    const pair = parsePaceRates(table?.pace);
+    if (pair) [rates.faster, rates.fastest] = pair;
+    if (Object.keys(rates).length) out[key] = rates;
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -698,6 +846,7 @@ export function assembleFormationTables(raw = {}) {
   Object.assign(out, assembleTrapFigures(raw));
   Object.assign(out, assembleSqueezing(raw.squeezingProse));
   Object.assign(out, assemblePacePenalties(raw));
+  Object.assign(out, assemblePaceRates(raw));
 
   return out;
 }

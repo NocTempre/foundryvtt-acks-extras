@@ -1,0 +1,1 @@
+- **Judges: re-run the Rules tables import so each climbing pace's speed and a missed throw's duration are read** (`Settings tab → Game Settings → ACKS II — Extras → Manage imports → Rules tables`, with the Revised Rulebook open). Until you re-run it the three pace speeds in the `formation` table and the round counts on the Spelunking outcomes stay blank.

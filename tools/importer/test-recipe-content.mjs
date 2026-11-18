@@ -34,7 +34,7 @@ import { SIZES } from "../../scripts/monsters/config.mjs";
 import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -716,13 +716,26 @@ VERIFY["formation.squeezingProse"] = (out, recipe, fail) => {
   for (const [key, n] of Object.entries(figures)) if (!(n > 0)) fail(`${key}: not above zero`);
 };
 // The faster-pace paragraphs: each window must read through the binding's own
-// parser into its pair of sizes, both above zero. Shape only; no figure is named.
-for (const [table, key] of [["climbPaceProse", "climbPacePenalties"], ["crawlPaceProse", "crawlPacePenalties"], ["balancePaceProse", "balancePacePenalties"]]) {
+// parser into its pair of sizes, both above zero, and the same paragraph into
+// the speed each pace moves at: the base window the exploration-speed branch,
+// the pace window two shares of a named speed that agree with the sizes' order.
+// Shape only; no figure is named.
+for (const [table, key, rateKey] of [
+  ["climbPaceProse", "climbPacePenalties", "climbPaceRates"],
+  ["crawlPaceProse", "crawlPacePenalties", "crawlPaceRates"],
+  ["balancePaceProse", "balancePacePenalties", "balancePaceRates"],
+]) {
   VERIFY[`formation.${table}`] = (out, recipe, fail) => {
     proseKeys(out, recipe, fail);
     const pair = assemblePacePenalties({ [table]: out })[key];
     if (!pair) return fail(`${key}: the window did not read as two sizes`);
     if (pair.length !== 2 || pair.some((n) => !(n > 0))) fail(`${key}: not two sizes above zero`);
+    const rates = assemblePaceRates({ [table]: out })[rateKey] ?? {};
+    for (const pace of ["normal", "faster", "fastest"]) {
+      if (!rates[pace]) fail(`${rateKey}.${pace}: the window did not read as a share of a speed`);
+    }
+    if (rates.normal && rates.normal.speed !== "exploration") fail(`${rateKey}.normal: not the exploration speed`);
+    if (pair[0] === pair[1]) fail(`${key}: the two sizes collide`);
   };
 }
 VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
@@ -764,6 +777,11 @@ VERIFY["formation.spelunkingOutcomeGrid"] = (out, recipe, fail) => {
   }
   const rates = assembleSpelunking({}, out).progress ?? {};
   if (!Object.values(rates).some((rate) => rate.fail)) fail("progress: no failed-throw cell reads a rate");
+  // A duration is read only from a cell that counts rounds, and at least one outcome prints one.
+  const counted = SPELUNKING_COLUMNS.flat().flatMap((kind) => ["fail", "botch"].map((which) => table[kind]?.[which])).filter((cell) => cell && "rounds" in cell);
+  if (!counted.length) fail("rounds: no outcome cell reads a duration");
+  if (counted.some((cell) => !(Number.isInteger(cell.rounds) && cell.rounds > 0))) fail("rounds: not a positive whole number");
+  if (counted.some((cell) => !/round/i.test(cell.text))) fail("rounds: read from a cell that names no round");
 };
 // The street's two dice: each window must name a die the binding rebuilds.
 VERIFY["cityTravel.streetDieProse"] = (out, recipe, fail) => {

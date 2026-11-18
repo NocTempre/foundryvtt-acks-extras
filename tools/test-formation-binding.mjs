@@ -27,10 +27,12 @@ import {
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap, parseProgressCell, PROGRESS_SPEED_WORDS,
+  assemblePaceRates, parsePaceBase, parsePaceRates, PACE_SPEED_WORDS,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, formationValue, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
 import { WATER, drowning, rescueStone, swimSpeed, swimmingThrow, waterPenaltySteps } from "../scripts/formation/swimming.mjs";
+import { PACE_SPEEDS } from "../scripts/formation/climb-pace.mjs";
 import { navigationCompetence } from "../scripts/formation/travel.mjs";
 import { TRAVEL_DOC } from "../scripts/vehicles/vehicle-speed.mjs";
 
@@ -224,6 +226,20 @@ eq("a welded figure after the negated noun still reads", parseOutcomeCell("No pr
 eq("a negation beats a rate named beside it", parseOutcomeCell("No progress, not even at a crawl's pace").advances, false);
 eq("words that decide neither way leave the key off, never a guess", "advances" in parseOutcomeCell("Wait a moment"), false);
 eq("a fall cell that says neither leaves it off too", "advances" in parseOutcomeCell("Fall unless roped"), false);
+eq("a count and a round noun read as the rounds the outcome costs, numeral or word, seams welded or spaced",
+  ["Lose 3 rounds", "Wait two rounds here", "Idle 4round", "pause  one  round"].map((t) => parseOutcomeCell(t).rounds), [3, 2, 4, 1]);
+eq("a count printed twice in agreeing forms reads once", parseOutcomeCell("Wait three rounds (3 rounds)").rounds, 3);
+eq("two counts that disagree decide nothing", "rounds" in parseOutcomeCell("Wait two rounds, then 3 rounds more"), false);
+eq("no count before the round noun leaves the key off",
+  ["Wait each round", "Lose a round", "Rounds pass", "two or three of them"].map((t) => "rounds" in parseOutcomeCell(t)), [false, false, false, false]);
+eq("a turn is not a round", "rounds" in parseOutcomeCell("Lose 3 turns"), false);
+eq("a figure that is not a whole count is not read",
+  ["Lose 1.5 rounds", "Lose 0 rounds", "Lose 12.rounds"].map((t) => "rounds" in parseOutcomeCell(t)), [false, false, false]);
+eq("the noun and the count have letter edges",
+  ["Lose 3 around", "Lose 3 roundabouts", "someone round", "Lose 3 grounds"].map((t) => "rounds" in parseOutcomeCell(t)), [false, false, false, false]);
+eq("the rounds beside a negated advance and a fall are read apart from them",
+  [parseOutcomeCell("No progress for 2 rounds"), parseOutcomeCell("Fall after 1 round")],
+  [{ text: "No progress for 2 rounds", falls: false, rounds: 2, advances: false }, { text: "Fall after 1 round", falls: true, rounds: 1 }]);
 const OUTCOME_GRID = {
   failFirst: { first: "fall down", second: "wait", third: "fall far" },
   botchFirst: { first: "wait", second: "slide", third: "fall down" },
@@ -373,9 +389,10 @@ const TRAP_PROSE = ["searchProse", "trapProse", "actionProse", "pitSpikeProse"];
 const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PROSE.includes(PRODUCES[FORMATION_DOC_ID][k]));
 const SQUEEZE_PROSE_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => PRODUCES[FORMATION_DOC_ID][k] === "squeezingProse");
 const PACE_KEYS = ["climbPacePenalties", "crawlPacePenalties", "balancePacePenalties"];
+const RATE_KEYS = ["climbPaceRates", "crawlPaceRates", "balancePaceRates"];
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
-    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS].includes(k)).sort());
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS, ...RATE_KEYS].includes(k)).sort());
 eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -556,6 +573,100 @@ registerTable({ id: FORMATION_DOC_ID, tables: assemblePacePenalties(paceRaw) }, 
 eq("an imported pair reads through", PACE_KEYS.map((k) => formationValue(k)), [[3, 8], [4, 9], [6, 12]]);
 registerTable({ id: FORMATION_DOC_ID, tables: { crawlPacePenalties: [7, 13] } }, { priority: PRIORITY.OVERRIDE });
 eq("a Judge's override wins its own pair and leaves the others", PACE_KEYS.map((k) => formationValue(k)), [[3, 8], [7, 13], [6, 12]]);
+unregisterTable(FORMATION_DOC_ID);
+
+/* --- the speed each pace moves at: invented prose through the same recipes ---- */
+// The `pace` window also names a share of a speed for each pace, and a `base`
+// window just before it names the exploration-speed branch. Every table here
+// differs from the others in its shares and speeds, so one read as another's
+// cannot pass. The recipes' anchors are structure; the figures, the words
+// around them and the speeds each pace is a share of are invented.
+const RATE_CLIMB = column(60, [
+  "Mole tunnels run steep. Whether inside or out, an adventurer can climb at their exploration speed, or in a dream at two-thirds their run speed.",
+  "A mole with Climbing proficiency can take a -3 penalty for a pace of one-quarter combat speed,",
+  "or an -8 penalty for two-thirds combat speed. The Judge may add more.",
+]);
+const RATE_CRAWL = column(340, [
+  "If the throw holds, the adventurer can traverse at their exploration speed, or in a dream at 9/10 their run speed.",
+  "A mole proficient in Climbing can traverse at 3/10 run speed with a -4 penalty to the",
+  "throw, and 7/10 run speed with a -9 penalty. Burrows vary.",
+]);
+const RATE_BALANCE = column(60, [
+  "Whether traversing a ridge or a root, an adventurer can move at their exploration speed, or in a dream at 80% their run speed.",
+  "A mole with Climbing proficiency can take a -6 penalty for a pace of 25% combat speed,",
+  "or a -12 penalty for 75% run speed. Rain changes things.",
+]);
+const rateRaw = {
+  climbPaceProse: extractTable(RATE_CLIMB, recipes.climbPaceProse),
+  crawlPaceProse: extractTable(RATE_CRAWL, recipes.crawlPaceProse),
+  balancePaceProse: extractTable(RATE_BALANCE, recipes.balancePaceProse),
+};
+eq("each paragraph reads its pace window and its base window through its own recipe",
+  Object.values(rateRaw).map((t) => Object.keys(t).sort()), [["base", "pace"], ["base", "pace"], ["base", "pace"]]);
+eq("each base window begins where the branch's own words do, past its anchor",
+  Object.values(rateRaw).map((t) => t.base.trim().startsWith("their exploration speed")), [true, true, true]);
+eq("each way of crossing is read from its own paragraph, the base beside the two paces", assemblePaceRates(rateRaw), {
+  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.25, speed: "combat" }, fastest: { share: 2 / 3, speed: "combat" } },
+  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.3, speed: "run" }, fastest: { share: 0.7, speed: "run" } },
+  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.25, speed: "combat" }, fastest: { share: 0.75, speed: "run" } },
+});
+eq("assemblePaceRates is what the binding calls, beside the penalties", assembleFormationTables(rateRaw),
+  { ...assemblePacePenalties(rateRaw), ...assemblePaceRates(rateRaw) });
+eq("each key is produced from its own recipe", RATE_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), ["climbPaceProse", "crawlPaceProse", "balancePaceProse"]);
+eq("the speeds a pace phrase can name are three, and the progress cell's two are not widened",
+  [Object.keys(PACE_SPEED_WORDS), [...PACE_SPEEDS], Object.keys(PROGRESS_SPEED_WORDS)], [["exploration", "combat", "run"], ["exploration", "combat", "run"], ["combat", "run"]]);
+eq("a paragraph that drifted costs its own key and nothing beside it",
+  Object.keys(assemblePaceRates({ ...rateRaw, crawlPaceProse: { pace: " whatever the burrow allows" } })).sort(), ["balancePaceRates", "climbPaceRates"]);
+eq("a base window alone assembles its normal and leaves the paces off",
+  assemblePaceRates({ climbPaceProse: { base: " their exploration speed, or in a" } }), { climbPaceRates: { normal: { share: 1, speed: "exploration" } } });
+eq("a pace window alone assembles the paces and leaves the normal off",
+  assemblePaceRates({ climbPaceProse: { pace: rateRaw.climbPaceProse.pace } }).climbPaceRates, { faster: { share: 0.25, speed: "combat" }, fastest: { share: 2 / 3, speed: "combat" } });
+eq("nothing assembles from an absent passage", [assemblePaceRates(), assemblePaceRates({}), assembleFormationTables({ restProse: raw.restProse })].map((o) => RATE_KEYS.filter((k) => k in o)), [[], [], []]);
+
+// The base: one branch, the exploration speed.
+eq("the base pace is the exploration speed, whole where no share is said", parsePaceBase(" their exploration speed, or in a"), { share: 1, speed: "exploration" });
+eq("a share said before the exploration speed is kept", parsePaceBase(" 3/4 their exploration speed."), { share: 0.75, speed: "exploration" });
+eq("the base window may not name another speed: it is the exploration branch or nothing",
+  [parsePaceBase(" at two-thirds their combat speed"), parsePaceBase(" at their run speed")], [null, null]);
+eq("a base window that runs on into a second speed decides nothing",
+  parsePaceBase(" their exploration speed, or in a dream at two-thirds their run speed"), null);
+eq("a base window that names no speed, an unknown one, or leaves a speed unclaimed decides nothing",
+  [parsePaceBase(" at a walk"), parsePaceBase(" at their movement speed"), parsePaceBase(" their exploration speed and a speed"), parsePaceBase(null)], [null, null, null, null]);
+eq("a figure the phrase did not read is never the whole speed",
+  [" double their exploration speed", " 2/3 of their exploration speed", " their exploration speed, three times over", " a third of their exploration speed",
+    " 150% of their exploration speed", " twice their exploration speed", " their exploration speed, or 4 more"].map(parsePaceBase),
+  [null, null, null, null, null, null, null]);
+
+// The pair: two shares of a speed each, in printed order.
+eq("two shares and the speeds they are of, in the order printed",
+  parsePaceRates(" -3 penalty at 1/4 combat speed or -8 penalty at two-thirds run speed."),
+  [{ share: 0.25, speed: "combat" }, { share: 2 / 3, speed: "run" }]);
+eq("the whole-speed word is the share of one", parsePaceRates(" -4 at 3/10 run speed and -9 at full run speed")?.[1], { share: 1, speed: "run" });
+eq("the share words are the binding's own, percentages and fractions among them",
+  [" -1 at one-quarter run speed or -2 at 75% run speed", " -1 at 3/10 run speed or -2 at one-third combat speed", " -1 at 3/10 run speed or -2 at two-thirds their run speed"]
+    .map((w) => parsePaceRates(w)?.map((r) => r.share)),
+  [[0.25, 0.75], [0.3, 1 / 3], [0.3, 2 / 3]]);
+eq("a pace with no share said is not guessed to be the whole speed",
+  [" -3 at a run speed or -8 at 3/4 run speed", " -3 at 1/4 run speed or -8 at combat speed"].map((w) => parsePaceRates(w)), [null, null]);
+eq("other than two phrases decides nothing",
+  [" -3 at 1/4 run speed", " -3 at 1/4 run speed or -8 at 2/3 run speed or -9 at 3/4 run speed", " -3 or -8 at a trot or a gallop"].map((w) => parsePaceRates(w)), [null, null, null]);
+eq("a phrase that names two speeds, or an unknown one, decides nothing",
+  [" -3 at 1/4 combat or run speed or -8 at 3/4 run speed", " -3 at 1/4 pack speed or -8 at 3/4 run speed"].map((w) => parsePaceRates(w)), [null, null]);
+eq("a speed said outside a phrase leaves it unclaimed and decides nothing",
+  parsePaceRates(" -3 at 1/4 run speed or -8 at 3/4 run speed, speed matters"), null);
+eq("penalties that collide cannot tell the paces apart", parsePaceRates(" -4 at 1/4 run speed or -4 at 3/4 run speed"), null);
+eq("a pair with no two signed penalties is not read", [parsePaceRates(" at 1/4 run speed or at 3/4 run speed"), parsePaceRates(" -3 at 1/4 run speed or at 3/4 run speed")], [null, null]);
+eq("two shares of one speed must rise, and a different speed may fall",
+  [parsePaceRates(" -3 at 3/4 run speed or -8 at 1/4 run speed"), parsePaceRates(" -3 at 3/4 run speed or -8 at 1/4 combat speed")?.length], [null, 2]);
+eq("a share of nothing is no share", parsePaceRates(" -3 at 0/4 run speed or -8 at 3/4 run speed"), null);
+eq("a figure past the full stop is the next rule's", parsePaceRates(" -3 at 1/4 run speed or -8 at 3/4 run speed. Add 1/9 run speed in rain.")?.length, 2);
+eq("welded seams do not read, and decide nothing", parsePaceRates(" -3 at 1/4runspeed or -8 at 3/4 run speed"), null);
+// A rate reads through the registry like every other figure, one whole value.
+eq("with nothing registered every rate key reads null", RATE_KEYS.map((k) => formationValue(k)), [null, null, null]);
+registerTable({ id: FORMATION_DOC_ID, tables: assemblePaceRates(rateRaw) }, { priority: PRIORITY.WORLD });
+eq("an imported rate reads through", formationValue("crawlPaceRates").fastest, { share: 0.7, speed: "run" });
+registerTable({ id: FORMATION_DOC_ID, tables: { crawlPaceRates: { normal: { share: 0.5, speed: "combat" } } } }, { priority: PRIORITY.OVERRIDE });
+eq("a Judge's override wins its own key and leaves the others", RATE_KEYS.map((k) => formationValue(k)?.normal), [{ share: 1, speed: "exploration" }, { share: 0.5, speed: "combat" }, { share: 1, speed: "exploration" }]);
 unregisterTable(FORMATION_DOC_ID);
 
 /* --- absent input is absent output, never a default ------------------------ */

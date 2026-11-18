@@ -388,6 +388,8 @@ Hooks.once("init", () => {
     "contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep", "squeezeBotchBand",
     // A proficient climber's faster paces, one pair per way of crossing (`assemblePacePenalties`).
     "climbPacePenalties", "crawlPacePenalties", "balancePacePenalties",
+    // The speed each of those paces, and the base one, moves at (`assemblePaceRates`, `climb-pace.mjs` `paceRates`).
+    "climbPaceRates", "crawlPaceRates", "balancePaceRates",
   ]);
   // The delve's wandering throw (`getEncounterParams`): with no die and target
   // no throw is made, and with no dice no distance is rolled.
@@ -561,7 +563,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 33,
+    apiVersion: 34,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,

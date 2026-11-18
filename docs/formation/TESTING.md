@@ -4709,6 +4709,49 @@ by the walk.
 Pinned offline: `tools/test-formation-binding.mjs`, `tools/test-obstacles.mjs`,
 and `tools/importer/test-recipe-content.mjs` against the local book.
 
+### The paces' speeds and a miss's duration, imported (dungeon close-out S17, the imports of its round-spending half)
+
+The same Rules tables run also reads three more keys of the `formation`
+document, `climbPaceRates`, `crawlPaceRates` and `balancePaceRates` (RR pp.
+269-270), each `{normal, faster, fastest}` of `{share, speed}` with `speed` one
+of `exploration`, `combat`, `run`; and a `rounds` count on the outcome cells of
+`spelunkingOutcomes` that print one. Nothing in the crossing reads either yet, so
+this is a read of the import and of the readers `paceRates` (`climb-pace.mjs`) and
+`acksExtras.formation.obstacles.obstacleOutcome(kind, which).rounds`. `paceRates`
+is not on the api: reach it from the page with
+`const { paceRates } = await import("/modules/acks-extras/scripts/formation/climb-pace.mjs")`,
+which is the instance the module loaded. No cell's words or figure enter
+the report, only counts.
+
+Fixtures: none beyond the world's own import; an override is set and cleared by
+the walk.
+
+1. **The import reads them.** Run Rules tables with the Revised Rulebook open.
+   *Observable:* each of the three keys holds `normal`, `faster` and `fastest`
+   with a `share` above zero and a `speed` of the three names, `normal` always
+   `exploration`; the Ruledata Browser lists a row for each key and
+   `citeOf("formation", key)` names the page its paragraph prints on (269, 269,
+   270). Count the keys whose three paces agree with the paragraph, book open,
+   and report the count.
+2. **The durations.** Read `obstacleOutcome(kind, "fail")` and `"botch"` for the
+   six kinds. *Observable:* `rounds` is present only on the cells that print a
+   count before a round noun, a positive integer; count them against the grid
+   and report the count.
+3. **Not imported.** Override the three keys with `null` in the Ruledata Browser
+   and read `paceRates` for each of the six kinds. *Observable:* a rappel
+   answers null; every other kind answers three null paces. Clear the override.
+4. **An override wins and must be valid.** Override one pace with a share of the
+   Judge's own and a named speed, then a share of zero, then a speed outside the
+   three. *Observable:* the first is read, the other two answer null for that
+   pace and leave the others. Override a cell's `rounds` with a non-integer: the
+   outcome carries none.
+5. **Teardown.** Clear every override.
+
+Pinned offline: `tools/test-formation-binding.mjs` (both parsers, the three
+recipes' windows on invented prose), `tools/test-obstacles.mjs`,
+`tools/test-crossing.mjs` (`paceRates`) and `tools/importer/test-recipe-content.mjs`
+against the local book.
+
 ## Billing at the dark rate
 
 The clock bills a party token's wall-constrained displacement, and a party

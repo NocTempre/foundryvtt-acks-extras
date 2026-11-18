@@ -64,11 +64,12 @@ export const OBSTACLES = Object.freeze({
  * still covers ground — or null until the table holds that outcome. A Judge's
  * override with no words reads as not imported. `advances` is present only
  * where the table says it with a boolean; absent, `obstacleStep` reads the
- * outcome as one that does not advance.
+ * outcome as one that does not advance. `rounds`, the duration the outcome
+ * costs, is present only as a positive integer.
  *
  * @param {string} kind a key of OBSTACLES
  * @param {"fail"|"botch"} which
- * @returns {{text: string, falls: boolean, advances?: boolean}|null}
+ * @returns {{text: string, falls: boolean, advances?: boolean, rounds?: number}|null}
  */
 export function obstacleOutcome(kind, which) {
   const cell = formationValue(OUTCOMES_TABLE)?.[kind]?.[which];
@@ -76,6 +77,7 @@ export function obstacleOutcome(kind, which) {
   if (!text) return null;
   const out = { text, falls: cell.falls === true };
   if (typeof cell.advances === "boolean") out.advances = cell.advances;
+  if (Number.isInteger(cell.rounds) && cell.rounds > 0) out.rounds = cell.rounds;
   return out;
 }
 

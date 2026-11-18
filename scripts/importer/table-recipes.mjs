@@ -969,8 +969,11 @@ const SHARED_TABLE_RECIPES = {
       },
       // The faster paces of a proficient climber (RR pp. 269-270): each way of
       // crossing prices its two paces in its own paragraph, so each is its own
-      // recipe and its own page. One window apiece holds both sizes and the
-      // words that order them; formation-binding parses the pair.
+      // recipe and its own page. The `pace` window holds both sizes, the words
+      // that order them and the share of a speed each pace moves at;
+      // formation-binding parses the pair and the shares. The `base` window is
+      // the sentence before it, cut at the exploration-speed branch: its anchor
+      // holds no value, the window begins at the figure's own words.
       climbPaceProse: {
         shape: "proseValues",
         book: "rr",
@@ -978,7 +981,10 @@ const SHARED_TABLE_RECIPES = {
         locate: "Whether scaling an easy obstacle",
         locateBare: true,
         column: { xMin: 60, xMax: 320 },
-        values: [{ key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 }],
+        values: [
+          { key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 },
+          { key: "base", find: "an adventurer can climb at", take: "window", span: 30 },
+        ],
       },
       crawlPaceProse: {
         shape: "proseValues",
@@ -987,7 +993,10 @@ const SHARED_TABLE_RECIPES = {
         locate: "proficient in Climbing can traverse at",
         locateBare: true,
         column: { xMin: 320, xMax: 592 },
-        values: [{ key: "pace", find: "proficient in climbing can traverse", take: "window", span: 170 }],
+        values: [
+          { key: "pace", find: "proficient in climbing can traverse", take: "window", span: 170 },
+          { key: "base", find: "adventurer can traverse at", take: "window", span: 30 },
+        ],
       },
       balancePaceProse: {
         shape: "proseValues",
@@ -996,7 +1005,10 @@ const SHARED_TABLE_RECIPES = {
         locate: "Whether traversing a narrow or precarious",
         locateBare: true,
         column: { xMin: 40, xMax: 300 },
-        values: [{ key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 }],
+        values: [
+          { key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 },
+          { key: "base", find: "an adventurer can move at", take: "window", span: 30 },
+        ],
       },
       restProse: {
         shape: "proseValues",

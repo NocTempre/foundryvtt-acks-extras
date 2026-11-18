@@ -291,6 +291,27 @@ ok("`advances` is read only as a boolean, and left off otherwise", () => {
   resetTables();
 });
 
+ok("`rounds` is passed only as a positive integer, and left off otherwise", () => {
+  load(SPELUNKING, {
+    easyClimb: { fail: { text: "Wait", rounds: 3 }, botch: { text: "Wait", advances: false, rounds: 1 } },
+    sheerClimb: { fail: { text: "Wait", rounds: "3" }, botch: { text: "Wait", rounds: 2.5 } },
+    rappel: { fail: { text: "Wait", rounds: 0 }, botch: { text: "Wait", rounds: -2 } },
+    crawl: { fail: { text: "Wait", rounds: null }, botch: { text: "Wait", rounds: true } },
+  });
+  assert.deepEqual(obstacleOutcome("easyClimb", "fail"), { text: "Wait", falls: false, rounds: 3 });
+  assert.deepEqual(obstacleOutcome("easyClimb", "botch"), { text: "Wait", falls: false, advances: false, rounds: 1 });
+  for (const [kind, which] of [["sheerClimb", "fail"], ["sheerClimb", "botch"], ["rappel", "fail"], ["rappel", "botch"], ["crawl", "fail"], ["crawl", "botch"]]) {
+    assert.equal("rounds" in obstacleOutcome(kind, which), false, `${kind} ${which}`);
+  }
+  resetTables();
+});
+
+ok("an outcome with no `rounds` carries none: nothing is read from the cell's words", () => {
+  load(SPELUNKING, { easyClimb: { fail: { text: "Wait for 3 rounds", falls: false } } });
+  assert.equal("rounds" in obstacleOutcome("easyClimb", "fail"), false);
+  resetTables();
+});
+
 // ---- where a throw leaves a member ------------------------------------------
 const made = { ok: true, success: true, outcome: "progress" };
 const missed = (outcome) => ({ ok: true, success: false, outcome });
