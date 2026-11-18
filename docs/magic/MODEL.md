@@ -1036,7 +1036,7 @@ which is Foundry-free and takes the registry as an injectable lookup, as
 `present: false` and every figure null when nothing is imported, `cite` the
 page the table was read from, and `byHand: true` with no page when a Judge's
 override replaced it. What ships is the procedure the helpers apply to the
-figures: the capped research rate (`researchRateAt`), the pro-rated
+figures: the research rate by rung, project and footnote (`researchRateAt`), the pro-rated
 substitution penalty (`substitutionPenalty`), assistant capacity, a facility's
 minimum by level and the bonus its surplus buys, divided among the researchers
 sharing it (`facilityMinimum`, `facilityBonus`), a library's share of a
@@ -1182,9 +1182,12 @@ assistant who does not count, blocks a Player's post and warns a Judge's (`facil
 `assistantGate`).
 
 `credit` takes the posted days whose day is before today. Each leaves `posted` and adds one
-`credited` row per counted participant, `{day, amount, by}`, valued by the rates read at that moment;
-a day that no rate could be read for is one row with a null amount and a blank `by`, so it still counts
-as a day worked and adds no gold. It runs on the primary GM's client alone: on each forward step of the
+`credited` row per counted participant, `{day, amount, by}`, valued by the rates read at that moment,
+`amount` always a figure above zero. A day is credited whole or not at all (`creditableDay`): while any
+counted participant's rate at the day's pace is unread, or an assistant's counting is (their rate
+could join the day later, and a credit written without it could never be corrected), the day stays in
+`posted`, as posted and held, and writes nothing; a later sweep with the rates read credits it at the
+pace it was posted. It runs on the primary GM's client alone: on each forward step of the
 world clock (lib `onWorldTimeAdvanced`) and once at `ready`, over every location, and writes a place
 only where a day is due. It is a function of the record and today, and a (day, participant) is credited
 once (`cleanCredited` keeps the first row of a key), so a second sweep, a clock dragged back and forward
@@ -1193,21 +1196,31 @@ a seat, relayed under the sender's authority; a requester credits the projects o
 and a Judge every project.
 
 Who counts and what a day is worth (`weighParticipants`, `dayAmounts`): the researcher's rate is the
-ladder's rate for the class level (`system.details.level`). A ritual reads the rung's own rate and every
-other kind the lesser rate the ladder's footnote gives other projects (`FULL_RATE_KINDS`), unread while
-that figure is. An assistant counts when at or above the imported level that aids a researcher and within
+ladder's rate for the class level (`system.details.level`). The ladder's footnote is read from the page
+at import: which rungs carry its mark (`marked` on each rung), the projects it names (`markedProjects`,
+the phrases of its sentence) and the rate it gives every other project (`otherProjectsRate`). An
+unmarked rung is its printed rate for every kind. A marked rung is the printed rate for a kind the
+footnote names and `otherProjectsRate` for any other, and is unread (null) where the mark, the list or
+that rate it needs is. A kind is named when a word of a listed phrase opens with the kind's own
+name (`footnoteNames`, `PROJECT_KIND`), so the page's words are matched at run time and no list of
+them is in source. A table imported without marks reads every rung's mark as unknown, never as
+unmarked, and a Judge's override of the ladder carries `marked` on its rows or leaves them unread. An
+assistant counts when at or above the imported level that aids a researcher and within
 the imported number the researcher manages, which is the base plus one per point of Intellect bonus; one
 whose figure is not read does not count. A pace's share of the rate is 1, the imported ancillary fraction,
 or both added. A participant is paid the rate at the pace, the participants add, and the sum is a day.
 
-The due (`progressOf`): while the research cost and every counted rate are read, it is the days credited
-and posted plus the days the remaining cost takes at a dedicated day's rate (`dueBy` "ladder"). Otherwise it
-is the Judge's `dueDays` (`dueBy` "judge"), and with neither it is unknown. `complete` is true once the
-credited gold reaches the cost, false while the rates are read and it has not, and, where they are not,
-whether the credited days reach the Judge's days. `dueDay` is the calendar day the last needed day falls
-on were each remaining day worked in turn from today.
+The due (`progressOf`): while the research cost and every counted rate are read, and no assistant's counting
+is unread and no passed day is held, it is the days credited and posted plus the days the remaining cost
+takes at a dedicated day's rate (`dueBy` "ladder"). Otherwise it is the Judge's `dueDays` (`dueBy`
+"judge"), and with neither it is unknown. `complete` is true once the credited gold reaches the cost, false
+while the rates are read and it has not, and, where they are not, whether the credited days reach the
+Judge's days. Only credited days count there: a held day is posted and not credited, so it meets none of
+the Judge's days, and it is no pending day when `dueDay` is counted. `dueDay` is the calendar day the last
+needed day falls on were each remaining day worked in turn from today. `unread` counts the held days.
 
-The tab's strip draws one cell per due day (at most 60), the credited ones first, then the posted; the
+The tab's strip draws one cell per due day (at most 60), the credited ones first, then the posted, a held
+day among them; the posted row's tooltip names the held days and the page of the rate they wait on. The
 chip reads the day worked (credited plus posted) against the due. The pace is a radio group per project,
 held per window and never written; Post posts today at that pace. A radio belongs to no form, so the
 sheet's own submit never carries it.

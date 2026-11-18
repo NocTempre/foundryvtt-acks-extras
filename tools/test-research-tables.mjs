@@ -13,6 +13,7 @@ const { PRIORITY, registerTable, resetTables } = await import("../scripts/lib/ta
 const R = await import("../scripts/magic/research-tables.mjs");
 const { TABLE_RECIPES } = await import("../scripts/importer/table-recipes.mjs");
 const { researchRecipes } = await import("../scripts/importer/books/rr/table-recipes-research.mjs");
+const { extractTable } = await import("../scripts/importer/table-extract.mjs");
 const RESEARCH = TABLE_RECIPES[R.RESEARCH_DOC_ID];
 
 let n = 0;
@@ -26,13 +27,13 @@ const t = (name, fn) => {
 
 const TABLES = {
   researchLadder: {
-    r0: { label: 3, rate: "7.5gp", throw: "17+" },
-    r1: { label: 4, rate: "11gp", throw: "13+" },
-    r2: { label: 5, rate: "300gp", throw: "9+" },
-    r3: { label: 6, rate: "4,300gp", throw: "6+" },
-    r4: { label: 7, rate: "9,500gp", throw: "2+" },
+    r0: { label: 3, rate: "7.5gp", throw: "17+", marked: false },
+    r1: { label: 4, rate: "11gp", throw: "13+", marked: false },
+    r2: { label: 5, rate: "300gp", throw: "9+", marked: false },
+    r3: { label: 6, rate: "4,300gp", throw: "6+", marked: true },
+    r4: { label: 7, rate: "9,500gp", throw: "2+", marked: true },
   },
-  researchLadderNote: { otherProjectsRate: 1200 },
+  researchLadderNote: { otherProjectsRate: 1200, markedProjects: "6 4,300gp 6+ * 7 9,500gp 2+ * for glassblowing, spellmongering & tallow rites. u se 1200gp" },
   researchProse: { ancillaryFraction: "2/5 his research", autoFailBand: [2, 4], penalty: -2, penaltyMinimum: -1 },
   assistantProse: { managerLevel: 6, managerBase: 2, aidLevel: 2, spellLevel: 4, itemLevel: 8 },
   libraryProse: { minimum: 3000, step: 1500, bonusStep: 7000, bonusSize: 2, bonusCap: 5, share: 25 },
@@ -167,27 +168,77 @@ t("the ladder reads every rung with its page, and an unparsable rung is left out
   assert.equal(ladder.cite, CITES.researchLadder);
   assert.equal(ladder.byHand, false);
   assert.equal(ladder.otherProjectsRate, 1200);
+  assert.deepEqual(ladder.rungs.map((r) => r.marked), [false, false, false, true, true], "each rung's mark is the importer's");
+  assert.deepEqual(ladder.markedProjects, ["glassblowing", "spellmongering", "tallow rites"], "the footnote's projects are its sentence after the last mark, to its period");
 });
 
-t("a rate is the ladder's own at full, and the lesser of it and the other-projects rate otherwise", () => {
+t("the footnote's list is the sentence after the last mark glyph, and is null where the span holds none", () => {
+  assert.deepEqual(R.parseMarkedProjects("a 1 * b 2 * for alpha, beta and gamma delta. tail"), ["alpha", "beta", "gamma delta"]);
+  assert.deepEqual(R.parseMarkedProjects("x * for old. y * for new"), ["new"], "the last glyph opens the footnote");
+  assert.deepEqual(R.parseMarkedProjects("x † for one or two."), ["one", "two"]);
+  assert.equal(R.parseMarkedProjects("for alpha, beta. tail"), null);
+  assert.equal(R.parseMarkedProjects("a * ."), null);
+  assert.equal(R.parseMarkedProjects(undefined), null);
+});
+
+t("the footnote names a kind when a word of its list opens with the kind's name, and says nothing while the list is unread", () => {
+  resetTables();
+  register();
+  const ladder = R.readLadder();
+  assert.equal(R.footnoteNames(ladder, "spell"), true, "a kind is matched against the page's words");
+  assert.equal(R.footnoteNames(ladder, "Spell"), true);
+  assert.equal(R.footnoteNames(ladder, "glass"), true);
+  assert.equal(R.footnoteNames(ladder, "tallow"), true);
+  assert.equal(R.footnoteNames(ladder, "rites"), true, "any word of a phrase");
+  assert.equal(R.footnoteNames(ladder, "ritual"), false);
+  assert.equal(R.footnoteNames(ladder, "mong"), false, "a name opens a word and is not found inside one");
+  assert.equal(R.footnoteNames(ladder, ""), null);
+  assert.equal(R.footnoteNames({ markedProjects: null }, "spell"), null);
+});
+
+t("a marked rung reads the printed rate for a project the footnote names and the footnote's rate for any other; an unmarked rung its own", () => {
   resetTables();
   register();
   const ladder = R.readLadder();
   assert.deepEqual(R.researchRateAt(ladder, 6, { full: true }), { level: 6, throw: 6, cite: CITES.researchLadder, byHand: false, rate: 4300, reduced: false });
-  assert.equal(R.researchRateAt(ladder, 6).rate, 1200);
-  assert.equal(R.researchRateAt(ladder, 6).reduced, true);
-  assert.equal(R.researchRateAt(ladder, 5).rate, 300);
+  assert.deepEqual(R.researchRateAt(ladder, 6, { named: true }), { level: 6, throw: 6, cite: CITES.researchLadder, byHand: false, rate: 4300, reduced: false });
+  assert.equal(R.researchRateAt(ladder, 6, { named: false }).rate, 1200);
+  assert.equal(R.researchRateAt(ladder, 6, { named: false }).reduced, true);
+  for (const named of [true, false, null]) assert.equal(R.researchRateAt(ladder, 5, { named }).rate, 300, "an unmarked rung is its own rate, whatever the footnote names");
   assert.equal(R.researchRateAt(ladder, 5).reduced, false);
+  assert.equal(R.researchRateAt(ladder, 6), null, "a marked rung with no word on the project is unread");
   assert.equal(R.researchRateAt(ladder, 2), null);
 });
 
-t("without the other-projects rate a reduced read is null and a full read still answers", () => {
+t("the rate takes the footnote's figure and never the lesser of two: a footnote rate above the rung's is the rate", () => {
   resetTables();
-  register({ ...TABLES, researchLadderNote: {} });
+  register({ ...TABLES, researchLadderNote: { ...TABLES.researchLadderNote, otherProjectsRate: 99999 } });
+  assert.equal(R.researchRateAt(R.readLadder(), 6, { named: false }).rate, 99999, "which rungs the page marks is read, and is no function of the figures");
+});
+
+t("without the other-projects rate a marked rung of an unnamed project is null, and an unmarked rung still answers", () => {
+  resetTables();
+  register({ ...TABLES, researchLadderNote: { markedProjects: TABLES.researchLadderNote.markedProjects } });
   const ladder = R.readLadder();
   assert.equal(ladder.otherProjectsRate, null);
-  assert.equal(R.researchRateAt(ladder, 5), null);
-  assert.equal(R.researchRateAt(ladder, 5, { full: true }).rate, 300);
+  assert.equal(R.researchRateAt(ladder, 6, { named: false }), null);
+  assert.equal(R.researchRateAt(ladder, 6, { named: true }).rate, 4300);
+  assert.equal(R.researchRateAt(ladder, 5, { named: false }).rate, 300);
+  assert.equal(R.researchRateAt(ladder, 6, { full: true }).rate, 4300);
+});
+
+t("a ladder with no marks read is unknown, never unmarked, and a rate that needs the mark is null", () => {
+  resetTables();
+  const bare = Object.fromEntries(Object.entries(TABLES.researchLadder).map(([k, { marked, ...row }]) => [k, row]));
+  register({ ...TABLES, researchLadder: bare });
+  const ladder = R.readLadder();
+  assert.deepEqual(ladder.rungs.map((r) => r.marked), [null, null, null, null, null]);
+  for (const named of [true, false, null]) assert.equal(R.researchRateAt(ladder, 5, { named }), null, "nothing says the rung is unmarked");
+  assert.equal(R.researchRateAt(ladder, 5, { full: true }).rate, 300, "the throw still reads");
+  resetTables();
+  register({ ...TABLES, researchLadderNote: { otherProjectsRate: 1200 } });
+  assert.equal(R.readLadder().markedProjects, null, "a list not read stays unread");
+  assert.equal(R.footnoteNames(R.readLadder(), "spell"), null);
 });
 
 /* ----------------------------- the research rules ----------------------------- */
@@ -408,6 +459,38 @@ t("the recipes hold no figure of their own: no anchor or locate carries a digit,
     for (const v of recipe.values ?? []) assert.doesNotMatch(v.find, /\d/, `${id}.${v.key} find`);
     for (const row of recipe.rows ?? []) assert.match(row.key, /^r\d+$/, `${id} row key`);
   }
+});
+
+t("the ladder recipe records each rung's footnote mark, and the note's list is read as a raw span before the anchor the rate uses", () => {
+  assert.equal(RESEARCH.tables.researchLadder.markKey, "marked");
+  const [rate, list] = RESEARCH.tables.researchLadderNote.values;
+  assert.deepEqual([rate.key, list.key], ["otherProjectsRate", "markedProjects"]);
+  assert.equal(list.find, rate.find, "one anchor; no word of the list is in the recipe");
+  assert.deepEqual([list.before, list.take], [true, "window"]);
+  assert.ok(list.span > rate.span, "the span reaches back over the footnote's sentence");
+});
+
+t("on invented page runs the note recipe reads the rate and the list, and the ladder recipe the marks, through to the readers", () => {
+  const run = (str, x, y, h = 9) => ({ str, x, y, w: str.length * 4, h });
+  const items = [
+    run("6", 326, 405), run("620gp", 390, 405), run("6+", 490, 405),
+    run("*", 416, 413, 5.2), run("7", 326, 416), run("700gp", 389, 416), run("5+", 490, 416),
+    run("*", 416, 424, 5.2), run("8", 326, 427), run("810gp", 389, 427), run("4+", 490, 427),
+    run("*", 302, 450, 8), run("For glassblowing, spellmongering, & tallow rites.", 311, 450, 8),
+    run("u", 493, 450, 8), run("se 620gp for", 498, 450, 8), run("other projects.", 302, 458, 8),
+  ];
+  const ladderRecipe = RESEARCH.tables.researchLadder;
+  const noteRecipe = RESEARCH.tables.researchLadderNote;
+  const read = R.readLadder({
+    table: (_doc, id) => (id === "researchLadder" ? extractTable(items, ladderRecipe) : id === "researchLadderNote" ? extractTable(items, noteRecipe) : null),
+    citeOf: () => null,
+    isOverridden: () => false,
+  });
+  assert.deepEqual(read.rungs.map((r) => [r.level, r.marked]), [[6, false], [7, true], [8, true]]);
+  assert.equal(read.otherProjectsRate, 620);
+  assert.deepEqual(read.markedProjects, ["glassblowing", "spellmongering", "tallow rites"]);
+  assert.equal(R.researchRateAt(read, 7, { named: R.footnoteNames(read, "spell") }).rate, 700);
+  assert.equal(R.researchRateAt(read, 7, { named: R.footnoteNames(read, "ritual") }).rate, 620);
 });
 
 t("every folio the recipes read is named in the document's source pages", () => {

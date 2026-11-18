@@ -17,12 +17,14 @@
  *   location (`linked`);
  * - `paid` is what the material cost was paid at the start, `{material, day}`;
  * - `posted` is the days worked and not yet credited, `[{day, pace}]`, one per calendar
- *   day, which `post` writes and `credit` consumes once world time has passed the day;
+ *   day, which `post` writes and `credit` consumes once world time has passed the day and
+ *   every rate the day is worth is read; a passed day with a rate unread stays posted;
  * - `credited` is the research done so far, `[{day, amount, by}]`, one row per counted
- *   participant and day (`by` is the actor's uuid; a day nobody's rate could be read for is
- *   one row with a null amount and a blank `by`), which only `credit` writes;
+ *   participant and day (`by` is the actor's uuid, `amount` a gold figure above zero), which
+ *   only `credit` writes;
  * - `dueDays` is the Judge's entry for how many days the research takes, read only while
- *   the rates it would be computed from are not imported;
+ *   the rates it would be computed from are not imported, and counted against the days
+ *   credited, which are days whose gold was read;
  * - `bucket` is the components bucket as lib stores an answer, `[{uuid, qty, fit}]`,
  *   which the end of the project settles;
  * - `throw` is `{target}` where a throw has been fixed, null otherwise.
@@ -33,7 +35,7 @@
  * figure that is not read answers null: a verdict is then `unknown`, which blocks
  * and warns nothing, and a bonus is null.
  */
-import { facilityMinimum, facilityBonus, researchRateAt, assistantCapacity, assistantMinimum } from "./research-tables.mjs";
+import { facilityMinimum, facilityBonus, researchRateAt, footnoteNames, assistantCapacity, assistantMinimum } from "./research-tables.mjs";
 import { bucketView, ENTRY_KIND } from "../lib/bucket.mjs";
 
 /** The kinds of project: what the facility check reads, not what any of them costs. */
@@ -73,13 +75,6 @@ export const PACE = Object.freeze({ dedicated: "dedicated", ancillary: "ancillar
 
 /** Every pace, in the order the tab draws them. */
 export const PACES = Object.freeze(Object.values(PACE));
-
-/**
- * The kinds that read the ladder's own rate. The ladder's footnote leaves these at
- * the rate their rung prints and gives every other kind the lesser rate it names
- * for other projects (`researchRateAt`).
- */
-export const FULL_RATE_KINDS = Object.freeze([PROJECT_KIND.ritual]);
 
 /** The operations a request names. */
 export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", credit: "credit" });
@@ -149,15 +144,15 @@ export function cleanPosted(raw) {
 /**
  * The credited rows as `[{day, amount, by}]`. A row stands once for its day and
  * participant, which is what keeps crediting idempotent whatever writes the record
- * twice. A row with no day, or an amount of nothing, is dropped; a null amount is
- * a day credited with no rate to read.
+ * twice. A row with no day or with no amount above zero is dropped: a figure that
+ * was not read is never written as a credit.
  */
 export function cleanCredited(raw) {
   const seen = new Set();
   const out = [];
   for (const row of Array.isArray(raw) ? raw : []) {
     const entry = { day: dayOf(row?.day), amount: gold(row?.amount), by: str(row?.by) };
-    if (entry.day === null || (entry.amount !== null && entry.amount <= 0)) continue;
+    if (entry.day === null || entry.amount === null || entry.amount <= 0) continue;
     const key = `${entry.day}|${entry.by}`;
     if (seen.has(key)) continue;
     seen.add(key);
@@ -208,8 +203,8 @@ export function readRecord(raw) {
 /** The projects not yet closed. */
 export const openProjects = (projects) => (projects ?? []).filter((p) => p.status === "open");
 
-/** The research a project has had credited, in gold; a row with no amount adds nothing. */
-export const creditedTotal = (project) => (project?.credited ?? []).reduce((n, c) => n + (c.amount ?? 0), 0);
+/** The research a project has had credited, in gold. */
+export const creditedTotal = (project) => (project?.credited ?? []).reduce((n, c) => n + c.amount, 0);
 
 /** The facility values a kind reads, by the value they name. */
 export const usesFacility = (kind, value) => (KIND_FACILITIES[kind] ?? []).some((f) => f.value === value);
@@ -301,7 +296,10 @@ export function paceFactor(prose, pace) {
  * Who works a project and what each one's day is worth: the researcher first, then
  * the assistants in their listed order. A person is `{uuid, role, level, rate, counts,
  * why}`; `rate` is the ladder's rate for the level (null where it is not read), and
- * `counts` says whether the person adds it to the project. An assistant counts only
+ * `counts` says whether the person adds it to the project. The rate is the imported
+ * ladder's, read for the project's kind: a rung the footnote marks reads the printed
+ * rate where the footnote names the kind (`footnoteNames`) and the footnote's rate
+ * otherwise, and null where what decides it is not read. An assistant counts only
  * where the imported assistant levels say so: at or above the level that aids a
  * researcher, and within the number the researcher manages (`assistantCapacity`). `why`
  * is "" for a person who counts, else "below" (under the level), "over" (past the number
@@ -310,8 +308,8 @@ export function paceFactor(prose, pace) {
  * @returns {{uuid: string, role: "researcher"|"assistant", level: number|null, rate: number|null, counts: boolean, why: string}[]}
  */
 export function weighParticipants(project, { tables, levelOf = () => null, intBonusOf = () => 0 } = {}) {
-  const full = FULL_RATE_KINDS.includes(project.kind);
-  const rateOf = (level) => (level === null || level === undefined ? null : (researchRateAt(tables?.ladder, level, { full })?.rate ?? null));
+  const named = footnoteNames(tables?.ladder, project.kind);
+  const rateOf = (level) => (level === null || level === undefined ? null : (researchRateAt(tables?.ladder, level, { named })?.rate ?? null));
   const researcherLevel = levelOf(project.researcher) ?? null;
   const minimum = assistantMinimum(tables?.assistants, "aid");
   const capacity = assistantCapacity(tables?.assistants, { level: researcherLevel, intBonus: intBonusOf(project.researcher) });
@@ -342,12 +340,26 @@ export function dayAmounts(people, prose, pace) {
 }
 
 /**
+ * What a posted day credits now: one entry per counted participant, `{by, amount}`, or
+ * null while a figure that decides it is unread. The day waits as a whole: an assistant
+ * whose counting is unread leaves it undecided, and so does any counted participant whose
+ * rate is not read at the pace, because a credit written without them could never be
+ * corrected.
+ * @returns {{by: string, amount: number}[]|null}
+ */
+export function creditableDay(people, prose, pace) {
+  if (people.some((p) => p.why === "unread")) return null;
+  const { entries } = dayAmounts(people, prose, pace);
+  return entries.length && entries.every((e) => e.amount !== null && e.amount > 0) ? entries : null;
+}
+
+/**
  * Credit a project's posted days that world time has passed: each such day leaves
  * `posted` and adds one `credited` row per counted participant, valued by the rates read
- * now. A day nobody's rate could be read for is one row with a null amount, so it still
- * counts as a day worked. A (day, participant) already credited adds nothing, so the same
- * call twice, or from two clients, changes nothing the second time. `ctx` is `{today,
- * tables, levelOf, intBonusOf}`.
+ * now. A passed day whose rates are not all read (`creditableDay`) is left posted and
+ * credits nothing, so a later call with the rates read credits it. A (day, participant)
+ * already credited adds nothing, so the same call twice, or from two clients, changes
+ * nothing the second time. `ctx` is `{today, tables, levelOf, intBonusOf}`.
  * @returns {{project: object, credited: number}} the project and how many days it credited
  */
 export function creditDue(project, ctx) {
@@ -355,47 +367,59 @@ export function creditDue(project, ctx) {
   if (!passed.length) return { project, credited: 0 };
   const people = weighParticipants(project, ctx);
   const have = new Set(project.credited.map((c) => `${c.day}|${c.by}`));
+  const standing = new Set(project.credited.map((c) => c.day));
   const added = [];
+  const done = new Set();
   for (const row of passed) {
-    const made = dayAmounts(people, ctx.tables?.prose, row.pace).entries.filter((e) => e.amount !== null && e.amount > 0);
-    for (const e of made.length ? made : [{ by: "", amount: null }]) {
+    // A day already credited that a write left posted too leaves `posted` with no row added.
+    const entries = standing.has(row.day) ? [] : creditableDay(people, ctx.tables?.prose, row.pace);
+    if (entries === null) continue;
+    done.add(row.day);
+    for (const e of entries) {
       const key = `${row.day}|${e.by}`;
       if (have.has(key)) continue;
       have.add(key);
       added.push({ day: row.day, amount: e.amount, by: e.by });
     }
   }
-  return { project: { ...project, posted: project.posted.filter((row) => row.day >= ctx.today), credited: [...project.credited, ...added] }, credited: passed.length };
+  if (!done.size) return { project, credited: 0 };
+  return { project: { ...project, posted: project.posted.filter((row) => !done.has(row.day)), credited: [...project.credited, ...added] }, credited: done.size };
 }
 
 /**
  * Where a project stands: the gold and the days credited, the days posted (`posted` those
- * not yet passed, `waiting` those passed and not yet credited), what each participant
- * does, and the due. The due is computed while the rates and the research cost are read:
- * the days already credited and posted, plus the days the remaining cost takes at a
- * dedicated day's rate (`dueBy` "ladder"). Otherwise it is the Judge's `dueDays`
- * (`dueBy` "judge") or unknown. `complete` is whether the research cost is credited: by the
- * gold once it reaches the cost, not before while the rates are read, and by the Judge's
- * days where they are not; null where no cost and no days are known. `dueDay` is the calendar day the last needed day falls on, were each
+ * not yet passed, `waiting` those passed and not yet credited, `unread` those of the waiting
+ * that a rate not read holds back), what each participant does, and the due. The due is
+ * computed while the rates and the research cost are read: the days already credited and
+ * posted, plus the days the remaining cost takes at a dedicated day's rate (`dueBy`
+ * "ladder"). Otherwise it is the Judge's `dueDays` (`dueBy` "judge") or unknown; a day held
+ * back for a rate not read is posted and not credited, so it counts toward neither. `complete`
+ * is whether the research cost is credited: by the gold once it reaches the cost, not before
+ * while the rates are read, and by the Judge's days where they are not; null where no cost
+ * and no days are known. `dueDay` is the calendar day the last needed day falls on, were each
  * remaining day worked in turn from today.
  */
 export function progressOf(project, ctx) {
   const prose = ctx.tables?.prose;
   const people = weighParticipants(project, ctx);
+  const undecided = people.some((p) => p.why === "unread");
   const creditedDays = new Set(project.credited.map((c) => c.day)).size;
   const creditedGp = tidy(creditedTotal(project));
   const postedAll = project.posted.length;
   const waiting = project.posted.filter((row) => row.day < ctx.today).length;
+  const standing = new Set(project.credited.map((c) => c.day));
+  const held = project.posted.filter((row) => row.day < ctx.today && !standing.has(row.day) && creditableDay(people, prose, row.pace) === null);
+  const pending = project.posted.filter((row) => !held.includes(row));
   const daily = dayAmounts(people, prose, PACE.dedicated).total;
-  const expected = project.posted.map((row) => dayAmounts(people, prose, row.pace).total);
+  const expected = pending.map((row) => dayAmounts(people, prose, row.pace).total);
   const dueGp = project.costs.research;
   const rateRead = daily !== null && daily > 0;
-  const computable = dueGp !== null && rateRead && expected.every((n) => n !== null);
+  const computable = dueGp !== null && rateRead && !undecided && !held.length && expected.every((n) => n !== null);
   let dueDays = null;
   let dueBy = null;
   if (computable) {
     const remaining = Math.max(0, dueGp - creditedGp - expected.reduce((n, x) => n + x, 0));
-    dueDays = creditedDays + postedAll + Math.ceil(remaining / daily - 1e-9);
+    dueDays = creditedDays + pending.length + Math.ceil(remaining / daily - 1e-9);
     dueBy = "ladder";
   } else if (project.dueDays !== null) {
     dueDays = project.dueDays;
@@ -406,11 +430,11 @@ export function progressOf(project, ctx) {
   else if (dueGp !== null && rateRead) complete = false;
   else if (project.dueDays !== null) complete = creditedDays >= project.dueDays;
   else if (dueGp !== null) complete = false;
-  const lastPosted = postedAll ? project.posted[postedAll - 1].day : null;
-  const remainingDays = dueDays === null ? null : Math.max(0, dueDays - creditedDays - postedAll);
+  const lastPosted = pending.length ? pending[pending.length - 1].day : null;
+  const remainingDays = dueDays === null ? null : Math.max(0, dueDays - creditedDays - pending.length);
   const lastCredited = project.credited.reduce((n, c) => Math.max(n, c.day), -Infinity);
   const dueDay = remainingDays === null ? null : remainingDays > 0 ? Math.max(ctx.today, (lastPosted ?? ctx.today - 1) + 1) + remainingDays - 1 : (lastPosted ?? (Number.isFinite(lastCredited) ? lastCredited : null));
-  return { people, creditedGp, creditedDays, posted: postedAll - waiting, waiting, daily, dueGp, dueDays, dueBy, dueDay, complete };
+  return { people, creditedGp, creditedDays, posted: postedAll - waiting, waiting, unread: held.length, daily, dueGp, dueDays, dueBy, dueDay, complete };
 }
 
 /**
@@ -659,10 +683,11 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     const creditedParts = prog.people
       .filter((x) => byWho(x.uuid).length)
       .map((x) => loc("creditedPart", { name: nameOf(x.uuid), amount: goldText(tidy(byWho(x.uuid).reduce((n, c) => n + c.amount, 0))), n: byWho(x.uuid).length }));
-    const dayText = prog.dueDays === null ? (prog.creditedDays + prog.posted ? loc("dayChipOpen", { d: prog.creditedDays + prog.posted }) : "") : loc("dayChip", { d: prog.creditedDays + prog.posted, due: prog.dueDays });
+    const postedDays = prog.posted + prog.waiting;
+    const dayText = prog.dueDays === null ? (prog.creditedDays + postedDays ? loc("dayChipOpen", { d: prog.creditedDays + postedDays }) : "") : loc("dayChip", { d: prog.creditedDays + postedDays, due: prog.dueDays });
     const dueSource = prog.dueBy === "judge" ? loc("dueJudge") : prog.dueBy === "ladder" ? loc("dueLadder", { cite: ladderCite }) : loc("dueUnread", { cite: ladderCite });
-    const cells = Math.min(STRIP_MAX, Math.max(prog.dueDays ?? 0, prog.creditedDays + prog.posted + prog.waiting));
-    const stripCells = Array.from({ length: cells }, (_, i) => (i < prog.creditedDays ? "c" : i < prog.creditedDays + prog.posted + prog.waiting ? "p" : ""));
+    const cells = Math.min(STRIP_MAX, Math.max(prog.dueDays ?? 0, prog.creditedDays + postedDays));
+    const stripCells = Array.from({ length: cells }, (_, i) => (i < prog.creditedDays ? "c" : i < prog.creditedDays + postedDays ? "p" : ""));
     const paceChosen = paceOf(p.id);
     const factor = (pace) => paceFactor(tables?.prose, pace);
     const postedToday = p.posted.some((row) => row.day === today);
@@ -702,12 +727,12 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
         tip: creditedParts.length ? loc("creditedTip", { parts: creditedParts.join(" · "), cite: ladderCite }) : loc("progressTip", { n: p.credited.length, cite: ladderCite }),
         pct: due ? Math.min(100, Math.round((done / due) * 100)) : 0,
       },
-      day: { text: dayText, tone: dayText ? "pow" : "", tip: loc("dayTip", { credited: prog.creditedDays, posted: prog.posted, source: dueSource }), aria: dayText },
-      strip: { show: cells > 0, cells: stripCells, aria: loc("stripAria", { credited: prog.creditedDays, posted: prog.posted + prog.waiting }) },
+      day: { text: dayText, tone: dayText ? "pow" : "", tip: loc("dayTip", { credited: prog.creditedDays, posted: postedDays, source: dueSource }), aria: dayText },
+      strip: { show: cells > 0, cells: stripCells, aria: loc("stripAria", { credited: prog.creditedDays, posted: postedDays }) },
       postedRow: {
         label: loc("postedRow"),
-        text: String(prog.posted),
-        tip: prog.waiting ? loc("postedTipWaiting", { n: prog.waiting }) : loc("postedTip"),
+        text: String(postedDays),
+        tip: prog.unread ? loc("postedTipUnread", { n: prog.unread, cite: ladderCite }) : prog.waiting ? loc("postedTipWaiting", { n: prog.waiting }) : loc("postedTip"),
       },
       pace: {
         name: `pace-${p.id}`,

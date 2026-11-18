@@ -2636,10 +2636,16 @@ One table is one passage, so a figure cites the folio that prints it.
 **The ladder** (`researchLadder`) is a `gridRows` of generic optional rows,
 each read by `labelInt` and two windowed `raw` cells (the rate and the throw),
 so no level list or row count ships and the table ends where the page's rows
-do. The footnote mark on the upper rungs is a lone glyph that `gridRows`
-drops from its cells; `researchLadderNote` reads the figure the footnote gives
-other projects, and the reader caps a rung at it. A rung the note does not
-reduce is its printed rate; with the note unread a capped read answers null.
+do. The footnote mark on a rung is a lone glyph that `gridRows` keeps out of
+its cells; the recipe's `markKey` records it on the rung it sits beside as a
+boolean (`marked`, false where the row prints none), so a table read without
+the key has no `marked` and reads as unknown. `researchLadderNote` reads the
+footnote beside it: the rate it gives other projects, and `markedProjects`, the
+raw span before that phrase, which holds the footnote's own sentence (the reader
+cuts it after the last mark glyph, at its period). An unmarked rung is its
+printed rate; a marked one is the printed rate for a project the list names and
+the note's rate for any other, and null where the mark, the list or the rate is
+unread.
 
 **Prose figures** are `proseValues` windows: a single number is taken as one
 (`gp`, `signed`, `int`, `wordInt`, `pct`, `times`, `band`), and a fraction or a

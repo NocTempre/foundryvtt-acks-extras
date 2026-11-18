@@ -1614,7 +1614,9 @@ list as the others).
 8. **The link and close.** `projectsOf(hero)` lists the open project the hero researches, and nothing
    was written on the character. The Player closes it: it stays on the record with its day and the link
    is gone.
-9. **Research days.** Override the ladder (levels 4 and 5) and its footnote's rate again
+9. **Research days.** Override the ladder (levels 4 and 5, each row carrying `marked: false`) and its
+   footnote (the rate for other projects and a `markedProjects` text, in the shape the importer reads:
+   the page's span ending in the footnote's sentence after a mark glyph) again
    (the ancillary fraction, the assistant levels and the two class levels stand from step 5), and the
    Judge creates a project with Pell as assistant and a research cost. *Observable:* a day is worth the
    two rates added, the due is computed from them (`progress().dueBy` "ladder"), the chip reads day 0 of
@@ -1622,13 +1624,23 @@ list as the others).
    the Player seat pick ancillary and press Post: the pick writes nothing, the radios belong to no form,
    the day is posted at that pace by one relayed write, the control is disabled, the radio still reads
    ancillary after the re-render and one cell is posted; a second post of the day is `duplicate` and
-   another day is `day`. From the GM seat post a day two calendar days back (a Judge may) and call
+   another day is `day`. From the GM seat post a day two calendar days back (a Judge may), then
+   override the ladder's rows with no `marked` (the marks unread) and call `research.credit`.
+   *Observable:* nothing is credited and nothing is written, both posted days remain, `progress()`
+   reads `unread: 1` and no due is computed, and the card draws two posted cells and a tooltip that
+   names the held day and the page of the rate. Override the rows with `marked: false` again and call
    `research.credit`: one write, two credited rows stamped with that day and valued at the pace, today's
    day still posted; a second call and a Player's relayed call credit nothing and write nothing. The
    world clock reads the same before and after. The sweep on a clock step is not walked.
 10. **An assistant under the level.** Set Pell to level 1 and clear the assistants. *Observable:* the
    Player's add of Pell is `assistantLevel` and writes nothing; the Judge's is written with
    `warn: "assistantLevel"` and `progress().people` marks Pell as not counting (`below`).
+11. **The footnote from the import.** With the hero at level 5, override the ladder with one row for
+   level 5 carrying `marked: true`, and the footnote with a rate for other projects and a list text
+   naming the spell kind's word, and start a spell and an item project for the hero. *Observable:* the
+   researcher's rate (`progress().people[0].rate`) is the printed rate on the spell project and the
+   footnote's on the item. Change the list to name the item kind's word: the two swap. Override the
+   footnote with the rate alone: both are null. No kind is fixed in the module; the list is the page's.
 
 ### Drive mechanics
 

@@ -56,6 +56,27 @@ check("yMax bounds the column like xMax", Object.keys(out).length === 2 && out.b
 out = extractTable(stacked, recipe({ column: { xMin: 0, xMax: 300, yMin: 130 } }));
 check("yMin bounds it from above", out.b0.name === "qq under");
 
+/* --- markKey: a lone footnote mark is read onto its own row ------------------- */
+{
+  // A small mark set just above the row it belongs to joins that row by `rowTol`,
+  // and a row with none reads false. The shipped research ladder recipe, on invented runs.
+  const ladder = TABLE_RECIPES.magicResearch.tables.researchLadder;
+  const tiny = (str, x, y) => ({ str, x, y, w: 4, h: 5.2 });
+  const page = [
+    run("5", 328, 337), run("55gp", 395, 337), run("17+", 488, 337),
+    run("6", 328, 348), run("90gp", 395, 348), run("16+", 488, 348),
+    tiny("*", 416, 357), run("7", 328, 360), run("77gp", 395, 360), run("15+", 488, 360),
+    tiny("*", 416, 368), run("8", 328, 371), run("88gp", 395, 371), run("3+", 490, 371),
+    run("9", 328, 382), run("99gp", 395, 382), run("2+", 490, 382),
+  ];
+  const got = extractTable(page, ladder);
+  check("a row with a mark in its cell band reads marked", got.r2.marked === true && got.r3.marked === true);
+  check("a row with none reads unmarked, not unknown", got.r0.marked === false && got.r1.marked === false && got.r4.marked === false);
+  check("the mark is no part of a cell", got.r2.rate === "77gp" && got.r3.throw === "3+" && got.r3.label === 8);
+  const bare = extractTable(page, { ...ladder, markKey: undefined });
+  check("a recipe that names no markKey writes none", Object.values(bare).every((r) => !("marked" in r)));
+}
+
 /* --- wrapped rows ------------------------------------------------------------ */
 // Row 1 one line; row 2 two lines, label on the first; row 3 two lines, label
 // between them (merging with the first); row 4 one line; then prose flush left.

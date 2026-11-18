@@ -1329,10 +1329,19 @@ const RESEARCH_VERIFY = {
     const ladder = RT.readLadder(readVia("researchLadder", out));
     if (ladder.rungs.length !== rows.length) fail("the reader keeps fewer rungs than the table read");
     ladder.rungs.forEach((r, i) => { if (i && !(r.level > ladder.rungs[i - 1].level)) fail(`rung ${i + 1}: level does not rise`); });
+    // The footnote's mark: every rung answers it, and the footnote marks some rungs and not all.
+    for (const [key, row] of rows) if (typeof row?.marked !== "boolean") fail(`row ${key}: mark not read`);
+    const marks = ladder.rungs.filter((r) => r.marked === true).length;
+    if (!marks) fail("no rung carries the footnote's mark");
+    if (marks === ladder.rungs.length) fail("every rung carries the footnote's mark");
   },
   researchLadderNote: (out, recipe, fail) => {
     proseKeys(out, recipe, fail);
-    if (!(RT.readLadder(readVia("researchLadderNote", out)).otherProjectsRate > 0)) fail("otherProjectsRate: not above zero");
+    const ladder = RT.readLadder(readVia("researchLadderNote", out));
+    if (!(ladder.otherProjectsRate > 0)) fail("otherProjectsRate: not above zero");
+    // The projects the footnote names: a list of word phrases, the cut ending where the sentence does.
+    if (!ladder.markedProjects?.length) fail("markedProjects: no list read after the last mark");
+    for (const phrase of ladder.markedProjects ?? []) if (/\d/.test(phrase) || !/\p{L}/u.test(phrase)) fail("markedProjects: a phrase is not words, so the cut ran into the table");
   },
   arcaneLifetime: (out, recipe, fail) => {
     if (!isText(out?.unit)) fail("unit: absent");

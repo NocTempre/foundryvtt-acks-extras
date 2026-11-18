@@ -906,7 +906,7 @@ Judgment calls made in the fix, each with the default proceeded on and the count
 Not changed here, found on the way: the changelog fragment for the switch
 (`2026-11-18-spell-effects-power-stays.added.md`) still says every render starts it on Fades.
 
-## 2026-11-18 — Research days are posted and credited once passed (M-q2, ruling 222)
+## 2026-11-18 — Research days are posted and credited once passed (M-q2, ruling 222) — SUPERSEDED IN PART 2026-11-18
 
 Built to board 10, which the owner approved and moved onto the location sheet, adding the day
 strip and the pace radios M-q1 left undrawn. The owner on board 10: "Sure go with it." (the
@@ -1001,3 +1001,50 @@ Not built, because no board draws it, and reported: a Judge's box for the due in
 field is the Judge's through `update(location, id, {dueDays})`, and no control reaches it), the
 count prompt behind "Post days…", and a way to withdraw a posted day. Each is a new control and
 goes to the owner as a design first.
+
+## 2026-11-18 — A day with an unread rate stays posted, and the footnote is read from the page (M-q2, doctrine fix)
+
+Supersedes two of the M-q2 entry's judgment calls, and the "footnote is read from its figure, not
+its mark" bullet of the M-i entry ("The research, ritual and sacrifice figures are imported rows"),
+each in part. The new evidence is the doctrine's own sentence, which the two calls were built
+against: `ip-doctrine.md` says that without an imported value "the feature only has to fail without
+breaking: nothing throws and no wrong figure is written", and the owner's 2026-11-14 ruling "missing
+imports stay blank". A credited row with no amount is a wrong figure written, since a day is credited
+for nothing and nothing re-posts it; a rate chosen by a guess about the project types is a printed
+fact held in source.
+
+- **A passed day whose rates are not all read stays posted and is credited by a later sweep.** The
+  M-q2 call was "a day with no rate to read is credited as a day worked with no gold", with the
+  owner question whether it should stay posted instead; the strong counter it recorded was this
+  entry. Now `creditDue` credits a day whole or not at all (`creditableDay`): every counted
+  participant's rate at the day's pace must be read and above zero, and no assistant's counting may
+  be unread, since a credit written without an assistant who later counts could never be corrected.
+  Otherwise the day stays in `posted`, nothing is written (the sweep answers 0 days and the record
+  comes back unchanged), and a later sweep with the rates read credits it at the pace it was posted.
+  `cleanCredited` drops a row with no amount above zero, so no path writes one. The strip and the
+  posted row show the day as posted, and the row's tooltip says it is held, with the page of the
+  rate it waits on (`postedTipUnread`). *Counter (medium):* a Judge-entered due needs days that
+  count without any rate, and a held day does not. *Cost:* with nothing imported no day ever
+  credits, so `dueDays` is met by nothing until the ladder is read; the field stays as it was, with
+  no control (its box is designed separately), and counts credited days only.
+- **A Judge's `dueDays` no longer counts unread days.** Held days are posted and not credited, so
+  `complete` against the Judge's days reads credited days alone, and a held day is not a pending day
+  in `dueDay`. The computed due is not computed while a day is held or an assistant's counting is
+  unread, since it would be a guess.
+- **The ladder's marks and the footnote's list come from the import.** M-q2's `FULL_RATE_KINDS`
+  ("ritual only") named the project kinds that read the printed rate on the footnote's marked
+  rungs; the M-i call took the lesser of a rung and the footnote's rate, which decides the marks by
+  their size. Both are printed facts. The cookbook reaches them: `gridRows` gained `markKey`, which
+  records on each rung whether a lone mark glyph sits in its cell band (a boolean `marked`), and
+  `researchLadderNote` keeps the raw span before its anchor, which holds the footnote's sentence,
+  as `markedProjects`. The reader cuts it after the last mark glyph at the period into phrases. An
+  unmarked rung is its printed rate; a marked one is the printed rate for a kind the list names and
+  the footnote's rate for any other; a mark, list or rate not read leaves the rate null. A kind is
+  named when a word of a phrase opens with the kind's own name (`footnoteNames`), so the page's words
+  are matched against the module's `PROJECT_KIND` at run time, and neither the words nor a kind list
+  are in source, tests or lang. *Counter (medium):* matching a kind's name against a printed word is
+  a heuristic; a kind that no listed word opens with reads as unnamed. It fails toward the footnote's
+  lesser rate, and a Judge can override the note's list. *Cost:* a ladder imported before the marks
+  were read has no `marked`, so every rung reads unknown and no rate reads until the Rules tables
+  are imported again; a Judge's override of the ladder must carry `marked` on its rows for the same
+  reason. No migration is written (owner, 2026-11-11: none for previous-version data).

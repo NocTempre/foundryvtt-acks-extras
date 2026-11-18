@@ -15,9 +15,11 @@
  * page, so it carries `byHand: true` and `cite: null`. An override replaces a
  * whole table, so `byHand` belongs to the table and not to a figure.
  *
- * `researchRateAt` reads the rate on the ladder and, for a project the page's
- * footnote names no reduction for, the lesser of that rate and the rate the
- * footnote gives other projects; the footnote's rate is its own table.
+ * `researchRateAt` reads the rate on the ladder. A rung the page marks with its
+ * footnote reads the printed rate for a project the footnote names and the
+ * footnote's own rate for any other; which rungs are marked and which projects
+ * are named are read from the page (`readLadder`), and a rate that needs one
+ * that is unread is null. The footnote is its own table.
  */
 import { PRIORITY, citeOf, getLayer, getTable } from "../lib/tables.mjs";
 
@@ -133,37 +135,78 @@ function span(raw) {
 
 /* ------------------------------ the ladder ------------------------------ */
 
+/** The glyphs a footnote is marked with, as the importer's grid reads them. */
+const FOOTNOTE_MARKS = "*†‡";
+
 /**
- * The research ladder: `{present, rungs: [{level, rate, throw}], otherProjectsRate, cite, byHand}`.
- * A rung whose level or rate will not parse is left out; `rungs` follow print order.
- * `otherProjectsRate` is the rate the footnote gives projects it names no
- * reduction for, null when it was not read.
+ * The projects a footnote names, as the phrases of its sentence, from the raw
+ * span the importer kept before the footnote's other-projects phrase: the
+ * sentence after the last mark glyph, to its period. Null where the span holds
+ * no mark glyph, or no sentence after it.
+ *
+ * @returns {string[]|null}
+ */
+export function parseMarkedProjects(cell) {
+  const s = text(cell);
+  const at = Math.max(...[...FOOTNOTE_MARKS].map((g) => s.lastIndexOf(g)));
+  if (at < 0) return null;
+  const phrases = s
+    .slice(at + 1)
+    .split(".")[0]
+    .split(/,|&|\band\b|\bor\b/i)
+    .map((p) => p.trim().toLowerCase().replace(/^for\s+/, ""))
+    .filter(Boolean);
+  return phrases.length ? phrases : null;
+}
+
+/**
+ * The research ladder: `{present, rungs: [{level, rate, throw, marked}], otherProjectsRate,
+ * markedProjects, cite, byHand}`. A rung whose level or rate will not parse is left out;
+ * `rungs` follow print order. `marked` is whether the page marks the rung with its footnote:
+ * true or false where the importer read it, null where the table carries no mark (a table
+ * imported before it was read, or one a Judge entered). `otherProjectsRate` is the rate the
+ * footnote gives the projects it does not name and `markedProjects` the phrases of the
+ * projects it does, each null when not read.
  */
 export function readLadder(lookup) {
   const t = open(RESEARCH_TABLE_IDS.ladder, lookup);
   const note = open(RESEARCH_TABLE_IDS.ladderNote, lookup);
   const rungs = Object.values(t.raw ?? {})
-    .map((row) => ({ level: figure(row?.label), rate: parseGp(row?.rate), throw: parseThrow(row?.throw) }))
+    .map((row) => ({ level: figure(row?.label), rate: parseGp(row?.rate), throw: parseThrow(row?.throw), marked: typeof row?.marked === "boolean" ? row.marked : null }))
     .filter((r) => r.level !== null && r.rate !== null);
-  return { present: t.raw != null, rungs, otherProjectsRate: figure(note.raw?.otherProjectsRate), ...prov(t) };
+  return { present: t.raw != null, rungs, otherProjectsRate: figure(note.raw?.otherProjectsRate), markedProjects: parseMarkedProjects(note.raw?.markedProjects), ...prov(t) };
+}
+
+/**
+ * Whether the ladder's footnote names a kind of project: true or false, null
+ * while the list is unread. The kind's own name is the key: a phrase names it
+ * when one of the phrase's words opens with that name, so the module's kinds are
+ * matched against the page's words at run time and no list of them ships.
+ */
+export function footnoteNames(ladder, kind) {
+  const key = typeof kind === "string" ? kind.trim().toLowerCase() : "";
+  if (!ladder?.markedProjects || !key) return null;
+  return ladder.markedProjects.some((phrase) => phrase.split(/[^\p{L}]+/u).some((word) => word.startsWith(key)));
 }
 
 /**
  * A level's rung of the ladder, `{level, rate, throw, reduced, cite, byHand}`,
- * or null when the ladder holds no rung for the level. With `full: true` the
- * rate is the ladder's own. Otherwise it is the lesser of the ladder's rate and
- * the rate the footnote gives other projects (`reduced` says it was cut), and
- * the answer is null while that rate is unread: which rungs the footnote marks
- * is read off its figure, so with no figure there is nothing to read them by.
+ * or null when the ladder holds no rung for the level or the rate cannot be
+ * read. With `full: true` the rate is the rung's printed one, whatever the
+ * footnote says. Otherwise a rung the page does not mark reads its printed
+ * rate, and a marked one reads it where `named` (the footnote names the
+ * project, `footnoteNames`) is true and the footnote's rate for other
+ * projects where `named` is false (`reduced` says the footnote's rate stood
+ * in). A rung whose mark is unread, a `named` left null and a footnote rate
+ * that is unread each leave the answer null.
  */
-export function researchRateAt(ladder, level, { full = false } = {}) {
+export function researchRateAt(ladder, level, { named = null, full = false } = {}) {
   const rung = ladder?.rungs?.find((r) => r.level === level) ?? null;
   if (!rung) return null;
   const base = { level, throw: rung.throw, cite: ladder.cite, byHand: ladder.byHand };
-  if (full) return { ...base, rate: rung.rate, reduced: false };
-  if (ladder.otherProjectsRate == null) return null;
-  const rate = Math.min(rung.rate, ladder.otherProjectsRate);
-  return { ...base, rate, reduced: rate < rung.rate };
+  if (full || rung.marked === false || (rung.marked === true && named === true)) return { ...base, rate: rung.rate, reduced: false };
+  if (rung.marked !== true || named !== false || ladder.otherProjectsRate == null) return null;
+  return { ...base, rate: ladder.otherProjectsRate, reduced: true };
 }
 
 /* ---------------------- the research rules, in prose ---------------------- */

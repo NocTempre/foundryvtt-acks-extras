@@ -49,7 +49,7 @@ const ta = async (name, fn) => {
 
 const facility = (o) => ({ kind: "x", present: true, minimum: null, step: null, minimums: null, bonus: { step: null, size: null, cap: null }, share: null, cite: "Invented p. 1", byHand: false, ...o });
 const TABLES = {
-  ladder: { present: true, rungs: [{ level: 4, rate: 30, throw: 15 }, { level: 5, rate: 90, throw: 11 }], otherProjectsRate: null, cite: "Invented p. 2", byHand: false },
+  ladder: { present: true, rungs: [{ level: 4, rate: 30, throw: 15, marked: false }, { level: 5, rate: 90, throw: 11, marked: false }], otherProjectsRate: null, markedProjects: null, cite: "Invented p. 2", byHand: false },
   facilities: {
     library: facility({ minimum: 3000, step: 1500, bonus: { step: 7000, size: 2, cap: 5 } }),
     workshop: facility({ minimum: 3500, step: 1700, bonus: { step: 6000, size: 1, cap: 4 } }),
@@ -59,7 +59,7 @@ const TABLES = {
   },
   identification: { present: true, research: 800 },
 };
-const NOTHING = { ladder: { present: false, rungs: [], otherProjectsRate: null, cite: null, byHand: false }, facilities: Object.fromEntries(Object.keys(TABLES.facilities).map((k) => [k, facility({ present: false, cite: null })])), identification: { present: false, research: null } };
+const NOTHING = { ladder: { present: false, rungs: [], otherProjectsRate: null, markedProjects: null, cite: null, byHand: false }, facilities: Object.fromEntries(Object.keys(TABLES.facilities).map((k) => [k, facility({ present: false, cite: null })])), identification: { present: false, research: null } };
 
 const proj = (o = {}) => M.cleanProject({ id: "p1", kind: "spell", level: 2, researcher: "A.hero", status: "open", ...o });
 
@@ -402,7 +402,8 @@ await ta("the API reads the verdicts of a project against the registry's importe
 /** Invented tables for the days: a ladder with a lesser rate for other projects, an ancillary share and assistant levels. */
 const RATES = {
   ...TABLES,
-  ladder: { present: true, rungs: [{ level: 2, rate: 8, throw: 17 }, { level: 4, rate: 30, throw: 15 }, { level: 5, rate: 90, throw: 11 }, { level: 6, rate: 210, throw: 9 }], otherProjectsRate: 150, cite: "Invented p. 2", byHand: false },
+  // The invented footnote names the spell kind's word and not the ritual's: the reverse of any printed list, so a kind chosen by a guess fails here.
+  ladder: { present: true, rungs: [{ level: 2, rate: 8, throw: 17, marked: false }, { level: 4, rate: 30, throw: 15, marked: false }, { level: 5, rate: 90, throw: 11, marked: false }, { level: 6, rate: 210, throw: 9, marked: true }], otherProjectsRate: 150, markedProjects: ["glassblowing", "spellcraft"], cite: "Invented p. 2", byHand: false },
   prose: { present: true, ancillary: { numerator: 1, denominator: 4, share: 0.25 }, cite: "Invented p. 4", byHand: false },
   assistants: { present: true, managerLevel: 4, managerBase: 2, aidLevel: 2, spellLevel: 6, itemLevel: 9, cite: "Invented p. 5", byHand: false },
 };
@@ -413,9 +414,9 @@ const spell = (o = {}) => proj({ kind: "spell", level: null, researcher: "A.hero
 t("a project keeps its posted days in order, once each, and credited rows once for a day and a participant", () => {
   const p = M.cleanProject({ id: "x", kind: "spell", researcher: "A.hero", dueDays: "6.9", posted: [{ day: 7, pace: "both" }, { day: 5, pace: "dedicated" }, { day: 5, pace: "ancillary" }, { day: 6, pace: "weird" }, { pace: "dedicated" }, "x"], credited: [{ day: 1, amount: 4, by: "A.hero" }, { day: 1, amount: 9, by: "A.hero" }, { day: 1, amount: 2, by: "A.pell" }, { day: 2, amount: null, by: "" }, { day: 3, amount: 0, by: "A.hero" }, { amount: 5, by: "A.hero" }] });
   assert.deepEqual(p.posted, [{ day: 5, pace: "dedicated" }, { day: 7, pace: "both" }]);
-  assert.deepEqual(p.credited, [{ day: 1, amount: 4, by: "A.hero" }, { day: 1, amount: 2, by: "A.pell" }, { day: 2, amount: null, by: "" }]);
+  assert.deepEqual(p.credited, [{ day: 1, amount: 4, by: "A.hero" }, { day: 1, amount: 2, by: "A.pell" }], "a row with no amount, or none above zero, is never a credit");
   assert.equal(p.dueDays, 6);
-  assert.equal(M.creditedTotal(p), 6, "a day with no amount adds no gold");
+  assert.equal(M.creditedTotal(p), 6);
   assert.equal(M.cleanProject({ id: "y", kind: "spell" }).dueDays, null);
 });
 
@@ -438,9 +439,19 @@ t("an assistant counts only at the level that aids and within the number the res
   assert.deepEqual(people(spell({ assistants: ["A.pell"] }), { levelOf: (u) => (u === "A.hero" ? 3 : 4) }).map((x) => x[2]), ["", "over"], "a researcher under the managing level manages none");
   assert.deepEqual(people(spell({ assistants: ["A.pell"] }), { tables: TABLES }).map((x) => [x[1], x[2]]), [[true, ""], [false, "unread"]], "no assistant levels read: nobody is counted as an assistant");
   assert.deepEqual(people(spell({ assistants: ["A.pell"] }), { levelOf: () => null }).map((x) => x[2]), ["", "unread"], "a researcher with no level has no number to manage");
-  assert.equal(M.weighParticipants(spell({ level: 3 }), ctx({ levelOf: (u) => (u === "A.hero" ? 6 : null) }))[0].rate, 150, "the ladder's footnote gives other projects the lesser rate");
-  assert.equal(M.weighParticipants(spell({ kind: "ritual" }), ctx({ levelOf: (u) => (u === "A.hero" ? 6 : null) }))[0].rate, 210, "a ritual reads the rung's own rate");
-  assert.equal(M.weighParticipants(spell(), ctx({ tables: { ...RATES, ladder: { ...RATES.ladder, otherProjectsRate: null } }, levelOf: () => 6 }))[0].rate, null, "a footnote not read leaves the rate unread");
+  const atSix = (project, ladder = {}) => M.weighParticipants(project, ctx({ tables: { ...RATES, ladder: { ...RATES.ladder, ...ladder } }, levelOf: (u) => (u === "A.hero" ? 6 : null) }))[0].rate;
+  assert.equal(atSix(spell({ level: 3 })), 210, "a marked rung reads its own rate for a kind the imported footnote names");
+  assert.equal(atSix(spell({ kind: "ritual" })), 150, "and the footnote's rate for a kind it does not: the kind is no fixed one");
+  assert.equal(atSix(spell({ kind: "item" })), 150);
+  assert.equal(atSix(spell({ kind: "ritual" }), { markedProjects: ["glassblowing", "ritual rites"] }), 210, "the list is the page's: name the ritual and it reads the rung's own rate");
+  assert.equal(atSix(spell({ kind: "spell" }), { markedProjects: ["glassblowing", "ritual rites"] }), 150);
+  assert.equal(atSix(spell(), { otherProjectsRate: null }), 210, "a footnote rate not read costs the named kind nothing");
+  assert.equal(atSix(spell({ kind: "ritual" }), { otherProjectsRate: null }), null, "and leaves another kind's rate unread");
+  assert.equal(atSix(spell(), { markedProjects: null }), null, "a list not read leaves the marked rung unread for every kind");
+  assert.equal(atSix(spell({ kind: "ritual" }), { markedProjects: null }), null);
+  assert.equal(atSix(spell(), { rungs: RATES.ladder.rungs.map(({ marked, ...r }) => r) }), null, "a rung whose mark is not read is unknown, not unmarked");
+  assert.equal(M.weighParticipants(spell({ kind: "ritual" }), ctx({ levelOf: () => 5 }))[0].rate, 90, "an unmarked rung is its printed rate for every kind");
+  assert.equal(M.weighParticipants(spell({ kind: "item" }), ctx({ levelOf: () => 5, tables: { ...RATES, ladder: { ...RATES.ladder, markedProjects: null, otherProjectsRate: null } } }))[0].rate, 90, "and needs neither the list nor the footnote's rate");
   assert.equal(M.weighParticipants(spell(), ctx({ levelOf: () => 9 }))[0].rate, null, "a level the ladder has no rung for");
 });
 
@@ -470,17 +481,32 @@ t("crediting takes the posted days world time has passed, once, at the pace each
   assert.equal(M.creditDue(dragged.project, ctx({ today: 20 })).project.credited.filter((c) => c.day === 8).length, 2, "and forward again credits no day twice");
   const stale = spell({ posted: [{ day: 8, pace: "dedicated" }], credited: [{ day: 8, amount: 90, by: "A.hero" }] });
   assert.deepEqual(M.creditDue(stale, ctx()).project.credited, [{ day: 8, amount: 90, by: "A.hero" }], "a day already credited is never credited again, even if a write left it posted too");
+  const staleUnread = M.creditDue(stale, ctx({ tables: NOTHING }));
+  assert.deepEqual([staleUnread.credited, staleUnread.project.posted], [1, []], "and it leaves posted even while the rates are unread, since it is credited");
 });
 
-t("a day with no rate to read is credited as a day worked with no gold, and a participant whose rate is read still adds theirs", () => {
+t("a passed day whose rates are not all read stays posted and writes nothing, and a later sweep credits it once they are read", () => {
   const p = spell({ assistants: ["A.pell"], posted: [{ day: 8, pace: "dedicated" }, { day: 9, pace: "ancillary" }] });
-  const unread = M.creditDue(p, ctx({ tables: NOTHING })).project;
-  assert.deepEqual(unread.credited, [{ day: 8, amount: null, by: "" }, { day: 9, amount: null, by: "" }]);
-  assert.equal(M.creditedTotal(unread), 0);
-  const noShare = M.creditDue(p, ctx({ tables: { ...RATES, prose: { ...RATES.prose, ancillary: null } } })).project;
-  assert.deepEqual(noShare.credited, [{ day: 8, amount: 90, by: "A.hero" }, { day: 8, amount: 30, by: "A.pell" }, { day: 9, amount: null, by: "" }], "an ancillary day with no share read is a day without gold");
-  const partial = M.creditDue(spell({ posted: [{ day: 8, pace: "dedicated" }] }), ctx({ levelOf: () => 3 })).project;
-  assert.deepEqual(partial.credited, [{ day: 8, amount: null, by: "" }], "a level the ladder lacks");
+  const none = M.creditDue(p, ctx({ tables: NOTHING }));
+  assert.equal(none.credited, 0, "no rate read: no day credited");
+  assert.equal(none.project, p, "and the same record comes back, so nothing is written");
+  const noShare = M.creditDue(p, ctx({ tables: { ...RATES, prose: { ...RATES.prose, ancillary: null } } }));
+  assert.deepEqual(noShare.project.credited, [{ day: 8, amount: 90, by: "A.hero" }, { day: 8, amount: 30, by: "A.pell" }], "the dedicated day is credited");
+  assert.deepEqual(noShare.project.posted, [{ day: 9, pace: "ancillary" }], "an ancillary day with no share read stays posted");
+  assert.equal(noShare.credited, 1, "the count is the days credited, not the days passed");
+  const lowAssistant = M.creditDue(spell({ assistants: ["A.pell"], posted: [{ day: 8, pace: "dedicated" }] }), ctx({ levelOf: (u) => (u === "A.pell" ? 3 : LEVELS[u]) }));
+  assert.deepEqual([lowAssistant.credited, lowAssistant.project.credited, lowAssistant.project.posted.length], [0, [], 1], "a counted assistant whose rung is unread holds the whole day: crediting the researcher alone could never be corrected");
+  const unreadAid = { ...RATES, assistants: { ...RATES.assistants, aidLevel: null } };
+  assert.equal(M.creditDue(p, ctx({ tables: unreadAid })).credited, 0, "an assistant whose counting is unread leaves the day undecided");
+  assert.equal(M.creditDue(spell({ posted: [{ day: 8, pace: "dedicated" }] }), ctx({ tables: unreadAid })).credited, 1, "a project with no assistant is not held for the assistants' figures");
+  const free = { ...RATES, ladder: { ...RATES.ladder, rungs: [{ level: 5, rate: 0, throw: 11, marked: false }] } };
+  assert.equal(M.creditDue(spell({ posted: [{ day: 8, pace: "dedicated" }] }), ctx({ tables: free })).credited, 0, "a rate of nothing is no figure to credit");
+  const later = M.creditDue(none.project, ctx());
+  assert.equal(later.credited, 2);
+  assert.deepEqual(later.project.credited, [{ day: 8, amount: 90, by: "A.hero" }, { day: 8, amount: 30, by: "A.pell" }, { day: 9, amount: 22.5, by: "A.hero" }, { day: 9, amount: 7.5, by: "A.pell" }], "each held day is credited at the pace it was posted, once the rates are read");
+  assert.deepEqual(later.project.posted, []);
+  assert.ok(later.project.credited.every((c) => c.amount > 0 && c.by), "no row carries a null amount or a blank participant");
+  assert.equal(M.creditDue(later.project, ctx()).project, later.project, "and the next sweep changes nothing");
 });
 
 t("progress computes the due from the rates while they are read, and takes the Judge's days until then", () => {
@@ -491,14 +517,26 @@ t("progress computes the due from the rates while they are read, and takes the J
   const mid = M.progressOf({ ...base, credited: [{ day: 1, amount: 90, by: "A.hero" }, { day: 1, amount: 30, by: "A.pell" }, { day: 2, amount: 90, by: "A.hero" }, { day: 2, amount: 30, by: "A.pell" }], posted: [{ day: 10, pace: "dedicated" }] }, ctx());
   assert.deepEqual([mid.creditedGp, mid.creditedDays, mid.posted, mid.waiting, mid.dueDays, mid.dueBy], [240, 2, 1, 0, 9, "ladder"], "the days credited and posted, and what is left at a day's rate");
   assert.equal(mid.dueDay, 16, "six more days from the day after the last one posted");
-  assert.equal(M.progressOf({ ...base, posted: [{ day: 4, pace: "dedicated" }] }, ctx()).waiting, 1, "a posted day that has passed and is not yet credited");
+  const passedDay = M.progressOf({ ...base, posted: [{ day: 4, pace: "dedicated" }] }, ctx());
+  assert.deepEqual([passedDay.waiting, passedDay.unread], [1, 0], "a posted day that has passed and is not yet credited, with its rates read: no figure holds it back");
   assert.equal(M.progressOf({ ...base, credited: [{ day: 1, amount: 1000, by: "A.hero" }] }, ctx()).complete, true);
   assert.equal(M.progressOf({ ...base, credited: [{ day: 1, amount: 999, by: "A.hero" }] }, ctx()).complete, false);
   const ancillary = M.progressOf({ ...base, posted: [{ day: 10, pace: "ancillary" }] }, ctx());
   assert.equal(ancillary.dueDays, 1 + Math.ceil((1000 - 30) / 120), "a posted day counts at its own pace");
-  const hand = M.progressOf({ ...base, dueDays: 4, credited: [{ day: 1, amount: null, by: "" }, { day: 2, amount: null, by: "" }, { day: 3, amount: null, by: "" }] }, ctx({ tables: NOTHING }));
+  const heldDays = [{ day: 1, pace: "dedicated" }, { day: 2, pace: "dedicated" }, { day: 3, pace: "dedicated" }];
+  const hand = M.progressOf({ ...base, dueDays: 4, posted: heldDays }, ctx({ tables: NOTHING }));
   assert.deepEqual([hand.dueDays, hand.dueBy, hand.complete, hand.daily], [4, "judge", false, null]);
-  assert.equal(M.progressOf({ ...base, dueDays: 3, credited: [{ day: 1, amount: null, by: "" }, { day: 2, amount: null, by: "" }, { day: 3, amount: null, by: "" }] }, ctx({ tables: NOTHING })).complete, true);
+  assert.deepEqual([hand.creditedDays, hand.waiting, hand.unread, hand.posted], [0, 3, 3, 0], "days with no rate read are posted and held: counted nowhere as worked");
+  assert.equal(M.progressOf({ ...base, dueDays: 3, posted: heldDays }, ctx({ tables: NOTHING })).complete, false, "the Judge's days are not met by days that are held");
+  assert.equal(M.progressOf({ ...base, dueDays: 6, posted: heldDays }, ctx({ tables: NOTHING })).dueDay, 15, "and nor do they shorten what is left: the held days are no pending days");
+  const credited3 = [1, 2, 3].map((day) => ({ day, amount: 5, by: "A.hero" }));
+  assert.equal(M.progressOf({ ...base, dueDays: 3, credited: credited3 }, ctx({ tables: NOTHING })).complete, true, "days credited while the rates were read count against the Judge's days");
+  const mixed = M.progressOf({ ...base, dueDays: 5, credited: credited3, posted: [{ day: 4, pace: "dedicated" }] }, ctx({ tables: NOTHING }));
+  assert.deepEqual([mixed.creditedDays, mixed.unread, mixed.complete], [3, 1, false]);
+  const noShareHeld = M.progressOf({ ...base, posted: [{ day: 8, pace: "ancillary" }] }, ctx({ tables: { ...RATES, prose: { ...RATES.prose, ancillary: null } } }));
+  assert.deepEqual([noShareHeld.unread, noShareHeld.dueBy, noShareHeld.daily], [1, null, 120], "a held day stops the computed due even where a dedicated day's rate is read");
+  const undecided = M.progressOf(base, ctx({ tables: { ...RATES, assistants: { ...RATES.assistants, aidLevel: null } }, today: 10 }));
+  assert.deepEqual([undecided.dueBy, undecided.dueDays], [null, null], "an assistant whose counting is unread makes the computed due a guess, so none is computed");
   assert.equal(M.progressOf({ ...base, dueDays: 7 }, ctx()).dueDays, 9, "the computed due is the one in force while the rates are read");
   const none = M.progressOf(spell(), ctx({ tables: NOTHING }));
   assert.deepEqual([none.dueDays, none.dueBy, none.complete, none.dueDay], [null, null, null, null]);
@@ -837,11 +875,16 @@ t("a project with nothing posted and no rate read draws no strip and no due, and
   assert.equal(p.researcher.rate.text, "", "an unread rate is blank");
   assert.match(p.researcher.rate.tip, /rateUnread.*cite.ladder/);
   assert.match(p.pace.options[1].tip, /paceUnread/);
-  const judged = dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", dueDays: 5, credited: [{ day: 1, amount: null, by: "" }] }], { tables: NOTHING }).projects[0];
-  assert.equal(judged.day.text, 'dayChip{"d":1,"due":5}', "the Judge's days stand in while the rates are not read");
+  const judged = dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", dueDays: 5, posted: [{ day: 1, pace: "dedicated" }] }], { tables: NOTHING }).projects[0];
+  assert.equal(judged.day.text, 'dayChip{"d":1,"due":5}', "the Judge's days stand in while the rates are not read, and a passed day is shown as posted");
   assert.match(judged.day.tip, /dueJudge/);
   assert.equal(judged.strip.cells.length, 5);
-  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", credited: [{ day: 1, amount: null, by: "" }] }], { tables: NOTHING }).projects[0].day.text, 'dayChipOpen{"d":1}', "no due known: the day alone");
+  assert.deepEqual(judged.strip.cells.slice(0, 2), ["p", ""], "a held day is drawn as posted, not credited");
+  assert.equal(judged.postedRow.text, "1");
+  assert.equal(judged.postedRow.tip, 'postedTipUnread{"n":1,"cite":"cite.ladder"}', "the tooltip says the day is held for a rate not read, with the page");
+  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", posted: [{ day: 1, pace: "dedicated" }] }], { tables: NOTHING }).projects[0].day.text, 'dayChipOpen{"d":1}', "no due known: the day alone");
+  const swept = dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", posted: [{ day: 1, pace: "dedicated" }] }]).projects[0];
+  assert.match(swept.postedRow.tip, /postedTipWaiting/, "with the rates read a passed day only waits for the sweep, and no page is named");
 });
 
 t("an assistant who does not count says so on the chip, a Player without the project has no Post, and the strip is held to its cells", () => {
@@ -901,8 +944,8 @@ await ta("the sweep credits the world's passed days once, writes only the places
       source: { pages: "Invented 1-9" },
       cites: { researchLadder: "Invented p. 2", researchLadderNote: "Invented p. 2", researchProse: "Invented p. 4", assistantProse: "Invented p. 5" },
       tables: {
-        researchLadder: { a: { label: "4", rate: "30gp", throw: "15+" }, b: { label: "5", rate: "90gp", throw: "11+" } },
-        researchLadderNote: { otherProjectsRate: 150 },
+        researchLadder: { a: { label: "4", rate: "30gp", throw: "15+", marked: false }, b: { label: "5", rate: "90gp", throw: "11+", marked: false } },
+        researchLadderNote: { otherProjectsRate: 150, markedProjects: "4 5 * for glassblowing, ritual rites. u se 150gp" },
         researchProse: { ancillaryFraction: "1/4" },
         assistantProse: { managerLevel: 4, managerBase: 2, aidLevel: 2, spellLevel: 6, itemLevel: 9 },
       },
@@ -954,6 +997,45 @@ await ta("the sweep credits the world's passed days once, writes only the places
   assert.deepEqual(L.researchApi.PACES, ["dedicated", "ancillary", "both"]);
   assert.equal(typeof L.registerProjects, "function");
   resetTables();
+  state.worldTime = 4 * 86400;
+});
+
+await ta("the sweep leaves a passed day posted while a rate is unread, writes nothing for it, and credits it once the rate is read", async () => {
+  state.actors.clear();
+  resetTables();
+  const hero = actor("A.hero", "character", { system: { details: { level: 5 }, scores: { int: { mod: 0 } } } });
+  const row = (uuid) => ({ uuid, name: "", img: "", kind: "actor", quantity: 1, ownerUuid: "", notes: "", hidden: false });
+  const loc = place("Actor.Lheld", [row("A.hero")], { projects: [{ id: "a", kind: "spell", researcher: "A.hero", status: "open", costs: { research: 1000 }, dueDays: 3, posted: [{ day: 3, pace: "dedicated" }] }] });
+  loc.update = async (patch) => {
+    loc.updates = (loc.updates ?? []).concat([patch]);
+    for (const [path, value] of Object.entries(patch)) loc.flags["acks-extras"].magic = { ...(loc.flags["acks-extras"].magic ?? {}), [path.split(".").pop()]: value };
+  };
+  for (const a of [hero, loc]) state.actors.set(a.uuid, a);
+  state.isGM = true;
+  state.canModify = true;
+  state.worldTime = 8 * 86400;
+  assert.equal(await L.creditPassedDays(), 0, "nothing imported: the day is not credited");
+  assert.equal(loc.updates, undefined, "and nothing is written for it");
+  const held = L.recordOf(loc).projects[0];
+  assert.deepEqual([held.posted, held.credited], [[{ day: 3, pace: "dedicated" }], []], "the day stays posted, as posted");
+  const waiting = L.researchApi.progress(loc, "a");
+  assert.deepEqual([waiting.waiting, waiting.unread, waiting.creditedDays, waiting.complete], [1, 1, 0, false], "the Judge's day is not met by a day held for a rate");
+  registerTable(
+    {
+      id: "magicResearch",
+      source: { pages: "Invented 1-9" },
+      cites: { researchLadder: "Invented p. 2" },
+      tables: { researchLadder: { a: { label: "5", rate: "90gp", throw: "11+", marked: false } } },
+    },
+    { priority: PRIORITY.WORLD, source: "test" }
+  );
+  assert.equal(await L.creditPassedDays(), 1, "the rate is read: a later sweep credits the held day");
+  const done = L.recordOf(loc).projects[0];
+  assert.deepEqual([done.posted, done.credited], [[], [{ day: 3, amount: 90, by: "A.hero" }]]);
+  assert.equal(await L.creditPassedDays(), 0);
+  assert.equal(loc.updates.length, 1, "one write in all");
+  resetTables();
+  state.actors.clear();
   state.worldTime = 4 * 86400;
 });
 

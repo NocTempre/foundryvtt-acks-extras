@@ -12,11 +12,14 @@
  * components bucket by a drop and an X, and the researcher's derived link, which
  * writes nothing on the character.
  *
- * Sections 9 and 10 walk the posted days (M-q2, ruling 222): a day posted from a
+ * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
  * Player's seat at the pace its radios chose, the day strip and chip, a past day
- * posted by the Judge and credited once (a second call and a Player's request
- * credit nothing and write nothing), and an assistant under the imported level
- * blocked for a Player and warned for a Judge. The clock is shared and is never
+ * posted by the Judge and held while its rate is unread (nothing credited or
+ * written), then credited once the rate is read (a second call and a Player's
+ * request credit nothing and write nothing), an assistant under the imported
+ * level blocked for a Player and warned for a Judge, and a marked rung of the
+ * ladder read at the printed rate for the kind the imported footnote names and
+ * at the footnote's for another. The clock is shared and is never
  * moved: the day that has "passed" is a Judge's post with a backdated calendar
  * day, which is what a day posted earlier looks like once time moves. The hook
  * that credits on a clock step is not walked here.
@@ -298,8 +301,8 @@ try {
   // calendar day (the stamp is backdated), which is exactly what a day posted earlier looks like once time moves.
   const d0 = await run(gm, U, `
     ${tablesKit}
-    await STORE.setOverride(D, "researchLadder", { r0: { label: 4, rate: "30gp", throw: "15+" }, r1: { label: 5, rate: "90gp", throw: "11+" } }, { sourceName: "qa-research-project" });
-    await STORE.setOverride(D, "researchLadderNote", { otherProjectsRate: 150 }, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchLadder", { r0: { label: 4, rate: "30gp", throw: "15+", marked: false }, r1: { label: 5, rate: "90gp", throw: "11+", marked: false } }, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchLadderNote", { otherProjectsRate: 150, markedProjects: "4 30gp 15+ * for glasswork, spellcraft. u se 150gp" }, { sourceName: "qa-research-project" });
     const r = await research().create(place(), { kind: "spell", subject: { name: "QA Days" }, researcher: ID.hero, assistants: [ID.pell], costs: { research: 1000 } });
     const served = await poll(() => research().progress(place(), r.id)?.daily === 120);
     await sleep(600);
@@ -339,9 +342,30 @@ try {
   check("Post from the Player's seat posts today at the ancillary pace through the relay, one write, and the window still shows ancillary picked", d1.posted?.length === 1 && d1.posted[0].day === today && d1.posted[0].pace === "ancillary" && ww1 - ww0 === 1 && d1.pickedAfter === "ancillary", { ...d1, writes: ww1 - ww0 });
   check("the control is then disabled, the strip draws one posted cell among the 10 the due needs, and a second post of the day and a Player's post of another day are refused", d1.postDisabled === true && d1.strip.p === 1 && d1.strip.c === 0 && d1.strip.cells === 10 && d1.again.reason === "duplicate" && d1.tomorrow.reason === "day", d1);
 
-  const d2 = await run(gm, U, `
+  // A passed day whose rate the import left unread is held: the ladder's rows carry no mark, so no rate reads.
+  const dh = await run(gm, U, `
+    ${tablesKit}
     const past = await research().post(place(), ${JSON.stringify(IDD)}, { pace: "dedicated", day: ${today - 2} });
     await sleep(900);
+    await STORE.setOverride(D, "researchLadder", { r0: { label: 4, rate: "30gp", throw: "15+" }, r1: { label: 5, rate: "90gp", throw: "11+" } }, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), ${JSON.stringify(IDD)})?.daily === null);
+    const w = __rp.place;
+    const asked = await research().credit(place());
+    await sleep(1200);
+    const wrote = __rp.place - w;
+    const p = projects().find((x) => x.id === ${JSON.stringify(IDD)});
+    const prog = research().progress(place(), ${JSON.stringify(IDD)});
+    await open();
+    const c = card(${JSON.stringify(IDD)});
+    const tips = [...c.querySelectorAll("[data-tooltip-text]")].map((e) => e.dataset.tooltipText);
+    return { past: past.ok, asked, wrote, posted: p.posted.length, credited: p.credited.length, prog: { unread: prog.unread, waiting: prog.waiting, days: prog.creditedDays, dueBy: prog.dueBy }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length }, tip: tips.some((t) => /RR 388/.test(t) && /held/.test(t)) };`, ids);
+  check("a passed day whose rate the import left unread stays posted: credit answers 0 days and writes nothing, both posted days remain, no credited row is written and no due is computed", dh.past && dh.asked.ok === true && dh.asked.credited === 0 && dh.wrote === 0 && dh.posted === 2 && dh.credited === 0 && dh.prog.unread === 1 && dh.prog.waiting === 1 && dh.prog.days === 0 && dh.prog.dueBy === null, dh);
+  check("the card draws the held day as posted and not credited, and a tooltip names it as held with the page of the rate it waits on", dh.strip.c === 0 && dh.strip.p === 2 && dh.tip === true, dh);
+
+  const d2 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", { r0: { label: 4, rate: "30gp", throw: "15+", marked: false }, r1: { label: 5, rate: "90gp", throw: "11+", marked: false } }, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), ${JSON.stringify(IDD)})?.daily === 120);
     const before = research().progress(place(), ${JSON.stringify(IDD)});
     const w = __rp.place;
     const first = await research().credit(place());
@@ -353,8 +377,8 @@ try {
     const prog = research().progress(place(), ${JSON.stringify(IDD)});
     await open();
     const c = card(${JSON.stringify(IDD)});
-    return { past: past.ok, waiting: before.waiting, first, second, writes: [afterFirst - w, __rp.place - afterFirst], credited: p.credited, posted: p.posted, prog: { days: prog.creditedDays, gp: prog.creditedGp, due: prog.dueDays, posted: prog.posted, waiting: prog.waiting }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length }, chip: c.querySelector(".acks-tag.is-pow")?.textContent.trim(), t1: game.time.worldTime };`, ids);
-  check("the Judge's past day is posted and waits to be credited; one credit takes it: two rows (90 for the hero and 30 for Pell) stamped with that day, and today's ancillary day stays posted", d2.past && d2.waiting === 1 && d2.first.credited === 1 && d2.credited.length === 2 && d2.credited.every((r) => r.day === today - 2) && d2.credited.find((r) => r.by === ids.hero)?.amount === 90 && d2.credited.find((r) => r.by === ids.pell)?.amount === 30 && d2.posted.length === 1 && d2.posted[0].day === today, d2);
+    return { waiting: before.waiting, first, second, writes: [afterFirst - w, __rp.place - afterFirst], credited: p.credited, posted: p.posted, prog: { days: prog.creditedDays, gp: prog.creditedGp, due: prog.dueDays, posted: prog.posted, waiting: prog.waiting }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length }, chip: c.querySelector(".acks-tag.is-pow")?.textContent.trim(), t1: game.time.worldTime };`, ids);
+  check("with the rate read again the held day is credited by the next call: two rows (90 for the hero and 30 for Pell) stamped with that day, and today's ancillary day stays posted", d2.waiting === 1 && d2.first.credited === 1 && d2.credited.length === 2 && d2.credited.every((r) => r.day === today - 2) && d2.credited.find((r) => r.by === ids.hero)?.amount === 90 && d2.credited.find((r) => r.by === ids.pell)?.amount === 30 && d2.posted.length === 1 && d2.posted[0].day === today, d2);
   check("crediting is once: the second call credits nothing and writes nothing, one write for the first", d2.second.credited === 0 && d2.writes[0] === 1 && d2.writes[1] === 0, d2.writes);
   check("the standing reads 1 credited day and 120 gp, the due still computed (1 + 1 + 8 = 10 days), and the strip and chip follow", d2.prog.days === 1 && d2.prog.gp === 120 && d2.prog.due === 10 && d2.prog.posted === 1 && d2.prog.waiting === 0 && d2.strip.c === 1 && d2.strip.p === 1 && /2.*10/.test(d2.chip ?? ""), d2);
   check("the world clock was not moved by any of this", d2.t1 === d0.t0, { t0: d0.t0, t1: d2.t1 });
@@ -381,6 +405,35 @@ try {
     const prog = research().progress(place(), ${JSON.stringify(IDD)});
     return { ok: answer.ok, warn: answer.warn, held: projects().find((x) => x.id === ${JSON.stringify(IDD)}).assistants, counts: prog.people.map((x) => [x.role, x.counts, x.why]) };`, ids);
   check("the Judge is warned and the assistant is added, and counts for nothing", g3.ok === true && g3.warn === "assistantLevel" && g3.held.length === 1 && g3.counts.join("|") === "researcher,true,|assistant,false,below", g3);
+
+  section("11. the footnote from the import: a marked rung's rate follows the projects the footnote names");
+  // The hero is level 5 here, and the invented ladder marks that rung. The list is the override's text, as the importer
+  // would read it, so which kind reads the printed rate comes from it and from nowhere in the module.
+  const m1 = await run(gm, U, `
+    ${tablesKit}
+    const set = async (note) => {
+      await STORE.setOverride(D, "researchLadder", { r0: { label: 5, rate: "90gp", throw: "11+", marked: true } }, { sourceName: "qa-research-project" });
+      await STORE.setOverride(D, "researchLadderNote", note, { sourceName: "qa-research-project" });
+    };
+    await set({ otherProjectsRate: 40, markedProjects: "5 90gp 11+ * for glasswork, spellcraft. u se 40gp" });
+    const a = await research().create(place(), { kind: "spell", researcher: ID.hero });
+    const b = await research().create(place(), { kind: "item", researcher: ID.hero });
+    const rate = (id) => research().progress(place(), id)?.people?.[0]?.rate ?? null;
+    await poll(() => rate(a.id) === 90 && rate(b.id) === 40);
+    const named = [rate(a.id), rate(b.id)];
+    await set({ otherProjectsRate: 40, markedProjects: "5 90gp 11+ * for glasswork, itemcraft. u se 40gp" });
+    await poll(() => rate(a.id) === 40 && rate(b.id) === 90);
+    const flipped = [rate(a.id), rate(b.id)];
+    await set({ otherProjectsRate: 40 });
+    await poll(() => rate(a.id) === null && rate(b.id) === null);
+    const unlisted = [rate(a.id), rate(b.id)];
+    await research().close(place(), a.id);
+    await research().close(place(), b.id);
+    await sleep(600);
+    return { made: [a.ok, b.ok], named, flipped, unlisted };`, ids);
+  check("a marked rung reads the printed rate for the project the imported list names and the footnote's rate for another", m1.made.every(Boolean) && m1.named.join() === "90,40", m1);
+  check("naming the other kind in the list swaps them, so the module holds no kind of its own", m1.flipped.join() === "40,90", m1);
+  check("with the list unread a marked rung reads no rate for either kind", m1.unlisted.every((v) => v === null), m1);
 
   section("Days teardown");
   await run(gm, U, `

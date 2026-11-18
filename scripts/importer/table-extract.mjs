@@ -496,6 +496,8 @@ export function capitalInitials(runs, gap) {
  * dropped. `smallCaps` restores a small-capital initial in the label and the
  * cells (`capitalInitials`), and `labelGap` joins the label gap-aware
  * (`joinRuns`'s `gapMin`): a gap wider than that many points is a word space.
+ * `markKey` names a boolean each row carries, true where a lone footnote mark
+ * sits in its cell band (the runs the cells themselves never keep).
  */
 export function extractGridRows(items, recipe) {
   const { xMin = 0, xMax = Infinity, yMin = -Infinity, yMax = Infinity } = recipe.column ?? {};
@@ -560,6 +562,11 @@ export function extractGridRows(items, recipe) {
     // Footnote markers (*, †, ‡) sit between rows and can y-merge into one;
     // they are never a cell value, so drop lone-marker runs from the band.
     let cellRuns = lineItems.filter((it) => anchorX(it) >= recipe.labelMaxX && !/^[*†‡]+$/.test(it.str.trim()));
+    // `markKey`: whether the row carries a footnote mark in its cell band, as a
+    // boolean beside its cells. A row that prints none is `false`, so a table
+    // read without the option has no such key and reads as unknown, never as
+    // unmarked.
+    const marked = lineItems.some((it) => anchorX(it) >= recipe.labelMaxX && /^[*†‡]+$/.test(it.str.trim()));
     // joinCellGap: the book's small-caps face splits a cell's initial glyph
     // into its own run. A gap smaller than joinCellGap is a glyph boundary,
     // not a column gutter — merge those runs into one cell.
@@ -685,6 +692,7 @@ export function extractGridRows(items, recipe) {
     // fields merge onto the row beside the cells.
     if (spec.labelPattern) Object.assign(row, applyCellPattern(matchedLabel, spec.labelPattern) ?? {});
     if (spec.set) Object.assign(row, spec.set);
+    if (recipe.markKey) row[recipe.markKey] = marked;
     if (recipe.keyByLabel) row.label = tidyRowName(matchedLabel.replace(/\W+$/, ""));
     out[key] = row;
   }

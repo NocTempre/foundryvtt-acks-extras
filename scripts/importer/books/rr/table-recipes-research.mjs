@@ -48,9 +48,10 @@ export const researchRecipes = {
     pages: "RR 73, 388-393, 397-398, 422",
     tables: {
       // The ladder of research rate and research throw by caster level (RR 388).
-      // The throw column rides along. A footnote mark on the upper rungs is a lone
-      // glyph that the grid drops from its cells; `researchLadderNote` reads the
-      // rate the unmarked projects use, which the reader applies as a cap.
+      // The throw column rides along. A footnote mark on a rung is a lone glyph
+      // that the grid keeps out of its cells; `markKey` records it on its rung as
+      // `marked`. `researchLadderNote` reads the footnote beside it: the rate it
+      // gives the projects it does not name and the list of projects it does.
       researchLadder: {
         shape: "gridRows",
         book: "rr",
@@ -58,6 +59,7 @@ export const researchRecipes = {
         locate: "MAGIC RESEARCH",
         column: { xMin: 318, xMax: 592, yMin: 262, yMax: 446 },
         labelMaxX: 345,
+        markKey: "marked",
         rowTol: 4,
         rows: LEVEL_ROWS,
         cellColumns: [
@@ -71,7 +73,12 @@ export const researchRecipes = {
         printedPage: 388,
         locate: "MAGIC RESEARCH",
         colSplit: VERSO,
-        values: [{ key: "otherProjectsRate", find: "for other projects", before: true, span: 14, take: "gp" }],
+        // `markedProjects` is the raw span before the anchor, which holds the footnote's
+        // own sentence; the reader cuts it after the last mark glyph and at its period.
+        values: [
+          { key: "otherProjectsRate", find: "for other projects", before: true, span: 14, take: "gp" },
+          { key: "markedProjects", find: "for other projects", before: true, span: 120, take: "window" },
+        ],
       },
       // How long arcane power keeps (RR 388): the span's unit, which the page names without a count.
       arcaneLifetime: {

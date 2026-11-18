@@ -4243,7 +4243,9 @@ Imports first.
    `cite` naming RR. No figure is `null` in a table read whole, except where the
    reader says so by design: the arcane lifetime's count (the page names a unit
    only) and the facility kinds that print no minimum or step (identification
-   prints only its bonus).
+   prints only its bonus). The ladder carries the footnote: every rung's
+   `marked` is a boolean with at least one rung true and one false, and
+   `markedProjects` is a non-empty list of word phrases holding no digit.
 3. Open the Ruledata Browser (`Settings tab → Game Settings → ACKS II — Extras →
    Imported Rules Tables → Open Ruledata Browser`), filter on `magicResearch`.
    *Observable:* thirteen entries, each naming RR and a folio, none greyed as
