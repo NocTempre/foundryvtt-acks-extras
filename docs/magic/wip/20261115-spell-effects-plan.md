@@ -2924,6 +2924,147 @@ Progress, 2026-11-17, later:
     into cast-held.
 - **In flight:** S4c and 1d-A slice R.
 
+Progress, 2026-11-18:
+
+- **topic/spell-effects, not landed:**
+  - S4c a5c9c676;
+  - S4d 6f03fb47, the one apply dispatch, `conditionRemove`, `slay` and
+    `destroyItem`. Until /design approves board 2, the weapon is the
+    holder's equipped weapon, else its first, named on the card;
+  - S4e 62ca9ac3, the ten S4 entries;
+  - the article ladder da7839f2, so shatterBlade's cap has a level-1 rung;
+  - S5a 4f9192b9, apiVersion 58. It includes the lib half of rulings 75,
+    76, 80 and 81, which had never been built;
+  - S5b eee82e01;
+  - S5b-2 88b79dee: `EFFECT_RECUR_SAVES.fail`, so the slickness floor
+    works, and partial immunity writes only the uncovered conditions;
+  - S5c 87f0b70f, with its lang keys at 1286ff90;
+  - S5c-2 fa35839d;
+  - S5d d2b5836e.
+  - In flight: S5e.
+- **Held off the landing until the owner approves boards 4 and 6** (the
+  orchestrator's ruling, 2026-11-18). These parts of fa35839d are split
+  into a parked commit when the topic lands:
+  - the granted-throw rows on the Rolls tab;
+  - "auto" in place of the target on Adventuring rows, party check cards
+    and the skill audit;
+  - the "Automatic through" chat line.
+
+  The provenance tooltips land.
+- **Owner questions at their defaults:**
+  - **1c.16** Should humanoid include giants up to ogre size? Built:
+    humanoid, beastman and character.
+  - **1c.17** Should living exclude construct, incarnation and enchanted?
+    Built: ruling 116 as written, failing only on undead.
+  - **1c.18** S4e's Judge lines carry the page's clause through
+    `noteFrom`, imported from the Judge's own copy. Ruling 150 rejected
+    that for tracked rows. Keep the clause, or use a structural line?
+  - **1c.19** Does an automatic climb or trap disarm skip the throw and the
+    botch band? Built: the crossing and trap paths ignore records.
+- **Findings:**
+  - removeFear's `target.filters` is spell-wide, so the reverse's living
+    gate is not applied.
+  - salvingRest's save part needs a status gate kind in the lint.
+  - Allure reaches only a bearer holding a Mystic Aura item until the
+    grant half of ruling 79 is built.
+  - The opposed reaction roll reads no records.
+  - A Climbing granted by a spell is not a best-skill candidate.
+
 ### Results, 1c
 
 ### Results, 1d
+
+**1d-A (2026-11-17), run from 1b.** topic/spell-effects-1d was landed at
+864cce59 and closed after its walk. Commits on main, not pushed:
+- T 251b3eb4: thirteen tracked entries.
+- H caa876c1: ruling 155 in cast-summon.
+- R a82d1a63: five summon rows, `summonFormat` and `control` in
+  ROW_KEYS, and `summonOptionsOf` carrying `max`.
+- W 864cce59: the walk, TESTING, DECISIONS, ROADMAP and MODEL.
+- Walk fixes f5f530d6:
+  - A cast card whose rows are all lines rendered empty: no banner, note
+    or footnote. `renderRollCard` takes an opt-in `bare` flag, and the
+    cast card sets it.
+  - The walk counts core's spell card beside the cast card and checks a
+    reverse by its note.
+  - It parks the pointer off the canvas edge while placing. An edge-band
+    pointer edge-panned the view to its clamp; magic-cast-summon has the
+    same fix.
+  - It imports a summon's creature as setup.
+
+Exercised live, on lane A with no `FIXTURE_OWN`: `magic-cast-tracked`,
+run 2, passed (123 pass, 0 fail, no skip). Run 1 found the blank card,
+70/18/1. It covered:
+- the six tracked kinds with one line and their caster records;
+- the reversed twins by their note;
+- dispel with no delivery;
+- the five summon rows, the wolf imported as setup;
+- a concentration summoning on the Player and GM seats, with the warning
+  before the old end card, a cancelled pick ending nothing, and the
+  funnel's end card with no Dismiss (1d.6);
+- a summons in a begun fight resolving at once (1d.5);
+- no console error on either seat.
+
+The sweep removed 54 documents. Four records it listed were already gone
+when it ran, and nothing was refused. Twenty-one fixtures are kept under
+`magic/tracked-*`.
+
+Offline only: the size, radius and second-stage figures left blank
+(1d.4). Not checked: `locateAnimalOrPlant`, which is 1d-B's.
+
+Owner checks: summonManes's control is read from its own page, against the
+JJ format note. summonManes carries no `amount`, so that `summonRefusal`
+does not cap it at one.
+
+### Start prompt, session 1d-B
+
+> Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`. Start once `### Results, 1c` reads
+> `1c code complete: <sha>` and topic/spell-effects has landed. Read the
+> plan whole first: owner rulings 1 to 4, rulings 17 to 156 and 96a, and
+> every Results section, especially "Results, 1d" and "Progress after
+> handover". Number new rulings from 157 to 199 under
+> `## Session 1d rulings`; owner questions continue at 1d.7.
+>
+> Open `topic/spell-effects-1d` again with
+> `node .claude/skills/acks-branch/branch.mjs open spell-effects-1d`. Commit
+> by hand there, and land with `branch.mjs land spell-effects-1d`. Scope is
+> ruling 156's list, every item:
+> - caster level for summon count and duration (qualifying the 2026-11-11
+>   summon entry);
+> - the capacity verdict and the tradition's pool spend;
+> - placement range, abilities, and declaration in a fight;
+> - Dismiss on a held summons' end;
+> - a row `name`;
+> - a summon describe arm reading `max` (ruling 154; `summonOptionsOf`
+>   already carries it unresolved);
+> - the default describe arm naming its kind;
+> - the three new kinds of ruling 151: delayDisease, purifyFoodAndWater and
+>   sealPortal;
+> - the finding that a cast whose rows open no entry should measure no
+>   target.
+>
+> Also:
+> - `locateAnimalOrPlant`'s register entry;
+> - extracting castSpell's held-record write into cast-held, since
+>   cast-summon repeats its composition;
+> - the tracked kinds' recipient records under 1c's rules.
+>
+> New apply kinds go through S4d's one dispatch: `APPLY_KINDS` in
+> `scripts/magic/cast-kinds.mjs` and `APPLIERS` in `cast-apply.mjs`
+> (ruling 129). Never add an inline type test. A visible element (a
+> Dismiss control, a placement-range display) is designed with `/design`,
+> and the owner's feedback comes first.
+>
+> You are the orchestrator: architect first for the rulings, then one slice
+> per agent, each brief quoting the owner's words from the plan. Review
+> every change against the IP doctrine: figures are located and read from
+> the Judge's page, and tests use invented spells. Walk on `main` through
+> `tools/live`: extend `magic-cast-tracked` and `magic-cast-summon`, on
+> lane A or with `FIXTURE_OWN=1d` when a peer is on magic. Push nothing.
+>
+> Finish with 1d-B's part of `### Results, 1d`, by sha, sorted exercised
+> live, offline only and not checked. Then write the close's start prompt
+> (the doc-scribe pass and the move of this file's substance into MODEL,
+> DECISIONS and ROADMAP), and commit on `main` with `acks-commit`. You
+> start no session.
