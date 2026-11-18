@@ -3007,6 +3007,89 @@ Ruled from these:
   after an architect's redesign of board 1. Parts the feedback leaves
   unchanged may be built now.
 
+**The castable-spell register (architect, 2026-11-18).**
+
+Nothing answers "what can this character cast" as a whole today. The
+pieces are:
+- core's embedded spell items;
+- `traditionFor`, `castCapacity` and `poolState`;
+- `castSpellClaims`, which is seat-dependent and so unusable here;
+- `spellFacts` and `namesSpell` for identity.
+
+A scroll is only `flags.acks-extras.markets.kind === "scroll"`. Which
+spell it holds is recorded nowhere: that is the unbuilt phase 4a
+`magicItem.powers[].spell` pointer.
+
+The design:
+- **Lib owns the register**, in a new `scripts/lib/spell-sources.mjs`,
+  shaped like `registerItemBonusSource`. Its readers (abilities now, the
+  cast dialog later) cannot import magic, and the owner named a second
+  source.
+  - `registerSpellSource(kind, fn)` is called by each provider: magic's
+    repertoire now, magic items' scrolls later, spell-like abilities after
+    ruling 111.
+  - `registerSpellReach(fn)` has one owner, magic, which decides what a
+    cast would write on its caster.
+  - `castableSpells(actor, {viewer, kinds})` and `availableRollMods`.
+  - `spellRefOf` is the identity half of `spellFacts`, moved into lib.
+  - `recordParts` gains an `entries` option, so an available grant stacks
+    and narrows exactly as a recorded one does.
+- **On self** means a cast would write the part on the caster: an
+  `aimedAtSelf` row, or a target/recipient/area row whose target model is
+  blank, self, creature, recipient, hdPool or area, and whose target gate
+  admits the caster. object and structure answer false; special answers
+  null, and shows nothing.
+- **Seats:** no `isOwner` anywhere. A scroll source must require full
+  identification for a non-GM viewer.
+- **The rows:** `grantedThrows` stays as the gold rows. A new
+  `availableThrows` gives the pale rows, skipping any `(ref, rollKey)` a
+  gold row holds.
+- **Slices:**
+  - S-A: lib and magic, no UI.
+  - S-B: the pale/gold sheet rows, on the revised design.
+  - S-C: the scroll source, after a spell pointer exists.
+- **Superseded in part:** ruling 78's "Readers" and `grantedThrows`'
+  "while that record lasts", both under 7 days old. New evidence: the
+  owner's rulings above.
+
+Owner questions, with the defaults proceeded on:
+- **1c.25** A known spell with no slot left (or a points pool reading
+  unknown) shows pale.
+- **1c.26** A pale row is display only, and does not roll.
+- **1c.27** The scroll source waits for the 4a spell pointer, since no
+  scroll records its spell today. Default: wait, with a ROADMAP row.
+  Counter (strong): the owner named scrolls explicitly.
+- **1c.28** Two spells granting one throw make one pale row naming both.
+
+**Canvas v5/v6 (2026-11-18).** Board 1 was redrawn on an architect's design
+(kept in this session's notes):
+- bands copied from the attack dialog's header and from influence's bands
+  and pinned footer;
+- tone cells for effects;
+- targets as a bucket that IS `game.user.targets`: X untargets, an
+  Actor or Token drop targets, T works too;
+- boards 2 and 3 folded into board 1;
+- 126 stays one toggle per spell.
+
+Board 4 shows gold and pale rows, and states as ruled that a spell the
+character can't cast and that isn't on them shows no row. The grant row id
+becomes `grant:<ref>:<key>`. Board 6's solo auto throw is a one-line party
+card. Owner questions, defaults proceeded on:
+- **1c.29** Gold goes only on throws a spell grants, not on rows it merely
+  modifies.
+- **1c.30** Dropping an actor with several tokens on the scene is refused
+  with a notice.
+- **1c.31** A granted throw posts the party roll card format with one line
+  (orchestrator, from the owner's "Rolls in chat should match the group
+  roll format").
+
+**Fold approval.** Standing approval from the owner ("Yes, standing
+approval"), relayed by the orchestrator, for topic/spell-effects:
+- a review commit that removes page wording folds into the commit it fixes,
+  on the unpushed topic only;
+- old and new shas are recorded here;
+- the gate reruns on the new tip.
+
 ### Results, 1c
 
 ### Results, 1d
