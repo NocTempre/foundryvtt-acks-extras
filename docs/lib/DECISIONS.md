@@ -679,3 +679,31 @@ spell-effects plan's "The castable-spell register (architect, 2026-11-18)".
 *Cost:* lib `apiVersion` is 59. The scroll source waits for a spell pointer on a
 scroll (owner question 1c.27); until a source registers for it, a scroll adds
 nothing to the register.
+
+## 2026-11-18 — The invocation level is a spell-domain scale, and a row's gate is a range
+
+The owner, on By This Axe's requests R1 and R2: "(b) spell effects adds it."
+Architect rulings 200 and 201 (the spell-effects plan) place the lib half here.
+
+- **A scale, not a new LevelValue kind.** `VALUE_SCALES.invocationLevel` with
+  `domain: "spell"`, so `resolveLevelValue(lv, level, scales)` keys a
+  `conditional` on `scales.invocationLevel` with no change to the resolver, and
+  the importer's paired-ladder locator already builds a conditional on any
+  `on`. `valueScalesFor(domain)` is the picker's list; the ability roll editor
+  offers `"ability"`, since a roll has no cast to supply the level. *Rejected:*
+  a `kind: "invocation"`, which every consumer of `VALUE_KINDS` would then
+  have to learn. *Counter (low):* a stored roll naming the scale still
+  resolves to null, silently.
+- **A gate is a range.** `invocationFrom` and `invocationTo` are nullable
+  whole numbers on `effectField`, inclusive on both sides, a blank side open.
+  *Rejected:* a lower bound only, since a higher level replaces some rows.
+  `rowInInvocationRange` reads a side by `Number.isInteger`, never by
+  coercion, so a stored null is open and not 0. With no level set a gated row
+  is out and an ungated row is in. *Counter (medium):* "no level, gated row
+  out" hides a bounded row from a cast that never chose a level, which only
+  the cast dialog's level choice (R3) and its verdict keep from being silent.
+- **Where it is read.** Magic reads both, resolving the scale once per cast
+  (the plan's rulings 200-202); lib supplies the helper and the fields and
+  reads neither itself.
+
+*Cost:* lib `apiVersion` is 60.

@@ -1,4 +1,4 @@
-# lib API (apiVersion 59)
+# lib API (apiVersion 60)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 59,
+  apiVersion: 60,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -463,6 +463,22 @@ level, scales)` returns the number at `level`:
 A `conditional` reuses the breakpoint ladder unchanged — only the number fed
 into it differs — so `atLevel` there reads *"at this value of `on`"*. `on` is a
 `VALUE_SCALES` key. Returns `null` when the caller did not supply that scale.
+
+### The invocation level (apiVersion 60)
+
+`VALUE_SCALES.invocationLevel` is a scale marked `domain: "spell"`: a cast
+supplies it as `scales.invocationLevel`, so a conditional keyed on it resolves
+at the level the caster invoked at, `null` below its first rung and `null` when
+no level is supplied. `valueScalesFor(domain)` is a picker's list on the rule
+`effectTypesFor` uses (`"ability"` leaves spell-domain scales out; the ability
+roll editor offers that list, and a stored scale stays selectable).
+
+An effect row also carries `invocationFrom` and `invocationTo`, nullable whole
+numbers bounding the levels it applies at, both inclusive, a blank side open.
+`rowInInvocationRange(row, level)` is the reader (on `vocab`): a row with
+neither bound is in at every level, with or without one; a bounded row with no
+level set is out; a side counts as set only when it is an integer. The
+effect-row editor offers both fields on every spell-domain kind.
 
 ### Rerolls
 

@@ -158,6 +158,9 @@ const FIELD_SPECS = {
   max: { kind: "levelValue" },
   pick: { kind: "text" },
   pickOption: { kind: "text" },
+  // The invocation levels a row applies at, both inclusive; a blank side is open.
+  invocationFrom: { kind: "number", step: "1" },
+  invocationTo: { kind: "number", step: "1" },
   reversed: { kind: "boolean" },
   stacksWith: { kind: "list" },
   notStacksWith: { kind: "list" },
@@ -266,12 +269,16 @@ const LEVEL_VALUE_FIELDS = ["value", "max"];
 /** The choice group a row belongs to and its option within it: offered on every kind a spell's row can be. */
 const PICK_FIELDS = ["pick", "pickOption"];
 
+/** The invocation levels a spell's row applies at, offered beside the pick fields on every kind a spell's row can be. */
+const INVOCATION_FIELDS = ["invocationFrom", "invocationTo"];
+
 /** The fields whose control carries a tooltip saying what the field does; each reads `tip.<name>`. */
 const TIPPED_FIELDS = new Set([
   "key", "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed", "stacksWith", "notStacksWith",
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom",
   "exemptSizeOver", "ownSave", "pickKind", "attackKinds", "endsOn", "untimed", "ifHas", "appliesToRoll",
   "schools", "elements", "bySelection", "saveCategories", "perDie", "gate.occasion",
+  "invocationFrom", "invocationTo",
 ]);
 
 /** The located figures: while one is blank its tooltip carries the page reference of the store's row, when the store names one. */
@@ -281,7 +288,7 @@ const LOCATED_FIELDS = new Set(["rounds", "exemptSizeFrom", "exemptSizeOver"]);
 const SPELL_ONLY_FIELDS = new Set([
   "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed",
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom", "stacksWith",
-  "exemptSizeOver", "ownSave", "pickKind", "endsOn", "untimed",
+  "exemptSizeOver", "ownSave", "pickKind", "endsOn", "untimed", ...INVOCATION_FIELDS,
 ]);
 
 /** What a spell-only field is still offered on, outside a spell: an ability's spellcasting row stacks by it. */
@@ -289,7 +296,7 @@ const ABILITY_KEEPS = { spellcastingMod: new Set(["stacksWith"]) };
 
 /** The fields a row of this type edits in a store of this domain; outside a spell the cast's fields are left out. */
 export const fieldsForType = (type, domain = "spell") => [
-  ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name) || ABILITY_KEEPS[type]?.has(name))),
+  ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...INVOCATION_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name) || ABILITY_KEEPS[type]?.has(name))),
 ];
 
 /**

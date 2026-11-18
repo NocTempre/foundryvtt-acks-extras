@@ -414,6 +414,11 @@ export function effectField() {
     lasts: choice(EFFECT_LASTS),
     recur: choice(EFFECT_RECURRENCES),
     pick: str(),
+    // The invocation levels a spell row applies at, both inclusive: a blank side
+    // is open, and neither set means every level (`vocab.mjs`
+    // `rowInInvocationRange` is the reader).
+    invocationFrom: num({ integer: true }),
+    invocationTo: num({ integer: true }),
     max: levelValueField(),
     unread: new (F().ArrayField)(new (F().StringField)({ blank: false })),
     summonFormat: choice(SUMMON_FORMATS),

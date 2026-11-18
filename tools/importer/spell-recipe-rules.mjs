@@ -33,8 +33,11 @@ const ROW_KEYS = new Set([
   "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate", "each", "endsOn", "untimed",
-  "ifHas", "appliesToRoll", "attackKinds", "ownSave", "pickKind",
+  "ifHas", "appliesToRoll", "attackKinds", "ownSave", "pickKind", "invocationFrom", "invocationTo",
 ]);
+
+/** The keys that bound the invocation levels a row applies at (`effectField`'s `invocationFrom` and `invocationTo`). */
+const INVOCATION_KEYS = ["invocationFrom", "invocationTo"];
 
 /**
  * The gate kinds a spell row may name. A gate says WHEN a row stands, and its
@@ -212,6 +215,9 @@ export function spellRecipeProblems({ effects, values } = {}) {
       else for (const key of spec.untimed) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.untimed names "${key}", which is no condition key`);
     }
     for (const key of ["pick", "pickOption", "appliesToRoll"]) if (spec[key] !== undefined && typeof spec[key] !== "string") out.push(`${label}.${key} is a string`);
+    // The invocation levels a row applies at: whole numbers, the lower side first.
+    for (const key of INVOCATION_KEYS) if (spec[key] !== undefined && !Number.isInteger(spec[key])) out.push(`${label}.${key} is a whole number of an invocation level`);
+    if (Number.isInteger(spec.invocationFrom) && Number.isInteger(spec.invocationTo) && spec.invocationFrom > spec.invocationTo) out.push(`${label}.invocationFrom is above invocationTo; a row applies from the lower level to the higher`);
     // What a part of a record narrows on, in words of lib's own tables: a definition id or a kw: capability, an attack kind, a switch.
     if (!inTable(EFFECT_MODES, spec.mode)) out.push(`${label}.mode "${spec.mode}" is not a combination mode`);
     for (const key of ["ref", "refs", "ifHas"]) {

@@ -1230,7 +1230,41 @@ export const VALUE_SCALES = {
   arcaneValue: { label: "Arcane Value" },
   divineValue: { label: "Divine Value" },
   hitDice: { label: "Hit Dice" },
+  // The level a caster invokes a spell at, chosen at the cast. `domain: "spell"`
+  // keeps it out of an ability roll's picker (`valueScalesFor`): only a cast
+  // supplies it, as `scales.invocationLevel`, so a roll has nothing to key on.
+  invocationLevel: { label: "Invocation Level", domain: "spell" },
 };
+
+/**
+ * The scales a picker offers for one domain, on the same rule as
+ * `effectTypesFor`: `"ability"` is every scale without a domain marker,
+ * `"spell"` is every scale. A stored scale keeps resolving whatever a picker
+ * shows.
+ */
+export function valueScalesFor(domain) {
+  return Object.fromEntries(Object.entries(VALUE_SCALES).filter(([, v]) => !v.domain || v.domain === domain));
+}
+
+/**
+ * Whether an effect row stands at an invocation level. `invocationFrom` and
+ * `invocationTo` bound the levels the row applies at, both inclusive, and a
+ * blank side is open. A side is set only when it is an integer, never by
+ * coercion, so a stored null or "" is open rather than 0. A row with neither
+ * bound is in at every level, a level set or not; a bounded row with no level
+ * set is out, since nothing says which level it is read at. Pure and
+ * Foundry-free.
+ *
+ * @param {{invocationFrom?: number|null, invocationTo?: number|null}} row an effect row
+ * @param {number|null} [level] the chosen invocation level, null or absent when none is set
+ */
+export function rowInInvocationRange(row, level) {
+  const from = Number.isInteger(row?.invocationFrom) ? row.invocationFrom : null;
+  const to = Number.isInteger(row?.invocationTo) ? row.invocationTo : null;
+  if (from === null && to === null) return true;
+  if (!Number.isInteger(level)) return false;
+  return (from === null || level >= from) && (to === null || level <= to);
+}
 
 /**
  * The shapes a LevelValue can take — the discriminator every `levelValueField`

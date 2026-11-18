@@ -742,4 +742,23 @@ t("the recipe rules know the record rows' narrowing keys: tokens, attack kinds, 
   has(spellRecipeProblems({ effects: [row({ exemptSizeOver: "man" })] }), "effects[0].exemptSizeOver is located from the page");
 });
 
+t("the recipe rules know the invocation-level keys and refuse a range that runs backwards", () => {
+  const problems = (over) => spellRecipeProblems({ effects: [{ key: "k", type: "damage", ...over }] });
+  const has = (list, s) => assert.ok(list.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${list.join("\n")}`);
+  const lacks = (list, s) => assert.ok(!list.some((p) => p.includes(s)), `unexpected problem naming: ${s}\n${list.join("\n")}`);
+  // The keys are known to the recipe: neither is reported as a key a recipe does not carry.
+  for (const over of [{ invocationFrom: 2 }, { invocationTo: 4 }, { invocationFrom: 2, invocationTo: 4 }, { invocationFrom: 3, invocationTo: 3 }]) {
+    const list = problems(over);
+    lacks(list, "which a spell row recipe does not");
+    lacks(list, "is above invocationTo");
+    lacks(list, "is a whole number of an invocation level");
+  }
+  has(problems({ invocationFrom: 5, invocationTo: 2 }), "effects[0].invocationFrom is above invocationTo");
+  has(problems({ invocationFrom: 2.5 }), "effects[0].invocationFrom is a whole number of an invocation level");
+  has(problems({ invocationTo: "3" }), "effects[0].invocationTo is a whole number of an invocation level");
+  lacks(problems({ invocationFrom: 5 }), "is above invocationTo");
+  lacks(problems({ invocationTo: 1 }), "is above invocationTo");
+  lacks(problems({}), "invocation");
+});
+
 console.log(`\n${n} tests passed`);

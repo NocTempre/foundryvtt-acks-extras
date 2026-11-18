@@ -24,6 +24,7 @@ import {
   VALUE_KINDS,
   VALUE_ROUNDING,
   VALUE_SCALES,
+  valueScalesFor,
   PROGRESSION_CLASSES,
   RUNG_OUTCOMES,
 } from "../lib/vocab.mjs";
@@ -146,7 +147,9 @@ export class AbilityRollEditor extends HandlebarsApplicationMixin(ApplicationV2)
       // Only the kinds this window authors. A roll carrying `conditional` is
       // shown as the table it is; it is not offered as something to choose.
       kind: Object.fromEntries(TARGET_KINDS.map((k) => [k, VALUE_KINDS[k].label])),
-      scale: choicesOf(VALUE_SCALES),
+      // An ability's roll has no cast to supply a spell-domain scale; a stored
+      // one stays selectable, or the select would fall to its first option.
+      scale: { ...choicesOf(valueScalesFor("ability")), ...(VALUE_SCALES[scale] ? { [scale]: VALUE_SCALES[scale].label } : {}) },
       round: choicesOf(VALUE_ROUNDING),
       outcome: choicesOf(RUNG_OUTCOMES),
       // The four chassis, then every class DOCUMENT the world holds — a
