@@ -38,11 +38,12 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
-  applyCrossingForm, beginCrossing, endCrossing, jumpFor, landFor, readCrossing, reportLanding, throwAll, throwFor,
+  applyCrossingForm, beginCrossing, endCrossing, haulToSurface, jumpFor, landFor, readCrossing, reportLanding, rescueRefusalWords, setRescuer, throwAll, throwFor,
 } from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
+import { spendPicks } from "../lib/picks.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
 import { toggleDetachMember, toggleMemberLeft } from "./deployment.mjs";
@@ -1043,6 +1044,20 @@ export const SHARED_ACTIONS = {
     this.render?.();
   },
 
+  /**
+   * A drowning member brought to the surface: afloat again, the rescuer and the
+   * held drowning let go. The Judge's alone: a player's seat has no press for it.
+   */
+  async crossingHaul(_event, target) {
+    const formation = gmFormation(this);
+    const actorId = target.dataset.actorId;
+    if (!formation || !actorId) return;
+    const result = await haulToSurface(formation, actorId);
+    const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+    if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.localize(key));
+    this.render?.();
+  },
+
   async encounterNow() {
     const formation = gmFormation(this);
     if (!formation) return;
@@ -1296,6 +1311,40 @@ export async function onChangeForm(event, form, formData) {
     redraw = true;
   }
   if (changed || redraw) this.render();
+}
+
+/** The rescuer selects already carrying a listener, so a re-render of a part that kept its element does not stack a second. */
+const rescuerBound = new WeakSet();
+
+/**
+ * Bind each drowning member's Rescuer select: a change names or clears the
+ * rescuer. The Judge's seat writes it; a player's relays it for a rescuer they
+ * own (`requestCrossingRescue`). The select is a staging pick, so its change
+ * is no form submit, and it is spent before the write so the redraw shows what
+ * was stored; a refusal is said as a warning and the redraw puts the stored
+ * rescuer back.
+ */
+export function bindCrossingRescuer(app) {
+  for (const select of app.element?.querySelectorAll?.("select[data-rescue-for]") ?? []) {
+    if (rescuerBound.has(select)) continue;
+    rescuerBound.add(select);
+    select.addEventListener("change", async () => {
+      const formation = app.formation;
+      const drownedId = select.dataset.rescueFor;
+      if (!formation || !drownedId) return;
+      spendPicks(app.element, [select.dataset.pick]);
+      if (game.user.isGM) {
+        const result = await setRescuer(formation, drownedId, select.value);
+        if (!result.ok) {
+          const said = rescueRefusalWords(result.refused, game.actors.get(select.value));
+          if (said) ui.notifications.warn(said);
+        }
+      } else {
+        await requestCrossingRescue(formation, drownedId, select.value);
+      }
+      app.render?.();
+    });
+  }
 }
 
 /**

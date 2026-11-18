@@ -2238,6 +2238,65 @@
   min-width: 0;
 }
 
+/* The swim crossing: the water's conditions sit in a fieldset of their own, the
+   penalty in force and the round read as one quiet line each, and a drowning
+   member's state and rescuer take the warning ink and a rule. */
+.acks-extras.party-sheet .acks-extras-crossing-water {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--acks-sp-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-water legend {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  padding: 0;
+}
+
+.acks-extras.party-sheet :is(.acks-extras-crossing-inforce, .acks-extras-crossing-round) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px var(--acks-sp-2);
+  margin-bottom: var(--acks-sp-2);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.party-sheet :is(.acks-extras-crossing-nothrow, .acks-extras-crossing-pace, .acks-extras-crossing-breath, .acks-extras-crossing-sinks, .acks-extras-crossing-last) {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-last {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-state.is-drowning {
+  padding: 0 var(--acks-sp-2);
+  border: 1px solid var(--acks-danger-ink);
+  border-radius: var(--acks-sp-2);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-rescue {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--acks-sp-2);
+  min-width: 0;
+  padding-left: var(--acks-sp-2);
+  border-left: 3px solid var(--acks-danger-ink);
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-rescue select {
+  min-width: 0;
+}
+
 /* Secondary prose recedes in ink, not opacity. See docs/lib/DECISIONS.md,
    "Secondary and muted state reads in ink, never opacity". */
 .acks-extras:is(.party-sheet, .skill-audit) .hint {

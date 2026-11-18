@@ -45,7 +45,7 @@ import {
 } from "./formation-model.mjs";
 import { carriersOf } from "./mapper-kit.mjs";
 import { standsAs } from "./deployment.mjs";
-import { WATER, holdsSwimming, ownSwimSpeed, rescueStone } from "./swimming.mjs";
+import { WATER, holdsSwimming, ownSwimSpeed, rescueStone, waterPenaltySteps } from "./swimming.mjs";
 import { settlePrompts } from "./crossing-prompt.mjs";
 import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
@@ -428,8 +428,8 @@ function swimEntry(formation, crossing, { member, actor }, { seat, standing, rec
     conMod: Number(actor.system?.scores?.con?.mod) || 0, penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
     judgeMod: crossing.judgeMod, hauled, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
   });
-  const winded = forbiddenBy(conditionSet(actor.statuses ?? []), "run").length > 0;
-  return { actor, member, swim: true, standing, row, record, stone, hauled, bodyId, turn, winded };
+  const windedBy = forbiddenBy(conditionSet(actor.statuses ?? []), "run");
+  return { actor, member, swim: true, standing, row, record, stone, hauled, bodyId, turn, winded: windedBy.length > 0, windedBy };
 }
 
 /* -------------------------------------------- */
@@ -900,8 +900,15 @@ export function buildCrossingView(formation) {
     precarious: !!crossing.precarious,
     charging: !!crossing.charging,
   };
-  const load = jump ? carriedLoad(formation) : null;
+  const swim = crossing.kind === SWIM_KIND;
+  const load = jump || swim ? carriedLoad(formation) : null;
   const entries = crossingMembers(formation).map((entry) => ({ ...entry, ...rowFor(formation, crossing, entry, { load }) }));
+  if (swim) {
+    view.swim = swimSetupView(crossing, entries);
+    view.rows = entries.map((entry) => swimRowView(crossing, entry, entries));
+    view.canThrowAll = isGM && entries.some((entry) => entry.row.can && !entry.row.warn);
+    return view;
+  }
   view.rows = entries.map((entry) => (jump ? jumpRowView(crossing, entry) : obstacleRowView(crossing, entry)));
   view.canThrowAll = isGM && !jump && entries.some((entry) => entry.row.can && !entry.row.warn && !SETTLED.includes(entry.row.state));
   return view;
@@ -1154,6 +1161,202 @@ export function swimTargetTip(seen) {
   return [...parts, citeFor("swimmingBonus") ?? swimmingRef()].join(" · ");
 }
 
+/** The imported page of a swimming figure's table, or the chapter's reference where none was imported. */
+const swimCite = (table) => citeFor(table) ?? swimmingRef();
+
+/** A figure shown to a tenth of a unit, so a share of a speed carries no float noise. */
+const tenth = (n) => Math.round(Number(n) * 10) / 10;
+
+/** The words a rescue's refusal gets: its own, then the throw's where the reason is shared. */
+export function rescueRefusalWords(reason, actor) {
+  const key = `ACKS-FORMATION.crossing.relay.rescue${reason[0].toUpperCase()}${reason.slice(1)}`;
+  return game.i18n.has(key) ? game.i18n.format(key, { name: actor?.name ?? loc("crossing.relay.unnamed") }) : relayRefusalWords(reason, actor);
+}
+
+/** The setup's water penalty as words and a tooltip: the step it stands on, what was ticked as its reason, then the page. */
+function penaltyWords(crossing) {
+  const steps = waterPenaltySteps() ?? [];
+  const pick = crossing.penaltyPick ?? "none";
+  const size = swimPenalty(crossing);
+  const ticked = swimConditions(crossing).map((key) => game.i18n.localize(WATER[key].label));
+  let stand = loc("crossing.swim.tip.none");
+  if (pick === "larger") stand = loc("crossing.swim.tip.larger");
+  else if (size && steps.includes(size)) stand = loc("crossing.swim.tip.step", { n: steps.indexOf(size) + 1 });
+  else if (size) stand = loc("crossing.swim.tip.off");
+  const tip = [stand, ticked.length ? loc("crossing.swim.tip.ticked", { conditions: ticked.join(", ") }) : "", swimCite("swimWaterPenaltySteps")].filter(Boolean).join(" · ");
+  return { size, ticked, tip };
+}
+
+/**
+ * The swim crossing's setup for the template: the water's penalty pick (none,
+ * each imported step, a larger figure), the conditions ticked as its reason, the
+ * movement and the Judge's modifier, and for a player the line that says what is
+ * in force. Every option is built with its own `selected`, as Foundry has no
+ * helper for it.
+ */
+function swimSetupView(crossing, entries) {
+  const steps = waterPenaltySteps() ?? [];
+  const pick = crossing.penaltyPick ?? "none";
+  const words = penaltyWords(crossing);
+  const options = [{ value: "none", label: loc("crossing.swim.penaltyNone"), selected: pick === "none" }];
+  steps.forEach((size, i) => options.push({ value: String(size), label: loc("crossing.swim.penaltyStep", { n: i + 1, size }), selected: pick !== "none" && pick !== "larger" && Number(pick) === size }));
+  if (pick !== "none" && pick !== "larger" && !steps.includes(Number(pick))) options.push({ value: pick, label: `−${pick}`, selected: true });
+  options.push({ value: "larger", label: loc("crossing.swim.penaltyLarger"), selected: pick === "larger" });
+  const movement = crossing.movement === "running" ? "running" : "combat";
+  const round = entries.find((entry) => entry.turn)?.turn.round ?? null;
+  const conditionList = words.ticked.length ? ` (${words.ticked.join(", ")})` : "";
+  return {
+    penaltyOptions: options,
+    larger: { value: crossing.penaltyLarger ?? "", enabled: pick === "larger" },
+    conditions: Object.keys(WATER).map((key) => {
+      const field = `water${key[0].toUpperCase()}${key.slice(1)}`;
+      return { field, label: game.i18n.localize(WATER[key].label), checked: crossing[field] === true };
+    }),
+    penaltyTip: words.tip,
+    movement: ["combat", "running"].map((value) => ({ value, label: loc(`crossing.swim.mode.${value}`), selected: movement === value })),
+    judgeMod: crossing.judgeMod ?? 0,
+    inForce: words.size ? loc("crossing.swim.inForce", { penalty: `−${words.size}`, conditions: conditionList }) : loc("crossing.swim.noPenalty"),
+    round,
+    roundLabel: round === null ? "" : loc("crossing.swim.round", { round }),
+    refs: { swimming: swimmingRef() },
+  };
+}
+
+/** A swimmer's pace for the movement the setup names, as text and the tooltip that works it: blank, with the page, where no figure was imported. */
+function swimPaceView(crossing, entry) {
+  const { row, winded, windedBy } = entry;
+  if (!row.pace) return { text: "", tip: "" };
+  const running = crossing.movement === "running";
+  const ref = swimCite("swimSpeedShare");
+  if (running && winded) {
+    const names = windedBy.map((id) => game.i18n.localize(conditionNameKey(id))).join(", ");
+    return { text: loc("crossing.swim.cannotRun"), tip: [loc("crossing.swim.tip.windedRun", { conditions: names }), swimmingRef()].join(" · ") };
+  }
+  const feet = running ? row.pace.run : row.pace.combat;
+  if (!Number.isFinite(feet)) return { text: "", tip: ref };
+  const parts = (running ? row.pace.parts.run : row.pace.parts.combat).map((part) => `${loc(`swimming.pacePart.${part.key}`)} ${part.value}`);
+  return {
+    text: loc("crossing.swim.pace", { feet: tenth(feet), mode: loc(`crossing.swim.mode.${running ? "running" : "combat"}`) }),
+    tip: row.pace.own ? [loc("crossing.swim.tip.ownSpeed"), swimmingRef()].join(" · ") : [...parts, ref].join(" · "),
+  };
+}
+
+/** A drowning member's breath and sink rate as text and tooltips; each is blank, with its page, where its figure was not imported. */
+function swimDrownView(row) {
+  const { drown } = row;
+  const part = (key) => drown.parts.find((p) => p.key === key);
+  const named = (key, root = "drownPart") => (part(key) ? `${loc(`swimming.${root}.${key}`)} ${part(key).value}` : "");
+  const breath = drown.rounds === null
+    ? { text: "", tip: swimCite("breathRounds") }
+    : {
+      text: loc("crossing.swim.breath", { left: drown.left, rounds: drown.rounds }),
+      tip: [named("breath"), named("conMod"), loc("crossing.swim.tip.elapsed", { elapsed: drown.elapsed }), swimCite("breathRounds")].filter(Boolean).join(" · "),
+    };
+  const sinks = drown.feetPerRound === null
+    ? { text: "", tip: swimCite("sinkFeetPerStone") }
+    : { text: loc("crossing.swim.sinks", { feet: tenth(drown.feetPerRound) }), tip: [named("encumbrance"), named("sink"), swimCite("sinkFeetPerStone")].filter(Boolean).join(" · ") };
+  return { breath, sinks };
+}
+
+/**
+ * A drowning member's rescuer control for the seat: the options the member may
+ * be rescued by (`rescueRefusal` answers null for each, so nothing is offered
+ * that `setRescuer` would refuse), each with the load it would take on, and the
+ * rescuer now named. A Judge picks among every one; a player's seat among the
+ * members it owns, and only while the rescuer named, if any, is its own too.
+ */
+function swimRescueView(entry, entries) {
+  const { row, record } = entry;
+  const actorId = entry.member.actorId;
+  const judge = game.user.isGM;
+  const owns = (e) => judge || (e.actor.testUserPermission?.(game.user, "OWNER") ?? false);
+  const current = record?.rescuer ?? null;
+  const stone = row.rescue?.stone ?? null;
+  const offered = entries.filter((e) => e.member.actorId !== actorId && owns(e) && rescueRefusal({
+    drowner: { actorId, state: row.state },
+    rescuer: { actorId: e.member.actorId, state: e.record?.state ?? SWIMMING, hauling: e.record?.hauling },
+    standing: e.standing,
+  }) === null);
+  const named = entries.find((e) => e.member.actorId === current) ?? null;
+  const options = [{ value: "", label: loc("crossing.swim.rescuerNone"), selected: !current }];
+  for (const e of offered) {
+    const id = e.member.actorId;
+    options.push({ value: id, label: stone === null ? e.actor.name : loc("crossing.swim.rescuerOption", { name: e.actor.name, stone: tenth(stone) }), selected: id === current });
+  }
+  if (current && !offered.includes(named) && named) options.push({ value: current, label: named.actor.name, selected: true });
+  const parts = (row.rescue?.parts ?? []).map((p) => `${loc(`swimming.rescuePart.${p.key}`)} ${p.value}`);
+  return {
+    canSet: offered.length > 0 && (judge || !named || owns(named)),
+    options,
+    current: named?.actor.name ?? "",
+    tip: [...parts, swimCite("carriedBodyStone")].join(" · "),
+  };
+}
+
+/** One swim row for the template, for the seat that reads it. */
+function swimRowView(crossing, entry, entries) {
+  const { actor, row, record } = entry;
+  const judge = game.user.isGM;
+  const sinking = row.state === DROWNING;
+  const target = Number.isFinite(row.target) ? row.target : null;
+  const exempt = row.skip !== null && row.skip !== undefined;
+  // A drowning member's refusal is a player's to be told; a Judge reads the state and the Haul beside it.
+  const said = sinking && judge ? "" : refusalText(row.refusal, actor);
+  const last = record?.last ?? null;
+  const implied = sinking ? [...conditionSet([DROWNING])].filter((id) => id !== DROWNING) : [];
+  const condition = (id) => game.i18n.localize(conditionNameKey(id));
+  const own = ownSwimSpeed(actor);
+  return {
+    actorId: entry.member.actorId,
+    name: actor.name,
+    state: row.state,
+    stateLabel: loc(`crossing.state.${row.state}`),
+    stateTip: sinking ? [loc("crossing.swim.tip.drowning", { condition: condition(DROWNING) }), swimmingRef()].join(" · ") : swimmingRef(),
+    sinking,
+    holdsLabel: own ? loc("crossing.swim.badge.ownSpeed") : holdsSwimming(actor) ? loc("crossing.swim.badge.swimming") : "",
+    badgeTip: [own ? loc("crossing.swim.tip.ownSpeed") : loc("crossing.swim.tip.holds"), swimmingRef()].join(" · "),
+    exempt,
+    noThrow: exempt && !sinking ? loc("crossing.swim.noThrow") : "",
+    target: !sinking && !exempt && target !== null ? `${target}+` : "",
+    targetTip: sinking ? "" : exempt && row.skip === "swimSpeed" ? [loc("crossing.swim.tip.ownSpeed"), swimmingRef()].join(" · ") : swimTargetTip(entry),
+    pace: sinking ? { text: "", tip: "" } : swimPaceView(crossing, entry),
+    drown: sinking ? swimDrownView(row) : null,
+    implied: implied.map((id) => ({ statusId: id, label: condition(id), tip: [loc("crossing.swim.tip.implied", { condition: condition(id), by: condition(DROWNING) }), swimmingRef()].join(" · ") })),
+    can: row.can,
+    warn: row.warn,
+    said,
+    last: last && last.total != null
+      ? {
+        text: loc("crossing.swim.last", { total: last.total, outcome: loc(last.success ? "crossing.result.afloat" : "crossing.result.sinking") }),
+        tip: loc("crossing.tip.lastThrow", { natural: last.natural, total: last.total }),
+      }
+      : null,
+    rescue: sinking ? swimRescueView(entry, entries) : null,
+    canHaul: sinking && judge,
+  };
+}
+
+/**
+ * Why a member may not be named a drowning member's rescuer, or null: the
+ * reasons of `setRescuer`'s own checks, asked of the crossing as it stands.
+ * Clearing (`rescuerId` "") asks only that the drowning member is still held.
+ *
+ * @returns {string|null} `member` or a `rescueRefusal` reason
+ */
+export function rescueCheck(formation, crossing, drownedId, rescuerId) {
+  const members = crossingMembers(formation);
+  if (!members.some((e) => e.member.actorId === drownedId)) return "member";
+  if (!rescuerId) return null;
+  const rescuer = members.find((e) => e.member.actorId === rescuerId);
+  if (!rescuer) return "member";
+  const theirs = crossing.members?.[rescuerId] ?? null;
+  return rescueRefusal({
+    drowner: { actorId: drownedId, state: crossing.members?.[drownedId]?.state },
+    rescuer: { actorId: rescuerId, state: theirs?.state ?? SWIMMING, hauling: theirs?.hauling },
+    standing: standingOf(rescuer.member, rescuer.actor),
+  });
+}
+
 /**
  * Name or clear a drowning member's rescuer: the member takes `rescuer`, the
  * rescuer `hauling`, and a rescuer the member had before is let go, in one
@@ -1169,22 +1372,12 @@ export async function setRescuer(formation, drownedId, rescuerId, { crossingId =
   if (!crossing) return { ok: false, refused: "closed" };
   if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
   if (crossing.kind !== SWIM_KIND) return { ok: false, refused: "notSwim" };
-  const members = crossingMembers(formation);
-  const drowned = members.find((e) => e.member.actorId === drownedId);
-  if (!drowned) return { ok: false, refused: "member" };
+  const refused = rescueCheck(formation, crossing, drownedId, rescuerId);
+  if (refused) return { ok: false, refused };
   const record = crossing.members?.[drownedId] ?? null;
   const patches = [];
   if (record?.rescuer && record.rescuer !== rescuerId) patches.push({ id: record.rescuer, unset: ["hauling"] });
   if (rescuerId) {
-    const rescuer = members.find((e) => e.member.actorId === rescuerId);
-    if (!rescuer) return { ok: false, refused: "member" };
-    const theirs = crossing.members?.[rescuerId] ?? null;
-    const refused = rescueRefusal({
-      drowner: { actorId: drownedId, state: record?.state },
-      rescuer: { actorId: rescuerId, state: theirs?.state ?? SWIMMING, hauling: theirs?.hauling },
-      standing: standingOf(rescuer.member, rescuer.actor),
-    });
-    if (refused) return { ok: false, refused };
     patches.push({ id: rescuerId, set: { hauling: drownedId } }, { id: drownedId, set: { rescuer: rescuerId } });
   } else {
     patches.push({ id: drownedId, unset: ["rescuer"] });

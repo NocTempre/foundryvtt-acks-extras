@@ -29,6 +29,11 @@
  * off; a same-status effect from elsewhere is never touched; nothing imported
  * holds nothing.
  *
+ * The swim crossing: its rows and setup for each seat (every figure a page-cited
+ * tooltip, blank with the page alone where nothing was imported), the driver, the
+ * prompt card, the rescuer named by a Judge or relayed from a player who owns the
+ * rescuer, and the haul.
+ *
  * Run: node tools/test-crossing-surface.mjs
  */
 import assert from "node:assert/strict";
@@ -125,7 +130,7 @@ const {
   CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, jumpFor, landFor, pruneMembers, readCrossing, reportLanding,
   throwAll, throwFor, writeMemberStep,
 } = crossing;
-const { registerRequestSocket, requestCrossingThrow, requestPartyAction } =await import("../scripts/formation/player-requests.mjs");
+const { registerRequestSocket, requestCrossingRescue, requestCrossingThrow, requestPartyAction } = await import("../scripts/formation/player-requests.mjs");
 
 /**
  * socketlib's stand-in. `relay` delivers a request to the registered handler as the GM
@@ -2069,6 +2074,214 @@ await ok("a water penalty and the Judge's modifier price the throw, and a penalt
   await applyCrossingForm(formation, { penaltyPick: "larger", penaltyLarger: "4" });
   const odd = rowOfAlder().row;
   assert.deepEqual([odd.refusal.cls, odd.warn, odd.can], ["permission", true, true], "a size between the steps warns a Judge and still throws");
+});
+
+/* --- the swim rows -------------------------------------------------------------- */
+const swimView = (formation, user = GM) => as(user, () => buildCrossingView(formation));
+const swimHtml = (formation, user = GM) => render({ crossing: swimView(formation, user) });
+const PAGE = "RR ch. 6, Swimming and Drowning";
+/** What a figure of the invented import cites where its table names no page of its own: the document's. */
+const CITE = "XX p.1";
+
+await ok("the swim setup reads each imported step by its size, one pick for the penalty, and a player is told what is in force instead", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }]]);
+  const setup = swimView(formation).swim;
+  assert.deepEqual(setup.penaltyOptions.map((o) => o.value), ["none", "3", "5", "9", "larger"], "each option's value is the imported size, never its place in the list");
+  assert.equal(setup.penaltyOptions[2].label, format("ACKS-FORMATION.crossing.swim.penaltyStep", { n: 2, size: 5 }));
+  assert.deepEqual(setup.penaltyOptions.map((o) => o.selected), [true, false, false, false, false]);
+  assert.equal(setup.larger.enabled, false);
+  assert.deepEqual(setup.movement.map((o) => [o.value, o.selected]), [["combat", true], ["running", false]]);
+  await applyCrossingForm(formation, { penaltyPick: "5", waterCold: true, waterFast: true });
+  const set = swimView(formation).swim;
+  assert.deepEqual(set.penaltyOptions.map((o) => o.selected), [false, false, true, false, false]);
+  assert.deepEqual(set.conditions.map((c) => [c.field, c.checked]), [["waterCold", true], ["waterRough", false], ["waterFast", true]]);
+  const ticked = "Cold water, Fast-moving water";
+  assert.equal(set.inForce, format("ACKS-FORMATION.crossing.swim.inForce", { penalty: "−5", conditions: ` (${ticked})` }));
+  assert.equal(set.penaltyTip, [format("ACKS-FORMATION.crossing.swim.tip.step", { n: 2 }), format("ACKS-FORMATION.crossing.swim.tip.ticked", { conditions: ticked }), CITE].join(" · "), "the step, the reason ticked, then the page");
+  await applyCrossingForm(formation, { penaltyPick: "larger", penaltyLarger: "11" });
+  const larger = swimView(formation).swim;
+  assert.deepEqual([larger.larger.enabled, larger.larger.value, larger.inForce.includes("−11")], [true, 11, true]);
+  assert.equal(larger.penaltyTip.split(" · ")[0], format("ACKS-FORMATION.crossing.swim.tip.larger"));
+  await applyCrossingForm(formation, { penaltyPick: "none" });
+  assert.equal(swimView(formation).swim.inForce, format("ACKS-FORMATION.crossing.swim.noPenalty"));
+});
+
+await ok("with no steps imported the penalty offers None and Larger alone, and the tooltip is the page alone", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9 }]], { figures: { ...SWIMFIG, swimWaterPenaltySteps: undefined } });
+  const setup = swimView(formation).swim;
+  assert.deepEqual(setup.penaltyOptions.map((o) => o.value), ["none", "larger"]);
+  assert.equal(setup.penaltyTip, [format("ACKS-FORMATION.crossing.swim.tip.none"), PAGE].join(" · "));
+});
+
+await ok("a swim row for each seat: the target, No throw for a holder, a blank for a creature with nothing to read, and the round", async () => {
+  const { formation, actors: [alder] } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 5, items: [SWIMMER()] }], ["Wolf", { type: "monster" }]]);
+  alder.system.movementacks = { combat: 100, chargerun: 200 };
+  assert.equal(swimView(formation).swim.round, null, "no fight, no round");
+  fightOf(formation, { round: 3, at: 0 });
+  const judge = swimView(formation);
+  assert.deepEqual([judge.swim.round, judge.swim.roundLabel], [3, format("ACKS-FORMATION.crossing.swim.round", { round: 3 })]);
+  const own = rowOf(judge, "Alder");
+  assert.deepEqual([own.target, own.can, own.stateLabel, own.noThrow], ["9+", true, "Afloat", ""]);
+  assert.ok(own.targetTip.endsWith("XX p.7"), "the target's working ends on the imported page");
+  const holder = rowOf(judge, "Birch");
+  assert.deepEqual([holder.noThrow, holder.target, holder.can, holder.holdsLabel], ["No throw", "", false, "Swimming"]);
+  assert.ok(holder.targetTip.includes("Swimming 7"), "the proficiency's part is in the working");
+  const beast = rowOf(judge, "Wolf");
+  assert.deepEqual([beast.target, beast.targetTip, beast.can, beast.said, beast.noThrow], ["", PAGE, false, "", ""], "a blank figure with the page alone, and no words");
+  const player = swimView(formation, PLAYER);
+  assert.equal(player.swim.round, 3);
+  assert.deepEqual([rowOf(player, "Alder").can, rowOf(player, "Birch").can], [true, false], "the owner's press, and none on a member they do not own");
+  assert.equal(player.swim.inForce, format("ACKS-FORMATION.crossing.swim.noPenalty"));
+});
+
+await ok("a swimmer's pace follows the movement picked, and running reads Cannot run for a member a condition bars it from", async () => {
+  const { formation, actors: [alder] } = await swimWorld([["Alder", { stone: 9 }]]);
+  alder.system.movementacks = { combat: 100, chargerun: 200 };
+  const pace = () => rowOf(swimView(formation), "Alder").pace;
+  assert.equal(pace().text, format("ACKS-FORMATION.crossing.swim.pace", { feet: 30, mode: "Combat" }));
+  assert.equal(pace().tip, ["Speed 100", "Share of speed 0.3", CITE].join(" · "), "each part with the actor's own figure, then the page");
+  await applyCrossingForm(formation, { movement: "running" });
+  assert.equal(pace().text, format("ACKS-FORMATION.crossing.swim.pace", { feet: 60, mode: "Running" }));
+  alder.statuses = new Set(["prone"]);
+  assert.equal(pace().text, format("ACKS-FORMATION.crossing.swim.cannotRun"), "winded: running is refused");
+  assert.ok(pace().tip.includes("Prone"), "the condition that bars it is named");
+  await applyCrossingForm(formation, { movement: "combat" });
+  assert.equal(pace().text, format("ACKS-FORMATION.crossing.swim.pace", { feet: 30, mode: "Combat" }), "combat is still allowed");
+  await applyCrossingForm(formation, { movement: "running" });
+  alder.statuses = new Set();
+  alder.system.movementacks = {};
+  assert.equal(pace().tip, CITE, "no speed to read: blank, and the page names the figure");
+});
+
+await ok("a drowning row: the breath and the sink rate with their working, Vulnerable implied, the refusal in words for a player only", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }]]);
+  naturals.push(3);
+  await throwFor(formation, "Alder");
+  const judge = rowOf(swimView(formation), "Alder");
+  assert.deepEqual([judge.sinking, judge.stateLabel, judge.can, judge.canHaul, judge.said], [true, "Drowning", false, true, ""], "the Judge reads the state and the haul, no refusal words");
+  assert.equal(judge.drown.breath.text, format("ACKS-FORMATION.crossing.swim.breath", { left: 2, rounds: 3 }));
+  assert.equal(judge.drown.breath.tip, ["Breath 3", "Constitution 0", format("ACKS-FORMATION.crossing.swim.tip.elapsed", { elapsed: 1 }), CITE].join(" · "));
+  assert.equal(judge.drown.sinks.text, format("ACKS-FORMATION.crossing.swim.sinks", { feet: 171 }));
+  assert.equal(judge.drown.sinks.tip, ["Carrying 9", "Sinks per stone 19", CITE].join(" · "));
+  assert.deepEqual(judge.implied.map((c) => c.label), ["Vulnerable"], "drowning implies vulnerable; nothing is held for it");
+  assert.equal(crossingHeldOn(game.actors.get("Alder")).length, 1, "only drowning is held");
+  assert.equal(judge.target, "", "a drowning member has no target");
+  const player = rowOf(swimView(formation, PLAYER), "Alder");
+  assert.deepEqual([player.said, player.canHaul, player.can], [format("ACKS-FORMATION.crossing.refusal.drowning"), false, false]);
+});
+
+await ok("a breath or a sink rate nobody imported is blank and its tooltip is the page alone", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9 }]]);
+  resetTables();
+  naturals.push(3);
+  await throwFor(formation, "Alder");
+  const row = rowOf(swimView(formation), "Alder");
+  assert.deepEqual([row.drown.breath.text, row.drown.breath.tip, row.drown.sinks.text, row.drown.sinks.tip], ["", PAGE, "", PAGE]);
+});
+
+await ok("the rescuer select offers the members who may carry the body, each with the load it takes on, and a player's seat only its own", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 4, owner: PLAYER.id }], ["Cedar", { stone: 4, owner: OTHER.id }], ["Dane", { stone: 4 }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Dane");
+  const judge = rowOf(swimView(formation), "Alder").rescue;
+  assert.deepEqual(judge.options.map((o) => o.value), ["", "Birch", "Cedar"], "a drowning member is not offered, nor the body itself");
+  assert.equal(judge.options[1].label, format("ACKS-FORMATION.crossing.swim.rescuerOption", { name: "Birch", stone: 26.6 }));
+  assert.equal(judge.tip, ["Body 23", "Their gear 9", "Share of gear 0.4", CITE].join(" · "));
+  const player = rowOf(swimView(formation, PLAYER), "Alder").rescue;
+  assert.deepEqual(player.options.map((o) => o.value), ["", "Birch"], "a member the seat does not own is not offered");
+  assert.equal(player.canSet, true);
+  await setRescuer(formation, "Alder", "Cedar");
+  const taken = rowOf(swimView(formation, PLAYER), "Alder").rescue;
+  assert.deepEqual([taken.canSet, taken.current], [false, "Cedar"], "a rescuer another seat owns is shown, not changed");
+  assert.equal(rowOf(swimView(formation), "Alder").rescue.options.find((o) => o.selected).value, "Cedar");
+  assert.equal(rowOf(swimView(formation, OTHER), "Alder").rescue.canSet, true, "the rescuer's own seat may clear it");
+});
+
+await ok("a player names one of their own as the rescuer through the relay, declared and written on the GM client, and clears it again", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 4, owner: PLAYER.id }]]);
+  naturals.push(3);
+  await throwFor(formation, "Alder");
+  seen.created.length = 0;
+  const out = await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "Birch"));
+  assert.deepEqual(out, { ok: true });
+  assert.deepEqual([memberOf(formation, "Alder").rescuer, memberOf(formation, "Birch").hauling], ["Birch", "Alder"]);
+  assert.equal(seen.created.length, 1, "one declaration");
+  assert.ok(seen.created[0].content.includes(format("ACKS-FORMATION.request.crossingRescue", { name: "Birch", drowned: "Alder" })));
+  assert.equal(seen.created[0].whisper, undefined, "a declaration is public");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "")), { ok: true });
+  assert.deepEqual([memberOf(formation, "Alder").rescuer, memberOf(formation, "Birch").hauling], [undefined, undefined]);
+  assert.ok(seen.created.at(-1).content.includes(format("ACKS-FORMATION.request.crossingRescueClear", { name: "Birch", drowned: "Alder" })));
+});
+
+await ok("a rescuer a player does not own, a rescuer another seat holds, a drowning rescuer and a stale crossing are each refused with the reason said", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 4, owner: PLAYER.id }], ["Cedar", { stone: 4, owner: OTHER.id }], ["Dane", { stone: 4, owner: PLAYER.id }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Dane");
+  const crossingId = readCrossing(formation).id;
+  const ask = (user, payload) => relay(user, formation, "crossing", { crossingId, step: "rescue", drownedId: "Alder", ...payload });
+  seen.created.length = 0;
+  assert.deepEqual(await ask(PLAYER, { actorId: "Cedar" }), { ok: false, refused: "notOwner" });
+  assert.deepEqual(seen.created.at(-1).whisper, [PLAYER.id], "the reason is whispered to the requester alone");
+  assert.ok(seen.created.at(-1).content.includes(format("ACKS-FORMATION.crossing.relay.rescueNotOwner", { name: "Cedar" })));
+  assert.equal(memberOf(formation, "Alder").rescuer, undefined);
+  await setRescuer(formation, "Alder", "Cedar");
+  assert.deepEqual(await ask(PLAYER, { actorId: "Birch" }), { ok: false, refused: "notOwner" }, "a player does not take a rescuer from another seat");
+  assert.deepEqual(await ask(PLAYER, { actorId: "Cedar", clear: true }), { ok: false, refused: "notOwner" }, "nor clear one it does not own");
+  assert.equal(memberOf(formation, "Alder").rescuer, "Cedar");
+  assert.deepEqual(await ask(OTHER, { actorId: "Cedar", clear: true }), { ok: true }, "the rescuer's owner may let go");
+  assert.deepEqual(await ask(PLAYER, { actorId: "Dane" }), { ok: false, refused: "drowning" });
+  assert.ok(seen.created.at(-1).content.includes(format("ACKS-FORMATION.crossing.relay.rescueDrowning", { name: "Dane" })));
+  assert.deepEqual(await ask(PLAYER, { actorId: "Birch", crossingId: "old" }), { ok: false, refused: "stale" });
+  assert.deepEqual(await ask(PLAYER, { actorId: "Birch", drownedId: "Birch" }), { ok: false, refused: "notDrowning" });
+  assert.deepEqual(await ask(PLAYER, { actorId: "Birch", drownedId: undefined }), { ok: false, refused: "member" });
+  assert.equal(memberOf(formation, "Alder").rescuer, undefined);
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "Dane")), { ok: false, refused: "drowning" }, "the seat says it before it sends");
+  assert.ok(seen.warned.at(-1).includes("Dane"));
+});
+
+await ok("a rescue step names a swim crossing alone", async () => {
+  reset();
+  load();
+  const a = person("Alder", { owner: PLAYER.id });
+  const { formation } = world([a]);
+  await beginCrossing(formation, "easyClimb");
+  const crossingId = readCrossing(formation).id;
+  assert.deepEqual(await relay(PLAYER, formation, "crossing", { crossingId, step: "rescue", actorId: "Alder", drownedId: "Alder" }), { ok: false, refused: "notSwim" });
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "Alder")), { ok: false, refused: "notSwim" });
+});
+
+await ok("the partial draws the swim rows: a Judge's setup fields, the haul and the rescuer select; a player's line and nothing of the Judge's", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 4, owner: PLAYER.id }]]);
+  await applyCrossingForm(formation, { penaltyPick: "5", waterCold: true, movement: "running" });
+  naturals.push(3);
+  await throwFor(formation, "Alder");
+  const judge = swimHtml(formation);
+  for (const field of ["crossing.waterCold", "crossing.waterRough", "crossing.waterFast", "crossing.penaltyPick", "crossing.penaltyLarger", "crossing.movement", "crossing.judgeMod"]) assert.ok(judge.includes(`name="${field}"`), field);
+  assert.ok(judge.includes('<option value="5" selected>') && judge.includes('<option value="running" selected>'), "the pick is built with its own selected");
+  assert.ok(/name="crossing.penaltyLarger"[^>]* disabled/.test(judge), "the larger figure waits for its pick");
+  assert.ok(judge.includes('data-action="crossingHaul" data-actor-id="Alder"'));
+  assert.ok(judge.includes('data-pick="crossing-rescuer-Alder"') && judge.includes('data-rescue-for="Alder"'));
+  assert.ok(judge.includes('data-press-home="Alder"') && judge.includes('data-press-home="Birch"'));
+  const player = swimHtml(formation, PLAYER);
+  assert.equal(/name="crossing\./.test(player), false, "no Judge field in a player's DOM");
+  assert.equal(player.includes("crossingHaul"), false, "the haul is the Judge's alone");
+  assert.ok(player.includes("acks-extras-crossing-inforce"), "a player's line stands where the fields were");
+  assert.ok(player.includes('data-pick="crossing-rescuer-Alder"'), "the owner of a rescuer may pick");
+  for (const html of [judge, player]) {
+    assert.equal(/\sid=/.test(html), false, "no literal id");
+    assert.equal(/\stitle=/.test(html), false, "no title attribute");
+    assert.equal(/<summary/.test(html), false);
+    for (const glyph of html.matchAll(/<i [^>]*>/g)) assert.ok(glyph[0].includes("inert"), "a glyph is inert");
+  }
+});
+
+await ok("the Rescuer select is bound on the party sheet and a change reaches the rescue relay", async () => {
+  const actions = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
+  assert.ok(actions.includes("select[data-rescue-for]") && actions.includes("requestCrossingRescue(formation, drownedId, select.value)") && actions.includes("setRescuer(formation, drownedId, select.value)"));
+  const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
+  assert.ok(sheet.includes("bindCrossingRescuer(this)"), "the sheet binds it on each render");
 });
 
 console.log(`\n${passed} passed`);

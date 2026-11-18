@@ -9,7 +9,9 @@ import { bringInRefusal, refusalText, takeOutRefusal } from "./membership.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
-import { JUMP_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rowFor, throwFor } from "./crossing.mjs";
+import {
+  JUMP_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setRescuer, throwFor,
+} from "./crossing.mjs";
 import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { turnActivity } from "../lib/turn-activities.mjs";
@@ -55,8 +57,8 @@ async function announceDeclaration(formation, user, text) {
  * Tell the requesting user, and nobody else, why their crossing throw was not
  * made. A reason with no words (an absence refusal) is not whispered.
  */
-async function whisperCrossingRefusal(formation, user, reason, actor) {
-  const said = relayRefusalWords(reason, actor);
+async function whisperCrossingRefusal(formation, user, reason, actor, words = relayRefusalWords) {
+  const said = words(reason, actor);
   if (!said) return;
   await ChatMessage.create({
     content: foundry.utils.escapeHTML(said),
@@ -65,8 +67,36 @@ async function whisperCrossingRefusal(formation, user, reason, actor) {
   });
 }
 
-/** The presses over a gap a relayed request may name: the jump itself, and a hanging jumper's climb up. */
-const CROSSING_STEPS = Object.freeze(["attempt", "climbUp"]);
+/** The presses a relayed crossing request may name: the jump itself, a hanging jumper's climb up, and a swimmer's rescuer. */
+const CROSSING_STEPS = Object.freeze(["attempt", "climbUp", "rescue"]);
+
+/**
+ * A rescuer named, or cleared, on a drowning member, for a seat that owns the
+ * rescuer (`actor`: the one named, or the one now named when the request
+ * clears). The drowning member is a separate field the request carries; a
+ * player may not replace a rescuer another seat owns. The declaration is made
+ * once `setRescuer` has taken the change.
+ */
+async function rescueStep(formation, user, actor, payload, crossingId) {
+  const refuse = async (reason) => {
+    await whisperCrossingRefusal(formation, user, reason, actor, rescueRefusalWords);
+    return { ok: false, refused: reason };
+  };
+  const drownedId = typeof payload.drownedId === "string" ? payload.drownedId : "";
+  const named = readCrossing(formation)?.members?.[drownedId]?.rescuer ?? null;
+  const clear = payload.clear === true;
+  if (!user.isGM) {
+    if (clear && named !== actor?.id) return refuse("notOwner");
+    if (named && named !== actor?.id && !userOwnsMember(formation, user, named)) return refuse("notOwner");
+  }
+  const out = await setRescuer(formation, drownedId, clear ? "" : actor.id, { crossingId });
+  if (!out.ok) return refuse(out.refused);
+  await announceDeclaration(formation, user, loc(clear ? "request.crossingRescueClear" : "request.crossingRescue", {
+    name: foundry.utils.escapeHTML(actor.name),
+    drowned: foundry.utils.escapeHTML(game.actors.get(drownedId)?.name ?? "?"),
+  }));
+  return { ok: true };
+}
 
 /**
  * Execute a validated request on the GM client. A crossing request answers
@@ -306,14 +336,15 @@ async function executeRequest(formation, user, type, payload) {
       break;
     }
 
-    /* --- A crossing: one stretch thrown for a member the player owns --- */
+    /* --- A crossing: one stretch thrown, or a rescuer named, for a member the player owns --- */
     case "crossing": {
       // A payload with no actor id must not fall through to "owns any member".
       const actorId = typeof payload.actorId === "string" ? payload.actorId : null;
       const actor = actorId ? game.actors.get(actorId) : null;
       // The answer names only the reason: it travels back to the requesting seat.
+      const step = CROSSING_STEPS.includes(payload.step) ? payload.step : null;
       const refuse = async (reason) => {
-        await whisperCrossingRefusal(formation, user, reason, actor);
+        await whisperCrossingRefusal(formation, user, reason, actor, step === "rescue" ? rescueRefusalWords : relayRefusalWords);
         return { ok: false, refused: reason };
       };
       if (!actorId) return refuse("notOwner");
@@ -324,10 +355,11 @@ async function executeRequest(formation, user, type, payload) {
       }
       // The crossing id the requester saw, or "" for none, which matches no crossing.
       const crossingId = typeof payload.crossingId === "string" ? payload.crossingId : "";
+      // A swimmer's rescuer is named or cleared; nothing is thrown.
+      if (step === "rescue") return rescueStep(formation, user, actor, payload, crossingId);
       // The declaration is made once every check has passed and the member's
       // throw is claimed, so a refused or busy request declares nothing. A press
       // over a gap names its step; anything else is a stretch thrown.
-      const step = CROSSING_STEPS.includes(payload.step) ? payload.step : null;
       const beforeRoll = () => announceDeclaration(formation, user, loc({ attempt: "request.crossingJump", climbUp: "request.crossingClimbUp" }[step] ?? "request.crossing", {
         name: foundry.utils.escapeHTML(actor?.name ?? "?"),
       }));
@@ -426,6 +458,33 @@ export async function requestCrossingThrow(formation, actorId, step = null) {
     return { ok: false, refused };
   }
   const answer = await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId, ...(step ? { step } : {}) });
+  return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
+}
+
+/**
+ * A seat's choice of rescuer for a drowning member: the member's owner names
+ * one of their own, or clears the one they named. The choice is checked for
+ * this seat first and a refusal said here; the GM client checks it again and is
+ * the one that writes. `rescuerId` "" clears.
+ * @returns {Promise<{ok: boolean, refused?: string}>}
+ */
+export async function requestCrossingRescue(formation, drownedId, rescuerId) {
+  const crossing = readCrossing(formation);
+  const named = crossing?.members?.[drownedId]?.rescuer ?? null;
+  const actorId = rescuerId || named;
+  let refused = null;
+  if (!crossing) refused = "closed";
+  else if (crossing.kind !== SWIM_KIND) refused = "notSwim";
+  else if (!actorId) return { ok: true };
+  else refused = rescueCheck(formation, crossing, drownedId, rescuerId);
+  if (refused) {
+    const said = rescueRefusalWords(refused, game.actors.get(actorId));
+    if (said) ui.notifications.warn(said);
+    return { ok: false, refused };
+  }
+  const answer = await requestPartyAction(formation.id, "crossing", {
+    crossingId: crossing.id, actorId, drownedId, step: "rescue", ...(rescuerId ? {} : { clear: true }),
+  });
   return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
 }
 
