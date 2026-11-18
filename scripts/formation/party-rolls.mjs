@@ -170,7 +170,9 @@ function skillCandidates(actor, cfg) {
     const checkKey = i.getFlag?.(MODULE_ID, "checkKey");
     if (checkKey) return checkKey === cfg.flagKey;
 
-    return cfg.pattern.test(i.name) && nameMatchHasThrow(i);
+    // A check registered by capability alone carries no name pattern, and
+    // matches by name nothing.
+    return !!cfg.pattern?.test?.(i.name) && nameMatchHasThrow(i);
   });
 }
 

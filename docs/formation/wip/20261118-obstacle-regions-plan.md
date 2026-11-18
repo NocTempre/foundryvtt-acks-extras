@@ -63,6 +63,68 @@ each is scoped against this plan. The design ruling was an architect pass (opus)
 6. The config window hides the fields the chosen kind does not use.
 7. The marks are small tags, "region" and "Judge", each with a tooltip.
 
+## Owner ruling on the defaults (2026-11-18)
+
+Relayed, verbatim: "Conditions are present when added, most easily by
+dragging. This is akin to a natural trap. Not doing a big switchboard of
+possibilities." It supersedes default 1, and touches 3 and 6. S2 was stopped
+before it wrote anything. An architect re-rules the data shape, and the
+affected board is redrawn for the owner before building resumes.
+
+Follow-up, relayed verbatim: "The questions reveal the design is off." The
+whole design is being redone from the trap zone's model: an obstacle is a
+natural trap whose conditions the Judge drops on. All implementer work stops.
+S1 (b1be395a) stays on the topic until the owner decides whether to keep or
+drop it. An architect pass comes first, then a new board goes to the owner
+before any build.
+
+A further constraint, relayed verbatim: "Traps, obstacles, conditions can
+stack arbitrarily." One region, or several overlapping regions, may carry any
+mix of them, and all of them apply on entry.
+
+A starting point, relayed verbatim: "This is some variation of location." An
+obstacle, and whatever is stacked with it, is designed as a kind of location or
+as a location's contents, not as a new region-behaviour type. The design is
+cross-checked against the treasure plan's scene-search screen.
+
+### Redesign ruling (architect, 2026-11-18). The Mechanism, Slices and Defaults above are superseded.
+
+- **The container is the place.** A location actor is linked to its Region
+  (`scene-link.mjs` `linkRegion`). Obstacles and conditions are one new Item
+  sub-type, `acks-extras.hazard` (a `key`, plus nullable `length`, `gap` and
+  `depth`), kept in a Hazards compendium.
+  - A drop on the place's sheet, or on the Region on the map, embeds a copy.
+  - A condition is either present or absent: `ropeFixed`, `noRunUp`,
+    `precarious`, `waterCold`, `waterRough`, `waterFast`.
+- **Traps stay trap zones on the Region,** and the place's sheet lists them.
+  One drop mechanism serves traps, obstacles and conditions.
+- **On entry,** things happen in this order:
+  1. the search sweep;
+  2. each armed trap fires with its own card;
+  3. if nothing halted the move, one Judges' card covers every newly entered
+     place, with a Begin button per obstacle.
+
+  Begin seeds the crossing once, from every condition of the places the party
+  stands in, and nothing re-reads the place afterwards. Begin over an open
+  crossing asks the Judge to End it first.
+- **Gone from the first design:** the region behaviour type, the yes/no/blank
+  selects, the entry choice, the marks, drift tracking, and Take/Reset.
+- **What S1 keeps:** `SETUP_FIELDS` export, the reader logic, and the
+  template-parsing test.
+- **Slices:**
+
+  | Slice | What | Needs |
+  |---|---|---|
+  | H0 | Trap stacking (`findZone`, `livePlacement`, `behaviorOf` and `runTrapCheck` assume one zone each) | The dungeon close-out landed |
+  | H1 | The Item type, its compendium and the logic | Board B4 |
+  | H2 | The place-sheet section, the drops, and the Region's Place row | Boards B1 and B3 |
+  | H3 | The entry step, the card and the seeding | H0, and the close-out landed |
+  | H4 | Swim and squeeze keys | The sync |
+  | H5 | Docs and the live walk | — |
+
+- **Boards B1–B4** are on the crossing canvas, v12. The build waits for the
+  owner's feedback on them.
+
 ## Results
 
 (appended per slice)

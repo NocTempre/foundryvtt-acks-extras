@@ -307,4 +307,13 @@ await ok("a hurried party is refused the hasty search and posts no card", async 
   assert.equal(seen.warned.length, 1);
 });
 
+await ok("a check registered by capability alone, with no name pattern, resolves without throwing", async () => {
+  reset();
+  // An ability with no capability and no binding reaches the name route.
+  const a = member("Rue", [item("Odd Knack", [])]);
+  const { pattern, ...bare } = PARTY_CHECKS.searchMethodical;
+  assert.ok(pattern, "the shipped check has a pattern to strip");
+  assert.doesNotThrow(() => resolveCheck(a, bare));
+});
+
 console.log(`\n${passed} passed`);
