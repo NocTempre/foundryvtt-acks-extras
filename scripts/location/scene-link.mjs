@@ -153,13 +153,18 @@ export async function unlinkRegion(region) {
 
 /**
  * Make a place for a Region and link the two. Named after the region and
- * nested inside the scene's own place when the scene has one.
+ * nested inside the scene's own place when the scene has one. The place's
+ * sheet opens unless `render` is false (a drop makes the place quietly).
+ *
+ * @param {RegionDocument} region
+ * @param {object} [options]
+ * @param {boolean} [options.render=true] open the place's sheet
  */
-export async function createLocationForRegion(region) {
+export async function createLocationForRegion(region, { render = true } = {}) {
   if (!region || !game.user.isGM) return null;
   const existing = locationOfRegion(region);
   if (existing) {
-    existing.sheet?.render(true);
+    if (render) existing.sheet?.render(true);
     return existing;
   }
   const location = await Actor.create({
@@ -171,7 +176,7 @@ export async function createLocationForRegion(region) {
   if (!location) return null;
   await region.setFlag(MODULE_ID, SCENE_LINK_FLAG, location.uuid);
   ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.regionLinked`, { name: location.name, region: region.name }));
-  location.sheet?.render(true);
+  if (render) location.sheet?.render(true);
   return location;
 }
 

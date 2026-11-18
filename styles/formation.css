@@ -3535,3 +3535,37 @@
   border: var(--acks-border-ink);
   border-radius: var(--acks-radius);
 }
+
+/* The Place row the module injects into core's own Region window, under the
+   Name field. Dashed, as the module's own row among core's fields; type rides
+   the ramp, and the tokens are bare. */
+.acks-extras-region-place {
+  margin-block: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: 1px dashed;
+  border-color: var(--acks-gold-deep);
+  border-radius: var(--acks-radius);
+}
+
+.acks-extras-region-place-counts {
+  margin: var(--acks-sp-3) 0;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-region-place-count {
+  white-space: nowrap;
+  cursor: help;
+}
+
+.acks-extras-region-place-drop {
+  padding: var(--acks-sp-4);
+  border: 1px dashed;
+  border-color: var(--acks-rule-color-soft);
+  border-radius: var(--acks-radius);
+  text-align: center;
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-region-place-drop.is-over {
+  background: color-mix(in srgb, var(--acks-gold-deep) 18%, transparent);
+}

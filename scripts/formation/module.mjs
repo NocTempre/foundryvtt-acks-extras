@@ -28,6 +28,8 @@ import { installMonsterLevelRow } from "./monster-level-row.mjs";
 import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zone.mjs";
 import { districtReaction } from "./settlement.mjs";
 import { districtFromSelection, installDistrictControls, installDistrictPlaceRow, markControlledRegions } from "./district-tools.mjs";
+import { registerHazardThingKinds } from "./hazard-things.mjs";
+import { installRegionPlaceRow } from "./region-place-row.mjs";
 import { installDistrictInfluence } from "./district-influence.mjs";
 import {
   HALT_OPTION,
@@ -206,6 +208,8 @@ Hooks.once("init", () => {
   installDistrictControls();
   installDistrictInfluence();
   installDistrictPlaceRow();
+  registerHazardThingKinds();
+  installRegionPlaceRow();
   installMonsterLevelRow();
   installIncidentCardActions();
   installHexStockCardActions();

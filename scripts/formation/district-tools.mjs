@@ -1,4 +1,4 @@
-/* global canvas, game, ui, Hooks, foundry, document */
+/* global canvas, game, ui, Hooks, foundry */
 /**
  * The two ways a Judge turns ground already on the map into a district: mark
  * regions already drawn, or trace one from a loop of walls. See
@@ -9,8 +9,8 @@ import { MODULE_ID } from "./constants.mjs";
 import { DISTRICT_TYPE } from "./district-zone.mjs";
 import { controlledWalls, regionFromWalls } from "../lib/wall-layers.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
-import { LOCATION_TYPE } from "../location/constants.mjs";
-import { elementOf, escape as esc } from "../lib/util.mjs";
+import { elementOf } from "../lib/util.mjs";
+import { placePickerOf } from "./region-place-row.mjs";
 
 /**
  * A "Place" row on the District behaviour's sheet: the location actor the
@@ -34,35 +34,15 @@ export function installDistrictPlaceRow() {
     const host = root.querySelector("fieldset:last-of-type") ?? root.querySelector("form") ?? root;
 
     const say = (key) => game.i18n.localize(`ACKS-FORMATION.DISTRICT.place.${key}`);
-    const linked = scenes.locationOfRegion(region);
-    const places = game.actors.filter((a) => a.type === LOCATION_TYPE).sort((a, b) => a.name.localeCompare(b.name));
-    const group = document.createElement("div");
-    group.className = "form-group acks-extras-district-place";
-    group.innerHTML = `<label>${esc(say("label"))}</label>
-      <div class="form-fields">
-        <select class="acks-extras-district-place-select">
-          <option value="">${esc(say("none"))}</option>
-          ${places.map((a) => `<option value="${esc(a.uuid)}"${linked?.uuid === a.uuid ? " selected" : ""}>${esc(a.name)}</option>`).join("")}
-        </select>
-        <button type="button" class="acks-extras-district-place-new" data-tooltip="${esc(say("create"))}">
-          <i class="fas fa-plus"></i>
-        </button>
-      </div>
-      <p class="hint">${esc(say("hint"))}</p>`;
+    const group = placePickerOf({
+      region,
+      scenes,
+      say,
+      cls: "acks-extras-district-place",
+      afterMake: () => app.render(),
+    });
     host.append(group);
     associateLabels(group);
-
-    // Written immediately: the sheet's own submit knows nothing of this link.
-    const report = (run) =>
-      Promise.resolve(run).catch((err) => console.error(`${MODULE_ID} | district place link failed`, err));
-    group.querySelector(".acks-extras-district-place-select").addEventListener("change", (ev) => {
-      const uuid = ev.currentTarget.value;
-      const actor = uuid ? game.actors.get(uuid.split(".")[1]) : null;
-      report(actor ? scenes.linkRegion(region, actor) : scenes.unlinkRegion(region));
-    });
-    group.querySelector(".acks-extras-district-place-new").addEventListener("click", () => {
-      report(Promise.resolve(scenes.createLocationForRegion(region)).then((made) => made && app.render()));
-    });
   });
 }
 

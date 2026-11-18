@@ -164,3 +164,9 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
   - The thief's-bonus reading is unverified.
 - S3 has no changelog fragment yet. S8 writes it with the feature's others.
 - Owners of what is held: S2–S8 are this phase's, started when the orchestrator dispatches them. The B-slices (H2, H3, P3, H0) are obstacle regions', on dungeon close-out (local_bfe7fed4), held the same way.
+
+### 2026-11-18 — obstacle regions B3 built the carrier's write half (dungeon close-out session)
+
+- `scripts/lib/place-things.mjs`: `THINGS_FLAG`, `thingsOf(place)` and `addThingTo(place, thing)`, the list written whole by a GM client as a `ForcedReplacement`, the co-signed shape unchanged. S2 extends this file rather than writing its own.
+- Formation registers the `trap`, `obstacle` and `condition` kinds (`formation/hazard-things.mjs`). `createLocationForRegion` takes `{render: false}` for a map drop.
+- A registrant keeps its `accepts` narrow: one as broad as "any Item" makes `kindOfDrop` null for every trap and hazard drop.

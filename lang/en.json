@@ -4453,6 +4453,33 @@
       "waterDays": "Water {days} d",
       "slotDone": "Resolved"
     },
+    "REGION_PLACE": {
+      "label": "Place",
+      "none": "— none —",
+      "create": "Make a place for this region",
+      "hint": "The place that holds this region's traps, obstacles and conditions. The plus button makes one, filed under the scene's own place.",
+      "holds": "Holds",
+      "holdsNone": "Holds no traps, obstacles or conditions yet.",
+      "trap": {
+        "one": "{count} trap",
+        "other": "{count} traps"
+      },
+      "obstacle": {
+        "one": "{count} obstacle",
+        "other": "{count} obstacles"
+      },
+      "condition": {
+        "one": "{count} condition",
+        "other": "{count} conditions"
+      },
+      "drop": "Drop a trap, obstacle or condition here. With no place yet, one is made.",
+      "refused": {
+        "notItem": "Only an item can be dropped here.",
+        "blankHazard": "That hazard has no kind set. Set its kind on its sheet, then drop it again.",
+        "notAccepted": "Only a trap, an obstacle or a condition can be dropped here.",
+        "noPlace": "No place could be made for this region."
+      }
+    },
     "DISTRICT": {
       "anywhere": "Anywhere in the district",
       "place": {
