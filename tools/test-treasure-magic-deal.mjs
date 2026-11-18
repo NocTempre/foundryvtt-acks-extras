@@ -377,4 +377,41 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   acksExtras.magicItems = gone;
 }
 
+/* --- a noun printed before its count begins at the type list -------------------------- */
+{
+  const TYPED = { ...LISTS, classicType: { key: "bands", id: "classicType.bands", caption: "Kind" } };
+  const T = { typeList: true };
+  eq(startFor("whatever", "classic", TYPED, T), { ok: true, id: "classicType.bands" }, "a noun-first noun that names no list begins at the type list");
+  eq(startFor("whatever", "classic", TYPED), { ok: false, reason: MAGIC_REASON.noMatch }, "the same noun printed count-first never falls to the type list");
+  eq(startFor("whatever", "classic", TYPED, { typeList: false }), { ok: false, reason: MAGIC_REASON.noMatch }, "an explicit false is the plain case");
+  eq(startFor("widgets", "classic", TYPED, T), { ok: true, id: "classic.wd" }, "a list the noun names wins over the type list");
+  eq(startFor("gizmos", "classic", TYPED, T), { ok: false, reason: MAGIC_REASON.ambiguous }, "two matches stay ambiguous");
+  eq(startFor("whatever", "heroic", TYPED, T), { ok: false, reason: MAGIC_REASON.noMatch }, "heroic has no type list");
+  eq(startFor("whatever", "gritty", TYPED, T), { ok: false, reason: MAGIC_REASON.noMatch }, "gritty has no type list");
+  eq(startFor("whatever", "classic", LISTS, T), { ok: false, reason: "not-imported" }, "no type list imported: not imported");
+  eq(startFor("whatever", "classic", { ...LISTS, classicType: null }, T), { ok: false, reason: "not-imported" }, "a null type list is not imported");
+  eq(startFor("whatever", "classic", { classicType: TYPED.classicType }, T), { ok: true, id: "classicType.bands" }, "a type list alone is enough");
+  eq(startFor("whatever, other", "classic", TYPED, T), { ok: false, reason: MAGIC_REASON.compound }, "a compound noun is refused before the type list");
+  eq(startFor(null, "classic", TYPED, T), { ok: false, reason: MAGIC_REASON.noNoun }, "no noun is refused before the type list");
+
+  const typed = (noun) => ({ ...placeholder(noun), typeList: true });
+  const asked = [];
+  const roll = async (a) => (asked.push(a), walked(item("Alpha widget")));
+  let r = await run([typed("whatever")], { lists: TYPED, roll });
+  eq([asked, r.errors], [[{ from: "classicType.bands", style: "classic" }], []], "a type-list placeholder is rolled from the type list");
+  eq(r.truths[0].label, "Alpha widget", "and is replaced by what the walk reached");
+
+  asked.length = 0;
+  r = await run([typed("whatever"), placeholder("whatever"), typed("whatever"), placeholder("whatever")], { lists: TYPED, roll });
+  eq(asked, [{ from: "classicType.bands", style: "classic" }, { from: "classicType.bands", style: "classic" }], "the answer is kept per noun and kind of start: the type-list pair rolls, the plain pair does not");
+  eq(r.errors, [{ code: MAGIC_ERROR, reason: MAGIC_REASON.noMatch, noun: "whatever" }, { code: MAGIC_ERROR, reason: MAGIC_REASON.noMatch, noun: "whatever" }], "a plain placeholder of the same noun is still refused, whichever came first");
+  r = await run([placeholder("whatever"), typed("whatever")], { lists: TYPED, roll });
+  eq(r.truths.map((t) => t.label), ["whatever", "Alpha widget"], "the plain one stays a placeholder and the typed one rolls, in either order");
+
+  r = await run([typed("whatever")], { style: "heroic", lists: TYPED, roll });
+  eq(r.errors, [{ code: MAGIC_ERROR, reason: MAGIC_REASON.noMatch, noun: "whatever" }], "a type-list placeholder in heroic is refused");
+  r = await run([typed("whatever")], { lists: LISTS, roll });
+  eq(r.errors, [{ code: MAGIC_ERROR, reason: "not-imported", noun: "whatever" }], "no type list read: the placeholder stays and says so");
+}
+
 console.log(`treasure magic deal: ${checks} checks passed`);

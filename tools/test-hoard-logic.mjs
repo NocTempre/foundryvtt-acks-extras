@@ -53,8 +53,11 @@ eq(parseCell("30% 1d6 glimmerstones").terms[0], { chance: 30, count: "1d6", noun
 eq(parseCell("2d6 wonders").terms[0].chance, null, "no chance is no throw");
 eq(parseCell("7 wonders").terms[0].count, "7", "a whole count");
 eq(parseCell("0% Nothing here").terms, [{ chance: 0, count: null, noun: null, column: null }], "a zero chance never fires and its remainder is not read");
-eq(parseCell("wonders 2").terms[0], { chance: null, count: "2", noun: "wonders", column: null }, "noun then count");
-eq(parseCell("10% wonders 3 (1,537gp)"), { terms: [{ chance: 10, count: "3", noun: "wonders", column: null }], note: "(1,537gp)" }, "a trailing average is set aside");
+eq(parseCell("wonders 2").terms[0], { chance: null, count: "2", noun: "wonders", nounFirst: true, column: null }, "noun then count");
+eq(parseCell("10% wonders 3 (1,537gp)"), { terms: [{ chance: 10, count: "3", noun: "wonders", nounFirst: true, column: null }], note: "(1,537gp)" }, "a trailing average is set aside");
+ok(parseCell("whatever 2").terms[0].nounFirst === true, "a noun-first clause carries nounFirst");
+ok(parseCell("2 widget").terms[0].nounFirst !== true, "a count-first clause does not carry nounFirst");
+eq(parseCell("25% whatever 3 + 1 widget").terms.map((t) => [t.noun, t.count, t.nounFirst === true]), [["whatever", "3", true], ["widget", "1", false]], "a mixed cell reads one clause of each order");
 eq(parseCell("50% 1 thing, gizmo, or doodad; 20% 2 wonders").terms.map((t) => [t.chance, t.count, t.noun]), [[50, "1", "thing, gizmo, or doodad"], [20, "2", "wonders"]], "a semicolon splits; commas inside a noun do not");
 eq(parseCell("50% 1 wonders, 25% 1d2 relics, 5% 1 doodad").terms.map((t) => t.noun), ["wonders", "relics", "doodad"], "a comma before a figure splits");
 eq(parseCell("any 3 + 1 wonders + 2 relics").terms.map((t) => [t.noun, t.count]), [["any", "3"], ["wonders", "1"], ["relics", "2"]], "a plus splits");

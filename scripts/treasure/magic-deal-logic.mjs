@@ -7,9 +7,11 @@
  * A magic placeholder (`hoard-map.mjs` `truthsFromCards`) carries the noun the
  * hoard cell printed as its `tableRef`. The noun is matched against the
  * captions of the lists the import read, never against a name written here: a
- * noun that names no list, or two lists alike, rolls nothing. Every placeholder
- * that matches is rolled once. A card never invents: where nothing could be
- * rolled it stays the placeholder it was, and an error entry says so.
+ * noun that names no list, or two lists alike, rolls nothing. A placeholder
+ * whose noun the cell printed before its count carries `typeList`; in classic
+ * one that names no list begins at the type list instead (`startFor`). Every
+ * placeholder that matches is rolled once. A card never invents: where nothing
+ * could be rolled it stays the placeholder it was, and an error entry says so.
  *
  * A rolled item is a dealt find, unknown whatever its source document's own
  * marks say: undetected, unidentified, its curse not known.
@@ -62,20 +64,33 @@ const listKeys = (entry) => new Set([...creatureKeys(entry.caption ?? ""), ...cr
  * (`creatureKeys`); whole keys only, so a word inside a longer name never
  * stands for it. A compound noun (`isCompound`) names no single list.
  *
+ * A noun the hoard cell printed before its count (`typeList`) is a generic
+ * term for the type list, which picks the category. Where it names no list and
+ * the style is classic, the roll begins at the imported type list
+ * (`lists.classicType`); a list it does name still wins, and two stay
+ * ambiguous. Heroic and gritty have no type list, so there the noun stays
+ * unmatched. A classic hoard with no type list imported is `not-imported`,
+ * the reason the roll service itself gives for a table it has not read.
+ *
  * @param {string|null} noun the hoard cell's printed noun
  * @param {"classic"|"heroic"|"gritty"} style
- * @param {{classic?: object[], heroic?: object[]}|null} lists `starts()`' shape: `[{key, id, caption}]` per group
+ * @param {{classicType?: object|null, classic?: object[], heroic?: object[]}|null} lists `starts()`' shape: `[{key, id, caption}]` per group, and the type list's one entry
+ * @param {{typeList?: boolean}} [opts] `typeList` marks a noun printed before its count
  * @returns {{ok: true, id: string}|{ok: false, reason: string}}
  */
-export function startFor(noun, style, lists) {
+export function startFor(noun, style, lists, { typeList = false } = {}) {
   const mine = creatureKeys(noun);
   if (!mine.size) return { ok: false, reason: MAGIC_REASON.noNoun };
   if (isCompound(String(noun))) return { ok: false, reason: MAGIC_REASON.compound };
   const entries = (style === "classic" ? lists?.classic : lists?.heroic) ?? [];
-  if (!entries.length) return { ok: false, reason: "not-imported" };
   const hits = entries.filter((e) => e?.id && (e.caption || e.key) && overlaps(listKeys(e), mine));
   if (hits.length > 1) return { ok: false, reason: MAGIC_REASON.ambiguous };
-  return hits.length ? { ok: true, id: hits[0].id } : { ok: false, reason: MAGIC_REASON.noMatch };
+  if (hits.length) return { ok: true, id: hits[0].id };
+  if (typeList && style === "classic") {
+    const id = lists?.classicType?.id;
+    return id ? { ok: true, id } : { ok: false, reason: "not-imported" };
+  }
+  return { ok: false, reason: entries.length ? MAGIC_REASON.noMatch : "not-imported" };
 }
 
 /**
@@ -153,10 +168,10 @@ function auditRows(result, where, item) {
  * `{code: MAGIC_ERROR, reason, noun}`. Nothing throws.
  *
  * @param {object} args
- * @param {object[]} args.truths a deal's truths; a placeholder is a magic truth carrying `tableRef`
+ * @param {object[]} args.truths a deal's truths; a placeholder is a magic truth carrying `tableRef`, and `typeList` where its noun was printed before its count
  * @param {"classic"|"heroic"|"gritty"} args.style
  * @param {string} args.where the audit rows' place, e.g. `<letter>.magic`
- * @param {{classic?: object[], heroic?: object[]}|null} args.lists `startFor`'s lists
+ * @param {{classicType?: object|null, classic?: object[], heroic?: object[]}|null} args.lists `startFor`'s lists
  * @param {((args: {from: string, style: string}) => Promise<object>)|null} args.roll the roll service's `roll`, with its roller bound
  * @param {(uuid: string) => Promise<object[]|null>} args.resolve the truths of the document a uuid names, or null
  * @returns {Promise<{truths: object[], errors: object[], audit: object[]}>}
@@ -177,8 +192,10 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
       errors.push({ code: MAGIC_ERROR, reason, noun });
     };
     if (typeof roll !== "function") { keep(MAGIC_REASON.noRoller); continue; }
-    if (!starts.has(noun)) starts.set(noun, startFor(noun, style, lists));
-    const start = starts.get(noun);
+    const typeList = truth.typeList === true;
+    const memo = `${typeList ? 1 : 0}|${noun}`;
+    if (!starts.has(memo)) starts.set(memo, startFor(noun, style, lists, { typeList }));
+    const start = starts.get(memo);
     if (!start.ok) { keep(start.reason); continue; }
 
     let result;

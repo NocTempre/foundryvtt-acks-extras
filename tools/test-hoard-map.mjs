@@ -266,4 +266,21 @@ eq(figureOf(null), null, "null");
   eq(truthsFromCards([{ pool: "odd" }], { coinOf }).errors, [{ code: "unknown-pool", pool: "odd" }], "an unknown pool is typed");
 }
 
+/* --- a magic noun printed before its count is the type list's ------------------------ */
+{
+  const rows = { A: { magic: "10% whatever 2 + 5% 1 widget" }, B: { magic: "20% 1 widget" }, C: { magic: "10% 1 gizmo" } };
+  const kinds = buildKinds({ rows }).kinds;
+  const magic = kinds.filter((k) => k.pool === "magic");
+  eq(magic.map((k) => [k.tableRef, k.typeList === true]), [["whatever", true], ["widget", false], ["gizmo", false]], "only a noun printed before its count makes a type-list kind");
+  const both = buildKinds({ rows: { A: { magic: "10% 1 widget" }, B: { magic: "10% widget 2" } } }).kinds.filter((k) => k.pool === "magic");
+  eq(both.map((k) => k.typeList), [true], "a noun printed noun-first anywhere is a type-list kind, whatever its other spelling");
+
+  const tables = { type: { rows: { A: rows.A }, cite: "INV type" }, values: {} };
+  const dealt = dealHoard({ type: "A", tables, kinds, roll: scripted(1, 2, 1, 1), units: {}, special: false });
+  eq(dealt.errors, [], "the deal reads the mixed cell");
+  eq(dealt.cards.map((c) => [c.tableRef, c.typeList === true]), [["whatever", true], ["whatever", true], ["widget", false]], "a card carries typeList only from a type-list kind");
+  const { truths } = truthsFromCards(dealt.cards, { coinOf });
+  eq(truths.map((t) => [t.tableRef, t.typeList === true]), [["whatever", true], ["whatever", true], ["widget", false]], "the dealt placeholder carries typeList beside tableRef");
+}
+
 console.log(`test-hoard-map: ${n} checks passed`);

@@ -88,15 +88,22 @@ export function formsOf(kind) {
 
 /**
  * The nouns one column of a type table prints, in first-seen order, one per
- * distinct folded spelling. A cell that does not read contributes none; the
- * engine reports it when that cell is dealt.
+ * distinct folded spelling, each with whether any clause printed it before its
+ * count (`nounFirst`). A cell that does not read contributes none; the engine
+ * reports it when that cell is dealt.
+ *
+ * @returns {Array<{noun: string, nounFirst: boolean}>}
  */
 function nounsOf(rows, column) {
   const seen = new Map();
   for (const row of Object.values(rows ?? {})) {
     const parsed = parseCell(row?.[column], { column });
     for (const term of parsed.terms ?? []) {
-      if (term.noun != null && !seen.has(fold(term.noun))) seen.set(fold(term.noun), term.noun);
+      if (term.noun == null) continue;
+      const key = fold(term.noun);
+      const have = seen.get(key);
+      if (!have) seen.set(key, { noun: term.noun, nounFirst: term.nounFirst === true });
+      else if (term.nounFirst) have.nounFirst = true;
     }
   }
   return [...seen.values()];
@@ -147,7 +154,7 @@ export function coinNamesIn(special, coinNames) {
 export function buildKinds({ rows, gemLegend, jewelryLegend, coinNouns = {} }) {
   const kinds = [];
   const skipped = [];
-  for (const key of COIN_KEYS) kinds.push({ key, pool: "coins", column: key, names: [key, ...nounsOf(rows, key), ...(coinNouns[key] ?? [])] });
+  for (const key of COIN_KEYS) kinds.push({ key, pool: "coins", column: key, names: [key, ...nounsOf(rows, key).map((n) => n.noun), ...(coinNouns[key] ?? [])] });
 
   const legendKinds = (column, legend, lists, values) => {
     const usable = Array.isArray(legend) && legend.length === lists.length && legend.every((r) => r && r.dice && r.kind);
@@ -171,7 +178,7 @@ export function buildKinds({ rows, gemLegend, jewelryLegend, coinNouns = {} }) {
 
   const magic = nounsOf(rows, "magic");
   if (!magic.length) kinds.push({ key: "magic", pool: "magic", column: "magic", names: [] });
-  magic.forEach((noun, i) => kinds.push({ key: `magic.${i}`, pool: "magic", column: "magic", names: [noun], label: noun, tableRef: noun }));
+  magic.forEach(({ noun, nounFirst }, i) => kinds.push({ key: `magic.${i}`, pool: "magic", column: "magic", names: [noun], label: noun, tableRef: noun, ...(nounFirst ? { typeList: true } : {}) }));
   return { kinds, skipped };
 }
 
@@ -285,9 +292,10 @@ function specialLists(tables, kinds, cite) {
  * through `coinOf(key) -> {name, cv, weight6?: (count) => number}|null`; a key
  * the world has no coin for is a `coin-missing` error and the card is left out,
  * never valued at a stand-in. A magic card is a placeholder carrying the
- * `tableRef` the magic-item roll resolves, undetected and unidentified; the
- * ref is not part of a stored truth and is dropped when the truth is
- * normalized again.
+ * `tableRef` the magic-item roll resolves, undetected and unidentified, and
+ * `typeList: true` where the noun was printed before its count; neither is
+ * part of a stored truth, and both are dropped when the truth is normalized
+ * again.
  *
  * @param {object[]} cards the engine's `cards`
  * @param {{coinOf: (key: string) => object|null, format?: (n: number) => string}} deps
@@ -312,7 +320,7 @@ export function truthsFromCards(cards, { coinOf, format = String }) {
     } else if (card.pool === "special") {
       truths.push(normalizeTruth({ pool: POOL.special, label: card.label }));
     } else if (card.pool === "magic") {
-      truths.push({ ...normalizeTruth({ pool: POOL.magic, label: card.label, magical: true, detected: false }), tableRef: card.tableRef });
+      truths.push({ ...normalizeTruth({ pool: POOL.magic, label: card.label, magical: true, detected: false }), tableRef: card.tableRef, ...(card.typeList ? { typeList: true } : {}) });
     } else errors.push(err("unknown-pool", { pool: card.pool ?? null }));
   }
   return { truths, errors };

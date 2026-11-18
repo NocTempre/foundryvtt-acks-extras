@@ -160,9 +160,10 @@ export function rollOnBands(table, die, roll, { exact = false } = {}) {
 /**
  * One clause of a cell read into `{chance, count, noun}`: an optional chance
  * (`N%`), then a count (dice or a whole number) and a noun in either order, the
- * noun optional when the column names it. A chance of zero is a clause that
- * never fires and its remainder is not read. `count` is null only for a clause
- * that never fires.
+ * noun optional when the column names it. A clause that puts its noun before
+ * its count also carries `nounFirst: true`; a count-first clause does not. A
+ * chance of zero is a clause that never fires and its remainder is not read.
+ * `count` is null only for a clause that never fires.
  */
 function parseClause(text) {
   let s = text.trim();
@@ -178,7 +179,7 @@ function parseClause(text) {
   const front = new RegExp(`^(${DICE_SRC})\\s*(.*)$`, "i").exec(s);
   if (front && parseDice(front[1])) return { chance, count: front[1], noun: front[2].trim() || null };
   const back = new RegExp(`^(\\D.*?)\\s*(${DICE_SRC})$`, "i").exec(s);
-  if (back && parseDice(back[2])) return { chance, count: back[2], noun: back[1].trim() };
+  if (back && parseDice(back[2])) return { chance, count: back[2], noun: back[1].trim(), nounFirst: true };
   return err(chance == null ? "unparseable" : "missing-count", { text });
 }
 
@@ -196,7 +197,8 @@ const EMPTY_RE = /^[-–—\s]*$/;
  * @param {string|null} cell
  * @param {{column?: string}} [opts] the column key, a hint for a clause with no noun
  * @returns {{terms: object[], note: string|null}|{error: object}} each term is
- *   `{chance, count, noun, column}`
+ *   `{chance, count, noun, column}`, plus `nounFirst: true` where the clause
+ *   printed its noun before its count
  */
 export function parseCell(cell, { column = null } = {}) {
   const raw = String(cell ?? "").replace(/\s+/g, " ").trim();
@@ -262,7 +264,8 @@ function coinResult(text, kinds) {
  * injected roller, each unit of gems and jewelry on its band list, magic as a
  * placeholder per unit, then (when `tables.special` is supplied and `special`
  * is not false) each lot of coin and each gem or piece of jewelry on its
- * special list. Cards are `{pool, coin|valueGp|tableRef, label, cite}`.
+ * special list. Cards are `{pool, coin|valueGp|tableRef, label, cite}`; a magic
+ * card also carries `typeList: true` when its kind does.
  *
  * @param {object} args
  * @param {string} args.type the row key of `tables.type.rows`
@@ -332,7 +335,7 @@ export function dealHoard({ type, tables, kinds, roll, units = {}, special = tru
           thrown.push({ card, kind });
         }
       } else if (kind.pool === "magic") {
-        for (let i = 0; i < count; i++) cards.push({ pool: "magic", tableRef: kind.tableRef ?? null, label: labelOf(kind), cite: typeCite });
+        for (let i = 0; i < count; i++) cards.push({ pool: "magic", tableRef: kind.tableRef ?? null, ...(kind.typeList ? { typeList: true } : {}), label: labelOf(kind), cite: typeCite });
       } else fail(err("unknown-pool", { pool: kind.pool ?? null }), where);
     }
   }

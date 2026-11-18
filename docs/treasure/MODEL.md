@@ -533,8 +533,14 @@ captions or list ids: everything it matches arrives from the import.
   roll's `from`. A noun that names no list, two lists, or none (a magic column
   that prints no noun) does not roll, and nor does a compound noun (a comma, a
   semicolon or a parenthetical: a choice among lists, or one of each of a list)
-  or a style with no list imported. A noun that names no list never falls back
-  to the type list.
+  or a style with no list imported. One shape begins at the type list instead:
+  a clause printed noun-first (`<noun> <count>`, where every clause that names a
+  category prints its count first) is the cell's generic term. `parseCell` marks
+  it `nounFirst`, its magic kind and placeholder carry `typeList`, and in the
+  classic style such a placeholder that names no list rolls from the imported
+  type list (`classicType`), which picks the category. Any other noun that names
+  no list never falls back to the type list, and the heroic and gritty styles
+  have no type list.
 - **One roll per card**, through the `magic-item-roll` contract
   (`docs/lib/API.md`; treasure imports nothing of `magic-items`), on core's dice
   unless `dealLettersIntoPot` is given a `roller`.
