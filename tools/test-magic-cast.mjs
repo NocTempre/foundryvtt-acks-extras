@@ -1857,4 +1857,16 @@ await ta("a ward applied to a target is one record whose part names the spell's 
   assert.equal(free.log.made[0].flags["acks-extras"].rollMods.parts[0].save, undefined, "a ward no save governs names no save");
 });
 
+t("castReading reads the capacity and the caster level of a spell's caster with no target and no seat, for a tradition and for core's count", async () => {
+  const { castReading } = await import("../scripts/magic/cast-spell.mjs");
+  const spell = { type: "spell", system: { lvl: 1, cast: 0, class: "" }, flags: { "acks-extras": { spell: { lists: [{ source: "arcane", level: 1 }] } } } };
+  const actor = { items: [spell], system: { details: { level: 4 }, spells: { enabled: false } }, getFlag: () => undefined };
+  const arcane = { key: "arcane", label: "Arcane", kind: "vancian", slots: [] };
+  const read = castReading(actor, spell, { classItem: { system: { casting: [arcane], ladders: [] } }, pools: [{ key: "arcane", slots: [{ n: 1, max: 2, used: 1 }] }] });
+  assert.deepEqual([read.capacity.verdict, read.capacity.source, read.spellLevel, read.found.tradition.key], ["ok", "tradition", 1, "arcane"]);
+  assert.deepEqual(read.level, { matched: true, classLevel: 4, ladder: null, monsterLevel: undefined });
+  const bare = castReading({ items: [spell], system: { details: { level: 2 }, spells: { enabled: true, 1: { max: 1 } } }, getFlag: () => ({ spellcasting: { level: 6 } }) }, spell);
+  assert.deepEqual([bare.found, bare.capacity.verdict, bare.capacity.source, bare.level.monsterLevel], [null, "ok", "core", 6]);
+});
+
 console.log(`\n${n} magic cast tests passed`);

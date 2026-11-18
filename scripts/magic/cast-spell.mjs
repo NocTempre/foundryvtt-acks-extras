@@ -170,19 +170,46 @@ export function castReach({ figures, level, tokens, gaps = {} }) {
   return { range, count: figure(target.count) };
 }
 
+/**
+ * What a cast reads of its caster before any target: the tradition that cast the
+ * spell, what that tradition has left of the spell's level (`capacity`), and the
+ * figures the caster level resolves from (`level`, which `casterLevel` takes).
+ * Synchronous and free of the seat, so the castable-spell register reads it too
+ * (`repertoire.mjs`). The caller reads the actor's class and pools, which
+ * need the classes feature this file does not import.
+ *
+ * @param {Actor} actor  the caster
+ * @param {Item} spell
+ * @param {{classItem?: object|null, pools?: object[]}} [from]  `classForActor(actor)` and `poolState(actor)`
+ * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, capacity: ReturnType<typeof castCapacity>, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
+ */
+export function castReading(actor, spell, { classItem = null, pools = [] } = {}) {
+  const extras = flagOf(spell);
+  const found = traditionFor(classItem?.system?.casting, { extras, lvl: spell.system?.lvl, class: spell.system?.class });
+  const spellLevel = found?.spellLevel ?? levelUnder(extras, spell.system?.lvl, new Set());
+  const castsAtLevel = actor.items.filter((i) => i.type === SPELL_TYPE && Number(i.system?.lvl) === spellLevel).reduce((sum, i) => sum + (Number(i.system?.cast) || 0), 0);
+  const capacity = castCapacity({ pools, coreSpells: actor.system?.spells, castsAtLevel, tradition: found?.tradition?.key ?? null, spellLevel });
+  const ladderKey = found?.tradition?.casterLevel;
+  const ladder = ladderKey ? ((classItem?.system?.ladders ?? []).find((l) => l.key === ladderKey) ?? { values: [] }) : null;
+  return {
+    found,
+    spellLevel,
+    capacity,
+    level: {
+      matched: Boolean(found),
+      classLevel: actor.system?.details?.level,
+      ladder,
+      monsterLevel: actor.getFlag?.(MODULE_ID, "extras")?.spellcasting?.level,
+    },
+  };
+}
+
 /** The reading of the live world a cast needs, in one place. */
 async function readWorld(spell) {
   const actor = spell.parent;
   const { classForActor } = await import("../classes/registry.mjs");
   const { poolState } = await import("../classes/casting.mjs");
-  const extras = flagOf(spell);
-  const classItem = classForActor(actor);
-  const found = traditionFor(classItem?.system?.casting, { extras, lvl: spell.system?.lvl, class: spell.system?.class });
-  const spellLevel = found?.spellLevel ?? levelUnder(extras, spell.system?.lvl, new Set());
-  const castsAtLevel = actor.items.filter((i) => i.type === SPELL_TYPE && Number(i.system?.lvl) === spellLevel).reduce((sum, i) => sum + (Number(i.system?.cast) || 0), 0);
-  const capacity = castCapacity({ pools: poolState(actor), coreSpells: actor.system?.spells, castsAtLevel, tradition: found?.tradition?.key ?? null, spellLevel });
-  const ladderKey = found?.tradition?.casterLevel;
-  const ladder = ladderKey ? ((classItem?.system?.ladders ?? []).find((l) => l.key === ladderKey) ?? { values: [] }) : null;
+  const { capacity, level } = castReading(actor, spell, { classItem: classForActor(actor), pools: poolState(actor) });
   const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
@@ -200,12 +227,7 @@ async function readWorld(spell) {
     prepareSpell: fight?.combatant?.flags?.acks?.prepareSpell === true,
     statuses: [...(actor.statuses ?? [])],
     capacity,
-    level: {
-      matched: Boolean(found),
-      classLevel: actor.system?.details?.level,
-      ladder,
-      monsterLevel: actor.getFlag?.(MODULE_ID, "extras")?.spellcasting?.level,
-    },
+    level,
   };
 }
 

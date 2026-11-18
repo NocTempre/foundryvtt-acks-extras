@@ -632,3 +632,50 @@ the spell-effects plan's rulings 75 to 82 and 130 to 140 (S5a, the lib half).
 *Cost:* lib `apiVersion` is 58. Every reader tests a part against the live
 effects at its roll, so a part is gone when its record ends. The editor controls
 for the new row fields wait for the approved design.
+
+## 2026-11-18 — One register of what a character can cast: lib owns it
+
+**Ruled.** The owner: "Pale when not cast and can cast on self. Gold when cast on
+self even if by another." "That includes from scrolls in inventory FYI, they
+should share an awareness register." "Inferred correctly, can't cast does not
+show as can but uncast". Example: a mage carrying a grant spell with a slot to
+spare has no record of it, so the granted roll is pale; a cleric casts it on her
+and it is gold; a fighter holding the same spell item has no row. Governed by the
+spell-effects plan's "The castable-spell register (architect, 2026-11-18)".
+
+- **The register is `lib/spell-sources.mjs`**, shaped like
+  `registerItemBonusSource`. Its readers (the abilities feature now, the cast
+  dialog later) cannot import magic, and a second source was named: lib owns the
+  seam and each provider registers into it. A source (`registerSpellSource`)
+  answers what one place holds; the reach (`registerSpellReach`) has one owner,
+  magic, which decides what a cast writes on its caster. `castableSpells` merges
+  a spell two sources hold by a row's own order of naming (cookbook id, uuids,
+  folded name) and the source with the better capacity speaks for it.
+  *Rejected:* a magic-owned reader that abilities imports, which inverts the
+  dependency. *Counter (medium):* the reach is magic's logic reached through lib,
+  so a second reach owner would silently replace the first.
+- **It extends `recordParts`, never forks it.** `recordParts` gains an `entries`
+  option (default `rollModsOf(actor)`), and `availableRollMods` returns the on-self
+  parts in that entry shape, so an available grant is narrowed by `ref`, skipped
+  by `hasCapability`, tested by `partHolds` and stacked exactly as a recorded one.
+  This qualifies 2026-11-17's "One reader for a record's parts", whose reader
+  took records only, and supersedes in part the spell-effects plan's ruling 78
+  "Readers" and `grantedThrows`' "while that record lasts", both under 7 days
+  old. New evidence: the owner's rulings above. *Counter (low):* callers must pass the recorded entries first for
+  a recorded grant to win a tie, which only an ordering contract holds.
+- **On self** means a cast would write the part on the caster: an `aimedAtSelf`
+  row, or a row aimed at a target, recipient or area under a blank, self,
+  creature, recipient, hdPool or area model that the target gates admit. An
+  object or structure model answers false, special null. *Rejected:* reading
+  "can cast" alone, which shows a row for a spell that would write nothing on its
+  caster. *Counter (medium):* the register answers what a cast could write, so a
+  pick group counts every option.
+- **No seat, no cache.** No reader tests `isOwner`: Foundry gates no read, so a
+  seat-dependent answer differs for no reason a user can name, and a source
+  decides what a non-GM `viewer` may be told. The register keeps nothing between
+  calls; the twin lookups are one lazily built map per `castableSpells` call.
+  *Counter (low):* the library is read once per call rather than once per change.
+
+*Cost:* lib `apiVersion` is 59. The scroll source waits for a spell pointer on a
+scroll (owner question 1c.27); until a source registers for it, a scroll adds
+nothing to the register.

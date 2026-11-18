@@ -1,4 +1,4 @@
-# lib API (apiVersion 58)
+# lib API (apiVersion 59)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 58,
+  apiVersion: 59,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1084,7 +1084,7 @@ acksExtras.lib.rollMods = {
   rollModsOf(actor) → [{effect, id, label, cite, sourceAlignment, part}],   // active effects only
   registerItemBonusSource(source) → unregister,   // source(item, on) → [{key, label, value, provides, cite}]
   // 58: one reader of a record's parts for every other roll
-  recordParts(actor, on, {subject, rollKey, save, kind, ctx, rollType = "above"})
+  recordParts(actor, on, {subject, rollKey, save, kind, ctx, rollType = "above", entries = rollModsOf(actor)})   // 59: entries
     → {kept, dropped, pending},             // on: throw | reaction | grant | save | ac | immune
   throwResolution(actor, recordParts options)
     → {outcome: "throw" | "auto", add, total, set, auto, dropped, pending},
@@ -1172,6 +1172,52 @@ lowers the number to roll, so a positive value helps the roller on either side.
 `saveThrow` rolls nothing and answers `roll`, `total` and `success` null for a
 creature with no stored target (and `success` true, nothing rolled, for a spec
 with `auto`), and never calls `loseStates`.
+
+## `spellSources` — the castable-spell register (apiVersion 59)
+
+The ruling is DECISIONS, "One register of what a character can cast: lib owns it".
+
+```
+acksExtras.lib.spellSources = {
+  registerSpellSource(kind, source) → unregister,   // source(actor, {viewer, call}) → [{spell, itemId, casterLevel, capacity, cite?, twin?}]
+  registerSpellReach(reach) → unregister,           // reach(actor, entry, call) → {onSelf: true | false | null, selfParts}; one owner
+  castableSpells(actor, {viewer, kinds}) → [{key, spellRef: {cookbookId, uuid, name}, source, sources, itemId,
+                                             casterLevel, capacity, cite, onSelf, selfParts}],
+  availableRollMods(actor, {viewer, kinds}) → [{effect: null, id, label, cite, sourceAlignment, part, source}],
+  spellRefOf(spell, twin) → {cookbookId, uuid, uuids, name, key},
+  SPELL_CAPACITY: {ok, unknown, none},
+}
+```
+
+A **source** answers what one kind of place holds for an actor: `spell` the
+document, `itemId` the item that holds it, `casterLevel` `{value, source, parts}`
+or null, `capacity` `"ok"`, `"none"` or `"unknown"` (what a cast would find now;
+`"none"` is a known spell with nothing left to cast it with, still listed), `cite`
+the spell's page reference and `twin` its library document where the source read
+one. A source lists only a spell the actor can cast at all. `call` is one object
+shared by every source and the reach during one `castableSpells` call, for a
+provider's per-call scratch. `viewer` is whoever asks; no source reads a seat, and
+one that names a spell the viewer may not know (an unidentified scroll) answers
+nothing for a non-GM `viewer`. A kind registered again replaces its source; a source
+or the reach that throws is logged and contributes nothing.
+
+`castableSpells` merges a spell two sources both hold into one entry by the order
+a row names a spell: the cookbook id, else the uuids, else the folded name. The
+source with the better capacity (`ok`, then `unknown`, then `none`; the first
+registered on a tie) speaks for the entry (`source`, `itemId`, `casterLevel`,
+`capacity`, `cite`) and `sources` lists every kind that holds it. The reach is asked
+once per merged spell. `onSelf` is true where a cast would write on the caster,
+false where it would not, null where the reach cannot tell or none is registered,
+and `selfParts` are the parts that cast would write (`[]` unless `onSelf`).
+
+`availableRollMods` is every on-self entry's parts as `rollModsOf` entries, with
+`effect` null and the `source` kind added; its `id` is the cookbook id or null and
+its `sourceAlignment` the actor's. Pass them to `recordParts` after the recorded
+ones: `recordParts(actor, "grant", {entries: [...rollModsOf(actor), ...availableRollMods(actor)]})`.
+They go through the same narrowing, `hasCapability` skip, `partHolds` and stacking.
+A part with no figure (a grant) keeps the first of its group, so with the recorded
+entries first a recorded grant stands and an available one of the same ref is
+told as yielding to it; figured parts stack by size as they always did.
 
 ## Turn hooks and a record's turn life (apiVersion 54)
 

@@ -20,7 +20,7 @@
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { libraryTwin } from "./summon-spell.mjs";
 import { foldKey } from "./spell-logic.mjs";
-import { cookbookId } from "../lib/library.mjs";
+import { spellRefOf } from "../lib/spell-sources.mjs";
 import { stackingPart, resolveStacking } from "../lib/typed-modifiers.mjs";
 import { satisfiesAll } from "../lib/vocab.mjs";
 
@@ -55,7 +55,8 @@ const anyWord = (wants, have) => wants.some((w) => have.some((h) => sameWord(w, 
  * The facts of a spell a row can narrow on: its type, schools, elements, save
  * category, cookbook id, uuids and folded name. Each figure is the copy's own
  * and, where the copy holds none, its library twin's (`libraryTwin`, read only
- * when something is missing), as the cast's other readers resolve a twin.
+ * when something is missing), as the cast's other readers resolve a twin. The
+ * identity half (`id`, `uuid`, `uuids`, `name`) is lib's `spellRefOf`.
  *
  * @param {object} spell
  * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
@@ -73,16 +74,16 @@ export function spellFacts(spell, lookups) {
     }
   }
   const other = flagOf(twin);
-  const uuids = [spell?.uuid, spell?._stats?.compendiumSource, twin?.uuid].map((u) => String(u ?? "")).filter(Boolean);
+  const ref = spellRefOf(spell, twin);
   return {
     type: own.type || other.type || "",
     schools: listOf(own.schools).length ? listOf(own.schools) : listOf(other.schools),
     elements: listOf(own.elements).length ? listOf(own.elements) : listOf(other.elements),
     saveCategory: own.save?.category || other.save?.category || "",
-    id: cookbookId(spell) || cookbookId(twin),
-    uuid: String(spell?.uuid ?? ""),
-    uuids: [...new Set(uuids)],
-    name: foldKey(spell?.name),
+    id: ref.cookbookId,
+    uuid: ref.uuid,
+    uuids: ref.uuids,
+    name: ref.key,
   };
 }
 

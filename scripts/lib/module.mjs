@@ -121,6 +121,7 @@ import {
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
 import { installRollMods, ownSaveParts, partHolds, recordImmunity, recordParts, registerItemBonusSource, rollModsOf, throwResolution } from "./roll-mods.mjs";
+import { availableRollMods, castableSpells, registerSpellReach, registerSpellSource, spellRefOf, SPELL_CAPACITY } from "./spell-sources.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
   SETTING_MANAGE_VISION,
@@ -158,7 +159,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 58,
+  apiVersion: 59,
   vocab,
   fields,
   /**
@@ -446,6 +447,24 @@ const localImpl = Object.freeze({
     partHolds,
     ownSaveParts,
     FLAG: FLAG_ROLL_MODS,
+  },
+  /**
+   * The castable-spell register (spell-sources.mjs): what an actor can cast,
+   * from every kind of place it gets a spell. `registerSpellSource(kind, fn)`
+   * adds a provider and `registerSpellReach(fn)` sets the one reader of what a
+   * cast on itself would write; both return their unregister.
+   * `castableSpells(actor, {viewer, kinds})` is the merged answer, one entry per
+   * spell, and `availableRollMods(actor, {viewer})` the parts those casts would
+   * write, in `rollMods.rollModsOf`'s entry shape, for `recordParts`' `entries`
+   * option. `spellRefOf(spell, twin)` is a spell's identity.
+   */
+  spellSources: {
+    registerSpellSource,
+    registerSpellReach,
+    castableSpells,
+    availableRollMods,
+    spellRefOf,
+    SPELL_CAPACITY,
   },
   /**
    * Take off an actor the states a `cause` (`damage`, `save`, `moved`)

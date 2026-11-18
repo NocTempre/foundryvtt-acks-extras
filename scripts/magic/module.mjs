@@ -25,9 +25,14 @@ import {
   coreSlotsPatch,
   spellsByName,
   fillGeneratedRepertoire,
+  makeRepertoireSource,
 } from "./repertoire.mjs";
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
-import { registerCastSpell } from "./cast-spell.mjs";
+import { registerCastSpell, castReading } from "./cast-spell.mjs";
+import { selfReach, twinLookups } from "./cast-reach.mjs";
+import { classForActor } from "../classes/registry.mjs";
+import { poolState } from "../classes/casting.mjs";
+import { registerSpellSource, registerSpellReach } from "../lib/spell-sources.mjs";
 import { registerCastRecur } from "./cast-recur.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
 import { registerCastHeld } from "./cast-held.mjs";
@@ -121,6 +126,13 @@ Hooks.once("init", () => {
     registerCastSpell();
   } catch (err) {
     console.error(`${MODULE_ID} | the spell cast could not register`, err);
+  }
+  // What a character can cast is one register in lib: the repertoire is a source, and magic decides what a cast would write on its caster.
+  try {
+    registerSpellSource("repertoire", makeRepertoireSource({ castReading, classFor: classForActor, poolsOf: poolState, lookups: twinLookups }));
+    registerSpellReach(selfReach);
+  } catch (err) {
+    console.error(`${MODULE_ID} | the castable-spell register could not be filled`, err);
   }
   // A recurring row's prompt is posted at its turn by lib's turn hooks, and its Save, Roll and Next round
   // presses are relayed to the GM's client.

@@ -15,6 +15,7 @@
  */
 
 import { SPELL_TYPES, REGISTER_KEY } from "../lib/magic-vocab.mjs";
+import { foldName } from "../lib/spell-sources.mjs";
 
 /**
  * A spell's retired keys once a row is deleted from it: the list, with the
@@ -301,8 +302,8 @@ export function coreFieldsFrom(extras) {
 
 /* -------------------------------------------- */
 
-/** Case and punctuation folded, for matching a tradition or a name. */
-export const foldKey = (s) => String(s ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
+/** Case and punctuation folded, for matching a tradition or a name: lib's one fold. */
+export const foldKey = foldName;
 
 /**
  * The traditions a spell is offered under, folded: every list's source where

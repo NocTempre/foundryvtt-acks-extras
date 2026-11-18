@@ -340,14 +340,15 @@ function resolveGroup(parts, lowerBetter) {
  * @param {string} [options.kind]  the attack's kind, one of `ATTACK_KINDS`
  * @param {{item?: object, token?: object, occasion?: string}} [options.ctx]  what `partHolds` reads
  * @param {"above"|"below"|string} [options.rollType]  how the throw is read: a `set` figure is a target, lower the better throw unless `below`
+ * @param {object[]} [options.entries]  the parts to read, in `rollModsOf`'s entry shape; the actor's own records when omitted. A caller adding the parts a cast would write (`availableRollMods`) passes the recorded ones first and the available after, so a part a record holds wins a tie
  * @returns {{kept: object[], dropped: object[], pending: object[]}}
  *   a part is a `stackingPart` labelled `{spell} ({cite})`, carrying `spell`, `refTo` (its first `ref`), `effect` and every field of the part; `dropped` carry `yieldsTo`; `pending` is `{label, value, why: "narrow"|"gate", effect, part}`
  */
-export function recordParts(actor, on, { subject = null, rollKey, save, kind, ctx = {}, rollType = "above" } = {}) {
+export function recordParts(actor, on, { subject = null, rollKey, save, kind, ctx = {}, rollType = "above", entries = rollModsOf(actor) } = {}) {
   const pending = [];
   const groups = new Map();
   const byRef = on !== "grant" && on !== "immune";
-  for (const entry of rollModsOf(actor)) {
+  for (const entry of entries) {
     const { part } = entry;
     if (part.on !== on) continue;
     const fit = narrow(part, { subject, rollKey, save, kind, byRef });

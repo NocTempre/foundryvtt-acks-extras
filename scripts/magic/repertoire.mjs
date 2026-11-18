@@ -13,6 +13,9 @@
  * is named; `spellPayload` is the embedded copy a creature carries;
  * `spellsByName` resolves a printed name against the world's spells. See
  * docs/magic/DECISIONS.md, "A creature's repertoire is drawn to its slots".
+ *
+ * `makeRepertoireSource` is the same spell items read the other way: what a
+ * character can cast now, registered with lib's castable-spell register.
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -22,6 +25,9 @@ import { choosableSpells } from "../classes/grants.mjs";
 import { slotRowAt } from "../classes/casting.mjs";
 import { foldKey } from "./spell-logic.mjs";
 import { levelUnder, titleIndex } from "./spell-names.mjs";
+import { libraryTwin } from "./summon-spell.mjs";
+import { casterLevel } from "./cast-level.mjs";
+import { cookbookId } from "../lib/library.mjs";
 
 /** The spell levels the system's slot block carries. */
 export const SLOT_LEVELS = Object.freeze([1, 2, 3, 4, 5, 6]);
@@ -208,4 +214,66 @@ export function fillGeneratedRepertoire(resolved) {
   const drawn = repertoireFor(casting.class, slots, { level });
   for (const doc of drawn) resolved.items.push(spellPayload(doc));
   return drawn.length;
+}
+
+/** The spell flag of an item, as the cast reads it. */
+const spellFlagOf = (item) => item?.flags?.[MODULE_ID]?.[FLAG_SPELL];
+
+/**
+ * Whether a character can cast a spell it carries, from what `castReading`
+ * found: a tradition whose slot table holds no slot at the spell's level cannot
+ * (the spell is carried, not castable); any other matched tradition can, its
+ * capacity unknown where it keeps no count (a points pool, a ladder rung, a
+ * grid never imported); and with no tradition, core's own slot count at the
+ * spell's level counts where core's spells block is on.
+ */
+function canCastNow(reading, coreOn) {
+  const { capacity } = reading;
+  if (capacity.source === "tradition") return capacity.max > 0;
+  if (reading.found) return true;
+  return coreOn && capacity.source === "core";
+}
+
+/**
+ * The repertoire as a castable-spell source (`lib/spell-sources.mjs`): every
+ * spell item the actor carries that holds this module's spell flag (an unflagged
+ * spell item is core's own monster attack, and no spell) that the actor can cast
+ * now, with the capacity and caster level the cast itself would read
+ * (`castReading`). A spell the actor carries but has no tradition or core slot
+ * count for is left out.
+ *
+ * Reads no seat. The world readers are passed in so this file stays free of the
+ * cast: `castReading` is `cast-spell.mjs`'s, `classFor` and `poolsOf` the
+ * classes feature's `classForActor` and `poolState`, and `lookups(call)` the
+ * lazy twin lookups of `cast-reach.mjs`.
+ *
+ * @param {{castReading: Function, classFor: Function, poolsOf: Function, lookups?: Function}} deps
+ * @returns {(actor: object, options?: {viewer?: object|null, call?: object}) => object[]}
+ */
+export function makeRepertoireSource({ castReading, classFor, poolsOf, lookups = null }) {
+  return (actor, { call = {} } = {}) => {
+    const spells = [...(actor?.items ?? [])].filter((i) => i.type === ITEM_TYPE.spell && Object.keys(spellFlagOf(i) ?? {}).length > 0);
+    if (!spells.length) return [];
+    const classItem = classFor(actor);
+    const pools = poolsOf(actor);
+    const coreOn = actor.system?.spells?.enabled === true;
+    const out = [];
+    for (const spell of spells) {
+      const reading = castReading(actor, spell, { classItem, pools });
+      if (!canCastNow(reading, coreOn)) continue;
+      const level = casterLevel(reading.level);
+      // The twin is read only where the copy holds no stamp or no page reference.
+      const own = spellFlagOf(spell) ?? {};
+      const twin = lookups && (!cookbookId(spell) || !own.cite) ? libraryTwin(spell, lookups(call)) : null;
+      out.push({
+        spell,
+        itemId: spell.id ?? null,
+        casterLevel: level.value ? level : null,
+        capacity: reading.capacity.verdict,
+        cite: String(own.cite || spellFlagOf(twin)?.cite || ""),
+        twin,
+      });
+    }
+    return out;
+  };
 }
