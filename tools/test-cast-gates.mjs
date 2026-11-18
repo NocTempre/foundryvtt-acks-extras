@@ -321,7 +321,7 @@ await ta("a typed split that names an exempt target spends that share, and a cap
   const brute = tokenOf(creature("7"), 1);
   const mouse = tokenOf(creature("2"), 2);
   const bolts = { ...BOLT, value: flat(3) };
-  const r = runDeps([brute, mouse], { mode: "normal", picks: {}, allocation: { bolt: { 0: "2", 1: "1" } } });
+  const r = runDeps([brute, mouse], { mode: "normal", picks: {}, allocation: { bolt: { [brute.uuid]: "2", [mouse.uuid]: "1" } } });
   await castSpellRun(spell([bolts], { target: { hdCap: flat(4) } }), () => {}, r.deps);
   assert.deepEqual(r.calls.throws, ["Scene.s.Token.k2"], "the one throw assigned to the reachable target");
   const scaled = runDeps([brute, mouse]);

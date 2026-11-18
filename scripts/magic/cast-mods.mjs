@@ -357,3 +357,46 @@ export function dryYields(parts, { item, bearer, spell, sourceAlignment = null }
   }
   return out;
 }
+
+/**
+ * The spell's own modifier on its saving throw (`save.modifier`, a level value),
+ * read at a caster level: the signed figure as written, null where the import
+ * read none or a per-level figure has no level yet.
+ *
+ * @param {{modifier?: unknown}|null|undefined} save  the spell's `save` figures
+ * @param {number|null} level
+ * @returns {number|null}
+ */
+export const saveModifierOf = (save, level) => modifierFigure({ value: save?.modifier }, level);
+
+/**
+ * The part the spell's own save modifier is on each target's throw, once the seat
+ * has switched it on for the cast: one part named by the spell, its figure the
+ * card's level reading (the casting seat and the relay both read it here, so the
+ * throw's bounds agree). None where it is off or has no figure.
+ *
+ * @param {{modifier?: unknown}|null|undefined} save
+ * @param {{level: number|null, applied: boolean, label: string}} o
+ * @returns {Array<{key: string, label: string, value: number}>}
+ */
+export function spellSaveParts(save, { level, applied, label }) {
+  const value = applied === true ? saveModifierOf(save, level) : null;
+  return value == null || value === 0 ? [] : [{ key: "spell:save", label: String(label ?? ""), value }];
+}
+
+/**
+ * The creature kinds a cast offers for its `pickKind` rows: the union of their
+ * authored `vsKinds`, each once, in the order the rows list them. One pick covers
+ * every such row (`modParts` narrows each to it).
+ *
+ * @param {Array<{row: object}>} rows  the cast's kept rows
+ * @returns {string[]}
+ */
+export function kindChoices(rows) {
+  const out = [];
+  for (const { row } of rows ?? []) {
+    if (row?.pickKind !== true) continue;
+    for (const kind of Array.from(row.vsKinds ?? []).map(String)) if (!out.includes(kind)) out.push(kind);
+  }
+  return out;
+}

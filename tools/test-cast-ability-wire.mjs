@@ -56,13 +56,14 @@ const docs = {};
 globalThis.fromUuidSync = (uuid) => docs[uuid] ?? null;
 globalThis.fromUuid = async (uuid) => docs[uuid] ?? null;
 
+const { spellSaveParts, modifierFigure } = await import("../scripts/magic/cast-mods.mjs");
 const { castAbilitiesOf, castSaveParts, castDamageRows, abilityDamageContributor, NO_ABILITIES } = await import("../scripts/magic/cast-ability-use.mjs");
 const { levelTip, abilityTips } = await import("../scripts/magic/cast-ability-tips.mjs");
 const { castSpellRun, rollResist, rowSpecOf, registerCastSpell } = await import("../scripts/magic/cast-spell.mjs");
 const { worldFor, checkApplyRequest } = await import("../scripts/magic/cast-apply.mjs");
 const { pressRecurSave } = await import("../scripts/magic/cast-recur.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
-const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { damageModifiersFor, carrierOf } = await import("../scripts/lib/patches/attack-throw.mjs");
 const { castDuration } = await import("../scripts/magic/cast-duration.mjs");
 
@@ -316,7 +317,7 @@ t("the dialog and the card tell the abilities' parts in their tooltips, the base
   const matched = castAbilitiesOf(caster, spellOn(caster, [burn()]), NO_TWIN);
   const level = { value: 7, source: "class", base: 5, parts: matched.casterLevel, listed: [] };
   const ctx = { level, modes: ["normal"], caster, targets: [], capacity: null };
-  const shown = dialogContext(ctx, {}).level;
+  const shown = dialogContext(ctx, {}).header.level;
   assert.equal(shown.line, `${ROOT}dialog.levelLine|{"value":7}`);
   assert.ok(shown.tip.includes('tip.level.class|{"value":5}'), "the base reads five, not seven");
   assert.ok(shown.tip.includes(`${ROOT}ability.partBare|`), "and the ability's part follows");
@@ -431,6 +432,51 @@ await ta("a recurring Save is rolled with the caster's abilities on it, and sent
   emitted.length = 0;
   await pressRecurSave({ id: "m3", flags: { "acks-extras": { castCard: cardFor(bare, bareSpell, token, { entries: { t1_choke: { state: "pending" } } }) } } }, { target: "t1", row: "choke" });
   assert.equal(emitted[0].payload.resist.formula, "1d20", "a caster with no ability rolls the bare die");
+});
+
+/* ------------------------------------------------------------------ */
+/*  The spell's own save modifier (the dialog's toggle)                */
+/* ------------------------------------------------------------------ */
+
+const OWN = { category: "spell", effect: "negates", modifier: flat(-3) };
+
+t("the spell's own save modifier is one part named by the spell, only where the seat switched it on and the import read a figure at the level", () => {
+  assert.deepEqual(spellSaveParts(OWN, { level: 5, applied: true, label: "Testbrine" }), [{ key: "spell:save", label: "Testbrine", value: -3 }], "added as written, so a penalty is negative");
+  assert.deepEqual(spellSaveParts(OWN, { level: 5, applied: false, label: "Testbrine" }), [], "off, the toggle's default");
+  assert.deepEqual(spellSaveParts({ category: "spell" }, { level: 5, applied: true, label: "Testbrine" }), [], "nothing imported, nothing added");
+  const scaled = { modifier: { kind: "perLevel", base: 0, per: 1 } };
+  assert.deepEqual(spellSaveParts(scaled, { level: null, applied: true, label: "x" }), [], "a figure per level waits for a level");
+  assert.equal(spellSaveParts(scaled, { level: 4, applied: true, label: "x" })[0].value, modifierFigure({ value: scaled.modifier }, 4), "and is read at the level typed");
+  assert.notEqual(modifierFigure({ value: scaled.modifier }, 4), modifierFigure({ value: scaled.modifier }, 6));
+});
+
+await ta("a cast rolls each target's save with the modifier only when the seat applied it, and the card says which", async () => {
+  const caster = casterOf([]);
+  const run = async (answer, save = OWN) => {
+    const r = runDeps({ answer: { mode: "normal", picks: {}, ...answer }, caster, tokens: [tokenOf()] });
+    await castSpellRun(spellOn(caster, [burn()], { save }), () => {}, r.deps);
+    return r.calls.posts[0];
+  };
+  const applied = await run({ saveMod: true });
+  assert.equal(applied.saveMod, true);
+  assert.equal(Object.values(applied.targets)[0].resist.formula, "1d20 - 3");
+  assert.deepEqual(Object.values(applied.targets)[0].resist.parts.map((p) => [p.label, p.value]), [["Testbrine", -3]]);
+  const off = await run({ saveMod: false });
+  assert.equal("saveMod" in off, false);
+  assert.equal(Object.values(off.targets)[0].resist.formula, "1d20");
+  const blank = await run({ saveMod: true }, { category: "spell", effect: "negates" });
+  assert.equal("saveMod" in blank, false, "a spell with no imported modifier carries no toggle on its card");
+  assert.equal(Object.values(blank.targets)[0].resist.formula, "1d20");
+});
+
+await ta("the relay recomputes the modifier from the spell where the card says it was applied, so the bounds agree with the roll", async () => {
+  const caster = casterOf([]);
+  const spell = spellOn(caster, [burn()], { save: OWN });
+  const token = tokenOf();
+  const on = await worldFor({ requestUserId: "p1", targetKey: "t1" }, { id: "m1", author: { id: "p1" } }, { card: cardFor(caster, spell, token, { saveMod: true }) });
+  assert.deepEqual([on.resist.min, on.resist.max], [-2, 17], "1d20 - 3");
+  const off = await worldFor({ requestUserId: "p1", targetKey: "t1" }, { id: "m1", author: { id: "p1" } }, { card: cardFor(caster, spell, token) });
+  assert.deepEqual([off.resist.min, off.resist.max], [1, 20], "an unapplied modifier is not in the bounds");
 });
 
 /* ------------------------------------------------------------------ */

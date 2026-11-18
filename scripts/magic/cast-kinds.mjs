@@ -35,8 +35,8 @@ export function isDestroyed(item) {
 
 /**
  * The weapon a holder loses to a `destroyItem` row: its equipped weapon, else its
- * first one, never one already destroyed. The choice is made without a control,
- * so the card names it.
+ * first one, never one already destroyed. This is the default of the cast
+ * dialog's per-holder pick (`chosenWeapon`), and what a cast with no pick takes.
  *
  * @param {object} actor
  * @returns {{id: string, name: string}|null} null where the holder carries none
@@ -45,6 +45,19 @@ export function pickWeapon(actor) {
   const weapons = liveWeapons(actor);
   const chosen = weapons.find((i) => i.system?.equipped) ?? weapons[0] ?? null;
   return chosen ? { id: chosen.id, name: String(chosen.name ?? "") } : null;
+}
+
+/**
+ * The weapon a holder loses where the seat picked one for it: the picked weapon
+ * where it is a live weapon of the holder, else the default (`pickWeapon`).
+ *
+ * @param {object} actor
+ * @param {string|null|undefined} id  the weapon the seat picked for this holder
+ * @returns {{id: string, name: string}|null}
+ */
+export function chosenWeapon(actor, id) {
+  const picked = id ? liveWeapons(actor).find((i) => i.id === id) : null;
+  return picked ? { id: picked.id, name: String(picked.name ?? "") } : pickWeapon(actor);
 }
 
 /**
@@ -88,7 +101,7 @@ export function liftPlan(effects, ids) {
  * - `resisted(row, actor)`: does the target's saving throw govern this row on
  *   this target (absent: it does, wherever the save's effect says so);
  * - `lives`: the row lasts a number of rounds, a next turn or a following one;
- * - `entry(row, actor)`: what the target's entry opens with beside `pending`;
+ * - `entry(row, actor, pick)`: what the target's entry opens with beside `pending`; `pick` is the weapon the seat picked for this holder;
  * - `lineKey`: the card's footnote line, a key under the cast's strings.
  */
 export const APPLY_KINDS = Object.freeze({
@@ -97,7 +110,7 @@ export const APPLY_KINDS = Object.freeze({
   conditionGrant: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: (row) => !awaitsFail(row), lives: true }),
   conditionRemove: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: () => false }),
   slay: Object.freeze({ place: () => "row", opens: () => true }),
-  destroyItem: Object.freeze({ place: () => "rowAndLine", opens: () => true, resisted: (_row, actor) => pickWeapon(actor) !== null, entry: (_row, actor) => ({ item: pickWeapon(actor) }), lineKey: "line.unheldWeapons" }),
+  destroyItem: Object.freeze({ place: () => "rowAndLine", opens: () => true, resisted: (_row, actor) => pickWeapon(actor) !== null, entry: (_row, actor, pick) => ({ item: chosenWeapon(actor, pick) }), lineKey: "line.unheldWeapons" }),
 });
 
 /** The dispatch entry of a row type, or null where the type is not one of them. */
@@ -116,4 +129,4 @@ export const rowResisted = (row, actor) => kindOf(row?.type)?.resisted?.(row, ac
 export const livesKind = (type) => kindOf(type)?.lives === true;
 
 /** What a kind's entry starts with for this actor, beside `pending`. */
-export const entryOf = (row, actor) => kindOf(row?.type)?.entry?.(row, actor) ?? {};
+export const entryOf = (row, actor, pick = null) => kindOf(row?.type)?.entry?.(row, actor, pick) ?? {};

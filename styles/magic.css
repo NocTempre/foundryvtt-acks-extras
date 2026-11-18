@@ -200,3 +200,456 @@
   font-size: var(--acks-fs-label);
   font-weight: var(--acks-weight-medium);
 }
+
+/* ---------------------------------------------------------------------------
+   The cast dialog (`apps/cast-dialog.mjs`): a scrolling body over a pinned
+   footer, drawn with the sheet frame's cell and gear image in the sheet's
+   tones. The root takes `acks-extras-frame-vars`, so the frame's variables and
+   scale (`--acks-extras-k`) reach every figure; type is a step of the ramp. */
+
+/* Core pins a size on the content box, so it is taken again here. The frame is
+   a column: the body part scrolls and the footer part stays. */
+.acks-extras-cast.application .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-cast .acks-extras-cast-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4);
+}
+
+.acks-extras-cast-head {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding-block-end: var(--acks-sp-3);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras-cast-portrait {
+  flex: none;
+  width: calc(44px * var(--acks-extras-k));
+  height: calc(44px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  object-fit: cover;
+}
+
+.acks-extras-cast-title {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-extras-cast-spell {
+  margin: 0;
+  border: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h2);
+  line-height: 1.1;
+  color: var(--acks-ink);
+}
+
+.acks-extras-cast-caster,
+.acks-extras-cast-levelline,
+.acks-extras-cast-hint,
+.acks-extras-cast-note {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-hint {
+  margin: 0;
+}
+
+/* A reversible spell's form, after the attack dialog's segmented control. */
+.acks-extras-cast-seg {
+  display: inline-flex;
+  flex: none;
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+}
+
+.acks-extras-cast-seg__opt {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--acks-sp-2) var(--acks-sp-4);
+  font-size: var(--acks-fs-label);
+  cursor: pointer;
+}
+
+.acks-extras-cast-seg__opt + .acks-extras-cast-seg__opt {
+  border-inline-start: var(--acks-rule-hair) solid var(--acks-ink);
+}
+
+.acks-extras-cast-seg__opt.is-on {
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-cast-seg__opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.acks-extras-cast-seg__opt:focus-within {
+  outline: var(--acks-rule-hair) solid var(--acks-spot);
+  outline-offset: -2px;
+}
+
+.acks-extras-cast-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-cast-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.acks-extras-cast-group > legend {
+  padding: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+/* An effect: the sheet's cell in its tone beside the row's reading. */
+.acks-extras-cast-fx {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras-cast-cell {
+  flex: none;
+  width: var(--acks-extras-cell);
+}
+
+.acks-extras-cast-cell .acks-extras-frame__cell {
+  --acks-extras-fill: 100%;
+  cursor: default;
+}
+
+.acks-extras-cast-fx__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* A choice's option: the radio is the control, the effect rows are its face. */
+.acks-extras-cast-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-2);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  cursor: pointer;
+}
+
+.acks-extras-cast-opt.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-cast-opt__rows {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  min-width: 0;
+}
+
+.acks-extras-cast-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-cast-field > label,
+.acks-extras-cast-vis,
+.acks-extras-cast-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-field input[type="number"],
+.acks-extras-cast-split input {
+  flex: 0 1 calc(72px * var(--acks-extras-k));
+  min-width: 0;
+}
+
+.acks-extras-cast-check {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  cursor: pointer;
+}
+
+/* A figure the import left blank: the toggle is off and carries the book glyph. */
+.acks-extras-cast-check.is-blank {
+  color: var(--acks-ink-faint);
+  cursor: help;
+}
+
+.acks-extras-cast-unread {
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-cast-parts {
+  display: grid;
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-inline-start: calc(2px * var(--acks-extras-k)) solid var(--acks-spot);
+  background: var(--acks-tint);
+  list-style: none;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-cast-parts li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+/* The targets bucket. */
+.acks-extras-cast-targets.drop-hover {
+  border-color: var(--acks-spot);
+  background: var(--acks-tint);
+}
+
+.acks-extras-cast-targets__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-targets__head h3 {
+  margin: 0;
+  border: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.acks-extras-cast-count {
+  font-family: var(--acks-font-display);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-count.is-over {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-cast-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-cast-trow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras-cast-trow.is-far {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+
+/* A target a gate leaves unaffected stays listed, quiet; its tooltip says why. */
+.acks-extras-cast-trow.is-off {
+  opacity: 0.6;
+  border-style: dashed;
+}
+
+.acks-extras-cast-trow__main {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-trow__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-extras-cast-trow__name {
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-cast-trow__line {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-ctl {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: calc(22px * var(--acks-extras-k));
+  height: calc(22px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  cursor: pointer;
+}
+
+.acks-extras-cast-ctl:hover,
+.acks-extras-cast-ctl:focus-visible {
+  background: var(--acks-tint);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-cast-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-spot);
+  font-size: var(--acks-fs-fine);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.acks-extras-cast-chip.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-cast-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-cast-pill {
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: var(--acks-sp-1) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  border-radius: 999px;
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+  font-size: var(--acks-fs-label);
+  line-height: 1.3;
+  cursor: pointer;
+}
+
+.acks-extras-cast-pill.is-magic {
+  border-color: var(--acks-gold-deep);
+}
+
+.acks-extras-cast-pill.is-on {
+  border-color: var(--acks-spot);
+  background: var(--acks-spot);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-cast-dropbar {
+  display: flex;
+  align-items: stretch;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-drop {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3);
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-cast-add {
+  flex: none;
+  width: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+
+/* The pinned footer. */
+.acks-extras-cast-foot {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border-block-start: var(--acks-rule-hair) solid var(--acks-ink);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-cast-verdicts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-cast-verdicts li.is-block {
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-cast-verdicts li.is-warn {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-cast-foot__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-foot__bar .acks-extras-cast-hint {
+  margin-inline-end: auto;
+}
+
+.acks-extras-cast-foot__bar button {
+  width: auto;
+  flex: none;
+}

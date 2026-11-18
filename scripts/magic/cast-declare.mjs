@@ -103,7 +103,7 @@ function recordsOf(entries, pendings) {
  * @param {object} from
  * @param {object} from.caster  the actor
  * @param {{uuid: string, name: string, img?: string}} from.spell
- * @param {{mode: string, picks: object, casterLevel: object, situational: number|null, visibility: string, item: string}} from.answer  what the dialog was answered
+ * @param {{mode: string, picks: object, casterLevel: object, situational: number|null, visibility: string, pickKind: string|null, items: Record<string, string>, saveMod: boolean}} from.answer  what the dialog was answered
  * @param {{id: string, round: number, turn: number, turns: Array<{id: string}>}} from.combat
  * @param {{id: string, initiative?: number|null}} from.combatant  the caster's
  * @param {object} from.deps  `castId()`, `now()`, `entries(actor)` (`[{id, record}]`), `remove(actor, ids)`, `create(actor, datas)`, `setFlag({combat, combatant, caster, value})`, `notify(level, key, data)`
@@ -123,7 +123,9 @@ export async function declareCast({ caster, spell, answer, combat, combatant, de
     casterLevel: answer.casterLevel ?? null,
     situational: answer.situational ?? null,
     visibility: answer.visibility ?? "public",
-    item: answer.item ?? "",
+    pickKind: answer.pickKind ?? null,
+    items: answer.items ?? {},
+    saveMod: answer.saveMod === true,
     combatId: combat.id,
     round,
     at: now,

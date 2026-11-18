@@ -39,7 +39,7 @@ const { castVerdicts, blocked, VERDICT } = await import("../scripts/magic/cast-p
 const { checkApplyRequest, applyOnTarget, undoEntry } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellRun, rowSpecOf } = await import("../scripts/magic/cast-spell.mjs");
-const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const Tables = await import("../scripts/lib/tables.mjs");
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 
@@ -112,7 +112,9 @@ t("the default split is round-robin in the order given; whole splits and sums re
   assert.deepEqual(allocate(null, ["a"]), { a: 0 });
   assert.deepEqual(wholeSplit({ 0: "2", 1: -1, 2: "x", 3: 1.5, 4: 0 }), { 0: 2, 1: 0, 2: 0, 3: 0, 4: 0 });
   assert.equal(assignedOf({ a: 2, b: 3 }), 5);
-  assert.deepEqual(splitFor(4, ["k1", "k2"], { 0: "1", 1: "3" }), { k1: 1, k2: 3 }, "a typed split is read by target position");
+  assert.deepEqual(splitFor(4, ["k1", "k2"], { 0: "1", 1: "3" }), { k1: 1, k2: 3 }, "a typed split is read by position where no identities are named");
+  assert.deepEqual(splitFor(4, ["k1", "k2"], { tokB: "3", tokA: "1" }, ["tokA", "tokB"]), { k1: 1, k2: 3 }, "a typed split is read by the identity each target key stands for, whatever order it was typed in");
+  assert.deepEqual(splitFor(4, ["k1", "k2"], { tokA: "4", gone: "2" }, ["tokA", "tokB"]), { k1: 4, k2: 0 }, "a figure typed for a creature no longer in the bucket is spent nowhere");
   assert.deepEqual(splitFor(4, ["k1", "k2"], null), { k1: 2, k2: 2 });
   assert.deepEqual(splitFor(1, ["k1", "k2"], { 0: 0, 1: 1 }), { k1: 1, k2: 0 }, "a count of one is never typed");
 });
@@ -432,20 +434,20 @@ await ta("a throw row's count is split round-robin among the targets, each throw
   assert.deepEqual(r.calls.applied.map(([, key, requests]) => [key, requests]), [[first, [{ rowKey: "bolt", instances: [{ rolled: 5, critical: false }] }]], [second, [{ rowKey: "bolt", instances: [{ rolled: 6, critical: false }] }]]]);
 });
 
-await ta("the seat's typed split is read by target position; a split over the count blocks a Player before the spend and warns a Judge, who casts the split as typed", async () => {
-  let r = runDeps({ answer: { mode: "normal", picks: {}, allocation: { bolt: { 0: "1", 1: "2" } } } });
+await ta("the seat's typed split is read by the token it was typed for; a split over the count blocks a Player before the spend and warns a Judge, who casts the split as typed", async () => {
+  let r = runDeps({ answer: { mode: "normal", picks: {}, allocation: { bolt: { "Scene.s.Token.k1": "1", "Scene.s.Token.k2": "2" } } } });
   await castSpellRun(spell([THREE_BOLTS]), () => {}, r.deps);
   const card = r.calls.posts[0];
   const [first, second] = Object.keys(card.targets);
   assert.deepEqual(card.allocation.bolt, { [first]: 1, [second]: 2 });
   assert.deepEqual(r.calls.throws.length, 3);
   let spends = 0;
-  r = runDeps({ answer: { mode: "normal", picks: {}, allocation: { bolt: { 0: "3", 1: "1" } } } });
+  r = runDeps({ answer: { mode: "normal", picks: {}, allocation: { bolt: { "Scene.s.Token.k1": "3", "Scene.s.Token.k2": "1" } } } });
   const refused = await castSpellRun(spell([THREE_BOLTS]), () => spends++, r.deps);
   assert.deepEqual([refused.ok, refused.reason], [false, VERDICT.tooManyInstances]);
   assert.equal(spends, 0, "refused before the spend");
   assert.deepEqual(r.calls.throws, []);
-  r = runDeps({ isGM: true, answer: { mode: "normal", picks: {}, allocation: { bolt: { 0: "3", 1: "1" } } } });
+  r = runDeps({ isGM: true, answer: { mode: "normal", picks: {}, allocation: { bolt: { "Scene.s.Token.k1": "3", "Scene.s.Token.k2": "1" } } } });
   const warned = await castSpellRun(spell([THREE_BOLTS]), () => spends++, r.deps);
   assert.equal(warned.ok, true);
   assert.equal(spends, 1);
@@ -510,18 +512,19 @@ await ta("a no-throw row rolls once for its count: the scaled formula, here and 
 /* ------------------------------------------------------------------ */
 
 t("the dialog offers a split for a thrown row of more than one throw among several targets, defaulting to round-robin, with the verdict worded for the seat", () => {
-  const item = { key: "bolt", row: THREE_BOLTS, count: instanceCount(THREE_BOLTS, 3), pick: "", option: "bolt", split: allocate(3, ["0", "1"]) };
-  const ctx = { modes: ["normal"], targets: [{ name: "Folk 1" }, { name: "Folk 2" }], instances: { normal: [item] }, caster: { name: "Caster" }, cite: "p. 1", isGM: false };
+  const item = { key: "bolt", row: THREE_BOLTS, count: instanceCount(THREE_BOLTS, 3), pick: "", option: "bolt", split: allocate(3, ["Scene.s.Token.k1", "Scene.s.Token.k2"]) };
+  const ctx = { modes: ["normal"], targets: [{ uuid: "Scene.s.Token.k1", name: "Folk 1" }, { uuid: "Scene.s.Token.k2", name: "Folk 2" }], instances: { normal: [item] }, caster: { name: "Caster" }, cite: "p. 1", isGM: false, verdicts: { normal: [] } };
   const out = dialogContext(ctx, {});
-  assert.equal(out.splits.length, 1);
-  assert.deepEqual(out.splits[0].inputs.map((i) => [i.index, i.name, i.value]), [[0, "Folk 1", 2], [1, "Folk 2", 1]]);
-  assert.equal(out.splits[0].count, 3);
-  assert.equal(out.splits[0].severity, "block");
-  assert.match(out.splits[0].over, /notice\.blocked\.tooManyInstances/);
-  assert.match(out.splits[0].tip, /tip\.instances\|/);
-  assert.equal(dialogContext({ ...ctx, isGM: true }, {}).splits[0].severity, "warn");
-  assert.match(dialogContext({ ...ctx, isGM: true }, {}).splits[0].over, /notice\.verdict\.tooManyInstances/);
-  assert.deepEqual(dialogContext({ ...ctx, instances: {} }, {}).splits, []);
+  assert.deepEqual(out.bucket.rows.map((r) => r.splits.map((s) => [r.uuid, s.key, s.value])), [[["Scene.s.Token.k1", "bolt", 2]], [["Scene.s.Token.k2", "bolt", 1]]], "one figure per target, by uuid, defaulting to round-robin");
+  assert.match(out.bucket.rows[0].splits[0].tip, /tip\.instances\|/);
+  const typed = dialogContext(ctx, { allocation: { bolt: { "Scene.s.Token.k1": "0", "Scene.s.Token.k2": "3" } } });
+  assert.deepEqual(typed.bucket.rows.map((r) => r.splits[0].value), ["0", "3"], "what the seat typed stands through a re-render");
+  const over = { key: "tooManyInstances", severity: "block", max: 3, over: 1 };
+  assert.match(dialogContext({ ...ctx, verdictsAt: () => [over] }, {}).footer.verdicts[0].text, /notice\.blocked\.tooManyInstances/);
+  assert.equal(dialogContext({ ...ctx, verdictsAt: () => [over] }, {}).footer.blocked, true, "a split over the count blocks a Player");
+  assert.deepEqual(dialogContext({ ...ctx, instances: {} }, {}).bucket.rows.map((r) => r.splits), [[], []]);
+  const picked = { ...item, pick: "form", option: "bolt" };
+  assert.deepEqual(dialogContext({ ...ctx, instances: { normal: [picked] } }, { picks: { form: "other" } }).bucket.rows.map((r) => r.splits), [[], []], "a split of an option not chosen is not shown");
 });
 
 console.log(`\n${n} cast instance tests passed`);

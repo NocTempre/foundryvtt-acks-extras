@@ -106,19 +106,21 @@ export async function throwInstances(instances, throwOne) {
 
 /**
  * The split of a throw row's count among the card's targets, by target key. A
- * seat's typed split (by target position, as the dialog answers it) is read
- * for a count above one; otherwise, and for any count of one, the default
- * round-robin.
+ * seat's typed split is read for a count above one, each figure under the
+ * identity of the creature it was typed for (`ids`, the token uuid the dialog
+ * keys it by; positions where the caller names none); otherwise, and for any
+ * count of one, the default round-robin.
  *
  * @param {number} count
  * @param {string[]} targetKeys  the card's targets, in the dialog's order
  * @param {Record<string, unknown>|null} [typed]
+ * @param {string[]} [ids]  the identity of each target key, parallel to `targetKeys`
  * @returns {Record<string, number>}
  */
-export function splitFor(count, targetKeys, typed = null) {
+export function splitFor(count, targetKeys, typed = null, ids = targetKeys.map((_, i) => String(i))) {
   if (!(count > 1) || !typed || typeof typed !== "object") return allocate(count, targetKeys);
   const whole = wholeSplit(typed);
-  return Object.fromEntries(targetKeys.map((key, i) => [key, whole[i] ?? 0]));
+  return Object.fromEntries(targetKeys.map((key, i) => [key, whole[ids[i]] ?? 0]));
 }
 
 /**

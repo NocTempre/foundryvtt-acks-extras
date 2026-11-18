@@ -280,33 +280,35 @@ const P = {
     const before = new Set([...game.messages].map((m) => m.id));
     const targetsBefore = [...game.user.targets].map((t) => t.id);
     item.use(coreDialogs ? {} : { skipDialog: true });
-    const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
-    if (!dialog) return { dialog: false };
-    const root = dialog.closest(".application");
-    const select = dialog.querySelector("[data-cast-mode]");
-    if (mode && select) { select.value = mode; select.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(200); }
+    const found = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+    if (!found) return { dialog: false };
+    // The window re-renders on every change, so each read goes back to the live element.
+    const live = () => document.querySelector(".application.acks-extras-cast") ?? found;
+    const modeRadio = mode ? live().querySelector(`input[name="mode"][value="${mode}"]`) : null;
+    if (modeRadio) { modeRadio.checked = true; modeRadio.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(300); }
+    // A choice's options are radios, each drawn as effect rows; the pick is the radio of that group with this value.
     for (const [group, value] of Object.entries(chosen ?? {})) {
-      const pick = dialog.querySelector(`select[data-pick="${group}"]`);
+      const pick = live().querySelector(`input[data-pick="${group}"][value="${value}"]`);
       if (!pick) continue;
-      pick.value = value;
+      pick.checked = true;
       pick.dispatchEvent(new Event("change", { bubbles: true }));
-      await H.sleep(200);
+      await H.sleep(300);
     }
-    const lis = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")];
-    const castButton = root.querySelector('button[data-action="cast"]');
+    const lis = [...live().querySelectorAll(".acks-extras-cast-verdicts li")];
+    const castButton = live().querySelector('button[data-action="cast"]');
     const shown = {
       dialog: true,
       verdicts: lis.map((li) => ({ severity: li.dataset.severity, text: li.textContent.trim(), tip: li.dataset.tooltipText ?? "" })),
       castDisabled: !!castButton?.disabled,
-      picks: [...dialog.querySelectorAll("select[data-pick]")].map((s) => [...s.options].map((o) => o.textContent.trim())),
-      levelField: !!dialog.querySelector('[name="casterLevel"]'),
+      picks: [...live().querySelectorAll("fieldset.acks-extras-cast-group")].map((f) => [...f.querySelectorAll(".acks-extras-cast-opt")].map((o) => o.textContent.trim())),
+      levelField: !!live().querySelector('[name="casterLevel"]'),
     };
     if (stop) {
-      root.querySelector('button[data-action="cancel"]')?.click();
+      live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
       return { ...shown, cancelled: true, cards: [...game.messages].filter((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard).length };
     }
-    castButton.click();
+    live().querySelector('button[data-action="cast"]').click();
     const dialogs = coreDialogs ? await H.coreDialogs(coreDialogs) : [];
     const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 120, every: 250 });
     if (!message) return { ...shown, card: false, dialogs };

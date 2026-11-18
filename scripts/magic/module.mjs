@@ -107,6 +107,7 @@ Hooks.once("init", () => {
       `modules/${MODULE_ID}/templates/magic/tab-overview.hbs`,
       `modules/${MODULE_ID}/templates/magic/tab-mechanics.hbs`,
       `modules/${MODULE_ID}/templates/magic/cast-dialog.hbs`,
+      `modules/${MODULE_ID}/templates/magic/cast-dialog-footer.hbs`,
       LEVEL_VALUE_PARTIAL,
       `modules/${MODULE_ID}/templates/lib/effect-row-editor.hbs`,
     ]);

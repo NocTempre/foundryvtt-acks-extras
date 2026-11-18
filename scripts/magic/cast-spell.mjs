@@ -33,19 +33,19 @@ import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
-import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, ROW_ON } from "./cast-mods.mjs";
+import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, spellSaveParts, saveModifierOf, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
-import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf } from "./cast-kinds.mjs";
+import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
-import { saveThrow } from "../lib/saves.mjs";
+import { saveThrow, saveSpec } from "../lib/saves.mjs";
 import { defenseCite } from "../lib/defenses.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { tokenGapFeet } from "../lib/distance-units.mjs";
@@ -210,16 +210,12 @@ async function readWorld(spell) {
   const { classForActor } = await import("../classes/registry.mjs");
   const { poolState } = await import("../classes/casting.mjs");
   const { capacity, level } = castReading(actor, spell, { classItem: classForActor(actor), pools: poolState(actor) });
-  const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
   const casterToken = actorToken(actor);
   return {
     actor,
-    tokens,
     casterToken,
-    // The centre-to-centre gap in feet to each targeted token; null where it cannot be measured (no caster token, another scene).
-    gaps: Object.fromEntries(tokens.map((t) => [t.uuid, tokenGapFeet(casterToken, t)])),
     combat: fight?.combat ?? null,
     combatant: fight?.combatant ?? null,
     held: records.some((r) => r.role === "caster" && r.held),
@@ -231,8 +227,25 @@ async function readWorld(spell) {
   };
 }
 
+/**
+ * The tokens this seat has targeted (token documents with an actor), and the
+ * centre-to-centre gap in feet from the caster's token to each; null where it
+ * cannot be measured (no caster token, another scene). `game.user.targets` is
+ * per user, so a Player's seat reads its own.
+ *
+ * @param {object|null} casterToken
+ * @returns {{tokens: object[], gaps: Record<string, number|null>}}
+ */
+export function readTargets(casterToken) {
+  const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
+  return { tokens, gaps: Object.fromEntries(tokens.map((t) => [t.uuid, tokenGapFeet(casterToken, t)])) };
+}
+
 /** A target as the card keeps it. */
 const targetOf = (token) => ({ uuid: token.uuid, name: token.name || token.actor?.name || "" });
+
+/** A target as the dialog's bucket draws it: the card's fields and the token's picture. */
+const bucketOf = (token) => ({ ...targetOf(token), img: token.texture?.src || token.actor?.img || "" });
 
 // The ruling-14 kinds that write the recipient's record are the dispatch's (`cast-kinds.mjs`); the cast's tests reach them here.
 export { RECORD_KINDS, writesRecipientRecord } from "./cast-kinds.mjs";
@@ -309,9 +322,12 @@ export async function rollResist(actor, save, situational, { against = null, bea
  * is rolled, written or recorded for it. A target the spell's gate leaves with
  * no save keeps the failed resist that says so (`rollResist`). The caster's own
  * target is gated by none. With no `extras` nothing is gated. `saveParts` are
- * the caster's abilities' parts on each target's save (`castSaveParts`).
+ * the caster's abilities' parts on each target's save (`castSaveParts`), with the
+ * spell's own save modifier where the seat switched it on (`spellSaveParts`).
+ * `items` is the weapon picked for each holder, by token uuid: a row of a kind that
+ * names a weapon opens that holder's entry with it.
  */
-export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID, extras = null, saveParts = [] }) {
+export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID, extras = null, saveParts = [], items = {} }) {
   const targets = {};
   const entries = {};
   const rolls = [];
@@ -337,13 +353,13 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
       return none;
     }
   };
-  const add = async (key, target, forRow, gates = null, actor = null) => {
+  const add = async (key, target, forRow, gates = null, actor = null, pick = null) => {
     targets[key] = target;
     for (const { key: rowKey, row } of entered) {
       if (!forRow(row)) continue;
       const gate = gates?.[rowKey];
       if (gate && !gate.affected) entries[entryId(key, rowKey)] = { state: "exempt", gate: gate.why };
-      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending", ...(await opened(row)), ...entryOf(row, actor) };
+      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending", ...(await opened(row)), ...entryOf(row, actor, pick) };
     }
   };
   // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes, no
@@ -358,7 +374,7 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
       ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, ownRows: ownSaveRows(rows, { level, label: card.spellName, cite: card.cite }), gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
-    await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates, token.actor);
+    await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates, token.actor, items?.[token.uuid] ?? null);
   }
   if (hasSelf && caster) await add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf, null, caster);
   return { targets, entries, rolls };
@@ -369,6 +385,7 @@ const liveDeps = () => ({
   ready: whenReady,
   lookups: worldLookups(),
   read: readWorld,
+  targets: (world) => readTargets(world.casterToken),
   ask: async (ctx) => (await import("./apps/cast-dialog.mjs")).CastDialog.wait(ctx),
   notify: (level, key, data) => ui.notifications?.[level]?.(loc(`notice.${key}`, data ?? {})),
   adjustPool: async (actor, tradition, slotKey) => (await import("../classes/casting.mjs")).adjustPool(actor, tradition, slotKey, 1),
@@ -447,6 +464,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const { rows: all } = rowsOf(spell, deps.lookups);
   const extras = flagOf(spell);
   const world = await deps.read(spell);
+  // The seat's targets are read apart from the world: the dialog is a bucket the seat fills and empties, and the cast reads them again once it is answered.
+  const readSeat = () => deps.targets?.(world) ?? { tokens: world.tokens ?? [], gaps: world.gaps ?? {} };
+  let seat = readSeat();
   const isGM = deps.isGM();
   const groupsFor = (mode) => pickGroups(all, mode);
   const modeKeys = hasReversedRows(all) ? [CAST_MODES.normal, CAST_MODES.reversed] : [CAST_MODES.normal];
@@ -459,39 +479,41 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const abilities = castAbilitiesOf(caster, spell, deps.lookups);
   const known = castAbilityLevel(casterLevel(world.level), abilities.casterLevel);
   // What the range and the target count say of the targeted tokens at a caster level.
-  const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: world.tokens, gaps: world.gaps });
-  // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count).
+  const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
+  // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count). A split is typed by token uuid.
   const instancesFor = (mode, picks, levelValue, typed = null) => {
     const counts = {};
     const assigned = {};
+    const here = new Set(seat.tokens.map((t) => t.uuid));
     for (const { row, key } of rowsForMode(all, mode, picks)) {
       if (!rowNeedsThrow(row)) continue;
       counts[key] = instanceCount(row, levelValue).value;
       const split = counts[key] > 1 && typed?.[key] ? wholeSplit(typed[key]) : null;
       // A typed split counts only the targets the seat has.
-      assigned[key] = split ? assignedOf(Object.fromEntries(Object.entries(split).filter(([i]) => Number(i) < world.tokens.length))) : (counts[key] ?? 0);
+      assigned[key] = split ? assignedOf(Object.fromEntries(Object.entries(split).filter(([uuid]) => here.has(uuid)))) : (counts[key] ?? 0);
     }
     return { counts, assigned };
   };
   const verdictsFor = (mode, picks, levelValue, typed = null) => {
     const reach = reachAt(levelValue);
-    return castVerdicts({ capacity: world.capacity, targets: world.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed) });
+    return castVerdicts({ capacity: world.capacity, targets: seat.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed) });
   };
-  // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each.
+  // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
   const splitsFor = (mode) =>
-    world.tokens.length < 2
+    seat.tokens.length < 2
       ? []
       : rowsOfMode(all, mode).flatMap(({ row, key }) => {
           if (!rowNeedsThrow(row)) return [];
           const count = instanceCount(row, known.value);
-          return count.value > 1 ? [{ key, row, count, pick: String(row.pick ?? "").trim(), option: optionTokenOf(row, key), split: allocate(count.value, world.tokens.map((_, i) => String(i))) }] : [];
+          return count.value > 1 ? [{ key, row, count, pick: String(row.pick ?? "").trim(), option: optionTokenOf(row, key), split: allocate(count.value, seat.tokens.map((t) => t.uuid)) }] : [];
         });
-  // One targeted token can bear a weapon buff, and the dialog lists its weapons.
-  const bearerToken = world.tokens.length === 1 ? world.tokens[0] : null;
+  // One targeted token can bear a weapon buff.
+  const bearerOf = () => (seat.tokens.length === 1 ? seat.tokens[0] : null);
   // A declaration being resolved answers for itself; the dialog opens only where its stored weapon is not one of the one target's.
   const stored = resolving ? declaration.valid.pending : null;
   const storedFits =
-    stored && (!needsBearer(rowsForMode(all, stored.mode, stored.picks ?? {})) || bearerToken?.actor?.items?.get?.(stored.item)?.type === "weapon");
+    stored && (!needsBearer(rowsForMode(all, stored.mode, stored.picks ?? {})) || bearerOf()?.actor?.items?.get?.(stored.items?.[bearerOf().uuid])?.type === "weapon");
+  const gateExtras = castGateExtrasOf(spell, deps.lookups);
   const askContext = () => ({
     spell,
     caster,
@@ -502,26 +524,51 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     level: known,
     // `levelNeeded` reads the rows themselves, not the keyed pairs.
     levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m).map(({ row }) => row))),
-    weapons: bearerToken ? weaponsOf(bearerToken.actor) : [],
+    // Each targeted holder's weapons, and the one a pick starts on (the equipped weapon, else the first).
+    holders: seat.tokens.map((t) => ({ uuid: t.uuid, weapons: weaponsOf(t.actor), pick: pickWeapon(t.actor)?.id ?? "" })),
     needsWeapon: Object.fromEntries(modeKeys.map((m) => [m, needsBearer(rowsForMode(all, m, {}))])),
-    targets: world.tokens.map(targetOf),
+    targets: seat.tokens.map(bucketOf),
+    gaps: seat.gaps,
     saves: spellSaves(extras.save),
+    // The spell's own modifier on the save, as imported (a level value), and the caster's abilities' parts on it.
+    saveModifier: extras.save?.modifier ?? null,
+    saveParts: castSaveParts(abilities),
     capacity: world.capacity,
     verdicts: Object.fromEntries(modeKeys.map((m) => [m, verdictsFor(m, {}, known.value)])),
-    // Per form, the thrown rows a seat with several targets may split, each with its count and the default split by target position.
+    // Per form, the thrown rows a seat with several targets may split, each with its count and the default split by target.
     instances: Object.fromEntries(modeKeys.map((m) => [m, splitsFor(m)])),
     rangeUnmeasured: moment !== MOMENT.declare && reachAt(known.value).range.unmeasured,
     cite: figures.cite || extras.cite || "",
     isGM,
+    // What the dialog asks again as the seat types or changes its bucket.
+    levelAt: (typed) => castAbilityLevel(casterLevel({ ...world.level, override: typed }), abilities.casterLevel),
+    verdictsAt: verdictsFor,
+    reachAt,
+    gatesAt: (levelValue) => Object.fromEntries(seat.tokens.map((t) => [t.uuid, targetGate({ actor: t.actor, extras: gateExtras, level: levelValue })])),
+    // The spell's own save rows a target's throw cannot yet decide, by token uuid (`saveSpec`'s pending).
+    pendingAt: (mode, picks, levelValue) => {
+      const ownRows = ownSaveRows(rowsForMode(all, mode, picks), { level: levelValue, label: spell.name, cite: extras.cite ?? "" });
+      if (!ownRows.length || !extras.save?.category) return {};
+      return Object.fromEntries(seat.tokens.map((t) => [t.uuid, (saveSpec(t.actor, extras.save.category, { ownRows, bearerToken: t, against: caster ? { actor: caster, token: world.casterToken ?? null } : null }).pending ?? []).filter((q) => q.when !== "defense").map((q) => q.label)]));
+    },
+    // The bucket was changed in the dialog: read the seat's targets again.
+    refresh: () => {
+      seat = readSeat();
+      return askContext();
+    },
   });
   const answer = storedFits
-    ? { mode: stored.mode, picks: stored.picks ?? {}, item: stored.item ?? "", casterLevel: stored.casterLevel ?? "", situational: stored.situational ?? "", visibility: stored.visibility || "public" }
+    ? { mode: stored.mode, picks: stored.picks ?? {}, pickKind: stored.pickKind ?? null, items: stored.items ?? {}, saveMod: stored.saveMod === true, casterLevel: stored.casterLevel ?? "", situational: stored.situational ?? "", visibility: stored.visibility || "public" }
     : await deps.ask(askContext());
   if (!answer) return { ok: false, reason: "cancelled" };
+  // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now.
+  seat = readSeat();
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   const kept = rowsForMode(all, mode, answer.picks);
   const level = castAbilityLevel(casterLevel({ ...world.level, override: answer.casterLevel }), abilities.casterLevel);
+  // The save modifier counts only where a save is made and the import read a figure for it at this level.
+  const saveMod = answer.saveMod === true && spellSaves(extras.save) && saveModifierOf(extras.save, level.value) != null;
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
@@ -560,6 +607,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     ...(abilities.save.length || abilities.damage.length ? { abilities: { save: abilities.save, damage: abilities.damage } } : {}),
     save: { category: extras.save?.category ?? "", effect: extras.save?.effect ?? "", kind: extras.save?.kind ?? "" },
     situational: Number.isFinite(Number(answer.situational)) && answer.situational !== "" ? Number(answer.situational) : null,
+    // The spell's own save modifier the seat switched on for every target; the figure is read again from the spell at the card's caster level wherever the card is read.
+    ...(saveMod ? { saveMod: true } : {}),
     cite: extras.cite ?? "",
     duration: castDurationOf(spell, deps.lookups, level.value, deps.roll, mode),
     casterTokenUuid: world.casterToken?.uuid ?? null,
@@ -571,12 +620,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     allocation: {},
     lines: [],
   };
-  // The weapon the seat named, kept only where exactly one token is targeted and the weapon is one of its own.
-  const picked = bearerToken && answer.item ? bearerToken.actor?.items?.get?.(answer.item) : null;
+  // The weapon a buff is cast on: the one the seat picked for the one targeted holder, where the rows wait on a weapon and the weapon is one of its own.
+  const bearerToken = bearerOf();
+  const picked = bearerToken && needsBearer(kept) ? bearerToken.actor?.items?.get?.(answer.items?.[bearerToken.uuid]) : null;
   const weapon = picked?.type === "weapon" ? picked : null;
   const made = modParts(kept, { level: level.value, itemId: weapon?.id ?? null, save: card.save, kind: answer.pickKind ?? null });
-  // The creature kind a `pickKind` row was narrowed to is stored on the card, which the relay reads: until the dialog offers the pick, the first authored kind stands and the card says so.
-  if (made.kind) card.pickKind = { key: made.kind.key, defaulted: made.kind.defaulted };
+  // The creature kind the `pickKind` rows were narrowed to is stored on the card, which the relay reads: the seat's pick where one of the rows authored it, else the first authored kind stands and the card says so.
+  if (made.kind) {
+    const key = made.kind.authored.includes(answer.pickKind) ? answer.pickKind : made.kind.key;
+    card.pickKind = { key, defaulted: key !== answer.pickKind };
+  }
   const rolls = [];
   for (const keyed of kept) {
     const { row } = keyed;
@@ -615,7 +668,18 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   if (card.pickKind) card.lines.push(loc(card.pickKind.defaulted ? "line.pickKindDefault" : "line.pickKind", { kind: card.pickKind.key }));
 
-  const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null, extras: castGateExtrasOf(spell, deps.lookups), saveParts: castSaveParts(abilities) });
+  const built = await buildTargets({
+    tokens: seat.tokens,
+    card,
+    rows: kept,
+    save: card.save,
+    situational: card.situational,
+    caster,
+    casterToken: world.casterToken ?? null,
+    extras: castGateExtrasOf(spell, deps.lookups),
+    saveParts: [...castSaveParts(abilities), ...spellSaveParts(extras.save, { level: level.value, applied: saveMod, label: spell.name })],
+    items: answer.items ?? {},
+  });
   rolls.push(...built.rolls);
   card.targets = built.targets;
   card.entries = built.entries;
@@ -636,12 +700,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     // A target the row's gate exempts is thrown at never: the default split deals only among the others, and a throw a typed split assigns to an exempt target is spent.
     const exempt = (k) => card.entries[entryId(k, keyed.key)]?.state === "exempt";
     const typed = answer.allocation?.[keyed.key];
-    const dealt = count > 1 && typed ? splitFor(count, targetKeys, typed) : splitFor(count, targetKeys.filter((k) => !exempt(k)), null);
+    // A typed split is by token uuid, and a target key stands for the token its card names.
+    const dealt = count > 1 && typed ? splitFor(count, targetKeys, typed, targetKeys.map((k) => card.targets[k].uuid)) : splitFor(count, targetKeys.filter((k) => !exempt(k)), null);
     const split = Object.fromEntries(targetKeys.map((k) => [k, exempt(k) ? 0 : (dealt[k] ?? 0)]));
     card.allocation[keyed.key] = Object.fromEntries(Object.entries(split).filter(([, n]) => n > 0));
     for (const targetKey of targetKeys) {
       if (!split[targetKey]) continue;
-      const token = world.tokens.find((t) => t.uuid === card.targets[targetKey].uuid) ?? null;
+      const token = seat.tokens.find((t) => t.uuid === card.targets[targetKey].uuid) ?? null;
       const made = await throwEntry({ caster, spell, card, keyed, deps, skipDialog: options.skipDialog === true, token, instances: waitingInstances(split[targetKey]) });
       card.entries[entryId(targetKey, keyed.key)] = made.entry;
       Object.assign(card.rows[keyed.key], made.row);
@@ -756,7 +821,7 @@ async function pressApplyTargets(message) {
   const { spell, caster } = rowOfCard(card, "");
   if (!spell || !caster) return;
   const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks);
-  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()), saveParts: castSaveParts(castAbilitiesOf(caster, spell, worldLookups())) });
+  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()), saveParts: [...castSaveParts(castAbilitiesOf(caster, spell, worldLookups())), ...spellSaveParts(flagOf(spell).save, { level: card.casterLevel?.value ?? null, applied: card.saveMod === true, label: card.spellName })] });
   await addTargets(message, built.targets, built.entries);
   const fresh = cardOf(message);
   for (const targetKey of Object.keys(built.targets)) {

@@ -866,10 +866,27 @@ the copies and the fixtures stay.
 
 ### Drive mechanics
 
-- A cast starts with `item.use({skipDialog: true})`; the dialog is DialogV2
-  and is found by `.acks-extras-cast-dialog`. Its Cast button is
-  `button[data-action="cast"]`, and the form's `[data-cast-mode]` select
-  picks the form, with a bubbling `change` after the value is set.
+- A cast starts with `item.use({skipDialog: true})`; the dialog is an
+  ApplicationV2 found by `.application.acks-extras-cast`. It re-renders on
+  every change, so read the live element again after each step rather than
+  holding the first one. Its Cast button is `button[data-action="cast"]`; the
+  form is the `input[name="mode"]` radio (a bubbling `change` after `checked`
+  is set), a choice's option is `input[data-pick="<group>"][value]`, a weapon is
+  the `.acks-extras-cast-pill[data-weapon]` button of a target row.
+- The targets bucket (`.acks-extras-cast-targets`) is the seat's own targets.
+  Drive it as a user does: a row's X is `[data-action="untarget"]` inside
+  `.acks-extras-cast-trow`; T is `canvas.tokens.get(id).setTarget(true,
+  {releaseOthers: false})`; the Add my token button is `[data-action="addMine"]`
+  and needs the caster's token on the viewed scene; a drop is a real
+  `DragEvent("drop", {dataTransfer, bubbles: true})` on the bucket whose
+  `text/plain` is `JSON.stringify({type: "Actor" | "Token", uuid})`. An Actor
+  drop targets only where the actor has exactly one active token on the scene,
+  and the notices (none, several) are read through the `ui.notifications.warn`
+  wrap. Wait about 600 ms after a step: the window re-renders on the
+  `targetToken` hook after a short debounce. `tools/live/magic-cast-spell.mjs`
+  section 1b walks X, T, an Actor drop, a Token drop and Add my token with a shot
+  after each, and reads the effect cells' tone classes (`is-neg` for a damage
+  row, `is-pos` for a heal row) with `H.bucketOf`.
 - Rig the dice with `CONFIG.Dice.randomUniform` (reads from the top: 0.025
   throws a 20, 0.975 a 1) and restore it in `finally`.
 - Targets are set with `canvas.tokens.setTargets(ids, {mode: "replace"})` on

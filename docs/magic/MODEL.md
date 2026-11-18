@@ -452,14 +452,38 @@ spell, an actor the seat does not own and any item that is no spell, so a
 monster's attack item stays the system's. The cast runs in this order, and a
 cancel at any point before the spend costs nothing:
 
-1. *The dialog* (`apps/cast-dialog.mjs`, template `cast-dialog.hbs`): the form of
-   a reversible spell, the pick of each choice group, the caster level where
-   nothing resolved one (marked as set by hand in its tooltip), the weapon a
-   buff is cast on, a situational save modifier, the card's visibility, the
-   seat's targets and each verdict. The weapon is a select of the weapon items
-   of the one targeted token's actor, each marked magic where lib's `isMagical`
-   says so, offered for a form that holds a row gated on the weapon. A verdict
-   that blocks a Player disables Cast for that form. A pick option is one or
+1. *The dialog* (`apps/cast-dialog.mjs`, `apps/cast-dialog-model.mjs`,
+   templates `cast-dialog.hbs` and `cast-dialog-footer.hbs`): an
+   ApplicationV2 with a scrolling body and a pinned footer, the `acks-extras-cast`
+   class on its root. The model file is Foundry-free and shapes the answer
+   state and the render context; the window captures its named controls into
+   that state before every render, so a re-render keeps what was typed. It holds
+   the form of a reversible spell, the pick of each choice group, a kind select
+   where a spell's rows offer `vsKinds` choices, the caster level where
+   nothing resolved one (marked as set by hand in its tooltip), the spell's own
+   save modifier as a toggle (off by default; the figure is the import's, read
+   at the caster level, and joins the throw as one part named by the spell), a
+   situational save modifier, the card's visibility, the targets bucket and each
+   verdict. A verdict that blocks a Player disables Cast for that form. Each
+   effect row leads with a cell in the character sheet's tone (`is-neg`,
+   `is-pos` or the neutral one) holding a condition's status image or a glyph.
+
+   *The targets bucket* is the seat's own `game.user.targets`, not a list of the
+   window's. A row's X is `setTarget(false, {releaseOthers: false})` on that
+   token; the Add my token button is `setTarget(true, {releaseOthers: false})`
+   on the caster's canvas token; T on the canvas and the key on the board change
+   it too, and the window re-renders on `targetToken` (this user's, debounced)
+   and unhooks on close. A drop on the bucket's strip is a Token (targeted) or an
+   Actor: one active token on the scene is targeted, none gives a notice, several
+   a notice that asks for the token itself. Targets are per user, so the bucket
+   uses no GM-only call and works at a Player seat. Each row shows the measured
+   distance (tooltip: the parts, from `cast-range.mjs`), the weapon pick for a
+   holder of a gated row (a pill per live weapon of that token's actor, each
+   marked magic where lib's `isMagical` says so; the pick is stored per token
+   uuid and the default is the equipped weapon, else the first), the throw split
+   input per token, and chips for the verdicts that name it. The engine reads
+   the seat's tokens and gaps again after the answer, so a target changed while
+   the window was open is the one cast on. `wait()` resolves null on close. A pick option is one or
    more rows: rows sharing a `pick` and a `pickOption` are one option, a row
    with a `pick` and no `pickOption` is its own option keyed by its row key
    (`cast-rows.mjs` `optionTokenOf`), and the choice stores the option token.

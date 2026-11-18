@@ -85,7 +85,7 @@
  * rigged.
  */
 import { connect, sleep, Cdp } from "./_driver.mjs";
-import { seats as machineSeats, PORTS } from "./_env.mjs";
+import { seats as machineSeats, PORTS, logDir } from "./_env.mjs";
 import { walkDone } from "./_walk.mjs";
 
 const MACHINE = machineSeats();
@@ -135,6 +135,15 @@ const P = {
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 60, every = 250 } = {}) => { for (let n = 0; n < tries; n++) { const v = await fn(); if (v) return v; await H.sleep(every); } return null; };
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0] ?? null);
+    // What the cast dialog's bucket and effect rows show: one entry per target row, the count, the drop strip, the Add my token button, and each effect cell's tone.
+    H.bucketOf = (root) => ({
+      rows: [...root.querySelectorAll(".acks-extras-cast-trow")].map((r) => ({ uuid: r.dataset.uuid, x: !!r.querySelector('[data-action="untarget"][aria-label]'), off: r.classList.contains("is-off"), pills: r.querySelectorAll(".acks-extras-cast-pill").length, chips: r.querySelectorAll(".acks-extras-cast-chip").length, lineTip: !!r.querySelector(".acks-extras-cast-trow__line")?.dataset.tooltipText })),
+      count: root.querySelector(".acks-extras-cast-count")?.textContent.trim() ?? "",
+      drop: !!root.querySelector(".acks-extras-cast-drop"),
+      addMine: !!root.querySelector('button[data-action="addMine"]'),
+      tones: [...root.querySelectorAll(".acks-extras-cast-cell .acks-extras-frame__cell")].map((c) => ["neg", "pos", "ts"].find((t) => c.classList.contains(`is-${t}`)) ?? ""),
+      footerPinned: !!root.querySelector(".acks-extras-cast-foot") && !root.querySelector(".acks-extras-cast-body")?.contains(root.querySelector(".acks-extras-cast-foot")),
+    });
     if (!H.patched) {
       H.patched = true;
       H.errors = [];
@@ -264,29 +273,63 @@ const P = {
     const cast0 = item.system.cast;
     const pool0 = actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0;
     item.use({ skipDialog: true });
-    const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
-    if (!dialog) return { dialog: false };
-    const root = dialog.closest(".application");
-    const select = dialog.querySelector("[data-cast-mode]");
-    if (mode && select) { select.value = mode; select.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(200); }
-    const verdicts = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")].map((li) => li.dataset.severity);
-    const verdictTexts = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")].map((li) => li.textContent.trim());
-    // The weapon the buff is cast on: the dialog lists the one targeted creature's weapons, and the pick is the select's value.
-    const weaponSelect = dialog.querySelector("[data-cast-for]:not([hidden]) select[data-weapon]");
-    if (weaponId && weaponSelect) { weaponSelect.value = weaponId; weaponSelect.dispatchEvent(new Event("change", { bubbles: true })); }
+    const found = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+    if (!found) return { dialog: false };
+    // The window re-renders on every change, so each read goes back to the live element.
+    const live = () => document.querySelector(".application.acks-extras-cast") ?? found;
+    const modeRadio = mode ? live().querySelector(`input[name="mode"][value="${mode}"]`) : null;
+    if (modeRadio) { modeRadio.checked = true; modeRadio.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(300); }
+    // The weapon pick: a pill per weapon of the holder, the picked one marked `is-on`.
+    const pillOf = (id) => live().querySelector(`.acks-extras-cast-pill[data-weapon="${id}"]`);
+    const weaponOptions = live().querySelectorAll(".acks-extras-cast-pill").length;
+    if (weaponId && pillOf(weaponId)) { pillOf(weaponId).click(); await H.sleep(300); }
+    const verdictLis = () => [...live().querySelectorAll(".acks-extras-cast-verdicts li")];
+    const verdicts = verdictLis().map((li) => li.dataset.severity);
+    const verdictTexts = verdictLis().map((li) => li.textContent.trim());
+    const root = live();
     const castButton = root.querySelector('button[data-action="cast"]');
-    const shown = { weaponOptions: weaponSelect ? weaponSelect.options.length : 0, weaponPicked: weaponSelect && weaponId ? weaponSelect.value === weaponId : null, verdictTexts, dialog: true, scroll: root.classList.contains("acks-extras-scroll"), modeSelect: !!select, verdicts, castDisabled: !!castButton?.disabled, levelField: !!dialog.querySelector('[name="casterLevel"]'), literalIds: [...root.querySelectorAll("[id]")].filter((e) => !e.closest(".window-header") && !/^[A-Za-z]+-[A-Za-z0-9]+$/.test(e.id)).length };
+    const shown = { weaponOptions, weaponPicked: weaponId && pillOf(weaponId) ? pillOf(weaponId).classList.contains("is-on") : null, verdictTexts, dialog: true, scroll: root.classList.contains("acks-extras-scroll"), modeSelect: root.querySelectorAll('input[name="mode"]').length > 0, verdicts, castDisabled: !!castButton?.disabled, levelField: !!root.querySelector('[name="casterLevel"]'), literalIds: [...root.querySelectorAll("[id]")].filter((e) => !e.closest(".window-header") && !/^[A-Za-z]+-[A-Za-z0-9]+$/.test(e.id)).length, bucket: H.bucketOf(root) };
     if (stop) {
-      root.querySelector('button[data-action="cancel"]')?.click();
+      live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
       return { ...shown, cancelled: true, cast: item.system.cast - cast0, pool: (actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0) - pool0, cards: [...game.messages].filter((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard).length };
     }
-    castButton.click();
+    live().querySelector('button[data-action="cast"]').click();
     const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 120, every: 250 });
     if (!message) return { ...shown, card: false };
     const settled = await H.poll(() => !Object.values(game.messages.get(message.id).flags["acks-extras"].castCard.entries).some((e) => e.state === "pending" || e.state === "applying"), { tries: wait ?? 40, every: 250 });
     const card = game.messages.get(message.id).flags["acks-extras"].castCard;
     return { ...shown, card: true, messageId: message.id, settled: !!settled, model: card, cast: item.system.cast - cast0, pool: (actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0) - pool0, newMessages: [...game.messages].filter((m) => !before.has(m.id)).map((m) => ({ id: m.id, attack: String(m.content).includes("attack-throw-card"), applyButton: String(m.content).includes('data-action="applyDamage"'), magicAttack: !!m.flags?.["acks-extras"]?.magicAttack, cast: !!m.flags?.["acks-extras"]?.castCard })) };
+  },
+  /**
+   * Drive the cast dialog's bucket as a user does, one step at a time so a shot can be taken between. `op`: `open` (item.use, then the dialog),
+   * `x` (the first row's X), `t` (T on a canvas token: the seat's own target, as the key does it), `drop` (a real drop event on the bucket carrying
+   * `{type: dropType, uuid: dropUuid}`), `add` (the Add my token button), `close` (Cancel). Answers the bucket the dialog shows afterwards, the seat's
+   * targeted token ids and the warnings the step raised.
+   */
+  bucketStep: async ({ op, casterId, spellId, tokenId, dropType, dropUuid }) => {
+    const H = globalThis.__mcs;
+    const live = () => document.querySelector(".application.acks-extras-cast");
+    const warns0 = H.warns.length;
+    if (op === "open") {
+      game.actors.get(casterId).items.get(spellId).use({ skipDialog: true });
+      await H.poll(live, { tries: 80, every: 150 });
+    } else if (op === "x") live()?.querySelector('.acks-extras-cast-trow [data-action="untarget"]')?.click();
+    else if (op === "t") canvas.tokens.get(tokenId)?.setTarget(true, { releaseOthers: false });
+    else if (op === "drop") {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: dropType, uuid: dropUuid }));
+      live()?.querySelector(".acks-extras-cast-targets")?.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+    } else if (op === "add") live()?.querySelector('[data-action="addMine"]')?.click();
+    else if (op === "close") {
+      live()?.querySelector('button[data-action="cancel"]')?.click();
+      await H.sleep(600);
+      return { dialog: !!live(), targets: [...game.user.targets].map((t) => t.document.id), warns: H.warns.slice(warns0) };
+    }
+    // The window reads the bucket again after a short debounce.
+    await H.sleep(600);
+    const root = live();
+    return { dialog: !!root, bucket: root ? H.bucketOf(root) : null, targets: [...game.user.targets].map((t) => t.document.id), warns: H.warns.slice(warns0) };
   },
   /** Press a button of a cast card in the chat log, as a user does; wait for the entries to settle. */
   press: async ({ messageId, action, target, row }) => {
@@ -347,7 +390,7 @@ const P = {
     item.use({ skipDialog: true });
     const msg = await H.poll(() => [...game.messages].find((m) => !before.has(m.id)), { tries: 60, every: 200 });
     await H.sleep(500);
-    return { card: !!msg, core: String(msg?.content ?? "").includes("attack-throw-card"), castCard: !!msg?.flags?.["acks-extras"]?.castCard, ours: !!msg?.flags?.["acks-extras"]?.magicAttack, dialog: !!document.querySelector(".acks-extras-cast-dialog"), id: msg?.id ?? null };
+    return { card: !!msg, core: String(msg?.content ?? "").includes("attack-throw-card"), castCard: !!msg?.flags?.["acks-extras"]?.castCard, ours: !!msg?.flags?.["acks-extras"]?.magicAttack, dialog: !!document.querySelector(".application.acks-extras-cast"), id: msg?.id ?? null };
   },
   /** Messages the run made speaking as its own fixtures since `since`. */
   cards: async ({ actorIds, since }) => [...game.messages].filter((m) => m.timestamp >= since && actorIds.includes(m.speaker?.actor)).map((m) => m.uuid),
@@ -628,9 +671,9 @@ const P = {
     const cast0 = item.system.cast;
     const pool0 = actor.getFlag("acks-extras", "classes")?.pools?.arcane?.s1 ?? 0;
     item.use({ skipDialog: true });
-    const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
+    const dialog = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
     if (!dialog) return { dialog: false };
-    const button = dialog.closest(".application").querySelector('button[data-action="cast"]');
+    const button = dialog.querySelector('button[data-action="cast"]');
     const label = button?.textContent.trim() ?? "";
     button.click();
     await H.poll(() => [...actor.effects].some((e) => e.flags?.["acks-extras"]?.spellEffect?.pending), { tries: 60, every: 250 });
@@ -646,7 +689,7 @@ const P = {
     item.use({ skipDialog: true });
     const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 80, every: 250 });
     await H.sleep(500);
-    return { card: !!message, messageId: message?.id ?? null, dialog: !!document.querySelector(".acks-extras-cast-dialog") };
+    return { card: !!message, messageId: message?.id ?? null, dialog: !!document.querySelector(".application.acks-extras-cast") };
   },
   restore: async () => {
     const H = globalThis.__mcs;
@@ -1287,6 +1330,47 @@ try {
   const hp2 = await run(gm, P.hp, { sceneId, tokenIds });
   check("1: Undo restored every target's hit points and marked each entry undone", undone.every((u) => u.button) && JSON.stringify(hp2) === JSON.stringify(hp0) && undone.at(-1)?.model && entriesOf(undone.at(-1).model, damageKey).every((e) => e.state === "undone" || e.applied === 0), { hp: hp2.length });
   await run(gm, P.setSpent, { casterId, spent: 0 });
+
+  section("1b. the targets bucket and the effect rows (GM seat)");
+  {
+    const shots = process.env.ACKS_WALK_SHOTS === "0" ? null : logDir();
+    const shoot = async (slug) => {
+      if (!shots) return;
+      try { note(`shot ${slug}`, await gm.shot(`${shots}/magic-cast-bucket-${slug}.png`, ".application.acks-extras-cast")); } catch (err) { note(`shot ${slug} FAILED`, err?.message ?? String(err)); }
+    };
+    const casterTokens = await run(gm, P.tokens, { sceneId, actorIds: [casterId] });
+    for (const tk of casterTokens) await track(tk.uuid, "Token");
+    const sceneTokenUuid = (id) => made.find((m) => m.id === id)?.uuid ?? "";
+    const missingFrom = (seen) => tokenIds.find((id) => !seen.includes(id));
+    const stepOf = (op, extra = {}) => run(gm, P.bucketStep, { op, casterId, spellId: spellId.damage, ...extra });
+    await run(gm, P.target, { sceneId, tokenIds });
+    const opened = await stepOf("open");
+    check("1b: the bucket lists the three targeted tokens, each with an X, the count, the drop strip and Add my token", opened.dialog && opened.bucket.rows.length === 3 && opened.bucket.rows.every((r) => r.x) && opened.bucket.count !== "" && opened.bucket.drop && opened.bucket.addMine, opened.bucket);
+    check("1b: the effect rows wear the sheet's tones (a damage row is negative) and the footer sits outside the scrolling body", opened.bucket.tones.length > 0 && opened.bucket.tones.every((t) => t !== "") && opened.bucket.footerPinned, { tones: opened.bucket.tones });
+    check("1b: each row's distance carries a tooltip", opened.bucket.rows.every((r) => r.lineTip));
+    await shoot("1-three");
+    const afterX = await stepOf("x");
+    check("1b: X untargets that token only: the bucket and the seat's targets both lose one", afterX.bucket.rows.length === 2 && afterX.targets.length === 2, { rows: afterX.bucket.rows.length, targets: afterX.targets.length });
+    await shoot("2-after-x");
+    const gone = missingFrom(afterX.targets);
+    const afterT = await stepOf("t", { tokenId: gone });
+    check("1b: T on the canvas token puts it back in the open window", afterT.bucket.rows.length === 3 && afterT.targets.length === 3, { rows: afterT.bucket.rows.length, targets: afterT.targets.length });
+    await stepOf("x");
+    const left1 = await stepOf("x");
+    const away1 = missingFrom(left1.targets);
+    const dropOne = await stepOf("drop", { dropType: "Actor", dropUuid: "Actor." + made.find((m) => m.id === away1).actorId });
+    check("1b: an Actor dropped on the bucket targets its one token on the scene", left1.bucket.rows.length === 1 && dropOne.bucket.rows.length === 2 && dropOne.warns.length === 0, { rows: dropOne.bucket.rows.length, warns: dropOne.warns.length });
+    const dropToken = await stepOf("drop", { dropType: "Token", dropUuid: sceneTokenUuid(missingFrom(dropOne.targets)) });
+    check("1b: a Token dropped on the bucket targets that token", dropToken.bucket.rows.length === 3, { rows: dropToken.bucket.rows.length });
+    await shoot("3-after-drops");
+    const addMine = await stepOf("add");
+    check("1b: Add my token targets the caster's own token", addMine.bucket.rows.length === 4, { rows: addMine.bucket.rows.length });
+    const closed = await stepOf("close");
+    check("1b: Cancel closes the window and spends nothing; the seat keeps its targets", closed.dialog === false);
+    await run(gm, P.target, { sceneId, tokenIds });
+    // The caster token only served this section; later sections cast with none on the field, as they were written.
+    for (const tk of casterTokens) await gm.eval(`(async () => { await (await fromUuid(${JSON.stringify(tk.uuid)}))?.delete(); return true; })()`);
+  }
 
   section("2. the same cast with nothing targeted, then Apply");
   await run(gm, P.target, { sceneId, tokenIds: [] });

@@ -35,7 +35,7 @@ const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await i
 const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
-const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
@@ -997,7 +997,7 @@ t("a pick option's label joins the reading of each of its rows, the legend is a 
     { key: "b1", type: "damage", roll: "1d6", damage: ["cold"], pick: "form", pickOption: "frost" },
   ];
   const ctx = { modes: ["normal"], groups: { normal: pickGroups(rows, "normal") }, level: {}, verdicts: { normal: [] } };
-  const [group] = dialogContext(ctx, {}).groups;
+  const [group] = dialogContext(ctx, {}).spell.groups;
   assert.equal(group.legend, "ACKS-MAGIC.cast.dialog.pickLegend", "a lang string, never the group id");
   assert.equal(group.label, "ACKS-MAGIC.cast.dialog.pick");
   assert.deepEqual(group.options.map((o) => o.key), ["flame", "frost"]);
@@ -1019,12 +1019,14 @@ t("the dialog context lists the modes, each mode's verdicts and the level field 
     capacity: { verdict: "none", max: 2, used: 2, spellLevel: 1, source: "tradition" },
   };
   const out = dialogContext(ctx, {});
-  assert.equal(out.hasModes, true);
-  assert.equal(out.level.show, true);
-  assert.equal(out.verdicts[0].items[0].severity, "block");
-  assert.ok(out.capacity.line);
-  assert.equal(dialogContext({ ...ctx, level: { value: 3, source: "class" } }, {}).level.show, false);
-  assert.equal(dialogContext({ ...ctx, levelNeeded: false }, {}).level.show, false);
+  assert.equal(out.header.hasModes, true);
+  assert.equal(out.spell.level.show, true);
+  assert.equal(out.footer.verdicts[0].severity, "block");
+  assert.equal(out.footer.blocked, true);
+  assert.ok(out.footer.capacity.line);
+  assert.equal(dialogContext({ ...ctx, level: { value: 3, source: "class" } }, {}).spell.level.show, false);
+  assert.equal(dialogContext({ ...ctx, levelNeeded: false }, {}).spell.level.show, false);
+  assert.deepEqual(dialogContext(ctx, { mode: "reversed" }).footer.verdicts, [], "each form shows its own verdicts");
 });
 
 /* ------------------------------------------------------------------ */
@@ -1189,10 +1191,10 @@ const EDGE = { key: "edge", type: "modifier", target: "attackThrow", appliesTo: 
 const CIRCLE = { key: "circle", type: "ward", appliesTo: "recipient", vsKinds: ["undead"], lasts: "duration" };
 
 await ta("a cast of a weapon buff names the weapon of the one target, opens one entry per row, and keeps the caster's token on the card", async () => {
-  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken()], casterToken: { uuid: "Scene.s.Token.c1" } });
+  const r = runDeps({ answer: { mode: "normal", picks: {}, items: { "Scene.s.Token.k1": "w1" } }, tokens: [bearerToken()], casterToken: { uuid: "Scene.s.Token.c1" } });
   const out = await castSpellRun(spell([EDGE, CIRCLE]), () => {}, r.deps);
   assert.equal(out.ok, true);
-  assert.deepEqual(r.calls.asked.weapons, [{ id: "w1", name: "Testblade", magic: false }]);
+  assert.deepEqual(r.calls.asked.holders, [{ uuid: "Scene.s.Token.k1", weapons: [{ id: "w1", name: "Testblade", magic: false }], pick: "w1" }]);
   assert.deepEqual(r.calls.asked.needsWeapon, { normal: true });
   const posted = r.calls.posts[0];
   const key = Object.keys(posted.targets)[0];
@@ -1205,14 +1207,14 @@ await ta("a cast of a weapon buff names the weapon of the one target, opens one 
 });
 
 await ta("a weapon row with no weapon of the target's named is a line, written for nobody; a ward alone needs none", async () => {
-  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "not-its-weapon" }, tokens: [bearerToken()], isGM: true });
+  const r = runDeps({ answer: { mode: "normal", picks: {}, items: { "Scene.s.Token.k1": "not-its-weapon" } }, tokens: [bearerToken()], isGM: true });
   await castSpellRun(spell([EDGE, CIRCLE]), () => {}, r.deps);
   const posted = r.calls.posts[0];
   assert.equal(posted.item, undefined);
   assert.deepEqual(posted.order, ["circle"]);
   assert.equal(posted.lines.length, 1, "the weapon row is listed on the card");
   assert.equal(typeof posted.lines[0], "string");
-  const two = runDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken(), { ...bearerToken(), uuid: "Scene.s.Token.k2" }], isGM: true });
+  const two = runDeps({ answer: { mode: "normal", picks: {}, items: { "Scene.s.Token.k1": "w1" } }, tokens: [bearerToken(), { ...bearerToken(), uuid: "Scene.s.Token.k2" }], isGM: true });
   await castSpellRun(spell([EDGE]), () => {}, two.deps);
   assert.equal(two.calls.posts[0].item, undefined, "with two tokens no weapon is named");
   assert.ok(two.calls.notices.some(([level, key]) => level === "warn" && key === "verdict.oneBearer"));
@@ -1220,7 +1222,7 @@ await ta("a weapon row with no weapon of the target's named is a line, written f
 
 await ta("a Player who targets no one is blocked from a weapon buff before the spend", async () => {
   let spends = 0;
-  const r = runDeps({ answer: { mode: "normal", picks: {}, item: "" }, tokens: [] });
+  const r = runDeps({ answer: { mode: "normal", picks: {}, items: {} }, tokens: [] });
   const out = await castSpellRun(spell([EDGE]), () => spends++, r.deps);
   assert.deepEqual([out.ok, out.reason, spends], [false, "oneBearer", 0]);
 });
@@ -1248,15 +1250,18 @@ t("the card shows a modifier section per row: the part's figure with the spell, 
   assert.ok(noItem.tooltipText.includes("tip.partNoItem"));
 });
 
-t("the dialog context offers the weapon only for a mode that names one, each marked where it is magic", () => {
-  const ctx = { modes: ["normal"], weapons: [{ id: "w1", name: "Testblade", magic: false }, { id: "w2", name: "Testglaive", magic: true }], needsWeapon: { normal: true }, verdicts: { normal: [{ key: "oneBearer", severity: "block" }] } };
-  const out = dialogContext(ctx, {});
-  assert.deepEqual(out.weapon.modes, ["normal"]);
-  assert.deepEqual(out.weapon.options.map((o) => o.id), ["w1", "w2"]);
-  assert.equal(out.weapon.options[0].label, "Testblade");
-  assert.ok(out.weapon.options[1].label.includes("weaponMagic"));
-  assert.ok(out.verdicts[0].items[0].text.includes("blocked.oneBearer"));
-  assert.deepEqual(dialogContext({ ...ctx, needsWeapon: { normal: false } }, {}).weapon.modes, []);
+t("the dialog offers each holder's weapon pills only where a row asks for a weapon, each marked where it is magic, the pick starting on the holder's default", () => {
+  const holder = { uuid: "T1", weapons: [{ id: "w1", name: "Testblade", magic: false }, { id: "w2", name: "Testglaive", magic: true }], pick: "w2" };
+  const ctx = { modes: ["normal"], rows: [EDGE], holders: [holder], targets: [{ uuid: "T1", name: "Ally" }], verdicts: { normal: [{ key: "oneBearer", severity: "block" }] } };
+  const [row] = dialogContext(ctx, {}).bucket.rows;
+  assert.deepEqual(row.pills.map((w) => [w.id, w.on, w.magic]), [["w1", false, false], ["w2", true, true]]);
+  assert.equal(row.pills[0].label, "Testblade");
+  assert.ok(row.pills[1].label.includes("weaponMagic"));
+  assert.ok(dialogContext(ctx, {}).footer.verdicts[0].text.includes("blocked.oneBearer"));
+  assert.deepEqual(dialogContext(ctx, { items: { T1: "w1" } }).bucket.rows[0].pills.map((w) => w.on), [true, false], "the seat's pick stands");
+  assert.deepEqual(dialogContext(ctx, { items: { T1: "gone" } }).bucket.rows[0].pills.map((w) => w.on), [false, true], "a weapon the holder no longer carries falls back to its default");
+  assert.deepEqual(dialogContext({ ...ctx, rows: [CIRCLE] }, {}).bucket.rows[0].pills, [], "a ward needs no weapon");
+  assert.deepEqual(dialogContext({ ...ctx, holders: [holder, { ...holder, uuid: "T2" }], targets: [{ uuid: "T1", name: "A" }, { uuid: "T2", name: "B" }] }, {}).bucket.rows.map((r) => r.pills.length), [0, 0], "a weapon buff names one bearer, so two holders have no pick");
 });
 
 /* ------------------------------------------------------------------ */
@@ -1410,7 +1415,7 @@ await ta("in a begun fight off the caster's turn the cast declares: it spends on
 });
 
 /** A declaration of the invented spell, as the caster's records read. */
-const pendingRecord = (over = {}) => ({ castId: "d1", role: "caster", pending: { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, item: "", visibility: "gm", combatId: "k1", round: 1, at: 3, ...over } });
+const pendingRecord = (over = {}) => ({ castId: "d1", role: "caster", pending: { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, items: {}, visibility: "gm", combatId: "k1", round: 1, at: 3, ...over } });
 const ON_TURN = () => IN_FIGHT({ combat: { id: "k1", started: true, round: 1, turn: 1, turns: [{ id: "cb2" }, { id: "cb1" }], flags: {}, combatant: { id: "cb1" } } });
 
 await ta("on the caster's turn a good declaration resolves with no dialog, no spend and no capacity check; the declaration is ended and the card posts", async () => {
@@ -1429,7 +1434,7 @@ await ta("on the caster's turn a good declaration resolves with no dialog, no sp
 
 await ta("a declaration whose weapon is no longer the one target's opens the dialog, still spending nothing", async () => {
   const buff = { key: "edge", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: 1, gate: { kind: "weaponMundane" }, lasts: "duration" };
-  const { deps, calls } = fightDeps({ answer: { mode: "normal", picks: {}, item: "w1" }, tokens: [bearerToken("w1")], world: { ...ON_TURN(), declarations: [pendingRecord({ item: "gone" })] } });
+  const { deps, calls } = fightDeps({ answer: { mode: "normal", picks: {}, items: { "Scene.s.Token.k1": "w1" } }, tokens: [bearerToken("w1")], world: { ...ON_TURN(), declarations: [pendingRecord({ items: { "Scene.s.Token.k1": "gone" } })] } });
   let spends = 0;
   const out = await castSpellRun(spell([buff]), () => { spends++; }, deps);
   assert.equal(out.ok, true);
@@ -1466,7 +1471,7 @@ t("the dialog says Declare's hint at a declaration and names the caster in the c
   const ctx = { modes: ["normal"], moment: "declare", caster: { name: "Testcaster" }, verdicts: { normal: [{ key: "concentrating", severity: "warn" }] } };
   const out = dialogContext(ctx, {});
   assert.ok(out.declaring.includes("dialog.declaring"));
-  assert.ok(out.verdicts[0].items[0].text.includes("verdict.concentrating"));
+  assert.ok(out.footer.verdicts[0].text.includes("verdict.concentrating"));
   assert.equal(dialogContext({ ...ctx, moment: "free" }, {}).declaring, "");
 });
 

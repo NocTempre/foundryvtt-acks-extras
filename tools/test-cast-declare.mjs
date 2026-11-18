@@ -115,7 +115,7 @@ function world() {
 }
 const caster = { uuid: "Actor.c", name: "Testcaster" };
 const spell = { uuid: "Actor.c.Item.s", name: "Testbolt", img: "i.png" };
-const answer = { mode: "normal", picks: { g: "k" }, casterLevel: "3", situational: 2, visibility: "gm", item: "w1" };
+const answer = { mode: "normal", picks: { g: "k" }, casterLevel: "3", situational: 2, visibility: "gm", pickKind: "beast", items: { "Scene.s.Token.k1": "w1" }, saveMod: true };
 const combat = (over = {}) => ({ id: "k1", round: 2, turn: 0, turns: [{ id: "cb2" }, { id: "cb1" }], ...over });
 
 await ta("a declaration writes a status-only casting record and a status-free pending record naming the answers and the lapse round, then sets the flag, and posts nothing", async () => {
@@ -128,7 +128,7 @@ await ta("a declaration writes a status-only casting record and a status-free pe
   assert.equal(pending.statuses, undefined);
   const read = spellEffectOf(pending);
   assert.deepEqual([read.castId, read.role, read.pending.spellUuid, read.pending.combatId, read.pending.at, read.pending.round], ["d1", "caster", spell.uuid, "k1", 77, 2]);
-  assert.deepEqual([read.pending.mode, read.pending.picks, read.pending.casterLevel, read.pending.situational, read.pending.visibility, read.pending.item], ["normal", { g: "k" }, "3", 2, "gm", "w1"]);
+  assert.deepEqual([read.pending.mode, read.pending.picks, read.pending.casterLevel, read.pending.situational, read.pending.visibility, read.pending.pickKind, read.pending.items, read.pending.saveMod], ["normal", { g: "k" }, "3", 2, "gm", "beast", { "Scene.s.Token.k1": "w1" }, true]);
   assert.deepEqual(w.log.map((l) => l[0]), ["create", "flag", "notify"]);
   assert.deepEqual(w.log[1], ["flag", true]);
 });

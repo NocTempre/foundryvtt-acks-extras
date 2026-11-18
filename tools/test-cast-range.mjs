@@ -16,7 +16,7 @@ const { rangeFeet, rangeVerdicts } = await import("../scripts/magic/cast-range.m
 const { castVerdicts, blocked, VERDICT } = await import("../scripts/magic/cast-plan.mjs");
 const { castFiguresOf, castReach } = await import("../scripts/magic/cast-spell.mjs");
 const { levelNeeded } = await import("../scripts/magic/cast-level.mjs");
-const { dialogContext } = await import("../scripts/magic/apps/cast-dialog.mjs");
+const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { tokenGapFeet } = await import("../scripts/lib/distance-units.mjs");
 
 let n = 0;
@@ -173,7 +173,7 @@ t("the dialog shows the range verdict with a tooltip naming each target, its dis
   const verdict = castVerdicts({ ...ok, targets: [1], isGM: true, range: rangeVerdicts({ ...folk(99.04), rangeFeet: { value: 40, parts: [{ key: "perLevel", value: 10 }, { key: "level", value: 4 }] }, model: "creature" }) });
   const ctx = { modes: ["normal"], groups: { normal: [] }, level: {}, targets: [], verdicts: { normal: verdict }, cite: "p. 9", rangeUnmeasured: true, caster: { name: "Caster" } };
   const out = dialogContext(ctx, {});
-  const item = out.verdicts[0].items[0];
+  const item = out.footer.verdicts[0];
   assert.equal(item.severity, "warn");
   assert.match(item.text, /notice\.verdict\.outOfRange\|.*Folk 0/, "the names are in the line itself, not only in the tooltip");
   assert.match(item.tip, /tip\.range\|/);
@@ -181,11 +181,11 @@ t("the dialog shows the range verdict with a tooltip naming each target, its dis
   assert.match(tip.targets, /tip\.rangeTarget\|.*Folk 0.*99/);
   assert.match(tip.parts, /tip\.rangePart\.perLevel\|.*10.* · .*tip\.rangePart\.level\|.*4/);
   assert.equal(tip.cite, "p. 9");
-  assert.match(out.rangeNote, /^ACKS-MAGIC\.cast\.dialog\.rangeUnmeasured/);
-  assert.equal(dialogContext({ ...ctx, rangeUnmeasured: false }, {}).rangeNote, "");
-  const many = dialogContext({ ...ctx, verdicts: { normal: castVerdicts({ ...ok, targets: [1, 2, 3], count: 1 }) } }, {}).verdicts[0].items[0];
+  assert.match(out.bucket.rangeNote, /^ACKS-MAGIC\.cast\.dialog\.rangeUnmeasured/);
+  assert.equal(dialogContext({ ...ctx, rangeUnmeasured: false }, {}).bucket.rangeNote, "");
+  const many = dialogContext({ ...ctx, verdicts: { normal: castVerdicts({ ...ok, targets: [1, 2, 3], count: 1 }) } }, {}).footer.verdicts[0];
   assert.match(many.tip, /tip\.cite\|.*p\. 9/, "the count's figure carries the page reference");
-  assert.equal(dialogContext({ ...ctx, cite: "", verdicts: { normal: castVerdicts({ ...ok, targets: [1, 2, 3], count: 1 }) } }, {}).verdicts[0].items[0].tip, "");
+  assert.equal(dialogContext({ ...ctx, cite: "", verdicts: { normal: castVerdicts({ ...ok, targets: [1, 2, 3], count: 1 }) } }, {}).footer.verdicts[0].tip, "");
   assert.match(many.text, /tooManyTargets\|.*"max":1.*"over":2/);
 });
 

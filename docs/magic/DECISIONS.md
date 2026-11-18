@@ -322,3 +322,32 @@ at each of the bearer's turn starts for a `rounds` record. *Counter (medium):*
 the end edge of a next turn is not printed on the page it is read from (owner
 question F, at its default), so the Judge deletes the record by hand where a
 table reads it another way.
+
+## 2026-11-18 — The cast dialog is an ApplicationV2, and its targets bucket is the user's targets
+
+The owner: "Targets should be an inventory bucket that can be added/subtracted
+from with X as well as drag and drop. Borrow the color and symbol language from
+the character sheet for effects, not just text." The dialog moved from a
+`DialogV2` form to an ApplicationV2 (`HandlebarsApplicationMixin`, a scrolling
+body and a pinned footer), because a bucket that changes while the window is open
+needs parts that render on their own and a drop target, neither of which a
+dialog's one content string gives. The bucket IS `game.user.targets`: an X is
+`setTarget(false, {releaseOthers: false})`, a drop or the Add my token button is
+`setTarget(true, {releaseOthers: false})`, and the window re-renders on
+`targetToken`. The cast reads the targets again after the answer, so the bucket
+and the cast cannot disagree. Plan rulings 124 (a weapon pick per holder, keyed
+by token uuid), 126 (the spell's own save modifier is a dialog toggle, added as
+written, and the card stores only that it was applied) and 139 (a kind select
+over the `vsKinds` of the rows that offer a choice) land with it; an Actor drop
+with several active tokens asks for the token itself (owner question 1c.30).
+
+*Rejected:* a private list the window keeps (a second source of truth: a target
+set on the canvas would not show and an X would not clear the seat's target, so
+the cast would act on what the window did not show); a GM-only read of other
+users' targets (targets are per user, and a Player's window works from its own);
+an `isOwner` gate on the controls (the doctrine is block a Player, warn a Judge,
+by verdict). *Cost:* a re-render on every target change, which costs the focus of
+a field being typed in, so the window captures its named controls before each
+render and a split input's typing waits for its change event. *Counter (medium):*
+a Player's X unsets that Player's own target only, which is correct for the cast
+and surprising beside a shared targeting habit.

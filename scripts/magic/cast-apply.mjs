@@ -55,7 +55,7 @@ import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs
 import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail } from "./cast-rows.mjs";
 import { spellEffectData, spellEffectOf } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData, modifierFigure } from "./cast-mods.mjs";
-import { liftPlan, isDestroyed, pickWeapon } from "./cast-kinds.mjs";
+import { liftPlan, isDestroyed, chosenWeapon } from "./cast-kinds.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
@@ -545,7 +545,7 @@ async function applySlay({ card, keyed, resist, found, deps, base }) {
 const destroyedCount = (card, rowKey, id) => Object.entries(card.entries ?? {}).filter(([k, e]) => k !== id && k.endsWith(`_${rowKey}`) && e?.state === "applied" && e.destroyed).length;
 
 /**
- * A row that destroys one weapon of its holder: the weapon the entry names (chosen at the cast by `pickWeapon`, never by a control), on a failed save, up to the spell's
+ * A row that destroys one weapon of its holder: the weapon the entry names (the seat's pick for this holder at the cast, else `pickWeapon`'s default), on a failed save, up to the spell's
  * count of weapons across the whole cast. The weapon is marked destroyed through equipment's `setDestroyed` and never deleted; an Undo clears the mark. A weapon that is gone, no longer a weapon or already destroyed
  * is refused as `badItem` and written as an entry that did nothing, and a holder with none is an applied entry that names no weapon.
  */
@@ -563,11 +563,11 @@ async function applyDestroyItem({ card, keyed, id, resist, found, deps, existing
   return { ...base, state: "applied", saved: made.saved, item: named, destroyed: named, recordIds: [] };
 }
 
-/** What a destroy row's relay check holds the entry to: the weapon the card names is the one the target's pick still gives. */
+/** What a destroy row's relay check holds the entry to: the weapon the card names is one the target still carries live, or, where the card names none, that the target still has none. */
 function checkItem(keyed, _e, world, { card, targetKey }) {
   if (typeof world.weaponOf !== "function") return null;
   const named = card.entries?.[entryId(targetKey, keyed.key)]?.item?.id ?? null;
-  return (world.weaponOf()?.id ?? null) === named ? null : "badItem";
+  return (world.weaponOf(named)?.id ?? null) === named ? null : "badItem";
 }
 
 /**
@@ -823,7 +823,7 @@ export async function worldFor(req, message, { card: given = null, source = null
   const targetActor = actorOfTarget(targetDoc);
   if (targetActor && card?.save?.category) {
     const { saveSpec } = await import("../lib/saves.mjs");
-    const { ownSaveRows } = await import("./cast-mods.mjs");
+    const { ownSaveRows, spellSaveParts } = await import("./cast-mods.mjs");
     const { castAbilitiesOf, castSaveParts } = await import("./cast-ability-use.mjs");
     const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
     const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
@@ -834,7 +834,8 @@ export async function worldFor(req, message, { card: given = null, source = null
       bearerToken: targetDoc.documentName === "Token" ? targetDoc : null,
       damage: resistedDamage(rows),
       // The caster's abilities, read live as the casting client read them, so the throw's bounds are the same.
-      parts: castSaveParts(castAbilitiesOf(caster, spell)),
+      // The spell's own save modifier joins it where the card says the seat switched it on, its figure read from the spell at the card's level.
+      parts: [...castSaveParts(castAbilitiesOf(caster, spell)), ...spellSaveParts(spell?.flags?.[MODULE_ID]?.[FLAG_SPELL]?.save, { level: card.casterLevel?.value ?? null, applied: card.saveMod === true, label: card.spellName })],
       // The spell's own save rows, read for this saver as the casting seat read them.
       ownRows: ownSaveRows(rows, { level: card.casterLevel?.value ?? null, label: card.spellName, cite: card.cite }),
     });
@@ -854,7 +855,7 @@ export async function worldFor(req, message, { card: given = null, source = null
     resist,
     gateOf: targetActor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetActor, row) : null,
     // The weapon a destroy row takes from this target as the world stands now, for the relay to hold against the card's.
-    weaponOf: targetActor ? () => pickWeapon(targetActor) : null,
+    weaponOf: targetActor ? (named) => chosenWeapon(targetActor, named) : null,
     item: inputs.item,
     inputs,
     roundsBoundsOf: (row) => roundsBounds(roundsFormulaOf(row), foundryBounds),

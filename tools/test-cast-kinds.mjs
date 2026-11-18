@@ -35,7 +35,7 @@ class FakeItem {
 globalThis.CONFIG = { Item: { documentClass: FakeItem } };
 
 const kinds = await import("../scripts/magic/cast-kinds.mjs");
-const { placeOf, rowOpens, rowResisted, livesKind, entryOf, kindOf, pickWeapon, liftPlan, APPLY_KINDS } = kinds;
+const { placeOf, rowOpens, rowResisted, livesKind, entryOf, kindOf, pickWeapon, chosenWeapon, liftPlan, APPLY_KINDS } = kinds;
 const { checkApplyRequest, applyOnTarget, applyKind, undoEntry } = await import("../scripts/magic/cast-apply.mjs");
 const { buildTargets, castSpellRun, applyNotice } = await import("../scripts/magic/cast-spell.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
@@ -226,6 +226,20 @@ await ta("each kind opens an entry per target; a destroy entry names the weapon 
   const [entryA, entryB] = Object.values(smashed.entries);
   assert.deepEqual(entryA, { state: "pending", item: { id: "w1", name: "Sample blade" } });
   assert.deepEqual(entryB, { state: "pending", item: null }, "and its entry says so");
+});
+
+await ta("a destroy entry names the weapon the seat picked for that holder, by token uuid; a pick the holder does not carry falls back to its default, and each holder keeps its own", async () => {
+  const armed = holder("Actor.a", { items: [blade("w1", "First", { equipped: true }), blade("w2", "Second")] });
+  const other = holder("Actor.b", { items: [blade("w3", "Third", { equipped: true }), blade("w4", "Fourth")] });
+  const tokens = [tokenOf(armed, 1), tokenOf(other, 2)];
+  const made = (items) => buildTargets({ tokens, card: { rows: cardRows, casterLevel: { value: 5 } }, rows: keyed([SMASH]), save, situational: null, caster, randomID: () => `y${++ids}`, extras: null, items }).then((r) => Object.values(r.entries).map((e) => e.item?.id));
+  assert.deepEqual(await made({}), ["w1", "w3"], "no pick: each holder's equipped weapon");
+  assert.deepEqual(await made({ "Scene.s.Token.k1": "w2", "Scene.s.Token.k2": "w4" }), ["w2", "w4"], "a pick for each holder");
+  assert.deepEqual(await made({ "Scene.s.Token.k2": "w1" }), ["w1", "w3"], "another holder's weapon is no pick: the holder's own default stands");
+  assert.deepEqual(chosenWeapon(armed, "w2"), { id: "w2", name: "Second" });
+  const spent = holder("Actor.c", { items: [blade("w5", "Spent", { destroyed: true }), blade("w6", "Kept")] });
+  assert.deepEqual(chosenWeapon(spent, "w5"), { id: "w6", name: "Kept" }, "a destroyed weapon is not a pick");
+  assert.equal(chosenWeapon(holder("Actor.d"), "w1"), null);
 });
 
 function runDeps() {
@@ -439,6 +453,18 @@ t("the relay takes a lifting row and a slay row with no amount at all, where an 
   assert.deepEqual(checkApplyRequest(ask("calm"), relayWorld([LIFT, SLAY], card)), { ok: true });
   assert.deepEqual(checkApplyRequest(ask("fell"), relayWorld([LIFT, SLAY], card)), { ok: true });
   assert.equal(checkApplyRequest(ask("calm"), relayWorld([LIFT], cardFor([LIFT], { t1_calm: { state: "applied" } }))).refused, "applied", "an entry written once is not written twice");
+});
+
+t("the relay holds a destroy entry to the weapon the card names for the holder: a picked weapon the holder still carries stands, one it lost is refused, and a card that names none is refused where the holder now carries one", () => {
+  const armed = holder("Actor.h1", { items: [blade("w1", "Sample blade", { equipped: true }), blade("w2", "Second")] });
+  const second = { id: "w2", name: "Second" };
+  const card = cardFor([SMASH], { t1_smash: { state: "pending", item: second } });
+  const world = (actor) => relayWorld([SMASH], card, { weaponOf: (id) => chosenWeapon(actor, id) });
+  assert.deepEqual(checkApplyRequest(ask("smash"), world(armed)), { ok: true }, "the seat's pick is not the default, and still stands");
+  const lost = holder("Actor.h1", { items: [blade("w1", "Sample blade", { equipped: true })] });
+  assert.equal(checkApplyRequest(ask("smash"), world(lost)).refused, "badItem", "the picked weapon left the holder, so the default (another weapon) is not the one named");
+  const bare = cardFor([SMASH], { t1_smash: { state: "pending", item: null } });
+  assert.equal(checkApplyRequest(ask("smash"), relayWorld([SMASH], bare, { weaponOf: (id) => chosenWeapon(armed, id) })).refused, "badItem", "a weapon taken up since the cast");
 });
 
 t("the relay refuses a destroy entry as badItem when the weapon the target would now lose is not the one the card names, and takes it when it is or when it cannot read the target", () => {

@@ -1,102 +1,130 @@
-<div class="acks-extras-cast-dialog">
-  {{#if hasModes}}
-  <div class="form-group">
-    <label>
-      <span>{{localize "ACKS-MAGIC.cast.dialog.modeLabel"}}</span>
-      <select name="mode" data-cast-mode>
-        {{#each modes}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
-  </div>
-  {{/if}}
+{{!-- The cast dialog's scrolling body: the header, the spell, the saves and the
+      targets bucket. The seat's answer is read back from the named controls and
+      the data-* hooks below (`apps/cast-dialog.mjs`). An effect row is the
+      character sheet's cell in its tone beside the row read as the card reads it. --}}
+{{#*inline "castFx"}}
+<span class="acks-extras-cast-fx">
+  <span class="acks-extras-cast-cell"><span class="acks-extras-frame__cell is-{{tone}}" aria-hidden="true">{{#if img}}<img class="acks-extras-frame__cell-img" src="{{img}}" alt="" inert>{{else}}<i class="{{icon}} acks-extras-frame__cell-glyph" inert></i>{{/if}}</span></span>
+  <span class="acks-extras-cast-fx__text">{{text}}</span>
+</span>
+{{/inline}}
+<section class="acks-extras-cast-body">
+  <header class="acks-extras-cast-head">
+    {{#if header.portrait}}<img class="acks-extras-cast-portrait" src="{{header.portrait}}" alt="" inert>{{/if}}
+    <div class="acks-extras-cast-title">
+      <h2 class="acks-extras-cast-spell">{{header.spell}}</h2>
+      <span class="acks-extras-cast-caster">{{header.caster}}</span>
+      {{#if header.level.line}}<span class="acks-extras-cast-levelline acks-nums" data-tooltip-text="{{header.level.tip}}">{{header.level.line}}</span>{{/if}}
+    </div>
+    {{#if header.hasModes}}
+    <div class="acks-extras-cast-seg" role="radiogroup" aria-label="{{localize 'ACKS-MAGIC.cast.dialog.modeLabel'}}">
+      {{#each header.modes}}
+      <label class="acks-extras-cast-seg__opt{{#if selected}} is-on{{/if}}"><input type="radio" name="mode" value="{{key}}"{{#if selected}} checked{{/if}}><span>{{label}}</span></label>
+      {{/each}}
+    </div>
+    {{/if}}
+  </header>
 
-  {{#if declaring}}<p class="hint">{{declaring}}</p>{{/if}}
+  {{#if declaring}}<p class="acks-extras-cast-hint">{{declaring}}</p>{{/if}}
 
-  {{#each groups}}
-  <fieldset class="acks-extras-cast-group" data-cast-for="{{mode}}">
-    <legend>{{legend}}</legend>
-    <label>
-      <span>{{label}}</span>
-      <select data-pick="{{id}}" data-pick-mode="{{mode}}">
-        {{#each options}}<option value="{{key}}">{{label}}</option>{{/each}}
-      </select>
-    </label>
-  </fieldset>
-  {{/each}}
+  {{#with spell as |sp|}}
+  {{#if sp.show}}
+  <section class="acks-extras-cast-band">
+    {{#each sp.groups}}
+    <fieldset class="acks-extras-cast-group">
+      <legend>{{legend}}</legend>
+      {{#each options}}
+      <label class="acks-extras-cast-opt{{#if selected}} is-on{{/if}}">
+        <input type="radio" name="pick-{{../id}}" value="{{key}}" data-pick="{{../id}}"{{#if selected}} checked{{/if}}>
+        <span class="acks-extras-cast-opt__rows">{{#each rows}}{{> castFx}}{{/each}}</span>
+      </label>
+      {{/each}}
+    </fieldset>
+    {{/each}}
 
-  {{#each weapon.modes}}
-  <div class="form-group" data-cast-for="{{this}}">
-    <label>
-      <span>{{localize "ACKS-MAGIC.cast.dialog.weapon"}}</span>
-      <select data-weapon>
-        {{#each ../weapon.options}}<option value="{{id}}">{{label}}</option>{{/each}}
-      </select>
-    </label>
-  </div>
-  {{/each}}
+    {{#if sp.kind.show}}
+    <div class="acks-extras-cast-field">
+      <label>
+        <span>{{localize "ACKS-MAGIC.cast.dialog.kind"}}</span>
+        <select name="pickKind" data-tooltip="{{localize 'ACKS-MAGIC.cast.tip.kind'}}">
+          {{#each sp.kind.options}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{key}}</option>{{/each}}
+        </select>
+      </label>
+      {{#each sp.kind.rows}}{{> castFx}}{{/each}}
+    </div>
+    {{/if}}
 
-  {{#if level.show}}
-  <div class="form-group">
-    <label>
-      <span>{{localize "ACKS-MAGIC.cast.dialog.level"}}</span>
-      <input type="number" name="casterLevel" min="1" step="1" value="" data-tooltip-text="{{level.tip}}">
-    </label>
-    <p class="hint">{{localize "ACKS-MAGIC.cast.dialog.levelHint"}}</p>
-  </div>
-  {{else if level.value}}
-  <p class="hint" data-tooltip-text="{{level.tip}}">{{level.line}}</p>
-  {{/if}}
-
-  {{#if saves}}
-  <div class="form-group">
-    <label>
-      <span>{{localize "ACKS-MAGIC.cast.dialog.situational"}}</span>
-      <input type="number" name="situational" step="1" placeholder="0" data-tooltip-text="{{situationalTip}}">
-    </label>
-  </div>
-  {{/if}}
-
-  <div class="form-group">
-    <label>
-      <span>{{localize "ACKS-MAGIC.cast.dialog.visibility"}}</span>
-      <select name="visibility">
-        {{#each visibility}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
-      </select>
-    </label>
-  </div>
-
-  {{#if capacity.line}}<p class="hint" data-tooltip-text="{{capacity.tip}}">{{capacity.line}}</p>{{/if}}
-
-  <section class="acks-extras-cast-targets">
-    <h4>{{localize "ACKS-MAGIC.cast.dialog.targets"}}</h4>
-    {{#if targets.length}}
-    <ul>{{#each targets}}<li>{{name}}</li>{{/each}}</ul>
-    {{else}}
-    <p class="hint">{{localize "ACKS-MAGIC.cast.dialog.noTargets"}}</p>
+    {{#if sp.level.show}}
+    <div class="acks-extras-cast-field">
+      <label>
+        <span>{{localize "ACKS-MAGIC.cast.dialog.level"}}</span>
+        <input type="number" name="casterLevel" min="1" step="1" value="{{sp.level.value}}" data-tooltip-text="{{sp.level.tip}}">
+      </label>
+      <p class="acks-extras-cast-hint">{{localize "ACKS-MAGIC.cast.dialog.levelHint"}}</p>
+    </div>
     {{/if}}
   </section>
+  {{/if}}
+  {{/with}}
 
-  {{#each splits}}
-  <fieldset class="acks-extras-cast-split" data-cast-for="{{mode}}" data-alloc-row="{{key}}" data-alloc-count="{{count}}"{{#if pick}} data-alloc-pick="{{pick}}" data-alloc-option="{{option}}"{{/if}} data-tooltip-text="{{tip}}">
-    <legend>{{label}}</legend>
-    <p class="hint">{{rowLabel}}</p>
-    {{#each inputs}}
-    <div class="form-group">
+  {{#if saves.show}}
+  <section class="acks-extras-cast-band acks-extras-cast-saves">
+    <div class="acks-extras-cast-field">
       <label>
-        <span>{{name}}</span>
-        <input type="number" min="0" step="1" value="{{value}}" data-alloc-index="{{index}}">
+        <span>{{localize "ACKS-MAGIC.cast.dialog.situational"}}</span>
+        <input type="number" name="situational" step="1" placeholder="0" value="{{saves.situational}}" data-tooltip-text="{{saves.situationalTip}}">
       </label>
     </div>
-    {{/each}}
-    <p class="hint" data-alloc-over data-alloc-severity="{{severity}}" hidden>{{over}}</p>
-  </fieldset>
-  {{/each}}
+    <label class="acks-extras-cast-check{{#if saves.toggle.disabled}} is-blank{{/if}}" data-tooltip-text="{{saves.toggle.tip}}">
+      <input type="checkbox" name="saveMod"{{#if saves.toggle.checked}} checked{{/if}}{{#if saves.toggle.disabled}} disabled{{/if}}>
+      <span>{{saves.toggle.label}}</span>
+      {{#if saves.toggle.disabled}}<i class="fa-solid fa-book-open acks-extras-cast-unread" inert></i>{{/if}}
+    </label>
+    {{#if saves.parts.length}}
+    <ul class="acks-extras-cast-parts">
+      {{#each saves.parts}}<li><span>{{label}}</span><b class="acks-nums">{{value}}</b></li>{{/each}}
+    </ul>
+    {{/if}}
+  </section>
+  {{/if}}
 
-  {{#if rangeNote}}<p class="hint">{{rangeNote}}</p>{{/if}}
-
-  {{#each verdicts}}
-  <ul class="acks-extras-cast-verdicts notes" data-cast-for="{{mode}}">
-    {{#each items}}<li data-severity="{{severity}}"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{text}}</li>{{/each}}
-  </ul>
-  {{/each}}
-</div>
+  <section class="acks-extras-cast-band acks-extras-cast-targets">
+    <header class="acks-extras-cast-targets__head">
+      <h3>{{localize "ACKS-MAGIC.cast.dialog.targets"}}</h3>
+      <span class="acks-extras-cast-count acks-nums{{#if bucket.count.over}} is-over{{/if}}"{{#if bucket.count.tip}} data-tooltip-text="{{bucket.count.tip}}"{{/if}}>{{bucket.count.text}}</span>
+    </header>
+    {{#if bucket.empty}}<p class="acks-extras-cast-hint">{{localize "ACKS-MAGIC.cast.dialog.noTargets"}}</p>{{/if}}
+    <ul class="acks-extras-cast-rows">
+      {{#each bucket.rows}}
+      <li class="acks-extras-cast-trow{{#if off}} is-off{{/if}}{{#if far}} is-far{{/if}}" data-uuid="{{uuid}}">
+        <div class="acks-extras-cast-trow__main">
+          {{#if img}}<img class="acks-extras-frame__gear-img" src="{{img}}" alt="" inert>{{/if}}
+          <span class="acks-extras-cast-trow__text">
+            <span class="acks-extras-cast-trow__name">{{name}}</span>
+            <span class="acks-extras-cast-trow__line acks-nums" data-tooltip-text="{{tip}}">{{line}}</span>
+          </span>
+          {{#each chips}}<span class="acks-extras-cast-chip is-warn" data-tooltip-text="{{tip}}"><i class="fa-solid fa-triangle-exclamation" inert></i>{{text}}</span>{{/each}}
+          <button type="button" class="acks-extras-cast-ctl" data-action="untarget" data-uuid="{{uuid}}" aria-label="{{removeLabel}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
+        </div>
+        {{#if pills.length}}
+        <div class="acks-extras-cast-pills" role="group" aria-label="{{weaponLabel}}">
+          {{#each pills}}<button type="button" class="acks-extras-cast-pill is-weapon{{#if on}} is-on{{/if}}{{#if magic}} is-magic{{/if}}" data-action="pickWeapon" data-uuid="{{../uuid}}" data-weapon="{{id}}" aria-pressed="{{on}}">{{label}}</button>{{/each}}
+        </div>
+        {{/if}}
+        {{#if noWeapon}}<span class="acks-extras-cast-note">{{localize "ACKS-MAGIC.cast.dialog.noWeapon"}}</span>{{/if}}
+        {{#each splits}}
+        <label class="acks-extras-cast-split" data-tooltip-text="{{tip}}">
+          <span>{{label}}</span>
+          <input type="number" min="0" step="1" value="{{value}}" data-alloc-row="{{key}}" data-alloc-uuid="{{../uuid}}">
+        </label>
+        {{/each}}
+      </li>
+      {{/each}}
+    </ul>
+    <div class="acks-extras-cast-dropbar">
+      <span class="acks-extras-cast-drop"><i class="fa-solid fa-crosshairs" inert></i>{{localize "ACKS-MAGIC.cast.dialog.drop"}}</span>
+      <button type="button" class="acks-extras-cast-add" data-action="addMine"><i class="fa-solid fa-user-plus" inert></i>{{localize "ACKS-MAGIC.cast.dialog.addMine"}}</button>
+    </div>
+    {{#if bucket.rangeNote}}<p class="acks-extras-cast-hint">{{bucket.rangeNote}}</p>{{/if}}
+  </section>
+</section>
