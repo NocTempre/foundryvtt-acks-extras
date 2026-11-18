@@ -88,6 +88,9 @@
           <div class="form-fields">
             <input type="text" name="system.details.treasure.type" value="{{system.details.treasure.type}}" list="{{@root.partId}}-treasure-types" placeholder="{{localize 'ACKS-MONSTERS.hint.treasureType'}}"/>
             <datalist id="{{@root.partId}}-treasure-types">{{#each choices.treasure as |label key|}}<option value="{{key}}"></option>{{/each}}</datalist>
+            {{#if canDealTreasure}}
+              <span data-tooltip-text="{{dealTreasureTip}}"><button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealTreasure"{{#if dealTreasureOff}} disabled aria-label="{{dealTreasureTip}}"{{/if}}>{{localize "ACKS-TREASURE.monster.deal"}}</button></span>
+            {{/if}}
           </div></div>
       </div>
       <p class="acksm-hint">{{localize "ACKS-MONSTERS.hint.treasureDrop"}}</p>

@@ -9,6 +9,7 @@
 import { acksExtras } from "../namespace.mjs";
 import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { MODULE_ID, LANG, POT_HANDLER } from "./constants.mjs";
+import { newDealPot } from "./deal.mjs";
 import { installDoorway } from "./doorway.mjs";
 import PotSheet, { report } from "./pot-sheet.mjs";
 import { createPotRelay, findPot, isPot, newPot, potOf } from "./pot.mjs";
@@ -39,15 +40,16 @@ Hooks.once("init", () => {
     makeDefault: false,
     label: `${LANG}.sheet.name`,
   });
-  acksExtras.treasure = { newPot, findPot };
+  acksExtras.treasure = { newPot, newDealPot, findPot };
 });
 
 installDoorway();
 
 /**
  * The Judge's way in: a button on the token controls that starts a pot in
- * staging. A `button: true` tool's `onChange` is not awaited by core, so a
- * failure is logged and said where the Judge is looking.
+ * staging, with one monster row per kind among the selected tokens (By hand
+ * when none are selected). A `button: true` tool's `onChange` is not awaited by
+ * core, so a failure is logged and said where the Judge is looking.
  */
 Hooks.on("getSceneControlButtons", (controls) => {
   const tokens = controls.tokens ?? controls.find?.((c) => c.name === "tokens");
@@ -60,7 +62,7 @@ Hooks.on("getSceneControlButtons", (controls) => {
     button: true,
     visible: game.user.isGM,
     onChange: () =>
-      newPot().catch((err) => {
+      newDealPot().catch((err) => {
         console.error(`${MODULE_ID} | treasure pot failed`, err);
         ui.notifications?.error(game.i18n.localize(`${LANG}.control.failed`));
       }),

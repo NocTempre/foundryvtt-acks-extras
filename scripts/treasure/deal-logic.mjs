@@ -100,3 +100,76 @@ export async function runLetterDeal({ isGM, pot, letters, confirmLair, deal, sta
   const staged = truths.length ? await stage(truths) : [];
   return { ok: true, dealt, staged };
 }
+
+/**
+ * The staged monster rows for a list of kinds: each row as the pot stores it,
+ * ticked when its sheet carries a letter and left clear when it carries none.
+ * @param {Array<{actorId?: string|null, name?: string, count?: number, letter?: string|null}>} groups
+ *   `groupMonsters`' rows
+ * @returns {Array<{actorId: string|null, name: string, count: number, letter: string|null, on: boolean}>}
+ */
+export function monsterRows(groups) {
+  return (Array.isArray(groups) ? groups : [])
+    .filter(Boolean)
+    .map((g) => {
+      const letter = letterOf(g.letter);
+      return { actorId: g.actorId ?? null, name: String(g.name ?? ""), count: Math.max(1, Math.floor(Number(g.count) || 1)), letter, on: !!letter };
+    });
+}
+
+/**
+ * What a Deal sends, from the pot's staged deal state: one line per ticked
+ * monster row that carries a letter (one hoard per kind, never one per token),
+ * then the by-hand letter. A line is `{letter, name, count}`, with `name` null
+ * and `count` 0 for the by-hand letter.
+ * @param {{monsters?: object[], letter?: string|null}} deal `pot.deal`
+ * @returns {Array<{letter: string, name: string|null, count: number}>}
+ */
+export function dealLines(deal) {
+  const lines = (deal?.monsters ?? [])
+    .filter((row) => row.on && letterOf(row.letter))
+    .map((row) => ({ letter: letterOf(row.letter), name: row.name, count: row.count }));
+  const byHand = letterOf(deal?.letter);
+  if (byHand) lines.push({ letter: byHand, name: null, count: 0 });
+  return lines;
+}
+
+/** The per-letter error codes a deal words by name; any other code is worded generically with the code in it. */
+export const DEAL_ERROR_CODES = Object.freeze(["not-imported", "unknown-type", "unknown-style", "column-skipped", "special-missing", "coin-missing"]);
+
+/** The reasons a deal refuses that the window words itself; the two lair reasons are the warning's, so the window says nothing for them. */
+export const DEAL_REFUSAL_WORDED = Object.freeze([REFUSAL.notAllowed, REFUSAL.phase, REFUSAL.empty]);
+
+/**
+ * What to tell the Judge about a deal's outcome: a list of
+ * `{level, key, args}` where `key` is a lang key under `ACKS-TREASURE.`.
+ * A refusal says its reason (the lair reasons say nothing: the warning is
+ * their answer); a deal that staged nothing says so; every distinct error of
+ * every letter is worded once, naming the letter; a deal that staged cards
+ * says how many and for which letters.
+ * @param {{ok: boolean, reason?: string, dealt?: Array<{letter: string, cards: number, errors: object[]}>, staged?: string[]}} outcome `runLetterDeal`'s result
+ * @returns {Array<{level: "info"|"warn", key: string, args: object}>}
+ */
+export function dealMessages(outcome) {
+  if (!outcome) return [];
+  if (!outcome.ok) {
+    if (outcome.reason === DEAL_REFUSAL.lairUnconfirmed || outcome.reason === DEAL_REFUSAL.lairDeclined) return [];
+    const reason = DEAL_REFUSAL_WORDED.includes(outcome.reason) ? outcome.reason : REFUSAL.failed;
+    return [{ level: "warn", key: `deal.refuse.${reason}`, args: {} }];
+  }
+  const messages = [];
+  for (const one of outcome.dealt ?? []) {
+    const seen = new Set();
+    for (const error of one.errors ?? []) {
+      const code = DEAL_ERROR_CODES.includes(error?.code) ? error.code : "other";
+      const id = `${code}|${error?.column ?? ""}|${code === "other" ? error?.code : ""}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      messages.push({ level: "warn", key: `deal.error.${code}`, args: { letter: one.letter, column: error?.column ?? "", style: error?.style ?? "", code: error?.code ?? "" } });
+    }
+  }
+  const cards = (outcome.staged ?? []).length;
+  if (cards) messages.push({ level: "info", key: "deal.done", args: { n: cards, letters: (outcome.dealt ?? []).filter((d) => d.cards).map((d) => d.letter).join(", ") } });
+  else if (!messages.length) messages.push({ level: "warn", key: "deal.nothing", args: {} });
+  return messages;
+}

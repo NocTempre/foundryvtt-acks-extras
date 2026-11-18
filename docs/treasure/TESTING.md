@@ -42,7 +42,8 @@ swept with `api.sweepTracked()`.
   `partyId` set. `treasure/party-b` is a second formation, built only for the
   no-party step, since two parties and an unset `partyId` is how a pot has none.
 - A pot is **not** a kept fixture: it is made by the step that builds it (the
-  scene control's tool, which calls `acksExtras.treasure.newPot()`), is marked
+  scene control's tool with no token selected, which calls
+  `acksExtras.treasure.newDealPot()` and opens By hand), is marked
   `flags.world.fixture = "treasure/pot"` by the run (`newPot` sets none; the
   run retires a standing one first, since a marker names one document), and is
   deleted by the close step. A pot left behind is tracked and swept.
@@ -388,3 +389,51 @@ Replace bucket):
 
 **Teardown:** the run's own pots and whispers are tracked and swept; the kept
 fixtures stay.
+
+## Dealing letters (Judge seat)
+
+Not yet walked live. Offline coverage is `tools/test-treasure-deal.mjs` (the
+stored deal state, the rows, the letters a Deal sends, the warning, the fake
+world's deal) and `tools/test-hoard-map.mjs`; nothing offline renders the rail,
+the monster sheet's button or the token control.
+
+**Fixtures** (found by marker, built through `api.fixture`):
+
+- `treasure/monster-lettered` — a `monster` actor whose
+  `system.details.treasure.type` is a letter the world's imported treasure-type
+  table holds, with two tokens of it on a scene (one linked, one unlinked).
+- `treasure/monster-bare` — a `monster` actor whose treasure type is `none`,
+  with one token on the same scene.
+- The world's `treasure` registry must be imported (the importer's Treasure
+  Tome book); without it every Deal reports "not imported", which is step 6.
+
+**Steps:**
+
+1. **Selected tokens (Judge seat).** Select the three monster tokens and
+   `treasure/player-character`'s token, then press Scene controls → Token controls →
+   New treasure pot. Observables: a staged pot opens with two Monsters rows,
+   `<name> ×2 · Type <letter>` ticked and the bare monster's row disabled with
+   its no-letter reason; the character makes no row. Nothing is dealt.
+2. **Lair warning.** With "Met in their lair" off, press Deal. Observable: the
+   rail's warning callout appears naming the toggle, and the pot holds no new
+   card. Press Cancel: the callout clears, still no card.
+3. **Deal anyway.** Press Deal, then Deal anyway. Observables: the pot gains
+   face-down cards from one hoard of the letter (one hoard for the two tokens,
+   not two); a notification reports the deal; the deal toggles (No magic,
+   Force cursed) are honoured.
+4. **Met in their lair.** Tick it and press Deal. Observable: no callout; a
+   second hoard is dealt at once. Reopen the window: the toggle, the style and
+   the Special treasure tick read back as left.
+5. **By hand and case.** Untick both rows, type the letter in lower case in the
+   Treasure type field and press Deal at once. Observable: a hoard is dealt on
+   the first press.
+6. **Monster sheet.** Open `treasure/monster-lettered`'s sheet, Ecology tab.
+   Observables: a Deal button beside Treasure type (Judge seat only; the
+   Player seat, given Observer on the actor, sees none); on
+   `treasure/monster-bare`'s sheet it is disabled. Press it: a staged pot opens
+   with that one monster's row ticked and nothing dealt.
+7. **Refusals.** On a pot opened to the table, the rail is gone. In a world
+   with the registry unimported (or a style whose table is missing), Deal
+   reports the not-imported error by lang string and nothing throws.
+
+**Teardown:** the run's pots are tracked and swept; the kept fixtures stay.

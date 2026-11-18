@@ -21,7 +21,7 @@ import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
 import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setMetInLair, setToggle,
+  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle,
   stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
 import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot.mjs";
@@ -67,10 +67,12 @@ export const findPot = (id) => {
 
 /**
  * A new pot in staging, GM-only, with its own sheet chosen. Judge-only.
- * @param {{name?: string, render?: boolean}} [opts]
+ * `deal` is the staged deal state the pot is created with (the monster rows a
+ * sheet or the selected tokens open it with), written in the create itself.
+ * @param {{name?: string, render?: boolean, deal?: object}} [opts]
  * @returns {Promise<Cards|null>}
  */
-export async function newPot({ name = "", render = true } = {}) {
+export async function newPot({ name = "", render = true, deal = undefined } = {}) {
   if (!game.user.isGM) {
     ui.notifications?.warn(loc("refuse.judgeOnly"));
     return null;
@@ -79,7 +81,7 @@ export async function newPot({ name = "", render = true } = {}) {
     name: name || loc("pot.defaultName"),
     type: "pile",
     ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
-    flags: { core: { sheetClass: POT_SHEET_KEY }, [MODULE_ID]: { [POT_FLAG]: normalizePot({}) } },
+    flags: { core: { sheetClass: POT_SHEET_KEY }, [MODULE_ID]: { [POT_FLAG]: normalizePot({ deal }) } },
   });
   if (pile && render) pile.sheet?.render(true);
   return pile;
@@ -166,6 +168,27 @@ export async function setDealMetInLair(pile, on) {
   const pot = setMetInLair(potOf(pile), on);
   if (!game.user.isGM || !pot) return null;
   return pile.update({ [`${potPath}.deal.metInLair`]: pot.deal.metInLair });
+}
+
+/** Replace the staged pot's monster rows. Stored only. Judge-only. */
+export async function setDealMonsters(pile, rows) {
+  const pot = setMonsters(potOf(pile), rows);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.monsters`]: pot.deal.monsters });
+}
+
+/** Tick or clear one monster row (by its index) on a staged pot. Stored only. Judge-only. */
+export async function setDealMonsterOn(pile, index, on) {
+  const pot = setMonsterOn(potOf(pile), index, on);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.monsters`]: pot.deal.monsters });
+}
+
+/** Set one deal choice (`style`, `special` or the by-hand `letter`) on a staged pot. Stored only. Judge-only. */
+export async function setDealOption(pile, key, value) {
+  const pot = setDealChoice(potOf(pile), key, value);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.${key}`]: pot.deal[key] });
 }
 
 /* -------------------------------------------- */

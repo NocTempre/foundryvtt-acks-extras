@@ -10,6 +10,7 @@
 import { MODULE_ID, FLAG_EXTRAS } from "./constants.mjs";
 import MonsterExtras from "./monster-extras.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { acksExtras } from "../namespace.mjs";
 import { HOOKS } from "../henchmen/constants.mjs";
 import { assignMonsterEmployer } from "../henchmen/engine/monster-employer.mjs";
 
@@ -131,5 +132,21 @@ async function rollHitPoints() {
   await this.actor.rollHP();
 }
 
+/**
+ * Open a treasure pot staged with this monster's row ticked, from the Treasure
+ * type field's Deal button. Judge-only; nothing is rolled until Deal is pressed in
+ * the pot. The row's letter is whatever the sheet carries now.
+ */
+async function dealTreasure() {
+  try {
+    await acksExtras.treasure?.newDealPot([
+      { actorId: this.actor.id, name: this.actor.name, count: 1, letter: this.actor.system?.details?.treasure?.type ?? null },
+    ]);
+  } catch (err) {
+    console.error("acks-extras | treasure pot failed", err);
+    ui.notifications?.error(game.i18n.localize("ACKS-TREASURE.control.failed"));
+  }
+}
+
 /** The monster sheet's action handlers, keyed by the `data-action` name each control carries. */
-export const ACTIONS = { addRow, removeRow, serveAsHenchman, createSpoil, rollSave, rollHitPoints };
+export const ACTIONS = { addRow, removeRow, serveAsHenchman, createSpoil, rollSave, rollHitPoints, dealTreasure };

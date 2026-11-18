@@ -175,6 +175,13 @@ export function buildKinds({ rows, gemLegend, jewelryLegend, coinNouns = {} }) {
   return { kinds, skipped };
 }
 
+/** The type table's own key for a letter, matched without regard to case; the letter as given where none matches. */
+function typeKeyOf(typeTable, letter) {
+  if (typeof letter !== "string" || typeTable[letter]) return letter;
+  const folded = letter.trim().toLowerCase();
+  return Object.keys(typeTable).find((key) => key.toLowerCase() === folded) ?? letter;
+}
+
 /**
  * The engine's arguments for dealing one treasure type, from the imported
  * `treasure` tables (`doc.tables`). `cite(tableId)` answers a table's page
@@ -199,6 +206,7 @@ export function mapHoardArgs({ tables, letter, style, toggles = {}, special = fa
   if (!tableId) return { error: err("unknown-style", { style: style ?? null }) };
   const typeTable = tables?.[tableId];
   if (!typeTable || typeof typeTable !== "object") return { error: err("not-imported", { table: tableId }) };
+  letter = typeKeyOf(typeTable, letter);
   if (!typeTable[letter]) return { error: err("unknown-type", { type: letter ?? null, table: tableId }) };
 
   const coinNouns = special ? coinNamesIn(tables.special, coinNames) : {};

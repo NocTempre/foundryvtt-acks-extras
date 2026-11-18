@@ -24,6 +24,7 @@ import * as CFG from "./config.mjs";
 import { loadStone, capacityStone, borneBy6, riderBodyTip } from "../lib/capacity.mjs";
 import { loadRule, loadStanding, defaultScore } from "./load-rule.mjs";
 import { riderOf } from "../lib/mount.mjs";
+import { letterOf } from "../treasure/search-logic.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { appearingChanges, countText } from "../lib/encounter-line.mjs";
@@ -213,7 +214,7 @@ export function createFullMonsterSheet(Base) {
     };
 
     /** Actions a read-only seat keeps: the frame's, the rolls and the menus, and what only opens or shows. */
-    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "itemShow", "toggleSummary"]);
+    static VIEW_ACTIONS = new Set([...FRAME_VIEW_ACTIONS, "roll", "moveMenu", "senseMenu", "groupSelect", "employer", "serviceEmployer", "itemShow", "toggleSummary", "dealTreasure"]);
 
     /** The folded card is narrower than a character's: the rails and the portrait alone. */
     static FRAME_WIDTHS = Object.freeze({ open: 900, folded: 348 });
@@ -294,6 +295,10 @@ export function createFullMonsterSheet(Base) {
       context.carriedItems = items.filter((i) => !i.getFlag(MODULE_ID, "spoil"));
       context.encumbrance = computeEncumbrance(actor, extras);
       context.choices = choices();
+      // The Deal button beside the Treasure type field: a Judge's, and idle while the sheet states no letter.
+      context.canDealTreasure = !!game.user?.isGM;
+      context.dealTreasureOff = !letterOf(actor.system?.details?.treasure?.type);
+      context.dealTreasureTip = localize(context.dealTreasureOff ? "ACKS-TREASURE.monster.dealNone" : "ACKS-TREASURE.monster.dealTip");
       // The Body Form select: the imported rows, or a disabled blank one.
       const bodyForm = bodyFormView(extras.bodyForm, loc);
       context.bodyForm = bodyForm;

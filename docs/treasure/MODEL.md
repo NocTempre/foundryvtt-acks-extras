@@ -417,8 +417,31 @@ that the magic-item roll resolves. Dice are `CONFIG.Dice.randomUniform` through
 
 ## Dealing letters
 
-Source: `deal-logic.mjs` (pure), `deal.mjs` (the Foundry side). No control calls
-either yet; the staging window's Deal is the caller to come.
+Source: `deal-logic.mjs` (pure), `deal.mjs` (the Foundry side), and the
+staging rail in `pot-sheet.mjs` / `pot.hbs`.
+
+**The staging rail** (Judge, staging only) holds the deal's state, stored on the
+pot flag like the toggles, since every card write rewrites the flag and a pick
+would reset: `deal.monsters` (`[{actorId, name, count, letter, on}]`; a row with
+no letter is never ticked), `deal.letter` (the by-hand Treasure type),
+`deal.style` (`DEAL_STYLE`: classic, heroic, gritty), `deal.special` and
+`deal.metInLair`. Their setters are staging-only and Judge-only
+(`setDealMonsters`, `setDealMonsterOn`, `setDealOption`, `setDealMetInLair`).
+**Deal** sends one letter per ticked row plus the by-hand letter (`dealLines`)
+to `dealLettersIntoPot`; while the lair warning stands it raises the rail's
+callout instead, and the callout's Deal anyway deals with `confirmLair`
+answering true. The callout clears on Cancel and on a lair toggle. Refusals and
+per-letter errors reach the Judge as lang strings (`dealMessages`). A letter
+typed in another case finds the type table's own key (`hoard-map.mjs`).
+
+**Two entries open it staged.** The token-controls button calls `newDealPot()`:
+with monster tokens selected the pot opens with their rows, each kind with a
+letter ticked; with none it opens By hand. A monster sheet's Ecology tab shows a
+Judge-only Deal beside the Treasure type (disabled with no letter, live on a
+locked sheet too), which opens a pot staged with that one monster. Nothing is
+rolled until Deal. Monsters reach treasure only through
+`acksExtras.treasure.newDealPot`, so the monster feature imports nothing from
+treasure.
 
 `dealLettersIntoPot(pile, {letters, style, special, confirmLair})` deals each
 letter once, in order, through `dealHoard` with the pot's deal toggles, and
@@ -435,7 +458,7 @@ With it on, nothing is asked. Nothing infers the state from the scene or the
 sheet.
 
 **Selected tokens group by kind.** `selectedMonsterGroups()` reads
-`canvas.tokens.controlled`; a kind is the token's base actor
+`canvas.tokens.controlled`, monster actors only; a kind is the token's base actor
 (`TokenDocument#actorId`), so linked and unlinked tokens of one actor make one
 row `{actorId, name, count, letter}`. The letter is read from the token's own
 actor (`system.details.treasure.type`), the first one a group carries; a kind

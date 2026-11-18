@@ -208,6 +208,12 @@ eq(figureOf(null), null, "null");
   eq(mapHoardArgs({ tables: undefined, letter: "Z", style: "classic" }).error.code, "not-imported", "no tables at all");
   eq(mapHoardArgs({ tables: doc(), letter: "Z", style: "gritty" }).error, { code: "not-imported", table: "typeGritty" }, "a style the books did not print");
   eq(mapHoardArgs({ tables: doc(), letter: "Q", style: "classic" }).error.code, "unknown-type", "a letter the table lacks");
+  {
+    const keys = Object.keys(doc().typeClassic);
+    const key = keys.find((k) => k.toLowerCase() !== k) ?? keys[0];
+    const folded = mapHoardArgs({ tables: doc(), letter: key.toLowerCase(), style: "classic" });
+    eq([folded.error, folded.args?.type], [undefined, key], "a letter typed in another case finds the table's own key");
+  }
   eq(mapHoardArgs({ tables: doc(), letter: "Z", style: "mild" }).error, { code: "unknown-style", style: "mild" }, "an unknown style");
 }
 

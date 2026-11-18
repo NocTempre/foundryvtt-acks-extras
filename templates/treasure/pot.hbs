@@ -20,11 +20,53 @@
 
     {{#if staging}}
       <aside class="acks-extras-treasure__side">
-        <div class="acks-extras-treasure__field">
-          <span class="acks-extras-caption">{{localize "ACKS-TREASURE.judge.source"}}</span>
-          <span class="acks-extras-treasure__static">{{localize "ACKS-TREASURE.judge.byHand"}}</span>
-          <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.judge.byHandHint"}}</span>
-        </div>
+        {{#unless deal.monsters.length}}
+          <div class="acks-extras-treasure__field">
+            <span class="acks-extras-caption">{{localize "ACKS-TREASURE.judge.source"}}</span>
+            <span class="acks-extras-treasure__static">{{localize "ACKS-TREASURE.judge.byHand"}}</span>
+            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.judge.byHandHint"}}</span>
+          </div>
+        {{/unless}}
+        {{#if deal}}
+          {{#if deal.monsters.length}}
+            <fieldset class="acks-extras-treasure__field acks-extras-treasure__monsters">
+              <legend class="acks-extras-caption">{{localize "ACKS-TREASURE.deal.monsters"}}</legend>
+              {{#each deal.monsters}}
+                <label class="acks-extras-treasure__monster{{#if off}} is-off{{/if}}" data-tooltip-text="{{tip}}">
+                  <input type="checkbox" data-action="dealMonster" data-index="{{index}}"{{#if on}} checked{{/if}}{{#if off}} disabled{{/if}}>
+                  <span class="acks-extras-treasure__monster-name" data-tooltip-text="{{countTip}}">{{name}}</span>
+                  <span class="acks-extras-treasure__monster-letter">{{letterText}}</span>
+                </label>
+              {{/each}}
+            </fieldset>
+          {{/if}}
+          <div class="acks-extras-treasure__field">
+            <label class="acks-extras-caption" for="{{@root.partId}}-letter">{{localize "ACKS-TREASURE.deal.letter"}}</label>
+            <input type="text" class="acks-input acks-extras-treasure__letter" id="{{@root.partId}}-letter" data-deal-letter value="{{deal.letter}}" maxlength="8" autocomplete="off" spellcheck="false" data-tooltip-text="{{deal.letterTip}}">
+            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.letterHint"}}</span>
+          </div>
+          <fieldset class="acks-extras-treasure__field">
+            <legend class="acks-extras-caption">{{localize "ACKS-TREASURE.deal.styleTitle"}}</legend>
+            <div class="acks-btn-group">
+              {{#each deal.styles}}
+                <button type="button" class="acks-btn acks-btn--sm{{#unless pressed}} acks-btn--secondary{{/unless}}" data-action="dealStyle" data-style="{{key}}" aria-pressed="{{pressed}}" data-tooltip-text="{{tip}}">{{label}}</button>
+              {{/each}}
+            </div>
+          </fieldset>
+          <div class="acks-extras-treasure__field">
+            <button type="button" class="acks-extras-treasure__toggle" data-action="dealSpecial" aria-pressed="{{deal.special}}">
+              <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
+              <span class="acks-extras-treasure__toggle-label">{{localize "ACKS-TREASURE.deal.special"}}</span>
+            </button>
+            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.specialHint"}}</span>
+            <button type="button" class="acks-extras-treasure__toggle" data-action="dealLair" aria-pressed="{{deal.lair}}" data-tooltip-text="{{deal.lairTip}}">
+              <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
+              <span class="acks-extras-treasure__toggle-label">{{localize "ACKS-TREASURE.deal.lair"}}</span>
+            </button>
+            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.deal.lairHint"}}</span>
+          </div>
+          <hr class="acks-rule--ornament">
+        {{/if}}
         <div class="acks-extras-treasure__field" role="group" aria-labelledby="{{@root.partId}}-mode">
           <span class="acks-extras-caption" id="{{@root.partId}}-mode">{{localize "ACKS-TREASURE.judge.mode"}}</span>
           <div class="acks-btn-group">
@@ -33,6 +75,18 @@
           </div>
           <span class="acks-extras-treasure__hint">{{modeHint}}</span>
         </div>
+        {{#if deal}}
+          <button type="button" class="acks-btn acks-btn--roll" data-action="dealRun" data-tooltip-text="{{deal.dealTip}}">{{localize "ACKS-TREASURE.deal.run"}}</button>
+          {{#if deal.warning}}
+            <div class="acks-callout acks-callout--warning acks-extras-treasure__warning" role="alert" data-deal-warning data-tooltip-text="{{deal.warning.tip}}">
+              <span><span class="acks-callout-label">{{localize "ACKS-TREASURE.deal.warn.label"}}</span>{{deal.warning.body}}</span>
+              <div class="acks-btn-group">
+                <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="dealCancel">{{localize "ACKS-TREASURE.deal.warn.cancel"}}</button>
+                <button type="button" class="acks-btn acks-btn--sm" data-action="dealConfirm">{{localize "ACKS-TREASURE.deal.warn.confirm"}}</button>
+              </div>
+            </div>
+          {{/if}}
+        {{/if}}
         <button type="button" class="acks-btn acks-btn--secondary" data-action="addValue">{{localize "ACKS-TREASURE.judge.addValue"}}</button>
         <button type="button" class="acks-btn acks-btn--lg" data-action="openTable">{{localize "ACKS-TREASURE.judge.open"}}</button>
       </aside>

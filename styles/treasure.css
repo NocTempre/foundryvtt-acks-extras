@@ -131,7 +131,7 @@
 }
 
 .acks-extras-treasure .acks-extras-treasure__layout.is-staging {
-  grid-template-columns: minmax(12em, 14em) minmax(0, 1fr) minmax(12em, 14em);
+  grid-template-columns: minmax(14em, 17em) minmax(0, 1fr) minmax(12em, 14em);
   grid-template-areas: "side main toggles";
 }
 
@@ -347,6 +347,68 @@
 .acks-extras-treasure .acks-extras-treasure__hint {
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-soft);
+}
+
+/* The deal controls in the left rail: the monster rows, the by-hand letter, the style group, and the lair warning. */
+.acks-extras-treasure .acks-extras-treasure__monsters {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__monster {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  min-height: 2.6em;
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: var(--acks-paper);
+  color: var(--acks-ink);
+  font-size: var(--acks-fs-body);
+  cursor: pointer;
+}
+
+.acks-extras-treasure .acks-extras-treasure__monster.is-off {
+  color: var(--acks-ink-soft);
+  cursor: default;
+}
+
+.acks-extras-treasure .acks-extras-treasure__monster-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--acks-font-body);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-treasure .acks-extras-treasure__monster-letter {
+  flex: none;
+  font-size: var(--acks-fs-label);
+  font-variant-numeric: tabular-nums;
+}
+
+.acks-extras-treasure fieldset.acks-extras-treasure__field {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__side .acks-btn-group {
+  display: flex;
+}
+
+.acks-extras-treasure .acks-extras-treasure__side .acks-btn-group .acks-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.acks-extras-treasure .acks-extras-treasure__warning {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
 }
 
 /* --- The grid of cards -------------------------------------------------------- */

@@ -16,6 +16,7 @@
 import { curseKnowledge, magicKnowledge, weight6Of } from "../lib/item-model.mjs";
 import { BAND_COUNT, BUCKET, CARD_FLAG, MODE, MODULE_ID, PHASE, POOL, POOL_BACK_ICON, REFUSAL } from "./constants.mjs";
 import { planReplace } from "./replace-logic.mjs";
+import { letterOf } from "./search-logic.mjs";
 
 const refuse = (reason) => ({ ok: false, reason });
 const ids = (list) => (Array.isArray(list) ? list.filter((x) => typeof x === "string" && x) : []);
@@ -30,8 +31,44 @@ export const DEAL_TOGGLE = Object.freeze({ noMagic: "noMagic", forceCursed: "for
  */
 export const AURA_BACK_ICON = "icons/svg/aura.svg";
 
+/** The table styles a letter deal can use, in the order the window lists them (the keys `hoard-map.mjs` `STYLE_TABLE` answers). */
+export const DEAL_STYLE = Object.freeze(["classic", "heroic", "gritty"]);
+
 /** The deal toggles with both keys present and nothing else kept. */
 const normalizeToggles = (t) => Object.fromEntries(Object.values(DEAL_TOGGLE).map((k) => [k, t?.[k] === true]));
+
+/**
+ * The monster rows a pot is staged with: one per kind, its base actor's id (null
+ * for a kind known by name alone), the name, how many tokens stand for it, the
+ * treasure letter its sheet carries and whether the Judge ticked it. A row with
+ * no letter can never be ticked, and a row is never given a count below one.
+ */
+function normalizeMonsters(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((x) => x && typeof x === "object")
+    .map((x) => {
+      const letter = letterOf(x.letter);
+      return {
+        actorId: typeof x.actorId === "string" && x.actorId ? x.actorId : null,
+        name: String(x.name ?? ""),
+        count: Math.max(1, Math.floor(num(x.count, 1))),
+        letter,
+        on: x.on === true && !!letter,
+      };
+    });
+}
+
+/** A staged pot's deal state with every key present: the toggles, the lair state, the monster rows, the by-hand letter, the table style and the special choice. */
+function normalizeDeal(d) {
+  return {
+    toggles: normalizeToggles(d?.toggles),
+    metInLair: d?.metInLair === true,
+    monsters: normalizeMonsters(d?.monsters),
+    letter: letterOf(d?.letter),
+    style: DEAL_STYLE.includes(d?.style) ? d.style : DEAL_STYLE[0],
+    special: d?.special === true,
+  };
+}
 
 /**
  * What each document a dropped item delivers weighs, in sixths of a stone, read
@@ -84,7 +121,7 @@ export function normalizePot(flag) {
     partyId: typeof f.partyId === "string" ? f.partyId : null,
     origin: f.origin ?? null,
     grab: normalizeGrab(f.grab),
-    deal: { toggles: normalizeToggles(f.deal?.toggles), metInLair: f.deal?.metInLair === true },
+    deal: normalizeDeal(f.deal),
     order: ids(f.order),
     buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },
     replaced: normalizeReplaced(f.replaced),
@@ -423,6 +460,46 @@ export function setMetInLair(pot, on) {
   if (pot.phase !== PHASE.staging) return null;
   const next = normalizePot(pot);
   next.deal.metInLair = !!on;
+  return next;
+}
+
+/**
+ * The pot with its monster rows replaced, during staging only (a pot opened from
+ * a sheet or from selected tokens). Rows are normalized: a row with no letter is
+ * never ticked. Returns the new pot, or null.
+ */
+export function setMonsters(pot, rows) {
+  if (pot.phase !== PHASE.staging) return null;
+  const next = normalizePot(pot);
+  next.deal.monsters = normalizeMonsters(rows);
+  return next;
+}
+
+/** The pot with monster row `index` ticked or cleared, during staging only. Null for a pot that is not staging, a row that does not exist, or a ticking of a row with no letter. */
+export function setMonsterOn(pot, index, on) {
+  if (pot.phase !== PHASE.staging) return null;
+  const next = normalizePot(pot);
+  const row = Number.isInteger(index) ? next.deal.monsters[index] : null;
+  if (!row || (on && !row.letter)) return null;
+  row.on = !!on;
+  return next;
+}
+
+/**
+ * The pot with one deal choice set, during staging only: `style` (one of
+ * `DEAL_STYLE`), `special` (a boolean) or `letter` (the by-hand treasure type;
+ * blank clears it). Returns the new pot, or null for a pot that is not staging,
+ * a key that is not a choice, or a style that is not listed.
+ */
+export function setDealChoice(pot, key, value) {
+  if (pot.phase !== PHASE.staging) return null;
+  const next = normalizePot(pot);
+  if (key === "style") {
+    if (!DEAL_STYLE.includes(value)) return null;
+    next.deal.style = value;
+  } else if (key === "special") next.deal.special = value === true;
+  else if (key === "letter") next.deal.letter = letterOf(value);
+  else return null;
   return next;
 }
 
