@@ -4075,8 +4075,10 @@ nothing is swept.
 ## Magic item entries
 
 The Tome's magic-item entries (`kind.magicItem`, rows `tt.item<n>`) imported as
-core items, and the roll's `item.uuid` for a row linked to one. The pilot is
-PDF 60-62, ordinals 1-17, potions. `verify-cookbook tt 60 62` and
+core items, and the roll's `item.uuid` for a row linked to one. Rows land by
+batch (the pilot was PDF 60-62, ordinals 1-17); N below is the count of
+`kind.magicItem` entries in `cookbook/tt.json`, and A the count of them named
+`Item <n>`. `verify-cookbook tt <a> <b>` over a batch's pages and
 `census-rows check` prove the compile offline; this walk proves the import
 writes the items, a repair holds a Judge's edit and a roll names the document.
 
@@ -4093,12 +4095,12 @@ ledger. Setup is the subject of step 1, so nothing is kept before it.
 
 1. **Import.** Settings tab → Game Settings → ACKS II — Extras → Manage imports,
    the Rebuild tab, Shelf, book or tables → Magic Items (or Import Everything),
-   with the Tome open. *Observable:* the notice reads 17 imported, 0 refused;
+   with the Tome open. *Observable:* the notice reads N imported, 0 refused;
    each item sits in the Tome's folder of the Item compendium its line keeps (the
    Tome is not marked `judge`, so that is the open line's pack, not the Judge's),
-   under its category folder (all potions in the pilot), 17 in the Potions
-   folder. Each is a core item named from the page (16) or `Item 7` (1), with a
-   description of at least one paragraph.
+   under its category folder (potions, rings and so on). Each is a core item
+   named from the page (N - A) or `Item <n>` (A), with a description of at
+   least one paragraph.
 2. Read `flags["acks-extras"].markets` on `tt.item1`. *Observable:* `magic: true`
    with both `baseCostGp` and `apparentValueGp` numbers and no other key; no
    `rarity`, no `cursed`.
@@ -4107,7 +4109,7 @@ ledger. Setup is the subject of step 1, so nothing is kept before it.
    untouched item's figures are rewritten from the page; `quantity` and
    `equipped` keep their values.
 4. **The delete path.** Delete one imported item and run Magic Items again.
-   *Observable:* 1 imported, 16 already present, and the item is back in its
+   *Observable:* 1 imported, N - 1 already present, and the item is back in its
    folder.
 5. **The link.** Import the rules tables with the Tome open (Rules tables,
    `magicItemTables only`). Read `getTable("magicItemTables","subtables").potions4`.
