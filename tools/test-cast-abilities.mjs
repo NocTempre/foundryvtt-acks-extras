@@ -233,6 +233,47 @@ t("a combined row (ifHas the other, notStacksWith both ways): the largest wins a
   assert.equal(appliedSum(lacking.casterLevel), 4);
 });
 
+t("a save penalty is the caster's benefit: the most negative combined row wins, and the -2 rows yield to it", () => {
+  const s = spell();
+  const save = { target: "save" };
+  const out = matchAbilities(
+    [
+      row("a", { ...save, schools: ["blast"] }, { value: -2 }),
+      row("b", { ...save, schools: ["blast"] }, { value: -2, index: 0 }),
+      row("b", { ...save, schools: ["blast"], ifHas: [ID("a")], notStacksWith: [ID("a"), ID("b")] }, { value: -3, index: 1 }),
+    ],
+    s,
+    { has: [{ id: ID("a") }, { id: ID("b") }] },
+  );
+  assert.deepEqual(applying(out.save).map((p) => [p.label, p.value]), [["b", -3]]);
+  assert.equal(appliedSum(out.save), -3);
+  const lost = out.save.filter((p) => !p.applies);
+  assert.deepEqual(lost.map((p) => [p.label, p.value, p.yieldsTo]), [["a", -2, "b"], ["b", -2, "b"]], "both -2 rows carry the winner in yieldsTo");
+  assert.deepEqual(out.save.map((p) => p.value), [-2, -2, -3], "the parts keep their own signed figures");
+});
+
+t("two unnamed save penalties still add", () => {
+  const s = spell();
+  const out = matchAbilities([row("a", { target: "save", schools: ["blast"] }, { value: -2 }), row("b", { target: "save", elements: ["ember"] }, { value: -1 })], s);
+  assert.deepEqual(applying(out.save).map((p) => p.value), [-2, -1]);
+  assert.equal(appliedSum(out.save), -3);
+});
+
+t("a combined caster-level row of +3 beats the +2 base rows it names", () => {
+  const s = spell();
+  const out = matchAbilities(
+    [
+      row("a", { schools: ["blast"] }, { value: 2 }),
+      row("b", { schools: ["blast"] }, { value: 2, index: 0 }),
+      row("b", { schools: ["blast"], ifHas: [ID("a")], notStacksWith: [ID("a"), ID("b")] }, { value: 3, index: 1 }),
+    ],
+    s,
+    { has: [{ id: ID("a") }, { id: ID("b") }] },
+  );
+  assert.deepEqual(applying(out.casterLevel).map((p) => [p.label, p.value]), [["b", 3]]);
+  assert.deepEqual(out.casterLevel.filter((p) => !p.applies).map((p) => [p.label, p.yieldsTo]), [["a", "b"], ["b", "b"]]);
+});
+
 t("one ability's rows never add: the largest stands and the rest yield to their own ability", () => {
   const s = spell();
   const out = matchAbilities(

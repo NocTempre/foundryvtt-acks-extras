@@ -187,7 +187,7 @@ export function matchAbilities(rows, spell, { has, lookups, facts } = {}) {
       }),
     );
   });
-  for (const bucket of ABILITY_BUCKETS) out[bucket] = stackBucket(byBucket[bucket]);
+  for (const bucket of ABILITY_BUCKETS) out[bucket] = stackBucket(byBucket[bucket], bucket);
   return out;
 }
 
@@ -201,9 +201,14 @@ const plain = ({ caps: _c, stacksWith: _s, notStacksWith: _n, ref: _r, owner: _o
 
 /**
  * One bucket's matched parts, stacked: a blank part applies nothing, one
- * ability's rows leave the largest, and lib orders what remains.
+ * ability's rows leave the best, and lib orders what remains. "Best" is the
+ * caster's benefit: the largest figure for `casterLevel` and `damage`, the most
+ * negative for `save`, whose figure is added to the target's die. lib ranks by
+ * the larger value, so the save bucket goes through it negated and the verdicts
+ * come back to the original parts.
  */
-function stackBucket(parts) {
+function stackBucket(parts, bucket) {
+  const sign = bucket === "save" ? -1 : 1;
   const verdict = new Map();
   const figures = parts.filter((p) => !p.blank);
   const survivors = [];
@@ -213,11 +218,11 @@ function stackBucket(parts) {
     owners.get(part.owner).push(part);
   }
   for (const group of owners.values()) {
-    const [winner, ...rest] = [...group].sort((x, y) => y.value - x.value);
+    const [winner, ...rest] = [...group].sort((x, y) => sign * (y.value - x.value));
     survivors.push(winner);
     for (const lost of rest) verdict.set(lost, { yieldsTo: winner.label, sameItem: true });
   }
-  const { dropped } = resolveStacking(survivors);
+  const { dropped } = resolveStacking(survivors.map((p) => ({ ...p, value: sign * p.value })));
   for (const lost of dropped) {
     const original = survivors.find((p) => p.at === lost.at);
     verdict.set(original, { yieldsTo: lost.yieldsTo, sameItem: false });
