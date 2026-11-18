@@ -35,7 +35,7 @@ import {
 } from "./money-logic.mjs";
 import { HOUSE_OWNER, STORAGE_KEY, emptyMoneyDeletes, rowOwnerOf } from "./storage-logic.mjs";
 import { arrivalOf } from "./bundles-logic.mjs";
-import { containedIn, isContainer, isShutAway } from "./item-model.mjs";
+import { STONE, containedIn, isContainer, isShutAway, perStoneOf } from "./item-model.mjs";
 import { coinMayEnter, consolidateMoney, landGoods, providers, resolveActorSync, vaultOwnerUuid } from "./storage.mjs";
 import { isLocation } from "./place.mjs";
 import { openPacks } from "./library.mjs";
@@ -776,6 +776,40 @@ registerHandler("libMoveCoin", async ({ fromUuid, toUuid = null, atUuid = null, 
 export async function mintCoin(holder, gp, opts = {}) {
   if (!holder) return { updates: 0, creates: 0 };
   return creditCoin(holder, mintCredits(num(gp, 0) * 100), opts);
+}
+
+/**
+ * What `mintCoin` would put on a holder for each worth in `gps` weighs, in
+ * `weight6`: every rate's minted count over how many of that rate's coin make
+ * a stone (`perStoneOf`), the coin being the one `coinBaseFor` would copy when
+ * the holder keeps none (`coinTemplate` of the rate, else the bare standard
+ * coin). A holder's own coin of that rate may state another figure; this is
+ * the one a caller can know before choosing the holder. A worth maps to null
+ * where a rate it needs has no per-stone figure, so a caller keeps whatever
+ * weight it already had; a worth that mints no coin weighs nothing.
+ * @param {Iterable<number>} gps
+ * @returns {Promise<Map<number, number|null>>}
+ */
+export async function mintedWeights6(gps) {
+  const perStone = new Map();
+  const weights = new Map();
+  for (const gp of gps ?? []) {
+    let total = 0;
+    for (const { cv, count } of mintCredits(num(gp, 0) * 100)) {
+      if (!perStone.has(cv)) {
+        const base = (await coinTemplate({ cv })) ?? { name: standardCoinName(cv), type: ITEM_TYPE.money, system: { coppervalue: cv } };
+        perStone.set(cv, perStoneOf(base));
+      }
+      const per = perStone.get(cv);
+      if (!per) {
+        total = null;
+        break;
+      }
+      total += (count * STONE) / per;
+    }
+    weights.set(gp, total);
+  }
+  return weights;
 }
 
 /**

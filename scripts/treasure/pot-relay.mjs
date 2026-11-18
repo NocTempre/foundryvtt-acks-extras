@@ -14,13 +14,14 @@
  *
  * A `grab` plans Quick grab on the Judge's client from the party the roster
  * answers for and the cards the pot holds; nothing a payload says about who
- * takes what is read. It carries each assignment out through the same claim
+ * takes what is read. A seat other than the Judge starts one only while it
+ * owns a member of that party. It carries each assignment out through the same claim
  * (`claimCard`) a Take uses, inside the one queued request, so no flip or claim
  * lands between its read and its writes.
  */
 import { REFUSAL } from "./constants.mjs";
 import { planGrab } from "./grab-logic.mjs";
-import { grabLots, planGrabStart, speedOfRank } from "./grab-pot.mjs";
+import { grabLots, ownsAnyMember, planGrabStart, speedOfRank, valueGpsOf } from "./grab-pot.mjs";
 import { apparentName, cardInPot, planClaim, planFlip } from "./pot-logic.mjs";
 
 /** The request kinds a pot answers to. */
@@ -43,6 +44,8 @@ const failure = (reason, extra = {}) => ({ ok: false, reason, ...extra });
  *   the party the pot answers to, read on this client: each member's actor uuid and figures, and the rank they would pace at bearing `adding6` more
  * @param {(potId: string, cardId: string, count: number) => Promise<string|null>} deps.splitCard  moves `count` coins of a coin card onto a new turned card in the pot and answers its id, or null
  * @param {(potId: string, grab: {leftover: {cardId: string, count: number|null, code: string}[]}) => Promise<void>} deps.setGrab  stores what the last grab left
+ * @param {(gps: number[]) => (Map<number, number|null>|Promise<Map<number, number|null>>)} [deps.valueWeights6]
+ *   what the coin each worth would be delivered as weighs; a worth mapped to null, or no such dep, leaves a value card its own weight
  */
 export function createRelay(deps) {
   const busy = new Set();
@@ -98,10 +101,16 @@ export function createRelay(deps) {
    * failed, and is stored for the window.
    */
   async function grab(potId, sender) {
-    const start = planGrabStart(deps.readPot(potId), { sender });
-    if (!start.ok) return failure(start.reason);
     const party = deps.party(potId);
     const members = party?.members ?? [];
+    const ownsMember = ownsAnyMember(members, (uuid) => deps.owns(sender, uuid));
+    // A value card weighs as the coin it is delivered as; a worth the lookup
+    // cannot weigh, or a lookup that throws, leaves the card's own weight.
+    const gps = valueGpsOf(deps.readPot(potId));
+    let weighed = null;
+    if (gps.length && deps.valueWeights6) weighed = await Promise.resolve(deps.valueWeights6(gps)).catch(() => null);
+    const start = planGrabStart(deps.readPot(potId), { sender, ownsMember, valueWeight6: (gp) => weighed?.get(gp) ?? null });
+    if (!start.ok) return failure(start.reason);
     if (!members.length) return failure(REFUSAL.noParty);
     const byId = new Map(members.map((m) => [m.id, m]));
     const plan = planGrab({

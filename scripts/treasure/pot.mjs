@@ -14,7 +14,7 @@ import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { disguiseData } from "../equipment/disguise-logic.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { listsGoods, deliverItems, droppedGoods } from "../lib/bundles.mjs";
-import { HOUSE_OWNER, coinTemplate, creditCoin, mintCoin } from "../lib/money.mjs";
+import { HOUSE_OWNER, coinTemplate, creditCoin, mintCoin, mintedWeights6 } from "../lib/money.mjs";
 import { isProvider, stockProvider } from "../lib/storage.mjs";
 import { magicKnowledge, physicalItems } from "../lib/item-model.mjs";
 import { capacity6, load6 } from "../lib/capacity.mjs";
@@ -24,7 +24,7 @@ import {
   buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setToggle,
   stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
-import { resolveParty, splitCoin } from "./grab-pot.mjs";
+import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot.mjs";
 import { createRelay } from "./pot-relay.mjs";
 
 const loc = makeLoc(LANG);
@@ -373,16 +373,29 @@ async function splitCard(pile, cardId, count) {
 /*  The relay                                    */
 /* -------------------------------------------- */
 
+/** The world's actor a uuid names, or null. */
+const actorOf = (uuid) => {
+  try {
+    const doc = fromUuidSync(uuid);
+    return doc?.documentName === "Actor" ? doc : null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Whether the user may start a Quick grab on the pot, read the way the relay
+ * reads it (`mayStartGrab`), so the window offers the button to exactly the
+ * seats the relay will answer.
+ */
+export function mayGrab(pile, user) {
+  const figures = partyFigures(pile);
+  const ownsMember = ownsAnyMember(figures?.members, (uuid) => !!actorOf(uuid)?.testUserPermission(user, "OWNER"));
+  return mayStartGrab(potOf(pile), { sender: user, ownsMember });
+}
+
 /** The relay over the world's documents (`pot-relay.mjs` holds the rules). */
 export function createPotRelay() {
-  const actorOf = (uuid) => {
-    try {
-      const doc = fromUuidSync(uuid);
-      return doc?.documentName === "Actor" ? doc : null;
-    } catch {
-      return null;
-    }
-  };
   return createRelay({
     user: (id) => game.users.get(id) ?? null,
     self: () => game.user,
@@ -408,6 +421,7 @@ export function createPotRelay() {
       return pile ? partyFigures(pile) : null;
     },
     splitCard: (id, cardId, count) => splitCard(findPot(id), cardId, count),
+    valueWeights6: mintedWeights6,
     setGrab: async (id, grab) => {
       await findPot(id)?.update({ [`${potPath}.grab`]: grab });
     },

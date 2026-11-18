@@ -18,7 +18,7 @@ import { executeAsGM } from "../lib/sockets.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
 import { DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
-import { addTruths, closePot, openPot, partyFigures, potOf, removeStaged, setDealToggle, setMode, truthsFromItem, viewOf } from "./pot.mjs";
+import { addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeStaged, setDealToggle, setMode, truthsFromItem, viewOf } from "./pot.mjs";
 
 const { HandlebarsApplicationMixin, DocumentSheetV2, DialogV2 } = foundry.applications.api;
 const loc = makeLoc(LANG);
@@ -176,6 +176,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       .map(({ l, card }) => ({ name: apparentName(card.truth), code: l.code }));
     return {
       members,
+      canGrab: mayGrab(this.document, game.user),
       movesText: pace === null ? "—" : loc("party.speed", { n: pace }),
       movesTip: loc("tip.partyMoves", { cite }),
       leftover: left.length ? loc("party.leftover", { names: left.map((x) => x.name).join(", ") }) : "",

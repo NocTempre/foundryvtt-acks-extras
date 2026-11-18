@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import { PHASE, REFUSAL } from "../scripts/treasure/constants.mjs";
-import { grabLots, planGrabStart, resolveParty, slowestSpeed, speedOfRank, splitCoin } from "../scripts/treasure/grab-pot.mjs";
+import { grabLots, ownsAnyMember, planGrabStart, resolveParty, slowestSpeed, speedOfRank, splitCoin, valueGpsOf } from "../scripts/treasure/grab-pot.mjs";
 import { goodsWeights6, normalizePot, normalizeTruth } from "../scripts/treasure/pot-logic.mjs";
 import { createRelay } from "../scripts/treasure/pot-relay.mjs";
 import { createCardDrop } from "../scripts/treasure/sheet-drop.mjs";
@@ -64,12 +64,37 @@ const viewOf = (cards, pot = {}) => ({
 {
   const view = viewOf([card("a"), card("down", {}, null), coinCard("coin", 30, 3), card("taken", { claimedBy: { userId: "x" } }), card("planted")], { order: ["a", "down", "coin", "taken"] });
   eq(grabLots(view), [{ id: "a", weight6: 6, coin: null }, { id: "coin", weight6: 3, coin: { name: "QQ coin", cv: 1, count: 30 } }], "lots are the turned, unclaimed cards in order, none planted outside it");
-  ok(planGrabStart(view, { sender: ANNA }).ok, "a seated player may start");
-  ok(planGrabStart(view, { sender: GM }).ok, "the Judge may start");
-  eq(planGrabStart(view, { sender: OUT }).reason, REFUSAL.notAllowed, "a seat outside the audience may not");
+  ok(planGrabStart(view, { sender: GM }).ok, "the Judge may start, owning no member");
+  ok(planGrabStart(view, { sender: ANNA, ownsMember: true }).ok, "a seat in the audience that owns a member may start");
+  eq(planGrabStart(view, { sender: ANNA, ownsMember: false }).reason, REFUSAL.notAllowed, "a seat in the audience that owns no member may not");
+  eq(planGrabStart(view, { sender: ANNA }).reason, REFUSAL.notAllowed, "ownership unstated is none");
+  eq(planGrabStart(view, { sender: OUT, ownsMember: true }).reason, REFUSAL.notAllowed, "a seat outside the audience may not, owning a member");
+  ok(ownsAnyMember([{ uuid: null }, { uuid: "Actor.a" }], (u) => u === "Actor.a"), "owning one member of several counts");
+  ok(!ownsAnyMember([{ uuid: null }, { uuid: "Actor.a" }], () => false), "owning none does not");
+  ok(!ownsAnyMember([{ uuid: null }], () => true), "a member with no uuid is not tested");
+  ok(!ownsAnyMember(undefined, () => true), "no party is no member");
   eq(planGrabStart(viewOf([card("a")], { phase: PHASE.staging }), { sender: GM }).reason, REFUSAL.phase, "a pot not open is refused");
-  eq(planGrabStart(viewOf([card("down", {}, null)]), { sender: ANNA }).reason, REFUSAL.nothingToGrab, "nothing turned is nothing to grab");
+  eq(planGrabStart(viewOf([card("down", {}, null)]), { sender: ANNA, ownsMember: true }).reason, REFUSAL.nothingToGrab, "nothing turned is nothing to grab");
   eq(planGrabStart(null, { sender: GM }).reason, REFUSAL.noPot);
+}
+
+/* --- a value card weighs as the coin it is delivered as --- */
+{
+  const gem = (id, valueGp, weight6 = 2) => card(id, { valueGp, weight6, pool: "gems" });
+  const view = viewOf([gem("g50", 50), gem("g7", 7.5), coinCard("coin", 30, 3), card("item", { weight6: 6 })]);
+  const asked = [];
+  const minted = new Map([[50, 8], [7.5, null]]);
+  const lookup = (gp) => {
+    asked.push(gp);
+    return minted.get(gp) ?? null;
+  };
+  eq(grabLots(view, { valueWeight6: lookup }).map((l) => l.weight6), [8, 2, 3, 6], "a value card weighs the coin it would be delivered as");
+  eq(asked, [50, 7.5], "the lookup is asked of value cards only, never of a coin card or an item card");
+  eq(grabLots(view, { valueWeight6: () => null }).map((l) => l.weight6), [2, 2, 3, 6], "a worth the lookup cannot weigh keeps the card's own weight");
+  eq(grabLots(view).map((l) => l.weight6), [2, 2, 3, 6], "with no lookup every lot weighs its own weight");
+  eq(grabLots(view, { valueWeight6: lookup }).map((l) => l.coin), [null, null, { name: "QQ coin", cv: 1, count: 30 }, null], "a value lot stays one whole lot, with no coin row to split");
+  eq(planGrabStart(view, { sender: GM, valueWeight6: lookup }).lots.map((l) => l.weight6), [8, 2, 3, 6], "the start reads the same weights");
+  eq(valueGpsOf(viewOf([gem("a", 50), gem("b", 50), gem("c", 7.5), coinCard("coin", 30, 3), card("item"), { ...gem("d", 1), face: null }, card("e", { valueGp: 9, claimedBy: { userId: "x" } })])), [50, 7.5], "the worths to weigh are the distinct worths of the offered value cards");
 }
 
 /* --- splitting a coin card --- */
@@ -104,7 +129,10 @@ const SIZE = 12;
 /** Feet per turn at a load: a step down for every SIZE of weight, a number this file chose. */
 const speedAt = (load) => Math.max(10, 120 - 30 * Math.floor(load / SIZE));
 
-function world({ members, cards, pot = {}, deliver, failSplit = false } = {}) {
+/** By default the seat `anna` owns every member and nobody else owns any; a test names its own owners. */
+const annaOwnsAll = (user) => user.id === ANNA.id;
+
+function world({ members, cards, pot = {}, deliver, failSplit = false, owns = annaOwnsAll, valueWeights6 } = {}) {
   const store = {
     pot: normalizePot({ phase: PHASE.open, audience: [ANNA.id], order: cards.map((c) => c.id), ...pot }),
     cards,
@@ -116,9 +144,10 @@ function world({ members, cards, pot = {}, deliver, failSplit = false } = {}) {
     self: () => GM,
     readPot: (id) => (id === "pot1" ? { id, pot: store.pot, cards: store.cards } : null),
     writeFlip: async () => {},
-    owns: () => false,
+    owns,
     hasActor: (uuid) => members.some((m) => m.uuid === uuid),
     ownedByTable: () => false,
+    valueWeights6,
     deliver: deliver ?? (async (truth, uuid) => {
       const m = members.find((x) => x.uuid === uuid);
       log.delivered.push({ label: truth.label, uuid, weight6: truth.weight6, count: truth.coin?.count ?? null });
@@ -165,7 +194,7 @@ const stack = () => [
   const w = world({ members, cards: stack() });
   const base = { ...w.store.loads };
   const r = await send(w, { requestUserId: "anna", assignments: [{ lotId: "c1", memberId: "m3" }], actorUuid: "Actor.m3" });
-  ok(r.ok, "a seated player who owns no member starts a grab");
+  ok(r.ok, "a seated player who owns the members starts a grab, whatever plan the payload carries");
   ok(!w.log.delivered.some((d) => d.uuid === "Actor.m3"), "a casualty takes nothing, and a plan sent in the payload is never read");
   eq(r.excluded.map((e) => [e.memberId, e.why]), [["m3", "casualty"]], "the casualty is named as excluded");
 
@@ -205,10 +234,64 @@ const stack = () => [
   eq(r.leftover, [], "nothing is left");
 }
 
+/* --- the relay plans a value card at the weight of the coin it delivers --- */
+{
+  // The fake delivery adds what the card weighs as coin, so the predicted pace is checkable against the loads.
+  const MINTED = 15;
+  const run = async (valueWeights6, cap = 30) => {
+    const members = [member("m1", cap, 0)];
+    const delivered = [];
+    const w = world({
+      members,
+      cards: [card("gem", { weight6: 1, pool: "gems", valueGp: 50 })],
+      valueWeights6,
+      deliver: async (truth, uuid) => {
+        const m = members.find((x) => x.uuid === uuid);
+        delivered.push(truth.label);
+        w.store.loads[m.id] += truth.valueGp != null ? MINTED : truth.weight6;
+        return { ok: true, name: m.name };
+      },
+    });
+    const r = await send(w, { requestUserId: "gm" });
+    return { r, delivered, loads: w.store.loads };
+  };
+  const asked = [];
+  const stated = await run((gps) => {
+    asked.push(gps);
+    return new Map([[50, MINTED]]);
+  });
+  eq(asked, [[50]], "the relay asks the lookup once, for the distinct worths it is offered");
+  eq(stated.r.speed, speedAt(stated.loads.m1), "the pace it predicts is the pace the member holds once the coin has landed");
+  eq(stated.r.speed, speedAt(MINTED), "the plan weighed the card as coin, not as its own weight");
+  const heavy = await run(async () => new Map([[50, 20]]), 10);
+  eq(heavy.r.leftover.map((l) => [l.cardId, l.code]), [["gem", "tooHeavy"]], "a value card too heavy as coin for anyone is left, though its own weight would fit");
+  eq(heavy.delivered, [], "and is not delivered");
+  const unweighed = await run(async () => new Map([[50, null]]), 10);
+  eq(unweighed.delivered, ["gem"], "a worth the lookup cannot weigh falls back to the card's own weight");
+  const thrown = await run(async () => { throw new Error("no coin"); }, 10);
+  eq(thrown.delivered, ["gem"], "a lookup that throws does not stop the grab; the card keeps its own weight");
+  const none = await run(undefined, 10);
+  eq(none.delivered, ["gem"], "with no lookup wired the card keeps its own weight");
+}
+
 /* --- refusals, one at a time, a failed delivery, a failed split --- */
 {
   const w = world({ members: [], cards: [card("a")] });
-  eq((await send(w, { requestUserId: "anna" })).reason, REFUSAL.noParty, "no party is refused");
+  eq((await send(w, { requestUserId: "gm" })).reason, REFUSAL.noParty, "no party is refused to the Judge");
+  eq((await send(w, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a player owns no member of no party");
+
+  // who may start: the Judge always; a seat in the audience only while it owns a member
+  const ownsM2 = (user, uuid) => user.id === ANNA.id && uuid === "Actor.m2";
+  const own = world({ members: [member("m1", 30), member("m2", 30)], cards: [card("a")], owns: ownsM2 });
+  ok((await send(own, { requestUserId: "anna" })).ok, "a seat in the audience that owns one member of the party starts a grab");
+  eq(own.log.delivered.length, 1, "and the grab shares the pot across the party, not only to what it owns");
+  const bare = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => false });
+  eq((await send(bare, { requestUserId: "anna" })).reason, REFUSAL.notAllowed, "a seat in the audience that owns no member is refused");
+  eq(bare.log.delivered, [], "and nothing moves");
+  ok((await send(bare, { requestUserId: "gm" })).ok, "the Judge starts one owning no member");
+  const outsider = world({ members: [member("m1", 30)], cards: [card("a")], owns: () => true });
+  eq((await send(outsider, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat outside the audience is refused though it owns a member");
+  eq(outsider.log.delivered, [], "and nothing moves for it");
 
   const x = world({ members: [member("m1", 30)], cards: [card("a")] });
   eq((await send(x, { requestUserId: "out" })).reason, REFUSAL.notAllowed, "a seat outside the audience is refused");

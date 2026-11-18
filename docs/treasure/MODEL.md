@@ -214,20 +214,26 @@ an equal plan.
 ### The `grab` op
 
 Source: `pot-relay.mjs` (`grab`, `claimCard`), `grab-pot.mjs`, `pot.mjs`
-(`partyFigures`, `splitCard`). Anyone who may Take may press it (the Judge, or a
-seat the pot opened to), and it needs no ownership of the members: they come
-from the roster read on the Judge's client, never from the payload, which names
-only the pot.
+(`partyFigures`, `splitCard`, `mayGrab`). The Judge may press it, and so may a
+seat the pot opened to that owns at least one member of the pot's party
+(`mayStartGrab`); the goods may land on members that seat does not own. The
+members come from the roster read on the Judge's client, never from the
+payload, which names only the pot. The window offers the button to exactly
+those seats (`mayGrab`, read once per render).
 
-1. `planGrabStart` refuses a pot not open, a seat outside the audience, and a
-   pot with no turned unclaimed card (`nothingToGrab`); `deps.party` refuses a
-   pot with no party (`noParty`).
+1. `planGrabStart` refuses a pot not open, a seat outside the audience or owning
+   no member (`notAllowed`), and a pot with no turned unclaimed card
+   (`nothingToGrab`); `deps.party` refuses a pot with no party (`noParty`).
 2. The members are the roster's: `capacity6` and `load6` from lib on the row's
    `document`, a casualty at or below zero hit points, `hasDocument` false where
    the document is missing or its sheet lists no goods. `paceWith` is the roster's
    `pace(partyId, id, {adding6}).rank`. The lots are `grabLots`: the turned,
    unclaimed cards in `order`, a coin card carrying its coin row and its whole
-   stack's weight.
+   stack's weight. A value card weighs the coin `mintCoin` will deliver for its
+   worth (lib `mintedWeights6`, each rate's coin from `coinTemplate` and its
+   per-stone figure), and keeps its own `weight6` where a rate it needs states
+   no per-stone figure; it stays one whole lot. The card's tile still shows its
+   own weight.
 3. `planGrab` plans; each assignment is carried out through `claimCard`, the code
    a Take runs, one at a time inside the queued request. A coin share smaller
    than the card's current count first splits (`splitCoin`, `splitCard`): a new
@@ -320,9 +326,9 @@ through `dealOf`:
   built by hand has no roll to skip, so this is what the toggle does there. A
   staged tile it will strike says so.
 - **Force cursed** sets `markets.cursed` on the snapshot of every magic card
-  that remains, and never `curseKnown`; a claim then creates the item cursed
-  (`disguiseData` keeps the mark) and the table is shown the curse only once it
-  is known.
+  that remains, and `curseKnown` as well on a card identified in full, which
+  shows all of itself; a claim then creates the item cursed (`disguiseData`
+  keeps the mark), and the table is shown the curse once it is known.
 - A pot that the toggles would leave empty refuses to open.
 - When any toggle is on, `openPot` whispers the Judges a card listing, per
   toggle, the true names of the cards it changed. No card is posted otherwise.

@@ -408,8 +408,10 @@ export function setToggle(pot, key, on) {
  *
  * "No magic" strikes every card whose truth is magic, seeds included, since a
  * by-hand pot has no roll to skip. "Force cursed" marks the snapshot of every
- * remaining magic card cursed (`markets.cursed`, never `curseKnown`), so an
- * item created from it is. `audit` has one row per toggle that is on, with the
+ * remaining magic card cursed (`markets.cursed`), so an item created from it
+ * is. A card whose magic is identified in full also gets `markets.curseKnown`,
+ * since what a full identification reveals includes the curse; a card
+ * identified in part or not at all is left with the curse unknown. `audit` has one row per toggle that is on, with the
  * true names of the cards it changed, for the Judge's whisper.
  * @returns {{removed: string[], kept: string[], bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[]}>}}
  */
@@ -427,6 +429,7 @@ export function dealOf(view) {
           const flags = structuredClone(byId.get(id).truth.source.data.flags ?? {});
           flags[MODULE_ID] = { ...(flags[MODULE_ID] ?? {}) };
           flags[MODULE_ID].markets = { ...(flags[MODULE_ID].markets ?? {}), cursed: true };
+          if (byId.get(id).truth.identified === "full") flags[MODULE_ID].markets.curseKnown = true;
           return { id, flags };
         })
     : [];

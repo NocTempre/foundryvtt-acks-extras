@@ -147,8 +147,10 @@
             {{/each}}
           </ul>
           <div class="acks-extras-treasure__grab">
-            <button type="button" class="acks-btn" data-action="grab">{{localize "ACKS-TREASURE.party.quick"}}</button>
-            <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.party.quickHint"}}</span>
+            {{#if party.canGrab}}
+              <button type="button" class="acks-btn" data-action="grab">{{localize "ACKS-TREASURE.party.quick"}}</button>
+              <span class="acks-extras-treasure__hint">{{localize "ACKS-TREASURE.party.quickHint"}}</span>
+            {{/if}}
             <div class="acks-extras-treasure__moves" data-tooltip-text="{{party.movesTip}}">
               <span>{{localize "ACKS-TREASURE.party.moves"}}</span>
               <span>{{party.movesText}}</span>

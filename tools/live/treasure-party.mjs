@@ -183,6 +183,18 @@ const P = {
     const app = target === "sheet" ? game.actors.get(actorId).sheet : null;
     return { ok: true, hooks: Hooks.events?.dropActorSheetData?.length ?? 0, sheetClass: app?.constructor?.name ?? null, editable: app?.isEditable ?? null, el: el.className?.toString().slice(0, 60) };
   },
+  /** Set one user's ownership level on an actor, and wait for it to read back. */
+  setOwner: async ({ actorId, userId, level }) => {
+    const a = game.actors.get(actorId);
+    await a.update({ [`ownership.${userId}`]: level });
+    await globalThis.__tk.sleep(800);
+    return (a.ownership?.[userId] ?? 0) === level;
+  },
+  /** The seat's scripted Quick grab, through the relay as the button sends it. */
+  grabRelay: async ({ potId }) => {
+    const H = globalThis.__tk;
+    return (await H.race(H.S.executeAsGM("treasurePot", { potId, op: "grab" }), 25000)) ?? null;
+  },
   resize: async ({ potId, width, height }) => {
     const H = globalThis.__tk;
     // A user drags the window's own corner, and core fronts a window on any press inside it; a member's sheet the earlier steps opened otherwise stays above it.
@@ -209,6 +221,8 @@ try {
   section("fixtures");
   const playerId = await run(gm, P.userId, { name: MACHINE.player });
   const fxPlayer = await gm.fixture(MARKS.player, "Actor", { name: NAMES.player, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0, [playerId]: 3 } });
+  // A run that died inside step 4b left the Player seat without its character; the steps start from it owning one.
+  await run(gm, P.setOwner, { actorId: idOf(fxPlayer), userId: playerId, level: 3 });
   const fxJudge = await gm.fixture(MARKS.judge, "Actor", { name: NAMES.judge, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
   const fxAlly = await gm.fixture(MARKS.ally, "Actor", { name: NAMES.ally, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
   const fxCoin = await gm.fixture(MARKS.coin, "Item", COIN);
@@ -324,6 +338,18 @@ try {
   const s4 = await run(gm, K.stage, { potId: pot.potId });
   const tNot = await t(player, "refuse.notOwner");
   check("the drop on the Judge's character is refused with 'You do not own that character.', the card is unclaimed and the actor gained nothing", notes4.warns.includes(tNot) && !s4.cards.find((c) => c.id === cid.huge).claimedBy && rowsC2.judge.length === rowsC.judge.length, { warns: notes4.warns.length, claimed: !!s4.cards.find((c) => c.id === cid.huge).claimedBy });
+
+  section("Step 4b. Quick grab needs a member the seat owns");
+  await run(gm, P.setOwner, { actorId: ids.player, userId: playerId, level: 0 });
+  await run(player, K.rerender, { potId: pot.potId });
+  const a4b = await run(player, P.aside, { potId: pot.potId });
+  const grab4b = await run(player, P.grabRelay, { potId: pot.potId });
+  const s4b = await run(gm, K.stage, { potId: pot.potId });
+  check("a seat in the audience that owns no member sees no Quick grab button, and a scripted grab is refused 'notAllowed' with no card claimed", a4b.found && !a4b.button && grab4b?.ok === false && grab4b?.reason === "notAllowed" && s4b.cards.every((c) => !c.claimedBy || c.id === cid.a || c.id === cid.b), { button: a4b.button, grab: grab4b });
+  await run(gm, P.setOwner, { actorId: ids.player, userId: playerId, level: 3 });
+  await run(player, K.rerender, { potId: pot.potId });
+  const a4c = await run(player, P.aside, { potId: pot.potId });
+  check("owning a member again, the seat sees the Quick grab button", !!a4c.button, { button: a4c.button });
 
   section("Step 5. Quick grab (Player seat)");
   const before5 = await run(player, P.roster, { fid, actorIds: Object.values(ids) });

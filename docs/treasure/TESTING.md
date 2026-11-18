@@ -156,6 +156,14 @@ the window's.
    card onto `treasure/judge-character`'s sheet if the seat can open it. Whether
    core fires the hook for a sheet the seat cannot edit is not known offline:
    record what the sheet does (the same notification, or nothing).
+4b. **Quick grab needs a member the seat owns (Player seat).** As the Judge, set
+   the Player user's ownership of `treasure/player-character` to none, then
+   re-render the Player's pot window. Observables: the aside has no **Quick
+   grab** button (the pace line stays); the seat's scripted grab
+   (`executeAsGM("treasurePot", {potId, op: "grab"})`) answers `{ok: false,
+   reason: "notAllowed"}` and nothing is claimed. Give ownership back (Owner)
+   and re-render: the button is back. A step that needs the seat to own its
+   character asserts that ownership at its start.
 5. **Quick grab (Player seat), the predicted pace.** From the figures read before
    the step, work out the slowest speed the party could keep with everything
    placed (try each member's load with the whole of each card added; the planner
@@ -316,7 +324,10 @@ its fixtures and selectors are unchanged by this slice. Offline coverage is
      nothing in the pot").
    - **Force cursed** on, then Open, as the Player seat takes a magic card: the
      item that lands on the character has `markets.cursed` true and
-     `curseKnown` not true, and the sheet shows no curse to the player.
+     `curseKnown` not true, and the sheet shows no curse to the player. A card
+     identified in full (`treasure/item-identified-unknown`: full, cursed, the
+     curse not known) in the same pot reads `curseKnown` true in the pile's
+     snapshot after Open, and the item it lands as carries `curseKnown` true.
    - Both on: no magic card remains; the whisper's second row says "none".
 6. **Narrow and keyboard.** At a narrow width the grid, the toggles and the
    bucket panels reflow and the part root scrolls; every toggle and card button is

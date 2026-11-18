@@ -418,6 +418,40 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq(dealOf(stagingView([unsnapped], { deal: { toggles: { forceCursed: true } } })).forced, [], "a magic card with no snapshot has nothing to mark");
 }
 
+/* --- Force cursed tells the table of a curse only on a card identified in full --- */
+{
+  const cards = [
+    cardOf("full", magicItem("Wand F", 500, { identified: "full" })),
+    cardOf("part", magicItem("Wand P", 500, { identified: "partial" })),
+    cardOf("none", magicItem("Wand N", 500, { identified: "none" })),
+    cardOf("plainfull", item("Spoon", 5, { identified: "full" })),
+  ];
+  const on = dealOf(stagingView(cards, { deal: { toggles: { forceCursed: true } } }));
+  const marksOf = (id) => on.forced.find((f) => f.id === id)?.flags["acks-extras"].markets;
+  eq(marksOf("full")?.cursed, true, "a card identified in full is cursed");
+  eq(marksOf("full")?.curseKnown, true, "and its curse is known, since the card shows all of itself");
+  eq(marksOf("full")?.magic, true, "the rest of the markets flag is kept");
+  eq(marksOf("part")?.cursed, true, "a card identified in part is cursed");
+  ok(!("curseKnown" in marksOf("part")), "and its curse is not made known");
+  eq(marksOf("none")?.cursed, true, "an unidentified card is cursed");
+  ok(!("curseKnown" in marksOf("none")), "and its curse is not made known");
+  ok(!on.forced.some((f) => f.id === "plainfull"), "a card that is not magic is left alone, identified or not");
+  ok(!("curseKnown" in cards[0].truth.source.data.flags["acks-extras"].markets), "the card's own snapshot is not mutated");
+
+  const off = dealOf(stagingView(cards, {}));
+  eq(off.forced, [], "with the toggle off no card is marked cursed or known");
+
+  const { disguiseData } = await import("../scripts/equipment/disguise-logic.mjs");
+  const { curseKnowledge } = await import("../scripts/lib/item-model.mjs");
+  const src = cards[0].truth;
+  const forcedTruth = { ...src, source: { ...src.source, data: { ...src.source.data, flags: on.forced.find((f) => f.id === "full").flags } } };
+  const made = claimItemData(forcedTruth, disguiseData);
+  ok(made.flags["acks-extras"].markets.curseKnown === true, "the item a full card delivers carries curseKnown");
+  ok(curseKnowledge(made, { isGM: false }).showCurse, "and a player is shown the curse");
+  eq(faceLook(forcedTruth, { isGM: false }), "cursed", "the card's face reads cursed to a player seat");
+  eq(faceLook(forcedTruth, { isGM: true }), "cursed", "and to a Judge");
+}
+
 /* --- a forced curse reaches the claimed item, masked or not --- */
 {
   const { disguiseData } = await import("../scripts/equipment/disguise-logic.mjs");

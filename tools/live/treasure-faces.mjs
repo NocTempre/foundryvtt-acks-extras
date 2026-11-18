@@ -21,7 +21,8 @@
  * press: aria-pressed and the keyboard reach, the struck tiles, a pot of magic
  * only refused at Open, the deal, the whisper to the Judges only, the Player
  * seat not seeing it, a force-cursed item landing cursed with the curse not
- * shown, both toggles with the second row reading none); the panel's layout
+ * shown, a force-cursed card identified in full landing with the curse known,
+ * both toggles with the second row reading none); the panel's layout
  * wide and narrow.
  *
  * Fixtures, kept and found by marker: `treasure/item-plain`,
@@ -344,7 +345,7 @@ try {
   const seenByPlayer = audits.length ? await run(player, P.messageFor, { id: audits[0].id }) : { visible: null };
   check("the Player seat does not see the whisper: not visible to it, not in its chat log", audits.length === 1 && !seenByPlayer.visible && !seenByPlayer.rendered, seenByPlayer);
 
-  const pot3 = await stock(["masked", "plain"]);
+  const pot3 = await stock(["masked", "plain", "unknown"]);
   const forceCursed = await press(gm, PORTS.gm, { scope: "sheet", potId: pot3.potId, sel: "button[data-action='toggleDeal'][data-toggle='forceCursed']" }, "Force cursed");
   await sleep(800);
   const s3pre = await run(gm, K.stage, { potId: pot3.potId });
@@ -365,6 +366,17 @@ try {
   const sheet3 = landed ? await run(player, P.curseOnSheet, { actorId: idOf(fxPlayer), itemId: landed.id }) : { rendered: false };
   check("the Player's sheet of that item shows no curse: no curse element and no 'Cursed' on it", sheet3.rendered && !sheet3.curseNode && !sheet3.cursedWord, sheet3);
   await run(player, K.closeAll);
+
+  const unknown3 = s3.cards.find((c) => c.id === ids3.unknown);
+  check("Force cursed then Open: the card identified in full, whose curse was not known, now carries the curse known in the pile's snapshot, while the unidentified masked card's stays unknown", !!ids3.unknown && unknown3?.cursed === true && unknown3?.curseKnown === true && s3.cards.find((c) => c.id === ids3.masked)?.curseKnown !== true, { cursed: unknown3?.cursed, known: unknown3?.curseKnown });
+  const rowsBefore3b = await run(player, K.actorRows, { actorId: idOf(fxPlayer) });
+  const flip3b = await run(player, K.relay, { potId: pot3.potId, op: "flip", cardId: ids3.unknown });
+  const claim3b = await run(player, K.relay, { potId: pot3.potId, op: "claim", cardId: ids3.unknown, actorUuid: fxPlayer.uuid });
+  const rowsAfter3b = await run(player, K.actorRows, { actorId: idOf(fxPlayer) });
+  const fresh3b = rowsAfter3b.filter((r) => !rowsBefore3b.some((b) => b.id === r.id));
+  for (const r of fresh3b) made.push(gm.track(r.uuid, "Item"));
+  const landed3b = fresh3b.find((r) => r.name === LABEL.unknown);
+  check("the Player seat took the identified card: the item that lands on the character is cursed and the curse is marked known", flip3b.ok === true && claim3b.ok === true && !!landed3b && landed3b.cursed === true && landed3b.curseKnown === true, { flip: flip3b.ok, claim: claim3b.ok, cursed: landed3b?.cursed, known: landed3b?.curseKnown });
 
   const pot4 = await stock(["masked", "plain", "detected"]);
   await press(gm, PORTS.gm, { scope: "sheet", potId: pot4.potId, sel: "button[data-action='toggleDeal'][data-toggle='noMagic']" }, "No magic");

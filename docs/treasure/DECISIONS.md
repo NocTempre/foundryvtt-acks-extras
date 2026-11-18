@@ -206,7 +206,7 @@ the others, and a face turns magic or cursed only once a seat has been told.
   are the fallback. No theme token is a blue, so the magic face's hue is the one
   literal in the file, at a lightness that passes in both themes.
 
-## 2026-11-17 — Deal toggles are Judge controls; two are built
+## 2026-11-17 — Deal toggles are Judge controls; two are built — SUPERSEDED IN PART 2026-11-17
 
 The owner, 2026-11-17: "Replace the right for clicking toggles like no magic or
 force cursed etc." The right-hand panel of the staging window is a set of
@@ -277,7 +277,7 @@ differs, the contract should carry it and this derivation goes. The window's
 "Party moves" is the slowest pace among the members the planner would count, read
 live from `pace`, so after a grab it is the figure the sheet shows.
 
-## 2026-11-17 — Quick grab: the Judge's client plans and delivers, and a player need not own the members
+## 2026-11-17 — Quick grab: the Judge's client plans and delivers, and a player need not own the members — SUPERSEDED IN PART 2026-11-17
 
 `grab` is a relay op. The Judge's client builds the members from the roster, the
 lots from the pot's turned unclaimed cards, and `paceWith` from the roster's
@@ -326,3 +326,32 @@ delivers and nothing to the rest. A grab places cards on different members, so
 the change holds for the first multi-document source. A coin stack with no
 count weighs the one coin that is delivered, not the nothing the live item
 weighs.
+
+## 2026-11-17 — The owner's answers: who may grab, what a value card weighs, a forced curse on a full card
+
+The owner, answering the plan's owner questions: "Take recommendations". The
+new evidence against the two entries this supersedes in part is that answer;
+both left the point open for the owner.
+
+- **Quick grab needs a member the seat owns** (question 1, option c). The
+  Judge, or a seat the pot opened to that owns at least one member of the pot's
+  party. Supersedes "who may press it is who may Take" in the Quick grab entry;
+  its "it does not ask that the presser owns the members" stands for where the
+  goods land. **Counter (moderate):** a seat that owns one member still loads
+  another player's character; only a Judge-only button stops that, at a click
+  per pot.
+- **A value card weighs the coin it is delivered as** (question 3, option b),
+  since the member carries coin once the grab lands, and keeps its own weight
+  where a coin rate it needs states no per-stone figure. The plan weighs each
+  rate by `coinTemplate`'s coin, not the receiving member's own row, because a
+  lot needs one weight before a member is chosen. **Counter (moderate):** with
+  `perStoneOf` falling back to the system's own coin rate, the own-weight
+  fallback is rare, and a member whose held coin states another per-stone
+  figure ends a little off the predicted pace. **Open:** the tile still shows
+  the card's own weight, and a 0 gp value card plans at no weight.
+- **Force cursed marks the curse known on a card identified in full**
+  (question 6, option a), so a card that shows all of itself does not hide part
+  of itself. Supersedes "never known" in the deal toggles entry for those cards;
+  a card identified in part or not at all is forced cursed and not known, as
+  before. **Counter (moderate):** a Judge forcing a curse late loses the
+  surprise on a fully identified card.

@@ -189,7 +189,7 @@ const cp = (holder) => holder.items.filter((i) => i.type === "money").reduce((n,
 const money = await import("../scripts/lib/money.mjs");
 const { creditCoin, mintCoin, sinkCoin, transferCoin, ownCoin, purseGp, coinTemplate, HOUSE_OWNER } = money;
 const storage = await import("../scripts/lib/storage.mjs");
-const { divideStack, joinStacks } = await import("../scripts/lib/item-model.mjs");
+const { divideStack, joinStacks, sumWeight6 } = await import("../scripts/lib/item-model.mjs");
 const { goodsForDrop } = await import("../scripts/lib/bundles-logic.mjs");
 const moneyLogic = await import("../scripts/lib/money-logic.mjs");
 const { planStackMerge } = await import("../scripts/lib/storage-logic.mjs");
@@ -286,6 +286,26 @@ await test("a coin the holder has none of is copied from one the world already h
   assert.equal(made.img, "world-gold.webp");
   assert.equal(made.system.quantity, 3, "the world's row is a stack of none; the minted one counts what was minted");
   assert.equal(made.flags["acks-extras"].gear.perStone, 40);
+});
+await test("the coin a worth mints weighs what its rates' per-stone figures say, and nothing where a needed rate has none", async () => {
+  // The world's gold counts 40 to the stone; nothing here states silver or copper, and the mock system weighs no coin.
+  const shelf = makeItem(gold(0, { flags: { "acks-extras": { gear: { perStone: 40 } } } }));
+  worldItems.set(shelf.id, shelf);
+  const hero = makeActor({ id: "weigher" });
+  await mintCoin(hero, 3);
+  const weights = await money.mintedWeights6([3, 0, 3.5]);
+  assert.equal(weights.get(3), (3 * 6) / 40, "three gold, each rate's count over its per-stone figure");
+  assert.equal(weights.get(3), sumWeight6(hero.items.filter((i) => i.type === "money")), "and it is what the delivered coin weighs on the holder");
+  assert.equal(weights.get(0), 0, "a worth that mints no coin weighs nothing");
+  assert.equal(weights.get(3.5), null, "a rate the worth needs that states no per-stone figure leaves the whole worth unweighed");
+  const silver = makeItem(coin("Silver", 10, 0, { flags: { "acks-extras": { gear: { perStone: 60 } } } }));
+  worldItems.set(silver.id, silver);
+  try {
+    assert.equal((await money.mintedWeights6([3.5])).get(3.5), (3 * 6) / 40 + (5 * 6) / 60, "with silver stated too the mixed worth weighs both rates");
+  } finally {
+    worldItems.delete(silver.id);
+  }
+  assert.deepEqual([...(await money.mintedWeights6([]))], [], "no worths, no weights");
 });
 
 /* -------------------------------------------- */
