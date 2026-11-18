@@ -1,0 +1,1428 @@
+[
+  {
+    "id": "tt.item18",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Relaxing Respite",
+    "anchor": {
+      "display": "Oil of Relaxing Respite"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item19",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Rust",
+    "anchor": {
+      "display": "Oil of Rust"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item20",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Scrying",
+    "anchor": {
+      "display": "Oil of Scrying"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item21",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Sealing",
+    "anchor": {
+      "display": "Oil of Sealing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item22",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Superior Slickness",
+    "anchor": {
+      "display": "Oil of Superior Slickness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item23",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of the Saint’s Touch",
+    "anchor": {
+      "display": "Oil of the Saint’s Touch"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      63
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item24",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of the Secret Fire",
+    "anchor": {
+      "display": "Oil of the Secret Fire"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item25",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Unliving Puppetry",
+    "anchor": {
+      "display": "Oil of Unliving Puppetry"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item26",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Aging",
+    "anchor": {
+      "display": "Potion of Aging"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item27",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Alacrity",
+    "anchor": {
+      "display": "Potion of Alacrity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item28",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Antivenom",
+    "anchor": {
+      "display": "Potion of Antivenom"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item29",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Apiculture",
+    "anchor": {
+      "display": "Potion of Apiculture"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item30",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Aquatic Adaptation",
+    "anchor": {
+      "display": "Potion of Aquatic Adaptation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item31",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Blindness",
+    "anchor": {
+      "display": "Potion of Blindness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      64,
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item32",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Bottomless Appetite",
+    "anchor": {
+      "display": "Potion of Bottomless Appetite"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item33",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Brilliant Restoration",
+    "anchor": {
+      "display": "Potion of Brilliant Restoration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item34",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Burglary",
+    "anchor": {
+      "display": "Potion of Burglary"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item35",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Captain’s Presence",
+    "anchor": {
+      "display": "Potion of Captain’s Presence"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item36",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Clairsapiency",
+    "anchor": {
+      "display": "Potion of Clairsapiency"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item37",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Commotion",
+    "anchor": {
+      "display": "Potion of Commotion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item38",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Comprehension",
+    "anchor": {
+      "display": "Potion of Comprehension"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item39",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Counter-Shifting",
+    "anchor": {
+      "display": "Potion of Counter-Shifting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item40",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Deathly Appearance",
+    "anchor": {
+      "display": "Potion of Deathly Appearance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      65
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item41",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Desperate Valiance",
+    "anchor": {
+      "display": "Potion of Desperate Valiance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item42",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Dire Skinchanging",
+    "anchor": {
+      "display": "Potion of Dire Skinchanging"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item43",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Disappearing",
+    "anchor": {
+      "display": "Potion of Disappearing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item44",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Dragon Control",
+    "anchor": {
+      "display": "Potion of Dragon Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item45",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Dream Reading",
+    "anchor": {
+      "display": "Potion of Dream Reading"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item46",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Eagle Eyes",
+    "anchor": {
+      "display": "Potion of Eagle Eyes"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item47",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Elemental Aegis",
+    "anchor": {
+      "display": "Potion of Elemental Aegis"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item48",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Escape",
+    "anchor": {
+      "display": "Potion of Escape"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      66
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item49",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Extra Luck",
+    "anchor": {
+      "display": "Potion of Extra Luck"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item50",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of False Residence",
+    "anchor": {
+      "display": "Potion of False Residence"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item51",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Fickle Beauty",
+    "anchor": {
+      "display": "Potion of Fickle Beauty"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item52",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Freedom",
+    "anchor": {
+      "display": "Potion of Freedom"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item53",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Freezing",
+    "anchor": {
+      "display": "Potion of Freezing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item54",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Giant Control",
+    "anchor": {
+      "display": "Potion of Giant Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item55",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Great Hearing",
+    "anchor": {
+      "display": "Potion of Great Hearing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item56",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Guilelessness",
+    "anchor": {
+      "display": "Potion of Guilelessness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      67
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item57",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Hallucination",
+    "anchor": {
+      "display": "Potion of Hallucination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item58",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Halting",
+    "anchor": {
+      "display": "Potion of Halting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item59",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Heir Loss",
+    "anchor": {
+      "display": "Potion of Heir Loss"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item60",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Homicidal Homage",
+    "anchor": {
+      "display": "Potion of Homicidal Homage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item61",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Infiltration",
+    "anchor": {
+      "display": "Potion of Infiltration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item62",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Jumbled Thoughts",
+    "anchor": {
+      "display": "Potion of Jumbled Thoughts"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      68
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item63",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Lesser Magic Discernment",
+    "anchor": {
+      "display": "Potion of Lesser Magic Discernment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item64",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Litheness",
+    "anchor": {
+      "display": "Potion of Litheness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item65",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Lizard Skin",
+    "anchor": {
+      "display": "Potion of Lizard Skin"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item66",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Lodeskin",
+    "anchor": {
+      "display": "Potion of Lodeskin"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item67",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Madness",
+    "anchor": {
+      "display": "Potion of Madness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item68",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Measured Mitigation",
+    "anchor": {
+      "display": "Potion of Measured Mitigation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item69",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Mighty Breath",
+    "anchor": {
+      "display": "Potion of Mighty Breath"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      69
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item70",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Monstrous Form",
+    "anchor": {
+      "display": "Potion of Monstrous Form"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item71",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Motion",
+    "anchor": {
+      "display": "Potion of Motion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item72",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Night Terrors",
+    "anchor": {
+      "display": "Potion of Night Terrors"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item73",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Occlusion",
+    "anchor": {
+      "display": "Potion of Occlusion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item74",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Ogre Rage",
+    "anchor": {
+      "display": "Potion of Ogre Rage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item75",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Passion",
+    "anchor": {
+      "display": "Potion of Passion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item76",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Peaceful Imperceptibility",
+    "anchor": {
+      "display": "Potion of Peaceful Imperceptibility"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      70,
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item77",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Petrification",
+    "anchor": {
+      "display": "Potion of Petrification"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item78",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Phantom Wings",
+    "anchor": {
+      "display": "Potion of Phantom Wings"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item79",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Phoenix Wings",
+    "anchor": {
+      "display": "Potion of Phoenix Wings"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item80",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Precise Poisoning",
+    "anchor": {
+      "display": "Potion of Precise Poisoning"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item81",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Quiet Footfalls",
+    "anchor": {
+      "display": "Potion of Quiet Footfalls"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item82",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Recuperation",
+    "anchor": {
+      "display": "Potion of Recuperation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item83",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Relocation",
+    "anchor": {
+      "display": "Potion of Relocation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      71
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item84",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Rootedness",
+    "anchor": {
+      "display": "Potion of Rootedness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item85",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Sense-Swapping",
+    "anchor": {
+      "display": "Potion of Sense-Swapping"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item86",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Simmering Rage",
+    "anchor": {
+      "display": "Potion of Simmering Rage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item87",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Snakeform",
+    "anchor": {
+      "display": "Potion of Snakeform"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item88",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Sprinting",
+    "anchor": {
+      "display": "Potion of Sprinting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item89",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Still Mind",
+    "anchor": {
+      "display": "Potion of Still Mind"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item90",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Supreme Valiance",
+    "anchor": {
+      "display": "Potion of Supreme Valiance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item91",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Swarm Control",
+    "anchor": {
+      "display": "Potion of Swarm Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      72
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item92",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Swarmshape",
+    "anchor": {
+      "display": "Potion of Swarmshape"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item93",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Tranquility",
+    "anchor": {
+      "display": "Potion of Tranquility"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item94",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Troublesome Tormina",
+    "anchor": {
+      "display": "Potion of Troublesome Tormina"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item95",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of True Immunity",
+    "anchor": {
+      "display": "Potion of True Immunity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item96",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Undetected Passage",
+    "anchor": {
+      "display": "Potion of Undetected Passage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item97",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Unseen Sights",
+    "anchor": {
+      "display": "Potion of Unseen Sights"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      73
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item98",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Valiance",
+    "anchor": {
+      "display": "Potion of Valiance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item99",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Vermin Domination",
+    "anchor": {
+      "display": "Potion of Vermin Domination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item100",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Weapon Resistance",
+    "anchor": {
+      "display": "Potion of Weapon Resistance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item101",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Wild Regeneration",
+    "anchor": {
+      "display": "Potion of Wild Regeneration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item102",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Potion of Youth",
+    "anchor": {
+      "display": "Potion of Youth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item103",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ruinous Remedy",
+    "anchor": {
+      "display": "Ruinous Remedy"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item104",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Stone Balm",
+    "anchor": {
+      "display": "Stone Balm"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      74
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item105",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Suspension of Disbelief",
+    "anchor": {
+      "display": "Suspension of Disbelief"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      75
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item106",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Witch’s Ointment",
+    "anchor": {
+      "display": "Witch’s Ointment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      75
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  }
+]
