@@ -299,7 +299,7 @@ export function sheetValues(actor) {
     const kind = abilityBox(item, recordedClass);
     if (!kind) continue;
     const roll = rollsOf(item)[0];
-    rows[kind].push({ name: item.name, throw: roll ? throwText(roll, actor, item) : "" });
+    rows[kind].push({ name: item.name, throw: roll ? throwText(roll, actor, item, { records: false }) : "" });
   }
   const left = unanswered(actor, record);
   for (const a of left.abilities) rows[a.box].push({ name: a.name, throw: a.throw });

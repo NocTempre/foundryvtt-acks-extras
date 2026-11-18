@@ -1,4 +1,4 @@
-/* global game, ui, CONFIG */
+/* global game, ui, CONFIG, ChatMessage */
 /**
  * The Rolls tab: every throw the character can make, gathered into groups,
  * and the one function that makes one of them.
@@ -15,19 +15,21 @@
  * Row ids are stable strings because the pinned rolls are stored by id:
  * `save:death`, `adv:climb`, `init`, `surprise:avoid`, `atk:melee`, `bhr`,
  * `unarmed`, `morale`, `loyalty`, `wpn:<itemId>:atk:<mode>` (the item sheet's
- * own row id after the item id), `abl:<itemId>:<key>`, and `post:<itemId>` —
+ * own row id after the item id), `abl:<itemId>:<key>`, `grant:<effectId>:<key>` (a
+ * throw a spell record grants, for as long as the record lasts; held by no
+ * item, so its row has none), and `post:<itemId>` —
  * an ability with no throw, which posts its card instead of rolling. Its own
  * kind, so a throw added later can never take its id.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
-import { makeLoc, numOrNull, plainRoll } from "../lib/util.mjs";
+import { makeLoc, numOrNull, plainRoll, escape as esc } from "../lib/util.mjs";
 import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
 import { rollUnarmed } from "../equipment/actions.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
 import { containedIn } from "../equipment/containers.mjs";
-import { rollsOf, keyOf, rollAbility, throwText, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
+import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, rollGrantedThrow, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
 import { adventuringThrow } from "../abilities/adventuring-throw.mjs";
 import { damageTypeOf, damageTypeLabel } from "../lib/damage-type.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -46,6 +48,13 @@ const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallb
  * for `data-tooltip-text`; no figure is written here, only the actor's own.
  */
 function adventuringTip(found) {
+  if (found.auto) return autoText({ record: found.record });
+  return [adventuringBase(found), noteProvenance(found.record)].filter(Boolean).join(" · ");
+}
+
+/** The figure's own sentence: where it was read from, its parts and the other figure. A figure a spell set has none but the spell's. */
+function adventuringBase(found) {
+  if (found.source === "stored" && found.record?.set) return "";
   const cite = found.cite ? ` (${found.cite})` : "";
   const fill = { target: num(found.target), other: num(found.other), skill: found.skillName ?? "", cite };
   const included = (found.parts ?? []).length
@@ -151,7 +160,8 @@ export function rollInventory(actor) {
     rows: ADVENTURING_KEYS.map((k) => {
       const found = adventuringThrow(actor, k);
       if (found.backs) backed.add(`${found.backs.itemId}:${found.backs.rollKey}`);
-      return row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), found.target == null ? "—" : `${found.target}+`, {
+      const shown = found.auto ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : found.target == null ? "—" : `${found.target}+`;
+      return row(`adv:${k}`, game.i18n.localize(`ACKS.adventuring.${k}`), shown, {
         line: found.source === "skill" ? found.skillName : (found.standIn?.name ?? ""),
         tip: adventuringTip(found),
       });
@@ -174,9 +184,15 @@ export function rollInventory(actor) {
           line: term ? scoreText(term, r) : "",
           pinned: !!item.system?.favorite,
           item: item.id,
+          // Where a spell record moved the figure the value says so; blank keeps the row as it was.
+          tip: throwProvenance(r, actor, item),
         }),
       );
     });
+  }
+  // A throw a spell record grants stands in the same group, in the same row, for as long as its record lasts.
+  for (const g of grantedThrows(actor)) {
+    profRows.push(row(g.id, g.label ? `${g.name} · ${g.label}` : g.name, g.text, { line: g.spell, tip: g.tip }));
   }
   if (profRows.length) groups.push({ key: "proficiencies", name: loc("rolls.group.proficiencies"), rows: profRows });
 
@@ -232,6 +248,13 @@ export async function rollById(actor, id, { event } = {}) {
       // The derived figure is thrown against in place of the stored one
       // wherever it differs; the throw's wrapper applies the conditions to it.
       const found = adventuringThrow(actor, a);
+      // A spell made it automatic: nothing is rolled. A held skill's throw posts its own card; the stored figure has none, so a line says so.
+      if (found.auto) {
+        const via = found.via ? actor.items.get(found.via.itemId) : null;
+        if (via) await rollAbility(via, found.via.rollKey, { event });
+        else await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<p>${esc(game.i18n.localize(`ACKS.adventuring.${a}`))} — <strong>${esc(autoText({ record: found.record }))}</strong></p>` });
+        return true;
+      }
       const stored = Number(sys.adventuring?.[a]);
       await actor.rollAdventuring(a, { event, ...(found.target != null && found.target !== stored ? { target: found.target } : {}) });
       return true;
@@ -277,6 +300,11 @@ export async function rollById(actor, id, { event } = {}) {
       if (!item) return false;
       await rollAbility(item, rest, { event });
       return true;
+    }
+    case "grant": {
+      // The whole id names the grant: its record's id and the throw's key, both already inside it.
+      const rolled = await rollGrantedThrow(actor, { id: String(id) }, { event });
+      return rolled != null;
     }
     case "post": {
       const item = actor.items.get(a);

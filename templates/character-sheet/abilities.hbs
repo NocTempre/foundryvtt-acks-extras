@@ -47,7 +47,7 @@
         <span class="acks-extras-frame__ctls">
           {{#if row.throws.length}}
           <span class="acks-extras-frame__grp">
-            {{#each row.throws}}<button type="button" class="acks-extras-frame__mini" data-action="roll" data-roll="{{id}}" data-tooltip="{{#if label}}{{label}} · {{/if}}{{value}}"><i class="fa-solid fa-dice-d20" inert></i></button>{{/each}}
+            {{#each row.throws}}<button type="button" class="acks-extras-frame__mini" data-action="roll" data-roll="{{id}}"{{#if tip}} data-tooltip-text="{{#if label}}{{label}} · {{/if}}{{value}} · {{tip}}"{{else}} data-tooltip="{{#if label}}{{label}} · {{/if}}{{value}}"{{/if}}><i class="fa-solid fa-dice-d20" inert></i></button>{{/each}}
           </span>
           {{/if}}
           {{#if row.editable}}

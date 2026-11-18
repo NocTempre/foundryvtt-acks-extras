@@ -11,7 +11,7 @@ import { abilityBucket, racialRefsOf, ABILITY_BUCKETS } from "../../classes/shee
 import { FLAG_PENDING_CHOICE } from "../../classes/constants.mjs";
 import { isLanguageSlots, freeSlots, filledLanguages } from "../../classes/languages.mjs";
 import { FLAG_ERODES } from "../../classes/zero-level.mjs";
-import { rollsOf, keyOf, throwText, labelOf } from "../../abilities/ability-rolls.mjs";
+import { rollsOf, keyOf, throwText, throwProvenance, labelOf } from "../../abilities/ability-rolls.mjs";
 import { isProfileAbility } from "../../lib/proficiency-strip.mjs";
 import { ITEM_TYPE } from "../../lib/vocab.mjs";
 
@@ -40,7 +40,7 @@ export function buildAbilitiesTab(actor, { filter = "all" } = {}) {
       img: item.img,
       cat,
       line: item.type === ITEM_TYPE.language ? "" : String(item.system?.requirements ?? ""),
-      throws: rolls.map((r, i) => ({ id: `abl:${item.id}:${keyOf(r, i)}`, label: rolls.length > 1 ? r.label || labelOf(r) || "" : "", value: throwText(r, actor, item) })),
+      throws: rolls.map((r, i) => ({ id: `abl:${item.id}:${keyOf(r, i)}`, label: rolls.length > 1 ? r.label || labelOf(r) || "" : "", value: throwText(r, actor, item), tip: throwProvenance(r, actor, item) })),
       favorite: !!item.system?.favorite,
       profile: isProfileAbility(item),
       erodes: !!item.getFlag(MODULE_ID, FLAG_ERODES),

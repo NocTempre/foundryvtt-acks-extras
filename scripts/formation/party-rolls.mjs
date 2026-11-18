@@ -10,7 +10,7 @@ import { abilityMod } from "../lib/actor-read.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollMath, subjectOf } from "../lib/conditions.mjs";
-import { measures, rollsOf } from "../abilities/ability-rolls.mjs";
+import { measures, rollsOf, autoText } from "../abilities/ability-rolls.mjs";
 import { adventuringThrow, skillThrow } from "../abilities/adventuring-throw.mjs";
 
 export { hasAbility };
@@ -204,8 +204,12 @@ export function citedSource(check, extra = []) {
   return cited ? `${check.source}; ${cited}` : check.source;
 }
 
-/** The tooltip a resolved check's target carries: the target and where it came from, with each part's page. */
+/** A resolved check's figure as a control prints it: "14+", or the word for an automatic throw. */
+export const checkLabel = (check) => (check.auto ? game.i18n.localize("ACKS-ABILITIES.roll.autoShort") : `${check.target}+`);
+
+/** The tooltip a resolved check's target carries: the target and where it came from, with each part's page; the spell, for an automatic one. */
 export function checkTip(check, extra = []) {
+  if (check.auto) return autoText({ record: check.record });
   return game.i18n.format("ACKS-FORMATION.audit.checkTip", { target: `${check.target}+`, source: citedSource(check, extra) });
 }
 
@@ -240,11 +244,13 @@ const conditionBonus = (actor) => rollMath("throw", subjectOf(actor)).total;
  * candidate with no figure, or one that is automatic or not open to the
  * character, is passed over, so it cannot shadow the Adventuring fallback.
  */
-function bestSkill(actor, cfg) {
+function bestSkill(actor, cfg, { auto = false } = {}) {
   let best = null;
   for (const item of skillCandidates(actor, cfg)) {
-    const found = skillThrow(actor, item, cfg.rollKey ?? null, { fallback: true });
+    const found = skillThrow(actor, item, cfg.rollKey ?? null, { fallback: true, auto });
     if (!found) continue;
+    // A throw a spell made automatic needs no figure and beats every one that has one.
+    if (found.auto) return { item, found, mod: 0, target: null, auto: found.auto };
     // The GM's flat throw adjustment (Skill tab): +N bonus = target N lower.
     const mod = Number(item.getFlag?.(MODULE_ID, "targetMod")) || 0;
     const target = found.target - mod;
@@ -256,19 +262,28 @@ function bestSkill(actor, cfg) {
 /**
  * Resolve one member's throw: `{target, source, bonus, parts, skilled}` or null.
  *
+ * A throw a spell record made automatic answers `auto` (the spell, its page)
+ * with a null `target`, no parts and no bonus: nothing is rolled and the
+ * creature's conditions do not apply. Only a caller that passes `auto` can act on
+ * that; any other reads the character's own throw there, so no figure of its
+ * own is ever null.
+ *
  * The target is the abilities' own figure (`skillThrow`, else
  * `adventuringThrow`), bonuses included, so the die is a bare d20 and `bonus`
  * is 0; the creature's conditions are applied once, here. `parts` itemizes what
  * moved the target, each `{label, value, cite?}` with a positive value lowering
  * it. With several matching skill items the lowest target is used.
  */
-export function resolveCheck(actor, cfg) {
+export function resolveCheck(actor, cfg, { auto = false } = {}) {
   const loc = (key) => game.i18n.localize(`ACKS-FORMATION.${key}`);
   const abilityParts = (list) =>
     (list ?? []).filter((p) => p.kind !== "conditions").map(({ label, value, cite }) => ({ label, value, ...(cite ? { cite } : {}) }));
   let found = null;
 
-  const best = bestSkill(actor, cfg);
+  const best = bestSkill(actor, cfg, { auto });
+  if (best?.auto) {
+    return { target: null, auto: best.auto, source: best.item.name, parts: [], skilled: true, bonus: 0, record: best.found.record };
+  }
   if (best) {
     const parts = abilityParts(best.found.parts);
     if (best.mod) parts.push({ label: loc("rolls.partThrowBonus"), value: best.mod });
@@ -281,10 +296,11 @@ export function resolveCheck(actor, cfg) {
       skilled: true,
     };
   } else if (cfg.advKey) {
-    const adv = adventuringThrow(actor, cfg.advKey, { allow: skillGateAllows });
-    if (adv.target == null) return null;
+    const adv = adventuringThrow(actor, cfg.advKey, { allow: skillGateAllows, auto });
     const via = loc("rolls.viaAdventuring");
     const by = adv.source === "standIn" ? adv.standIn.name : adv.source === "skill" ? adv.skillName : "";
+    if (adv.auto) return { target: null, auto: adv.auto, source: by ? `${via} (${by})` : via, parts: [], skilled: false, bonus: 0, record: adv.record };
+    if (adv.target == null) return null;
     found = { target: adv.target, source: by ? `${via} (${by})` : via, parts: abilityParts(adv.parts), skilled: false };
   }
   if (!found) return null;
@@ -331,8 +347,16 @@ export function boundChecks(item) {
  *   detail line and `sourceTip` the same with the page each part cites
  */
 export async function rollCheckFor(actor, cfg) {
-  const check = resolveCheck(actor, cfg);
+  const check = resolveCheck(actor, cfg, { auto: true });
   if (!check) return null;
+  if (check.auto) {
+    const told = game.i18n.localize("ACKS-ABILITIES.roll.autoShort");
+    return {
+      roll: null,
+      check,
+      row: { name: actor.name, total: told, target: null, source: check.source, sourceTip: autoText({ record: check.record }), success: true, auto: true },
+    };
+  }
   let bonus = check.bonus;
   if (cfg.strScaled) bonus += bashStrBonus(abilityMod(actor, "str"));
   const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
@@ -350,6 +374,25 @@ export async function rollCheckFor(actor, cfg) {
       sourceTip: citedSource(check, strPart),
       success: roll.total >= check.target,
     },
+  };
+}
+
+/**
+ * A party card's row for a member whose throw is automatic: no total and no
+ * figure, the spell that made it so in the target's tooltip, and a success.
+ *
+ * @param {{name: string, source: string, sourceTip: string}} row `rollCheckFor`'s row, where `auto` is set
+ */
+export function autoCardRow(row) {
+  const told = game.i18n.localize("ACKS-ABILITIES.roll.autoShort");
+  return {
+    name: row.name,
+    detail: row.source,
+    total: told,
+    targetText: told,
+    targetTooltip: row.sourceTip,
+    outcome: game.i18n.localize("ACKS-FORMATION.rolls.success"),
+    emphasis: "success",
   };
 }
 
@@ -401,7 +444,7 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
       incapable.push(actor.name);
       continue;
     }
-    rolls.push(rolled.roll);
+    if (rolled.roll) rolls.push(rolled.roll);
     rows.push(rolled.row);
   }
 
@@ -416,7 +459,7 @@ export async function rollPartyCheck(formation, checkKey, { only = null, spend =
     note: [cfg.note ? game.i18n.localize(cfg.note) : null, ...preNotes].filter(Boolean).join(" "),
     sections: [
       {
-        rows: rows.map((row) => ({
+        rows: rows.map((row) => row.auto ? autoCardRow(row) : ({
           name: row.name,
           detail: row.source,
           total: row.total,

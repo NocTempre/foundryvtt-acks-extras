@@ -13,7 +13,7 @@ import {
   setOverride,
 } from "./ability-bridge.mjs";
 import { SETTING_FORMATIONS, getFormation, getMemberActor, realMembers } from "./formation-model.mjs";
-import { PARTY_CHECKS, boundChecks, checkTip, partText, resolveCheck, skillGateAllows, usedForOptions } from "./party-rolls.mjs";
+import { PARTY_CHECKS, boundChecks, checkLabel, checkTip, partText, resolveCheck, skillGateAllows, usedForOptions } from "./party-rolls.mjs";
 import { citeOf } from "../abilities/ability-rolls.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { rollAbilityForParty as rollForParty } from "./audit-roll.mjs";
@@ -267,12 +267,12 @@ export default class SkillAuditApp extends HandlebarsApplicationMixin(Applicatio
         img: actor.img,
         level: actor.system?.details?.level ?? "—",
         resolutions: Object.entries(PARTY_CHECKS).map(([key, cfg]) => {
-          const check = resolveCheck(actor, cfg);
+          const check = resolveCheck(actor, cfg, { auto: true });
           if (!check) return { label: "—", source: "", tip: "" };
           // The parts are inside the target, so they are the source's detail.
           const detail = check.parts.map(partText).join(", ");
           return {
-            label: `${check.target}+`,
+            label: checkLabel(check),
             source: detail ? `${check.source}; ${detail}` : check.source,
             tip: checkTip(check),
           };
@@ -544,13 +544,13 @@ export function buildSkillTabHTML(item, gm) {
     for (const cfg of Object.values(PARTY_CHECKS)) {
       if (cfg.flagKey !== checkKey) continue;
       const label = game.i18n.localize(cfg.label);
-      const check = resolveCheck(owner, cfg);
+      const check = resolveCheck(owner, cfg, { auto: true });
       if (!check) {
         html += `<li><strong>${label}</strong>: —</li>`;
         continue;
       }
       const breakdown = (check.parts ?? []).map(partText).join(", ");
-      html += `<li data-tooltip-text="${esc(checkTip(check))}"><strong>${label}</strong>: ${check.target}+ <em>(${esc(check.source)}${breakdown ? `; ${esc(breakdown)}` : ""})</em></li>`;
+      html += `<li data-tooltip-text="${esc(checkTip(check))}"><strong>${label}</strong>: ${esc(checkLabel(check))} <em>(${esc(check.source)}${breakdown ? `; ${esc(breakdown)}` : ""})</em></li>`;
     }
     html += `</ul></fieldset>`;
   }

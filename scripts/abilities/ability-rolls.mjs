@@ -328,6 +328,7 @@ function scoreWritten(term) {
  * @param {object} [opts]
  * @param {boolean} [opts.conditions=true] fold the character's conditions into
  *   the target; false leaves them out, for a caller whose own roll applies them
+ * @param {boolean} [opts.records=true] read the character's spell records; false answers the character's own throw, as a printed sheet and its check do
  * @param {number|null} [opts.level] read the target at this level, not the character's (a granted proficiency's `atLevel`)
  * @param {{spell: string, cite: string, value: number|null}|null} [opts.grant] a granted proficiency's set target,
  *   which competes with a record's own `set`; a null `value` is a blank figure and leaves the target unresolved
@@ -339,11 +340,11 @@ function scoreWritten(term) {
  *   `parts` itemizes what moved the target, one entry per ability, spell, score and
  *   conditions source, and is present on a throw. `record` is present only where a spell touched it.
  */
-export function throwOutcome(roll, actor, item, { conditions = true, level = null, grant = null } = {}) {
+export function throwOutcome(roll, actor, item, { conditions = true, level = null, grant = null, records = true } = {}) {
   const none = (target = null, text = "") => ({ outcome: "throw", target, text });
   // A measure has no target, whatever the target fields still hold.
   if (measures(roll)) return none();
-  const record = recordThrow(actor, item, roll);
+  const record = records ? recordThrow(actor, item, roll) : noRecord();
   if (record.auto) return { outcome: "auto", target: null, text: "", record: recordNote(record) };
   const set = betterTarget(roll?.rollType || "above", [grant, record.set]);
   if (set) {
@@ -420,11 +421,11 @@ function itemized(parts) {
  *
  * The one place this string is built, for every surface that shows it (the
  * Rolls tab, the expanded row's tag strip, Favorites, the cycle control's
- * tooltip).
+ * tooltip). `records: false` reads the character's own throw, with no spell record on it.
  */
-export function throwText(roll, actor, item) {
+export function throwText(roll, actor, item, { records = true } = {}) {
   if (measures(roll)) return roll?.formula || "1d20";
-  return readText(roll, throwOutcome(roll, actor, item));
+  return readText(roll, throwOutcome(roll, actor, item, { records }));
 }
 
 /** A verdict as the cell a control prints: the target with its sign, the table's cell, "auto", or "—". */
@@ -438,8 +439,9 @@ function readText(roll, { outcome, target, text }) {
 /**
  * Resolve a roll's target number, or null when it cannot be known here — the
  * number half of `throwOutcome`. An automatic or unavailable rung has none.
+ * `records: false` reads the character's own throw, with no spell record on it.
  */
-export const targetOf = (roll, actor, item) => throwOutcome(roll, actor, item).target;
+export const targetOf = (roll, actor, item, { records = true } = {}) => throwOutcome(roll, actor, item, { records }).target;
 
 /**
  * The standing bonuses a throw's target carries, one entry per source that
@@ -1009,6 +1011,33 @@ function provenance(roll, verdict) {
 export function throwProvenance(roll, actor, item) {
   if (!roll || measures(roll)) return "";
   return provenance(roll, throwOutcome(roll, actor, item));
+}
+
+/**
+ * What a character's spell records do to a throw no held ability has a roll
+ * for: the Adventuring proficiency's stored figures. The same `throwResolution`
+ * read as a held throw, for a subject the caller names, as an "above" throw.
+ *
+ * @param {Actor} actor
+ * @param {{id: string|null, provides: string[]}} subject what the throw is of
+ * @param {string} rollKey the throw's key
+ * @returns {{auto: object|null, set: object|null, added: object[], dropped: object[], pending: object[], total: number}|null}
+ *   the record's note (as a verdict's `record`) with the `total` of its added parts, or null where no record touched the throw
+ */
+export function recordNoteFor(actor, subject, rollKey) {
+  if (!actor) return null;
+  const resolved = throwResolution(actor, { subject, rollKey, rollType: "above" });
+  const note = recordNote(resolved);
+  return note ? { ...note, total: resolved.total } : null;
+}
+
+/**
+ * A record note's tooltip line: what made the throw automatic, the figure a
+ * part set, and what yielded to what. The bonuses a note added are the caller's
+ * to list with the parts it itemizes. Empty with no note.
+ */
+export function noteProvenance(note) {
+  return note ? provenance({ rollType: "above" }, { record: note, parts: [] }) : "";
 }
 
 /* -------------------------------------------- */

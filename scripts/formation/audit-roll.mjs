@@ -8,7 +8,7 @@ import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { evaluateThrow, labelOf, measures } from "../abilities/ability-rolls.mjs";
 import { abilityKey } from "./ability-bridge.mjs";
 import { getMemberActor, isDown, realMembers } from "./formation-model.mjs";
-import { boundChecks, rollCheckFor } from "./party-rolls.mjs";
+import { autoCardRow, boundChecks, rollCheckFor } from "./party-rolls.mjs";
 
 /**
  * The skill audit's whole-party roll: one ability, every member who holds it,
@@ -48,6 +48,7 @@ function targetTip(ev, label) {
  * the member's own figures give it.
  */
 function checkRowFor({ roll, row }) {
+  if (row.auto) return autoCardRow(row);
   return {
     name: row.name,
     detail: row.source,
@@ -145,7 +146,7 @@ export async function rollAbilityForParty(formation, { key, name }) {
           continue;
         }
         checks.add(game.i18n.localize(bound.cfg.label));
-        dice.push(rolled.roll);
+        if (rolled.roll) dice.push(rolled.roll);
         rows.push(checkRowFor(rolled));
         continue;
       }

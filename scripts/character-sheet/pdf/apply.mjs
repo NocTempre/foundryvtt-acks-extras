@@ -128,13 +128,26 @@ async function grantAbilities(actor, abilities, report, { verifyThrows = true } 
       report.granted.push(missing > 1 ? `${copies[0].name} ×${missing}` : copies[0].name);
     }
     if (!verifyThrows || entry.throw === null) continue;
-    const owned = ownedCopies(actor, match)[0];
-    const roll = owned ? rollsOf(owned)[0] : null;
-    const target = roll ? targetOf(roll, actor, owned) : null;
-    if (finite(target) && Number(target) !== entry.throw) {
-      report.checks.push({ label: owned.name, sheet: entry.throwText, inForce: `${target}+` });
-    }
+    const check = throwCheck(actor, ownedCopies(actor, match)[0], entry);
+    if (check) report.checks.push(check);
   }
+}
+
+/**
+ * The check a sheet's stated throw earns against the proficiency the character
+ * holds: its label, what the sheet states and the figure in force, or null where
+ * they agree or the character has no figure. The sheet states the character's own
+ * throw, so a spell record's figure is not what it is checked against.
+ *
+ * @param {Actor} actor
+ * @param {Item|undefined} owned the held copy
+ * @param {{throw: number, throwText: string}} entry the sheet's row
+ * @returns {{label: string, sheet: string, inForce: string}|null}
+ */
+export function throwCheck(actor, owned, entry) {
+  const roll = owned ? rollsOf(owned)[0] : null;
+  const target = roll ? targetOf(roll, actor, owned, { records: false }) : null;
+  return finite(target) && Number(target) !== entry.throw ? { label: owned.name, sheet: entry.throwText, inForce: `${target}+` } : null;
 }
 
 /** Every language the sheet lists that the world knows; the rest go to notes. */
