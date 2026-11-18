@@ -3097,14 +3097,19 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   any seat), less Contortionism's
   imported figure for a holder and the Judge's modifier. A holder whose figure
   is not imported has no target. A squeeze with no length set has none either,
-  and a chokepoint needs no length. A chokepoint whose set length reaches the
+  nor has one whose member has no combat speed (the row lists `speed` among its
+  unknowns); a chokepoint needs neither. A chokepoint whose set length reaches the
   imported chokepoint figure is a permission refusal: a player is stopped and a
   Judge is warned (the figure only compares; with it not imported the Judge's
   pick stands).
 - **What a made throw does.** On a chokepoint the member is through. On a
-  squeeze the distance a success carries is `squeezeAdvance`, which answers null
-  (the page prints none), so the member stays where they are; an escape still
-  carries them on. A miss is no progress for the round. A result inside
+  squeeze the distance a success carries is `squeezeAdvance`: the member's combat
+  speed in feet per round (`memberSpeeds`, as the swim rows read it), the move
+  they make that round, since the page names no distance for a made throw
+  (DECISIONS 2026-11-18). A speed of 40 on a 100 ft squeeze covers 40, 80, then
+  100 and is through on the third made throw. The covered figure's tooltip names
+  the speed. An escape carries the member by its own imported distance. A miss
+  is no progress for the round. A result inside
   `squeezeBotchBand` (the highest face of a band that starts at the die's lowest;
   imported by the `squeezingProse` recipe's `botch` window and read through
   `formationValue` like the other figures, null until set, and then nothing

@@ -1797,6 +1797,86 @@ Player 2), `formation/crossing-climber`, `formation/crossing-acrobat`,
 `formation/crossing-beast`, all reused; nothing built. The crossing is
 ended.
 
+### The landed close-out, walked on `main` at `4d32132a` (2026-11-18)
+
+Lane B (Gamemaster 2 and Player 2), with a load-error recorder injected at
+document start on both seats before their reload. The GM seat recorded 0
+errors through init, setup, ready and the whole run. The Player seat recorded
+1, after ready (finding 1). The world's formation tables were stale, so the
+recipe's Rules-tables step re-ran the formation document's import, scoped to
+it. The import is still refreshed.
+
+**Exercised live.**
+
+| Recipe | Steps walked |
+|---|---|
+| Imports | 1–5 |
+| Climber's pace | P1–P7, P9 |
+| Rounds spent | R1–R10 |
+| Climb-up result line | 11i |
+| Squeeze rows | Q1–Q13 |
+| Swim rows | S0–S6, S8–S12 |
+
+Each step's observable matched its TESTING line. Some highlights:
+
+- R4's 250 ft billed 21 rounds, the total rounded up once.
+- R8 and R9: a fight or a pause bills nothing.
+- Q7: the wiggle's save card reads the shifted target while the stored save is
+  unchanged.
+- Q13 and S12: End removes every held effect, with the warning.
+
+The Player seat shows no `crossing.*` field, and every block on it states its
+reason in words. Every new figure's tooltip names its parts and a page, and a
+blank figure's tooltip is the page alone.
+
+**Found by the walk.**
+
+1. One console error on the Player seat. A prompt-card Throw was relayed to a
+   peer's stale Gamemaster 3 client, which was primary and had no
+   `partyRequest` handler registered. The press worked once the primary GM
+   changed. It is client staleness across lanes, not a code defect.
+2. Possibly a bug, unverified: in round 1 turn 0, after core `nextTurn()`, no
+   prompt was posted for the first member, for swim or squeeze alike. From
+   turn 1 on, prompts posted. The walker could not tell `turnBegan(prior
+   null)` from primary-GM drift. It needs a recheck with the walker as
+   primary GM.
+3. A combat deleted while a peer client held primary left the party in
+   combat until `reformIfOver` ran. It looks like a multi-client artifact.
+   Check it on one lane before calling it a bug.
+4. Wording:
+   - "1 stretches" and "1 misses × 1 rd" pluralize at a count of 1.
+   - The pace pick refused for another seat's member reads "not yours to
+     throw for".
+   - With no penalty steps imported, the penalty tooltip reads "No penalty ·
+     RR p.271".
+   - Q6's push tooltip labels its base "Adventuring" where the button says
+     Dungeonbashing.
+5. On 11i, the walker did not confirm that the sheer grid carries
+   Vulnerable, so "no chip" is weaker than the recipe's claim.
+
+**Not checked:**
+
+- S7 (drowning rounds and the breath-out card): primary GM drifted to peers.
+- The card-press Throw for S5 and S6 (S6 was covered from the row).
+- P8 (rappel).
+- Q14, S13, P10 and R11 (second sheet, detached window, type knob).
+- S3b's Carrier part.
+- The jump recipe other than 11e, 11h and 11i.
+- The imported figures against the page with the book open.
+
+**Fixtures.**
+
+- Reused: `formation/crossing-party` and its four members, and
+  `formation/crossing-scene`.
+- Built and kept: `formation/pace-climber`, `pace-fallen`, `squeeze-owner`,
+  `squeeze-holder`, `squeeze-stranger`, `squeeze-beast`, `swim-owner`,
+  `swim-friend`, `swim-stranger`, `swim-swimmer` and `swim-beast`, all
+  added to `crossing-party`, which now has 15 members. The recipes'
+  separate squeeze and swim party markers were not built.
+- Sweep: removed 93 chat messages; missing 4 combats, already deleted by the
+  walk; failed 0.
+- The party clock keeps the walk's own billing.
+
 ## 17. Formation work taken from scene search
 
 These requests come from the scene-search plan, sent 2026-11-18 by the

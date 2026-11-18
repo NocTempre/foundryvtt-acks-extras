@@ -7855,6 +7855,7 @@
   "ACKS-FORMATION.crossing.squeeze.tip.holds": "Holds Contortionism",
   "ACKS-FORMATION.crossing.squeeze.tip.stuck": "{condition}: held by this crossing until the member escapes or the crossing ends",
   "ACKS-FORMATION.crossing.squeeze.tip.chokepointFigure": "Chokepoint figure {feet} ft",
+  "ACKS-FORMATION.crossing.squeeze.tip.advance": "Combat speed {feet} ft per round",
   "ACKS-FORMATION.crossing.squeeze.covered": "covered {covered} / {length}′",
   "ACKS-FORMATION.crossing.squeeze.last": "last {total} · {outcome}",
   "ACKS-FORMATION.crossing.squeeze.lastOutcome.squeeze.made": "advanced",

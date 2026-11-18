@@ -159,16 +159,20 @@ export function isChokepointLength(length) {
 }
 
 /**
- * What one made squeezing throw carries a member along a squeeze, in feet. The
- * page prints what a miss costs and no distance for a success, so nothing
- * stands here: the answer is null until a ruling names one, and this is the
- * one place it changes. A chokepoint is not measured in feet; one made throw
- * clears it. With no advance a made throw on a squeeze leaves the member where
- * they are.
+ * What one made squeezing throw carries a member along a squeeze, in feet: the
+ * member's move for the round, their combat speed. The throw is made once a
+ * round and the page names no distance for it, so a made throw lets the member
+ * make the move they would make that round. A chokepoint is not measured in
+ * feet; one made throw clears it. With no combat speed there is no advance, and
+ * a made throw on a squeeze leaves the member where they are.
  *
- * @returns {number|null}
+ * @param {{combat?: number|null}|null} [speeds] the member's speeds in feet per round
+ * @returns {number|null} the combat speed where it is a positive finite number, else null
  */
-export const squeezeAdvance = () => null;
+export function squeezeAdvance(speeds = null) {
+  const feet = figure(speeds?.combat);
+  return feet !== null && feet > 0 ? feet : null;
+}
 
 /**
  * Whether an unmodified result botches the squeezing throw: it falls inside the

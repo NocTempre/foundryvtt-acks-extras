@@ -18,7 +18,7 @@ import {
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 import { PACE_RATE_TABLE, PACE_SPEEDS, PACE_TABLE, paceRates } from "../scripts/formation/climb-pace.mjs";
-import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
+import { squeezeAdvance, squeezeBotched } from "../scripts/formation/squeezing.mjs";
 import { bashStrBonus } from "../scripts/formation/doors.mjs";
 
 let passed = 0;
@@ -947,9 +947,9 @@ await ok("a holder whose bonus is not imported has no squeeze or push target, fo
 
 await ok("a squeeze needs its length and a chokepoint does not; a chokepoint set at a squeeze's length stops a player and warns a Judge", () => {
   loadSqueeze();
-  const blank = squeezeRow({ encumbrance: 4, shape: "squeeze", seat: JUDGE });
+  const blank = squeezeRow({ encumbrance: 4, shape: "squeeze", speeds: { combat: 40 }, seat: JUDGE });
   assert.deepEqual([blank.target, blank.can, blank.refusal, blank.unknown], [null, false, { cls: REFUSAL.absence, reason: "length" }, ["length"]]);
-  assert.equal(squeezeRow({ encumbrance: 4, shape: "squeeze", length: 20, seat: OWNER }).can, true);
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "squeeze", length: 20, speeds: { combat: 40 }, seat: OWNER }).can, true);
   assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", seat: OWNER }).can, true);
   assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 5, seat: OWNER }).can, true, "under the figure it is a chokepoint");
   const player = squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 6, seat: OWNER });
@@ -958,6 +958,33 @@ await ok("a squeeze needs its length and a chokepoint does not; a chokepoint set
   assert.deepEqual([judge.can, judge.warn, judge.plan.overRefusal], [true, true, true]);
   loadSqueeze(null);
   assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 99, seat: OWNER }).can, true, "no figure to compare with: the Judge's pick stands");
+});
+
+await ok("a made squeezing throw carries the member their combat speed; with no speed the row names it unknown and refuses, a chokepoint needs none", () => {
+  loadSqueeze();
+  assert.deepEqual([squeezeAdvance({ combat: 40 }), squeezeAdvance({ combat: 0 }), squeezeAdvance({ combat: null }), squeezeAdvance({}), squeezeAdvance(null), squeezeAdvance({ combat: "" })], [40, null, null, null, null, null]);
+  const row = squeezeRow({ encumbrance: 4, shape: "squeeze", length: 100, speeds: { combat: 40 }, seat: OWNER });
+  assert.deepEqual([row.advance, row.can, row.unknown], [40, true, []]);
+  // Three made throws on a 100 ft squeeze, each carrying a round's move: 40, 80, then through at the end.
+  let member = {};
+  const reached = [];
+  for (let i = 0; i < 3; i += 1) {
+    const step = squeezeThrowStep({ member, success: true, length: row.length, advance: row.advance });
+    member = { ...member, ...step.set };
+    reached.push([member.state, member.covered]);
+  }
+  assert.deepEqual(reached, [["squeezing", 40], ["squeezing", 80], ["across", 100]]);
+  const missed = squeezeThrowStep({ member: { covered: 40 }, success: false, length: 100, advance: row.advance });
+  assert.deepEqual([missed.set.state, missed.set.covered], ["squeezing", 40], "a miss covers nothing that round");
+  const choke = squeezeRow({ encumbrance: 4, shape: "chokepoint", seat: OWNER });
+  assert.deepEqual([choke.can, choke.unknown], [true, []], "a chokepoint reads no speed");
+  assert.equal(squeezeThrowStep({ member: {}, success: true, chokepoint: true, advance: choke.advance }).set.state, "across", "one made throw clears it");
+  const slow = squeezeRow({ encumbrance: 4, shape: "squeeze", length: 100, speeds: { combat: null }, seat: JUDGE });
+  assert.deepEqual([slow.advance, slow.can, slow.target, slow.unknown, slow.refusal], [null, false, null, ["speed"], { cls: REFUSAL.absence, reason: "speed" }]);
+  const stood = squeezeThrowStep({ member: { covered: 10 }, success: true, length: 100, advance: slow.advance });
+  assert.deepEqual([stood.set.state, stood.set.covered], ["squeezing", 10], "a made throw with no speed moves nothing");
+  const stuck = squeezeRow({ encumbrance: 4, shape: "squeeze", length: 100, pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE });
+  assert.equal(stuck.escape.push.can, true, "a stuck member's escapes read no speed");
 });
 
 await ok("a creature whose stone nobody has gets no squeeze throw and no escape, whoever presses", () => {

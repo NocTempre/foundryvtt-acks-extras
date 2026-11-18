@@ -1059,9 +1059,12 @@ const positiveFeet = (value) => {
  * A member who is squeezing has the squeezing throw; a stuck one has only the
  * two escapes; one who came through has nothing left. Every action reads its
  * own absences: a stone nobody has, a Contortionism bonus a holder needs and
- * nobody imported, a squeeze with no length set, an escape distance, the
- * failed pushes' step, the member's Dungeonbashing figure or saving-throw
- * cell. Each is an absence refusal, so nothing is rolled against a guess. A
+ * nobody imported, a squeeze with no length set, a squeeze whose member has no
+ * combat speed to be carried by, an escape distance, the failed pushes' step,
+ * the member's Dungeonbashing figure or saving-throw cell. Each is an absence
+ * refusal, so nothing is rolled against a guess. A made throw on a squeeze
+ * carries the member their combat speed (`squeezeAdvance`); a chokepoint reads
+ * no speed. A
  * chokepoint whose set length is no chokepoint's (`chokepointFeet`) is a
  * permission refusal: a player is stopped and a Judge is warned. A member who
  * has thrown this round has no throw or escape left, for every seat.
@@ -1079,13 +1082,14 @@ const positiveFeet = (value) => {
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
  * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
  * @param {{state?: string, covered?: number, throws?: number, tries?: number, plight?: number}|null} [o.member] the member's record
+ * @param {{combat?: number|null}|null} [o.speeds] the member's speeds in feet per round; `combat` is what a made throw carries them
  * @returns {object} `{kind: "squeeze", state, shape, chokepoint, length, covered, throws, tries, plight, advance,
  *   target, parts, unknown, refusal, can, warn, plan, escape}`; `escape` is `{active, tries, plight, penalty, can, warn,
  *   wiggle, push}`, each way `{target, parts, unknown, refusal, can, warn, plan}`
  */
 export function squeezeRow({
   encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, strMod = 0, save = null,
-  turn = null, seat = {}, standing = null, member = null,
+  turn = null, seat = {}, standing = null, member = null, speeds = null,
 } = {}) {
   const state = member?.state ?? SQUEEZING;
   const stuck = state === STUCK;
@@ -1106,6 +1110,7 @@ export function squeezeRow({
   };
 
   const thrown = squeezingThrow({ encumbrance: carried ?? 0, proficient: holds, judgeMod });
+  const advance = squeezeAdvance(speeds);
   const squeezeExtra = [];
   const squeezeUnknown = [...(carried === null ? ["encumbrance"] : []), ...thrown.unknown];
   if (thrown.unknown.length) squeezeExtra.push({ cls: REFUSAL.absence, reason: "bonus" });
@@ -1113,12 +1118,16 @@ export function squeezeRow({
     squeezeExtra.push({ cls: REFUSAL.absence, reason: "length" });
     squeezeUnknown.push("length");
   }
+  if (!chokepoint && advance === null) {
+    squeezeExtra.push({ cls: REFUSAL.absence, reason: "speed" });
+    squeezeUnknown.push("speed");
+  }
   if (chokepoint && feet !== null) {
     const limit = positiveFeet(chokepointFeet());
     if (limit !== null && feet >= limit) squeezeExtra.push({ cls: REFUSAL.permission, reason: "shape" });
   }
   const squeeze = action(squeezeExtra, squeezeUnknown);
-  const blind = carried === null || thrown.unknown.length > 0 || (!chokepoint && feet === null);
+  const blind = carried === null || thrown.unknown.length > 0 || (!chokepoint && (feet === null || advance === null));
   const target = blind ? null : thrown.target;
   const canThrow = squeeze.can && state === SQUEEZING && !blind;
 
@@ -1172,7 +1181,7 @@ export function squeezeRow({
     throws: Math.max(0, Number(member?.throws) || 0),
     tries,
     plight,
-    advance: squeezeAdvance(),
+    advance,
     target,
     parts: blind ? [] : thrown.parts,
     unknown: squeeze.unknown,
@@ -1196,10 +1205,10 @@ export function squeezeRow({
 /**
  * Where one squeezing throw leaves a member, as a patch: what to set and what
  * to unset. A made throw clears a chokepoint, or carries the member along a
- * squeeze by `advance` feet (the length's end is through; an advance not known
- * carries nothing). A miss is no progress for the round. A botch, a miss whose
- * die is inside the imported band, leaves the member stuck with no escape
- * tried. The member's turn is stamped where a fight is running, so one throw
+ * squeeze by `advance` feet, the member's round of movement (the length's end
+ * is through; an advance not known carries nothing). A miss is no progress for
+ * the round. A botch, a miss whose die is inside the imported band, leaves the
+ * member stuck with no escape tried. The member's turn is stamped where a fight is running, so one throw
  * counts for one round.
  *
  * @param {object} o

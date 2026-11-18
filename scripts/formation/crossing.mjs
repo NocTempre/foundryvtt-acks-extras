@@ -2058,6 +2058,11 @@ export function squeezeTargetTip(row) {
   return [...squeezeParts(row.parts), squeezeCite("contortionismBonus")].join(" · ");
 }
 
+/** The feet covered along a squeeze as a tooltip: the member's combat speed that a made throw carries them, then the page; the page alone where no speed stands. */
+function squeezeCoveredTip(row) {
+  return row.advance === null ? squeezingRef() : [loc("crossing.squeeze.tip.advance", { feet: row.advance }), squeezingRef()].join(" · ");
+}
+
 /** One way out's target as a tooltip: the figure it starts from, its parts, then the page. */
 export function escapeTargetTip(entry, name) {
   const way = entry.row.escape[name];
@@ -2207,6 +2212,7 @@ function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, 
   const row = markLoad(squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
     pushFigure, strMod: monster ? 0 : abilityMod(actor, "str"), save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+    speeds: { combat: memberSpeeds(actor, stone).combat },
   }), monster);
   return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };
 }
@@ -2267,7 +2273,7 @@ function squeezeRowView(crossing, entry) {
     target: !stuck && !through && target !== null ? `${target}+` : "",
     targetTip: squeezeTargetTip(row),
     covered: row.chokepoint || row.length === null ? "" : loc("crossing.squeeze.covered", { covered: row.covered, length: row.length }),
-    coveredTip: squeezingRef(),
+    coveredTip: squeezeCoveredTip(row),
     implied: implied.map((id) => ({ statusId: id, label: condition(id), tip: [loc("crossing.swim.tip.implied", { condition: condition(id), by: condition(STUCK) }), squeezingRef()].join(" · ") })),
     can: row.can,
     warn: row.warn,

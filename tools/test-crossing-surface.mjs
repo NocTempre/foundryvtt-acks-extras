@@ -2392,6 +2392,7 @@ async function squeezeWorld(people, { figures = SQZ, form = null } = {}) {
   reset();
   loadSqueezeTables(figures);
   const actors = people.map(([name, options]) => withEffects(person(name, { adventuring: { dungeonbashing: 14 }, ...options })));
+  actors.forEach((a) => { a.system.movementacks = { combat: 40 }; });
   const { formation, actor } = world(actors);
   formation.members.forEach((m, i) => { m.deployedTokenId = `tok${i}`; m.deployedSceneId = "scene1"; });
   game.combats = [];
@@ -2460,16 +2461,26 @@ await ok("a made throw clears a chokepoint and the member is through; the card g
   assert.deepEqual([row.stateLabel, row.can, row.escape], ["Through", false, null]);
 });
 
-await ok("a squeeze of a set length has no distance for a made throw until one is ruled: the member stays where they are, and the row says so by the page alone", async () => {
-  const { formation } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "30" } });
+await ok("a made throw on a squeeze carries the member their combat speed, and the tooltip names it; the length's end is through", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "100" } });
   const row = () => rowOf(buildCrossingView(formation), "Alder");
-  assert.deepEqual([row().covered, row().coveredTip], ["covered 0 / 30′", "RR ch. 6, Squeezing"]);
-  naturals.push(9, 9);
-  await throwFor(formation, "Alder");
+  assert.deepEqual([row().covered, row().coveredTip], ["covered 0 / 100′", "Combat speed 40 ft per round · RR ch. 6, Squeezing"]);
+  naturals.push(9, 9, 9);
   assert.equal((await throwFor(formation, "Alder")).step, "squeezing");
+  assert.deepEqual([memberOf(formation, "Alder").covered, row().covered], [40, "covered 40 / 100′"]);
+  assert.equal((await throwFor(formation, "Alder")).step, "squeezing");
+  assert.equal(memberOf(formation, "Alder").covered, 80);
+  assert.equal((await throwFor(formation, "Alder")).step, "across");
   const record = memberOf(formation, "Alder");
-  assert.deepEqual([record.state, record.covered, record.throws, record.last.success], ["squeezing", 0, 2, true]);
-  assert.equal(row().covered, "covered 0 / 30′");
+  assert.deepEqual([record.state, record.covered, record.throws, record.last.success], ["across", 100, 3, true]);
+});
+
+await ok("a squeeze member with no combat speed has no throw: the row names the missing speed by refusing, and nothing is rolled", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "30" } });
+  alder.system.movementacks = {};
+  const out = await throwFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.refused, naturals.length], [false, "speed", 0]);
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").target, "");
 });
 
 await ok("Contortionism is counted once on each throw, read through the real rows: a holder with a throw of its own and a non-holder start the push and the wiggle from the same figures and differ by the bonus on the squeeze and the push alone", async () => {

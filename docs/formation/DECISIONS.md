@@ -470,7 +470,7 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 | Drowning is held through the crossing's own path | A second status mechanism for drowning is already in the conditions registry and the row could simply read it | Medium: the held path is what End, a drop and a haul already release, and a hand-set Drowning stays untouched |
 | A player names a rescuer only among members they own | The drowning member's owner is the one with something at stake | Weak: a drowning character cannot name who rescues them in play, and the rescuer's owner is who acts |
 
-## 2026-11-17 — The squeeze's rows and the two escapes
+## 2026-11-17 — The squeeze's rows and the two escapes — SUPERSEDED IN PART 2026-11-18 (open question 1: a made throw carries a round's move)
 
 **Ruled.** (Dungeon close-out plan §4 B1, §9 slice S15; the surface is the approved board's "Squeeze" and "PromptCard".)
 - A squeeze is a crossing kind. A member is squeezing, stuck or through; through is the existing `across` state, so every reader of settled members (Throw all, the relay, End) treats it as settled with no new branch. Stuck is held through the crossing's own path as the fourth status, appended last because the slot is in the effect's id.
@@ -496,7 +496,7 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 | A failed wiggle adds no plight | The page may count every failed escape | Medium: the worsening sits in the push's paragraph and the wiggle's failure only leaves the member stuck |
 
 **Open for the owner.**
-1. What a made throw carries a member along a squeeze (the page prints no distance). Built: nothing, so a long squeeze cannot be finished by throws.
+1. ~~What a made throw carries a member along a squeeze (the page prints no distance).~~ **Answered 2026-11-18 by the owner:** one round's move. See "A made squeezing throw carries the member one round's move".
 2. ~~Whether a failed wiggle also worsens the plight.~~ **Answered 2026-11-17 by the page (RR ch. 6, Squeezing; RR App. B, Stuck):** only a failed push worsens the plight, and a failed wiggle leaves the member stuck with nothing added. What is built stands.
 3. ~~What a member who wiggles back to the entrance is, and where a stuck member goes when the crossing ends.~~ **Answered 2026-11-17 in part by the page (the same two passages):** a made escape of either kind ends the condition, and the wiggle's retreat takes the member back toward the start, so a member who wiggles back is no longer stuck and throws again at the next round, as built. The pages print no other end for the condition, so End's release of the crossing's held effect is the module's bookkeeping and not a rule; the warning at End still names each member left stuck, and where such a member is stays the Judge's call.
 
@@ -592,5 +592,21 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 **Cost.** A world must re-run the Rules tables import for the rates and durations; until then a crossing spends nothing and the header is blank. A fight begun mid-climb leaves the rest of that climb untimed. The turn card a crossing's advance posts carries no "by crossing" mark.
 
 **Open for the owner.**
-- S17-3, several members on one clock: built as (a), together. Alternatives: (c) a Judge's setup pick between together and in turn, which needs a design first; (d) a fixed rope starts a later member's time where the crossing stood.
-- B-b: built as ruled, the exploration branch outside a fight. The alternative bills the grid's rate everywhere.
+- ~~S17-3, several members on one clock: built as (a), together. Alternatives: (c) a Judge's setup pick between together and in turn, which needs a design first; (d) a fixed rope starts a later member's time where the crossing stood.~~ **Answered 2026-11-18 by the owner:** (a) stands. See "A made squeezing throw carries the member one round's move".
+- ~~B-b: built as ruled, the exploration branch outside a fight. The alternative bills the grid's rate everywhere.~~ **Answered 2026-11-18 by the owner:** stays as built.
+
+## 2026-11-18 — A made squeezing throw carries the member one round's move; several members spend the slowest's time once
+
+**Supersedes** (in part) *The squeeze's rows and the two escapes* (2026-11-17), its bullet "What a made throw carries a member along a squeeze is not ruled" and open question 1. **Evidence:** the owner's answers of 2026-11-18, which that entry did not have (it is under 7 days old, so the new evidence is named here). On dungeon close-out S15 open question 1: "Follow RAW, 1 turn move at a time if nothing specific". On S17 open question 3 (several members on one clock): "Follow RAW, that sounds right".
+
+**Ruled.**
+- The page (RR ch. 6, Squeezing) prints a throw each round at the start of the adventurer's initiative and what a miss costs, and names no distance for a made throw. The "nothing specific" branch applies: a made throw lets the member make their move for that round. The move is the member's combat speed, in feet per round, read from `memberSpeeds` as the swim rows read it (`squeezeAdvance(speeds)` answers it, null where it is not a positive finite number).
+- Example: a member with combat speed 40 ft on a 100 ft squeeze covers 40, 80, then 100 on three made throws and is through (`across`) on the third; a miss covers nothing that round. A chokepoint is still cleared by one made throw, and an escape still carries the imported distance.
+- A squeeze whose member has no combat speed has no throw: `squeezeRow` lists `speed` among the unknowns and refuses with an absence refusal, as a squeeze with no length does, so nothing is rolled that could move no one. A chokepoint reads no speed. A stuck member's escapes read none either.
+- The covered figure's tooltip names the speed and the page.
+- S17-3 is confirmed, not changed: several members on one clock spend the slowest member's time once (`crossingElapsed`, option (a) of the 2026-11-17 entry "A crossing spends rounds"). That entry stands. A squeeze spends no rounds yet (its own clause there); this ruling moves the member and bills no clock.
+
+**Rejected.** Exploration speed per turn as the move: the throw is made each round, so the round's move is the unit the page gives. A Judge-typed advance on the setup: not on the approved board, and the member's own speed is already on the actor.
+
+**Cost.** A squeeze row for a member with no combat speed on the actor, or none core derives for a creature, refuses until the Judge gives the creature one. A long squeeze takes as many made throws as the length holds rounds of movement, so a slow member on a long squeeze rolls many times; that is the page's per-round throw, not a module choice.
+
