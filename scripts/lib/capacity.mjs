@@ -192,12 +192,13 @@ export const loadStone = (doc) => {
 };
 
 /**
- * The exploration speed in feet per turn that the system's own movement
- * calculation gives a character bearing `stone` against a maximum of `max`,
- * with `mod` as the character's movement modifier; null when the system's actor
- * class has no such calculation or it throws. A figure for a bearing the
- * actor's own document does not hold: a seat core derived nothing for, or a
- * carrier's load with a casualty's share added.
+ * The speeds that the system's own movement calculation gives a character
+ * bearing `stone` against a maximum of `max`, with `mod` as the character's
+ * movement modifier: exploration per turn, combat and running per round. Null
+ * when the system's actor class has no such calculation or it throws. A figure
+ * for a bearing the actor's own document does not hold: a seat core derived
+ * nothing for, a carrier's load with a casualty's share added, or a swimmer
+ * lifting a body.
  *
  * Core's `_calculateMovement` runs on a stub shaped as it reads, so the
  * system's tiers and bands stay the system's: nothing here states one. The
@@ -209,9 +210,10 @@ export const loadStone = (doc) => {
  * @param {number} o.stone the encumbrance, in stone
  * @param {number} o.max the maximum encumbrance, in stone
  * @param {number} [o.mod] the movement modifier added to the tier
- * @returns {number|null}
+ * @returns {{exploration: number|null, combat: number|null, running: number|null}|null}
+ *   `running` is core's charge and run speed
  */
-export function explorationSpeedBearing({ stone, max, mod = 0 }) {
+export function movementBearing({ stone, max, mod = 0 }) {
   const calculate = globalThis.CONFIG?.Actor?.documentClass?.prototype?._calculateMovement;
   if (typeof calculate !== "function") return null;
   const stub = {
@@ -227,6 +229,18 @@ export function explorationSpeedBearing({ stone, max, mod = 0 }) {
     console.warn(`${MODULE_ID} | the system's movement calculation could not run on a stand-in actor`, err);
     return null;
   }
-  const speed = stub.system.movementacks.exploration;
-  return Number.isFinite(speed) ? speed : null;
+  const speeds = stub.system.movementacks;
+  const read = (n) => (Number.isFinite(n) ? n : null);
+  return { exploration: read(speeds.exploration), combat: read(speeds.combat), running: read(speeds.chargerun) };
+}
+
+/**
+ * The exploration speed in feet per turn of a bearing (`movementBearing`), or
+ * null where the system gives none.
+ *
+ * @param {{stone: number, max: number, mod?: number}} bearing
+ * @returns {number|null}
+ */
+export function explorationSpeedBearing(bearing) {
+  return movementBearing(bearing)?.exploration ?? null;
 }

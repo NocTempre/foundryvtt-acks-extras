@@ -168,6 +168,7 @@ import {
   creditSearch, falseCount, hexStockKey, markFound, recordAssessment, stockHex, stockSummary, unfoundPoints,
 } from "./hex-stock.mjs";
 import { installNavigationCardActions } from "./navigation-card.mjs";
+import { registerCrossingDriver } from "./crossing-driver.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -205,6 +206,7 @@ Hooks.once("init", () => {
   installIncidentCardActions();
   installHexStockCardActions();
   installNavigationCardActions();
+  registerCrossingDriver();
   installTrapDrop();
   installTrapMarkers();
   installColumnView();

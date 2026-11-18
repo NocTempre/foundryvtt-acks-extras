@@ -158,4 +158,15 @@ ok("a party row takes the one water every member swims in", () => {
   resetTables();
 });
 
+ok("the Judge's modifier moves the target and never whether a holder throws", () => {
+  load();
+  const got = swimmingThrow({ encumbrance: 9, proficient: true, judgeMod: 3 });
+  assert.equal(got.target, 9 - 7 - 3);
+  assert.deepEqual(got.parts.at(-1), { key: "judge", value: 3 });
+  const low = swimmingThrow({ encumbrance: 2, proficient: true, judgeMod: -20 });
+  assert.equal(low.needed, false, "a holder whose bare target is nothing needs no throw, whatever the Judge adds");
+  assert.equal(swimmingThrow({ encumbrance: 4 }).parts.some((p) => p.key === "judge"), false, "no modifier, no part");
+  resetTables();
+});
+
 console.log(`test-swimming: all ${passed} checks passed`);

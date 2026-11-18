@@ -127,10 +127,12 @@ export function ownSwimSpeed(actor) {
  * @param {number} [o.penalty] the water penalty as a size: an imported step
  *   (`waterPenaltySteps`) or a larger figure; none is no penalty
  * @param {string[]} [o.conditions] keys of WATER ticked as the penalty's reason
+ * @param {number} [o.judgeMod] the Judge's own modifier to the throw; positive lowers the target, and it
+ *   moves the target only: whether a holder throws at all stays the figures'
  * @returns {{target: number|null, needed: boolean|null, parts: object[], unknown: string[], conditions: string[]}}
  *   `conditions` is the ticked keys that are WATER's, in the order given
  */
-export function swimmingThrow({ encumbrance = 0, proficient = false, penalty = 0, conditions = [] } = {}) {
+export function swimmingThrow({ encumbrance = 0, proficient = false, penalty = 0, conditions = [], judgeMod = 0 } = {}) {
   const stone = Math.max(0, Number(encumbrance) || 0);
   const parts = [{ key: "encumbrance", value: stone }];
   const unknown = [];
@@ -144,12 +146,14 @@ export function swimmingThrow({ encumbrance = 0, proficient = false, penalty = 0
   const reason = [...new Set(Array.isArray(conditions) ? conditions : [])].filter((key) => key in WATER);
   const size = penaltySize(penalty);
   if (size) parts.push({ key: "water", value: -size, conditions: reason });
+  const mod = Number(judgeMod) || 0;
+  if (mod) parts.push({ key: "judge", value: mod });
 
   if (unknown.length) return { target: null, needed: null, parts, unknown, conditions: reason };
 
   // A penalty is a size, so adding it raises the target.
-  const target = stone - bonus + size;
-  return { target, needed: target > 0 || !proficient, parts, unknown, conditions: reason };
+  const bare = stone - bonus + size;
+  return { target: bare - mod, needed: bare > 0 || !proficient, parts, unknown, conditions: reason };
 }
 
 /**

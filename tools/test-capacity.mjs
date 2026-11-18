@@ -10,7 +10,7 @@
 import assert from "node:assert/strict";
 import {
   capacity6, load6, overCapacity, capacityStone, loadStone, borneWeight6, borneBy6, bodyWeight6, carriedWeight6,
-  explorationSpeedBearing, riderBody6, riderBodySource, riderBodyTip, statedBodyStone, CAPACITY_DOC, RIDER_BODY_TABLE,
+  explorationSpeedBearing, movementBearing, riderBody6, riderBodySource, riderBodyTip, statedBodyStone, CAPACITY_DOC, RIDER_BODY_TABLE,
 } from "../scripts/lib/capacity.mjs";
 import * as Tables from "../scripts/lib/tables.mjs";
 import {
@@ -207,6 +207,8 @@ globalThis.CONFIG = {
         const { value, max } = this.system.encumbrance;
         const base = value > max ? 0 : value > 9 ? 25 : value > 4 ? 50 : 100;
         this.system.movementacks.exploration = Math.max(base + this.system.movement.mod, 0);
+        this.system.movementacks.combat = this.system.movementacks.exploration / 4;
+        this.system.movementacks.chargerun = this.system.movementacks.exploration / 2;
       }
     },
   },
@@ -217,6 +219,7 @@ assert.equal(explorationSpeedBearing({ stone: 12, max: 20 }), 25, "and its heavi
 assert.equal(explorationSpeedBearing({ stone: 21, max: 20 }), 0, "past the maximum nothing walks");
 assert.equal(explorationSpeedBearing({ stone: 6, max: 20, mod: -10 }), 40, "the movement modifier is the system's to apply");
 assert.equal(explorationSpeedBearing({ stone: 2, max: 20, mod: -500 }), 0, "and the system floors it at nothing");
+assert.deepEqual(movementBearing({ stone: 6, max: 20 }), { exploration: 50, combat: 12.5, running: 25 }, "the bearing answers every speed the system derives");
 assert.equal(seenStub.statuses, undefined, "the stand-in carries no statuses, so a condition wrapper has nothing to apply");
 globalThis.CONFIG = { Actor: { documentClass: class {} } };
 assert.equal(explorationSpeedBearing({ stone: 2, max: 20 }), null, "a system with no movement calculation answers nothing");

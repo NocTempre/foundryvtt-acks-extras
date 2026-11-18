@@ -44,14 +44,20 @@ import {
   carriedLoad, encumbranceOf, getFormations, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
 } from "./formation-model.mjs";
 import { carriersOf } from "./mapper-kit.mjs";
+import { standsAs } from "./deployment.mjs";
+import { WATER, holdsSwimming, ownSwimSpeed, rescueStone } from "./swimming.mjs";
+import { settlePrompts } from "./crossing-prompt.mjs";
 import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
 import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallDie } from "./jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, climbUpRow, crossingHeld, crossingOfHolder, fallFromClimb,
-  fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, withFooting,
+  CLIMB_CHECK, CROSSING_STATUSES, DROWNING, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, SWIMMING, climbUpRow, crossingHeld, crossingOfHolder,
+  fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, stepMember, swimRow,
+  swimThrowStep, withFooting,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
+import { capacityStone, movementBearing } from "../lib/capacity.mjs";
+import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
 import { saveSpec } from "../lib/saves.mjs";
 import { HELD_CONDITION_FLAG, heldEffects, holdCondition, releaseCondition } from "../lib/held-condition.mjs";
@@ -67,8 +73,11 @@ export const CROSSING_FLAG = "crossing";
 /** The kind a crossing takes over a gap; every other kind is a key of `OBSTACLES`. */
 export const JUMP_KIND = "jump";
 
+/** The kind a crossing takes through water too deep to stand in. */
+export const SWIM_KIND = "swim";
+
 /** The kinds a Judge may begin, in the order the pick lists them. */
-export const CROSSING_KINDS = Object.freeze([...Object.keys(OBSTACLES), JUMP_KIND]);
+export const CROSSING_KINDS = Object.freeze([...Object.keys(OBSTACLES), JUMP_KIND, SWIM_KIND]);
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -163,7 +172,7 @@ export async function beginCrossing(formation, kind) {
   const actor = getPartyActor(formation);
   if (!actor || !game.user.isGM || !CROSSING_KINDS.includes(kind) || readCrossing(formation)) return null;
   await releaseStrays();
-  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, members: {} };
+  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, ...(kind === SWIM_KIND ? { movement: "combat", penaltyPick: "none" } : {}), members: {} };
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: foundry.data.operators.ForcedReplacement.create(setup) });
   return setup.id;
 }
@@ -198,6 +207,12 @@ const SETUP_FIELDS = Object.freeze({
   runUp: (v) => v === true,
   precarious: (v) => v === true,
   charging: (v) => v === true,
+  waterCold: (v) => v === true,
+  waterRough: (v) => v === true,
+  waterFast: (v) => v === true,
+  movement: (v) => (v === "running" ? "running" : "combat"),
+  penaltyPick: (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : "none"),
+  penaltyLarger: positive,
 });
 
 /**
@@ -237,6 +252,36 @@ export async function writeMemberStep(formation, crossingId, actorId, step) {
   const current = readCrossing(formation);
   if (!current || current.id !== crossingId) return false;
   const update = { [memberPath(actorId)]: step };
+  const held = new Set(realMembers(formation).map((m) => m.actorId));
+  const dropped = Object.keys(current.members ?? {}).filter((id) => !held.has(id));
+  for (const id of dropped) update[memberPath(id)] = unset();
+  await actor.update(update);
+  if (dropped.length) await syncHeld(bodiesOfRecord(formation, dropped), current.id, []);
+  return true;
+}
+
+/**
+ * Write patches to members' records in one update, only while the crossing the
+ * caller worked from still stands. Each key is written by its own dotted path and
+ * each unset by its own, so a patch never rewrites a record a peer wrote beside
+ * it: a rescuer set while a throw lands survives it. A record for a member the
+ * party no longer holds is unset at the same write, as `writeMemberStep` does.
+ *
+ * @param {object} formation
+ * @param {string} crossingId
+ * @param {Array<{id: string, set?: object, unset?: string[]}>} patches keys of members' records
+ * @returns {Promise<boolean>} whether the write was made
+ */
+export async function writeMemberPatches(formation, crossingId, patches) {
+  const actor = getPartyActor(formation);
+  if (!actor || !game.user.isGM) return false;
+  const current = readCrossing(formation);
+  if (!current || current.id !== crossingId) return false;
+  const update = {};
+  for (const { id, set = {}, unset: gone = [] } of patches) {
+    for (const key of gone) if (!(key in set)) update[`${memberPath(id)}.${key}`] = unset();
+    for (const [key, value] of Object.entries(set)) update[`${memberPath(id)}.${key}`] = value;
+  }
   const held = new Set(realMembers(formation).map((m) => m.actorId));
   const dropped = Object.keys(current.members ?? {}).filter((id) => !held.has(id));
   for (const id of dropped) update[memberPath(id)] = unset();
@@ -301,6 +346,7 @@ export function rowFor(formation, crossing, { member, actor }, { judge = game.us
   const seat = { judge, owns };
   const standing = standingOf(member, actor);
   const record = crossing.members?.[member.actorId] ?? null;
+  if (crossing.kind === SWIM_KIND) return swimEntry(formation, crossing, { member, actor }, { seat, standing, record, load: load ?? carriedLoad(formation) });
   if (crossing.kind === JUMP_KIND) {
     const level = Number(actor.system?.details?.level) || 0;
     const options = {
@@ -330,6 +376,60 @@ export function rowFor(formation, crossing, { member, actor }, { judge = game.us
     judgeMod: crossing.judgeMod, seat, standing, member: record,
   });
   return { actor, member, jump: false, standing, figure, holds, row };
+}
+
+/** The water penalty a setup names, as a size: none, an imported step the pick holds, or the larger figure typed. */
+export function swimPenalty(crossing) {
+  const pick = crossing?.penaltyPick ?? "none";
+  if (pick === "none") return 0;
+  if (pick === "larger") return positive(crossing?.penaltyLarger) ?? 0;
+  return positive(pick) ?? 0;
+}
+
+/** The keys of `WATER` a setup has ticked, in WATER's order. */
+export const swimConditions = (crossing) => Object.keys(WATER).filter((key) => crossing?.[`water${key[0].toUpperCase()}${key.slice(1)}`] === true);
+
+/**
+ * The fight and round a member's turn is in, where a fight is running with a
+ * combatant standing as this member (`standsAs`): a member inside the party
+ * token, or with no combatant, has none. `current` says whether it is that
+ * combatant's turn now.
+ *
+ * @returns {{combatId: string, round: number, combatantId: string, current: boolean}|null}
+ */
+export function crossingTurn(formation, member) {
+  for (const combat of game.combats ?? []) {
+    if (!combat.started) continue;
+    const found = [...(combat.combatants ?? [])].find((c) => standsAs(formation, member, c.token));
+    if (found) return { combatId: combat.id, round: combat.round, combatantId: found.id, current: combat.combatant?.id === found.id };
+  }
+  return null;
+}
+
+/** A member's own speeds in feet per round: core's derived figures, or, bearing a body, the system's calculation for that load. */
+function swimSpeeds(actor, stone, lifted) {
+  const own = actor.system?.movementacks ?? {};
+  const max = capacityStone(actor);
+  const bearing = max == null ? null : movementBearing({ stone, max, mod: actor.system?.movement?.mod });
+  if (lifted) return { combat: bearing?.combat ?? null, run: bearing?.running ?? null };
+  return { combat: Number.isFinite(own.combat) ? own.combat : bearing?.combat ?? null, run: Number.isFinite(own.chargerun) ? own.chargerun : bearing?.running ?? null };
+}
+
+/** One member's swim row for a seat, with what the view and the throw read beside it. */
+function swimEntry(formation, crossing, { member, actor }, { seat, standing, record, load }) {
+  const monster = actor.type === "monster";
+  const stone = monster ? null : carriedBy(actor, load);
+  const bodyId = record?.hauling ?? null;
+  const bodyEntry = bodyId ? crossingMembers(formation).find((e) => e.member.actorId === bodyId) : null;
+  const hauled = bodyEntry ? { stone: rescueStone(carriedBy(bodyEntry.actor, load)) } : null;
+  const turn = crossingTurn(formation, member);
+  const row = swimRow({
+    encumbrance: stone, holds: holdsSwimming(actor), own: ownSwimSpeed(actor), speeds: swimSpeeds(actor, (stone ?? 0) + (hauled?.stone ?? 0), !!hauled),
+    conMod: Number(actor.system?.scores?.con?.mod) || 0, penalty: swimPenalty(crossing), conditions: swimConditions(crossing),
+    judgeMod: crossing.judgeMod, hauled, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+  });
+  const winded = forbiddenBy(conditionSet(actor.statuses ?? []), "run").length > 0;
+  return { actor, member, swim: true, standing, row, record, stone, hauled, bodyId, turn, winded };
 }
 
 /* -------------------------------------------- */
@@ -430,14 +530,16 @@ export function canCross(formation) {
       return attemptRefusal(seen) === null || climbRefusal(seen) === null;
     });
   }
+  const load = crossing.kind === SWIM_KIND ? carriedLoad(formation) : null;
   return crossingMembers(formation).some((entry) => {
-    const { row } = rowFor(formation, crossing, entry);
+    const { row } = rowFor(formation, crossing, entry, { load });
     return row.can && !SETTLED.includes(row.state);
   });
 }
 
 /** A kind's label: the jump's own, or the obstacle's. */
 export function kindLabel(kind) {
+  if (kind === SWIM_KIND) return loc("crossing.kind.swim");
   return kind === JUMP_KIND ? loc("crossing.kind.jump") : game.i18n.localize(OBSTACLES[kind]?.label ?? "ACKS-FORMATION.obstacles.unknown");
 }
 
@@ -894,6 +996,7 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
   inFlight.add(key);
   try {
     await beforeRoll?.();
+    if (crossing.kind === SWIM_KIND) return await rollSwim(formation, crossing, seen);
     const record = crossing.members?.[actorId] ?? null;
     return await rollStretch(formation, crossing, seen, {
       record,
@@ -955,8 +1058,9 @@ export async function throwAll(formation) {
   const crossing = readCrossing(formation);
   const out = { thrown: 0, left: 0, messages: [] };
   if (!crossing || crossing.kind === JUMP_KIND || !game.user.isGM) return out;
+  const load = crossing.kind === SWIM_KIND ? carriedLoad(formation) : null;
   for (const entry of crossingMembers(formation)) {
-    const { row } = rowFor(formation, crossing, entry, { judge: true });
+    const { row } = rowFor(formation, crossing, entry, { judge: true, load });
     if (!row.can || row.warn || SETTLED.includes(row.state)) {
       out.left++;
       continue;
@@ -968,6 +1072,149 @@ export async function throwAll(formation) {
     } else out.left++;
   }
   return out;
+}
+
+/* -------------------------------------------- */
+/*  The swimmer                                 */
+/* -------------------------------------------- */
+
+/** The page the swim figures name where none was imported. */
+const swimmingRef = () => loc("crossing.ref.swimming");
+
+/** The line a settled prompt card, and a throw's row, keep: the total against the target and where it leaves the swimmer. */
+export const swimResultLine = ({ total, target, success }) => loc(success ? "crossing.swim.line.afloat" : "crossing.swim.line.sinks", { total, target });
+
+/** The card for one swimmer's throw. */
+function swimCard({ seen, plan, roll, natural, success, released, tip }) {
+  const { actor, row } = seen;
+  const foot = [];
+  if (plan.overRefusal) foot.push(loc("crossing.card.overRefusal", { reason: refusalText(row.refusal, actor) || loc("crossing.card.overRefusalBare") }));
+  if (!success) foot.push(loc("crossing.card.spellLost"));
+  if (released) foot.push(loc("crossing.card.dropped", { name: game.actors?.get?.(released)?.name ?? loc("crossing.relay.unnamed") }));
+  return renderRollCard({
+    title: loc("crossing.card.swimTitle"),
+    subtitle: actor.name,
+    note: swimmingRef(),
+    sections: [{
+      rows: [{
+        name: actor.name,
+        total: roll.total,
+        target: plan.target,
+        targetTooltip: tip,
+        detail: loc("crossing.card.botch", { natural }),
+        outcome: loc(success ? "crossing.result.afloat" : "crossing.result.sinking"),
+        emphasis: success ? "success" : "failure",
+      }],
+    }],
+    footnote: foot.join(" · "),
+  });
+}
+
+/**
+ * One swimmer's throw, the roll and everything after it: the total read against
+ * the row's target, where it leaves the member (`swimThrowStep`), the record
+ * patched while the crossing still stands, drowning held or released, a rescuer's
+ * dropped body let go, the card to the Judges and the member's waiting prompt
+ * cards settled. The caller has made every check and holds the member's in-flight key.
+ */
+async function rollSwim(formation, crossing, seen) {
+  const { row } = seen;
+  const actorId = seen.member.actorId;
+  const roll = await new Roll("1d20").evaluate();
+  const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
+  const success = roll.total >= row.plan.target;
+  const turn = seen.turn && { combatId: seen.turn.combatId, round: seen.turn.round };
+  const step = swimThrowStep({ member: seen.record, success, natural, total: roll.total, turn });
+  const patches = [{ id: actorId, set: step.set, unset: step.unset }];
+  if (step.released) patches.push({ id: step.released, unset: ["rescuer"] });
+  if (!(await writeMemberPatches(formation, crossing.id, patches))) return { ok: false, refused: "stale" };
+  const wanted = heldAfter({ state: step.set.state });
+  const bodies = carriersOf(seen.member);
+  await syncHeld(bodies, crossing.id, wanted);
+  // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
+  if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
+  const message = await postToJudges({
+    content: swimCard({ seen, plan: row.plan, roll, natural, success, released: step.released, tip: swimTargetTip(seen) }),
+    speaker: { alias: formation.name },
+    rolls: [roll],
+  });
+  await settlePrompts(crossing.id, actorId, swimResultLine({ total: roll.total, target: row.plan.target, success }));
+  return { ok: true, message, step: step.set.state, success };
+}
+
+/** A swimmer's target as a tooltip: each part with the actor's own figure, the water's conditions, then the page. */
+export function swimTargetTip(seen) {
+  const { row } = seen;
+  if (row.target === null) return swimmingRef();
+  const parts = row.parts.map((part) => {
+    const words = loc(`swimming.part.${part.key}`);
+    const conditions = part.conditions?.length ? ` (${part.conditions.map((key) => loc(`swimming.water.${key}`)).join(", ")})` : "";
+    return `${words} ${part.value}${conditions}`;
+  });
+  return [...parts, citeFor("swimmingBonus") ?? swimmingRef()].join(" · ");
+}
+
+/**
+ * Name or clear a drowning member's rescuer: the member takes `rescuer`, the
+ * rescuer `hauling`, and a rescuer the member had before is let go, in one
+ * write. `rescuerId` "" clears the link. A GM client's work; a player's choice
+ * reaches it through the relay, which has checked who may set it.
+ *
+ * @returns {Promise<{ok: boolean, refused?: string}>} `refused` is `notGM`, `closed`, `notSwim`,
+ *   `member`, `stale` or a `rescueRefusal` reason
+ */
+export async function setRescuer(formation, drownedId, rescuerId, { crossingId = null } = {}) {
+  if (!game.user.isGM) return { ok: false, refused: "notGM" };
+  const crossing = readCrossing(formation);
+  if (!crossing) return { ok: false, refused: "closed" };
+  if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
+  if (crossing.kind !== SWIM_KIND) return { ok: false, refused: "notSwim" };
+  const members = crossingMembers(formation);
+  const drowned = members.find((e) => e.member.actorId === drownedId);
+  if (!drowned) return { ok: false, refused: "member" };
+  const record = crossing.members?.[drownedId] ?? null;
+  const patches = [];
+  if (record?.rescuer && record.rescuer !== rescuerId) patches.push({ id: record.rescuer, unset: ["hauling"] });
+  if (rescuerId) {
+    const rescuer = members.find((e) => e.member.actorId === rescuerId);
+    if (!rescuer) return { ok: false, refused: "member" };
+    const theirs = crossing.members?.[rescuerId] ?? null;
+    const refused = rescueRefusal({
+      drowner: { actorId: drownedId, state: record?.state },
+      rescuer: { actorId: rescuerId, state: theirs?.state ?? SWIMMING, hauling: theirs?.hauling },
+      standing: standingOf(rescuer.member, rescuer.actor),
+    });
+    if (refused) return { ok: false, refused };
+    patches.push({ id: rescuerId, set: { hauling: drownedId } }, { id: drownedId, set: { rescuer: rescuerId } });
+  } else {
+    patches.push({ id: drownedId, unset: ["rescuer"] });
+  }
+  return (await writeMemberPatches(formation, crossing.id, patches)) ? { ok: true } : { ok: false, refused: "stale" };
+}
+
+/**
+ * Bring a drowning member to the surface: afloat again with no rounds counted,
+ * the links gone and the held drowning released. The Judge's alone, and the
+ * Judge's way out of a drowning no throw can end.
+ *
+ * @returns {Promise<{ok: boolean, refused?: string}>} `refused` is `notGM`, `closed`, `notSwim`,
+ *   `member`, `notDrowning` or `stale`
+ */
+export async function haulToSurface(formation, actorId) {
+  if (!game.user.isGM) return { ok: false, refused: "notGM" };
+  const crossing = readCrossing(formation);
+  if (!crossing) return { ok: false, refused: "closed" };
+  if (crossing.kind !== SWIM_KIND) return { ok: false, refused: "notSwim" };
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  if (!entry) return { ok: false, refused: "member" };
+  const record = crossing.members?.[actorId] ?? null;
+  if (record?.state !== DROWNING) return { ok: false, refused: "notDrowning" };
+  const step = haulStep(record);
+  const patches = [{ id: actorId, set: step.set, unset: step.unset }];
+  if (step.released) patches.push({ id: step.released, unset: ["hauling"] });
+  if (!(await writeMemberPatches(formation, crossing.id, patches))) return { ok: false, refused: "stale" };
+  await syncHeld(carriersOf(entry.member), crossing.id, []);
+  return { ok: true };
 }
 
 /* -------------------------------------------- */

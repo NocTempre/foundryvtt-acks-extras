@@ -80,9 +80,11 @@ export const HANG_CLIMB = "sheerClimb";
 /**
  * The statuses a crossing can hold on a member while they are on an obstacle.
  * Each is read from a figure the Spelunking grid carries; a status the grid
- * does not give is not held.
+ * does not give is not held. `vulnerable` keeps the first slot of the held
+ * condition's id; a swimmer whose throw failed holds `drowning`, and the
+ * condition catalogue's own closure adds Vulnerable to it.
  */
-export const CROSSING_STATUSES = Object.freeze(["vulnerable"]);
+export const CROSSING_STATUSES = Object.freeze(["vulnerable", "drowning"]);
 
 /**
  * The held condition one crossing keeps for one status: its holder names the
@@ -118,6 +120,7 @@ export function crossingOfHolder(holder) {
  * @returns {string[]} members of `CROSSING_STATUSES`
  */
 export function heldAfter({ state, vulnerable = null } = {}) {
+  if (state === DROWNING) return ["drowning"];
   if (SETTLED.includes(state)) return [];
   return vulnerable === true ? ["vulnerable"] : [];
 }
@@ -522,6 +525,12 @@ export function withFooting(result, footing, depth = null) {
   };
 }
 
+/** Whether a stamp `{combatId, round}` is this turn's: the same fight and the same round. */
+export const sameTurn = (stamp, turn) => !!stamp && !!turn && stamp.combatId === turn.combatId && stamp.round === turn.round;
+
+/** Whether a stamp is no later than this turn: the same fight, and a round that has not moved past the stamp's. */
+export const notLater = (stamp, turn) => !!stamp && !!turn && stamp.combatId === turn.combatId && turn.round <= stamp.round;
+
 /** The state of a swimmer who is afloat, with a throw to make each round. */
 export const SWIMMING = "swimming";
 
@@ -548,7 +557,8 @@ export const DROWNING = "drowning";
  * and cites.
  *
  * @param {object} o
- * @param {number} [o.encumbrance] the stone the member carries
+ * @param {number|null} [o.encumbrance] the stone the member carries; null is a figure
+ *   nobody has (a creature that carries nothing the module reads), an absence refusal
  * @param {boolean} [o.holds] the member holds Swimming
  * @param {{combat: number|null, run: number|null}|null} [o.own] the member's own
  *   swim speed (`ownSwimSpeed`)
@@ -557,6 +567,12 @@ export const DROWNING = "drowning";
  * @param {number} [o.conMod] the member's Constitution modifier, for their breath
  * @param {number|string|null} [o.penalty] the water penalty as a size
  * @param {string[]} [o.conditions] keys of `WATER` ticked as its reason
+ * @param {number} [o.judgeMod] the Judge's modifier to the target
+ * @param {{stone: number|null}|null} [o.hauled] the body this member is carrying
+ *   to the surface (`rescueStone`), added to what they carry; null stone is a
+ *   figure not imported
+ * @param {{combatId: string, round: number}|null} [o.turn] the round the throw is for, where a
+ *   fight is running; a member whose `thrownAt` is this turn has no throw left
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
  * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
  * @param {{state?: string, drownedRounds?: number}|null} [o.member] the member's
@@ -571,20 +587,32 @@ export const DROWNING = "drowning";
  *   rescue: {stone: number|null, parts: object[], unknown: string[]}|null}}
  */
 export function swimRow({
-  encumbrance = 0, holds = false, own = null, speeds = {}, conMod = 0, penalty = 0, conditions = [], seat = {}, standing = null, member = null,
+  encumbrance = 0, holds = false, own = null, speeds = {}, conMod = 0, penalty = 0, conditions = [], judgeMod = 0, hauled = null, turn = null,
+  seat = {}, standing = null, member = null,
 } = {}) {
   const state = member?.state ?? SWIMMING;
   const sinking = state === DROWNING;
   const exempt = [own?.combat, own?.run].some((feet) => Number(feet) > 0);
-  const stone = Math.max(0, Number(encumbrance) || 0);
+  const carried = encumbrance === null ? null : Math.max(0, Number(encumbrance) || 0);
+  const lifted = hauled && Number.isFinite(hauled.stone) ? Math.max(0, hauled.stone) : 0;
+  const stone = (carried ?? 0) + lifted;
 
   const refusals = seatRefusals({ seat, standing, state });
   if (sinking) refusals.push({ cls: REFUSAL.seat, reason: DROWNING });
+  else if (turn && sameTurn(member?.thrownAt, turn)) refusals.push({ cls: REFUSAL.seat, reason: "thrown" });
 
-  const thrown = swimmingThrow({ encumbrance: stone, proficient: holds, penalty, conditions });
+  const thrown = swimmingThrow({ encumbrance: stone, proficient: holds, penalty, conditions, judgeMod });
   const unknown = [];
   const water = waterPenaltyAllowed(penalty);
   if (!exempt && !sinking) {
+    if (carried === null) {
+      refusals.push({ cls: REFUSAL.absence, reason: "stone" });
+      unknown.push("encumbrance");
+    }
+    if (hauled && hauled.stone === null) {
+      refusals.push({ cls: REFUSAL.absence, reason: "rescue" });
+      unknown.push("carriedBodyStone");
+    }
     if (thrown.unknown.length) {
       refusals.push({ cls: REFUSAL.absence, reason: "bonus" });
       unknown.push(...thrown.unknown);
@@ -594,9 +622,10 @@ export function swimRow({
 
   const skip = exempt ? "swimSpeed" : thrown.needed === false ? "proficiency" : null;
   const { refusal, can: allowed, warn } = settle(refusals, seat?.judge);
-  const needed = exempt ? false : thrown.needed;
+  const blind = carried === null || (!!hauled && hauled.stone === null);
+  const needed = exempt ? false : blind ? null : thrown.needed;
   const can = allowed && needed === true && !sinking;
-  const target = exempt ? null : thrown.target;
+  const target = exempt || blind ? null : thrown.target;
 
   const share = swimSpeedShare();
   const paceFor = (feet) => (Number(feet) > 0 && share !== null ? paceOf(feet) : null);
@@ -650,7 +679,7 @@ export function swimRow({
     needed,
     penalty: water.size,
     conditions: thrown.conditions,
-    parts: exempt ? [] : thrown.parts,
+    parts: exempt || blind ? [] : [...thrown.parts, ...(lifted ? [{ key: "hauled", value: lifted }] : [])],
     refusal,
     can,
     warn: can && warn,
@@ -660,4 +689,95 @@ export function swimRow({
     drown,
     rescue,
   };
+}
+
+/**
+ * Where one swimmer's throw leaves their record, as a patch: what to set, what
+ * to unset, and the member a failed rescuer lets go. A success keeps the member
+ * afloat. A failure makes them drowning with one round counted and, where a
+ * fight is running, stamps that round so the member's own turn that round does
+ * not count it again. A rescuer who fails drops the body they were lifting, so
+ * the hauling link goes and the body they held is named in `released`.
+ *
+ * @param {object} o
+ * @param {{throws?: number, hauling?: string}|null} [o.member] the member's record before the throw
+ * @param {boolean} o.success the throw made its target
+ * @param {number|null} [o.natural] the die's face, kept in `last`
+ * @param {number|null} [o.total] the throw's total, kept in `last`
+ * @param {{combatId: string, round: number}|null} [o.turn] the fight and round the throw is for, where one is running
+ * @returns {{set: object, unset: string[], released: string|null}} keys of the member's record
+ */
+export function swimThrowStep({ member = null, success, natural = null, total = null, turn = null } = {}) {
+  const throws = Math.max(0, Number(member?.throws) || 0) + 1;
+  const set = { state: success ? SWIMMING : DROWNING, throws, last: { natural, total, success: !!success } };
+  const unset = [];
+  if (turn) set.thrownAt = { combatId: turn.combatId, round: turn.round };
+  let released = null;
+  if (!success) {
+    set.drownedRounds = 1;
+    if (turn) set.drownedAt = { combatId: turn.combatId, round: turn.round };
+    else unset.push("drownedAt");
+    unset.push("breathOut", "rescuer");
+    if (member?.hauling) {
+      unset.push("hauling");
+      released = member.hauling;
+    }
+  }
+  return { set, unset, released };
+}
+
+/**
+ * What a drowning member's own turn adds: one round counted, once for each
+ * round of a fight. A member who is not drowning, a turn with no fight, and a
+ * turn no later than the one already counted (the Judge stepping back, the
+ * tracker re-sorting) add nothing and answer null. The round the count reaches
+ * the breath's last is reported once (`breathOut`), and never again.
+ *
+ * @param {object} o
+ * @param {{state?: string, drownedRounds?: number, drownedAt?: object, breathOut?: boolean}|null} o.member
+ * @param {{combatId: string, round: number}|null} o.turn
+ * @param {number|null} o.rounds the member's breath in rounds (`drowning`), null until imported
+ * @returns {{set: object, elapsed: number, left: number|null, breathOut: boolean}|null}
+ */
+export function swimTick({ member = null, turn = null, rounds = null } = {}) {
+  if (member?.state !== DROWNING || !turn) return null;
+  if (notLater(member.drownedAt, turn)) return null;
+  const elapsed = Math.max(0, Number(member.drownedRounds) || 0) + 1;
+  const left = rounds === null ? null : Math.max(0, rounds - elapsed);
+  const breathOut = left === 0 && !member.breathOut;
+  const set = { drownedRounds: elapsed, drownedAt: { combatId: turn.combatId, round: turn.round } };
+  if (breathOut) set.breathOut = true;
+  return { set, elapsed, left, breathOut };
+}
+
+/**
+ * Whether a member may take a drowning member's weight, as the reason they may
+ * not, or null. A rescuer is not the drowning member, not drowning themselves,
+ * not down, left behind or detached, and not already carrying another.
+ *
+ * @param {object} o
+ * @param {{actorId: string, state?: string}} o.drowner
+ * @param {{actorId: string, state?: string, hauling?: string}} o.rescuer
+ * @param {string|null} [o.standing] `down`, `leftBehind` or `detached` for the rescuer, else null
+ * @returns {null|"notDrowning"|"self"|"drowning"|"standing"|"busy"}
+ */
+export function rescueRefusal({ drowner, rescuer, standing = null } = {}) {
+  if (drowner?.state !== DROWNING) return "notDrowning";
+  if (rescuer?.actorId === drowner.actorId) return "self";
+  if (rescuer?.state === DROWNING) return "drowning";
+  if (standing) return "standing";
+  if (rescuer?.hauling && rescuer.hauling !== drowner.actorId) return "busy";
+  return null;
+}
+
+/**
+ * The patch that brings a drowning member to the surface: afloat again with no
+ * rounds counted and every link and stamp of the drowning gone. The rescuer the
+ * member had is named in `released`, so their hauling goes with it.
+ *
+ * @param {{rescuer?: string}|null} member the member's record
+ * @returns {{set: object, unset: string[], released: string|null}}
+ */
+export function haulStep(member) {
+  return { set: { state: SWIMMING, drownedRounds: 0 }, unset: ["rescuer", "drownedAt", "breathOut"], released: member?.rescuer ?? null };
 }

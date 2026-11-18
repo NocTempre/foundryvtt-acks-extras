@@ -13,7 +13,7 @@ import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/ob
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, stepMember, swimRow, withFooting,
+  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, stepMember, swimRow, swimThrowStep, swimTick, withFooting,
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 
@@ -443,7 +443,10 @@ await ok("a crossing's held condition names the crossing and the status, under a
   const b = crossingHeld("ZyXwVu9876543210", "vulnerable");
   assert.notEqual(a.id, b.id, "two crossings, two effects");
   assert.match(crossingHeld("id7", "vulnerable").id, /^[A-Za-z0-9]{16}$/, "a short id is padded, not shortened");
-  assert.deepEqual(CROSSING_STATUSES, ["vulnerable"]);
+  assert.deepEqual(CROSSING_STATUSES, ["vulnerable", "drowning"]);
+  assert.equal(crossingHeld("AbCdEf0123456789", "drowning").id.slice(0, 2), "c1", "a second status takes a second slot, and vulnerable keeps the first");
+  assert.equal(crossingHeld("AbCdEf0123456789", "vulnerable").id.slice(0, 2), "c0");
+  assert.notEqual(crossingHeld("AbCdEf0123456789", "drowning").id, a.id);
 });
 
 await ok("a holder string gives its crossing back, and any other holder is no crossing's", () => {
@@ -790,6 +793,94 @@ await ok("a drowning member's rescue lifts the body and a share of what they car
 await ok("a swimmer who is across or fell has nothing left to throw", () => {
   loadSwim();
   for (const state of SETTLED) assert.deepEqual(swimRow({ encumbrance: 4, seat: JUDGE, member: { state } }).refusal, { cls: REFUSAL.seat, reason: state });
+});
+
+// ---- the swimmer's round -------------------------------------------------------
+const TURN = { combatId: "fightA", round: 3 };
+
+await ok("a swimmer's drowning holds the drowning status, and a swimmer afloat holds none", () => {
+  assert.deepEqual(heldAfter({ state: DROWNING }), ["drowning"]);
+  assert.deepEqual(heldAfter({ state: "swimming" }), []);
+  assert.deepEqual(heldAfter({ state: "climbing", vulnerable: true }), ["vulnerable"], "an obstacle's own hold is as it was");
+});
+
+await ok("a throw that makes its target keeps the swimmer afloat; one that misses starts one round of drowning", () => {
+  const afloat = swimThrowStep({ member: { throws: 2 }, success: true, natural: 14, total: 14, turn: TURN });
+  assert.deepEqual(afloat.set, { state: "swimming", throws: 3, last: { natural: 14, total: 14, success: true }, thrownAt: TURN });
+  assert.deepEqual([afloat.unset, afloat.released], [[], null]);
+  const sunk = swimThrowStep({ member: null, success: false, natural: 2, total: 2, turn: TURN });
+  assert.deepEqual([sunk.set.state, sunk.set.drownedRounds, sunk.set.drownedAt, sunk.set.thrownAt], ["drowning", 1, TURN, TURN]);
+  assert.ok(sunk.unset.includes("breathOut") && sunk.unset.includes("rescuer"));
+  const outside = swimThrowStep({ member: null, success: false, turn: null });
+  assert.deepEqual([outside.set.thrownAt, outside.set.drownedAt, outside.unset.includes("drownedAt")], [undefined, undefined, true], "no fight, no stamp");
+});
+
+await ok("a rescuer whose throw misses drops the body: the link goes and the body they held is named", () => {
+  const dropped = swimThrowStep({ member: { hauling: "body7", throws: 0 }, success: false, turn: TURN });
+  assert.equal(dropped.released, "body7");
+  assert.ok(dropped.unset.includes("hauling"));
+  assert.equal(swimThrowStep({ member: { hauling: "body7" }, success: true, turn: TURN }).released, null, "a rescuer who stays afloat keeps carrying");
+});
+
+await ok("a drowning member's turn counts one round, once for each round of a fight", () => {
+  const drowning = { state: "drowning", drownedRounds: 1, drownedAt: { combatId: "fightA", round: 2 } };
+  const tick = swimTick({ member: drowning, turn: TURN, rounds: 4 });
+  assert.deepEqual([tick.set.drownedRounds, tick.set.drownedAt, tick.elapsed, tick.left, tick.breathOut], [2, TURN, 2, 2, false]);
+  assert.equal(swimTick({ member: { ...drowning, drownedAt: TURN }, turn: TURN, rounds: 4 }), null, "the same round counts nothing");
+  assert.equal(swimTick({ member: { ...drowning, drownedAt: TURN }, turn: { ...TURN, round: 2 }, rounds: 4 }), null, "a step back counts nothing");
+  assert.equal(swimTick({ member: drowning, turn: null, rounds: 4 }), null, "outside a fight nothing counts");
+  assert.equal(swimTick({ member: { state: "swimming" }, turn: TURN, rounds: 4 }), null, "a swimmer afloat has no count");
+  assert.equal(swimTick({ member: { ...drowning, drownedAt: { combatId: "fightB", round: 9 } }, turn: TURN, rounds: 4 }).elapsed, 2, "another fight's stamp does not hold this one back");
+});
+
+await ok("the breath running out is reported on the round it does and not again; an unknown breath is never out", () => {
+  const near = { state: "drowning", drownedRounds: 3, drownedAt: { combatId: "fightA", round: 2 } };
+  const out = swimTick({ member: near, turn: TURN, rounds: 4 });
+  assert.deepEqual([out.left, out.breathOut, out.set.breathOut], [0, true, true]);
+  const later = swimTick({ member: { ...near, ...out.set }, turn: { ...TURN, round: 4 }, rounds: 4 });
+  assert.deepEqual([later.left, later.breathOut], [0, false], "the count runs on and the report does not repeat");
+  assert.equal(swimTick({ member: near, turn: TURN, rounds: null }).breathOut, false);
+  assert.equal(swimTick({ member: near, turn: TURN, rounds: null }).left, null);
+});
+
+await ok("who may take a drowning member's weight, and what a haul to the surface clears", () => {
+  const drowner = { actorId: "d", state: "drowning" };
+  const free = { actorId: "r", state: "swimming" };
+  assert.equal(rescueRefusal({ drowner, rescuer: free }), null);
+  assert.equal(rescueRefusal({ drowner: { actorId: "d", state: "swimming" }, rescuer: free }), "notDrowning");
+  assert.equal(rescueRefusal({ drowner, rescuer: { actorId: "d" } }), "self");
+  assert.equal(rescueRefusal({ drowner, rescuer: { actorId: "r", state: "drowning" } }), "drowning");
+  assert.equal(rescueRefusal({ drowner, rescuer: free, standing: "down" }), "standing");
+  assert.equal(rescueRefusal({ drowner, rescuer: { ...free, hauling: "other" } }), "busy");
+  assert.equal(rescueRefusal({ drowner, rescuer: { ...free, hauling: "d" } }), null, "the one they already carry is no other");
+  const haul = haulStep({ rescuer: "r" });
+  assert.deepEqual(haul.set, { state: "swimming", drownedRounds: 0 });
+  assert.deepEqual([haul.unset, haul.released], [["rescuer", "drownedAt", "breathOut"], "r"]);
+  assert.equal(haulStep({}).released, null);
+});
+
+await ok("a swim row takes the Judge's modifier on the target, a hauled body's stone, and refuses what has no figure", () => {
+  loadSwim();
+  assert.equal(swimRow({ encumbrance: 9, holds: false, judgeMod: 3, seat: OWNER }).target, 6);
+  const hauling = swimRow({ encumbrance: 9, hauled: { stone: 5 }, seat: OWNER });
+  assert.deepEqual([hauling.target, hauling.parts.at(-1)], [14, { key: "hauled", value: 5 }]);
+  assert.equal(hauling.drown.feetPerRound, 14 * 19, "a rescuer sinks by what they and the body weigh");
+  const unread = swimRow({ encumbrance: 9, hauled: { stone: null }, seat: JUDGE });
+  assert.deepEqual([unread.target, unread.can, unread.refusal, unread.unknown], [null, false, { cls: REFUSAL.absence, reason: "rescue" }, ["carriedBodyStone"]]);
+  const none = swimRow({ encumbrance: null, seat: JUDGE });
+  assert.deepEqual([none.target, none.needed, none.can, none.refusal.reason, none.unknown], [null, null, false, "stone", ["encumbrance"]]);
+});
+
+await ok("a swimmer who has thrown this round has no throw left, for every seat; another round or fight has", () => {
+  loadSwim();
+  const member = { thrownAt: TURN };
+  for (const seat of [JUDGE, OWNER]) {
+    const row = swimRow({ encumbrance: 4, seat, turn: TURN, member });
+    assert.deepEqual([row.can, row.refusal], [false, { cls: REFUSAL.seat, reason: "thrown" }]);
+  }
+  assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: { ...TURN, round: 4 }, member }).can, true);
+  assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: { combatId: "fightB", round: 3 }, member }).can, true);
+  assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: null, member }).can, true, "outside a fight a press is the Judge's to repeat");
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);
