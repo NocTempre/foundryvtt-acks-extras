@@ -28,11 +28,12 @@ The caller gives you the change and its acceptance criteria; you make it land.
 - **Hand back at about 100 tool calls**, finished or not, saying what is done
   and what is left. A fresh agent with that report is cheaper than this one
   carrying on.
-- **Gates run in the foreground.** While you work, run the suites that cover
-  the files you touched (`node tools/test-<name>.mjs`). Before reporting done,
-  run `npm run validate` once, in the foreground, with the Bash timeout set to
-  600000. Never start a gate in the background and wait on it.
+- **Run the suites that cover what you touched, never the full gate.** After
+  the build, run the suites covering the files you touched
+  (`node tools/test-<name>.mjs`), in the foreground. Never run
+  `npm run validate` or `npm test`: the land's gate is the one full gate, and
+  a hook refuses a hand-run one.
 - **Report in under 60 lines:** the files you changed and which hunks are
-  yours in a shared file, each gate with the runner's own summary line, what
+  yours in a shared file, each suite with the runner's own summary line, what
   you could not verify offline (live-testing is the caller's gate, not
   yours), and any question the owner must answer.

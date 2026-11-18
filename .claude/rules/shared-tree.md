@@ -38,6 +38,11 @@ own has one writer and none of this page's machinery but the last section's.
 - **One run of the tool gates and commits at a time.** It holds a lease from
   its gate through its commit. A run that finds the lease held says who holds
   it, waits its turn, and gates on the commit the run before it landed.
+- **Work is checked twice:** once after the build, by the unit suites that
+  cover the files it touched, and once at integration, by the land's gate,
+  which is the one full gate. A hand-run `npm run validate` or `npm test` is a
+  third check, and `.claude/hooks/full-gate-guard.mjs` refuses it; a command
+  that must run one anyway carries `# full-gate-ok: <reason>`.
 - Finish every wording pass before the first gate. Each edit after it costs a
   whole gate.
 
@@ -99,7 +104,7 @@ rebase and a merge each wait for the owner's word.
   when it spans more than one commit and nothing in it is walked live until
   it is finished.
 - **A feature is walked on `main`.** The Foundry junction points at `main`'s
-  tree, so a slice is built to an offline green in the worktree and landed,
+  tree, so a slice is built with its unit suites green in the worktree and landed,
   then walked live on `main`, and what the walk finds is fixed on `main`. A
   feature is not reported built until that walk has run. A topic lands once
   for each slice that needs its walk and stays open between landings;

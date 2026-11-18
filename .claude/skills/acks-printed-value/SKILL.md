@@ -89,7 +89,8 @@ the `take` kinds.
      books and never assert a value.
    - Where the WIKI-SNAPSHOT covers the book, the read is checked against it
      and the result quoted as counts.
-   - `npm run validate` stays green, `validate-producers.mjs` included.
+   - The suites above and `validate-producers.mjs` stay green; the full gate
+     is the land's.
 7. **Live** (`live-testing.md`), on a GM seat with the book connected: the
    import reads the figure and the consumer acts on it; with the table absent
    the field is blank, its tooltip names the page, and nothing throws; an

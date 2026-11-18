@@ -38,7 +38,8 @@ before deviating from anything).
    The check covers the files the sync writes. A path the note lists in a
    file outside them (the README, `docs/`, `lang/`) is in the module as the
    tree held it: read it there and decide whether it belongs.
-3. In the new repo: `npm install`, then `npm run validate` — both must pass.
+3. In the new repo, which has no land to gate it yet: `npm install`, then
+   `npm run validate # full-gate-ok: new module` — both must pass.
 4. Start the design docs before writing runtime code: fill the canonical
    rules extract at `C:\Proj\acks-rules\<id>\RULES.md` (**LOCAL-ONLY, never
    in the repo** — licensed book text; cite book/chapter/section) and the

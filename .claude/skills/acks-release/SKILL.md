@@ -107,7 +107,8 @@ the full pipeline (build + validate, no publish) is available anytime:
 5. **Walk.** Launch the world. `git status --porcelain` must name nothing
    outside `docs/`: a runtime path there is a peer's writer in the live window
    (`.claude/rules/shared-tree.md`), so stop and ask. Run `npm test` once on the
-   working tree, with the runner's working-tree flag where it has one: the
+   working tree, carrying `# full-gate-ok: release walk` so the full-gate hook
+   passes it, with the runner's working-tree flag where it has one: the
    gitignored local-only rules suites exist only in the working tree, and this is
    their one run. **Live-verify. This is a GO-LIVE GATE** (TOOLCHAIN §4a: no
    waiver, so a machine without `C:\Proj\acks-rules\TEST_ENVIRONMENT.md` stops

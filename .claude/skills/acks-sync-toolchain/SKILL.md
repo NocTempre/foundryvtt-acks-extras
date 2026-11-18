@@ -45,13 +45,13 @@ script's header says what each flag and exit status means.
      missing or is not a module repo, or a branch that could not be fetched.
      It says nothing about drift. Fix the cause and run again.
 4. Verify every repo that received changes:
-   - `npm install` if package.json changed, then
-     `npm run build:packs && npm run validate` (and `npm test` if present).
+   - `npm install` if package.json changed. The verification is the land's
+     gate in step 5; no full gate is run by hand.
    - Compiled packs are gitignored build output; only a real content change
      can dirty `packs/_source`.
-   - If validate fails because the *canonical* file is wrong for a legitimate
-     case, fix it in the template skeleton and re-sync everywhere — never fork
-     a per-repo copy.
+   - If the land's gate fails because the *canonical* file is wrong for a
+     legitimate case, fix it in the template skeleton and re-sync everywhere
+     — never fork a per-repo copy.
 5. Commit in each changed repo through the `acks-commit` skill
    (`chore: sync toolchain from acks-module-template`), and push it under the
    go-ahead step 2 asked for. Without one it stays local, and the module's
