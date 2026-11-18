@@ -9670,6 +9670,7 @@
   "ACKS-MAGIC.cast.notice.declared": "{name} declared {spell}.",
   "ACKS-MAGIC.cast.notice.declarationLost": "{name}'s declared {spell} was lost.",
   "ACKS-MAGIC.cast.notice.declarationStale": "{name}'s declared {spell} was not cast on its turn.",
+  "ACKS-MAGIC.cast.notice.endsConcentration": "{name} stops concentrating on {held} to cast {spell}.",
   "ACKS-MAGIC.castHeld.title": "{spell}: {name}'s concentration ended",
   "ACKS-MAGIC.castHeld.cause.damage": "Damage",
   "ACKS-MAGIC.castHeld.cause.save": "A failed saving throw",

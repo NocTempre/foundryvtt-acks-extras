@@ -1,4 +1,4 @@
-/* global fromUuid, fromUuidSync, Roll */
+/* global fromUuid, fromUuidSync, Roll, game, ui */
 /**
  * Casting a summoning spell places its creatures. A claimant on the cast seam
  * (`lib/patches/spell-use.mjs`) takes the cast of a summoning spell on a
@@ -10,7 +10,11 @@
  * A cancel or a refusal spends nothing. The cast leaves a record on the
  * caster, an Active Effect marked with the cast id the summons carry
  * (`spell-effect.mjs`), whose duration is the spell's imported duration or
- * none.
+ * none. A summoning held by concentration leaves the held record a held cast
+ * does (the status, the tail, the cap where it needs no level), and any cast
+ * ends what the caster already holds by concentration, with a notice naming it,
+ * before the new record is written. A summons is not declared: it resolves at
+ * the cast, in a begun fight as outside one.
  *
  * Two feature rules ride lib's registries and read the summoner's spell item
  * on the seat and on the GM's client alike: a NAMING that says the spell's
@@ -20,9 +24,10 @@
  * come through a summoning spell, so the policy also refuses a spell that is
  * none.
  */
-import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL, LANG_PREFIX } from "./constants.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef } from "./summon-spell.mjs";
-import { spellEffectData, newCastId } from "./spell-effect.mjs";
+import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
+import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
 import { castDuration } from "./cast-duration.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { normalizeRef, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
@@ -97,7 +102,8 @@ export function summonRefusal(req, lookups = worldLookups()) {
  * The effect duration a cast leaves: the spell's own imported duration, else
  * its library twin's, through `castDuration`. No caster level is passed, so a
  * per-level duration answers none and the record stays until its owner removes
- * it.
+ * it. A concentration answers the kind held, with its cap and tail where they
+ * need no level.
  * @returns {{value: number, units: string}|{none: string}}
  */
 export function summonCastDuration(spell, { lookups = worldLookups(), roll } = {}) {
@@ -116,7 +122,17 @@ const liveDeps = () => ({
   announce: announceSummon,
   roll: (formula) => new Roll(formula).evaluateSync().total,
   castId: () => newCastId(),
+  now: () => game.time.worldTime,
+  endHeld: endCasterHeld,
+  notify: (level, key, data) => ui.notifications?.[level]?.(game.i18n.format(`${LANG_PREFIX}.cast.notice.${key}`, data ?? {})),
 });
+
+/** The caster's records of a concentration in force, as `{id, name}`. */
+const heldRecordsOf = (caster) =>
+  [...(caster?.effects ?? [])].filter((e) => {
+    const r = spellEffectOf(e);
+    return r?.role === "caster" && r.held;
+  }).map((e) => ({ id: e.id, name: e.name ?? "" }));
 
 /**
  * The cast of one summoning spell. Asks, places, then spends: `spend()` runs
@@ -138,15 +154,23 @@ export async function castSummonSpell(spell, spend, deps = liveDeps()) {
   deps.announce(result);
   if (!result?.ok) return result ?? { ok: false, reason: "noGm" };
   await spend();
+  // The cast ends what the caster holds by concentration, said first, and before any record of this cast. The same notice goes to either seat: the end is the caster's own cast, not a refusal.
+  try {
+    const held = heldRecordsOf(caster);
+    if (held.length) {
+      deps.notify?.("warn", "endsConcentration", { name: caster.name ?? "", held: held.map((h) => h.name).join(", "), spell: spell.name });
+      await deps.endHeld?.(caster);
+    }
+  } catch (err) {
+    console.error(`${MODULE_ID} | the caster's concentration could not be ended by a summoning`, err);
+  }
   try {
     const duration = summonCastDuration(spell, { lookups: deps.lookups, roll: deps.roll });
-    const data = spellEffectData({
-      spell: { uuid: spell.uuid, name: spell.name, img: spell.img },
-      caster: { uuid: caster.uuid },
-      castId: result.castId || deps.castId(),
-      role: "caster",
-      duration,
-    });
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: result.castId || deps.castId(), role: "caster" };
+    // A concentration is a held record, as `castSpellRun` writes one: the status, the kind, the tail, flag-timed by the cap where it has one.
+    const data = duration.held
+      ? spellEffectData({ ...mark, startTime: deps.now?.(), statuses: [heldStatusOf(duration.held)], held: duration.held, tail: duration.tail, duration: duration.cap })
+      : spellEffectData({ ...mark, duration });
     await caster.createEmbeddedDocuments("ActiveEffect", [data]);
   } catch (err) {
     console.error(`${MODULE_ID} | the cast record of a summoning was not written`, err);

@@ -1056,6 +1056,88 @@ await ta("a record that cannot be written is logged and never undoes a cast that
   assert.match(logged[0], /cast record/);
 });
 
+/** A record of a held cast on a caster, as the caster's effects list it. */
+const heldRecord = (id, name, over = {}) => ({ id, name, flags: { "acks-extras": { spellEffect: { spellUuid: `Actor.caster1.Item.${id}`, castId: `c-${id}`, casterUuid: "Actor.caster1", role: "caster", held: "mobile", ...over } } } });
+
+await ta("a summoning held by concentration writes the held record a held cast writes, not a plain one", async () => {
+  const held = async (duration, now = 500) => {
+    const { spell, caster } = castSpell({ duration });
+    const deps = { ...fakeDeps(), now: () => now };
+    await castSummonSpell(spell, async () => true, deps);
+    return caster.created[0][1][0];
+  };
+  const data = await held({ shape: "concentrationPlus", concentration: "mobile", plus: { value: 2, unit: "hours" } });
+  const mark = data.flags["acks-extras"].spellEffect;
+  assert.deepEqual(data.statuses, ["concentrating"], "the status the end funnel and the loss path read");
+  assert.equal(mark.held, "mobile");
+  assert.deepEqual(mark.tail, { value: 2, units: "hours" }, "the time the effect outlasts the concentration");
+  assert.equal(mark.startTime, 500, "stamped with the world time of the cast");
+  assert.equal(mark.duration, undefined, "no cap, no clock");
+  assert.equal(data.duration, undefined);
+  assert.equal(spellEffectOf(data).held, "mobile");
+  const still = await held({ shape: "concentrationMax", concentration: "stationary", value: 3, unit: "turns" });
+  assert.deepEqual(still.statuses, ["concentratingStationary"], "the stationary kind has its own status");
+  assert.deepEqual(still.flags["acks-extras"].spellEffect.duration, { value: 3 * TURN_SECONDS, units: "seconds" }, "a cap that needs no level is flag-timed");
+  const perLevel = await held({ shape: "concentrationMax", maxPerLevel: true, value: 1, unit: "turns" });
+  assert.equal(perLevel.flags["acks-extras"].spellEffect.duration, undefined, "a cap that needs a level is not guessed");
+  assert.deepEqual(perLevel.statuses, ["concentrating"]);
+  const plain = await held({ shape: "fixed", value: 2, unit: "hours" });
+  assert.equal(plain.statuses, undefined, "a timed summons is still a plain record");
+  assert.equal(plain.flags["acks-extras"].spellEffect.held, undefined);
+});
+
+await ta("a new summoning ends the caster's concentration, warned first, after the spend and before its own record", async () => {
+  const { spell, caster } = castSpell({ duration: { shape: "concentration" } });
+  caster.name = "Invented Caster";
+  caster.effects = [heldRecord("old1", "Invented Gleam"), { id: "plain", name: "Invented Plain", flags: { "acks-extras": { spellEffect: { spellUuid: "u", castId: "x", casterUuid: "Actor.caster1", role: "caster" } } } }, heldRecord("rec1", "Invented Ward", { role: "recipient" }), { id: "other", name: "Invented Foreign", flags: {} }];
+  const order = [];
+  const notices = [];
+  const deps = {
+    ...fakeDeps(),
+    now: () => 1,
+    notify: (level, key, data) => { order.push("notify"); notices.push([level, key, data]); },
+    endHeld: async (c) => { order.push("end"); assert.equal(c, caster); return ["old1"]; },
+  };
+  const create = caster.createEmbeddedDocuments;
+  caster.createEmbeddedDocuments = async (...args) => { order.push("record"); return create(...args); };
+  await castSummonSpell(spell, async () => { order.push("spend"); return true; }, deps);
+  assert.deepEqual(order, ["spend", "notify", "end", "record"], "the notice comes before the end, the end before the new record");
+  assert.deepEqual(notices, [["warn", "endsConcentration", { name: "Invented Caster", held: "Invented Gleam", spell: "Invented Calling" }]], "one warning naming only the held cast (a recipient's, an unheld caster record and a foreign effect are not it)");
+});
+
+await ta("no concentration in force, or a cast that does not happen, ends and warns of nothing", async () => {
+  const none = castSpell();
+  none.caster.effects = [heldRecord("rec1", "Invented Ward", { role: "recipient" })];
+  const quiet = { ...fakeDeps(), notify: () => assert.fail("no warning"), endHeld: async () => assert.fail("no end") };
+  await castSummonSpell(none.spell, async () => true, quiet);
+  assert.equal(none.caster.created.length, 1);
+  for (const place of [{ ok: false, reason: "cancelled" }, null]) {
+    const { spell, caster } = castSpell();
+    caster.effects = [heldRecord("old1", "Invented Gleam")];
+    await castSummonSpell(spell, async () => assert.fail("no spend"), { ...fakeDeps({ place }), notify: () => assert.fail("no warning"), endHeld: async () => assert.fail("no end") });
+  }
+  const { spell, caster } = castSpell();
+  caster.effects = [heldRecord("old1", "Invented Gleam")];
+  await castSummonSpell(spell, async () => true, { ...fakeDeps({ pick: null }), notify: () => assert.fail("a cancelled pick warns of nothing"), endHeld: async () => assert.fail("a cancelled pick ends nothing") });
+  assert.equal(caster.created.length, 0);
+});
+
+await ta("a concentration that cannot be ended is logged, and the new cast's record is still written", async () => {
+  const { spell, caster } = castSpell({ duration: { shape: "concentration" } });
+  caster.effects = [heldRecord("old1", "Invented Gleam")];
+  const logged = [];
+  const prior = console.error;
+  console.error = (...args) => logged.push(String(args[0]));
+  try {
+    await castSummonSpell(spell, async () => true, { ...fakeDeps(), notify: () => {}, endHeld: async () => { throw new Error("no end"); } });
+  } finally {
+    console.error = prior;
+  }
+  assert.match(logged[0], /concentration could not be ended/);
+  assert.equal(caster.created.length, 1, "the cast happened and leaves its record");
+  assert.equal(caster.created[0][1][0].statuses[0], "concentrating");
+});
+
 await ta("through the seam: castSummon awaits the placement, and the system's cast runs once, only on an ok relay", async () => {
   class FakeItem {
     cast = 0;
