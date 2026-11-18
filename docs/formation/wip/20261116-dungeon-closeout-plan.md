@@ -288,7 +288,7 @@ Each importer half sits directly before its reader.
 | 1 | Obstacle crossing (§4, §8) | new surface, topic | several phases | per slice | new recipe |
 | 2 | ROADMAP §3 item 1: the disarm-or-discharge choice is asked of the wrong seat. `trap-zone.mjs` `attemptDisarm` calls a private `askDischarge` on whichever client runs it; `lib/sockets.mjs` exports only `executeAsGM`. | fix, `main` | M | nothing | "Steps" 8 and 11, a real player seat |
 | 3 | ROADMAP §6 step 1: the door figures import. No door recipe in `table-recipes.mjs`. | printed-value move, two commits with 4 | M | nothing | "The delve's figures, imported" |
-| 4 | ROADMAP §6 step 2: `doors.mjs` reads them (`BASH_STR_FACTOR`, `MAX_SPIKES`, `DOOR_KINDS`, the magnitudes in `bashPlan` and `bashDoor`). `api.formation.doors` publishes the module, so `apiVersion` moves. | as 3 | M | 3 | "Steps" 13 |
+| 4 | ROADMAP §6 step 2: `doors.mjs` reads them (`BASH_TARGET`, `BASH_STR_FACTOR`, `MAX_SPIKES`, the per-spike penalty literal in `bashPlan`, `DOOR_KINDS`, the other magnitudes in `bashPlan` and `bashDoor`; the first four checked printed 2026-11-18 against RR ch. 6, doors). `api.formation.doors` publishes the module, so `apiVersion` moves. | as 3 | M | 3 | "Steps" 13 |
 | 5 | Turn plan: a door within reach. No door reader exists beside traps' `knownPlacementsNear`; it never lists a secret door to a player. | new surface, topic | S to M | nothing | "The turn plan" |
 | 6 | Turn plan: battering as a plan choice. `turn-plan.mjs` `BATTER_KEY` has no length and opens no door. | new surface, topic | S | 4, 5 | "The turn plan" |
 | 7 | ROADMAP §1: Mapping's secret throw. `def.prof.mapping` carries no `rolls` spec, so a `kw:mapping` check would resolve no target; the importer half comes first (RR ch. 3, Mapping), then a Judge-only `PARTY_CHECKS` entry for mappers who can work (`mappersOf`). | new surface, topic | M | nothing | "The mapper", "The audit roll", a new step |
@@ -1640,8 +1640,17 @@ stopped on seven questions, which a second architect pass ruled
 sets the time; outside a fight a base pace bills the exploration branch;
 time sums across the crossing and bills whole rounds; nothing accrues in a
 fight; the non-advancing miss's duration and the faster paces' shares are
-printed and imported. Its import half is being built; the round half
-follows.
+printed and imported. Then `b3382eff` (each pace's speed shares and the
+non-advancing miss's duration imported; `apiVersion` 34), `ccbbdffc` (a
+throw on an obstacle spends rounds on the party's clock through
+`advanceRounds`, serialized per formation, nothing while the party fights
+or its clock is paused; Rounds spent in the section header), `2fa15bf6`
+(invented fixture shares, the dice-rig lines in TESTING made right, the
+tooltip's whole-round note, DECISIONS evidence as bare citations) and
+`9f3cd758` (the tooltip's share to three places). Phase 2 is complete on
+the topic: test-crossing 96, test-crossing-surface 134, test-obstacles 46,
+test-formation-binding 251; `npm test` 268 suites and `validate` OK on
+`9f3cd758`. Not walked.
 
 **Rewritten on the owner's word.** The owner, relayed: "Yes, fold both".
 Both on the unpushed topic, between slices, by one rebase from `7289480d`:
@@ -1651,6 +1660,13 @@ Both on the unpushed topic, between slices, by one rebase from `7289480d`:
   files, so they stay after it as `607d2940` (`a820c524` is `bace53bb`).
 The rebased tip's tree is byte-identical to the old tip `3f6c7e1b`, and
 neither folded commit's diff holds the quoted words or the printed face.
+- Under the owner's standing approval, relayed: "Yes, standing approval"
+  ("a session may fold any review commit that removes page wording into the
+  commit it fixes, on an unpushed topic branch only, and record the old and
+  new commit ids in its plan"): S17's review fix `8f86fd82` folded into
+  `b1617d99`, now `b3382eff`, by one rebase from `c2a13680`; tip tree
+  byte-identical to the old tip `82bef9dd`, the folded diff free of the
+  page's words, the gate above run on the new tip.
 
 **The offline gate on the topic** ran once the machine's hold allowed it:
 `npm test` 268 suites passing on `1c98be5b`; `validate` failed there on the
