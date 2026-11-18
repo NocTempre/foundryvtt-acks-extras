@@ -98,6 +98,12 @@ export const COMPONENT_FIT = Object.freeze({ matched: "matched", substitute: "su
 /** The fit a stored power row stands at: matched unless the row says otherwise (power is no substitute); a document row's default is the policy's. */
 export const powerRowFit = (stored) => str(stored) || COMPONENT_FIT.matched;
 
+/**
+ * A power row's value toward a component cost: its amount in gp, since the page counts arcane and divine power in
+ * gp of power (RR ch. 8). `each` is that unit, so lib's `withQty` keeps the value at the row's held amount.
+ */
+export const powerRowValue = () => ({ each: 1, gp: null, source: "power", cite: "RR ch. 8" });
+
 /** What becomes of the components bucket on every outcome: spent. A creature is marked, never deleted (`settlementPlan`). */
 export const COMPONENT_SETTLE = Object.freeze({ [OUTCOME.success]: SETTLE.consume, [OUTCOME.failure]: SETTLE.consume, [OUTCOME.botch]: SETTLE.consume });
 

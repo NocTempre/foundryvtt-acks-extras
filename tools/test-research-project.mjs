@@ -1674,6 +1674,14 @@ t("a power row is matched unless its stored row says otherwise", () => {
   assert.equal(policy.fit.fallback, "substitute", "a document row's fallback stays a substitute");
 });
 
+t("a power row is worth its held amount in gp toward the component cost", async () => {
+  const { powerEntry, withQty } = await import("../scripts/lib/bucket.mjs");
+  const row = powerEntry({ key: "arcane", name: "Arcane", amount: 37, balance: 23, value: M.powerRowValue() });
+  assert.equal(row.qty, 23, "held to the balance");
+  assert.equal(row.value.gp, 23, "worth what it holds");
+  assert.equal(withQty(row, 11).value.gp, 11, "rescaled with its amount");
+});
+
 t("the panel's hold for the components names the bucket and the page, and the throw's tooltip names the Intellect bonus and the level", () => {
   const credited = { id: "a", kind: "spell", level: 2, subject: { name: "Lantern" }, researcher: "A.hero", costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }] };
   const base = { tables: FIN, levelOf: (u) => LEVELS[u] ?? null, owns: (u) => u === "A.hero", intBonusOf: () => 2 };

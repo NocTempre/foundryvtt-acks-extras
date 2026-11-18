@@ -18,7 +18,7 @@
  * Every heavy import is taken where it is used, so the model's suites load this file without the world.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC } from "./constants.mjs";
-import { FORMULAS_KEY, PROJECT_KIND, powerRowFit, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
+import { FORMULAS_KEY, PROJECT_KIND, powerRowFit, powerRowValue, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
 import { kindOfRow, POWER_ROW_PREFIX } from "./power-ledger.mjs";
 import { cookbookId } from "../lib/library.mjs";
 
@@ -61,7 +61,7 @@ export async function projectEntries(project) {
   const powers = [];
   for (const row of project.bucket) {
     const kind = kindOfRow(row.uuid);
-    const entry = kind && actor ? powerApi.row(actor, kind, { amount: row.qty, fit: powerRowFit(row.fit) }) : null;
+    const entry = kind && actor ? powerApi.row(actor, kind, { amount: row.qty, fit: powerRowFit(row.fit), value: powerRowValue() }) : null;
     if (entry) powers.push(entry);
   }
   return [...docs, ...powers];
