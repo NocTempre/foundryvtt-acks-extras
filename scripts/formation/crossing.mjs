@@ -735,7 +735,8 @@ function roundsLine(name, record) {
 /**
  * The header line of the rounds an obstacle crossing has put on the party's
  * clock: the whole rounds billed, with a tooltip listing each member's time from
- * what its presses recorded, the longest counted once, and the pages. Blank,
+ * what its presses recorded, the longest counted once, the note that the total
+ * bills as whole rounds, and the pages. Blank,
  * with the Spelunking page reference alone, while no member has a press timed
  * and no rate is imported for any of them.
  */
@@ -748,6 +749,7 @@ function roundsView(crossing, entries) {
   const cites = [...new Set([citeFor("spelunking"), citeFor(PACE_RATE_TABLE[crossing.kind])].filter(Boolean))];
   const lines = timed.map((entry) => roundsLine(entry.actor.name, crossing.members[entry.member.actorId]));
   lines.push(loc("crossing.rounds.longest", { rounds: roundsText(crossingElapsed(crossing.members)) }));
+  lines.push(loc("crossing.rounds.whole"));
   return { text: String(Math.max(0, Math.floor(Number(crossing.rounds) || 0))), tip: [...lines, ...(cites.length ? cites : [spelunkingRef()])].join(" · ") };
 }
 

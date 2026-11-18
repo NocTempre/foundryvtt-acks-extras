@@ -5188,7 +5188,7 @@ Before the first step the Rules tables must be imported: the walk reads `climbPa
 
 **Drive mechanics.**
 - The pick is the select `[data-pace-for="<actorId>"]`; set its value and dispatch a bubbling `change`, then wait for the render. Read the result from the flag, `game.actors.get(partyId).getFlag("acks-extras", "crossing").members[actorId].pace`, not from the select.
-- A throw is the row's `[data-action="crossingThrow"]`; rig the die with `CONFIG.Dice.randomUniform` (0.975 a 20, 0.025 a 1).
+- A throw is the row's `[data-action="crossingThrow"]`; rig the die with `CONFIG.Dice.randomUniform` (0.025 a 20, 0.975 a 1).
 - Run the walk on a climb; repeat the pick on a crawl and a balancing ledge to see each read its own pair.
 
 | Step | Do | Observable |
@@ -5219,7 +5219,7 @@ Before the first step the Rules tables must be imported again: the walk reads `c
 
 **Drive mechanics.**
 - The clock is read from the formation record, `game.settings.get("acks-extras", "formations")[<formation id>].clock`: `totalRounds` is `turnsTotal * 10 + roundsPartial`. Read it before and after each press and report both.
-- A press is the row's `[data-action="crossingThrow"]` or the header's `[data-action="crossingThrowAll"]`; rig the die with `CONFIG.Dice.randomUniform` (0.975 a 20, 0.025 a 1). The pace raises a target, so a faster pace needs a rig that clears it.
+- A press is the row's `[data-action="crossingThrow"]` or the header's `[data-action="crossingThrowAll"]`; rig the die with `CONFIG.Dice.randomUniform` (0.025 a 20, 0.975 a 1). The pace raises a target, so a faster pace needs a rig that clears it.
 - The party's `crossing.rounds` is the whole rounds paid and each member's `elapsed` the time kept; read both from the flag, `game.actors.get(partyId).getFlag("acks-extras", "crossing")`.
 - A fight is a combat the party's members are deployed into; pause is the clock's pause control on the party sheet. Restore both in a `finally`.
 
@@ -5229,7 +5229,7 @@ Before the first step the Rules tables must be imported again: the walk reads `c
 | R2 | Import the Rules tables; reopen the section | The figure reads 0, its tooltip the longest-time line and the pages |
 | R3 | Press the holder once, base pace, `totalRounds` read before and after | `crossing.rounds` equals the rounds the stretch owes, rounded up, and `totalRounds` moved by the same; `elapsed` is the stretch's feet over the rate; the Player's seat reads the same figure; the turn is marked moved |
 | R4 | Press the same member again until across | Each press adds only what the whole total newly owes, so the sum on the clock is the total rounded up once, never each stretch's |
-| R5 | Begin again; pick Faster for the second holder; press both | The clock moved by the slower member's time, once; the tooltip lists each member's feet, share, speed and rounds and ends with the longest and the pages |
+| R5 | Begin again; pick Faster for the second holder; press both | The clock moved by the slower member's time, once; the tooltip lists each member's feet, share, speed and rounds and ends with the longest, the rounded-up line and the pages |
 | R6 | Throw for all | One bill: `totalRounds` moves once for the loop |
 | R7 | Rig a miss that covers no ground, on a way of crossing whose miss has an imported duration | `elapsed` is that duration, the tooltip says "misses ×" the duration; a fall spends none |
 | R8 | Start a fight with the party's members deployed, press, end the fight | No `elapsed` and no `totalRounds` change from the press made in the fight; the first press after it is timed alone |

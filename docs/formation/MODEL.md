@@ -3188,7 +3188,8 @@ A throw on an obstacle puts rounds on the party's clock. `pressRounds`
   a fight bills its own rounds (`combat-bridge.mjs` `onCombatRoundChange`).
 - **The header.** `view.rounds` is the whole rounds paid, drawn once above the
   rows for obstacle kinds only and for every seat, `Rounds spent`. Its tooltip lists
-  each member's working with the longest counted once, and the pages; blank with the
+  each member's working with the longest counted once, a line that the total bills
+  rounded up to whole rounds (the figure beside it is fractional), and the pages; blank with the
   Spelunking page reference alone while a press has been timed for no member and no
   rate is imported for any.
 

@@ -2897,9 +2897,9 @@ const { billCrossing } = crossing;
 
 /** The rates of each pace, invented: exploration is per turn, so nine feet a round at the speeds below. */
 const PACE_RATES = {
-  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.2, speed: "combat" }, fastest: { share: 0.7, speed: "combat" } },
-  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.3, speed: "run" }, fastest: { share: 1, speed: "run" } },
-  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.4, speed: "run" }, fastest: { share: 0.9, speed: "run" } },
+  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 3 / 13, speed: "combat" }, fastest: { share: 5 / 11, speed: "combat" } },
+  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 3 / 7, speed: "run" }, fastest: { share: 9 / 11, speed: "run" } },
+  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 4 / 13, speed: "run" }, fastest: { share: 7 / 11, speed: "run" } },
 };
 const TIMED_OUTCOMES = {
   sheerClimb: { fail: { text: "Holds on", falls: false, advances: false, rounds: 3 }, botch: { text: "Plummets", falls: true, rounds: 6 } },
@@ -2956,9 +2956,9 @@ await ok("a faster pace crosses at its own share of the member's combat speed", 
   const { formation } = await timeWorld([["Alder", {}]]);
   await setPace(formation, "Alder", "fastest");
   await press(formation, "Alder", 20); // the pace raises the target by its imported size
-  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 21) < 1e-6, "seven tenths of thirty is twenty-one a round");
-  assert.equal(roundsOnClock(), 2);
-  assert.deepEqual([recordOf(formation).timed[0].share, recordOf(formation).timed[0].speed], [0.7, "combat"]);
+  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / ((5 / 11) * 30)) < 1e-6, "five elevenths of thirty is 13.6 a round");
+  assert.equal(roundsOnClock(), 3, "2.93 rounds is three");
+  assert.deepEqual([recordOf(formation).timed[0].share, recordOf(formation).timed[0].speed], [5 / 11, "combat"]);
 });
 
 await ok("several members cross together: the slowest member's time is counted once, not added", async () => {
@@ -2967,9 +2967,9 @@ await ok("several members cross together: the slowest member's time is counted o
   await press(formation, "Alder");
   assert.equal(roundsOnClock(), 5);
   await press(formation, "Brin");
-  assert.ok(Math.abs(recordOf(formation, "Brin").elapsed - 40 / 6) < 1e-6, "twenty percent of thirty is six a round");
-  assert.equal(roundsOnClock(), 7, "6.67 rounds is the crossing's time, where the sum, 11.1, would be twelve");
-  assert.equal(readCrossing(formation).rounds, 7);
+  assert.ok(Math.abs(recordOf(formation, "Brin").elapsed - 40 / ((3 / 13) * 30)) < 1e-6, "three thirteenths of thirty is 6.9 a round");
+  assert.equal(roundsOnClock(), 6, "5.78 rounds is the crossing's time, where the sum, 10.2, would be eleven");
+  assert.equal(readCrossing(formation).rounds, 6);
 });
 
 await ok("a miss that covers no ground spends the outcome's imported duration; a fall spends none; with no duration imported nothing is spent", async () => {
@@ -2989,11 +2989,11 @@ await ok("a miss that covers no ground spends the outcome's imported duration; a
 });
 
 await ok("a rope's descent spends at the grid's rate, and a blank length or an unimported rate spends nothing and breaks nothing", async () => {
-  const grid = { ...SPELUNKING, progress: { rappel: { success: { share: 0.6, speed: "combat" } } } };
+  const grid = { ...SPELUNKING, progress: { rappel: { success: { share: 3 / 7, speed: "combat" } } } };
   const rope = await timeWorld([["Alder", {}]], { kind: "rappel", tables: { spelunking: grid } });
   await press(rope.formation);
-  assert.ok(Math.abs(recordOf(rope.formation).elapsed - 40 / 18) < 1e-6, "six tenths of thirty is eighteen a round");
-  assert.equal(roundsOnClock(), 3);
+  assert.ok(Math.abs(recordOf(rope.formation).elapsed - 40 / ((3 / 7) * 30)) < 1e-6, "three sevenths of thirty is 12.9 a round");
+  assert.equal(roundsOnClock(), 4, "3.11 rounds is four");
   const blank = await timeWorld([["Alder", {}]], { length: "" });
   assert.equal((await press(blank.formation)).ok, true, "the throw is made");
   assert.deepEqual([recordOf(blank.formation).elapsed, roundsOnClock(), readCrossing(blank.formation).rounds], [undefined, 0, undefined]);
@@ -3059,7 +3059,7 @@ await ok("throw for all bills once after its loop, and two presses landing toget
   const out = await throwAll(all.formation);
   assert.equal(out.thrown, 2);
   assert.equal(billWrites(), 1, "one bill for both throws");
-  assert.deepEqual([readCrossing(all.formation).rounds, roundsOnClock()], [7, 7]);
+  assert.deepEqual([readCrossing(all.formation).rounds, roundsOnClock()], [6, 6]);
 
   const together = await timeWorld([["Alder", {}], ["Brin", {}]]);
   await setPace(together.formation, "Brin", "faster");
@@ -3071,7 +3071,7 @@ await ok("throw for all bills once after its loop, and two presses landing toget
   } finally {
     rollDelay = 0;
   }
-  assert.deepEqual([readCrossing(together.formation).rounds, roundsOnClock()], [7, 7], "the clock is charged the crossing's time once, whichever press landed first");
+  assert.deepEqual([readCrossing(together.formation).rounds, roundsOnClock()], [6, 6], "the clock is charged the crossing's time once, whichever press landed first");
 
   const owed = await timeWorld([["Alder", {}], ["Brin", {}]]);
   await setPace(owed.formation, "Brin", "faster");
@@ -3081,7 +3081,7 @@ await ok("throw for all bills once after its loop, and two presses landing toget
   seen.updates.length = 0;
   const id = readCrossing(owed.formation).id;
   const paid = await Promise.all([billCrossing("f1", id), billCrossing("f1", id), billCrossing("f1", id)]);
-  assert.deepEqual([paid.reduce((a, b) => a + b, 0), roundsOnClock(), billWrites()], [7, 7, 1], "three billers asked at once pay the crossing once");
+  assert.deepEqual([paid.reduce((a, b) => a + b, 0), roundsOnClock(), billWrites()], [6, 6, 1], "three billers asked at once pay the crossing once");
 });
 
 await ok("the header line carries the rounds billed, each member's working in its tooltip, the longest counted once, and the page; blank with the page alone while nothing is imported", async () => {
@@ -3092,13 +3092,13 @@ await ok("the header line carries the rounds billed, each member's working in it
   await press(formation, "Alder");
   await press(formation, "Brin");
   const view = buildCrossingView(formation).rounds;
-  assert.equal(view.text, "7");
+  assert.equal(view.text, "6");
   assert.ok(view.tip.includes("Alder: 40 ft at 1 × exploration speed (4.44 rd) = 4.44 rd"), view.tip);
-  assert.ok(view.tip.includes("Brin: 40 ft at 0.2 × combat speed (6.67 rd) = 6.67 rd"), view.tip);
-  assert.ok(view.tip.includes("Slowest member's time, counted once: 6.67 rd") && view.tip.endsWith("XX p.1"), view.tip);
+  assert.ok(view.tip.includes(`Brin: 40 ft at ${3 / 13} × combat speed (5.78 rd) = 5.78 rd`), view.tip);
+  assert.ok(view.tip.includes("Slowest member's time, counted once: 5.78 rd · The total bills rounded up to whole rounds · XX p.1") && view.tip.endsWith("XX p.1"), "the header shows whole rounds, so the last working line says the total is rounded up: " + view.tip);
   const html = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
   assert.ok(html.includes("acks-extras-crossing-spent") && html.includes("ACKS-FORMATION.crossing.rounds.label"), "every seat draws it");
-  assert.ok(/acks-extras-crossing-spent-figure">7</.test(html));
+  assert.ok(/acks-extras-crossing-spent-figure">6</.test(html));
   const missed = await timeWorld([["Alder", {}]], { kind: "sheerClimb" });
   await press(missed.formation, "Alder", 5);
   assert.ok(buildCrossingView(missed.formation).rounds.tip.includes("Alder: 1 misses × 3 rd = 3 rd"), "misses and their duration");

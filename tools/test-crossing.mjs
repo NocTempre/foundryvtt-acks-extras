@@ -1147,9 +1147,9 @@ await ok("a pair with one size imported prices that pace alone", () => {
 
 /** The paces' speeds, invented and told apart per way of crossing. */
 const RATES = {
-  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.2, speed: "combat" }, fastest: { share: 0.7, speed: "combat" } },
-  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.3, speed: "run" }, fastest: { share: 1, speed: "run" } },
-  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.4, speed: "run" }, fastest: { share: 0.9, speed: "run" } },
+  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 3 / 13, speed: "combat" }, fastest: { share: 5 / 11, speed: "combat" } },
+  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 3 / 7, speed: "run" }, fastest: { share: 9 / 11, speed: "run" } },
+  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 4 / 13, speed: "run" }, fastest: { share: 7 / 11, speed: "run" } },
 };
 
 await ok("paceRates answers each way of crossing from its own table, and none for an obstacle that prices no pace", () => {
@@ -1173,9 +1173,9 @@ await ok("with nothing imported every pace's rate reads null", () => {
 });
 
 await ok("a rate is one share of a named speed, and a Judge's override counts only as such", () => {
-  load({ pace: { climbPaceRates: { normal: { share: "0.5", speed: "exploration" }, faster: { share: 0, speed: "run" }, fastest: { share: 0.7, speed: "swim" } } } });
+  load({ pace: { climbPaceRates: { normal: { share: "0.381", speed: "exploration" }, faster: { share: 0, speed: "run" }, fastest: { share: 5 / 11, speed: "swim" } } } });
   const rates = paceRates("easyClimb");
-  assert.deepEqual(rates.normal, { share: 0.5, speed: "exploration" }, "a share typed as text is read as a number");
+  assert.deepEqual(rates.normal, { share: 0.381, speed: "exploration" }, "a share typed as text is read as a number");
   assert.equal(rates.faster, null, "a share of nothing is no share");
   assert.equal(rates.fastest, null, "a speed the module does not name is no speed");
   for (const bad of [{ share: -1, speed: "run" }, { share: "", speed: "run" }, { share: "x", speed: "run" }, { share: 1 }, { speed: "run" }, 3, "run", null, []]) {
@@ -1184,8 +1184,8 @@ await ok("a rate is one share of a named speed, and a Judge's override counts on
   }
   load({ pace: { climbPaceRates: "combat" } });
   assert.deepEqual(paceRates("easyClimb"), { normal: null, faster: null, fastest: null }, "a table that is no object reads none");
-  load({ pace: { climbPaceRates: { faster: { share: 0.2, speed: "combat" } } } });
-  assert.deepEqual(paceRates("easyClimb"), { normal: null, faster: { share: 0.2, speed: "combat" }, fastest: null }, "a pace reads on its own");
+  load({ pace: { climbPaceRates: { faster: { share: 2 / 9, speed: "combat" } } } });
+  assert.deepEqual(paceRates("easyClimb"), { normal: null, faster: { share: 2 / 9, speed: "combat" }, fastest: null }, "a pace reads on its own");
   assert.equal(paceRates("crawl").faster, null, "and another way of crossing's table is its own");
 });
 
@@ -1232,8 +1232,8 @@ await ok("a throw's step leaves the record's pace alone to carry on: the step is
 const SPEEDS = { exploration: 90, combat: 30, run: 60 };
 /** The grid's own rows for a rope's descent, invented; no other way of crossing has one. */
 const PROGRESS = {
-  rappel: { success: { share: 0.6, speed: "combat" }, fail: { share: 0.25, speed: "run" } },
-  easyClimb: { success: { share: 0.5, speed: "run" } },
+  rappel: { success: { share: 3 / 7, speed: "combat" }, fail: { share: 2 / 9, speed: "run" } },
+  easyClimb: { success: { share: 5 / 11, speed: "run" } },
 };
 const withProgress = (extra = {}) => load({ spelunking: { ...SPELUNKING, progress: PROGRESS }, pace: RATES, ...extra });
 
@@ -1252,18 +1252,18 @@ await ok("stretchFeetAt: the stretch, then what is left of the length from the s
 await ok("pressRate: the base pace moves at the exploration branch, a faster pace at its own cell, each way of crossing from its own table", () => {
   withProgress();
   assert.deepEqual(pressRate({ kind: "sheerClimb", speeds: SPEEDS }), { share: 1, speed: "exploration", perRound: 9 }, "exploration is per turn, so ten rounds divide it");
-  assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "faster", speeds: SPEEDS }), { share: 0.2, speed: "combat", perRound: 6 });
-  assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "fastest", speeds: SPEEDS }), { share: 0.7, speed: "combat", perRound: 21 });
-  assert.deepEqual(pressRate({ kind: "crawl", pace: "faster", speeds: SPEEDS }), { share: 0.3, speed: "run", perRound: 18 }, "the crawl's table, not the climb's");
-  assert.equal(pressRate({ kind: "narrowLedge", pace: "fastest", speeds: SPEEDS }).perRound, 54);
+  assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "faster", speeds: SPEEDS }), { share: 3 / 13, speed: "combat", perRound: (3 / 13) * 30 });
+  assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "fastest", speeds: SPEEDS }), { share: 5 / 11, speed: "combat", perRound: (5 / 11) * 30 });
+  assert.deepEqual(pressRate({ kind: "crawl", pace: "faster", speeds: SPEEDS }), { share: 3 / 7, speed: "run", perRound: (3 / 7) * 60 }, "the crawl's table, not the climb's");
+  assert.equal(pressRate({ kind: "narrowLedge", pace: "fastest", speeds: SPEEDS }).perRound, (7 / 11) * 60);
   assert.deepEqual(pressRate({ kind: "sheerClimb", pace: "hasty", speeds: SPEEDS }), pressRate({ kind: "sheerClimb", speeds: SPEEDS }), "a pick outside the set is the base pace");
   assert.equal(pressRate({ kind: "easyClimb", speeds: SPEEDS }).speed, "exploration", "a grid row for the climb does not replace its pace's");
 });
 
 await ok("pressRate: a rope's descent reads the grid's success row, and an advancing miss its failed-throw row", () => {
   withProgress();
-  assert.deepEqual(pressRate({ kind: "rappel", speeds: SPEEDS }), { share: 0.6, speed: "combat", perRound: 18 });
-  assert.deepEqual(pressRate({ kind: "rappel", advance: "fail", speeds: SPEEDS }), { share: 0.25, speed: "run", perRound: 15 });
+  assert.deepEqual(pressRate({ kind: "rappel", speeds: SPEEDS }), { share: 3 / 7, speed: "combat", perRound: (3 / 7) * 30 });
+  assert.deepEqual(pressRate({ kind: "rappel", advance: "fail", speeds: SPEEDS }), { share: 2 / 9, speed: "run", perRound: (2 / 9) * 60 });
   assert.equal(pressRate({ kind: "easyClimb", advance: "fail", speeds: SPEEDS }), null, "an obstacle whose grid prints no failed-throw row has none");
 });
 
@@ -1276,7 +1276,7 @@ await ok("pressRate: a miss that covers no ground costs the outcome's imported d
 });
 
 await ok("pressRate: nothing imported or no speed known is no rate, and no figure stands in for it", () => {
-  load({ spelunking: { ...SPELUNKING, progress: { sheerClimb: { success: { share: 0.6, speed: "combat" } } } } });
+  load({ spelunking: { ...SPELUNKING, progress: { sheerClimb: { success: { share: 3 / 7, speed: "combat" } } } } });
   assert.equal(pressRate({ kind: "sheerClimb", speeds: SPEEDS }), null, "the grid's row is not the base pace's rate");
   withProgress();
   assert.equal(pressRate({ kind: "sheerClimb", speeds: { combat: 30, run: 60 } }), null, "no exploration speed");
@@ -1297,7 +1297,7 @@ await ok("pressRounds: a made stretch is its feet over the rate, the last stretc
   assert.equal(at(0).rounds, 40 / 9);
   assert.deepEqual(at(0).part, { rounds: 40 / 9, feet: 40, share: 1, speed: "exploration" });
   assert.equal(at(2, 3, {}).rounds, 20 / 9, "the stretch left, from the stretches covered before the throw");
-  assert.equal(at(0, 1, { pace: "fastest" }).rounds, 40 / 21);
+  assert.equal(at(0, 1, { pace: "fastest" }).rounds, 40 / ((5 / 11) * 30));
   const fell = pressRounds({ kind: "sheerClimb", speeds: SPEEDS, length: 100, read: { success: false, outcome: { falls: true, text: "x", rounds: 4 } }, ...stepFrom(1, "fell", 1) });
   assert.deepEqual(fell, { rounds: 0, part: null }, "a fall spends none, whatever duration its outcome carries");
   assert.deepEqual(at(0, 1, { length: "" }), { rounds: null, part: null }, "a blank length spends nothing");
@@ -1308,7 +1308,7 @@ await ok("pressRounds: a miss that covers ground is the failed-throw row, one th
   withProgress();
   const miss = (outcome) => ({ success: false, outcome });
   const advancing = pressRounds({ kind: "rappel", speeds: SPEEDS, length: 100, read: miss({ text: "x", advances: true }), ...stepFrom(0, "climbing", 1) });
-  assert.equal(advancing.rounds, 40 / 15, "the rappel's failed-throw row, not its success row");
+  assert.equal(advancing.rounds, 40 / ((2 / 9) * 60), "the rappel's failed-throw row, not its success row");
   const stalled = pressRounds({ kind: "sheerClimb", speeds: SPEEDS, length: 100, read: miss({ text: "x", advances: false, rounds: 3 }), ...stepFrom(0, "stalled", 0) });
   assert.deepEqual(stalled, { rounds: 3, part: { rounds: 3, miss: true } });
   const unsaid = pressRounds({ kind: "sheerClimb", speeds: SPEEDS, length: 100, read: miss({ text: "x", advances: false }), ...stepFrom(0, "stalled", 0) });
@@ -1316,12 +1316,12 @@ await ok("pressRounds: a miss that covers ground is the failed-throw row, one th
 });
 
 await ok("timedStep grows the member's elapsed time to the precision kept and appends the press's working; a press that spent nothing writes nothing", () => {
-  const spent = { rounds: 1 / 3, part: { rounds: 1 / 3, feet: 40, share: 1, speed: "exploration" } };
+  const spent = { rounds: 2 / 7, part: { rounds: 2 / 7, feet: 40, share: 1, speed: "exploration" } };
   const first = timedStep(null, spent);
-  assert.equal(first.elapsed, 0.333333);
-  assert.deepEqual(first.timed, [{ rounds: 0.333333, feet: 40, share: 1, speed: "exploration" }]);
+  assert.equal(first.elapsed, 0.285714);
+  assert.deepEqual(first.timed, [{ rounds: 0.285714, feet: 40, share: 1, speed: "exploration" }]);
   const second = timedStep(first, spent);
-  assert.equal(second.elapsed, 0.666666);
+  assert.equal(second.elapsed, 0.571428);
   assert.equal(second.timed.length, 2);
   assert.equal(timedStep(first, { rounds: null, part: null }), null);
   assert.equal(timedStep(first, { rounds: 0, part: null }), null, "a fall");
@@ -1344,7 +1344,7 @@ await ok("roundsDue rounds up the whole total and not each stretch, forgives a m
   assert.deepEqual(roundsDue(1, 3), { due: 0, billed: 3 }, "the count only grows when the elapsed time falls");
   assert.deepEqual(roundsDue(0, 0), { due: 0, billed: 0 });
   assert.deepEqual(roundsDue(undefined, undefined), { due: 0, billed: 0 });
-  assert.deepEqual(roundsDue(1 / 3 + 1 / 3 + 1 / 3, 0), { due: 1, billed: 1 }, "thirds that sum a hair over one are one round");
+  assert.deepEqual(roundsDue(Array.from({ length: 9 }, () => 1 / 9).reduce((a, b) => a + b, 0), 0), { due: 1, billed: 1 }, "ninths that sum a hair over one are one round");
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);

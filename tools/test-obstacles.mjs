@@ -30,8 +30,8 @@ const SPELUNKING = {
   },
   botchBand: { easyClimb: { min: 1, max: 1 }, sheerClimb: { min: 1, max: 1 } },
   progress: {
-    easyClimb: { success: { share: 0.25, speed: "combat" } },
-    rappel: { success: { share: 1, speed: "run" }, fail: { share: 0.5, speed: "combat" } },
+    easyClimb: { success: { share: 5 / 11, speed: "combat" } },
+    rappel: { success: { share: 1, speed: "run" }, fail: { share: 2 / 9, speed: "combat" } },
   },
 };
 
@@ -228,10 +228,10 @@ ok("with nothing imported no rate is known, made throw or failed", () => {
 
 ok("a rate is the imported share of a named speed, for the success and the one slower fail", () => {
   load();
-  assert.deepEqual(progressRate("easyClimb"), { share: 0.25, speed: "combat" });
-  assert.deepEqual(progressRate("easyClimb", "success"), { share: 0.25, speed: "combat" });
+  assert.deepEqual(progressRate("easyClimb"), { share: 5 / 11, speed: "combat" });
+  assert.deepEqual(progressRate("easyClimb", "success"), { share: 5 / 11, speed: "combat" });
   assert.deepEqual(progressRate("rappel", "success"), { share: 1, speed: "run" });
-  assert.deepEqual(progressRate("rappel", "fail"), { share: 0.5, speed: "combat" });
+  assert.deepEqual(progressRate("rappel", "fail"), { share: 2 / 9, speed: "combat" });
   assert.equal(progressRate("easyClimb", "fail"), null, "an obstacle whose failed throw moves nothing has no slower rate");
   assert.equal(progressRate("crawl"), null, "an obstacle whose cell did not read has none");
   resetTables();
@@ -244,9 +244,9 @@ ok("a Judge's override counts only as a share above zero of a named speed", () =
     resetTables();
     return got;
   };
-  assert.deepEqual(rate({ share: "0.4", speed: "run" }), { share: 0.4, speed: "run" });
+  assert.deepEqual(rate({ share: "0.381", speed: "run" }), { share: 0.381, speed: "run" });
   for (const bad of [{ share: 0, speed: "run" }, { share: -1, speed: "run" }, { share: "", speed: "run" }, { share: "x", speed: "run" },
-    { share: 0.5, speed: "walk" }, { share: 0.5 }, { speed: "run" }, 0.5, "run", null]) {
+    { share: 3 / 7, speed: "walk" }, { share: 3 / 7 }, { speed: "run" }, 3 / 7, "run", null]) {
     assert.equal(rate(bad), null, JSON.stringify(bad));
   }
 });

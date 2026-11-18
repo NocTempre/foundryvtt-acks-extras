@@ -7970,6 +7970,7 @@
   "ACKS-FORMATION.crossing.rounds.miss": "{count} misses × {rounds}",
   "ACKS-FORMATION.crossing.rounds.member": "{name}: {parts} = {rounds}",
   "ACKS-FORMATION.crossing.rounds.longest": "Slowest member's time, counted once: {rounds}",
+  "ACKS-FORMATION.crossing.rounds.whole": "The total bills rounded up to whole rounds",
   "ACKS-FORMATION.crossing.rounds.speed.exploration": "exploration",
   "ACKS-FORMATION.crossing.rounds.speed.combat": "combat",
   "ACKS-FORMATION.crossing.rounds.speed.run": "run",
