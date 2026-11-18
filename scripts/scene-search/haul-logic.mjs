@@ -54,7 +54,9 @@ export const lotKey = (thing, n) => `${thing}/${n}`;
  * deal refuses `lairUnconfirmed` and stages nothing. Each source's letters then
  * go through `runLetterDeal` (the pot's toggles honoured), the truths of every
  * source are tagged `found: false` with their key, and all are staged in one
- * call, in source order, so `ids[i]` is the card of lot `i`.
+ * call. A lot's `cardId` here is the staging call's answer at the lot's index;
+ * `lotsInPot` replaces it with the card that carries the key, since the order
+ * a live create answers in is not the order it was asked in.
  *
  * @param {object} args
  * @param {boolean} args.isGM
@@ -112,14 +114,16 @@ export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage
 }
 
 /**
- * The planned lots that are still in the opened pot: a deal toggle may strike a
- * card when the pot opens, and its key then names nothing.
- * @param {Array<{key: string, cardId: string}>} lots `runHaulDeal`'s lots
+ * The planned lots that are still in the opened pot, each with the id of the
+ * card whose truth carries its key: a deal toggle may strike a card when the
+ * pot opens, and its key then names nothing. The card is found by key, never
+ * by the staging order.
+ * @param {Array<{key: string}>} lots `runHaulDeal`'s lots
  * @param {object} view the opened pot's `PotView`
  */
 export function lotsInPot(lots, view) {
-  const held = new Set(potCards(view).map((c) => c.id));
-  return (Array.isArray(lots) ? lots : []).filter((lot) => held.has(lot.cardId));
+  const byKey = new Map(potCards(view).filter((c) => c.truth?.lot).map((c) => [c.truth.lot, c.id]));
+  return (Array.isArray(lots) ? lots : []).filter((lot) => byKey.has(lot.key)).map((lot) => ({ ...lot, cardId: byKey.get(lot.key) }));
 }
 
 /**

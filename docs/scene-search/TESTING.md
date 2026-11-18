@@ -11,6 +11,29 @@ The walk needs a real Judge seat and a real Player seat joined at once
 (`live-testing.md`): the found-only rule is a projection on the player's client,
 and a Judge-seat render proves nothing about it.
 
+The scripted walk is `tools/live/scene-search.mjs` (`node tools/live/run.mjs
+scene-search`). What it learned driving this:
+
+- **The Judge seat must be the active GM.** The relay step is answered by the
+  active GM's client, so a walk on a lane whose GM is not the active one is
+  blocked before its first step. After a world launch the first GM seated
+  holds it.
+- **The pot's flag is `flags.acks-extras.treasure`** (`POT_FLAG`), not `pot`.
+  Read phase, origin and cards through `viewOf(pile)` from
+  `scripts/treasure/pot.mjs`, and count pots with `isPot`: reading a guessed
+  key makes every pot look unopened and every pile count zero.
+- **Hold the die around the deal** (`CONFIG.Dice.randomUniform = () => 0.025`,
+  restored after), so both sources deal a lot and `chest/1` exists for step 4.
+  An unrigged deal can leave the chest empty.
+- **Find a lot's card by its key, never by staging order.** The deal's
+  `lots[].cardId` is read back from the opened pot by `truth.lot`; a live
+  create does not answer in the order it was asked.
+- **Read the player's tiles by card id.** The grid holds an element with no
+  card id even when no lot is shown, so a count of grid items is never zero.
+- **The place fixture may be gone by the next run** and is then rebuilt by
+  its marker lookup: a GM seat's ready can prune a location that has nothing
+  linked (seen here, cause not traced).
+
 ## Fixtures
 
 Found again by `flags.world.fixture`, built through `api.fixture(marker, kind,
@@ -97,5 +120,6 @@ open and close the pot.
 
 ## Teardown
 
-`api.sweepTracked()` deletes the run's pot and anything else it tracked. The
-two kept fixtures stay.
+`api.sweepTracked({ only: [potUuid] })` deletes the run's pot alone. The two
+kept fixtures stay: a bare `sweepTracked()` would also delete a fixture the run
+built, since the lookup tracks what it builds.

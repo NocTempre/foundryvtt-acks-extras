@@ -334,6 +334,25 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   eq(r.lots.map((l) => cardsOf(pile).find((c) => c.id === l.cardId).flags[MODULE_ID][CARD_FLAG].lot), ["den/1", "chest/1"], "the card carries its key");
   const bands = cardsOf(pile).map((c) => c.value);
   ok(bands[0] < bands[1], "the bands are set at the deal, ranked over every lot");
+  {
+    const impl = globalThis.foundry.documents.Cards.implementation;
+    const create = impl.create;
+    impl.create = async (data) => {
+      const made = await create(data);
+      const add = made.createEmbeddedDocuments;
+      made.createEmbeddedDocuments = async function (kind, list) {
+        return (await add.call(this, kind, list)).reverse();
+      };
+      return made;
+    };
+    try {
+      const rev = await dealSceneHaul({ sources, confirmLair: async () => true });
+      const rp = piles.at(-1);
+      eq(rev.lots.map((l) => cardsOf(rp).find((c) => c.id === l.cardId).flags[MODULE_ID][CARD_FLAG].lot), rev.lots.map((l) => l.key), "each lot names the card carrying its key, whatever order the create answers in");
+    } finally {
+      impl.create = create;
+    }
+  }
 
   eq([progressOf(pile).count, progressOf(pile).turned], [0, 0], "the doorway's count and the window's read no lot before one is found");
   const seat = (isGM) => L.seatCards(viewOf(pile), { isGM }).length;
