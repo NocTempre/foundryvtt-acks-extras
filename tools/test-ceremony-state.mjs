@@ -13,7 +13,7 @@ const {
   FLAG_CEREMONY,
   addCorruption,
   addStigma,
-  bestSet,
+  usableSets,
   effectiveLevel,
   markDamage,
   markItemDamage,
@@ -179,21 +179,21 @@ t("markDamage adds marks and resetDamage clears them", () => {
   assert.deepEqual([resetDamage(b.state).written, resetDamage(b.state).reason], [false, "empty"]);
 });
 
-t("bestSet picks the highest effective set that is high enough", () => {
+t("usableSets lists every set high enough, lowest effective level first", () => {
   const low = implement(3, 0, "low");
   const mid = implement(6, 1, "mid");
   const high = implement(8, 5, "high");
   const top = implement(9, 0, "top");
-  assert.equal(bestSet([low, mid, high], 3).name, "mid", "the highest of those that suffice");
-  assert.equal(bestSet([low, mid, high, top], 3).name, "top");
-  assert.equal(bestSet([low, mid, high], 5).name, "mid");
-  assert.equal(bestSet([low, mid, high], 6), null, "damage left none high enough");
-  assert.equal(bestSet([low, high], 4), null);
-  assert.equal(bestSet([], 1), null);
-  assert.equal(bestSet(undefined, 1), null);
-  assert.equal(bestSet([low], null), null, "no needed level, no answer");
-  assert.equal(bestSet([implement(4, 0, "first"), implement(4, 0, "second")], 4).name, "first", "a tie keeps the first");
-  assert.equal(bestSet([{ name: "plain" }], 0), null, "an item with no implement level is no set");
+  const names = (sets) => sets.map((s) => s.name);
+  assert.deepEqual(names(usableSets([mid, low, high], 3)), ["low", "high", "mid"], "damage ranks high with low; a tie keeps the given order");
+  assert.deepEqual(names(usableSets([top, low, mid, high], 3)), ["low", "high", "mid", "top"]);
+  assert.deepEqual(names(usableSets([low, mid, high], 5)), ["mid"]);
+  assert.deepEqual(usableSets([low, mid, high], 6), [], "damage left none high enough");
+  assert.deepEqual(usableSets([low, high], 4), []);
+  assert.deepEqual(usableSets([], 1), []);
+  assert.deepEqual(usableSets(undefined, 1), []);
+  assert.deepEqual(usableSets([low], null), [], "no needed level, no answer");
+  assert.deepEqual(usableSets([{ name: "plain" }], 0), [], "an item with no implement level is no set");
 });
 
 await ta("recordStigma writes once and a replay writes nothing", async () => {

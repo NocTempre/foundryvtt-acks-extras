@@ -127,24 +127,17 @@ export function effectiveLevel(item) {
 }
 
 /**
- * The implement to use for a throw needing `needed`: among the items that
- * carry an implement level and whose effective level is at least `needed`, the
- * highest (the first, on a tie); null when none is high enough or `needed` is
- * not a number.
+ * The implement sets an invoker may pick for a throw needing `needed`: the
+ * items that carry an implement level and whose effective level is at least
+ * `needed`, lowest effective level first (given order on a tie). The invoker
+ * chooses among them; the throw never picks one. Empty when none is high
+ * enough or `needed` is not a number.
  */
-export function bestSet(items, needed) {
-  if (typeof needed !== "number" || !Number.isFinite(needed)) return null;
-  let best = null;
-  let bestLevel = -Infinity;
-  for (const item of items ?? []) {
-    if (itemState(flagOf(item)).implementLevel === null) continue;
-    const level = effectiveLevel(item);
-    if (level >= needed && level > bestLevel) {
-      best = item;
-      bestLevel = level;
-    }
-  }
-  return best;
+export function usableSets(items, needed) {
+  if (typeof needed !== "number" || !Number.isFinite(needed)) return [];
+  return [...(items ?? [])]
+    .filter((item) => itemState(flagOf(item)).implementLevel !== null && effectiveLevel(item) >= needed)
+    .sort((a, b) => effectiveLevel(a) - effectiveLevel(b));
 }
 
 /** Add `marks` damage to an implement's state. A `marks` that is not a positive integer writes nothing (`"noFigure"`). */
