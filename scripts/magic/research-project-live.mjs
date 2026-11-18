@@ -1,15 +1,22 @@
-/* global game, foundry, fromUuidSync, ui */
+/* global game, foundry, fromUuidSync, ui, Hooks */
 /**
  * Research projects as the live world has them (`research-project.mjs` is the
  * model): the flag on the location, the characters linked to it, the imported
- * tables, the write a seat makes or asks the GM's client to make, and the API the
- * crediting, outcome and ritual slices call. Magic owns the record; the location
- * sheet hosts its tab (`research-tab.mjs`).
+ * tables, the write a seat makes or asks the GM's client to make, the credit of the days
+ * world time has passed, and the API the outcome and ritual slices call. Magic owns the
+ * record; the location sheet hosts its tab (`research-tab.mjs`).
+ *
+ * Posted days are credited by one client: the primary GM's, on every step the world clock
+ * moves forward (lib `onWorldTimeAdvanced`) and once at `ready`. `credit` is a function of
+ * the record and the day the clock stands in, and it never credits a (day, participant)
+ * twice (`creditDue`), so a second run, a clock dragged back and forward again, or a request
+ * from another seat only ever finds nothing due.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC, PROJECT_HANDLER } from "./constants.mjs";
-import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, KIND_FACILITIES, UPDATE_FIELDS, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects } from "./research-project.mjs";
+import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf } from "./research-project.mjs";
 import { readResearchTables } from "./research-tables.mjs";
-import { dayOfWorldTime } from "../lib/world-time.mjs";
+import { dayOfWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
+import { primaryGMSettled } from "../lib/util.mjs";
 import { isLocation, rosterFor } from "../lib/place.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
@@ -41,6 +48,15 @@ export function linkedCharacters(location) {
   return out;
 }
 
+/** A participant's class level, whole and at least zero; null where the actor or the level is not there. */
+export function levelOf(uuid) {
+  const level = Number(resolve(uuid)?.system?.details?.level);
+  return Number.isFinite(level) && level >= 0 ? Math.trunc(level) : null;
+}
+
+/** A participant's Intellect bonus, zero where there is none. */
+export const intBonusOf = (uuid) => Number(resolve(uuid)?.system?.scores?.int?.mod) || 0;
+
 /** The dependencies of `projectOps` as this client has them. */
 export const liveDeps = () => ({
   read: (location) => location?.flags?.[MODULE_ID]?.[FLAG_MAGIC],
@@ -57,6 +73,8 @@ export const liveDeps = () => ({
   isJudge: () => game.user.isGM === true,
   owns: (uuid) => game.user.isGM === true || resolve(uuid)?.testUserPermission?.(game.user, "OWNER") === true,
   linked: (location) => linkedCharacters(location).map((a) => a.uuid),
+  levelOf,
+  intBonusOf,
   tables: () => readResearchTables(),
   newId: () => foundry.utils.randomID(),
 });
@@ -82,20 +100,45 @@ export async function projectHandler(payload = {}) {
   return ops().apply(location, payload.op, payload.args ?? {}, { judge: fromJudge, owns });
 }
 
+/**
+ * Credit the posted days world time has passed on every location in the world, as this
+ * client (which must be the primary GM's) writes them. Answers how many days it credited;
+ * a location with no day due is neither read against the tables nor written.
+ */
+export async function creditPassedDays() {
+  const today = liveDeps().today();
+  let credited = 0;
+  for (const location of (game.actors ?? []).filter(isLocation)) {
+    if (!recordOf(location).projects.some((p) => p.status === "open" && p.posted.some((row) => row.day < today))) continue;
+    const done = await ops().credit(location);
+    credited += done?.credited ?? 0;
+  }
+  return credited;
+}
+
 let registered = false;
 
-/** Register the record's relay handler. Once, at `init`. */
+/**
+ * Register the record's relay handler and the credit of passed days: on the primary GM's
+ * client alone (the lib watcher's own gate), at each forward step of the world clock and
+ * once at `ready`. Once, at `init`.
+ */
 export function registerProjects() {
   if (registered) return;
   registered = true;
   void import("../lib/sockets.mjs").then(({ registerHandler }) => registerHandler(PROJECT_HANDLER, projectHandler));
+  const sweep = () => creditPassedDays().catch((err) => console.error(`${MODULE_ID} | crediting research days failed`, err));
+  onWorldTimeAdvanced(() => void sweep());
+  Hooks.once("ready", async () => {
+    if (await primaryGMSettled()) void sweep();
+  });
 }
 
 /** Tell the user what a refused or warned write came to. */
 export function announce(result) {
   if (!result) return;
   if (result.ok === false) ui.notifications?.warn(loc(`refused.${result.reason}`));
-  else if (result.warn) ui.notifications?.warn(loc(`warn.${result.warn}`));
+  else for (const warn of result.warns ?? (result.warn ? [result.warn] : [])) ui.notifications?.warn(loc(`warn.${warn}`));
 }
 
 /** Every location in the world with the open projects it holds, for a character's links. */
@@ -115,6 +158,8 @@ export const researchApi = {
   FACILITY,
   FACILITY_KEYS,
   OP: PROJECT_OP,
+  PACE,
+  PACES,
   KIND_FACILITIES,
   UPDATE_FIELDS,
   /** The location's record, cleaned: `{facilities: {library, workshop}, projects}`. */
@@ -139,6 +184,31 @@ export const researchApi = {
   update: (location, id, patch) => ops().update(location, id, patch),
   /** A project closed; it stays on the record and counts for no facility. */
   close: (location, id) => ops().close(location, id),
+  /**
+   * A day posted: `post(location, id, {pace, day})`, the pace one of `PACES` (dedicated by default) and the
+   * day the calendar day the world clock stands in unless a Judge names another. A Player's day is today. A
+   * facility below its minimum, or an assistant who does not count, blocks a Player and warns a Judge.
+   * Answers `{ok, id, day, pace, warn?, warns?}`.
+   */
+  post: (location, id, options) => ops().post(location, id, options),
+  /**
+   * The posted days world time has passed, credited (`{ok, credited}`, the number of days): one project when
+   * `id` is given, else every open project the caller may act on. The primary GM's client calls it for the world
+   * on each clock step; a second call finds nothing due.
+   */
+  credit: (location, id) => ops().credit(location, id),
+  /**
+   * Where a project stands: gold and days credited, days posted, what each participant adds, the due (`dueDays`,
+   * `dueDay`, `dueBy` "ladder", "judge" or null) and whether the research cost is credited (`complete`, null
+   * where unknown). Null for a project that is not on the location.
+   */
+  progress(location, id) {
+    const project = recordOf(location).projects.find((p) => p.id === id);
+    const deps = liveDeps();
+    return project ? progressOf(project, { today: deps.today(), tables: deps.tables(), levelOf, intBonusOf }) : null;
+  },
+  /** The calendar day the due falls on for a project, or null where the due is not known (`progress().dueDay`). */
+  dueDay: (location, id) => researchApi.progress(location, id)?.dueDay ?? null,
   /** A facility's value in gold, null to blank it (the Judge's). */
   setFacility: (location, key, gp) => ops().setFacility(location, key, gp),
   /** The projects an actor is on, across the world's locations, as its sheet links to them. Nothing is written on the actor. */

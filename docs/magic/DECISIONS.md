@@ -905,3 +905,99 @@ Judgment calls made in the fix, each with the default proceeded on and the count
 
 Not changed here, found on the way: the changelog fragment for the switch
 (`2026-11-18-spell-effects-power-stays.added.md`) still says every render starts it on Fades.
+
+## 2026-11-18 — Research days are posted and credited once passed (M-q2, ruling 222)
+
+Built to board 10, which the owner approved and moved onto the location sheet, adding the day
+strip and the pace radios M-q1 left undrawn. The owner on board 10: "Sure go with it." (the
+project panel, strip and pace radios as drawn are built; for example, the strip's cells and the
+"Today:" radios sit in the project card). On where it lives: "Research board looks like it
+should be tab of location." (everything here is in the Research tab after Storage, not in a window
+of its own). On the whole v19 canvas: "Approve spell cast design". On the parts M-q1 drew beyond
+board 10: "Approve as built" (the New project prompt keeps its four fields, and nothing here reworks
+it). The art rule stands: "Find open art to attribute or better yet art/texture imported from the
+book. Standing rule for repo no generated art." The strip is CSS cells on the token ramp, no
+image. Automation blocks a Player and warns a Judge (`isOwner` is never the test).
+
+Ruling 222 as built: each participant's rate is the imported ladder's rate for the class level, the
+ancillary share an imported row; a posted day is credited only once world time has passed its
+calendar day (`dayOfWorldTime`); the due is computed from the rates while they are imported and
+the Judge's until then; an assistant counts only where the imported levels say so. Judgment calls,
+each with the default proceeded on and the counter:
+
+- **A day is a calendar day, posted `{day, pace}` and credited when `day` is before today.** The
+  venture queue stamps seconds and resolves a day later; the ruling names `dayOfWorldTime`, and a
+  project's days are what the strip counts. *Counter (low):* seconds would match the ventures'
+  `resolveTime` exactly.
+- **A Player posts today and no other day; a Judge posts any.** A past day is credited at once, and
+  a future one commits days nobody has worked. *Counter (medium):* a Player pre-posting a week is
+  how a table might run a long project; the Judge can post those days.
+- **One pace per project per day, for every participant.** The board draws one radio group per
+  project. *Counter (medium):* an assistant working ancillary beside a dedicated researcher.
+- **Both is the whole rate plus the ancillary share.** Overtime is dedicated and ancillary
+  together, and the module adds the two. *Counter (medium):* overtime might be a different sum; the
+  helper is one line (`paceFactor`).
+- **The rate is read at the class level `system.details.level`.** The page says caster level, and
+  core's `details.casterlevel` is a field nothing writes (default 0); M-q1 already read the level
+  for the throw. *Counter (medium):* a multiclass caster's level would differ.
+- **A ritual reads the ladder's own rung; every other kind reads the lesser rate the footnote gives
+  other projects** (`FULL_RATE_KINDS`). The footnote names a short list of project types, of which
+  only the ritual is a kind here. The reader answers an unread rate while the footnote's figure is
+  unread. *Counter (medium):* spell and item at the rung's own rate would be simpler and wrong at the
+  top rungs.
+- **An assistant counts when at or above the aiding level and within the number managed, which is
+  the base plus the Intellect bonus read off `scores.int.mod`; a figure not read means it does not
+  count, and blocks and warns nothing.** The gate runs where an assistant is added, in `create` and
+  `update`, and again when a day is posted. A Judge's add stands with a warning and adds no rate.
+  *Counter (medium):* an unread figure counting the assistant would add a rate nobody could check.
+- **A day with no rate to read is credited as a day worked with no gold: one row, null amount, blank
+  `by`.** The Judge's days are then counted against the Judge's due. *Counter (STRONG):* leaving the
+  posted day standing until the ladder is imported would value it later, which the null row never
+  is. It was ruled out because a Judge-entered due needs days that count without any rate, and a day
+  that never leaves `posted` cannot. *Cost:* days credited before an import carry no gold, and
+  `post` refuses a day already credited, so nothing re-posts them. A Judge can raise the research
+  cost by the gold those days would have added, or post further days. The case that costs most is a
+  ladder imported with the footnote's rate not: every non-ritual day is then credited for nothing.
+  **Owner question:** should a passed day with an unread rate be credited as a bare day (built), or
+  stay posted until the rates are read?
+- **The gate is made at the post, not at the credit.** The facility share and the assistants are read
+  when a day is posted; a day already posted is credited whatever has changed since. *Counter
+  (medium):* re-reading at credit would stop a Player's day when the Judge lowers the facility under
+  it, which M-q1's entry already leaves to the Judge.
+- **Who credits, and why it happens once.** The primary GM's client credits on each forward step of
+  the clock (lib `onWorldTimeAdvanced`, already gated to it) and once at `ready`. `credit` is a
+  function of the record and today; a `(day, participant)` is stored once (`cleanCredited` keeps the
+  first row of a key) and a credited day leaves `posted` in the same write, so a second sweep, a clock
+  dragged back and forward again and two clients writing the same result all leave one set of rows.
+  *Counter (medium):* crediting lazily at render by any seat would credit with the GM offline and race
+  two writers; with no GM connected, days wait and are credited at the next `ready`.
+- **The due is computed at a dedicated day's rate from what is left, counting the days already
+  credited and posted; the Judge's `dueDays` stands only while it cannot be computed.** It is days and
+  not a date, since a project has no fixed start; `dueDay` (the calendar day the last needed day falls
+  on) is derived for M-q3 and shown nowhere. *Counter (medium):* the Judge's entry overriding the
+  computed one would let a Judge shorten a project; they can edit the research cost.
+- **The material is still recorded and not charged.** M-q1 left "which purse, and what a refusal
+  costs" to this slice. No day here spends coin, so there is still nothing to charge it against.
+  *Counter (medium):* deducting at the start would match "paid at start"; the purse is the open
+  question, and it is the Judge's `paid` box meanwhile.
+- **The pace is held per window and never written, and it outlives the window's closing.** A
+  document keeps one sheet instance, so the choice stays until the world reloads, where the
+  Fades/Stays switch is forgotten on close. *Counter (low):* a pace left on ancillary reads as the
+  default of the next day posted.
+- **The pace radios belong to no form.** A radio group
+  needs a `name`, so each radio's `form` names no form, which keeps the sheet's own submit from
+  carrying a stray field. The group's name carries the window's part id, so two windows on one place
+  do not share a group. A radio carries `data-research-control` (the controls the location sheet's lock
+  lifts for a viewer) only where the viewer may act on the project, and the Post button only while
+  today is not yet posted, so the lock keeps a used Post disabled. *Counter (low):* a named radio
+  inside the form would have been submitted with every other field.
+- **The strip draws one cell per due day, at most 60; the chip and the aria label carry the whole
+  count.** *Counter (low):* a longer project would draw more cells and a very long one a wall of them.
+- **The tab's Post button posts today at the chosen pace; there is no count prompt.** The board labels
+  it "Post days…" with a count prompt that no board draws, so it is labeled "Post day" and each press
+  posts the one day.
+
+Not built, because no board draws it, and reported: a Judge's box for the due in days (the
+field is the Judge's through `update(location, id, {dueDays})`, and no control reaches it), the
+count prompt behind "Post days…", and a way to withdraw a posted day. Each is a new control and
+goes to the owner as a design first.

@@ -1139,13 +1139,14 @@ to a project and does not own it (`projectsOf`, derived, nothing written on the 
 
 `facilities` is `{library, workshop}`, a gold value the Judge writes for each (null while unset,
 counted as nothing). A project is `{id, kind, subject, level, costs, researcher, assistants, paid,
-credited, bucket, throw, status, opened, closed}`: its kind (spell, item, identify or ritual) and
+posted, credited, dueDays, bucket, throw, status, opened, closed}`: its kind (spell, item, identify or ritual) and
 subject (`{uuid, name, img}`, blank for none); the level of effect the facility's minimum is read
 by; the three costs as due (material, component, research), blank until a Judge enters them; the
 researcher and assistants, uuids of the characters on the place's roster (stored occupants and
-scene tokens); the material paid at the start with its day; the research credited so far as
-`[{day, amount, by}]`, which crediting writes and a project here only holds; the components bucket
-as lib stores an answer, `[{uuid, qty, fit}]`; and `throw: {target}` where one is written.
+scene tokens); the material paid at the start with its day; the days posted and not yet credited as
+`[{day, pace}]`; the research credited so far as `[{day, amount, by}]`, which only crediting writes;
+the Judge's `dueDays`; the components bucket as lib stores an answer, `[{uuid, qty, fit}]`; and
+`throw: {target}` where one is written.
 
 A kind reads one or two facilities (`KIND_FACILITIES`): the library, the workshop, or for a ritual
 both, each against its own imported passage (`readFacility`). The minimum is `facilityMinimum` by
@@ -1168,4 +1169,45 @@ every place whether or not it has a market. It draws the facility values (inputs
 text for anyone else, with how many open projects use each), then per open project its
 researchers, level, costs, material paid, credited against due, the throw, one chip per facility
 verdict and the components bucket (lib's bucket, with a drop zone for those who may change it).
-Finish is drawn disabled with its reason beside it; posting days and the pace choice are not drawn.
+A strip of day cells, a day chip and a rate on each participant's chip show the days (below). Finish is
+drawn disabled with its reason beside it.
+
+### Research days
+
+A day is posted, then credited once world time has passed it, the shape of a venture day. `post`
+writes `{day, pace}` to the project's `posted`: the day is the calendar day the world clock stands in
+(`dayOfWorldTime`), the pace is dedicated, ancillary or both (overtime), and one day stands once. A
+Player posts today and no other day; a Judge posts any day. A facility share below its minimum, or an
+assistant who does not count, blocks a Player's post and warns a Judge's (`facilityGate`,
+`assistantGate`).
+
+`credit` takes the posted days whose day is before today. Each leaves `posted` and adds one
+`credited` row per counted participant, `{day, amount, by}`, valued by the rates read at that moment;
+a day that no rate could be read for is one row with a null amount and a blank `by`, so it still counts
+as a day worked and adds no gold. It runs on the primary GM's client alone: on each forward step of the
+world clock (lib `onWorldTimeAdvanced`) and once at `ready`, over every location, and writes a place
+only where a day is due. It is a function of the record and today, and a (day, participant) is credited
+once (`cleanCredited` keeps the first row of a key), so a second sweep, a clock dragged back and forward
+again, or a request from another seat finds nothing due. The API's `credit` serves the same function to
+a seat, relayed under the sender's authority; a requester credits the projects of the characters they own,
+and a Judge every project.
+
+Who counts and what a day is worth (`weighParticipants`, `dayAmounts`): the researcher's rate is the
+ladder's rate for the class level (`system.details.level`). A ritual reads the rung's own rate and every
+other kind the lesser rate the ladder's footnote gives other projects (`FULL_RATE_KINDS`), unread while
+that figure is. An assistant counts when at or above the imported level that aids a researcher and within
+the imported number the researcher manages, which is the base plus one per point of Intellect bonus; one
+whose figure is not read does not count. A pace's share of the rate is 1, the imported ancillary fraction,
+or both added. A participant is paid the rate at the pace, the participants add, and the sum is a day.
+
+The due (`progressOf`): while the research cost and every counted rate are read, it is the days credited
+and posted plus the days the remaining cost takes at a dedicated day's rate (`dueBy` "ladder"). Otherwise it
+is the Judge's `dueDays` (`dueBy` "judge"), and with neither it is unknown. `complete` is true once the
+credited gold reaches the cost, false while the rates are read and it has not, and, where they are not,
+whether the credited days reach the Judge's days. `dueDay` is the calendar day the last needed day falls
+on were each remaining day worked in turn from today.
+
+The tab's strip draws one cell per due day (at most 60), the credited ones first, then the posted; the
+chip reads the day worked (credited plus posted) against the due. The pace is a radio group per project,
+held per window and never written; Post posts today at that pace. A radio belongs to no form, so the
+sheet's own submit never carries it.

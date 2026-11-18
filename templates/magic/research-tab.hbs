@@ -1,10 +1,14 @@
 {{!-- The location sheet's Research tab (scripts/magic/research-tab.mjs `prepareResearchTab`):
       the facility values, then each open project with its researchers, costs,
-      credited research and components bucket. A control writes by its own
-      listener and names no form field, so the sheet's submit-on-change never
-      sees it. No id is written: a label wraps its control or names it by
-      `aria-label`. Posting days and Finish are not drawn: Finish is drawn
-      disabled, with its reason beside it. --}}
+      credited research and components bucket, with the days posted and credited
+      as a strip, the pace a day is worked at and the Post control. A control
+      writes by its own listener, so the sheet's submit-on-change never sees it;
+      the pace radios belong to no form (`form` names none), so their value is
+      never submitted with the sheet, and their group name carries the window's
+      own part id. A control carries `data-research-control` only where the
+      sheet's lock may lift for a viewer (`VIEWER_CONTROLS`): a radio of a
+      project the viewer cannot act on and a Post already used today do not. No id is written: a label wraps its control or names it by
+      `aria-label`. Finish is drawn disabled, with its reason beside it. --}}
 <div class="acks-extras-research">
   <section class="acks-extras-research__band">
     <h3 class="acks-extras-research__legend">{{localize "ACKS-MAGIC.research.facilities"}}</h3>
@@ -47,6 +51,7 @@
           {{/if}}
           <span class="acks-extras-research__cap">{{caption}}</span>
         </span>
+        {{#if day.text}}<span class="acks-tag acks-nums is-{{day.tone}}" tabindex="0" aria-label="{{day.aria}}" data-tooltip-text="{{day.tip}}">{{day.text}}</span>{{/if}}
         {{#each verdicts}}
         <span class="acks-tag{{#if tone}} is-{{tone}}{{/if}}" tabindex="0" aria-label="{{aria}}" data-tooltip-text="{{tip}}"><i class="fa-solid {{glyph}}" inert></i>{{#if text}} {{text}}{{/if}}</span>
         {{/each}}
@@ -56,9 +61,9 @@
       </header>
 
       <div class="acks-extras-research__who">
-        <span class="acks-tag"><img class="acks-extras-research__face" src="{{researcher.img}}" alt="" inert> {{researcher.name}} · {{researcher.role}}</span>
+        <span class="acks-tag" tabindex="0" data-tooltip-text="{{researcher.rate.tip}}"><img class="acks-extras-research__face" src="{{researcher.img}}" alt="" inert> {{researcher.name}} · {{researcher.role}}{{#if researcher.rate.text}} · {{researcher.rate.text}}{{else}} <i class="fa-solid fa-book" inert></i>{{/if}}</span>
         {{#each assistants}}
-        <span class="acks-tag">{{name}} · {{role}}
+        <span class="acks-tag{{#if rate.tone}} is-{{rate.tone}}{{/if}}" tabindex="0" data-tooltip-text="{{rate.tip}}">{{name}} · {{role}}{{#if rate.text}} · {{rate.text}}{{else}} <i class="fa-solid fa-book" inert></i>{{/if}}
           {{#if ../can}}<button type="button" class="acks-btn acks-btn--icon acks-extras-research__x" data-action="removeResearchAssistant" data-research-control data-uuid="{{uuid}}" aria-label="{{removeLabel}}" data-tooltip-text="{{removeLabel}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
         </span>
         {{/each}}
@@ -69,6 +74,10 @@
         </select>
         {{/if}}{{/if}}
       </div>
+
+      {{#if strip.show}}
+      <div class="acks-extras-research__days" role="img" aria-label="{{strip.aria}}">{{#each strip.cells}}<i{{#if this}} class="is-{{this}}"{{/if}}></i>{{/each}}</div>
+      {{/if}}
 
       <div class="acks-extras-research__parts">
         <span>{{levelLabel}}</span>
@@ -96,6 +105,8 @@
           <span class="acks-extras-research__bar" style="--pct: {{progress.pct}}%"></span>
           <span class="acks-nums">{{progress.text}}</span>
         </span>
+        <span>{{postedRow.label}}</span>
+        <span class="acks-nums" data-tooltip-text="{{postedRow.tip}}">{{postedRow.text}}</span>
         <span>{{throwLabel}}</span>
         <span class="acks-tag acks-nums" data-tooltip-text="{{throw.tip}}">{{#if throw.text}}{{throw.text}}{{else}}<i class="fa-solid fa-book" inert></i>{{/if}}</span>
       </div>
@@ -103,8 +114,17 @@
       {{> "modules/acks-extras/templates/lib/bucket.hbs" bucket}}
 
       <footer class="acks-extras-research__foot">
+        <span class="acks-extras-research__pace" role="radiogroup" aria-label="{{pace.legend}}">
+          <span class="acks-extras-research__cap">{{pace.legend}}</span>
+          {{#each pace.options}}
+          <label data-tooltip-text="{{tip}}"><input type="radio" form="acks-extras-research-pace" name="{{../pace.name}}-{{@root.partId}}" value="{{value}}" data-research-pace{{#if ../can}} data-research-control{{/if}}{{#if checked}} checked{{/if}}{{#unless ../can}} disabled{{/unless}}> {{label}}</label>
+          {{/each}}
+        </span>
+        <span class="acks-extras-research__acts">
+          {{#if post.can}}<button type="button" class="acks-btn acks-btn--secondary" data-action="postResearchDay"{{#unless post.disabled}} data-research-control{{/unless}}{{#if post.disabled}} disabled{{/if}} data-tooltip-text="{{post.tip}}">{{post.label}}</button>{{/if}}
+          <button type="button" class="acks-btn acks-btn--roll" disabled>{{finish.label}}</button>
+        </span>
         <span class="acks-extras-research__verdict">{{finish.why}}</span>
-        <button type="button" class="acks-btn acks-btn--roll" disabled>{{finish.label}}</button>
       </footer>
     </article>
     {{/each}}

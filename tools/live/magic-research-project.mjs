@@ -12,10 +12,21 @@
  * components bucket by a drop and an X, and the researcher's derived link, which
  * writes nothing on the character.
  *
- * The facility figures are the registry's `libraryProse` and `researchLadder`
- * through the override layer (invented), so the walk needs no import and sets
- * nothing a Judge did not; a table another hand already overrode blocks the
- * walk. Time is not moved. Prints counts and booleans only.
+ * Sections 9 and 10 walk the posted days (M-q2, ruling 222): a day posted from a
+ * Player's seat at the pace its radios chose, the day strip and chip, a past day
+ * posted by the Judge and credited once (a second call and a Player's request
+ * credit nothing and write nothing), and an assistant under the imported level
+ * blocked for a Player and warned for a Judge. The clock is shared and is never
+ * moved: the day that has "passed" is a Judge's post with a backdated calendar
+ * day, which is what a day posted earlier looks like once time moves. The hook
+ * that credits on a clock step is not walked here.
+ *
+ * The figures are the registry's `libraryProse`, `researchLadder`,
+ * `researchLadderNote`, `researchProse` and `assistantProse` through the override
+ * layer (invented), so the walk needs no import and sets nothing a Judge did not;
+ * a table another hand already overrode blocks the walk. The hero's and Pell's
+ * class levels are set from section 5 on and put back at the end of section 10. Prints counts and
+ * booleans only.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
  * `magic/research-place` (a location with no market the Player may only observe,
@@ -42,7 +53,7 @@ let gm;
 let player;
 let overrode = false;
 
-const TABLE_IDS = ["libraryProse", "researchLadder", "researchLadderNote"];
+const TABLE_IDS = ["libraryProse", "researchLadder", "researchLadderNote", "researchProse", "assistantProse"];
 
 /** The page helpers every step shares, for the place at `uuid`. */
 const kit = (uuid, ids = {}) => `
@@ -146,7 +157,7 @@ try {
     const r = await research().create(place(), { kind: "spell", subject: { name: "QA Lantern" }, researcher: ID.pell, costs: { research: 40, component: 20 } });
     await sleep(900);
     const c = r.ok ? card(r.id) : null;
-    const chip = c?.querySelector(".acks-extras-research__ph .acks-tag");
+    const chip = c?.querySelector(".acks-extras-research__ph .acks-tag:not(.is-pow)");
     return { r: { ok: r.ok, warn: r.warn }, id: r.id, n: projects().length, p: projects()[0], card: !!c, chipTone: chip?.className, chipText: chip?.textContent.trim(), chipTip: chip?.getAttribute("data-tooltip-text") ?? "", finish: c?.querySelector(".acks-extras-research__foot button")?.disabled, why: c?.querySelector(".acks-extras-research__verdict")?.textContent.trim(), header: !!root().querySelector(".market-class-line .fa-flask") };`, ids);
   check("the Judge's create answered ok with no warning and the record holds one open project, stamped with the day", p1.r.ok && !p1.r.warn && p1.n === 1 && p1.p.status === "open" && Number.isInteger(p1.p.opened) && p1.p.researcher === ids.pell && p1.p.costs.research === 40, p1);
   check("the project's card is drawn, its facility chip is unread (no words, a tooltip with the page) and Finish is disabled with its reason as text", p1.card && !/is-(ok|warn)/.test(p1.chipTone) && p1.chipText === "" && /\bRR\b/.test(p1.chipTip) && p1.finish === true && p1.why.length > 0, { chipTone: p1.chipTone, chipText: p1.chipText, chipTip: p1.chipTip, finish: p1.finish, why: p1.why });
@@ -169,11 +180,16 @@ try {
 
   section("5. the facility chip reads the imported figures once the registry holds them");
   overrode = true;
+  const lv0 = await gm.eval(`({ hero: Number(fromUuidSync(${JSON.stringify(ids.hero)}).system.details.level), pell: Number(fromUuidSync(${JSON.stringify(ids.pell)}).system.details.level) })`);
   const o1 = await run(gm, U, `
     ${tablesKit}
     await STORE.setOverride(D, "libraryProse", { minimum: 3000, step: 1500, bonusStep: 7000, bonusSize: 2, bonusCap: 5, share: 25 }, { sourceName: "qa-research-project" });
     await STORE.setOverride(D, "researchLadder", { r0: { label: 5, rate: "90gp", throw: "11+" } }, { sourceName: "qa-research-project" });
     await STORE.setOverride(D, "researchLadderNote", { otherProjectsRate: 40 }, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchProse", { ancillaryFraction: "1/4" }, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "assistantProse", { managerLevel: 4, managerBase: 2, aidLevel: 2, spellLevel: 6, itemLevel: 9 }, { sourceName: "qa-research-project" });
+    await fromUuidSync(ID.hero).update({ "system.details.level": 5 });
+    await fromUuidSync(ID.pell).update({ "system.details.level": 4 });
     // The two projects were started with no level, which reads as unread whatever the world has imported; the Judge enters it now.
     await research().update(place(), ID_A, { level: 2 });
     await research().update(place(), ID_B, { level: 2 });
@@ -181,7 +197,7 @@ try {
     const v = research().verdicts(place(), ID_A)[0];
     await open();
     await sleep(500);
-    const chip = card(ID_A)?.querySelector(".acks-extras-research__ph .acks-tag");
+    const chip = card(ID_A)?.querySelector(".acks-extras-research__ph .acks-tag:not(.is-pow)");
     return { served, v: { minimum: v.minimum, sharers: v.sharers, share: v.share, verdict: v.verdict, bonus: v.bonus, byHand: v.byHand }, chip: { cls: chip?.className, text: chip?.textContent.trim(), tip: chip?.getAttribute("data-tooltip-text") ?? "" } };`.replace(/ID_A/g, JSON.stringify(IDA)).replace(/ID_B/g, JSON.stringify(IDB)), ids);
   check("the second level's minimum is the first level's plus one step, the library's 9000 is shared by two projects and each share (4500) just meets it", o1.served && o1.v.minimum === 4500 && o1.v.sharers === 2 && o1.v.share === 4500 && o1.v.verdict === "ok" && o1.v.bonus === 0 && o1.v.byHand === true, o1.v);
   check("the chip reads ok with the bonus and its tooltip lists the value, the sharers, the share and the minimum", /is-ok/.test(o1.chip.cls) && /4500/.test(o1.chip.tip) && /9000/.test(o1.chip.tip), o1.chip);
@@ -275,6 +291,103 @@ try {
     const p = projects().find((x) => x.id === ${JSON.stringify(IDB)});
     return { status: p.status, closed: p.closed, open: projects().filter((x) => x.status === "open").length, links: research().projectsOf(fromUuidSync(ID.hero)).length };`, ids);
   check("the Player closes their own project (relayed): it stays on the record stamped with the day, and the link goes with it", x1.status === "closed" && Number.isInteger(x1.closed) && x1.open === 1 && x1.links === 0, x1);
+
+  section("9. research days: posted at a pace, credited once their day has passed");
+  // The clock is shared by every seat and is never moved: a day that has passed is posted by the Judge with a past
+  // calendar day (the stamp is backdated), which is exactly what a day posted earlier looks like once time moves.
+  const d0 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", { r0: { label: 4, rate: "30gp", throw: "15+" }, r1: { label: 5, rate: "90gp", throw: "11+" } }, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchLadderNote", { otherProjectsRate: 150 }, { sourceName: "qa-research-project" });
+    const r = await research().create(place(), { kind: "spell", subject: { name: "QA Days" }, researcher: ID.hero, assistants: [ID.pell], costs: { research: 1000 } });
+    const served = await poll(() => research().progress(place(), r.id)?.daily === 120);
+    await sleep(600);
+    await open();
+    const prog = research().progress(place(), r.id);
+    const c = card(r.id);
+    const chip = c?.querySelector(".acks-tag.is-pow");
+    const who = [...c.querySelectorAll(".acks-extras-research__who .acks-tag")].map((e) => e.textContent.replace(/\\s+/g, " ").trim());
+    return { ok: r.ok, warn: r.warn, id: r.id, served, prog: { daily: prog.daily, dueDays: prog.dueDays, dueBy: prog.dueBy, complete: prog.complete }, chip: chip?.textContent.trim(), who, strip: c.querySelectorAll(".acks-extras-research__days i").length, t0: game.time.worldTime, today: (await import("/modules/acks-extras/scripts/lib/world-time.mjs")).dayOfWorldTime(game.time.worldTime) };`, ids);
+  check("a project read against the invented ladder, share and assistant levels: a day is worth 120 (90 and 30), the due is 9 days computed from the rates, and the strip draws 9 empty cells", d0.ok && !d0.warn && d0.served && d0.prog.daily === 120 && d0.prog.dueDays === 9 && d0.prog.dueBy === "ladder" && d0.prog.complete === false && d0.strip === 9, d0);
+  check("the day chip reads day 0 of 9 and each participant's chip names the rate it counts", /0.*9/.test(d0.chip ?? "") && d0.who.some((x) => /90/.test(x)) && d0.who.some((x) => /30/.test(x)), d0);
+  const IDD = d0.id;
+  const today = d0.today;
+  const ww0 = await writes();
+  const d1 = await run(player, U, `
+    await open();
+    const c = card(${JSON.stringify(IDD)});
+    const radios = [...c.querySelectorAll("[data-research-pace]")];
+    const anc = radios.find((r) => r.value === "ancillary");
+    const own = { radios: radios.map((r) => [r.value, r.checked, r.disabled]), formOwned: radios.some((r) => !!r.form) };
+    anc.checked = true;
+    anc.dispatchEvent(new Event("change", { bubbles: true }));
+    await sleep(700);
+    own.postedAfterPick = projects().find((p) => p.id === ${JSON.stringify(IDD)}).posted?.length ?? 0;
+    c.querySelector('[data-action="postResearchDay"]').click();
+    await sleep(1500);
+    const after = card(${JSON.stringify(IDD)});
+    own.posted = projects().find((p) => p.id === ${JSON.stringify(IDD)}).posted;
+    own.pickedAfter = [...after.querySelectorAll("[data-research-pace]")].find((r) => r.checked)?.value;
+    own.postDisabled = after.querySelector('[data-action="postResearchDay"]').disabled;
+    own.strip = { p: after.querySelectorAll(".acks-extras-research__days i.is-p").length, c: after.querySelectorAll(".acks-extras-research__days i.is-c").length, cells: after.querySelectorAll(".acks-extras-research__days i").length };
+    own.again = await research().post(place(), ${JSON.stringify(IDD)}, { pace: "dedicated" });
+    own.tomorrow = await research().post(place(), ${JSON.stringify(IDD)}, { pace: "dedicated", day: ${today + 1} });
+    return own;`, ids);
+  const ww1 = await writes();
+  check("a Player's radios belong to no form and start on dedicated; picking ancillary writes nothing", d1.radios.length === 3 && d1.radios[0][1] === true && d1.formOwned === false && d1.postedAfterPick === 0, d1);
+  check("Post from the Player's seat posts today at the ancillary pace through the relay, one write, and the window still shows ancillary picked", d1.posted?.length === 1 && d1.posted[0].day === today && d1.posted[0].pace === "ancillary" && ww1 - ww0 === 1 && d1.pickedAfter === "ancillary", { ...d1, writes: ww1 - ww0 });
+  check("the control is then disabled, the strip draws one posted cell among the 10 the due needs, and a second post of the day and a Player's post of another day are refused", d1.postDisabled === true && d1.strip.p === 1 && d1.strip.c === 0 && d1.strip.cells === 10 && d1.again.reason === "duplicate" && d1.tomorrow.reason === "day", d1);
+
+  const d2 = await run(gm, U, `
+    const past = await research().post(place(), ${JSON.stringify(IDD)}, { pace: "dedicated", day: ${today - 2} });
+    await sleep(900);
+    const before = research().progress(place(), ${JSON.stringify(IDD)});
+    const w = __rp.place;
+    const first = await research().credit(place());
+    await sleep(1200);
+    const afterFirst = __rp.place;
+    const second = await research().credit(place());
+    await sleep(900);
+    const p = projects().find((x) => x.id === ${JSON.stringify(IDD)});
+    const prog = research().progress(place(), ${JSON.stringify(IDD)});
+    await open();
+    const c = card(${JSON.stringify(IDD)});
+    return { past: past.ok, waiting: before.waiting, first, second, writes: [afterFirst - w, __rp.place - afterFirst], credited: p.credited, posted: p.posted, prog: { days: prog.creditedDays, gp: prog.creditedGp, due: prog.dueDays, posted: prog.posted, waiting: prog.waiting }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length }, chip: c.querySelector(".acks-tag.is-pow")?.textContent.trim(), t1: game.time.worldTime };`, ids);
+  check("the Judge's past day is posted and waits to be credited; one credit takes it: two rows (90 for the hero and 30 for Pell) stamped with that day, and today's ancillary day stays posted", d2.past && d2.waiting === 1 && d2.first.credited === 1 && d2.credited.length === 2 && d2.credited.every((r) => r.day === today - 2) && d2.credited.find((r) => r.by === ids.hero)?.amount === 90 && d2.credited.find((r) => r.by === ids.pell)?.amount === 30 && d2.posted.length === 1 && d2.posted[0].day === today, d2);
+  check("crediting is once: the second call credits nothing and writes nothing, one write for the first", d2.second.credited === 0 && d2.writes[0] === 1 && d2.writes[1] === 0, d2.writes);
+  check("the standing reads 1 credited day and 120 gp, the due still computed (1 + 1 + 8 = 10 days), and the strip and chip follow", d2.prog.days === 1 && d2.prog.gp === 120 && d2.prog.due === 10 && d2.prog.posted === 1 && d2.prog.waiting === 0 && d2.strip.c === 1 && d2.strip.p === 1 && /2.*10/.test(d2.chip ?? ""), d2);
+  check("the world clock was not moved by any of this", d2.t1 === d0.t0, { t0: d0.t0, t1: d2.t1 });
+  const d3 = await run(player, U, `
+    const asked = await research().credit(place());
+    await sleep(900);
+    return { asked, held: projects().find((x) => x.id === ${JSON.stringify(IDD)}).credited.length };`, ids);
+  check("a Player's request to credit (relayed, on the sender's authority) finds nothing due and adds no row", d3.asked.ok === true && d3.asked.credited === 0 && d3.held === 2, d3);
+
+  section("10. an assistant under the imported level: a Player is blocked and a Judge warned");
+  await run(gm, U, `
+    await fromUuidSync(ID.pell).update({ "system.details.level": 1 });
+    await research().update(place(), ${JSON.stringify(IDD)}, { assistants: [] });
+    await sleep(700);
+    return true;`, ids);
+  const g2 = await run(player, U, `
+    const answer = await research().update(place(), ${JSON.stringify(IDD)}, { assistants: [ID.pell] });
+    await sleep(700);
+    return { answer, held: projects().find((x) => x.id === ${JSON.stringify(IDD)}).assistants };`, ids);
+  check("Pell at the level under the aiding level is refused to the Player (relayed): the assistantLevel reason, nothing written", g2.answer.ok === false && g2.answer.reason === "assistantLevel" && g2.held.length === 0, g2);
+  const g3 = await run(gm, U, `
+    const answer = await research().update(place(), ${JSON.stringify(IDD)}, { assistants: [ID.pell] });
+    await sleep(700);
+    const prog = research().progress(place(), ${JSON.stringify(IDD)});
+    return { ok: answer.ok, warn: answer.warn, held: projects().find((x) => x.id === ${JSON.stringify(IDD)}).assistants, counts: prog.people.map((x) => [x.role, x.counts, x.why]) };`, ids);
+  check("the Judge is warned and the assistant is added, and counts for nothing", g3.ok === true && g3.warn === "assistantLevel" && g3.held.length === 1 && g3.counts.join("|") === "researcher,true,|assistant,false,below", g3);
+
+  section("Days teardown");
+  await run(gm, U, `
+    await research().close(place(), ${JSON.stringify(IDD)});
+    await fromUuidSync(ID.hero).update({ "system.details.level": ${lv0.hero} });
+    await fromUuidSync(ID.pell).update({ "system.details.level": ${lv0.pell} });
+    await sleep(600);
+    return true;`, ids);
 
   section("Teardown");
   await run(gm, U, `await close();`, ids);

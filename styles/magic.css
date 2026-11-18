@@ -833,6 +833,39 @@
   background: var(--acks-warning-tint);
   color: var(--acks-warning-ink);
 }
+.acks-extras-research .acks-tag.is-pow {
+  border-color: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
+  background: color-mix(in srgb, var(--acks-burgundy) 12%, var(--acks-paper-pure));
+  color: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
+}
+.acks-extras-research__days {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(1.4em, 1fr));
+  gap: 2px;
+}
+.acks-extras-research__days i {
+  block-size: 0.7em;
+  background: var(--acks-tint);
+  border: var(--acks-border-hair);
+}
+.acks-extras-research__days i.is-c {
+  background: color-mix(in srgb, var(--acks-burgundy) 55%, var(--acks-ink) 45%);
+}
+.acks-extras-research__days i.is-p {
+  background: color-mix(in srgb, var(--acks-burgundy) 18%, var(--acks-paper-pure));
+}
+.acks-extras-research__pace {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-research__acts {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+}
 .acks-extras-research__foot {
   display: flex;
   justify-content: space-between;
@@ -843,6 +876,7 @@
   padding-block-start: var(--acks-sp-3);
 }
 .acks-extras-research__verdict {
+  flex: 1 1 100%;
   font-size: var(--acks-fs-label);
   font-weight: var(--acks-weight-medium);
   color: var(--acks-warning-ink);

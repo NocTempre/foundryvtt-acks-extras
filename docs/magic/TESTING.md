@@ -1556,10 +1556,10 @@ sheet, through the same `castingStripElement`.
 Both ledgers are unset, the update counter hook is removed, both sheets are closed, and the override
 is cleared (also in the walk's `finally`). The fixtures stay.
 
-## Research projects (M-q1)
+## Research projects (M-q1, M-q2)
 
-A location's facility values and the research projects held there, on the location sheet's
-Research tab. Offline: `tools/test-research-project.mjs`. Live: `tools/live/magic-research-project.mjs`,
+A location's facility values, the research projects held there and the days posted and credited
+on them, on the location sheet's Research tab. Offline: `tools/test-research-project.mjs`. Live: `tools/live/magic-research-project.mjs`,
 the GM seat and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
 
 ### Fixtures
@@ -1574,7 +1574,10 @@ it: the place's research flag is unset and its roster is rewritten to the hero a
 (`lib/place.mjs` `addOccupant`) at the start and the end, since a kept fixture carries what the last
 walk left. A counter on `updateActor` for the place and the hero, on the GM seat, is what "written"
 is read from. The run's table overrides are the registry's own layer, cleared in its `finally`. The
-walk makes no document of its own: the projects are flag records.
+walk makes no document of its own: the projects are flag records. Step 5 sets the hero's and
+Pell's class level (`system.details.level`) and step 10 puts them back; the overrides added for
+the days are `researchProse` and `assistantProse` (set in step 5, in the same blocking and clearing
+list as the others).
 
 ### Steps
 
@@ -1594,8 +1597,8 @@ walk makes no document of its own: the projects are flag records.
 4. **A Player starts one.** From the Player seat, for the hero (no level), Pell, Lena and with a cost.
    *Observable:* the hero's is written (the answer came from the GM's client); Pell's is `owner`, Lena's
    is `researcher` and a cost is `judge`, each writing nothing.
-5. **The facility, imported.** Override `libraryProse`, `researchLadder` and `researchLadderNote` with
-   invented figures (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk),
+5. **The facility, imported.** Override `libraryProse`, `researchLadder`, `researchLadderNote`,
+   `researchProse` and `assistantProse` with invented figures, and set the hero to level 5 and Pell to level 4 (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk),
    then the Judge enters level 2 on both projects. *Observable:* the second level's minimum is the first level's plus one step; with two open projects the
    9000 divides to a share that meets it and the chip reads ok with the bonus and a tooltip listing value,
    sharers, share and minimum. A third project from the Player seat is `facility` and writes nothing; from
@@ -1611,6 +1614,21 @@ walk makes no document of its own: the projects are flag records.
 8. **The link and close.** `projectsOf(hero)` lists the open project the hero researches, and nothing
    was written on the character. The Player closes it: it stays on the record with its day and the link
    is gone.
+9. **Research days.** Override the ladder (levels 4 and 5) and its footnote's rate again
+   (the ancillary fraction, the assistant levels and the two class levels stand from step 5), and the
+   Judge creates a project with Pell as assistant and a research cost. *Observable:* a day is worth the
+   two rates added, the due is computed from them (`progress().dueBy` "ladder"), the chip reads day 0 of
+   the due, each participant's chip names its rate, and the strip draws one empty cell per due day. From
+   the Player seat pick ancillary and press Post: the pick writes nothing, the radios belong to no form,
+   the day is posted at that pace by one relayed write, the control is disabled, the radio still reads
+   ancillary after the re-render and one cell is posted; a second post of the day is `duplicate` and
+   another day is `day`. From the GM seat post a day two calendar days back (a Judge may) and call
+   `research.credit`: one write, two credited rows stamped with that day and valued at the pace, today's
+   day still posted; a second call and a Player's relayed call credit nothing and write nothing. The
+   world clock reads the same before and after. The sweep on a clock step is not walked.
+10. **An assistant under the level.** Set Pell to level 1 and clear the assistants. *Observable:* the
+   Player's add of Pell is `assistantLevel` and writes nothing; the Judge's is written with
+   `warn: "assistantLevel"` and `progress().people` marks Pell as not counting (`below`).
 
 ### Drive mechanics
 
@@ -1618,9 +1636,12 @@ A control writes by its own listener and stops the change there, so a value is s
 and a bubbling `change` event, then a wait for the relayed write to come back. A drop is a `drop`
 `DragEvent` on `[data-bucket-drop]` carrying `text/plain` JSON `{type: "Item", uuid}` in a
 `DataTransfer`; the zone stops it, so nothing reaches the sheet's own drop. A write re-renders the
-sheet, so each card is looked up again after one. Not walked: the researcher's own sheet (no link is
-drawn on it), a second Player seat for the project of someone else's character, a real time advance
-(nothing credits yet), and Finish (drawn disabled).
+sheet, so each card is looked up again after one. A pace radio is picked by setting `checked` and
+dispatching a bubbling `change`. The world clock is shared and is never advanced: a day that has
+"passed" is a Judge's `post` with a backdated `day`, then `credit`. Not walked: the researcher's own
+sheet (no link is drawn on it), a second Player seat for the project of someone else's character, the
+sweep that credits on a real clock step and at `ready` (it needs the world clock to move), and Finish
+(drawn disabled).
 
 ### Teardown
 

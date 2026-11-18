@@ -1,20 +1,22 @@
-/* global game, foundry, fromUuid, fromUuidSync, ui */
+/* global game, foundry, fromUuid, ui */
 /**
  * The Research tab of the location sheet: the facility values, the open projects
  * with their researchers, credited research and costs, and each project's
- * components bucket. The sheet hosts it (`prepareResearchTab` fills its context,
+ * components bucket, with the day each posted and credited as a strip, a pace to work a day at and
+ * the button that posts it. The sheet hosts it (`prepareResearchTab` fills its context,
  * `bindResearchTab` wires its controls, `RESEARCH_TAB_ACTIONS` are spread into its
  * `actions`); every write goes through `acksExtras.magic.research`
  * (`research-project-live.mjs`), which writes where the seat may and otherwise
  * asks the GM's client.
  *
  * A control writes by its own listener and stops the event there, so the sheet's
- * submit-on-change never sees it: none is a named form field, and the facility
- * inputs exist only on a Judge's render. Posting days and Finish are not here.
+ * submit-on-change never sees it: no control writes through the form, and the facility
+ * inputs exist only on a Judge's render. The pace radios write nothing: the choice is held
+ * per window (`paceMemory`) and read by the Post control. Finish is not here.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { researchApi, linkedCharacters, recordOf, liveDeps, loc, announce } from "./research-project-live.mjs";
-import { PROJECT_KINDS, COMPONENT_KINDS, FACILITY_KEYS, panelModel } from "./research-project.mjs";
+import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce } from "./research-project-live.mjs";
+import { PROJECT_KINDS, COMPONENT_KINDS, FACILITY_KEYS, PACE, PACES, panelModel } from "./research-project.mjs";
 import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop } from "../lib/bucket.mjs";
 
 /** The partials the tab draws, loaded at `init` with the module's templates. */
@@ -29,15 +31,13 @@ const bucketLoc = (key, data) => game.i18n.format(`${BUCKET_LANG_PREFIX}.${key}`
 /** A document of a uuid that resolves, else null. */
 const resolveDoc = (uuid) => fromUuid(uuid).catch(() => null);
 
-/** A researcher's class level, for the ladder's throw; null where the actor or the level is not there. */
-const levelOf = (uuid) => {
-  try {
-    const level = Number(fromUuidSync(uuid)?.system?.details?.level);
-    return Number.isFinite(level) && level >= 1 ? level : null;
-  } catch {
-    return null;
-  }
-};
+/** Each window's pace choice per project, held by the window and never written to the record. */
+const paceMemory = new WeakMap();
+
+/** The pace a window has chosen for a project's day: dedicated until one is picked. */
+export function paceOf(sheet, projectId) {
+  return paceMemory.get(sheet)?.get(projectId) ?? PACE.dedicated;
+}
 
 /**
  * Fill the sheet's context for the tab: `context.research` is the panel and
@@ -61,6 +61,8 @@ export async function prepareResearchTab(sheet, context) {
     owns: deps.owns,
     entries,
     levelOf,
+    intBonusOf,
+    paceOf: (id) => paceOf(sheet, id),
   });
   context.researchOpen = context.research.openCount;
 }
@@ -106,6 +108,13 @@ async function onNewProject() {
   this.render();
 }
 
+/** Press of Post: the day, at the pace this window chose, is posted. */
+async function onPostDay(_event, target) {
+  const id = projectIdOf(target);
+  if (id) announce(await researchApi.post(this.actor, id, { pace: paceOf(this, id) }));
+  this.render();
+}
+
 /** Press of a project's close control. */
 async function onCloseProject(_event, target) {
   const id = projectIdOf(target);
@@ -134,6 +143,7 @@ async function onBucketRemove(_event, target) {
 /** The actions the location sheet spreads into its own. */
 export const RESEARCH_TAB_ACTIONS = {
   newResearchProject: onNewProject,
+  postResearchDay: onPostDay,
   closeResearchProject: onCloseProject,
   removeResearchAssistant: onRemoveAssistant,
   [BUCKET_ACTIONS.remove]: onBucketRemove,
@@ -183,6 +193,15 @@ export function bindResearchTab(sheet) {
       const path = box.dataset.researchField;
       const value = box.type === "number" ? numberOf(box.value) : box.value.trim();
       write(researchApi.update(location, id, patchOf(path, value)));
+    });
+  }
+  for (const radio of root.querySelectorAll("[data-research-pace]")) {
+    radio.addEventListener("change", (event) => {
+      event.stopPropagation();
+      const id = projectIdOf(radio);
+      if (!id || !radio.checked || !PACES.includes(radio.value)) return;
+      if (!paceMemory.has(sheet)) paceMemory.set(sheet, new Map());
+      paceMemory.get(sheet).set(id, radio.value);
     });
   }
   for (const pick of root.querySelectorAll("[data-research-add-assistant]")) {

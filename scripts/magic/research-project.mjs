@@ -7,8 +7,8 @@
  * The record is `flags["acks-extras"].magic = {facilities, projects}` on the
  * `location` actor. `facilities` is `{library, workshop}`, the gold value the
  * Judge writes for each (null while unset). A PROJECT is `{id, kind, subject,
- * level, costs, researcher, assistants, paid, credited, bucket, throw, status,
- * opened, closed}`:
+ * level, costs, researcher, assistants, paid, posted, credited, dueDays, bucket, throw,
+ * status, opened, closed}`:
  * - `kind` is one of `PROJECT_KIND`; `subject` is `{uuid, name, img}` of the spell
  *   or item (blank for none); `level` is the level of effect the facility's
  *   minimum is read by;
@@ -16,8 +16,13 @@
  * - `researcher` and `assistants` are actor uuids of the characters linked to the
  *   location (`linked`);
  * - `paid` is what the material cost was paid at the start, `{material, day}`;
- * - `credited` is the research done so far, `[{day, amount, by}]`, which crediting
- *   writes and a project here only holds;
+ * - `posted` is the days worked and not yet credited, `[{day, pace}]`, one per calendar
+ *   day, which `post` writes and `credit` consumes once world time has passed the day;
+ * - `credited` is the research done so far, `[{day, amount, by}]`, one row per counted
+ *   participant and day (`by` is the actor's uuid; a day nobody's rate could be read for is
+ *   one row with a null amount and a blank `by`), which only `credit` writes;
+ * - `dueDays` is the Judge's entry for how many days the research takes, read only while
+ *   the rates it would be computed from are not imported;
  * - `bucket` is the components bucket as lib stores an answer, `[{uuid, qty, fit}]`,
  *   which the end of the project settles;
  * - `throw` is `{target}` where a throw has been fixed, null otherwise.
@@ -28,7 +33,7 @@
  * figure that is not read answers null: a verdict is then `unknown`, which blocks
  * and warns nothing, and a bonus is null.
  */
-import { facilityMinimum, facilityBonus, researchRateAt } from "./research-tables.mjs";
+import { facilityMinimum, facilityBonus, researchRateAt, assistantCapacity, assistantMinimum } from "./research-tables.mjs";
 import { bucketView, ENTRY_KIND } from "../lib/bucket.mjs";
 
 /** The kinds of project: what the facility check reads, not what any of them costs. */
@@ -63,14 +68,27 @@ export const COMPONENT_KINDS = Object.freeze([ENTRY_KIND.item, ENTRY_KIND.actor,
 /** The three costs a project is due, in the order the panel draws them. */
 export const COST_KEYS = Object.freeze(["material", "component", "research"]);
 
+/** The ways a day is worked: dedicated, ancillary, or both together (overtime). */
+export const PACE = Object.freeze({ dedicated: "dedicated", ancillary: "ancillary", both: "both" });
+
+/** Every pace, in the order the tab draws them. */
+export const PACES = Object.freeze(Object.values(PACE));
+
+/**
+ * The kinds that read the ladder's own rate. The ladder's footnote leaves these at
+ * the rate their rung prints and gives every other kind the lesser rate it names
+ * for other projects (`researchRateAt`).
+ */
+export const FULL_RATE_KINDS = Object.freeze([PROJECT_KIND.ritual]);
+
 /** The operations a request names. */
-export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility" });
+export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", credit: "credit" });
 
 /** The fields of a project only a Judge writes; a Player's request that names one is refused. */
-export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw"]);
+export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw", "dueDays"]);
 
 /** The fields an update may change. `level` is a Judge's after the project exists. */
-export const UPDATE_FIELDS = Object.freeze(["subject", "level", "costs", "paid", "throw", "assistants", "bucket"]);
+export const UPDATE_FIELDS = Object.freeze(["subject", "level", "costs", "paid", "throw", "dueDays", "assistants", "bucket"]);
 
 /** A finite number of at least zero, else null. */
 const gold = (raw) => {
@@ -115,6 +133,39 @@ export function cleanBucket(raw) {
   return out;
 }
 
+/** The posted days as `[{day, pace}]`: a day stands once, a row with no day or an unknown pace is dropped, and the days run in order. */
+export function cleanPosted(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const row of Array.isArray(raw) ? raw : []) {
+    const day = dayOf(row?.day);
+    if (day === null || seen.has(day) || !PACES.includes(row?.pace)) continue;
+    seen.add(day);
+    out.push({ day, pace: row.pace });
+  }
+  return out.sort((a, b) => a.day - b.day);
+}
+
+/**
+ * The credited rows as `[{day, amount, by}]`. A row stands once for its day and
+ * participant, which is what keeps crediting idempotent whatever writes the record
+ * twice. A row with no day, or an amount of nothing, is dropped; a null amount is
+ * a day credited with no rate to read.
+ */
+export function cleanCredited(raw) {
+  const seen = new Set();
+  const out = [];
+  for (const row of Array.isArray(raw) ? raw : []) {
+    const entry = { day: dayOf(row?.day), amount: gold(row?.amount), by: str(row?.by) };
+    if (entry.day === null || (entry.amount !== null && entry.amount <= 0)) continue;
+    const key = `${entry.day}|${entry.by}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(entry);
+  }
+  return out;
+}
+
 /** A list of uuids, each once and none blank. */
 const uuids = (raw) => [...new Set((Array.isArray(raw) ? raw : []).map(str).filter(Boolean))];
 
@@ -135,9 +186,9 @@ export function cleanProject(raw) {
     researcher,
     assistants: uuids(raw.assistants).filter((u) => u !== researcher),
     paid: { material: gold(raw.paid?.material), day: dayOf(raw.paid?.day) },
-    credited: (Array.isArray(raw.credited) ? raw.credited : [])
-      .map((c) => ({ day: dayOf(c?.day), amount: gold(c?.amount), by: str(c?.by) }))
-      .filter((c) => c.amount !== null && c.amount > 0),
+    posted: cleanPosted(raw.posted),
+    credited: cleanCredited(raw.credited),
+    dueDays: level(raw.dueDays),
     bucket: cleanBucket(raw.bucket),
     throw: target === null ? null : { target },
     status: raw.status === "closed" ? "closed" : "open",
@@ -157,8 +208,8 @@ export function readRecord(raw) {
 /** The projects not yet closed. */
 export const openProjects = (projects) => (projects ?? []).filter((p) => p.status === "open");
 
-/** The research a project has had credited, in gold. */
-export const creditedTotal = (project) => (project?.credited ?? []).reduce((n, c) => n + c.amount, 0);
+/** The research a project has had credited, in gold; a row with no amount adds nothing. */
+export const creditedTotal = (project) => (project?.credited ?? []).reduce((n, c) => n + (c.amount ?? 0), 0);
 
 /** The facility values a kind reads, by the value they name. */
 export const usesFacility = (kind, value) => (KIND_FACILITIES[kind] ?? []).some((f) => f.value === value);
@@ -228,6 +279,162 @@ export function linksFor(entries, uuid) {
   return out;
 }
 
+/* ------------------------------ days and their credit ----------------------------- */
+
+/** Round a gold sum off the float's tail, so a product of two read figures does not carry one. */
+const tidy = (n) => Math.round(n * 1e6) / 1e6;
+
+/**
+ * The share of a day's rate a pace applies: the whole rate when dedicated, the
+ * imported ancillary share when ancillary, and both together for overtime. Null
+ * where the share is not read.
+ */
+export function paceFactor(prose, pace) {
+  if (pace === PACE.dedicated) return 1;
+  const share = prose?.ancillary?.share ?? null;
+  if (share === null) return null;
+  if (pace === PACE.ancillary) return share;
+  return pace === PACE.both ? 1 + share : null;
+}
+
+/**
+ * Who works a project and what each one's day is worth: the researcher first, then
+ * the assistants in their listed order. A person is `{uuid, role, level, rate, counts,
+ * why}`; `rate` is the ladder's rate for the level (null where it is not read), and
+ * `counts` says whether the person adds it to the project. An assistant counts only
+ * where the imported assistant levels say so: at or above the level that aids a
+ * researcher, and within the number the researcher manages (`assistantCapacity`). `why`
+ * is "" for a person who counts, else "below" (under the level), "over" (past the number
+ * managed) or "unread" (a figure that decides it is not read). `ctx` is `{tables,
+ * levelOf(uuid), intBonusOf(uuid)}`.
+ * @returns {{uuid: string, role: "researcher"|"assistant", level: number|null, rate: number|null, counts: boolean, why: string}[]}
+ */
+export function weighParticipants(project, { tables, levelOf = () => null, intBonusOf = () => 0 } = {}) {
+  const full = FULL_RATE_KINDS.includes(project.kind);
+  const rateOf = (level) => (level === null || level === undefined ? null : (researchRateAt(tables?.ladder, level, { full })?.rate ?? null));
+  const researcherLevel = levelOf(project.researcher) ?? null;
+  const minimum = assistantMinimum(tables?.assistants, "aid");
+  const capacity = assistantCapacity(tables?.assistants, { level: researcherLevel, intBonus: intBonusOf(project.researcher) });
+  const people = [{ uuid: project.researcher, role: "researcher", level: researcherLevel, rate: rateOf(researcherLevel), counts: true, why: "" }];
+  let taken = 0;
+  for (const uuid of project.assistants) {
+    const level = levelOf(uuid) ?? null;
+    let why = "";
+    if (minimum === null || capacity === null) why = "unread";
+    else if (level === null || level < minimum) why = "below";
+    else if (taken >= capacity) why = "over";
+    if (!why) taken++;
+    people.push({ uuid, role: "assistant", level, rate: rateOf(level), counts: !why, why });
+  }
+  return people;
+}
+
+/**
+ * What one day at a pace credits: each counted person's rate times the pace's share,
+ * and their sum. A figure not read leaves that person's amount null and the sum null.
+ * @returns {{entries: {by: string, amount: number|null}[], total: number|null}}
+ */
+export function dayAmounts(people, prose, pace) {
+  const factor = paceFactor(prose, pace);
+  const entries = people.filter((p) => p.counts).map((p) => ({ by: p.uuid, amount: p.rate !== null && factor !== null ? tidy(p.rate * factor) : null }));
+  const known = entries.length > 0 && entries.every((e) => e.amount !== null);
+  return { entries, total: known ? tidy(entries.reduce((n, e) => n + e.amount, 0)) : null };
+}
+
+/**
+ * Credit a project's posted days that world time has passed: each such day leaves
+ * `posted` and adds one `credited` row per counted participant, valued by the rates read
+ * now. A day nobody's rate could be read for is one row with a null amount, so it still
+ * counts as a day worked. A (day, participant) already credited adds nothing, so the same
+ * call twice, or from two clients, changes nothing the second time. `ctx` is `{today,
+ * tables, levelOf, intBonusOf}`.
+ * @returns {{project: object, credited: number}} the project and how many days it credited
+ */
+export function creditDue(project, ctx) {
+  const passed = project.posted.filter((row) => row.day < ctx.today);
+  if (!passed.length) return { project, credited: 0 };
+  const people = weighParticipants(project, ctx);
+  const have = new Set(project.credited.map((c) => `${c.day}|${c.by}`));
+  const added = [];
+  for (const row of passed) {
+    const made = dayAmounts(people, ctx.tables?.prose, row.pace).entries.filter((e) => e.amount !== null && e.amount > 0);
+    for (const e of made.length ? made : [{ by: "", amount: null }]) {
+      const key = `${row.day}|${e.by}`;
+      if (have.has(key)) continue;
+      have.add(key);
+      added.push({ day: row.day, amount: e.amount, by: e.by });
+    }
+  }
+  return { project: { ...project, posted: project.posted.filter((row) => row.day >= ctx.today), credited: [...project.credited, ...added] }, credited: passed.length };
+}
+
+/**
+ * Where a project stands: the gold and the days credited, the days posted (`posted` those
+ * not yet passed, `waiting` those passed and not yet credited), what each participant
+ * does, and the due. The due is computed while the rates and the research cost are read:
+ * the days already credited and posted, plus the days the remaining cost takes at a
+ * dedicated day's rate (`dueBy` "ladder"). Otherwise it is the Judge's `dueDays`
+ * (`dueBy` "judge") or unknown. `complete` is whether the research cost is credited: by the
+ * gold once it reaches the cost, not before while the rates are read, and by the Judge's
+ * days where they are not; null where no cost and no days are known. `dueDay` is the calendar day the last needed day falls on, were each
+ * remaining day worked in turn from today.
+ */
+export function progressOf(project, ctx) {
+  const prose = ctx.tables?.prose;
+  const people = weighParticipants(project, ctx);
+  const creditedDays = new Set(project.credited.map((c) => c.day)).size;
+  const creditedGp = tidy(creditedTotal(project));
+  const postedAll = project.posted.length;
+  const waiting = project.posted.filter((row) => row.day < ctx.today).length;
+  const daily = dayAmounts(people, prose, PACE.dedicated).total;
+  const expected = project.posted.map((row) => dayAmounts(people, prose, row.pace).total);
+  const dueGp = project.costs.research;
+  const rateRead = daily !== null && daily > 0;
+  const computable = dueGp !== null && rateRead && expected.every((n) => n !== null);
+  let dueDays = null;
+  let dueBy = null;
+  if (computable) {
+    const remaining = Math.max(0, dueGp - creditedGp - expected.reduce((n, x) => n + x, 0));
+    dueDays = creditedDays + postedAll + Math.ceil(remaining / daily - 1e-9);
+    dueBy = "ladder";
+  } else if (project.dueDays !== null) {
+    dueDays = project.dueDays;
+    dueBy = "judge";
+  }
+  let complete = null;
+  if (dueGp !== null && creditedGp >= dueGp) complete = true;
+  else if (dueGp !== null && rateRead) complete = false;
+  else if (project.dueDays !== null) complete = creditedDays >= project.dueDays;
+  else if (dueGp !== null) complete = false;
+  const lastPosted = postedAll ? project.posted[postedAll - 1].day : null;
+  const remainingDays = dueDays === null ? null : Math.max(0, dueDays - creditedDays - postedAll);
+  const lastCredited = project.credited.reduce((n, c) => Math.max(n, c.day), -Infinity);
+  const dueDay = remainingDays === null ? null : remainingDays > 0 ? Math.max(ctx.today, (lastPosted ?? ctx.today - 1) + 1) + remainingDays - 1 : (lastPosted ?? (Number.isFinite(lastCredited) ? lastCredited : null));
+  return { people, creditedGp, creditedDays, posted: postedAll - waiting, waiting, daily, dueGp, dueDays, dueBy, dueDay, complete };
+}
+
+/**
+ * Whether the assistants a project names may stand: one that does not count for being
+ * under the level, or past the number the researcher manages, blocks a Player and warns a
+ * Judge; one whose figure is not read does neither. `names` limits the check to the
+ * assistants just added (a removal never trips it); omit it to check them all.
+ * @returns {{ok: true, warn?: string}|{ok: false, reason: string}}
+ */
+export function assistantGate(people, { judge, names = null }) {
+  const asked = people.filter((p) => p.role === "assistant" && (names === null || names.includes(p.uuid)));
+  const reason = asked.some((p) => p.why === "below") ? "assistantLevel" : asked.some((p) => p.why === "over") ? "assistantCount" : null;
+  if (!reason) return { ok: true };
+  return judge ? { ok: true, warn: reason } : { ok: false, reason };
+}
+
+/** Join two gate answers: a refusal wins, and every warning is kept in `warns`. */
+function joinGates(...gates) {
+  const refused = gates.find((g) => g.ok === false);
+  if (refused) return refused;
+  const warns = gates.map((g) => g.warn).filter(Boolean);
+  return warns.length ? { ok: true, warn: warns[0], warns } : { ok: true };
+}
+
 /* --------------------------------- the operations -------------------------------- */
 
 /**
@@ -236,10 +443,14 @@ export function linksFor(entries, uuid) {
  * of `{facilities}` and/or `{projects}`, `canWrite(location)`, `relay(request)` the
  * GM's answer or undefined, `today()`, `isJudge()`, `owns(uuid)` whether this user
  * owns the actor, `linked(location)` the uuids of the characters linked to it,
- * `tables()` the imported research tables, `newId()`.
+ * `tables()` the imported research tables, `newId()`, and, for the rates a day is
+ * worth, `levelOf(uuid)` a participant's class level (null where there is none) and
+ * `intBonusOf(uuid)` an Intellect bonus.
  */
 export function projectOps(deps) {
   const recordOf = (location) => readRecord(deps.read(location));
+  /** What the rates and the assistants need, as this client has it. */
+  const ctxOf = () => ({ today: deps.today(), tables: deps.tables(), levelOf: deps.levelOf ?? (() => null), intBonusOf: deps.intBonusOf ?? (() => 0) });
 
   /** Run one op here, on a location this client may write; `who` is the requester's: `{judge, owns(uuid)}`. */
   async function apply(location, op, args, who) {
@@ -270,18 +481,54 @@ export function projectOps(deps) {
       if (assistants.some((u) => !linked.has(u))) return { ok: false, reason: "assistant" };
       const today = deps.today();
       const paid = spec.paid?.material === undefined || spec.paid?.material === null || spec.paid?.material === "" ? spec.paid : { ...spec.paid, day: spec.paid.day ?? today };
-      const draft = cleanProject({ ...spec, id: "draft", researcher, assistants, paid, status: "open", opened: today, credited: [], bucket: [] });
-      const gate = facilityGate(facilityVerdicts(draft, { facilities: record.facilities, projects: record.projects, tables: deps.tables(), adding: true }), { judge });
+      const draft = cleanProject({ ...spec, id: "draft", researcher, assistants, paid, status: "open", opened: today, posted: [], credited: [], bucket: [] });
+      const gate = joinGates(
+        facilityGate(facilityVerdicts(draft, { facilities: record.facilities, projects: record.projects, tables: deps.tables(), adding: true }), { judge }),
+        assistantGate(weighParticipants(draft, ctxOf()), { judge })
+      );
       if (!gate.ok) return gate;
       const id = deps.newId();
       const project = { ...draft, id };
       await deps.write(location, { projects: [...record.projects, project] });
-      return { ok: true, id, project, ...(gate.warn ? { warn: gate.warn } : {}) };
+      return { ok: true, id, project, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
+    }
+
+    if (op === PROJECT_OP.credit) {
+      // Every open project the requester may act on, or the one named; nothing is written when no day is due.
+      const ctx = ctxOf();
+      if (!Number.isFinite(ctx.today)) return { ok: false, reason: "noClock" };
+      let credited = 0;
+      const next = record.projects.map((p) => {
+        if (p.status !== "open" || (args.id && p.id !== args.id) || !mayAct(p)) return p;
+        const done = creditDue(p, ctx);
+        credited += done.credited;
+        return done.project;
+      });
+      if (credited) await deps.write(location, { projects: next });
+      return { ok: true, credited };
     }
 
     const project = projectOf(args.id);
     if (!project || project.status !== "open") return { ok: false, reason: "noProject" };
     if (!mayAct(project)) return { ok: false, reason: "owner" };
+
+    if (op === PROJECT_OP.post) {
+      const ctx = ctxOf();
+      const pace = args.pace ?? PACE.dedicated;
+      if (!PACES.includes(pace)) return { ok: false, reason: "pace" };
+      const day = args.day === undefined || args.day === null ? ctx.today : dayOf(args.day);
+      // A Player posts today and no other day, since a past day is credited at once; a Judge posts any.
+      if (day === null || !Number.isFinite(ctx.today) || (!judge && day !== ctx.today)) return { ok: false, reason: "day" };
+      if (project.posted.some((row) => row.day === day) || project.credited.some((c) => c.day === day)) return { ok: false, reason: "duplicate" };
+      const gate = joinGates(
+        facilityGate(facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables: ctx.tables }), { judge }),
+        assistantGate(weighParticipants(project, ctx), { judge })
+      );
+      if (!gate.ok) return gate;
+      const posted = cleanPosted([...project.posted, { day, pace }]);
+      await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? { ...p, posted } : p)) });
+      return { ok: true, id: project.id, day, pace, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
+    }
 
     if (op === PROJECT_OP.close) {
       const next = record.projects.map((p) => (p.id === project.id ? { ...p, status: "closed", closed: deps.today() } : p));
@@ -300,9 +547,12 @@ export function projectOps(deps) {
       const joined = { ...patch };
       for (const key of ["subject", "costs", "paid"]) if (patch[key] !== undefined) joined[key] = { ...project[key], ...patch[key] };
       if (joined.paid?.material !== undefined && joined.paid.material !== null && joined.paid.material !== "" && patch.paid?.day === undefined && project.paid.material === null) joined.paid.day = deps.today();
-      const merged = cleanProject({ ...project, ...joined, id: project.id, kind: project.kind, researcher: project.researcher, credited: project.credited, status: "open" });
+      const merged = cleanProject({ ...project, ...joined, id: project.id, kind: project.kind, researcher: project.researcher, posted: project.posted, credited: project.credited, status: "open" });
+      const added = merged.assistants.filter((u) => !project.assistants.includes(u));
+      const gate = added.length ? assistantGate(weighParticipants(merged, ctxOf()), { judge, names: added }) : { ok: true };
+      if (!gate.ok) return gate;
       await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? merged : p)) });
-      return { ok: true, id: project.id, project: merged };
+      return { ok: true, id: project.id, project: merged, ...(gate.warn ? { warn: gate.warn, warns: [gate.warn] } : {}) };
     }
 
     return { ok: false, reason: "op" };
@@ -324,6 +574,10 @@ export function projectOps(deps) {
     create: (location, spec) => run(location, PROJECT_OP.create, { spec }),
     /** A project's fields changed (`UPDATE_FIELDS`); the researcher and the kind never change. */
     update: (location, id, patch) => run(location, PROJECT_OP.update, { id, patch }),
+    /** A day posted: `{pace, day}`, the pace dedicated and the day today unless named; a Player's day is today. */
+    post: (location, id, { pace, day } = {}) => run(location, PROJECT_OP.post, { id, pace, day }),
+    /** The posted days world time has passed credited, on one project or on every project the requester may act on. */
+    credit: (location, id) => run(location, PROJECT_OP.credit, id ? { id } : {}),
     /** A project closed: it stays on the record and counts for no facility. */
     close: (location, id) => run(location, PROJECT_OP.close, { id }),
     /** A facility's value in gold, null to blank it; the Judge's. */
@@ -335,6 +589,9 @@ export function projectOps(deps) {
 
 const GLYPH = Object.freeze({ spell: "fa-wand-sparkles", item: "fa-gem", identify: "fa-magnifying-glass", ritual: "fa-moon" });
 
+/** The most cells the day strip draws; the count it labels is always the whole. */
+const STRIP_MAX = 60;
+
 /** A gold figure as a panel prints it: whole where it is whole, else to two places. */
 const goldText = (n) => (n === null || n === undefined ? "" : Number.isInteger(n) ? String(n) : n.toFixed(2));
 
@@ -343,9 +600,10 @@ const goldText = (n) => (n === null || n === undefined ? "" : Number.isInteger(n
  * feature's lang group (the `research` group under the magic root) and `bucketLoc` lib's bucket
  * group. `linked` is `[{uuid, name, img}]`, `owns(uuid)` whether this viewer owns
  * the actor, `entries[projectId]` the project's bucket rows resolved to lib
- * entries, `levelOf(uuid)` a researcher's class level or null.
+ * entries, `levelOf(uuid)` a participant's class level or null, `intBonusOf(uuid)` an
+ * Intellect bonus and `paceOf(id)` the pace this window has chosen for a project's day.
  */
-export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, owns, entries = {}, levelOf = () => null }) {
+export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, owns, entries = {}, levelOf = () => null, intBonusOf = () => 0, paceOf = () => PACE.dedicated }) {
   const open = openProjects(record.projects);
   const nameOf = (uuid) => linked.find((a) => a.uuid === uuid)?.name ?? loc("gone");
   const imgOf = (uuid) => linked.find((a) => a.uuid === uuid)?.img ?? "";
@@ -381,12 +639,34 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     });
     const due = p.costs.research;
     const done = creditedTotal(p);
+    const prog = progressOf(p, { today, tables, levelOf, intBonusOf });
     const subject = p.subject;
     const researcherLevel = levelOf(p.researcher);
     const base = ladderThrow(tables?.ladder, researcherLevel);
     const throwTarget = p.throw?.target ?? base;
     const held = entries[p.id] ?? [];
-    const finishWhy = due === null || done < due ? loc("finishWhy.credited") : loc("finishWhy.outcome");
+    const finishWhy = prog.complete === true ? loc("finishWhy.outcome") : loc("finishWhy.credited");
+    const ladderCite = citeOf("ladder");
+    const personOf = (uuid) => prog.people.find((x) => x.uuid === uuid);
+    const rateView = (uuid) => {
+      const who = personOf(uuid);
+      const why = who && who.role === "assistant" && who.why ? loc(`assistantWhy.${who.why}`, { cite: citeOf("assistants") }) : "";
+      if (!who || who.rate === null) return { text: "", tone: why && who?.why !== "unread" ? "warn" : "", tip: why ? `${loc("rateUnread", { cite: ladderCite })} · ${why}` : loc("rateUnread", { cite: ladderCite }) };
+      const text = loc("perDay", { rate: goldText(who.rate) });
+      return { text, tone: why && who.why !== "unread" ? "warn" : "", tip: why ? `${loc("rateTip", { cite: ladderCite })} · ${why}` : loc("rateTip", { cite: ladderCite }) };
+    };
+    const byWho = (uuid) => p.credited.filter((c) => c.by === uuid && c.amount !== null);
+    const creditedParts = prog.people
+      .filter((x) => byWho(x.uuid).length)
+      .map((x) => loc("creditedPart", { name: nameOf(x.uuid), amount: goldText(tidy(byWho(x.uuid).reduce((n, c) => n + c.amount, 0))), n: byWho(x.uuid).length }));
+    const dayText = prog.dueDays === null ? (prog.creditedDays + prog.posted ? loc("dayChipOpen", { d: prog.creditedDays + prog.posted }) : "") : loc("dayChip", { d: prog.creditedDays + prog.posted, due: prog.dueDays });
+    const dueSource = prog.dueBy === "judge" ? loc("dueJudge") : prog.dueBy === "ladder" ? loc("dueLadder", { cite: ladderCite }) : loc("dueUnread", { cite: ladderCite });
+    const cells = Math.min(STRIP_MAX, Math.max(prog.dueDays ?? 0, prog.creditedDays + prog.posted + prog.waiting));
+    const stripCells = Array.from({ length: cells }, (_, i) => (i < prog.creditedDays ? "c" : i < prog.creditedDays + prog.posted + prog.waiting ? "p" : ""));
+    const paceChosen = paceOf(p.id);
+    const factor = (pace) => paceFactor(tables?.prose, pace);
+    const postedToday = p.posted.some((row) => row.day === today);
+    const ancillary = tables?.prose?.ancillary;
     return {
       id: p.id,
       kind: p.kind,
@@ -402,8 +682,8 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       caption: p.level ? loc("caption", { kind: loc(`kind.${p.kind}`), level: p.level }) : loc(`kind.${p.kind}`),
       can,
       judge,
-      researcher: { uuid: p.researcher, name: nameOf(p.researcher), img: imgOf(p.researcher), role: loc("researcher") },
-      assistants: p.assistants.map((uuid) => ({ uuid, name: nameOf(uuid), img: imgOf(uuid), role: loc("assistant"), removeLabel: loc("removeAssistant", { name: nameOf(uuid) }) })),
+      researcher: { uuid: p.researcher, name: nameOf(p.researcher), img: imgOf(p.researcher), role: loc("researcher"), rate: rateView(p.researcher) },
+      assistants: p.assistants.map((uuid) => ({ uuid, name: nameOf(uuid), img: imgOf(uuid), role: loc("assistant"), rate: rateView(uuid), removeLabel: loc("removeAssistant", { name: nameOf(uuid) }) })),
       addChoices: linked.filter((a) => a.uuid !== p.researcher && !p.assistants.includes(a.uuid)).map((a) => ({ uuid: a.uuid, name: a.name })),
       addLabel: loc("addLinked"),
       costs: COST_KEYS.map((key) => ({
@@ -419,9 +699,26 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       progress: {
         text: due === null ? goldText(done) : loc("progress", { done: goldText(done), due: goldText(due) }),
         label: loc("credited"),
-        tip: loc("progressTip", { n: p.credited.length, cite: citeOf("ladder") }),
+        tip: creditedParts.length ? loc("creditedTip", { parts: creditedParts.join(" · "), cite: ladderCite }) : loc("progressTip", { n: p.credited.length, cite: ladderCite }),
         pct: due ? Math.min(100, Math.round((done / due) * 100)) : 0,
       },
+      day: { text: dayText, tone: dayText ? "pow" : "", tip: loc("dayTip", { credited: prog.creditedDays, posted: prog.posted, source: dueSource }), aria: dayText },
+      strip: { show: cells > 0, cells: stripCells, aria: loc("stripAria", { credited: prog.creditedDays, posted: prog.posted + prog.waiting }) },
+      postedRow: {
+        label: loc("postedRow"),
+        text: String(prog.posted),
+        tip: prog.waiting ? loc("postedTipWaiting", { n: prog.waiting }) : loc("postedTip"),
+      },
+      pace: {
+        name: `pace-${p.id}`,
+        legend: loc("paceLegend"),
+        options: PACES.map((value) => {
+          const f = factor(value);
+          const share = ancillary && value !== PACE.dedicated ? `${ancillary.numerator}/${ancillary.denominator}` : "";
+          return { value, label: loc(`pace.${value}`), checked: value === paceChosen, tip: value === PACE.dedicated ? loc("paceTip.dedicated") : f === null ? loc("paceUnread", { cite: citeOf("prose") }) : loc(`paceTip.${value}`, { share, cite: citeOf("prose") }) };
+        }),
+      },
+      post: { label: loc("post"), can, disabled: postedToday, tip: postedToday ? loc("postedToday") : loc("postTip") },
       verdicts,
       throw: throwTarget === null ? { text: "", tip: loc("throwUnread", { cite: citeOf("ladder") }) } : { text: loc("throw", { n: throwTarget }), tip: loc("throwTip", { cite: citeOf("ladder") }) },
       throwLabel: loc("throwLabel"),
