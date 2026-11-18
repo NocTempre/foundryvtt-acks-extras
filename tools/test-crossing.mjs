@@ -13,9 +13,10 @@ import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/ob
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, stepMember, swimRow, swimThrowStep, swimTick, withFooting,
+  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting,
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
+import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
 
 let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
@@ -443,7 +444,7 @@ await ok("a crossing's held condition names the crossing and the status, under a
   const b = crossingHeld("ZyXwVu9876543210", "vulnerable");
   assert.notEqual(a.id, b.id, "two crossings, two effects");
   assert.match(crossingHeld("id7", "vulnerable").id, /^[A-Za-z0-9]{16}$/, "a short id is padded, not shortened");
-  assert.deepEqual(CROSSING_STATUSES, ["vulnerable", "drowning"]);
+  assert.deepEqual(CROSSING_STATUSES, ["vulnerable", "drowning", "stuck"]);
   assert.equal(crossingHeld("AbCdEf0123456789", "drowning").id.slice(0, 2), "c1", "a second status takes a second slot, and vulnerable keeps the first");
   assert.equal(crossingHeld("AbCdEf0123456789", "vulnerable").id.slice(0, 2), "c0");
   assert.notEqual(crossingHeld("AbCdEf0123456789", "drowning").id, a.id);
@@ -881,6 +882,176 @@ await ok("a swimmer who has thrown this round has no throw left, for every seat;
   assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: { ...TURN, round: 4 }, member }).can, true);
   assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: { combatId: "fightB", round: 3 }, member }).can, true);
   assert.equal(swimRow({ encumbrance: 4, seat: JUDGE, turn: null, member }).can, true, "outside a fight a press is the Judge's to repeat");
+});
+
+// ---- the squeeze ------------------------------------------------------------
+/** Invented figures for the squeeze; the printed ones arrive through the importer. */
+const SQUEEZE = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 1 };
+const loadSqueeze = (tables = SQUEEZE) => {
+  resetTables();
+  if (tables) registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
+};
+const basher = { target: 14, parts: [{ label: "Dungeonbashing", value: 0 }] };
+const stuckRecord = (extra = {}) => ({ state: "stuck", covered: 10, tries: 0, plight: 0, ...extra });
+const cell = { base: 11 };
+
+await ok("a squeezer's target is the stone carried, less Contortionism's figure for a holder and the Judge's modifier, and stuck is the fourth status held", () => {
+  loadSqueeze();
+  const plain = squeezeRow({ encumbrance: 7, shape: "chokepoint", seat: OWNER });
+  assert.deepEqual([plain.target, plain.can, plain.plan], [7, true, { target: 7, needed: true, overRefusal: false }]);
+  assert.deepEqual(plain.parts, [{ key: "encumbrance", value: 7 }]);
+  const holder = squeezeRow({ encumbrance: 7, holds: true, judgeMod: 1, shape: "chokepoint", seat: OWNER });
+  assert.deepEqual([holder.target, holder.parts], [3, [{ key: "encumbrance", value: 7 }, { key: "contortionism", value: -3 }, { key: "judge", value: -1 }]]);
+  assert.deepEqual(CROSSING_STATUSES.slice(-1), ["stuck"], "a status is appended, since the slot is in the effect's id");
+  assert.deepEqual([heldAfter({ state: "stuck" }), heldAfter({ state: "squeezing" })], [["stuck"], []]);
+  assert.notEqual(crossingHeld("abc", "stuck").id, crossingHeld("abc", "drowning").id);
+});
+
+await ok("Contortionism is counted once per throw: it moves the squeeze and the push by its figure and the wiggle by none of it", () => {
+  loadSqueeze();
+  const row = (holds) => squeezeRow({ encumbrance: 5, holds, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE });
+  const [held, plain] = [row(true), row(false)];
+  assert.equal(squeezeRow({ encumbrance: 5, holds: false, shape: "chokepoint", seat: JUDGE }).target - squeezeRow({ encumbrance: 5, holds: true, shape: "chokepoint", seat: JUDGE }).target, 3, "the squeeze takes it once");
+  assert.equal(plain.escape.push.target - held.escape.push.target, 3, "the push takes it once");
+  assert.equal(held.escape.wiggle.target, plain.escape.wiggle.target, "the wiggle's save carries the ability's effect by the save's own route");
+  assert.equal(held.escape.wiggle.parts.some((p) => p.key === "contortionism"), false);
+  assert.equal(held.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
+  assert.equal(basher.parts.some((p) => /contortion/i.test(p.label)), false, "the Dungeonbashing figure carries no Contortionism of its own");
+});
+
+await ok("a holder whose bonus is not imported has no squeeze or push target, for a Judge too; a non-holder is unaffected", () => {
+  loadSqueeze({ ...SQUEEZE, contortionismBonus: undefined });
+  const holder = squeezeRow({ encumbrance: 5, holds: true, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE });
+  assert.deepEqual([holder.target, holder.can, holder.refusal, holder.unknown], [null, false, { cls: REFUSAL.absence, reason: "bonus" }, ["contortionismBonus"]]);
+  assert.deepEqual([holder.escape.push.target, holder.escape.push.can], [null, false]);
+  assert.equal(holder.escape.wiggle.can, true, "the wiggle reads no bonus of its own");
+  assert.equal(squeezeRow({ encumbrance: 5, holds: false, shape: "chokepoint", seat: JUDGE }).target, 5);
+});
+
+await ok("a squeeze needs its length and a chokepoint does not; a chokepoint set at a squeeze's length stops a player and warns a Judge", () => {
+  loadSqueeze();
+  const blank = squeezeRow({ encumbrance: 4, shape: "squeeze", seat: JUDGE });
+  assert.deepEqual([blank.target, blank.can, blank.refusal, blank.unknown], [null, false, { cls: REFUSAL.absence, reason: "length" }, ["length"]]);
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "squeeze", length: 20, seat: OWNER }).can, true);
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", seat: OWNER }).can, true);
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 5, seat: OWNER }).can, true, "under the figure it is a chokepoint");
+  const player = squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 6, seat: OWNER });
+  assert.deepEqual([player.refusal, player.can, player.warn], [{ cls: REFUSAL.permission, reason: "shape" }, false, false]);
+  const judge = squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 9, seat: JUDGE });
+  assert.deepEqual([judge.can, judge.warn, judge.plan.overRefusal], [true, true, true]);
+  loadSqueeze(null);
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", length: 99, seat: OWNER }).can, true, "no figure to compare with: the Judge's pick stands");
+});
+
+await ok("a creature whose stone nobody has gets no squeeze throw and no escape, whoever presses", () => {
+  loadSqueeze();
+  const row = squeezeRow({ encumbrance: null, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE });
+  assert.deepEqual([row.target, row.can, row.escape.wiggle.can, row.escape.push.can, row.unknown], [null, false, false, false, ["encumbrance"]]);
+  assert.deepEqual(row.refusal, { cls: REFUSAL.absence, reason: "stone" });
+});
+
+await ok("a member who has thrown this round has no throw or escape left; another round has", () => {
+  loadSqueeze();
+  const member = { state: "squeezing", thrownAt: TURN };
+  for (const seat of [JUDGE, OWNER]) {
+    const row = squeezeRow({ encumbrance: 4, shape: "chokepoint", turn: TURN, seat, member });
+    assert.deepEqual([row.can, row.refusal], [false, { cls: REFUSAL.seat, reason: "thrown" }]);
+  }
+  assert.equal(squeezeRow({ encumbrance: 4, shape: "chokepoint", turn: { ...TURN, round: 4 }, seat: OWNER, member }).can, true);
+  const stuck = squeezeRow({ encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, turn: TURN, seat: OWNER, member: stuckRecord({ thrownAt: TURN }) });
+  assert.deepEqual([stuck.escape.wiggle.can, stuck.escape.push.can], [false, false]);
+});
+
+await ok("a stuck member has the two escapes and no squeezing throw; one through has nothing left; a bystander has neither", () => {
+  loadSqueeze();
+  const stuck = squeezeRow({ encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: OWNER });
+  assert.deepEqual([stuck.can, stuck.escape.active, stuck.escape.can], [false, true, true]);
+  assert.deepEqual([stuck.escape.wiggle.target, stuck.escape.push.target], [11 + 4, 14 + 4]);
+  assert.deepEqual(stuck.escape.wiggle.plan, { target: 15, overRefusal: false, way: "wiggle" });
+  const through = squeezeRow({ encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, member: { state: "across" }, seat: OWNER });
+  assert.deepEqual([through.can, through.escape.can, through.refusal.reason], [false, false, "across"]);
+  const stranger = squeezeRow({ encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: OTHER });
+  assert.deepEqual([stranger.escape.can, stranger.refusal.reason], [false, "notOwner"]);
+});
+
+await ok("a down member's escape is blocked for a player and warned for a Judge, whose plan goes ahead over the refusal", () => {
+  loadSqueeze();
+  const args = { encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), standing: "down" };
+  const player = squeezeRow({ ...args, seat: OWNER });
+  assert.deepEqual([player.escape.can, player.escape.warn], [false, false]);
+  const judge = squeezeRow({ ...args, seat: JUDGE });
+  assert.deepEqual([judge.escape.can, judge.escape.warn, judge.escape.push.plan.overRefusal], [true, true, true]);
+});
+
+await ok("each failed push adds the imported step to both escapes, a failed wiggle adds none, and a step nobody imported refuses the next attempt", () => {
+  loadSqueeze();
+  const args = { encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, seat: JUDGE };
+  const fresh = squeezeRow({ ...args, member: stuckRecord() });
+  const worse = squeezeRow({ ...args, member: stuckRecord({ plight: 2 }) });
+  assert.deepEqual([worse.escape.push.target - fresh.escape.push.target, worse.escape.wiggle.target - fresh.escape.wiggle.target, worse.escape.penalty], [4, 4, 4]);
+  assert.ok(worse.escape.push.parts.some((p) => p.key === "plight" && p.value === 4));
+  loadSqueeze({ ...SQUEEZE, escapePenaltyStep: undefined });
+  const owed = squeezeRow({ ...args, member: stuckRecord({ plight: 1 }) });
+  assert.deepEqual([owed.escape.push.can, owed.escape.wiggle.can, owed.escape.penalty, owed.escape.push.unknown], [false, false, null, ["escapePenaltyStep"]]);
+  assert.equal(squeezeRow({ ...args, member: stuckRecord() }).escape.push.can, true, "no failed push, no step owed");
+});
+
+await ok("an escape with no distance, no Dungeonbashing figure or no save cell is refused on that way alone", () => {
+  loadSqueeze({ ...SQUEEZE, escapeFeet: undefined });
+  const args = { encumbrance: 4, shape: "chokepoint", pushFigure: basher, save: cell, member: stuckRecord(), seat: JUDGE };
+  const none = squeezeRow(args);
+  assert.deepEqual([none.escape.wiggle.can, none.escape.push.can, none.escape.push.unknown], [false, false, ["escapeFeet"]]);
+  loadSqueeze();
+  const noFigure = squeezeRow({ ...args, pushFigure: null });
+  assert.deepEqual([noFigure.escape.push.can, noFigure.escape.push.refusal.reason, noFigure.escape.wiggle.can], [false, "figure", true]);
+  const noCell = squeezeRow({ ...args, save: { base: null } });
+  assert.deepEqual([noCell.escape.wiggle.can, noCell.escape.wiggle.refusal.reason, noCell.escape.push.can], [false, "noCell", true]);
+});
+
+await ok("an unmodified result inside the imported band botches, and with no band imported nothing does", () => {
+  loadSqueeze({ ...SQUEEZE, squeezeBotchBand: 2 });
+  assert.deepEqual([1, 2, 3, null].map((n) => squeezeBotched(n)), [true, true, false, false]);
+  loadSqueeze({ ...SQUEEZE, squeezeBotchBand: undefined });
+  assert.equal(squeezeBotched(1), false);
+  loadSqueeze(null);
+  assert.equal(squeezeBotched(1), false);
+});
+
+await ok("a made throw clears a chokepoint or carries a squeezer by the advance to the length's end; a miss is no progress", () => {
+  const cleared = squeezeThrowStep({ member: { throws: 1 }, success: true, natural: 9, total: 9, turn: TURN, chokepoint: true });
+  assert.deepEqual([cleared.set.state, cleared.set.throws, cleared.set.thrownAt], ["across", 2, TURN]);
+  const along = squeezeThrowStep({ member: { covered: 4 }, success: true, natural: 9, total: 9, length: 20, advance: 6 });
+  assert.deepEqual([along.set.state, along.set.covered], ["squeezing", 10]);
+  const end = squeezeThrowStep({ member: { covered: 18 }, success: true, length: 20, advance: 6 });
+  assert.deepEqual([end.set.state, end.set.covered], ["across", 20]);
+  const unknown = squeezeThrowStep({ member: { covered: 4 }, success: true, length: 20, advance: null });
+  assert.deepEqual([unknown.set.state, unknown.set.covered], ["squeezing", 4], "an advance nobody knows carries nothing");
+  const missed = squeezeThrowStep({ member: { covered: 4 }, success: false, natural: 3, total: 3, length: 20, advance: 6 });
+  assert.deepEqual([missed.set.state, missed.set.covered, missed.set.last.success, missed.set.last.botch], ["squeezing", 4, false, false]);
+});
+
+await ok("a botched throw leaves the member stuck with no escape tried and no plight, whatever the total reached", () => {
+  const stuck = squeezeThrowStep({ member: { covered: 4, tries: 3, plight: 2 }, success: true, botch: true, natural: 1, total: 20, length: 20, advance: 6 });
+  assert.deepEqual([stuck.set.state, stuck.set.covered, stuck.set.tries, stuck.set.plight, stuck.set.last.success, stuck.set.last.botch], ["stuck", 4, 0, 0, false, true]);
+});
+
+await ok("a wiggle back that succeeds retreats the member and ends the condition; a miss counts a try and no plight", () => {
+  const back = escapeStep({ member: stuckRecord({ covered: 10, tries: 2, plight: 1 }), way: "wiggle", success: true, natural: 15, total: 15, feet: 8, turn: TURN });
+  assert.deepEqual([back.set.state, back.set.covered, back.set.thrownAt, back.unset], ["squeezing", 2, TURN, ["tries", "plight"]]);
+  assert.equal(escapeStep({ member: stuckRecord({ covered: 3 }), way: "wiggle", success: true, feet: 8 }).set.covered, 0, "never past the start");
+  const missed = escapeStep({ member: stuckRecord({ tries: 1, plight: 1 }), way: "wiggle", success: false, natural: 4, total: 4, feet: 8 });
+  assert.deepEqual([missed.set.state, missed.set.tries, missed.set.plight, missed.unset], ["stuck", 2, 1, []]);
+});
+
+await ok("a push forward that succeeds advances the member, through at a chokepoint or the length's end; a miss worsens the plight by one step", () => {
+  const along = escapeStep({ member: stuckRecord({ covered: 4 }), way: "push", success: true, length: 30, feet: 8 });
+  assert.deepEqual([along.set.state, along.set.covered, along.unset], ["squeezing", 12, ["tries", "plight"]]);
+  const end = escapeStep({ member: stuckRecord({ covered: 25 }), way: "push", success: true, length: 30, feet: 8 });
+  assert.deepEqual([end.set.state, end.set.covered], ["across", 30]);
+  assert.equal(escapeStep({ member: stuckRecord({ covered: 0 }), way: "push", success: true, chokepoint: true, feet: 8 }).set.state, "across");
+  const missed = escapeStep({ member: stuckRecord({ tries: 1, plight: 1 }), way: "push", success: false, natural: 2, total: 2, feet: 8 });
+  assert.deepEqual([missed.set.state, missed.set.tries, missed.set.plight], ["stuck", 2, 2]);
+  assert.deepEqual([missed.set.last.kind, missed.set.last.success], ["push", false]);
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);

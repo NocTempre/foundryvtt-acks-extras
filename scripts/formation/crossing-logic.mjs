@@ -6,7 +6,7 @@
  * landing asks for and costs, where a throw leaves a member, how far a fall is,
  * and where a rolled jump leaves a jumper (`jumpResult`) and what a jumper
  * hanging at the edge climbs (`climbUpRow`), and what the water asks of a
- * swimmer each round (`swimRow`).
+ * swimmer each round (`swimRow`) and a squeezer (`squeezeRow`).
  *
  * Every figure comes from the readers `obstacles.mjs`, `jumping.mjs` and
  * `swimming.mjs` hold,
@@ -37,6 +37,7 @@ import { carriedBody } from "./constants.mjs";
 import {
   breathRounds, drowning, rescueStone, sinkFeetPerStone, swimSpeed as paceOf, swimSpeedShare, swimmingThrow, waterPenaltyAllowed,
 } from "./swimming.mjs";
+import { chokepointFeet, escapeFeet, plightPenalty, pushThrow, squeezeAdvance, squeezingThrow, wiggleShift } from "./squeezing.mjs";
 
 /**
  * The climb's party-check configuration, local to the crossing. It carries
@@ -82,9 +83,11 @@ export const HANG_CLIMB = "sheerClimb";
  * Each is read from a figure the Spelunking grid carries; a status the grid
  * does not give is not held. `vulnerable` keeps the first slot of the held
  * condition's id; a swimmer whose throw failed holds `drowning`, and the
- * condition catalogue's own closure adds Vulnerable to it.
+ * condition catalogue's own closure adds Vulnerable to it; a squeezer who is
+ * stuck holds `stuck` the same way. A new status is appended, since the slot
+ * is in the effect's id.
  */
-export const CROSSING_STATUSES = Object.freeze(["vulnerable", "drowning"]);
+export const CROSSING_STATUSES = Object.freeze(["vulnerable", "drowning", "stuck"]);
 
 /**
  * The held condition one crossing keeps for one status: its holder names the
@@ -121,6 +124,7 @@ export function crossingOfHolder(holder) {
  */
 export function heldAfter({ state, vulnerable = null } = {}) {
   if (state === DROWNING) return ["drowning"];
+  if (state === STUCK) return ["stuck"];
   if (SETTLED.includes(state)) return [];
   return vulnerable === true ? ["vulnerable"] : [];
 }
@@ -791,4 +795,246 @@ export const rescueIsCircumstance = (reason) => reason === "standing" || reason 
  */
 export function haulStep(member) {
   return { set: { state: SWIMMING, drownedRounds: 0 }, unset: ["rescuer", "drownedAt", "breathOut"], released: member?.rescuer ?? null };
+}
+
+/** The state of a squeezer who is working through a narrowing, with a throw to make each round. */
+export const SQUEEZING = "squeezing";
+
+/** The state of a squeezer whose throw was botched: no action but an escape, and vulnerable. */
+export const STUCK = "stuck";
+
+/** The two ways out of being stuck: wiggling backwards on a save, pushing forward on a Dungeonbashing throw. */
+export const ESCAPES = Object.freeze(["wiggle", "push"]);
+
+/** The saving throw a wiggle back is made against, by the system's key (RR ch. 6, Squeezing). */
+export const WIGGLE_SAVE = "paralysis";
+
+/** A positive number, else null. */
+const positiveFeet = (value) => {
+  const n = value === null || value === undefined || value === "" ? NaN : Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+/**
+ * One squeezer's row for the round: the throw that carries them on, how far
+ * they have come, and, once stuck, each way out with its own target.
+ *
+ * A member who is squeezing has the squeezing throw; a stuck one has only the
+ * two escapes; one who came through has nothing left. Every action reads its
+ * own absences: a stone nobody has, a Contortionism bonus a holder needs and
+ * nobody imported, a squeeze with no length set, an escape distance, the
+ * failed pushes' step, the member's Dungeonbashing figure or saving-throw
+ * cell. Each is an absence refusal, so nothing is rolled against a guess. A
+ * chokepoint whose set length is no chokepoint's (`chokepointFeet`) is a
+ * permission refusal: a player is stopped and a Judge is warned. A member who
+ * has thrown this round has no throw or escape left, for every seat.
+ *
+ * @param {object} o
+ * @param {number|null} [o.encumbrance] the stone carried; null (a creature that carries nothing the module reads) is an absence refusal
+ * @param {boolean} [o.holds] the member holds Contortionism
+ * @param {"chokepoint"|"squeeze"} [o.shape] what the Judge says the narrowing is
+ * @param {number|string|null} [o.length] the squeeze's length in feet
+ * @param {number} [o.judgeMod] the Judge's modifier; positive lowers a target
+ * @param {{target: number|null, parts?: object[]}|null} [o.pushFigure] the member's `resolveCheck` for Dungeonbashing
+ * @param {{base: number|null}|null} [o.save] the member's own Paralysis target (null base: no cell)
+ * @param {number|null} [o.speed] the member's movement for the round, in feet
+ * @param {{combatId: string, round: number}|null} [o.turn] the round the throw is for, where a fight is running
+ * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
+ * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
+ * @param {{state?: string, covered?: number, throws?: number, tries?: number, plight?: number}|null} [o.member] the member's record
+ * @returns {object} `{kind: "squeeze", state, shape, chokepoint, length, covered, throws, tries, plight, advance,
+ *   target, parts, unknown, refusal, can, warn, plan, escape}`; `escape` is `{active, tries, plight, penalty, can, warn,
+ *   wiggle, push}`, each way `{target, parts, unknown, refusal, can, warn, plan}`
+ */
+export function squeezeRow({
+  encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, save = null, speed = null,
+  turn = null, seat = {}, standing = null, member = null,
+} = {}) {
+  const state = member?.state ?? SQUEEZING;
+  const stuck = state === STUCK;
+  const carried = encumbrance === null ? null : Math.max(0, Number(encumbrance) || 0);
+  const chokepoint = shape === "chokepoint";
+  const feet = positiveFeet(length);
+  const covered = Math.max(0, Number(member?.covered) || 0);
+  const tries = Math.max(0, Number(member?.tries) || 0);
+  const plight = Math.max(0, Number(member?.plight) || 0);
+
+  const common = seatRefusals({ seat, standing, state });
+  if (turn && sameTurn(member?.thrownAt, turn)) common.push({ cls: REFUSAL.seat, reason: "thrown" });
+  if (carried === null) common.push({ cls: REFUSAL.absence, reason: "stone" });
+
+  const action = (extra, unknown) => {
+    const { refusal, can, warn } = settle([...common, ...extra], seat?.judge);
+    return { refusal, can, warn, unknown };
+  };
+
+  const thrown = squeezingThrow({ encumbrance: carried ?? 0, proficient: holds, judgeMod });
+  const squeezeExtra = [];
+  const squeezeUnknown = [...(carried === null ? ["encumbrance"] : []), ...thrown.unknown];
+  if (thrown.unknown.length) squeezeExtra.push({ cls: REFUSAL.absence, reason: "bonus" });
+  if (!chokepoint && feet === null) {
+    squeezeExtra.push({ cls: REFUSAL.absence, reason: "length" });
+    squeezeUnknown.push("length");
+  }
+  if (chokepoint && feet !== null) {
+    const limit = positiveFeet(chokepointFeet());
+    if (limit !== null && feet >= limit) squeezeExtra.push({ cls: REFUSAL.permission, reason: "shape" });
+  }
+  const squeeze = action(squeezeExtra, squeezeUnknown);
+  const blind = carried === null || thrown.unknown.length > 0 || (!chokepoint && feet === null);
+  const target = blind ? null : thrown.target;
+  const canThrow = squeeze.can && state === SQUEEZING && !blind;
+
+  const out = escapeFeet();
+  const way = (name) => {
+    const unknown = [...(carried === null ? ["encumbrance"] : [])];
+    const extra = [];
+    let figure;
+    if (name === "wiggle") {
+      const shift = wiggleShift({ encumbrance: carried ?? 0, plight, judgeMod });
+      unknown.push(...shift.unknown);
+      if (!Number.isFinite(save?.base)) {
+        unknown.push("save");
+        extra.push({ cls: REFUSAL.absence, reason: "noCell" });
+      }
+      if (shift.unknown.length) extra.push({ cls: REFUSAL.absence, reason: "step" });
+      figure = { target: shift.shift === null || !Number.isFinite(save?.base) ? null : save.base + shift.shift, parts: shift.parts };
+    } else {
+      const pushed = pushThrow({ figure: pushFigure, encumbrance: carried ?? 0, proficient: holds, plight, judgeMod });
+      unknown.push(...pushed.unknown);
+      if (pushed.unknown.length) extra.push({ cls: REFUSAL.absence, reason: pushed.unknown.includes("figure") ? "figure" : "bonus" });
+      figure = { target: pushed.target, parts: pushed.parts };
+    }
+    if (out == null) {
+      unknown.push("escapeFeet");
+      extra.push({ cls: REFUSAL.absence, reason: "escapeFeet" });
+    }
+    const verdict = action(extra, unknown);
+    const blindWay = carried === null || figure.target === null || out == null;
+    const can = verdict.can && stuck && !blindWay;
+    return {
+      target: blindWay ? null : figure.target,
+      parts: figure.parts,
+      unknown: verdict.unknown,
+      refusal: verdict.refusal,
+      can,
+      warn: can && verdict.warn,
+      plan: can ? { target: figure.target, overRefusal: verdict.warn, way: name } : null,
+    };
+  };
+  const wiggle = way("wiggle");
+  const push = way("push");
+
+  return {
+    kind: "squeeze",
+    state,
+    shape: chokepoint ? "chokepoint" : "squeeze",
+    chokepoint,
+    length: feet,
+    covered,
+    throws: Math.max(0, Number(member?.throws) || 0),
+    tries,
+    plight,
+    advance: squeezeAdvance(speed),
+    target,
+    parts: blind ? [] : thrown.parts,
+    unknown: squeeze.unknown,
+    refusal: squeeze.refusal,
+    can: canThrow,
+    warn: canThrow && squeeze.warn,
+    plan: canThrow ? { target, needed: true, overRefusal: squeeze.warn } : null,
+    escape: {
+      active: stuck,
+      tries,
+      plight,
+      penalty: plightPenalty(plight).value,
+      can: wiggle.can || push.can,
+      warn: (wiggle.can && wiggle.warn) || (push.can && push.warn),
+      wiggle,
+      push,
+    },
+  };
+}
+
+/**
+ * Where one squeezing throw leaves a member, as a patch: what to set and what
+ * to unset. A made throw clears a chokepoint, or carries the member along a
+ * squeeze by `advance` feet (the length's end is through; an advance not known
+ * carries nothing). A miss is no progress for the round. A botch, a miss whose
+ * die is inside the imported band, leaves the member stuck with no escape
+ * tried. The member's turn is stamped where a fight is running, so one throw
+ * counts for one round.
+ *
+ * @param {object} o
+ * @param {{covered?: number, throws?: number}|null} [o.member]
+ * @param {boolean} o.success the total made the target
+ * @param {boolean} [o.botch] the unmodified die is inside the botch band
+ * @param {number|null} [o.natural]
+ * @param {number|null} [o.total]
+ * @param {{combatId: string, round: number}|null} [o.turn]
+ * @param {boolean} [o.chokepoint] the narrowing is a chokepoint, which one made throw clears
+ * @param {number|null} [o.length] the squeeze's length in feet
+ * @param {number|null} [o.advance] what a made throw carries along a squeeze, in feet
+ * @returns {{set: object, unset: string[]}} keys of the member's record
+ */
+export function squeezeThrowStep({ member = null, success, botch = false, natural = null, total = null, turn = null, chokepoint = false, length = null, advance = null } = {}) {
+  const before = Math.max(0, Number(member?.covered) || 0);
+  const made = !!success && !botch;
+  const end = positiveFeet(length);
+  const set = { throws: Math.max(0, Number(member?.throws) || 0) + 1, last: { kind: "squeeze", natural, total, success: made, botch: !!botch } };
+  if (turn) set.thrownAt = { combatId: turn.combatId, round: turn.round };
+  let state = SQUEEZING;
+  let covered = before;
+  if (made) {
+    if (chokepoint) state = "across";
+    else if (advance !== null && advance !== undefined) {
+      covered = end === null ? before + advance : Math.min(end, before + advance);
+      if (end !== null && covered >= end) state = "across";
+    }
+  } else if (botch) {
+    state = STUCK;
+    set.tries = 0;
+    set.plight = 0;
+  }
+  set.state = state;
+  set.covered = covered;
+  return { set, unset: [] };
+}
+
+/**
+ * Where one escape leaves a stuck member, as a patch. A success ends the
+ * condition: a wiggle back retreats the member by `feet` (never past the start)
+ * and a push carries them forward by `feet`, through where that reaches a
+ * chokepoint's far side or the squeeze's length. A miss leaves them stuck with
+ * one more try counted, and a failed push worsens the plight by one step.
+ *
+ * @param {object} o
+ * @param {{covered?: number, tries?: number, plight?: number}|null} [o.member]
+ * @param {"wiggle"|"push"} o.way
+ * @param {boolean} o.success
+ * @param {number|null} [o.natural]
+ * @param {number|null} [o.total]
+ * @param {{combatId: string, round: number}|null} [o.turn]
+ * @param {boolean} [o.chokepoint]
+ * @param {number|null} [o.length] the squeeze's length in feet
+ * @param {number} o.feet the distance an escape carries
+ * @returns {{set: object, unset: string[]}}
+ */
+export function escapeStep({ member = null, way, success, natural = null, total = null, turn = null, chokepoint = false, length = null, feet } = {}) {
+  const before = Math.max(0, Number(member?.covered) || 0);
+  const set = { last: { kind: way, natural, total, success: !!success, botch: false } };
+  if (turn) set.thrownAt = { combatId: turn.combatId, round: turn.round };
+  if (!success) {
+    set.state = STUCK;
+    set.tries = Math.max(0, Number(member?.tries) || 0) + 1;
+    set.plight = Math.max(0, Number(member?.plight) || 0) + (way === "push" ? 1 : 0);
+    return { set, unset: [] };
+  }
+  const run = Math.max(0, Number(feet) || 0);
+  const reach = way === "push" ? before + run : Math.max(0, before - run);
+  const end = positiveFeet(length);
+  const through = way === "push" && (chokepoint || (end !== null && reach >= end));
+  set.state = through ? "across" : SQUEEZING;
+  set.covered = through && end !== null ? end : reach;
+  return { set, unset: ["tries", "plight"] };
 }
