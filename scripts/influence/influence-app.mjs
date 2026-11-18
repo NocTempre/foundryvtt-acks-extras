@@ -40,6 +40,7 @@ import {
   toLibAlignment,
 } from "./actor-data.mjs";
 import { getAbilityReactionMods, itemsWithReactionEffects } from "./ability-effects.mjs";
+import { getRecordReactionMods, keptRecordRows, liveRecordIds } from "./record-effects.mjs";
 import { henchmanWageCite, signingBonusCite, signingBonusCost } from "../henchmen/rules/wages.mjs";
 import { hatredNotes, kindOf, optionalRuleEnabled, parseKindList, relationFor } from "./racial.mjs";
 import { attitudeFigure, figureOrigin, modeRows, printedBands, toneBands, toneRows } from "./printed.mjs";
@@ -258,10 +259,19 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
    * checkboxes — default on when non-situational, off when the GM must confirm.
    */
   #buildModConfig() {
+    // The spell records' rows, per page: a record's figure is settled against
+    // the tone and the target, so each tone gets its own (see record-effects).
+    const recordRows = (tone) =>
+      getRecordReactionMods(this.#effectSubject(), {
+        tone,
+        kinds: this.#targetCategories(),
+        alignment: toLibAlignment(classifyAlignment(this.#targetActor?.system?.details?.alignment)),
+        optionalRules: this.#optionalRules(),
+      });
     // WHOSE effects feed this page: usually the roller, but a morale or
     // obedience check is the creature's own. See docs/influence/DECISIONS.md,
     // "A page reads its subject's own effects, not the roller's".
-    const subject = this.#mode?.subject === "target" ? this.#targetActor : this.#actor;
+    const subject = this.#effectSubject();
     // Two sources, one shape: Active Effects claim their item first, then a
     // name-matched proficiency claims what a static row on this page already
     // offers — always checked against `this.#actor`, since the static rows
@@ -326,6 +336,10 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         alignment: targetAlign,
         tone: tone ?? null,
         optionalRules: this.#optionalRules(),
+        // A spell record names the alignment of its caster; the other rows
+        // carry none. No row can tell whether the target is an enemy.
+        sourceAlignment: m.sourceAlignment ?? null,
+        enemy: null,
       });
       // In `sign` mode the stored value is the matching case, so a mismatch
       // negates it: Deathly Visage's +2 vs Chaotic becomes -2 vs everyone else.
@@ -343,6 +357,12 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         kickerAt: m.kickerAt ?? null,
         // Target-scoped: the GM's real target data decides on hidden resolves.
         vsGated: hasScope(m),
+        // A spell record's row: where its figure came from, and the part it
+        // stacks as, so the larger of two ticked records is the one that counts.
+        record: m.record === true,
+        effectId: m.effectId ?? null,
+        stackPart: m.stackPart ?? null,
+        tip: m.tip ?? null,
       };
     };
 
@@ -379,8 +399,9 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         family,
         claimed: new Set([...itemsWithProficiencyRows(this.#actor, groups), ...held.claimed]),
       });
-      if (forFamily.length) {
-        groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: forFamily.map((m) => effectModRow(m, null)) });
+      const fromRecords = family === ROLL_FAMILY.REACTION ? recordRows(null) : [];
+      if (forFamily.length || fromRecords.length) {
+        groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: [...forFamily, ...fromRecords].map((m) => effectModRow(m, null)) });
       }
       if (relationGroup) groups.push(relationGroup);
       for (const tone of Object.values(INFLUENCE_TONE)) config[tone] = groups;
@@ -398,13 +419,19 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
         tone,
         claimed: itemsWithProficiencyRows(this.#actor, groups),
       });
-      if (forTone.length) {
-        groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: forTone.map((m) => effectModRow(m, tone)) });
+      const fromRecords = recordRows(tone);
+      if (forTone.length || fromRecords.length) {
+        groups.push({ group: "ACKS-INFLUENCE.group.powers", mods: [...forTone, ...fromRecords].map((m) => effectModRow(m, tone)) });
       }
       if (relationGroup) groups.push(relationGroup);
       config[tone] = groups;
     }
     return config;
+  }
+
+  /** Whose effects feed this page: the roller's, or the target's on a page whose subject is the target. */
+  #effectSubject() {
+    return this.#mode?.subject === "target" ? this.#targetActor : this.#actor;
   }
 
   /**
@@ -420,11 +447,22 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
   /*  Modifier maths                              */
   /* -------------------------------------------- */
 
+  /**
+   * The keys of the spell record rows that count on the current tone's page:
+   * the ticked rows of live records, the larger of any two standing alone.
+   */
+  #recordsKept() {
+    const tone = this.#system.tone;
+    const mods = (this.#modConfig?.[tone] ?? []).flatMap((g) => g.mods ?? []);
+    return keptRecordRows(mods, this.#modifiers?.[tone], liveRecordIds(this.#effectSubject()));
+  }
+
   #contribution(mod, value) {
     // A row whose figure is not imported adds nothing, whatever the form holds.
     if (mod.disabled) return 0;
     switch (mod.type) {
       case "check":
+        if (value && mod.record && !this.#recordsKept().has(mod.key)) return 0;
         return value ? mod.value : 0;
       case "select":
         // A printed ladder stores which option was chosen, never its figure.
@@ -877,7 +915,7 @@ export default class InfluenceApp extends HandlebarsApplicationMixin(Application
           // on a mode page, a disabled row on a tone page, neither badged.
           isDisabled: Boolean(mod.disabled),
           // Where the row's figure came from, on the label that names it.
-          figureTip: mod.figureFrom ? this.#figureTip(mod.figureFrom, tone) : null,
+          figureTip: mod.tip ?? (mod.figureFrom ? this.#figureTip(mod.figureFrom, tone) : null),
           // A held proficiency whose item carries no figure: typed by hand.
           isUnvalued: Boolean(mod.unvalued),
           // The badge's tooltip is the page that prints the figure.
