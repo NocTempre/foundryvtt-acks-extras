@@ -1143,10 +1143,11 @@ matches `^magic/saves-`) and the run's own cast ids, by id.
    (`resist` null) and writes the condition.
 4. *Ruling 126's save toggle.* *Observable:* with a modifier read, the toggle is
    enabled and off and the save band lists no part of the spell's; switched on it
-   lists one part, signed; the card keeps `saveMod`, and the target's save figure
-   (`resist.target`) moves by exactly the modifier while `baseTarget` does not,
-   with a `spell:save` part on the throw; with the modifier blank the toggle is
-   `disabled`.
+   lists one part, signed; the card keeps `saveMod`, and the throw's formula
+   carries the modifier as a roll term (`1d20 +n`) while `resist.target` and
+   `baseTarget` stay put: the spell's part is roll-side, which lib `saveThrow`
+   folds into the formula. A `spell:save` part is on the throw; with the
+   modifier blank the toggle is `disabled`.
 5. *A slay row.* *Observable:* a passed save leaves the hit points and an entry that
    saved; a failed one takes them to zero and leaves the `dead` status.
 6. *A destroy row, a weapon per holder (ruling 124).* Two monsters of two weapons
@@ -1221,7 +1222,9 @@ figures are read off the bearer's own armour class so every lift is positive.
    exempt on the bearer with `gate.key: "immune"`; another spell is applied and the
    bearer holds its condition.
 3. *A creature-kind pick (ruling 139).* *Observable:* the dialog's kind select lists
-   the row's two kinds; the ally's record holds the attack bonus narrowed to the picked
+   the row's two kinds, and the row it opens wears a named tone cell (cells render
+   only for rows a seat picks among: pick groups and the kind pick); the ally's
+   record holds the attack bonus narrowed to the picked
    kind alone; the ally's attack at a creature of that kind carries a row for the spell,
    its attack at the other kind none.
 4. *Granted throws on the Rolls tab* (Character sheet → Rolls tab → Proficiencies &
@@ -1239,8 +1242,8 @@ figures are read off the bearer's own armour class so every lift is positive.
    Climbing row's figure changes and its tooltip names the spell; rolling it posts one
    card, on the party card's format, that says it is automatic through the spell.
 6. *The cast dialog with three targets, and the target cap.* *Observable:* three
-   rows, each with its X, the count, the drop strip and Add my token; the effect rows
-   wear tone cells and the footer is outside the scrolling body. With a cap of two and
+   rows, each with its X, the count, the drop strip and Add my token; the footer is
+   outside the scrolling body. With a cap of two and
    three targets the count reads over; the Judge's dialog warns and Cast stays enabled,
    the Player's blocks and Cast is disabled.
 

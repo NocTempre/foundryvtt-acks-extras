@@ -3661,6 +3661,51 @@ Findings from these slices, defaults proceeded on:
 
 ### Results, 1c
 
+**Landed 2026-11-18 as main 3ac53e3d** (fast-forward from 92378e77,
+"gate green on 3ac53e3d", not pushed). It holds S3c-5/5b, S5e, S-A,
+slice D (gold and pale granted rows, the one-line card), slice A (the
+ApplicationV2 cast dialog), R-a, S-R (a declared cast resolves at its
+turn), the 1c walks and R-b (rulings 200–202). topic/spell-effects
+stays open.
+
+- Rebase conflicts:
+  - slice A's truncated lang hunk and R-a's lang: main's superset;
+  - importer DECISIONS: both entries kept, main's first;
+  - the stamp: main's side. The drift check (a9e27a3a) skips the
+    recompile when nothing it reads differs.
+- Offline on the landed tip: npm test 289 suites, plus the landing
+  gate's validate.
+
+**Walked live on lane A (Gamemaster and Player seats), 2026-11-18:**
+- magic-cast-saves: **45 pass, 0 fail.**
+- magic-cast-buffs: **49 pass, 0 fail.**
+- magic-cast-tracked: **123 pass, 0 fail.**
+- Two walk assertions were wrong about the code, which was right. Each
+  was fixed in the walk and in TESTING.md:
+  - saves F expected the spell's save modifier to move `resist.target`.
+    It is a roll-side part, which lib `saveThrow` folds into the
+    formula (`1d20 +n`), so the target stays put.
+  - buffs G expected tone cells on a spell with no pick. Cells render
+    only for the rows a seat picks among (pick groups and the kind
+    pick), as the approved design draws. The check moved to step D.
+- Shots in the ignored `aia-tmp/live/`: `magic-cast-buffs-a-pale-tip`
+  (the pale row and its "Castable on yourself, not cast" tooltip),
+  `-b-gold-self`, `-c-gold-other`, `-e-granted-card` (the one-line
+  card), `-f-auto-card` and `-g-dialog` (three targets, X, the drop
+  strip, Add my token, the pinned footer).
+- Each walk swept its own tracked cards. Its fixtures are kept, found by
+  the markers `magic/saves-*` and `magic/buffs-*`.
+- Not walked:
+  - R-b's invocation path, which has no dialog control until R-c.
+  - S-R's declared-cast resolve in a begun fight (TESTING step 18).
+    That needs a combat on the scene, so it is a walk item for R-c's
+    landing.
+- Open from S-R, defaults proceeded on:
+  - 1c.34: a Player blocked at the turn is blocked again on every press,
+    and the dialog does not reopen.
+  - 1c.35: no changelog fragment for the declared cast yet. One is
+    written with R-c's, since R-c is what makes it visible.
+
 ### Results, 1d
 
 **1d-A (2026-11-17), run from 1b.** topic/spell-effects-1d was landed at

@@ -212,6 +212,8 @@ async function stageKindPick() {
   await aim(gm, [W.t.ally]);
   const peek = await run(gm, P.cast, { casterId: W.caster.a, spellId: W.spell.kind, stop: true });
   check("D: the dialog offers the row's two kinds in a pick and no other", peek.kind?.options.join() === "undead,animal", { options: peek.kind?.options });
+  // Effect cells render for the rows a seat picks among (pick groups, the kind pick); a spell with no pick shows none.
+  check("D: the row the kind pick opens wears a tone cell, named", peek.bucket?.tones.length > 0 && peek.bucket.tones.every((t) => t !== ""), { tones: peek.bucket?.tones });
   const c = await castAs("a", "kind", { kind: "animal" });
   const rec = (await run(gm, P.records, { actorId: W.actor.ally })).filter((r) => r.castId === c.model?.castId);
   const part = rec.flatMap((r) => r.parts).find((p) => p.on === "attack");
@@ -320,7 +322,7 @@ async function stageDialog() {
   await aim(gm, [W.t.bearer, W.t.ally, W.t.foe]);
   const held = await run(gm, P.cast, { casterId: W.caster.a, spellId: W.spell.ac, hold: true });
   check("G: the dialog lists three target rows, each with its X, the count, the drop strip and the Add my token button", held.dialog && held.bucket.rows.length === 3 && held.bucket.rows.every((r) => r.x) && held.bucket.count !== "" && held.bucket.drop && held.bucket.addMine, { rows: held.bucket.rows.length, count: held.bucket.count });
-  check("G: the effect rows wear tone cells, every one named, and the footer sits outside the scrolling body", held.bucket.tones.length > 0 && held.bucket.tones.every((t) => t !== "") && held.footerPinned, { tones: held.bucket.tones });
+  check("G: the footer sits outside the scrolling body", held.footerPinned, { footerPinned: held.footerPinned });
   await shoot("magic-cast-buffs-g-dialog", ".application.acks-extras-cast");
   check("G: Cancel closes the window", (await run(gm, P.closeDialog)) === false);
   // The target cap: a spell for two creatures and three targeted.

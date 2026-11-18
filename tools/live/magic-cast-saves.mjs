@@ -193,7 +193,10 @@ async function stageToggle() {
   const r0 = c0.model.targets[keyOf(c0.model, W.t.a.uuid)]?.resist;
   const r1 = c1.model.targets[keyOf(c1.model, W.t.a.uuid)]?.resist;
   const partOf = (r) => (r?.parts ?? []).find((p) => p.key === "spell:save");
-  check("F: the card keeps the toggle's answer, and the target's save figure moves by the modifier only when it is on", !c0.model.saveMod && c1.model.saveMod === true && Number.isFinite(r0?.target) && Number.isFinite(r1?.target) && Math.abs(r1.target - r0.target) === MOD && !partOf(r0), { off: r0?.target, on: r1?.target, part: partOf(r1)?.value ?? null });
+  // The spell's modifier is a roll-side part (lib saveThrow folds `parts` into the formula), so the throw's
+  // formula carries it and the target stays where the save table puts it.
+  const termOf = (r) => (String(r?.formula ?? "").match(/1d20\s*([+-]\s*\d+)?/)?.[1] ?? "+0").replace(/\s+/g, "");
+  check("F: the card keeps the toggle's answer, and the throw carries the modifier as a roll term only when it is on", !c0.model.saveMod && c1.model.saveMod === true && Number.isFinite(r0?.target) && r1?.target === r0.target && Number(termOf(r1)) - Number(termOf(r0)) === MOD && partOf(r1)?.value === MOD && !partOf(r0), { off: r0?.formula, on: r1?.formula, target: [r0?.target, r1?.target], part: partOf(r1)?.value ?? null });
   check("F: the part the toggle adds is named on the throw and the throw's base target is the same either way", Math.abs(partOf(r1)?.value) === MOD && r0.baseTarget === r1.baseTarget, { part: partOf(r1)?.value ?? null, base: [r0.baseTarget, r1.baseTarget] });
   await shape("toggle", { rows: [rowOf("bewitch", "conditionGrant", { conditions: ["bewitched"], saveEffect: "negates", lasts: "duration" })], save: { modifier: null } });
   const blank = await run(gm, P.cast, { casterId: W.caster, spellId: W.spell.toggle, stop: true });
