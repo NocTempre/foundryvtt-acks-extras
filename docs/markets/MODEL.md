@@ -441,7 +441,12 @@ party's find.
   treasure deal or a Judge writes `false`. On a player's item sheet an undetected magic item
   offers no identify panel, hides its aura and the note that effects are
   hidden, and shows no effects; the character sheet's place label counts only
-  known magic while `slotUse().full` counts the truth. A successful
+  known magic and a player's `slotUse().full` is read against that same count,
+  so a place never reads full beside a badge under its cap (a Judge's counts
+  the truth). On the Details tab a player's price ledger, where the cost is
+  masked (unidentified magic or a disguise), is one line at the apparent cost
+  the value badge reads (`item-sheet/view-model.mjs` `priceView`), never the
+  build-up; a Judge reads every line. A successful
   identification marks the item detected (every writer of `identified` goes
   through `markIdentified`), Magical Engineering and Loremastery (marked
   `recognizes` in `METHODS`) lift a disguised name, and a `full` one reveals the item

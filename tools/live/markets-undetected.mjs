@@ -8,7 +8,8 @@
  * Covers: 1. the Player seat's item sheet (no identification panel, no hidden
  * effects note and no effect listed, no aura mark, the value badge's ordinary
  * tooltip); 2. the Equipment tab's place badge counting known magic only, while
- * the place reads full on the truth; 3. the GM seat's sheet, nothing hidden;
+ * the place reading full for the Judge on the truth and for the player only on
+ * the count the badge shows; 3. the GM seat's sheet, nothing hidden;
  * 4. a recognizing identification from the Player seat after a disguise (the
  * name lifts, cost and description stay apparent, the disguise stays); 5. a
  * full identification (the disguise goes, every field is true); 6. the Judge's
@@ -61,6 +62,8 @@ const MARKS = {
 };
 const TRUTH = { name: "QA Undetected Blade", cost: 250, description: "<p>QA true description.</p>" };
 const APPARENT = { name: "Plain Blade", cost: 1, description: "<p>QA apparent description.</p>" };
+/** An apparent worth set apart from the truth's cost, so a ledger that leaked the truth would read the other figure. Invented. */
+const APPARENT_GP = 40;
 const NAMES = { holder: "QA Undetected Holder", known: "QA Known Magic Charm", mundane: "QA Plain Rope", copy: "QA Undetected Blade Copy" };
 const PLACE = "neck";
 const MARKETS_DETECTED_FALSE = { magic: true, aura: "arcane", identified: "none", detected: false };
@@ -164,7 +167,14 @@ const P = {
       const det = root.querySelector("input[data-action='toggleDetected']");
       const pencil = root.querySelector(".acks-extras-item-sheet__rail--editor [data-action='edit']");
       const stepButtons = [...root.querySelectorAll("button[data-action='knowStep']")];
+      // The Details tab's price ledger: the lines above its final row, which sit in the same block.
+      const finalRow = root.querySelector("section.tab[data-tab='details'] .acks-extras-item-sheet__fact.is-final");
+      const ledgerRows = finalRow ? [...finalRow.parentElement.children].filter((n) => n.matches(".acks-extras-item-sheet__fact:not(.is-final)")).length : null;
+      const num = (s) => { const m = String(s ?? "").replace(/,/g, "").match(/\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
       return {
+        ledgerRows,
+        ledgerFinal: num(H.text(finalRow?.querySelector(".acks-extras-item-sheet__fact-value"))),
+        badgeFigure: num(H.text(badge?.querySelector(".acks-extras-item-sheet__badge-value"))),
         rendered: true,
         band: !!root.querySelector(".acks-extras-item-sheet__band"),
         tabs: [...root.querySelectorAll("nav [data-action='tab']")].map((t) => t.dataset.tab),
@@ -233,6 +243,7 @@ const P = {
     for (const [k, v] of Object.entries({ magic: true, aura: "arcane", identified: "none", detected: false })) if (f[k] !== v) patch[`flags.acks-extras.markets.${k}`] = v;
     if (Object.keys(patch).length) { await weapon.update(patch); wrote.push("weapon"); }
     if (f.triedAt) { await weapon.unsetFlag("acks-extras", "markets.triedAt"); wrote.push("triedAt"); }
+    if ("apparentValueGp" in f) { await weapon.unsetFlag("acks-extras", "markets.apparentValueGp"); wrote.push("apparentValueGp"); }
     if (weapon.getFlag("acks-extras", "gear")) { await weapon.unsetFlag("acks-extras", "gear"); wrote.push("weaponGear"); }
     if (!weapon.effects.size) { await weapon.createEmbeddedDocuments("ActiveEffect", [effect]); wrote.push("effect"); }
     const kp = {};
@@ -471,6 +482,8 @@ const P = {
     };
   },
   closeAll: async () => globalThis.__mu.closeAll(),
+  /** Set the apparent worth a masked cost reads, on the GM seat. */
+  setApparent: async ({ actorId, itemId, gp }) => { await globalThis.__mu.item(actorId, itemId).setFlag("acks-extras", "markets.apparentValueGp", gp); return true; },
   takeChat: async ({ actorId }) => (globalThis.__mu?.chat?.splice(0) ?? []).filter((id) => game.messages.get(id)?.speaker?.actor === actorId),
   drain: async () => ({ errors: globalThis.__mu.errors.slice() }),
   restore: async () => {
@@ -598,6 +611,8 @@ try {
 
   section("1. the Player seat's sheet of an undetected item");
   await reshape("1");
+  await run(gm, P.setApparent, { actorId, itemId: ids.weapon, gp: APPARENT_GP });
+  await run(player, P.waitState, { actorId, itemId: ids.weapon, expect: { detected: false } });
   const p1 = await run(player, P.open, { actorId, itemId: ids.weapon });
   check("the module's item sheet rendered on the player seat, with its value badge, Details panel and Effects panel", p1.rendered && p1.band && p1.badge && p1.detailsPanel && p1.effectsPanel, { rendered: p1.rendered, band: p1.band, badge: p1.badge, details: p1.detailsPanel, effects: p1.effectsPanel });
   check("the Details tab has no identification panel and no magic mount", !p1.magicMount && !p1.magicPanel && !p1.identifyBox, { mount: p1.magicMount, panel: p1.magicPanel, box: p1.identifyBox });
@@ -605,6 +620,7 @@ try {
   check("the art carries no aura mark", !p1.aura && !p1.auraClass, { label: p1.aura, cls: p1.auraClass });
   check("no Appearance tab and no Detected control are offered to the player", !p1.tabs?.includes("appearance") && p1.detectedControl === null, { tabs: p1.tabs });
   check("the value badge's tooltip is the ordinary value one and not the apparent-worth one", p1.valueTip === p1.tips.value && p1.valueTip !== p1.tips.apparent, { ordinary: p1.valueTip === p1.tips.value, apparent: p1.valueTip === p1.tips.apparent });
+  check("the Details tab's price ledger is one line for the player, at the apparent worth the badge reads", p1.ledgerRows === 1 && p1.ledgerFinal === APPARENT_GP && p1.ledgerFinal === p1.badgeFigure, { rows: p1.ledgerRows, final: p1.ledgerFinal, badge: p1.badgeFigure });
   await run(player, P.closeAll);
 
   section("2. the Player seat's Equipment tab, the place the item is worn at");
@@ -628,7 +644,7 @@ try {
     const placeG2 = await run(gm, P.place, { actorId, ids, place: PLACE, expect: { magic: 2 } });
     check("the player's badge counts the known item and not the undetected one", placeP2.placed?.weapon && placeP2.placed?.known && placeP2.textOk && placeP2.hintOk, { placed: placeP2.placed, text: placeP2.textOk, hint: placeP2.hintOk });
     check("the GM's badge counts both", placeG2.placed?.weapon && placeG2.placed?.known && placeG2.textOk && placeG2.hintOk, { placed: placeG2.placed, text: placeG2.textOk, hint: placeG2.hintOk });
-    check("a second magic item past the place's capacity marks it full on the truth, for the player too", placeP2.truthFull && placeP2.full && placeG2.full, { truth: placeP2.truthFull, player: placeP2.full, gm: placeG2.full });
+    check("a second magic item past the place's capacity marks it full for the GM and not for the player, whose badge counts one", placeP2.truthFull && placeG2.full && !placeP2.full, { truth: placeP2.truthFull, player: placeP2.full, gm: placeG2.full });
   } else {
     note("step 2 counting skipped", "the place's capacity did not read as a finite figure on this world; no capacity is invented here");
   }
@@ -639,12 +655,14 @@ try {
 
   section("3. the GM seat's sheet of the same item");
   await reshape("3");
+  await run(gm, P.setApparent, { actorId, itemId: ids.weapon, gp: APPARENT_GP });
   const g3 = await run(gm, P.open, { actorId, itemId: ids.weapon });
   check("the module's item sheet rendered on the GM seat with its Appearance tab", g3.rendered && g3.band && g3.tabs?.includes("appearance"), { rendered: g3.rendered, band: g3.band, tabs: g3.tabs?.length });
   check("the aura shows on the art", g3.aura && g3.auraClass, { label: g3.aura, cls: g3.auraClass });
   check("the magic panel is mounted and the effect is listed, nothing hidden", g3.magicMount && g3.magicPanel && g3.effectRows >= 1 && !g3.effectsUnidentified, { mount: g3.magicMount, panel: g3.magicPanel, rows: g3.effectRows, unidentified: g3.effectsUnidentified });
   check("the Judge's Detected control is offered, reads unticked and is locked until the pencil is armed", g3.detectedControl?.checked === false && g3.detectedControl?.disabled === true, g3.detectedControl);
   check("the value badge reads the ordinary tooltip for a Judge", g3.valueTip === g3.tips.value, { ordinary: g3.valueTip === g3.tips.value });
+  check("the Judge's price ledger shows its working at the true cost, whatever the apparent worth", g3.ledgerRows >= 1 && g3.ledgerFinal === TRUTH.cost, { rows: g3.ledgerRows, final: g3.ledgerFinal, badge: g3.badgeFigure });
   await run(gm, P.closeAll);
 
   section("4. recognize: a disguised item, a recognizing identification from the Player seat");

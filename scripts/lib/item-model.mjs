@@ -711,8 +711,9 @@ export function itemsInSlot(actor, slot) {
  * @param {string} slot a wear-slot key
  * @param {Item[]} items what is at that place, as the caller resolved it
  * @param {{viewer?: {isGM?: boolean}}} [opts] with a `viewer`, `magic` and `used`
- *   count only the magic that viewer knows (`magicKnowledge`), the figures for a
- *   label; `full` is the truth either way, since it is what a rule enforces
+ *   count only the magic that viewer knows (`magicKnowledge`), and `full` is
+ *   read against that same count, so a place never reads full beside a badge
+ *   that is under the cap; without a `viewer` every count is the truth
  * @returns {{equip:number, magic:number, cap:number, used:number, full:boolean}}
  *   `cap` the magic capacity (Infinity when uncapped, null while an imported
  *   figure is not read); `used` the larger of the two counts, for a badge;
@@ -721,9 +722,8 @@ export function itemsInSlot(actor, slot) {
 export function slotUse(slot, items, { viewer } = {}) {
   const cap = slotCapacity(slot);
   const equip = items.filter(isEquippable).length;
-  const truth = items.filter(isMagical).length;
-  const magic = viewer ? items.filter((i) => magicKnowledge(i, viewer).known).length : truth;
-  const full = cap !== null && (truth > cap || (cap !== Infinity && equip > 1));
+  const magic = viewer ? items.filter((i) => magicKnowledge(i, viewer).known).length : items.filter(isMagical).length;
+  const full = cap !== null && (magic > cap || (cap !== Infinity && equip > 1));
   return { equip, magic, cap, used: Math.max(equip, magic), full };
 }
 

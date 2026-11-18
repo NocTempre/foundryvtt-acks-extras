@@ -207,6 +207,43 @@ await test("a Judge's tooltip is unchanged by the mark", () => {
   assert.equal(badgeFor(magicFlag(), { isGM: true }, { disguised: true }).valueTip, "trueValue");
 });
 
+/** The Details tab's price ledger for a snapshot with a two-line build-up to 10000 and an apparent 15. */
+const ledgerFor = (markets, viewer, { disguised = false } = {}) => {
+  const s = snap(magicSnapshotOf(mockItem({ markets }), markets));
+  s.price = {
+    base: 400,
+    lines: [
+      { key: "listed", label: "Listed", op: null, amount: 400, running: 400 },
+      { key: "masterwork", label: "Masterwork", op: "add", amount: 9600, running: 10000 },
+    ],
+    final: 10000,
+    apparent: 15,
+  };
+  if (disguised) s.disguise = { enabled: true, active: true, trueName: "Test Blade", apparentName: "Old Sword" };
+  const model = buildItemSheetModel(s, { editable: true, ...viewer });
+  return { price: model.details.price, badge: model.band.value };
+};
+
+await test("a player's price ledger is the one line the value badge reads, whether or not the magic is detected", () => {
+  for (const markets of [magicFlag({ detected: false }), magicFlag(), magicFlag({ detected: true })]) {
+    const { price, badge } = ledgerFor(markets, { isGM: false });
+    assert.deepEqual(price.lines.map((l) => l.key), ["apparent"], "no build-up line reaches a player");
+    assert.equal(price.lines[0].runningLabel, badge);
+    assert.equal(price.finalLabel, badge);
+  }
+  const masked = ledgerFor(magicFlag({ detected: false, identified: "full" }), { isGM: false }, { disguised: true });
+  assert.deepEqual(masked.price.lines.map((l) => l.key), ["apparent"], "a disguise's ledger is one line too");
+  assert.equal(masked.price.finalLabel, masked.badge);
+});
+
+await test("a Judge's price ledger keeps the build-up, and a Judge previewing as a player gets the player's", () => {
+  const judge = ledgerFor(magicFlag({ detected: false }), { isGM: true });
+  assert.deepEqual(judge.price.lines.map((l) => l.key), ["listed", "masterwork"]);
+  assert.equal(judge.price.finalLabel, "10,000 gp");
+  assert.equal(ledgerFor(magicFlag({ detected: false }), { isGM: true }, { disguised: true }).price.lines.length, 2);
+  assert.deepEqual(ledgerFor(magicFlag({ detected: false }), { isGM: true, previewAsPlayer: true }).price.lines.map((l) => l.key), ["apparent"]);
+});
+
 console.log("slot label vs enforcement");
 
 const ring = (markets) => mockItem({ type: "item", markets });
@@ -217,27 +254,31 @@ const withRingCapacity = (capacity, fn) => {
   try { return fn(); } finally { T.unregisterTable(vocab.WEAR_SLOTS_DOC, { priority: T.PRIORITY.WORLD }); }
 };
 
-await test("a player's count leaves an undetected item out while the slot is still full", () => {
+await test("a player's count and full mark both leave an undetected item out; a Judge's keep the truth", () => {
   withRingCapacity(1, () => {
     const items = [ring(magicFlag({ detected: false })), ring(magicFlag())];
     const player = slotUse("ring", items, { viewer: { isGM: false } });
     const gm = slotUse("ring", items, { viewer: { isGM: true } });
     assert.equal(slotUse("ring", items).magic, 2);
+    assert.equal(slotUse("ring", items).full, true, "no viewer: the truth, two against a cap of one");
     assert.equal(player.magic, 1, "the label counts only known magic");
     assert.equal(gm.magic, 2, "a Judge's label counts the truth");
-    assert.equal(player.full, true, "enforcement counts the truth: two against a cap of one");
-    assert.equal(gm.full, true);
+    assert.equal(player.full, false, "one known against a cap of one: the badge reads full only at the same count it shows");
+    assert.equal(gm.full, true, "a Judge's place is full on the truth");
   });
 });
 
-await test("a player whose own count is below the cap still meets a full slot", () => {
+await test("a player's place is full only once the magic they know of passes the cap", () => {
   withRingCapacity(2, () => {
     const items = [0, 1, 2].map((n) => ring(magicFlag(n ? { detected: false } : {})));
     const player = slotUse("ring", items, { viewer: { isGM: false } });
     assert.equal(player.magic, 1);
     assert.equal(player.used, 1);
-    assert.equal(player.full, true, "three magic items against a cap of two, whoever counts");
+    assert.equal(player.full, false, "one known against a cap of two, however many are hidden");
+    assert.equal(slotUse("ring", items, { viewer: { isGM: true } }).full, true, "three against a cap of two for a Judge");
     assert.equal(items.every(isMagical), true);
+    const known = [0, 1, 2].map(() => ring(magicFlag()));
+    assert.equal(slotUse("ring", known, { viewer: { isGM: false } }).full, true, "three known against a cap of two is full for a player too");
   });
 });
 

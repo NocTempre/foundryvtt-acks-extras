@@ -278,7 +278,8 @@ export function buildEquipmentTab(actor) {
     // the body — and clothing against neither; the badge shows the larger. A
     // piece of the mapper's kit takes the hand it is listed at like a weapon.
     // The counts shown are the viewer's: magic not yet detected is not counted
-    // for a player, while `use.full` stays the truth.
+    // for a player, and `use.full` is read against the same count, so a place
+    // never reads full beside a badge under its cap.
     const use = slotUse(key, items, { viewer: { isGM: !!game.user?.isGM } });
     const kit = items.filter((i) => loadout.mappingKit.some((k) => k.id === i.id)).length;
     if (kit) {

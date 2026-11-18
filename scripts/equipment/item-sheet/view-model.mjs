@@ -109,6 +109,30 @@ export function listedPrice(price) {
 }
 
 /**
+ * The Details tab's price ledger as the template renders it. Where the cost is
+ * masked from this viewer (`costMasked`: a player looking at unidentified magic
+ * or at a disguise) the build-up is the truth's working, so the ledger is one
+ * line at `figure`, the same apparent cost the value badge reads, under the
+ * listed line's label; that line is keyed `apparent`, so no field types over it.
+ * Otherwise every line shows.
+ * @param {object|undefined} price the snapshot's price block
+ * @param {{costMasked:boolean, figure:number}} mask
+ */
+export function priceView(price, { costMasked, figure }) {
+  const src = price ?? { lines: [], final: 0 };
+  if (costMasked) {
+    const label = (src.lines ?? []).find((l) => l.key === "listed")?.label ?? null;
+    const line = { key: "apparent", label, op: null, amount: figure, running: figure, runningLabel: gpLabel(figure) };
+    return { lines: [line], final: figure, finalLabel: gpLabel(figure) };
+  }
+  return {
+    ...src,
+    lines: (src.lines ?? []).map((l) => ({ ...l, runningLabel: gpLabel(l.running) })),
+    finalLabel: gpLabel(src.final ?? 0),
+  };
+}
+
+/**
  * What the value badge reads, and why — one rule for the band, the ledger and
  * the tooltip. `tip` is the lang key under `itemSheet.value` the badge's tooltip
  * reads: `reason`, except that a player looking at an undetected magic item
@@ -423,11 +447,7 @@ export function buildItemSheetModel(snap, viewer = {}) {
         }
       : null,
     details: {
-      price: {
-        ...(snap.price ?? { lines: [], final: 0 }),
-        lines: (snap.price?.lines ?? []).map((l) => ({ ...l, runningLabel: gpLabel(l.running) })),
-        finalLabel: gpLabel(snap.price?.final ?? 0),
-      },
+      price: priceView(snap.price, { costMasked: hideMagic || masked, figure: hideMagic ? snap.price?.apparent ?? fullCost : fullCost }),
       valueMode: snap.valueMode ?? "priced",
       // Currency is never appraised, so it is offered no mode to be put in.
       valueModes: coin ? [] : VALUE_MODES.map((k) => ({ key: k, on: (snap.valueMode ?? "priced") === k })),

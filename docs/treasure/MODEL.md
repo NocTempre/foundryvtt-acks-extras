@@ -23,7 +23,7 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | `deal.toggles` | `{noMagic, forceCursed}`, both booleans, set while staging and applied at open |
 | `partyId` | the party the aside lists and Quick grab shares among; nothing writes it, so `resolveParty` reads it while the roster lists it, else the only party the roster has (see "The party aside") |
 | `grab` | `{leftover: [{cardId, count, code}]}`, what the last Quick grab left: the card, the coin still unplaced (null for a whole card) and `tooHeavy`, `noRoom` or `failed`; null before any grab |
-| `origin` | reserved; written empty by a hand-built pot, the fallen's record on a staged one |
+| `origin` | `null` on a hand-built pot; the fight's record on a pot staged from one (shape under "Search the fallen") |
 
 Core lets any user create a Card in a pile. A Card whose id is not in `order`
 (or a bucket list) is never shown by the window and never acted on by the

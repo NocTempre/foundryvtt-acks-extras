@@ -224,6 +224,35 @@ test("a player sees no own effects and the apparent value until identified", () 
   assert.equal(judge.effects.own.length, 1);
   assert.equal(judge.band.value, "10,000 gp");
 });
+test("a player's price ledger is the apparent cost alone; a Judge's keeps the build-up", () => {
+  const price = {
+    base: 400,
+    lines: [
+      { key: "listed", label: "Listed", op: null, amount: 400, running: 400 },
+      { key: "masterwork", label: "Masterwork", op: "add", amount: 9600, running: 10000 },
+    ],
+    final: 10000,
+    apparent: 15,
+  };
+  const magic = { is: true, aura: "arcane", identified: "none" };
+  const player = buildItemSheetModel(base({ magic, price }), { isGM: false });
+  assert.deepEqual(player.details.price.lines.map((l) => [l.key, l.label, l.running]), [["apparent", "Listed", 15]], "one line, at the apparent cost");
+  assert.equal(player.details.price.finalLabel, "15 gp");
+  assert.equal(player.details.price.final, 15);
+  const undetected = buildItemSheetModel(base({ magic: { ...magic, known: false, detected: false }, price }), { isGM: false });
+  assert.equal(undetected.details.price.lines.length, 1);
+  assert.equal(undetected.details.price.finalLabel, "15 gp");
+  const judge = buildItemSheetModel(base({ magic, price }), { isGM: true });
+  assert.deepEqual(judge.details.price.lines.map((l) => l.key), ["listed", "masterwork"], "the Judge reads the truth");
+  assert.equal(judge.details.price.finalLabel, "10,000 gp");
+  const preview = buildItemSheetModel(base({ magic, price }), { isGM: true, previewAsPlayer: true });
+  assert.equal(preview.details.price.lines.length, 1, "a Judge previewing as a player reads the player's ledger");
+  const disguised = buildItemSheetModel(base({ disguise: { enabled: true, active: true }, price: { ...price, final: 15 } }), { isGM: false });
+  assert.equal(disguised.details.price.lines.length, 1, "a disguise's cost is the document's own");
+  assert.equal(disguised.details.price.finalLabel, "15 gp");
+  const plain = buildItemSheetModel(base({ price }), { isGM: false });
+  assert.equal(plain.details.price.lines.length, 2, "an item whose cost is not masked shows its build-up");
+});
 
 console.log("item sheet: currency");
 /** A coin row's snapshot: eighty coins, at a rate of this file's own. */

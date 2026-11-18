@@ -1319,13 +1319,18 @@ A step that needs the shape asserts it at its start: read
 1. **Player seat:** open the item's sheet. *Observable:* the Details tab has no
    identification panel, the Effects tab names no hidden effects and lists none,
    and the art carries no aura mark; the value badge's tooltip is "Value", not
-   the apparent-worth one.
+   the apparent-worth one. Set the item's `markets.apparentValueGp` apart from
+   its cost first (the script sets an invented figure from the GM seat): the
+   Details tab's price ledger is one line at that apparent worth, the badge's
+   figure, with no build-up lines.
 2. **Player seat:** the character sheet's Equipment tab, the place the item is
    worn at. *Observable:* the place's badge counts the known magic item and not
    this one; wearing a second known magic item past the place's capacity (an
-   imported figure) still marks the place full.
+   imported figure) marks the place full for the GM seat and not for the Player
+   seat, whose badge counts one.
 3. **GM seat:** the same item's sheet. *Observable:* Appearance tab and aura as
-   for any magic item; nothing is hidden.
+   for any magic item; nothing is hidden, and the price ledger shows its full
+   build-up ending at the true cost, with the apparent worth set as in step 1.
 4. **Recognize:** disguise the item (the equipment API's `disguiseItem`, apparent
    name "Plain Blade") and drive a recognizing identification from the Player
    seat (Details tab of a detected copy, or `identifyAttempt` with Loremastery

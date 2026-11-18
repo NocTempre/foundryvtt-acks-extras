@@ -274,3 +274,26 @@ Judge's click or by a full identification.
   without the magic being detected. It is the Judge's explicit word, and
   `markIdentified` detects the item whenever it sets `curseKnown`, so only
   the Judge's own checkbox reaches that state.
+
+## 2026-11-17 — A player's place reads full on the count its badge shows, and the price ledger shows a player the apparent cost
+
+Supersedes, in part, the 2026-11-16 bullet "Enforcement counts the truth" and
+its cost line. New evidence: the undetected item walk shows the mark is itself
+the leak. A player reading "1 of 2" beside a full tint is told a second magic
+item is there, which is the one thing detection hides. The same walk found the
+Details tab's price ledger listing the true cost build-up under an apparent
+value badge.
+
+- `slotUse(slot, items, {viewer}).full` is read against the same magic count
+  the viewer's badge shows, so a player's place is full once the magic they
+  know of passes the cap, and a Judge's (every magic item known) is full on the
+  truth. With no `viewer` every count is the truth. The one-equippable-thing
+  rule is unchanged, since it counts nothing a player is not told.
+- *Cost:* a player can wear a second, unknown magic item at a place the rules
+  would call full, and nothing on their sheet marks it; the Judge's sheet
+  does. The module refuses no write at a full place, so nothing is blocked.
+- Where the value badge reads an apparent cost (a player looking at
+  unidentified magic, or at a disguise), the ledger is one line at that same
+  figure, keyed `apparent` so no field types over it
+  (`item-sheet/view-model.mjs` `priceView`). A Judge reads every line, and a
+  Judge previewing as a player reads the player's.
