@@ -680,3 +680,92 @@ The two points M-l left open were checked on the walk. Core 14's `calendar.days.
 is the world calendar's weekday list, with the weekday objects themselves as entries, so
 a week is that many days. The two page references (RR 388 arcane, RR 422 divine) are the
 pages from which the M-i walk's import read both lifetime passages.
+
+## 2026-11-18 — Research projects at a location, and the facility (M-q1, rulings 220, 221)
+
+Built to board 10, which the owner approved, redrawn as a tab of the location sheet. The
+owner on board 10: "Sure go with it." On where it lives: "Research board looks like it
+should be tab of location." On the whole v19 canvas: "Approve spell cast design". The art
+rule stands: "Find open art to attribute or better yet art/texture imported from the book.
+Standing rule for repo no generated art." So a project leads with its subject's own `img`,
+else a Font Awesome glyph by kind; the board's gradient squares ship nowhere.
+
+Rulings 220 and 221 as built: a project is a record on the location,
+`flags["acks-extras"].magic.projects[]`, beside the facility values at `magic.facilities`; the
+researcher's sheet links to the project and does not own it, and no project Item sub-type exists.
+The Research tab is `{id: "research"}` in the sheet's `TABS.primary`, after Storage, on every
+location. Automation blocks a Player and warns a Judge: a facility share below the imported
+minimum blocks a Player's project and warns a Judge's (`isOwner` is never the test; a request's
+authority is the sender Foundry attested). Judgment calls made in building it, each with the
+default proceeded on and the counter:
+
+- **The kinds are spell, item, identify and ritual, and each reads the facility passages
+  `research-tables.mjs` already separates.** Spell reads the library, item the workshop,
+  identification the library, a ritual both of its own facilities. The kind names a mechanism and
+  holds no figure. *Counter (medium):* finer kinds (an item's effect type, a potion against a
+  scroll) would match the printed costs; no row imports them, so there is nothing to key on.
+- **"Linked to the location" is the location's roster.** The characters a location holds as
+  stored occupants or as tokens on its scene, character actors only; a row the Judge hides is
+  still linked, since hiding is a view. Nothing else in the module links a character to a place
+  except a henchman's `locationUuid`, which says where he was hired. *Counter (medium):* a link
+  made on purpose, a second list on the location, would not move when a token does.
+- **A facility's sharers are the open projects reading it, a ritual counting on both.** The block
+  and the bonus read the same share (`value ÷ sharers`), and an unset value counts as nothing.
+  *Counter (medium):* distinct researchers would let one researcher's two projects pool; the
+  ruling's own words ("their number, counted from the location's open projects") settle projects.
+- **The gate is made when a project starts.** `acksExtras.magic.research.gate` and `verdicts`
+  are what crediting (M-q2) and finishing (M-q3) call again. *Counter (medium):* refusing an
+  update too would stop a Judge lowering the facility under a running project, which the Judge
+  owns; the block belongs to starting and to the acts that spend.
+- **A figure not read blocks and warns nothing.** With nothing imported, or no level entered,
+  the verdict is `unknown`, the bonus is null and the chip is a page reference alone. *Counter
+  (low):* warning that nothing is imported would say something the Judge already sees on the
+  chip.
+- **An identification's minimum is the imported research figure of that passage.** The reader's
+  own note says the identification kind prints no minimum and that its minimum is the research's
+  cost; `readIdentification().research` is read as that. *Counter (medium):* no gate on an
+  identification at all, with the bonus left blank; the owner should read RR 393 against it.
+- **The three costs are entered by the Judge, blank until entered.** M-i imported no spell
+  research or item creation cost (DECISIONS, "Not imported here"), so no formula ships. *Counter
+  (STRONG):* computing a due from the level is what the Judge-tools rule would want, and it waits
+  for those rows to be imported; until then a Judge types them and the tooltip carries the page.
+- **Who writes which field.** A Player's seat may start a project for a character it owns, with
+  the subject, the level of effect and the assistants, and later change the subject, the
+  assistants and the components. The costs, the material paid, the throw and, after the project
+  exists, the level are the Judge's, refused with `judge` where they run. *Counter (medium):* the
+  level lets a Player pick the minimum their own project is read against; it is the Judge who sees
+  the project and can correct it, and a Player who could never enter it would leave every Player
+  project unread.
+- **A project is closed, never deleted.** It stays on the record, counts for no facility and is
+  listed apart. *Counter (low):* a Judge's delete would keep the record small; nothing needs it
+  yet.
+- **The researcher's sheet link is derived, not stored.** `research.projectsOf(actor)` answers
+  the open projects an actor is on across the world's locations; nothing is written on the
+  character. Board 10 draws no element on the character sheet, so none is built here. *Counter
+  (medium):* a link on the sheet is the ruling's literal words; whether to draw one is an owner
+  question.
+- **The material is recorded, not charged.** `paid` holds what the Judge says was paid at the
+  start, with its day; no coin leaves the researcher. *Counter (medium):* deducting from the
+  researcher's purse would match the ruling's "paid at start"; which purse, and what a refusal
+  costs, are for the crediting slice to decide with the day rate.
+- **The components bucket is lib's bucket, stored as a lib answer.** `bucket: [{uuid, qty, fit}]`
+  re-resolves at read, so a row's value is the document's now, and a drop of an item, actor or
+  token adds a row. Power rows are not accepted here; the ritual and sacrifice slices bring them.
+  Settlement is M-q3's. *Counter (low):* a snapshot of each row's value would not drift.
+- **The throw is displayed, not combined.** The panel shows the stored target where one is
+  written, else the ladder's throw for the researcher's level; the facility bonus is a chip beside
+  it, never subtracted. Resolving the throw is M-q3's. *Counter (low):* showing the bonused
+  target would be what a Judge reads at the table.
+- **Not drawn in M-q1:** posting days, the day strip and the pace choice (M-q2). Finish is drawn
+  disabled with its reason as text beside it (M-q3 enables it). *Counter (low):* leaving Finish
+  out would remove a control that does nothing yet; the board draws it, and the reason it states
+  is true of the record.
+- **Controls write by their own listener, not the form.** The sheet submits on change, so each
+  Research control stops its change event and calls the API; none is a named field, and the
+  facility inputs exist only on a Judge's render. *Counter (low):* named fields under
+  `flags.acks-extras.magic` would save a handler and let any owner of the location write a
+  facility by form submit.
+- **A write rewrites the field it changes** (the whole `projects` array, or `facilities`); direct
+  where Foundry lets the seat write the location (`canUserModify`), else asked of the GM's client
+  under the handler `magicProject`. *Counter (low):* an array path per project would write less
+  and race less; Foundry's flag update replaces arrays whole either way.

@@ -32,6 +32,8 @@ import { registerCastSpell, castReading } from "./cast-spell.mjs";
 import { registerCastProcedure, procedureOfKind } from "./cast-procedure.mjs";
 import { implementsBucket, IMPLEMENTS_KEY } from "./cast-implements.mjs";
 import { powerApi, registerPower } from "./power-ledger-live.mjs";
+import { researchApi, registerProjects } from "./research-project-live.mjs";
+import { RESEARCH_TEMPLATES } from "./research-tab.mjs";
 import { selfReach, twinLookups } from "./cast-reach.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import * as casting from "../classes/casting.mjs";
@@ -98,6 +100,8 @@ Hooks.once("init", () => {
     IMPLEMENTS_KEY,
     /** The power ledger: the balance, its expiry, the gain and the spend, and the bucket's power row (power-ledger-live.mjs). */
     power: powerApi,
+    /** The research projects at a location and the facilities they read: the record, its writes and the links back to a researcher (research-project-live.mjs). */
+    research: researchApi,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
@@ -122,6 +126,7 @@ Hooks.once("init", () => {
       `modules/${MODULE_ID}/templates/magic/cast-dialog-footer.hbs`,
       LEVEL_VALUE_PARTIAL,
       `modules/${MODULE_ID}/templates/lib/effect-row-editor.hbs`,
+      ...RESEARCH_TEMPLATES,
     ]);
   } catch (err) {
     console.warn(`${MODULE_ID} | magic template preload skipped`, err);
@@ -176,6 +181,12 @@ Hooks.once("init", () => {
     registerPower();
   } catch (err) {
     console.error(`${MODULE_ID} | the power ledger could not register`, err);
+  }
+  // A seat that cannot write a location's research record asks the GM's client to.
+  try {
+    registerProjects();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the research record could not register`, err);
   }
   console.log(`${MODULE_ID} | initialised (spell primitive ready)`);
 });

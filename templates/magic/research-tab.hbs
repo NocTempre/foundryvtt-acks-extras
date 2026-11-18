@@ -1,0 +1,121 @@
+{{!-- The location sheet's Research tab (scripts/magic/research-tab.mjs `prepareResearchTab`):
+      the facility values, then each open project with its researchers, costs,
+      credited research and components bucket. A control writes by its own
+      listener and names no form field, so the sheet's submit-on-change never
+      sees it. No id is written: a label wraps its control or names it by
+      `aria-label`. Posting days and Finish are not drawn: Finish is drawn
+      disabled, with its reason beside it. --}}
+<div class="acks-extras-research">
+  <section class="acks-extras-research__band">
+    <h3 class="acks-extras-research__legend">{{localize "ACKS-MAGIC.research.facilities"}}</h3>
+    {{#each research.facilities}}
+    <div class="acks-extras-research__facility">
+      {{#if editable}}
+      <label class="acks-extras-research__facility-label" data-tooltip-text="{{tip}}">{{label}}
+        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-facility="{{key}}" value="{{value}}" placeholder="{{unit}}" aria-label="{{inputLabel}}">
+      </label>
+      {{else}}
+      <span class="acks-extras-research__facility-label" data-tooltip-text="{{tip}}">{{label}}</span>
+      <span class="acks-nums acks-extras-research__facility-value" data-tooltip-text="{{tip}}">{{#if text}}{{text}} {{unit}}{{/if}}</span>
+      {{/if}}
+      {{#if usersText}}<span class="acks-tag">{{usersText}}</span>{{/if}}
+    </div>
+    {{/each}}
+  </section>
+
+  <section class="acks-extras-research__band">
+    <h3 class="acks-extras-research__legend">
+      <span>{{localize "ACKS-MAGIC.research.projects"}}</span>
+      {{#if research.canCreate}}
+      <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-action="newResearchProject" data-research-control><i class="fa-solid fa-plus" inert></i> {{research.createLabel}}</button>
+      {{/if}}
+    </h3>
+    {{#if research.noLinked}}<p class="acks-extras-research__cap">{{localize "ACKS-MAGIC.research.noLinked"}}</p>{{/if}}
+    {{#unless research.projects.length}}{{#unless research.noLinked}}<p class="acks-extras-research__cap">{{localize "ACKS-MAGIC.research.noProjects"}}</p>{{/unless}}{{/unless}}
+
+    {{#each research.projects}}
+    <article class="acks-extras-research__project" data-project-id="{{id}}" data-kind="{{kind}}">
+      <header class="acks-extras-research__ph">
+        <span class="acks-extras-research__tile" data-research-subject-drop>
+          {{#if img}}<img src="{{img}}" alt="" inert>{{else}}<i class="fa-solid {{glyph}}" inert></i>{{/if}}
+        </span>
+        <span class="acks-extras-research__title">
+          {{#if can}}
+          <input type="text" class="acks-extras-research__subject" data-research-control data-research-field="subject.name" value="{{subjectName}}" placeholder="{{subjectLabel}}" aria-label="{{subjectLabel}}">
+          {{else}}
+          <span class="acks-extras-research__pname">{{name}}</span>
+          {{/if}}
+          <span class="acks-extras-research__cap">{{caption}}</span>
+        </span>
+        {{#each verdicts}}
+        <span class="acks-tag{{#if tone}} is-{{tone}}{{/if}}" tabindex="0" aria-label="{{aria}}" data-tooltip-text="{{tip}}"><i class="fa-solid {{glyph}}" inert></i>{{#if text}} {{text}}{{/if}}</span>
+        {{/each}}
+        {{#if can}}
+        <button type="button" class="acks-btn acks-btn--icon" data-action="closeResearchProject" data-research-control aria-label="{{closeLabel}}" data-tooltip-text="{{closeLabel}}"><i class="fa-solid fa-xmark" inert></i></button>
+        {{/if}}
+      </header>
+
+      <div class="acks-extras-research__who">
+        <span class="acks-tag"><img class="acks-extras-research__face" src="{{researcher.img}}" alt="" inert> {{researcher.name}} · {{researcher.role}}</span>
+        {{#each assistants}}
+        <span class="acks-tag">{{name}} · {{role}}
+          {{#if ../can}}<button type="button" class="acks-btn acks-btn--icon acks-extras-research__x" data-action="removeResearchAssistant" data-research-control data-uuid="{{uuid}}" aria-label="{{removeLabel}}" data-tooltip-text="{{removeLabel}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+        </span>
+        {{/each}}
+        {{#if can}}{{#if addChoices.length}}
+        <select class="acks-input" data-research-add-assistant data-research-control aria-label="{{addLabel}}">
+          <option value="">{{addLabel}}</option>
+          {{#each addChoices}}<option value="{{uuid}}">{{name}}</option>{{/each}}
+        </select>
+        {{/if}}{{/if}}
+      </div>
+
+      <div class="acks-extras-research__parts">
+        <span>{{levelLabel}}</span>
+        {{#if judge}}
+        <input type="number" class="acks-input acks-input--num" min="1" step="1" data-research-control data-research-field="level" value="{{level}}" aria-label="{{levelLabel}}" data-tooltip-text="{{levelTip}}">
+        {{else}}
+        <span class="acks-nums" data-tooltip-text="{{levelTip}}">{{level}}</span>
+        {{/if}}
+        {{#each costs}}
+        <span data-tooltip-text="{{tip}}">{{label}}</span>
+        {{#if editable}}
+        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-field="costs.{{key}}" value="{{value}}" aria-label="{{inputLabel}}" data-tooltip-text="{{tip}}">
+        {{else}}
+        <span class="acks-nums" data-tooltip-text="{{tip}}">{{text}}</span>
+        {{/if}}
+        {{/each}}
+        <span>{{paid.label}}</span>
+        {{#if paid.editable}}
+        <input type="number" class="acks-input acks-input--num" min="0" step="any" data-research-field="paid.material" value="{{paid.value}}" aria-label="{{paid.inputLabel}}" data-tooltip-text="{{paid.tip}}">
+        {{else}}
+        <span class="acks-nums" data-tooltip-text="{{paid.tip}}">{{paid.text}}</span>
+        {{/if}}
+        <span>{{progress.label}}</span>
+        <span class="acks-extras-research__progress" data-tooltip-text="{{progress.tip}}">
+          <span class="acks-extras-research__bar" style="--pct: {{progress.pct}}%"></span>
+          <span class="acks-nums">{{progress.text}}</span>
+        </span>
+        <span>{{throwLabel}}</span>
+        <span class="acks-tag acks-nums" data-tooltip-text="{{throw.tip}}">{{#if throw.text}}{{throw.text}}{{else}}<i class="fa-solid fa-book" inert></i>{{/if}}</span>
+      </div>
+
+      {{> "modules/acks-extras/templates/lib/bucket.hbs" bucket}}
+
+      <footer class="acks-extras-research__foot">
+        <span class="acks-extras-research__verdict">{{finish.why}}</span>
+        <button type="button" class="acks-btn acks-btn--roll" disabled>{{finish.label}}</button>
+      </footer>
+    </article>
+    {{/each}}
+
+    {{#if research.closed.length}}
+    <details class="acks-extras-research__closed">
+      <summary>{{localize "ACKS-MAGIC.research.closedHead"}} ({{research.closed.length}})</summary>
+      <ul>
+        {{#each research.closed}}<li>{{name}}{{#if dayText}} · {{dayText}}{{/if}}</li>{{/each}}
+      </ul>
+    </details>
+    {{/if}}
+  </section>
+</div>

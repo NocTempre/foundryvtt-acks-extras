@@ -51,10 +51,11 @@ questions, ruled"): 2 and 4a before 1b.
   through the cost engine (needs 1b).
 - **4b — Magic items: Treasure Tome.** The `tt` reader; the Mechanics block;
   gritty tables; the advanced item rules and the appendices.
-- **5 — Research.** The `acks-extras.research` document, anchored at a
-  location whose facilities gate it and linked to the researching
-  character, its sheet and the Judge's ledger; every RR ch. 8 project
-  kind; experimentation; components and compounds; rituals learned and
+- **5 — Research.** The project record on the location and its Research
+  tab are built (MODEL, ruling 220); what remains: posting and crediting
+  research days, the outcome writers, a visible link on the researcher's
+  sheet, every RR ch. 8 project kind beyond the four built; experimentation;
+  components and compounds; rituals learned and
   cast; XP; the spellcasting-services bridge.
   Congregation-scale divine power waits for the domains feature's realm
   model.

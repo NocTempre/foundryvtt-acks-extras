@@ -38,6 +38,7 @@ import { openHireGroupDialog } from "../../henchmen/apps/hire-group-dialog.mjs";
 import { now, advanceDays, nextMarketRollTime } from "../../henchmen/time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { prepareTradeTab, bindTradeTab, TRADE_TAB_ACTIONS } from "../../markets/apps/trade-tab.mjs";
+import { prepareResearchTab, bindResearchTab, RESEARCH_TAB_ACTIONS } from "../../magic/research-tab.mjs";
 import { PicksMixin, spendPicks } from "../../lib/picks.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -76,8 +77,8 @@ function directedSpecMatches(spec, c) {
   return !!name && String(c.notes ?? "").toLowerCase().includes(name);
 }
 
-/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', and the pure-DOM candidate filters. */
-const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-candidate-filter]';
+/** Controls a non-owner viewer acts through: the Trade and Ventures tabs', the Research tab's own and the X of a bucket row it draws (each authorizes per researcher and relays to a GM), and the pure-DOM candidate filters. */
+const VIEWER_CONTROLS = ':is([data-tab="trade"], [data-tab="ventures"]) :is(button, select, input), [data-research-control], [data-tab="research"] [data-bucket] button, [data-candidate-filter]';
 
 /** The location sub-type's sheet: identity, nesting, contents, storage and, where there is one, the market. */
 export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
@@ -132,6 +133,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       rollLair: LocationSheet.#onRollLair,
       // --- trade tab (handlers live in the markets feature) ---
       ...TRADE_TAB_ACTIONS,
+      // --- research tab (handlers live in the magic feature) ---
+      ...RESEARCH_TAB_ACTIONS,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
       removeMarket: LocationSheet.#onRemoveMarket,
@@ -159,6 +162,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         { id: "trade", icon: "fas fa-coins" },
         { id: "ventures", icon: "fas fa-scale-balanced" },
         { id: "storage", icon: "fas fa-boxes-stacked" },
+        { id: "research", icon: "fas fa-flask" },
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
       ],
@@ -217,6 +221,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // a market, and the GM tabs only for GMs.
     context.tabs = this.#prepareVisibleTabs(context);
     await this.#prepareStorage(context);
+    await prepareResearchTab(this, context);
 
     const tabCounts = {
       contents: context.contentRows.length + context.occupants.length,
@@ -230,6 +235,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       trade: context.tradeRows?.length ?? 0,
       ventures: context.ventureActions?.length ?? 0,
       storage: context.groups.length,
+      research: context.researchOpen,
     };
     for (const [id, tab] of Object.entries(context.tabs)) {
       const base = game.i18n.localize(`ACKS-HENCHMEN.location.tab.${id}`);
@@ -723,6 +729,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     super._onRender(context, options);
     const root = this.element;
     bindTradeTab(this);
+    bindResearchTab(this);
 
     // The GM-only permission gates the bind itself: a player's demographics
     // block gets no drop handlers at all.

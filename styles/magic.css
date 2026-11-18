@@ -685,3 +685,169 @@
   width: auto;
   flex: none;
 }
+
+/* The location sheet's Research tab (templates/magic/research-tab.hbs). Type
+   rides the --acks-fs-* ramp; the tab is a column of bands, and the sheet's own
+   body scrolls it. */
+.acks-extras-research {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  min-inline-size: 0;
+}
+.acks-extras-research__band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  border-block-start: var(--acks-border-soft);
+  padding-block-start: var(--acks-sp-3);
+}
+.acks-extras-research__legend {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--acks-sp-4);
+  margin: 0;
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-body);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink);
+}
+.acks-extras-research__cap {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  line-height: var(--acks-lh-snug);
+}
+.acks-extras-research__facility {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-research__facility-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  min-inline-size: 8ch;
+}
+.acks-extras-research__facility .acks-input {
+  inline-size: 10ch;
+}
+.acks-extras-research__facility-value {
+  min-inline-size: 6ch;
+}
+.acks-extras-research__project {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-4);
+  border: var(--acks-border-soft);
+  background: var(--acks-paper-pure);
+  font-family: var(--acks-font-ui);
+  min-inline-size: 0;
+}
+.acks-extras-research__ph {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+}
+.acks-extras-research__tile {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2.4em;
+  block-size: 2.4em;
+  flex: none;
+  overflow: hidden;
+  background: var(--acks-tint);
+  border: var(--acks-border-hair);
+  color: var(--acks-spot);
+}
+.acks-extras-research__tile img,
+.acks-extras-research__face {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.acks-extras-research__face {
+  inline-size: 1.4em;
+  block-size: 1.4em;
+}
+.acks-extras-research__title {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 12ch;
+  min-inline-size: 0;
+}
+.acks-extras-research__pname,
+.acks-extras-research__subject {
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-body);
+  font-weight: var(--acks-weight-medium);
+}
+.acks-extras-research__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+}
+.acks-extras-research__x {
+  inline-size: 1.6em;
+  block-size: 1.6em;
+  padding: 0;
+  font-size: var(--acks-fs-fine);
+}
+.acks-extras-research__parts {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-5);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-research__parts .acks-input {
+  inline-size: 10ch;
+}
+.acks-extras-research__progress {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
+.acks-extras-research__bar {
+  display: inline-block;
+  inline-size: 8em;
+  block-size: 0.6em;
+  background: linear-gradient(to right, var(--acks-burgundy) var(--pct, 0%), var(--acks-tint) var(--pct, 0%));
+  border: var(--acks-border-hair);
+}
+.acks-extras-research .acks-tag.is-ok {
+  border-color: var(--acks-success);
+  background: var(--acks-success-tint);
+  color: var(--acks-success-ink);
+}
+.acks-extras-research .acks-tag.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+.acks-extras-research__foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-4);
+  border-block-start: var(--acks-border-soft);
+  padding-block-start: var(--acks-sp-3);
+}
+.acks-extras-research__verdict {
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-warning-ink);
+}
+.acks-extras-research__closed {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}

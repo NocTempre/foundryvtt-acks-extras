@@ -1523,3 +1523,74 @@ sheet, through the same `castingStripElement`.
 
 Both ledgers are unset, the update counter hook is removed, both sheets are closed, and the override
 is cleared (also in the walk's `finally`). The fixtures stay.
+
+## Research projects (M-q1)
+
+A location's facility values and the research projects held there, on the location sheet's
+Research tab. Offline: `tools/test-research-project.mjs`. Live: `tools/live/magic-research-project.mjs`,
+the GM seat and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
+
+### Fixtures
+
+Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/research-place`
+(an `acks-extras.location` with no market and default ownership Observer, so the Player seat may
+open it and cannot write it, which makes every Player write a relayed one), `magic/research-hero`
+(a character the Player seat owns), `magic/research-pell` (a character the Player only observes),
+`magic/research-lena` (a character the Player owns who is never put on the roster) and
+`magic/research-part` (an item dropped as a component). Each step that needs a known shape starts
+it: the place's research flag is unset and its roster is rewritten to the hero and Pell
+(`lib/place.mjs` `addOccupant`) at the start and the end, since a kept fixture carries what the last
+walk left. A counter on `updateActor` for the place and the hero, on the GM seat, is what "written"
+is read from. The run's table overrides are the registry's own layer, cleared in its `finally`. The
+walk makes no document of its own: the projects are flag records.
+
+### Steps
+
+1. **The tab.** The GM opens the place's sheet and presses Research. *Observable:* Research follows
+   Storage in the strip although the place has no market; the section is active and holds an input
+   for the library and one for the workshop, a New project button and no element with an `id`; the
+   header chip counts none.
+2. **A facility value.** Type 9000 in the library input. *Observable:* one write of
+   `flags.acks-extras.magic.facilities.library`, and the face reads it back. The Player seat's tab
+   shows the value as text, no input, with Storage absent from its strip; its `setFacility` answers
+   `judge`.
+3. **A Judge's project, no level.** `research.create` from the GM seat with no level, which reads as
+   unread whatever the world has imported. *Observable:* an open
+   project stamped with the calendar day, its card drawn with the facility chip unread (no words, a
+   tooltip carrying a page reference), Finish disabled with its reason as text, the header chip counting
+   one.
+4. **A Player starts one.** From the Player seat, for the hero (no level), Pell, Lena and with a cost.
+   *Observable:* the hero's is written (the answer came from the GM's client); Pell's is `owner`, Lena's
+   is `researcher` and a cost is `judge`, each writing nothing.
+5. **The facility, imported.** Override `libraryProse`, `researchLadder` and `researchLadderNote` with
+   invented figures (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk),
+   then the Judge enters level 2 on both projects. *Observable:* the second level's minimum is the first level's plus one step; with two open projects the
+   9000 divides to a share that meets it and the chip reads ok with the bonus and a tooltip listing value,
+   sharers, share and minimum. A third project from the Player seat is `facility` and writes nothing; from
+   the GM seat it is written with `warn: "facility"`, and `gate` agrees for each seat.
+6. **The controls.** The GM types a material cost, the material paid and a level. *Observable:* each
+   writes its field and leaves the rest. On the Player seat the Player's own project draws its controls
+   with none disabled by the sheet's lock and none of the Judge's fields, and Pell's project draws none;
+   the assistant pick offers only linked characters not already on it, adds one and removes it, each
+   relayed.
+7. **The bucket.** Drop the item on the project's bucket from the Player seat. *Observable:* a row of
+   the item's own picture and name, the same item held once however often it is dropped, X is not
+   disabled by the sheet's lock and takes it out, and the location itself holds no item.
+8. **The link and close.** `projectsOf(hero)` lists the open project the hero researches, and nothing
+   was written on the character. The Player closes it: it stays on the record with its day and the link
+   is gone.
+
+### Drive mechanics
+
+A control writes by its own listener and stops the change there, so a value is set with `el.value = ...`
+and a bubbling `change` event, then a wait for the relayed write to come back. A drop is a `drop`
+`DragEvent` on `[data-bucket-drop]` carrying `text/plain` JSON `{type: "Item", uuid}` in a
+`DataTransfer`; the zone stops it, so nothing reaches the sheet's own drop. A write re-renders the
+sheet, so each card is looked up again after one. Not walked: the researcher's own sheet (no link is
+drawn on it), a second Player seat for the project of someone else's character, a real time advance
+(nothing credits yet), and Finish (drawn disabled).
+
+### Teardown
+
+Both sheets are closed, the counter hook is removed, the place's research flag and roster are cleared and
+the run's overrides are cleared (also in the walk's `finally`). The fixtures stay.

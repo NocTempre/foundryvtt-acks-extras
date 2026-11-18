@@ -24,3 +24,7 @@ export const LOST_ITEM_HANDLER = "magicLostItem";
 export const FLAG_POWER = "power";
 /** The handler on lib's sockets through which a seat has the GM's client write a power ledger it cannot. */
 export const POWER_HANDLER = "magicPower";
+/** Flag key under flags["acks-extras"] on a location actor holding its research record (`research-project.mjs`). */
+export const FLAG_MAGIC = "magic";
+/** The handler on lib's sockets through which a seat has the GM's client write a research record it cannot. */
+export const PROJECT_HANDLER = "magicProject";

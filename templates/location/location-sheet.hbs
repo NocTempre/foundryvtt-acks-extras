@@ -19,6 +19,9 @@
           <i class="fas fa-map"></i> {{scene.name}}
         </a>
         {{/if}}
+        {{#if researchOpen}}
+        <span class="acks-tag" data-tooltip-text="{{localize 'ACKS-MAGIC.research.openHint'}}"><i class="fas fa-flask"></i> {{localize "ACKS-MAGIC.research.openCount" n=researchOpen}}</span>
+        {{/if}}
         {{#if hasMarket}}
         <span class="market-class-badge acks-tag" data-tooltip="{{marketClassSource}}">
           {{localize "ACKS-HENCHMEN.location.marketClass"}}: <strong>{{marketClassRoman}}</strong>
@@ -577,6 +580,13 @@
   {{!-- ------------------------- Ventures (markets feature) ------------------------- --}}
   <section class="tab location-tab {{tabs.ventures.cssClass}}" data-group="primary" data-tab="ventures">
     {{> "modules/acks-extras/templates/markets/ventures-tab.hbs"}}
+  </section>
+
+  {{!-- ---------------------------- Research ---------------------------- --}}
+  {{!-- Every place has this tab, market or not, and every viewer who can open the
+        sheet: the researchers write through their own rules (scripts/magic/research-tab.mjs). --}}
+  <section class="tab location-tab {{tabs.research.cssClass}}" data-group="primary" data-tab="research">
+    {{> "modules/acks-extras/templates/magic/research-tab.hbs"}}
   </section>
 
   {{#if isGM}}

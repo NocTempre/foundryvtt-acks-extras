@@ -1042,8 +1042,8 @@ minimum by level and the bonus its surplus buys, divided among the researchers
 sharing it (`facilityMinimum`, `facilityBonus`), a library's share of a
 research's spend, ritual costs by level and the sacrifice bonus. Each helper
 answers null when a figure it needs is unread, and nothing here falls back to
-a default. No window reads these yet except the power ledger below; the research,
-ritual and sacrifice slices consume the rest.
+a default. The power ledger below and the research project's facility panel read these; the
+crediting, outcome, ritual and sacrifice slices consume the rest.
 
 ## The power ledger
 
@@ -1091,3 +1091,45 @@ it, newest first, each led by its source's picture (else a glyph), with Undo on 
 for a Judge. A Judge also has a plus and a minus on each tag (one each, no amount box) and
 the arcane count; a Player's strip draws none of them and shows only a power with entries.
 An actor that casts nothing and holds no power draws no ledger. A rest does not touch it.
+
+## Research projects
+
+A research project is a record on a `location` actor, `flags["acks-extras"].magic = {facilities,
+projects}`, magic's own. The pure model is `scripts/magic/research-project.mjs`; its live half
+(the flag, the characters linked to the place, the imported tables, the write and the relay, and
+the API on `acksExtras.magic.research`) is `research-project-live.mjs`; the tab on the location
+sheet is `research-tab.mjs` and `templates/magic/research-tab.hbs`. The researcher's sheet links
+to a project and does not own it (`projectsOf`, derived, nothing written on the character).
+
+`facilities` is `{library, workshop}`, a gold value the Judge writes for each (null while unset,
+counted as nothing). A project is `{id, kind, subject, level, costs, researcher, assistants, paid,
+credited, bucket, throw, status, opened, closed}`: its kind (spell, item, identify or ritual) and
+subject (`{uuid, name, img}`, blank for none); the level of effect the facility's minimum is read
+by; the three costs as due (material, component, research), blank until a Judge enters them; the
+researcher and assistants, uuids of the characters on the place's roster (stored occupants and
+scene tokens); the material paid at the start with its day; the research credited so far as
+`[{day, amount, by}]`, which crediting writes and a project here only holds; the components bucket
+as lib stores an answer, `[{uuid, qty, fit}]`; and `throw: {target}` where one is written.
+
+A kind reads one or two facilities (`KIND_FACILITIES`): the library, the workshop, or for a ritual
+both, each against its own imported passage (`readFacility`). The minimum is `facilityMinimum` by
+the project's level (an identification reads the imported research figure instead), the share is
+the value divided by the number of open projects reading that facility, and the bonus is
+`facilityBonus` over the same share. A share below the minimum blocks a Player's project and warns
+a Judge's (`facilityGate`); a figure not imported, or no level, is `unknown`, which blocks and
+warns nothing and draws a chip carrying the page reference alone. Everything that is a figure is
+read through `research-tables.mjs`; nothing here holds one.
+
+Writes (`create`, `update`, `close`, `setFacility`) run where Foundry lets the seat write the
+location (`canUserModify`) and otherwise are asked of the GM's client under the handler
+`magicProject`, which applies the sender's rule (a Judge's is Foundry's attested GM, never the
+payload's). A Player may start a project for a character they own and change its subject,
+assistants and components; the facility values, the costs, the material paid, the throw and, once
+the project exists, the level are the Judge's. A project is closed and kept, never deleted.
+
+The Research tab is `{id: "research"}` in the location sheet's `TABS.primary`, after Storage, on
+every place whether or not it has a market. It draws the facility values (inputs for the Judge,
+text for anyone else, with how many open projects use each), then per open project its
+researchers, level, costs, material paid, credited against due, the throw, one chip per facility
+verdict and the components bucket (lib's bucket, with a drop zone for those who may change it).
+Finish is drawn disabled with its reason beside it; posting days and the pace choice are not drawn.
