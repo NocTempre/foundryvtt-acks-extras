@@ -1434,10 +1434,15 @@ seat (`updateItem` for the spell's uuid) is what "written once" is read from.
 8. **The Overview.** On the Overview tab the count figure is the same button group with the
    rungs inline and a Save / Cancel bar under them. *Observable:* an edit and an added rung
    write nothing, survive `sheet.submit()` and a redraw, an invalid draft keeps Save off,
-   Restore and Cancel behave as above, and Save writes the flag once with the marks.
+   Restore and Cancel behave as above, and Save writes the flag once with the marks. The
+   fixture's flag was written raw, so the sheet's first `submit()` fills schema defaults into
+   it (a write of `target.count.*` defaults and the core strings, not the draft): take that
+   submit as setup, before the counter is read, and the submit under test then writes nothing.
 9. **A Player.** The Player seat opens the same editor and the Overview. *Observable:* the
-   rung boxes are read-only, no rung button and no footer or bar is drawn, the kind buttons
-   are disabled, every call the Player's client makes to add, change, remove, restore, save or
+   rung boxes are read-only, no rung button and no footer or bar is drawn, the ladder's own
+   kind buttons are disabled and so is "By invocation level" on every figure (the other
+   figures' Flat and By caster level stay on: a click there moves nothing on or off the
+   invocation scale), every call the Player's client makes to add, change, remove, restore, save or
    switch is refused, and the GM seat's counter does not move.
 
 ### Drive mechanics

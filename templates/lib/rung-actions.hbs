@@ -4,7 +4,7 @@
   (`paintBar`), so its two children carry the hooks it finds them by.
 --}}
 <div class="acks-extras-rung-actions" data-rung-actions data-rung-group="{{group}}">
-  <span id="{{errId}}" class="acks-extras-rung-state" aria-live="polite">
+  <span id="{{errId}}" class="acks-extras-rung-state" data-rung-state aria-live="polite">
     <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" data-rung-state-icon{{#unless error}} hidden{{/unless}}></i>
     <span data-rung-state-text>{{error}}</span>
   </span>

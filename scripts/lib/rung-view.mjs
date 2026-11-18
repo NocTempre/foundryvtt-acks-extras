@@ -137,6 +137,14 @@ function ladderEl(root, key) {
   return [...(root?.querySelectorAll?.("[data-rung-ladder]") ?? [])].find((el) => el.dataset.rungLadder === key) ?? null;
 }
 
+/** The id of the element that holds a group's verdict, as the bar's template draws it. */
+function verdictIdOf(host, group) {
+  for (const bar of host.element?.querySelectorAll?.("[data-rung-actions]") ?? []) {
+    if (bar.dataset.rungGroup === group) return bar.querySelector("[data-rung-state]")?.id || "";
+  }
+  return "";
+}
+
 /**
  * After a typed edit: the invalid marks on every level box, the edited mark and
  * tooltip on the rung's figure box, Restore's state, and the bar's verdict and
@@ -150,9 +158,15 @@ export function paintRungs(host, key, index) {
   if (!ladder) return;
   const draft = host.rungs.draft(key);
   const invalid = invalidRungs(draft);
+  const verdictId = verdictIdOf(host, ladder.dataset.rungGroup);
   for (const box of ladder.querySelectorAll("[data-rung-at]")) {
-    if (invalid.has(Number(box.dataset.rungAt))) box.setAttribute("aria-invalid", "true");
-    else box.removeAttribute("aria-invalid");
+    if (invalid.has(Number(box.dataset.rungAt))) {
+      box.setAttribute("aria-invalid", "true");
+      if (verdictId) box.setAttribute("aria-describedby", verdictId);
+    } else {
+      box.removeAttribute("aria-invalid");
+      box.removeAttribute("aria-describedby");
+    }
   }
   const restore = ladder.querySelector('[data-action="rungRestore"]');
   if (restore) restore.disabled = !hasHandWork(draft);
@@ -177,8 +191,15 @@ export function paintBar(host, group, keys) {
     if (icon) icon.hidden = !error;
     const save = bar.querySelector('[data-action="rungSave"]');
     if (!save) continue;
-    if (error) save.setAttribute("aria-disabled", "true");
-    else save.removeAttribute("aria-disabled");
+    // Save points at the verdict only while it has one, as the template draws it.
+    const verdictId = bar.querySelector("[data-rung-state]")?.id;
+    if (error) {
+      save.setAttribute("aria-disabled", "true");
+      if (verdictId) save.setAttribute("aria-describedby", verdictId);
+    } else {
+      save.removeAttribute("aria-disabled");
+      save.removeAttribute("aria-describedby");
+    }
     save.classList.toggle("is-disabled", !!error);
   }
 }

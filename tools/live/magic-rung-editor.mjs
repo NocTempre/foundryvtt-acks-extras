@@ -111,7 +111,7 @@ try {
   );
   await track(created.uuid, "Item");
   const U = created.uuid;
-  await gm.eval(`globalThis.__rungWalk = { updates: 0, hook: Hooks.on("updateItem", (item) => { if (item.uuid === ${JSON.stringify(U)}) __rungWalk.updates++; }) }`);
+  await gm.eval(`globalThis.__rungWalk = { updates: 0, keys: [], hook: Hooks.on("updateItem", (item, changes) => { if (item.uuid !== ${JSON.stringify(U)}) return; __rungWalk.updates++; __rungWalk.keys.push(...Object.keys(foundry.utils.flattenObject(changes ?? {})).filter((k) => k !== "_id")); }) }`);
   const start = await run(gm, U, `return { made: !!doc(), rows: (flag().effects ?? []).length, count: marks(flag().target?.count), row: marks(rowValue()) };`);
   check("the fixture spell holds the invented ladder on its row and on the overview's count", start.made && start.rows === 1 && start.row.length === 3 && start.count.length === 3, start);
 
@@ -234,6 +234,9 @@ try {
   await run(gm, U, `await doc().update({ "flags.acks-extras.spell.target.count": ${JSON.stringify(FIGURE())} }); await sleep(300);`);
   const o1 = await run(gm, U, `
     const sheet = await openOverview();
+    // Setup: the fixture's flag was written raw, so the sheet's first submit fills the schema's defaults into it. That write is the sheet normalising a hand-made flag, not the draft; it is taken here so the submit under test has nothing left to fill.
+    await sheet.submit();
+    await sleep(600);
     const root = sheet.element;
     const K = "target.count";
     const group = root.querySelector('[data-figure="' + K + '"] [role="group"]');
@@ -241,15 +244,19 @@ try {
     type(figBox(root, K, 1), 7);
     ladderEl(root, K).querySelector('[data-action="rungAdd"]').click();
     await until(() => read(sheet.element, K).length === 4);
+    await sleep(500);
+    const draftWrote = ${counter} - before;
+    __rungWalk.keys.length = 0;
     await sheet.submit();
     await sleep(600);
     return {
       buttons: [...(group?.querySelectorAll("button") ?? [])].map((b) => [b.dataset.kind, b.getAttribute("aria-pressed")]),
       select: !!root.querySelector('select[name$="target.count.kind"]'),
-      rungs: read(sheet.element, K), wrote: ${counter} - before, stored: marks(flag().target?.count).map((r) => r.slice(0, 2)),
+      rungs: read(sheet.element, K), draftWrote, submitWrote: ${counter} - before - draftWrote,
+      submitKeys: [...__rungWalk.keys], stored: marks(flag().target?.count).map((r) => r.slice(0, 2)),
     };`);
   check("the Overview's count is the same button group, By invocation level pressed, with no select", JSON.stringify(o1.buttons) === JSON.stringify([["flat", "false"], ["perLevel", "false"], ["invocation", "true"]]) && o1.select === false, o1.buttons);
-  check("the draft's edit and added rung wrote nothing, and survived the sheet's own submit and redraw", o1.wrote === 0 && JSON.stringify(o1.rungs) === JSON.stringify([{ at: "1", value: "3" }, { at: "3", value: "7" }, { at: "5", value: "8" }, { at: "6", value: "" }]) && JSON.stringify(o1.stored) === JSON.stringify([[1, 3], [3, 5], [5, 8]]), o1);
+  check("the draft's edit and added rung wrote nothing, and survived the sheet's own submit and redraw, which wrote nothing either", o1.draftWrote === 0 && o1.submitWrote === 0 && JSON.stringify(o1.rungs) === JSON.stringify([{ at: "1", value: "3" }, { at: "3", value: "7" }, { at: "5", value: "8" }, { at: "6", value: "" }]) && JSON.stringify(o1.stored) === JSON.stringify([[1, 3], [3, 5], [5, 8]]), o1);
 
   section("overview 2. an invalid draft keeps Save off, Restore and Cancel behave, and Save writes once");
   const o2 = await run(gm, U, `
@@ -299,11 +306,14 @@ try {
     return {
       isGM: game.user.isGM, isOwner: doc().isOwner, boxes: boxes.length, readonly: boxes.every((b) => b.readOnly),
       buttons: root.querySelectorAll('[data-action^="rung"]').length, footerHidden: !footer || footer.hidden || footer.getBoundingClientRect().height === 0,
-      kindOff: [...root.querySelectorAll('[data-action="figureKind"]')].every((b) => b.disabled), dropped, threw,
+      kinds: [...root.querySelectorAll('[data-action="figureKind"]')].map((b) => [b.dataset.field, b.dataset.kind, b.disabled]),
+      dropped, threw,
       draft: ed.rungs.draft("value").length, stored: marks(rowValue()).length,
     };`);
   check("the Player owns the spell and is no GM, so only `isGM` can be what gates", p1.isGM === false && p1.isOwner === true, { isGM: p1.isGM, isOwner: p1.isOwner });
-  check("the rungs show read-only with no write control and no footer, and the kind buttons are off", p1.boxes > 0 && p1.readonly && p1.buttons === 0 && p1.footerHidden && p1.kindOff, p1);
+  // A Player's kind buttons are off only where a click would move a figure on or off the invocation scale: all of the ladder's own, and "By invocation level" of every figure.
+  const ladderKinds = p1.kinds.filter(([field]) => field === "value");
+  check("the rungs show read-only with no write control and no footer, the ladder's own kind buttons are off and no figure can be put on the scale", p1.boxes > 0 && p1.readonly && p1.buttons === 0 && p1.footerHidden && ladderKinds.length === 3 && ladderKinds.every(([, , off]) => off) && p1.kinds.filter(([, kind]) => kind === "invocation").every(([, , off]) => off), p1);
   check("every draft change, save and kind switch a Player calls is refused", p1.dropped.every((v) => v === false) && p1.threw && p1.draft === p1.stored, { dropped: p1.dropped, draft: p1.draft, stored: p1.stored });
   const p2 = await run(player, U, `
     await closeAll();
@@ -313,11 +323,12 @@ try {
     const boxes = [...(ladderEl(root, K)?.querySelectorAll("[data-rung-at], [data-rung-value]") ?? [])];
     type(boxes[1], 40);
     await sleep(500);
-    const out = { boxes: boxes.length, readonly: boxes.every((b) => b.readOnly), buttons: root.querySelectorAll('[data-figure="' + K + '"] [data-action^="rung"]').length, bar: !!root.querySelector('[data-figure="' + K + '"] [data-rung-actions]'), draft: sheet.rungs.draft(K).map((r) => r.at), stored: marks(flag().target?.count).map((r) => r[0]) };
+    const kinds = [...root.querySelectorAll('[data-figure="' + K + '"] [data-action="figureKind"]')].map((b) => [b.dataset.kind, b.disabled]);
+    const out = { boxes: boxes.length, readonly: boxes.every((b) => b.readOnly), kinds, buttons: root.querySelectorAll('[data-figure="' + K + '"] [data-action^="rung"]').length, bar: !!root.querySelector('[data-figure="' + K + '"] [data-rung-actions]'), draft: sheet.rungs.draft(K).map((r) => r.at), stored: marks(flag().target?.count).map((r) => r[0]) };
     await closeAll();
     return out;`);
   const g1 = await gm.eval(`${counter}`);
-  check("the Overview shows a Player the same rungs read-only, with no control and no bar, and typing changes nothing", p2.boxes > 0 && p2.readonly && p2.buttons === 0 && p2.bar === false && JSON.stringify(p2.draft) === JSON.stringify(p2.stored), p2);
+  check("the Overview shows a Player the same rungs read-only, with no control and no bar, the count's three kind buttons off, and typing changes nothing", p2.boxes > 0 && p2.readonly && p2.kinds.length === 3 && p2.kinds.every(([, off]) => off) && p2.buttons === 0 && p2.bar === false && JSON.stringify(p2.draft) === JSON.stringify(p2.stored), p2);
   check("the GM seat heard no write from the Player's seat", g1 === g0, { before: g0, after: g1 });
 
   section("Teardown");

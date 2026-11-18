@@ -436,7 +436,9 @@ function ladderDom(count = 3) {
   const text = node();
   const icon = node();
   const save = node();
-  const bar = node({ dataset: { rungGroup: "row" }, found: { "[data-rung-state-text]": [text], "[data-rung-state-icon]": [icon], '[data-action="rungSave"]': [save] } });
+  const state = node();
+  state.id = "w-row-error";
+  const bar = node({ dataset: { rungGroup: "row" }, found: { "[data-rung-state]": [state], "[data-rung-state-text]": [text], "[data-rung-state-icon]": [icon], '[data-action="rungSave"]': [save] } });
   const element = node({ found: { "[data-rung-ladder]": [box], "[data-rung-actions]": [bar] } });
   return { ats, figures, restore, box, text, icon, save, element };
 }
@@ -453,6 +455,9 @@ await t("a typed rung updates the draft and repaints in place: the level mark, t
   assert.equal(dom.ats[1].attrs["aria-invalid"], "true", "the duplicate level box is marked");
   assert.equal(dom.ats[0].attrs["aria-invalid"], undefined);
   assert.equal(dom.save.attrs["aria-disabled"], "true");
+  assert.equal(dom.save.attrs["aria-describedby"], "w-row-error", "Save points at the verdict once it has one, as the template draws it");
+  assert.equal(dom.ats[1].attrs["aria-describedby"], "w-row-error", "and so does the marked level box");
+  assert.equal(dom.ats[0].attrs["aria-describedby"], undefined);
   assert.equal(dom.save.classes.has("is-disabled"), true);
   assert.match(dom.text.textContent, /error\.duplicate.*"level":1/);
   assert.equal(dom.icon.hidden, false);
@@ -460,6 +465,8 @@ await t("a typed rung updates the draft and repaints in place: the level mark, t
   dom.ats[1].fire("input");
   assert.equal(dom.ats[1].attrs["aria-invalid"], undefined, "the mark clears");
   assert.equal(dom.save.attrs["aria-disabled"], undefined, "Save is back on");
+  assert.equal(dom.save.attrs["aria-describedby"], undefined, "and points at nothing");
+  assert.equal(dom.ats[1].attrs["aria-describedby"], undefined);
   assert.equal(dom.text.textContent, "");
   assert.equal(dom.icon.hidden, true);
   dom.figures[2].value = "10";
