@@ -949,3 +949,104 @@ The defense steps add the cast cards and the weapon attack cards they posted, ea
 tracked by its id as it is made, and the hit points are reset to 20 on the
 three fixtures, which stay. A band the steps wrote on a fixture is rewritten by the
 next walk's first step, never deleted by a search for it.
+
+## Tracked rows and the built summons
+
+Walk: `node tools/live/run.mjs magic-cast-tracked`, on the GM and Player seats,
+with the GM seat's own RR open (the walk imports its thirteen
+spells by cookbook id and stops `blocked` when the book is not open). It walks
+the tracked kinds (illusion, detect, light, dispel, createObject, wall), a
+reversed twin, the five built summons' rows and a concentration summoning's
+held record (MODEL, "The tracked kinds", "Casting a summoning spell"). Its
+assertions are relations between what the card or the world holds, never a
+printed figure, a card line or a spell name.
+
+### Fixtures
+
+Found by marker with `api.fixture`, built when nothing carries it, and kept.
+
+| Marker | What it is |
+|---|---|
+| `magic/tracked-scene` | A gridded field, no vision, global light, both seats view it. |
+| `magic/tracked-class` | An `acks-extras.class` item with one vancian tradition, nine first-level slots. |
+| `magic/tracked-caster` | A character the Player owns, bound to the class, level 5, spells enabled. |
+| `magic/tracked-spell-<slug>` | A copy of each of the thirteen imported spells on the caster: eight tracked (one per kind, an instant detect, two reversed twins) and the five summoning spells. Each step rewrites its copy's flag from the library original, with a fixed two-hour duration of the walk's own on the tracked ones and no range. |
+| `magic/tracked-held-a`, `-held-b`, `-timed` | Three hand-built summoning spells on the caster: one summon row naming the creature, a mobile concentration with a tail of the walk's own, a stationary concentration, and a fixed two hours. Each flow rewrites them. |
+| `magic/tracked-creature` | A monster nobody but the GM may observe, which the three hand-built spells name by uuid. |
+| `magic/tracked-target` | A monster with a linked token, for the aimed casts and the fight. |
+
+The first step asserts each imported spell carries the register's row (the kind,
+its `lasts`, a reversed twin where one is authored), and stops `blocked` when the
+kept caster carries a spell record or a summon of a run that did not sweep:
+remove it by its id and run again. A copy imported before the rows were authored
+fails that check; re-import it (the Spells repair).
+
+### Steps
+
+1. *Each tracked kind, cast from the Player seat with no target held.*
+   *Observable:* the card carries one line for the row, its footnote is that line,
+   and the cast made one message and no roll, with no row, target or entry in the
+   card's model. A row that lasts the duration leaves exactly one caster record
+   timed by the walk's duration; the instant detect and the dispel leave none.
+2. *A reversed twin, cast in each mode.* *Observable:* the dialog offers the
+   reverse mode; each form posts one line, the reverse card says it is reversed,
+   the two footnotes differ, and each cast writes its own one caster record.
+3. *A dispel row with no delivery, cast untargeted and aimed at a token.*
+   *Observable:* the card has no section, no button and no entry either way.
+4. *The five summon rows, read through the module's own reader on the Player
+   seat.* *Observable:* one summon row per copy, a control on each, a format
+   and a creature ref where the register reads one; a count over a located
+   amount is refused `badCount` and the amount is not; the spell that states
+   no amount refuses no count, and the one carrying a caster-level ceiling
+   carries it unresolved on the row. The two rows that name a creature resolve
+   to one when the monster is imported (SKIP otherwise, naming why). Pressing
+   Cast on those two from the GM seat opens the creature prompt with the row's
+   one choice, labelled, the count open above one; closing it writes no record.
+5. *A concentration summoning, on each seat* (Character sheet → Magic tab →
+   Cast; the Player seat, then the GM seat). *Observable:* the first cast places
+   one creature, spends one, posts one card and writes the held record: the
+   `concentrating` status, the kind held, the tail, a start time, no clock.
+   Cancelling the second summoning's pick keeps the same record with no warning,
+   card, creature or spend. Casting it warns once, naming the caster, the held
+   cast and the new spell, and the warning's log shows the old record still
+   standing and no end card for it yet; then the old record is gone, its end
+   posted one card with the cause `cast`, and the new record is the one held, of
+   the stationary kind; both creatures stand.
+6. *Ending the held summons, on the Player seat, by the status's toggle.*
+   *Observable:* one funnel card for the cast with the cause `removed`, Restore
+   and no Dismiss; every creature still stands.
+7. *A summons in a begun fight.* *Observable:* with a fight begun and the
+   target first in the order, the Player's summoning places its creature, spends
+   one, posts one card and leaves one record; no `casting` status, no pending
+   record, no declared flag on a combatant and no declared notice.
+
+### Drive mechanics (learned live)
+
+- The mechanics of "Casting a summoning spell" apply: unpause the world, close
+  every framed window, real CDP clicks, and `item.use()` unawaited (the prompt is
+  the answer). Each seat's page is brought to the front before its clicks, since
+  both seats place here, and each click point is chosen apart from the earlier
+  ones so a placement never lands on a standing token.
+- The order of a warning and an end is read from the world and never from
+  clocks: the warning patch logs, at the moment it fires, the caster's held
+  cast ids and the cast ids with an end card.
+- The tracked casts hold no target and give the spell no range. A stale target
+  range-blocks a Player's cast of a spell that only creates an effect (a
+  roadmap row); where the Player's dialog still blocks, the walk casts from the
+  Judge's seat, with no target either, and prints a GAP.
+- A copy's duration is the walk's own so that a record's absence is the row's
+  doing; an imported duration may be untimed or held, which writes none or
+  another record. The hand-built summoning spells carry the shape they test.
+- A summons' tokens are found by the summoner's flag on the world, never by
+  position; a created world copy of the named creature is the run's only where
+  none stood before it.
+
+### Teardown
+
+Everything the run made is tracked by uuid as it appears: tokens, cards, the
+caster's records by cast id, the funnel's end cards, the world copy of the
+creature where none stood, and the Combat. The caster's held records of the
+run's casts are deleted first, by cast id, so their funnels post their cards
+before the cards of the fixtures since the run began are listed by id; the sweep
+deletes exactly that list and its result is quoted. The fixtures stay, and the
+world is paused again if the run unpaused it.

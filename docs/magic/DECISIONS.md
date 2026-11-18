@@ -188,6 +188,60 @@ save effect the module cannot price (neither negation nor half) is the Judge's
 before its defense stage, so an immune target of such a spell is also the
 Judge's.
 
+## 2026-11-17 — Tracked rows and the built summons (1d-A)
+
+Session 1d-A's rulings 150 to 156 of the spell-effects plan, with the counter
+each carries.
+
+- **A tracked row is a card line plus a caster record (150, ruling 14),**
+  `lasts: "duration"` wherever it lasts, so the record is written only for a
+  row that says it lasts; thirteen first-level entries carry them, reversed
+  twins as their own rows. *Rejected:* `noteFrom` clause lines, which would put
+  page prose on every card. *Counter (medium):* until 1d-B the footnote reads
+  only the row's subject.
+- **Three spells wait for 1d-B (151)**: delayDisease, purifyFoodAndWater and
+  sealPortal, each needing a kind the vocabulary lacks. sealPortal is a third
+  kind beyond the two the brief named. *Rejected:* `structural` or `ward` for
+  sealPortal. *Counter (low):* one kind more than named.
+- **The built summons get rows (152)**: callOfTheWolf (a calling) and
+  summonManes (a summoning) each with its ref, and conjureCacodemonSpawn (a
+  conjuration, Hit Dice located, no ref because its creature imports as a
+  template actor). `control` is read from the page and counts are located with
+  `articles`; `ROW_KEYS` gains `summonFormat` and `control`. *Counter (medium):*
+  the spawn can only be cast by the Judge.
+- **faithfulCompanion and unlivingPuppet carry summon rows (153)**, their Hit
+  Dice coming from the remains. *Rejected:* a control or transform line through
+  `castSpell`, which reaches no map and has no Dismiss. *Counter (medium):* the
+  page files these under death spells, and neither path checks the remains.
+- **On a summon row, `max` is the count's ceiling at the caster level (154)**,
+  carried unresolved by `summonOptionsOf` until 1d-B resolves it.
+- **1d-A changes `cast-summon` only where no level or tradition is read
+  (155)**: a concentration shape writes the held caster record, and a new cast
+  ends the caster's existing concentration after a warning, the same to a
+  Player seat and the Judge. Both are additive, behind optional deps; this
+  qualifies the 2026-11-11 cost line for a concentration only. *Counter
+  (medium):* a held summons' end posts no Dismiss.
+- **To 1d-B (156)** is the roadmap's list: caster level for count and duration,
+  the capacity verdict and the tradition's pool spend, placement range,
+  abilities and declaration in a fight, Dismiss on a held summons' end, a row
+  `name`, a summon describe arm reading `max`, the default arm naming its kind,
+  the three kinds of 151, and a cast that opens no entry measuring no target.
+
+Owner questions, each proceeded on at its default: **1d.1** animation spells are
+placed through the summoning cast; **1d.2** callOfTheWolf's token is placed at
+the cast and the arrival delay is the Judge's; **1d.3** predictWeather lasts
+`instant`; **1d.4** the sizes of illusoryFigment, wallOfSmoke and iceFloe stay
+blank; **1d.5** a summons in a begun fight resolves at once, until 1d-B;
+**1d.6** a held summons' end leaves its creatures with no prompt, until 1d-B.
+
+Two findings recorded with the entry. summonManes's `control` is read from its
+own page (obedient), which differs from the JJ format note: an owner check, the
+page being what the importer reads. summonManes carries no `amount`, because
+`summonRefusal` caps a count at `amount` and its count scales with the caster
+level; the scaling is `max`, so the cast is capped by nothing until 1d-B reads
+it. *Cost:* until then a Player's count for that one spell is held only to the
+prompt's own ceiling.
+
 ## 2026-11-17 — A throw row is thrown once per instance, split among the targets
 
 The owner: "Spells want their proper effects, damage/effects should apply with

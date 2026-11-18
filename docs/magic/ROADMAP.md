@@ -67,3 +67,24 @@ questions, ruled"): 2 and 4a before 1b.
   that cast's recipient records stay standing untimed. A Judge ends them by
   hand, from each recipient's effects. A sweep that finds recipient records
   whose caster no longer exists would close it.
+- **Summons: the caster level, the capacity and the fight (1d-B).** What the
+  built summons (MODEL, "The five built summons") and the tracked kinds leave
+  for the next slice, each a row:
+  - the caster level reaches a summon's count and duration, so a count scaling
+    with it (`max`) is resolved and capped, and a per-level duration is timed;
+  - a summons takes the capacity verdict and spends the tradition's pool, as a
+    cast does; today it spends core's count only;
+  - placement range, the summoner's abilities and a declaration in a begun
+    fight (today a summons resolves at once in a fight);
+  - Dismiss on the card of a held summons' end (today the card tells, no
+    Dismiss, and the creatures stay);
+  - a summon row's `name`, and a summon arm of the describe reading `max`;
+  - the describe's default arm names its kind;
+  - three kinds the vocabulary lacks, for delayDisease, purifyFoodAndWater and
+    sealPortal (the last is a third kind beyond the two first named);
+  - a cast whose rows open no entry measures no target, so stale targets no
+    longer range-block a Player's cast of a spell that only creates an effect.
+- **Extract the held-record write.** `castSpellRun` and `castSummonSpell` each
+  compose a concentration's held record (the status by kind, `held`, `tail`, the
+  start time, the cap). One `cast-held` function would own it, and
+  `cast-summon` would stop repeating the composition.

@@ -37,6 +37,19 @@ keeps them out of an ability's picker while a spell may carry every kind.
 others that have no arithmetic of their own: it is a line on the cast card from
 `describeSpellEffect` and nothing more is computed from it.
 
+**The tracked kinds** — illusion, detect, light, dispel, createObject, wall —
+are the same record-and-card-line shape, and the register authors a row of one
+for thirteen first-level spell entries (each reversed form its own row, marked
+`reversed`). A row that lasts the spell's duration carries `lasts: "duration"`
+and is one line on the cast card plus, where the spell's duration is timed or
+held, the caster's one record (one record for several such rows); a row spent
+in the cast carries `lasts: "instant"` and is a line and no record. Nothing is
+rolled or applied for them: a row with no `delivery` is no throw row,
+so a dispel row posts no section, no Throw press and no Apply. A spell with a
+reversed row offers the cast dialog's reverse mode, and each form posts only
+its own line and records its own cast. The register leaves their sizes and radii
+blank.
+
 **The spell primitive** (`scripts/magic/spell-extras.mjs`, `SpellExtras`) is
 a DataModel read through `flags["acks-extras"].spell` on the acks system's
 own `spell` Item; `fromItem` reads it and `normalize` coerces a raw object
@@ -209,7 +222,8 @@ owner may delete it.
 (`schools`, which keeps every word a stat line printed) or primary `type` name
 the summoning type; a spell on a monster or on no actor is never summonable.
 `summonOptionsOf(spell, {twin})` turns each `summon` row into `{ref, name,
-amount, value, summonFormat, control}` (`value` is the row's LevelValue object,
+amount, value, max, summonFormat, control}` (`value` is the row's LevelValue
+object and `max` the count's ceiling at the caster level, both passed through
 unresolved; `name` is the creature's imported name where the row carries one,
 else empty); a spell with no rows of its own reads its library twin's, and no
 rows at all is `[]`, which the caller reads as the open shelf picker. An empty
@@ -242,6 +256,27 @@ duration is `castDuration` of the spell's imported duration, else its library
 twin's. No caster level is passed, because a class level is not always the
 caster level (a lagging ladder), so a per-level duration reads "none" and the
 record stays until its owner removes it.
+
+A summoning held by concentration writes the held record a held cast writes
+(the `concentrating` or `concentratingStationary` status by the kind, `held`,
+the `tail`, the start time, and a flag-timed cap only where it needs no level),
+and any summoning cast first ends what the caster already holds by concentration:
+a notice (`ACKS-MAGIC.cast.notice.endsConcentration`) names the held cast and the
+new spell, to a Player seat and the Judge alike, and `endCasterHeld` ends it
+before the new record is written, so the end posts the funnel's card with the
+cause `cast`. A summons is not declared: in a begun fight it resolves at the cast
+like any other, with no `casting` status, pending record or declared flag. The
+end of a held summons posts the funnel's card (Restore, no Dismiss) and leaves
+its creatures on the map; Dismiss belongs to the card of a timed cast's end.
+
+**The five built summons** carry a `summon` row in the register: a calling and
+a summoning that each name their creature by cookbook id (`ref`), a conjuration
+whose creature is a template actor and so names none, and two animation spells
+that name none. Each row carries `control`, read from its own page, and
+`summonFormat` where the page names the kind; a count and Hit Dice are located
+from the page and stay blank on a miss. A count that scales with the caster level
+is carried as `max` (unresolved) with no `amount`, because the policy caps a
+count at `amount` and would otherwise cap it at one.
 
 *The creature resolves on the GM's client.* A row's `ref` is a uuid or a
 cookbook id. A seat that cannot open the creature's shelf (the Judge's shelves
