@@ -89,6 +89,7 @@ export const PRODUCES = Object.freeze({
     chokepointFeet: "squeezingProse",
     escapeFeet: "squeezingProse",
     escapePenaltyStep: "squeezingProse",
+    squeezeBotchBand: "squeezingProse",
     climbPacePenalties: "climbPaceProse",
     crawlPacePenalties: "crawlPaceProse",
     balancePacePenalties: "balancePaceProse",
@@ -556,9 +557,11 @@ export function assembleTrapFigures(raw = {}) {
  * Contortionism adds to the squeeze throw and the push-forward throw; `escapeFeet`, the
  * distance a successful escape carries, read from the retreat window and the
  * push window; and `escapePenaltyStep`, the magnitude each failed escape adds
- * to the next. A window that does not read leaves its figure out. Both escape
- * windows that read must print one distance — one figure stands for both, so
- * two that differ answer none.
+ * to the next; and `squeezeBotchBand`, the top of the band of unmodified
+ * results (it starts at the die's lowest) that leaves a squeezer stuck, read
+ * as `parseBandTop` reads a trap's band. A window that does not read leaves its
+ * figure out. Both escape windows that read must print one distance — one
+ * figure stands for both, so two that differ answer none.
  */
 export function assembleSqueezing(raw = {}) {
   const out = {};
@@ -570,6 +573,8 @@ export function assembleSqueezing(raw = {}) {
   if (ways.length && ways.every((n) => n === ways[0])) out.escapeFeet = ways[0];
   const step = parseBonusMagnitude(raw.penalty);
   if (step != null && step > 0) out.escapePenaltyStep = step;
+  const band = parseBandTop(raw.botch);
+  if (band != null) out.squeezeBotchBand = band;
   return out;
 }
 

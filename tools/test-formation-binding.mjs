@@ -423,15 +423,16 @@ const SQUEEZE_RIGHT = [
   "proficiency gains a +2 bonus to the throw. Moles caught fast may wriggle out.",
   "A mole that wiggles out the way it came, the adventurer retreats 12’ and is free. A mole that digs on, the adventurer advances 12’ and is free.",
   "Fail again and expect a cumulative −3 penalty to every later try.",
+  "A mole whose throw fails on an unmodified 1-5, the digger sticks fast.",
 ];
 const squeezeRaw = extractTable(twoColumns(SQUEEZE_LEFT, SQUEEZE_RIGHT), recipes.squeezingProse);
 eq("every window of the recipe reads from the invented page", Object.keys(squeezeRaw).sort(),
-  ["advance", "chokepoint", "contortion", "penalty", "retreat"]);
-const SQUEEZE_KEYS = ["contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep"];
+  ["advance", "botch", "chokepoint", "contortion", "penalty", "retreat"]);
+const SQUEEZE_KEYS = ["contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep", "squeezeBotchBand"];
 eq("every squeezing figure is produced from the one passage",
   SQUEEZE_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), SQUEEZE_KEYS.map(() => "squeezingProse"));
 eq("each squeezing figure reads from its own window", assembleFormationTables({ squeezingProse: squeezeRaw }),
-  { chokepointFeet: 4, contortionismBonus: 2, escapeFeet: 12, escapePenaltyStep: 3 });
+  { chokepointFeet: 4, contortionismBonus: 2, escapeFeet: 12, escapePenaltyStep: 3, squeezeBotchBand: 5 });
 eq("assembleSqueezing is what the binding calls", assembleSqueezing(squeezeRaw), assembleFormationTables({ squeezingProse: squeezeRaw }));
 eq("a figure with no feet mark is not read",
   assembleSqueezing({ chokepoint: " 4 of length.", retreat: " 12 and is", advance: " 12 and is" }), {});
@@ -445,18 +446,22 @@ eq("an escape distance only one window read stands", assembleSqueezing({ retreat
 eq("two escape distances that differ are no one figure", assembleSqueezing({ retreat: " 7’ and", advance: " 9’ and" }), {});
 eq("a drifted window costs its own figure and nothing beside it",
   Object.keys(assembleSqueezing({ ...squeezeRaw, contortion: " a good deal" })).sort(),
-  ["chokepointFeet", "escapeFeet", "escapePenaltyStep"]);
+  ["chokepointFeet", "escapeFeet", "escapePenaltyStep", "squeezeBotchBand"]);
+eq("the botch band reads as its top, a lone face as itself, and is its own window's",
+  [assembleSqueezing({ botch: " 1-5, the digger" }), assembleSqueezing({ botch: " 1, the digger" }), assembleSqueezing({ ...squeezeRaw, botch: " a good deal" })].map((o) => o.squeezeBotchBand),
+  [5, 1, undefined]);
+eq("a band that does not start at the die's lowest face is not read", [" 3-6, the", " none", ""].map((botch) => assembleSqueezing({ botch }).squeezeBotchBand), [undefined, undefined, undefined]);
 eq("nothing assembles from an absent passage", [assembleSqueezing(), assembleSqueezing({}), assembleFormationTables({ restProse: raw.restProse })].map((o) => SQUEEZE_KEYS.filter((k) => k in o)), [[], [], []]);
 // The figures read through the registry like every other: blank until
 // imported, the import's layer under a Judge's override.
-eq("with nothing registered every squeezing figure reads null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null]);
+eq("with nothing registered every squeezing figure reads null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null, null]);
 registerTable({ id: FORMATION_DOC_ID, tables: assembleSqueezing(squeezeRaw) }, { priority: PRIORITY.WORLD });
-eq("an imported figure reads through", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 12, 3]);
+eq("an imported figure reads through", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 12, 3, 5]);
 registerTable({ id: FORMATION_DOC_ID, tables: { escapeFeet: 14 } }, { priority: PRIORITY.OVERRIDE });
-eq("a Judge's override wins its own figure and leaves the others", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 14, 3]);
+eq("a Judge's override wins its own figure and leaves the others", SQUEEZE_KEYS.map((k) => formationValue(k)), [2, 4, 14, 3, 5]);
 unregisterTable(FORMATION_DOC_ID);
 registerTable({ id: FORMATION_DOC_ID, tables: { restProse: raw.restProse } }, { priority: PRIORITY.WORLD });
-eq("a registered document that lacks a figure still answers null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null]);
+eq("a registered document that lacks a figure still answers null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null, null]);
 unregisterTable(FORMATION_DOC_ID);
 
 /* --- the faster paces: invented prose through the three recipes ------------- */

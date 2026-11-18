@@ -43,7 +43,6 @@ Still unbuilt, in likely order:
    client, so a player who declares an attempt has the Judge answer for them.
    Fixing it means a second socket round-trip back to the declaring user, held
    open while the Judge's client waits.
-3. **Squeezing's botch is not imported** (§1). `squeezeBotchBand` is read through `formationValue` and no recipe window sets it, so no throw makes a member stuck until a window reads the throw paragraph.
 7. **Wilderness mode: per-kind road refinement.** The road table is read from
    the Rulebook; the Judges Journal's per-kind road refinement does not
    replace it yet. An importer recipe and a binding read are owed.
@@ -267,7 +266,6 @@ generic throw register later slices on the turn plan (MODEL, "The turn plan").
 | Battering as a plan choice | Registered with no length: the turns an axe needs are the door's printed figure (`DOOR_KINDS`), so the choice cannot lock. Its resolve also has no door to open. | §6's door import, then a door option per door within reach. |
 | A door within reach | Bashing in the plan is the party's Dungeonbashing check, as the party check rolls it; no door is named, so the Judge opens the door by hand. | a reader of the doors within reach of the party, like `knownPlacementsNear` for traps, that never lists a secret door to a player. |
 | A squeeze's open readings | Three steps the page does not print: what a made throw carries a member along a squeeze (built: nothing, `squeezeAdvance` answers null, so a long squeeze cannot be finished by throws), whether a failed wiggle worsens the plight (built: no), what a member who wiggles back to the entrance is and where a stuck member goes when the crossing ends (built: still squeezing, released at End). | An owner ruling on each (DECISIONS "The squeeze's rows and the two escapes"). |
-| The squeeze's botch band | The faces that leave a squeezer stuck are read through `squeezeBotchBand`, which no import produces and no `expectTables` lists, so the Ruledata Browser has no row for it and a throw cannot make a member stuck. | A `squeezingProse` window on the throw paragraph and its binding. |
 | A swimmer's arrival | A swim crossing has no Across state and no control that carries a swimmer to the far bank: whether and when a member arrives is the Judge's call, and a haul brings a drowning member to the surface only. | A ruling on what arrival means (the distance swum against the crossing's length, a round count), then a state and a control for it. |
 | A faster pace's ground | The Pace pick prices the throw (MODEL, "The climber's pace") and moves no ground: a made throw covers one stretch at any pace. What a faster pace covers is the progress row's (the grid's rates of progress) | the progress row imported (the S17 slice) |
 | Pace on a hanging jumper's climb up | A climb up from a jump's edge reads the climb rows' figure and takes no pick | the climb up's row carrying the member's pace |

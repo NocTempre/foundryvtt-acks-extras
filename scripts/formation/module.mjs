@@ -385,7 +385,7 @@ Hooks.once("init", () => {
     "trapbreakReachFeet", "trapbreakHastyBotch", "trapbreakMethodicalBotch", "trapbreakMethodicalBonus",
     "pitSpikeCount", "pitSpikeDie",
     // The squeeze and its two ways out (`assembleSqueezing`).
-    "contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep",
+    "contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep", "squeezeBotchBand",
     // A proficient climber's faster paces, one pair per way of crossing (`assemblePacePenalties`).
     "climbPacePenalties", "crawlPacePenalties", "balancePacePenalties",
   ]);

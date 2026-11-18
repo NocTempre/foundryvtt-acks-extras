@@ -712,7 +712,7 @@ VERIFY["formation.jumpingProse"] = (out, recipe, fail) => {
 VERIFY["formation.squeezingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   const figures = assembleSqueezing(out);
-  missingFigures(figures, ["chokepointFeet", "contortionismBonus", "escapeFeet", "escapePenaltyStep"], fail);
+  missingFigures(figures, ["chokepointFeet", "contortionismBonus", "escapeFeet", "escapePenaltyStep", "squeezeBotchBand"], fail);
   for (const [key, n] of Object.entries(figures)) if (!(n > 0)) fail(`${key}: not above zero`);
 };
 // The faster-pace paragraphs: each window must read through the binding's own

@@ -948,9 +948,10 @@ const SHARED_TABLE_RECIPES = {
       },
       // Squeezing (RR ch. 6): the length a chokepoint is told by, the bonus
       // Contortionism adds to the squeeze throw, the distance either way out
-      // of being stuck carries, and the penalty each failed push adds to the
-      // next attempt. One window per figure; formation-binding parses them
-      // into the engine figures.
+      // of being stuck carries, the penalty each failed push adds to the
+      // next attempt, and the band of unmodified results that leaves a squeezer
+      // stuck. One window per figure; formation-binding parses them into the
+      // engine figures.
       squeezingProse: {
         shape: "proseValues",
         book: "rr",
@@ -963,6 +964,7 @@ const SHARED_TABLE_RECIPES = {
           { key: "retreat", find: "adventurer retreats", take: "window", span: 15 },
           { key: "advance", find: "adventurer advances", take: "window", span: 15 },
           { key: "penalty", find: "cumulative", take: "window", span: 20 },
+          { key: "botch", find: "fails on an unmodified", take: "window", span: 12 },
         ],
       },
       // The faster paces of a proficient climber (RR pp. 269-270): each way of
