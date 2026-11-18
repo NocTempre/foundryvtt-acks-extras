@@ -478,3 +478,24 @@ level 1 matrix, LOCAL-ONLY.
   highest set, gives way on topic/bta to a list of the sets high enough,
   lowest first, which the dialog offers. The canvas (version 1794982312-362a) draws D1 as a radio group of
   the sets held, opening on the lowest set high enough, a display choice.
+
+### Results, the bta landing (2026-11-18)
+
+- **Landed** on `main` as `e2e8d7f6` (not pushed), after the treasure topic:
+  B2 `f291b0b0`, C3 `06ee7ced`, C2 `fd531602` and `b636d3c0`, and
+  `e2e8d7f6` (`bestSet` becomes `usableSets`; the invoker picks the set).
+  These replace the shas above, which the syncs rewrote; the stamp commit was
+  dropped when main deleted the cookbook stamp. Gate on the landed tip: npm
+  test, validate, a full recompile with no drift. Board 7 of the cast canvas
+  and D1 here draw one implements bucket (spell-effects ruling 229).
+- **Walk, classes TESTING "A casting row's level cap", steps 1-2,** on main
+  from a seat lane with the staged BTA copy: both gnosis classes were repaired
+  from the old shape (`casterLevel` holding the ladder, no `levelCap`, no
+  strip line) to `levelCap` holding the ladder and `casterLevel` empty. The
+  class sheet's Level cap select shows the ladder, with tooltip and
+  aria-label; at level 5 the Magic tab's strip shows the rung's text, and
+  `traditionCapAt` answers the rung's number on both classes. The console
+  was not recorded.
+- **Next slice:** C1, the gnosis prose figures, under
+  `scripts/importer/books/bta/`. C4 waits on the spell-effects line's word;
+  C5 and C6 wait on R5 and the /design approval.

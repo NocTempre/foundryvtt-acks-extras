@@ -1523,25 +1523,34 @@ its start; a kept fixture carries what the last walk left.
 
 **Teardown:** remove the layer by its tag; the fixture stays.
 
-## A casting row's level cap (unwalked)
+## A casting row's level cap
 
-Needs the seat's BTA PDF connected and the By This Axe classes imported.
+Needs the seat's BTA PDF connected and the By This Axe classes imported. A
+scripted seat connects the staged copy with
+`acksExtras.importer.connectBookUrl("bta", "acks-test-books/bta.pdf", { remember: false })`,
+after waiting for `acksExtras.importer` to exist.
 
 **Fixtures.** An imported gnostic class (the By This Axe class whose Casting
-row has kind gnosis), found by its cookbook id, and a disposable `character`
-bound to it through the driver's ledger. A class imported before this change
-needs its Classes shelf repaired first (Settings tab → Game Settings →
-ACKS II — Extras → Manage imports → Rebuild tab), and the steps start by
-asserting the row's shape.
+row has kind gnosis), found by its cookbook id in the cookbook Item pack, and
+the kept `character` marked `classes/gnosis-walker`, bound through
+`flags["acks-extras"].classes.uuid` and set to level 5 at the start of each
+walk. A class imported before the cap had its own key holds the ladder in
+`casterLevel` and no `levelCap`; its strip shows no gnosis line until the
+Classes shelf is repaired (Settings tab → Game Settings → ACKS II — Extras →
+Manage imports → Rebuild tab). Scripted, the repair is
+`acksExtras.importer.cookbookUpdateClasses({ only, confirm: false, repair })`
+with the two class ids; with the book closed it refuses both (`refused: 2`).
+The repair can outlast a driver's evaluate timeout and the page can reload
+under it, so read the rows again afterwards rather than trusting its return.
 
 **Steps and observables.**
-1. Open the class item (Items sidebar → the class → Casting tab). *Observable:*
-   the gnosis row's **Level cap** field holds the invocation-level ladder's
-   key and **Caster-level ladder** is empty; hovering **Level cap** shows its
-   hint.
-2. Set the character's level to one the ladder has a rung for, open the
-   character sheet and read the casting strip. *Observable:* the gnosis
-   row's capacity line shows that rung's figure, the same one the strip
-   showed before the cap had its own key.
+1. Open the class item (the cookbook pack → the class → Casting tab).
+   *Observable:* the gnosis row's **Level cap** select holds the
+   invocation-level ladder's key and **Caster-level ladder** is empty; the
+   select carries its tooltip and aria-label.
+2. Open the bound character's sheet on the Magic tab. *Observable:* the
+   gnosis row's capacity line shows the text of the ladder's rung at the
+   character's level, and `traditionCapAt` at that level answers the same
+   rung's number.
 
-**Teardown:** the ledger sweeps the character; the class stays.
+**Teardown:** none; the character is a kept fixture and the classes stay.
