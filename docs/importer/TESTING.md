@@ -4200,3 +4200,67 @@ documents, not world documents: nothing is tracked or swept.
 ### Teardown
 
 The import is kept.
+
+## The magic research tables
+
+The `magicResearch` registry document (MODEL, "The magic research tables"), read
+from the seat's own Revised Rulebook: thirteen tables, one per passage, read by
+`scripts/magic/research-tables.mjs`. No window uses them yet, so the readers and
+the Ruledata Browser are where they are seen. `test-recipe-content.mjs` proves the
+recipes and parses offline against the book; this walk proves the import writes
+the document, every reader answers from it, every seat reads it, and the
+override layer replaces a table and gives it back.
+`tools/live/importer-research-tables.mjs` walks steps 1 to 5 with the Rulebook
+connected; it prints booleans and counts only, and the one figure it sets, in
+step 5, is invented.
+
+### Fixtures
+
+The Revised Rulebook connected on the seat. Nothing is built and no document is
+created: the imported tables are the world's, carry no `flags.world.fixture`
+marker, and are read, never driven. The one write is step 5's override of one
+small table (`sampleProse`, else `powerOfSacrifice`), set through the Ruledata
+Browser's own store and removed by the table name the walk recorded; a table
+another hand already overrode is left alone and the walk takes the other. To see
+the first read rather than a re-read, remove the document with Remove ALL
+Imports first.
+
+### Steps
+
+1. **Settings tab → Game Settings → ACKS II — Extras → Manage imports**, the
+   Rebuild tab: pick **Shelf, book or tables → Rules tables → magicResearch
+   only**, **Go**.
+   *Observable:* no error notice and no `incomplete` or unread entry for the
+   document; `acksExtras.lib.tables.getDoc("magicResearch").tables` holds every
+   table `RESEARCH_TABLE_IDS` names (`researchLadder`, `researchLadderNote`,
+   `researchProse`, `assistantProse`, `libraryProse`, `sampleProse`,
+   `workshopProse`, `ritualCostProse`, `ritualWorkshopProse`, `sacrificeTraits`,
+   `divineLifetime`, `arcaneLifetime`, `powerOfSacrifice`), and
+   `getDoc("magicResearch").cites` names RR and a folio for each.
+2. In the console, `await import("/modules/acks-extras/scripts/magic/research-tables.mjs")`
+   and call `readResearchTables()`.
+   *Observable:* every reader answers `present: true` with `byHand: false` and a
+   `cite` naming RR. No figure is `null` in a table read whole, except where the
+   reader says so by design: the arcane lifetime's count (the page names a unit
+   only) and the facility kinds that print no minimum or step (identification
+   prints only its bonus).
+3. Open the Ruledata Browser (`Settings tab → Game Settings → ACKS II — Extras →
+   Imported Rules Tables → Open Ruledata Browser`), filter on `magicResearch`.
+   *Observable:* thirteen entries, each naming RR and a folio, none greyed as
+   absent.
+4. **Player seat.** Join as a Player and run step 2's read.
+   *Observable:* the same thirteen tables, present, citing RR, with the same
+   figures as the GM seat: the registry reaches every seat.
+5. **The override layer (GM).** Through the Browser's store, set an override on
+   `sampleProse` (`setOverride("magicResearch", "sampleProse", {...}, {...})` from
+   `scripts/location/table-store.mjs`), read the tables, then `clearOverride` it.
+   *Observable:* `readSample()` answers `byHand: true`, `cite: null` and the
+   figure set; the other twelve tables still cite RR and read as imported; after
+   the clear the whole read is what it was before (`byHand: false`, the page
+   back), and `hasOverride("magicResearch", "sampleProse")` is `false`.
+
+### Teardown
+
+The import is kept. Step 5's override is removed by its own last action and,
+if the walk dies first, by the table name its page-side record holds; nothing
+is swept by document.
