@@ -31,8 +31,7 @@ import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recip
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
 import { caseCarriesNothing, itemKey, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { LABELLED_FIELDS, citeLabel } from "../../scripts/importer/condition-labels.mjs";
-import { FILES, COMMUNITY_FILES, referenceComplete } from "./reference-lib.mjs";
-import { STAMP_PATH, currentDigests, writeStamp } from "./cookbook-stamp.mjs";
+import { FILES, COMMUNITY_FILES } from "./reference-lib.mjs";
 import { PICTURE_KIND, compilePictureRow } from "./compile-picture.mjs";
 import { useTypography } from "../../scripts/importer/extract.mjs";
 
@@ -7295,14 +7294,6 @@ async function main() {
     ) + "\n",
   );
   console.error(`compile done — ${warns.length} warning(s).`);
-
-  // A compile of every book into cookbook/ is the match the stamp records
-  // (cookbook-stamp.mjs); a single-book, scratch-dir or partial-library run is not.
-  if (!only && !outArg && referenceComplete()) {
-    const now = currentDigests({ ...FILES, ...COMMUNITY_FILES });
-    writeStamp(path.join(HERE, "..", "..", STAMP_PATH), { inputs: now.inputs.hash, outputs: now.outputs });
-    console.error(`stamp written -> ${STAMP_PATH}`);
-  }
 }
 
 // Compiles only when run; an import (the compiler's tests) gets the exports.

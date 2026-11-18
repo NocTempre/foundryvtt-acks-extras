@@ -2176,7 +2176,7 @@ its hop pointing at the old list. The Clue Concealment and Clue Code lists
 carry sentences of the book in their cells, imported at the Judge's own copy
 like any other cell.
 
-## 2026-11-17 — The cookbook drift check recompiles only when its inputs moved
+## 2026-11-17 — The cookbook drift check recompiles only when its inputs moved — SUPERSEDED IN PART 2026-11-18
 
 The owner, answering a proposal to run the drift check's full recompile only when
 its inputs changed and otherwise report them unchanged and pass: "Yes, build the
@@ -2532,3 +2532,67 @@ row, and the consumer drops its pairing by order and wording.
   every tag after it, silently); a fixed word for the kept result.
 - **Cost:** the gate holds six tags and six marks on each book, so a recipe
   change that loses one fails `check-treasure-tables`.
+
+## 2026-11-18 — The cookbook drift check measures against where the work meets main
+
+The owner was asked to choose between two options for the drift check. One
+skips the recompile when nothing it reads differs from the gated base. The
+other moves the full recompile to the release check and the nightly run. The
+owner answered: "A: skip vs gated base". This supersedes the committed stamp
+of "The cookbook drift check recompiles only when its inputs moved"
+(2026-11-17). The new evidence comes from the day the stamp was in use:
+
+- **The skip held on 1 of the 16 gates between the stamp's landing and 03:52
+  on 2026-11-18.** The other 15 recompiled in full, at 721 to 1124 s of
+  validate each. A gate's full pass rewrites the stamp in its scratch clone,
+  and the clone is thrown away. So `main`'s stamp went stale with each input
+  commit until a session committed one by hand, which two stamp-only commits
+  did (7d8580bf, b9dbfdb7).
+- **Every importer change rewrites the same file.** Two topics that touch
+  compile inputs therefore conflict on the stamp when they land. On
+  2026-11-18, a topic's fast-forward waited on another session's uncommitted
+  stamp.
+
+The ruling:
+
+- **The base is `git merge-base HEAD main`.** That is `main`'s tip in
+  `main`'s own tree, the change's base in a commit tool's clone, and where a
+  topic meets `main` in its own checkout and in the clone that gates its
+  landing. `origin/main` stands in where the local `main` is missing. The
+  recompile runs when any path that differs from the base is one the compile
+  reads, whether tracked or untracked (ignored paths do not count).
+  Otherwise the check prints one line naming the base and passes. With no
+  base, or any git failure, the full check runs. What counts is the header of
+  `tools/importer/cookbook-inputs.mjs`.
+- **No stamp is committed.** `cookbook-stamp.json` and `cookbook-stamp.mjs`
+  are removed. `cookbook-inputs.mjs` keeps the import walk and the register
+  selection, and matches paths by rule, so a removed file counts. The walk
+  and `ACKS_COOKBOOK_DRIFT_FULL=1` stand as ruled on 2026-11-17.
+- **Rejected: B, the recompile only at the release check and the nightly
+  run.** A drift would be caught after the session that caused it has moved
+  on, and traced back by hand.
+- **Rejected: keeping the stamp beside the base rule.** It keeps the
+  contended file and its commit chore, for no skip that the base rule misses.
+
+*Cost:*
+
+- **The skip trusts that what `main` holds passed its own gate.** A commit
+  that reaches `main` without the full check is not checked again until a
+  later change touches a compile input. Three routes do this: a change
+  committed with `"gate": []` that touched an input, a carried base (the
+  carry stages leave validate out), and a commit made around the commit tool.
+  `postgate` on a commit already on `main` measures the commit against itself
+  and skips. Where that matters, the gate sets `ACKS_COOKBOOK_DRIFT_FULL=1`.
+  The stamp corrected such a commit at the next mismatch; the base rule does
+  not.
+- **Two inputs the stamp hashed do not show in a diff.**
+  - A reference PDF's size: a PDF replaced under the name `reference-lib.mjs`
+    gives it goes unseen, while a new printing changes the name, which is a
+    diff.
+  - A package's installed version: `package-lock.json` stands in for it.
+- **A peer's edits count too.** Every differing path counts, including a
+  peer's uncommitted edit. So a validate in `main`'s shared tree recompiles
+  while any session holds an uncommitted edit to a compile input, as it did
+  under the stamp.
+- **The suite is slow.** It builds real git repositories, about 110 git
+  processes: 20 to 30 seconds on this machine.
