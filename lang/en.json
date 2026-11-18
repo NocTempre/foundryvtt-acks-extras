@@ -8172,6 +8172,8 @@
   "ACKS-BATTLEMAP.rows.source.fit": "the fit",
   "ACKS-BATTLEMAP.rows.source.scale": "the scale being written",
   "ACKS-ABILITIES.roll.previewMeasure": "Rolls {formula}. The result stands on its own — nothing is scored against it.",
+  "ACKS-ABILITIES.roll.autoRecord": "Automatic through {spell}.",
+  "ACKS-ABILITIES.roll.grantedAt": "Read at level {level}.",
   "ACKS-IMPORTER.leaderTemplate.name": "{name} (leaders)",
   "ACKS-IMPORTER.tables.gmOnly": "Only a GM can import rules tables into the world.",
   "ACKS-IMPORTER.tables.noProvider": "No rules-table host is active. Reload, and report it if it persists.",
