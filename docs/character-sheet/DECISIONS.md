@@ -5,7 +5,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 ## In force
 
 - 2026-09-03 — [The module's own character sheet, and it is the default (2026-09-03)](DECISIONS-through-v11.14.5.md#the-modules-own-character-sheet-and-it-is-the-default-2026-09-03)
-- 2026-09-03 — [The design canvas is the specification (2026-09-03)](DECISIONS-through-v11.14.5.md#the-design-canvas-is-the-specification-2026-09-03)
+- 2026-09-03 — [The design canvas is the specification (2026-09-03)](DECISIONS-through-v11.14.5.md#the-design-canvas-is-the-specification-2026-09-03) — qualified by "2026-11-18 — Gold and pale mark the granted throws on the Rolls tab"
 - 2026-09-03 — [The rails draw Foundry's icons (2026-09-03)](DECISIONS-through-v11.14.5.md#the-rails-draw-foundrys-icons-2026-09-03)
 - 2026-09-03 — [Core's sheet is dressed by injection; this sheet asks for what it wants (2026-09-03)](DECISIONS-through-v11.14.5.md#cores-sheet-is-dressed-by-injection-this-sheet-asks-for-what-it-wants-2026-09-03)
 - 2026-09-03 — [Where the fold and the pins live (2026-09-03)](DECISIONS-through-v11.14.5.md#where-the-fold-and-the-pins-live-2026-09-03)
@@ -71,3 +71,15 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 **Supersedes in part**, within seven days of two of the rulings it changes ("A summon is an unlinked token of a GM-made copy", 2026-11-10: "goes when its token goes"; "The party cell's summoning rows are one per spell", 2026-11-11: what standing on the scene means), on this evidence: the owner's ruling above, which neither had. It also qualifies the 2026-09-03 right-rail ruling's premise that "a formation's members are people in a marching order, not a summoner's creatures"; that ruling's rejection of the asterisk count stands.
 
 **Cost.** A Player acts on a summon held in a party only through *Dismiss* and its summoner's membership: its row on the party sheet takes no action. A cast's `tokenUuids` names tokens deleted once the creatures join, so a reader of that list finds them gone.
+
+## 2026-11-18 — Gold and pale mark the granted throws on the Rolls tab
+
+**Ruled.** The owner, 2026-11-18, of the rows the Rolls tab draws for a proficiency a spell grants: "pale when not cast and can cast on self. Gold when cast on self even if by another." Of a spell the character cannot cast: "can't cast does not show as can but uncast". Of the chat card a roll posts: "Rolls in chat should match the group roll format, just maybe with 1 line if that's applicable."
+
+**Qualifies** "Six tones, one meaning each" (2026-09-03, "The design canvas is the specification"): gold stays specialization and achievement, and also marks a granted throw a record holds on the character, whoever cast it. The tone means the same elsewhere; this adds one row state to one tab. It also qualifies, for a granted throw alone, the abilities feature's "A proficiency throw wears the system's own chat card" (archived in the abilities DECISIONS-through-v11.14.5): that throw posts a one-line party card instead.
+
+**Done.** The behavior is the model's (MODEL, "Rolls", the paragraph on granted throws). Proceeded on as defaults, not the owner's words (spell-effects plan): a known spell with no slot left still shows pale (1c.25), a pale row is display only (1c.26), two spells giving one throw make one pale row naming both (1c.28), and a granted throw posts the one-line card (1c.31).
+
+**Rejected.** `.is-disabled` or `.is-off` for the pale state: both already mean a suspended effect on the Effects tab.
+
+**Cost.** A pale figure is what the register's reach builds at the caster level its source resolves; a cast may differ once the caster picks an option or types another level. The row id no longer carries the record's id, so two records granting one throw are one row, as the stacking already made them one figure.

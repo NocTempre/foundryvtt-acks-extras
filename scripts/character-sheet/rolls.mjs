@@ -15,21 +15,26 @@
  * Row ids are stable strings because the pinned rolls are stored by id:
  * `save:death`, `adv:climb`, `init`, `surprise:avoid`, `atk:melee`, `bhr`,
  * `unarmed`, `morale`, `loyalty`, `wpn:<itemId>:atk:<mode>` (the item sheet's
- * own row id after the item id), `abl:<itemId>:<key>`, `grant:<effectId>:<key>` (a
- * throw a spell record grants, for as long as the record lasts; held by no
- * item, so its row has none), and `post:<itemId>` —
+ * own row id after the item id), `abl:<itemId>:<key>`, `grant:<ref>:<key>` (a
+ * throw a spell grants: the proficiency's reference and the throw's key, so a
+ * record cast by another character and one cast on oneself are one row; held by
+ * no item, so its row has none). A grant a record holds is a gold row that rolls
+ * for as long as the record lasts; one the character could cast on itself and
+ * has not is a pale row that shows and does not roll (`latent`), and `post:<itemId>` —
  * an ability with no throw, which posts its card instead of rolling. Its own
  * kind, so a throw added later can never take its id.
  */
 import { LANG, SAVE_KEYS, ADVENTURING_KEYS } from "./constants.mjs";
-import { makeLoc, numOrNull, plainRoll, escape as esc } from "../lib/util.mjs";
+import { makeLoc, numOrNull, plainRoll } from "../lib/util.mjs";
 import { FRAME_LANG_PREFIX } from "../lib/frame.mjs";
 import { carriesMorale, signed } from "./view-model.mjs";
 import { rollGroups as itemRollGroups, rollById as itemRollById } from "../equipment/item-sheet/rolls.mjs";
 import { rollUnarmed } from "../equipment/actions.mjs";
 import { bestAttackBonus, getLoadout } from "../equipment/loadout.mjs";
 import { containedIn } from "../equipment/containers.mjs";
-import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, rollGrantedThrow, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
+import { rollsOf, keyOf, rollAbility, throwText, throwProvenance, noteProvenance, autoText, grantedThrows, availableThrows, rollGrantedThrow, scoreTerm, scoreText, labelOf } from "../abilities/ability-rolls.mjs";
+import { renderRollCard } from "../lib/roll-card.mjs";
+import { autoCardRow } from "../formation/party-rolls.mjs";
 import { adventuringThrow } from "../abilities/adventuring-throw.mjs";
 import { damageTypeOf, damageTypeLabel } from "../lib/damage-type.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
@@ -190,9 +195,14 @@ export function rollInventory(actor) {
       );
     });
   }
-  // A throw a spell record grants stands in the same group, in the same row, for as long as its record lasts.
+  // A throw a spell record grants stands in the same group, in the same row, for as long as its record lasts (gold, whoever cast it).
+  const grantLabel = (g) => (g.label ? `${g.name} · ${g.label}` : g.name);
   for (const g of grantedThrows(actor)) {
-    profRows.push(row(g.id, g.label ? `${g.name} · ${g.label}` : g.name, g.text, { line: g.spell, tip: g.tip }));
+    profRows.push(row(g.id, grantLabel(g), g.text, { line: g.spell, tip: g.tip, granted: true }));
+  }
+  // A throw the character could cast on itself and has not stands beside them, pale and display only: it rolls nothing and cannot be pinned.
+  for (const g of availableThrows(actor, { viewer: game.user })) {
+    profRows.push(row(g.id, grantLabel(g), g.text, { line: g.spell, tip: g.tip, latent: true, rollable: false, pinned: false }));
   }
   if (profRows.length) groups.push({ key: "proficiencies", name: loc("rolls.group.proficiencies"), rows: profRows });
 
@@ -220,7 +230,8 @@ export function rollInventory(actor) {
     groups.push({ key: "morale", name: game.i18n.localize("ACKS.details.morale"), rows: [morale()] });
   }
 
-  return { groups, ids: groups.flatMap((g) => g.rows.map((r) => r.id)) };
+  // A pale row is no roll, so its id is no id a pin can name.
+  return { groups, ids: groups.flatMap((g) => g.rows.filter((r) => !r.latent).map((r) => r.id)) };
 }
 
 /**
@@ -252,7 +263,12 @@ export async function rollById(actor, id, { event } = {}) {
       if (found.auto) {
         const via = found.via ? actor.items.get(found.via.itemId) : null;
         if (via) await rollAbility(via, found.via.rollKey, { event });
-        else await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: `<p>${esc(game.i18n.localize(`ACKS.adventuring.${a}`))} — <strong>${esc(autoText({ record: found.record }))}</strong></p>` });
+        else {
+          // One line on the party card's own format.
+          const tip = autoText({ record: found.record });
+          const content = renderRollCard({ title: game.i18n.localize(`ACKS.adventuring.${a}`), subtitle: actor.name, sections: [{ rows: [autoCardRow({ name: actor.name, source: tip, sourceTip: tip })] }] });
+          await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content });
+        }
         return true;
       }
       const stored = Number(sys.adventuring?.[a]);
@@ -302,7 +318,7 @@ export async function rollById(actor, id, { event } = {}) {
       return true;
     }
     case "grant": {
-      // The whole id names the grant: its record's id and the throw's key, both already inside it.
+      // The whole id names the grant: the proficiency's reference and the throw's key, both already inside it.
       const rolled = await rollGrantedThrow(actor, { id: String(id) }, { event });
       return rolled != null;
     }

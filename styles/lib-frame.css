@@ -26,7 +26,11 @@
  * `--acks-extras-magic`'s mix.
  */
 
-.acks-extras-frame {
+/* The variables are a rule of their own so a window that is not a sheet (a
+ * dialog drawn with the frame's classes) takes them by naming
+ * `acks-extras-frame-vars` on its root, with none of the frame's geometry. */
+.acks-extras-frame,
+.acks-extras-frame-vars {
   /* The space ramp, re-declared scaled. The vendor publishes --acks-sp-* as
    * literals at :root, so a declaration here simply wins for this subtree —
    * the same move `[data-acks-density]` makes in the token file. Without it
@@ -47,6 +51,9 @@
   --acks-extras-magic: color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
   --acks-extras-magic-ink: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
   --acks-extras-magic-tint: color-mix(in srgb, var(--acks-extras-magic) 12%, var(--acks-paper-pure));
+}
+
+.acks-extras-frame {
   /* Neither figure carries the ratio: `width` is shadowed by core's inline
    * write from the sheet's own `position` (the scaled opening width is
    * applied in sheet.mjs instead); `min-width` is a literal floor. See
@@ -1068,6 +1075,33 @@ a.acks-extras-frame__gear-name:hover {
 
 .acks-extras-frame__pin.is-blank {
   border-color: transparent;
+  cursor: default;
+}
+
+/* A granted throw a spell record holds: gold, as a gold pill is. */
+.acks-extras-frame__row.is-granted .acks-extras-frame__row-value {
+  color: var(--acks-gold-deep);
+}
+
+.acks-extras-frame__row.is-granted .acks-extras-frame__mini {
+  border-color: var(--acks-gold-deep);
+  background: var(--acks-gold);
+  color: var(--acks-gold-ink);
+}
+
+/* A granted throw the character could cast on itself and has not: pale, its die
+ * outlined and dashed. Not `is-disabled` or `is-off`, which mean a suspended effect. */
+.acks-extras-frame__row.is-latent .acks-extras-frame__row-label,
+.acks-extras-frame__row.is-latent .acks-extras-frame__row-line,
+.acks-extras-frame__row.is-latent .acks-extras-frame__row-value {
+  color: var(--acks-ink-faint);
+}
+
+.acks-extras-frame__row.is-latent .acks-extras-frame__mini {
+  border-style: dashed;
+  border-color: var(--acks-ink-faint);
+  background: transparent;
+  color: var(--acks-ink-faint);
   cursor: default;
 }
 

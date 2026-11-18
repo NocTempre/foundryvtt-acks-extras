@@ -259,7 +259,7 @@ await ok("a grant lists a throw rolled against its set figure while the record l
   const a = actor([], [fx]);
   const [g, ...rest] = grantedThrows(a);
   assert.equal(rest.length, 0);
-  assert.deepEqual([g.id, g.ref, g.name, g.text, g.target, g.outcome], [`grant:${fx.id}:throw1`, LURKING, "Lurking", "12+", 12, "throw"]);
+  assert.deepEqual([g.id, g.ref, g.name, g.text, g.target, g.outcome], [`grant:${LURKING}:throw1`, LURKING, "Lurking", "12+", 12, "throw"]);
   assert.equal(g.tip, "Grant Edge (XX p.1) = 12+", "the spell, its page and the figure it sets");
   a.appliedEffects = [];
   assert.deepEqual(grantedThrows(a), [], "gone with its record");
@@ -328,7 +328,7 @@ await ok("a grant takes the record's bonuses and automatic on its throw like a h
   assert.deepEqual([grantedThrows(actor([], [auto]))[0].outcome, grantedThrows(actor([], [auto]))[0].text], ["auto", textOf(`${ROOT}.roll.autoShort`)]);
 });
 
-await ok("rollGrantedThrow rolls the listed throw on the system's card and rolls nothing for a grant that has ended", async () => {
+await ok("rollGrantedThrow rolls the listed throw as one line on the party card and rolls nothing for a grant that has ended", async () => {
   shelf(lurking(ladder([1, 14])));
   const fx = record("Grant Edge", [grant(12)]);
   const a = actor([], [fx]);
@@ -339,6 +339,8 @@ await ok("rollGrantedThrow rolls the listed throw on the system's card and rolls
   assert.deepEqual([res.outcome, res.target, res.total, res.success], ["throw", 12, 13, true]);
   assert.equal(posted.length, 1);
   assert.match(posted[0].data.content, /12\+/, "the card carries the figure rolled against");
+  assert.match(posted[0].data.content, /acks-extras-roll-card/, "on the party card's format, not the system's card");
+  assert.equal(posted[0].data.content.split("<tbody>")[1].split("<tr").length - 1, 1, "one line");
   a.appliedEffects = [];
   posted.length = 0;
   assert.equal(await rollGrantedThrow(a, g, { skipDialog: true }), null, "the record ended");

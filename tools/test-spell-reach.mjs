@@ -182,7 +182,7 @@ await ok("a granted throw is a row of the proficiencies group by its id, with th
   const inv = rollInventory(a);
   const group = inv.groups.find((g) => g.key === "proficiencies");
   assert.ok(group, "the group appears with no held proficiency, for the grant alone");
-  const row = group.rows.find((r) => r.id === `grant:${fx.id}:throw1`);
+  const row = group.rows.find((r) => r.id === `grant:${LURKING}:throw1`);
   assert.deepEqual([row.label, row.value, row.tip, row.item, row.rollable], ["Lurking", "12+", "Grant Edge (XX p.1) = 12+", null, true]);
   assert.ok(inv.ids.includes(row.id), "listed among the ids the pins resolve through");
   a.appliedEffects = [];
@@ -197,11 +197,11 @@ await ok("a granted row rolls by its id through the grant's own roller, and a gr
   posted.length = 0;
   dice.length = 0;
   dice.push(15);
-  assert.equal(await rollById(a, `grant:${fx.id}:throw1`, { event: CLICK }), true);
+  assert.equal(await rollById(a, `grant:${LURKING}:throw1`, { event: CLICK }), true);
   assert.equal(posted.length, 1, "one card");
   a.appliedEffects = [];
   posted.length = 0;
-  assert.equal(await rollById(a, `grant:${fx.id}:throw1`, { event: CLICK }), false, "a pin outliving its record rolls nothing");
+  assert.equal(await rollById(a, `grant:${LURKING}:throw1`, { event: CLICK }), false, "a pin outliving its record rolls nothing");
   assert.equal(posted.length, 0);
 });
 
@@ -355,6 +355,174 @@ await ok("a party check on the Adventuring figure takes the stored side's record
   const auto = actor([], [record("Auto Edge", [ADV(null, { mode: "auto" })])]);
   assert.equal(resolveCheck(auto, climb, { auto: true }).auto.label, "Auto Edge");
   assert.equal(resolveCheck(auto, climb).target, 7, "a caller that cannot act on it reads the stored 7");
+});
+
+/* ================================ gold, pale and the one-line card ================================ */
+
+const { registerSpellSource, registerSpellReach } = await import("../scripts/lib/spell-sources.mjs");
+const OTHER = "def.skill.glimmer";
+
+/** An invented spell document. */
+const spellDoc = (name) => ({ name, uuid: `Item.${name.replace(/\s+/g, "")}`, flags: { "acks-extras": { cookbook: { id: `def.spell.${name.toLowerCase().replace(/\s+/g, "")}` } } } });
+
+/**
+ * Stand a register on the sheet: `known` is `[{name, capacity, cite, onSelf, parts}]`, one spell each, the source
+ * answering every spell the actor can cast and the reach what a cast would write on the caster. Returns the teardown.
+ */
+function register(known) {
+  const byName = new Map(known.map((k) => [k.name, k]));
+  const offSource = registerSpellSource("test", () => known.map((k) => ({ spell: spellDoc(k.name), itemId: `s-${k.name}`, casterLevel: null, capacity: k.capacity ?? "ok", cite: k.cite ?? "XX p.3" })));
+  const offReach = registerSpellReach((_actor, entry) => {
+    const k = byName.get(entry.spell.name);
+    return { onSelf: k.onSelf === undefined ? true : k.onSelf, selfParts: k.parts ?? [grant(12)] };
+  });
+  return () => {
+    offSource();
+    offReach();
+  };
+}
+const shelf = () => {
+  game.items.length = 0;
+  game.items.push(lurking(), item("Glimmer", { id: OTHER, cite: "XX p.10", rolls: [throwOf("throw1", flat(15))] }));
+};
+const proficiencies = (a) => rollInventory(a).groups.find((g) => g.key === "proficiencies")?.rows ?? [];
+
+await ok("a spell the character can cast on itself and has not cast is a pale row: latent, display only, named with its page", async () => {
+  shelf();
+  const off = register([{ name: "Hush Ward", cite: "XX p.3" }]);
+  try {
+    const a = actor([], []);
+    const row = rowOf(a, `grant:${LURKING}:throw1`);
+    assert.deepEqual([row.label, row.value, row.latent, row.granted ?? false, row.rollable, row.pinned, row.line], ["Lurking", "12+", true, false, false, false, "Hush Ward"]);
+    assert.ok(row.tip.includes("Hush Ward (XX p.3)"), row.tip);
+    assert.ok(row.tip.startsWith(textOf(`${ROOT}.roll.grantLatent`).split("{")[0]), "told as castable, not as cast");
+    assert.equal(rollInventory(a).ids.includes(row.id), false, "no pin can name it");
+    a.getFlag = () => ({ pins: [row.id] });
+    assert.equal(rowOf(a, row.id).pinned, false, "a pin left from when it was gold shows no star");
+    posted.length = 0;
+    chat.length = 0;
+    assert.equal(await rollById(a, row.id, { event: CLICK }), false, "it rolls nothing");
+    assert.equal(posted.length + chat.length, 0, "and posts nothing");
+  } finally {
+    off();
+  }
+});
+
+await ok("a spell it cannot cast on itself, or cannot cast at all, shows no row", async () => {
+  shelf();
+  for (const [label, known] of [
+    ["lands on others", [{ name: "Far Ward", onSelf: false }]],
+    ["cannot be told", [{ name: "Far Ward", onSelf: null }]],
+    ["known to no source", []],
+  ]) {
+    const off = register(known);
+    try {
+      assert.deepEqual(proficiencies(actor([], [])), [], label);
+    } finally {
+      off();
+    }
+  }
+});
+
+await ok("a spell with no slot left still shows pale", async () => {
+  shelf();
+  const off = register([{ name: "Hush Ward", capacity: "none" }]);
+  try {
+    assert.equal(rowOf(actor([], []), `grant:${LURKING}:throw1`).latent, true);
+  } finally {
+    off();
+  }
+});
+
+await ok("a record on the character is a gold row whoever cast it, and it takes the id the pale row had", async () => {
+  shelf();
+  const off = register([{ name: "Hush Ward" }]);
+  try {
+    const a = actor([], []);
+    const pale = rowOf(a, `grant:${LURKING}:throw1`);
+    assert.equal(pale.latent, true);
+    // The record's caster is another character: nothing on the record names who.
+    a.effects = a.appliedEffects = [record("Hush Ward", [grant(12)], "XX p.3")];
+    const gold = rowOf(a, `grant:${LURKING}:throw1`);
+    assert.deepEqual([gold.id, gold.granted, gold.latent ?? false, gold.rollable, gold.line], [pale.id, true, false, true, "Hush Ward"]);
+    assert.ok(gold.tip.includes("Hush Ward (XX p.3)"), "its tooltip lists its parts");
+    assert.equal(proficiencies(a).filter((r) => r.id === gold.id).length, 1, "one row for the ref and key, not a gold and a pale");
+  } finally {
+    off();
+  }
+});
+
+await ok("gold suppresses pale for its own ref and key only", async () => {
+  shelf();
+  // The castable spell would grant a better figure on both skills; the record grants the first alone.
+  const off = register([{ name: "Hush Ward", parts: [grant(9), grant(9, { ref: OTHER })] }]);
+  try {
+    const a = actor([], [record("Cast Edge", [grant(12)], "XX p.1")]);
+    const rows = proficiencies(a);
+    assert.deepEqual(rows.map((r) => [r.id, r.latent ?? false]), [[`grant:${LURKING}:throw1`, false], [`grant:${OTHER}:throw1`, true]]);
+    assert.equal(rows[0].value, "12+", "the recorded figure, not the cast's better one");
+  } finally {
+    off();
+  }
+});
+
+await ok("two spells that give one throw make one pale row naming both", async () => {
+  shelf();
+  const off = register([{ name: "Hush Ward", cite: "XX p.3", parts: [grant(12)] }, { name: "Quiet Veil", cite: "XX p.4", parts: [grant(11)] }]);
+  try {
+    const rows = proficiencies(actor([], []));
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0].line.split(", ").sort(), ["Hush Ward", "Quiet Veil"]);
+    assert.ok(rows[0].tip.includes("Hush Ward (XX p.3)") && rows[0].tip.includes("Quiet Veil (XX p.4)"), rows[0].tip);
+  } finally {
+    off();
+  }
+});
+
+await ok("a skill the character holds needs no pale row", async () => {
+  shelf();
+  const off = register([{ name: "Hush Ward" }]);
+  try {
+    assert.deepEqual(proficiencies(actor([lurking()], [])).filter((r) => r.id.startsWith("grant:")), []);
+  } finally {
+    off();
+  }
+});
+
+/** The rows of a card's body, its header row left out. */
+const bodyRows = (html) => (String(html).split("<tbody>")[1] ?? "").split("<tr").length - 1;
+
+await ok("a granted throw posts one line on the party card's format, not the system's card", async () => {
+  shelf();
+  const a = actor([], [record("Hush Ward", [grant(12)], "XX p.3")]);
+  posted.length = 0;
+  dice.length = 0;
+  dice.push(15);
+  assert.equal(await rollById(a, `grant:${LURKING}:throw1`, { event: CLICK }), true);
+  const { content } = posted[0].data;
+  assert.match(content, /acks-extras-roll-card/, "the party card's own markup");
+  assert.equal(bodyRows(content), 1, "one line");
+  assert.match(content, /Tester/, "who rolled");
+  assert.match(content, />15</, "what they rolled");
+  assert.match(content, />12\+</, "the target, signed");
+  assert.match(content, /<strong>Success<\/strong>/, "the verdict");
+  assert.match(content, /Hush Ward/, "what gave the throw");
+  assert.equal(posted[0].roll.total, 15, "the die rides the message");
+  dice.push(3);
+  posted.length = 0;
+  await rollById(a, `grant:${LURKING}:throw1`, { event: CLICK });
+  assert.match(posted[0].data.content, /Failure/);
+});
+
+await ok("a stored Adventuring throw a spell made automatic posts one line on the same format", async () => {
+  const a = actor([], [record("Auto Edge", [ADV(null, { mode: "auto" })], "XX p.6")]);
+  chat.length = 0;
+  assert.equal(await rollById(a, "adv:climb"), true);
+  assert.equal(chat.length, 1);
+  assert.match(chat[0].content, /acks-extras-roll-card/);
+  assert.equal(bodyRows(chat[0].content), 1);
+  assert.match(chat[0].content, /Automatic through Auto Edge \(XX p\.6\)\./);
+  assert.match(chat[0].content, /Tester/);
 });
 
 console.log(`\n${passed} passed`);

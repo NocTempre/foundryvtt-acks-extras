@@ -13,7 +13,9 @@ import AbilityExtras from "./ability-extras.mjs";
 import { slug, ATTRIBUTES, isMeasure, ITEM_TYPE, capabilityForId, satisfies } from "../lib/vocab.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
 import { resolveStacking } from "../lib/typed-modifiers.mjs";
-import { throwResolution, recordParts } from "../lib/roll-mods.mjs";
+import { throwResolution, recordParts, rollModsOf } from "../lib/roll-mods.mjs";
+import { availableRollMods } from "../lib/spell-sources.mjs";
+import { renderRollCard } from "../lib/roll-card.mjs";
 import { hasCapability } from "../lib/capabilities.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { escape as esc } from "../lib/util.mjs";
@@ -852,8 +854,27 @@ export async function rollAbility(item, key, { event, skipDialog, bonus = 0, mes
   return rollPicked(item, picked, { event, skipDialog, bonus, messageMode });
 }
 
-/** Roll and post a throw `pickThrow` (or a granted one) resolved; the one place a throw is posted. */
-async function rollPicked(item, picked, { event, skipDialog, bonus = 0, messageMode } = {}) {
+/**
+ * One throw as the one-line row of the party card (`renderRollCard`): who
+ * rolled, what it was made of, the total, the target and the verdict. A throw
+ * with no target prints no verdict, and an automatic one prints its word with no
+ * total, as the party card does. `audit` is the die behind the total, for its tooltip.
+ */
+function lineCard({ title, actor, detail, tip, audit = "", total, target, suffix, success, auto }) {
+  const told = game.i18n.localize("ACKS-ABILITIES.roll.autoShort");
+  const verdict = success == null ? {} : { outcome: game.i18n.localize(success ? "ACKS-ABILITIES.roll.success" : "ACKS-ABILITIES.roll.failure"), emphasis: success ? "success" : "failure" };
+  const row = auto
+    ? { name: actor?.name ?? "", detail, total: told, targetText: told, targetTooltip: tip, ...verdict }
+    : { name: actor?.name ?? "", detail, total, ...(audit ? { tooltipText: audit } : {}), ...(target == null ? {} : { target, targetSuffix: suffix, targetTooltip: tip }), ...verdict };
+  return renderRollCard({ title, subtitle: actor?.name ?? "", sections: [{ rows: [row] }] });
+}
+
+/**
+ * Roll and post a throw `pickThrow` (or a granted one) resolved; the one place a
+ * throw is posted. `line` (`{detail, tip}`) posts it as a one-line party card in
+ * place of the system's own card.
+ */
+async function rollPicked(item, picked, { event, skipDialog, bonus = 0, messageMode, line = null } = {}) {
   const { roll, actor, verdict } = picked;
 
   // An unavailable rung posts nothing; the clicker is told why.
@@ -873,7 +894,10 @@ async function rollPicked(item, picked, { event, skipDialog, bonus = 0, messageM
 
   // An automatic rung posts its card with no dice.
   if (verdict.outcome === "auto") {
-    await postAutomatic(item, actor, roll, verdict, mode);
+    if (line) {
+      const title = [item.name, roll.label].filter(Boolean).join(" — ");
+      await ChatMessage.create({ speaker: ChatMessage.getSpeaker({ actor }), content: lineCard({ title, actor, ...line, success: true, auto: true }) }, { messageMode: mode });
+    } else await postAutomatic(item, actor, roll, verdict, mode);
     return { total: null, target: null, success: true, outcome: "auto" };
   }
 
@@ -898,19 +922,22 @@ async function rollPicked(item, picked, { event, skipDialog, bonus = 0, messageM
 
   const suffix = type === "above" ? "+" : type === "below" ? "-" : "";
 
+  const label = [item.name, roll.label].filter(Boolean).join(" — ");
   // The card, or a plain line when it cannot render (a moved or renamed core
   // template): a missing template costs the throw its banner, never its result.
   let content = null;
-  try {
-    content = await foundry.applications.handlebars.renderTemplate(
-      CARD_TEMPLATE,
-      await cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }),
-    );
-  } catch (err) {
-    console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the throw without its card`, err);
+  if (line) content = lineCard({ title: label, actor, ...line, audit: auditLine(evaluated), total, target: measures(roll) ? null : target, suffix, success });
+  else {
+    try {
+      content = await foundry.applications.handlebars.renderTemplate(
+        CARD_TEMPLATE,
+        await cardData(item, actor, roll, { target, success, suffix, verdict, evaluated }),
+      );
+    } catch (err) {
+      console.error(`${MODULE_ID} | could not render ${CARD_TEMPLATE}; posting the throw without its card`, err);
+    }
   }
 
-  const label = [item.name, roll.label].filter(Boolean).join(" — ");
   const targetText = measures(roll)
     ? ""
     : target == null
@@ -1076,14 +1103,17 @@ function standIn(actor, ref, def, spell) {
 const blankGrantRoll = () => ({ key: "grant", label: "", formula: coreThrowDie(), rollType: "above", scale: "level", target: { kind: "flat", flat: null }, condition: "" });
 
 /**
- * The tooltip of a granted throw's figure: the spell with its page alone where
- * there is no figure; else the spell, the level the definition is read at with
- * what that level is made of, and the parts behind the figure.
+ * The tooltip of a granted throw's figure: the spell(s) with the page alone
+ * where there is no figure; else the spell, the level the definition is read at
+ * with what that level is made of, and the parts behind the figure. `names` is
+ * every spell that gives the throw, each with its page, where more than one does.
  */
-function grantTip(hit, roll, verdict, level) {
-  if (verdict.target == null && verdict.outcome !== "auto") return hit.label;
+function grantTip(hit, roll, verdict, level, names = [hit.label]) {
+  if (verdict.target == null && verdict.outcome !== "auto") return names.join(" · ");
   const bits = [];
-  if (!verdict.record?.set) bits.push(hit.label);
+  // A set figure's own provenance names the spell that set it; the others still say they give the throw.
+  if (!verdict.record?.set) bits.push(names.join(" · "));
+  else bits.push(...names.filter((n) => n !== hit.label));
   if (level != null && !verdict.record?.set) {
     const made = (hit.atLevel?.parts ?? []).map((p) => `${p?.label ?? ""} ${p?.value ?? ""}`.trim()).filter(Boolean);
     bits.push([game.i18n.format("ACKS-ABILITIES.roll.grantedAt", { level }), ...made].join(" · "));
@@ -1093,26 +1123,13 @@ function grantTip(hit, roll, verdict, level) {
 }
 
 /**
- * The throws a character's spell records grant: one per throw of each
- * proficiency a `grant` part names, while that record lasts and the character
- * holds no ability that provides it. Read live at every call.
- *
- * A grant with a `set` mode is rolled against its figure (a blank one has no
- * target: "—"); a grant with no mode is the definition's own throw, read at
- * the grant's `atLevel` or the character's level. A definition that is not
- * imported leaves the figure blank. Two grants of one proficiency leave the
- * better target for that throw's type (`recordParts`).
- *
- * @param {Actor} actor
- * @returns {Array<{id: string, effectId: string, ref: string, key: string, name: string, label: string,
- *   spell: string, cite: string, tip: string, text: string, outcome: string, target: number|null,
- *   type: string, level: number|null, roll: object, item: object, verdict: object}>}
- *   `id` is `grant:<effectId>:<key>`, stable for as long as the record lasts; `text` is
- *   what the throw reads as (`throwText`'s cell); `tip` is for `data-tooltip-text`
+ * The grant rows `entries` give, one per proficiency and throw: the parts are
+ * read through `recordParts`, so a grant is narrowed, tested and stacked exactly
+ * as a recorded one is. A row is `latent` where the part that won is one no
+ * record holds (an available cast's, `effect` null).
  */
-export function grantedThrows(actor) {
-  if (!actor) return [];
-  const probe = recordParts(actor, "grant", {});
+function grantRows(actor, entries) {
+  const probe = recordParts(actor, "grant", { entries });
   const refs = new Set(
     [...probe.kept, ...probe.dropped, ...probe.pending.map((p) => ({ refTo: [].concat(p.part?.ref ?? p.part?.refs ?? [])[0] }))]
       .map((p) => p.refTo)
@@ -1124,22 +1141,31 @@ export function grantedThrows(actor) {
     const all = def ? rollsOf(def) : [];
     const throws = all.map((roll, i) => ({ roll, key: keyOf(roll, i) })).filter(({ roll }) => !measures(roll));
     for (const { roll, key } of throws.length ? throws : [{ roll: blankGrantRoll(), key: "grant" }]) {
-      const hit = recordParts(actor, "grant", { rollType: roll.rollType || "above", rollKey: key }).kept.find((p) => p.refTo === ref);
+      const read = recordParts(actor, "grant", { rollType: roll.rollType || "above", rollKey: key, entries });
+      const hit = read.kept.find((p) => p.refTo === ref);
       if (!hit) continue;
+      const latent = hit.effect == null;
+      // Every spell that gives this throw: the winner and the ones that yielded to it.
+      const given = latent ? [hit, ...read.dropped.filter((p) => p.refTo === ref && p.effect == null)] : [hit];
+      const spells = [...new Set(given.map((p) => p.spell))];
+      const names = [...new Set(given.map((p) => p.label))];
       const item = standIn(actor, ref, def, hit.spell);
       const set = hit.mode === "set" ? { spell: hit.spell, cite: hit.cite ?? "", value: hit.value } : null;
       const level = set ? null : levelOf(hit.atLevel);
       const verdict = throwOutcome(roll, actor, item, { level, grant: set });
+      const tip = grantTip(hit, roll, verdict, level, names);
       out.push({
-        id: `grant:${hit.effect?.id ?? ""}:${key}`,
+        id: `grant:${ref}:${key}`,
+        latent,
         effectId: hit.effect?.id ?? "",
         ref,
         key,
         name: item.name,
         label: roll.label || "",
-        spell: hit.spell,
+        spell: spells.join(", "),
+        spells,
         cite: hit.cite ?? "",
-        tip: grantTip(hit, roll, verdict, level),
+        tip: latent ? game.i18n.format("ACKS-ABILITIES.roll.grantLatent", { detail: tip }) : tip,
         text: readText(roll, verdict),
         outcome: verdict.outcome,
         target: verdict.target ?? null,
@@ -1155,9 +1181,54 @@ export function grantedThrows(actor) {
 }
 
 /**
- * Roll a throw `grantedThrows` listed and post it on the system's own card.
- * Resolved afresh: a grant whose record has ended since the list was read is
- * gone, and nothing is rolled (null). Takes `rollAbility`'s options.
+ * The throws a character's spell records grant: one per throw of each
+ * proficiency a `grant` part names, while that record lasts and the character
+ * holds no ability that provides it. Read live at every call; a record on the
+ * character counts whoever cast it.
+ *
+ * A grant with a `set` mode is rolled against its figure (a blank one has no
+ * target: "—"); a grant with no mode is the definition's own throw, read at
+ * the grant's `atLevel` or the character's level. A definition that is not
+ * imported leaves the figure blank. Two grants of one proficiency leave the
+ * better target for that throw's type (`recordParts`).
+ *
+ * @param {Actor} actor
+ * @returns {Array<{id: string, latent: false, effectId: string, ref: string, key: string, name: string, label: string,
+ *   spell: string, spells: string[], cite: string, tip: string, text: string, outcome: string, target: number|null,
+ *   type: string, level: number|null, roll: object, item: object, verdict: object}>}
+ *   `id` is `grant:<ref>:<key>` (the proficiency's reference and the throw's key, the same
+ *   whichever record or caster gives it); `text` is what the throw reads as (`throwText`'s
+ *   cell); `tip` is for `data-tooltip-text`
+ */
+export function grantedThrows(actor) {
+  if (!actor) return [];
+  return grantRows(actor, rollModsOf(actor)).filter((g) => !g.latent);
+}
+
+/**
+ * The throws the character could have by casting a spell on itself and has not:
+ * the register's available grants (`availableRollMods`) stacked after the
+ * recorded ones, so one is narrowed and tested as a recorded grant is. Display
+ * only. A proficiency and throw a record already grants (`grantedThrows`) is left
+ * out, and two spells giving one throw make one row naming both.
+ *
+ * @param {Actor} actor
+ * @param {object} [options]
+ * @param {object|null} [options.viewer]  who is asking, passed to the register's sources
+ * @returns {Array<object>} `grantedThrows`' shape, `latent` true, `spells` every spell that gives the throw
+ */
+export function availableThrows(actor, { viewer = null } = {}) {
+  if (!actor) return [];
+  const held = new Set(grantedThrows(actor).map((g) => g.id));
+  const entries = [...rollModsOf(actor), ...availableRollMods(actor, { viewer })];
+  return grantRows(actor, entries).filter((g) => g.latent && !held.has(g.id));
+}
+
+/**
+ * Roll a throw `grantedThrows` listed and post it as a one-line row on the
+ * party card. Resolved afresh: a grant whose record has ended since the list was
+ * read is gone, and nothing is rolled (null); a latent row is never rolled,
+ * since `grantedThrows` does not list it. Takes `rollAbility`'s options.
  *
  * @param {Actor} actor
  * @param {{id: string}} grant a `grantedThrows` entry
@@ -1166,5 +1237,5 @@ export function grantedThrows(actor) {
 export async function rollGrantedThrow(actor, grant, opts = {}) {
   const live = grantedThrows(actor).find((g) => g.id === grant?.id);
   if (!live) return null;
-  return rollPicked(live.item, { roll: live.roll, actor, verdict: live.verdict }, opts);
+  return rollPicked(live.item, { roll: live.roll, actor, verdict: live.verdict }, { ...opts, line: { detail: live.spell, tip: live.tip } });
 }

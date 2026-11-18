@@ -207,6 +207,18 @@ and for surprise; neither asks for a situational modifier, and the row's
 modifier is the field edited on Stats. A row passes its click event on, so the system's skip key
 skips the roll dialog from this tab as it does elsewhere.
 
+*Proficiencies & powers* also lists the throws a spell grants, one row per
+proficiency and throw under the id `grant:<ref>:<key>` (the proficiency's
+cookbook id and the throw's key, whoever cast the spell). A record on the
+character makes the row **gold** (`grantedThrows`): it rolls, pins, and posts
+one line on the party roll card's format. A spell the character can cast on
+itself and has not (`availableThrows`, over the castable-spell register in
+lib `spell-sources.mjs`) makes it **pale** (`.is-latent`): display only, with
+no click, no star and no place among the ids a pin can name; two spells giving
+one throw make one row naming both, and a ref and key a gold row holds shows no
+pale one. A spell the character cannot cast on itself shows no row. The
+rulings are DECISIONS 2026-11-18.
+
 **Abilities** files proficiencies, powers and languages by the buckets the
 classes feature already uses for its category tabs, with a filter row when
 more than one bucket is present. A row carries one d20 per throw, the

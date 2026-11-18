@@ -12,11 +12,16 @@
           {{#if group.note}}<span class="acks-extras-frame__rule-note">{{group.note}}</span>{{/if}}
         </div>
         {{#each group.rows as |row|}}
-        <div class="acks-extras-frame__row is-roll{{#if row.eq}} is-eq{{/if}}" data-action="roll" data-roll="{{row.id}}">
+        {{!-- A pale (latent) row is display only: no roll class, no action, and a pin that cannot be pressed. --}}
+        <div class="acks-extras-frame__row{{#unless row.latent}} is-roll{{/unless}}{{#if row.eq}} is-eq{{/if}}{{#if row.latent}} is-latent{{/if}}{{#if row.granted}} is-granted{{/if}}"{{#unless row.latent}} data-action="roll"{{/unless}} data-roll="{{row.id}}">
+          {{#if row.latent}}
+          <button type="button" class="acks-extras-frame__pin is-blank" disabled aria-hidden="true" tabindex="-1"></button>
+          {{else}}
           <button type="button" class="acks-extras-frame__pin{{#if row.pinned}} is-on{{/if}}" data-action="pinRoll" data-roll="{{row.id}}"
                   data-tooltip="{{localize (ifThen row.pinned 'ACKS-LIB.frame.unpin' 'ACKS-LIB.frame.pin')}}" {{disabled (not @root.editable)}}>
             <span class="acks-sr-only">{{localize 'ACKS-LIB.frame.pin'}}</span>
           </button>
+          {{/if}}
           <span class="acks-extras-frame__row-text">
             <span class="acks-extras-frame__row-label">{{row.label}}</span>
             {{#if row.line}}<span class="acks-extras-frame__row-line"{{#if row.lineTip}} data-tooltip-text="{{row.lineTip}}"{{/if}}>{{row.line}}</span>{{/if}}
