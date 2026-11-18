@@ -4000,7 +4000,15 @@ browser lists them, and the RollTables hold them, tail rows included.
 
 The Judges Journal connected on the seat. Nothing is built; the imported
 document and its RollTables are the world's, carry no `flags.world.fixture`
-marker, and are read, never driven.
+marker, and are read, except where a step says otherwise: step 11 closes the
+Tome for the run and reopens it, and step 12's drop writes a Judge's override
+that the walk removes. A RollTable an export makes where none stood is the
+run's, tracked by uuid and swept. "Disconnect the Tome" has no control of its
+own (Forget books drops every book): a walk closes the Tome's open-book entry
+for the run (`ctx.sessionDocs`, `scripts/importer/cookbook/state.mjs`) and puts
+the same entry back, reconnecting by path if it was lost.
+`tools/live/importer-magic-items.mjs` walks steps 8-12 (step 11's last sentence,
+a seat that never had the Tome, aside).
 
 ### Steps
 
@@ -4069,8 +4077,9 @@ marker, and are read, never driven.
 
 ### Teardown
 
-The import is kept. Step 4's edit is removed by Remove override on that entry;
-nothing is swept.
+The import is kept. Step 4's edit and step 12's drop are removed by Remove
+override on their entries; a closed Tome is reopened and the import rerun, so
+the document ends as it began. Only a RollTable an export made is swept.
 
 ## Magic item entries
 

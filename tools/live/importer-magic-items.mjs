@@ -1,9 +1,10 @@
 /**
  * Live walk, importer-magic-items: the Treasure Tome's magic-item chain and
  * its entries, read from the seat's own books. Walks docs/importer/TESTING.md
- * "The magic-item and arms tables" steps 8 to 10 and 12 (the Browser's
- * subtable entries, one exported) and "Magic item entries" steps 1 to 6, on the
- * GM seat, and the registry read on the Player seat. With the Judges Journal
+ * "The magic-item and arms tables" steps 8 to 12 (11: the Tome disconnected
+ * and the import rerun; 12: the Browser's subtable entries, one exported, and a
+ * classic list dropped back over its entry) and "Magic item entries" steps 1 to
+ * 6, on the GM seat, and the registry read on the Player seat. With the Judges Journal
  * and the Treasure Tome connected, a Rules tables import of `magicItemTables`
  * writes `subtables` (45 lists, by category), every classic and heroic list
  * hops into one, and a roll from the type list, from each rarity and from the
@@ -17,9 +18,15 @@
  * rolled row linked to an item names its document until that item is
  * deleted. Machine values arrive through ./_env.mjs.
  *
- * Not walked: tables 11 (the Tome disconnected: it changes the seat's open
- * books) and the drop half of 12 (a drop writes an override layer to the
- * registry); entries 6's "card unchanged" half (the branch's roll posts no
+ * Step 11 takes the Tome's session entry out of the importer's open-books map
+ * (the module has no per-book disconnect; `forgetBooks` drops every book and
+ * the remembered locations), reruns the import, puts the same entry back and
+ * reruns it again, and the world must end as it began; the teardown restores
+ * the entry if a check threw. Step 12's drop calls what the Browser's drop
+ * calls (`parseDrop`, then `setOverride`) and Remove override calls
+ * `clearOverride`; the teardown clears an override this run set.
+ *
+ * Not walked: entries 6's "card unchanged" half (the branch's roll posts no
  * card, so only the steps are read: none carries a link, none ends flagged).
  *
  * Fixtures: none built. The imported documents are the world's. A step that
@@ -63,6 +70,8 @@ const P = {
     H.RF = await import("/modules/acks-extras/scripts/importer/refresh.mjs");
     H.IC = await import("/modules/acks-extras/scripts/importer/constants.mjs");
     H.TD = await import("/modules/acks-extras/scripts/location/table-docs.mjs");
+    H.ST = await import("/modules/acks-extras/scripts/location/table-store.mjs");
+    H.SS = await import("/modules/acks-extras/scripts/importer/cookbook/state.mjs");
     H.table = (id) => H.T.getTable("magicItemTables", id);
     H.tiles = (bands) => {
       if (!Array.isArray(bands) || !bands.length) return false;
@@ -75,6 +84,23 @@ const P = {
     H.fromTT = (cite) => /\bTT\b|"tt"/.test(typeof cite === "string" ? cite : JSON.stringify(cite ?? ""));
     /** The leaf bands of a list: every band with no inner bands, and every inner band. */
     H.leaves = (bands) => (bands ?? []).flatMap((b) => (Array.isArray(b.sub) ? b.sub : [b]));
+    /** A number standing for a value's JSON, so two reads compare without a figure being printed. */
+    H.digest = (v) => {
+      const text = JSON.stringify(v ?? null);
+      let h = 5381;
+      for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+      return h;
+    };
+    /** Every band's hop, outer then its inner bands, in order (null where a band has none). */
+    H.hopList = (bands) => (bands ?? []).flatMap((b) => [b.hop ?? null, ...(Array.isArray(b.sub) ? b.sub.map((x) => x.hop ?? null) : [])]);
+    /** Polls `fn` every 100 ms for up to `tries` times; resolves its last answer. */
+    H.settle = async (fn, tries = 50) => {
+      for (let i = 0; i < tries; i++) {
+        if (fn()) return true;
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      return !!fn();
+    };
     /** A roller that answers the faces in `plan` in call order ("top" is the die's last face) and 1 after. */
     H.roller = (plan) => {
       let n = 0;
@@ -144,7 +170,12 @@ const P = {
     acksExtras.importer.cookbookImportTables(["magicItemTables"])
       .then((r) => {
         const mine = (id) => /^magicItemTables\b/.test(String(id?.docId ?? id));
-        globalThis.__mtJob = { done: true, ok: !!r, incomplete: (r?.incomplete ?? []).filter(mine).length, unread: (r?.missingTables ?? []).filter(mine).length };
+        const tome = acksExtras.importer.BOOKS?.tt?.label;
+        globalThis.__mtJob = {
+          done: true, ok: !!r, incomplete: (r?.incomplete ?? []).filter(mine).length, unread: (r?.missingTables ?? []).filter(mine).length,
+          optionalBooks: [...(r?.optionalBooks ?? [])].length, optionalNamesTome: !!tome && [...(r?.optionalBooks ?? [])].includes(tome),
+          missingNamesTome: !!tome && [...(r?.missingBooks ?? [])].includes(tome),
+        };
       })
       .catch(() => { globalThis.__mtJob = { done: true, ok: false, error: "threw" }; });
     return { started: true };
@@ -253,6 +284,84 @@ const P = {
       formulaReachesTop: !!table && Array.isArray(bands) && table.formula === `1d${H.top(bands)}`,
       everyResultHasText: !!table && [...table.results].every((r) => text(r).trim().length > 0),
       someResultHasCue: !!table && [...table.results].some((r) => text(r).includes(" — ")),
+    };
+  },
+
+  /** Tables 11: take the Tome's session entry out of the importer's open-books map, keeping it to put back. */
+  tomeClose: async () => {
+    const H = globalThis.__mt;
+    const map = H.SS.ctx?.sessionDocs;
+    if (!map?.has("tt")) return { had: false, open: !!acksExtras.importer.bookOpen("tt"), jjOpen: !!acksExtras.importer.bookOpen("jj") };
+    H.tomeHeld = map.get("tt");
+    map.delete("tt");
+    return { had: true, open: !!acksExtras.importer.bookOpen("tt"), jjOpen: !!acksExtras.importer.bookOpen("jj") };
+  },
+  /** Tables 11: put the held session entry back, as it was. */
+  tomeOpen: async () => {
+    const H = globalThis.__mt;
+    const map = H.SS.ctx?.sessionDocs;
+    const held = !!H.tomeHeld;
+    if (map && H.tomeHeld && !map.has("tt")) map.set("tt", H.tomeHeld);
+    if (map?.has("tt")) H.tomeHeld = null;
+    return { held, open: !!acksExtras.importer.bookOpen("tt") };
+  },
+  /** The magicItemTables document as the Tome's tables stand in it, as counts and a digest. */
+  tomeState: async () => {
+    const H = globalThis.__mt;
+    const doc = H.T.getDoc("magicItemTables");
+    const tables = doc.tables ?? {};
+    const hopsIn = (t) => Object.values(t ?? {}).reduce((n, bands) => n + H.leaves(bands).filter((b) => typeof b.hop === "string").length, 0);
+    return {
+      open: !!acksExtras.importer.bookOpen("tt"),
+      tables: Object.keys(tables).length, cites: Object.keys(doc.cites ?? {}).length,
+      citesTT: Object.values(doc.cites ?? {}).filter(H.fromTT).length,
+      hasSubtables: Object.hasOwn(tables, "subtables"), subtables: Object.keys(tables.subtables ?? {}).length,
+      classicHops: hopsIn(tables.classic), heroicHops: hopsIn(tables.heroic),
+      typeHops: (tables.classicType?.bands ?? []).filter((b) => typeof b.hop === "string").length,
+      digest: H.digest([tables.classic, tables.heroic, tables.classicType, tables.subtables]),
+    };
+  },
+
+  /** Tables 12, the drop: what the Browser's drop does (`parseDrop`, then `setOverride`), the stored layer read back against the list as it read. */
+  dropRound: async ({ docId, tableId, subId, uuid }) => {
+    const H = globalThis.__mt;
+    const entry = H.TD.listEntries().find((e) => e.docId === docId && e.tableId === tableId && e.subId === subId);
+    if (!entry) return { entry: false };
+    if (H.ST.hasOverride(docId, tableId)) return { entry: true, refused: true };
+    const whole = foundry.utils.deepClone(H.T.getTable(docId, tableId));
+    const before = whole[subId];
+    H.dropBefore = { digest: H.digest(before), hops: H.hopList(before), keys: Object.keys(whole).sort().join(",") };
+    const { data, sourceUuid, sourceName } = await H.TD.parseDrop(entry, { uuid });
+    await H.ST.setOverride(docId, tableId, data, { sourceUuid, sourceName });
+    const set = await H.settle(() => H.ST.hasOverride(docId, tableId) && !!H.T.getLayer(docId, H.T.PRIORITY.OVERRIDE)?.tables?.[tableId]);
+    const layer = H.T.getLayer(docId, H.T.PRIORITY.OVERRIDE)?.tables?.[tableId];
+    const stored = layer?.[subId];
+    const innerOf = (bands) => (bands ?? []).flatMap((b) => (Array.isArray(b.sub) ? b.sub : []));
+    const hopped = (list) => list.filter((h) => typeof h === "string").length;
+    return {
+      entry: true, refused: false, set, stored: Array.isArray(stored),
+      bands: before.length, storedBands: stored?.length ?? null,
+      innerBefore: innerOf(before).length, innerStored: innerOf(stored).length,
+      hopsBefore: hopped(H.dropBefore.hops), hopsStored: hopped(H.hopList(stored)),
+      innerHopsBefore: innerOf(before).filter((b) => typeof b.hop === "string").length,
+      innerHopsStored: innerOf(stored).filter((b) => typeof b.hop === "string").length,
+      hopsSame: JSON.stringify(H.hopList(stored)) === JSON.stringify(H.dropBefore.hops),
+      sameBands: H.digest(stored) === H.dropBefore.digest,
+      otherListsKept: Object.keys(layer ?? {}).sort().join(",") === H.dropBefore.keys,
+      readsSame: H.digest(H.T.getTable(docId, tableId)[subId]) === H.dropBefore.digest,
+      sourced: typeof H.ST.overrideMeta(docId, tableId)?.sourceUuid === "string",
+    };
+  },
+  /** Tables 12, Remove override: what the Browser's Remove override calls (`clearOverride`); the table read back against the list before the drop. */
+  removeOverride: async ({ docId, tableId, subId }) => {
+    const H = globalThis.__mt;
+    await H.ST.clearOverride(docId, tableId);
+    const gone = await H.settle(() => !H.ST.hasOverride(docId, tableId) && !H.T.getLayer(docId, H.T.PRIORITY.OVERRIDE)?.tables?.[tableId]);
+    const now = H.T.getTable(docId, tableId)[subId];
+    return {
+      gone, hadBefore: !!H.dropBefore,
+      sameBands: !!H.dropBefore && H.digest(now) === H.dropBefore.digest,
+      hopsSame: !!H.dropBefore && JSON.stringify(H.hopList(now)) === JSON.stringify(H.dropBefore.hops),
     };
   },
 
@@ -431,7 +540,14 @@ const own = [];
 let touched = false;
 /** The Tome cookbook's row count, once read. */
 let COUNT = 0;
-const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_500_000);
+/** The Tome's staged path, kept so the teardown can reconnect it if the session entry cannot be put back. */
+let ttPath = null;
+/** Whether step 11 took the Tome off the seat and has not yet put it back. */
+let tomeClosed = false;
+/** Whether step 12's drop wrote an override this run has not yet removed. */
+let overrideSet = false;
+const CLASSIC_POTIONS = { docId: "magicItemTables", tableId: "classic", subId: "potions" };
+const WALL_MS = Number(process.env.WALK_WALL_MS ?? 3_000_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
   try { player?.close(); } catch {}
@@ -487,6 +603,7 @@ try {
   const staged = books(["jj", "tt"]);
   if (staged.length !== 2) blocked(`ACKS_TEST_BOOKS names ${staged.length} of jj and tt`);
   for (const { id, path } of staged) {
+    if (id === "tt") ttPath = path;
     await run(gm, P.connectBook, { id, path });
     const state = await waitFor(gm, P.bookState, { id }, `connect ${id}`);
     check(`${id} is open on the seat`, state.open, { ok: state.ok ?? null, error: state.error ?? null });
@@ -534,6 +651,37 @@ try {
   check("10. the walk continues into a potions subtable and the item is named, carrying its cues", tail.lists?.length === 2 && tail.lists[0] === "classic.potions" && /^subtables\.potions\d+$/.test(tail.lists[1]) && tail.flag === null && tail.named && tail.cues, { lists: tail.lists, named: tail.named, cues: tail.cues });
   check("10. each step of the rigged roll cites the Tome's page", tail.citesTT?.length === 2 && tail.citesTT.every(Boolean), tail.citesTT);
 
+  section("The magic-item and arms tables: 11");
+  const pre = await run(gm, P.tomeState);
+  note("before the Tome is disconnected", { open: pre.open, tables: pre.tables, subtables: pre.subtables, classicHops: pre.classicHops, heroicHops: pre.heroicHops, citesTT: pre.citesTT });
+  tomeClosed = true;
+  const closed = await run(gm, P.tomeClose);
+  check("11. the Tome is disconnected from the seat and the Judges Journal stays open", closed.had && !closed.open && closed.jjOpen, closed);
+  await run(gm, P.tablesJob);
+  const jobClosed = await waitFor(gm, P.jobState, {}, "import magicItemTables without the Tome", 420);
+  note("import without the Tome", jobClosed);
+  check("11. the import report names the Tome as an optional book that is not open", jobClosed.ok && jobClosed.optionalNamesTome && !jobClosed.missingNamesTome, { ok: jobClosed.ok, optional: jobClosed.optionalBooks, namesTome: jobClosed.optionalNamesTome, missingNamesTome: jobClosed.missingNamesTome });
+  const during = await run(gm, P.tomeState);
+  const chClosed = await run(gm, P.chain);
+  check("11. the Tome's raw tables stay in the document: the same table keys, the same subtables, the same Tome cites", !during.open && during.tables === pre.tables && during.hasSubtables && during.subtables === pre.subtables && during.cites === pre.cites && during.citesTT === pre.citesTT && pre.citesTT > 0, { tables: [pre.tables, during.tables], subtables: [pre.subtables, during.subtables], citesTT: [pre.citesTT, during.citesTT] });
+  check("11. the same lists still stand as the Tome's: every classic and heroic list keeps its hops, the type list its eight", during.classicHops === pre.classicHops && during.heroicHops === pre.heroicHops && during.typeHops === pre.typeHops && chClosed.classicHop === ch.classicHop && chClosed.heroicHop === ch.heroicHop && chClosed.armorsHop && chClosed.typeHopsResolve === ch.typeHopsResolve, { classicHops: [pre.classicHops, during.classicHops], heroicHops: [pre.heroicHops, during.heroicHops], classicHop: chClosed.classicHop, heroicHop: chClosed.heroicHop });
+  const realClosed = await run(gm, P.realRolls, { n: 1, rarities: ch.rarities ?? [] });
+  check("11. a roll from the type list and one from each rarity still end unflagged and cite the Tome on the subtable step", realClosed.classic.length === 1 && realClosed.classic.every((t) => t.ok && t.flag === null && t.lists.length === 3) && realClosed.heroic.length === (ch.rarities ?? []).length && realClosed.heroic.every(heroicOk), { classic: realClosed.classic.map((t) => t.flag), heroicFlags: realClosed.heroic.filter((t) => t.flag !== null).length, notTT: realClosed.heroic.filter((t) => !t.citesTT?.[1]).length });
+  let opened = await run(gm, P.tomeOpen);
+  if (!opened.open && ttPath) {
+    await run(gm, P.connectBook, { id: "tt", path: ttPath });
+    await waitFor(gm, P.bookState, { id: "tt" }, "reconnect tt", 240);
+    opened = { ...opened, reconnected: true, open: (await run(gm, P.bookState, { id: "tt" })).open };
+  }
+  check("11. the Tome is open on the seat again, the held session entry put back", opened.open, opened);
+  await run(gm, P.tablesJob);
+  const jobBack = await waitFor(gm, P.jobState, {}, "import magicItemTables with the Tome again", 420);
+  if (opened.open && jobBack.ok) tomeClosed = false;
+  const post = await run(gm, P.tomeState);
+  const chBack = await run(gm, P.chain);
+  check("11. the import with the Tome again ran with nothing unread or incomplete and no optional book left unopened", jobBack.ok && !jobBack.incomplete && !jobBack.unread && !jobBack.optionalNamesTome, jobBack);
+  check("11. the world ends as it began: the same subtables key count, hop counts and tables", post.open && post.subtables === pre.subtables && post.classicHops === pre.classicHops && post.heroicHops === pre.heroicHops && post.typeHops === pre.typeHops && post.tables === pre.tables && post.citesTT === pre.citesTT && post.digest === pre.digest && chBack.subtables === ch.subtables && chBack.classicHop === ch.classicHop && chBack.heroicHop === ch.heroicHop, { subtables: [pre.subtables, post.subtables], classicHops: [pre.classicHops, post.classicHops], heroicHops: [pre.heroicHops, post.heroicHops], sameDigest: post.digest === pre.digest });
+
   section("The magic-item and arms tables: 12");
   const en = await run(gm, P.entries);
   note("entries", en);
@@ -542,6 +690,25 @@ try {
   if (ex.created && ex.uuid) { own.push(ex.uuid); await gm.track(ex.uuid, "RollTable"); }
   note("export of a potions subtable", { kind: ex.kind, created: ex.created, results: ex.results, bands: ex.bands });
   check("12. a potions subtable exports as a RollTable of one result per band, its formula the die its bands reach, each result with text and the cue joined to its name", ex.entry && ex.kind === "rolltable" && ex.results === ex.bands && ex.formulaReachesTop && ex.everyResultHasText && ex.someResultHasCue, ex);
+
+  const exC = await run(gm, P.exportList, CLASSIC_POTIONS);
+  if (exC.created && exC.uuid) { own.push(exC.uuid); await gm.track(exC.uuid, "RollTable"); }
+  note("export of the classic potions list", { kind: exC.kind, created: exC.created, results: exC.results, bands: exC.bands });
+  check("12. a classic category list exports as a RollTable of one result per band, its formula the die its bands reach", exC.entry && exC.kind === "rolltable" && exC.results === exC.bands && exC.formulaReachesTop, exC);
+  if (exC.uuid) {
+    overrideSet = true;
+    const dr = await run(gm, P.dropRound, { ...CLASSIC_POTIONS, uuid: exC.uuid });
+    if (!dr.entry || dr.refused) overrideSet = false;
+    note("drop of the exported list back over its entry", dr);
+    check("12. no override stood on the classic table before the drop, and the drop wrote one with its source", dr.entry && !dr.refused && dr.set && dr.stored && dr.sourced, { refused: dr.refused, set: dr.set, stored: dr.stored, sourced: dr.sourced });
+    check("12. the stored layer keeps every hop, inner bands included, the same bands and the other lists of the table", dr.hopsBefore > 0 && dr.innerBefore >= 2 && dr.innerHopsBefore >= 2 && dr.hopsStored === dr.hopsBefore && dr.innerStored === dr.innerBefore && dr.innerHopsStored === dr.innerHopsBefore && dr.hopsSame && dr.storedBands === dr.bands && dr.otherListsKept, { hops: [dr.hopsBefore, dr.hopsStored], inner: [dr.innerBefore, dr.innerStored], innerHops: [dr.innerHopsBefore, dr.innerHopsStored], bands: [dr.bands, dr.storedBands], otherListsKept: dr.otherListsKept });
+    note("the dropped list against the list before", { sameBands: dr.sameBands, readsSame: dr.readsSame });
+    if (overrideSet) {
+      const rm = await run(gm, P.removeOverride, CLASSIC_POTIONS);
+      overrideSet = false;
+      check("12. Remove override clears the layer and the table reads as before, hops included", rm.gone && rm.hadBefore && rm.sameBands && rm.hopsSame, rm);
+    }
+  }
 
   section("Magic item entries: 1, 2");
   const imp = await importItems();
@@ -632,6 +799,27 @@ try {
   checks.push(["walk ran to the end", false]);
 } finally {
   section("teardown");
+  if (gm && overrideSet) {
+    try {
+      const rm = await run(gm, P.removeOverride, CLASSIC_POTIONS);
+      note("override removed", { gone: rm.gone });
+      check("teardown: the override this run set is removed", rm.gone, { gone: rm.gone });
+    } catch (err) { console.error("remove override:", err?.message ?? err); checks.push(["teardown: the override this run set is removed", false]); }
+  }
+  if (gm && tomeClosed) {
+    try {
+      let o = await run(gm, P.tomeOpen);
+      if (!o.open && ttPath) {
+        await run(gm, P.connectBook, { id: "tt", path: ttPath });
+        await waitFor(gm, P.bookState, { id: "tt" }, "reconnect tt", 240);
+        o = { ...o, reconnected: true, open: (await run(gm, P.bookState, { id: "tt" })).open };
+      }
+      await run(gm, P.tablesJob);
+      const j = await waitFor(gm, P.jobState, {}, "import magicItemTables after the walk", 420);
+      note("Tome reconnected", { held: o.held, open: o.open, reconnected: !!o.reconnected, import: j.ok });
+      check("teardown: the Tome is open on the seat and the tables import ran again", o.open && j.ok, { open: o.open, ok: j.ok });
+    } catch (err) { console.error("restore Tome:", err?.message ?? err); checks.push(["teardown: the Tome is open on the seat and the tables import ran again", false]); }
+  }
   let swept = 0;
   if (gm && own.length) {
     try {
