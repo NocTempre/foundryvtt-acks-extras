@@ -335,6 +335,24 @@ its fixtures and selectors are unchanged by this slice. Offline coverage is
    reached by Tab and named; `prefers-reduced-motion` turns off the turn's
    brightness beat and the face's colour transition.
 
+7. **Dress and pictures (both seats).** With the step 1 pot open: lozenge
+   corners from the third band, breaks at the top, and the detected card's frame
+   gold. With no texture imported, no back or face carries a grime, foil or
+   vignette layer (none of `.acks-extras-treasure-grime`, `-foil`, `-vignette`
+   in the window). Wire a reader from the console, through the loaded module's
+   own URL so it is the same instance:
+   `(await import("/modules/acks-extras/scripts/treasure/card-art.mjs")).setArtReader(({side}) => side === "texture" ? "<a world raster>" : null)`,
+   then re-render the window: the lowest
+   band's back carries the grimiest layer and the highest none, the top band a
+   foil. The undetected masked card's back matches the plain card's in frame,
+   corners and layers as well as in icon. Turn a card whose item has a world raster
+   picture: the face shows it in a framed slot; an item with only a core icon
+   shows the lozenge. Give `treasure/item-masked` a disguise with a name and no
+   picture: the Judge tile shows "Undetected, and its disguise has no picture, …",
+   and on the Player seat the turned face and the pile's Card `faces[0].img`
+   show the pool icon, never the item's own picture. The header reads "In the
+   pot: {n}" in staging and "You found {n} items" once open.
+
 **Teardown:** the run's own pots and whispers are tracked and swept; the kept
 fixtures stay.
 

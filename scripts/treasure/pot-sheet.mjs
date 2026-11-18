@@ -18,6 +18,7 @@ import { executeAsGM } from "../lib/sockets.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
 import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
+import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
 import { dealLines, dealMessages, lairWarning } from "./deal-logic.mjs";
 import { dealLettersIntoPot } from "./deal.mjs";
 import { styleCite } from "./hoard.mjs";
@@ -139,7 +140,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     context.totalTip = total.parts.length
       ? loc("tip.haulParts", { parts: total.parts.map((p) => loc("tip.haulPart", { pool: loc(`pool.${p.poolKey}`), gp: gpText(p.gp) })).join(" · "), cite })
       : loc("tip.haulNone", { cite });
-    context.turnedText = loc("bar.turned", { turned, count });
+    context.foundText = staging ? loc("bar.staged", { n: count }) : loc(count === 1 ? "bar.foundOne" : "bar.found", { n: count });
+    context.foundTip = loc("bar.turned", { turned, count });
     context.bands = Array.from({ length: BAND_COUNT }, (_, rank) => ({ rank, name: loc(`band.${rank}`) }));
     const takenBy = new Map();
     for (const p of deal?.replace ?? []) for (const id of p.struck) takenBy.set(id, bucketNameOf(view, p.seedId));
@@ -303,6 +305,23 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       canTake: open && v.up && !v.claimed,
       dragUuid: open && v.up && !v.claimed ? (this.document.cards.get(v.id)?.uuid ?? "") : "",
       staging,
+      back: this.#withTextures(backDress(v), v.band, backArt(v)),
+      face: this.#withTextures(faceDress(v), v.band, faceArt(v)),
+    };
+  }
+
+  /**
+   * A dress with the textures its layers paint: a layer the dress asks for is
+   * rendered only where the reader finds a texture for it.
+   */
+  #withTextures(dress, band, art) {
+    const foilKind = dress.foil === "magic" ? TEXTURE.foilMagic : TEXTURE.foil;
+    return {
+      ...dress,
+      art,
+      grimeTex: dress.grime ? textureArt(TEXTURE.grime, band) : null,
+      foilTex: dress.foil ? textureArt(foilKind, band) : null,
+      vignetteTex: dress.vignette ? textureArt(TEXTURE.vignette, band) : null,
     };
   }
 

@@ -7,10 +7,11 @@
 import assert from "node:assert/strict";
 import { BUCKET, PHASE, POOL, REFUSAL } from "../scripts/treasure/constants.mjs";
 import {
-  AURA_BACK_ICON, DEAL_TOGGLE, apparentName, backIconOf, bandsOf, buildCard, cardInPot, cardView, claimCoinCredits, claimItemData, dealOf, faceLook, flipUpdate, haulOf,
+  AURA_BACK_ICON, DEAL_TOGGLE, apparentImg, apparentName, backIconOf, bandsOf, buildCard, cardInPot, cardView, claimCoinCredits, claimItemData, dealOf, faceLook, flipUpdate, haulOf,
   normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, setToggle, shownPool, stage,
   replaceWarning, turnedOf, unstage, withBands, worthOf,
 } from "../scripts/treasure/pot-logic.mjs";
+import { backArt, backDress, faceArt } from "../scripts/treasure/card-art.mjs";
 import { planReplace } from "../scripts/treasure/replace-logic.mjs";
 
 let checks = 0;
@@ -85,6 +86,23 @@ const view = (cards, pot = {}) => ({
   eq(judge.maskName, "Plain blade");
   ok(judge.aura && !judge.leaks, "a masked undetected card does not leak");
   ok(cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, mask: null } }, { isGM: true }).leaks, "an undetected card with no mask is flagged to the Judge");
+  const pictureless = cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, mask: { name: "Plain blade" } } }, { isGM: true });
+  ok(pictureless.leaks && pictureless.leaksPicture, "a mask that names an item and has no picture lets the true one show: flagged to the Judge");
+  ok(!cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, mask: null } }, { isGM: true }).leaksPicture, "no mask at all is the name's warning, not the picture's");
+  ok(!judge.leaksPicture, "a mask with a name and a picture warns of neither");
+  {
+    const truePic = { ...magicUndetected, source: { ...(magicUndetected.source ?? {}), data: { ...(magicUndetected.source?.data ?? {}), img: "worlds/x/true-sword.webp" } } };
+    ok(apparentImg({ ...truePic, mask: { name: "Plain blade" } }) !== "worlds/x/true-sword.webp", "a mask with a name and no picture never shows the item's own picture");
+    eq(flipUpdate("cX", { ...truePic, mask: { name: "Plain blade" } }).faces[0].img === "worlds/x/true-sword.webp", false, "nor does the Card face written for every seat");
+    eq(apparentImg({ ...truePic, mask: null }), "worlds/x/true-sword.webp", "with no mask the item shows its own picture");
+  }
+  const maskPicOnly = cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, mask: { img: "icons/plain.webp" } } }, { isGM: true });
+  ok(maskPicOnly.leaks && !maskPicOnly.leaksPicture, "a mask with a picture and no name still leaks the name");
+  const detectedBare = cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, detected: true, mask: { name: "Plain blade" } } }, { isGM: true });
+  ok(!detectedBare.leaks && !detectedBare.leaksPicture, "a card whose magic is detected is not warned of");
+  const plainBare = cardView({ id: "c2", face: null, value: 0, truth: truth({ mask: { name: "Alias" } }) }, { isGM: true });
+  ok(!plainBare.leaks && !plainBare.leaksPicture, "a plain disguised item is not warned of");
+  ok(!cardView({ id: "c2", face: null, value: 0, truth: { ...magicUndetected, mask: { name: "Plain blade" } } }, { isGM: false }).leaksPicture, "a player is never warned");
   eq(cardView({ id: "c3", face: null, value: 99, truth: truth() }).band, 3, "a band is clamped");
   ok(cardView({ id: "c3", face: null, value: 0, truth: truth({ bucket: BUCKET.add }) }, { isGM: true }).seed, "a Judge sees a seed marked");
   ok(!cardView({ id: "c3", face: null, value: 0, truth: truth({ bucket: BUCKET.add }) }, { isGM: false }).seed, "a player never does");
@@ -230,7 +248,7 @@ const view = (cards, pot = {}) => ({
 
 /* ====== R2: bands, backs, faces and deal toggles ====== */
 
-const snap = (cost, markets = {}) => ({ name: "Thing", type: "item", system: { cost }, flags: { "acks-extras": { markets } } });
+const snap = (cost, markets = {}, cookbookId = null) => ({ name: "Thing", type: "item", system: { cost }, flags: { "acks-extras": { markets, ...(cookbookId ? { cookbook: { id: cookbookId } } : {}) } } });
 const item = (label, cost, over = {}) => truth({ label, source: { uuid: `Item.${label}`, data: snap(cost) }, ...over });
 const magicItem = (label, cost, over = {}) =>
   truth({ pool: POOL.magic, label, magical: true, source: { uuid: `Item.${label}`, data: snap(cost, { magic: true }) }, ...over });
@@ -315,6 +333,38 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq({ ...builtMagic, flags: null }, { ...builtPlain, flags: null }, "and the Card document carries nothing the plain one does not");
   ok(!/magic|curs/i.test(JSON.stringify(b)), "the undetected back's view names neither magic nor curse");
   ok(b.auraBack === false, "no aura mark on an undetected back");
+  ok(b.kind === null && b.artSrc === "" && a.kind === null && a.artSrc === "", "a face-down view carries no kind and no picture, masked or not");
+
+  // The back's art and dressing read only what the twin backs share: every field a back is dressed from, and every argument its reader sees.
+  const seen = [];
+  const spy = (request) => (seen.push(JSON.stringify(request)), "acks-extras-art/pool.webp");
+  const dressed = (v) => ({ dress: backDress(v), art: backArt(v, spy), seen: seen.splice(0) });
+  eq(dressed(b), dressed(a), "a masked undetected back is dressed and pictured exactly as its plain twin's");
+  eq(dressed(b).seen, [JSON.stringify({ side: "back", pool: POOL.item, band: 2 })], "its reader is asked for the displayed pool and the band, and nothing else");
+  const sibling = down(magicItem("Other spoon", 1, { detected: false, mask: { name: "Ladle", cost: 5 }, source: { uuid: "Item.o", data: { ...snap(1, {}, "tt.item9"), name: "Other", img: "worlds/other.webp" } } }));
+  eq(dressed(sibling), dressed(a), "nor does what the item truly is (its kind, its picture) reach the back");
+  const detectedBack = down(magicItem("Spoon of ruin", 9000, { detected: true, identified: "none" }));
+  eq({ ...dressed(detectedBack).dress, className: "", frame: "" }, { ...dressed(a).dress, className: "", frame: "" }, "a detected back differs from its plain twin's by the gold rule alone");
+  ok(dressed(detectedBack).dress.frame === "gold" && dressed(a).dress.frame === "double", "and that is the aura rule");
+
+  // A turned twin: the seat is shown the mask, never the true kind or picture behind it.
+  const faceOf = (t) => cardView(cardOf("x", t, 0, 2), { isGM: false });
+  const maskedUp = faceOf(item("Real", 5, { magical: true, detected: false, mask: { name: "Alias", img: "worlds/alias.webp" } }));
+  const seenFace = [];
+  faceArt(faceOf(item("Real", 5, { mask: { name: "Alias", img: "worlds/alias.webp" }, source: { uuid: "Item.r", data: snap(5, {}, "tt.item4") } })), (request) => (seenFace.push(request), null));
+  eq(seenFace, [{ side: "face", pool: POOL.item, band: 2, kind: null }], "a masked item whose true source carries a cookbook id calls the reader with no kind");
+  seenFace.length = 0;
+  faceArt(maskedUp, (request) => (seenFace.push(request), null));
+  eq(seenFace, [{ side: "face", pool: POOL.item, band: 2, kind: null }], "a masked card's face asks the reader for no kind");
+  eq(maskedUp.artSrc, "worlds/alias.webp", "and shows the mask's picture");
+  const unnamedMask = faceOf(item("Real", 5, { magical: true, detected: false, mask: { name: "Alias" }, source: { uuid: "Item.r", data: { ...snap(5), img: "worlds/true.webp" } } }));
+  eq(unnamedMask.artSrc, "", "a mask that names an item and has no picture never shows the true one");
+  eq(faceOf(item("Plain", 5, { source: { uuid: "Item.p", data: { ...snap(5, {}, "tt.item4"), img: "worlds/p.webp" } } })).kind, "tt.item4", "an ordinary card passes its cookbook id");
+  eq(faceOf(item("Plain", 5)).kind, null, "an item with no cookbook id passes none");
+  eq(cardView(cardOf("x", item("Plain", 5, { source: { uuid: "Item.p", data: snap(5, {}, "tt.item4") } }), null, 2), { isGM: false }).kind, null, "a face-down card passes no kind even where the item has one");
+  eq(faceOf(item("Plain", 5, { mask: { name: "Alias" }, source: { uuid: "Item.p", data: snap(5, {}, "tt.item4") } })).kind, null, "a disguised ordinary item passes none: the kind would be its true one");
+  eq(faceOf(magicItem("Wand", 5, { detected: false, source: { uuid: "Item.w", data: snap(5, { magic: true }, "tt.item4") } })).kind, null, "undetected magic passes none");
+  eq(cardView(cardOf("x", item("Real", 5, { mask: { name: "Alias" }, source: { uuid: "Item.r", data: { ...snap(5, {}, "tt.item4"), img: "worlds/true.webp" } } }), null, 2), { isGM: true }).kind, "tt.item4", "a Judge's tile reads the truth");
 
   const detected = magicItem("Spoon of ruin", 9000, { detected: true, identified: "none" });
   const d = down(detected);

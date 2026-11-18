@@ -5,7 +5,7 @@
       <span class="acks-extras-caption">{{#if staging}}{{localize "ACKS-TREASURE.bar.potValue"}}{{else}}{{localize "ACKS-TREASURE.bar.haul"}}{{/if}}</span>
       <span class="acks-extras-treasure__figure" data-tooltip-text="{{totalTip}}">{{totalText}}</span>
     </div>
-    <span class="acks-extras-treasure__turned">{{turnedText}}</span>
+    <span class="acks-extras-treasure__turned" data-tooltip-text="{{foundTip}}">{{foundText}}</span>
     <ul class="acks-extras-treasure__legend" aria-label="{{localize 'ACKS-TREASURE.bar.bands'}}">
       {{#each bands}}
         <li class="acks-extras-treasure__legend-item"><span class="acks-extras-treasure__swatch is-band-{{rank}}" aria-hidden="true"></span>{{name}}</li>
@@ -97,18 +97,25 @@
       <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
         {{#each cards}}
           {{#if ../isGM}}
-            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
+            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge acks-extras-treasure-flare is-band-{{band}} is-look-{{look}} {{face.className}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
+              {{#if face.art.full}}<img class="acks-extras-treasure-art" src="{{face.art.src}}" alt="" aria-hidden="true">{{/if}}
+              {{#if face.vignetteTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-vignette" style="background-image: {{face.vignetteTex}}" aria-hidden="true"></span>{{/if}}
+              <span class="acks-extras-treasure-layer acks-extras-treasure-frame" aria-hidden="true"></span>
+              {{#if face.corners}}<span class="acks-extras-treasure-layer acks-extras-treasure-corners is-face is-{{face.corners}}" aria-hidden="true"><i></i><i></i></span>{{/if}}
+              {{#if face.foilTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-foil is-foil-{{face.foil}}" style="background-image: {{face.foilTex}}" aria-hidden="true"></span>{{/if}}
+              {{#if face.notched}}<span class="acks-extras-treasure-layer acks-extras-treasure-notch" aria-hidden="true"><i></i><i></i><i></i><i></i></span>{{/if}}
               <div class="acks-extras-treasure-card__tag">
                 <span>{{tag}}</span>
-                {{#if seed}}<span class="acks-extras-treasure-card__seed">{{localize "ACKS-TREASURE.card.seed"}}</span>{{/if}}
+                {{#if seed}}<span class="acks-extras-treasure-card__seed"><span class="acks-lozenge-mark acks-lozenge-mark--hollow" aria-hidden="true"></span>{{localize "ACKS-TREASURE.card.seed"}}</span>{{/if}}
                 <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
                 <span class="acks-extras-treasure__pips" role="img" aria-label="{{bandName}}" data-tooltip-text="{{bandTip}}">{{bandPips}}</span>
               </div>
+              {{#unless face.art.full}}<span class="acks-extras-treasure-artslot" aria-hidden="true">{{#if face.art.slot}}<img src="{{face.art.src}}" alt="">{{else}}<span class="acks-lozenge-mark acks-lozenge-mark--hollow"></span>{{/if}}</span>{{/unless}}
               <div class="acks-extras-treasure-card__body">
                 <span class="acks-extras-treasure-card__name">{{name}}</span>
                 {{#if struck}}<span class="acks-extras-treasure-card__warn">{{struckText}}</span>{{/if}}
                 {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
-                {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{localize "ACKS-TREASURE.card.leaks"}}</span>{{/if}}
+                {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{#if leaksPicture}}{{localize "ACKS-TREASURE.card.leaksPicture"}}{{else}}{{localize "ACKS-TREASURE.card.leaks"}}{{/if}}</span>{{/if}}
                 <span class="acks-extras-treasure-card__note">{{worthText}}</span>
                 <span class="acks-extras-treasure-card__note">{{weightText}}</span>
                 <span class="acks-extras-treasure-card__note">{{stateText}}</span>
@@ -124,20 +131,36 @@
               </div>
             </li>
           {{else}}
-            <li class="acks-extras-treasure__slot" data-card-id="{{id}}">
+            <li class="acks-extras-treasure__slot acks-extras-treasure-flare is-band-{{band}}" data-card-id="{{id}}">
               {{#if down}}
-                <button type="button" class="acks-extras-treasure-back is-band-{{band}}" data-action="flip" data-card-id="{{id}}" aria-label="{{backLabel}}" data-tooltip-text="{{tip}}">
-                  <img class="acks-extras-treasure-back__icon" src="{{backIcon}}" alt="">
-                  <span class="acks-extras-treasure-back__pool">{{backTag}}</span>
-                  <span class="acks-extras-treasure-back__pips" aria-hidden="true">{{bandPips}}</span>
+                <button type="button" class="acks-extras-treasure-back is-band-{{band}} {{back.className}}" data-action="flip" data-card-id="{{id}}" aria-label="{{backLabel}}" data-tooltip-text="{{tip}}">
+                  {{#if back.art.full}}<img class="acks-extras-treasure-art" src="{{back.art.src}}" alt="" aria-hidden="true">{{/if}}
+                  {{#if back.grimeTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-grime is-grime-{{back.grime}}" style="background-image: {{back.grimeTex}}" aria-hidden="true"></span>{{/if}}
+                  <span class="acks-extras-treasure-layer acks-extras-treasure-frame" aria-hidden="true"></span>
+                  {{#if back.corners}}<span class="acks-extras-treasure-layer acks-extras-treasure-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></span>{{/if}}
+                  {{#if back.breaks}}<span class="acks-extras-treasure-layer acks-extras-treasure-breaks" aria-hidden="true"><i></i><i></i></span>{{/if}}
+                  {{#if back.foilTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-foil is-on-back is-foil-{{back.foil}}" style="background-image: {{back.foilTex}}" aria-hidden="true"></span>{{/if}}
+                  {{#if back.notched}}<span class="acks-extras-treasure-layer acks-extras-treasure-notch" aria-hidden="true"><i></i><i></i><i></i><i></i></span>{{/if}}
+                  {{#unless back.art.full}}<span class="acks-extras-treasure-back__crest{{#if back.art.slot}} has-art{{/if}}" aria-hidden="true">{{#if back.art.slot}}<img class="acks-extras-treasure-back__art" src="{{back.art.src}}" alt="">{{else}}<img class="acks-extras-treasure-back__icon" src="{{backIcon}}" alt="">{{/if}}</span>{{/unless}}
+                  <span class="acks-extras-treasure-back__plate">
+                    <span class="acks-extras-treasure-back__pool">{{backTag}}</span>
+                    <span class="acks-extras-treasure-back__pips" aria-hidden="true">{{bandPips}}</span>
+                  </span>
                 </button>
               {{else}}
-                <div class="acks-extras-treasure-card is-look-{{look}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
+                <div class="acks-extras-treasure-card is-look-{{look}} {{face.className}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}" data-up="1" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
+                  {{#if face.art.full}}<img class="acks-extras-treasure-art" src="{{face.art.src}}" alt="" aria-hidden="true">{{/if}}
+                  {{#if face.vignetteTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-vignette" style="background-image: {{face.vignetteTex}}" aria-hidden="true"></span>{{/if}}
+                  <span class="acks-extras-treasure-layer acks-extras-treasure-frame" aria-hidden="true"></span>
+                  {{#if face.corners}}<span class="acks-extras-treasure-layer acks-extras-treasure-corners is-face is-{{face.corners}}" aria-hidden="true"><i></i><i></i></span>{{/if}}
+                  {{#if face.foilTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-foil is-foil-{{face.foil}}" style="background-image: {{face.foilTex}}" aria-hidden="true"></span>{{/if}}
+                  {{#if face.notched}}<span class="acks-extras-treasure-layer acks-extras-treasure-notch" aria-hidden="true"><i></i><i></i><i></i><i></i></span>{{/if}}
                   <div class="acks-extras-treasure-card__tag">
                     <span>{{tag}}</span>
                     <span class="acks-extras-treasure__swatch is-band-{{band}}" aria-hidden="true"></span>
                     <span class="acks-extras-treasure__pips" role="img" aria-label="{{bandName}}" data-tooltip-text="{{bandTip}}">{{bandPips}}</span>
                   </div>
+                  {{#unless face.art.full}}<span class="acks-extras-treasure-artslot" aria-hidden="true">{{#if face.art.slot}}<img src="{{face.art.src}}" alt="">{{else}}<span class="acks-lozenge-mark acks-lozenge-mark--hollow"></span>{{/if}}</span>{{/unless}}
                   <div class="acks-extras-treasure-card__body">
                     <span class="acks-extras-treasure-card__name">{{name}}</span>
                     <span class="acks-extras-treasure-card__note">{{worthText}}</span>

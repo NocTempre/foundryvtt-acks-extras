@@ -92,8 +92,11 @@ window is narrow.
 - **A turned, unclaimed card drags** as `{type: "Card", uuid}`, to a member's zone
   in the party aside or to an actor's sheet (see "The party aside" and "Drag onto
   a sheet").
-- A card turning changes its colour and brightness for one beat and never
-  turns in space; nothing plays under `prefers-reduced-motion`.
+- A card turning changes its background colour and never moves; nothing plays
+  under `prefers-reduced-motion`.
+- The header counts what the pot holds: "In the pot: {n}" while staging, "You
+  found {n} items" once open, with the number turned in its tooltip. No string
+  the window shows calls an entry a card.
 
 ## Opening, the relay and closing
 
@@ -336,6 +339,52 @@ through `dealOf`:
 - A pot that the toggles would leave empty refuses to open.
 - When any toggle is on, `openPot` whispers the Judges a card listing, per
   toggle, the true names of the cards it changed. No card is posted otherwise.
+
+### How a card is dressed
+
+Source: `card-art.mjs` (`backArt`, `faceArt`, `artTier`, `backDress`,
+`faceDress`), spread into the context by `PotSheet` `#cardContext`.
+
+**A back** is dressed from `backKey`, `band` and `auraBack` alone, so an
+undetected magic card's back stays its plain twin's. The frame is a hairline at
+the lowest band and a double rule above it, gold where an aura is detected;
+lozenge corners join from the third band, lozenge breaks and a prismatic foil at
+the last. A special pool's back is notched. Each ornament repeats the pips, so a
+band never rests on colour alone. Grime runs the other way, heaviest on the
+lowest band (`is-grime-3`) and gone at the top: the find comes out of the muck,
+and the better it is the cleaner it shines.
+
+**A face** is dressed from what the seat is shown (`look`, `poolKey`): a hairline
+on plain stock, aged at the two lower bands; a double keyline with filled
+corners and the magic foil for known magic; a heavy rule with hollow corners and
+a still vignette for a curse, which never wears foil. A struck tile is dashed,
+its name struck and its picture greyed.
+
+**Textures are read, never drawn.** The grime, foil and vignette layers paint
+only what `textureArt(kind, band)` finds through the same reader, asked
+`{side: "texture", kind, band}` with `kind` one of `TEXTURE` (`grime`, `foil`,
+`foil-magic`, `vignette`). A layer with no texture is not rendered, so the dress
+falls back to its frames, corners, breaks and notch alone. The texture is set as
+the layer's inline `background-image`; the stylesheet gives only the blend and
+the strength (grime's opacity by band). No gradient, noise or filter stands in
+for one: textures come from the Judge's book through the importer or are open
+art with a recorded licence.
+
+**Pictures** come through an injectable reader (`setArtReader`) asked
+`{side, pool, band, kind?}`. Until the book-art library exists it is `noArt`,
+and no art ships. A back asks by the shown pool and band only, never by kind or
+the item's picture. A face asks by the kind (the item's cookbook id), which
+`cardView` passes only where the face shows the true item, then falls to the
+item's own picture where that is not one core draws for any item (`icons/`).
+`artTier` sizes what it finds: a raster under the world art directory fills the
+card, any other raster takes a framed slot, and an svg or nothing leaves the
+lozenge. A reader that throws or answers a non-path finds nothing.
+
+**A name-only disguise** never shows the true picture: `apparentImg` takes the
+mask's picture, else the pool icon where a mask exists, and the item's own only
+where there is no mask. The Card face every seat can read is written from it.
+The claimed item keeps its true picture (`disguisePatch` writes `img` only from
+a mask that has one), so the Judge's tile warns of it (`leaksPicture`).
 
 ## The replace planner
 

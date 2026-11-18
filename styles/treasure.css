@@ -47,10 +47,20 @@
   font-size: var(--acks-fs-body);
 }
 
-.acks-extras-treasure .is-band-0 { --band: var(--acks-extras-treasure-band-0); }
-.acks-extras-treasure .is-band-1 { --band: var(--acks-extras-treasure-band-1); }
-.acks-extras-treasure .is-band-2 { --band: var(--acks-extras-treasure-band-2); }
-.acks-extras-treasure .is-band-3 { --band: var(--acks-extras-treasure-band-3); }
+/* Each band also names its shadow and highlight (the stops the porphyry gradient
+   runs between) and a static glow radius that grows with the band. */
+.acks-extras-treasure .is-band-0 { --band: var(--acks-extras-treasure-band-0); --flare: 0em; }
+.acks-extras-treasure .is-band-1 { --band: var(--acks-extras-treasure-band-1); --flare: 0.3em; }
+.acks-extras-treasure .is-band-2 { --band: var(--acks-extras-treasure-band-2); --flare: 0.6em; }
+.acks-extras-treasure .is-band-3 { --band: var(--acks-extras-treasure-band-3); --flare: 1em; }
+
+.acks-extras-treasure .is-band-0,
+.acks-extras-treasure .is-band-1,
+.acks-extras-treasure .is-band-2,
+.acks-extras-treasure .is-band-3 {
+  --band-deep: color-mix(in srgb, var(--band) 62%, black);
+  --band-lit: color-mix(in srgb, var(--band) 62%, white);
+}
 
 /* The part root: the one scroller, shrinking inside the frame. */
 .acks-extras-treasure .acks-extras-treasure__root {
@@ -434,32 +444,42 @@
   min-width: 0;
 }
 
-/* A face-down card: the pool's icon on the band's colour. */
+/* A face-down card: porphyry in the band's colour, a frame whose ornaments repeat
+   the band, the pool's icon in a lozenge and its name on a plate. The three
+   burgundy tokens are driven per band, so the vendor porphyry follows the band.
+   Every dressing layer is an aria-hidden child: the button's own outline and
+   box-shadow stay free for the focus ring, and its pseudo-elements are the
+   vendor texture's. */
 .acks-extras-treasure .acks-extras-treasure-back {
+  --acks-burgundy: var(--band);
+  --acks-burgundy-deep: var(--band-deep);
+  --acks-burgundy-lit: var(--band-lit);
+  --acks-tx-porphyry-opacity: 0.3;
+  --notch-edge: color-mix(in srgb, var(--acks-on-burgundy) 60%, transparent);
   flex: 1 1 auto;
   min-height: 10em;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--acks-sp-5);
+  gap: var(--acks-sp-4);
   padding: 0;
   margin: 0;
+  overflow: hidden;
   border-radius: 0;
   cursor: pointer;
-  background: var(--band);
+  background-color: var(--band);
   color: var(--acks-on-burgundy);
   border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
-  outline: 3px double color-mix(in srgb, var(--acks-on-burgundy) 75%, transparent);
-  outline-offset: -0.45em;
   font-family: var(--acks-font-display);
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
   text-transform: uppercase;
+  transition: box-shadow var(--acks-duration) var(--acks-ease);
 }
 
 .acks-extras-treasure .acks-extras-treasure-back:hover {
-  outline-color: var(--acks-on-burgundy);
+  box-shadow: inset 0 0 0 0.15em color-mix(in srgb, var(--acks-on-burgundy) 40%, transparent);
 }
 
 .acks-extras-treasure .acks-extras-treasure-back:focus-visible,
@@ -468,13 +488,162 @@
   outline: none;
 }
 
-/* The icons are dark shapes; the back shows them white on the colour. */
+/* The dressing layers: static, behind the plate and the text, never over them. */
+.acks-extras-treasure .acks-extras-treasure-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.acks-extras-treasure .acks-extras-treasure-art {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  border: 0;
+  pointer-events: none;
+}
+
+/* The frame by band: a hairline, then the double rule; an aura turns the rule gold. */
+.acks-extras-treasure .is-frame-hair > .acks-extras-treasure-frame {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--acks-on-burgundy) 60%, transparent);
+}
+
+.acks-extras-treasure .is-frame-double > .acks-extras-treasure-frame {
+  box-shadow:
+    inset 0 0 0 0.35em var(--band),
+    inset 0 0 0 calc(0.35em + 1px) color-mix(in srgb, var(--acks-on-burgundy) 75%, transparent),
+    inset 0 0 0 0.7em var(--band),
+    inset 0 0 0 calc(0.7em + 1px) color-mix(in srgb, var(--acks-on-burgundy) 75%, transparent);
+}
+
+.acks-extras-treasure .acks-extras-treasure-back.is-frame-gold > .acks-extras-treasure-frame {
+  box-shadow:
+    inset 0 0 0 0.35em var(--band),
+    inset 0 0 0 calc(0.35em + 1px) var(--acks-gold),
+    inset 0 0 0 0.7em var(--band),
+    inset 0 0 0 calc(0.7em + 2px) var(--acks-gold);
+}
+
+/* Lozenge corners from the third band, lozenge breaks at the last. */
+.acks-extras-treasure .acks-extras-treasure-corners > i {
+  position: absolute;
+  inline-size: 0.8em;
+  block-size: 0.8em;
+  background-color: var(--acks-on-burgundy);
+  transform: rotate(45deg);
+}
+
+.acks-extras-treasure .acks-extras-treasure-corners > i:nth-child(1) { inset-block-start: 0.9em; inset-inline-start: 0.9em; }
+.acks-extras-treasure .acks-extras-treasure-corners > i:nth-child(2) { inset-block-start: 0.9em; inset-inline-end: 0.9em; }
+.acks-extras-treasure .acks-extras-treasure-corners > i:nth-child(3) { inset-block-end: 0.9em; inset-inline-start: 0.9em; }
+.acks-extras-treasure .acks-extras-treasure-corners > i:nth-child(4) { inset-block-end: 0.9em; inset-inline-end: 0.9em; }
+
+.acks-extras-treasure .acks-extras-treasure-breaks > i {
+  position: absolute;
+  inset-inline: 30%;
+  block-size: 0;
+  border-block-start: 1px solid color-mix(in srgb, var(--acks-on-burgundy) 80%, transparent);
+}
+
+.acks-extras-treasure .acks-extras-treasure-breaks > i::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 50%;
+  inset-block-start: -0.3em;
+  inline-size: 0.6em;
+  block-size: 0.6em;
+  margin-inline-start: -0.3em;
+  background-color: var(--acks-on-burgundy);
+  transform: rotate(45deg);
+}
+
+.acks-extras-treasure .acks-extras-treasure-breaks > i:nth-child(1) { inset-block-start: 1.35em; }
+.acks-extras-treasure .acks-extras-treasure-breaks > i:nth-child(2) { inset-block-end: 1.35em; }
+
+/* The notch: four corner triangles in the grid's own colour, edged in the face's
+   ink, laid over the card by clip-path on the layer's own children, so the card
+   itself is never clipped and keeps its focus ring and glow. */
+.acks-extras-treasure .acks-extras-treasure-notch {
+  --n: 1.1em;
+  z-index: 3;
+}
+
+.acks-extras-treasure .acks-extras-treasure-notch > i {
+  position: absolute;
+  inline-size: var(--n);
+  block-size: var(--n);
+  background-color: var(--notch-edge);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.acks-extras-treasure .acks-extras-treasure-notch > i::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--acks-tint);
+  clip-path: polygon(0 0, calc(100% - 1.5px) 0, 0 calc(100% - 1.5px));
+}
+
+.acks-extras-treasure .acks-extras-treasure-notch > i:nth-child(1) { inset-block-start: 0; inset-inline-start: 0; }
+.acks-extras-treasure .acks-extras-treasure-notch > i:nth-child(2) { inset-block-start: 0; inset-inline-end: 0; transform: rotate(90deg); }
+.acks-extras-treasure .acks-extras-treasure-notch > i:nth-child(3) { inset-block-end: 0; inset-inline-end: 0; transform: rotate(180deg); }
+.acks-extras-treasure .acks-extras-treasure-notch > i:nth-child(4) { inset-block-end: 0; inset-inline-start: 0; transform: rotate(270deg); }
+
+/* The crest: a lozenge outline round the pool's icon, or a framed slot where a picture is imported. */
+.acks-extras-treasure .acks-extras-treasure-back__crest {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 5em;
+  block-size: 5em;
+}
+
+.acks-extras-treasure .acks-extras-treasure-back__crest::before {
+  content: "";
+  position: absolute;
+  inset: 0.9em;
+  border: 1px solid color-mix(in srgb, var(--acks-on-burgundy) 55%, transparent);
+  transform: rotate(45deg);
+}
+
+.acks-extras-treasure .acks-extras-treasure-back__crest.has-art::before {
+  display: none;
+}
+
+.acks-extras-treasure .acks-extras-treasure-back__art {
+  inline-size: 4em;
+  block-size: 4em;
+  object-fit: cover;
+  border: 1px solid var(--acks-on-burgundy);
+  outline: 1px solid color-mix(in srgb, var(--acks-on-burgundy) 55%, transparent);
+  outline-offset: 0.2em;
+}
+
+/* The icons are dark shapes; the back shows them white on the colour. Imported art never takes this filter. */
 .acks-extras-treasure .acks-extras-treasure-back__icon {
-  width: 2.6em;
-  height: 2.6em;
+  position: relative;
+  inline-size: 2.4em;
+  block-size: 2.4em;
   border: 0;
   object-fit: contain;
   filter: brightness(0) invert(1);
+}
+
+.acks-extras-treasure .acks-extras-treasure-back__plate {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  padding: var(--acks-sp-2) var(--acks-sp-5);
+  background-color: var(--band-deep);
+  border: 1px solid color-mix(in srgb, var(--acks-on-burgundy) 35%, transparent);
 }
 
 .acks-extras-treasure .acks-extras-treasure-back__pips {
@@ -482,19 +651,38 @@
   letter-spacing: 0.1em;
 }
 
-/* A face-up card, and the Judge's card, which wears its truth. */
+/* A static glow on the slot (the Judge's tile is its own slot): wider as the band rises. */
+.acks-extras-treasure .acks-extras-treasure-flare {
+  box-shadow: 0 0 0 1px var(--band-lit), 0 0 var(--flare, 0em) var(--band-lit);
+}
+
+/* A face-up card, and the Judge's card, which wears its truth. Its dressing is the
+   vendor parchment (aged on the plain lower bands), a frame by look, and layers
+   that sit under the strip and the text plate. */
 .acks-extras-treasure .acks-extras-treasure-card {
+  --notch-edge: var(--face-ink, var(--acks-spot));
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background: var(--face-bg, var(--acks-paper));
+  background-color: var(--face-bg, var(--acks-paper));
   border: var(--acks-rule-hair) solid var(--face-ink, var(--acks-spot));
-  transition: background-color var(--acks-duration) var(--acks-ease), border-color var(--acks-duration) var(--acks-ease);
+  transition: background-color var(--acks-duration) var(--acks-ease), border-color var(--acks-duration) var(--acks-ease), box-shadow var(--acks-duration) var(--acks-ease);
 }
 
+.acks-extras-treasure .acks-extras-treasure-card.acks-parchment--aged {
+  background-color: color-mix(in srgb, var(--acks-paper-warm) 55%, var(--face-bg, var(--acks-paper)));
+}
+
+/* A card to be removed when the pot opens: dashed at full strength, its name struck and its art greyed. */
 .acks-extras-treasure .acks-extras-treasure-card.is-struck {
-  opacity: 0.55;
+  border-style: dashed;
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-struck .acks-extras-treasure-art,
+.acks-extras-treasure .acks-extras-treasure-card.is-struck .acks-extras-treasure-artslot {
+  filter: grayscale(1);
 }
 
 .acks-extras-treasure .acks-extras-treasure-card.is-struck .acks-extras-treasure-card__name {
@@ -509,7 +697,77 @@
   border-inline-start: 0.3em solid var(--acks-gold);
 }
 
+.acks-extras-treasure .acks-extras-treasure-card.is-frame-magic > .acks-extras-treasure-frame {
+  box-shadow:
+    inset 0 0 0 0.2em var(--face-bg),
+    inset 0 0 0 calc(0.2em + 1px) var(--face-ink),
+    inset 0 0 0 0.4em var(--face-bg),
+    inset 0 0 0 calc(0.4em + 1px) var(--face-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card.is-frame-cursed > .acks-extras-treasure-frame {
+  box-shadow:
+    inset 0 0 0 0.2em var(--face-ink),
+    inset 0 0 0 0.35em var(--face-bg),
+    inset 0 0 0 calc(0.35em + 1px) var(--face-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card .acks-extras-treasure-corners.is-face > i {
+  inset-block-start: 2.4em;
+  background-color: var(--face-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card .acks-extras-treasure-corners.is-hollow > i {
+  background-color: transparent;
+  border: 2px solid var(--face-ink);
+}
+
+.acks-extras-treasure .acks-extras-treasure-card .acks-extras-treasure-corners.is-face > i:nth-child(1) { inset-inline-start: 0.7em; }
+.acks-extras-treasure .acks-extras-treasure-card .acks-extras-treasure-corners.is-face > i:nth-child(2) { inset-inline-end: 0.7em; }
+
+/* The grime, foil and vignette layers paint a texture read from the art seam,
+   set inline by the template; the module draws none. Their strength is set
+   here: grime thins as the band rises, and the foil blends over the stock. */
+.acks-extras-treasure .acks-extras-treasure-grime,
+.acks-extras-treasure .acks-extras-treasure-foil,
+.acks-extras-treasure .acks-extras-treasure-vignette {
+  background-size: cover;
+  background-position: center;
+}
+
+.acks-extras-treasure .acks-extras-treasure-grime { mix-blend-mode: multiply; opacity: var(--g, 0); }
+.acks-extras-treasure .acks-extras-treasure-grime.is-grime-3 { --g: 0.65; }
+.acks-extras-treasure .acks-extras-treasure-grime.is-grime-2 { --g: 0.45; }
+.acks-extras-treasure .acks-extras-treasure-grime.is-grime-1 { --g: 0.25; }
+.acks-extras-treasure .acks-extras-treasure-foil { mix-blend-mode: soft-light; }
+.acks-extras-treasure .acks-extras-treasure-foil.is-on-back { mix-blend-mode: color-dodge; opacity: 0.55; }
+.acks-extras-treasure .acks-extras-treasure-vignette { mix-blend-mode: multiply; opacity: 0.35; }
+
+/* The framed slot for a picture, or the hollow lozenge standing in for one. */
+.acks-extras-treasure .acks-extras-treasure-artslot {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  inline-size: 6em;
+  block-size: 6em;
+  margin: var(--acks-sp-5) auto 0;
+  background-color: var(--acks-tint);
+  border: var(--acks-rule-hair) solid var(--face-ink, var(--acks-spot));
+  outline: var(--acks-rule-hair) solid var(--face-ink, var(--acks-spot));
+  outline-offset: 0.25em;
+}
+
+.acks-extras-treasure .acks-extras-treasure-artslot > img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  border: 0;
+}
+
 .acks-extras-treasure .acks-extras-treasure-card__tag {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: var(--acks-sp-3);
@@ -527,18 +785,30 @@
 }
 
 .acks-extras-treasure .acks-extras-treasure-card__seed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
   font-size: var(--acks-fs-fine);
   border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
   padding: 0 var(--acks-sp-2);
 }
 
+.acks-extras-treasure .acks-extras-treasure-card__seed .acks-lozenge-mark {
+  border-color: var(--acks-on-burgundy);
+}
+
 .acks-extras-treasure .acks-extras-treasure-card__body {
+  position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   gap: var(--acks-sp-2);
+  margin: var(--acks-sp-4);
   padding: var(--acks-sp-4);
   min-width: 0;
+  background-color: color-mix(in srgb, var(--face-bg, var(--acks-paper)) 92%, transparent);
+  border: var(--acks-rule-hair) solid color-mix(in srgb, var(--face-ink, var(--acks-spot)) 40%, transparent);
 }
 
 .acks-extras-treasure .acks-extras-treasure-card__name {
@@ -560,6 +830,9 @@
 }
 
 .acks-extras-treasure .acks-extras-treasure-card__foot {
+  position: relative;
+  z-index: 2;
+  background-color: color-mix(in srgb, var(--face-bg, var(--acks-paper)) 92%, transparent);
   display: flex;
   flex-wrap: wrap;
   gap: var(--acks-sp-3);
@@ -572,10 +845,9 @@
   font-size: var(--acks-fs-label);
 }
 
-/* A turned card changes colour and brightness; nothing turns in space. */
+/* A turned card changes colour for one beat; nothing turns in space. The beat is a background-color change inside the system's one 120ms colour rule. */
 @keyframes acks-extras-treasure-swap {
-  from { filter: brightness(0.2); }
-  to { filter: none; }
+  from { background-color: var(--face-ink, var(--acks-spot)); }
 }
 
 .acks-extras-treasure .acks-extras-treasure-card.is-turning {
@@ -587,8 +859,24 @@
     animation: none;
   }
 
-  .acks-extras-treasure .acks-extras-treasure-card {
+  .acks-extras-treasure .acks-extras-treasure-card,
+  .acks-extras-treasure .acks-extras-treasure-back {
     transition: none;
+  }
+}
+
+/* Foil, grime and the vignette are decoration: gone under forced colours and
+   high contrast, where the frames fall back to a plain border. */
+@media (forced-colors: active), (prefers-contrast: more) {
+  .acks-extras-treasure .acks-extras-treasure-foil,
+  .acks-extras-treasure .acks-extras-treasure-grime,
+  .acks-extras-treasure .acks-extras-treasure-vignette {
+    display: none;
+  }
+
+  .acks-extras-treasure .acks-extras-treasure-frame {
+    box-shadow: none;
+    border: 3px double CanvasText;
   }
 }
 

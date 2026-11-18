@@ -183,9 +183,13 @@ export function shownPool(truth, { isGM = false } = {}) {
 /** The name a seat that has turned the card reads: the mask's, else the card's own. */
 export const apparentName = (truth) => truth.mask?.name || truth.label;
 
-/** The picture a seat that has turned the card sees: the mask's, else the item's, else its pool's. */
+/**
+ * The picture a seat that has turned the card sees: the mask's, else the item's,
+ * else its pool's. A mask that gives a name and no picture never falls through
+ * to the item's own picture, which would show the true item behind the name.
+ */
 export const apparentImg = (truth) =>
-  truth.mask?.img || truth.source?.data?.img || POOL_BACK_ICON[shownPool(truth)] || POOL_BACK_ICON.item;
+  truth.mask?.img || (truth.mask ? null : truth.source?.data?.img) || POOL_BACK_ICON[shownPool(truth)] || POOL_BACK_ICON.item;
 
 /** A card's worth in gp where it states one (coin by its count and rate, or a value card), else null. */
 export function worthOf(truth) {
@@ -296,12 +300,22 @@ export function flipUpdate(cardId, truth) {
   return { _id: cardId, faces: [{ name: apparentName(truth), text: "", img: apparentImg(truth) }], face: 0 };
 }
 
+/** The cookbook id the item's snapshot carries (the key book art is looked up by), or null. */
+const cookbookIdOf = (truth) => {
+  const id = truth.source?.data?.flags?.[MODULE_ID]?.cookbook?.id;
+  return typeof id === "string" && id ? id : null;
+};
+
 /**
  * What one seat is shown of one card. A player's view carries no name, weight
  * or worth until the card is turned, never says `magic` of a card whose magic
  * is not identified, and shows an aura only on a turned card whose magic has
  * been detected. A Judge's view carries the truth, a Seed mark, and a warning
- * where an undetected magic card has no mask to hide its name behind.
+ * where an undetected magic card has no mask to hide its name behind (`leaks`)
+ * or a mask with no picture, so the item's true one shows (`leaksPicture`).
+ * `kind` (the item's cookbook id) and `artSrc` feed the face's picture: a player
+ * gets the kind only where the card is neither masked nor undetected magic, and
+ * never the true picture behind a mask that names an item without one.
  * @param {{id: string, face: number|null, value: number, truth: object}} card
  * @param {{isGM?: boolean}} [seat]
  */
@@ -322,11 +336,14 @@ export function cardView(card, { isGM = false } = {}) {
     name: !shows ? "" : isGM ? truth.label : apparentName(truth),
     maskName: isGM && truth.mask?.name ? truth.mask.name : "",
     img: shows ? (isGM ? truth.source?.data?.img || apparentImg(truth) : apparentImg(truth)) : "",
+    kind: shows && (isGM || !(truth.mask?.name || (truth.magical && !truth.detected))) ? cookbookIdOf(truth) : null,
+    artSrc: shows ? (isGM ? truth.source?.data?.img || "" : truth.mask?.img || (truth.mask?.name ? "" : truth.source?.data?.img) || "") : "",
     worthGp: shows ? worthOf(truth) : null,
     weight6: shows ? truth.weight6 : null,
     aura: isGM ? truth.magical : up && truth.magical && truth.detected,
     seed: isGM && !!truth.bucket,
-    leaks: isGM && truth.magical && !truth.detected && !truth.mask?.name,
+    leaks: isGM && truth.magical && !truth.detected && !(truth.mask?.name && truth.mask?.img),
+    leaksPicture: isGM && truth.magical && !truth.detected && !!truth.mask?.name && !truth.mask?.img,
     claimed: !!truth.claimedBy,
     claimedByName: truth.claimedBy?.actorName ?? truth.claimedBy?.placeName ?? "",
   };
