@@ -3090,6 +3090,45 @@ approval"), relayed by the orchestrator, for topic/spell-effects:
 - old and new shas are recorded here;
 - the gate reruns on the new tip.
 
+**S5e and S-A on topic/spell-effects (2026-11-18), offline green.**
+
+- **e807d99a S5e:**
+  - Nine S5 register entries: allure, arcaneArmor, baneRune, chameleon,
+    silentStep, leaping, passWithoutTrace, spiderClimbing, slickness.
+  - The lint learns ifHas, appliesToRoll, attackKinds, ownSave and pickKind.
+  - The executor locates `exemptSizeOver`.
+  - sharpness is unchanged (ruling 141).
+  - Compile: 342 entries, 18 warnings, the same as before. Spell recipes 53,
+    executor 83, s5-rows 22. The rules test reads all nine from the RR PDF
+    with no unread field.
+  - npm test's one red suite, test-formation-flows, passes alone (exit 0).
+- **8c99aede S-A:**
+  - lib `spell-sources.mjs`; `recordParts` takes `entries`; apiVersion 59.
+  - magic: a repertoire source, `selfReach` (`cast-reach.mjs`), a sync
+    `castReading`, and `foldKey` re-exported from lib's `foldName`.
+  - Suites: test-spell-sources 15; lib 247; cast-* all green. 16 of 17
+    mutants killed; the survivor is equivalent.
+  - A tradition with no slot at the spell's level (max 0) is left out of the
+    register: the owner's "can't cast does not show as can".
+  - S-B stacks as follows: `recordParts(actor, "grant", {entries:
+    [...rollModsOf(actor), ...availableRollMods(actor, {viewer})]})`. In
+    the result, `effect === null` is pale.
+
+Findings from these slices, defaults proceeded on:
+- **1c.32** allure's and arcaneArmor's rows are `appliesTo: recipient`.
+  A caster-only buff would need `self`, which is five rows and a recompile.
+  Default: leave recipient. The cast's target narrowing (and the bucket)
+  decides who receives it, and the walk magic-cast-buffs checks it.
+- **1c.33** passWithoutTrace's grant reads at the bearer's level, not the
+  caster's (ruling 137). The executor stores no whole-level `atLevel` pair.
+  Default: `partOf` gives a grant without its own pair the caster's level.
+  This is an S5f slice, after the walk.
+- baneRune offers no dragon kind, since no module key exists; and the
+  attack-and-damage reading of its magical-weapon row is the agent's.
+  Both are walk items.
+- The pale caster level leaves out the caster's ability deltas
+  (`castAbilityLevel`).
+
 ### Results, 1c
 
 ### Results, 1d
