@@ -7,11 +7,26 @@
  * flag is. At the caster's turn (the tracker's current combatant is the
  * caster's, and its initiative is rolled) a cast resolves; at any other moment
  * of a begun fight it is declared; with no begun fight holding the caster it is
- * free, as a cast always was.
+ * free, as a cast always was. A casting time longer than a round, in a begun
+ * fight, is a fourth moment, `long`: it is never declared, and the plan decides
+ * whether the seat may cast it at all.
  */
+import { TIME_UNITS } from "../lib/magic-vocab.mjs";
 
-/** The three moments a cast can fall at. */
-export const MOMENT = Object.freeze({ free: "free", declare: "declare", resolve: "resolve" });
+/** The moments a cast can fall at. */
+export const MOMENT = Object.freeze({ free: "free", declare: "declare", resolve: "resolve", long: "long" });
+
+/**
+ * Is a casting time longer than a round? Judged by its unit, with no conversion
+ * figure: a stated time of more than one round, or of any other unit of time.
+ * A time with no unit, or one that is not a stated time, is not.
+ *
+ * @param {{shape?: string, value?: number|null, unit?: string}|null} [time]  a casting time as the spell's flag holds one
+ */
+export function longerThanRound(time) {
+  if (time?.shape !== "timed" || !Object.hasOwn(TIME_UNITS, time.unit)) return false;
+  return time.unit === "rounds" ? Number(time.value) > 1 : true;
+}
 
 /** Has this fight begun? */
 export const begun = (combat) => Boolean(combat) && (combat.started === true || combat.flags?.acks?.initDone === true);
@@ -44,10 +59,12 @@ export function fightHolding(combats, { actor, token = null } = {}) {
  * @param {object} from
  * @param {{started?: boolean, flags?: object, combatant?: {id: string}|null}|null} from.combat  the fight holding the caster's combatant
  * @param {{id: string, initiative?: number|null}|null} from.combatant  the caster's combatant in that fight
- * @returns {"free"|"declare"|"resolve"}
+ * @param {{shape?: string, value?: number|null, unit?: string}|null} [from.castingTime]  the time the cast takes (the procedure's, else the spell's); one longer than a round makes the moment `long`
+ * @returns {"free"|"declare"|"resolve"|"long"}
  */
-export function castMoment({ combat = null, combatant = null } = {}) {
+export function castMoment({ combat = null, combatant = null, castingTime = null } = {}) {
   if (!begun(combat) || !combatant) return MOMENT.free;
+  if (longerThanRound(castingTime)) return MOMENT.long;
   const acting = combat.combatant?.id === combatant.id && combatant.initiative != null;
   return acting ? MOMENT.resolve : MOMENT.declare;
 }

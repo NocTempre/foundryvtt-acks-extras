@@ -1,4 +1,4 @@
-/* global game, ui, Hooks, fromUuid, fromUuidSync */
+/* global game, ui, Hooks, Roll, fromUuid, fromUuidSync */
 /**
  * The declaration. In a begun fight a spell is declared before it is cast, at
  * any moment but the caster's own turn (`cast-moment.mjs`), and the spell is
@@ -22,9 +22,11 @@
  * See docs/magic/DECISIONS.md, "A declaration spends at its confirm and lapses
  * with the caster's next turn".
  */
-import { MODULE_ID, FLAG_SPELL_EFFECT, DECLARE_FLAG_HANDLER } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL, FLAG_SPELL_EFFECT, DECLARE_FLAG_HANDLER } from "./constants.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { invocationFigure } from "./cast-level.mjs";
+import { storedProcedure, runLost } from "./cast-procedure.mjs";
+import { traditionFor } from "./cast-capacity.mjs";
 import { STATES_LOST_HOOK } from "../lib/constants.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
 
@@ -38,13 +40,18 @@ const CASTING = "casting";
  * it back as the dialog's answer. `targets` are the token uuids the seat had
  * targeted at its answer, `allocation` the throw split by row key and token uuid,
  * `items` the weapon of each holder by token uuid, `invocationLevel` the whole
- * invocation level chosen (null where none was).
+ * invocation level chosen (null where none was), `procedure` the answer of the
+ * tradition's procedure (its field values, its band's controls and its `buckets`;
+ * null where it has none) and `procedureKind` the tradition kind whose procedure
+ * it is, which the declaration's loss reads to find that procedure again.
  */
 export const ANSWER_FIELDS = Object.freeze({
   mode: (v) => v,
   picks: (v) => v ?? {},
   casterLevel: (v) => v ?? null,
   invocationLevel: invocationFigure,
+  procedure: storedProcedure,
+  procedureKind: (v) => (typeof v === "string" && v ? v : null),
   situational: (v) => v ?? null,
   visibility: (v) => v ?? "public",
   pickKind: (v) => v ?? null,
@@ -76,6 +83,7 @@ export function answerFromPending(pending) {
     ...stored,
     casterLevel: stored.casterLevel ?? "",
     situational: stored.situational ?? "",
+    procedure: stored.procedure ?? {},
     visibility: pending?.visibility || "public",
     targets: Array.isArray(pending?.targets) ? stored.targets : null,
   };
@@ -282,12 +290,32 @@ export const liveDeclareDeps = () => ({
   notify: (level, key, data) => ui.notifications?.[level]?.(game.i18n.format(`ACKS-MAGIC.cast.notice.${key}`, data ?? {})),
 });
 
+/** A lost declaration's tradition procedure is told, once for the cast, on the client that saw the loss. */
+async function procedureLost(actor, record) {
+  const spell = fromUuidSync(record.pending.spellUuid);
+  if (!record.pending.procedureKind || !spell) return;
+  const { classForActor } = await import("../classes/registry.mjs");
+  const classItem = classForActor(actor) ?? null;
+  const tradition = traditionFor(classItem?.system?.casting, { extras: spell.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {}, lvl: spell.system?.lvl, class: spell.system?.class })?.tradition ?? null;
+  await runLost(record, {
+    actor,
+    spell,
+    tradition,
+    classItem,
+    isGM: game.user.isGM,
+    combat: game.combats?.get(record.pending.combatId) ?? null,
+    now: () => game.time.worldTime,
+    roll: (formula) => new Roll(formula).evaluateSync().total,
+  });
+}
+
 /** Lib's states-lost hook: a lost `casting` loses the declaration. */
 function onLost(actor, ids, cause) {
   const deps = { ...liveDeclareDeps(), findFight: (combatId) => findFight(combatId, actor) };
   onStatesLost(actor, ids, cause, deps)
-    .then((lost) => {
+    .then(async (lost) => {
       for (const record of lost) deps.notify("info", "declarationLost", { name: actor.name, spell: fromUuidSync(record.pending.spellUuid)?.name ?? "" });
+      for (const record of lost) await procedureLost(actor, record);
     })
     .catch((err) => console.error(`${MODULE_ID} | a lost declaration could not be recorded`, err));
 }

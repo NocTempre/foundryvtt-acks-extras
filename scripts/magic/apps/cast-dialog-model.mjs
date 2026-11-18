@@ -4,7 +4,7 @@
  * window (`cast-dialog.mjs`) is only the wiring around it. The seat's answer
  * lives in one `state` object (mode, picks, kind, weapons by holder, throw
  * splits by token uuid, caster level, situational figure, the save toggle,
- * visibility), and `dialogContext(ctx, state)` reads the cast's live questions
+ * the tradition's procedure answer, visibility), and `dialogContext(ctx, state)` reads the cast's live questions
  * (`ctx.levelAt`, `ctx.verdictsAt`, `ctx.reachAt`, `ctx.gatesAt`,
  * `ctx.pendingAt`) against it on every render, so a re-render keeps what was
  * typed and a changed bucket re-reads its verdicts. The bucket is the seat's own
@@ -17,6 +17,7 @@ import { instancesTip } from "../cast-instances.mjs";
 import { levelTip } from "../cast-ability-tips.mjs";
 import { gateTip } from "../cast-gates.mjs";
 import { needsBearer, kindChoices, saveModifierOf } from "../cast-mods.mjs";
+import { FIELD_KIND } from "../../lib/field-spec.mjs";
 
 /** The visibility modes the dialog offers, as lib's roll dialog offers them. */
 export const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
@@ -99,7 +100,8 @@ const firstPicks = (ctx) =>
 /**
  * The state a fresh dialog starts on: the first form, the first option of each
  * group, the first kind, no weapon yet (a holder's pick starts on its default),
- * no typed split, no typed level, the save toggle off. A context that carries
+ * no typed split, no typed level, the save toggle off, the tradition's procedure
+ * answering nothing yet. A context that carries
  * `initial` (a declaration reopened at the turn) starts on that answer instead,
  * each field it names: the answer is copied, so the stored record is never
  * written through.
@@ -108,7 +110,7 @@ const firstPicks = (ctx) =>
  * @param {{visibility?: string}} [o]
  */
 export function initialState(ctx, { visibility = "public" } = {}) {
-  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", situational: "", saveMod: false, visibility };
+  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", situational: "", saveMod: false, procedure: {}, visibility };
   const from = ctx.initial;
   if (!from) return base;
   const given = Object.fromEntries(Object.keys(base).filter((key) => from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
@@ -117,6 +119,8 @@ export function initialState(ctx, { visibility = "public" } = {}) {
     ...given,
     picks: { ...base.picks, ...(from.picks ?? {}) },
     items: { ...(from.items ?? {}) },
+    // The procedure's answer is plain data, copied so the stored record is never written through.
+    procedure: JSON.parse(JSON.stringify(from.procedure ?? {})),
     allocation: Object.fromEntries(Object.entries(from.allocation ?? {}).map(([row, split]) => [row, { ...split }])),
   };
 }
@@ -143,7 +147,7 @@ const kindOf = (kept, state) => {
  *
  * @param {object} ctx
  * @param {object} state
- * @returns {{mode: string, picks: Record<string, string>, pickKind: string|null, items: Record<string, string>, allocation: Record<string, Record<string, string>>, casterLevel: string, situational: string, saveMod: boolean, visibility: string}}
+ * @returns {{mode: string, picks: Record<string, string>, pickKind: string|null, items: Record<string, string>, allocation: Record<string, Record<string, string>>, casterLevel: string, situational: string, saveMod: boolean, procedure: object, visibility: string}}
  */
 export function answerOf(ctx, state) {
   const mode = (ctx.modes ?? []).includes(state.mode) ? state.mode : (ctx.modes?.[0] ?? "normal");
@@ -166,7 +170,39 @@ export function answerOf(ctx, state) {
     casterLevel: String(state.casterLevel ?? ""),
     situational: String(state.situational ?? ""),
     saveMod: state.saveMod === true,
+    // The tradition's procedure answers its fields, its band's controls and its buckets; a cast whose tradition has none answers nothing.
+    procedure: procedureOf(ctx, state, mode)?.answer ?? {},
     visibility: state.visibility || "public",
+  };
+}
+
+/** The tradition's procedure read against the seat's answer: its fields, the answer they coerce to (the band's controls and the buckets kept), and its band. Null where the tradition has none. */
+function procedureOf(ctx, state, mode) {
+  if (!ctx.procedure) return null;
+  const level = ctx.levelAt ? ctx.levelAt(state.casterLevel) : ctx.level;
+  return ctx.procedure.at(mode, state.procedure ?? {}, level?.value ?? null);
+}
+
+/** One procedure field as the template draws it: the input's name, its kind as a flag, and the value it stands on. */
+function fieldView(spec, answer) {
+  const value = answer[spec.key];
+  return {
+    key: spec.key,
+    name: `procedure.${spec.key}`,
+    label: spec.label || spec.key,
+    hint: spec.hint ?? "",
+    isNumber: spec.kind === FIELD_KIND.number,
+    isText: spec.kind === FIELD_KIND.text,
+    isCheck: spec.kind === FIELD_KIND.boolean,
+    isSelect: spec.kind === FIELD_KIND.select,
+    isProse: spec.kind === FIELD_KIND.prose,
+    value: value ?? "",
+    checked: value === true,
+    hasMin: Number.isFinite(spec.min),
+    min: Number.isFinite(spec.min) ? spec.min : "",
+    hasMax: Number.isFinite(spec.max),
+    max: Number.isFinite(spec.max) ? spec.max : "",
+    choices: spec.kind === FIELD_KIND.select ? (spec.choices ?? []).map((c) => ({ value: c.value, label: c.label ?? c.value, selected: c.value === value })) : [],
   };
 }
 
@@ -271,7 +307,10 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   }));
   const kind = kindOf(kept, st);
   const stand = (ctx.level ?? {});
-  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation) : (ctx.verdicts?.[mode] ?? []);
+  // The tradition's procedure, and where the cast falls once the seat's answer to it is in (its casting time can make the cast `long`).
+  const proc = procedureOf(ctx, st, mode);
+  const moment = ctx.momentAt ? ctx.momentAt(mode, resolved, st.procedure) : ctx.moment;
+  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, undefined, st.procedure) : (ctx.verdicts?.[mode] ?? []);
   const blocks = verdicts.some((v) => v.severity === "block");
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.
@@ -343,12 +382,19 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       modes: (ctx.modes ?? []).map((key) => ({ key, label: modeLabel(key), selected: key === mode })),
     },
     // At any moment of a begun fight but the caster's turn the button declares the spell.
-    declaring: ctx.moment === "declare" ? loc("dialog.declaring", { name: ctx.caster?.name ?? "" }) : "",
+    declaring: moment === "declare" ? loc("dialog.declaring", { name: ctx.caster?.name ?? "" }) : "",
     spell: {
       show: groups.length > 0 || kind.options.length > 0 || Boolean(ctx.levelNeeded && !stand.value),
       groups,
       level: { show: Boolean(ctx.levelNeeded && !stand.value), value: st.casterLevel, tip: [loc("tip.level.hand", { value: "" }), levelTip(level, loc)].filter(Boolean).join(" · ") },
       kind: { show: kind.options.length > 0, options: kind.options.map((key) => ({ key, selected: key === kind.value })), rows: kept.filter(({ row }) => row.pickKind === true).map(({ row }) => effectRow(row, statusImg)) },
+    },
+    // One Invocation band, between the spell and the saves: the procedure's fields, then its band.
+    invocation: {
+      show: Boolean(proc && (proc.specs.length || proc.band)),
+      title: loc("dialog.invocation"),
+      fields: (proc?.specs ?? []).map((spec) => fieldView(spec, proc.answer)),
+      band: proc?.band ?? null,
     },
     saves: {
       show: Boolean(ctx.saves),
@@ -379,11 +425,12 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       })(),
       verdicts: verdicts.map((v) => ({
         severity: v.severity,
-        text: loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((o) => o.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
+        // A finding a procedure worded itself reads in its own words.
+        text: v.notice || loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((o) => o.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
         tip: v.key === "outOfRange" ? rangeTip(v, cite) : v.key === "tooManyTargets" && cite ? loc("tip.cite", { cite }) : "",
       })),
       blocked: blocks,
-      cast: ctx.moment === "declare" ? loc("dialog.declare") : loc("dialog.cast"),
+      cast: moment === "declare" ? loc("dialog.declare") : loc("dialog.cast"),
     },
   };
 }

@@ -26,6 +26,7 @@
  */
 import { MODULE_ID, FLAG_SPELL, LANG_PREFIX } from "./constants.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef } from "./summon-spell.mjs";
+import { spellProcedureKind } from "./cast-procedure.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
 import { castDuration } from "./cast-duration.mjs";
@@ -181,13 +182,16 @@ export async function castSummonSpell(spell, spend, deps = liveDeps()) {
 /**
  * The claimant for the cast seam. `claims` is synchronous and answers true only
  * for a summoning spell on a character this seat owns; a monster's spell items
- * and a character this seat does not own are the system's own cast.
+ * and a character this seat does not own are the system's own cast. A summoning
+ * whose tradition has a registered procedure is declined, and the spell cast
+ * claimant takes it with its procedure.
  * @param {object} [deps]  see `liveDeps`
+ * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`, which tells the tradition that cast the spell
  */
-export function castSummonClaimant(deps) {
+export function castSummonClaimant(deps, { classFor = null } = {}) {
   return {
     key: CAST_SUMMON_KEY,
-    claims: (item) => isSummonSpell(item) && item.parent?.isOwner === true,
+    claims: (item) => isSummonSpell(item) && item.parent?.isOwner === true && !spellProcedureKind(item, classFor),
     cast: (item, _options, spend) => castSummonSpell(item, spend, deps),
   };
 }
@@ -208,11 +212,12 @@ let unregister = null;
 /**
  * Register the claimant, the policy and the naming. Once, at `init`; a second
  * call replaces the first rather than doubling it.
+ * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`
  * @returns {() => void} removes all three
  */
-export function registerCastSummon() {
+export function registerCastSummon(claim = {}) {
   unregister?.();
-  addSpellUseClaimant(castSummonClaimant());
+  addSpellUseClaimant(castSummonClaimant(undefined, claim));
   const offPolicy = registerSummonPolicy((req) => summonRefusal(req));
   const offNaming = registerSummonNaming((req) => spellNamesCreature(req));
   let done = false;

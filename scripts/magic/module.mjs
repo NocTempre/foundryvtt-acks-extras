@@ -29,6 +29,7 @@ import {
 } from "./repertoire.mjs";
 import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { registerCastSpell, castReading } from "./cast-spell.mjs";
+import { registerCastProcedure, procedureOfKind } from "./cast-procedure.mjs";
 import { selfReach, twinLookups } from "./cast-reach.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import * as casting from "../classes/casting.mjs";
@@ -86,6 +87,10 @@ Hooks.once("init", () => {
     stripModuleData,
     /** Cast a summoning spell and wait for its placement (cast-summon.mjs). */
     castSummon,
+    /** Register a casting tradition kind's cast procedure; returns the handle that removes it (cast-procedure.mjs). */
+    registerCastProcedure,
+    /** The procedure registered for a tradition kind, or null. */
+    procedureOfKind,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
@@ -117,14 +122,15 @@ Hooks.once("init", () => {
   // A summoning spell's cast places its creatures: a claimant on lib's cast
   // seam, with the rules over what the spell may call riding lib's summons.
   try {
-    registerCastSummon();
+    // The class reader is the classes feature's, so a claimant tells synchronously which tradition cast a spell.
+    registerCastSummon({ classFor: classForActor });
   } catch (err) {
     console.error(`${MODULE_ID} | the summoning cast could not register`, err);
   }
   // A spell with effect rows is cast through a dialog, a card and an applier;
   // its claimant is registered after the summoning's, so a summoning stays there.
   try {
-    registerCastSpell();
+    registerCastSpell({ classFor: classForActor });
   } catch (err) {
     console.error(`${MODULE_ID} | the spell cast could not register`, err);
   }

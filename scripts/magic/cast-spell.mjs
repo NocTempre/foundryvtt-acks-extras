@@ -4,8 +4,10 @@
  * (`lib/patches/spell-use.mjs`), registered after the summoning's, takes the
  * cast of a flagged spell on an actor this seat owns, whichever door the player
  * pressed, and declines everything else: a spell with no rows, a summoning
- * spell, an actor this seat does not own. A monster's attack item is no spell
- * and stays the system's.
+ * spell, an actor this seat does not own. A spell whose tradition has a
+ * registered procedure (`cast-procedure.mjs`) is taken whatever its rows, and
+ * a summoning of one is taken here rather than by the summoning's claimant. A
+ * monster's attack item is no spell and stays the system's.
  *
  * The cast asks (`apps/cast-dialog.mjs`), refuses before it spends where a
  * Player is blocked and warns a Judge, spends once (`spend()` and, for a
@@ -28,12 +30,13 @@ import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
+import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, bucketUuids } from "./cast-procedure.mjs";
 import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
-import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
+import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard, markReverted } from "./cast-card.mjs";
 import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, spellSaveParts, saveModifierOf, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
@@ -69,16 +72,28 @@ const summoning = (item) => isSummonSpell(item) || effectRowsOf(item).some((row)
 
 /**
  * Does this claimant take this cast? A flagged spell item on an actor this
- * seat owns, no summoning, with rows of its own or its twin's.
+ * seat owns whose tradition has a registered procedure (rows or not, and a
+ * summoning too), else one with no summoning and rows of its own or its twin's.
  * @param {Item} item
  * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
+ * @param {((actor: object) => object|null)|null} [classFor]  the classes feature's `classForActor`, which tells the tradition that cast the spell; without it no procedure is found
  */
-export function castSpellClaims(item, lookups = worldLookups()) {
+export function castSpellClaims(item, lookups = worldLookups(), classFor = null) {
   if (item?.type !== SPELL_TYPE || item.parent?.isOwner !== true) return false;
   const flag = item.flags?.[MODULE_ID]?.[FLAG_SPELL];
   if (!flag || typeof flag !== "object" || !Object.keys(flag).length) return false;
+  if (spellProcedureKind(item, classFor)) return true;
   if (summoning(item)) return false;
   return rowsOf(item, lookups).rows.length > 0;
+}
+
+/** The casting time the spell prints: the copy's own, else its library twin's where the copy prints none. */
+export function castTimeOf(spell, lookups) {
+  const own = flagOf(spell).castingTime;
+  if (own?.shape) return own;
+  const id = spell?.flags?.[MODULE_ID]?.cookbook?.id;
+  const twin = id ? lookups?.byCookbookId?.("Item", id) : null;
+  return flagOf(twin).castingTime ?? own ?? null;
 }
 
 /**
@@ -241,7 +256,8 @@ async function readWorld(spell) {
   const { classForActor } = await import("../classes/registry.mjs");
   // A namespace, so the cap reads where the classes feature has one and is null where it has not.
   const casting = await import("../classes/casting.mjs");
-  const { capacity, level, cap } = castReading(actor, spell, { classItem: classForActor(actor), pools: casting.poolState(actor), capAt: casting.traditionCapAt });
+  const classItem = classForActor(actor);
+  const { found, capacity, level, cap } = castReading(actor, spell, { classItem, pools: casting.poolState(actor), capAt: casting.traditionCapAt });
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
   const casterToken = actorToken(actor);
@@ -257,6 +273,9 @@ async function readWorld(spell) {
     capacity,
     cap,
     level,
+    // The class and the tradition that cast the spell: the tradition's kind is what finds its procedure.
+    classItem: classItem ?? null,
+    tradition: found?.tradition ?? null,
   };
 }
 
@@ -459,6 +478,10 @@ const liveDeps = () => ({
   retarget,
   ask: async (ctx) => (await import("./apps/cast-dialog.mjs")).CastDialog.wait(ctx),
   notify: (level, key, data) => ui.notifications?.[level]?.(loc(`notice.${key}`, data ?? {})),
+  // A finding a tradition's procedure worded itself.
+  notifyText: (level, text) => ui.notifications?.[level]?.(text),
+  // Does the world still hold this document? (a stored bucket entry is read again where its cast resolves)
+  holds: async (uuid) => Boolean(await fromUuid(uuid).catch(() => null)),
   adjustPool: async (actor, tradition, slotKey) => (await import("../classes/casting.mjs")).adjustPool(actor, tradition, slotKey, 1),
   castId: () => newCastId(),
   roll: (formula) => new Roll(formula).evaluateSync().total,
@@ -547,10 +570,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   };
   const atFor = (mode, inv) => ({ invocationLevel: levelFor(mode, inv).value });
   const groupsFor = (mode, inv) => pickGroups(all, mode, atFor(mode, inv));
-  // Where the cast falls in a fight, and the declaration it resolves.
-  const moment = castMoment({ combat: world.combat, combatant: world.combatant });
+  // Where the cast falls in a fight at its turn, apart from how long it takes, and the declaration it resolves.
+  const turnMoment = castMoment({ combat: world.combat, combatant: world.combatant });
   const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
-  const resolving = moment === MOMENT.resolve && Boolean(declaration.valid);
+  const resolving = turnMoment === MOMENT.resolve && Boolean(declaration.valid);
   // A declaration being resolved answers for itself (below), invocation level included, and the context starts from it.
   const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
   const startInv = declared?.invocationLevel;
@@ -559,6 +582,41 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The caster's abilities that apply to this spell: they add to the caster level, the targets' saves and the damage, never to the slots or the uses.
   const abilities = castAbilitiesOf(caster, spell, deps.lookups);
   const known = castAbilityLevel(casterLevel(world.level), abilities.casterLevel);
+  // The tradition's procedure (`cast-procedure.mjs`), where it has one, and what a ctx of it reads. Its answer is held apart from the rows' choices.
+  const procedure = procedureFor({ source: "spell", tradition: world.tradition ?? null });
+  const procedureKind = procedure ? world.tradition.kind : null;
+  const spellTime = castTimeOf(spell, deps.lookups);
+  const procCtx = (inv, levelValue, at) => ({
+    actor: caster,
+    spell,
+    tradition: world.tradition ?? null,
+    classItem: world.classItem ?? null,
+    invocationLevel: inv ?? null,
+    casterLevel: levelValue ?? null,
+    isGM,
+    moment: at,
+    combat: world.combat ?? null,
+    source: "spell",
+    roll: deps.roll,
+    now: deps.now,
+  });
+  // The procedure's answer as the dialog holds it (`raw`), coerced to its fields. A cast with no procedure has none.
+  const procViewAt = (mode, inv, levelValue, praw, at = turnMoment) => procedureView(procedure, procCtx(levelFor(mode, inv).value, levelValue, at), praw);
+  // How long the cast takes: the procedure's time, else the spell's.
+  const timeAt = (mode, inv, levelValue, praw) => {
+    const view = procViewAt(mode, inv, levelValue, praw);
+    return procedureTime(procedure, procCtx(levelFor(mode, inv).value, levelValue, turnMoment), view?.answer ?? {}, spellTime);
+  };
+  // Where the cast falls, given how long it takes: a stored declaration resolves as it was declared, and any other cast over a round is `long`.
+  const momentAt = (mode, inv, levelValue, praw) => (resolving ? MOMENT.resolve : castMoment({ combat: world.combat, combatant: world.combatant, castingTime: timeAt(mode, inv, levelValue, praw) }));
+  let moment = momentAt(modeKeys[0], startInv, known.value, declared?.procedure);
+  // The documents a stored answer's buckets name that the world no longer holds, read where the cast resolves.
+  let bucketsGone = [];
+  const goneIn = async (buckets) => {
+    const out = [];
+    for (const uuid of bucketUuids({ buckets })) if (!((await deps.holds?.(uuid)) ?? true)) out.push(uuid);
+    return out;
+  };
   // What the range and the target count say of the targeted tokens at a caster level.
   const reachAt = (levelValue, inv = startInv, mode = modeKeys[0]) => castReach({ figures: figuresAt(mode, inv), level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
   // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count). A split is typed by token uuid.
@@ -575,10 +633,28 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     }
     return { counts, assigned };
   };
-  const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv) => {
+  const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv, praw = declared?.procedure ?? {}) => {
     const reach = reachAt(levelValue, inv, mode);
     const { value, cap, reads } = levelFor(mode, inv);
-    return castVerdicts({ capacity: world.capacity, targets: seat.tokens, rows: rowsForMode(all, mode, picks, atFor(mode, inv)), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed, inv), invocation: { value, cap, reads } });
+    const at = momentAt(mode, inv, levelValue, praw);
+    const view = procViewAt(mode, inv, levelValue, praw, at);
+    return castVerdicts({
+      capacity: world.capacity,
+      targets: seat.tokens,
+      rows: rowsForMode(all, mode, picks, atFor(mode, inv)),
+      statuses: world.statuses,
+      isGM,
+      held: world.held === true,
+      moment: at,
+      declaration,
+      range: reach.range,
+      count: reach.count,
+      instances: instancesFor(mode, picks, levelValue, typed, inv),
+      invocation: { value, cap, reads },
+      procedure: view ? procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer) : [],
+      ritual: extras.ritual === true,
+      bucketsGone,
+    });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
   const splitsFor = (mode) =>
@@ -601,13 +677,22 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   // The dialog opens only where a declared target is gone or its stored weapon is not one of the one target's.
   const itemsFit = !declared || !needsBearer(rowsForMode(all, declared?.mode, declared?.picks ?? {}, atFor(declared?.mode, declared?.invocationLevel))) || bearerOf()?.actor?.items?.get?.(declared?.items?.[bearerOf().uuid])?.type === "weapon";
-  const storedFits = Boolean(declared) && !gone.length && itemsFit;
-  if (declared && !storedFits) deps.notify(gone.length ? "warn" : "info", gone.length ? "resolveGone" : "resolveItem", { name: caster.name, n: gone.length });
+  // A stored answer's bucket entry the world no longer holds reopens the dialog on what was declared, as a gone target does.
+  if (resolving) bucketsGone = await goneIn(declared?.procedure?.buckets);
+  const storedFits = Boolean(declared) && !gone.length && !bucketsGone.length && itemsFit;
+  if (declared && !storedFits) {
+    const why = gone.length ? "resolveGone" : bucketsGone.length ? "resolveBucket" : "resolveItem";
+    deps.notify(gone.length || bucketsGone.length ? "warn" : "info", why, { name: caster.name, n: gone.length || bucketsGone.length });
+  }
   const gateExtras = (inv = startInv) => castGateExtrasOf(spell, deps.lookups, atFor(modeKeys[0], inv));
   const askContext = () => ({
     spell,
     caster,
     moment,
+    // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
+    momentAt: (mode, levelValue, praw) => momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
+    // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far; null where the tradition has none.
+    procedure: procedure ? { kind: procedureKind, at: (mode, praw, levelValue) => procViewAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}, momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {})) } : null,
     modes: modeKeys,
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m, startInv)])),
@@ -665,14 +750,20 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The save modifier counts only where a save is made and the import read a figure for it at this level.
   const saveMod = answer.saveMod === true && spellSaves(extras.save) && saveModifierOf(extras.save, level.value) != null;
   // The level the answer resolved to, never the declaration's default: a null stays null, so the verdicts and the kept rows read one level.
-  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value);
+  // Where the cast falls given the final answer: the procedure's casting time is read from it, and a stored bucket entry that is gone by the turn is a verdict.
+  moment = momentAt(mode, invocation.value, level.value, answer.procedure);
+  if (moment === MOMENT.resolve) bucketsGone = await goneIn(answer.procedure?.buckets);
+  const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
+  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
+  // A finding a procedure worded itself is told in its own words; every other has a key of the cast's own.
+  const tell = (v, prefix) => (v.notice ? (deps.notifyText ?? ((level, text) => ui.notifications?.[level]?.(text)))("warn", v.notice) : deps.notify("warn", `${prefix}.${v.key}`, detail(v)));
   if (blocked(verdicts)) {
-    deps.notify("warn", `blocked.${stop.key}`, detail(stop));
+    tell(stop, "blocked");
     return { ok: false, reason: stop.key };
   }
-  for (const v of verdicts) deps.notify("warn", `verdict.${v.key}`, detail(v));
+  for (const v of verdicts) tell(v, "verdict");
 
   // A declaration being resolved was spent at its declaring.
   if (!resolving) {
@@ -685,11 +776,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
   else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
   if (moment === MOMENT.declare) {
-    const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid) }, combat: world.combat, combatant: world.combatant });
+    const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid), procedureKind }, combat: world.combat, combatant: world.combatant });
     return { ok: true, declared: true, castId: made?.castId };
   }
 
   const castId = deps.castId();
+  // How long a cast over a round takes, for its card.
+  const longTime = moment === MOMENT.long ? timeAt(mode, invocation.value, level.value, answer.procedure) : null;
   const card = {
     castId,
     spellUuid: spell.uuid,
@@ -698,6 +791,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     casterName: caster.name,
     mode,
     picks: answer.picks ?? {},
+    // A cast longer than a round names its time, and whose time it is.
+    ...(longTime ? { castingTime: { value: longTime.value ?? null, unit: longTime.unit ?? "", source: longTime === spellTime ? "spell" : "procedure" } } : {}),
     // The level with the abilities' deltas on it, and the parts that made it: the relay trusts this value.
     casterLevel: { value: level.value, source: level.source, base: level.base, parts: level.parts, listed: level.listed },
     // The invocation level the rows were read at, and where it came from (a figure chosen under the tradition's cap, or set by hand); the relay and every press read the card's spell again at it (`castAt`).
@@ -729,6 +824,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     card.pickKind = { key, defaulted: key !== answer.pickKind };
   }
   const rolls = [];
+  // The tradition's procedure performs once the cast has its id and before its first row. What it returned is on the card; a step it did not take, or threw in, posts only its section.
+  if (procedure?.perform) {
+    const done = await runPerform(procedure, { ...procCtx(invocation.value, level.value, moment), castId }, procedureAnswer);
+    card.procedure = { kind: procedureKind, section: done.section, undo: done.undo };
+    rolls.push(...done.rolls);
+    if (!done.proceed) {
+      const message = await deps.post({ ...card, lines: done.failed ? [loc("line.procedureFailed")] : [] }, { rolls, mode: answer.visibility || "public", speaker: undefined });
+      return { ok: true, castId, messageId: message?.id, applied: [], performed: false };
+    }
+  }
   for (const keyed of kept) {
     const { row } = keyed;
     if (isModRow(row)) continue;
@@ -873,11 +978,12 @@ async function applyAll(message, deps) {
 /**
  * The claimant for the cast seam. `claims` is synchronous.
  * @param {object} [deps]  see `liveDeps`
+ * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`, kept apart from `deps` since the claimant hands `deps` to the cast whole
  */
-export function castSpellClaimant(deps) {
+export function castSpellClaimant(deps, { classFor = null } = {}) {
   return {
     key: CAST_SPELL_KEY,
-    claims: (item) => castSpellClaims(item, deps?.lookups),
+    claims: (item) => castSpellClaims(item, deps?.lookups, classFor),
     cast: (item, options, spend) => castSpellRun(item, spend, deps, options),
   };
 }
@@ -971,22 +1077,41 @@ async function pressUndo(message, { target, row }) {
   for (const [id, entry] of Object.entries(next)) await updateEntry(message, id, entry);
 }
 
+/** A Revert press: the Judge's. The tradition's procedure puts back what its performed step did, once. */
+async function pressRevert(message) {
+  if (!game.user.isGM) return;
+  const card = cardOf(message);
+  const done = await runRevert(card, {
+    actor: fromUuidSync(card?.casterUuid),
+    spell: fromUuidSync(card?.spellUuid),
+    isGM: game.user.isGM,
+    kind: card?.procedure?.kind,
+    castId: card?.castId,
+    now: () => game.time.worldTime,
+    roll: (formula) => new Roll(formula).evaluateSync().total,
+  });
+  if (done.ok) await markReverted(message);
+  else ui.notifications?.warn(loc(`notice.revert.${done.reason}`));
+}
+
 let unregister = null;
 
 /**
  * Register the claimant after the summoning's, the card's buttons and the
  * relay. Once, at `init`; a second call replaces the first.
+ * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`; without it no tradition's procedure is found
  * @returns {() => void}
  */
-export function registerCastSpell() {
+export function registerCastSpell(claim = {}) {
   unregister?.();
-  addSpellUseClaimant(castSpellClaimant());
+  addSpellUseClaimant(castSpellClaimant(undefined, claim));
   addAttackContributor(abilityDamageContributor);
   registerCastCardHooks({
     [CARD_ACTIONS.apply]: pressApply,
     [CARD_ACTIONS.applyTargets]: pressApplyTargets,
     [CARD_ACTIONS.throw]: pressThrow,
     [CARD_ACTIONS.undo]: pressUndo,
+    [CARD_ACTIONS.revert]: pressRevert,
   });
   void registerCastRelay();
   let done = false;

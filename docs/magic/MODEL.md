@@ -447,9 +447,11 @@ keeps `ended {kind, count}`. Entries and Undo live on the prompt card.
 summoning's). A second claimant (key `acks-extras.magic.castSpell`) takes the
 cast of a flagged spell item on an actor this seat owns when the spell is no
 summoning and has effect rows of its own or of its library twin's
-(`cast-rows.mjs` `rowsOf`, the copy's rows winning); it declines a rowless
-spell, an actor the seat does not own and any item that is no spell, so a
-monster's attack item stays the system's. The cast runs in this order, and a
+(`cast-rows.mjs` `rowsOf`, the copy's rows winning), or whose tradition has a
+registered procedure ("A tradition's procedure", below), rows or none and
+summoning or not; it declines a rowless spell with no procedure, an actor the
+seat does not own and any item that is no spell, so a monster's attack item stays
+the system's. The cast runs in this order, and a
 cancel at any point before the spend costs nothing:
 
 1. *The dialog* (`apps/cast-dialog.mjs`, `apps/cast-dialog-model.mjs`,
@@ -787,17 +789,27 @@ GM's: the hit points return to what they were and the records are deleted by
 id.
 
 **A declaration** (`cast-moment.mjs`, `cast-declare.mjs`, registered at `init`).
-`castMoment({combat, combatant})` answers where a cast falls: `free` where no
-begun fight (`started`, or core's `acks.initDone`) holds the caster's combatant,
+`castMoment({combat, combatant, castingTime})` answers where a cast falls: `free`
+where no begun fight (`started`, or core's `acks.initDone`) holds the caster's
+combatant, `long` where one does and the casting time is longer than a round,
 `resolve` where the tracker's current combatant is the caster's and its
-initiative is rolled, `declare` at any other moment. At `declare` the dialog's
+initiative is rolled, `declare` at any other moment. A time is longer than a
+round by its unit and with no conversion figure: a `timed` time of more than one
+round, or of any other `TIME_UNITS` unit (`longerThanRound`). The time is the
+procedure's `castingTime(ctx, answer)`, else the spell's own (its library twin's
+where the copy prints none), and it is read again from the dialog's answer in the
+dialog and from the final answer in the cast. A `long` cast is never declared:
+`longCast` blocks a Player and warns a Judge, whose cast resolves at its confirm
+and whose card names the time (`card.castingTime {value, unit, source}`). A
+declaration being resolved stays `resolve`. At `declare` the dialog's
 button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
 status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
 round, at}`), and posts no card. The answer's fields are one table,
 `ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, invocationLevel, situational,
 visibility, pickKind, items, saveMod, the uuids of the seat's `targets` at the
-answer, and the throw `allocation` by row key and token uuid. A later field is
+answer, the throw `allocation` by row key and token uuid, the tradition's
+`procedure` answer and the `procedureKind` it belongs to. A later field is
 added to that table and nowhere else. `round`
 is the round whose turn of the caster's takes the declaration back (`lapseRound`:
 this round where the caster's turn is still to come or its initiative unrolled,
@@ -835,7 +847,47 @@ flag) when that caster's turn that reaches its `round` ends with it unresolved
 (`turnEnded`: the round advances, or the tracker moves forward to another
 combatant; the tracker re-sorting after an initiative roll ends no turn), and when
 the fight is deleted. A Judge's fresh cast through a lost declaration ends it. The
-spend stands.
+spend stands. The client that saw the loss also runs the tradition's `lost` for
+a record that names a `procedureKind`, once for each cast.
+
+**A tradition's procedure** (`cast-procedure.mjs`, Foundry-free; magic's api
+exports `registerCastProcedure` and `procedureOfKind`). A casting tradition's
+kind registers one procedure; a second registration of the kind replaces the first
+and the first's handle then does nothing. Every member is optional: `fields(ctx,
+answer)` (field specs, `lib/field-spec.mjs`), `band(ctx, answer)` (`{template,
+context}`, a partial for what a field cannot say), `verdicts(ctx, answer)`
+(`[{key, notice}]`), `castingTime(ctx, answer)`, `perform(ctx, answer)`,
+`lost(ctx, declaration)`, `revert(ctx, undo)` and `buckets(ctx)`. The `ctx` is
+`{actor, spell, tradition, classItem, invocationLevel, casterLevel, isGM, moment,
+combat, source, roll, now}` (`castId` too for `perform`); a ctx whose `source` is
+not `spell` is given no procedure. The procedure is found by the kind of the
+tradition that cast the spell (`world.tradition`), and the claimants find it the
+same way, synchronously, through the classes feature's `classForActor` injected at
+registration (`registerCastSpell({classFor})`, `registerCastSummon({classFor})`);
+the summoning's claimant declines a spell with a procedure and
+`castSpellClaims` ignores its summoning. The answer to a procedure is one plain
+object, `answer.procedure`: the field values coerced to the specs, the controls of
+its band (named `procedure.<key>`), and the reserved key `buckets`,
+`{bucketKey: [{uuid, qty, fit}]}`. A member that throws is logged and left out.
+
+The dialog draws the fields and then the band in one band headed Invocation,
+between the spell and the saves, and loads the band's partial before it renders;
+a partial that cannot load is left out. The cast's verdicts add the procedure's
+findings, each taking the plan's severity (a Player blocked, a Judge warned) and
+reading in its own words (`notice`), and add `ritualPending` for a spell whose
+`ritual` flag is set (no ritual is cast from the dialog yet) and `bucketChanged`.
+At the turn each uuid in a stored answer's buckets is read again: one the world no
+longer holds reopens the dialog on what was declared, and keeping it is
+`bucketChanged`. `perform` runs after the cast has its id and the caster's
+concentration has ended, before the first row, at every moment but `declare`; a
+declaration stores the answer and the kind and the turn performs on them.
+`perform` returns `{proceed, section, rolls, undo}`: the card draws `section`
+above the rows' sections, `rolls` ride the message and `undo` is data on
+`card.procedure {kind, section, undo}`. `proceed: false` posts a card with only the
+section, with no row, record or application, and a throw posts a card with no
+section and a line saying the step did not complete. A Judge's Revert button
+(`magicCastRevert`, shown to a Judge for a card with `undo` not yet reverted) calls
+`revert(ctx, undo)` with that data and marks `card.procedure.reverted`.
 
 **Concentration's end** (`cast-held.mjs`, registered at `init`). However the
 caster's held record goes (damage or a failed save through lib's loss path, the

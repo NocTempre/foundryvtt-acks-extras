@@ -1,4 +1,5 @@
-{{!-- The cast dialog's scrolling body: the header, the spell, the saves and the
+{{!-- The cast dialog's scrolling body: the header, the spell, the Invocation band
+      (the tradition's procedure: its fields, then its own partial), the saves and the
       targets bucket. The seat's answer is read back from the named controls and
       the data-* hooks below (`apps/cast-dialog.mjs`). An effect row is the
       character sheet's cell in its tone beside the row read as the card reads it. --}}
@@ -66,6 +67,40 @@
   </section>
   {{/if}}
   {{/with}}
+
+  {{#if invocation.show}}
+  <section class="acks-extras-cast-band">
+    <header class="acks-extras-cast-targets__head">
+      <h3>{{invocation.title}}</h3>
+    </header>
+    {{#each invocation.fields}}
+    <div class="acks-extras-cast-field">
+      {{#if isCheck}}
+      <label class="acks-extras-cast-check"{{#if hint}} data-tooltip-text="{{hint}}"{{/if}}>
+        <input type="checkbox" name="{{name}}"{{#if checked}} checked{{/if}}>
+        <span>{{label}}</span>
+      </label>
+      {{else}}
+      <label{{#if hint}} data-tooltip-text="{{hint}}"{{/if}}>
+        <span>{{label}}</span>
+        {{#if isSelect}}
+        <select name="{{name}}">
+          {{#each choices}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        {{else if isNumber}}
+        <input type="number" name="{{name}}" value="{{value}}"{{#if hasMin}} min="{{min}}"{{/if}}{{#if hasMax}} max="{{max}}"{{/if}}>
+        {{else if isProse}}
+        <textarea name="{{name}}" rows="3">{{value}}</textarea>
+        {{else}}
+        <input type="text" name="{{name}}" value="{{value}}">
+        {{/if}}
+      </label>
+      {{/if}}
+    </div>
+    {{/each}}
+    {{#if invocation.band}}{{> (lookup invocation.band "template") invocation.band.context}}{{/if}}
+  </section>
+  {{/if}}
 
   {{#if saves.show}}
   <section class="acks-extras-cast-band acks-extras-cast-saves">

@@ -401,3 +401,50 @@ that left it unset, so it must ask for the level itself or add its own verdict.
 row as the very object it was. Ruling 200 says "copies"; a row with nothing on
 the scale needs none, and nothing in `scripts/magic` compares rows by identity.
 A flattened row is a new object and the spell's own is never written.
+
+## 2026-11-18 — The procedure seam's edges (R-p, rulings 204 to 206, 214, 215, 228)
+
+Calls the rulings left open, made while building the seam.
+
+`perform` runs at every moment but `declare`, `long` included. Ruling 206(d)
+says "at the free and resolve moments only"; read to the letter it would run a
+Judge's long cast's rows with no procedure step, which is the cast the ruling
+says resolves at its confirm. Reading it as "never at a declaration" keeps one
+rule: a declaration performs nothing, every cast that resolves performs.
+*Counter (medium):* a tradition that wants no performing on a long cast must
+check `ctx.moment` itself.
+
+A procedure's finding is `{key, notice}` where `notice` is the text the seat
+reads, worded by the procedure, which owns its lang keys under its own root.
+The plan gives the severity and the dialog and the cast's notice print the text.
+The alternative, a lang key the cast localizes, would tie a tradition's strings
+to the magic root. *Counter (medium):* a text is localized where it is built, so
+a procedure that caches one keeps it in the language of the moment.
+
+The procedure's answer is one object, `answer.procedure`, and ruling 214's
+`buckets` is its reserved key; the declaration stores it with the tradition kind
+(`procedureKind`) so a lost declaration finds the procedure without reading the
+class again. The controls of a band are named `procedure.<key>` and are read
+back under `<key>`.
+
+A stored bucket entry the world no longer holds reopens the dialog on what was
+declared, as a gone target does, in addition to the `bucketChanged` verdict.
+With the verdict alone a Player would be refused with no dialog to fix it in.
+*Counter (medium):* until the bucket's own control exists the reopened dialog
+can only show the verdict, so a Player's declared cast with a missing item is
+blocked until the Judge casts it.
+
+A `perform` that throws leaves no section, so the card carries a line of the
+module's own saying the step did not complete. The spend and the end of the
+caster's concentration have already happened by then. *Counter (medium):* the
+spend is not given back.
+
+Each member of a procedure is called through one guard that logs a throw and
+answers as if the member were absent, so a faulty procedure cannot take the
+dialog down. A second registration of a kind replaces the first, as
+`registerCastSpell` does.
+
+A rowless ritual spell whose tradition has no procedure is not claimed, since
+the claim needs rows or a procedure, so `ritualPending` is never drawn for it and
+the system casts it as before. Ruling 224 stands for the spells the claimant
+takes.

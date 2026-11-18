@@ -48,6 +48,7 @@ export const CARD_ACTIONS = Object.freeze({
   save: "magicCastSave",
   roll: "magicCastRoll",
   nextRound: "magicCastNextRound",
+  revert: "magicCastRevert",
 });
 
 /** A new target key of the card. */
@@ -174,11 +175,20 @@ function invocationTip(card, loc) {
   return cap != null && card.invocation?.source === "chosen" ? loc("tip.invocation.chosen", { value: card.invocationLevel, cap }) : loc("tip.invocation.hand", { value: card.invocationLevel });
 }
 
-/** The caster level's tooltip: where the figure came from (or that a hand set it) and the abilities' parts on it, then the parts on the saves and the damage, and where the invocation level came from. */
+/** The casting time's note, on a cast longer than a round: the time and its unit. Empty on any other cast. */
+const castingTimeNote = (card, loc) => (card.castingTime ? loc("note.castingTime", { value: card.castingTime.value ?? "", unit: card.castingTime.unit ?? "" }) : "");
+
+/** The casting time's tooltip: whose time it is (the spell's, or its tradition's procedure's) with the spell's page reference. Empty where the card names no time. */
+function castingTimeTip(card, loc) {
+  const time = card.castingTime;
+  return time ? loc(`tip.castingTime.${time.source === "procedure" ? "procedure" : "spell"}`, { value: time.value ?? "", unit: time.unit ?? "", cite: card.cite ?? "" }) : "";
+}
+
+/** The caster level's tooltip: where the figure came from (or that a hand set it) and the abilities' parts on it, then the parts on the saves and the damage, where the invocation level came from, and whose casting time the note names. */
 function noteTip(card, loc) {
   const level = levelTip(card.casterLevel, loc);
   const others = abilityTips([...(card.abilities?.save ?? []), ...(card.abilities?.damage ?? [])], loc);
-  return [level, ...others, invocationTip(card, loc)].filter(Boolean).join(" · ");
+  return [level, ...others, invocationTip(card, loc), castingTimeTip(card, loc)].filter(Boolean).join(" · ");
 }
 
 /** The section title of a row: its kind and the types it carries. */
@@ -257,7 +267,8 @@ function outcomeOf(entry, loc) {
  * @returns {object} `renderRollCard`'s argument
  */
 export function castCardView(card, seat, loc) {
-  const sections = [];
+  // What the tradition's procedure performed stands above the rows' sections.
+  const sections = card.procedure?.section ? [card.procedure.section] : [];
   const targets = Object.entries(card.targets ?? {});
   for (const rowKey of card.order ?? []) {
     const row = card.rows?.[rowKey];
@@ -344,12 +355,16 @@ export function castCardView(card, seat, loc) {
   if (card.recurs && !card.recur && (seat.isGM === true || seat.ownsCaster === true)) {
     buttons.push({ action: CARD_ACTIONS.nextRound, label: loc("button.nextRound"), icon: "fa-solid fa-forward-step", tooltip: loc("tip.nextRound") });
   }
+  // The Judge's revert of a performed step, until it has been pressed.
+  if (seat.isGM === true && card.procedure && card.procedure.undo != null && card.procedure.reverted !== true) {
+    buttons.push({ action: CARD_ACTIONS.revert, label: loc("button.revert"), icon: "fa-solid fa-rotate-left", tooltip: loc("tip.revert") });
+  }
   return {
     title: card.recur ? loc("recur.title", { name: card.spellName }) : card.spellName,
     subtitle: card.casterName ?? "",
     note: card.recur
       ? [loc(`recur.moment.${card.recur.moment}`), loc("recur.round", { round: card.recur.round })].join(" · ")
-      : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : "", card.invocationLevel ? loc("note.invocation", { value: card.invocationLevel }) : ""].filter(Boolean).join(" · "),
+      : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : "", card.invocationLevel ? loc("note.invocation", { value: card.invocationLevel }) : "", castingTimeNote(card, loc)].filter(Boolean).join(" · "),
     noteTooltip: noteTip(card, loc),
     sections,
     bare: true,
@@ -393,6 +408,15 @@ export async function updateEntry(message, id, entry) {
   const next = { ...cardOf(message), entries: { ...cardOf(message)?.entries, [id]: entry } };
   return message.update({
     [`flags.${MODULE_ID}.${CAST_CARD_FLAG}.entries.${id}`]: entry,
+    content: castCardContent(next, cardLoc),
+  });
+}
+
+/** Mark a card's performed step as reverted, so its button goes and a second press does nothing. */
+export async function markReverted(message) {
+  const next = { ...cardOf(message), procedure: { ...cardOf(message)?.procedure, reverted: true } };
+  return message.update({
+    [`flags.${MODULE_ID}.${CAST_CARD_FLAG}.procedure.reverted`]: true,
     content: castCardContent(next, cardLoc),
   });
 }

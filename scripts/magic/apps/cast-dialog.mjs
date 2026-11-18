@@ -4,7 +4,8 @@
  * ApplicationV2 over a scrolling body and a pinned footer (the shape of the
  * influence window). The body holds the header (caster, spell, level, and the
  * form of a reversible spell), the spell's choices drawn as effect rows in the
- * character sheet's tones, the saves, and the targets bucket; the footer holds
+ * character sheet's tones, the Invocation band (the fields and the band of the
+ * tradition's procedure, `cast-procedure.mjs`), the saves, and the targets bucket; the footer holds
  * what stands in the way, the visibility, Cancel and Cast (or Declare). A
  * verdict that blocks a Player disables the button, and a Judge reads it as a
  * warning. Cancel and a closed window both answer null, so nothing is spent.
@@ -97,7 +98,18 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const modeLabel = (key) => loc(`dialog.mode.${key}`);
     const visibilityLabel = (key) => game.i18n.localize(CONFIG.ChatMessage.modes?.[key]?.label ?? key);
     const statusImg = (id) => CONFIG.statusEffects?.find?.((s) => s.id === id)?.img ?? null;
-    return { ...context, ...dialogContext(this.#ctx, this.#answer, { modeLabel, visibilityLabel, statusImg }) };
+    const view = dialogContext(this.#ctx, this.#answer, { modeLabel, visibilityLabel, statusImg });
+    // A band partial that cannot be loaded is left out, so the dialog still opens and the cast is not lost with it.
+    if (view.invocation.band) {
+      try {
+        await foundry.applications.handlebars.loadTemplates([view.invocation.band.template]);
+      } catch (err) {
+        console.error(`${MODULE_ID} | a cast procedure's band could not be loaded`, err);
+        view.invocation.band = null;
+        view.invocation.show = view.invocation.fields.length > 0;
+      }
+    }
+    return { ...context, ...view };
   }
 
   /** @override */
@@ -157,6 +169,14 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     for (const name of ["pickKind", "casterLevel", "situational", "visibility"]) {
       const el = field(name);
       if (el) a[name] = el.value;
+    }
+    // The tradition's controls, by the name `procedure.<key>`: a field of its Invocation band, or a control of its own band partial.
+    for (const el of form.querySelectorAll('[name^="procedure."]')) {
+      const key = el.name.slice("procedure.".length);
+      if (!key) continue;
+      if (el.type === "radio") {
+        if (el.checked) a.procedure[key] = el.value;
+      } else a.procedure[key] = el.type === "checkbox" ? el.checked : el.value;
     }
     const toggle = field("saveMod");
     if (toggle && !toggle.disabled) a.saveMod = toggle.checked;
