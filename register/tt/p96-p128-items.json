@@ -1,0 +1,2987 @@
+[
+  {
+    "id": "tt.item227",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Cursed Scroll",
+    "anchor": {
+      "display": "Cursed Scroll"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96
+    ],
+    "meta": {
+      "category": "scrolls"
+    },
+    "assists": {
+      "skips": [
+        {
+          "page": 96,
+          "box": {
+            "x0": 0,
+            "x1": 305,
+            "y0": 50,
+            "y1": 399
+          },
+          "reason": "section-intro"
+        }
+      ]
+    }
+  },
+  {
+    "id": "tt.item228",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Anyspell, Greater",
+    "anchor": {
+      "display": "Scroll of Anyspell, Greater"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item229",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Anyspell, Lesser",
+    "anchor": {
+      "display": "Scroll of Anyspell, Lesser"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item230",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Creature Warding",
+    "anchor": {
+      "display": "Scroll of Creature Warding"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item231",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Magic Warding",
+    "anchor": {
+      "display": "Scroll of Magic Warding"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item232",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Mapping",
+    "anchor": {
+      "display": "Scroll of Mapping"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      96,
+      97
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item233",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Pledges",
+    "anchor": {
+      "display": "Scroll of Pledges"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      97
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item234",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scroll of Ward-Runes",
+    "anchor": {
+      "display": "Scroll of Ward-Runes"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      97,
+      98
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item235",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Spell Scroll",
+    "anchor": {
+      "hash": "411w88",
+      "as": "display"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      98
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item236",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Spell Scroll (Ritual)",
+    "anchor": {
+      "display": "Spell Scroll (Ritual)"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      98
+    ],
+    "meta": {
+      "category": "scrolls"
+    }
+  },
+  {
+    "id": "tt.item237",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Treasure Map",
+    "anchor": {
+      "display": "Treasure Map"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      98,
+      99,
+      100
+    ],
+    "meta": {
+      "category": "scrolls"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item238",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Curse Pole",
+    "anchor": {
+      "display": "Curse Pole"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      101
+    ],
+    "meta": {
+      "category": "implements"
+    },
+    "assists": {
+      "skips": [
+        {
+          "page": 101,
+          "box": {
+            "x0": 0,
+            "x1": 320,
+            "y0": 50,
+            "y1": 649
+          },
+          "reason": "section-intro"
+        }
+      ]
+    }
+  },
+  {
+    "id": "tt.item239",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 239",
+    "anchor": {
+      "hash": "1pm76dn",
+      "as": "display"
+    },
+    "pages": [
+      101
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item240",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Lightning Rod",
+    "anchor": {
+      "display": "Lightning Rod"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      101
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item241",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Madness Stick",
+    "anchor": {
+      "display": "Madness Stick"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      101
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item242",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Master Control Rod",
+    "anchor": {
+      "display": "Master Control Rod"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      102
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item243",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Cataclysm",
+    "anchor": {
+      "display": "Rod of Cataclysm"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      102
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item244",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Elemental Spheres",
+    "anchor": {
+      "display": "Rod of Elemental Spheres"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      102
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item245",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Eternal Torture",
+    "anchor": {
+      "display": "Rod of Eternal Torture"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      102
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item246",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Flashing",
+    "anchor": {
+      "display": "Rod of Flashing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item247",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Force",
+    "anchor": {
+      "display": "Rod of Force"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item248",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Nullification",
+    "anchor": {
+      "display": "Rod of Nullification"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item249",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Resurrection",
+    "anchor": {
+      "display": "Rod of Resurrection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item250",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Rumination",
+    "anchor": {
+      "display": "Rod of Rumination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item251",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of the Night Sky",
+    "anchor": {
+      "display": "Rod of the Night Sky"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      103
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item252",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Rod of Unstoppable Force",
+    "anchor": {
+      "display": "Rod of Unstoppable Force"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      104
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item253",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scorched Staff",
+    "anchor": {
+      "display": "Scorched Staff"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      104
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item254",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Battle Magic",
+    "anchor": {
+      "display": "Staff of Battle Magic"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      104
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item255",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Borrowed Heartbeats",
+    "anchor": {
+      "display": "Staff of Borrowed Heartbeats"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      104
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item256",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Brilliance",
+    "anchor": {
+      "display": "Staff of Brilliance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      104
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item257",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Calling",
+    "anchor": {
+      "display": "Staff of Calling"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      105
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item258",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Corrosion",
+    "anchor": {
+      "display": "Staff of Corrosion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      105
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item259",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Deep Earth",
+    "anchor": {
+      "display": "Staff of Deep Earth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      105
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item260",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Domination",
+    "anchor": {
+      "display": "Staff of Domination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      105
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item261",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Dominion",
+    "anchor": {
+      "display": "Staff of Dominion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      105
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item262",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Elemental Air",
+    "anchor": {
+      "display": "Staff of Elemental Air"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      106
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item263",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Elemental Earth",
+    "anchor": {
+      "display": "Staff of Elemental Earth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      106
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item264",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Elemental Fire",
+    "anchor": {
+      "display": "Staff of Elemental Fire"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      106
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item265",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Elemental Water",
+    "anchor": {
+      "display": "Staff of Elemental Water"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      106
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item266",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Errant Lightning",
+    "anchor": {
+      "display": "Staff of Errant Lightning"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      106
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item267",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Feral Forms",
+    "anchor": {
+      "display": "Staff of Feral Forms"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item268",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Forbidden Entry",
+    "anchor": {
+      "display": "Staff of Forbidden Entry"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item269",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Forceful Flames",
+    "anchor": {
+      "display": "Staff of Forceful Flames"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item270",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Grandeur",
+    "anchor": {
+      "display": "Staff of Grandeur"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item271",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Halting",
+    "anchor": {
+      "display": "Staff of Halting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item272",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Innocence",
+    "anchor": {
+      "display": "Staff of Innocence"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      107
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item273",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Iron Tooth and Hide",
+    "anchor": {
+      "display": "Staff of Iron Tooth and Hide"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item274",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Life’s Luster",
+    "anchor": {
+      "display": "Staff of Life’s Luster"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item275",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Life’s Semblance",
+    "anchor": {
+      "display": "Staff of Life’s Semblance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item276",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Line-Drawing",
+    "anchor": {
+      "display": "Staff of Line-Drawing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item277",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Looming Destruction",
+    "anchor": {
+      "display": "Staff of Looming Destruction"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      108
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item278",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Mentalism",
+    "anchor": {
+      "display": "Staff of Mentalism"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item279",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Mirrored Dooms",
+    "anchor": {
+      "display": "Staff of Mirrored Dooms"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item280",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Misdirection",
+    "anchor": {
+      "display": "Staff of Misdirection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item281",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Outreached Mercy",
+    "anchor": {
+      "display": "Staff of Outreached Mercy"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item282",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Reclamation",
+    "anchor": {
+      "display": "Staff of Reclamation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item283",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Remedy",
+    "anchor": {
+      "display": "Staff of Remedy"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item284",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Smiting",
+    "anchor": {
+      "display": "Staff of Smiting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      109
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item285",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Springiness",
+    "anchor": {
+      "display": "Staff of Springiness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item286",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Starfall",
+    "anchor": {
+      "display": "Staff of Starfall"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item287",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Steady Smiting",
+    "anchor": {
+      "display": "Staff of Steady Smiting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item288",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Stolen Sinew",
+    "anchor": {
+      "display": "Staff of Stolen Sinew"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      110
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item289",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Successive Summoning",
+    "anchor": {
+      "display": "Staff of Successive Summoning"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      110,
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item290",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Suffering",
+    "anchor": {
+      "display": "Staff of Suffering"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item291",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the All-Seeing Eye",
+    "anchor": {
+      "display": "Staff of the All-Seeing Eye"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item292",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Archmage",
+    "anchor": {
+      "display": "Staff of the Archmage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item293",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Ashen Tyrant",
+    "anchor": {
+      "display": "Staff of the Ashen Tyrant"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item294",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 294",
+    "anchor": {
+      "hash": "1c0dy78",
+      "as": "display"
+    },
+    "pages": [
+      111
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item295",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Emerald Wyrm",
+    "anchor": {
+      "display": "Staff of the Emerald Wyrm"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item296",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Grand Prefect",
+    "anchor": {
+      "display": "Staff of the Grand Prefect"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item297",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Great Healer",
+    "anchor": {
+      "display": "Staff of the Great Healer"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item298",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Healer",
+    "anchor": {
+      "display": "Staff of the Healer"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      112
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item299",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Hidden Sun",
+    "anchor": {
+      "display": "Staff of the Hidden Sun"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      112,
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item300",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Humble Healer",
+    "anchor": {
+      "display": "Staff of the Humble Healer"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item301",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Mage",
+    "anchor": {
+      "display": "Staff of the Mage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item302",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Phoenix",
+    "anchor": {
+      "display": "Staff of the Phoenix"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item303",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Salamander",
+    "anchor": {
+      "display": "Staff of the Salamander"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item304",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Sky’s Roar",
+    "anchor": {
+      "display": "Staff of the Sky’s Roar"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item305",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Treeherder",
+    "anchor": {
+      "display": "Staff of the Treeherder"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      113
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item306",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Void",
+    "anchor": {
+      "display": "Staff of the Void"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item307",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of the Wandering Goblin",
+    "anchor": {
+      "display": "Staff of the Wandering Goblin"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item308",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Ward-Runes",
+    "anchor": {
+      "display": "Staff of Ward-Runes"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      114
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item309",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of What Lies Beneath",
+    "anchor": {
+      "display": "Staff of What Lies Beneath"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item310",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Staff of Wilting",
+    "anchor": {
+      "display": "Staff of Wilting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item311",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Unicorn Horn Rod",
+    "anchor": {
+      "display": "Unicorn Horn Rod"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item312",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Aggravated Airway Amphibians",
+    "anchor": {
+      "display": "Wand of Aggravated Airway Amphibians"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      115
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item313",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Anti-Magic Zone",
+    "anchor": {
+      "display": "Wand of Anti-Magic Zone"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item314",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Annulment",
+    "anchor": {
+      "display": "Wand of Annulment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item315",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Arcane Arrows",
+    "anchor": {
+      "display": "Wand of Arcane Arrows"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item316",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Battering",
+    "anchor": {
+      "display": "Wand of Battering"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item317",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Bestial Flight",
+    "anchor": {
+      "display": "Wand of Bestial Flight"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item318",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Bestial Rage",
+    "anchor": {
+      "display": "Wand of Bestial Rage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item319",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Blightfire",
+    "anchor": {
+      "display": "Wand of Blightfire"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      116
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item320",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Blinding Blasts",
+    "anchor": {
+      "display": "Wand of Blinding Blasts"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item321",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Blinding Fireballs",
+    "anchor": {
+      "display": "Wand of Blinding Fireballs"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item322",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Blood Magic",
+    "anchor": {
+      "display": "Wand of Blood Magic"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item323",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Borrowed Eyes",
+    "anchor": {
+      "display": "Wand of Borrowed Eyes"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      117
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item324",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Canine Confusion",
+    "anchor": {
+      "display": "Wand of Canine Confusion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      117,
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item325",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Carmine Blossoms",
+    "anchor": {
+      "display": "Wand of Carmine Blossoms"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item326",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Changing Perspective",
+    "anchor": {
+      "display": "Wand of Changing Perspective"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item327",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Channeled Flame",
+    "anchor": {
+      "display": "Wand of Channeled Flame"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item328",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Collision",
+    "anchor": {
+      "display": "Wand of Collision"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item329",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Combustion",
+    "anchor": {
+      "display": "Wand of Combustion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item330",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Corpse Conscription",
+    "anchor": {
+      "display": "Wand of Corpse Conscription"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item331",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Counterspelling",
+    "anchor": {
+      "display": "Wand of Counterspelling"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item332",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Cruelty",
+    "anchor": {
+      "display": "Wand of Cruelty"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      118,
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item333",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Crushing Force",
+    "anchor": {
+      "display": "Wand of Crushing Force"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item334",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Deafening Thunder",
+    "anchor": {
+      "display": "Wand of Deafening Thunder"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item335",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Desiccation",
+    "anchor": {
+      "display": "Wand of Desiccation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item336",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Dispelling",
+    "anchor": {
+      "display": "Wand of Dispelling"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item337",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Distant Disappearance",
+    "anchor": {
+      "display": "Wand of Distant Disappearance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item338",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Dread",
+    "anchor": {
+      "display": "Wand of Dread"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item339",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Electrical Emission",
+    "anchor": {
+      "display": "Wand of Electrical Emission"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item340",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Energy Revulnerability",
+    "anchor": {
+      "display": "Wand of Energy Revulnerability"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      119
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item341",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Enervating",
+    "anchor": {
+      "display": "Wand of Enervating"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item342",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Ephemeral Evaporation",
+    "anchor": {
+      "display": "Wand of Ephemeral Evaporation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item343",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fanned Flames",
+    "anchor": {
+      "display": "Wand of Fanned Flames"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item344",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fascination",
+    "anchor": {
+      "display": "Wand of Fascination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item345",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fear",
+    "anchor": {
+      "display": "Wand of Fear"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item346",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fickle Fireballs",
+    "anchor": {
+      "display": "Wand of Fickle Fireballs"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item347",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fiery Arcs",
+    "anchor": {
+      "display": "Wand of Fiery Arcs"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item348",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Figments",
+    "anchor": {
+      "display": "Wand of Figments"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item349",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fireballs",
+    "anchor": {
+      "display": "Wand of Fireballs"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      120
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item350",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Flying",
+    "anchor": {
+      "display": "Wand of Flying"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item351",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Foe Discernment",
+    "anchor": {
+      "display": "Wand of Foe Discernment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item352",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Foliation",
+    "anchor": {
+      "display": "Wand of Foliation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item353",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fright",
+    "anchor": {
+      "display": "Wand of Fright"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item354",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Frigidity",
+    "anchor": {
+      "display": "Wand of Frigidity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item355",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Frost",
+    "anchor": {
+      "display": "Wand of Frost"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item356",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Fungal Fecundity",
+    "anchor": {
+      "display": "Wand of Fungal Fecundity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item357",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Gales",
+    "anchor": {
+      "display": "Wand of Gales"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      121
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item358",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Gloaming",
+    "anchor": {
+      "display": "Wand of Gloaming"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item359",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Growth",
+    "anchor": {
+      "display": "Wand of Growth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item360",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Guises",
+    "anchor": {
+      "display": "Wand of Guises"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item361",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Illusion",
+    "anchor": {
+      "display": "Wand of Illusion"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item362",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Impetus",
+    "anchor": {
+      "display": "Wand of Impetus"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item363",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Incineration",
+    "anchor": {
+      "display": "Wand of Incineration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item364",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Indignation",
+    "anchor": {
+      "display": "Wand of Indignation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item365",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Infatuation",
+    "anchor": {
+      "display": "Wand of Infatuation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item366",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Infuriation",
+    "anchor": {
+      "display": "Wand of Infuriation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      122,
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item367",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Item Negation",
+    "anchor": {
+      "display": "Wand of Item Negation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item368",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Judicious Incineration",
+    "anchor": {
+      "display": "Wand of Judicious Incineration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item369",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Kinetics",
+    "anchor": {
+      "display": "Wand of Kinetics"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item370",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Light",
+    "anchor": {
+      "display": "Wand of Light"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item371",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Luminosity",
+    "anchor": {
+      "display": "Wand of Luminosity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item372",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Mage Missile Barrage",
+    "anchor": {
+      "display": "Wand of Mage Missile Barrage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item373",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Mage Missiles",
+    "anchor": {
+      "display": "Wand of Mage Missiles"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item374",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Magic Discernment",
+    "anchor": {
+      "display": "Wand of Magic Discernment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      123
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item375",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Metal Location",
+    "anchor": {
+      "display": "Wand of Metal Location"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item376",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Miasma",
+    "anchor": {
+      "display": "Wand of Miasma"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item377",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Mutation",
+    "anchor": {
+      "display": "Wand of Mutation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item378",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Noises",
+    "anchor": {
+      "display": "Wand of Noises"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item379",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 379",
+    "anchor": {
+      "hash": "1wo7r7n",
+      "as": "display"
+    },
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item380",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Paralysis",
+    "anchor": {
+      "display": "Wand of Paralysis"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      124
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item381",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Passage",
+    "anchor": {
+      "display": "Wand of Passage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item382",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Physical Revulnerability",
+    "anchor": {
+      "display": "Wand of Physical Revulnerability"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item383",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Phytogenesis",
+    "anchor": {
+      "display": "Wand of Phytogenesis"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item384",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Ranged Regurgitation",
+    "anchor": {
+      "display": "Wand of Ranged Regurgitation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item385",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Recognition",
+    "anchor": {
+      "display": "Wand of Recognition"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item386",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Resizing",
+    "anchor": {
+      "display": "Wand of Resizing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item387",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Rioting",
+    "anchor": {
+      "display": "Wand of Rioting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item388",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Scant Succor",
+    "anchor": {
+      "display": "Wand of Scant Succor"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      125
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item389",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Size-Stealing",
+    "anchor": {
+      "display": "Wand of Size-Stealing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item390",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Sleep",
+    "anchor": {
+      "display": "Wand of Sleep"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item391",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Slipperiness",
+    "anchor": {
+      "display": "Wand of Slipperiness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item392",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Smokescreens",
+    "anchor": {
+      "display": "Wand of Smokescreens"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item393",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Slumbering",
+    "anchor": {
+      "display": "Wand of Slumbering"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item394",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Spiders",
+    "anchor": {
+      "display": "Wand of Spiders"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item395",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Stolen Voices",
+    "anchor": {
+      "display": "Wand of Stolen Voices"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item396",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Substration",
+    "anchor": {
+      "display": "Wand of Substration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      126,
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item397",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Sudden Elevation",
+    "anchor": {
+      "display": "Wand of Sudden Elevation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item398",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of the Caterpillar",
+    "anchor": {
+      "display": "Wand of the Caterpillar"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item399",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of the Manticore",
+    "anchor": {
+      "display": "Wand of the Manticore"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item400",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 400",
+    "anchor": {
+      "hash": "1r4ip6c",
+      "as": "display"
+    },
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item401",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Thunder",
+    "anchor": {
+      "hash": "1w4ipns",
+      "as": "display"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item402",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Thunderbolts",
+    "anchor": {
+      "display": "Wand of Thunderbolts"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item403",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Transformation",
+    "anchor": {
+      "display": "Wand of Transformation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      127
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item404",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Uncanny Gyration",
+    "anchor": {
+      "display": "Wand of Uncanny Gyration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item405",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Uncontrollable Mirth",
+    "anchor": {
+      "display": "Wand of Uncontrollable Mirth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item406",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Warring Phantasms",
+    "anchor": {
+      "display": "Wand of Warring Phantasms"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item407",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Webs",
+    "anchor": {
+      "display": "Wand of Webs"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item408",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Weighty Webbing",
+    "anchor": {
+      "display": "Wand of Weighty Webbing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item409",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Winter Wounds",
+    "anchor": {
+      "display": "Wand of Winter Wounds"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  },
+  {
+    "id": "tt.item410",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Wand of Woe",
+    "anchor": {
+      "display": "Wand of Woe"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      128
+    ],
+    "meta": {
+      "category": "implements"
+    }
+  }
+]
