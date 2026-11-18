@@ -413,8 +413,10 @@ fixtures stay.
 ## Dealing letters (Judge seat)
 
 Walked by `tools/live/treasure-deal.mjs` (`node tools/live/run.mjs
-treasure-deal`), one section per step to step 7; step 8 is not yet walked. Its
-header lists the gestures that are scripted and what it does not reach.
+treasure-deal`), one section per step to step 7; step 8 by
+`tools/live/treasure-magic-deal.mjs`, whose census of every treasure type's
+magic placeholders, counted by match outcome, is its first observable. Each
+walk's header lists the gestures that are scripted and what it does not reach.
 Offline coverage is `tools/test-treasure-deal.mjs` (the stored deal state, the
 rows, the letters a Deal sends, the warning, the fake world's deal),
 `tools/test-treasure-magic-deal.mjs` (the magic cards rolled at the deal) and
@@ -465,17 +467,20 @@ or the cookbook documents a real import writes.
 8. **Magic cards are rolled at the deal.** With the world's item tables
    (`magicItemTables`) imported and a letter whose magic cell names a kind the
    tables hold a list for, press Deal. Observables: the pot gains a card for
-   the item rolled, not a placeholder; as Judge, its tile names the item and
-   reads magic, while a Player seat is shown it as an ordinary item with no aura
-   (undetected, unidentified, even where the linked document is identified in
-   its own sheet). Where the item links to a world or compendium document the
+   the item rolled, not a placeholder. Its turned face wears what it passes
+   for (its document's disguise, else the placeholder's name), never the item's
+   name, on the Judge's reading as on a Player's, and a Player seat is shown no
+   aura (undetected, unidentified, even where the linked document is identified
+   in its own sheet). Where the item links to a world or compendium document the
    card claims as that document, with no identification and no curse
    known; where it links to none, the card is named for the item. A
-   second Deal in the Heroic style rolls on the rarity lists instead. Turn on No
-   magic and press Deal again: the rolled cards are struck when the pot opens,
-   as the placeholders were. A magic cell whose noun matches no list (or two)
-   leaves its card the placeholder it was and the deal's notice says some magic
-   was not rolled; so does a world with no item tables imported. Read the rolls
+   second Deal in the Heroic style rolls on the rarity lists instead. With No
+   magic on before a Deal, the hoard deals no magic card at all; turned on
+   after one, the rolled cards are struck when the pot opens. A magic cell whose
+   noun names no list, two lists, or several at once (a compound: a comma, a
+   semicolon or a parenthetical) leaves its card the placeholder it was and the
+   deal's notice says some magic was not rolled; so does a world with no item
+   tables imported. Read the rolls
    from the deal's result (`dealt[].audit`, the rows with `magic: true`); the
    deal posts no card for them (`MODEL.md`).
 
