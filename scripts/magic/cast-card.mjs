@@ -33,6 +33,7 @@ import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
 import { instancesTip } from "./cast-instances.mjs";
 import { gateTip } from "./cast-gates.mjs";
+import { levelTip, abilityTips } from "./cast-ability-tips.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
 export const CAST_CARD_FLAG = "castCard";
@@ -162,10 +163,11 @@ function partTip(row, card, targetKey, loc) {
   return loc(item ? "tip.part" : "tip.partNoItem", { spell: card.spellName, item, cite: card.cite });
 }
 
-/** The caster level's tooltip: where the figure came from, or that a hand set it. */
-function levelTip(card, loc) {
-  const source = card.casterLevel?.source;
-  return source ? loc(`tip.level.${source}`, { value: card.casterLevel.value }) : "";
+/** The caster level's tooltip: where the figure came from (or that a hand set it) and the abilities' parts on it, then the parts on the saves and the damage. */
+function noteTip(card, loc) {
+  const level = levelTip(card.casterLevel, loc);
+  const others = abilityTips([...(card.abilities?.save ?? []), ...(card.abilities?.damage ?? [])], loc);
+  return [level, ...others].filter(Boolean).join(" · ");
 }
 
 /** The section title of a row: its kind and the types it carries. */
@@ -307,7 +309,7 @@ export function castCardView(card, seat, loc) {
     note: card.recur
       ? [loc(`recur.moment.${card.recur.moment}`), loc("recur.round", { round: card.recur.round })].join(" · ")
       : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : ""].filter(Boolean).join(" · "),
-    noteTooltip: levelTip(card, loc),
+    noteTooltip: noteTip(card, loc),
     sections,
     bare: true,
     footnote: (card.lines ?? []).join(" · "),

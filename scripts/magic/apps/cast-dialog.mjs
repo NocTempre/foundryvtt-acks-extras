@@ -21,6 +21,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { describeSpellEffect } from "../describe.mjs";
 import { instancesTip } from "../cast-instances.mjs";
+import { levelTip } from "../cast-ability-tips.mjs";
 
 const TEMPLATE = `modules/${MODULE_ID}/templates/magic/cast-dialog.hbs`;
 
@@ -78,7 +79,7 @@ export function dialogContext(ctx, { mode = ctx.modes?.[0], visibility = "public
       show: Boolean(ctx.levelNeeded && !level.value),
       value: level.value ?? null,
       line: level.value ? loc("dialog.levelLine", { value: level.value }) : "",
-      tip: level.source ? loc(`tip.level.${level.source}`, { value: level.value }) : loc("tip.level.hand", { value: "" }),
+      tip: [level.source ? "" : loc("tip.level.hand", { value: "" }), levelTip(level, loc)].filter(Boolean).join(" · "),
     },
     weapon: {
       modes: Object.entries(ctx.needsWeapon ?? {}).filter(([, needed]) => needed).map(([m]) => m),

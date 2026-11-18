@@ -665,6 +665,7 @@ export async function worldFor(req, message, { card: given = null, source = null
   const targetActor = actorOfTarget(targetDoc);
   if (targetActor && card?.save?.category) {
     const { saveSpec } = await import("../lib/saves.mjs");
+    const { castAbilitiesOf, castSaveParts } = await import("./cast-ability-use.mjs");
     const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
     const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
     // What the save resists is the spell's own rows' damage, as the cast read it, so the target's defenses join this throw as they joined that one.
@@ -673,6 +674,8 @@ export async function worldFor(req, message, { card: given = null, source = null
       against,
       bearerToken: targetDoc.documentName === "Token" ? targetDoc : null,
       damage: resistedDamage(rows),
+      // The caster's abilities, read live as the casting client read them, so the throw's bounds are the same.
+      parts: castSaveParts(castAbilitiesOf(caster, spell)),
     });
     const bounds = foundryBounds(spec.formula);
     resist = { target: spec.target, min: bounds.min, max: bounds.max, auto: Boolean(spec.auto) };

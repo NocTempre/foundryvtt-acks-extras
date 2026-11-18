@@ -20,6 +20,8 @@
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
 import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { castAbilityLevel } from "./cast-abilities.mjs";
+import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
@@ -41,7 +43,7 @@ import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
-import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken } from "../lib/patches/attack-throw.mjs";
+import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
 import { saveThrow } from "../lib/saves.mjs";
 import { defenseCite } from "../lib/defenses.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
@@ -235,11 +237,14 @@ export async function rollRow(caster, spell, card, keyed) {
  * leaves unaffected rolls nothing and keeps no resist, and a target below the Hit
  * Dice that save rolls nothing and keeps a failed save marked as no save
  * (`noSaveResist`).
+ *
+ * `parts` are the caster's abilities' parts on the throw (`castSaveParts`): the
+ * relay and every press that rolls a cast's save pass the same ones.
  */
-export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null, gate = null } = {}) {
+export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null, gate = null, parts = [] } = {}) {
   if (gate?.affected === false) return { resist: null, roll: null };
   if (gate?.noSave === true) return { resist: noSaveResist(save, gate.why), roll: null };
-  const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage });
+  const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage, parts });
   const auto = made.auto ?? null;
   if (!auto && (made.target == null || made.total == null)) return { resist: null, roll: null };
   const { roll, ...kept } = made;
@@ -273,9 +278,10 @@ export async function rollResist(actor, save, situational, { against = null, bea
  * entry `{state: "exempt", gate}` for that row, a thrown row's included: nothing
  * is rolled, written or recorded for it. A target the spell's gate leaves with
  * no save keeps the failed resist that says so (`rollResist`). The caster's own
- * target is gated by none. With no `extras` nothing is gated.
+ * target is gated by none. With no `extras` nothing is gated. `saveParts` are
+ * the caster's abilities' parts on each target's save (`castSaveParts`).
  */
-export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID, extras = null }) {
+export async function buildTargets({ tokens, card, rows, save, situational, caster, casterToken = null, randomID, extras = null, saveParts = [] }) {
   const targets = {};
   const entries = {};
   const rolls = [];
@@ -319,7 +325,7 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
     const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
     const resisting = saves && open.some(({ row, key }) => !isModRow(row) && row.type !== "ignite" && !aimedAtSelf(row) && !rowNeedsThrow(row) && gates[key].affected);
     const made = resisting
-      ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, gate: targetGate({ actor: token.actor, extras, level }) })
+      ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
     await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates);
@@ -418,7 +424,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
   const resolving = moment === MOMENT.resolve && Boolean(declaration.valid);
   const figures = castFiguresOf(spell, deps.lookups);
-  const known = casterLevel(world.level);
+  // The caster's abilities that apply to this spell: they add to the caster level, the targets' saves and the damage, never to the slots or the uses.
+  const abilities = castAbilitiesOf(caster, spell, deps.lookups);
+  const known = castAbilityLevel(casterLevel(world.level), abilities.casterLevel);
   // What the range and the target count say of the targeted tokens at a caster level.
   const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: world.tokens, gaps: world.gaps });
   // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count).
@@ -482,7 +490,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   const kept = rowsForMode(all, mode, answer.picks);
-  const level = casterLevel({ ...world.level, override: answer.casterLevel });
+  const level = castAbilityLevel(casterLevel({ ...world.level, override: answer.casterLevel }), abilities.casterLevel);
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
@@ -516,7 +524,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     casterName: caster.name,
     mode,
     picks: answer.picks ?? {},
-    casterLevel: { value: level.value, source: level.source },
+    // The level with the abilities' deltas on it, and the parts that made it: the relay trusts this value.
+    casterLevel: { value: level.value, source: level.source, base: level.base, parts: level.parts, listed: level.listed },
+    ...(abilities.save.length || abilities.damage.length ? { abilities: { save: abilities.save, damage: abilities.damage } } : {}),
     save: { category: extras.save?.category ?? "", effect: extras.save?.effect ?? "", kind: extras.save?.kind ?? "" },
     situational: Number.isFinite(Number(answer.situational)) && answer.situational !== "" ? Number(answer.situational) : null,
     cite: extras.cite ?? "",
@@ -574,7 +584,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     } else card.lines.push(describeSpellEffect(keyed.row).text);
   }
 
-  const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null, extras: castGateExtrasOf(spell, deps.lookups) });
+  const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null, extras: castGateExtrasOf(spell, deps.lookups), saveParts: castSaveParts(abilities) });
   rolls.push(...built.rolls);
   card.targets = built.targets;
   card.entries = built.entries;
@@ -712,7 +722,7 @@ async function pressApplyTargets(message) {
   const { spell, caster } = rowOfCard(card, "");
   if (!spell || !caster) return;
   const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks);
-  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()) });
+  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()), saveParts: castSaveParts(castAbilitiesOf(caster, spell, worldLookups())) });
   await addTargets(message, built.targets, built.entries);
   const fresh = cardOf(message);
   for (const targetKey of Object.keys(built.targets)) {
@@ -773,6 +783,7 @@ let unregister = null;
 export function registerCastSpell() {
   unregister?.();
   addSpellUseClaimant(castSpellClaimant());
+  addAttackContributor(abilityDamageContributor);
   registerCastCardHooks({
     [CARD_ACTIONS.apply]: pressApply,
     [CARD_ACTIONS.applyTargets]: pressApplyTargets,

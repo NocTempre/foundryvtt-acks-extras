@@ -548,6 +548,7 @@ export async function pressRecurSave(message, { target, row }) {
   const actor = doc?.documentName === "Actor" ? doc : (doc?.actor ?? null);
   if (!keyed || !caster || !actor) return void notify("warn", "noTargets");
   const { rollResist, rollRow, castGateExtrasOf } = await import("./cast-spell.mjs");
+  const { castAbilitiesOf, castSaveParts } = await import("./cast-ability-use.mjs");
   const { targetGate } = await import("./cast-gates.mjs");
   const { actorToken } = await import("../lib/patches/attack-throw.mjs");
   const level = card.casterLevel?.value ?? null;
@@ -558,6 +559,8 @@ export async function pressRecurSave(message, { target, row }) {
     against: { actor: caster, token: casterToken },
     bearerToken: doc.documentName === "Token" ? doc : null,
     damage: resistedDamage([keyed]),
+    // The caster's abilities join this save as they joined the cast's own.
+    parts: castSaveParts(castAbilitiesOf(caster, spell, lookups)),
     gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups), level }),
   });
   if (!made.resist) return void notify("warn", "noTargets");
