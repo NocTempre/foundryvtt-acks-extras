@@ -28,6 +28,7 @@ import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zo
 import { districtReaction } from "./settlement.mjs";
 import { districtFromSelection, installDistrictControls, installDistrictPlaceRow, markControlledRegions } from "./district-tools.mjs";
 import { installDistrictInfluence } from "./district-influence.mjs";
+import { installCrossingObstacleConfig, registerCrossingObstacle } from "./crossing-region.mjs";
 import {
   HALT_OPTION,
   TRAP_ZONE_TYPE,
@@ -538,6 +539,15 @@ Hooks.once("init", () => {
     });
   } catch (err) {
     console.error(`${MODULE_ID} | trap registration failed`, err);
+  }
+
+  /* --- Crossing obstacle region behavior --- */
+  // Its own try: a failure here leaves the trap zone and everything after it registered.
+  try {
+    registerCrossingObstacle();
+    installCrossingObstacleConfig();
+  } catch (err) {
+    console.error(`${MODULE_ID} | crossing obstacle registration failed`, err);
   }
 
   /* --- Party-roll flag editor on ability item sheets --- */

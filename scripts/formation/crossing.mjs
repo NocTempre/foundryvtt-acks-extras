@@ -218,7 +218,7 @@ const positive = (value) => {
 };
 
 /** The setup keys a form may carry, each with how its value is read; null means unset. */
-const SETUP_FIELDS = Object.freeze({
+export const SETUP_FIELDS = Object.freeze({
   length: positive,
   depth: positive,
   gap: positive,

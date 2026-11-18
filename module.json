@@ -93,6 +93,7 @@
       }
     },
     "RegionBehavior": {
+      "crossingObstacle": {},
       "district": {},
       "encounterZone": {},
       "trapZone": {}

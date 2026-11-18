@@ -13,6 +13,7 @@
     "RegionBehavior": {
       "acks-extras.encounterZone": "ACKS Encounter Zone",
       "acks-extras.trapZone": "Trap Zone",
+      "acks-extras.crossingObstacle": "Crossing obstacle",
       "acks-extras.district": "ACKS District"
     },
     "Item": {
@@ -3578,6 +3579,67 @@
           "label": "The party knows it is here",
           "hint": "Ticked, the party can see this trap and may work on it. Kept apart from the state: an armed trap can be known."
         }
+      }
+    },
+    "CROSSING_OBSTACLE": {
+      "FIELDS": {
+        "kind": {
+          "label": "Kind",
+          "hint": "The sort of crossing this region begins. The fields below change with it."
+        },
+        "art": {
+          "label": "Art",
+          "hint": "The picture the crossing's header frame shows. Blank: the kind's glyph stands in."
+        },
+        "obstacle": {
+          "label": "Obstacle",
+          "hint": "Which obstacle the party works its way over."
+        },
+        "length": {
+          "label": "Length (ft)",
+          "hint": "In feet. Blank: the Judge sets it on the sheet."
+        },
+        "depth": {
+          "label": "Depth (ft)",
+          "hint": "In feet. Blank: the Judge sets it on the sheet."
+        },
+        "ropeFixed": {
+          "label": "Rope already fixed",
+          "hint": "Blank: the Judge sets it on the sheet."
+        },
+        "gap": {
+          "label": "Gap (ft)",
+          "hint": "In feet. Blank: the Judge sets it on the sheet."
+        },
+        "runUp": {
+          "label": "Room for a run-up",
+          "hint": "Blank: the Judge sets it on the sheet."
+        },
+        "precarious": {
+          "label": "Precarious landing",
+          "hint": "Blank: the Judge sets it on the sheet."
+        },
+        "charging": {
+          "label": "Jumpers are charging",
+          "hint": "Blank: the Judge sets it on the sheet."
+        },
+        "onEntry": {
+          "label": "When the party enters",
+          "hint": "What happens when the party token moves into this region. A member token alone starts nothing."
+        }
+      },
+      "KIND": {
+        "climb": "Climb",
+        "jump": "Jump"
+      },
+      "ENTRY": {
+        "offer": "Offer the Judge a crossing card",
+        "start": "Start the crossing at once",
+        "nothing": "Nothing: the Judge starts it from the sheet"
+      },
+      "YES_NO": {
+        "yes": "Yes",
+        "no": "No"
       }
     },
     "traps": {
