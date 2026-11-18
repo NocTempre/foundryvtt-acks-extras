@@ -507,6 +507,8 @@ and 11b-a are what is built.
 
 9 and 10 are answered by the `/design` artifact https://claude.ai/artifact/MWGwR5rfqxhhgmzrjvytnR (deal a letter, T5's entry points and lair warning, T3's replace ticks), which waits on the owner's feedback.
 
+**The owner's feedback on that board, 2026-11-17:** "What happened to the card design?", then "These setting should merge with that tool.", then "Ask an advisor to add some extra design flair. Again the repo had a style guide somewhere plus you can use imported art from the books." The four boards drew the deal controls as a separate plain form, away from the approved card table (https://claude.ai/artifact/LRUmx4L6RjUvXkZv4zz7ik and "Revised design"). The revision puts the settings (source, treasure type, worth, table style, special treasure, Deal) inside the card window, as the Judge's staging state of the same stash, with the cards visible: dealt face down, replace ticks on the cards themselves, and the lair warning and the monster-sheet and selected-token entries opening into that window. It draws on the vendored design system's ornaments, glyphs and textures (`vendor/acks-design/`), and gives the cards art slots that fill from the world's imported book images and fall back to a glyph; the module ships no book art. An architect takes the visual pass first. T5 waits on the owner's go for the revision.
+
 The plan's T3 line ("a random position is a `shuffle(...)`") no longer matches: placement uses the injected-rng `placeAdds`.
 
 Also outside these slices: trade chat lines say "Apparent value" (not fixed). The price-ledger leak, the slot badge against the full mark and the stale `origin` row are fixed ("Progress after handover").
