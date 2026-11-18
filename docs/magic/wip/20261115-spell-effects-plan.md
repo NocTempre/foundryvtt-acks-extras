@@ -2892,6 +2892,38 @@ Progress, 2026-11-17:
   - the S3c-4 scout;
   - 1d-A slice T, on topic/spell-effects-1d.
 
+Progress, 2026-11-17, later:
+
+- **topic/spell-effects:**
+  - S4a lib cf00c442;
+  - S3c-3 wiring b9318e6f. A fourth save site, Apply to targets, takes
+    the parts. A save figure is added to the target's die as written, so a
+    penalty is negative.
+  - S3c-4 register 10b5ab2a. Thirteen abilities and one alias got
+    recipes; thirteen were rejected by rulings 110 and 111, or as not
+    spell buffs. It also adds the executor's located `atLevel` and a
+    spellcastingMod lint over every kind.
+  - The stacking fix 3dec888b ranks parts by benefit to the caster, so a
+    larger save penalty wins.
+- **topic/spell-effects-1d:**
+  - T 6604ec43;
+  - H 5ae9798b. Player and Judge get the same warning before a summons
+    ends their concentration, as castSpell does.
+- **Owner questions 1c.4 to 1c.6, at their defaults:**
+  - **1c.4** Two abilities whose page prints no combined figure add (ruling
+    106's default). This covers three save pairs.
+  - **1c.5** `necromancy` is an allowlisted narrowing word. The spell data
+    uses it as a school, but `SPELL_TYPES` has none.
+  - **1c.6** A missing register entry for one lore proficiency leaves its
+    power's combined row and 2/3 progression unauthored. Finding: add the
+    entry.
+- **Findings:**
+  - The card shows save and damage parts only inside the level note's
+    tooltip, which a cast with no level drops. It needs `/design`.
+  - cast-summon repeats castSpell's held-record composition. Extract it
+    into cast-held.
+- **In flight:** S4c and 1d-A slice R.
+
 ### Results, 1c
 
 ### Results, 1d
