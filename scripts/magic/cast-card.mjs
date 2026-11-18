@@ -33,6 +33,7 @@ import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
 import { instancesTip } from "./cast-instances.mjs";
 import { gateTip } from "./cast-gates.mjs";
+import { kindOf } from "./cast-kinds.mjs";
 import { levelTip, abilityTips } from "./cast-ability-tips.mjs";
 
 /** The flag key under `flags[MODULE_ID]` that holds the card model. */
@@ -177,14 +178,40 @@ function titleOf(row, loc) {
   return types.length ? `${loc(`row.${row.type}`)} (${types.join(", ")})` : loc(`row.${row.type}`);
 }
 
+/**
+ * What a kind of the dispatch's entry says on its line beside the result (`cast-kinds.mjs`): the weapon a destroy row names or took, the effects a
+ * condition row lifted and the ones it left standing with the reason, that a holder had no weapon, why an entry was not written, and that a slain target is dead.
+ */
+function kindDetail(row, entry, loc) {
+  if (!entry || !kindOf(row.type)) return "";
+  const parts = [];
+  if (entry.item?.name && entry.state === "pending") parts.push(loc("detail.weapon", { name: entry.item.name }));
+  if (entry.item?.name && entry.state === "applied") parts.push(loc(entry.destroyed ? "detail.destroyed" : "detail.weaponKept", { name: entry.item.name }));
+  if (row.type === "destroyItem" && entry.item === null) parts.push(loc("detail.noWeapon"));
+  if (entry.lifted?.length) parts.push(loc("detail.lifted", { names: entry.lifted.map((d) => d.name).join(", ") }));
+  if (entry.listed?.length) parts.push(loc("detail.listed", { names: entry.listed.map((l) => `${l.name || l.status} (${loc(`detail.reason.${l.reason}`)})`).join(", ") }));
+  if (row.type === "conditionRemove" && entry.state === "applied" && !entry.lifted?.length && !entry.listed?.length) parts.push(loc("detail.nothingToLift"));
+  if (row.type === "slay" && entry.state === "applied" && entry.saved !== true) parts.push(loc("detail.slain"));
+  if (entry.why && entry.state === "refused") parts.push(loc(`detail.why.${["badItem", "overCount"].includes(entry.why) ? entry.why : "failed"}`));
+  return parts.join(" · ");
+}
+
+/** The tooltip of a kind's applied entry: a slay's hit points from and to, the spell's page reference on every kind. */
+function kindTip(row, entry, card, loc) {
+  const cite = card.cite ? loc("tip.cite", { cite: card.cite }) : "";
+  if (row.type === "slay" && entry?.state === "applied" && entry.saved !== true && Number.isFinite(entry.before)) return [loc("tip.slayHp", { before: entry.before, after: entry.after }), cite].filter(Boolean).join(" · ");
+  return cite;
+}
+
 /** The buttons one entry offers this seat. A modifier entry's Undo says it takes the whole group off. */
 function entryActions(entry, ids, { isGM, canPress }, loc, { group = false, name = "" } = {}) {
   const out = [];
   const data = { target: ids.targetKey, row: ids.rowKey };
   if (entry?.state === "pending" && canPress) out.push({ action: CARD_ACTIONS.apply, label: loc("button.apply"), icon: "fa-solid fa-check", data });
   if (entry?.state === "throw" && canPress) out.push({ action: CARD_ACTIONS.throw, label: loc("button.throw"), icon: "fa-solid fa-dice-d20", data });
-  if (entry?.state === "applied" && isGM && (entry.applied > 0 || entry.recordIds?.length)) {
-    out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip: group ? loc("tip.undoGroup", { name }) : loc("tip.undo") });
+  if (entry?.state === "applied" && isGM && (entry.applied > 0 || entry.recordIds?.length || entry.lifted?.length || entry.destroyed)) {
+    const tooltip = group ? loc("tip.undoGroup", { name }) : entry.destroyed ? loc("tip.undoDestroyed") : entry.lifted?.length ? loc("tip.undoLifted") : loc("tip.undo");
+    out.push({ action: CARD_ACTIONS.undo, label: loc("button.undo"), icon: "fa-solid fa-rotate-left", data, tooltip });
   }
   return out;
 }
@@ -253,10 +280,11 @@ export function castCardView(card, seat, loc) {
             name: target.name,
             total: done && entry.applied != null ? entry.applied : "—",
             // A defense the module does not price leaves the entry to the Judge: its line names the defense and the tooltip is the page reference alone.
-            tooltipText: exempt || (judged ? defenseCiteOf(judged) : entry?.life ? lifeTip(entry.life, card, loc) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : ""),
+            tooltipText: exempt || (judged ? defenseCiteOf(judged) : kindOf(row.type) && !entry?.life ? kindTip(row, entry, card, loc) : entry?.life ? lifeTip(entry.life, card, loc) : Array.isArray(entry?.instances) ? instancesEntryTip(entry, loc, named) : entry ? appliedTip(entry, loc, named) : ""),
             // The Judge applies it by hand, so the figure rolled stays on the line beside the defense.
             detail: [
               judged ? loc("detail.judgeDefense", { defense: defenseWord(judged, named), cite: defenseCiteOf(judged) }) : "",
+              kindDetail(row, entry, loc),
               throwDetail(entry, loc),
               lifeDetail(entry?.life, loc),
             ]

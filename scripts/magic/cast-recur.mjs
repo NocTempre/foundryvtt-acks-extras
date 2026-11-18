@@ -24,7 +24,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "../lib/constants.mjs";
-import { isRecurring, recurringRows, rowsOf, rowsForMode, saveFractionOf, resistedDamage } from "./cast-rows.mjs";
+import { isRecurring, recurringRows, rowsOf, rowsForMode, saveFractionOf, saveGoverns, resistedDamage } from "./cast-rows.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { spellEffectOf } from "./spell-effect.mjs";
 import { newTargetKey, cardOf, cardLoc, castCardContent, postCastCard, updateEntry, addTargets, registerCastCardHooks, CARD_ACTIONS } from "./cast-card.mjs";
@@ -555,15 +555,18 @@ export async function pressRecurSave(message, { target, row }) {
   const gate = targetGate({ actor, extras: castGateExtrasOf(spell, lookups), row: keyed.row, level });
   if (!gate.affected) return void notify("warn", "exempt", { name: doc.name ?? actor.name });
   const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : actorToken(caster);
-  const made = await rollResist(actor, card.save, card.situational, {
-    against: { actor: caster, token: casterToken },
-    bearerToken: doc.documentName === "Token" ? doc : null,
-    damage: resistedDamage([keyed]),
-    // The caster's abilities join this save as they joined the cast's own.
-    parts: castSaveParts(castAbilitiesOf(caster, spell, lookups)),
-    gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups), level }),
-  });
-  if (!made.resist) return void notify("warn", "noTargets");
+  // A row no save governs (`saveEffect: none`) rolls no save and sends none: the relay holds it to the stored resist, which is blank too.
+  const made = !saveGoverns(keyed.row, card.save)
+    ? { resist: null }
+    : await rollResist(actor, card.save, card.situational, {
+        against: { actor: caster, token: casterToken },
+        bearerToken: doc.documentName === "Token" ? doc : null,
+        damage: resistedDamage([keyed]),
+        // The caster's abilities join this save as they joined the cast's own.
+        parts: castSaveParts(castAbilitiesOf(caster, spell, lookups)),
+        gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups), level }),
+      });
+  if (!made.resist && saveGoverns(keyed.row, card.save)) return void notify("warn", "noTargets");
   const entry = { rowKey: row };
   const dealt = (keyed.row.type === "damage" || keyed.row.type === "heal") && saveFractionOf(keyed.row, card.save, made.resist).fraction !== 0;
   if (dealt) entry.rolled = (await rollRow(caster, spell, card, keyed)).total;

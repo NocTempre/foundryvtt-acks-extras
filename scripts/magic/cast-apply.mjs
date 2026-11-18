@@ -31,6 +31,11 @@
  * reach (`badRounds`), and whether the bearer is a combatant of a begun fight is
  * read there (`deps.fight`), never from the request.
  *
+ * A row with no amount of its own (ignite, a condition granted or lifted, a slay,
+ * a destroyed weapon) is written through one dispatch, `applyKind`, keyed by its
+ * type beside `cast-kinds.mjs`'s card and entry table; an Undo takes back what
+ * the entry stored (hit points, records, lifted effects, a destroyed mark).
+ *
  * A target's modifier and ward entries are one group: one request writes one
  * buff record (`cast-mods.mjs`) that every entry of the group names, and Undo on
  * one of them takes the record off for all.
@@ -49,7 +54,8 @@ import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs";
 import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage } from "./cast-rows.mjs";
 import { spellEffectData } from "./spell-effect.mjs";
-import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
+import { isModRow, modParts, modRecordData, modifierFigure } from "./cast-mods.mjs";
+import { liftPlan, isDestroyed, pickWeapon } from "./cast-kinds.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
@@ -270,9 +276,10 @@ export function checkApplyRequest(req, world) {
     // An entry the gate exempts is refused on the recomputed gate, whatever state the card's own word gives it.
     if (card.entries?.[entryId(req.targetKey, e.rowKey)]?.state === "exempt" || world.gateOf?.(row.row)?.affected === false) return { refused: "exempt" };
     if (!OPEN_STATES.includes(card.entries?.[entryId(req.targetKey, e.rowKey)]?.state)) return { refused: "applied" };
-    // A condition row has no amount; a rounds count it lasts is checked against its formula's reach. A modifier or ward row has no amount either: its figure is the spell's, read at the roll.
-    if (row.row.type === "conditionGrant" || row.row.type === "ignite") {
-      const refused = checkRounds(row.row, e, world);
+    // A kind of the dispatch has no amount, and what its own check holds it to is its kind's (`applyKind`). A modifier or ward row has no amount either: its figure is the spell's, read at the roll.
+    const kind = applyKind(row.row.type);
+    if (kind) {
+      const refused = kind.check?.(row, e, world, { card, targetKey: req.targetKey }) ?? null;
       if (refused) return { refused };
       continue;
     }
@@ -371,7 +378,7 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
       const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? card.rows?.[r.rowKey]?.total);
       // A thrown row's hits: the request's, else the ones its entry holds; null for any row that is not applied by instances.
       const hits = Array.isArray(r.instances) ? r.instances : rowNeedsThrow(keyed.row) && Array.isArray(existing.instances) ? existing.instances.filter((i) => i.state === "pending") : null;
-      const entry = await applyRow({ card, keyed, rolled, hits, resist, found, deps, existing, rounds: r.rounds });
+      const entry = await applyRow({ card, keyed, id, rolled, hits, resist, found, deps, existing, rounds: r.rounds });
       await deps.writeEntry(id, entry);
       out.push({ id, entry });
     }
@@ -440,29 +447,129 @@ async function anchorRecurring({ card, targetKey, resist, found, deps, out, requ
   }
 }
 
-/** One row on one target: the entry it leaves. `keyed` is the spell's own row. */
-async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps, existing, rounds = null }) {
+/** The life a row of the dispatch takes on one bearer: its next turn, following turn or rolled rounds, read here; null where the row has none. */
+async function lifeFor({ row, rounds, found, deps }) {
+  return hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: readsFight(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+}
+
+/** Can a saving throw's fraction be applied whole? True where the save failed or governs nothing (1) or negated the row (0); any other fraction has no figure the module computes. */
+const wholeOrNone = (made) => made.fraction === 1 || made.fraction === 0;
+
+/**
+ * An ignite row names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
+ */
+async function applyIgnite({ card, keyed, found, deps, existing, base, rounds }) {
   const { row, key } = keyed;
+  const life = await lifeFor({ row, rounds, found, deps });
+  const records = conditionRecords(row, card, { resist: null, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
+  const ids = await deps.createRecords(found.actor, records);
+  return { ...base, state: "applied", saved: null, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
+}
+
+/** A condition row: one record per condition it names, timed from the spell's own row; a passed save that negates it writes none. */
+async function applyConditionGrant({ card, keyed, resist, found, deps, existing, base, rounds }) {
+  const { row, key } = keyed;
+  const made = saveFractionOf(row, card.save, resist);
+  if (!wholeOrNone(made)) return { ...base, state: "judge", saved: made.saved };
+  if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
+  // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
+  const life = await lifeFor({ row, rounds, found, deps });
+  const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
+  const ids = await deps.createRecords(found.actor, records);
+  return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
+}
+
+/**
+ * A condition row that lifts: the conditions it names come off the target through lib's `lift`, on this client, and the effects that went are stored whole on the entry so an Undo
+ * recreates them under their own ids. What `liftPlan` leaves standing (a two-status effect, one a feature manages or holds) is listed on the entry with its reason.
+ * Only what is gone from the actor after the lift is stored, since `lift` logs a failure and goes on.
+ */
+async function applyConditionRemove({ keyed, found, deps, base }) {
+  const plan = liftPlan(found.actor.effects, keyed.row.conditions);
+  const data = plan.lift.map((e) => e.toObject());
+  if (plan.statuses.length) await deps.lift(found.actor, plan.statuses);
+  const lifted = data.filter((d) => !found.actor.effects.has(d._id));
+  return { ...base, state: "applied", saved: null, lifted, listed: plan.listed, recordIds: [] };
+}
+
+/**
+ * A row that slays: the target's hit points go to zero with no defense stage (a creature at or below zero is left where it is), and a record holding the dead status stays on it; an Undo restores both. A passed save that negates it writes nothing, and a
+ * target whose hit points cannot be written is the Judge's.
+ */
+async function applySlay({ card, keyed, resist, found, deps, base }) {
+  const { row, key } = keyed;
+  const made = saveFractionOf(row, card.save, resist);
+  if (!wholeOrNone(made) || !found.hpTarget) return { ...base, state: "judge", saved: made.saved };
+  if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
+  const before = found.hpTarget.hp?.value ?? null;
+  const entry = { ...base, state: "applied", saved: made.saved, recordIds: [], before, after: before, targetUuid: found.hpTarget.key ?? null, applied: 0 };
+  if (Number.isFinite(before) && before > 0) {
+    const [result] = await deps.adjustHp([{ target: found.hpTarget, amount: before, multiplier: 1 }], { mode: HP_MODE.damage, floorAtZero: true });
+    if (!result?.ok) return { ...base, state: "refused", saved: made.saved, before, after: before, why: result?.why ?? "failed" };
+    Object.assign(entry, { before: result.before, after: result.after, applied: result.before - result.after });
+  }
+  if (deps.deadStatus) {
+    const records = conditionRecords({ type: "conditionGrant", conditions: [deps.deadStatus], lasts: "instant" }, card, { resist, startTime: deps.now(), key, duration: { none: "noDuration" }, spell: deps.spell });
+    entry.recordIds = await deps.createRecords(found.actor, records);
+  }
+  return entry;
+}
+
+/** The entries of a card row that destroyed a weapon, other than `id`: what the cast's count of weapons has spent. */
+const destroyedCount = (card, rowKey, id) => Object.entries(card.entries ?? {}).filter(([k, e]) => k !== id && k.endsWith(`_${rowKey}`) && e?.state === "applied" && e.destroyed).length;
+
+/**
+ * A row that destroys one weapon of its holder: the weapon the entry names (chosen at the cast by `pickWeapon`, never by a control), on a failed save, up to the spell's
+ * count of weapons across the whole cast. The weapon is marked destroyed through equipment's `setDestroyed` and never deleted; an Undo clears the mark. A weapon that is gone, no longer a weapon or already destroyed
+ * is refused as `badItem` and written as an entry that did nothing, and a holder with none is an applied entry that names no weapon.
+ */
+async function applyDestroyItem({ card, keyed, id, resist, found, deps, existing, base }) {
+  const made = saveFractionOf(keyed.row, card.save, resist);
+  if (!wholeOrNone(made)) return { ...base, state: "judge", saved: made.saved };
+  const named = existing.item ?? null;
+  if (!named) return { ...base, state: "applied", saved: made.saved, item: null, recordIds: [] };
+  const weapon = found.actor.items?.get?.(named.id) ?? null;
+  if (!weapon || weapon.type !== "weapon" || isDestroyed(weapon)) return { ...base, state: "refused", saved: made.saved, item: named, why: "badItem" };
+  if (made.fraction === 0) return { ...base, state: "applied", saved: true, item: named, recordIds: [] };
+  const cap = Number.isFinite(deps.itemCap) ? deps.itemCap : null;
+  if (cap !== null && destroyedCount(card, keyed.key, id) >= cap) return { ...base, state: "refused", saved: made.saved, item: named, why: "overCount" };
+  await deps.setDestroyed(weapon, true);
+  return { ...base, state: "applied", saved: made.saved, item: named, destroyed: named, recordIds: [] };
+}
+
+/** What a destroy row's relay check holds the entry to: the weapon the card names is the one the target's pick still gives. */
+function checkItem(keyed, _e, world, { card, targetKey }) {
+  if (typeof world.weaponOf !== "function") return null;
+  const named = card.entries?.[entryId(targetKey, keyed.key)]?.item?.id ?? null;
+  return (world.weaponOf()?.id ?? null) === named ? null : "badItem";
+}
+
+/**
+ * The row kinds a cast applies with no amount of their own, by type: the one dispatch (`cast-kinds.mjs` holds the same types' card and entry facts). Each entry:
+ * `apply(ctx)` writes one row on one target and returns the card's entry, where `ctx` is `{card, keyed, id, resist, found, deps, existing, base, rounds}`;
+ * `check(keyed, request, world, {card, targetKey})` is what the relay holds a request for it to beyond the common checks (a refusal word, or null).
+ * A new kind is added here and in `APPLY_KINDS`.
+ */
+const APPLIERS = Object.freeze({
+  ignite: Object.freeze({ apply: applyIgnite, check: (keyed, e, world) => checkRounds(keyed.row, e, world) }),
+  conditionGrant: Object.freeze({ apply: applyConditionGrant, check: (keyed, e, world) => checkRounds(keyed.row, e, world) }),
+  conditionRemove: Object.freeze({ apply: applyConditionRemove }),
+  slay: Object.freeze({ apply: applySlay }),
+  destroyItem: Object.freeze({ apply: applyDestroyItem, check: checkItem }),
+});
+
+/** The appliers of a row type, or null where the type is not a kind of the dispatch. */
+export const applyKind = (type) => (Object.hasOwn(APPLIERS, type) ? APPLIERS[type] : null);
+
+/** One row on one target: the entry it leaves. `keyed` is the spell's own row, `id` its entry's id. */
+async function applyRow({ card, keyed, id, rolled, hits = null, resist, found, deps, existing, rounds = null }) {
+  const { row } = keyed;
   const by = deps.by ?? null;
   if (hits) return applyInstances({ card, keyed, hits, resist, found, deps, existing });
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
-  // An ignite row names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
-  if (row.type === "ignite") {
-    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: readsFight(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
-    const records = conditionRecords(row, card, { resist: null, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
-    const ids = await deps.createRecords(found.actor, records);
-    return { ...base, state: "applied", saved: null, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
-  }
-  if (row.type === "conditionGrant") {
-    const made = saveFractionOf(row, card.save, resist);
-    if (made.fraction === null || (made.fraction !== 1 && made.fraction !== 0)) return { ...base, state: "judge", saved: made.saved };
-    if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
-    // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
-    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: readsFight(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
-    const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
-    const ids = await deps.createRecords(found.actor, records);
-    return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
-  }
+  const kind = applyKind(row.type);
+  // A kind has no amount, so a figure the card never held is no "rolled" on its entry.
+  if (kind) return kind.apply({ card, keyed, id, resist, found, deps, existing, base: Number.isFinite(rolled) ? base : { ...base, rolled: undefined }, rounds });
   // The defenses are read from the actor this client writes, as they stand now.
   const defenses = deps.defenses ? deps.defenses(found.actor) : { sources: actorDefenses(found.actor), figures: defenseFigures() };
   const amount = amountOf(row, card, resist, rolled, defenses);
@@ -517,10 +624,12 @@ async function applyInstances({ card, keyed, hits, resist, found, deps, existing
 }
 
 /**
- * Take one applied entry back: the hit points return to what they were before
- * and the records it made are deleted by id. The Judge's tool.
+ * Take one applied entry back: the hit points return to what they were before,
+ * the records it made are deleted by id, the effects it lifted are recreated under
+ * their own ids (`restoreRecords`) and the weapon it marked destroyed is cleared
+ * (`clearDestroyed`). The Judge's tool.
  * @param {object} entry  an entry the card holds
- * @param {object} deps  `{resolve, restoreHp, deleteRecords(actor, ids)}` and the card's target
+ * @param {object} deps  `{resolve, restoreHp, deleteRecords(actor, ids), restoreRecords(actor, datas), clearDestroyed(actor, itemId)}` and the card's target
  * @param {{uuid: string}} target
  * @returns {Promise<object>} the entry as it now stands
  */
@@ -531,6 +640,8 @@ export async function undoEntry(entry, target, deps) {
     await deps.restoreHp([{ target: found.hpTarget, ok: true, before: entry.before, after: entry.after }]);
   }
   if (found?.actor && entry.recordIds?.length) await deps.deleteRecords(found.actor, entry.recordIds);
+  if (found?.actor && entry.lifted?.length) await deps.restoreRecords?.(found.actor, entry.lifted);
+  if (found?.actor && entry.destroyed?.id) await deps.clearDestroyed?.(found.actor, entry.destroyed.id);
   return { ...entry, state: "undone" };
 }
 
@@ -573,12 +684,24 @@ const foundryBounds = (formula) => ({
 /** The dependencies of a live write, on whichever client runs it. */
 export async function liveApplyDeps(messageId, { writeEntry, by = null } = {}) {
   const { adjustHp, restoreHp, resolveTargets } = await import("../lib/hp.mjs");
-  const { loseStates } = await import("../lib/status-effects.mjs");
+  const { loseStates, lift, STATUS_DEAD } = await import("../lib/status-effects.mjs");
   return {
     messageId,
     adjustHp,
     restoreHp,
     lose: loseStates,
+    lift,
+    deadStatus: STATUS_DEAD,
+    setDestroyed: async (item, on) => (await import("../equipment/actions.mjs")).setDestroyed(item, on),
+    clearDestroyed: async (actor, itemId) => {
+      const item = actor.items?.get?.(itemId);
+      if (item) await (await import("../equipment/actions.mjs")).setDestroyed(item, false);
+    },
+    // Effects an Undo puts back keep their own ids; one a later write already holds is not made twice.
+    restoreRecords: async (actor, datas) => {
+      const fresh = datas.filter((d) => d?._id && !actor.effects.has(d._id));
+      if (fresh.length) await actor.createEmbeddedDocuments("ActiveEffect", fresh, { keepId: true });
+    },
     now: () => game.time.worldTime,
     by: by ?? game.user.id,
     writeEntry,
@@ -648,6 +771,8 @@ async function castInputs(card, targetDoc, { recompute = false } = {}) {
     caster,
     spell,
     rows,
+    // The spell's count of weapons a destroy row may take across the cast, at the card's caster level; null where the import read none.
+    itemCap: extras ? modifierFigure({ value: extras.target?.count }, card?.casterLevel?.value ?? null) : null,
     gate: (actor, row) => targetGate({ actor, extras, row, level: card?.casterLevel?.value ?? null }),
     item: pick?.type === "weapon" ? { id: pick.id, name: pick.name } : null,
     spellMeta: spell ? { uuid: spell.uuid, name: spell.name, img: spell.img, id: cookbookId(spell) || null, cite: spell.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "" } : null,
@@ -699,6 +824,8 @@ export async function worldFor(req, message, { card: given = null, source = null
     rows,
     resist,
     gateOf: targetActor && !card.targets[req.targetKey].self ? (row) => inputs.gate(targetActor, row) : null,
+    // The weapon a destroy row takes from this target as the world stands now, for the relay to hold against the card's.
+    weaponOf: targetActor ? () => pickWeapon(targetActor) : null,
     item: inputs.item,
     inputs,
     roundsBoundsOf: (row) => roundsBounds(roundsFormulaOf(row), foundryBounds),
@@ -710,7 +837,7 @@ export async function worldFor(req, message, { card: given = null, source = null
 }
 
 /** What `applyOnTarget` reads of a cast, from `castInputs`. */
-export const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment, gate: inputs.gate });
+export const castDeps = (inputs) => ({ rows: inputs.rows, duration: inputs.duration, item: inputs.item, spell: inputs.spellMeta, sourceAlignment: inputs.sourceAlignment, gate: inputs.gate, itemCap: inputs.itemCap });
 
 /**
  * The relay's handler, on the GM's client: check, then apply. Answers

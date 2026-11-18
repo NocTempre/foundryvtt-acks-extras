@@ -38,6 +38,7 @@ import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
+import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
@@ -209,15 +210,8 @@ async function readWorld(spell) {
 /** A target as the card keeps it. */
 const targetOf = (token) => ({ uuid: token.uuid, name: token.name || token.actor?.name || "" });
 
-/**
- * The kinds of the ruling-14 family (a record and a card line, no arithmetic) that name a recipient and lasting
- * write the recipient's record, not only a line: the card carries them as a row with an entry per target. Only
- * `ignite` is one so far; a row that lasts once leaves no record and stays a line.
- */
-export const RECORD_KINDS = Object.freeze(["ignite"]);
-
-/** Does this row write a record on the recipient, as a card row with an entry per target? */
-export const writesRecipientRecord = (row) => RECORD_KINDS.includes(row?.type) && !aimedAtSelf(row) && ["duration", "rounds", "nextTurn", "followingTurn"].includes(row.lasts);
+// The ruling-14 kinds that write the recipient's record are the dispatch's (`cast-kinds.mjs`); the cast's tests reach them here.
+export { RECORD_KINDS, writesRecipientRecord } from "./cast-kinds.mjs";
 
 /** The Roll of one non-thrown row, with the figures the card shows. */
 export async function rollRow(caster, spell, card, keyed) {
@@ -292,14 +286,14 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   const entries = {};
   const rolls = [];
   const level = card.casterLevel?.value ?? null;
-  const opens = (r) => (r.type === "ignite" ? true : r.type === "conditionGrant" ? r.conditions.length : isModRow(r) ? r.blank !== true : r.total != null);
+  const opens = (r) => (isModRow(r) ? r.blank !== true : kindOf(r.type) ? rowOpens(r) : r.total != null);
   const open = rows.filter(({ key }) => card.rows[key] && opens(card.rows[key]));
   // A thrown row's entry opens at its throw, so it is listed with the rows that open one only to be marked exempt.
   const entered = rows.filter(({ key, row }) => card.rows[key] && (opens(card.rows[key]) || (rowNeedsThrow(row) && card.rows[key].blank !== true)));
   const hasSelf = rows.some(({ row }) => aimedAtSelf(row));
   // A condition that lasts a number of rounds opens with its count rolled, once for this target's record and shown on the card; a formula the import left blank, or one that will not roll, opens with no count.
   const opened = async (row) => {
-    if ((row.type !== "conditionGrant" && row.type !== "ignite") || row.lasts !== "rounds") return {};
+    if (!livesKind(row.type) || row.lasts !== "rounds") return {};
     const formula = roundsFormulaOf(row);
     const none = { life: { kind: "rounds", count: null, formula } };
     if (!formula) return none;
@@ -313,13 +307,13 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
       return none;
     }
   };
-  const add = async (key, target, forRow, gates = null) => {
+  const add = async (key, target, forRow, gates = null, actor = null) => {
     targets[key] = target;
     for (const { key: rowKey, row } of entered) {
       if (!forRow(row)) continue;
       const gate = gates?.[rowKey];
       if (gate && !gate.affected) entries[entryId(key, rowKey)] = { state: "exempt", gate: gate.why };
-      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending", ...(await opened(row)) };
+      else if (open.some((o) => o.key === rowKey) && !rowNeedsThrow(row)) entries[entryId(key, rowKey)] = { state: "pending", ...(await opened(row)), ...entryOf(row, actor) };
     }
   };
   // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes, no
@@ -329,14 +323,14 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   const damage = resistedDamage(rows);
   for (const token of tokens) {
     const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
-    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && row.type !== "ignite" && !aimedAtSelf(row) && !rowNeedsThrow(row) && saveGoverns(row, save) && gates[key].affected);
+    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && rowResisted(row, token.actor) && !aimedAtSelf(row) && !rowNeedsThrow(row) && saveGoverns(row, save) && gates[key].affected);
     const made = resisting
       ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
-    await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates);
+    await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates, token.actor);
   }
-  if (hasSelf && caster) await add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf);
+  if (hasSelf && caster) await add(newTargetKey(randomID), { uuid: caster.uuid, name: caster.name, self: true, resist: null }, aimedAtSelf, null, caster);
   return { targets, entries, rolls };
 }
 
@@ -568,14 +562,11 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
         card.rows[keyed.key] = cardRow(keyed, rolled, count);
       }
       card.order.push(keyed.key);
-    } else if (row.type === "conditionGrant") {
+    } else if (placeOf(row) === "row" || placeOf(row) === "rowAndLine") {
+      // A kind of the dispatch (`cast-kinds.mjs`): a section with an entry per target, and where its place says so a line, which says what the Judge settles by hand.
       card.rows[keyed.key] = cardRow(keyed, {});
       card.order.push(keyed.key);
-    } else if (writesRecipientRecord(row)) {
-      // A ruling-14 kind with a recipient: its record is the recipient's, and its line says what the Judge applies by hand.
-      card.rows[keyed.key] = cardRow(keyed, {});
-      card.order.push(keyed.key);
-      card.lines.push(describeSpellEffect(row).text);
+      if (placeOf(row) === "rowAndLine") card.lines.push(kindOf(row.type).lineKey ? loc(kindOf(row.type).lineKey) : describeSpellEffect(row).text);
     } else {
       card.lines.push(describeSpellEffect(row).text);
     }
@@ -665,6 +656,9 @@ async function throwEntry({ caster, spell, card, keyed, deps, skipDialog, token,
   return { entry: { state: instancesState(done.instances), instances: done.instances }, row };
 }
 
+/** The notice an apply the relay did not take is told with: no GM, a weapon the card no longer names (a Player's press is blocked there), or the entry staying pending. */
+export const applyNotice = (reason) => (reason === "noGm" || reason === "badItem" ? reason : "pendingApply");
+
 /** Apply every target's open entries, on the right client each. An entry that cannot be applied stays pending. */
 async function applyAll(message, deps) {
   const results = [];
@@ -673,7 +667,7 @@ async function applyAll(message, deps) {
     const requests = pendingRequests(card, targetKey);
     if (!requests.length) continue;
     const done = await deps.apply(message, targetKey, requests);
-    if (!done?.ok) deps.notify("warn", done?.reason === "noGm" ? "noGm" : "pendingApply", { name: card.targets[targetKey].name });
+    if (!done?.ok) deps.notify("warn", applyNotice(done?.reason), { name: card.targets[targetKey].name });
     results.push({ targetKey, ...done });
   }
   return results;
@@ -713,7 +707,7 @@ async function pressApply(message, { target, row }) {
   if (target) {
     const entry = card.entries[entryId(target, row)];
     const result = await requestApply(message, target, [requestOf(row, entry, card)]);
-    if (!result.ok) ui.notifications?.warn(loc(`notice.${result.reason === "noGm" ? "noGm" : "pendingApply"}`, { name: card.targets[target]?.name ?? "" }));
+    if (!result.ok) ui.notifications?.warn(loc(`notice.${applyNotice(result.reason)}`, { name: card.targets[target]?.name ?? "" }));
   }
 }
 
