@@ -469,3 +469,34 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 |---|---|---|
 | Drowning is held through the crossing's own path | A second status mechanism for drowning is already in the conditions registry and the row could simply read it | Medium: the held path is what End, a drop and a haul already release, and a hand-set Drowning stays untouched |
 | A player names a rescuer only among members they own | The drowning member's owner is the one with something at stake | Weak: a drowning character cannot name who rescues them in play, and the rescuer's owner is who acts |
+
+## 2026-11-17 — The squeeze's rows and the two escapes
+
+**Ruled.** (Dungeon close-out plan §4 B1, §9 slice S15; the surface is the approved board's "Squeeze" and "PromptCard".)
+- A squeeze is a crossing kind. A member is squeezing, stuck or through; through is the existing `across` state, so every reader of settled members (Throw all, the relay, End) treats it as settled with no new branch. Stuck is held through the crossing's own path as the fourth status, appended last because the slot is in the effect's id.
+- The Shape pick is the Judge's and decides whether one made throw clears the narrowing (a chokepoint) or the member is carried along a length (a squeeze). The imported chokepoint figure only compares: a chokepoint whose set length reaches it is a permission refusal, so a player is stopped and a Judge is warned, and with the figure not imported the pick stands.
+- **What a made throw carries a member along a squeeze is not ruled.** The page prints what a miss costs and no distance for a success, so `squeezeAdvance` answers null: on a squeeze of a set length a made throw leaves the member where they are, and only a chokepoint is cleared by one throw or an escape carries a member on. A long squeeze cannot be finished by throws until the owner rules (open question 1); the function is the one place it changes.
+- The botch is the lowest result of the die, which the page says leaves a squeezer stuck. It is registered as `squeezeBotchBand`, the highest face of a band that starts at the die's lowest, null until imported, and with none nothing botches. `doors.mjs` and `travel.mjs` write the same face as a literal; this slice does not add a third. Plan §4 C3 already calls such a literal a printed value. No recipe window reads the throw's paragraph and the figure is in no `expectTables`, so the Ruledata Browser lists no row for it: until a window and its binding land, no throw leaves a member stuck.
+- The escapes. The wiggle back is core's own `rollSave` (the Paralysis save) with the stone and the failed pushes' penalty held on the stored figure for the call, because core's roll takes no modifier and reads that figure before it awaits; `lib/` offers no sanctioned extra shift (the `rollSave` wrapper in `status-effects.mjs` owns conditions and records only), so the shift is the crossing's and is put back in a `finally`. The push is `resolveCheck` for Dungeonbashing, raised by the stone and the penalty, with no Strength term (that is the door bash's, behind `BASH_STR_FACTOR`). The Judge's modifier moves all three throws.
+- **Contortionism is counted once per throw**: the imported figure is in the squeezing throw and the push, never in the wiggle (S14's ruling), and the Dungeonbashing figure names none, since the ability's effect targets a save. A test holds a holder against a non-holder on each of the three targets.
+- The plight is counted on a failed push alone, which is the paragraph that says the plight worsens; a failed wiggle leaves the member stuck and says no more. Both escapes carry the penalty, since the page applies it to further attempts to escape. Tries are counted apart from the plight. A success clears both; a new botch starts both at nothing.
+- A wiggle retreats by the imported escape distance and a push advances by it, one figure for both as S14 reads it. A retreat never passes the start, and a member who retreats to nothing is still squeezing in the crossing.
+- One throw or one escape for each round of a fight (`thrownAt`), for every seat. The driver prompts once for each round (`promptedAt`), with no target on the escape card, as the board draws.
+- An absence refuses every seat, a Judge included, with no words, as every printed figure does: no stone, no bonus a holder needs, no length on a squeeze, no escape distance, no step owed, no Dungeonbashing figure, no save cell. Nothing rolls.
+- No name is published on `api.formation`, so `apiVersion` stays.
+
+**Rejected.** `lib/saves.mjs` `saveThrow` for the wiggle: it posts no system card, opens no dialog and so loses the ability's situational bonus for everyone, where the shifted `rollSave` keeps core's dialog and card. Reading `contortionismBonus` in the wiggle: S14's ruling. A Judge-typed advance field on the setup: not on the approved board. A literal 1 for the botch. Prompting a stuck member's escape with a target: the board draws none.
+
+**Cost.** No throw leaves a member stuck until the botch band's window is read, so the escape rows exist for a world only through a test seam today. The relayed wiggle skips core's dialog, so a player's situational Contortionism bonus on the save is not offered there, as a landing save's is not. Whether the imported situational save modifier reaches core's save at all is unread, so the wiggle tooltip's Contortionism line is unproven.
+
+| Position | Strongest counter | Strength |
+|---|---|---|
+| A shifted core `rollSave` for the wiggle | A temporarily edited field is a hazard if the roll awaits before reading it | Medium: core and the conditions' own wrapper read it before any await, and the field is restored in a `finally` |
+| A failed wiggle adds no plight | The page may count every failed escape | Medium: the worsening sits in the push's paragraph and the wiggle's failure only leaves the member stuck |
+
+**Open for the owner.**
+1. What a made throw carries a member along a squeeze (the page prints no distance). Built: nothing, so a long squeeze cannot be finished by throws.
+2. Whether a failed wiggle also worsens the plight. Built: it does not.
+3. What a member who wiggles back to the entrance is, and where a stuck member goes when the crossing ends. Built: still squeezing at the start; stuck is released at End and no token moves.
+4. Whether the push takes a Strength term. Built: no.
+5. The botch band has no import and no Browser row, so no throw leaves a member stuck. Ruling wanted: a recipe window and binding (a follow-up to S14), or the lowest result as structure like the door's.

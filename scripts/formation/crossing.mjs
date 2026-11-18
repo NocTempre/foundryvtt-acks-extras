@@ -1906,7 +1906,7 @@ async function rollSqueeze(formation, crossing, seen, step, { event = null } = {
   const message = await postToJudges({
     content: squeezeCard({ seen, press, step, roll, natural, set: patch.set, success, botch, feet, tip }),
     speaker: { alias: formation.name },
-    rolls: [roll],
+    rolls: step === "wiggle" ? [] : [roll],
   });
   const outcome = squeezeOutcome({ step, set: patch.set, feet });
   await settlePrompts(crossing.id, actorId, squeezeResultLine({ total: roll.total, target: press.plan.target, outcome }));
@@ -1923,7 +1923,7 @@ function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, 
   const holds = holdsContortionism(actor);
   const row = squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
-    pushFigure, save, speed: swimSpeeds(actor, stone ?? 0, false).combat, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+    pushFigure, save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
   });
   return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };
 }
@@ -1984,7 +1984,7 @@ function squeezeRowView(crossing, entry) {
     target: !stuck && !through && target !== null ? `${target}+` : "",
     targetTip: squeezeTargetTip(row),
     covered: row.chokepoint || row.length === null ? "" : loc("crossing.squeeze.covered", { covered: row.covered, length: row.length }),
-    coveredTip: [row.advance === null ? "" : loc("crossing.squeeze.tip.advance", { feet: row.advance }), squeezingRef()].filter(Boolean).join(" · "),
+    coveredTip: squeezingRef(),
     implied: implied.map((id) => ({ statusId: id, label: condition(id), tip: [loc("crossing.swim.tip.implied", { condition: condition(id), by: condition(STUCK) }), squeezingRef()].join(" · ") })),
     can: row.can,
     warn: row.warn,

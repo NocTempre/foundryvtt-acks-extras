@@ -2355,7 +2355,7 @@ await ok("each water condition's tooltip is its own datum in the view, so the pa
 /* --- the squeeze --------------------------------------------------------------- */
 const { SQUEEZE_KIND } = crossing;
 /** Invented squeeze figures: no book is imported. */
-const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 1 };
+const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2 };
 const loadSqueezeTables = (figures = SQZ) => {
   resetTables();
   registerTable(
@@ -2438,17 +2438,32 @@ await ok("a made throw clears a chokepoint and the member is through; the card g
   assert.deepEqual([row.stateLabel, row.can, row.escape], ["Through", false, null]);
 });
 
-await ok("a squeeze of a set length carries the member along by the round's movement and is through at the length's end", async () => {
-  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "30" } });
-  alder.system.movementacks = { combat: 12 };
-  assert.equal(rowOf(buildCrossingView(formation), "Alder").covered, "covered 0 / 30′");
-  naturals.push(9, 9, 9);
+await ok("a squeeze of a set length has no distance for a made throw until one is ruled: the member stays where they are, and the row says so by the page alone", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "30" } });
+  const row = () => rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row().covered, row().coveredTip], ["covered 0 / 30′", "RR ch. 6, Squeezing"]);
+  naturals.push(9, 9);
   await throwFor(formation, "Alder");
-  assert.deepEqual([memberOf(formation, "Alder").state, memberOf(formation, "Alder").covered], ["squeezing", 12]);
-  assert.equal(rowOf(buildCrossingView(formation), "Alder").covered, "covered 12 / 30′");
-  await throwFor(formation, "Alder");
-  assert.equal((await throwFor(formation, "Alder")).step, "across");
-  assert.equal(memberOf(formation, "Alder").covered, 30);
+  assert.equal((await throwFor(formation, "Alder")).step, "squeezing");
+  const record = memberOf(formation, "Alder");
+  assert.deepEqual([record.state, record.covered, record.throws, record.last.success], ["squeezing", 0, 2, true]);
+  assert.equal(row().covered, "covered 0 / 30′");
+});
+
+await ok("Contortionism is counted once on each throw, read through the real rows: a holder with a throw of its own and a non-holder start the push and the wiggle from the same figures and differ by the bonus on the squeeze and the push alone", async () => {
+  const { formation } = await squeezeWorld([
+    ["Holder", { stone: 5, items: [item("Probe Contort", [throwOf("contort", ladder([1, 15]))], { provides: ["kw:contortionism"], cite: "XX p.8" })] }],
+    ["Plain", { stone: 5 }],
+  ]);
+  await stuckAt(formation, "Holder");
+  await stuckAt(formation, "Plain");
+  const [held, plain] = ["Holder", "Plain"].map((name) => crossingRow(formation, name));
+  assert.equal(held.holds, true);
+  assert.equal(plain.holds, false);
+  assert.deepEqual([held.pushFigure.target, held.save.base], [plain.pushFigure.target, plain.save.base], "the figures the targets start from are the same");
+  assert.deepEqual([plain.row.target - held.row.target, plain.row.escape.push.target - held.row.escape.push.target], [3, 3]);
+  assert.equal(held.row.escape.wiggle.target, plain.row.escape.wiggle.target);
+  assert.equal(held.row.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
 });
 
 await ok("a squeeze with no length set has no throw, for a Judge too", async () => {
@@ -2593,7 +2608,7 @@ await ok("a press on a stuck card's push rolls the throw, takes the buttons off 
   const press = { formationId: formation.id, crossingId: readCrossing(formation).id, actorId: "Alder", step: "push" };
   assert.equal((await pressPrompt(press)).ok, true);
   assert.equal(card.content.includes("crossingPromptThrow"), false, "the buttons are gone");
-  assert.ok(card.content.includes("13 vs 19+ — Still stuck") || card.content.includes("13 vs 19+"), "the card keeps the result");
+  assert.ok(card.content.includes("13 vs 19+ — Still stuck"), "the card keeps the result");
   assert.deepEqual(memberOf(formation, "Alder").thrownAt, { combatId: "fightA", round: 3 });
   assert.deepEqual(await pressPrompt(press), { ok: false, refused: "thrown" });
   assert.equal(naturals.length, 0);

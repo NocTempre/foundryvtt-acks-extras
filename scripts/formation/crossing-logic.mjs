@@ -837,7 +837,6 @@ const positiveFeet = (value) => {
  * @param {number} [o.judgeMod] the Judge's modifier; positive lowers a target
  * @param {{target: number|null, parts?: object[]}|null} [o.pushFigure] the member's `resolveCheck` for Dungeonbashing
  * @param {{base: number|null}|null} [o.save] the member's own Paralysis target (null base: no cell)
- * @param {number|null} [o.speed] the member's movement for the round, in feet
  * @param {{combatId: string, round: number}|null} [o.turn] the round the throw is for, where a fight is running
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
  * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
@@ -847,7 +846,7 @@ const positiveFeet = (value) => {
  *   wiggle, push}`, each way `{target, parts, unknown, refusal, can, warn, plan}`
  */
 export function squeezeRow({
-  encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, save = null, speed = null,
+  encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, save = null,
   turn = null, seat = {}, standing = null, member = null,
 } = {}) {
   const state = member?.state ?? SQUEEZING;
@@ -935,7 +934,7 @@ export function squeezeRow({
     throws: Math.max(0, Number(member?.throws) || 0),
     tries,
     plight,
-    advance: squeezeAdvance(speed),
+    advance: squeezeAdvance(),
     target,
     parts: blind ? [] : thrown.parts,
     unknown: squeeze.unknown,

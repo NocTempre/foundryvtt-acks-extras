@@ -7840,7 +7840,6 @@
   "ACKS-FORMATION.crossing.squeeze.badge.contortionism": "Contortionism",
   "ACKS-FORMATION.crossing.squeeze.tip.holds": "Holds Contortionism",
   "ACKS-FORMATION.crossing.squeeze.tip.stuck": "{condition}: held by this crossing until the member escapes or the crossing ends",
-  "ACKS-FORMATION.crossing.squeeze.tip.advance": "A made throw carries {feet} ft",
   "ACKS-FORMATION.crossing.squeeze.tip.chokepointFigure": "Chokepoint figure {feet} ft",
   "ACKS-FORMATION.crossing.squeeze.covered": "covered {covered} / {length}′",
   "ACKS-FORMATION.crossing.squeeze.last": "last {total} · {outcome}",

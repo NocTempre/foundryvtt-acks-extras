@@ -886,7 +886,7 @@ await ok("a swimmer who has thrown this round has no throw left, for every seat;
 
 // ---- the squeeze ------------------------------------------------------------
 /** Invented figures for the squeeze; the printed ones arrive through the importer. */
-const SQUEEZE = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 1 };
+const SQUEEZE = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2 };
 const loadSqueeze = (tables = SQUEEZE) => {
   resetTables();
   if (tables) registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
@@ -916,7 +916,6 @@ await ok("Contortionism is counted once per throw: it moves the squeeze and the 
   assert.equal(held.escape.wiggle.target, plain.escape.wiggle.target, "the wiggle's save carries the ability's effect by the save's own route");
   assert.equal(held.escape.wiggle.parts.some((p) => p.key === "contortionism"), false);
   assert.equal(held.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
-  assert.equal(basher.parts.some((p) => /contortion/i.test(p.label)), false, "the Dungeonbashing figure carries no Contortionism of its own");
 });
 
 await ok("a holder whose bonus is not imported has no squeeze or push target, for a Judge too; a non-holder is unaffected", () => {

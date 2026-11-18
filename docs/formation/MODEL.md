@@ -88,7 +88,7 @@ All paths are under `scripts/formation/` unless noted.
 - **Every write goes through one private `commit(mutate)`**, which reads the ledger inside the save lock — the lock and the read are a single act, so no writer can hold a copy from before its turn in the queue. Three writers sit on it: `createFormation` **inserts** (the only insert, and it mints the id); `updateFormation` writes **only what its copy changed** since the model handed it out (`readAs`, `applyChanges`): a changed sub-record key by key, a list of `id`-keyed records element by element, any other changed list whole, and a removal or a key the ledger also gained since the read stands; so a patch that lands while the caller awaits keeps its value unless the copy changed the same field, and a copy its writer cloned has no read and is written whole (DECISIONS 2026-10-17, "A whole write carries only what its copy changed"). It **refuses a record the ledger no longer holds**, since a caller arriving with a record that was dissolved while it worked has a moot write, not an urgent one, and **keeps the ledger's party token**: the ledger's `sceneId` and `tokenId` stand over the copy's, and its `clock.lastPosition` too when they name another token than the copy did, so only a patch moves the party token (DECISIONS 2026-10-17); `patchFormation` re-reads one record and applies a targeted mutation, which is what a hook or any background writer uses so a concurrent field change is not overwritten and its own guards are decided against current reality.
 - **The delve's printed figures** live in the `formation` ruledata document and are read through `formationValue` (`constants.mjs`): the turns an unrested party explores before it is winded (`restInterval`), a carried body's weight and the share of its kit hauled with it (`carriedBodyStone`, `carriedGearShare`), and the swimming throw's five (`swimWaterPenaltySteps`, the penalty sizes the page prints as an ordered list of positive sizes, which carries no price per water condition; `swimmingBonus`; `swimSpeedShare`; `sinkFeetPerStone`; `breathRounds`). The importer writes all eight from the Judge's own RR p. 271: [formation-binding.mjs](../../scripts/importer/formation-binding.mjs) reads each out of a short window of the page's prose, reads the water penalty sizes in printed order without consulting the conditions the sentence names, and leaves a key whose window did not read absent. A reader without its figure says less rather than inventing one: the clock counts turns and asks for no rest, a rescue load and a drowning read as unknown, and a swimming throw that needs a missing figure returns no target and names it in `unknown`. The water penalty is the Judge's: `swimmingThrow` and `partySwim` take `penalty` (an imported step from `waterPenaltySteps()`, or a larger figure typed by hand, since the page leaves the end open) and `conditions` (keys of `WATER`: `cold`, `rough`, `fast`, ticked as the reason; calm is none ticked). The penalty is a size added to the target and needs no import, and the throw does not refuse a figure that is no step.
 - **Jumping, the fall and the Spelunking table** arrive in the same document as three more tables, read from RR pp. 268, 270 and 271. `jumping` holds the leap's constant and floor, the jump's die, the feet a stone of encumbrance takes off, the run-up, the share a standing start keeps, a creature's baseline running speed and assumed Dexterity, the die a failed landing falls short by, the ceiling Acrobatics holds a raised score to (`acrobaticsDexCap`) and the bonus bands the leap takes at each score (`extendedDexBands`, rows `{min, max, mod}`; the leap reads the modifier of the raised score, from its band, from the system's table under the lowest band, and as unknown between or past them or with none imported). `fall` holds the die and the feet it is dealt per. `spelunking` holds the feet one throw covers and, per obstacle, the target an ordinary adventurer throws or `false` where none may try, whether the climber is helpless (`vulnerable`, a boolean, from the grid's helplessness row) and the botch band (`botchBand`, `{min, max}` of natural results, from the bracketed note on each grid's botched-throw row label, shared by that grid's three columns). `spelunkingOutcomes`, read from the same grids' failed-throw and botched-throw rows (RR p. 268, its own raw table `spelunkingOutcomeGrid`, the cells read over their wrapped lines), holds per obstacle `fail` and `botch`, each `{text, falls}`: the cell's words and whether they name a fall. The binding reads each figure from its own window (the Spelunking grids by row label and column), so a window that drifted costs that figure only; the jump's die is kept only where it is a single die, since the range a jump reports is that die's faces. `jumping.mjs` and `obstacles.mjs` keep the procedure: the order the conditions apply in, a jump reported as a range, the clamp at zero, who may try an obstacle, that a failure and a result inside the botch band each read their own outcome, that a fall ends the climber's attempt, and that a fixed rope makes a sheer face easy. Each reader answers null until its figure is imported: `obstacleVulnerable` null, and `botchBand` null, which reads no natural result as a botch so that the target alone decides the miss. A jump, leap or landing that rests on one carries it by name in `unknown`; an obstacle attempt for an ordinary adventurer reports `notImported` and rolls nothing, since the stretch and the target are both the table's, and the card lists the name with no reason. A missed throw whose outcome is not imported ends that climber's attempt, and the chat card prints "missed" in its place; an imported outcome prints its words, escaped, with a tooltip naming the page `citeOf` gives or the Judge's override, and no tooltip while nothing is imported.
-- **Squeezing** arrives as four more keys of the same document, read from the Squeezing passage (RR ch. 6) by the `squeezingProse` recipe, one window per figure: `chokepointFeet` (the length a narrowing must be under to be a chokepoint), `contortionismBonus` (the magnitude Contortionism adds to the squeeze throw and to the push-forward throw; the wiggle-back save gets its bonus from the ability's own effect), `escapeFeet` (the distance a successful escape carries, read from the retreat and the push; one figure stands for both, so two windows that print different distances answer none) and `escapePenaltyStep` (the magnitude each failed escape adds to the next). `assembleSqueezing` parses each window apart, so a window that drifted costs that figure only, and a bonus or step of nothing is not read. A reader takes each through `formationValue`, which answers null until the figure is imported or a Judge's override sets it. Nothing in the module reads them yet.
+- **Squeezing** arrives as four more keys of the same document, read from the Squeezing passage (RR ch. 6) by the `squeezingProse` recipe, one window per figure: `chokepointFeet` (the length a narrowing must be under to be a chokepoint), `contortionismBonus` (the magnitude Contortionism adds to the squeeze throw and to the push-forward throw; the wiggle-back save gets its bonus from the ability's own effect), `escapeFeet` (the distance a successful escape carries, read from the retreat and the push; one figure stands for both, so two windows that print different distances answer none) and `escapePenaltyStep` (the magnitude each failed escape adds to the next). `assembleSqueezing` parses each window apart, so a window that drifted costs that figure only, and a bonus or step of nothing is not read. A reader takes each through `formationValue`, which answers null until the figure is imported or a Judge's override sets it. `squeezing.mjs` reads them ("The squeezer", below), together with one more figure the passage prints and no recipe window reads yet, `squeezeBotchBand`.
 - **Marching order** = order of `members[]`. Roles are per-member string arrays.
 - **Member tokens** are stashed as raw `toObject()` snapshots in `members[].tokenData` when the actor joins, and re-created around the party token on removal/disband.
 - **A summon is a member under an id of its own.** Summoned creatures are unlinked tokens of one world copy per creature (lib MODEL, "Summons"), so every wolf of a copy shares an actor id and could not be told apart. A summon member's `actorId` is minted for it and its `baseActorId` names the copy; `getMemberActor`, `memberStash` and `restoreMemberTokens` read `baseActorId ?? actorId`, so every other member reads as before, and `isSummonMember` is the test. `addSummonMembers(formationId, tokenDocs)` stores every member in one patch (blank cells first, stashing each token with its delta and so its flags), then deletes the tokens, then syncs the party speed, and brings the caller's copy of the record into line so a later write of it keeps them; it joins only a token carrying a cast record, never seeds a party token and fires no `memberJoined`. `addMember` routes a summon token there and refuses a creature's world copy (`summonCopy` flag) and a copy's token with no cast record; its search for the actor's own token skips any token that names a summoner, and a summon token whose summoner is not a member of that party is refused (`summonerAbsent`). `removeMembers` takes the summons of a leaving summoner with it and restores their tokens like any member's, flags included. Deployment and the stash read per member, so two wolves go out, are wounded and come back apart. A summon's token deleted while the ledger still names it ends its membership (`endSummonMembership`, on `deleteToken`): a recall clears the record before it deletes, so only another deletion reaches the hook, and a recall cannot put the creature back from its pre-deploy stash. The `party-roster` service reads the members for lib (docs/lib/API.md): rows carry `summonedBy` and `summon`, `memberOfToken` names a deployed member's party and row id, and `release` removes the records first and then the live tokens.
@@ -3074,6 +3074,71 @@ root, so a press keeps the scroll. A label wraps its control, a glyph is
 sheet, so `lib/press-focus.mjs`'s `PressFocus` is wired by hand: a capture
 click on the root notes the press and `_postRender` restores focus to the
 pressed row's button, which carries its member's id on itself.
+
+### The squeezer
+
+A squeeze is a crossing kind beside the obstacles, the jump and the swim
+(`SQUEEZE_KIND`, the Squeeze · chokepoint pick). Its setup is the Judge's:
+Shape (Chokepoint or Squeeze; a new crossing starts on Chokepoint), Length (ft)
+and the Judge modifier, each written by its own path like any setup field. A
+member is `squeezing`, `stuck` or through (state `across`, drawn "Through");
+the record also keeps `covered` (feet), `throws`, `tries` and `plight` (failed
+pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
+`squeezing.mjs` owns the procedure and `crossing-logic.mjs` `squeezeRow` the row.
+
+- **The squeezing throw** is a bare d20 against the stone carried (a creature
+  whose stone nobody has gets no throw for any seat), less Contortionism's
+  imported figure for a holder and the Judge's modifier. A holder whose figure
+  is not imported has no target. A squeeze with no length set has none either,
+  and a chokepoint needs no length. A chokepoint whose set length reaches the
+  imported chokepoint figure is a permission refusal: a player is stopped and a
+  Judge is warned (the figure only compares; with it not imported the Judge's
+  pick stands).
+- **What a made throw does.** On a chokepoint the member is through. On a
+  squeeze the distance a success carries is `squeezeAdvance`, which answers null
+  (the page prints none), so the member stays where they are; an escape still
+  carries them on. A miss is no progress for the round. A result inside
+  `squeezeBotchBand` (the highest face of a band that starts at the die's lowest;
+  registered like the other figures, null until set, and then nothing botches;
+  no window imports it yet) leaves the member stuck with no escape tried,
+  whatever the total reached.
+- **Stuck** is a held condition of the crossing (`CROSSING_STATUSES` gains
+  `stuck` last, since the slot is in the effect's id); the catalogue's own
+  closure adds Vulnerable, which the row draws as an implied chip. It comes off
+  when the member escapes, comes through, is dropped or the crossing ends.
+- **The two escapes** exist for a stuck member alone, each with its own target
+  on the row. The wiggle back is core's own `rollSave` for the Paralysis save:
+  core takes no modifier, and reads the stored figure before it awaits, so the
+  stone and the failed pushes' penalty are held on that figure for the call
+  (`withSaveShift`) and the figure is restored. The push forward is a d20 against
+  the member's `resolveCheck(actor, PARTY_CHECKS.dungeonbashing)` raised by the
+  stone and the penalty and lowered by Contortionism and the Judge's modifier;
+  it takes no Strength term, which belongs to the door's bash. A success ends
+  the condition: the wiggle retreats the member by the imported escape distance
+  (never past the start), the push advances them by it and is through at a
+  chokepoint or the length. A failed wiggle counts a try; a failed push counts a
+  try and worsens the plight by one imported step, which both escapes carry
+  until a success clears it. A step not imported refuses the next attempt; no
+  failed push, no step owed.
+- **Contortionism is counted once per throw**: in the squeezing throw and the
+  push by the imported figure, and in the wiggle not at all, since the ability's
+  own effect reaches a saving throw by the save's own route. The Dungeonbashing
+  figure carries none of it (the ability's effect targets a save).
+- **Once for each round.** In a fight a member who has thrown or escaped has
+  nothing left until the round changes (`thrownAt`). The driver
+  (`crossing-driver.mjs`, the same listener as the swimmer's) posts the squeeze
+  prompt at a squeezing member's turn and, at a stuck member's, an escape prompt
+  with one button for each way out and no target; each is guarded by
+  `promptedAt`, and a press from the card, the row or a relayed seat is
+  `throwFor` with its step. The relay carries `wiggle` and `push` as steps of
+  the crossing request and the GM client reads the row again for a player's seat.
+- **Seats.** A permission refusal (a member who is down, left behind or
+  detached, a chokepoint set at a squeeze's length) stops a player and warns a
+  Judge, whose card says it was thrown over a refusal; an absence refusal (a
+  stone, a Contortionism bonus a holder needs, a length, the escape distance, the
+  step, the Dungeonbashing figure, the save cell) stops every seat and rolls
+  nothing. Every figure carries its parts and page in its tooltip and is blank
+  with the page alone where nothing was imported.
 
 ## Deliberate non-features
 

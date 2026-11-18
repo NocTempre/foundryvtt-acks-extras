@@ -152,19 +152,16 @@ export function isChokepointLength(length) {
 }
 
 /**
- * What one made squeezing throw carries a member along a squeeze, in feet, or
- * null where it is not known. The page prints the failure (no progress for the
- * round) and not the success's distance, so the round's movement the caller
- * names is the reading here: this is the single place a ruling on the distance
- * changes. A chokepoint is not measured in feet; one made throw clears it.
+ * What one made squeezing throw carries a member along a squeeze, in feet. The
+ * page prints what a miss costs and no distance for a success, so nothing
+ * stands here: the answer is null until a ruling names one, and this is the
+ * one place it changes. A chokepoint is not measured in feet; one made throw
+ * clears it. With no advance a made throw on a squeeze leaves the member where
+ * they are.
  *
- * @param {number|null} speed the member's movement for the round, in feet
  * @returns {number|null}
  */
-export function squeezeAdvance(speed) {
-  const feet = figure(speed);
-  return feet !== null && feet > 0 ? feet : null;
-}
+export const squeezeAdvance = () => null;
 
 /**
  * Whether an unmodified result botches the squeezing throw: it falls inside the

@@ -4993,6 +4993,45 @@ Before the first step the Rules tables must be imported in the test world: the w
 
 Steps S5 to S7 need a GM pane seated as the primary GM: the driver acts on that client alone. A Player's press on the prompt card is relayed like a row's throw, so S6 is walked from the owner's own pane.
 
+### Squeeze rows (added with S15 of the dungeon close-out)
+
+Built for the Dungeon tab's crossing when the kind is **Squeeze · chokepoint** (Actors sidebar → the party sheet → Dungeon tab → The crossing): the Judge's setup (Shape, Length, Judge modifier), the rows (the stone as the target, covered of the length, a Contortionism badge, Stuck with its implied Vulnerable, the two escapes each with its own target, the last throw), the squeezing prompt and the stuck member's two-button prompt at a turn in a fight, and a player's relayed press. A mock cannot prove that core's own save dialog and card read the shifted figure, that the stored save is restored after it, or that a prompt posts from a real turn change.
+
+Before the first step the Rules tables must be imported: the walk reads `contortionismBonus`, `chokepointFeet`, `escapeFeet` and `escapePenaltyStep` through `formationValue`. `squeezeBotchBand` is read by no import and listed by no Browser row, so no throw makes a member stuck yet: steps Q5 to Q11 cannot be walked until a window reads it. Until then drive a stuck member by writing the member's record (`state: "stuck"`) on the party actor's crossing flag, and walk Q6 to Q11 from there.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`; `own: <tag>` and `@<tag>` markers where a peer is on this surface).
+- `formation/squeeze-party` — a party actor in Dungeon mode with its token deployed on a scene, holding the members below, each deployed as a token on the scene.
+- `formation/squeeze-owner` — a character the Player seat owns, carrying a stone figure the target reads and a Dungeonbashing figure, no Contortionism.
+- `formation/squeeze-holder` — a character holding the imported Contortionism, the same stone as the owner, to read the bonus once on the squeeze and the push and not on the wiggle.
+- `formation/squeeze-stranger` — a character the second player seat owns, to prove a seat cannot press for a member it does not own.
+- `formation/squeeze-beast` — a monster with no carried stone, whose row has a blank target and no press for any seat.
+- `formation/squeeze-fight` — a combat on that scene with a combatant for each token, begun.
+
+**Drive mechanics.**
+- Begin is the pick `[data-pick="crossing-kind"]` set to `squeeze` and `[data-action="crossingBegin"]`. The Shape radios and the Length and Judge modifier fields submit on change like any setup field: set the value, dispatch a bubbling `change`, wait for the render and read the party actor's flag.
+- A squeezing throw is the row's `[data-action="crossingThrow"]`; an escape is `[data-action="crossingEscape"]` with `data-step="wiggle"` or `"push"`, on the row or the prompt card. Rig the die with `CONFIG.Dice.randomUniform` (0.975 a 1, 0.025 a 20) and restore it in a `finally`; a Wiggle back is core's save, so its dialog opens on the Judge's pane unless the skip key is held on the press, and a Player's relayed press skips it.
+- The stored save figure is read from `actor.system.saves.paralysis.value` before and after a wiggle: equal after, and the card core posts shows the raised target.
+- The driver is driven by a real turn change: `combat.nextTurn()` from the primary GM's pane. Never call the driver's function, which skips the hook. A card is found as the messages that appear across the press, each `api.track`ed by uuid.
+
+| Step | Do | Observable |
+|---|---|---|
+| Q1 | Begin a squeeze on the party; set Shape to Chokepoint, the Judge modifier 0 | The section lists a row for each member: the target is the stone, "Contortionism" badges the holder, whose target is the owner's less the imported bonus once; hover each target for its parts and page |
+| Q2 | Set Shape to Squeeze and leave Length blank | Every target is blank with the page alone; a press is refused with no card; set Length 30 and the targets return, with "covered 0 / 30′", which a made throw does not move (no distance is ruled) |
+| Q3 | Set Shape to Chokepoint and Length to the imported figure or more | The Judge's press warns and goes ahead, "Thrown over a refusal" on the card; the Player's seat is stopped in words |
+| Q4 | Rig a 20 and press Throw on the owner (chokepoint) | The row reads Through, no condition on the member, one card to the Judges |
+| Q5 | (Blocked until the band is imported.) Rig the lowest result and press Throw on the holder | Stuck and its implied Vulnerable on the row and the token; one held effect on the member; the escapes appear with their targets |
+| Q6 | Hover each escape | The wiggle's parts are the save, the stone and no Contortionism; the push's are the Dungeonbashing figure, the stone and, for the holder, the bonus once |
+| Q7 | Press Wiggle back with the dialog open on the Judge's pane | The dialog's target is the save raised by the stone; after it the stored figure is unchanged; a pass frees the member, retreating them, and releases Stuck |
+| Q8 | Rig a miss on a Push forward, twice | Tries 2 and a penalty beside it; both targets rise by the imported step for each failed push; a failed wiggle in between adds none |
+| Q9 | On the Player's pane press the owner's Push forward | A public declaration, the card to the Judges, the row updated on every seat; the stranger's member is refused in words |
+| Q10 | `combat.nextTurn()` onto the owner's token, then a stuck member's | One prompt card per round, to the owner and the Judges, with the squeezing target; the stuck member's has two buttons and no target; a second turn change in the round posts none |
+| Q11 | Press a button on the prompt card | The buttons go and the card keeps "total vs target — outcome"; a second press the same round is refused |
+| Q12 | Remove the escape distance import | Neither escape is offered, labels blank with the page alone, nothing rolls |
+| Q13 | Press End | Every held Stuck off every member |
+| Q14 | A second party sheet, a detached window, the type size on a fresh window | Rows reflow and nothing clips; focus returns to the pressed row |
+
+Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; the fight ended; restore any figure removed.
+
 ## The trap item sheet and the trap zone's config (added with U16 of the dungeon close-out)
 
 Built for the trap Item's sheet (Items sidebar → a Trap item) and the trap
