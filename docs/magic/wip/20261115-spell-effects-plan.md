@@ -3590,6 +3590,43 @@ not-the-format (the build posts through `renderRollCard`).
     bucket. This revision adds the pick inside it, so it is flagged to
     the owner.
 
+**Owner on R-p's questions (relayed verbatim, 2026-11-18):**
+- **230 Board 13: "Approve as drawn".** A long cast's card names its
+  casting time in the level note, with a provenance tooltip, and a
+  tradition step carries a Judge-only Revert that works once. Both stand
+  as R-p built them (56939437).
+- **231 A bucket entry is a real item, and a lost one leaves the cast.**
+  Asked "accept the interim block?", the owner did not take the default:
+  "They have to drag a valid component to the spell. Edge case of item
+  is lost before use removes it from attached cards too." This
+  supersedes the part of R-p's 214 wiring that blocks or reopens. The
+  new evidence is the owner's answer.
+  - An entry exists only by a drag of a real document (K-b's
+    `entryFromDrop`). No typed or free-text entry exists.
+  - When an attached item leaves its holder's inventory before the cast
+    uses it (deleted, or moved off the holder), it is removed from every
+    stored answer that names it: a declaration's `pending.procedure`
+    buckets, and an unresolved card's answer. A `deleteItem` hook (and
+    the holder change on update) strips the uuid on the client that
+    fires it, idempotently.
+  - At resolve, an entry that is still missing is dropped silently.
+    `bucketChanged` no longer blocks or reopens the dialog. What remains
+    is judged by the bucket's own verdicts: a component short of its due
+    is the ordinary coverage verdict, a block for a Player and a warning
+    for a Judge.
+  - No drawn surface changes. The bucket's rows and X stay as boards 7
+    and 9–11 draw them, so no new board is needed. This is slice
+    **R-p2**, an implementer, after K-b, in cast-declare and
+    cast-procedure.
+- **232 The band's heading names the tradition: "Name per tradition".**
+  The one menu stays. A procedure supplies `label` (a lang key the
+  tradition owns, BtA's "Invocation" among them). With none supplied,
+  the heading falls back to the tradition's own label. R-p2 takes it.
+- **Finding 1c.36:** a rowless ritual spell whose tradition has no
+  procedure is not claimed by any cast claimant, so `ritualPending`
+  never reaches it. It goes to M-r, where a ritual becomes a project
+  (224).
+
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
   context, for a band that field-spec cannot express (glyph segments, a
