@@ -122,6 +122,19 @@ cross-checked against the treasure plan's scene-search screen.
   | H4 | Swim and squeeze keys | The sync |
   | H5 | Docs and the live walk | — |
 
+- **Owner, on where traps live (2026-11-18), verbatim:** "Everything to a place
+  that can apply effects to a region. All to region if easiest". The split
+  with traps on the region is out. Decisions 1, 3 and 4 were not answered, so
+  their defaults as drawn stand. An architect picked the place over
+  all-on-region on build cost: imported keyed rooms are places with no Region,
+  and the shape co-signed with scene search already keeps things on the place.
+  - New traps become trap things on the place, and P3 is formation's
+    `Placement` source for them.
+  - Existing trap zones and trap walls stay as `Placement` sources, listed
+    read-only.
+  - The Hazard item holds no figures. The figures sit in each thing's
+    `params`.
+  - Boards redrawn: canvas v13.
 - **Boards B1–B4** are on the crossing canvas, v12. The build waits for the
   owner's feedback on them.
 
