@@ -115,7 +115,18 @@ export const P = {
     const x = Math.round(r.left + r.width / 2);
     const y = Math.round(r.top + r.height / 2);
     const hit = r.width > 0 && r.height > 0 ? document.elementFromPoint(x, y) : null;
-    return { found: true, ok: !!hit && (hit === el || el.contains(hit)), x, y, disabled: !!el.disabled, count: list.length };
+    const ok = !!hit && (hit === el || el.contains(hit));
+    // What covers the control when the press would miss it, so a failure names the cover.
+    const home = (n) => n?.closest?.(".application, #chat-notifications, #sidebar, #interface") ?? null;
+    const coverHome = ok || !hit ? null : home(hit);
+    const cover = ok || !hit ? null : {
+      el: `${hit.tagName.toLowerCase()}.${[...hit.classList].join(".")}`,
+      home: coverHome ? `${coverHome.id || coverHome.tagName.toLowerCase()}.${[...coverHome.classList].slice(0, 4).join(".")}` : null,
+      homeZ: coverHome ? getComputedStyle(coverHome).zIndex : null,
+      ownZ: home(el) ? getComputedStyle(home(el)).zIndex : null
+    };
+    const rect = { top: Math.round(r.top), left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height), vw: document.documentElement.clientWidth, vh: document.documentElement.clientHeight };
+    return { found: true, ok, x, y, cover, rect, disabled: !!el.disabled, count: list.length };
   },
   pressTarget: async () => {
     const H = globalThis.__tk;

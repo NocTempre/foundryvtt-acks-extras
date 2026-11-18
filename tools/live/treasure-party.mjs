@@ -185,7 +185,10 @@ const P = {
   },
   resize: async ({ potId, width, height }) => {
     const H = globalThis.__tk;
-    H.sheet(potId).setPosition({ width, height });
+    // A user drags the window's own corner, and core fronts a window on any press inside it; a member's sheet the earlier steps opened otherwise stays above it.
+    const app = H.sheet(potId);
+    app.bringToFront();
+    app.setPosition({ width, height });
     await H.sleep(800);
     return true;
   },
@@ -361,7 +364,7 @@ try {
   const aN = await run(player, P.aside, { potId: pot.potId });
   const reach = await run(player, K.locate, { scope: "sheet", potId: pot.potId, sel: "[data-action='grab']" });
   const zonesN = aN.members.length;
-  check("shrunk below about 46em the aside sits below the pot grid, the resize corner stays, and the grab button is reachable by scrolling", aN.found && aN.aside.top >= aN.grid.bottom - 1 && aN.handle && reach.found && reach.ok && zonesN === 3, { aside: aN.aside, grid: aN.grid, handle: aN.handle, reach: reach.ok });
+  check("shrunk below about 46em the aside sits below the pot grid, the resize corner stays, and the grab button is reachable by scrolling", aN.found && aN.aside.top >= aN.grid.bottom - 1 && aN.handle && reach.found && reach.ok && zonesN === 3, { aside: aN.aside, grid: aN.grid, handle: aN.handle, reach: reach.ok, cover: reach.cover, at: [reach.x, reach.y], rect: reach.rect });
   await run(player, P.resize, { potId: pot.potId, width: 940, height: 640 });
 
   section("console");

@@ -446,3 +446,10 @@ want of a blue token.
 > deal-a-letter control start with `/design` and the owner's approval. Walk on
 > lane C with `FIXTURE_OWN=treasure`. Build slices with fresh `implementer`
 > agents and quote the owner's words from "Revised design" in each brief.
+
+### Progress after handover
+
+- 2026-11-17: step 1 started (the Quick grab press finding: an elementFromPoint probe, then a fix on main).
+- 2026-11-17: step 2 started (a fresh implementer on the price-ledger leak, the slot badge against the full mark and the MODEL origin row).
+- 2026-11-17: step 3 done: /design artifact https://claude.ai/artifact/MWGwR5rfqxhhgmzrjvytnR with four boards (deal a letter, monster sheet and selected tokens, lair warning, replace ticks). Nothing built.
+- 2026-11-17: step 1 done: the cover was a member's character sheet the walk opened in step 4 (z 103 over the pot's 102), so no product defect; the walk fronts the pot as the user's corner drag does, and locate names a cover's window. treasure-party on lane C: 26 pass, 0 fail.
