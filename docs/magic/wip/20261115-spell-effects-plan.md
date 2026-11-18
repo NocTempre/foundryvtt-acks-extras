@@ -3542,6 +3542,29 @@ facility values, the open projects with their progress against the
 due, the linked researchers, and the components bucket that is settled
 at the end.
 
+**Owner on board 10 (2026-11-18, in this session, viewing canvas v16):**
+"Sure go with it." The research project panel on the location sheet
+(220–227) is approved to build as M-q1 to M-q3. Fable's enhancement pass
+over the other boards (chrome, pinned footers, the attack card's art
+header, tone cells from `lib-frame.css`) was published afterwards as
+v18. Its ideas for board 10 (a subject tile, a disabled Finish with its
+reason in the footer) are folded in at build time.
+
+**Owner on board 10, relayed (2026-11-18):** "Research board looks like
+it should be tab of location." Board 10 is redrawn (v19) as a Research
+tab in the location sheet's existing `TABS.primary` strip, after
+Storage, on every location (not market-gated). The tab uses the sheet's
+own header and frame. M-q1 adds the tab: `{id: "research"}` and its
+label under `ACKS-HENCHMEN.location.tab`.
+
+**Owner, 2026-11-18, in this session, viewing canvas v19 (boards 10–12
+in view):** "Approve spell cast design". The whole v19 canvas is the
+approved design: boards 1 and 4–12 with Fable's enhancement pass, and
+board 10 as the location's Research tab. Boards 2 and 3 stay superseded.
+R-c (board 7), R-e (board 8), K-b and the M slices (boards 9–12) build
+to it with no further design step. Board 6's drawn party table stays
+not-the-format (the build posts through `renderRollCard`).
+
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
   context, for a band that field-spec cannot express (glyph segments, a
