@@ -102,7 +102,9 @@ const COLUMN_GRIDS = [
   { docId: "encounters", tableId: "terrainSubTables", field: "name", ownDie: true },
   { docId: "treasure", tableId: "gemValue", field: "value", fields: ["value", "type"], legend: "gemDice" },
   { docId: "treasure", tableId: "jewelryValue", field: "value", fields: ["value", "type"], legend: "jewelryDice" },
-  { docId: "treasure", tableId: "special", field: "result", ownDie: true },
+  // A gem or jewelry list's `keep` band, the one that leaves the lot as it was, is
+  // kept across a drop where the band's range still stands.
+  { docId: "treasure", tableId: "special", field: "result", ownDie: true, keep: ["keep"] },
   // The magic-item chain. A list's rows may carry a field beyond the ones shown
   // (a hop into another list), kept across a drop where the row's range still
   // stands. `fieldsBy` names the fields of each list of a set whose lists

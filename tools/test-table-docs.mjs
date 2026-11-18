@@ -994,6 +994,15 @@ await test("the special lists are one table each on a die of their own, and a ty
   assert.equal(tableNamed("Special — Ornamental").formula, "1d4", "not the set's furthest band");
 });
 
+await test("a special list's keep band survives a drop where its range stood, and a moved range loses it", async () => {
+  world({ registry: { treasure: { special: { ornamental: [{ min: 1, max: 4, result: "Qq bundle" }, { min: 5, max: 6, result: "1 zz", keep: true }] } } } });
+  const entry = entryAt("treasure.special.ornamental");
+  const same = await parseDrop(entry, droppedTable([{ range: [1, 4], description: "Qq bundle" }, { range: [5, 6], description: "1 zz (edited)" }]));
+  assert.deepEqual(same.data.ornamental, [{ min: 1, max: 4, result: "Qq bundle" }, { min: 5, max: 6, result: "1 zz (edited)", keep: true }]);
+  const moved = await parseDrop(entry, droppedTable([{ range: [1, 3], description: "Qq bundle" }, { range: [4, 6], description: "1 zz" }]));
+  assert.deepEqual(moved.data.ornamental, [{ min: 1, max: 3, result: "Qq bundle" }, { min: 4, max: 6, result: "1 zz" }]);
+});
+
 /**
  * An invented `magicItemTables` doc: a type list whose rows hop into a list,
  * a list whose rows carry a second field and end in a tail of inner bands under

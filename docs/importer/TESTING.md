@@ -3974,6 +3974,15 @@ read, remove it with Remove ALL Imports first.
 10. **A seat with the Journal only, from the start.** *Observable:* step 1 has
     no error and no `incomplete` entry, every citation is JJ's, and the
     report lists the Treasure Tome among the optional books.
+11. **The tags a consumer reads.** Read the legends and the six gem and jewelry
+    lists: `getTable("treasure","gemDice").legend.map(r => r.list)` and
+    `getTable("treasure","jewelryDice").legend.map(r => r.list)`, then
+    `["ornamental","gem","brilliant","trinket","jewelry","regalia"].map(k => getTable("treasure","special")[k].filter(b => b.keep).length)`.
+    *Observable:* the six `list` values are the six keys, each once, in the
+    legend's order, and each count is `1`. In the RollTable of one of the six
+    lists, edit the text of the marked band without moving its range, drop it
+    back over its entry, and read the list again: the band is still marked.
+    Remove the override.
 
 ### Teardown
 

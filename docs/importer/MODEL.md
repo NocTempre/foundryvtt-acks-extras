@@ -1518,6 +1518,24 @@ it as `gemDice` and `jewelryDice` (`{legend: [{dice, avg, kind}]}`), read by
 RollTable each on a die of its own length (`ownDie`). The type grids are
 lookups by letter and project as JSON pages.
 
+**Tags that name a list.** A gem or jewelry legend row is `{dice, avg, kind, list}`:
+`list` is the special list the row stands for (`ornamental`, `gem`,
+`brilliant` for `gemDice`; `trinket`, `jewelry`, `regalia` for
+`jewelryDice`, the keys of `SPECIAL_RAW_KEYS`), read by matching the row's
+printed kind to the caption of each of its legend's lists, singular or plural
+(`legendListOf`). It is set only where exactly one caption matches and that
+list is the one at the row's own place in the legend; otherwise it is absent,
+and `check-treasure-tables` names the reason. A place alone never names a
+list. In each gem and jewelry special list, the one band whose result is a lot
+of one of the list's own kind (it opens on a bare count of one and holds the
+kind, in either number, as a word of its own, a bracketed note aside) carries
+`keep: true`, so a consumer reads "leave the lot as it was" off the band and
+not off its wording (`keepCandidates`). The kind is the one the list's tagged
+legend row prints, so a list with no tagged row gets no `keep`, and a list
+with none or with two such bands gets none either. A band that is not marked
+has no `keep` key. A RollTable drop keeps `keep` on the band whose range
+stood (`keep` in the `special` row of `COLUMN_GRIDS`).
+
 **Units beside the shapes above.** `typeUnits` (`{classic|heroic|gritty: {cp,
 sp, ep, gp, pp}}`) is the unit line printed under the grids' coin columns, as
 printed; `specialPer` (`{<kind>: text}`) is what follows "per" in each special

@@ -24,6 +24,10 @@
  *   - a band list that does not tile from 1 with no gap or overlap, one that
  *     ends on no die's face, or a value list that does not end where its dice
  *     legend says.
+ * Each of the six legend rows must name its own special list, all six distinct, and
+ * each gem and jewelry special list must hold exactly one band that leaves the lot as it
+ * was (the `list` and `keep` tags the binding writes); the output names the lists
+ * by key and counts, never a band's text.
  * It also requires every coin column's unit on every type grid, a lot unit on
  * every special list's caption, and a whole dice legend above each value list.
  * The die each list is thrown on is read off its own bands, so no face is
@@ -42,7 +46,7 @@ import { openBook, pageItems } from "../../scripts/importer/extract.mjs";
 import { extractTable } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { locatePageNumber } from "../../scripts/importer/tables-binding.mjs";
-import { DICE_RAW_KEYS, SPECIAL_RAW_KEYS, TYPE_RAW_KEYS, UNIT_RAW_KEYS, VALUE_RAW_KEYS, assembleBands, assembleLegend, assembleSpecialPer, assembleTypeUnits } from "../../scripts/importer/treasure-binding.mjs";
+import { DICE_RAW_KEYS, LEGEND_LISTS, SPECIAL_RAW_KEYS, TYPE_RAW_KEYS, UNIT_RAW_KEYS, VALUE_RAW_KEYS, assembleBands, assembleLegend, assembleSpecialPer, assembleTreasureTables, assembleTypeUnits, captionKinds, keepCandidates, kindFormsOf, legendListOf } from "../../scripts/importer/treasure-binding.mjs";
 import { TYPE_LETTERS } from "../../scripts/importer/table-recipes-treasure.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -237,7 +241,32 @@ async function checkSide(side) {
       for (const [i, row] of legend.entries()) for (const col of ["dice", "avg", "kind"]) if (!row[col]) fail(at(`${key} ${i}`), `empty ${col}`);
     }
   }
-  return { rowsRead, bandsChecked, letters, specialKinds, legends };
+
+  /* --- each legend row names its list; each gem and jewelry list has one keep band --- */
+  const captions = captionKinds(rawAll);
+  const tagged = [];
+  const legendRows = [];
+  for (const [rawKey, key] of Object.entries(DICE_RAW_KEYS)) {
+    const group = LEGEND_LISTS[key];
+    for (const [i, row] of (assembleLegend(rawAll[rawKey], { group, captions }) ?? []).entries()) {
+      legendRows.push(row);
+      if (row.list) tagged.push(row.list);
+      else fail(at(`${key} ${i}`), `names no list: ${legendListOf(row.kind, group, i, captions).why}`);
+    }
+  }
+  if (new Set(tagged).size !== tagged.length) fail(at("legends"), "two legend rows name the same list");
+  const assembled = assembleTreasureTables(rawAll);
+  const keeps = [];
+  for (const list of Object.values(LEGEND_LISTS).flat()) {
+    const bands = assembled.special?.[list];
+    if (!bands) continue;
+    const named = keepCandidates(bands, kindFormsOf(list, legendRows, captions)).length;
+    const marked = bands.filter((b) => b.keep === true).length;
+    if (named !== 1) fail(at(`special.${list}`), `${named} bands name the list's own kind, not one`);
+    else if (marked !== 1) fail(at(`special.${list}`), `${marked} bands marked keep, not one`);
+    else keeps.push(list);
+  }
+  return { rowsRead, bandsChecked, letters, specialKinds, legends, tagged, keeps };
 }
 
 const results = {};
@@ -251,10 +280,11 @@ if (results.tt) {
   }
   if (jj.specialKinds.join() !== tt.specialKinds.join()) fail("[tt] special", "does not yield the Journal's special-treasure lists");
   if (jj.legends !== tt.legends) fail("[tt] legends", "does not yield the Journal's dice legends");
+  if (jj.tagged.join() !== tt.tagged.join() || jj.keeps.join() !== tt.keeps.join()) fail("[tt] tags", "does not tag the Journal's legend rows and keep bands");
 }
 
 const counts = (r) => Object.entries(r.rowsRead).map(([k, n]) => `${k} ${n}`).join(", ");
-const summary = sides.map((s) => `${s === "jj" ? "Journal" : "Tome"}: ${Object.keys(results[s].rowsRead).length} tables read, ${results[s].bandsChecked} band lists tile their dice. Rows read: ${counts(results[s])}.`).join(" ");
+const summary = sides.map((s) => `${s === "jj" ? "Journal" : "Tome"}: ${Object.keys(results[s].rowsRead).length} tables read, ${results[s].bandsChecked} band lists tile their dice. Rows read: ${counts(results[s])}. Legend rows naming a list: ${results[s].tagged.length} of 6 (${results[s].tagged.join(", ")}); keep bands: ${results[s].keeps.length} of 6 (${results[s].keeps.join(", ")}).`).join(" ");
 if (faults.length) {
   for (const f of faults) console.error(`FAIL  ${f}`);
   console.error(`treasure tables: FAILED — ${faults.length} fault(s). ${summary}`);

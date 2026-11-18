@@ -2512,3 +2512,23 @@ would stop seeing it); hash anchors `as: "runin"` (unmeasured on 1,220 rows, wit
 the same silent merge); `books.mjs` `typography` (its presence runs `fuseRuns` at
 runtime and can move the landed table recipes); the first figure for every
 variant-led entry. *Cost:* a Tome file the compiler reaches moves the stamp.
+
+## 2026-11-17 — A treasure legend row names its special list, and the list marks the lot that stays
+
+The treasure plan asked how the hoard map pairs a dice legend row to a special
+list and finds a list's "leave the lot as it was" result: by order and wording,
+or from the import. The owner's answer was "Take recommendations", which picks
+8a: the importer tags each row with its list key and marks the "leave the lot"
+row, and the consumer drops its pairing by order and wording.
+
+- **Rows.** `gemDice` and `jewelryDice` rows gain `list`, from the printed
+  kind matched to each list's own caption. Place is a cross-check, never a
+  source: a unique caption match that is not the row's place leaves `list`
+  absent, as does no match or two.
+- **Keep.** A gem or jewelry list's band that is a lot of one of its own kind
+  gains `keep: true`, decided from the kind the tagged row prints; none or two
+  such bands marks none. A drop keeps it (`keep` in the `special` grid).
+- **Rejected:** tagging by place when no caption matches (a lost row would shift
+  every tag after it, silently); a fixed word for the kept result.
+- **Cost:** the gate holds six tags and six marks on each book, so a recipe
+  change that loses one fails `check-treasure-tables`.

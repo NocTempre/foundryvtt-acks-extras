@@ -8,7 +8,10 @@
  * (`typeUnits`), each special list's lot unit read off its caption
  * (`specialPer`) and the dice legends above the gem and jewelry value lists
  * (`gemDice`, `jewelryDice`), which a generator needs and a RollTable cannot
- * express. Nothing ships: every band edge, name and figure
+ * express. Each legend row names the special list it stands for (`list`), read
+ * from the lists' own captions, and the one band of a gem or jewelry list that
+ * leaves the lot as it was is marked (`keep`), so a consumer pairs and picks
+ * by structure and not by order or wording. Nothing ships: every band edge, name and figure
  * is read from the Judge's own copy, and a table whose bands do not tile from 1
  * with no gap or overlap is not assembled, so a lost row never reads as a
  * smaller die.
@@ -18,6 +21,7 @@ import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc } from "./produces.mjs";
 import { TYPE_LETTERS } from "./table-recipes-treasure.mjs";
+import { foldLabel, holdsKey, printKey } from "./printed-name.mjs";
 
 /** The registry document the treasure tables are read into. */
 export const TREASURE_DOC_ID = "treasure";
@@ -48,6 +52,15 @@ export const UNIT_RAW_KEYS = Object.freeze({ typeClassicUnitsRaw: "classic", typ
 
 /** The raw dice legends printed above the value lists, and the engine table each becomes. */
 export const DICE_RAW_KEYS = Object.freeze({ gemDiceRaw: "gemDice", jewelryDiceRaw: "jewelryDice" });
+
+/**
+ * The special lists each dice legend's rows stand for, in the page's order: a
+ * legend row is tagged with one of these by its kind (`legendListOf`).
+ */
+export const LEGEND_LISTS = Object.freeze({
+  gemDice: Object.freeze(["ornamental", "gem", "brilliant"]),
+  jewelryDice: Object.freeze(["trinket", "jewelry", "regalia"]),
+});
 
 /** The coin columns a unit line sits under. */
 const COIN_KEYS = Object.freeze(["cp", "sp", "ep", "gp", "pp"]);
@@ -152,16 +165,100 @@ export function assembleTreasureTables(raw = {}) {
     const bands = assembleBands(rawKeys.map((k) => raw[k]), (r) => (clean(r.text) ? { result: sentence(r.text) } : null));
     if (bands) special[kind] = bands;
   }
+  const captions = captionKinds(raw);
+  const legends = {};
+  for (const [rawKey, key] of Object.entries(DICE_RAW_KEYS)) {
+    const legend = assembleLegend(raw[rawKey], { group: LEGEND_LISTS[key], captions });
+    if (legend) legends[key] = legend;
+  }
+  for (const list of Object.values(LEGEND_LISTS).flat()) {
+    const bands = special[list];
+    const candidates = bands ? keepCandidates(bands, kindFormsOf(list, Object.values(legends).flat(), captions)) : [];
+    if (candidates.length === 1) candidates[0].keep = true;
+  }
   if (Object.keys(special).length) out.special = special;
   const per = assembleSpecialPer(raw);
   if (per) out.specialPer = per;
   const units = assembleTypeUnits(raw);
   if (units) out.typeUnits = units;
-  for (const [rawKey, key] of Object.entries(DICE_RAW_KEYS)) {
-    const legend = assembleLegend(raw[rawKey]);
-    if (legend) out[key] = { legend };
+  for (const [key, legend] of Object.entries(legends)) out[key] = { legend };
+  return out;
+}
+
+/**
+ * The spellings one printed kind goes by, folded: itself and its other number.
+ * A legend names a kind in one number and a list's caption or a result may use
+ * the other.
+ */
+export function numberForms(kind) {
+  const k = foldLabel(kind);
+  if (!k) return [];
+  const forms = new Set([k]);
+  if (k.endsWith("ies")) forms.add(`${k.slice(0, -3)}y`);
+  else if (/(?:s|x|ch|sh)es$/.test(k)) forms.add(k.slice(0, -2));
+  else if (k.endsWith("s")) forms.add(k.slice(0, -1));
+  if (!k.endsWith("s")) forms.add(/(?:x|ch|sh)$/.test(k) ? `${k}es` : /[^aeiou]y$/.test(k) ? `${k.slice(0, -1)}ies` : `${k}s`);
+  return [...forms];
+}
+
+/**
+ * The kind each gem or jewelry list's caption names, `{<list>: text}`: what
+ * follows "per" in the caption, less the bracketed figure that closes it. A
+ * list whose caption was not read is left out.
+ */
+export function captionKinds(raw = {}) {
+  const per = assembleSpecialPer(raw) ?? {};
+  const out = {};
+  for (const list of Object.values(LEGEND_LISTS).flat()) {
+    const kind = per[list]?.replace(/\s*\([^)]*\)\s*$/, "").trim();
+    if (kind) out[list] = kind;
   }
   return out;
+}
+
+/**
+ * Which special list one legend row's kind is, by the captions: `{list}`, or
+ * `{why}` when none can be named. The kind is matched to the caption of each
+ * list of its legend, singular or plural; the match must be the only one and
+ * must be the list at the row's own place in the legend. A row that matches
+ * none, matches two, or matches a list other than its place's is left
+ * untagged: a place alone never names a list.
+ *
+ * @param {string} kind the legend row's printed kind
+ * @param {string[]} group the legend's lists, in the page's order
+ * @param {number} index the row's place in the legend
+ * @param {{[list: string]: string}} captions `captionKinds`
+ * @returns {{list: string}|{why: "no-caption"|"ambiguous"|"position"}}
+ */
+export function legendListOf(kind, group, index, captions) {
+  const mine = new Set(numberForms(kind));
+  const hits = group.filter((list) => numberForms(captions?.[list]).some((f) => mine.has(f)));
+  if (hits.length !== 1) return { why: hits.length ? "ambiguous" : "no-caption" };
+  return group[index] === hits[0] ? { list: hits[0] } : { why: "position" };
+}
+
+/** The foldings of every kind name a gem or jewelry list goes by: the legend row tagged with it and its caption, both numbers. */
+export function kindFormsOf(list, legendRows, captions) {
+  const row = (legendRows ?? []).find((r) => r.list === list);
+  return row ? [...new Set([...numberForms(row.kind), ...numberForms(captions?.[list])])] : [];
+}
+
+/**
+ * The bands of a gem or jewelry list whose result is a lot of one of the
+ * list's own kind, which leaves the lot as it was. Such a result opens on a
+ * bare count of one (not a dice expression) and holds the kind, in either
+ * number, as a word of its own, any bracketed note aside. Nothing is matched
+ * when no kind is known.
+ *
+ * @param {object[]} bands the list's bands
+ * @param {string[]} forms `kindFormsOf`
+ */
+export function keepCandidates(bands, forms) {
+  const keys = forms.map((f) => printKey(f)).filter(Boolean);
+  return (bands ?? []).filter((b) => {
+    const rest = /^1\s+(.+)$/.exec(String(b.result ?? "").replace(/\([^)]*\)/g, " ").replace(/\s+/g, " ").trim())?.[1];
+    return !!rest && keys.some((key) => holdsKey(rest, key));
+  });
 }
 
 /**
@@ -196,14 +293,24 @@ export function assembleTypeUnits(raw = {}) {
 }
 
 /**
- * A value list's dice legend, `[{dice, avg, kind}]` in the page's order: the
- * dice each kind of lot is rolled on, the average it comes to and the kind, as
- * printed. Null when no row was read.
+ * A value list's dice legend, `[{dice, avg, kind, list?}]` in the page's order:
+ * the dice each kind of lot is rolled on, the average it comes to and the kind,
+ * as printed, and `list`, the special list the kind names (`legendListOf`),
+ * where `group` and `captions` are given and the captions settle it. Null when
+ * no row was read.
+ *
+ * @param {object} raw the raw legend table
+ * @param {{group?: string[], captions?: object}} [by] the legend's lists in order, and `captionKinds`
  */
-export function assembleLegend(raw) {
+export function assembleLegend(raw, { group, captions } = {}) {
   const rows = Object.values(raw ?? {})
-    .filter((r) => r && !r.__missing && clean(r.label) && clean(r.type))
-    .map((r) => ({ dice: clean(r.label), avg: clean(r.avg), kind: clean(r.type) }));
+    .map((r, i) => ({ r, i }))
+    .filter(({ r }) => r && !r.__missing && clean(r.label) && clean(r.type))
+    .map(({ r, i }) => {
+      const row = { dice: clean(r.label), avg: clean(r.avg), kind: clean(r.type) };
+      const named = group && captions ? legendListOf(row.kind, group, i, captions) : null;
+      return named?.list ? { ...row, list: named.list } : row;
+    });
   return rows.length ? rows : null;
 }
 

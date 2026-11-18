@@ -15,14 +15,21 @@ import { recipeCite } from "../../scripts/importer/produces.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { TREASURE_RECIPES, TYPE_LETTERS, bandGrid, typeGrid } from "../../scripts/importer/table-recipes-treasure.mjs";
 import {
+  LEGEND_LISTS,
   PRODUCES,
   SPECIAL_RAW_KEYS,
   TREASURE_DOC_ID,
   TYPE_RAW_KEYS,
   VALUE_RAW_KEYS,
   assembleBands,
+  assembleLegend,
   assembleTreasureTables,
   assembleTypes,
+  captionKinds,
+  keepCandidates,
+  kindFormsOf,
+  legendListOf,
+  numberForms,
   splitTypeHead,
 } from "../../scripts/importer/treasure-binding.mjs";
 
@@ -135,6 +142,54 @@ eq("a special list joins its segments", engine.special.cp, [band(1, 2, { result:
 check("a list with an empty result is not assembled", !("ornamental" in engine.special));
 check("the heroic grid, never read, is not assembled", !("typeHeroic" in engine));
 eq("nothing read assembles nothing", assembleTreasureTables({}), {});
+
+/* --- a legend row names its special list; one band of a gem or jewelry list keeps the lot ----- */
+// Invented kinds and captions throughout: a caption reads "<lead> per <kind> (<figure>)".
+const capt = (kind) => ({ caption: { label: `Qq lots per ${kind} (9)` } });
+const listRaw = (kind, texts) => ({ ...(kind ? capt(kind) : {}), ...Object.fromEntries(texts.map((t, i) => [`b${i}`, band(i + 1, i + 1, { text: t })])) });
+const legendRaw = (kinds) => Object.fromEntries(kinds.map((k, i) => [`d${i}`, { label: `${i + 1}d9`, avg: `avg. ${i + 5}`, type: k }]));
+const lotRaw = {
+  specialOrnamentalRaw: listRaw("Zorb", ["9 qq boxes", "1 zorb (2 items)"]),
+  specialGemRaw: listRaw("Qux", ["1d4 zorbs", "3 qux", "1 piece of qux"]),
+  specialBrilliantRaw: listRaw("Plim", ["1 plim or 4d4 qux", "9 plims"]),
+  specialTrinketRaw: listRaw("Frob", ["2 frobs", "1 frob"]),
+  specialJewelryRaw: listRaw("Wug", ["1d8 wugs", "1 wug (a note)"]),
+  specialRegaliaRaw: listRaw("Snarf", ["4d8 wugs", "1 snarf"]),
+  gemDiceRaw: legendRaw(["Zorbs", "Qux", "Plims"]),
+  jewelryDiceRaw: legendRaw(["Frobs", "Wug", "Snarfs"]),
+};
+let tagged = assembleTreasureTables(lotRaw);
+eq("a legend row names its list by the caption, in either number", [tagged.gemDice.legend.map((r) => r.list), tagged.jewelryDice.legend.map((r) => r.list)], [LEGEND_LISTS.gemDice, LEGEND_LISTS.jewelryDice]);
+eq("a legend row keeps its printed fields beside the list", tagged.gemDice.legend[0], { dice: "1d9", avg: "avg. 5", kind: "Zorbs", list: "ornamental" });
+eq("the band that is a lot of the list's own kind is marked, in either number, with a note or words between aside",
+  Object.fromEntries(Object.entries(tagged.special).map(([k, bands]) => [k, bands.filter((b) => b.keep).map((b) => b.min)])),
+  { ornamental: [2], gem: [3], brilliant: [1], trinket: [2], jewelry: [2], regalia: [2] });
+check("a band that is not marked carries no keep key", tagged.special.gem.slice(0, 2).every((b) => !("keep" in b)));
+eq("a bare count is not a lot of one: dice, a larger count and another list's kind never mark", keepCandidates(
+  [band(1, 1, { result: "1d4 zorbs" }), band(2, 2, { result: "2 zorbs" }), band(3, 3, { result: "1,000 zorbs" }), band(4, 4, { result: "1 qux" })], numberForms("Zorb")), []);
+eq("a kind known to neither number marks nothing", keepCandidates([band(1, 1, { result: "1 zorb" })], []), []);
+
+const swapped = assembleTreasureTables({ ...lotRaw, gemDiceRaw: legendRaw(["Qux", "Zorbs", "Plims"]) });
+eq("a legend row whose caption is the list of another place is left untagged, never guessed", swapped.gemDice.legend.map((r) => r.list), [undefined, undefined, "brilliant"]);
+eq("and a list with no tagged row has no keep", swapped.special.ornamental.some((b) => b.keep) || swapped.special.gem.some((b) => b.keep), false);
+const unmatched = assembleTreasureTables({ ...lotRaw, jewelryDiceRaw: legendRaw(["Frobs", "Zig", "Snarfs"]) });
+eq("a kind no caption names leaves its row untagged and its list without keep", [unmatched.jewelryDice.legend.map((r) => r.list), unmatched.special.jewelry.some((b) => b.keep)], [["trinket", undefined, "regalia"], false]);
+eq("why a row is untagged is told by place and caption", [
+  legendListOf("Zorbs", LEGEND_LISTS.gemDice, 0, captionKinds(lotRaw)),
+  legendListOf("Zorbs", LEGEND_LISTS.gemDice, 1, captionKinds(lotRaw)),
+  legendListOf("Zig", LEGEND_LISTS.gemDice, 0, captionKinds(lotRaw)),
+  legendListOf("Zorbs", LEGEND_LISTS.gemDice, 0, { ornamental: "Zorb", gem: "Zorbs" }),
+], [{ list: "ornamental" }, { why: "position" }, { why: "no-caption" }, { why: "ambiguous" }]);
+const noCaption = assembleLegend(legendRaw(["Zorbs"]), { group: LEGEND_LISTS.gemDice, captions: {} });
+eq("with no caption read a row is untagged; with no group the legend is as it was", [noCaption[0].list, assembleLegend(legendRaw(["Zorbs"]))[0]], [undefined, { dice: "1d9", avg: "avg. 5", kind: "Zorbs" }]);
+
+const twice = assembleTreasureTables({ ...lotRaw, specialGemRaw: listRaw("Qux", ["1 qux", "1 piece of qux"]) });
+eq("two bands naming the kind mark none", twice.special.gem.some((b) => b.keep), false);
+eq("a list with none marks none", assembleTreasureTables({ ...lotRaw, specialRegaliaRaw: listRaw("Snarf", ["4d8 wugs", "5 snarf"]) }).special.regalia.some((b) => b.keep), false);
+eq("a partial import never throws: no legend, no tag, no keep", assembleTreasureTables({ specialGemRaw: listRaw("Qux", ["1 qux"]) }).special.gem, [band(1, 1, { result: "1 qux" })]);
+eq("a kind has both numbers, whichever the page prints", [numberForms("Zorb"), numberForms("Zorbs"), numberForms("Frobbery"), numberForms("Boxes").sort()], [["zorb", "zorbs"], ["zorbs", "zorb"], ["frobbery", "frobberies"], ["box", "boxes"].sort()]);
+eq("a caption's kind is what follows per, less the bracketed figure", captionKinds(lotRaw), { ornamental: "Zorb", gem: "Qux", brilliant: "Plim", trinket: "Frob", jewelry: "Wug", regalia: "Snarf" });
+eq("the kind forms of a list are its tagged row's and its caption's", kindFormsOf("gem", tagged.gemDice.legend, captionKinds(lotRaw)).sort(), ["qux", "quxes"].sort());
 
 /* --- the raw keys the binding names -------------------------------------------------- */
 check("every raw key the binding names has a recipe", [...Object.keys(TYPE_RAW_KEYS), ...Object.keys(VALUE_RAW_KEYS), ...Object.values(SPECIAL_RAW_KEYS).flat()].every((k) => k in tables));
