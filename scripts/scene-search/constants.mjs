@@ -15,8 +15,8 @@ export const LAYER = Object.freeze({ HASTY: "hasty", METHODICAL: "methodical" })
 /** What a layer's check is: nothing thrown, the searching throw, or a named capability. */
 export const CHECK = Object.freeze({ INSPECT: "inspect", SEARCH: "search", SKILL: "skill" });
 
-/** The capability whose holder makes the hasty searching throw. */
-export const CAPABILITY = Object.freeze({ SEARCHING: "searching" });
+/** The capability whose holder makes the hasty searching throw; formation's `PARTY_CHECKS.searchHasty` names it the same way. */
+export const CAPABILITY = Object.freeze({ SEARCHING: "kw:searching" });
 
 /** What a reveal names: another thing in the list, or a wall (a hidden exit). */
 export const REVEAL_PREFIXES = Object.freeze(["thing:", "wall:"]);

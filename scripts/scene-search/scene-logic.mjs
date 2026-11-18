@@ -18,8 +18,9 @@
  * The seat rule is the public GUMSHOE one: whether something more remains on a
  * visible entry is known to every seat, but what hides behind a clue not yet
  * solved is absent, and the mark sits on the clue in front of it. A hidden
- * entry is visible once the Judge shows it (`state.shown`) or once a layer
- * whose `yields.reveal` names it has been found.
+ * entry is visible once it is shown: `state.shown` lives in its own state, so
+ * a Reset hides it again. The Judge shows it, or a found check's `reveal`
+ * names it and `revealedKeys` says which entries the writer shows.
  *
  * Runtime per layer is `state.layers.<name> = {done, by, found, failed,
  * progress}`; `failed` is `{actorId: level}`, the shape `trap-rules.mjs` reads
@@ -134,32 +135,36 @@ export function layerState(entry, name) {
 /*  What a seat sees                             */
 /* -------------------------------------------- */
 
-/** Does a found layer of another entry reveal this one? */
-function revealedBy(entry, entries) {
+/** Does a layer of another entry that is not yet found name this one in its reveal? */
+function namedByUnsolvedClue(entry, entries) {
   return entries.some(
     (other) =>
       other.key !== entry.key &&
-      LAYER_NAMES.some((name) => other.layers[name].yields.reveal.includes(entry.key) && layerState(other, name).found),
+      LAYER_NAMES.some((name) => other.layers[name].yields.reveal.includes(entry.key) && !layerState(other, name).found),
   );
 }
 
-/** Does any layer of another entry name this one in its reveal? */
-function namedByClue(entry, entries) {
-  return entries.some((other) => other.key !== entry.key && LAYER_NAMES.some((name) => other.layers[name].yields.reveal.includes(entry.key)));
+/**
+ * Do players see this entry? A plain entry always; a hidden one once it is
+ * shown (`state.shown`), by the Judge or by the check that revealed it.
+ */
+export function isVisible(entry) {
+  return !entry.hidden || entry.state?.shown === true;
+}
+
+/** Does this entry hide behind a clue not yet solved: hidden, unshown, and named by a layer not yet found? */
+export function behindClue(entry, entries) {
+  return !isVisible(entry) && namedByUnsolvedClue(entry, entries);
 }
 
 /**
- * Do players see this entry? A plain entry always; a hidden one once the
- * Judge shows it (`state.shown`) or once a layer that names it has been found.
+ * The keys of the entries a found check shows: those its `reveal` names that
+ * are in the scene, hidden and not yet shown. The writer sets `state.shown`
+ * on each, in the same write that records the check.
  */
-export function isVisible(entry, entries) {
-  if (!entry.hidden || entry.state?.shown === true) return true;
-  return revealedBy(entry, entries);
-}
-
-/** Does this entry hide behind a clue not yet solved: hidden, unshown, named by a reveal, none of them found? */
-export function behindClue(entry, entries) {
-  return !isVisible(entry, entries) && namedByClue(entry, entries);
+export function revealedKeys(outcome, entries) {
+  if (outcome?.code !== CODE.FOUND) return [];
+  return (outcome.reveal ?? []).filter((key) => entries.some((e) => e.key === key && !isVisible(e)));
 }
 
 /**
@@ -169,7 +174,7 @@ export function behindClue(entry, entries) {
  */
 export function seatView(entries, { isGM = false } = {}) {
   const all = Array.isArray(entries) ? entries : [];
-  return isGM ? all.slice() : all.filter((entry) => isVisible(entry, all));
+  return isGM ? all.slice() : all.filter((entry) => isVisible(entry));
 }
 
 /**
@@ -185,7 +190,7 @@ export function remainingKinds(entry, entries, { skip = [] } = {}) {
     const { lots, clue, reveal } = entry.layers[name].yields;
     if (lots.length) kinds.add(MORE.LOTS);
     if (clue) kinds.add(MORE.CLUE);
-    if (reveal.some((key) => entries.some((other) => other.key === key && !isVisible(other, entries)))) kinds.add(MORE.REVEAL);
+    if (reveal.some((key) => entries.some((other) => other.key === key && !isVisible(other)))) kinds.add(MORE.REVEAL);
   }
   return [...kinds];
 }
@@ -197,7 +202,7 @@ export function remainingKinds(entry, entries, { skip = [] } = {}) {
  * carries no mark of its own: an entry players cannot see answers false.
  */
 export function moreRemains(entry, entries) {
-  return isVisible(entry, entries) && remainingKinds(entry, entries).length > 0;
+  return isVisible(entry) && remainingKinds(entry, entries).length > 0;
 }
 
 /* -------------------------------------------- */

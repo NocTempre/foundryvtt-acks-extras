@@ -29,6 +29,7 @@ import {
   outcomeOf,
   recordOutcome,
   remainingKinds,
+  revealedKeys,
   sceneEntries,
   seatView,
 } from "../scripts/scene-search/scene-logic.mjs";
@@ -58,7 +59,7 @@ const byKey = (entries, key) => entries.find((e) => e.key === key);
 
 const THIEF = { id: "a-thief", level: 3, capabilities: [CAPABILITY.SEARCHING], tools: [] };
 const PLAIN = { id: "a-plain", level: 3, capabilities: [], tools: [] };
-const figures = { hastyTarget: 14, methodicalTarget: 7, searchBonus: 2, skillTargets: { reading: 11 } };
+const figures = { hastyTarget: 31, methodicalTarget: 29, searchBonus: 6, skillTargets: { reading: 37 } };
 
 /* -------------------------------------------- */
 /*  The list                                     */
@@ -217,17 +218,30 @@ const figures = { hastyTarget: 14, methodicalTarget: 7, searchBonus: 2, skillTar
   eq(seatView(entries, { isGM: false }).map((e) => e.key), ["thing:mural", "thing:shrine"], "a player sees neither the hidden thing, the Judge-only one, nor the hidden exit behind the unsolved clue");
   ok(behindClue(byKey(entries, "thing:safe"), entries), "a hidden thing a layer names is behind that clue");
   ok(!behindClue(byKey(entries, "thing:cache"), entries), "a hidden thing nothing names is the Judge's to show, not behind a clue");
-  ok(!isVisible(byKey(entries, "thing:cache"), entries), "the Judge-only thing stays unseen");
-  ok(isVisible(byKey(entries, "thing:shrine"), entries), "state.shown shows a hidden thing");
+  ok(!isVisible(byKey(entries, "thing:cache")), "the Judge-only thing stays unseen");
+  ok(isVisible(byKey(entries, "thing:shrine")), "state.shown shows a hidden thing");
 
-  const solved = entriesOf([{ ...mural, state: { layers: { methodical: { found: true } } } }, safe, judgeOnly, shown], { doors });
-  eq(seatView(solved, { isGM: false }).map((e) => e.key), ["thing:mural", "thing:safe", "thing:shrine", "wall:w9"], "a solved clue brings what it reveals into view; the Judge-only thing stays out");
-  ok(!behindClue(byKey(solved, "thing:safe"), solved), "a solved clue no longer holds its thing back");
+  const hit = outcomeOf(byKey(entries, "thing:mural"), "methodical", PLAIN, { entries, figures }, { passed: true });
+  eq(revealedKeys(hit, entries), ["thing:safe", "wall:w9"], "a found check names the hidden entries to show");
+  eq(revealedKeys({ code: CODE.FOUND_NOTHING, reveal: ["thing:safe"] }, entries), [], "a check that found nothing shows nothing");
+  eq(revealedKeys(hit, entriesOf([safe, { ...judgeOnly, state: { shown: true } }])), ["thing:safe"], "only entries in the scene and still unshown are named");
+  eq(revealedKeys(hit, entriesOf([{ ...safe, state: { shown: true } }])), [], "an entry already shown is not named again");
+  const muralDone = { ...mural, state: recordOutcome({}, "methodical", PLAIN, hit) };
+  const solvedUnwritten = entriesOf([muralDone, safe, judgeOnly, shown], { doors });
+  eq(seatView(solvedUnwritten, { isGM: false }).map((e) => e.key), ["thing:mural", "thing:shrine"], "a found clue shows nothing until the writer shows what it names");
+  ok(!behindClue(byKey(solvedUnwritten, "thing:safe"), solvedUnwritten), "a thing named only by a found clue is no longer behind it");
+  const showSafe = { ...safe, state: { shown: true } };
+  const solved = entriesOf([muralDone, showSafe, judgeOnly, shown], { doors: [{ id: "w9", hidden: true, state: { shown: true } }] });
+  eq(seatView(solved, { isGM: false }).map((e) => e.key), ["thing:mural", "thing:safe", "thing:shrine", "wall:w9"], "once shown, what the clue revealed is in view; the Judge-only thing stays out");
+  ok(!behindClue(byKey(solved, "thing:safe"), solved), "a shown thing is not behind a clue");
+  const hiddenAgain = entriesOf(resetThing([muralDone, showSafe], "safe"));
+  ok(!isVisible(byKey(hiddenAgain, "thing:safe")), "a Reset of the shown thing hides it again");
+  ok(isVisible(byKey(hiddenAgain, "thing:mural")) && byKey(hiddenAgain, "thing:mural").state.layers.methodical.found, "and leaves the front thing's own record alone");
 
   const attempted = entriesOf([{ ...mural, state: { layers: { methodical: { done: true, found: false, failed: { a: 1 } } } } }, safe], {});
-  ok(!isVisible(byKey(attempted, "thing:safe"), attempted), "a failed attempt at the clue reveals nothing");
+  ok(!isVisible(byKey(attempted, "thing:safe")), "a failed attempt at the clue reveals nothing");
   const shownBehind = entriesOf([mural, { ...safe, state: { shown: true } }], {});
-  ok(isVisible(byKey(shownBehind, "thing:safe"), shownBehind), "the Judge may show a thing that hides behind a clue");
+  ok(isVisible(byKey(shownBehind, "thing:safe")), "the Judge may show a thing that hides behind a clue");
 }
 
 /* -------------------------------------------- */
@@ -248,9 +262,11 @@ const figures = { hastyTarget: 14, methodicalTarget: 7, searchBonus: 2, skillTar
   eq(remainingKinds(byKey(entries, "thing:front"), entries), [MORE.CLUE, MORE.REVEAL], "the clue and the reveal are the kinds that remain on the front");
   eq(remainingKinds(byKey(entries, "thing:box"), entries), [MORE.LOTS], "an unfound lot reads as lots");
 
-  const solved = entriesOf([{ ...front, state: { layers: { methodical: { found: true } } } }, back, plainBox, empty]);
+  const solved = entriesOf([{ ...front, state: { layers: { methodical: { found: true } } } }, { ...back, state: { shown: true } }, plainBox, empty]);
   ok(!moreRemains(byKey(solved, "thing:front"), solved), "a solved clue no longer marks its entry");
-  ok(moreRemains(byKey(solved, "thing:back"), solved), "the revealed thing carries its own mark once the clue is solved");
+  ok(moreRemains(byKey(solved, "thing:back"), solved), "the revealed thing carries its own mark once the clue is solved and it is shown");
+  const unshown = entriesOf([{ ...front, state: { layers: { methodical: { found: true } } } }, back, plainBox, empty]);
+  ok(!moreRemains(byKey(unshown, "thing:back"), unshown), "a thing not yet shown carries no mark");
   const half = entriesOf([plainBox], {});
   eq(remainingKinds({ ...byKey(half, "thing:box"), state: { layers: { hasty: { found: true } } } }, half), [], "a found layer contributes nothing");
 
@@ -272,8 +288,8 @@ const ctxOf = (entries, extra = {}) => ({ entries, figures, ...extra });
   const entry = entries[0];
   const [hasty, methodical] = layerOptions(entry, THIEF, ctxOf(entries));
   eq([hasty.layer, methodical.layer], ["hasty", "methodical"], "one option per layer, hasty first");
-  eq([hasty.mode, hasty.refusal, hasty.target, hasty.bonus], ["search", null, 14, 2], "the thief's hasty search is a throw at the stated target with the stated bonus");
-  eq([methodical.mode, methodical.refusal, methodical.target, methodical.bonus], ["search", null, 7, null], "a methodical search needs no capability and takes no thief's bonus");
+  eq([hasty.mode, hasty.refusal, hasty.target, hasty.bonus], ["search", null, 31, 6], "the thief's hasty search is a throw at the stated target with the stated bonus");
+  eq([methodical.mode, methodical.refusal, methodical.target, methodical.bonus], ["search", null, 29, null], "a methodical search needs no capability and takes no thief's bonus");
 
   const plain = layerOptions(entry, PLAIN, ctxOf(entries));
   eq([plain[0].mode, plain[0].refusal], ["vague", null], "a member without the capability stays assignable and gets the vague hint only");
@@ -281,7 +297,7 @@ const ctxOf = (entries, extra = {}) => ({ entries, figures, ...extra });
 
   const open = entriesOf([hastySearch({ anyone: true })]);
   const anyone = layerOptions(open[0], PLAIN, ctxOf(open))[0];
-  eq([anyone.mode, anyone.target, anyone.bonus], ["search", 14, null], "a layer open to others lets them throw, without the thief's bonus");
+  eq([anyone.mode, anyone.target, anyone.bonus], ["search", 31, null], "a layer open to others lets them throw, without the thief's bonus");
 
   eq(layerOptions(entry, THIEF, { entries })[0].refusal, REFUSAL.NOT_IMPORTED, "a thrown check with no target imported cannot be assigned");
   eq(layerOptions(entry, THIEF, ctxOf(entries, { figures: { hastyTarget: "" } }))[0].refusal, REFUSAL.NOT_IMPORTED, "a blank target is not a target");
@@ -298,7 +314,7 @@ const ctxOf = (entries, extra = {}) => ({ entries, figures, ...extra });
   const skilled = entriesOf([thing({ id: "carving", kind: "fixture", layers: { hasty: layer({ check: CHECK.SKILL, capability: "reading", yields: { clue: "Found: a name" } }), methodical: layer({ check: CHECK.SKILL, capability: "reading", yields: { clue: "Found: a map" } }) } })]);
   const reader = { id: "r", level: 1, capabilities: ["reading"], tools: [] };
   const withSkill = layerOptions(skilled[0], reader, ctxOf(skilled));
-  eq([withSkill[0].mode, withSkill[0].target, withSkill[1].refusal], ["skill", 11, null], "a member with the capability throws the skill's target");
+  eq([withSkill[0].mode, withSkill[0].target, withSkill[1].refusal], ["skill", 37, null], "a member with the capability throws the skill's target");
   const without = layerOptions(skilled[0], PLAIN, ctxOf(skilled));
   eq([without[0].mode, without[0].refusal], ["vague", null], "a missing skill at the hasty check is the vague hint (the owner's rule)");
   eq(layerRefusal(skilled[0], "methodical", PLAIN, ctxOf(skilled)), { refusal: REFUSAL.CAPABILITY_MISSING, capability: "reading" }, "a missing skill at the methodical check is a refusal naming the capability");
