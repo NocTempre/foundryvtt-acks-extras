@@ -356,7 +356,7 @@ both left the point open for the owner.
   before. **Counter (moderate):** a Judge forcing a curse late loses the
   surprise on a fully identified card.
 
-## 2026-11-17 — The hoard adapter reads the import's own shapes
+## 2026-11-17 — The hoard adapter reads the import's own shapes — SUPERSEDED IN PART 2026-11-17
 
 The adapter (`hoard-map.mjs`, `hoard.mjs`) was built against the importer's
 documents. The choices, each of which the engine's contracts left open:
@@ -442,3 +442,28 @@ ticks; in "table rolls" mode the auto-pick stands.
   designed (ROADMAP, "Replace ticks").
 - **Staging's pot value now counts the pot as it will be:** the lots held plus
   every seed's stated worth, as the design's total does.
+
+## 2026-11-17 — A legend row names its special list, and the import marks the band that keeps the lot
+
+The owner, answering the plan's question 8: "Take recommendations", so the
+tt-importer tags each dice-legend row with its list key and marks the "leave
+the lot" band, and the adapter stops pairing by order and wording. The new
+evidence against "A legend row's place picks its special list" is that answer
+and the importer's report that the `1 <kind>` match misses real bands (a
+bracketed note, words between the count and the kind, an alternative clause).
+
+- **Pairing by `list`.** A row's `list` names its special list; a row with
+  none takes the list at its place, so an import from before the tag still
+  deals. A key outside the column's lists, or two rows on one list (a tagged
+  row meeting an untagged row's place included), skips the column rather than
+  guess.
+- **`keep` from the marks.** A gem or jewelry list's kept results are the
+  result texts of its bands marked `keep: true`; the engine's contract (a
+  result text matched folded) is unchanged. Only a list with no marked band
+  falls back to the wording match. **Counter (weak):** two bands printing one
+  text would both keep; identical text deals an identical outcome.
+- **The brilliant band's break.** The brilliant list's leave-the-lot band also
+  offers breaking the stone into the lower kind. `keep` applies unchanged: the
+  deal leaves the brilliant as it was, and breaking it stays the table's choice
+  after the deal. **Counter (moderate):** the deal never offers the break, so a
+  table that wants it splits the card by hand.

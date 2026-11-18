@@ -386,7 +386,7 @@ gap is an entry of `errors` for the caller to word.
 | `typeClassic`, `typeHeroic`, `typeGritty` | `tables.type.rows`, the dealt letter's row alone; its cite is `citeOf` of the table |
 | `typeUnits[style]` | `units.coin` by coin column, the first figure of each text; a column with none is left out and its coin errors `unit-missing` |
 | `gemValue`, `jewelryValue` | `tables.values` |
-| `gemDice`, `jewelryDice` | one kind per legend row, thrown on the row's `dice`, named by its `kind` in either number; the row's place is the place of its special list (`GEM_LISTS`, `JEWELRY_LISTS`). A missing or short legend skips its column and lists `column-skipped`, unless the dealt row's cell there is empty |
+| `gemDice`, `jewelryDice` | one kind per legend row, thrown on the row's `dice`, named by its `kind` in either number; the row's `list` names its special list, and a row with none takes the list at its own place (`GEM_LISTS`, `JEWELRY_LISTS`). A missing or short legend, a `list` that is not one of the column's keys (`legend-list-unknown`) or two rows on one list (`legend-list-duplicate`) skips its column and lists `column-skipped`, unless the dealt row's cell there is empty |
 | `special`, `specialPer` | `tables.special`, only with `special: true`; the die is the one a list's own bands span (`bandDie`), a coin list's `per` the first figure of its text |
 
 The kinds are not imported. A coin column is one kind, named by the nouns its
@@ -398,8 +398,8 @@ read and is returned as it came, since `planOpen` applies it.
 
 **Special treasure is off unless asked for.** A coin list's result that counts a
 coin (`N <world coin name> <word>`) is coin and joins that coin card; a gem or
-jewelry list's result that says one of its own kind (`1 <kind>`) leaves the lot
-as it was; any other result is a `special` truth of its label alone.
+jewelry list's band marked `keep` leaves the lot as it was (a list with no
+marked band falls back to the result that says one of its own kind, `1 <kind>`); any other result is a `special` truth of its label alone.
 
 **Cards become truths** (`truthsFromCards`). A coin card names the world's coin
 by the lang name of its column (`ACKS-TREASURE.hoard.coin.<key>`), found with

@@ -129,6 +129,63 @@ eq(figureOf(null), null, "null");
   ok(k("cp").names.includes("tokens"), "a noun a coin column prints names that column's kind");
 }
 
+/* --- a legend row's `list` names its special list ------------------------------------- */
+{
+  const pairs = (gem, jewelry) => buildKinds({ rows: doc().typeClassic, gemLegend: gem, jewelryLegend: jewelry });
+  const dieOf = (kinds, key) => kinds.find((x) => x.key === key)?.die;
+  const gem = (...rows) => rows.map(([dice, kind, list]) => ({ dice, avg: "1", kind, ...(list === undefined ? {} : { list }) }));
+  const stock = () => doc().jewelryDice.legend;
+
+  const shuffled = pairs(gem(["d8", "Blaze", "brilliant"], ["d4", "Glint", "ornamental"], ["d6", "Spark", "gem"]), stock());
+  eq(shuffled.skipped, [], "a tagged legend in any order is a usable one");
+  eq(GEM_LISTS.map((key) => dieOf(shuffled.kinds, key)), ["d4", "d6", "d8"], "a tagged row takes the list it names, whatever its place");
+  eq(shuffled.kinds.find((x) => x.key === "brilliant").names, ["blaze", "blazes"], "and its printed kind");
+
+  const jewelry = pairs(doc().gemDice.legend, [{ dice: "d4", avg: "1", kind: "Crown", list: "regalia" }, { dice: "d8", avg: "1", kind: "Bangles", list: "trinket" }, { dice: "d6", avg: "1", kind: "Bauble", list: "jewelry" }]);
+  eq(JEWELRY_LISTS.map((key) => dieOf(jewelry.kinds, key)), ["d8", "d6", "d4"], "the jewelry column pairs by list too");
+
+  const plain = pairs(gem(["d4", "Glint"], ["d6", "Spark"], ["d8", "Blaze"]), stock());
+  eq(GEM_LISTS.map((key) => dieOf(plain.kinds, key)), ["d4", "d6", "d8"], "an untagged legend pairs by place");
+  const mixed = pairs(gem(["d4", "Glint"], ["d8", "Blaze", "brilliant"], ["d6", "Spark", "gem"]), stock());
+  eq([mixed.skipped, GEM_LISTS.map((key) => dieOf(mixed.kinds, key))], [[], ["d4", "d6", "d8"]], "an untagged row among tagged ones takes the list at its place");
+  const nulled = pairs(gem(["d4", "Glint", null], ["d6", "Spark", null], ["d8", "Blaze", null]), stock());
+  eq(GEM_LISTS.map((key) => dieOf(nulled.kinds, key)), ["d4", "d6", "d8"], "a null list is as absent as a missing one");
+
+  const unknown = pairs(gem(["d4", "Glint", "ornamental"], ["d6", "Spark", "bogus"], ["d8", "Blaze", "brilliant"]), stock());
+  eq(unknown.skipped, [{ column: "gems", reason: "legend-list-unknown" }], "a list the column does not have skips the column");
+  eq(unknown.kinds.some((x) => x.pool === "gems"), false, "and builds no gem kind");
+  eq(pairs(gem(["d4", "Glint", "trinket"], ["d6", "Spark", "gem"], ["d8", "Blaze", "brilliant"]), stock()).skipped, [{ column: "gems", reason: "legend-list-unknown" }], "a list of the other column is not this column's");
+
+  const twice = pairs(doc().gemDice.legend, [{ dice: "d4", avg: "1", kind: "Crown", list: "regalia" }, { dice: "d8", avg: "1", kind: "Bangles", list: "regalia" }, { dice: "d6", avg: "1", kind: "Bauble", list: "jewelry" }]);
+  eq(twice.skipped, [{ column: "jewelry", reason: "legend-list-duplicate" }], "two rows naming one list skip the column");
+  const clash = pairs(gem(["d4", "Glint"], ["d6", "Spark", "gem"], ["d8", "Blaze", "ornamental"]), stock());
+  eq(clash.skipped, [{ column: "gems", reason: "legend-list-duplicate" }], "a tagged row meeting an untagged row's place is a duplicate, not a guess");
+
+  const bad = doc();
+  bad.gemDice.legend = gem(["d4", "Glint", "ornamental"], ["d6", "Spark", "gem"], ["d8", "Blaze", "gem"]);
+  eq(run(bad, "Z", [5, 30, 2, 1, 10, 7, 5, 2, 6]).mapped.errors, [{ code: "column-skipped", column: "gems", reason: "legend-list-duplicate" }], "the skip reaches the caller as a column-skipped error");
+}
+
+/* --- a band marked keep leaves the lot, whatever its words ------------------------------- */
+{
+  const keepOf = (special, key = "gem") => mapHoardArgs({ tables: { ...doc(), special: { ...doc().special, ...special } }, letter: "Z", style: "classic", special: true, cite: citeFor }).args.tables.special[key].keep;
+
+  eq(keepOf({ gem: [band(1, 4, { result: "Strange phial" }), band(5, 6, { result: "1 spark [see note]", keep: true })] }), ["1 spark [see note]"], "a marked band is kept though the wording match would miss it");
+  eq(keepOf({ gem: [band(1, 4, { result: "Strange phial" }), band(5, 6, { result: "Any 1 spark, or a second throw", keep: true })] }), ["Any 1 spark, or a second throw"], "extra words and an alternative clause are no bar");
+  eq(keepOf({ gem: [band(1, 3, { result: "1 spark" }), band(4, 6, { result: "Odd note", keep: true })] }), ["Odd note"], "a list with a marked band keeps that band alone, not the wording's");
+  eq(keepOf({ gem: [band(1, 3, { result: "1 spark" }), band(4, 6, { result: "Odd note", keep: false })] }), ["1 spark"], "only keep: true marks a band");
+  eq(keepOf({ gem: [band(1, 3, { result: "1 spark" }), band(4, 6, { result: "Odd note", keep: "yes" })] }), ["1 spark"], "a truthy value that is not true marks nothing");
+  eq(keepOf({ gem: [band(1, 3, { result: "1 spark" }), band(4, 6, { result: "Strange phial" })] }), ["1 spark"], "a list with no marked band falls back to the wording match");
+  eq(keepOf({ trinket: [band(1, 2, { result: "Odd trinket" }), band(3, 4, { result: "1 bangle [note]", keep: true })] }, "trinket"), ["1 bangle [note]"], "a jewelry list is read alike");
+  eq(keepOf({ cp: [band(1, 3, { result: "100 tin coins" }), band(4, 6, { result: "Odd trinket", keep: true })] }, "cp"), [], "a coin list keeps nothing, marked or not");
+
+  const odd = doc();
+  odd.special.gem = [band(1, 5, { result: "Strange phial" }), band(6, 6, { result: "1 spark [see note]", keep: true })];
+  const r = run(odd, "Z", [5, 30, 2, 1, 3, 10, 7, 5, 2, 6, 6, 1]);
+  ok(r.truths.some((t) => t.pool === "gems" && t.label === "glassy pebble"), "the engine leaves the gem as it was on the marked band");
+  ok(!r.truths.some((t) => t.pool === "special" && t.label === "1 spark [see note]"), "and makes no special card of it");
+}
+
 /* --- a noun printed in a coin column resolves by that column --------------------- */
 {
   const r = run(doc(), "Y", [3, 2]);

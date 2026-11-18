@@ -14,17 +14,20 @@
  * - `typeUnits[style]` `{cp..pp: text}` become `units.coin`, the first figure
  *   of each text.
  * - `gemValue` and `jewelryValue` `{bands}` become `tables.values`.
- * - `gemDice` and `jewelryDice` `{legend: [{dice, avg, kind}]}` name the kinds
- *   of gem and of jewelry: one kind per legend row, thrown on the row's `dice`
- *   and matched by the row's printed `kind` in the singular or the plural,
- *   whichever the cell prints. A row's place in the legend is the place of its
- *   special list in `GEM_LISTS` / `JEWELRY_LISTS`.
- * - `special` `{<list>: [{min, max, result}]}` and `specialPer` become
+ * - `gemDice` and `jewelryDice` `{legend: [{dice, avg, kind, list?}]}` name the
+ *   kinds of gem and of jewelry: one kind per legend row, thrown on the row's
+ *   `dice` and matched by the row's printed `kind` in the singular or the
+ *   plural, whichever the cell prints. A row's `list` is the key of its
+ *   special list in `GEM_LISTS` / `JEWELRY_LISTS`; a row with no `list` takes
+ *   the list at its own place in the legend. A `list` outside the column's
+ *   keys, or one two rows name, skips the column.
+ * - `special` `{<list>: [{min, max, result, keep?}]}` and `specialPer` become
  *   `tables.special`, and only when the caller asks for special treasure: the
  *   die is the one the list's own bands span (`bandDie`), a coin list's lot
- *   size the first figure of its `per` text. A gem or jewelry list's result
- *   that says one of the list's own kind leaves the lot as it was (`keep`);
- *   a coin list's result that counts a coin is coin (see `coinNamesIn`).
+ *   size the first figure of its `per` text. A gem or jewelry list's band
+ *   marked `keep: true` leaves the lot as it was (`keep`); a list with no
+ *   marked band keeps the results that say one of the list's own kind. A coin
+ *   list's result that counts a coin is coin (see `coinNamesIn`).
  *
  * The nouns a coin or magic column prints are read off the type table itself
  * and become the names of that column's kinds, so no noun is written here.
@@ -41,10 +44,10 @@ export const STYLE_TABLE = Object.freeze({ classic: "typeClassic", heroic: "type
 /** The coin columns of a type row, and the keys of their special lists. */
 export const COIN_KEYS = Object.freeze(["cp", "sp", "ep", "gp", "pp"]);
 
-/** The special lists of the gem legend's rows, in the legend's order. */
+/** The special lists of the gem legend's rows, in the order a row with no `list` takes them. */
 export const GEM_LISTS = Object.freeze(["ornamental", "gem", "brilliant"]);
 
-/** The special lists of the jewelry legend's rows, in the legend's order. */
+/** The special lists of the jewelry legend's rows, in the order a row with no `list` takes them. */
 export const JEWELRY_LISTS = Object.freeze(["trinket", "jewelry", "regalia"]);
 
 const GEM_VALUES = "gemValue";
@@ -130,7 +133,9 @@ export function coinNamesIn(special, coinNames) {
 /**
  * The engine's kinds for one style, and the columns that could not be built.
  * A column whose legend is missing or does not give a die and a kind for each
- * list has no kinds and is listed in `skipped` with its reason.
+ * list, names a list the column does not have, or names one list twice, has no
+ * kinds and is listed in `skipped` with its reason (`legend-missing`,
+ * `legend-shape`, `legend-list-unknown`, `legend-list-duplicate`).
  *
  * @param {object} src
  * @param {object} src.rows the style's type table
@@ -150,7 +155,16 @@ export function buildKinds({ rows, gemLegend, jewelryLegend, coinNouns = {} }) {
       skipped.push({ column, reason: legend ? "legend-shape" : "legend-missing" });
       return;
     }
-    legend.forEach((r, i) => kinds.push({ key: lists[i], pool: column === "gems" ? "gems" : "jewelry", column, names: formsOf(r.kind), label: r.kind, values, die: r.dice }));
+    const keys = legend.map((r, i) => (r.list == null ? lists[i] : r.list));
+    if (keys.some((key) => !lists.includes(key))) {
+      skipped.push({ column, reason: "legend-list-unknown" });
+      return;
+    }
+    if (new Set(keys).size !== keys.length) {
+      skipped.push({ column, reason: "legend-list-duplicate" });
+      return;
+    }
+    legend.forEach((r, i) => kinds.push({ key: keys[i], pool: column === "gems" ? "gems" : "jewelry", column, names: formsOf(r.kind), label: r.kind, values, die: r.dice }));
   };
   legendKinds("gems", gemLegend, GEM_LISTS, GEM_VALUES);
   legendKinds("jewelry", jewelryLegend, JEWELRY_LISTS, JEWELRY_VALUES);
@@ -230,8 +244,11 @@ function coinUnits(line) {
 
 /**
  * The engine's special lists from the registry's, or null when none was
- * imported. A gem or jewelry list's `keep` is the results that say one of that
- * kind (`1 <kind>`), which leave the lot as it was.
+ * imported. A gem or jewelry list's `keep` is the result text of each band the
+ * import marks `keep: true`, which leaves the lot as it was; a list none of
+ * whose bands carries the mark reads `keep` as the results that say one of the
+ * list's kind (`1 <kind>`). The engine matches a kept band by its result text,
+ * so two bands printing one text are kept together.
  */
 function specialLists(tables, kinds, cite) {
   const lists = tables.special;
@@ -242,13 +259,14 @@ function specialLists(tables, kinds, cite) {
     if (!bands) continue;
     const kind = kinds.find((k) => k.key === key && k.pool !== "coins");
     const own = new Set((kind?.names ?? []).map((n) => `1 ${n}`));
+    const marked = kind ? bands.filter((b) => b.keep === true) : [];
     const per = figureOf(tables.specialPer?.[key]);
     out[key] = {
       bands,
       die: bandDie(bands),
       cite: cite("special"),
       ...(COIN_KEYS.includes(key) && per ? { per } : {}),
-      keep: bands.map((b) => b.result).filter((t) => typeof t === "string" && own.has(fold(t))),
+      keep: (marked.length ? marked.map((b) => b.result) : bands.map((b) => b.result).filter((t) => own.has(fold(String(t))))).filter((t) => typeof t === "string"),
     };
   }
   return Object.keys(out).length ? out : null;
