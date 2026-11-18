@@ -17,6 +17,7 @@ import {
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
+import { bashStrBonus } from "../scripts/formation/doors.mjs";
 
 let passed = 0;
 const ok = async (name, fn) => { await fn(); passed++; console.log("ok   " + name); };
@@ -920,6 +921,17 @@ await ok("Contortionism is counted once per throw: it moves the squeeze and the 
   assert.equal(held.escape.wiggle.target, plain.escape.wiggle.target, "the wiggle's save carries the ability's effect by the save's own route");
   assert.equal(held.escape.wiggle.parts.some((p) => p.key === "contortionism"), false);
   assert.equal(held.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
+});
+
+await ok("the push takes Strength through the one Dungeonbashing definition, on the push alone: a stronger member's target is lower by that figure, a weaker one's higher, and the squeeze and the wiggle never read it", () => {
+  loadSqueeze();
+  const row = (strMod) => squeezeRow({ encumbrance: 5, shape: "chokepoint", pushFigure: basher, save: cell, strMod, member: stuckRecord(), seat: JUDGE });
+  const [none, strong, weak] = [row(0), row(2), row(-1)];
+  assert.equal(none.escape.push.parts.some((p) => p.key === "strength"), false, "no modifier, no part");
+  assert.equal(none.escape.push.target - strong.escape.push.target, bashStrBonus(2), "the push takes the bash's Strength");
+  assert.equal(none.escape.push.target - weak.escape.push.target, bashStrBonus(-1));
+  assert.deepEqual(strong.escape.push.parts.find((p) => p.key === "strength"), { key: "strength", value: -bashStrBonus(2), mod: 2 });
+  assert.deepEqual([strong.target, strong.escape.wiggle.target], [none.target, none.escape.wiggle.target], "the squeezing throw and the wiggle read none of it");
 });
 
 await ok("a holder whose bonus is not imported has no squeeze or push target, for a Judge too; a non-holder is unaffected", () => {

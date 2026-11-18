@@ -169,12 +169,12 @@ const CLIMBING = () => item("Probe Climb", [throwOf("climb", ladder([1, 15], [5,
 const ACROBATICS = () => item("Probe Tumble", [], { provides: ["kw:acrobatics"], cite: "XX p.3" });
 
 /** A person on the world's actor list. `owner` is the user id who owns them besides the GM. */
-function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0 } = {}) {
+function person(name, { items = [], adventuring = { climb: 14 }, hp = 8, level = 6, dex = 14, owner = null, type = "character", saves = { paralysis: { value: 12 } }, stone = 0, str = 0 } = {}) {
   const actor = {
     id: name, name, type, img: `${name}.webp`, statuses: new Set(), appliedEffects: [],
     system: {
       details: { level, morale: 0 }, adventuring: adventuring ? { ...adventuring } : undefined, hp: { value: hp, max: 10 },
-      encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 } }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
+      encumbrance: { value: stone }, scores: { dex: { value: dex, mod: 0 }, str: { value: 10, mod: str } }, saves, attack: { throw: 10 }, surprise: {}, initiative: {},
     },
     getFlag: () => undefined,
     testUserPermission: (user) => !!user?.isGM || user?.id === owner,
@@ -2467,6 +2467,19 @@ await ok("Contortionism is counted once on each throw, read through the real row
   assert.deepEqual([plain.row.target - held.row.target, plain.row.escape.push.target - held.row.escape.push.target], [3, 3]);
   assert.equal(held.row.escape.wiggle.target, plain.row.escape.wiggle.target);
   assert.equal(held.row.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
+});
+
+await ok("the push takes the member's Strength, named in its tooltip with the modifier and the page, while the squeezing throw and the wiggle do not", async () => {
+  const { formation } = await squeezeWorld([["Strong", { stone: 5, str: 2 }], ["Plain", { stone: 5 }]]);
+  await stuckAt(formation, "Strong");
+  await stuckAt(formation, "Plain");
+  const [strong, plain] = ["Strong", "Plain"].map((name) => crossingRow(formation, name));
+  assert.equal(plain.row.escape.push.target - strong.row.escape.push.target, 8, "the bash's Strength on the push");
+  assert.deepEqual([strong.row.escape.wiggle.target, strong.row.target], [plain.row.escape.wiggle.target, plain.row.target]);
+  const tip = crossing.escapeTargetTip(strong, "push");
+  assert.ok(tip.includes("Strength (modifier +2, RR ch. 1) −8"), tip);
+  assert.equal(crossing.escapeTargetTip(plain, "push").includes("Strength"), false, "no modifier, no part");
+  assert.equal(crossing.escapeTargetTip(strong, "wiggle").includes("Strength"), false);
 });
 
 await ok("a squeeze with no length set has no throw, for a Judge too", async () => {

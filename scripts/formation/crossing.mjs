@@ -59,6 +59,7 @@ import {
   swimThrowStep, withFooting, escapeStep, squeezeRow, squeezeThrowStep, paceStep,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
+import { abilityMod } from "../lib/actor-read.mjs";
 import { capacityStone, movementBearing } from "../lib/capacity.mjs";
 import { conditionSet, forbiddenBy } from "../lib/conditions.mjs";
 import { skipDialogKey } from "../lib/roll-dialog.mjs";
@@ -1858,7 +1859,7 @@ const squeezeCite = (table) => citeFor(table) ?? squeezingRef();
 const signed = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
 
 /** A target's parts as words, each signed by what it adds to the number to roll. */
-const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${part.key}`)} ${signed(part.value)}`);
+const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${part.key}`, { mod: signed(part.mod ?? 0) })} ${signed(part.value)}`);
 
 /** The squeezing throw's target as a tooltip: its parts, then the page; the page alone where no target stands. */
 export function squeezeTargetTip(row) {
@@ -2015,7 +2016,7 @@ function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, 
   const holds = holdsContortionism(actor);
   const row = squeezeRow({
     encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
-    pushFigure, save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+    pushFigure, strMod: monster ? 0 : abilityMod(actor, "str"), save, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
   });
   return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };
 }

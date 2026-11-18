@@ -3114,8 +3114,9 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   stone and the failed pushes' penalty are held on that figure for the call
   (`withSaveShift`) and the figure is restored. The push forward is a d20 against
   the member's `resolveCheck(actor, PARTY_CHECKS.dungeonbashing)` raised by the
-  stone and the penalty and lowered by Contortionism and the Judge's modifier;
-  it takes no Strength term, which belongs to the door's bash. A success ends
+  stone and the penalty and lowered by Contortionism, the member's Strength
+  (`bashStrBonus`, the one definition a Dungeonbashing throw reads; a monster has
+  none) and the Judge's modifier. A success ends
   the condition: the wiggle retreats the member by the imported escape distance
   (never past the start), the push advances them by it and is through at a
   chokepoint or the length. A failed wiggle counts a try; a failed push counts a

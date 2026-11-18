@@ -17,6 +17,7 @@
  */
 import { hasCapability } from "../lib/capabilities.mjs";
 import { formationValue } from "./constants.mjs";
+import { bashStrBonus } from "./doors.mjs";
 import { hasAbility } from "./formation-model.mjs";
 
 const CONTORTIONISM = /contortionism/i;
@@ -111,31 +112,37 @@ export function wiggleShift({ encumbrance = 0, plight = 0, judgeMod = 0 } = {}) 
 /**
  * The push forward's target: the member's Dungeonbashing figure
  * (`resolveCheck`), raised by their encumbrance and the failed pushes'
- * penalty, lowered by Contortionism's bonus for a holder and by the Judge's
- * modifier. The figure's own parts never name Contortionism, so the bonus is
- * counted here once.
+ * penalty, lowered by Contortionism's bonus for a holder, by Strength and by
+ * the Judge's modifier. The figure's own parts never name Contortionism or
+ * Strength, so each is counted here once; Strength is `bashStrBonus`, the one
+ * definition of what it is worth on a Dungeonbashing throw (docs/formation/
+ * DECISIONS.md, "Strength on a Dungeonbashing throw has one owner").
  *
  * @param {object} o
  * @param {{target: number|null, parts?: object[]}|null} o.figure the member's `resolveCheck` result
  * @param {number} o.encumbrance stone carried
  * @param {boolean} [o.proficient] holds Contortionism
  * @param {number} [o.plight] failed pushes so far
+ * @param {number} [o.strMod] the member's Strength modifier; 0 for a creature with none
  * @param {number} [o.judgeMod]
- * @returns {{target: number|null, parts: Array<{key: string, value: number}>, unknown: string[]}}
+ * @returns {{target: number|null, parts: Array<{key: string, value: number, mod?: number}>, unknown: string[]}}
+ *   a `strength` part also carries the modifier it was read from
  */
-export function pushThrow({ figure = null, encumbrance = 0, proficient = false, plight = 0, judgeMod = 0 } = {}) {
+export function pushThrow({ figure = null, encumbrance = 0, proficient = false, plight = 0, strMod = 0, judgeMod = 0 } = {}) {
   const stone = Math.max(0, Number(encumbrance) || 0);
   const base = figure && Number.isFinite(figure.target) ? figure.target : null;
   const owed = plightPenalty(plight);
   const bonus = proficient ? contortionismBonus() : 0;
   const mod = Number(judgeMod) || 0;
+  const strength = bashStrBonus(strMod);
   const parts = [{ key: "encumbrance", value: stone }];
   if (owed.value) parts.push({ key: "plight", value: owed.value });
   if (proficient && bonus != null) parts.push({ key: "contortionism", value: -bonus });
+  if (strength) parts.push({ key: "strength", value: -strength, mod: Number(strMod) });
   if (mod) parts.push({ key: "judge", value: -mod });
   const unknown = [...(base === null ? ["figure"] : []), ...owed.unknown, ...(proficient && bonus == null ? ["contortionismBonus"] : [])];
   if (unknown.length) return { target: null, parts, unknown };
-  return { target: base + stone + owed.value - bonus - mod, parts, unknown };
+  return { target: base + stone + owed.value - bonus - strength - mod, parts, unknown };
 }
 
 /**

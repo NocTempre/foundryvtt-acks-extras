@@ -902,6 +902,7 @@ const positiveFeet = (value) => {
  * @param {number|string|null} [o.length] the squeeze's length in feet
  * @param {number} [o.judgeMod] the Judge's modifier; positive lowers a target
  * @param {{target: number|null, parts?: object[]}|null} [o.pushFigure] the member's `resolveCheck` for Dungeonbashing
+ * @param {number} [o.strMod] the member's Strength modifier, which the push adds to; 0 for a monster
  * @param {{base: number|null}|null} [o.save] the member's own Paralysis target (null base: no cell)
  * @param {{combatId: string, round: number}|null} [o.turn] the round the throw is for, where a fight is running
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
@@ -912,7 +913,7 @@ const positiveFeet = (value) => {
  *   wiggle, push}`, each way `{target, parts, unknown, refusal, can, warn, plan}`
  */
 export function squeezeRow({
-  encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, save = null,
+  encumbrance = 0, holds = false, shape = "squeeze", length = null, judgeMod = 0, pushFigure = null, strMod = 0, save = null,
   turn = null, seat = {}, standing = null, member = null,
 } = {}) {
   const state = member?.state ?? SQUEEZING;
@@ -965,7 +966,7 @@ export function squeezeRow({
       if (shift.unknown.length) extra.push({ cls: REFUSAL.absence, reason: "step" });
       figure = { target: shift.shift === null || !Number.isFinite(save?.base) ? null : save.base + shift.shift, parts: shift.parts };
     } else {
-      const pushed = pushThrow({ figure: pushFigure, encumbrance: carried ?? 0, proficient: holds, plight, judgeMod });
+      const pushed = pushThrow({ figure: pushFigure, encumbrance: carried ?? 0, proficient: holds, plight, strMod, judgeMod });
       unknown.push(...pushed.unknown);
       if (pushed.unknown.length) extra.push({ cls: REFUSAL.absence, reason: pushed.unknown.includes("figure") ? "figure" : "bonus" });
       figure = { target: pushed.target, parts: pushed.parts };
