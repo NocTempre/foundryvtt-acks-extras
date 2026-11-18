@@ -1627,8 +1627,8 @@ list as the others).
    another day is `day`. From the GM seat post a day two calendar days back (a Judge may), then
    override the ladder's rows with no `marked` (the marks unread) and call `research.credit`.
    *Observable:* nothing is credited and nothing is written, both posted days remain, `progress()`
-   reads `unread: 1` and no due is computed, and the card draws two posted cells and a tooltip that
-   names the held day and the page of the rate. Override the rows with `marked: false` again and call
+   reads `unread: 1` and no due is computed, and the card draws a waiting cell (dashed) for the held day
+   beside today's posted cell and a tooltip that names the held day and the page of the rate. Override the rows with `marked: false` again and call
    `research.credit`: one write, two credited rows stamped with that day and valued at the pace, today's
    day still posted; a second call and a Player's relayed call credit nothing and write nothing. The
    world clock reads the same before and after. The sweep on a clock step is not walked.
@@ -1641,6 +1641,29 @@ list as the others).
    researcher's rate (`progress().people[0].rate`) is the printed rate on the spell project and the
    footnote's on the item. Change the list to name the item kind's word: the two swap. Override the
    footnote with the rate alone: both are null. No kind is fixed in the module; the list is the page's.
+12. **The Judge's due, Post days… and withdrawing (board 16).** Override the ladder again with
+   `marked: false` rows and start a project for the hero with a research cost and no assistant.
+   *Due:* with the rates read the due is computed (12 days) and shown as text with no box; override the
+   rows with no `marked` and the Judge's tab draws a days-due box, blank, labelled, its tooltip naming the
+   ladder's page, and no text; type 7 and `dueDays` is written once and the standing reads the Judge's 7.
+   The Player's tab shows 7 as text with no box, and the Player's own `update` of `dueDays` is `judge`. Read the rows
+   again and the computed 12 is text, the box gone. *Post days…:* the Judge posts the next day, presses
+   the project's Post days… button (the label differs from the Player's, and no Post day stands beside it),
+   and the prompt opens in the module's classes at 1 day from today with dedicated pressed. Type 4 days from
+   today, press the Both pill, and the caption names the first and last day; Post writes one range: the day
+   already posted is skipped and keeps its pace, the other three are posted at Both, and a notification
+   names the days posted and the day skipped. The same range again, by `postRange`, posts nothing and
+   writes nothing; 0 days is `range`. The Player's button on the same project reads Post day, is disabled
+   while today is posted, and a `postRange` from the Player is `judge`. *Withdrawing:* the Judge posts a day
+   five days back and credits it (`research.credit` by id), then overrides the ladder rows with no
+   `marked` and posts a day four days back: it is held. The strip draws one dashed waiting cell and one
+   credited cell; the list under it has a row per posted day (five), the held one tagged waiting with a
+   tooltip naming the page, and no row, no X, for the credited day. A day is posted on Pell's project, which
+   the Player does not own: the Player's card for it lists the day with no X, and the Player's `withdraw` of
+   it is `owner` and the day stands; the Player's `withdraw` of the credited day is `credited`. On the
+   Player's own project the Player clicks the X of a future day: it goes, relayed, and its row with it. The
+   Judge clicks the X of the waiting day: it goes, with its dashed cell; `withdraw` of a day not posted is
+   `notPosted`, and the Judge's of a day on Pell's project is written. The clock is not moved.
 
 ### Drive mechanics
 
@@ -1650,7 +1673,11 @@ and a bubbling `change` event, then a wait for the relayed write to come back. A
 `DataTransfer`; the zone stops it, so nothing reaches the sheet's own drop. A write re-renders the
 sheet, so each card is looked up again after one. A pace radio is picked by setting `checked` and
 dispatching a bubbling `change`. The world clock is shared and is never advanced: a day that has
-"passed" is a Judge's `post` with a backdated `day`, then `credit`. Not walked: the researcher's own
+"passed" is a Judge's `post` with a backdated `day`, then `credit`. Post days… is opened by clicking the Judge's button without awaiting it (the click resolves when the prompt
+closes); the prompt is `.acks-extras-research-prompt` and its application, the pills are `[data-pace]`, the
+fields are named `days` and `from`, the dialog's own button is `button[data-action="ok"]`, and the notification is
+read by wrapping `ui.notifications.info` for the click. A withdraw X is `[data-action="withdrawResearchDay"][data-day]`
+and the due text and box are `[data-research-due]` and `[data-research-field="dueDays"]`. Not walked: the researcher's own
 sheet (no link is drawn on it), a second Player seat for the project of someone else's character, the
 sweep that credits on a real clock step and at `ready` (it needs the world clock to move), and Finish
 (drawn disabled).

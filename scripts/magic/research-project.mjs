@@ -17,8 +17,9 @@
  *   location (`linked`);
  * - `paid` is what the material cost was paid at the start, `{material, day}`;
  * - `posted` is the days worked and not yet credited, `[{day, pace}]`, one per calendar
- *   day, which `post` writes and `credit` consumes once world time has passed the day and
- *   every rate the day is worth is read; a passed day with a rate unread stays posted;
+ *   day, which `post` and `postRange` write, `withdraw` takes back and `credit` consumes once
+ *   world time has passed the day and every rate the day is worth is read; a passed day with a
+ *   rate unread stays posted;
  * - `credited` is the research done so far, `[{day, amount, by}]`, one row per counted
  *   participant and day (`by` is the actor's uuid, `amount` a gold figure above zero), which
  *   only `credit` writes;
@@ -77,7 +78,23 @@ export const PACE = Object.freeze({ dedicated: "dedicated", ancillary: "ancillar
 export const PACES = Object.freeze(Object.values(PACE));
 
 /** The operations a request names. */
-export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", credit: "credit" });
+export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", postRange: "postRange", withdraw: "withdraw", credit: "credit" });
+
+/** The most days one range post takes: a bound on one write, not a rule of the book. */
+export const RANGE_MAX = 366;
+
+/** A list of days as text, runs joined: `[3, 4, 5, 9]` reads "3–5, 9". Each day counts once, in order. */
+export function daysText(days) {
+  const sorted = [...new Set(days)].sort((a, b) => a - b);
+  const parts = [];
+  for (let i = 0; i < sorted.length; ) {
+    let j = i;
+    while (sorted[j + 1] === sorted[j] + 1) j++;
+    parts.push(j > i ? `${sorted[i]}–${sorted[j]}` : String(sorted[i]));
+    i = j + 1;
+  }
+  return parts.join(", ");
+}
 
 /** The fields of a project only a Judge writes; a Player's request that names one is refused. */
 export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw", "dueDays"]);
@@ -397,7 +414,7 @@ export function creditDue(project, ctx) {
  * is whether the research cost is credited: by the gold once it reaches the cost, not before
  * while the rates are read, and by the Judge's days where they are not; null where no cost
  * and no days are known. `dueDay` is the calendar day the last needed day falls on, were each
- * remaining day worked in turn from today.
+ * remaining day worked in turn from today. `heldDays` are the calendar days of the held ones.
  */
 export function progressOf(project, ctx) {
   const prose = ctx.tables?.prose;
@@ -434,7 +451,7 @@ export function progressOf(project, ctx) {
   const remainingDays = dueDays === null ? null : Math.max(0, dueDays - creditedDays - pending.length);
   const lastCredited = project.credited.reduce((n, c) => Math.max(n, c.day), -Infinity);
   const dueDay = remainingDays === null ? null : remainingDays > 0 ? Math.max(ctx.today, (lastPosted ?? ctx.today - 1) + 1) + remainingDays - 1 : (lastPosted ?? (Number.isFinite(lastCredited) ? lastCredited : null));
-  return { people, creditedGp, creditedDays, posted: postedAll - waiting, waiting, unread: held.length, daily, dueGp, dueDays, dueBy, dueDay, complete };
+  return { people, creditedGp, creditedDays, posted: postedAll - waiting, waiting, unread: held.length, heldDays: held.map((row) => row.day), daily, dueGp, dueDays, dueBy, dueDay, complete };
 }
 
 /**
@@ -554,6 +571,40 @@ export function projectOps(deps) {
       return { ok: true, id: project.id, day, pace, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
     }
 
+    if (op === PROJECT_OP.postRange) {
+      // A range is a Judge's: a Player posts today alone, through `post`.
+      if (!judge) return { ok: false, reason: "judge" };
+      const ctx = ctxOf();
+      const pace = args.pace ?? PACE.dedicated;
+      if (!PACES.includes(pace)) return { ok: false, reason: "pace" };
+      const count = Number(args.days);
+      const from = args.from === undefined || args.from === null || args.from === "" ? ctx.today : dayOf(args.from);
+      if (!Number.isInteger(count) || count < 1 || count > RANGE_MAX || from === null || !Number.isFinite(ctx.today)) return { ok: false, reason: "range" };
+      const taken = new Set([...project.posted.map((row) => row.day), ...project.credited.map((c) => c.day)]);
+      const days = Array.from({ length: count }, (_, i) => from + i);
+      const fresh = days.filter((day) => !taken.has(day));
+      const skipped = days.filter((day) => taken.has(day));
+      if (!fresh.length) return { ok: true, id: project.id, pace, posted: [], skipped };
+      // The gates are read once for the whole range, so a warning is told once.
+      const gate = joinGates(
+        facilityGate(facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables: ctx.tables }), { judge }),
+        assistantGate(weighParticipants(project, ctx), { judge })
+      );
+      if (!gate.ok) return gate;
+      const posted = cleanPosted([...project.posted, ...fresh.map((day) => ({ day, pace }))]);
+      await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? { ...p, posted } : p)) });
+      return { ok: true, id: project.id, pace, posted: fresh, skipped, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
+    }
+
+    if (op === PROJECT_OP.withdraw) {
+      // A day credited is never taken back, even where a stale write left it posted too.
+      const day = dayOf(args.day);
+      if (project.credited.some((c) => c.day === day)) return { ok: false, reason: "credited" };
+      if (!project.posted.some((row) => row.day === day)) return { ok: false, reason: "notPosted" };
+      await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? { ...p, posted: p.posted.filter((row) => row.day !== day) } : p)) });
+      return { ok: true, id: project.id, day };
+    }
+
     if (op === PROJECT_OP.close) {
       const next = record.projects.map((p) => (p.id === project.id ? { ...p, status: "closed", closed: deps.today() } : p));
       await deps.write(location, { projects: next });
@@ -600,6 +651,10 @@ export function projectOps(deps) {
     update: (location, id, patch) => run(location, PROJECT_OP.update, { id, patch }),
     /** A day posted: `{pace, day}`, the pace dedicated and the day today unless named; a Player's day is today. */
     post: (location, id, { pace, day } = {}) => run(location, PROJECT_OP.post, { id, pace, day }),
+    /** A Judge's range of days posted: `{pace, from, days}`, each day once; a day already posted or credited is skipped and named. */
+    postRange: (location, id, { pace, from, days } = {}) => run(location, PROJECT_OP.postRange, { id, pace, from, days }),
+    /** A posted day, not yet credited, taken back: a Judge's any, a Player's on a project of a character they own. */
+    withdraw: (location, id, day) => run(location, PROJECT_OP.withdraw, { id, day }),
     /** The posted days world time has passed credited, on one project or on every project the requester may act on. */
     credit: (location, id) => run(location, PROJECT_OP.credit, id ? { id } : {}),
     /** A project closed: it stays on the record and counts for no facility. */
@@ -687,7 +742,30 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     const dayText = prog.dueDays === null ? (prog.creditedDays + postedDays ? loc("dayChipOpen", { d: prog.creditedDays + postedDays }) : "") : loc("dayChip", { d: prog.creditedDays + postedDays, due: prog.dueDays });
     const dueSource = prog.dueBy === "judge" ? loc("dueJudge") : prog.dueBy === "ladder" ? loc("dueLadder", { cite: ladderCite }) : loc("dueUnread", { cite: ladderCite });
     const cells = Math.min(STRIP_MAX, Math.max(prog.dueDays ?? 0, prog.creditedDays + postedDays));
-    const stripCells = Array.from({ length: cells }, (_, i) => (i < prog.creditedDays ? "c" : i < prog.creditedDays + postedDays ? "p" : ""));
+    // A day held for an unread rate is a waiting cell ("w"); the rest of the posted are "p".
+    const postedCells = p.posted.map((row) => (prog.heldDays.includes(row.day) ? "w" : "p"));
+    const stripCells = Array.from({ length: cells }, (_, i) => (i < prog.creditedDays ? "c" : i < prog.creditedDays + postedDays ? postedCells[i - prog.creditedDays] : ""));
+    // The posted days not yet credited, each with the tag it wears and the withdraw a viewer who may act on the project has.
+    const postedList = p.posted.map((row) => {
+      const waiting = prog.heldDays.includes(row.day);
+      return {
+        day: row.day,
+        label: loc("postedDay", { day: row.day, pace: loc(`pace.${row.pace}`) }),
+        tag: waiting ? { text: loc("tagWaiting"), tone: "warn", tip: loc("waitingTip", { cite: ladderCite }) } : { text: loc("tagPosted"), tone: "", tip: "" },
+        canWithdraw: can,
+        withdrawLabel: loc("withdrawDay", { day: row.day }),
+      };
+    });
+    // The due: the Judge's box while it cannot be computed from the rates, else text (the computed due, or the Judge's days).
+    const dueByHand = judge && prog.dueBy !== "ladder";
+    const dueRow = {
+      byHand: dueByHand,
+      label: dueByHand ? loc("dueByHand") : loc("dueRow"),
+      value: p.dueDays ?? "",
+      text: prog.dueDays === null ? "" : String(prog.dueDays),
+      inputLabel: loc("dueInput"),
+      tip: dueByHand ? loc("dueByHandTip", { cite: ladderCite }) : dueSource,
+    };
     const paceChosen = paceOf(p.id);
     const factor = (pace) => paceFactor(tables?.prose, pace);
     const postedToday = p.posted.some((row) => row.day === today);
@@ -728,7 +806,9 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
         pct: due ? Math.min(100, Math.round((done / due) * 100)) : 0,
       },
       day: { text: dayText, tone: dayText ? "pow" : "", tip: loc("dayTip", { credited: prog.creditedDays, posted: postedDays, source: dueSource }), aria: dayText },
-      strip: { show: cells > 0, cells: stripCells, aria: loc("stripAria", { credited: prog.creditedDays, posted: postedDays }) },
+      strip: { show: cells > 0, cells: stripCells, aria: loc("stripAria", { credited: prog.creditedDays, posted: postedDays - prog.unread, waiting: prog.unread }) },
+      due: dueRow,
+      postedList: { show: postedList.length > 0, rows: postedList, aria: loc("postedListAria") },
       postedRow: {
         label: loc("postedRow"),
         text: String(postedDays),
@@ -743,7 +823,10 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
           return { value, label: loc(`pace.${value}`), checked: value === paceChosen, tip: value === PACE.dedicated ? loc("paceTip.dedicated") : f === null ? loc("paceUnread", { cite: citeOf("prose") }) : loc(`paceTip.${value}`, { share, cite: citeOf("prose") }) };
         }),
       },
-      post: { label: loc("post"), can, disabled: postedToday, tip: postedToday ? loc("postedToday") : loc("postTip") },
+      // A Judge's control opens the range prompt and is never spent by today's post; a Player's posts today once.
+      post: judge
+        ? { label: loc("postDays"), can, range: true, disabled: false, tip: loc("postDaysTip") }
+        : { label: loc("post"), can, range: false, disabled: postedToday, tip: postedToday ? loc("postedToday") : loc("postTip") },
       verdicts,
       throw: throwTarget === null ? { text: "", tip: loc("throwUnread", { cite: citeOf("ladder") }) } : { text: loc("throw", { n: throwTarget }), tip: loc("throwTip", { cite: citeOf("ladder") }) },
       throwLabel: loc("throwLabel"),

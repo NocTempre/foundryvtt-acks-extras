@@ -25,7 +25,7 @@ globalThis.game = {
   time: { get worldTime() { return state.worldTime; }, calendar: null },
   actors: { filter: (fn) => [...state.actors.values()].filter(fn) },
 };
-globalThis.ui = { notifications: { warn: (m) => (state.warned ??= []).push(m) } };
+globalThis.ui = { notifications: { warn: (m) => (state.warned ??= []).push(m), info: (m) => (state.informed ??= []).push(m) } };
 globalThis.fromUuidSync = (uuid) => state.actors.get(uuid) ?? null;
 
 const M = await import("../scripts/magic/research-project.mjs");
@@ -602,6 +602,89 @@ await ta("posting reads the facility again: a share below the minimum blocks a P
   assert.equal((await unread.ops.post(unread.loc, "a")).ok, true, "nothing imported: neither blocked nor warned");
 });
 
+await ta("a Judge posts a range of days, each once: a day already posted or credited is skipped and named, and one write is made", async () => {
+  const j = rig({ tables: RATES, levels: LEVELS });
+  const { id } = await j.ops.create(j.loc, { kind: "spell", researcher: "A.hero", costs: { research: 1000 } });
+  await j.ops.post(j.loc, id, { day: 5, pace: "ancillary" });
+  j.loc.flag.projects[0].credited = [{ day: 7, amount: 90, by: "A.hero" }];
+  const wrote = j.loc.writes.length;
+  const done = await j.ops.postRange(j.loc, id, { pace: "both", from: 4, days: 5 });
+  assert.deepEqual([done.ok, done.posted, done.skipped, done.pace], [true, [4, 6, 8], [5, 7], "both"]);
+  assert.equal(j.loc.writes.length, wrote + 1, "the days are one write");
+  assert.deepEqual(M.readRecord(j.loc.flag).projects[0].posted.map((r) => [r.day, r.pace]), [[4, "both"], [5, "ancillary"], [6, "both"], [8, "both"]], "the day already posted keeps its own pace, the credited day is not posted again");
+  assert.deepEqual(await j.ops.postRange(j.loc, id, { from: 4, days: 3 }), { ok: true, id, pace: "dedicated", posted: [], skipped: [4, 5, 6] }, "every day skipped: nothing posted");
+  assert.equal(j.loc.writes.length, wrote + 1, "and nothing written");
+  const today = await j.ops.postRange(j.loc, id, { days: 1 });
+  assert.deepEqual([today.ok, today.posted, today.skipped], [true, [], [4]], "the first day defaults to today");
+  const bad = async (o) => (await j.ops.postRange(j.loc, id, o)).reason;
+  assert.equal(await bad({ from: 20, days: 0 }), "range");
+  assert.equal(await bad({ from: 20, days: -2 }), "range");
+  assert.equal(await bad({ from: 20, days: 1.5 }), "range");
+  assert.equal(await bad({ from: 20, days: "x" }), "range");
+  assert.equal(await bad({ from: 20 }), "range", "a count is required");
+  assert.equal(await bad({ from: "x", days: 2 }), "range");
+  assert.equal(await bad({ from: 20, days: M.RANGE_MAX + 1 }), "range");
+  assert.equal(await bad({ from: 20, days: 2, pace: "weird" }), "pace");
+  assert.equal((await j.ops.postRange(j.loc, id, { from: 20, days: M.RANGE_MAX })).posted.length, M.RANGE_MAX, "the bound itself is allowed");
+  assert.equal((await j.ops.postRange(j.loc, "gone", { days: 2 })).reason, "noProject");
+  assert.equal(M.daysText([3, 4, 5, 9, 9, 11, 10]), "3\u20135, 9\u201311");
+  assert.equal(M.daysText([]), "");
+});
+
+await ta("a range is a Judge's alone, and its warnings are told once", async () => {
+  const pl = rig({ judge: false, tables: RATES, levels: LEVELS });
+  const { id } = await pl.ops.create(pl.loc, { kind: "spell", researcher: "A.hero" });
+  assert.deepEqual(await pl.ops.postRange(pl.loc, id, { from: 4, days: 2 }), { ok: false, reason: "judge" }, "a Player's own project does not open a range");
+  assert.equal(M.readRecord(pl.loc.flag).projects[0].posted.length, 0, "and writes nothing");
+  const stranger = rig({ judge: false, owned: [], tables: RATES, levels: LEVELS });
+  stranger.loc.flag = pl.loc.flag;
+  assert.equal((await stranger.ops.postRange(stranger.loc, id, { days: 2 })).reason, "owner");
+  const both = rig({ tables: RATES, levels: LEVELS });
+  both.loc.flag = { facilities: { library: 100 }, projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero", assistants: ["A.kid"], status: "open", opened: 1 }] };
+  const warned = await both.ops.postRange(both.loc, "a", { from: 4, days: 6 });
+  assert.deepEqual([warned.ok, warned.posted.length, warned.warns], [true, 6, ["facility", "assistantLevel"]], "six days, each warning once");
+  const asked = [];
+  const remote = rig({ judge: false, canWrite: false, relay: async (req) => (asked.push(req), { ok: true }), tables: RATES, levels: LEVELS });
+  await remote.ops.postRange(remote.loc, "a", { pace: "both", from: 5, days: 3 });
+  await remote.ops.withdraw(remote.loc, "a", 5);
+  assert.deepEqual(asked.map((r) => [r.op, r.args]), [["postRange", { id: "a", pace: "both", from: 5, days: 3 }], ["withdraw", { id: "a", day: 5 }]], "a seat that cannot write asks the GM's client");
+  const noGm = rig({ judge: false, canWrite: false, tables: RATES, levels: LEVELS });
+  assert.deepEqual(await noGm.ops.postRange(noGm.loc, "a", { days: 2 }), { ok: false, reason: "noGm" });
+});
+
+await ta("a posted day is withdrawn by a Judge or by the owner of the researcher, and a credited day never", async () => {
+  const j = rig({ tables: RATES, levels: LEVELS });
+  const { id } = await j.ops.create(j.loc, { kind: "spell", researcher: "A.hero", costs: { research: 1000 } });
+  await j.ops.postRange(j.loc, id, { from: 4, days: 4 });
+  j.loc.flag.projects[0].credited = [{ day: 4, amount: 90, by: "A.hero" }];
+  const posted = () => M.readRecord(j.loc.flag).projects[0].posted.map((r) => r.day);
+  assert.deepEqual(await j.ops.withdraw(j.loc, id, 6), { ok: true, id, day: 6 });
+  assert.deepEqual(posted(), [4, 5, 7], "a Judge withdraws any posted day, and the others stand");
+  assert.equal((await j.ops.withdraw(j.loc, id, 4)).reason, "credited", "a day credited is never taken back, even left posted too by a stale write");
+  assert.deepEqual(posted(), [4, 5, 7]);
+  assert.equal((await j.ops.withdraw(j.loc, id, 9)).reason, "notPosted");
+  assert.equal((await j.ops.withdraw(j.loc, id, "x")).reason, "notPosted");
+  assert.equal((await j.ops.withdraw(j.loc, id)).reason, "notPosted");
+  assert.equal((await j.ops.withdraw(j.loc, "gone", 5)).reason, "noProject");
+  const mine = rig({ judge: false, tables: RATES, levels: LEVELS });
+  mine.loc.flag = j.loc.flag;
+  const wrote = mine.loc.writes.length;
+  assert.deepEqual(await mine.ops.withdraw(mine.loc, id, 5), { ok: true, id, day: 5 }, "a Player takes back a posted day of their own project");
+  assert.equal(mine.loc.writes.length, wrote + 1);
+  assert.equal((await mine.ops.withdraw(mine.loc, id, 4)).reason, "credited", "and not a credited one");
+  j.loc.flag = mine.loc.flag;
+  const other = rig({ judge: false, owned: [], tables: RATES, levels: LEVELS });
+  other.loc.flag = j.loc.flag;
+  assert.equal((await other.ops.withdraw(other.loc, id, 7)).reason, "owner", "a Player has no say over another's project");
+  assert.deepEqual(posted(), [4, 7], "a refusal wrote nothing");
+  const closed = rig({ tables: RATES, levels: LEVELS });
+  closed.loc.flag = j.loc.flag;
+  await closed.ops.close(closed.loc, id);
+  assert.equal((await closed.ops.withdraw(closed.loc, id, 7)).reason, "noProject", "a closed project is not withdrawn from");
+  assert.equal(M.PROJECT_OP.withdraw, "withdraw");
+  assert.equal(M.PROJECT_OP.postRange, "postRange");
+});
+
 await ta("an assistant is gated when added, in an update and in a new project, by the researcher's number and the assistant's level", async () => {
   const pl = rig({ judge: false, tables: RATES, levels: LEVELS, linked: ["A.hero", "A.pell", "A.lena", "A.mira", "A.kid"] });
   const made = await pl.ops.create(pl.loc, { kind: "spell", researcher: "A.hero", assistants: ["A.pell"] });
@@ -635,6 +718,32 @@ await ta("an update, a close and a facility change leave the posted days and the
   assert.deepEqual(p.posted, [{ day: 4, pace: "both" }]);
   assert.deepEqual(p.credited, [{ day: 3, amount: 90, by: "A.hero" }]);
   assert.equal((await j.ops.update(j.loc, id, { posted: [] })).reason, "field", "posting is not an update");
+});
+
+await ta("the GM's handler takes a range and a withdraw on the sender's authority", async () => {
+  state.actors.clear();
+  const hero = actor("A.hero", "character", { testUserPermission: (user) => user.id === "pl1" });
+  const pell = actor("A.pell", "character");
+  const row = (uuid) => ({ uuid, name: "", img: "", kind: "actor", quantity: 1, ownerUuid: "", notes: "", hidden: false });
+  const loc = place("Actor.L4", [row("A.hero"), row("A.pell")], { projects: [{ id: "a", kind: "spell", researcher: "A.hero", status: "open" }, { id: "b", kind: "spell", researcher: "A.pell", status: "open", posted: [{ day: 9, pace: "dedicated" }] }] });
+  loc.update = async (patch) => {
+    loc.updates = (loc.updates ?? []).concat([patch]);
+    for (const [path, value] of Object.entries(patch)) loc.flags["acks-extras"].magic = { ...(loc.flags["acks-extras"].magic ?? {}), [path.split(".").pop()]: value };
+  };
+  for (const a of [hero, pell, loc]) state.actors.set(a.uuid, a);
+  resetTables();
+  state.isGM = true;
+  const ask = (op, args, requestUserId, extra = {}) => L.projectHandler({ locationUuid: loc.uuid, op, args, requestUserId, ...extra });
+  assert.equal((await ask("postRange", { id: "a", from: 4, days: 3 }, "pl1")).reason, "judge", "a Player's range is refused where it runs");
+  assert.equal((await ask("postRange", { id: "a", from: 4, days: 3 }, "pl1", { judge: true })).reason, "judge", "and a payload's claim of being the Judge changes nothing");
+  assert.equal(loc.updates, undefined, "nothing written");
+  const range = await ask("postRange", { id: "a", from: 4, days: 3 }, null);
+  assert.deepEqual([range.ok, range.posted], [true, [4, 5, 6]]);
+  assert.deepEqual(await ask("withdraw", { id: "a", day: 5 }, "pl1"), { ok: true, id: "a", day: 5 }, "the owner of the researcher withdraws a posted day through the relay");
+  assert.equal((await ask("withdraw", { id: "b", day: 9 }, "pl1")).reason, "owner", "and not another's");
+  assert.equal((await ask("withdraw", { id: "b", day: 9 }, "pl1", { judge: true })).reason, "owner");
+  assert.deepEqual(await ask("withdraw", { id: "b", day: 9 }, null), { ok: true, id: "b", day: 9 }, "the Judge withdraws any");
+  assert.deepEqual(L.recordOf(loc).projects.map((p) => p.posted.map((r) => r.day)), [[4, 6], []]);
 });
 
 await ta("credit writes the passed days once, from whichever seat asks, and nothing when none is due", async () => {
@@ -838,6 +947,8 @@ t("every string the tab asks for exists, and none is a printed value", () => {
   for (const k of ["prose", "assistants"]) keys.add(`cite.${k}`);
   for (const k of ["pace", "day", "duplicate", "assistantLevel", "assistantCount", "noClock"]) keys.add(`refused.${k}`);
   for (const k of ["assistantLevel", "assistantCount"]) keys.add(`warn.${k}`);
+  for (const k of ["range", "credited", "notPosted"]) keys.add(`refused.${k}`);
+  for (const k of ["postedRange", "postedSkipped", "postedNone"]) keys.add(k);
   assert.ok(keys.size > 40);
   for (const k of keys) assert.ok(lang[`${GROUP}${k}`] !== undefined, `${GROUP}${k}`);
   for (const [k, v] of Object.entries(lang)) if (k.startsWith(GROUP) && !k.includes(".cite.")) assert.doesNotMatch(v, /\d/, `${k} carries a number: ${v}`);
@@ -855,7 +966,7 @@ t("a project draws its day, its strip, each participant's rate and the pace, fro
   assert.match(p.day.tip, /dueLadder/);
   assert.deepEqual(p.strip.cells.slice(0, 3), ["c", "p", ""]);
   assert.equal(p.strip.cells.length, 10);
-  assert.equal(p.strip.aria, 'stripAria{"credited":1,"posted":1}');
+  assert.equal(p.strip.aria, 'stripAria{"credited":1,"posted":1,"waiting":0}');
   assert.deepEqual([p.postedRow.text, p.post.disabled, p.post.can], ["1", true, true], "today is posted: the control is disabled and says why");
   assert.match(p.post.tip, /postedToday/);
   assert.deepEqual([p.researcher.rate.text, p.assistants[0].rate.text, p.assistants[0].rate.tone], ['perDay{"rate":"90"}', 'perDay{"rate":"30"}', ""]);
@@ -879,7 +990,7 @@ t("a project with nothing posted and no rate read draws no strip and no due, and
   assert.equal(judged.day.text, 'dayChip{"d":1,"due":5}', "the Judge's days stand in while the rates are not read, and a passed day is shown as posted");
   assert.match(judged.day.tip, /dueJudge/);
   assert.equal(judged.strip.cells.length, 5);
-  assert.deepEqual(judged.strip.cells.slice(0, 2), ["p", ""], "a held day is drawn as posted, not credited");
+  assert.deepEqual(judged.strip.cells.slice(0, 2), ["w", ""], "a held day is a waiting cell, posted and not credited");
   assert.equal(judged.postedRow.text, "1");
   assert.equal(judged.postedRow.tip, 'postedTipUnread{"n":1,"cite":"cite.ladder"}', "the tooltip says the day is held for a rate not read, with the page");
   assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", posted: [{ day: 1, pace: "dedicated" }] }], { tables: NOTHING }).projects[0].day.text, 'dayChipOpen{"d":1}', "no due known: the day alone");
@@ -933,6 +1044,105 @@ t("the tab keeps the pace in the window and never writes it", () => {
   assert.doesNotMatch(tab.slice(tab.indexOf("data-research-pace")), /researchApi\.update\(location, id, \{ ?pace/);
   assert.equal(JSON.stringify(M.UPDATE_FIELDS).includes("posted"), false);
   assert.ok(M.UPDATE_FIELDS.includes("dueDays") && M.JUDGE_FIELDS.includes("dueDays"));
+});
+
+t("the Judge's days-due box stands only while the due cannot be computed, and a Player is shown the due as text", () => {
+  const unread = { id: "a", kind: "spell", researcher: "A.hero", dueDays: 5 };
+  const box = dayPanel([unread], { tables: NOTHING, judge: true }).projects[0];
+  assert.deepEqual([box.due.byHand, box.due.value, box.due.label], [true, 5, "dueByHand"], "no rate read: the Judge types the due");
+  assert.match(box.due.tip, /dueByHandTip.*cite.ladder/, "and the tooltip carries the page reference");
+  const noCost = dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: RATES, judge: true }).projects[0];
+  assert.equal(noCost.due.byHand, true, "rates read but no research cost entered: still not computable, still the Judge's");
+  assert.equal(noCost.due.value, "", "a blank until a figure is typed");
+  const computed = dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", assistants: ["A.pell"], costs: { research: 1000 }, dueDays: 99 }], { tables: RATES, judge: true }).projects[0];
+  assert.deepEqual([computed.due.byHand, computed.due.text, computed.due.label], [false, "9", "dueRow"], "once computed the computed due is text, whatever the Judge entered");
+  assert.match(computed.due.tip, /dueLadder/);
+  const player = dayPanel([unread], { tables: NOTHING, judge: false }).projects[0];
+  assert.deepEqual([player.due.byHand, player.due.text], [false, "5"], "a Player sees the Judge's due as text");
+  assert.match(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING }).projects[0].due.tip, /dueUnread.*cite.ladder/, "unknown: blank, the page in the tooltip");
+  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }], { tables: NOTHING }).projects[0].due.text, "");
+  const judgeHtml = render(dayPanel([unread], { tables: NOTHING, judge: true, owns: () => true }));
+  assert.match(judgeHtml, /<input type="number"[^>]*data-research-field="dueDays" value="5"[^>]*aria-label="dueInput"[^>]*data-tooltip-text="dueByHandTip/);
+  assert.doesNotMatch(judgeHtml, /\sid=/);
+  assert.doesNotMatch(render(dayPanel([unread], { tables: NOTHING, judge: false })), /dueDays/, "a Player's tab has no days-due field");
+  assert.doesNotMatch(render(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", assistants: ["A.pell"], costs: { research: 1000 } }], { tables: RATES, judge: true })), /dueDays/, "and the box is gone once the due is computed");
+});
+
+t("a held day is a waiting cell and a waiting tag, each posted day has its row, and a credited day has none", () => {
+  const noShare = { ...RATES, prose: { ...RATES.prose, ancillary: null } };
+  const rec = { id: "a", kind: "spell", researcher: "A.hero", credited: [{ day: 1, amount: 90, by: "A.hero" }], posted: [{ day: 2, pace: "dedicated" }, { day: 3, pace: "ancillary" }, { day: 9, pace: "both" }] };
+  const p = dayPanel([rec], { tables: noShare }).projects[0];
+  assert.deepEqual(p.strip.cells.slice(0, 4), ["c", "p", "w", "p"], "a passed day with its rate read is posted, a passed day whose share is unread waits, and a day yet to come is posted whatever its rate");
+  const held = dayPanel([{ ...rec, posted: [{ day: 2, pace: "dedicated" }, { day: 3, pace: "ancillary" }] }], { tables: noShare }).projects[0];
+  assert.deepEqual(held.strip.cells.slice(0, 3), ["c", "p", "w"]);
+  assert.deepEqual(held.postedList.rows.map((r) => [r.day, r.tag.text, r.tag.tone]), [[2, "tagPosted", ""], [3, "tagWaiting", "warn"]], "no credited day is listed");
+  assert.match(held.postedList.rows[0].label, /postedDay.*"day":2.*pace.dedicated/);
+  assert.equal(held.postedList.rows[0].tag.tip, "", "a posted tag has no tooltip");
+  assert.equal(held.postedList.rows[1].tag.tip, 'waitingTip{"cite":"cite.ladder"}', "a waiting tag names the page of the rate it waits on");
+  assert.deepEqual(held.postedList.rows.map((r) => r.canWithdraw), [true, true], "the owner of the researcher withdraws");
+  assert.match(held.postedList.rows[1].withdrawLabel, /withdrawDay.*"day":3/);
+  const stranger = dayPanel([{ ...rec, researcher: "A.pell" }], { tables: noShare }).projects[0];
+  assert.equal(stranger.postedList.show, true, "the list is read by anyone");
+  assert.deepEqual(stranger.postedList.rows.map((r) => r.canWithdraw), [false, false, false], "a Player has no withdraw on another's project");
+  const judge = dayPanel([{ ...rec, researcher: "A.pell" }], { tables: noShare, judge: true }).projects[0];
+  assert.deepEqual(judge.postedList.rows.map((r) => r.canWithdraw), [true, true, true], "a Judge withdraws any");
+  assert.equal(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero", credited: [{ day: 1, amount: 90, by: "A.hero" }] }]).projects[0].postedList.show, false, "nothing posted: no list");
+
+  const html = render(dayPanel([{ ...rec, posted: [{ day: 2, pace: "dedicated" }, { day: 3, pace: "ancillary" }] }, { ...rec, id: "b", researcher: "A.pell" }], { tables: noShare }));
+  assert.doesNotMatch(html, /\sid=/);
+  const mine = html.slice(html.indexOf('data-project-id="a"'), html.indexOf('data-project-id="b"'));
+  assert.equal((mine.match(/<i class="is-w">/g) ?? []).length, 1);
+  assert.equal((mine.match(/data-action="withdrawResearchDay"[^>]*data-research-control data-day="\d+"[^>]*aria-label="withdrawDay/g) ?? []).length, 2, "an X per posted day, live for a viewer who may withdraw");
+  assert.match(mine, /class="acks-tag is-warn" tabindex="0" data-tooltip-text="waitingTip/);
+  assert.match(mine, /data-posted-day="2"/);
+  const theirs = html.slice(html.indexOf('data-project-id="b"'));
+  assert.doesNotMatch(theirs, /withdrawResearchDay/, "no X on a project the viewer cannot act on");
+  assert.match(theirs, /data-posted-day="3"/, "though its days are listed");
+});
+
+t("a Judge's Post reads Post days and opens the range prompt; a Player's stays Post day and posts today", () => {
+  const rec = { id: "a", kind: "spell", researcher: "A.hero", posted: [{ day: 4, pace: "dedicated" }] };
+  const judge = dayPanel([rec], { judge: true, owns: () => true }).projects[0];
+  assert.deepEqual([judge.post.label, judge.post.range, judge.post.disabled], ["postDays", true, false], "today posted does not spend a Judge's control: a range starts anywhere");
+  const player = dayPanel([rec]).projects[0];
+  assert.deepEqual([player.post.label, player.post.range, player.post.disabled], ["post", false, true]);
+  assert.match(render(dayPanel([rec], { judge: true, owns: () => true })), /data-action="postResearchDays" data-research-control data-tooltip-text="postDaysTip">postDays</);
+  assert.match(render(dayPanel([rec])), /data-action="postResearchDay" disabled/);
+  const fresh = render(dayPanel([{ id: "a", kind: "spell", researcher: "A.hero" }]));
+  assert.match(fresh, /data-action="postResearchDay" data-research-control/);
+  assert.doesNotMatch(fresh, /postResearchDays/, "a Player's button never opens the range prompt");
+});
+
+t("the tab wires the range prompt and the withdraw, names its classes and tells no node by instanceof", () => {
+  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
+  assert.match(tab, /postResearchDays: onPostDays/);
+  assert.match(tab, /withdrawResearchDay: onWithdrawDay/);
+  assert.match(tab, /researchApi\.postRange\(this\.actor, id, picks\)/);
+  assert.match(tab, /researchApi\.withdraw\(this\.actor, id, Number\(target\.dataset\.day\)\)/);
+  const prompt = tab.slice(tab.indexOf("async function promptDays"), tab.indexOf("async function onPostDays"));
+  assert.match(prompt, /classes: DIALOG_CLASSES/, "the prompt names the module's classes: scroll contract and drag corner");
+  assert.match(prompt, /aria-pressed/);
+  assert.match(prompt, /role="group"/);
+  assert.match(prompt, /elementOf\(dialog\?\.element\)/);
+  assert.doesNotMatch(prompt, /\sid=|instanceof/);
+  assert.match(prompt, /<label[^>]*>[^]*<input[^]*<\/label>/, "each field's label wraps its control");
+  const css = fs.readFileSync("styles/magic.css", "utf8");
+  assert.match(css, /\.acks-extras-research__days i\.is-w \{[^}]*dashed var\(--acks-warning\)/, "the waiting cell is a dashed warning border on the tokens, no pattern");
+  assert.doesNotMatch(css.slice(css.indexOf(".acks-extras-research__days i.is-w"), css.indexOf(".acks-extras-research__pace {")), /gradient|url\(|\d(px|rem)\b/, "no generated art and no bare size in the new rules");
+});
+
+await ta("a range's result is told with the days it posted and the days it skipped, and a withdraw's refusal like any", async () => {
+  state.warned = [];
+  state.informed = [];
+  L.announce({ ok: true, posted: [4, 5, 6], skipped: [] });
+  L.announce({ ok: true, posted: [4, 6, 7], skipped: [5], warns: ["facility", "assistantLevel"], warn: "facility" });
+  L.announce({ ok: true, posted: [], skipped: [4, 5] });
+  L.announce({ ok: false, reason: "credited" });
+  L.announce({ ok: true, id: "a", day: 5 });
+  assert.deepEqual(state.informed, ['postedRange{"posted":"4\u20136","skipped":""}'.replace(/^/, "ACKS-MAGIC.research."), 'postedSkipped{"posted":"4, 6\u20137","skipped":"5"}'.replace(/^/, "ACKS-MAGIC.research."), 'postedNone{"posted":"","skipped":"4\u20135"}'.replace(/^/, "ACKS-MAGIC.research.")]);
+  assert.deepEqual(state.warned.map((m) => m.replace("ACKS-MAGIC.research.", "")), ["warn.facility", "warn.assistantLevel", "refused.credited"], "each warning once, then the refusal");
+  state.warned = [];
+  state.informed = [];
 });
 
 await ta("the sweep credits the world's passed days once, writes only the places with a day due, and the API reads the standing", async () => {
@@ -994,6 +1204,11 @@ await ta("the sweep credits the world's passed days once, writes only the places
   assert.equal(L.researchApi.dueDay(due, "none"), null);
   assert.equal((await L.researchApi.post(due, "a", { pace: "ancillary" })).ok, true);
   assert.deepEqual(L.recordOf(due).projects[0].posted, [{ day: 9, pace: "ancillary" }]);
+  const range = await L.researchApi.postRange(due, "a", { pace: "both", from: 9, days: 3 });
+  assert.deepEqual([range.ok, range.posted, range.skipped], [true, [10, 11], [9]], "the API's range skips the day already posted");
+  assert.equal((await L.researchApi.withdraw(due, "a", 10)).ok, true);
+  assert.deepEqual(L.recordOf(due).projects[0].posted.map((r) => r.day), [9, 11], "and takes one back");
+  assert.equal(L.researchApi.RANGE_MAX, M.RANGE_MAX);
   assert.deepEqual(L.researchApi.PACES, ["dedicated", "ancillary", "both"]);
   assert.equal(typeof L.registerProjects, "function");
   resetTables();

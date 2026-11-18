@@ -13,7 +13,7 @@
  * from another seat only ever finds nothing due.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC, PROJECT_HANDLER } from "./constants.mjs";
-import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf } from "./research-project.mjs";
+import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText } from "./research-project.mjs";
 import { readResearchTables } from "./research-tables.mjs";
 import { dayOfWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
@@ -138,7 +138,15 @@ export function registerProjects() {
 export function announce(result) {
   if (!result) return;
   if (result.ok === false) ui.notifications?.warn(loc(`refused.${result.reason}`));
-  else for (const warn of result.warns ?? (result.warn ? [result.warn] : [])) ui.notifications?.warn(loc(`warn.${warn}`));
+  else {
+    for (const warn of result.warns ?? (result.warn ? [result.warn] : [])) ui.notifications?.warn(loc(`warn.${warn}`));
+    // A range names the days it posted and the days it skipped.
+    if (Array.isArray(result.posted)) {
+      const skipped = result.skipped ?? [];
+      const key = result.posted.length ? (skipped.length ? "postedSkipped" : "postedRange") : "postedNone";
+      ui.notifications?.info(loc(key, { posted: daysText(result.posted), skipped: daysText(skipped) }));
+    }
+  }
 }
 
 /** Every location in the world with the open projects it holds, for a character's links. */
@@ -191,6 +199,19 @@ export const researchApi = {
    * Answers `{ok, id, day, pace, warn?, warns?}`.
    */
   post: (location, id, options) => ops().post(location, id, options),
+  /**
+   * A Judge's range of days posted: `postRange(location, id, {pace, from, days})`, `days` a whole number from one to
+   * `RANGE_MAX` and `from` the first calendar day (today unless named). Each day is posted once; a day already posted
+   * or credited is skipped. A Player's request is refused (`judge`). The facility and assistant warnings are read once.
+   * Answers `{ok, id, pace, posted: [days], skipped: [days], warn?, warns?}`; nothing is written where every day is skipped.
+   */
+  postRange: (location, id, options) => ops().postRange(location, id, options),
+  RANGE_MAX,
+  /**
+   * A posted day taken back: `withdraw(location, id, day)`. A Judge withdraws any posted day, a Player a posted day of a
+   * project of a character they own; a credited day is never taken back (`credited`), and a day not posted is `notPosted`.
+   */
+  withdraw: (location, id, day) => ops().withdraw(location, id, day),
   /**
    * The posted days world time has passed, credited (`{ok, credited}`, the number of days): one project when
    * `id` is given, else every open project the caller may act on. The primary GM's client calls it for the world

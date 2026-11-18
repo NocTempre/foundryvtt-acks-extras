@@ -1,7 +1,9 @@
 {{!-- The location sheet's Research tab (scripts/magic/research-tab.mjs `prepareResearchTab`):
       the facility values, then each open project with its researchers, costs,
       credited research and components bucket, with the days posted and credited
-      as a strip, the pace a day is worked at and the Post control. A control
+      as a strip and, beneath it, the posted days listed with an X to withdraw each,
+      the Judge's days-due box while the due cannot be computed, the pace a day is
+      worked at and the Post control (a Judge's opens a prompt for a range of days). A control
       writes by its own listener, so the sheet's submit-on-change never sees it;
       the pace radios belong to no form (`form` names none), so their value is
       never submitted with the sheet, and their group name carries the window's
@@ -79,6 +81,18 @@
       <div class="acks-extras-research__days" role="img" aria-label="{{strip.aria}}">{{#each strip.cells}}<i{{#if this}} class="is-{{this}}"{{/if}}></i>{{/each}}</div>
       {{/if}}
 
+      {{#if postedList.show}}
+      <ul class="acks-extras-research__posted" aria-label="{{postedList.aria}}">
+        {{#each postedList.rows}}
+        <li class="acks-extras-research__posted-row" data-posted-day="{{day}}">
+          <span>{{label}}</span>
+          <span class="acks-tag{{#if tag.tone}} is-{{tag.tone}}{{/if}}"{{#if tag.tip}} tabindex="0" data-tooltip-text="{{tag.tip}}"{{/if}}>{{tag.text}}</span>
+          {{#if canWithdraw}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="withdrawResearchDay" data-research-control data-day="{{day}}" aria-label="{{withdrawLabel}}" data-tooltip-text="{{withdrawLabel}}"><i class="fa-solid fa-xmark" inert></i></button>{{/if}}
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+
       <div class="acks-extras-research__parts">
         <span>{{levelLabel}}</span>
         {{#if judge}}
@@ -105,6 +119,12 @@
           <span class="acks-extras-research__bar" style="--pct: {{progress.pct}}%"></span>
           <span class="acks-nums">{{progress.text}}</span>
         </span>
+        <span{{#if due.byHand}} data-tooltip-text="{{due.tip}}"{{/if}}>{{due.label}}</span>
+        {{#if due.byHand}}
+        <input type="number" class="acks-input acks-input--num" min="1" step="1" data-research-field="dueDays" value="{{due.value}}" aria-label="{{due.inputLabel}}" data-tooltip-text="{{due.tip}}">
+        {{else}}
+        <span class="acks-nums" data-research-due data-tooltip-text="{{due.tip}}">{{due.text}}</span>
+        {{/if}}
         <span>{{postedRow.label}}</span>
         <span class="acks-nums" data-tooltip-text="{{postedRow.tip}}">{{postedRow.text}}</span>
         <span>{{throwLabel}}</span>
@@ -121,7 +141,7 @@
           {{/each}}
         </span>
         <span class="acks-extras-research__acts">
-          {{#if post.can}}<button type="button" class="acks-btn acks-btn--secondary" data-action="postResearchDay"{{#unless post.disabled}} data-research-control{{/unless}}{{#if post.disabled}} disabled{{/if}} data-tooltip-text="{{post.tip}}">{{post.label}}</button>{{/if}}
+          {{#if post.can}}<button type="button" class="acks-btn acks-btn--secondary" data-action="{{#if post.range}}postResearchDays{{else}}postResearchDay{{/if}}"{{#unless post.disabled}} data-research-control{{/unless}}{{#if post.disabled}} disabled{{/if}} data-tooltip-text="{{post.tip}}">{{post.label}}</button>{{/if}}
           <button type="button" class="acks-btn acks-btn--roll" disabled>{{finish.label}}</button>
         </span>
         <span class="acks-extras-research__verdict">{{finish.why}}</span>

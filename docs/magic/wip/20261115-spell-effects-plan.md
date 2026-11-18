@@ -3850,6 +3850,14 @@ other session on the server:
   list (`calendar.days.values`) was checked live.
 - 7089a452: M-q1, the research project record and the location's Research
   tab. magic-research-project 25/0 on the first run.
+- 7b0292c6: the hand plus fades or stays (board 14 B). magic-power-ledger
+  37/0. f3d7194e: the minus follows the switch, and the switch holds; the walk
+  fix 839c6637 (the Player's baseline waits for the GM's write). 46/0.
+- 9daa9627: M-q2, research days. The walk fixes are 4147cd8c, both on the walk
+  side. magic-research-project 37/0.
+- ba2679a2: a day whose rate is unread stays posted, and the footnote's marks
+  and project list are read from the page. magic-research-project 42/0 on the
+  first run.
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built

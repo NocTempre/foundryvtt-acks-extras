@@ -2,8 +2,9 @@
 /**
  * The Research tab of the location sheet: the facility values, the open projects
  * with their researchers, credited research and costs, and each project's
- * components bucket, with the day each posted and credited as a strip, a pace to work a day at and
- * the button that posts it. The sheet hosts it (`prepareResearchTab` fills its context,
+ * components bucket, with the day each posted and credited as a strip, the posted days beneath it
+ * with an X to withdraw each, a pace to work a day at and the button that posts it (a Judge's opens
+ * a prompt for a range of days). The sheet hosts it (`prepareResearchTab` fills its context,
  * `bindResearchTab` wires its controls, `RESEARCH_TAB_ACTIONS` are spread into its
  * `actions`); every write goes through `acksExtras.magic.research`
  * (`research-project-live.mjs`), which writes where the seat may and otherwise
@@ -16,7 +17,8 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce } from "./research-project-live.mjs";
-import { PROJECT_KINDS, COMPONENT_KINDS, FACILITY_KEYS, PACE, PACES, panelModel } from "./research-project.mjs";
+import { PROJECT_KINDS, COMPONENT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, panelModel } from "./research-project.mjs";
+import { elementOf } from "../lib/util.mjs";
 import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop } from "../lib/bucket.mjs";
 
 /** The partials the tab draws, loaded at `init` with the module's templates. */
@@ -108,6 +110,74 @@ async function onNewProject() {
   this.render();
 }
 
+/**
+ * The prompt behind a Judge's Post days…: how many days, from which day (today unless changed)
+ * and at what pace (this window's choice to start). Null when dismissed.
+ * @returns {Promise<{days: number|null, from: number|null, pace: string}|null>}
+ */
+async function promptDays(project, today, pace) {
+  const esc = foundry.utils.escapeHTML;
+  const pills = PACES.map((value) => `<button type="button" class="acks-extras-research-prompt__pill" data-pace="${esc(value)}" aria-pressed="${value === pace}">${esc(loc(`pace.${value}`))}</button>`).join("");
+  const content = `<div class="acks-extras-research-prompt">
+    <label class="acks-extras-research-prompt__row"><span>${esc(loc("promptDays"))}</span> <input type="number" class="acks-input acks-input--num" name="days" min="1" max="${RANGE_MAX}" step="1" value="1"></label>
+    <label class="acks-extras-research-prompt__row"><span>${esc(loc("promptFrom"))}</span> <input type="number" class="acks-input acks-input--num" name="from" step="1" value="${esc(String(today))}"></label>
+    <div class="acks-extras-research-prompt__row" role="group" aria-label="${esc(loc("promptPace"))}"><span>${esc(loc("promptPace"))}</span><span class="acks-extras-research-prompt__pills">${pills}</span></div>
+    <span class="acks-extras-research__cap" data-range-caption></span>
+  </div>`;
+  return foundry.applications.api.DialogV2.prompt({
+    classes: DIALOG_CLASSES,
+    window: { title: loc("promptDaysTitle", { name: project.subject.name || loc(`kind.${project.kind}`) }), icon: "fa-solid fa-calendar-days" },
+    position: { width: 380 },
+    content,
+    render: (_event, dialog) => {
+      const root = elementOf(dialog?.element);
+      const form = root?.querySelector?.("form") ?? root;
+      if (!form?.querySelector) return;
+      const days = form.querySelector('input[name="days"]');
+      const from = form.querySelector('input[name="from"]');
+      const caption = form.querySelector("[data-range-caption]");
+      const say = () => {
+        const n = Math.trunc(Number(days.value));
+        const first = Math.trunc(Number(from.value));
+        caption.textContent = Number.isFinite(n) && n >= 1 && Number.isFinite(first) ? loc("promptCaption", { from: first, to: first + n - 1 }) : "";
+      };
+      for (const box of [days, from]) box.addEventListener("input", say);
+      for (const pill of form.querySelectorAll("[data-pace]")) {
+        pill.addEventListener("click", () => {
+          for (const other of form.querySelectorAll("[data-pace]")) other.setAttribute("aria-pressed", String(other === pill));
+        });
+      }
+      say();
+    },
+    ok: {
+      label: loc("promptPost"),
+      callback: (_event, button) => {
+        const form = button.form;
+        const pace = form.querySelector('[data-pace][aria-pressed="true"]')?.dataset?.pace;
+        return { days: numberOf(form.elements.days.value), from: numberOf(form.elements.from.value), pace: PACES.includes(pace) ? pace : PACE.dedicated };
+      },
+    },
+  }).catch(() => null);
+}
+
+/** Press of a Judge's Post days…: ask for the range, then post it. */
+async function onPostDays(_event, target) {
+  const id = projectIdOf(target);
+  const project = recordOf(this.actor).projects.find((p) => p.id === id);
+  if (!project) return;
+  const picks = await promptDays(project, liveDeps().today(), paceOf(this, id));
+  if (!picks) return;
+  announce(await researchApi.postRange(this.actor, id, picks));
+  this.render();
+}
+
+/** Press of the X on a posted day: it is taken back, where the viewer may. */
+async function onWithdrawDay(_event, target) {
+  const id = projectIdOf(target);
+  if (id) announce(await researchApi.withdraw(this.actor, id, Number(target.dataset.day)));
+  this.render();
+}
+
 /** Press of Post: the day, at the pace this window chose, is posted. */
 async function onPostDay(_event, target) {
   const id = projectIdOf(target);
@@ -144,6 +214,8 @@ async function onBucketRemove(_event, target) {
 export const RESEARCH_TAB_ACTIONS = {
   newResearchProject: onNewProject,
   postResearchDay: onPostDay,
+  postResearchDays: onPostDays,
+  withdrawResearchDay: onWithdrawDay,
   closeResearchProject: onCloseProject,
   removeResearchAssistant: onRemoveAssistant,
   [BUCKET_ACTIONS.remove]: onBucketRemove,

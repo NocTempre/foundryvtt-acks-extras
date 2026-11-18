@@ -1048,3 +1048,83 @@ fact held in source.
   were read has no `marked`, so every rung reads unknown and no rate reads until the Rules tables
   are imported again; a Judge's override of the ladder must carry `marked` on its rows for the same
   reason. No migration is written (owner, 2026-11-11: none for previous-version data).
+
+## 2026-11-18 — Research days: the Judge's due, Post days… and withdrawing (owner, board 16)
+
+Supersedes in part the M-q2 entry ("Research days are posted and credited once passed"): its bullet
+"The tab's Post button posts today at the chosen pace; there is no count prompt" and its closing
+"Not built" paragraph, which listed a Judge's box for the due in days, the count prompt behind
+"Post days…" and a way to withdraw a posted day, each held for a design. The new evidence is the
+owner's approval of that design, board 16 (A, B and C as drawn): "Approve, build it". Governing
+words that stand: "Sure go with it." on board 10 (the Research tab's project panel, strip and pace
+radios); "Approve as built" on board 15 (the parts beyond board 10); "Find open art to attribute
+or better yet art/texture imported from the book. Standing rule for repo no generated art." (the
+waiting cell is a dashed warning-coloured border on the `--acks-*` tokens, no hatch or procedural
+pattern); and the standing rule that automation blocks a Player and warns a Judge, never an
+`isOwner` gate (a range is refused to a Player at the relay on the attested sender, and a
+facility or assistant shortfall warns a Judge's range once).
+
+What is built, to board 16:
+
+- **A. The Judge's due, by hand.** A number box in the project's parts, under the credited row,
+  writing `dueDays` through the existing Judge-only `update` field. Once the due is computed the
+  computed due is text and the box is gone; a Player sees the due as text always.
+- **B. Post days….** A Judge's Post button reads "Post days…" and opens a prompt (days, from day,
+  pace pills) that names the module's dialog classes, so it scrolls and has a drag corner. The new
+  op `postRange` posts each day once, skips a day already posted or credited and names it in the
+  notification, and tells a facility or assistant warning once. A Player's button stays "Post day".
+- **C. Withdrawing.** Each posted day not yet credited is a row under the strip: "Day N · Pace", a
+  tag (posted, or waiting with the page of the rate when it is held for an unread one) and an X.
+  The new op `withdraw` takes a posted day back. A held day is the strip's dashed waiting cell.
+
+Judgment calls, each with the default proceeded on and the counter:
+
+- **The box is keyed on "the due cannot be computed" (`dueBy` is not "ladder"), not on "no rate is
+  imported".** That is the exact condition under which `dueDays` is read (`progressOf`), so a Judge
+  with the rates read and no research cost entered, a held day or an assistant whose counting is
+  unread is not left with a due nobody can set. The tooltip therefore says what the due waits on
+  and carries the ladder's page, where the board's caption says only that no rate is imported.
+  *Counter (medium):* the board's wording is narrower; a Judge could read a box standing beside an
+  imported rate as a fault. *Cost:* the box can show while rates are read.
+- **A `dueDays` the Judge entered stays on the record when the computed due takes over, unseen.**
+  *Counter (low):* clearing it on computing would lose a figure the Judge may want back if the
+  rates are re-imported.
+- **A range is its own op, `postRange`, not `post` with a count.** One write, the gates read once,
+  and `post` keeps its Player-today rule untouched. Judge-only is enforced in `apply`, so the relay
+  holds it on the sender Foundry attested. *Counter (low):* one op with an optional count would be
+  one name; it would blur the Player's rule.
+- **One range takes at most `RANGE_MAX` (366) days.** A bound on one write, not a rule of the book.
+  *Counter (low):* a longer project is posted in two ranges; no bound would let a typo write a
+  record of any length.
+- **A day already posted or credited is skipped and keeps what it had; a range that posts nothing
+  answers `ok` with an empty `posted` and writes nothing.** The notification then says nothing was
+  posted and names the days. *Counter (medium):* refusing the whole range as `duplicate`, or
+  re-pacing the posted days, are both readable; skipping is what the board's caption says.
+- **A range may start on a past day.** It is credited by the next sweep, as a Judge's `post` of a
+  past day already is (M-q2). *Counter (low):* restricting a range to today and later would stop a
+  Judge catching up a project that ran while the world clock was elsewhere.
+- **The prompt starts on the window's pace, which is dedicated until one is picked, and its pills
+  are a `role="group"` of `aria-pressed` buttons.** The board's markup says `radiogroup`; buttons
+  with `aria-pressed` are toggle buttons and a radiogroup wants radios, so the group is a plain
+  group. *Counter (low):* the board's role would announce a radio that is not one.
+- **A Judge's Post days… is never spent by today's post.** A range starts anywhere, so the control
+  that a Player's used-up day disables stays live. *Counter (low):* a Judge pressing it with today
+  already posted gets a prompt whose first day is skipped; the result says so.
+- **Who withdraws.** A Judge any posted day; a Player a posted day of a project of a character they
+  own, relayed under the sender's authority (`mayAct`, the rule every project write already uses);
+  never a credited day, which is tested before the posted list so a stale write that left a day in
+  both is still refused. The list is read by everyone and its X is drawn only where the viewer may
+  withdraw. *Counter (medium):* a Player could withdraw a day a Judge posted for their project, or
+  re-post today at another pace; the board draws it that way, and a day not yet credited is not
+  yet anyone's research.
+- **A day due to be credited at the next sweep still wears "posted" and its X.** Only a day held for
+  an unread rate is "waiting". If the sweep credits it first, the withdraw is refused (`credited`).
+  *Counter (low):* a tag for "passed, awaiting the sweep" is a third state the board does not draw.
+- **Two small departures from the board's drawing.** The pills and the list's pace read the existing
+  `pace.*` strings ("dedicated", "ancillary", "both (overtime)"), where the board draws them
+  capitalised and "Both"; and the strip's aria label counts credited, posted and waiting days, the
+  waiting being the held ones, where the board's label names them in its own words. *Counter (low):*
+  a second set of capitalised pace strings for one prompt and one list.
+- **The waiting tag's tooltip and the due box's tooltip take the page through the ladder's
+  `{cite}`.** The board prints "RR p.388"; lang holds the page reference once, as `cite.ladder`, and
+  no figure sits in a string.

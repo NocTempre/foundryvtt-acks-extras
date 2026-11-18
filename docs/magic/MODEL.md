@@ -1181,6 +1181,16 @@ Player posts today and no other day; a Judge posts any day. A facility share bel
 assistant who does not count, blocks a Player's post and warns a Judge's (`facilityGate`,
 `assistantGate`).
 
+`postRange` is a Judge's alone, refused to anyone else where it runs: `{pace, from, days}` posts `days`
+consecutive calendar days (a whole number from one to `RANGE_MAX`) from `from`, today unless named, in one
+write. A day already posted or credited is skipped and keeps what it had, and the answer names the days
+posted and the days skipped (`posted`, `skipped`); where every day is skipped nothing is written. The
+facility and assistant gates are read once for the range, so a warning is told once. `withdraw` takes one
+posted day back: a Judge any, anyone else a posted day of a project of a character they own (the rule every
+write on a project uses, applied to the sender the relay attested). A credited day is refused (`credited`),
+tested before the posted list, so a stale write that left a day in both changes nothing; a day not posted is
+`notPosted`.
+
 `credit` takes the posted days whose day is before today. Each leaves `posted` and adds one
 `credited` row per counted participant, `{day, amount, by}`, valued by the rates read at that moment,
 `amount` always a figure above zero. A day is credited whole or not at all (`creditableDay`): while any
@@ -1219,8 +1229,17 @@ Judge's days. Only credited days count there: a held day is posted and not credi
 the Judge's days, and it is no pending day when `dueDay` is counted. `dueDay` is the calendar day the last
 needed day falls on were each remaining day worked in turn from today. `unread` counts the held days.
 
-The tab's strip draws one cell per due day (at most 60), the credited ones first, then the posted, a held
-day among them; the posted row's tooltip names the held days and the page of the rate they wait on. The
-chip reads the day worked (credited plus posted) against the due. The pace is a radio group per project,
-held per window and never written; Post posts today at that pace. A radio belongs to no form, so the
-sheet's own submit never carries it.
+The tab's strip draws one cell per due day (at most 60), the credited ones first, then the posted in day
+order, a held day among them as a waiting cell (a dashed warning border on the tokens, no pattern); the
+posted row's tooltip names the held days and the page of the rate they wait on. Under the strip each posted
+day not yet credited is a row, "Day N · Pace", with a tag (posted, or waiting, whose tooltip names the page
+of the rate) and an X that withdraws it; anyone reads the list, and the X is drawn only where the viewer may
+withdraw (`canWithdraw`). The chip reads the day worked (credited plus posted) against the due. The due
+sits in the project's parts under the credited row: a Judge's number box (`dueDays`, written through the
+update field, its tooltip carrying the ladder's page) while the due cannot be computed (`dueBy` is not
+"ladder"), and text otherwise, the computed due once it can be, the Judge's days for a Player. The pace is a
+radio group per project, held per window and never written. A Player's Post posts today at that pace. A
+Judge's Post reads "Post days…" and opens a prompt, in the module's dialog classes, for the days, the first
+day (today) and the pace (pills, `aria-pressed`, starting on this window's pace), then calls `postRange`;
+it is never disabled by today's post, and its result is told as a notification naming the days posted and
+skipped. A radio belongs to no form, so the sheet's own submit never carries it.

@@ -12,6 +12,12 @@
  * components bucket by a drop and an X, and the researcher's derived link, which
  * writes nothing on the character.
  *
+ * Section 12 walks board 16: the Judge's days-due box (drawn only while the due cannot be computed, a
+ * Player shown the due as text and refused the write), the Judge's Post days… prompt (a range with a
+ * skipped day, a Player's button staying Post day and a Player's range refused) and withdrawing a
+ * posted day (a waiting day's dashed cell and tag, a Player's own project, a Player refused on
+ * another's, a credited day with no X).
+ *
  * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
  * Player's seat at the pace its radios chose, the day strip and chip, a past day
  * posted by the Judge and held while its rate is unread (nothing credited or
@@ -358,9 +364,9 @@ try {
     await open();
     const c = card(${JSON.stringify(IDD)});
     const tips = [...c.querySelectorAll("[data-tooltip-text]")].map((e) => e.dataset.tooltipText);
-    return { past: past.ok, asked, wrote, posted: p.posted.length, credited: p.credited.length, prog: { unread: prog.unread, waiting: prog.waiting, days: prog.creditedDays, dueBy: prog.dueBy }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length }, tip: tips.some((t) => /RR 388/.test(t) && /held/.test(t)) };`, ids);
+    return { past: past.ok, asked, wrote, posted: p.posted.length, credited: p.credited.length, prog: { unread: prog.unread, waiting: prog.waiting, days: prog.creditedDays, dueBy: prog.dueBy }, strip: { c: c.querySelectorAll(".acks-extras-research__days i.is-c").length, p: c.querySelectorAll(".acks-extras-research__days i.is-p").length, w: c.querySelectorAll(".acks-extras-research__days i.is-w").length }, tip: tips.some((t) => /RR 388/.test(t) && /held/.test(t)) };`, ids);
   check("a passed day whose rate the import left unread stays posted: credit answers 0 days and writes nothing, both posted days remain, no credited row is written and no due is computed", dh.past && dh.asked.ok === true && dh.asked.credited === 0 && dh.wrote === 0 && dh.posted === 2 && dh.credited === 0 && dh.prog.unread === 1 && dh.prog.waiting === 1 && dh.prog.days === 0 && dh.prog.dueBy === null, dh);
-  check("the card draws the held day as posted and not credited, and a tooltip names it as held with the page of the rate it waits on", dh.strip.c === 0 && dh.strip.p === 2 && dh.tip === true, dh);
+  check("the card draws the held day as a waiting cell (posted, not credited) beside today's posted one, and a tooltip names it as held with the page of the rate it waits on", dh.strip.c === 0 && dh.strip.w === 1 && dh.strip.p === 1 && dh.tip === true, dh);
 
   const d2 = await run(gm, U, `
     ${tablesKit}
@@ -434,6 +440,180 @@ try {
   check("a marked rung reads the printed rate for the project the imported list names and the footnote's rate for another", m1.made.every(Boolean) && m1.named.join() === "90,40", m1);
   check("naming the other kind in the list swaps them, so the module holds no kind of its own", m1.flipped.join() === "40,90", m1);
   check("with the list unread a marked rung reads no rate for either kind", m1.unlisted.every((v) => v === null), m1);
+
+  section("12. the Judge's due, Post days… and withdrawing a posted day (board 16)");
+  // Known shape first: the ladder read (unmarked rows), no assistant on the project, the hero at level 5 from section 5.
+  const LADDER_OK = `{ r0: { label: 4, rate: "30gp", throw: "15+", marked: false }, r1: { label: 5, rate: "90gp", throw: "11+", marked: false } }`;
+  const LADDER_UNREAD = `{ r0: { label: 4, rate: "30gp", throw: "15+" }, r1: { label: 5, rate: "90gp", throw: "11+" } }`;
+  const a1 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchLadderNote", { otherProjectsRate: 150, markedProjects: "4 30gp 15+ * for glasswork, spellcraft. u se 150gp" }, { sourceName: "qa-research-project" });
+    const r = await research().create(place(), { kind: "spell", subject: { name: "QA Due" }, researcher: ID.hero, costs: { research: 1000 } });
+    await poll(() => research().progress(place(), r.id)?.daily === 90);
+    await sleep(600);
+    await open();
+    const c = card(r.id);
+    const prog = research().progress(place(), r.id);
+    return { ok: r.ok, id: r.id, prog: { dueDays: prog.dueDays, dueBy: prog.dueBy }, box: c.querySelectorAll('[data-research-field="dueDays"]').length, text: c.querySelector("[data-research-due]")?.textContent.trim() };`, ids);
+  check("a project whose rate is read and whose research cost is entered computes its due (12 days), and the Judge's tab shows it as text with no box", a1.ok && a1.prog.dueDays === 12 && a1.prog.dueBy === "ladder" && a1.box === 0 && a1.text === "12", a1);
+  const IDE = a1.id;
+  const a2 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", ${LADDER_UNREAD}, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), ${JSON.stringify(IDE)})?.daily === null);
+    await sleep(600);
+    await open();
+    const box = card(${JSON.stringify(IDE)}).querySelector('[data-research-field="dueDays"]');
+    const out = { drawn: !!box, value: box?.value, tip: box?.dataset.tooltipText ?? "", label: box?.getAttribute("aria-label") ?? "", textGone: !card(${JSON.stringify(IDE)}).querySelector("[data-research-due]"), unrelatedBefore: projects().find((p) => p.id === ${JSON.stringify(IDE)}).dueDays };
+    const w = __rp.place;
+    await change(box, "7");
+    out.writes = __rp.place - w;
+    out.stored = projects().find((p) => p.id === ${JSON.stringify(IDE)}).dueDays;
+    const prog = research().progress(place(), ${JSON.stringify(IDE)});
+    out.prog = { dueDays: prog.dueDays, dueBy: prog.dueBy };
+    out.shown = card(${JSON.stringify(IDE)}).querySelector('[data-research-field="dueDays"]')?.value;
+    return out;`, ids);
+  check("with the rate unread the Judge's tab draws the days-due box (blank, labelled, its tooltip naming the page of the rate) and no due text", a2.drawn && a2.value === "" && a2.unrelatedBefore === null && /RR 388/.test(a2.tip) && a2.label.length > 0 && a2.textGone, a2);
+  check("typing 7 in the box writes dueDays once through the update field and the standing reads the Judge's 7", a2.writes === 1 && a2.stored === 7 && a2.prog.dueDays === 7 && a2.prog.dueBy === "judge" && a2.shown === "7", a2);
+  const a3 = await run(player, U, `
+    await open();
+    const c = card(${JSON.stringify(IDE)});
+    const out = { box: c.querySelectorAll('[data-research-field="dueDays"]').length, text: c.querySelector("[data-research-due]")?.textContent.trim() };
+    const w = (await research().update(place(), ${JSON.stringify(IDE)}, { dueDays: 3 }));
+    await sleep(600);
+    out.refused = w.reason;
+    out.kept = projects().find((p) => p.id === ${JSON.stringify(IDE)}).dueDays;
+    return out;`, ids);
+  check("a Player sees the due as text (7) with no box, and their own write of it is refused as the Judge's, nothing changed", a3.box === 0 && a3.text === "7" && a3.refused === "judge" && a3.kept === 7, a3);
+  const a4 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), ${JSON.stringify(IDE)})?.daily === 90);
+    await sleep(600);
+    await open();
+    const c = card(${JSON.stringify(IDE)});
+    return { box: c.querySelectorAll('[data-research-field="dueDays"]').length, text: c.querySelector("[data-research-due]")?.textContent.trim(), prog: research().progress(place(), ${JSON.stringify(IDE)}).dueBy };`, ids);
+  check("with the rate read again the computed due (12) is text and the box is gone, whatever the Judge typed", a4.box === 0 && a4.text === "12" && a4.prog === "ladder", a4);
+
+  // B. Post days…
+  const bw0 = await writes();
+  const b3 = await run(gm, U, `
+    await research().post(place(), ${JSON.stringify(IDE)}, { day: ${today + 1}, pace: "dedicated" });
+    await sleep(900);
+    await open();
+    const btn = card(${JSON.stringify(IDE)}).querySelector('[data-action="postResearchDays"]');
+    const out = { label: btn?.textContent.trim(), single: !!card(${JSON.stringify(IDE)}).querySelector('[data-action="postResearchDay"]') };
+    const seen = [];
+    const info = ui.notifications.info;
+    ui.notifications.info = (m, ...rest) => { seen.push(String(m)); return info.call(ui.notifications, m, ...rest); };
+    btn.click();
+    const dlg = await until(() => document.querySelector(".acks-extras-research-prompt")?.closest(".application"));
+    out.prompt = !!dlg;
+    out.classes = dlg ? [...dlg.classList].filter((k) => k.startsWith("acks-")).join() : "";
+    out.fields = dlg ? { days: dlg.querySelector('input[name="days"]')?.value, from: dlg.querySelector('input[name="from"]')?.value, pressed: [...dlg.querySelectorAll("[data-pace]")].filter((p) => p.getAttribute("aria-pressed") === "true").map((p) => p.dataset.pace), grip: !!dlg.querySelector(".window-resize-handle") } : null;
+    const days = dlg.querySelector('input[name="days"]');
+    const from = dlg.querySelector('input[name="from"]');
+    days.value = "4"; days.dispatchEvent(new Event("input", { bubbles: true }));
+    from.value = "${today}"; from.dispatchEvent(new Event("input", { bubbles: true }));
+    out.caption = dlg.querySelector("[data-range-caption]")?.textContent.trim();
+    dlg.querySelector('[data-pace="both"]').click();
+    out.pressed = [...dlg.querySelectorAll("[data-pace]")].filter((p) => p.getAttribute("aria-pressed") === "true").map((p) => p.dataset.pace);
+    dlg.querySelector('button[data-action="ok"]').click();
+    await until(() => !document.querySelector(".acks-extras-research-prompt"));
+    await sleep(1500);
+    ui.notifications.info = info;
+    out.seen = seen;
+    out.posted = projects().find((p) => p.id === ${JSON.stringify(IDE)}).posted.map((r) => [r.day, r.pace]);
+    return out;`, ids);
+  const bw1 = await writes();
+  check("a Judge's Post button is the range control (no Post day beside it) and opens a prompt that names the module's classes; it starts on 1 day from today at the window's pace (dedicated)", typeof b3.label === "string" && b3.label.length > 0 && b3.single === false && b3.prompt && /acks-extras/.test(b3.classes) && b3.fields?.days === "1" && b3.fields?.from === String(today) && b3.fields?.pressed.join() === "dedicated", b3);
+  check("the caption follows the fields, a pill picks the pace (one pressed), and Post writes the range once: the day already posted is skipped and keeps its pace, the other three are posted at the chosen pace", b3.caption?.includes(String(today)) && b3.caption?.includes(String(today + 3)) && b3.pressed.join() === "both" && bw1 - bw0 === 2 && b3.posted.length === 4 && b3.posted.filter(([d, p]) => p === "both").map(([d]) => d).join() === [today, today + 2, today + 3].join() && b3.posted.find(([d]) => d === today + 1)[1] === "dedicated", { ...b3, writes: bw1 - bw0 });
+  check("the result notification names the days it posted and the day it skipped", b3.seen.some((m) => m.includes(String(today + 1)) && m.includes(String(today)) && m.includes(String(today + 3))), b3.seen);
+  const b4 = await run(gm, U, `
+    const w = __rp.place;
+    const again = await research().postRange(place(), ${JSON.stringify(IDE)}, { pace: "both", from: ${today}, days: 4 });
+    const zero = await research().postRange(place(), ${JSON.stringify(IDE)}, { from: ${today}, days: 0 });
+    await sleep(700);
+    return { again: { ok: again.ok, posted: again.posted, skipped: again.skipped }, zero: zero.reason, writes: __rp.place - w };`, ids);
+  check("the same range again posts nothing and writes nothing (all four skipped), and a count of 0 is refused as a range", b4.again.ok === true && b4.again.posted.length === 0 && b4.again.skipped.length === 4 && b4.zero === "range" && b4.writes === 0, b4);
+  const b5 = await run(player, U, `
+    await open();
+    const c = card(${JSON.stringify(IDE)});
+    const btn = c.querySelector('[data-action="postResearchDay"]');
+    const out = { single: !!btn, label: btn?.textContent.trim(), range: !!c.querySelector('[data-action="postResearchDays"]'), disabled: btn?.disabled };
+    const w = (await research().postRange(place(), ${JSON.stringify(IDE)}, { pace: "both", from: ${today + 10}, days: 2 }));
+    await sleep(700);
+    out.refused = w.reason;
+    out.posted = projects().find((p) => p.id === ${JSON.stringify(IDE)}).posted.length;
+    return out;`, ids);
+  check("a Player's button stays Post day (a different label from the Judge's, disabled while today is posted) and never opens the prompt; a range asked of the relay is refused as the Judge's and writes nothing", b5.single === true && b5.label !== b3.label && b5.range === false && b5.disabled === true && b5.refused === "judge" && b5.posted === 4, b5);
+
+  // C. withdrawing
+  const c3 = await run(gm, U, `
+    ${tablesKit}
+    const IDE = ${JSON.stringify(IDE)};
+    await research().post(place(), IDE, { day: ${today - 5}, pace: "dedicated" });
+    const credited = await research().credit(place(), IDE);
+    await sleep(1200);
+    await research().post(place(), IDE, { day: ${today - 4}, pace: "dedicated" });
+    await sleep(900);
+    await STORE.setOverride(D, "researchLadder", ${LADDER_UNREAD}, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), IDE)?.unread === 1);
+    await sleep(600);
+    await open();
+    const c = card(IDE);
+    const rows = [...c.querySelectorAll("[data-posted-day]")].map((r) => ({ day: Number(r.dataset.postedDay), tag: r.querySelector(".acks-tag")?.className, tip: r.querySelector(".acks-tag")?.dataset.tooltipText ?? "", x: !!r.querySelector('[data-action="withdrawResearchDay"]'), xLabel: r.querySelector('[data-action="withdrawResearchDay"]')?.getAttribute("aria-label") ?? "" }));
+    return { credited: credited.credited, held: research().progress(place(), IDE).heldDays, credits: projects().find((p) => p.id === IDE).credited.map((r) => r.day), rows, waitingCells: c.querySelectorAll(".acks-extras-research__days i.is-w").length, creditedCells: c.querySelectorAll(".acks-extras-research__days i.is-c").length, creditedX: c.querySelectorAll('[data-action="withdrawResearchDay"][data-day="${today - 5}"]').length };`, ids);
+  const waitRow = c3.rows.find((r) => r.day === today - 4);
+  check("one day is credited (today-5) and the day posted after the rate went unread (today-4) is held: its strip cell is the dashed waiting one", c3.credited === 1 && c3.credits.join() === String(today - 5) && c3.held.join() === String(today - 4) && c3.waitingCells === 1 && c3.creditedCells === 1, c3);
+  check("the list under the strip has a row for each of the five posted days and none for the credited day: the held one is tagged waiting with a tooltip naming the page, the rest posted, each with an X, and the credited day has no X", c3.rows.length === 5 && !c3.rows.some((r) => r.day === today - 5) && /is-warn/.test(waitRow.tag) && /RR 388/.test(waitRow.tip) && c3.rows.filter((r) => !/is-warn/.test(r.tag)).length === 4 && c3.rows.every((r) => r.x && r.xLabel.length > 0) && c3.creditedX === 0, c3.rows);
+  // A day of Pell's project, which the Player does not own.
+  await run(gm, U, `
+    await research().post(place(), ${JSON.stringify(IDA)}, { day: ${today + 5}, pace: "dedicated" });
+    await sleep(900);
+    return true;`, ids);
+  const c4 = await run(player, U, `
+    await open();
+    const mine = card(${JSON.stringify(IDE)});
+    const theirs = card(${JSON.stringify(IDA)});
+    const out = { mineX: mine.querySelectorAll('[data-action="withdrawResearchDay"]').length, theirRows: theirs.querySelectorAll("[data-posted-day]").length, theirX: theirs.querySelectorAll('[data-action="withdrawResearchDay"]').length, disabled: [...mine.querySelectorAll('[data-action="withdrawResearchDay"]')].filter((b) => b.disabled).length };
+    const refused = await research().withdraw(place(), ${JSON.stringify(IDA)}, ${today + 5});
+    await sleep(700);
+    out.refused = refused.reason;
+    out.theirKept = projects().find((p) => p.id === ${JSON.stringify(IDA)}).posted.map((r) => r.day);
+    const credited = await research().withdraw(place(), ${JSON.stringify(IDE)}, ${today - 5});
+    out.creditedRefused = credited.reason;
+    const x = card(${JSON.stringify(IDE)}).querySelector('[data-action="withdrawResearchDay"][data-day="${today + 3}"]');
+    x.click();
+    await sleep(1500);
+    out.after = projects().find((p) => p.id === ${JSON.stringify(IDE)}).posted.map((r) => r.day);
+    out.rowGone = !card(${JSON.stringify(IDE)}).querySelector('[data-posted-day="${today + 3}"]');
+    return out;`, ids);
+  check("a Player's own project draws an X on every posted day, none disabled by the sheet's lock; Pell's project lists its day with no X", c4.mineX === 5 && c4.disabled === 0 && c4.theirRows === 1 && c4.theirX === 0, c4);
+  check("the Player's X takes back a posted day of their own project through the relay and the row goes; the same request for Pell's project is refused as the owner's and the day stands; a credited day is refused", c4.after.join() === [today - 4, today, today + 1, today + 2].join() && c4.rowGone === true && c4.refused === "owner" && c4.theirKept.join() === String(today + 5) && c4.creditedRefused === "credited", c4);
+  const c5 = await run(gm, U, `
+    await open();
+    const IDE = ${JSON.stringify(IDE)};
+    const x = card(IDE).querySelector('[data-action="withdrawResearchDay"][data-day="${today - 4}"]');
+    x.click();
+    await sleep(1500);
+    const out = { after: projects().find((p) => p.id === IDE).posted.map((r) => r.day), waitingCells: card(IDE).querySelectorAll(".acks-extras-research__days i.is-w").length };
+    out.notPosted = (await research().withdraw(place(), IDE, ${today + 40})).reason;
+    out.credited = (await research().withdraw(place(), IDE, ${today - 5})).reason;
+    const theirs = await research().withdraw(place(), ${JSON.stringify(IDA)}, ${today + 5});
+    out.judgeAny = theirs.ok;
+    await sleep(700);
+    out.theirLeft = projects().find((p) => p.id === ${JSON.stringify(IDA)}).posted.length;
+    out.creditsKept = projects().find((p) => p.id === IDE).credited.map((r) => r.day);
+    return out;`, ids);
+  check("the Judge's X withdraws the waiting day (its dashed cell goes), a day that is not posted is refused as notPosted, a credited one as credited and its row stands; the Judge withdraws a day of Pell's project too", c5.after.join() === [today, today + 1, today + 2].join() && c5.waitingCells === 0 && c5.notPosted === "notPosted" && c5.credited === "credited" && c5.judgeAny === true && c5.theirLeft === 0 && c5.creditsKept.join() === String(today - 5), c5);
+  await run(gm, U, `
+    ${tablesKit}
+    await research().close(place(), ${JSON.stringify(IDE)});
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await sleep(600);
+    return true;`, ids);
 
   section("Days teardown");
   await run(gm, U, `
