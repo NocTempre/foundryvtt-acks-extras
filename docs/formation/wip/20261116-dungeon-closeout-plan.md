@@ -1610,6 +1610,64 @@ scenarios; fourteen mutations, each caught. Not walked; no full gate.
 - A Judge's Rescuer select lists down, detached and busy members with no
   marker beside them; a marker is a UI change and waits on a design.
 
+S15, the squeeze rows: `7f91a0a5` (logic), `72da18c3` (rows, the two
+escapes, the driver's squeeze prompts), `3366892b` (docs, folded below).
+S16, the faster paces: `5c535e15` (the three pace-penalty imports, folded
+below), `bace53bb` (the pace pick on a Climbing holder's row, its relay and
+docs), `607d2940` (review fixes). A read-only architect then ruled the open
+stepping questions against the page; the rulings are in the managing
+session's notes, `20261117-s13-s15-rulings.md`. Two were build defects
+against rulings in force, fixed with three more found the same way:
+`cbd91b3e` (the push takes Strength, per the 2026-08-30 "Strength on a
+Dungeonbashing throw has one owner"), `bc4b8ba5` (the squeeze's botch band
+is imported from S14's own passage, a printed value per the template's
+2026-08-15 ruling), `59dc1c79` (a monster's swim and squeeze target is the
+load it carries, through `lib/capacity.mjs` `loadStone`), `f91fb968` (the
+wiggle's tooltip no longer names a Contortionism part the figure lacks; S26
+owns that read), `75d8b2a7` (End warns the Judge naming members still stuck
+or drowning) and `c2a13680` (its lang keys moved off `crossing.end`, which
+the gate caught as a parent and a string at once). `520a16eb` marks S15's
+open questions 2 and 3 answered by the page; `1c98be5b` rewords a phrase
+that echoed it. S15's question 1, how far a made squeeze throw carries a
+member, went to the owner; the managing session: build (a), nothing moves,
+and no "Through" control until its design has the owner's feedback.
+
+S17, the grid's rates of progress: `2fda5ba5` (the import of
+`spelunking.progress.<kind>` and `progressRate`) and `497cc8d6`
+(`apiVersion` 33, since `obstacles` is published whole). The round half
+stopped on seven questions, which a second architect pass ruled
+(`20261117-s17-rulings.md`): a made throw covers one stretch and the rate
+sets the time; outside a fight a base pace bills the exploration branch;
+time sums across the crossing and bills whole rounds; nothing accrues in a
+fight; the non-advancing miss's duration and the faster paces' shares are
+printed and imported. Its import half is being built; the round half
+follows.
+
+**Rewritten on the owner's word.** The owner, relayed: "Yes, fold both".
+Both on the unpushed topic, between slices, by one rebase from `7289480d`:
+- S15's doc fix `1aa32a94` folded into `3af1167a`: now `3366892b`.
+- S16's review fix `15b81fb4`: its three import files folded into
+  `17585f07`, now `5c535e15`; its surface and doc hunks touch `a820c524`'s
+  files, so they stay after it as `607d2940` (`a820c524` is `bace53bb`).
+The rebased tip's tree is byte-identical to the old tip `3f6c7e1b`, and
+neither folded commit's diff holds the quoted words or the printed face.
+
+**The offline gate on the topic** ran once the machine's hold allowed it:
+`npm test` 268 suites passing on `1c98be5b`; `validate` failed there on the
+lang collision above and passed on `c2a13680`; the crossing suites passed
+again after the rename. Single suites on the tip: test-crossing 83,
+test-crossing-surface 125, test-formation-binding 211, test-obstacles 44,
+test-swimming 16. Nothing on the topic is walked.
+
+Owner questions this stretch adds: S17-3, how several members on one face
+spend time ((a) together, the slowest member's time once, built as the
+default; (c) a Judge's setup pick, which needs a design; (d) a fixed rope
+starts the later members' time); and, optionally, B-b, billing the grid's
+round rate everywhere instead of the exploration branch outside a fight.
+Registered: T-0644 (a monster carrier's own pack is not counted on the
+Order tab) and T-0645 (a drowning monster's breath reads a Constitution it
+lacks).
+
 **Published names.** Formation's `apiVersion` is 31 on `main`: S11 took 30
 and removes `waterModifier` and `WATER.calm`, a removal the module's own
 comment calls a major; S19 took 31 when the sync met it. S12 takes 32 on the
