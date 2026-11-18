@@ -1,0 +1,1479 @@
+[
+  {
+    "id": "tt.item1129",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1129",
+    "anchor": {
+      "hash": "tfnjw4",
+      "as": "display"
+    },
+    "pages": [
+      272
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1130",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1130",
+    "anchor": {
+      "hash": "ket5si",
+      "as": "display"
+    },
+    "pages": [
+      272
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1131",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of Final Orders",
+    "anchor": {
+      "display": "Armor of Final Orders"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      272
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1132",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of Immaculate Purity",
+    "anchor": {
+      "display": "Armor of Immaculate Purity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      272,
+      273
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1133",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of Invulnerability",
+    "anchor": {
+      "display": "Armor of Invulnerability"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      273
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1134",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1134",
+    "anchor": {
+      "hash": "8m1ym5",
+      "as": "display"
+    },
+    "pages": [
+      273
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1135",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of the Invincible Conqueror",
+    "anchor": {
+      "display": "Armor of the Invincible Conqueror"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      273
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1136",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of the Tomb Lord",
+    "anchor": {
+      "display": "Armor of the Tomb Lord"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      273
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1137",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Armor of the Unyielding Mountain",
+    "anchor": {
+      "display": "Armor of the Unyielding Mountain"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      273,
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1138",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1138",
+    "anchor": {
+      "hash": "195qa73",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1139",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1139",
+    "anchor": {
+      "hash": "8tjety",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1140",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1140",
+    "anchor": {
+      "hash": "1d5tisi",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1141",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1141",
+    "anchor": {
+      "hash": "1777f4x",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1142",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1142",
+    "anchor": {
+      "hash": "1ahmg3d",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1143",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1143",
+    "anchor": {
+      "hash": "9g5rty",
+      "as": "display"
+    },
+    "pages": [
+      274
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1144",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1144",
+    "anchor": {
+      "hash": "1kzrrmz",
+      "as": "display"
+    },
+    "pages": [
+      275
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1145",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1145",
+    "anchor": {
+      "hash": "12902af",
+      "as": "display"
+    },
+    "pages": [
+      275
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1146",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1146",
+    "anchor": {
+      "hash": "bftle",
+      "as": "display"
+    },
+    "pages": [
+      275
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1147",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1147",
+    "anchor": {
+      "hash": "zhlzve",
+      "as": "display"
+    },
+    "pages": [
+      275
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1148",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Cuirass of Inescapable Victory",
+    "anchor": {
+      "display": "Cuirass of Inescapable Victory"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      275
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1149",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1149",
+    "anchor": {
+      "hash": "1dy7j34",
+      "as": "display"
+    },
+    "pages": [
+      275,
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1150",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1150",
+    "anchor": {
+      "hash": "s08tbn",
+      "as": "display"
+    },
+    "pages": [
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1151",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1151",
+    "anchor": {
+      "hash": "f9o9zz",
+      "as": "display"
+    },
+    "pages": [
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1152",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1152",
+    "anchor": {
+      "hash": "j8vore",
+      "as": "display"
+    },
+    "pages": [
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1153",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hide of the Troll King",
+    "anchor": {
+      "display": "Hide of the Troll King"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1154",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1154",
+    "anchor": {
+      "hash": "bmx0xr",
+      "as": "display"
+    },
+    "pages": [
+      276
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1155",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1155",
+    "anchor": {
+      "hash": "uzlz2w",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1156",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1156",
+    "anchor": {
+      "hash": "11vt9p4",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1157",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1157",
+    "anchor": {
+      "hash": "xvcjly",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1158",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1158",
+    "anchor": {
+      "hash": "1ybjufm",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1159",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1159",
+    "anchor": {
+      "hash": "1nxvg0w",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1160",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1160",
+    "anchor": {
+      "hash": "8o2zzb",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1161",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1161",
+    "anchor": {
+      "hash": "w7vfl7",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1162",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1162",
+    "anchor": {
+      "hash": "5lz5ou",
+      "as": "display"
+    },
+    "pages": [
+      277
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1163",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1163",
+    "anchor": {
+      "hash": "15eiift",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1164",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1164",
+    "anchor": {
+      "hash": "1vqbr88",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1165",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1165",
+    "anchor": {
+      "hash": "1b2o4mh",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1166",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1166",
+    "anchor": {
+      "hash": "1ymsate",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1167",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1167",
+    "anchor": {
+      "hash": "155rdvk",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1168",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1168",
+    "anchor": {
+      "hash": "hi00z0",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1169",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1169",
+    "anchor": {
+      "hash": "r6n5rw",
+      "as": "display"
+    },
+    "pages": [
+      278
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1170",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1170",
+    "anchor": {
+      "hash": "18qzvmz",
+      "as": "display"
+    },
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1171",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1171",
+    "anchor": {
+      "hash": "jifbf4",
+      "as": "display"
+    },
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1172",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1172",
+    "anchor": {
+      "hash": "h0akja",
+      "as": "display"
+    },
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1173",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Panoply of Life’s Grasp",
+    "anchor": {
+      "display": "Panoply of Life’s Grasp"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1174",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Panoply of the Destroyer",
+    "anchor": {
+      "display": "Panoply of the Destroyer"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1175",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1175",
+    "anchor": {
+      "hash": "1qfixpe",
+      "as": "display"
+    },
+    "pages": [
+      279
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1176",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1176",
+    "anchor": {
+      "hash": "1jlukhz",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1177",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1177",
+    "anchor": {
+      "hash": "5tw6td",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1178",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1178",
+    "anchor": {
+      "hash": "1iu71a6",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1179",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1179",
+    "anchor": {
+      "hash": "1h66mka",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1180",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1180",
+    "anchor": {
+      "hash": "tsbv2s",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1181",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1181",
+    "anchor": {
+      "hash": "10xgnt0",
+      "as": "display"
+    },
+    "pages": [
+      280
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1182",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1182",
+    "anchor": {
+      "hash": "lf7f4q",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1183",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1183",
+    "anchor": {
+      "hash": "1x2mls0",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1184",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1184",
+    "anchor": {
+      "hash": "phfx36",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1185",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1185",
+    "anchor": {
+      "hash": "16p0v21",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1186",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1186",
+    "anchor": {
+      "hash": "1yqjwjr",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1187",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1187",
+    "anchor": {
+      "hash": "47zb1k",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1188",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1188",
+    "anchor": {
+      "hash": "hu9ppz",
+      "as": "display"
+    },
+    "pages": [
+      281
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1189",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1189",
+    "anchor": {
+      "hash": "174rloa",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1190",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1190",
+    "anchor": {
+      "hash": "cleb1j",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1191",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1191",
+    "anchor": {
+      "hash": "13ztq7j",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1192",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1192",
+    "anchor": {
+      "hash": "b352x6",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1193",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1193",
+    "anchor": {
+      "hash": "sg4eis",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1194",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1194",
+    "anchor": {
+      "hash": "x1phyc",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1195",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1195",
+    "anchor": {
+      "hash": "txb2wu",
+      "as": "display"
+    },
+    "pages": [
+      282
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1196",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1196",
+    "anchor": {
+      "hash": "1sw9dgo",
+      "as": "display"
+    },
+    "pages": [
+      282,
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1197",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1197",
+    "anchor": {
+      "hash": "czxwrc",
+      "as": "display"
+    },
+    "pages": [
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1198",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1198",
+    "anchor": {
+      "hash": "1y9y4i9",
+      "as": "display"
+    },
+    "pages": [
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1199",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1199",
+    "anchor": {
+      "hash": "10w3g3k",
+      "as": "display"
+    },
+    "pages": [
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1200",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1200",
+    "anchor": {
+      "hash": "1ayuy5d",
+      "as": "display"
+    },
+    "pages": [
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1201",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1201",
+    "anchor": {
+      "hash": "vdgbkh",
+      "as": "display"
+    },
+    "pages": [
+      283
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1202",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1202",
+    "anchor": {
+      "hash": "1gg4060",
+      "as": "display"
+    },
+    "pages": [
+      284
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1203",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1203",
+    "anchor": {
+      "hash": "z34roy",
+      "as": "display"
+    },
+    "pages": [
+      284
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1204",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1204",
+    "anchor": {
+      "hash": "oosipk",
+      "as": "display"
+    },
+    "pages": [
+      284
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1205",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1205",
+    "anchor": {
+      "hash": "116p64i",
+      "as": "display"
+    },
+    "pages": [
+      284
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1206",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1206",
+    "anchor": {
+      "hash": "n2nox1",
+      "as": "display"
+    },
+    "pages": [
+      284
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1207",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1207",
+    "anchor": {
+      "hash": "1ui5f2q",
+      "as": "display"
+    },
+    "pages": [
+      285
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1208",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1208",
+    "anchor": {
+      "hash": "jrtxjv",
+      "as": "display"
+    },
+    "pages": [
+      285
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1209",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1209",
+    "anchor": {
+      "hash": "a64iv4",
+      "as": "display"
+    },
+    "pages": [
+      285
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1210",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1210",
+    "anchor": {
+      "hash": "r75t9f",
+      "as": "display"
+    },
+    "pages": [
+      285
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1211",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1211",
+    "anchor": {
+      "hash": "c1ea9t",
+      "as": "display"
+    },
+    "pages": [
+      285
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1212",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1212",
+    "anchor": {
+      "hash": "mtwqsu",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1213",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1213",
+    "anchor": {
+      "hash": "baco7b",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1214",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1214",
+    "anchor": {
+      "hash": "1bfdsed",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1215",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1215",
+    "anchor": {
+      "hash": "p5sp1g",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1216",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1216",
+    "anchor": {
+      "hash": "1pnxxym",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1217",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1217",
+    "anchor": {
+      "hash": "1v3tfac",
+      "as": "display"
+    },
+    "pages": [
+      286
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1218",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Shield of the Empyrean Heavens",
+    "anchor": {
+      "display": "Shield of the Empyrean Heavens"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      287
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1219",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Shield of the Iron Curtain",
+    "anchor": {
+      "display": "Shield of the Iron Curtain"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      287
+    ],
+    "meta": {
+      "category": "armors"
+    }
+  },
+  {
+    "id": "tt.item1220",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Starforged Suit",
+    "anchor": {
+      "display": "Starforged Suit"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      287
+    ],
+    "meta": {
+      "category": "armors"
+    },
+    "values": []
+  }
+]
