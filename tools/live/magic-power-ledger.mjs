@@ -183,7 +183,10 @@ try {
     return out;`);
   check("the Player owns the character and is no GM, so only `isGM` can be what gates", p1.isGM === false && p1.isOwner === true, p1);
   check("the Player's strip shows the divine tag with its balance, its entries as rows and in the tooltip, no arcane tag, no plus, minus, Undo or count", p1.divine === 8 && p1.arcane && p1.adjust === 0 && p1.undo === 0 && p1.count === 0 && p1.rows === 3 && p1.tip, p1);
+  // The Player's copy must have caught up with the Judge's last write before it is the baseline.
+  const gmFlag = (await run(gm, U, `return { json: JSON.stringify(flag()) };`)).json;
   const p2 = await run(player, U, `
+    await until(() => JSON.stringify(flag()) === ${JSON.stringify(gmFlag)}, 50);
     const before = JSON.stringify(flag());
     const r = {
       over: await power().spend(actor(), "divine", { amount: 99 }),
