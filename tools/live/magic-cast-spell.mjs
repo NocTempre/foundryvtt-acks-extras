@@ -906,6 +906,16 @@ const track = async (uuid, kind) => {
   own.push(uuid);
   await gm.track(uuid, kind);
 };
+// A mid-walk sweep of a step's own documents. What it swept leaves `own` too, so the
+// closing sweep never names a uuid the ledger no longer holds (which refuses the whole sweep).
+const sweepStep = async (uuids) => {
+  const out = await gm.sweepTracked({ only: uuids });
+  for (const uuid of uuids) {
+    const at = own.indexOf(uuid);
+    if (at >= 0) own.splice(at, 1);
+  }
+  return out;
+};
 const WALL_MS = Number(process.env.WALK_WALL_MS ?? 1_500_000);
 setTimeout(() => {
   console.error(`WALK ERROR: wall clock of ${WALL_MS} ms reached; closing the seats`);
@@ -1337,6 +1347,7 @@ async function walkDeclare(K) {
   await spent();
   const fight = await run(gm, P.combatNew, { sceneId, tokenIds: [tCaster.id, tFoe.id] });
   runCombatUuid = fight.uuid;
+  await track(fight.uuid, "Combat");
   const cbOf = (tokenId) => fight.combatants.find((c) => c.tokenId === tokenId)?.id;
   const [cbCaster, cbFoe] = [cbOf(tCaster.id), cbOf(tFoe.id)];
   const prepared = (value) => run(gm, P.combatInfo, { combatId: fight.id, combatantId: cbCaster, until: value });
@@ -1493,6 +1504,7 @@ async function walkInvocation(K) {
     section("band 6. a declared cast keeps the level and the pick and resolves with no dialog");
     const fight = await run(gm, P.combatNew, { sceneId, tokenIds: [tCaster.id, tFoe.id] });
     runCombatUuid = fight.uuid;
+    await track(fight.uuid, "Combat");
     const cb = fight.combatants.find((c) => c.tokenId === tCaster.id)?.id;
     const at = (opts) => run(gm, P.combatMove, { combatId: fight.id, ...opts });
     await at({ update: { round: 2, turn: 0 } });
@@ -1509,7 +1521,7 @@ async function walkInvocation(K) {
     await run(player, P.invProcOff);
     await run(gm, P.invProcOff);
     await run(gm, P.invWorld, { classUuid, casterId, off: true, was: prior });
-    note("band sweep", await gm.sweepTracked({ only: mine }));
+    note("band sweep", await sweepStep(mine));
   }
 }
 
@@ -1569,7 +1581,7 @@ async function walkLostItem(K) {
   const fallback = await run(player, P.bandHeading, { casterId, spellId: damageId, kind });
   // "Arcane" is the label the class fixture gives its tradition (the fixtures section).
   check("lost 2: with none supplied the band is headed by the tradition's own label, not Invocation", fallback.dialog && fallback.heading === "Arcane" && fallback.heading !== fallback.generic, fallback.heading);
-  note("lost-item sweep", await gm.sweepTracked({ only: mine }));
+  note("lost-item sweep", await sweepStep(mine));
 }
 
 try {
