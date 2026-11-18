@@ -4049,8 +4049,8 @@ marker, and are read, never driven.
    the magic-items roller. *Observable:* a card whose chain shows a type step, a
    category step and a subtable step for every category, a sword, miscellaneous
    weapon or armour included; no card ends flagged `unresolved-hop`. Roll the
-   heroic style from `heroic.uncommon`, `heroic.rare`, `heroic.veryRare` and
-   `heroic.legendary` a few times. *Observable:* a rarity step then a subtable
+   heroic style from `heroic.common`, `heroic.uncommon`, `heroic.rare`,
+   `heroic.veryRare` and `heroic.legendary` a few times. *Observable:* a rarity step then a subtable
    step each, and each card cites the Tome's page.
 10. Roll with `from: "classic.potions"` until the category's tail row lands (the
     last face), by setting the dice rig (`TEST_ENVIRONMENT.md`) to throw the top of the d100 and then any inner band.
@@ -4087,9 +4087,14 @@ writes the items, a repair holds a Judge's edit and a roll names the document.
 The Tome connected on the seat. Each imported item is found by its cookbook id
 (`flags["acks-extras"].cookbook.id`, `tt.item<n>`) and carries no
 `flags.world.fixture` marker: it is the import's own product. A step that edits
-or deletes one first builds the marker `importer/magic-item-<n>` by
-`api.mark(uuid, marker)` on the item the import made, and sweeps it by the run's
-ledger. Setup is the subject of step 1, so nothing is kept before it.
+or deletes one first marks it `importer/magic-item-<n>`. The items live in a
+compendium, which `api.mark` refuses (a fixture is a world document), so the
+walk writes `flags.world.fixture` itself and tracks the uuid
+(`api.track(uuid, "Item", marker)`), and the run's ledger sweeps it. Setup is
+the subject of step 1, so nothing is kept before it. `tools/live/importer-magic-items.mjs`
+walks steps 1-6 here and steps 8-10 and 12 (the export half) of the tables
+section above, by API rather than the buttons; step 3 runs the item repair on
+the two items it touched, not Import Everything.
 
 ### Steps
 
@@ -4110,7 +4115,7 @@ ledger. Setup is the subject of step 1, so nothing is kept before it.
    `equipped` keep their values.
 4. **The delete path.** Delete one imported item and run Magic Items again.
    *Observable:* 1 imported, N - 1 already present, and the item is back in its
-   folder.
+   folder under the same uuid (the import keeps one stable id per cookbook row).
 5. **The link.** Import the rules tables with the Tome open (Rules tables,
    `magicItemTables only`). Read `getTable("magicItemTables","subtables").potions4`.
    *Observable:* the rows that name a pilot entry carry `ref: "tt.item<n>"`; the
@@ -4124,9 +4129,9 @@ ledger. Setup is the subject of step 1, so nothing is kept before it.
 
 ### Teardown
 
-The imports stay. The item deleted in step 4 is re-imported by the step; the
-edit of step 3 is repaired by the next repair. Nothing is swept but the marked
-items by ledger.
+The imports stay. The marked items are swept by ledger and the walk re-imports
+them, so every Tome item stands as the page gives it and none keeps step 3's
+edit.
 
 ## The gnostic tables, read from By This Axe
 
