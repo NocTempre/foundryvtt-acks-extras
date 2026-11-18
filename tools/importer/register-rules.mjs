@@ -409,6 +409,70 @@ export const ORDINAL_KINDS = Object.freeze({
   "kind.sceneLink": { label: "Link", stem: "link", anchor: "none" },
 });
 
+/**
+ * A magic-item row (`kind.magicItem`). Its id is `<book>.item<n>`. A heading
+ * that holds a figure or a proper name ships `Item <n>`, with the same n as
+ * the id and an `anchor.hash`; any other ships its common name, which holds no
+ * digit, with the reviewer's `named` date, anchored by display (the name
+ * itself) or, where the display anchor failed, by hash. `meta.category` is in
+ * `categories`; `pages` lists every page of the entry, ascending and
+ * contiguous; `values` is a list, empty where the header's figures are not the
+ * entry's own; `alsoKeys` are distinct non-empty keys.
+ * @param {object} e the row
+ * @param {string} bookId the book's directory
+ * @param {readonly string[]} categories the category vocabulary
+ */
+export function magicItemProblems(e, bookId, categories) {
+  const out = [];
+  const id = e.id ?? "?";
+  const idN = new RegExp(`^${bookId}\\.item(\\d+)$`).exec(id)?.[1];
+  if (!idN) out.push(`${id}: a magic item's id is "${bookId}.item<n>"`);
+  const name = String(e.name ?? "");
+  const neutral = /^Item (\d+)$/.exec(name)?.[1];
+  if (neutral !== undefined) {
+    if (idN && neutral !== idN) out.push(`${id}: a row named "Item ${neutral}" has the id "${bookId}.item${neutral}"`);
+    if (e.anchor?.hash === undefined) out.push(`${id}: an "Item <n>" row anchors by hash, never by its printed words`);
+    if (e.named !== undefined) out.push(`${id}: an "Item <n>" row is not a cleared name and carries no "named"`);
+  } else {
+    if (/\d/.test(name)) out.push(`${id}: a name with a digit in it is a figure, so the row is "Item <n>"`);
+    if (typeof e.named !== "string" || !e.named) out.push(`${id}: a row with its common name carries "named", the date a reviewer cleared it`);
+    const hasDisplay = e.anchor?.display !== undefined;
+    if (hasDisplay && e.anchor.display !== name) out.push(`${id}: a cleared row's display anchor is its name`);
+    if (!hasDisplay && e.anchor?.hash === undefined) out.push(`${id}: a cleared row anchors by display, or by hash where the display anchor failed`);
+  }
+  if (!categories.includes(e.meta?.category)) out.push(`${id}: meta.category ${JSON.stringify(e.meta?.category)} is not a magic-item category (${categories.join("|")})`);
+  const pages = e.pages;
+  if (!Array.isArray(pages) || !pages.length || !pages.every((p, i) => Number.isInteger(p) && (i === 0 || p === pages[i - 1] + 1))) {
+    out.push(`${id}: pages lists every page of the entry, ascending and contiguous`);
+  }
+  if (e.values !== undefined && !Array.isArray(e.values)) out.push(`${id}: values is a list of locators, empty where the header's figures are not the entry's own`);
+  if (e.alsoKeys !== undefined) {
+    const keys = e.alsoKeys;
+    if (!Array.isArray(keys) || keys.some((k) => typeof k !== "string" || !k)) out.push(`${id}: alsoKeys is a list of keys`);
+    else if (new Set(keys).size !== keys.length) out.push(`${id}: alsoKeys lists a key twice`);
+  }
+  return out;
+}
+
+/**
+ * Over every row at once: an `alsoKey` is the key of one row's spelling in a
+ * table, so it names one row of its book, and neither another row's `alsoKey`
+ * nor another row's own heading hash.
+ */
+export function magicItemKeyProblems(rows) {
+  const out = [];
+  const owner = new Map(); // "<book> <key>" -> the row id that claimed it
+  const claim = (row, key) => {
+    const at = `${row.book ?? bookOf(row.id)} ${key}`;
+    if (owner.has(at) && owner.get(at) !== row.id) out.push(`${row.id}: key ${key} also names ${owner.get(at)}`);
+    else owner.set(at, row.id);
+  };
+  const items = [...rows.values()].filter((r) => r?.kind === "kind.magicItem");
+  for (const r of items) if (r.anchor?.hash !== undefined) claim(r, String(r.anchor.hash));
+  for (const r of items) for (const key of Array.isArray(r.alsoKeys) ? r.alsoKeys : []) claim(r, String(key));
+  return out;
+}
+
 /** A row of an `ORDINAL_KINDS` kind against its label, id and anchor rule. */
 export function ordinalProblems(e, bookId) {
   const rule = ORDINAL_KINDS[e.kind];

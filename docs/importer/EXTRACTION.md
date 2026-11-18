@@ -95,3 +95,4 @@ DECISIONS.md. Rows are never deleted; a superseded row says so.
 | No stat label ends in a colon, so no stat column is found and no run-in anchors | The colon is set in the value's run | `typography.labelColon` moves it onto the label |
 | A wrapped value's second line lands in the row below it | The label sits on the value's first line, not centred on it as the MM sets it | `typography.wrapAlign: "top"` bands rows label to label |
 | A list welds a name broken over a line turn | The list's lines end with no trailing space and the box shipped no joins | `profList` goes through `withFixes` |
+| An entry stops short at a line of lore, a quotation or a table | The book sets that type at its headings' size in another face, and one size threshold both anchors and stops | The band row selects `stopFace: "anchor"` (`axStopLine`); a table run read into a flow takes `excludeBoxes` or a shorter `pages` |

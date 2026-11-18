@@ -45,6 +45,7 @@ import { importVehicles, importAllEquipment } from "./equipment.mjs";
 import { importMerchandise, importVariations, importTraps, importSpells } from "./variations.mjs";
 import { journalBound, regionSiteClaim } from "./adventure-places.mjs";
 import { cookbookImportAdventureItems, bookCensus, bookDocuments } from "./adventure-maps.mjs";
+import { cookbookImportMagicItems, magicItemEntries } from "./magic-items.mjs";
 import { importMany, importOne } from "./actor-import.mjs";
 import { cookbookImportAbilities, cookbookUpdateAbilities } from "./abilities-import.mjs";
 
@@ -75,6 +76,7 @@ export const REPAIR_RUNS = {
   importVehicles: (only, tally) => importVehicles({ only, repair: tally }),
   importMerchandise: (only, tally) => importMerchandise({ only, repair: tally }),
   cookbookImportAdventureItems: (only, tally) => cookbookImportAdventureItems({ only, repair: tally }),
+  cookbookImportMagicItems: (only, tally) => cookbookImportMagicItems({ only, repair: tally }),
 };
 
 /**
@@ -121,7 +123,7 @@ function adventureItemEntries() {
 }
 
 /** Is this id an item a book introduces? Such a row files on its book's own folder, not on a cookbook shelf. */
-const bookOwnEntry = (id) => cookbookEntry(id)?.entry?.kind === "kind.adventureItem";
+const bookOwnEntry = (id) => ["kind.adventureItem", "kind.magicItem"].includes(cookbookEntry(id)?.entry?.kind);
 
 /** Every entry id a repair run can write in place, across the picker's sources. */
 const repairableEntryIds = () =>
@@ -1337,6 +1339,19 @@ export const ENTRY_SOURCES = [
     own: true,
     chain: "stepAdventureItems",
     bookSteps: ["stepAdventureItems"],
+  },
+  // A book's magic items stand in its folder of their category, on no cookbook
+  // shelf, as a book's own items do.
+  {
+    key: "MagicItems",
+    type: "Item",
+    refill: "cookbookImportMagicItems",
+    entries: () => magicItemEntries(),
+    owns: ownsEntry(true, ofKinds("kind.magicItem")),
+    book: entryBookOf,
+    make: { run: "cookbookImportMagicItems", takes: ["only", "books"] },
+    own: true,
+    chain: "stepMagicItems",
   },
   {
     key: "Spells",

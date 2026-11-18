@@ -158,9 +158,15 @@ check("a count collision with a foreign title names nobody", identifyBook(BOOKS.
       check(`laterBook(${a}, ${b}) is symmetric`, got === laterBook(b, a));
       if (ba.published !== bb.published) check(`the later year wins (${a}, ${b})`, got === (ba.published > bb.published ? a : b));
       else if (ordered(ba, bb)) check(`a tie goes to the later series number (${a}, ${b})`, got === (ba.seriesOrder > bb.seriesOrder ? a : b));
-      else check(`a tie nobody ordered names nobody (${a}, ${b})`, got === null);
+      else if (ba.supersedes?.includes(b) !== bb.supersedes?.includes(a) && (ba.supersedes?.includes(b) || bb.supersedes?.includes(a))) {
+        check(`a tie the year and series leave goes to the book that supersedes (${a}, ${b})`, got === (ba.supersedes?.includes(b) ? a : b));
+      } else check(`a tie nobody ordered names nobody (${a}, ${b})`, got === null);
     }
   }
+  // Owner ruling C, "The Tome's": when both books print an item, the library keeps the Tome's.
+  check("the Tome is later than the Journal, whichever way round", laterBook("jj", "tt") === "tt" && laterBook("tt", "jj") === "tt");
+  check("the Tome's entry is kept whichever book arrives first", keptBook("jj", "tt") === "tt" && keptBook("tt", "jj") === "tt");
+  check("the RR and the MM still tie against the Tome", laterBook("rr", "tt") === null && laterBook("tt", "mm") === null);
   for (const [id, b] of Object.entries(BOOKS)) {
     if (b.seriesOrder !== undefined) check(`${id} carries a whole series number, and only an AX book does`, Number.isInteger(b.seriesOrder) && /^ax\d+$/.test(id) && b.seriesOrder === Number(id.slice(2)));
   }

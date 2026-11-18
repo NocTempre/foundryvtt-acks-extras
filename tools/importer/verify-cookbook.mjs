@@ -186,14 +186,18 @@ for (const file of bookFiles) {
       console.log(`OK   ${id}: ${f.description.length} paras/${words}w`);
       continue;
     }
-    if (kind === "kind.prose" || kind === "kind.adventureItem") {
+    if (kind === "kind.prose" || kind === "kind.adventureItem" || kind === "kind.magicItem") {
       // A passage and a book's item are a name and the paragraphs under it;
-      // neither carries stats.
+      // neither carries stats. A magic item also reports which of its header
+      // figures its locators found, by field name; a missing one is not a
+      // failure, since an entry may print none. Residue is a warning here, so
+      // read it off the RESIDUE lines, not the exit code.
       if (!nameOk || !words) {
         fail(`descWords=${words}`);
         continue;
       }
-      console.log(`OK   ${id}: ${f.description.length} paras/${words}w`);
+      const located = kind === "kind.magicItem" ? ` located=[${(f.values ?? []).map((v) => v.field).join(",")}]` : "";
+      console.log(`OK   ${id}: ${f.description.length} paras/${words}w${located}`);
       continue;
     }
     // A pregen's block is an NPC's statline, read the same way.

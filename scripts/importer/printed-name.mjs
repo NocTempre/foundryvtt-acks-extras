@@ -41,6 +41,14 @@ export function printKey(text) {
   return folded ? hash36(folded) : "";
 }
 
+/**
+ * The key a magic item is found by, in a heading and in a table row alike: the
+ * `printKey` of the name once a bracketed marker of one to three letters is
+ * dropped. A row prints its marker as small-capital initials in brackets where
+ * a heading has none, so the two spellings of one item give one key.
+ */
+export const itemKey = (text) => printKey(String(text ?? "").replace(/\[\s*\p{L}{1,3}\s*\]/gu, ""));
+
 /** Where a text breaks into the tokens `holdsKey` tests: whitespace and the marks a list or a heading sets between words. */
 const KEY_TOKEN_BREAK = /[\s,;:()[\]{}"“”]+/u;
 

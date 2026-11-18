@@ -126,6 +126,8 @@ export const GM_STEPS = [
   ["stepRollTables", (api) => api.cookbookImportRollTables()],
   // An item a book introduces stands on nothing above it.
   ["stepAdventureItems", (api) => api.cookbookImportAdventureItems()],
+  // A book's magic items stand on nothing above them either; quiet when no open book prints any.
+  ["stepMagicItems", (api) => api.cookbookImportMagicItems()],
   // A map stands on the places, the organisations seated in its quarters and
   // the lists, so it follows all three.
   ["stepScenes", (api, o) => api.cookbookImportScenes(o)],

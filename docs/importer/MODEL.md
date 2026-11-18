@@ -2544,3 +2544,23 @@ baseline lacks or holds more of, and on an entry that no longer occurs or occurs
 less, so the file only shrinks; `--write-baseline` rewrites it. The suites are
 `tools/importer/test-check-silos.mjs` and `tools/importer/test-book-recipes.mjs`
 (the merge, on invented ids).
+
+## A magic item's entry (the compile half)
+
+A book's magic items are rows of `kind.magicItem` (`register/<book>/`, ids
+`<book>.item<n>`), compiled by `compileMagicItem` into a name, a text description,
+a `values` field of the kind's two header-figure locators (or the row's own; an
+empty list ships none), a `key` and `alsoKeys` (hashes of the heading as read and of
+the spellings a table row uses, `itemKey`), and the residue skips the other AX
+compilers record. A row ships its common name with `named` and `anchor.display`, or
+`Item <n>` with `anchor.hash` where the heading holds a figure or a proper name; a
+display anchor that fails falls back to the hash and keeps its name. `pages` spans
+the whole entry. The flow ends at the next sibling's heading, a section head, or, in
+a book whose band row selects `stopFace: "anchor"`, a heading-size line only in the
+entry's own heading face (`axStopLine`). The band row is the book's `axBands`
+(`books/<id>/page-bands.mjs`), read by `bandsOf` through the manifest. The register
+lint is `magicItemProblems` (`register-rules.mjs`); `census-rows.mjs` seeds and
+checks rows from a local-only heading census. At import `magicItemData`
+(`cookbook/magic-items.mjs`) builds the core item from the name, the description and
+the located figures only, into the book's folder of its category. The ruling and
+its rejected alternatives: DECISIONS 2026-11-17, "A magic item is `kind.magicItem`".

@@ -1,0 +1,19 @@
+{
+  "id": "kind.magicItem",
+  "role": "composite",
+  "note": "One entry of a book's magic-item chapter, bound as a core item named and described from the page. A heading with a figure or a proper name ships as Item <n> with a hash; any other ships its common name. Ids are <book>.item<n>. The default locators read the header line's two figures; a row's own values replace them, and an empty list ships none.",
+  "fields": {
+    "name": { "locate": "display" },
+    "description": { "locate": "proseFlow", "type": "blocks" }
+  },
+  "values": [
+    {
+      "field": "baseCostGp",
+      "from": { "into": "amount", "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp" }
+    },
+    {
+      "field": "apparentValueGp",
+      "from": { "into": "amount", "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp" }
+    }
+  ]
+}

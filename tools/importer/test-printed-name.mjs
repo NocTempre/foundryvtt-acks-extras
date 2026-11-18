@@ -17,7 +17,7 @@
  * Usage: node tools/importer/test-printed-name.mjs
  */
 import assert from "node:assert/strict";
-import { foldLabel, hash36, holdsKey, keyTokenAt, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf, withoutKeyNumber } from "../../scripts/importer/printed-name.mjs";
+import { foldLabel, hash36, holdsKey, itemKey, keyTokenAt, printKey, firstToken, opensWithNumber, titleCaseHeading, printedNameOf, withoutKeyNumber } from "../../scripts/importer/printed-name.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { pictureKey } from "../../scripts/importer/scene-binding.mjs";
 
@@ -28,6 +28,15 @@ const t = (name, fn) => Promise.resolve(fn()).then(() => {
 });
 
 /* ---------------- the fold and the key ---------------- */
+
+await t("an item key drops a bracketed marker of one to three letters, and a row and a heading agree", () => {
+  assert.equal(itemKey("Brenmoth Flask [Ab]"), itemKey("Brenmoth Flask"));
+  assert.equal(itemKey("Brenmoth Flask [ABC]"), printKey("Brenmoth Flask"));
+  assert.equal(itemKey("Brenmoth [x] Flask"), printKey("Brenmoth Flask"));
+  assert.equal(itemKey("Brenmoth Flask [Abcd]"), printKey("Brenmoth Flask [Abcd]"), "four letters is a word, not a marker");
+  assert.equal(itemKey("Brenmoth Flask [1]"), printKey("Brenmoth Flask [1]"), "a digit in brackets is kept");
+  assert.equal(itemKey(null), "");
+});
 
 await t("the fold drops case, accents, space and punctuation", () => {
   assert.equal(foldLabel("  Sálty  Döor’s (“Gate”) "), "saltydoorsgate");

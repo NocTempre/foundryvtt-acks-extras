@@ -532,7 +532,7 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("the tables' documents are written right after the classes, before the packages",
     chain.indexOf("stepTablesApply") === chain.indexOf("stepClasses") + 1 && chain.indexOf("stepTemplatePackages") === chain.indexOf("stepTablesApply") + 1);
   check("the adventures are written last", chain.at(-1) === "stepAdventures");
-  check("the chain has twenty-one steps", chain.length === 21);
+  check("the chain has twenty-two steps", chain.length === 22);
   check("run alone, the apply step reads and applies in one call", recorded.stepTablesApply.join() === "cookbookImportTables");
 }
 

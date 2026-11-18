@@ -49,7 +49,7 @@ import {
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
   cookbookImportAdventures, bookCensus, cookbookReimportAdventure, adventureBooks, rebuildOptions, runRebuildPick,
-  cookbookImportAdventureItems, cookbookImportLinks, cookbookReimportEverything,
+  cookbookImportAdventureItems, cookbookImportMagicItems, cookbookImportLinks, cookbookReimportEverything,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
@@ -2371,7 +2371,7 @@ Hooks.once("ready", async () => {
     cookbookImportAdventures, bookCensus,
     /** An adventure book repaired in place as one unit, and the books it offers. */
     cookbookReimportAdventure, adventureBooks,
-    cookbookImportAdventureItems, cookbookImportLinks,
+    cookbookImportAdventureItems, cookbookImportMagicItems, cookbookImportLinks,
     /** The whole import chain, in dependency order — the "Import Everything" control. */
     importEverything: () => runImportEverything(),
     /** Every open book and adventure book repaired in place, asked once; `mode` is ignored. */

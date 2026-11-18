@@ -20,9 +20,10 @@ import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
 import { scenarioProblems, rosterProblems } from "./scenario-rules.mjs";
 import { spellRecipeProblems } from "./spell-recipe-rules.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
+import { MAGIC_CATEGORIES } from "../../scripts/importer/cookbook/magic-items.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
   sceneLinkProblems, scenePartProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -683,6 +684,7 @@ for (const dirent of fs.existsSync(REGISTER) ? fs.readdirSync(REGISTER, { withFi
           else if (!ANCHOR_SORTS.includes(e.anchor.as)) err(`${id}: anchor.as ${JSON.stringify(e.anchor.as)} is not a heading sort the compiler searches (${ANCHOR_SORTS.join("|")})`);
         }
         if (ORDINAL_KINDS[e.kind]) for (const problem of ordinalProblems(e, bookId)) err(problem);
+        if (e.kind === "kind.magicItem") for (const problem of magicItemProblems(e, bookId, MAGIC_CATEGORIES)) err(problem);
         // A person the book names is its expression exactly as a place's name
         // is: the row is labelled and identified by its ordinal and anchors by
         // the key of the name's letters, so no printed word of it ships.
@@ -834,6 +836,7 @@ for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of lairOfProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
 for (const problem of partyProblems(allRows)) err(problem);
+for (const problem of magicItemKeyProblems(allRows)) err(problem);
 for (const problem of marketColumnProblems(allRows)) err(problem);
 for (const problem of erratumProblems(allRows, errataIdsOf(fs.existsSync(ERRATA) ? fs.readFileSync(ERRATA, "utf8") : ""))) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);

@@ -1305,4 +1305,29 @@ await ta("a scan's guessed effects stay unbound on a creature", async () => {
   assert.deepEqual(bindMonster(node).items.filter((i) => i.type === "ability"), [], "and none of it is bound");
 });
 
+/* ---------------- the magic-item kind's two header locators ---------------- */
+
+const MAGIC_KIND = JSON.parse(fs.readFileSync(new URL("../../register/_kinds/magicItem.json", import.meta.url), "utf8"));
+/** The figures the kind's locators find in one paragraph: `{field: amount}`. */
+const magicFigures = (text) => Object.fromEntries(materializeEffects(MAGIC_KIND.values, [text]).map((v) => [v.field, v.amount]));
+
+t("the magic-item locators read a thousands figure and a decimal one", () => {
+  assert.deepEqual(magicFigures("Base Cost: 1,250gp. A cord of knots. Apparent Value 40gp."), { baseCostGp: 1250, apparentValueGp: 40 });
+  assert.deepEqual(magicFigures("Base Cost 0.5 gp: a pinch. Apparent Value 2.25gp."), { baseCostGp: 0.5, apparentValueGp: 2.25 });
+});
+
+t("a figure with no unit is absent, and so is one in another unit", () => {
+  assert.deepEqual(magicFigures("Base Cost 300. Apparent Value 40gp."), { apparentValueGp: 40 });
+  assert.deepEqual(magicFigures("Base Cost 300 sp. Apparent Value 40 gp."), { apparentValueGp: 40 });
+  assert.deepEqual(magicFigures("Base Cost: 90gp. Apparent Value as the thing imitated."), { baseCostGp: 90 });
+});
+
+t("the first label wins over a later one", () => {
+  assert.deepEqual(magicFigures("Base Cost 100gp: first. Base Cost 900gp: a variant. Apparent Value 5gp. Apparent Value 7gp."), { baseCostGp: 100, apparentValueGp: 5 });
+});
+
+t("the labels are told with the whitespace extraction welds away", () => {
+  assert.deepEqual(magicFigures("BaseCost 70gp: x. ApparentValue 3gp."), { baseCostGp: 70, apparentValueGp: 3 });
+});
+
 console.log(`\n${n} tests passed`);

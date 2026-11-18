@@ -996,3 +996,13 @@ declarations that carry a book's print facts without one are listed here:
   topic's work, before it lands.
 - **`compile-cookbook.mjs`'s `entry.book === "bta"` cell gap** is a per-book
   figure; it moves to a field on the book's typography.
+
+## The Tome's magic items (after the compile half)
+
+- Seeded rows: the pilot name pass, then `census-rows seed --verdict` for the pilot
+  and each batch, with `census-rows check` clean and `verify-cookbook` run on its
+  pages.
+- The Tome as a Judge's book (`judge: true`), the `ref` link from table rows to
+  entries, and the walk of the import on `main`.
+- A magic item's rarity waits on the markets ruling; the cursed mark and the card
+  link wait on their designs.

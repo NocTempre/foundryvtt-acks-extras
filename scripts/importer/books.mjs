@@ -35,6 +35,10 @@
  * `seriesOrder` orders books whose years tie: the later number is the later
  * printing. Only the AX series carries it, as its own number, so a year tie
  * between two books that do not both carry one stays unordered.
+ *
+ * `supersedes` lists the books whose printing of an item this one's replaces,
+ * where the year and the series cannot order the pair: `laterBook` answers the
+ * book that names the other, whichever way round it is asked.
  */
 
 /**
@@ -87,6 +91,7 @@ export const REGISTRY = {
     pages: 346,
     titleRe: /Treasure Tome/i,
     printedOffset: 2,
+    supersedes: ["jj"],
   },
   // ACKS I adventures (AX line). Metadata titles are EMPTY in these printings,
   // so the fingerprint gates on page count alone; titleRe stays for printings
@@ -356,7 +361,7 @@ export const shelfBooksToOpen = (staged, observes, isOpen) =>
 /**
  * The later of two books by the year their printings carry (`published`), or
  * null when either book has none. A tie in year is broken by `seriesOrder`
- * where both books carry one, and is otherwise null. Declaration order never
+ * where both books carry one, then by `supersedes`, and is otherwise null. Declaration order never
  * breaks a tie, so a caller that needs an answer refuses or falls back on a
  * rule of its own.
  * See docs/importer/DECISIONS.md, "Same-year adventures are ordered by their place in the series (K9)".
@@ -368,8 +373,12 @@ export function laterBook(a, b) {
   if (ya !== yb) return ya > yb ? a : b;
   const oa = REGISTRY[a]?.seriesOrder;
   const ob = REGISTRY[b]?.seriesOrder;
-  if (!Number.isInteger(oa) || !Number.isInteger(ob) || oa === ob) return null;
-  return oa > ob ? a : b;
+  if (Number.isInteger(oa) && Number.isInteger(ob) && oa !== ob) return oa > ob ? a : b;
+  // A pair the year and the series leave tied: the book that supersedes the other.
+  const aOver = !!REGISTRY[a]?.supersedes?.includes(b);
+  const bOver = !!REGISTRY[b]?.supersedes?.includes(a);
+  if (aOver !== bOver) return aOver ? a : b;
+  return null;
 }
 
 /**

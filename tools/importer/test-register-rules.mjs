@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
   scenePartProblems, siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -277,5 +277,32 @@ flags("parts beside two scenes of the place's own", scenePartProblems(rowsOf(
   mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.fort2Map", { place: "ax1.fort" }), mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }))), /2 scenes without one/);
 flags("two parts with one number", scenePartProblems(rowsOf(
   mapRow("ax1.fortMap", { place: "ax1.fort" }), mapRow("ax1.fortMap1", { place: "ax1.fort", part: 1 }), mapRow("ax1.fortMap2", { place: "ax1.fort", part: 1 }))), /share part 1/);
+
+/* --- a magic item's row: a common name or "Item <n>", never a figure --- */
+
+const CATS = ["potions", "rings", "misc"];
+const item = (n, extra = {}) => ({ id: `zz.item${n}`, book: "zz", kind: "kind.magicItem", name: `Item ${n}`, anchor: { hash: "abc" }, pages: [60], meta: { category: "rings" }, ...extra });
+const cleared = (n, name, extra = {}) => item(n, { name, anchor: { display: name }, named: "2026-11-17", ...extra });
+none("a flagged row", magicItemProblems(item(5), "zz", CATS));
+none("a cleared row anchored by display", magicItemProblems(cleared(6, "Brenmoth Flask"), "zz", CATS));
+none("a cleared row on the hash fallback", magicItemProblems(cleared(6, "Brenmoth Flask", { anchor: { hash: "abc" } }), "zz", CATS));
+none("a variant-led row with no values", magicItemProblems(item(7, { values: [] }), "zz", CATS));
+none("a row spanning two pages", magicItemProblems(item(8, { pages: [60, 61] }), "zz", CATS));
+flags("an id that is not an ordinal", magicItemProblems(item(5, { id: "zz.lantern" }), "zz", CATS), /id is "zz\.item<n>"/);
+flags("an Item n that differs from the id's", magicItemProblems(item(5, { name: "Item 6" }), "zz", CATS), /has the id "zz\.item6"/);
+flags("an Item n with no hash", magicItemProblems(item(5, { anchor: { display: "x" } }), "zz", CATS), /anchors by hash/);
+flags("a name with a digit that is not Item n", magicItemProblems(cleared(6, "Ring of 3 Zantiks"), "zz", CATS), /digit/);
+flags("a cleared row with no named", magicItemProblems(cleared(6, "Brenmoth Flask", { named: undefined }), "zz", CATS), /carries "named"/);
+flags("a cleared row with neither anchor", magicItemProblems(cleared(6, "Brenmoth Flask", { anchor: {} }), "zz", CATS), /anchors by display, or by hash/);
+flags("a display anchor that is not the name", magicItemProblems(cleared(6, "Brenmoth Flask", { anchor: { display: "Other" } }), "zz", CATS), /display anchor is its name/);
+flags("a category outside the vocabulary", magicItemProblems(item(5, { meta: { category: "gems" } }), "zz", CATS), /not a magic-item category/);
+flags("a gap in pages", magicItemProblems(item(5, { pages: [60, 62] }), "zz", CATS), /ascending and contiguous/);
+flags("pages out of order", magicItemProblems(item(5, { pages: [61, 60] }), "zz", CATS), /ascending and contiguous/);
+flags("no pages", magicItemProblems(item(5, { pages: [] }), "zz", CATS), /ascending and contiguous/);
+flags("an alsoKey listed twice", magicItemProblems(item(5, { alsoKeys: ["k1", "k1"] }), "zz", CATS), /twice/);
+none("alsoKeys distinct across rows", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["k1"] }), item(6, { anchor: { hash: "h6" }, alsoKeys: ["k2"] }))));
+flags("an alsoKey shared by two rows", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["k1"] }), item(6, { anchor: { hash: "h6" }, alsoKeys: ["k1"] }))), /key k1 also names zz\.item5/);
+flags("an alsoKey that is another row's hash", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["h6"] }), item(6, { anchor: { hash: "h6" } }))), /key h6 also names/);
+none("one key in two books", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["k1"] }), { ...item(6), id: "yy.item6", book: "yy", alsoKeys: ["k1"] })));
 
 console.log(`test-register-rules: all ${pass} checks passed`);

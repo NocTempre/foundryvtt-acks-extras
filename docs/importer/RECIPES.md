@@ -332,3 +332,7 @@ Two rules, both gated by `lint-register`:
 
 What a gate cannot check, and a reviewer must: that the alias is a form the
 book actually prints, and not a convenience spelling invented here.
+
+## A book's page bands
+
+A book's AX page-band row is its own file, `scripts/importer/books/<id>/page-bands.mjs`, exported as `axBands` and read by the compiler through the manifest (`bandsOf`); `AX_BOOK_BANDS` holds only rows that landed before a book had a folder. A row may select `stopFace: "anchor"` where a book sets other type at its headings' size (DECISIONS 2026-11-17, "A magic item is `kind.magicItem`").

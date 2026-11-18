@@ -26,9 +26,10 @@ import { openBook, pageItems as extractPageItems, listHeadings, detectColumns, c
 import { runsIn, joinRuns, attackModel } from "../../scripts/importer/executor.mjs";
 import { rowsByY, slugLabel } from "../../scripts/importer/table-extract.mjs";
 import { REGISTRY, citeFor, fingerprintWarning } from "../../scripts/importer/books.mjs";
+import { BOOK_CODE } from "../../scripts/importer/books/index.mjs";
 import { SCENE_LINK_KIND, SCENE_ZONE_KIND, ZONE_FIGURES, placementHolding, recipeContext, recipeProblems, zoneProblems } from "../../scripts/importer/scene-binding.mjs";
 import { wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
-import { caseCarriesNothing, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
+import { caseCarriesNothing, itemKey, opensWithNumber, printKey } from "../../scripts/importer/printed-name.mjs";
 import { LABELLED_FIELDS, citeLabel } from "../../scripts/importer/condition-labels.mjs";
 import { FILES, COMMUNITY_FILES, referenceComplete } from "./reference-lib.mjs";
 import { STAMP_PATH, currentDigests, writeStamp } from "./cookbook-stamp.mjs";
@@ -1792,7 +1793,7 @@ async function compileMonsterTemplate(doc, entry, kindRow, bookCtx) {
 /* -------------------------------------------- */
 
 // AX books print 10pt body (RR/JJ are 9), 12pt entry keys, 14pt section heads.
-const AX_BODY_MAX_H = 10.6;
+export const AX_BODY_MAX_H = 10.6;
 const AX_HEAD_MIN_H = 11.5;
 const AX_TOP_BAND = 60; // running heads sit at ~y40
 // Folios print at ~y757 on a 792pt page — 35pt up, above extract.mjs's 32pt
@@ -1806,8 +1807,14 @@ const AX_FOOT_Y = 750;
  * set into the prose, which no room's prose reads), `rightEdge` (the last
  * column's right margin from the page's edge), `columns` (the column starts
  * of the book's even and odd pages, where detection misreads a page a map is
- * set into) and `paraGap` (the line gap, in points, that opens a paragraph
- * or ends a stat block).
+ * set into), `paraGap` (the line gap, in points, that opens a paragraph
+ * or ends a stat block) and `stopFace` (`"anchor"`: a line no larger than
+ * body type ends a flow only in its entry's own heading face, see
+ * `axStopLine`).
+ *
+ * This table holds the rows that landed before a book had a folder. A book's
+ * own row is `axBands` in its `scripts/importer/books/<id>/` contribution,
+ * read through the manifest by `bandsOf`; a book has one home for its row.
  *
  * AX1 sets 10pt prose from y43 to y756 under a running head at y25, in two
  * columns mirrored across the spread, out to 22pt from the edge, on a 12pt
@@ -1857,9 +1864,30 @@ const axBody = (pd, it) => {
   return !aside || it.h < aside[0] || it.h > aside[1];
 };
 
-/** Mark an opened book with its AX page bands, where `AX_BOOK_BANDS` lists it. */
+/** The values `stopFace` takes. */
+const AX_STOP_FACES = new Set(["anchor"]);
+
+/**
+ * A book's AX page bands: its row in `AX_BOOK_BANDS`, else the `axBands` its
+ * folder contributes through the manifest (`books`, default `BOOK_CODE`), else
+ * undefined. A book with both throws, since a row has one owner, and so does a
+ * row naming a `stopFace` no flow knows.
+ */
+export function bandsOf(bookId, books = BOOK_CODE) {
+  const landed = AX_BOOK_BANDS[bookId];
+  const declared = books?.[bookId]?.axBands;
+  if (landed && declared) throw new Error(`book ${bookId}: page bands are declared in AX_BOOK_BANDS and in the book's folder`);
+  const bands = landed ?? declared;
+  if (bands?.stopFace != null && !AX_STOP_FACES.has(bands.stopFace)) {
+    throw new Error(`book ${bookId}: unknown stopFace ${JSON.stringify(bands.stopFace)}`);
+  }
+  return bands;
+}
+
+/** Mark an opened book with its AX page bands, where `bandsOf` finds a row. */
 export function useAxBands(doc, bookId) {
-  if (AX_BOOK_BANDS[bookId]) doc.axBands = AX_BOOK_BANDS[bookId];
+  const bands = bandsOf(bookId);
+  if (bands) doc.axBands = bands;
   return doc;
 }
 
@@ -2060,12 +2088,40 @@ function axAnchorFrom(pd, cols, line, lines = axHeadingLines(pd), wrapGap) {
   return { line, col, endY, x0, x1 };
 }
 
+/** The font aliases an anchor line's runs are set in: the face `axStopLine` compares by. */
+const axFaceOf = (line) => new Set((line?.items ?? []).map((it) => it.alias).filter(Boolean));
+
+/**
+ * The heading line that ends a flow in column `col` below `fromY`: the first
+ * `axHeadingLines` line there, or, where `stopFace` is selected (the page's
+ * band row, or the row's `assists.headingLines.stopFace`), the first one that
+ * is larger than body type or shares a font alias with `face`, the aliases of
+ * the entry's own anchor line. A book that sets other type at its headings'
+ * size (lore, quotations, tables) stops a flow only at a line in the
+ * headings' own face; larger type stops it in any face. An alias is the name
+ * one document's font resource has in one read, so it is compared and never
+ * declared. A selected option with no face throws, and so does an unknown
+ * value, rather than fall back to the size stop.
+ */
+export function axStopLine(pd, { cols, col, fromY, geom = {}, face } = {}) {
+  const mode = geom?.stopFace ?? pd.axBands?.stopFace;
+  if (mode != null && !AX_STOP_FACES.has(mode)) throw new Error(`unknown stopFace ${JSON.stringify(mode)}`);
+  const below = axHeadingLines(pd, geom)
+    .filter((l) => axColOf(l.x0, cols) === col && l.y > fromY + 2)
+    .sort((a, b) => a.y - b.y);
+  if (mode == null) return below[0];
+  const own = new Set(face ?? []);
+  if (!own.size) throw new Error("stopFace is selected and the flow was handed no anchor face");
+  return below.find((l) => Math.max(...l.items.map((it) => it.h)) > AX_BODY_MAX_H || l.items.some((it) => own.has(it.alias)));
+}
+
 /**
  * Collect an entry's body as reading-order segments: down the anchor column,
  * across remaining columns, over the page onto the next — until a heading line
  * stops it. Pages are re-examined independently (AX2 mixes full-width and
  * columnar layouts page by page). `exclude` drops items (an NPC's statline
- * cluster, claimed by its own instruction).
+ * cluster, claimed by its own instruction). `start.face` is the anchor line's
+ * font aliases (`axFaceOf`), which a flow under `stopFace` compares by.
  */
 async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}) {
   const maxPage = Math.max(...entry.pages);
@@ -2116,9 +2172,7 @@ async function axFlow(doc, entry, assists, start, exclude = new Set(), opts = {}
     // On a book's fixed grid a column reaches to where the next one starts, so
     // a line's last run set past the measure belongs to the line it ends.
     const x1 = cols[col + 1] ? cols[col + 1] - AX_HANG - (pd.axBands?.columns ? 2.01 : 3) : axRight(pd);
-    const stopHead = axHeadingLines(pd, assists.headingLines)
-      .filter((l) => axColOf(l.x0, cols) === col && l.y > fromY + 2)
-      .sort((a, b) => a.y - b.y)[0];
+    const stopHead = axStopLine(pd, { cols, col, fromY, geom: assists.headingLines, face: start.face });
     const sibY = siblingStop(x0, x1, fromY + 2);
     const foot = axFoot(pd);
     const stopY = Math.min(
@@ -4104,8 +4158,48 @@ async function compileProse(doc, entry, kindRow, bookCtx) {
   };
 }
 
+/**
+ * kind.magicItem — one entry of a book's magic-item chapter: a heading, then
+ * the prose under it to the next entry's heading, which is a sibling stop.
+ * The kind row's `values` locators (or the row's own, where `values` is given;
+ * an empty list ships none) read the header line's figures at import, so the
+ * row ships where they are and never what they are. The flow is handed its
+ * anchor's face, so a book that selects `stopFace` ends an entry only at type
+ * set in the heading's own face. `key` is `itemKey` of the heading as read,
+ * the key a subtable row finds this entry by, and `alsoKeys` the keys of the
+ * spellings a subtable row uses instead; both are hashes. The residue triage
+ * and the row's recorded skips are the other AX compilers'.
+ */
+async function compileMagicItem(doc, entry, kindRow, bookCtx) {
+  const { assists, page, pd, cols, a, name } = await axOpen(doc, entry);
+  const stops = (bookCtx?.itemStops ?? []).filter((s) => s.id !== entry.id);
+  const segs = await axFlow(
+    doc, entry, assists,
+    { page, pd, cols, col: a.col, endY: a.endY, face: axFaceOf(a.line) },
+    new Set(),
+    { stopKeys: assists.stopKeys ?? [], stops },
+  );
+  const { paras } = axParas(segs, page, a.head ? { dropRuns: a.head } : {});
+  if (!paras.length) throw new Error(`no body paragraphs under "${entry.name}" p.${page}`);
+  const fields = { name, description: { op: "text", page, paras } };
+  const values = entry.values ?? kindRow.values;
+  if (values?.length) fields.values = { op: "effects", specs: values };
+  const key = itemKey(joinRuns(runsIn(pd, name), name.fixes));
+  if (!key) throw new Error(`the heading of "${entry.name}" on p.${page} holds no letters to key by`);
+  const out = {
+    kind: entry.kind, name: entry.name, cite: citeFor(entry.book, page), pages: entry.pages,
+    key, ...(entry.alsoKeys?.length ? { alsoKeys: entry.alsoKeys } : {}),
+    ...(entry.meta ? { meta: entry.meta } : {}), fields,
+  };
+  const skips = await axResidueAll(doc, entry.id, fields, { [page]: pd });
+  axAssistSkips(skips, assists, page);
+  if (Object.keys(skips).length) out._skips = skips;
+  return out;
+}
+
 const AX_COMPILERS = {
   "kind.adventureItem": compileAdventureItem,
+  "kind.magicItem": compileMagicItem,
   "kind.prose": compileProse,
   "kind.location": compileLocation,
   "kind.marketGrid": (doc, entry, kindRow) => compileVehicleTable(doc, entry, kindRow),
@@ -6706,7 +6800,7 @@ async function main() {
     // compileAdventureItem).
     const itemStops = [];
     for (const e of list) {
-      if (e.kind !== "kind.adventureItem" || (e.status && e.status !== "active")) continue;
+      if ((e.kind !== "kind.adventureItem" && e.kind !== "kind.magicItem") || (e.status && e.status !== "active")) continue;
       const opened = await axOpen(doc, e).catch(() => null);
       if (opened) itemStops.push({ id: e.id, page: opened.page, y: opened.a.line.y, x0: opened.a.line.x0 });
     }

@@ -2439,3 +2439,76 @@ rarity lists are the Journal's until their subtables are read. A key two ids sha
 (a caption either book prints twice) makes every row naming it null, so the list
 waits; the gate fails on one on the author's copy. `ref` and the S6 entries are not
 part of this entry.
+
+## 2026-11-17 — A magic item is `kind.magicItem`; a flow stops only at its anchor's face where a book sets other type at its headings' size
+
+The Treasure Tome's entries compile as a new composite kind, built under owner
+rulings made earlier the same day. C, "The Tome's": when both books print an
+item, the library keeps the Tome's entry, so an item the Journal also prints is
+the Tome's whichever book is opened first. E, "Only flagged ones": only an entry
+whose heading holds a figure or a proper name ships a neutral label and a heading
+hash, so a heading made of common words ships those words and a heading holding a
+digit ships as `Item <n>`. And "They should be building separate importer files
+per book": the Tome's print facts live under `scripts/importer/books/tt/` and the
+engine names no book. No slice writes `flags["acks-extras"].magicItem`.
+
+- **The kind.** `register/_kinds/magicItem.json` carries two default locators for
+  the header line's two figures. `compileMagicItem` is `compileAdventureItem` plus
+  an `effects` field of `values` (the row's own `values`, else the kind's; an
+  empty list ships none), a `key` (`itemKey` of the heading as read: `printKey`
+  after a bracketed marker of one to three letters is dropped, so a table row and
+  a heading agree) and `alsoKeys`, the residue triage and the row's recorded
+  skips. Ids are always `<book>.item<n>`.
+- **Where a heading's own size is not enough.** A book that sets lore,
+  quotations and tables at its headings' size in other faces made every such line
+  a stop, because one size threshold served both anchoring and stopping and no
+  assist removes a stop. `stopFace: "anchor"` (a band row's option, or one row's
+  `assists.headingLines.stopFace`) makes a line no larger than body type end a
+  flow only where it shares a font alias with the entry's own anchor line; larger
+  type stops it in any face. The face is taken from the anchor line at compile
+  time and handed to `axFlow` as `start.face`; no alias is declared anywhere,
+  because an alias is the name one document's font resource has in one read. A
+  selected option with no face throws, and so does an unknown value, so a later
+  Tome kind compiled through another AX compiler stops until it passes a face.
+  The choice moved out of `axFlow` into the exported pure `axStopLine`. Off, the
+  flow is as before: a whole compile left every committed cookbook unchanged.
+- **The band row's home.** `books/tt/page-bands.mjs` exports `axBands`, which the
+  Tome's `index.mjs` re-exports; the compiler reads it through the manifest with
+  `bandsOf(bookId, books)`, which throws where a book has a row in `AX_BOOK_BANDS`
+  and in its folder (one owner) and for an unknown `stopFace`. `AX_BOOK_BANDS`
+  keeps only the rows that landed before a book had a folder. This applies the
+  books-layout entry (2026-11-17) to page bands and supersedes nothing. The
+  cookbook stamp's input digest follows every module the compiler reaches, so a
+  commit that edits a Tome file the compiler reaches pays one full drift recompile.
+- **Variants.** The first figure where the entry's first header label is its own;
+  `values: []` where the first paragraph opens with a variant name, so the markets
+  flag holds `magic: true` and no figure. Never all of them: the flag holds one
+  basis, and the first for all would write a variant's figure as the family's.
+- **Amounts.** Digits, optional thousands commas, optional decimal part, between
+  the label words and the unit. The executor and markets already take a fraction.
+- **Pages.** `pages` spans the entry: every PDF page from the heading's through
+  the last holding its text, contiguous. `census-rows seed` computes it from the
+  PDF and the lint (`magicItemProblems`) requires it, because `axFlow` reads no
+  page past the row's last.
+- **The whitelist.** `magicItemData` reads the name, the description and the two
+  located figures by field name and nothing else: `effects`, `defenses`, `rolls`,
+  `effectsFrom` and derive keys, which the executor's scans add to every described
+  entry, are never read. The markets flag holds `magic: true` and only located
+  figures, which are stamped in `read.markets`, so a Judge's edit is held on a
+  repair (`REPAIR.magicItem`).
+- **Supersedes.** `tt` carries `supersedes: ["jj"]` and `laterBook` reads it after
+  the year and `seriesOrder`, answering the book that names the other either way
+  round, so `keptBook` and the `meta.revisedBy` lint answer the Tome. The RR and
+  the MM against the Tome still tie. `judge: true` for the Tome is not set here.
+- **The name pass.** The census (local-only) is the sidecar. A reviewer's verdict
+  of ordinals precedes the seed, and `census-rows seed --verdict` applies it: a
+  cleared row anchors by display, or by hash where its folded name prefixes
+  another heading's on its page, and keeps its name either way.
+
+*Rejected:* per-row stop assists (a mechanism defect repaired entry by entry); a
+declared alias in the band row; separate anchor and stop sizes with sibling stops
+alone (an unrowed heading would merge silently into the entry above, and residue
+would stop seeing it); hash anchors `as: "runin"` (unmeasured on 1,220 rows, with
+the same silent merge); `books.mjs` `typography` (its presence runs `fuseRuns` at
+runtime and can move the landed table recipes); the first figure for every
+variant-led entry. *Cost:* a Tome file the compiler reaches moves the stamp.

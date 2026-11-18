@@ -182,6 +182,16 @@ export const REPAIR = Object.freeze({
   // An item a book introduces: the place it is worn and its magic mark are
   // the binder's flags, its cost is the page's; how many a Judge holds is play's.
   adventureItem: { keep: ["quantity"], prose: ["description"], flags: ["gear", "markets"] },
+  // A magic item a book prints: its description and the two located figures of
+  // the markets flag are the build's, and a figure a Judge changed since the
+  // import is held (`read.markets`). How many a Judge holds and whether it is
+  // worn are play's.
+  magicItem: {
+    keep: ["quantity", "equipped"],
+    prose: ["description"],
+    flags: ["markets"],
+    readStamped: [{ path: "markets", stamp: "read.markets" }],
+  },
   monster: {
     retract: REFILL_STAT_PATHS,
     proseFlags: MONSTER_PROSE,
