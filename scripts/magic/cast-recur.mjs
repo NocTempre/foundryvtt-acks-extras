@@ -523,8 +523,9 @@ async function pressed(message, rowKey) {
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   const lookups = await worldLookups();
-  const keyed = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks).find((k) => k.key === rowKey) : null;
-  return { card, spell, caster, keyed, lookups };
+  const kept = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks) : [];
+  const keyed = kept.find((k) => k.key === rowKey) ?? null;
+  return { card, spell, caster, keyed, kept, lookups };
 }
 
 /** Send a press to the GM's client and tell the seat if it came back refused. */
@@ -542,7 +543,7 @@ async function send(handler, payload) {
  * applied (`magicCastSave`).
  */
 export async function pressRecurSave(message, { target, row }) {
-  const { card, spell, caster, keyed, lookups } = await pressed(message, row);
+  const { card, spell, caster, keyed, kept, lookups } = await pressed(message, row);
   const doc = card?.targets?.[target] ? await fromUuid(card.targets[target].uuid) : null;
   // A prompt's bearers are the actors holding the records, so the target is an actor as often as it is a token.
   const actor = doc?.documentName === "Actor" ? doc : (doc?.actor ?? null);
@@ -550,6 +551,7 @@ export async function pressRecurSave(message, { target, row }) {
   const { rollResist, rollRow, castGateExtrasOf } = await import("./cast-spell.mjs");
   const { castAbilitiesOf, castSaveParts } = await import("./cast-ability-use.mjs");
   const { targetGate } = await import("./cast-gates.mjs");
+  const { ownSaveRows } = await import("./cast-mods.mjs");
   const { actorToken } = await import("../lib/patches/attack-throw.mjs");
   const level = card.casterLevel?.value ?? null;
   const gate = targetGate({ actor, extras: castGateExtrasOf(spell, lookups), row: keyed.row, level });
@@ -564,6 +566,8 @@ export async function pressRecurSave(message, { target, row }) {
         damage: resistedDamage([keyed]),
         // The caster's abilities join this save as they joined the cast's own.
         parts: castSaveParts(castAbilitiesOf(caster, spell, lookups)),
+        // The spell's own save rows join this throw as they joined the cast's, for this bearer.
+        ownRows: ownSaveRows(kept, { level, label: card.spellName, cite: card.cite }),
         gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups), level }),
       });
   if (!made.resist && saveGoverns(keyed.row, card.save)) return void notify("warn", "noTargets");

@@ -7,7 +7,9 @@
  * `save.exemptBelowHd` is the Hit Dice
  * below which a target makes no save and takes the effect as on a failed save;
  * and a row's `exemptSizeFrom` exempts a target at or above that size from that
- * row alone. Both thresholds are LevelValues read at the caster level, and a
+ * row alone, its `exemptSizeOver` one strictly above it. A target whose own
+ * records grant it immunity (`recordImmunity`) to the spell, or to every condition
+ * a row writes, is exempt too. Both thresholds are LevelValues read at the caster level, and a
  * threshold the import left blank, or one that scales with a level none
  * resolved, gates nothing: a level is never defaulted. A target's Hit Dice are
  * `hitDiceOrLevel` (a monster's bonus to its Hit Dice is not counted), and a
@@ -20,11 +22,12 @@
  */
 import { hitDiceOrLevel, sizeKeyOf, rankOfSize, creatureKinds } from "../lib/actor-read.mjs";
 import { vocabLabel } from "../lib/magic-vocab.mjs";
+import { recordImmunity } from "../lib/roll-mods.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
 import { scaled } from "./cast-instances.mjs";
 
 /** The keys of the gate's parts, named in the card's tooltips. */
-export const GATE_KEYS = Object.freeze({ hd: "hd", size: "size", kind: "kind", noSave: "noSave" });
+export const GATE_KEYS = Object.freeze({ hd: "hd", size: "size", kind: "kind", noSave: "noSave", immune: "immune" });
 
 /**
  * The target filters a creature's kinds (`creatureKinds`) can decide, each as the
@@ -80,6 +83,20 @@ function hdOf(actor) {
 }
 
 /**
+ * What a target's records say of immunity to this spell or this row: null where
+ * none applies, else the part naming the record. The spell's own immunity
+ * exempts every row; a row is exempt by condition only where the record covers
+ * every condition the row writes (a row covered in part still writes the rest).
+ */
+function immuneGate(actor, spell, row) {
+  const conditions = Array.from(row?.conditions ?? []).map(String);
+  const found = recordImmunity(actor, { spell, conditions });
+  if (spell && found.spell) return { key: GATE_KEYS.immune, parts: [{ key: "by", value: found.spell.label }] };
+  if (conditions.length && conditions.every((c) => found.conditions[c])) return { key: GATE_KEYS.immune, parts: [{ key: "by", value: [...new Set(conditions.map((c) => found.conditions[c].label))].join(", ") }] };
+  return null;
+}
+
+/**
  * What the spell's gates say of one target for one row.
  *
  * `affected` is false where the target is over the cap, at or above the strict bound,
@@ -89,12 +106,12 @@ function hdOf(actor) {
  * with the world's own numbers: `hd` (the target's Hit Dice, the cap or the `bound`,
  * the caster level where it scales), `kind` (the filters and the target's kinds), `size` (the target's size key and the row's), or
  * `noSave` (the target's Hit Dice, the threshold, the level). A target no gate
- * touches answers `why.key` "". The cap and the bound are checked before the kinds, and the kinds before the size.
+ * touches answers `why.key` "". The cap and the bound are checked before the kinds, and the kinds before immunity and the size.
  *
  * @param {object} from
  * @param {object} from.actor  the target's actor
- * @param {{target?: {hdCap?: object, hdBelow?: object, filters?: Iterable<string>}, save?: {exemptBelowHd?: object}}|null} [from.extras]  the spell's figures
- * @param {{exemptSizeFrom?: string}|null} [from.row]  the spell's own row; absent, the spell-wide gates only
+ * @param {{target?: {hdCap?: object, hdBelow?: object, filters?: Iterable<string>}, save?: {exemptBelowHd?: object}, spell?: {id?: string, provides?: string[]}}|null} [from.extras]  the spell's figures, and the spell as a record's immunity names it
+ * @param {{exemptSizeFrom?: string, exemptSizeOver?: string, conditions?: string[]}|null} [from.row]  the spell's own row; absent, the spell-wide gates only
  * @param {number|null} [from.level]  the resolved caster level
  * @returns {{affected: boolean, noSave: boolean, why: {key: string, parts: Array<{key: string, value: number|string}>}}}
  */
@@ -112,12 +129,19 @@ export function targetGate({ actor, extras = null, row = null, level = null } = 
   }
   const kind = kindGate(actor, extras?.target?.filters);
   if (kind) return { affected: false, noSave: false, why: { key: GATE_KEYS.kind, parts: kind } };
+  const immune = immuneGate(actor, extras?.spell ?? null, row);
+  if (immune) return { affected: false, noSave: false, why: immune };
   const from = String(row?.exemptSizeFrom ?? "").trim();
+  const over = String(row?.exemptSizeOver ?? "").trim();
   const key = sizeKeyOf(actor);
   const at = rankOfSize(key);
   const floor = from ? rankOfSize(from) : null;
+  const above = over ? rankOfSize(over) : null;
   if (at !== null && floor !== null && at >= floor) {
     return { affected: false, noSave: false, why: { key: GATE_KEYS.size, parts: [{ key: "size", value: key }, { key: "from", value: from }] } };
+  }
+  if (at !== null && above !== null && at > above) {
+    return { affected: false, noSave: false, why: { key: GATE_KEYS.size, parts: [{ key: "size", value: key }, { key: "over", value: over }] } };
   }
   const below = hd === null ? null : figureAt(extras?.save?.exemptBelowHd, level);
   if (below && hd < below.value) {
@@ -161,7 +185,7 @@ function kindLabel(token) {
 
 /** A gate part's value as the tooltip words it: sizes, filters and kinds by their labels. */
 function partValue(part) {
-  if (part.key === "size" || part.key === "from") return sizeLabel(part.value);
+  if (part.key === "size" || part.key === "from" || part.key === "over") return sizeLabel(part.value);
   if (part.key === "filter") return String(part.value).split(",").map((w) => vocabLabel("targetFilter", w)).join(", ");
   if (part.key === "kinds") return String(part.value).split(",").map(kindLabel).join(", ");
   return part.value;
@@ -178,7 +202,7 @@ function partValue(part) {
  * @returns {string} empty where no gate decided
  */
 export function gateTip(why, loc, { name = "", cite = "" } = {}) {
-  const lead = { [GATE_KEYS.hd]: "tip.gateHd", [GATE_KEYS.size]: "tip.gateSize", [GATE_KEYS.kind]: "tip.gateKind", [GATE_KEYS.noSave]: "tip.noSave" }[why?.key];
+  const lead = { [GATE_KEYS.hd]: "tip.gateHd", [GATE_KEYS.size]: "tip.gateSize", [GATE_KEYS.kind]: "tip.gateKind", [GATE_KEYS.noSave]: "tip.noSave", [GATE_KEYS.immune]: "tip.gateImmune" }[why?.key];
   if (!lead) return "";
   const parts = (why.parts ?? []).map((p) => loc(`tip.gatePart.${p.key}`, { value: partValue(p) })).join(" · ");
   return loc(lead, { name, parts, cite });

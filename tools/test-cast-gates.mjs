@@ -299,6 +299,24 @@ await ta("the cast reads the spell's own figures: a thrown row is thrown at the 
   assert.deepEqual(r.calls.applied.map(([, key]) => key), [second, third], "nothing is applied for the exempt target");
 });
 
+await ta("a cast with a pickKind row stores the kind it narrowed to on the card and says so in a line: the answer's, else the first authored", async () => {
+  const row = { key: "keen", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: flat(2), vsKinds: ["undead", "beast"], pickKind: true, lasts: "duration" };
+  const ally = tokenOf(creature("2", "man", "Ally"), 1);
+  const asked = runDeps([ally], { mode: "normal", picks: {}, pickKind: "beast" });
+  await castSpellRun(spell([row]), () => {}, asked.deps);
+  const named = asked.calls.posts[0];
+  assert.deepEqual(named.pickKind, { key: "beast", defaulted: false });
+  assert.deepEqual(named.lines, ["ACKS-MAGIC.cast.line.pickKind|{\"kind\":\"beast\"}"]);
+  const left = runDeps([ally]);
+  await castSpellRun(spell([row]), () => {}, left.deps);
+  const first = left.calls.posts[0];
+  assert.deepEqual(first.pickKind, { key: "undead", defaulted: true });
+  assert.deepEqual(first.lines, ["ACKS-MAGIC.cast.line.pickKindDefault|{\"kind\":\"undead\"}"]);
+  const plain = runDeps([ally]);
+  await castSpellRun(spell([{ ...row, pickKind: false }]), () => {}, plain.deps);
+  assert.equal(plain.calls.posts[0].pickKind, undefined, "a row that picks no kind leaves none on the card");
+});
+
 await ta("a typed split that names an exempt target spends that share, and a cap that scales is read at the cast's own level", async () => {
   const brute = tokenOf(creature("7"), 1);
   const mouse = tokenOf(creature("2"), 2);
@@ -315,8 +333,96 @@ t("the spell's figures are the copy's own target figures, else its twin's, with 
   const twin = { flags: { "acks-extras": { spell: { target: { model: "creature", hdCap: flat(4) } } } } };
   const bare = { flags: { "acks-extras": { cookbook: { id: "def.spell.testGate" }, spell: { effects: [], save: { exemptBelowHd: flat(2) } } } } };
   const lookups = { byCookbookId: (type, id) => (id === "def.spell.testGate" ? twin : null), fromUuidSync: () => null };
-  assert.deepEqual(castGateExtrasOf(bare, lookups), { target: { model: "creature", hdCap: flat(4) }, save: { exemptBelowHd: flat(2) } });
-  assert.deepEqual(castGateExtrasOf(bare, NO_TWIN), { target: null, save: { exemptBelowHd: flat(2) } });
+  assert.deepEqual(castGateExtrasOf(bare, lookups), { target: { model: "creature", hdCap: flat(4) }, save: { exemptBelowHd: flat(2) }, spell: { id: "def.spell.testGate", provides: [] } });
+  assert.deepEqual(castGateExtrasOf(bare, NO_TWIN), { target: null, save: { exemptBelowHd: flat(2) }, spell: { id: "def.spell.testGate", provides: [] } });
+});
+
+
+/* ------------------------------------------------------------------ */
+/*  S5b: immunity a record grants, a size strictly over, own-save rows  */
+/* ------------------------------------------------------------------ */
+
+/** A creature carrying a record's immune part, as lib's reader finds it on its effects. */
+const immuneCreature = (parts, base = creature("2")) => {
+  const effect = { id: "fxi", disabled: false, flags: { "acks-extras": { rollMods: { id: "def.spell.testWard", label: "Testward", cite: "T 3", sourceAlignment: null, parts } } } };
+  return Object.assign(base, { effects: [effect], appliedEffects: [effect] });
+};
+const SPELLED = { spell: { id: "def.spell.testSlick", provides: [] } };
+
+t("a record's immunity to the spell exempts every row, named by the record, and the spell-wide gate carries it", () => {
+  const actor = immuneCreature([{ key: "w", on: "immune", spells: ["def.spell.testSlick"], provides: ["kw:spellrecord"] }]);
+  const row = targetGate({ actor, extras: SPELLED, row: { type: "conditionGrant", conditions: ["prone"] } });
+  assert.equal(row.affected, false);
+  assert.deepEqual(row.why, { key: "immune", parts: [{ key: "by", value: "Testward (T 3)" }] });
+  assert.equal(targetGate({ actor, extras: SPELLED }).affected, false, "the spell's gates alone");
+  assert.equal(targetGate({ actor, extras: { spell: { id: "def.spell.testOther", provides: [] } } }).affected, true, "another spell");
+  assert.equal(targetGate({ actor, extras: null }).affected, true, "no spell named, nothing to be immune to");
+  assert.equal(gateTip(row.why, (k, d) => `${k}|${JSON.stringify(d)}`, { name: "Thing", cite: "T 9" }), 'tip.gateImmune|{"name":"Thing","parts":"tip.gatePart.by|{\\"value\\":\\"Testward (T 3)\\"}","cite":"T 9"}');
+});
+
+t("a record's immunity to conditions exempts a row only where it covers every condition the row writes", () => {
+  const actor = immuneCreature([{ key: "w", on: "immune", conditions: ["prone", "paralysis"], provides: ["kw:spellrecord"] }]);
+  const gate = (conditions) => targetGate({ actor, extras: SPELLED, row: { type: "conditionGrant", conditions } });
+  assert.equal(gate(["prone"]).affected, false);
+  assert.equal(gate(["prone", "paralysis"]).affected, false);
+  assert.equal(gate(["prone", "sleep"]).affected, true, "a row covered in part still writes the rest");
+  assert.equal(gate([]).affected, true, "a row with no condition is not covered by a condition's immunity");
+  assert.equal(targetGate({ actor, extras: SPELLED }).affected, true, "the spell-wide gate is not exempt by condition");
+  const gated = immuneCreature([{ key: "w", on: "immune", conditions: ["prone"], gate: { kind: "status", status: "weakened" }, provides: ["kw:spellrecord"] }]);
+  assert.equal(targetGate({ actor: gated, extras: SPELLED, row: { type: "conditionGrant", conditions: ["prone"] } }).affected, true, "an immune part whose gate cannot be told is not applied");
+});
+
+t("exemptSizeOver exempts a target strictly above the size, never at it, and exemptSizeFrom still exempts at it", () => {
+  const over = (size) => targetGate({ actor: creature("2", size), row: { exemptSizeOver: "man" } });
+  assert.equal(over("man").affected, true, "the equal size is not exempt");
+  assert.equal(over("sml").affected, true);
+  assert.equal(over("big").affected, false);
+  assert.deepEqual(over("vast").why, { key: "size", parts: [{ key: "size", value: "vast" }, { key: "over", value: "man" }] });
+  assert.equal(targetGate({ actor: creature("2", "man"), row: { exemptSizeFrom: "man" } }).affected, false);
+  assert.equal(targetGate({ actor: creature("2", "unlisted"), row: { exemptSizeOver: "man" } }).affected, true, "a size that cannot be read gates nothing");
+  assert.equal(targetGate({ actor: creature("2", "big"), row: { exemptSizeOver: "nowhere" } }).affected, true, "a bound that is no size gates nothing");
+  assert.equal(gateTip(over("big").why, (k, d) => `${k}|${JSON.stringify(d)}`, { name: "T" }).includes("tip.gatePart.over|{\"value\":\"Big\"}") || gateTip(over("big").why, (k, d) => `${k}|${JSON.stringify(d)}`, { name: "T" }).includes("over"), true);
+});
+
+await ta("rollResist carries the spell's own save rows: a row that holds lowers the target and is among the parts, one that cannot be told is kept as pendingParts", async () => {
+  const own = [
+    { key: "free", label: "Testspell", cite: "T 4", value: 3, saves: [] },
+    { key: "wait", label: "Testspell", cite: "T 4", value: 2, gate: { kind: "status", status: "weakened", occasion: true }, saves: [] },
+    { key: "elsewhere", label: "Testspell", cite: "T 4", value: 9, saves: ["death"] },
+  ];
+  const plain = await rollResist(creature("3"), save, null, {});
+  const made = await rollResist(creature("3"), save, null, { ownRows: own });
+  assert.equal(plain.resist.target, 14);
+  assert.equal(made.resist.target, 11, "only the open row, and not the death-only row, lowers a spell save");
+  assert.deepEqual(made.resist.parts.map((p) => p.key), ["free"]);
+  assert.deepEqual(made.resist.pendingParts, [{ label: "Testspell (T 4)", value: 2, when: "gate" }], "a creature whose statuses cannot be read leaves the gated row undecided");
+  const off = creature("3");
+  off.statuses = new Set();
+  assert.equal((await rollResist(off, save, null, { ownRows: own })).resist.pendingParts, undefined, "a gate that is off adds nothing and is not pending");
+  const weak = creature("3");
+  weak.statuses = new Set(["weakened"]);
+  const held = await rollResist(weak, save, null, { ownRows: own });
+  assert.deepEqual(held.resist.pendingParts, [{ label: "Testspell (T 4)", value: 2, when: "gate" }]);
+  assert.equal(held.resist.target, 11);
+});
+
+await ta("buildTargets passes the kept rows' own-save figures at the card's caster level, and an exempt row of an immune target opens no entry", async () => {
+  const ownRow = { key: "slowed", type: "modifier", target: "save", ownSave: true, value: { kind: "perLevel", base: 1, per: 1 }, appliesTo: "recipient" };
+  const rows = [SCORCH, ownRow];
+  const card = { rows: cardRows, casterLevel: { value: 3 }, spellName: "Testspell", cite: "T 5" };
+  const built = await buildTargets({ tokens: [tokenOf(creature("3"))], card, rows: keyedOf(rows), save, situational: null, caster, randomID: () => `y${++ids}`, extras: null });
+  const [target] = Object.values(built.targets);
+  assert.equal(target.resist.target, 14 - 3, "a per-level figure at the card's level 3");
+  const immune = immuneCreature([{ key: "w", on: "immune", spells: ["def.spell.testSlick"], provides: ["kw:spellrecord"] }], creature("3"));
+  const none = await buildTargets({ tokens: [tokenOf(immune)], card, rows: keyedOf(rows), save, situational: null, caster, randomID: () => `z${++ids}`, extras: SPELLED });
+  assert.deepEqual(Object.values(none.entries).map((e) => [e.state, e.gate?.key]), [["exempt", "immune"]]);
+  assert.equal(Object.values(none.targets)[0].resist, null, "no save is rolled for a creature the spell does not reach");
+});
+
+t("the cast's gate figures name the spell as a record's immunity does", () => {
+  const withId = { flags: { "acks-extras": { cookbook: { id: "def.spell.testSlick" }, spell: { effects: [] } } } };
+  assert.deepEqual(castGateExtrasOf(withId, NO_TWIN).spell, { id: "def.spell.testSlick", provides: [] });
+  assert.equal(castGateExtrasOf({ flags: { "acks-extras": { spell: { effects: [] } } } }, NO_TWIN).spell, null, "a spell with no definition id");
 });
 
 /* ------------------------------------------------------------------ */

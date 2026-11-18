@@ -403,7 +403,7 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
   const level = Number(card.casterLevel?.value);
   const made = modParts(
     group.map((g) => g.keyed),
-    { level: Number.isFinite(level) ? level : null, actorType: found.actor.type, itemId: named?.id ?? null, save: card.save ?? null },
+    { level: Number.isFinite(level) ? level : null, actorType: found.actor.type, itemId: named?.id ?? null, save: card.save ?? null, kind: card.pickKind?.key ?? null },
   );
   const data = deps.spell
     ? modRecordData(card, made.parts, {
@@ -797,6 +797,7 @@ export async function worldFor(req, message, { card: given = null, source = null
   const targetActor = actorOfTarget(targetDoc);
   if (targetActor && card?.save?.category) {
     const { saveSpec } = await import("../lib/saves.mjs");
+    const { ownSaveRows } = await import("./cast-mods.mjs");
     const { castAbilitiesOf, castSaveParts } = await import("./cast-ability-use.mjs");
     const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : null;
     const against = caster ? { actor: caster, token: tokenOfCaster(casterToken, caster) ? casterToken : null } : null;
@@ -808,6 +809,8 @@ export async function worldFor(req, message, { card: given = null, source = null
       damage: resistedDamage(rows),
       // The caster's abilities, read live as the casting client read them, so the throw's bounds are the same.
       parts: castSaveParts(castAbilitiesOf(caster, spell)),
+      // The spell's own save rows, read for this saver as the casting seat read them.
+      ownRows: ownSaveRows(rows, { level: card.casterLevel?.value ?? null, label: card.spellName, cite: card.cite }),
     });
     const bounds = foundryBounds(spec.formula);
     resist = { target: spec.target, min: bounds.min, max: bounds.max, auto: Boolean(spec.auto) };

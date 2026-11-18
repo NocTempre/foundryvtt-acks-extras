@@ -1,12 +1,16 @@
 /**
- * A cast's modifier and ward rows as one buff: the parts lib reads at the roll
- * (`lib/roll-mods.mjs`, the flag `flags["acks-extras"].rollMods`), built once per
- * recipient from the spell's own rows. A row becomes a part only where the
- * answer to `modifierDisposition(row, {bearer: true})` is that it waits for a
- * roll (a scope to settle against the other party, an item gate, a roll gate)
- * and its target is a roll a part can sit on. Any other row stays a line on the
- * card until standing spell modifiers are built, and a row whose figure the
- * import left blank writes no part.
+ * A cast's modifier, ward, modifies, grants and immunity rows as one buff: the
+ * parts lib reads at the roll (`lib/roll-mods.mjs`, the flag
+ * `flags["acks-extras"].rollMods`), built once per recipient from the spell's own
+ * rows. A modifier row becomes a part only where the answer to
+ * `modifierDisposition(row, {bearer: true})` is that it waits for a roll (a
+ * scope to settle against the other party, an item or status gate, a narrowing
+ * by attack kind, a set armour class) or is the throw or reaction another
+ * feature reads, and its target is a roll a part can sit on. The other kinds are
+ * parts by their type. Any other row stays a line on the card until standing
+ * spell modifiers are built, and a row whose figure the import left blank writes
+ * no part. A modifier on the spell's own save (`ownSave`) is no part: it is read
+ * at that throw (`ownSaveRows`).
  *
  * Every part provides `SPELL_RECORD_CAP`, so two spell records never add; a
  * printed clause that two spells do add, or that a spell does not stack with a
@@ -17,18 +21,37 @@
 import { SPELL_RECORD_CAP } from "./constants.mjs";
 import { spellEffectData } from "./spell-effect.mjs";
 import { saveGoverns, spellSaves } from "./cast-rows.mjs";
-import { modifierDisposition, DISPOSITION, isItemGate, gateVerdict } from "../lib/typed-modifiers.mjs";
-import { resolveLevelValue, SCOPE_BRANCH_FIELDS } from "../lib/vocab.mjs";
+import { modifierDisposition, DISPOSITION, isItemGate, gateVerdict, saveKeyOf } from "../lib/typed-modifiers.mjs";
+import { resolveLevelValue, levelFactor, SCOPE_BRANCH_FIELDS } from "../lib/vocab.mjs";
 import { rollModsOf, spellStackingPart, resolveItemParts, itemBonusParts } from "../lib/roll-mods.mjs";
 
-/** The roll a modifier row's target sits on, as lib's part names it; a target not listed here is no part. */
-export const ROW_ON = Object.freeze({ attackThrow: "attack", damage: "damage", ac: "ac", save: "save" });
+/**
+ * The roll a modifier row's target sits on, as lib's part names it; a target not
+ * listed here is no part. A `grants` row is a `grant` part and an `immunity` row
+ * an `immune` part by their type (`ROW_TYPE_ON`), whatever their target.
+ */
+export const ROW_ON = Object.freeze({ attackThrow: "attack", damage: "damage", ac: "ac", save: "save", proficiencyThrow: "throw", reaction: "reaction", grant: "grant" });
+
+/** The part a row of these types is, whatever its target. */
+const ROW_TYPE_ON = Object.freeze({ grants: "grant", immunity: "immune" });
+
+/** The `on` values whose parts another feature reads: a proficiency's throw and a reaction, which `modifierDisposition` answers `consumed`. */
+const READ_ELSEWHERE = Object.freeze({ abilities: "throw", influence: "reaction" });
+
+/** The row types that become parts of a buff. */
+const MOD_TYPES = Object.freeze(["modifier", "ward", "modifies", "grants", "immunity"]);
 
 /** The subjects a ward row may carry for whoever the record is on. */
 const WARD_SUBJECTS = Object.freeze(["", "self", "target", "recipient", "area"]);
 
 /** Is this row one that becomes part of a buff? */
-export const isModRow = (row) => row?.type === "modifier" || row?.type === "ward";
+export const isModRow = (row) => MOD_TYPES.includes(row?.type);
+
+/** The part a modifier-family row is (`on`), or "" where it is none. */
+const onOf = (row) => ROW_TYPE_ON[row.type] ?? ROW_ON[row.target] ?? "";
+
+/** Is this a modifier on the saving throw made against the spell itself (`ownSave`)? Its figure is read at that throw, never carried by a record. */
+export const isOwnSaveRow = (row) => row?.type === "modifier" && row.target === "save" && row.ownSave === true;
 
 /** A plain copy of a value Foundry's data models hand out, safe to write into a flag. */
 const plain = (value) => (value === undefined ? undefined : JSON.parse(JSON.stringify(value)));
@@ -87,6 +110,76 @@ function branchOf(branch) {
 const refsOf = (list) => plain(Array.from(list ?? []));
 
 /**
+ * Does the row wait for a roll a part can sit on? A `modifier` row is asked of
+ * `modifierDisposition` (read on the bearer): at the roll, whatever the reason
+ * (a scope, an item or status gate, a narrowing by attack kind, a set armour
+ * class), or consumed by the abilities or influence feature where the part is
+ * the throw or the reaction they read. Every other kind of the family is a part
+ * by its type.
+ */
+function admitted(row, on, actorType) {
+  if (row.type !== "modifier") return true;
+  const disposition = modifierDisposition(row, { actorType, bearer: true });
+  if (disposition?.kind === DISPOSITION.AT_ROLL) return true;
+  return disposition?.kind === DISPOSITION.CONSUMED && READ_ELSEWHERE[disposition.consumer] === on;
+}
+
+/**
+ * One row as the part lib reads, or null where it is a card line (a throw or a
+ * grant naming nothing, an immunity naming no spell or condition, a save
+ * narrowed to a word that is no saving throw). `blank` is true where the row's
+ * figure was left unread; a grant, an immunity and a throw of mode `auto` carry
+ * none by nature. The row's own fields ride on the part: `mode`,
+ * `attackKinds`, `saves` (from `forWhat`, `saveKeyOf`), `ref`/`refs`, `rollKey`
+ * (from `appliesToRoll`), `ifHas`, the gate with its occasion, and a grant's
+ * `atLevel`. A `pickKind` row is narrowed to the one kind chosen at the cast.
+ */
+function partOf(row, on, { key, provides, level, kind }) {
+  const refs = refsOf(row.refs);
+  const ref = String(row.ref ?? "").trim();
+  const named = ref ? [ref, ...refs] : refs;
+  const conditions = Array.from(row.conditions ?? []).map(String);
+  if ((on === "throw" || on === "grant") && !named.length) return null;
+  if (on === "immune" && !named.length && !conditions.length) return null;
+  const mode = row.mode ? String(row.mode) : "";
+  const bare = on === "grant" || on === "immune" || (on === "throw" && mode === "auto");
+  const value = on === "immune" || (on === "throw" && mode === "auto") ? null : modifierFigure(row, level);
+  if (value === null && !bare) return { blank: true };
+  const part = { key, on, ...(on === "immune" ? {} : { value }), provides, stacksWith: refsOf(row.stacksWith), notStacksWith: refsOf(row.notStacksWith), ...scopeOf(row) };
+  if (mode) part.mode = mode;
+  if (row.attackKinds?.length) part.attackKinds = plain(Array.from(row.attackKinds));
+  if (on === "save") {
+    const word = String(row.forWhat ?? "").trim();
+    if (word) {
+      const saveKey = saveKeyOf(word);
+      if (!saveKey) return null;
+      part.saves = [saveKey];
+    }
+  }
+  if (ref) part.ref = ref;
+  if (refs.length) part.refs = refs;
+  if (row.appliesToRoll) part.rollKey = String(row.appliesToRoll);
+  if (row.ifHas?.length) part.ifHas = refsOf(row.ifHas);
+  if (row.gate?.kind) part.gate = plain(row.gate);
+  if (on === "immune") {
+    if (refs.length) part.spells = refs;
+    if (conditions.length) part.conditions = conditions;
+  }
+  if (on === "grant" && Number(row.atLevelNum) > 0 && Number(row.atLevelDen) > 0 && Number.isFinite(Number(level)) && Number(level) >= 1) {
+    const factor = levelFactor(row);
+    part.atLevel = { value: Number(level) * factor, parts: [{ key: "level", value: Number(level) }, { key: "fraction", value: factor }] };
+  }
+  let picked = null;
+  if (row.pickKind === true && row.vsKinds?.length) {
+    const authored = Array.from(row.vsKinds).map(String);
+    const chosen = authored.includes(kind) ? kind : authored[0];
+    part.vsKinds = [chosen];
+    picked = { key: chosen, authored, defaulted: chosen !== kind };
+  }
+  return { part, picked };
+}
+
+/**
  * The parts a set of keyed rows write on one recipient.
  *
  * `parts` are lib's roll-mod parts, in the rows' order; `lines` are the keyed
@@ -107,10 +200,12 @@ const refsOf = (list) => plain(Array.from(list ?? []));
  * @param {string} [o.actorType]  the bearer's actor type
  * @param {string|null} [o.itemId]  the weapon named for this bearer
  * @param {{category?: string, effect?: string}|null} [o.save]  the spell's `save`
- * @returns {{parts: object[], lines: Array<{row: object, key: string}>, blank: string[], lasting: boolean, endsOn: string[]}}
+ * @param {string|null} [o.kind]  the creature kind a `pickKind` row is narrowed to; absent or not one of the row's authored kinds, the row's first
+ * @returns {{parts: object[], lines: Array<{row: object, key: string}>, blank: string[], lasting: boolean, endsOn: string[], kind: {key: string, authored: string[], defaulted: boolean}|null}}
+ *   `kind` is the pick the `pickKind` rows were narrowed to, with the union of their authored kinds and whether it was defaulted
  */
-export function modParts(rows, { level = null, actorType = "character", itemId = null, save = null } = {}) {
-  const out = { parts: [], lines: [], blank: [], lasting: false, endsOn: [] };
+export function modParts(rows, { level = null, actorType = "character", itemId = null, save = null, kind = null } = {}) {
+  const out = { parts: [], lines: [], blank: [], lasting: false, endsOn: [], kind: null };
   const ends = (row) => {
     for (const cause of Array.from(row.endsOn ?? [])) if (!out.endsOn.includes(cause)) out.endsOn.push(cause);
   };
@@ -130,9 +225,13 @@ export function modParts(rows, { level = null, actorType = "character", itemId =
       if (row.lasts === "duration") out.lasting = true;
       continue;
     }
-    const on = ROW_ON[row.target];
-    const disposition = modifierDisposition(row, { actorType, bearer: true });
-    if (!on || row.appliesTo === "opponent" || disposition?.kind !== DISPOSITION.AT_ROLL) {
+    if (isOwnSaveRow(row)) {
+      out.lines.push(keyed);
+      continue;
+    }
+    const on = onOf(row);
+    const spoken = row.type === "modifier" ? row.appliesTo !== "opponent" : WARD_SUBJECTS.includes(row.appliesTo ?? "");
+    if (!on || !spoken || !admitted(row, on, actorType)) {
       out.lines.push(keyed);
       continue;
     }
@@ -141,17 +240,52 @@ export function modParts(rows, { level = null, actorType = "character", itemId =
       out.lines.push(keyed);
       continue;
     }
-    const value = modifierFigure(row, level);
-    if (value === null) {
+    const made = partOf(row, on, { key, provides, level, kind });
+    if (!made) {
+      out.lines.push(keyed);
+      continue;
+    }
+    if (made.blank) {
       out.blank.push(key);
       continue;
     }
-    const part = { key, on, value, provides, stacksWith: refsOf(row.stacksWith), notStacksWith: refsOf(row.notStacksWith), ...scopeOf(row) };
-    if (itemGated) part.itemId = String(itemId);
-    if (row.gate?.kind) part.gate = plain(row.gate);
-    out.parts.push(part);
+    if (itemGated) made.part.itemId = String(itemId);
+    if (made.picked) {
+      out.kind = out.kind ? { ...out.kind, authored: [...new Set([...out.kind.authored, ...made.picked.authored])] } : made.picked;
+    }
+    out.parts.push(made.part);
     ends(row);
     if (row.lasts === "duration") out.lasting = true;
+  }
+  return out;
+}
+
+/**
+ * The rows of the spell's own saving throw (modifiers marked `ownSave`) as lib's
+ * `saveSpec` takes them in `ownRows`: each saver is tested against them at the
+ * throw (`ownSaveParts`), so a figure that holds lowers that saver's target and
+ * one that cannot be told is listed. A row with no figure, or a `forWhat` that
+ * names no saving throw, is left out. The casting seat, the card's presses and
+ * the relay all call this over the same rows at the same level, so the target
+ * the relay recomputes is the one that was rolled.
+ *
+ * @param {Array<{row: object, key: string}>} rows  the cast's kept rows
+ * @param {object} o
+ * @param {number|null} [o.level]  the caster level, null when unknown
+ * @param {string} [o.label]  the spell's name, which labels each part
+ * @param {string} [o.cite]  the spell's page reference
+ * @returns {Array<{key: string, label: string, cite: string, value: number, gate?: object, ifHas: string[], saves: string[]}>}
+ */
+export function ownSaveRows(rows, { level = null, label = "", cite = "" } = {}) {
+  const out = [];
+  for (const { row, key } of rows ?? []) {
+    if (!isOwnSaveRow(row)) continue;
+    const value = modifierFigure(row, level);
+    if (value === null) continue;
+    const word = String(row.forWhat ?? "").trim();
+    const saveKey = word ? saveKeyOf(word) : null;
+    if (word && !saveKey) continue;
+    out.push({ key, label, cite, value, ...(row.gate?.kind ? { gate: plain(row.gate) } : {}), ifHas: refsOf(row.ifHas), saves: saveKey ? [saveKey] : [] });
   }
   return out;
 }

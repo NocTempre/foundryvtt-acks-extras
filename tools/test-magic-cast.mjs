@@ -522,6 +522,30 @@ await ta("a group of three modifier entries writes one record, every entry names
   assert.deepEqual(Object.keys(log.entries).sort(), ["t1_ac", "t1_save", "t1_ward"]);
 });
 
+await ta("the relay narrows a pickKind row to the card's kind, the row's first where the card names none or one the row does not list, and writes a set part as a set", async () => {
+  const kinds = ["undead", "beast", "fey"];
+  const pickRows = [
+    { type: "modifier", key: "hit", target: "attackThrow", appliesTo: "recipient", value: 2, vsKinds: kinds, pickKind: true, lasts: "duration" },
+    { type: "modifier", key: "worn", target: "ac", appliesTo: "recipient", mode: "set", value: 7, attackKinds: ["melee"], lasts: "duration" },
+  ].map((row) => ({ row, key: row.key }));
+  const pickCard = (pickKind) =>
+    modCard({
+      rows: { hit: { type: "modifier", key: "hit", total: 2, blank: false, conditions: [] }, worn: { type: "modifier", key: "worn", total: 7, blank: false, conditions: [] } },
+      order: ["hit", "worn"],
+      entries: { t1_hit: { state: "pending" }, t1_worn: { state: "pending" } },
+      ...(pickKind ? { pickKind } : {}),
+    });
+  const written = async (pickKind) => {
+    const { deps, log } = fakeDeps({ rows: pickRows });
+    await applyOnTarget(pickCard(pickKind), "t1", [{ rowKey: "hit" }, { rowKey: "worn" }], deps);
+    return log.made[0].flags["acks-extras"].rollMods.parts;
+  };
+  const chosen = await written({ key: "beast", defaulted: false });
+  assert.deepEqual(chosen.map((p) => [p.key, p.vsKinds ?? null, p.mode ?? null, p.attackKinds ?? null]), [["hit", ["beast"], null, null], ["worn", null, "set", ["melee"]]]);
+  assert.deepEqual((await written(null))[0].vsKinds, ["undead"], "no kind on the card");
+  assert.deepEqual((await written({ key: "dragon", defaulted: false }))[0].vsKinds, ["undead"], "a kind the rows do not list is never taken from the card");
+});
+
 await ta("a group's figures come from the spell, so a card that forges its rows changes nothing; a spell with no such row writes none", async () => {
   const forged = modCard({ rows: { ac: { type: "modifier", key: "ac", total: 99 }, save: { type: "modifier", key: "save", total: 99 }, ward: { type: "ward", key: "ward", total: null } } });
   const { deps, log } = fakeDeps({ rows: modSpellRows() });

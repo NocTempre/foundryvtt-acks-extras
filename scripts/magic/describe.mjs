@@ -55,6 +55,7 @@ function castParts(e) {
   if (e.endsOn?.length) out.push(`ends on: ${list(e.endsOn)}`);
   if (e.untimed?.length) out.push(`no clock: ${[...e.untimed].map((c) => label(V.CONDITION_KEYS, c)).join(", ")}`);
   if (e.exemptSizeFrom) out.push(`exempt from size: ${label(globalThis.acksExtras?.monsters?.config?.SIZES, e.exemptSizeFrom)}`);
+  if (e.exemptSizeOver) out.push(`exempt above size: ${label(globalThis.acksExtras?.monsters?.config?.SIZES, e.exemptSizeOver)}`);
   return out;
 }
 
@@ -102,9 +103,10 @@ function readEffect(e, { nameOf } = {}) {
     case "modifier": {
       // A flat number reads signed; a per-level phrase reads as written.
       const amount = n === "" ? "" : Number.isFinite(Number(n)) ? signed(Number(n)) : n;
+      const extra = [e.forWhat, e.mode === "set" ? "set" : "", e.attackKinds?.length ? list(e.attackKinds) : "", e.ownSave ? "on the spell's own save" : "", e.pickKind ? "kind picked at the cast" : ""];
       return {
         kind,
-        text: `${subject(e)}${label(V.MODIFIER_TARGETS, e.target) || e.target || ""} ${amount}${qualifier(e, [e.forWhat])}`.trim(),
+        text: `${subject(e)}${label(V.MODIFIER_TARGETS, e.target) || e.target || ""} ${amount}${qualifier(e, extra)}`.trim(),
       };
     }
     case "damage":

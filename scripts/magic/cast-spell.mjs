@@ -33,7 +33,7 @@ import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
 import { cardOf, postCastCard, updateEntry, addTargets, newTargetKey, registerCastCardHooks, CARD_ACTIONS, canPressCard } from "./cast-card.mjs";
-import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ROW_ON } from "./cast-mods.mjs";
+import { isModRow, modParts, needsBearer, dryYields, modifierFigure, ownSaveRows, ROW_ON } from "./cast-mods.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
@@ -139,10 +139,12 @@ export function castFiguresOf(spell, lookups) {
  * target figures (the copy's own, else its twin's, as `castFiguresOf` reads
  * them) and the Hit Dice below which no save is made from the copy's own save.
  * The cast, the card's presses and the relay's GM client all read them here, so
- * a gate is the same on each.
+ * a gate is the same on each. `spell` is the spell as a record's immunity names
+ * it (`{id}`, the definition id the record stacks as), null for a spell with none.
  */
 export function castGateExtrasOf(spell, lookups) {
-  return { target: castFiguresOf(spell, lookups).target, save: flagOf(spell).save ?? null };
+  const id = cookbookId(spell) || null;
+  return { target: castFiguresOf(spell, lookups).target, save: flagOf(spell).save ?? null, spell: id ? { id, provides: [] } : null };
 }
 
 /**
@@ -240,15 +242,20 @@ export async function rollRow(caster, spell, card, keyed) {
  *
  * `parts` are the caster's abilities' parts on the throw (`castSaveParts`): the
  * relay and every press that rolls a cast's save pass the same ones.
+ *
+ * `ownRows` are the spell's own save rows (`ownSaveRows`): each is tested for this
+ * saver by lib, a row that holds is a part of the throw, and one that cannot be
+ * told yet is kept on the resist as `pendingParts`, never added to the number.
  */
-export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null, gate = null, parts = [] } = {}) {
+export async function rollResist(actor, save, situational, { against = null, bearerToken = null, damage = null, gate = null, parts = [], ownRows = [] } = {}) {
   if (gate?.affected === false) return { resist: null, roll: null };
   if (gate?.noSave === true) return { resist: noSaveResist(save, gate.why), roll: null };
-  const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage, parts });
+  const made = await saveThrow(actor, save.category, { situational, against, bearerToken, damage, parts, ownRows });
   const auto = made.auto ?? null;
   if (!auto && (made.target == null || made.total == null)) return { resist: null, roll: null };
   const { roll, ...kept } = made;
   const pending = (kept.pending ?? []).filter((p) => p.when === "defense").map(({ label, why }) => ({ label, ...(why ? { why } : {}) }));
+  const undecided = (kept.pending ?? []).filter((p) => p.label && p.when !== "defense").map(({ label, value, when }) => ({ label, value, when }));
   const resist = {
     kind: "save",
     category: save.category,
@@ -260,6 +267,7 @@ export async function rollResist(actor, save, situational, { against = null, bea
     ...(auto ? { auto: { label: auto.label, source: auto.source, types: [...auto.types], cite: defenseCite() } } : {}),
     parts: kept.parts.map(({ key, label, value }) => ({ key, label, value })),
     ...(pending.length ? { defensePending: pending } : {}),
+    ...(undecided.length ? { pendingParts: undecided } : {}),
   };
   return { resist, roll };
 }
@@ -325,7 +333,7 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
     const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
     const resisting = saves && open.some(({ row, key }) => !isModRow(row) && rowResisted(row, token.actor) && !aimedAtSelf(row) && !rowNeedsThrow(row) && saveGoverns(row, save) && gates[key].affected);
     const made = resisting
-      ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, gate: targetGate({ actor: token.actor, extras, level }) })
+      ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, ownRows: ownSaveRows(rows, { level, label: card.spellName, cite: card.cite }), gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
     if (made.roll) rolls.push(made.roll);
     await add(newTargetKey(randomID), { ...targetOf(token), resist: made.resist }, (row) => !aimedAtSelf(row), gates, token.actor);
@@ -394,6 +402,7 @@ const modCardRow = (keyed, part) => ({
   healKind: "",
   blank: !part,
   weapon: Boolean(part?.itemId),
+  ...(part?.mode === "set" ? { mode: "set" } : {}),
 });
 
 /** The weapons an actor carries, as the dialog lists them: each marked where it is magic. */
@@ -543,7 +552,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The weapon the seat named, kept only where exactly one token is targeted and the weapon is one of its own.
   const picked = bearerToken && answer.item ? bearerToken.actor?.items?.get?.(answer.item) : null;
   const weapon = picked?.type === "weapon" ? picked : null;
-  const made = modParts(kept, { level: level.value, itemId: weapon?.id ?? null, save: card.save });
+  const made = modParts(kept, { level: level.value, itemId: weapon?.id ?? null, save: card.save, kind: answer.pickKind ?? null });
+  // The creature kind a `pickKind` row was narrowed to is stored on the card, which the relay reads: until the dialog offers the pick, the first authored kind stands and the card says so.
+  if (made.kind) card.pickKind = { key: made.kind.key, defaulted: made.kind.defaulted };
   const rolls = [];
   for (const keyed of kept) {
     const { row } = keyed;
@@ -580,6 +591,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       card.order.push(keyed.key);
     } else card.lines.push(describeSpellEffect(keyed.row).text);
   }
+  if (card.pickKind) card.lines.push(loc(card.pickKind.defaulted ? "line.pickKindDefault" : "line.pickKind", { kind: card.pickKind.key }));
 
   const built = await buildTargets({ tokens: world.tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: world.casterToken ?? null, extras: castGateExtrasOf(spell, deps.lookups), saveParts: castSaveParts(abilities) });
   rolls.push(...built.rolls);

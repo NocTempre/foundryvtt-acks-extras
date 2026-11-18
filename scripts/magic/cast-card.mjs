@@ -68,7 +68,8 @@ function saveTip(resist, loc, named) {
   const parts = (resist.parts ?? []).map((p) => `${p.key === "defense" ? defenseWord({ label: p.label }, named) : p.label} ${Number(p.value) > 0 ? "+" : ""}${p.value}`);
   const tip = loc("tip.save", { target: resist.target, base: resist.baseTarget ?? "—", formula: resist.formula, parts: parts.join(" · ") || "—" });
   const unpriced = (resist.defensePending ?? []).map((p) => loc("tip.savePending", { defense: defenseWord({ label: p.label }, named), cite }));
-  return [tip, ...unpriced].join(" ");
+  const undecided = (resist.pendingParts ?? []).map((p) => loc("tip.savePartPending", { label: p.label, value: `${Number(p.value) > 0 ? "+" : ""}${p.value}` }));
+  return [tip, ...unpriced, ...undecided].join(" ");
 }
 
 /**
@@ -272,7 +273,7 @@ export function castCardView(card, seat, loc) {
             name: target.name,
             total: done && row.total != null ? row.total : "—",
             tooltipText: exempt || partTip(row, card, targetKey, loc),
-            detail: yields ? loc("detail.yields", { name: yields }) : "",
+            detail: yields ? loc("detail.yields", { name: yields }) : row.mode === "set" ? loc("detail.setFigure") : "",
             ...outcomeOf(entry, loc),
             actions: entryActions(entry, { targetKey, rowKey }, seat, loc, { group: true, name: target.name }),
           }
