@@ -1,4 +1,4 @@
-# lib API (apiVersion 60)
+# lib API (apiVersion 61)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 60,
+  apiVersion: 61,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1234,6 +1234,49 @@ They go through the same narrowing, `hasCapability` skip, `partHolds` and stacki
 A part with no figure (a grant) keeps the first of its group, so with the recorded
 entries first a recorded grant stands and an available one of the same ref is
 told as yielding to it; figured parts stack by size as they always did.
+
+## `bucket` — the inventory bucket (apiVersion 61)
+
+The ruling is DECISIONS, "The inventory bucket is lib's, and states no rule"; the model is MODEL, "The inventory bucket".
+
+```
+acksExtras.lib.bucket = {
+  // model (bucket.mjs, Foundry-free)
+  makeEntry(parts), powerEntry({key, name, amount, balance, value, fit}),
+  entryFromDrop(data, resolve, {policy, present}) → {entry} | {refused: "noDrop"|"gone"|"duplicate"|"kind", name?},
+  entriesFromAnswer(list, resolve, {policy}) → {entries, gone},  answerOf(entries) → [{uuid, qty, fit}],
+  withQty, withValue, withFit, nextFit, preselectFit(entry, fit),
+  totalOf(entries) → {gp, blank},  coverage(entries, due) → {total, blank, due, short, status},
+  acceptVerdict(policy, entry, doc),  settlementPlan(entries, outcome, settle, {used}) → [{uuid, kind, qty, action}],
+  bucketView(policy, entries, {key, loc, legend, icon, picked, rows, locked, dropText, emptyText}),
+  ENTRY_KIND, OUTCOME, SETTLE, COVERAGE, BUCKET_ACTIONS, BUCKET_LANG_PREFIX, TEMPLATE,
+  // valuation (bucket-value.mjs): every figure is an argument
+  itemValue({cost, count, cite}), partValue({cost, count, effects, cite}),
+  creatureValue(actor, {items, isComponent, costOf, countOf, xpOf, multiplier, bars, cite}),
+  characterValue(level, {award, multiplier, cite}), fallbackBar(actor, bars), blankValue(cite),
+  // writes (bucket-apply.mjs, Foundry)
+  applySettlement(plan, resolve) → {spent, marked, gone, handed, failed},
+}
+```
+
+An **entry** is `{uuid, kind: item|actor|token|power, name, img, qty, cap, value: {gp, each?, source, cite, basis?}, fit, reason?, effects?}`.
+`gp` is null where nothing was read. A row with a `reason` is listed and dimmed and
+adds nothing to a total or a settlement. A **policy** is the owning window's:
+`{accepts: {kinds, reason?}, value?, fit: {options: [{key, label, tone?, names?}], fallback?}, due: {gp, cite?}|null, parts: [{label, gp?}], settle, verdicts, pick?: "one"}`.
+`verdicts` are findings for the owner's plan; lib assigns no severity.
+
+`settle` maps an outcome (`success`, `failure`, `botch`) to an action for every kind or
+to `{item, actor, token, power}`; an action is `consume`, `keep`, `destroy` or `mark`, and a
+row or outcome it does not name is kept. `settlementPlan` turns `consume` or `destroy` of
+an actor or token into `mark`. `applySettlement` writes the plan: an item through
+`divideStack` and a delete, a creature marked with core's dead status. It returns a
+power row and an item `mark` in `handed` for their owners.
+
+`creatureValue`'s `multiplier` is three-valued: absent means the reading has none, `null`
+means it applies and was not imported (blank figure), a number is applied.
+A window draws `bucketView`'s result with the `TEMPLATE` partial and binds `loc` as
+`makeLoc(BUCKET_LANG_PREFIX)`; it wires `BUCKET_ACTIONS` (`bucketRemove`, `bucketFit`, `bucketPick`)
+and the `data-bucket-drop` zone itself.
 
 ## Turn hooks and a record's turn life (apiVersion 54)
 

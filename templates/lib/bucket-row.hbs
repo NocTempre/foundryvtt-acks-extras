@@ -1,0 +1,46 @@
+{{!-- One row of an inventory bucket (scripts/lib/bucket.mjs `bucketView`): the
+    document's own picture, its name and a caption, a fit chip, X. A `pick`
+    row is a radio instead of a fit chip, tagged Used when picked; an `off`
+    row dims its picture, name and caption and its controls, and its reason
+    stays at full strength. The row names its own actions (`removeAction`,
+    `fitAction`, `pickAction`), so a list that is not a bucket can draw the same
+    row with its own (the cast dialog's targets hand `untarget`); `chips` are
+    extra labelled tags `{text, tip, tone}`. A target's weapon pills and
+    split fields are not part of this partial. --}}
+{{#*inline "acksExtrasBucketRowBody"}}
+  <span class="acks-extras-bucket__art acks-extras-bucket__dim">
+    {{#if glyph}}<i class="fa-solid {{glyph}}" inert></i>{{else}}<img src="{{img}}" alt="" inert>{{/if}}
+  </span>
+  <span class="acks-extras-bucket__text">
+    <span class="acks-extras-bucket__name acks-extras-bucket__dim">{{name}}{{#if qtyText}} <span class="acks-nums"{{#if qtyTip}} data-tooltip-text="{{qtyTip}}"{{/if}}>{{qtyText}}</span>{{/if}}</span>
+    <span class="acks-extras-bucket__line acks-extras-bucket__dim">
+      {{#if showValue}}{{valueLabel}} <span class="acks-extras-bucket__figure acks-nums{{#if valueBlank}} is-blank{{/if}}"{{#if valueTip}} data-tooltip-text="{{valueTip}}"{{/if}}>{{valueText}}</span>
+      {{else}}<span class="acks-nums"{{#if captionTip}} data-tooltip-text="{{captionTip}}"{{/if}}>{{caption}}</span>{{#if diamonds.length}} <span class="acks-extras-bucket__diamonds" aria-hidden="true">{{#each diamonds}}{{#if this}}&#9670;{{else}}&#9671;{{/if}}{{/each}}</span>{{/if}}{{/if}}
+    </span>
+    {{#if reason}}<span class="acks-extras-bucket__reason">{{reason}}</span>{{/if}}
+  </span>
+{{/inline}}
+<li class="acks-extras-bucket__row{{#if off}} is-off{{/if}}{{#if picked}} is-used{{/if}}" data-uuid="{{uuid}}" data-kind="{{kind}}">
+  {{#if pick}}
+  <label class="acks-extras-bucket__main acks-extras-bucket__choose">
+    <input type="radio" class="acks-extras-bucket__radio" name="{{radioName}}" value="{{uuid}}" data-action="{{pickAction}}" data-uuid="{{uuid}}"{{#if picked}} checked{{/if}}{{#if disabled}} disabled{{/if}}>
+    {{> acksExtrasBucketRowBody}}
+  </label>
+  {{#if picked}}<span class="acks-extras-bucket__tag is-ok">{{usedLabel}}</span>{{/if}}
+  {{else}}
+  <div class="acks-extras-bucket__main">
+    {{> acksExtrasBucketRowBody}}
+  </div>
+  {{#if fit}}
+    {{#if fit.changeable}}
+    <button type="button" class="acks-extras-bucket__chip{{#if fit.tone}} is-{{fit.tone}}{{/if}}" data-action="{{fitAction}}" data-uuid="{{uuid}}" data-fit="{{fit.key}}" aria-label="{{fit.aria}}" data-tooltip-text="{{fit.tip}}">{{fit.label}}</button>
+    {{else}}
+    <span class="acks-extras-bucket__chip{{#if fit.tone}} is-{{fit.tone}}{{/if}}" data-tooltip-text="{{fit.tip}}">{{fit.label}}</span>
+    {{/if}}
+  {{/if}}
+  {{/if}}
+  {{#each chips}}<span class="acks-extras-bucket__chip{{#if tone}} is-{{tone}}{{/if}}"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}>{{text}}</span>{{/each}}
+  {{#unless locked}}
+  <button type="button" class="acks-extras-bucket__x" data-action="{{removeAction}}" data-uuid="{{uuid}}" aria-label="{{removeLabel}}" data-tooltip=""><i class="fa-solid fa-xmark" inert></i></button>
+  {{/unless}}
+</li>

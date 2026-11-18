@@ -1,0 +1,230 @@
+/* The inventory bucket (lib subsystem): a legend and a total against an amount
+   due, rows of a document's own picture, name, caption, fit chip and X, and a
+   drop zone. The same rows serve a pick-one bucket, where each is a radio and
+   the picked one is tagged Used. Colours are the design-system tokens, type is
+   the ramp, boxes ride the family ratio (--acks-extras-k, styles/lib.css), and
+   nothing is rounded. A row's art is the document's own image and nothing is
+   drawn in its place; a power row, which has none, shows a glyph. */
+
+.acks-extras-bucket {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+  color: var(--acks-ink);
+}
+
+.acks-extras-bucket__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-bucket__legend {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-body);
+  color: var(--acks-ink);
+}
+
+.acks-extras-bucket__total {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-bucket__total.is-covered {
+  color: var(--acks-success-ink);
+}
+
+.acks-extras-bucket__total.is-short {
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-bucket__empty {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-bucket__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras-bucket__rows:empty {
+  display: none;
+}
+
+.acks-extras-bucket__row {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+  padding: var(--acks-sp-3);
+}
+
+.acks-extras-bucket__row + .acks-extras-bucket__row {
+  border-block-start: var(--acks-rule-hair) solid var(--acks-ink-faint);
+}
+
+.acks-extras-bucket__row.is-used {
+  box-shadow: inset var(--acks-rule-heavy) 0 0 var(--acks-gold);
+  outline: var(--acks-rule) solid var(--acks-spot);
+  outline-offset: -2px;
+}
+
+.acks-extras-bucket__main {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  min-width: 0;
+}
+
+.acks-extras-bucket__choose {
+  cursor: pointer;
+}
+
+.acks-extras-bucket__art {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: calc(32px * var(--acks-extras-k));
+  height: calc(32px * var(--acks-extras-k));
+  overflow: hidden;
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  color: var(--acks-spot);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-bucket__art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  object-fit: contain;
+}
+
+.acks-extras-bucket__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-extras-bucket__name {
+  font-weight: var(--acks-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-bucket__line {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-bucket__figure.is-blank {
+  display: inline-block;
+  min-width: 3ch;
+  border-block-end: var(--acks-rule-hair) dotted var(--acks-ink-faint);
+  cursor: help;
+}
+
+.acks-extras-bucket__diamonds {
+  letter-spacing: 1px;
+  color: var(--acks-spot);
+}
+
+/* The reason a row counts for nothing keeps full strength beside a dimmed row. */
+.acks-extras-bucket__reason {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+/* A dimmed row dims what it shows and what it offers; its reason is not among them. */
+.acks-extras-bucket__row.is-off .acks-extras-bucket__dim,
+.acks-extras-bucket__row.is-off .acks-extras-bucket__chip,
+.acks-extras-bucket__row.is-off .acks-extras-bucket__x {
+  opacity: 0.55;
+}
+
+.acks-extras-bucket__chip,
+.acks-extras-bucket__tag {
+  flex: none;
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-ink-faint);
+  background: var(--acks-tint);
+  color: var(--acks-ink);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-fine);
+  font-weight: var(--acks-weight-medium);
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+button.acks-extras-bucket__chip {
+  cursor: pointer;
+}
+
+.acks-extras-bucket__chip.is-ok,
+.acks-extras-bucket__tag.is-ok {
+  border-color: var(--acks-success);
+  background: var(--acks-success-tint);
+  color: var(--acks-success-ink);
+}
+
+.acks-extras-bucket__chip.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras-bucket__chip.is-bad {
+  border-color: var(--acks-danger);
+  background: var(--acks-danger-tint);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-bucket__x {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: calc(24px * var(--acks-extras-k));
+  height: calc(24px * var(--acks-extras-k));
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--acks-spot);
+  cursor: pointer;
+}
+
+.acks-extras-bucket__x:hover,
+.acks-extras-bucket__x:focus-visible {
+  color: var(--acks-ink);
+}
+
+.acks-extras-bucket__drop {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  min-height: calc(26px * var(--acks-extras-k));
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  color: var(--acks-ink-soft);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-bucket__drop.is-over {
+  border-color: var(--acks-spot);
+  color: var(--acks-ink);
+}
+
+.acks-extras-bucket__radio {
+  flex: none;
+  margin: 0;
+  accent-color: var(--acks-spot);
+}

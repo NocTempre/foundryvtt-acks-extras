@@ -707,3 +707,31 @@ Architect rulings 200 and 201 (the spell-effects plan) place the lib half here.
   reads neither itself.
 
 *Cost:* lib `apiVersion` is 60.
+
+## 2026-11-18 — The inventory bucket is lib's, and states no rule
+
+Slice K-b of the spell-effects plan (rulings 210-218, 226, 229 and K.4). The
+rulings are the plan's; what follows are the calls the build made.
+
+- **`researchEffects` is a fit, not a figure.** It is a list of effect names
+  (monsters' MODEL), so "its spoil's cost plus its `researchEffects`" cannot be
+  a sum. A part's value is its cost times the stack and its effects ride on the
+  entry for the fit match. *Counter (medium):* if the plan meant the effects to
+  raise the value, a figure per effect has to be imported first.
+- **One multiplier, two readings.** The imported XP multiplier applies to a
+  creature's XP fallback and to a character victim's award alike (226 values a
+  sapient victim as other creatures), and is three-valued: absent, not
+  imported (blank) or a number. *Counter (low):* a character's award may carry
+  none.
+- **Predicates are injected.** An ordinary animal, a summoned creature and a
+  young one are bars the caller supplies (`SUMMON_FLAG` is lib's own, but the
+  other two are not); with none supplied nothing is barred.
+- **A creature is never consumed.** The plan converts consume or destroy of an
+  actor or token to mark, in lib, so no policy can delete a victim.
+- **A refused row stays listed.** A policy's `accepts.reason` keeps a row on the
+  list, dimmed, with its reason, counting for nothing (the ritual board's market
+  components); only a kind the policy does not take is refused outright.
+- **No severity here.** `verdicts` are findings; a Player's block and a Judge's
+  warning stay the cast plan's.
+
+*Cost:* lib `apiVersion` is 61.

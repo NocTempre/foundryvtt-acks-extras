@@ -46,6 +46,10 @@ import * as capacity from "./capacity.mjs";
 import * as money from "./money.mjs";
 import { COIN_SCOPE_SETTING } from "./money.mjs";
 import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView, installCoinOrder } from "./coin-order.mjs";
+import * as bucketModel from "./bucket.mjs";
+import { BUCKET_ROW_TEMPLATE, BUCKET_TEMPLATE } from "./bucket.mjs";
+import * as bucketValue from "./bucket-value.mjs";
+import { applySettlement } from "./bucket-apply.mjs";
 import {
   organizeCompendiumFolders,
   restoreCompendiumLibrary,
@@ -159,7 +163,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 60,
+  apiVersion: 61,
   vocab,
   fields,
   /**
@@ -305,6 +309,16 @@ const localImpl = Object.freeze({
    * are bound as it renders.
    */
   coinOrder: { view: coinOrderView, bind: bindCoinOrder, TEMPLATE: COIN_ORDER_TEMPLATE },
+  /**
+   * The inventory bucket (bucket.mjs, bucket-value.mjs, bucket-apply.mjs):
+   * the entry a drop makes, the total against an amount due, the fit a row
+   * opens on, the valuation of an item, a monster part, a creature and a
+   * character victim (every figure passed in), the settlement plan for an
+   * outcome and its writer, and `bucketView` for `TEMPLATE`, the partial a
+   * window draws. A window's policy decides what it accepts, owes and does with
+   * its rows; the bucket states no rule (docs/lib/API.md, "The inventory bucket").
+   */
+  bucket: { ...bucketModel, ...bucketValue, applySettlement, TEMPLATE: BUCKET_TEMPLATE },
   /**
    * The compendium sidebar: where every ACKS pack sits
    * (compendium-folders.mjs). `restoreCompendiumLibrary` is the macro's call
@@ -624,7 +638,7 @@ Hooks.once("init", () => {
   // station chip, the coin-order block and the sheet frame's partials, which
   // other sheets include as partials by path.
   foundry.applications.handlebars
-    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE, ...FRAME_TEMPLATES])
+    .loadTemplates([FOLLOWER_CARD_TEMPLATE, `modules/${MODULE_ID}/templates/lib/station-chip.hbs`, COIN_ORDER_TEMPLATE, BUCKET_ROW_TEMPLATE, BUCKET_TEMPLATE, ...FRAME_TEMPLATES])
     .catch((err) => console.warn(`${MODULE_ID} | lib template preload skipped`, err));
 
   // The Surprise Matrix's results on one card (patches/surprise-card.mjs; docs/lib/DECISIONS.md,

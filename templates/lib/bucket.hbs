@@ -1,0 +1,18 @@
+{{!-- An inventory bucket (scripts/lib/bucket.mjs `bucketView`): the legend and,
+    where an amount is due, the total against it with its parts in the
+    tooltip; the rows; and the drop zone. `pick` buckets list radios and show
+    no total. No id is written: the list is named by `aria-label` and a
+    radio's group by `radioName`. --}}
+<section class="acks-extras-bucket{{#if pick}} is-pick{{/if}}" data-bucket="{{key}}">
+  <header class="acks-extras-bucket__head">
+    <h3 class="acks-extras-bucket__legend">{{#if icon}}<i class="fa-solid {{icon}}" inert></i> {{/if}}{{legend}}</h3>
+    {{#if head}}<span class="acks-extras-bucket__total acks-nums is-{{head.status}}" data-status="{{head.status}}"{{#if head.tip}} data-tooltip-text="{{head.tip}}"{{/if}}>{{head.text}}</span>{{/if}}
+  </header>
+  {{#if empty}}<p class="acks-extras-bucket__empty">{{emptyText}}</p>{{/if}}
+  <ul class="acks-extras-bucket__rows"{{#if pick}} role="radiogroup"{{/if}} aria-label="{{legend}}">
+    {{#each rows}}{{> "modules/acks-extras/templates/lib/bucket-row.hbs" this}}{{/each}}
+  </ul>
+  {{#if canDrop}}
+  <div class="acks-extras-bucket__drop" data-bucket-drop="{{key}}"><i class="fa-solid fa-hand" inert></i> {{dropLabel}}</div>
+  {{/if}}
+</section>

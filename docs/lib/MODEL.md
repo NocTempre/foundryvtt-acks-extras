@@ -3260,3 +3260,42 @@ a rest (RR ch. 6, Rest and Recuperation). A member owes rest unless the passed
 nothing up. The turn is a party rest when every member who owes rest chose Rest
 and at least one member chose it, so a party that owes none is not rested by
 nobody choosing. Rest is an ordinary registered activity under `REST_KEY`.
+
+## The inventory bucket
+
+One list serves every window that holds goods or victims: a ritual's or a
+research project's components, a sacrifice's victims, an implement set held for
+a cast. `bucket.mjs` is its model, `bucket-value.mjs` its valuation,
+`bucket-apply.mjs` its writes, `templates/lib/bucket.hbs` and
+`bucket-row.hbs` its face, `styles/lib-bucket.css` its rules. It never imports
+a feature. What a window accepts, values, owes and does with its rows is the
+policy that window passes in, so the bucket states no rule and no figure
+(`.claude/rules/ip-doctrine.md`).
+
+- **A drop becomes an entry** through an injected `resolve`. An Item is valued by
+  its own cost times the stack; an Actor or Token only by the policy's `value`,
+  since a creature's worth needs the imported multiplier and the callers'
+  predicates. The row's picture is the document's own `img`, then Foundry's
+  default icon, and a power row (no document) draws a glyph. Nothing is
+  generated.
+- **A figure not read is null.** `totalOf` counts the rows with no figure
+  (`blank`) and `coverage` answers `unknown` rather than covered or short, so a
+  window never claims a coverage it cannot compute. The row shows a blank figure
+  and the page reference alone in its tooltip.
+- **The fit opens on a name match.** `preselectFit` folds the row's name and its
+  `effects` with `foldName` against each option's `names`, else the policy's
+  fallback, and the seat cycles it with the chip (`nextFit`).
+- **A valued creature.** The sum of its component items is never barred; its XP
+  award stands in only where no component is priced, and only for a creature no
+  predicate bars (ordinary animal, summoned, young).
+- **Settlement is data.** `settlementPlan` reads `settle[outcome]` per kind. A
+  creature is marked, never consumed: the plan turns consume or destroy into
+  `mark`, and `applySettlement` gives it core's dead status through its actor
+  (an unlinked token's synthetic one), never a delete. A stack larger than the
+  quantity spent is divided first and the new row deleted. A power row and a
+  marked item are returned for their owners (magic's ledger; an implement a
+  botch damages).
+- **Pick-one.** A `pick: "one"` policy renders radios: the caller supplies each
+  row's caption, diamonds and dimming; the picked row carries Used; a dimmed
+  row dims its picture, name, caption and controls and leaves its reason at
+  full strength.
