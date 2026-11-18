@@ -534,12 +534,19 @@ captions or list ids: everything it matches arrives from the import.
   (`docs/lib/API.md`; treasure imports nothing of `magic-items`), on core's dice
   unless `dealLettersIntoPot` is given a `roller`.
 - **The result is the card.** An item that links to a document is that
-  document's truths as a dropped item stores them (`pot.mjs` `truthsFromItem`),
-  each made a dealt find (`unknownTruth`): pool `magic`, magical, undetected,
-  unidentified, with the snapshot's own `markets.identified` and `curseKnown`
-  cleared and `detected` set false, so a claim creates an item that knows no
-  more than the card does. A coin a bundle delivers stays coin. An item with no
-  document is a magic placeholder named for the item. Force cursed and No magic
+  document's truths as a dropped item stores them (`pot.mjs` `truthsFromItem`).
+  Its magic part (the document's own truth, and any delivered good its data
+  marks magic) is made a dealt find (`unknownTruth`): pool `magic`, magical,
+  undetected, unidentified, the snapshot marked `markets.magic` with its own
+  `markets.identified` and `curseKnown` cleared and `detected` set false, so a
+  claim creates an item that knows no more than the card does. A bundle's other
+  goods and its coin stay as dealt. An item with no document is a magic
+  placeholder named for the item.
+- **A find wears what it passes for** (`passesFor`), as every undetected magic
+  card is ranked and drawn: the document's own disguise where it carries one,
+  else the placeholder it replaced, by name. The table never reads the rolled
+  name. A cost to rank by comes only from a disguise; without one the find
+  ranks as the placeholder did, at nothing (`rankWorth`). Force cursed and No magic
   read the card like any other magic card: No magic strikes it, Force cursed
   marks it where it holds a snapshot.
 - **A refusal keeps the placeholder.** The roll's own refusal (`not-imported`,

@@ -60,22 +60,43 @@ export function startFor(noun, style, lists) {
 }
 
 /**
- * A rolled document's truth as a dealt find: magic, undetected, unidentified,
- * with the snapshot's own identification and curse-known marks cleared so a
- * claim cannot create an item that knows more than the card does. A coin truth
- * (a bundle that delivers coin) is left as it is.
+ * What a rolled find passes for: its document's own disguise where it carries
+ * one (`truthsFromItem` reads it as `mask`), else the placeholder it replaced,
+ * by name. An undetected magic find is ranked and drawn as what it passes for,
+ * so it never shows its true name; a cost comes only from a disguise, and
+ * without one the find ranks as the placeholder did.
  */
-export function unknownTruth(truth) {
+const passesFor = (truth, placeholder) => truth.mask ?? (placeholder?.label ? { name: placeholder.label } : null);
+
+/**
+ * A rolled document's truth as a dealt find: magic, undetected, unidentified,
+ * wearing what it passes for, with the snapshot marked magic and its own
+ * identification and curse-known marks cleared, so a claim cannot create an
+ * item that knows more than the card does. A coin truth (a bundle that
+ * delivers coin) is left as it is.
+ * @param {object} truth a truth of the rolled document
+ * @param {object} [placeholder] the placeholder it replaces
+ */
+export function unknownTruth(truth, placeholder = null) {
   if (truth.coin) return truth;
   const data = truth.source?.data ? structuredClone(truth.source.data) : null;
-  const markets = data?.flags?.[MODULE_ID]?.markets;
-  if (markets) {
-    markets.identified = "none";
-    markets.detected = false;
+  if (data) {
+    data.flags = { ...(data.flags ?? {}) };
+    data.flags[MODULE_ID] = { ...(data.flags[MODULE_ID] ?? {}) };
+    const markets = { ...(data.flags[MODULE_ID].markets ?? {}), magic: true, identified: "none", detected: false };
     delete markets.curseKnown;
+    data.flags[MODULE_ID].markets = markets;
   }
-  return normalizeTruth({ ...truth, source: { uuid: truth.source?.uuid ?? null, data }, pool: POOL.magic, magical: true, detected: false, identified: "none" });
+  return normalizeTruth({ ...truth, source: { uuid: truth.source?.uuid ?? null, data }, pool: POOL.magic, magical: true, detected: false, identified: "none", mask: passesFor(truth, placeholder) });
 }
+
+/**
+ * Whether a truth of a rolled document is the magic part of it: the document
+ * itself (the first truth, the one `truthsFromItem` reads its magic from), or
+ * a delivered good its own data marks magic. A bundle's other goods stay as
+ * they were dealt.
+ */
+const isMagicPart = (truth, i) => i === 0 || truth.magical === true || truth.source?.data?.flags?.[MODULE_ID]?.markets?.magic === true;
 
 /**
  * One walk as audit rows in the hoard's shape (`where`, `expr`, `sides`,
@@ -103,8 +124,10 @@ function auditRows(result, where, item) {
  *
  * A matched placeholder is rolled through `roll({from, style})`, a result's
  * item resolved through `resolve(uuid)` to the truths of its document. Where
- * the item names a document the card is that document, a dealt find; where
- * it does not, the card is a placeholder named for the item. A roll the
+ * the item names a document the card is that document, a dealt find whose
+ * magic part alone is made unknown (`isMagicPart`); where it does not, the
+ * card is a placeholder named for the item. Either wears what it passes for
+ * (`passesFor`), never its true name. A roll the
  * service refused or could not finish, an item no row of the list reached
  * (`item.flag`, no name), a noun that names no list or two, and a missing
  * roller or list set leave the card as it was and add one error entry
@@ -158,8 +181,8 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
         found = null;
       }
     }
-    if (Array.isArray(found) && found.length) out.push(...found.map(unknownTruth));
-    else out.push(normalizeTruth({ pool: POOL.magic, label: item.text.trim(), magical: true, detected: false }));
+    if (Array.isArray(found) && found.length) out.push(...found.map((t, i) => (isMagicPart(t, i) ? unknownTruth(t, truth) : t)));
+    else out.push(normalizeTruth({ pool: POOL.magic, label: item.text.trim(), magical: true, detected: false, mask: passesFor({}, truth) }));
   }
   return { truths: out, errors, audit };
 }

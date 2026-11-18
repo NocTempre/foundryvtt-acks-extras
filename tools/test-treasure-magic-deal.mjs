@@ -48,7 +48,7 @@ globalThis.CONFIG = { Dice: { randomUniform: () => 0.5 } };
 globalThis.foundry = {};
 
 const { MODULE_ID, CARD_FLAG, POT_FLAG, PHASE, POOL } = await import("../scripts/treasure/constants.mjs");
-const { claimItemData, dealOf, normalizePot, normalizeTruth } = await import("../scripts/treasure/pot-logic.mjs");
+const { apparentName, claimItemData, dealOf, normalizePot, normalizeTruth, rankWorth } = await import("../scripts/treasure/pot-logic.mjs");
 const { DEAL_ERROR_CODES, dealMessages } = await import("../scripts/treasure/deal-logic.mjs");
 const { MAGIC_ERROR, MAGIC_REASON, rollMagicTruths, startFor, unknownTruth } = await import("../scripts/treasure/magic-deal-logic.mjs");
 const { PRIORITY, registerTable, resetTables, unregisterTable } = await import("../scripts/lib/tables.mjs");
@@ -109,7 +109,36 @@ const knownTruth = () => normalizeTruth({ source: { uuid: "Item.d", data: knownI
   const coin = normalizeTruth({ pool: POOL.coins, label: "5 Tin", coin: { name: "Tin", cv: 1, count: 5 } });
   eq(unknownTruth(coin), coin, "a coin a bundle delivers is left as coin");
   const bare = unknownTruth(normalizeTruth({ source: { uuid: "Item.e", data: { name: "x", type: "item", flags: {} } }, pool: POOL.item, label: "x" }));
-  eq([bare.pool, bare.magical, bare.detected, bare.source.data.flags[MODULE_ID]], [POOL.magic, true, false, undefined], "a snapshot with no markets gets none written");
+  eq([bare.pool, bare.magical, bare.detected, bare.source.data.flags[MODULE_ID].markets], [POOL.magic, true, false, { magic: true, identified: "none", detected: false }], "a snapshot with no markets is marked magic, undetected and unidentified, so a claim is flagged magic");
+}
+
+/* --- what a rolled find passes for ------------------------------------------------- */
+{
+  const ph = placeholder("widgets");
+  const t = unknownTruth(knownTruth(), ph);
+  eq([t.mask, apparentName(t)], [{ name: "widgets" }, "widgets"], "a rolled find with no disguise wears its placeholder's name, never its own");
+  eq(rankWorth(t), 0, "and, with no cost to pass for, ranks as the placeholder did");
+  const claimed = claimItemData(t, (d, m) => ({ ...d, name: m.name }));
+  eq(claimed.name, "widgets", "a claim delivers the item wearing what it passed for");
+  const disguised = normalizeTruth({ ...knownTruth(), mask: { name: "Gamma thing", cost: 7 } });
+  const d = unknownTruth(disguised, ph);
+  eq([d.mask, apparentName(d), rankWorth(d)], [{ name: "Gamma thing", cost: 7 }, "Gamma thing", 7], "a document's own disguise wins, and its cost ranks the find");
+  eq(unknownTruth(knownTruth()).mask, null, "with no placeholder and no disguise, no mask is made up");
+}
+
+/* --- a rolled bundle: only its magic part is magic ----------------------------------- */
+{
+  const plainGood = normalizeTruth({ source: { uuid: "Item.d", data: { name: "Plain good", type: "item", flags: {} } }, pool: POOL.item, label: "Plain good", magical: false, detected: true });
+  const markedGood = normalizeTruth({ source: { uuid: "Item.d", data: { name: "Marked good", type: "item", flags: { [MODULE_ID]: { markets: { magic: true } } } } }, pool: POOL.item, label: "Marked good", magical: false, detected: true });
+  const coin = normalizeTruth({ pool: POOL.coins, label: "2 Tin", coin: { name: "Tin", cv: 1, count: 2 } });
+  const r = await rollMagicTruths({ truths: [placeholder("widgets")], style: "classic", where: "Q.magic", lists: LISTS, roll: async () => ({ ok: true, start: "classic.wd", steps: [], item: { text: "Delta item", uuid: "Item.d", flag: null } }), resolve: async () => [knownTruth(), plainGood, markedGood, coin] });
+  eq(r.truths.map((x) => [x.label, x.pool, x.magical, x.detected, x.mask?.name ?? null]), [
+    ["Delta item", POOL.magic, true, false, "widgets"],
+    ["Plain good", POOL.item, false, true, null],
+    ["Marked good", POOL.magic, true, false, "widgets"],
+    ["2 Tin", POOL.coins, false, true, null],
+  ], "the document and a good marked magic are made unknown; a plain good and the coin stay as dealt");
+  eq(r.truths[1], plainGood, "the plain good is passed through unchanged");
 }
 
 /* --- the roll's outcomes, on a fake roll ------------------------------------------- */
@@ -126,6 +155,7 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   r = await run([placeholder("widgets")]);
   const [t] = r.truths;
   eq([t.pool, t.label, t.magical, t.detected, t.identified, t.source.data], [POOL.magic, "Alpha widget", true, false, "none", null], "an item with no document is a magic placeholder named for it");
+  eq(apparentName(t), "widgets", "and the table reads the placeholder's name, never the item's");
   ok(!("tableRef" in t), "a rolled card carries no ref");
   eq(r.audit.at(-1).cite, "INV p.2", "and the audit row cites the last list the walk read");
 
