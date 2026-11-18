@@ -1488,6 +1488,27 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "choir",
+              "type": "illusion",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              }
+            }
+          ]
         }
       }
     },
@@ -2324,6 +2345,39 @@
                   10
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "sound",
+              "type": "illusion",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              },
+              "save": {
+                "effect": "special",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+                }
+              ]
             }
           ]
         }
@@ -9680,6 +9734,39 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "extinguish",
+              "type": "dispel",
+              "appliesTo": "target",
+              "lasts": "instant"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -12129,6 +12216,34 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "glow",
+              "type": "detect",
+              "appliesTo": "area",
+              "lasts": "duration"
+            },
+            {
+              "key": "glowReversed",
+              "type": "detect",
+              "appliesTo": "area",
+              "reversed": true,
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              }
+            }
+          ]
         }
       }
     },
@@ -12206,6 +12321,27 @@
                   9,
                   10
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "gist",
+              "type": "detect",
+              "appliesTo": "target",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "object"
               }
             }
           ]
@@ -12367,6 +12503,27 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "glow",
+              "type": "detect",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              }
+            }
+          ]
         }
       }
     },
@@ -12435,6 +12592,27 @@
                   2,
                   3
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "glow",
+              "type": "detect",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
               }
             }
           ]
@@ -19303,6 +19481,27 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "floe",
+              "type": "createObject",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "object"
+              }
+            }
+          ]
         }
       }
     },
@@ -19833,6 +20032,34 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "light",
+              "type": "light",
+              "appliesTo": "area",
+              "lasts": "duration"
+            },
+            {
+              "key": "lightReversed",
+              "type": "light",
+              "appliesTo": "area",
+              "reversed": true,
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              }
+            }
+          ]
         }
       }
     },
@@ -20204,6 +20431,43 @@
                   10
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "figment",
+              "type": "illusion",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
+              },
+              "save": {
+                "effect": "special",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+                },
+                {
+                  "into": "save.modifier",
+                  "pattern": "gains\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus"
+                }
+              ]
             }
           ]
         }
@@ -25285,6 +25549,27 @@
                   1,
                   2
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "foresight",
+              "type": "detect",
+              "appliesTo": "area",
+              "lasts": "instant"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
               }
             }
           ]
@@ -35959,6 +36244,30 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "smoke",
+              "type": "wall",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "area",
+                "area": {
+                  "shape": "wall"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -36810,6 +37119,27 @@
                   19,
                   20
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "weave",
+              "type": "wall",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "special"
               }
             }
           ]

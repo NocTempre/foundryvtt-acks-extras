@@ -63,7 +63,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "choir",
+        "type": "illusion",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.animateUndead",
@@ -239,7 +254,34 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "sound",
+        "type": "illusion",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        },
+        "save": {
+          "effect": "special",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.augury",
@@ -1634,7 +1676,34 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "extinguish",
+        "type": "dispel",
+        "appliesTo": "target",
+        "lasts": "instant"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.crafting",
@@ -2313,7 +2382,29 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "glow",
+        "type": "detect",
+        "appliesTo": "area",
+        "lasts": "duration"
+      },
+      {
+        "key": "glowReversed",
+        "type": "detect",
+        "appliesTo": "area",
+        "reversed": true,
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.discernGist",
@@ -2335,7 +2426,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "gist",
+        "type": "detect",
+        "appliesTo": "target",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "object"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.discernInvisible",
@@ -2379,7 +2485,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "glow",
+        "type": "detect",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.discernPoison",
@@ -2401,7 +2522,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "glow",
+        "type": "detect",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.disfigureBodyAndSoul",
@@ -4030,7 +4166,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "floe",
+        "type": "createObject",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "object"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.iceSheet",
@@ -4096,7 +4247,29 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "light",
+        "type": "light",
+        "appliesTo": "area",
+        "lasts": "duration"
+      },
+      {
+        "key": "lightReversed",
+        "type": "light",
+        "appliesTo": "area",
+        "reversed": true,
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.illuminationPerpetual",
@@ -4162,7 +4335,38 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "figment",
+        "type": "illusion",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        },
+        "save": {
+          "effect": "special",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+          },
+          {
+            "into": "save.modifier",
+            "pattern": "gains\\s*an?\\s*\\+\\s*(\\d+)\\s*bonus"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.illusoryInterior",
@@ -5364,7 +5568,22 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "foresight",
+        "type": "detect",
+        "appliesTo": "area",
+        "lasts": "instant"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.propheticDream",
@@ -7589,7 +7808,25 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "smoke",
+        "type": "wall",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "wall"
+          }
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.wallOfStone",
@@ -7787,7 +8024,22 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "weave",
+        "type": "wall",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "special"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.weaveWater",
