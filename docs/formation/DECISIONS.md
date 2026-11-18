@@ -497,8 +497,8 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 
 **Open for the owner.**
 1. What a made throw carries a member along a squeeze (the page prints no distance). Built: nothing, so a long squeeze cannot be finished by throws.
-2. Whether a failed wiggle also worsens the plight. Built: it does not.
-3. What a member who wiggles back to the entrance is, and where a stuck member goes when the crossing ends. Built: still squeezing at the start; stuck is released at End and no token moves.
+2. ~~Whether a failed wiggle also worsens the plight.~~ **Answered 2026-11-17 by the page (RR ch. 6, Squeezing; RR App. B, Stuck):** only a failed push worsens the plight, and a failed wiggle leaves the member stuck with nothing added. What is built stands.
+3. ~~What a member who wiggles back to the entrance is, and where a stuck member goes when the crossing ends.~~ **Answered 2026-11-17 in part by the page (the same two passages):** a made escape of either kind ends the condition, and the wiggle's retreat takes the member back toward the start, so a member who wiggles back is no longer stuck and throws again at the next round, as built. The pages print no other end for the condition, so End's release of the crossing's held effect is the module's bookkeeping and not a rule; the warning at End still names each member left stuck, and where such a member is stays the Judge's call.
 
 ## 2026-11-17 — The faster paces' penalties are imported as three ordered pairs, one recipe each
 
