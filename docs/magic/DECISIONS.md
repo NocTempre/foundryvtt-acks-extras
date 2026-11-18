@@ -826,3 +826,18 @@ with the default proceeded on and the counter:
   could strand a switch beside the wrong tag.
 - *Cost:* a Judge can now hold power the imported lifetime would have ended, and nothing in the
   ledger says so but the pin; the lot is taken only by a minus, after every fading lot.
+
+## 2026-11-18 — The Research tab's parts beyond board 10 stand as built (owner, board 15)
+
+M-q1 built parts of the Research tab that board 10 does not draw. The rule is
+`.claude/rules/ui-layout.md`'s, in the owner's words: "when creating or modifying a new UI
+element, run /design first and get user feedback before implementing". So those parts were
+drawn afterwards, as built, on board 15: the New project prompt, a project's level, cost and
+material-paid boxes for a Judge (text for a Player), the subject drop on the tile, and the
+closed list. Asked to review it, the owner answered "Approve as built".
+
+- The parts stay as M-q1 shipped them (7089a452), and nothing is reworked. For example, the
+  New project prompt keeps its four fields (Kind, Subject, Level of effect, Researcher) and its
+  Start button.
+- *Cost:* the design step came after the build this once, so the owner reviewed working code
+  rather than a drawing. A change asked for then would have been a rework on main.
