@@ -3090,6 +3090,13 @@ approval"), relayed by the orchestrator, for topic/spell-effects:
 - old and new shas are recorded here;
 - the gate reruns on the new tip.
 
+**Owner approval of canvas v6 (2026-11-18).** The owner: "Ok the spell
+cast design". The owner was viewing boards 1–3. The orchestrator relayed
+it, with this direction:
+- build the cast dialog rebuild and S-B;
+- build boards 4 and 6 as the owner's own spec;
+- the walk's shots show boards 4 and 6, so the owner can object.
+
 **S5e and S-A on topic/spell-effects (2026-11-18), offline green.**
 
 - **e807d99a S5e:**
