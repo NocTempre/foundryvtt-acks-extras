@@ -1002,6 +1002,26 @@ export const SHARED_ACTIONS = {
   },
 
   /**
+   * One stuck squeezer's way out, the step on the button: wiggling backwards on
+   * the save or pushing forward on the Dungeonbashing throw. The Judge's seat
+   * throws it; a player's seat hands the press to `requestCrossingThrow`.
+   */
+  async crossingEscape(event, target) {
+    const formation = this.formation;
+    const actorId = target.dataset.actorId;
+    const step = target.dataset.step;
+    if (!formation || !actorId || !step) return;
+    if (!game.user.isGM) {
+      if (ownsActor(actorId)) await requestCrossingThrow(formation, actorId, step);
+      return;
+    }
+    const result = await throwFor(formation, actorId, { step, event });
+    const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
+    if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.format(key, { name: game.actors?.get?.(actorId)?.name ?? "" }));
+    this.render?.();
+  },
+
+  /**
    * One member's jump attempt over a gap. The Judge's seat rolls it; a
    * player's seat hands the press to `requestCrossingThrow`, which relays it.
    */

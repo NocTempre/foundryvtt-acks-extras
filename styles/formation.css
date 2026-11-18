@@ -2294,7 +2294,7 @@
   color: var(--acks-danger-ink);
 }
 
-.acks-extras.party-sheet .acks-extras-crossing-rescue {
+.acks-extras.party-sheet :is(.acks-extras-crossing-rescue, .acks-extras-crossing-escape) {
   flex: 1 1 100%;
   display: flex;
   flex-wrap: wrap;

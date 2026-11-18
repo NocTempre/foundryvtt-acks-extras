@@ -287,8 +287,8 @@ await ok("who sees what: a Judge always has the begin row, a player nothing unti
   const { formation } = world([alder]);
   const judge = buildCrossingView(formation);
   assert.deepEqual([judge.open, judge.kinds.length], [false, CROSSING_KINDS.length]);
-  assert.equal(judge.kinds.at(-1).value, "swim");
-  assert.equal(judge.kinds.at(-2).value, "jump");
+  assert.equal(judge.kinds.at(-1).value, "squeeze");
+  assert.deepEqual(judge.kinds.slice(-3, -1).map((k) => k.value), ["jump", "swim"]);
   assert.equal(as(PLAYER, () => buildCrossingView(formation)), null, "a player sees no section while none is open");
   await as(PLAYER, () => beginCrossing(formation, "sheerClimb"));
   assert.equal(readCrossing(formation), null, "a player's client opens nothing");
@@ -2350,6 +2350,282 @@ await ok("each water condition's tooltip is its own datum in the view, so the pa
   const setup = swimView(formation).swim;
   for (const condition of setup.conditions) assert.equal(condition.tip, setup.penaltyTip);
   assert.equal(/@root/.test(partial), false, "the partial names no root context");
+});
+
+/* --- the squeeze --------------------------------------------------------------- */
+const { SQUEEZE_KIND } = crossing;
+/** Invented squeeze figures: no book is imported. */
+const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 1 };
+const loadSqueezeTables = (figures = SQZ) => {
+  resetTables();
+  registerTable(
+    { id: FORMATION_DOC, source: { pages: "XX p.1" }, cites: { contortionismBonus: "XX p.8", escapeFeet: "XX p.8" }, tables: figures },
+    { priority: PRIORITY.WORLD, source: "test" },
+  );
+};
+const CONTORTIONIST = () => item("Probe Contort", [], { provides: ["kw:contortionism"], cite: "XX p.8" });
+
+/** A party of people, each standing as a deployed token, in an open squeeze crossing. */
+async function squeezeWorld(people, { figures = SQZ, form = null } = {}) {
+  reset();
+  loadSqueezeTables(figures);
+  const actors = people.map(([name, options]) => withEffects(person(name, { adventuring: { dungeonbashing: 14 }, ...options })));
+  const { formation, actor } = world(actors);
+  formation.members.forEach((m, i) => { m.deployedTokenId = `tok${i}`; m.deployedSceneId = "scene1"; });
+  game.combats = [];
+  game.messages = [];
+  await beginCrossing(formation, SQUEEZE_KIND);
+  if (form) await applyCrossingForm(formation, form);
+  return { formation, actors, party: actor };
+}
+/** A member put into a state the way a throw would leave them. */
+const stuckAt = (formation, name, extra = {}) => writeMemberStep(formation, readCrossing(formation).id, name, { state: "stuck", covered: 10, throws: 1, tries: 0, plight: 0, ...extra });
+/** Capture the figure a stand-in rollSave reads for the save, at the moment it reads it. */
+const watchSave = (actor) => {
+  const read = [];
+  actor.rollSave = async (key, options) => { read.push(actor.system.saves[key].value); seen.saves.push([actor.name, key, options]); return saveResult; };
+  return read;
+};
+
+await ok("a squeeze crossing opens as its own kind on a chokepoint, and the setup form writes the shape, the length and the Judge's modifier", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5 }]]);
+  const opened = readCrossing(formation);
+  assert.deepEqual([opened.kind, opened.shape], ["squeeze", "chokepoint"]);
+  assert.deepEqual(buildCrossingView(formation).squeeze.shapes.map((s) => [s.value, s.checked]), [["chokepoint", true], ["squeeze", false]]);
+  await applyCrossingForm(formation, { shape: "squeeze", length: "20", judgeMod: "1" });
+  const set = readCrossing(formation);
+  assert.deepEqual([set.shape, set.length, set.judgeMod], ["squeeze", 20, 1]);
+  assert.deepEqual(buildCrossingView(formation).squeeze.shapes.map((s) => s.checked), [false, true]);
+  await applyCrossingForm(formation, { shape: "anything else" });
+  assert.equal(readCrossing(formation).shape, "chokepoint", "a value that is neither shape is the default");
+});
+
+await ok("a squeezer's row shows the stone as the target and every part with its page; a holder's names Contortionism once; a player's own is marked", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 7, owner: PLAYER.id, items: [CONTORTIONIST()] }], ["Birch", { stone: 7 }]], { form: { judgeMod: "1" } });
+  const view = buildCrossingView(formation);
+  const alder = rowOf(view, "Alder");
+  assert.deepEqual([alder.target, alder.holdsLabel, alder.can, alder.covered], ["3+", "Contortionism", true, ""]);
+  assert.ok(alder.targetTip.includes("Encumbrance +7") && alder.targetTip.includes("Contortionism −3") && alder.targetTip.includes("Judge modifier −1"));
+  assert.equal(alder.targetTip.split("Contortionism").length, 2, "the figure is named once");
+  assert.ok(alder.targetTip.endsWith("XX p.8"), "the imported page ends the working");
+  assert.equal(rowOf(view, "Birch").target, "6+");
+  const player = as(PLAYER, () => buildCrossingView(formation));
+  assert.deepEqual([rowOf(player, "Alder").yours, rowOf(player, "Birch").yours, rowOf(player, "Birch").can], [true, false, false]);
+});
+
+await ok("with nothing imported a holder's target is blank with the page alone, a non-holder's still stands, and nothing rolls", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 7, items: [CONTORTIONIST()] }], ["Birch", { stone: 7 }]], { figures: {} });
+  const view = buildCrossingView(formation);
+  assert.deepEqual([rowOf(view, "Alder").target, rowOf(view, "Alder").targetTip, rowOf(view, "Alder").can], ["", "RR ch. 6, Squeezing", false]);
+  assert.deepEqual([rowOf(view, "Birch").target, rowOf(view, "Birch").can], ["7+", true]);
+  const out = await throwFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.refused], [false, "bonus"]);
+  assert.equal(naturals.length, 0);
+  assert.equal(seen.created.length, 0, "no card was posted");
+});
+
+await ok("a made throw clears a chokepoint and the member is through; the card goes to the Judges and no condition is held", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5 }]]);
+  naturals.push(12);
+  const out = await throwFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step, out.success], [true, "across", true]);
+  const record = memberOf(formation, "Alder");
+  assert.deepEqual([record.state, record.throws, record.last.total, record.last.botch], ["across", 1, 12, false]);
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.equal(seen.created.length, 1);
+  assert.ok(seen.created[0].content.includes("Through"));
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.stateLabel, row.can, row.escape], ["Through", false, null]);
+});
+
+await ok("a squeeze of a set length carries the member along by the round's movement and is through at the length's end", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze", length: "30" } });
+  alder.system.movementacks = { combat: 12 };
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").covered, "covered 0 / 30′");
+  naturals.push(9, 9, 9);
+  await throwFor(formation, "Alder");
+  assert.deepEqual([memberOf(formation, "Alder").state, memberOf(formation, "Alder").covered], ["squeezing", 12]);
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").covered, "covered 12 / 30′");
+  await throwFor(formation, "Alder");
+  assert.equal((await throwFor(formation, "Alder")).step, "across");
+  assert.equal(memberOf(formation, "Alder").covered, 30);
+});
+
+await ok("a squeeze with no length set has no throw, for a Judge too", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze" } });
+  const out = await throwFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.refused, naturals.length], [false, "length", 0]);
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").target, "");
+});
+
+await ok("an unmodified result inside the imported band leaves the member stuck and holds Stuck; with no band imported it is only a miss", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5 }]]);
+  naturals.push(1);
+  const out = await throwFor(formation, "Alder");
+  assert.deepEqual([out.ok, out.step], [true, "stuck"]);
+  assert.deepEqual([memberOf(formation, "Alder").state, memberOf(formation, "Alder").tries, memberOf(formation, "Alder").plight], ["stuck", 0, 0]);
+  assert.deepEqual(crossingHeldOn(alder).map((e) => e.statuses.has("stuck")), [true], "one effect holds Stuck");
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.stuck, row.can, row.target, row.implied.map((c) => c.label)], [true, false, "", ["Vulnerable"]]);
+  assert.deepEqual([row.escape.wiggle.can, row.escape.push.can, row.escape.text], [true, true, "Escape tries 0"]);
+  assert.deepEqual([row.escape.wiggle.label, row.escape.push.label], ["Wiggle back · 17+ save", "Push forward · 19+ Dungeonbashing"]);
+  const sans = await squeezeWorld([["Alder", { stone: 9 }]], { figures: { ...SQZ, squeezeBotchBand: undefined } });
+  naturals.push(1);
+  await throwFor(sans.formation, "Alder");
+  assert.deepEqual([memberOf(sans.formation, "Alder").state, crossingHeldOn(sans.actors[0]).length], ["squeezing", 0]);
+});
+
+await ok("a wiggle back rolls core's save with the stone held on the figure it reads, restores the figure, and a pass frees the member and retreats them, never past the start", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5 }]], { form: { shape: "squeeze", length: "30" } });
+  naturals.push(1);
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1, "the botch held Stuck");
+  const read = watchSave(alder);
+  saveResult = { total: 18, dice: [{ results: [{ result: 13 }] }] };
+  const out = await throwFor(formation, "Alder", { step: "wiggle" });
+  assert.deepEqual([out.ok, out.step, out.success], [true, "squeezing", true]);
+  assert.deepEqual(read, [17], "core read the stored figure raised by the stone");
+  assert.equal(alder.system.saves.paralysis.value, 12, "the stored figure is put back");
+  const record = memberOf(formation, "Alder");
+  assert.deepEqual([record.state, record.covered, record.tries, record.plight], ["squeezing", 0, undefined, undefined]);
+  assert.equal(crossingHeldOn(alder).length, 0, "Stuck is released");
+  assert.ok(seen.created.at(-1).content.includes("Free, back 8 ft"));
+  assert.equal(seen.saves.at(-1)[1], "paralysis");
+});
+
+await ok("a failed wiggle counts a try and no plight; a failed push counts both, and each failed push raises both escapes by the step", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5, adventuring: { dungeonbashing: 3 } }]]);
+  await stuckAt(formation, "Alder");
+  watchSave(alder);
+  saveResult = { total: 2 };
+  await throwFor(formation, "Alder", { step: "wiggle" });
+  assert.deepEqual([memberOf(formation, "Alder").state, memberOf(formation, "Alder").tries, memberOf(formation, "Alder").plight], ["stuck", 1, 0]);
+  const board = (view) => { const e = rowOf(view, "Alder").escape; return [e.wiggle.label, e.push.label]; };
+  assert.deepEqual(board(buildCrossingView(formation)), ["Wiggle back · 17+ save", "Push forward · 8+ Dungeonbashing"]);
+  naturals.push(4);
+  await throwFor(formation, "Alder", { step: "push" });
+  assert.deepEqual([memberOf(formation, "Alder").tries, memberOf(formation, "Alder").plight], [2, 1]);
+  assert.deepEqual(board(buildCrossingView(formation)), ["Wiggle back · 19+ save", "Push forward · 10+ Dungeonbashing"]);
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").escape.penalty, "penalty −2");
+  naturals.push(14);
+  const out = await throwFor(formation, "Alder", { step: "push" });
+  assert.deepEqual([out.step, memberOf(formation, "Alder").state, memberOf(formation, "Alder").plight], ["across", "across", undefined]);
+});
+
+await ok("an escape with no distance imported is offered nowhere and rolls nothing; a step that is no escape, or a member who is not stuck, is refused", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5 }]], { figures: { ...SQZ, escapeFeet: undefined } });
+  await stuckAt(formation, "Alder");
+  const row = rowOf(buildCrossingView(formation), "Alder");
+  assert.deepEqual([row.escape.wiggle.can, row.escape.push.can, row.escape.wiggle.label], [false, false, "Wiggle back"]);
+  assert.deepEqual((await throwFor(formation, "Alder", { step: "push" })).refused, "escapeFeet");
+  assert.equal(naturals.length, 0);
+  const fresh = await squeezeWorld([["Alder", { stone: 5 }]]);
+  assert.equal((await throwFor(fresh.formation, "Alder", { step: "push" })).refused, "notStuck");
+  assert.equal((await throwFor(fresh.formation, "Alder", { step: "tunnel" })).refused, "stale");
+  await stuckAt(fresh.formation, "Alder");
+  assert.equal((await throwFor(fresh.formation, "Alder")).refused, "stuck", "a stuck member has no squeezing throw");
+  const swim = await swimWorld([["Alder", { stone: 5 }]]);
+  assert.equal((await throwFor(swim.formation, "Alder", { step: "push" })).refused, "stale", "a step belongs to a squeeze alone");
+});
+
+await ok("a down member's escape stops a player and warns a Judge, whose card says it was thrown over a refusal", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5, hp: 0, owner: PLAYER.id }]]);
+  await stuckAt(formation, "Alder");
+  const blocked = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "push"));
+  assert.deepEqual([blocked.ok, blocked.refused], [false, "down"]);
+  assert.equal(naturals.length, 0);
+  naturals.push(15);
+  const out = await throwFor(formation, "Alder", { step: "push" });
+  assert.equal(out.ok, true);
+  assert.equal(seen.warned.length >= 1, true, "the Judge is warned");
+  assert.ok(seen.created.at(-1).content.includes("Thrown over a refusal"));
+});
+
+await ok("a player's relayed escape is checked again on the GM client, declared publicly, and a wiggle skips the system's dialog", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5, owner: PLAYER.id }], ["Birch", { stone: 5 }]]);
+  await stuckAt(formation, "Alder");
+  await stuckAt(formation, "Birch");
+  const read = watchSave(alder);
+  saveResult = { total: 19 };
+  const out = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "wiggle"));
+  assert.equal(out.ok, true);
+  assert.deepEqual(read, [17]);
+  assert.equal(seen.saves.at(-1)[2].event.shiftKey, true, "the dialog is skipped");
+  assert.ok(seen.created.some((m) => String(m.content).includes("wiggles backwards")), "the press is declared");
+  assert.equal((await asAsync(PLAYER, () => requestCrossingThrow(formation, "Birch", "push"))).refused, "notOwner");
+  assert.equal(naturals.length, 0);
+});
+
+await ok("a player is refused a push for a member who is not stuck, in words, before anything is sent", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5, owner: PLAYER.id }]]);
+  const out = await asAsync(PLAYER, () => requestCrossingThrow(formation, "Alder", "push"));
+  assert.deepEqual([out.ok, out.refused], [false, "notStuck"]);
+  assert.ok(seen.warned.at(-1).includes("Alder is not stuck"));
+});
+
+await ok("at a squeezer's turn the primary GM prompts the throw once for the round, and a stuck member's turn prompts the two escapes", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 6 }]]);
+  await stuckAt(formation, "Birch");
+  const combat = fightOf(formation, { round: 3, at: 0 });
+  const first = await drive(combat, turnAt(2, 1), turnAt(3, 0));
+  assert.deepEqual(first.prompted, ["Alder"]);
+  const [card] = promptsOf();
+  assert.ok(card.content.includes("Squeezing throw 9+") && card.content.includes('data-action="crossingPromptThrow"'));
+  assert.equal(card.content.includes('data-step='), false);
+  assert.equal(naturals.length, 0, "nothing rolled by itself");
+  assert.deepEqual((await drive(combat, turnAt(2, 1), turnAt(3, 0))).prompted, [], "the same round prompts once");
+  combat.combatant = combat.combatants[1];
+  assert.deepEqual((await drive(combat, turnAt(3, 0), turnAt(3, 1))).prompted, ["Birch"]);
+  const stuck = promptsOf().at(-1);
+  assert.ok(stuck.content.includes("is stuck") && stuck.content.includes("Escape attempt (try 1)"));
+  assert.ok(stuck.content.includes('data-step="wiggle"') && stuck.content.includes('data-step="push"'));
+  assert.equal(stuck.content.includes("Squeezing throw"), false, "no target on the escape card");
+  assert.deepEqual([...stuck.whisper].sort(), ["gm1"]);
+});
+
+await ok("a press on a stuck card's push rolls the throw, takes the buttons off the card and keeps the result; a second press the same round is refused", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5, owner: PLAYER.id }]]);
+  await stuckAt(formation, "Alder");
+  const combat = fightOf(formation);
+  await drive(combat, null, turnAt(3, 0));
+  const [card] = promptsOf();
+  naturals.push(13);
+  const press = { formationId: formation.id, crossingId: readCrossing(formation).id, actorId: "Alder", step: "push" };
+  assert.equal((await pressPrompt(press)).ok, true);
+  assert.equal(card.content.includes("crossingPromptThrow"), false, "the buttons are gone");
+  assert.ok(card.content.includes("13 vs 19+ — Still stuck") || card.content.includes("13 vs 19+"), "the card keeps the result");
+  assert.deepEqual(memberOf(formation, "Alder").thrownAt, { combatId: "fightA", round: 3 });
+  assert.deepEqual(await pressPrompt(press), { ok: false, refused: "thrown" });
+  assert.equal(naturals.length, 0);
+});
+
+await ok("Stuck is released when the member escapes, comes through or the crossing ends, and never on a body that carries another status", async () => {
+  const { formation, actors: [alder] } = await squeezeWorld([["Alder", { stone: 5 }]]);
+  naturals.push(1);
+  await throwFor(formation, "Alder");
+  assert.equal(crossingHeldOn(alder).length, 1);
+  await endCrossing(formation);
+  assert.equal(crossingHeldOn(alder).length, 0);
+  assert.equal(readCrossing(formation), null);
+});
+
+await ok("the partial draws the squeeze's setup and a stuck row's two escape presses, with no literal id, and every press has a handler", async () => {
+  const { formation } = await squeezeWorld([["Alder", { stone: 5, owner: PLAYER.id }], ["Birch", { stone: 5 }]]);
+  await stuckAt(formation, "Alder");
+  const judge = render({ crossing: buildCrossingView(formation) });
+  assert.ok(judge.includes('name="crossing.shape"') && judge.includes('name="crossing.length"') && judge.includes('name="crossing.judgeMod"'));
+  assert.ok(judge.includes('data-action="crossingEscape" data-step="wiggle"') && judge.includes('data-action="crossingEscape" data-step="push"'));
+  assert.ok(judge.includes('data-action="crossingThrow" data-actor-id="Birch"'), "the squeezing member's throw is drawn");
+  const player = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
+  assert.equal(/name="crossing\./.test(player), false, "no Judge field in a player's DOM");
+  assert.ok(player.includes('data-action="crossingEscape"'), "the owner's escapes are drawn");
+  for (const html of [judge, player]) {
+    assert.equal(/\sid=/.test(html), false);
+    for (const glyph of html.matchAll(/<i [^>]*>/g)) assert.ok(glyph[0].includes("inert"));
+    assert.equal(/title=/.test(html), false, "no title attribute");
+  }
+  const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
+  assert.ok(/^ {2}async crossingEscape\(/m.test(source));
 });
 
 console.log(`\n${passed} passed`);

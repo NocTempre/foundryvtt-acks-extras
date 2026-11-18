@@ -1,7 +1,7 @@
 /* global game, Hooks, ui */
 /**
- * The swim crossing's per-round driver: what the water asks at a member's turn
- * in a fight (RR ch. 6, Swimming and Drowning).
+ * The crossing's per-round driver: what the water or a squeeze asks at a member's
+ * turn in a fight (RR ch. 6, Swimming and Drowning and Squeezing).
  *
  * On the primary GM's client, when a turn begins, it finds the crossing member
  * whose token is the current combatant's (`standsAs`: a member inside the party
@@ -10,6 +10,9 @@
  *  - for a member afloat with a throw to make, posts the prompt card
  *    (`crossing-prompt.mjs`), once for each round. Nothing rolls by itself: the
  *    card's Throw button, or the row's, throws.
+ *  - for a squeezer, the same: the squeezing throw's prompt while they are
+ *    working through, and a stuck member's escape prompt (one button for each
+ *    way out) once for each round.
  *  - for a drowning member, counts one round of drowning, once for each round,
  *    and posts a card to the Judges the round the breath runs out, once. The
  *    module reports; hit points and a defeated status are the Judge's to write.
@@ -21,9 +24,9 @@
 import { MODULE_ID } from "./constants.mjs";
 import { standsAs } from "./deployment.mjs";
 import { getFormation, getFormations } from "./formation-model.mjs";
-import { DROWNING, SWIMMING, notLater, sameTurn, swimTick } from "./crossing-logic.mjs";
+import { DROWNING, ESCAPES, SQUEEZING, STUCK, SWIMMING, notLater, sameTurn, swimTick } from "./crossing-logic.mjs";
 import {
-  SWIM_KIND, crossingMembers, readCrossing, rowFor, swimTargetTip, throwFor, writeMemberPatches,
+  SQUEEZE_KIND, SWIM_KIND, crossingMembers, readCrossing, rowFor, squeezeTargetTip, swimTargetTip, throwFor, writeMemberPatches,
 } from "./crossing.mjs";
 import { PROMPT_ACTION, postPrompt } from "./crossing-prompt.mjs";
 import { requestCrossingThrow } from "./player-requests.mjs";
@@ -57,7 +60,7 @@ function breathCard(name) {
 }
 
 /**
- * A turn began on `combat`: for each open swim crossing, act for the member whose
+ * A turn began on `combat`: for each open swim or squeeze crossing, act for the member whose
  * token is the combatant's. Only the primary GM's client acts.
  *
  * @param {Combat} combat
@@ -74,12 +77,27 @@ export async function onTurnChange(combat, prior, current, { primary = isPrimary
   const turn = { combatId: combat.id, round: current.round };
   for (const formation of Object.values(getFormations())) {
     const crossing = readCrossing(formation);
-    if (crossing?.kind !== SWIM_KIND) continue;
+    if (crossing?.kind !== SWIM_KIND && crossing?.kind !== SQUEEZE_KIND) continue;
     const entry = crossingMembers(formation).find((e) => standsAs(formation, e.member, combatant.token));
     if (!entry) continue;
     const actorId = entry.member.actorId;
     const record = crossing.members?.[actorId] ?? null;
     const seen = { ...entry, ...rowFor(formation, crossing, entry, { judge: true }) };
+    if (crossing.kind === SQUEEZE_KIND) {
+      const state = record?.state ?? SQUEEZING;
+      const stuck = state === STUCK;
+      if (!(stuck ? seen.row.escape.can : state === SQUEEZING && seen.row.can)) continue;
+      if (sameTurn(record?.thrownAt, turn) || notLater(record?.promptedAt, turn)) continue;
+      if (!(await writeMemberPatches(formation, crossing.id, [{ id: actorId, set: { promptedAt: turn } }]))) continue;
+      await postPrompt({
+        actor: entry.actor, combatId: turn.combatId, round: turn.round, alias: formation.name, formationId: formation.id, crossingId: crossing.id, actorId,
+        ...(stuck
+          ? { target: null, targetTip: "", steps: ESCAPES.filter((step) => seen.row.escape[step].can), tries: seen.row.escape.tries }
+          : { target: seen.row.target, targetTip: squeezeTargetTip(seen.row), targetKey: "crossing.prompt.squeezeTarget" }),
+      });
+      done.prompted.push(actorId);
+      continue;
+    }
     if (record?.state === DROWNING) {
       const tick = swimTick({ member: record, turn, rounds: seen.row.drown.rounds });
       if (!tick) continue;
@@ -110,13 +128,13 @@ export async function onTurnChange(combat, prior, current, { primary = isPrimary
  *
  * @returns {Promise<{ok: boolean, refused?: string}>}
  */
-export async function pressPrompt({ formationId, crossingId, actorId }) {
+export async function pressPrompt({ formationId, crossingId, actorId, step = null }) {
   const formation = getFormation(formationId);
   const crossing = formation ? readCrossing(formation) : null;
   if (!crossing) return { ok: false, refused: "closed" };
   if (crossing.id !== crossingId) return { ok: false, refused: "stale" };
-  if (!game.user.isGM) return requestCrossingThrow(formation, actorId);
-  const result = await throwFor(formation, actorId, { crossingId });
+  if (!game.user.isGM) return requestCrossingThrow(formation, actorId, step);
+  const result = await throwFor(formation, actorId, { crossingId, step });
   const key = `ACKS-FORMATION.crossing.refusal.${result.refused}`;
   if (!result.ok && game.i18n.has(key)) ui.notifications.warn(game.i18n.format(key, { name: game.actors?.get?.(actorId)?.name ?? "" }));
   return result;
@@ -130,7 +148,7 @@ export function bindPromptCard(html) {
     button.addEventListener("click", (event) => {
       event.preventDefault();
       button.disabled = true;
-      pressPrompt({ formationId: button.dataset.formationId, crossingId: button.dataset.crossingId, actorId: button.dataset.actorId })
+      pressPrompt({ formationId: button.dataset.formationId, crossingId: button.dataset.crossingId, actorId: button.dataset.actorId, step: button.dataset.step || null })
         .then((result) => { if (!result?.ok) button.disabled = false; })
         .catch((err) => {
           button.disabled = false;

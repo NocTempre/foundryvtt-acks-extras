@@ -76,6 +76,24 @@
       <span>{{localize "ACKS-FORMATION.crossing.judgeMod"}}</span>
       <input type="number" name="crossing.judgeMod" value="{{crossing.swim.judgeMod}}" step="1">
     </label>
+    {{else if crossing.squeeze}}
+    <fieldset class="acks-extras-crossing-water" data-tooltip-text="{{crossing.squeeze.shapeTip}}">
+      <legend>{{localize "ACKS-FORMATION.crossing.squeeze.shape.label"}}</legend>
+      {{#each crossing.squeeze.shapes}}
+      <label class="acks-extras-crossing-check">
+        <input type="radio" name="crossing.shape" value="{{this.value}}"{{#if this.checked}} checked{{/if}}>
+        <span>{{this.label}}</span>
+      </label>
+      {{/each}}
+    </fieldset>
+    <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.squeeze.lengthTip}}">
+      <span>{{localize "ACKS-FORMATION.crossing.length"}}</span>
+      <input type="number" name="crossing.length" value="{{crossing.squeeze.length}}" min="0" step="any">
+    </label>
+    <label class="acks-extras-crossing-field" data-tooltip="{{localize 'ACKS-FORMATION.crossing.tip.judgeSet'}}">
+      <span>{{localize "ACKS-FORMATION.crossing.judgeMod"}}</span>
+      <input type="number" name="crossing.judgeMod" value="{{crossing.squeeze.judgeMod}}" step="1">
+    </label>
     {{else if crossing.jump}}
     <label class="acks-extras-crossing-field" data-tooltip-text="{{crossing.refs.jumping}}">
       <span>{{localize "ACKS-FORMATION.crossing.gap"}}</span>
@@ -185,6 +203,60 @@
           <i class="fa-solid fa-life-ring" inert></i> {{localize "ACKS-FORMATION.crossing.swim.haul"}}
         </button>
         {{/if}}
+      </span>
+      {{/if}}
+      </span>
+    </li>
+    {{/each}}
+    {{else if crossing.squeeze}}
+    {{#each crossing.rows}}
+    <li class="acks-extras-crossing-row" data-state="{{this.state}}" data-press-home="{{this.actorId}}" tabindex="-1">
+      <span class="acks-extras-crossing-name">{{this.name}}{{#if this.yours}} <span class="acks-extras-crossing-yours">{{localize "ACKS-FORMATION.crossing.swim.yours"}}</span>{{/if}}{{#if this.holdsLabel}} <span class="acks-extras-crossing-badge" data-tooltip-text="{{this.badgeTip}}">{{this.holdsLabel}}</span>{{/if}}</span>
+      {{#if this.can}}
+      <button type="button" data-action="crossingThrow" data-actor-id="{{this.actorId}}"
+              aria-label="{{localize 'ACKS-FORMATION.crossing.throwFor' name=this.name}}" data-tooltip="">
+        <i class="fa-solid fa-dice-d20" inert></i> {{#if this.warn}}{{localize "ACKS-FORMATION.crossing.throwAnyway"}}{{else}}{{localize "ACKS-FORMATION.crossing.throw"}}{{/if}}
+      </button>
+      {{/if}}
+      <span class="acks-extras-crossing-cells">
+      {{#if this.target}}
+      <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.targetTip}}">{{this.target}}</span>
+      {{/if}}
+      <span class="acks-extras-crossing-state{{#if this.stuck}} is-drowning{{/if}}" data-tooltip-text="{{this.stateTip}}">{{this.stateLabel}}</span>
+      {{#each this.implied}}
+      <span class="acks-extras-crossing-held" data-status="{{this.statusId}}" data-tooltip-text="{{this.tip}}">{{this.label}}</span>
+      {{/each}}
+      {{#if this.covered}}
+      <span class="acks-nums acks-extras-crossing-covered" data-tooltip-text="{{this.coveredTip}}">{{this.covered}}</span>
+      {{/if}}
+      {{#if this.last}}
+      <span class="acks-nums acks-extras-crossing-last" data-tooltip-text="{{this.last.tip}}">{{this.last.text}}</span>
+      {{/if}}
+      {{#if this.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.said}}</span>{{/if}}
+      {{#if this.escape}}
+      <span class="acks-extras-crossing-rescue acks-extras-crossing-escape">
+        <span class="acks-nums" data-tooltip-text="{{this.escape.tip}}">{{this.escape.text}}{{#if this.escape.penalty}} · {{this.escape.penalty}}{{/if}}</span>
+        {{#with this.escape.wiggle}}
+        {{#if this.can}}
+        <button type="button" data-action="crossingEscape" data-step="{{this.step}}" data-actor-id="{{this.actorId}}"
+                aria-label="{{this.aria}}" data-tooltip-text="{{this.tip}}">
+          <i class="fa-solid fa-arrow-left" inert></i> {{this.label}}
+        </button>
+        {{else}}
+        <span class="acks-extras-crossing-block" data-tooltip-text="{{this.tip}}">{{this.label}}</span>
+        {{/if}}
+        {{/with}}
+        {{#with this.escape.push}}
+        {{#if this.can}}
+        <button type="button" data-action="crossingEscape" data-step="{{this.step}}" data-actor-id="{{this.actorId}}"
+                aria-label="{{this.aria}}" data-tooltip-text="{{this.tip}}">
+          <i class="fa-solid fa-arrow-right" inert></i> {{this.label}}
+        </button>
+        {{else}}
+        <span class="acks-extras-crossing-block" data-tooltip-text="{{this.tip}}">{{this.label}}</span>
+        {{/if}}
+        {{/with}}
+        {{#if this.escape.said}}<span class="acks-extras-crossing-block{{#if this.warn}} is-warn{{/if}}">{{this.escape.said}}</span>{{/if}}
       </span>
       {{/if}}
       </span>

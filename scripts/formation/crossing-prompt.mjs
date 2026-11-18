@@ -35,23 +35,37 @@ export const PROMPT_ACTION = "crossingPromptThrow";
  * @param {number|null} o.target the throw's target, null where none is known
  * @param {string} o.targetTip the target's provenance, assembled at render
  * @param {string|null} [o.result] the settled line, such as "14 vs 6+ stays afloat"
+ * @param {string} [o.targetKey] the lang key of the note that names the target, whose `{target}` is filled
+ * @param {string[]|null} [o.steps] the ways out a stuck squeezer is offered, one button each, in place of the single Throw
+ * @param {number} [o.tries] escapes already tried, for a stuck squeezer's card
  */
-export function promptCard({ name, formationId, crossingId, actorId, target, targetTip, result = null }) {
-  return renderRollCard({
-    title: loc("crossing.prompt.title", { name }),
-    note: target === null ? "" : loc("crossing.prompt.target", { target }),
-    noteTooltip: targetTip,
-    empty: result ?? loc("crossing.prompt.waiting"),
-    footnote: loc("crossing.prompt.meta", { name }),
-    buttons: result === null
-      ? [{
+export function promptCard({ name, formationId, crossingId, actorId, target, targetTip, result = null, targetKey = "crossing.prompt.target", steps = null, tries = 0 }) {
+  const data = { formationId, crossingId, actorId };
+  let buttons = [];
+  if (result === null) {
+    buttons = steps
+      ? steps.map((step) => ({
+        action: PROMPT_ACTION,
+        label: loc(`crossing.squeeze.prompt.${step}`),
+        icon: "fa-solid fa-dice-d20",
+        data: { ...data, step },
+        tooltip: loc(`crossing.squeeze.escape.${step}For`, { name }),
+      }))
+      : [{
         action: PROMPT_ACTION,
         label: loc("crossing.throw"),
         icon: "fa-solid fa-dice-d20",
-        data: { formationId, crossingId, actorId },
+        data,
         tooltip: loc("crossing.throwFor", { name }),
-      }]
-      : [],
+      }];
+  }
+  return renderRollCard({
+    title: loc(steps ? "crossing.prompt.stuckTitle" : "crossing.prompt.title", { name }),
+    note: target === null ? "" : loc(targetKey, { target }),
+    noteTooltip: targetTip,
+    empty: result ?? (steps ? loc("crossing.prompt.escape", { tries: tries + 1 }) : loc("crossing.prompt.waiting")),
+    footnote: loc("crossing.prompt.meta", { name }),
+    buttons,
   });
 }
 
@@ -70,7 +84,14 @@ export async function postPrompt({ actor, combatId, round, alias, ...card }) {
     content: promptCard({ name: actor.name, ...card }),
     whisper: judgesAndOwners(actor),
     speaker: { alias },
-    flags: { [MODULE_ID]: { [PROMPT_FLAG]: { formationId: card.formationId, crossingId: card.crossingId, actorId: card.actorId, combatId, round, target: card.target, targetTip: card.targetTip } } },
+    flags: {
+      [MODULE_ID]: {
+        [PROMPT_FLAG]: {
+          formationId: card.formationId, crossingId: card.crossingId, actorId: card.actorId, combatId, round, target: card.target, targetTip: card.targetTip,
+          ...(card.targetKey ? { targetKey: card.targetKey } : {}), ...(card.steps ? { steps: card.steps, tries: card.tries ?? 0 } : {}),
+        },
+      },
+    },
   });
 }
 
@@ -97,7 +118,9 @@ export async function settlePrompts(crossingId, actorId, result) {
     const flag = message.flags[MODULE_ID][PROMPT_FLAG];
     const name = game.actors?.get?.(actorId)?.name ?? "";
     await message.update({
-      content: promptCard({ name, formationId: flag.formationId, crossingId, actorId, target: flag.target ?? null, targetTip: flag.targetTip ?? "", result }),
+      content: promptCard({ name, formationId: flag.formationId, crossingId, actorId, target: flag.target ?? null, targetTip: flag.targetTip ?? "", result,
+        ...(flag.targetKey ? { targetKey: flag.targetKey } : {}), ...(flag.steps ? { steps: flag.steps, tries: flag.tries ?? 0 } : {}),
+      }),
       [`flags.${MODULE_ID}.${PROMPT_FLAG}.settled`]: true,
     });
     settled += 1;

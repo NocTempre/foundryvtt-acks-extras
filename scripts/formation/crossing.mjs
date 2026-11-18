@@ -46,14 +46,15 @@ import {
 import { carriersOf } from "./mapper-kit.mjs";
 import { standsAs } from "./deployment.mjs";
 import { WATER, holdsSwimming, ownSwimSpeed, rescueStone, waterPenaltySteps } from "./swimming.mjs";
+import { chokepointFeet, escapeFeet, holdsContortionism, squeezeBotched } from "./squeezing.mjs";
 import { settlePrompts } from "./crossing-prompt.mjs";
-import { citedSource, partText, resolveCheck } from "./party-rolls.mjs";
+import { PARTY_CHECKS, citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
 import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallDie } from "./jumping.mjs";
 import {
-  CLIMB_CHECK, CROSSING_STATUSES, DROWNING, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, SWIMMING, climbUpRow, crossingHeld, crossingOfHolder,
+  CLIMB_CHECK, CROSSING_STATUSES, DROWNING, ESCAPES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, STUCK, SWIMMING, WIGGLE_SAVE, climbUpRow, crossingHeld, crossingOfHolder,
   fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
-  swimThrowStep, withFooting,
+  swimThrowStep, withFooting, escapeStep, squeezeRow, squeezeThrowStep,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { capacityStone, movementBearing } from "../lib/capacity.mjs";
@@ -76,8 +77,11 @@ export const JUMP_KIND = "jump";
 /** The kind a crossing takes through water too deep to stand in. */
 export const SWIM_KIND = "swim";
 
+/** The kind a crossing takes through a chokepoint or a squeeze. */
+export const SQUEEZE_KIND = "squeeze";
+
 /** The kinds a Judge may begin, in the order the pick lists them. */
-export const CROSSING_KINDS = Object.freeze([...Object.keys(OBSTACLES), JUMP_KIND, SWIM_KIND]);
+export const CROSSING_KINDS = Object.freeze([...Object.keys(OBSTACLES), JUMP_KIND, SWIM_KIND, SQUEEZE_KIND]);
 
 const loc = makeLoc("ACKS-FORMATION");
 
@@ -172,7 +176,7 @@ export async function beginCrossing(formation, kind) {
   const actor = getPartyActor(formation);
   if (!actor || !game.user.isGM || !CROSSING_KINDS.includes(kind) || readCrossing(formation)) return null;
   await releaseStrays();
-  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, ...(kind === SWIM_KIND ? { movement: "combat", penaltyPick: "none" } : {}), members: {} };
+  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, ...(kind === SWIM_KIND ? { movement: "combat", penaltyPick: "none" } : {}), ...(kind === SQUEEZE_KIND ? { shape: "chokepoint" } : {}), members: {} };
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: foundry.data.operators.ForcedReplacement.create(setup) });
   return setup.id;
 }
@@ -211,6 +215,7 @@ const SETUP_FIELDS = Object.freeze({
   waterRough: (v) => v === true,
   waterFast: (v) => v === true,
   movement: (v) => (v === "running" ? "running" : "combat"),
+  shape: (v) => (v === "squeeze" ? "squeeze" : "chokepoint"),
   penaltyPick: (v) => (typeof v === "string" && v.trim() !== "" ? v.trim() : "none"),
   penaltyLarger: positive,
 });
@@ -347,6 +352,7 @@ export function rowFor(formation, crossing, { member, actor }, { judge = game.us
   const standing = standingOf(member, actor);
   const record = crossing.members?.[member.actorId] ?? null;
   if (crossing.kind === SWIM_KIND) return swimEntry(formation, crossing, { member, actor }, { seat, standing, record, load: load ?? carriedLoad(formation) });
+  if (crossing.kind === SQUEEZE_KIND) return squeezeEntry(formation, crossing, { member, actor }, { seat, standing, record, load: load ?? carriedLoad(formation) });
   if (crossing.kind === JUMP_KIND) {
     const level = Number(actor.system?.details?.level) || 0;
     const options = {
@@ -530,16 +536,17 @@ export function canCross(formation) {
       return attemptRefusal(seen) === null || climbRefusal(seen) === null;
     });
   }
-  const load = crossing.kind === SWIM_KIND ? carriedLoad(formation) : null;
+  const load = crossing.kind === SWIM_KIND || crossing.kind === SQUEEZE_KIND ? carriedLoad(formation) : null;
   return crossingMembers(formation).some((entry) => {
     const { row } = rowFor(formation, crossing, entry, { load });
-    return row.can && !SETTLED.includes(row.state);
+    return (row.can || (crossing.kind === SQUEEZE_KIND && row.escape.can)) && !SETTLED.includes(row.state);
   });
 }
 
 /** A kind's label: the jump's own, or the obstacle's. */
 export function kindLabel(kind) {
   if (kind === SWIM_KIND) return loc("crossing.kind.swim");
+  if (kind === SQUEEZE_KIND) return loc("crossing.kind.squeeze");
   return kind === JUMP_KIND ? loc("crossing.kind.jump") : game.i18n.localize(OBSTACLES[kind]?.label ?? "ACKS-FORMATION.obstacles.unknown");
 }
 
@@ -901,11 +908,18 @@ export function buildCrossingView(formation) {
     charging: !!crossing.charging,
   };
   const swim = crossing.kind === SWIM_KIND;
-  const load = jump || swim ? carriedLoad(formation) : null;
+  const squeeze = crossing.kind === SQUEEZE_KIND;
+  const load = jump || swim || squeeze ? carriedLoad(formation) : null;
   const entries = crossingMembers(formation).map((entry) => ({ ...entry, ...rowFor(formation, crossing, entry, { load }) }));
   if (swim) {
     view.swim = swimSetupView(crossing, entries);
     view.rows = entries.map((entry) => swimRowView(crossing, entry, entries));
+    view.canThrowAll = isGM && entries.some((entry) => entry.row.can && !entry.row.warn);
+    return view;
+  }
+  if (squeeze) {
+    view.squeeze = squeezeSetupView(crossing);
+    view.rows = entries.map((entry) => squeezeRowView(crossing, entry));
     view.canThrowAll = isGM && entries.some((entry) => entry.row.can && !entry.row.warn);
     return view;
   }
@@ -977,11 +991,13 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
  * @param {boolean} [o.player] read the row for a player's seat
  * @param {string|null} [o.crossingId] the crossing id the requester held; null skips the check
  * @param {Function|null} [o.beforeRoll] awaited after the checks, before the die
+ * @param {"wiggle"|"push"|null} [o.step] on a squeeze crossing, the way out a stuck member takes; null is the squeezing throw
+ * @param {Event|null} [o.event] the press, so the system's skip-dialog key reads from it on a wiggle back's save
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string}>}
  *   `refused` names why nothing was thrown: `notGM`, `closed`, `member`, `jump`,
- *   `busy`, `stale` or the row's refusal reason; a refusal that went ahead is no refusal
+ *   `busy`, `stale`, `stuck`, `notStuck`, `cancelled` or the row's refusal reason; a refusal that went ahead is no refusal
  */
-export async function throwFor(formation, actorId, { player = false, crossingId = null, beforeRoll = null } = {}) {
+export async function throwFor(formation, actorId, { player = false, crossingId = null, beforeRoll = null, step = null, event = null } = {}) {
   if (!game.user.isGM) return { ok: false, refused: "notGM" };
   const crossing = readCrossing(formation);
   if (!crossing) return { ok: false, refused: "closed" };
@@ -994,15 +1010,19 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
   if (crossing.kind === JUMP_KIND) return { ok: false, refused: JUMP_KIND };
   const seen = { ...entry, ...rowFor(formation, crossing, entry, player ? { judge: false, owns: true } : { judge: true }) };
   const { row } = seen;
-  if (!row.can || !row.plan) return { ok: false, refused: row.refusal?.reason ?? "member" };
+  const squeeze = crossing.kind === SQUEEZE_KIND;
+  if (step && !squeeze) return { ok: false, refused: "stale" };
+  const asked = squeeze ? squeezePress(seen, step) : { press: row.can && row.plan ? row : null, refused: row.refusal?.reason ?? "member" };
+  if (!asked.press) return { ok: false, refused: asked.refused };
   const key = `${crossing.id}:${actorId}`;
   if (inFlight.has(key)) return { ok: false, refused: "busy" };
-  if (row.plan.overRefusal) {
-    ui.notifications.warn(refusalText(row.refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
+  if (asked.press.plan.overRefusal) {
+    ui.notifications.warn(refusalText(asked.press.refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
   }
   inFlight.add(key);
   try {
     await beforeRoll?.();
+    if (squeeze) return await rollSqueeze(formation, crossing, seen, step, { event: saveEvent(event, player) });
     if (crossing.kind === SWIM_KIND) return await rollSwim(formation, crossing, seen);
     const record = crossing.members?.[actorId] ?? null;
     return await rollStretch(formation, crossing, seen, {
@@ -1065,7 +1085,7 @@ export async function throwAll(formation) {
   const crossing = readCrossing(formation);
   const out = { thrown: 0, left: 0, messages: [] };
   if (!crossing || crossing.kind === JUMP_KIND || !game.user.isGM) return out;
-  const load = crossing.kind === SWIM_KIND ? carriedLoad(formation) : null;
+  const load = crossing.kind === SWIM_KIND || crossing.kind === SQUEEZE_KIND ? carriedLoad(formation) : null;
   for (const entry of crossingMembers(formation)) {
     const { row } = rowFor(formation, crossing, entry, { judge: true, load });
     if (!row.can || row.warn || SETTLED.includes(row.state)) {
@@ -1730,4 +1750,260 @@ async function attemptJump(formation, crossing, seen, { event, over }) {
     rolls,
   });
   return { ok: true, message, step: result.state, result };
+}
+
+/* -------------------------------------------- */
+/*  The squeezer                                */
+/* -------------------------------------------- */
+
+/** The page the squeeze figures name where none was imported. */
+const squeezingRef = () => loc("crossing.ref.squeezing");
+
+/** The imported page of a squeeze figure's table, or the chapter's reference where none was imported. */
+const squeezeCite = (table) => citeFor(table) ?? squeezingRef();
+
+/** A figure with the sign of what it does to the number to roll. */
+const signed = (n) => `${n < 0 ? "−" : "+"}${Math.abs(n)}`;
+
+/** A target's parts as words, each signed by what it adds to the number to roll. */
+const squeezeParts = (parts) => parts.map((part) => `${loc(`crossing.squeeze.part.${part.key}`)} ${signed(part.value)}`);
+
+/** The squeezing throw's target as a tooltip: its parts, then the page; the page alone where no target stands. */
+export function squeezeTargetTip(row) {
+  if (row.target === null) return squeezeCite("contortionismBonus");
+  return [...squeezeParts(row.parts), squeezeCite("contortionismBonus")].join(" · ");
+}
+
+/** One way out's target as a tooltip: the figure it starts from, its parts, then the page. */
+export function escapeTargetTip(entry, name) {
+  const way = entry.row.escape[name];
+  const cite = squeezeCite("escapeFeet");
+  if (way.target === null) return cite;
+  const head = name === "push"
+    ? loc("crossing.squeeze.part.figure", { figure: entry.pushFigure?.target, source: entry.pushFigure?.source ?? "" })
+    : loc("crossing.squeeze.part.save", { save: saveName({ save: WIGGLE_SAVE }), base: entry.save.base });
+  const tail = name === "wiggle" && entry.holds ? [loc("crossing.squeeze.part.contortionSave")] : [];
+  return [head, ...squeezeParts(way.parts), ...tail, cite].join(" · ");
+}
+
+/**
+ * The press a squeezing member's request names: the squeezing throw's own row,
+ * or one of the two ways out. `press` is what the seat may do, and `refused` the
+ * reason it may not, which a row that holds no reason of its own gets from the
+ * state: a stuck member has only the escapes, and a member who is not stuck has
+ * none. A step that is no escape is `stale`.
+ *
+ * @param {object} seen the member's entry with its squeeze row
+ * @param {string|null} step `wiggle`, `push` or null for the squeezing throw
+ * @returns {{press: object|null, refused: string|null}}
+ */
+export function squeezePress(seen, step = null) {
+  if (step && !ESCAPES.includes(step)) return { press: null, refused: "stale" };
+  const press = step ? seen.row.escape[step] : seen.row;
+  if (press.can && press.plan) return { press, refused: null };
+  const fallback = step ? (seen.row.state === STUCK ? "member" : "notStuck") : (seen.row.state === STUCK ? "stuck" : "member");
+  return { press: null, refused: press.refusal?.reason ?? fallback };
+}
+
+/** The line a settled prompt card and a squeeze row keep: the total against the target and where it leaves the member. */
+export const squeezeResultLine = ({ total, target, outcome }) => loc("crossing.squeeze.line", { total, target, outcome });
+
+/** The words for where a squeeze throw or an escape left the member. */
+function squeezeOutcome({ step, set, feet }) {
+  if (set.state === "across") return loc(step === "push" ? "crossing.squeeze.result.pushThrough" : "crossing.squeeze.result.through");
+  if (set.state === STUCK) return loc(step ? "crossing.squeeze.result.stillStuck" : "crossing.squeeze.result.stuck");
+  if (step === "wiggle") return loc("crossing.squeeze.result.wiggled", { feet });
+  if (step === "push") return loc("crossing.squeeze.result.pushed", { feet });
+  return loc(set.last.success ? "crossing.squeeze.result.progress" : "crossing.squeeze.result.none");
+}
+
+/**
+ * Hold the stored saving-throw figure `delta` higher while `run` reads it, then
+ * put it back. Core's `rollSave` takes no modifier, and it reads the figure it
+ * rolls against before it awaits anything, so the stone and the failed pushes
+ * reach core's own roll and card by the figure it already reads.
+ */
+function withSaveShift(actor, key, delta, run) {
+  const cell = actor.system?.saves?.[key];
+  const was = cell?.value;
+  if (!delta || !Number.isFinite(was)) return run();
+  cell.value = was + delta;
+  try {
+    return run();
+  } finally {
+    cell.value = was;
+  }
+}
+
+/** The card for one squeeze throw or escape. */
+function squeezeCard({ seen, press, step, roll, natural, set, success, botch, feet, tip }) {
+  const { actor } = seen;
+  const foot = [];
+  if (press.plan.overRefusal) foot.push(loc("crossing.card.overRefusal", { reason: refusalText(press.refusal, actor) || loc("crossing.card.overRefusalBare") }));
+  return renderRollCard({
+    title: loc(step ? `crossing.squeeze.card.${step}` : "crossing.squeeze.card.squeeze"),
+    subtitle: actor.name,
+    note: squeezingRef(),
+    sections: [{
+      rows: [{
+        name: actor.name,
+        total: roll.total,
+        target: press.plan.target,
+        targetTooltip: tip,
+        detail: botch ? loc("crossing.card.botch", { natural }) : "",
+        outcome: squeezeOutcome({ step, set, feet }),
+        emphasis: success ? "success" : "failure",
+      }],
+    }],
+    footnote: foot.join(" · "),
+  });
+}
+
+/**
+ * One squeeze throw or escape, the roll and everything after it. The squeezing
+ * throw and the push are a bare d20 against the row's target; the wiggle back
+ * is core's own `rollSave` for the Paralysis save with the stone and the failed
+ * pushes held on the figure it rolls against. The total is read against the
+ * target, where it leaves the member (`squeezeThrowStep`, `escapeStep`), the
+ * record patched while the crossing still stands, stuck held or released, the
+ * card to the Judges and the member's waiting prompt cards settled. The caller
+ * has made every check and holds the member's in-flight key.
+ *
+ * @param {object} formation
+ * @param {object} crossing the open crossing as read before the roll
+ * @param {object} seen the member's entry with its row, read for the pressing seat
+ * @param {string|null} step `wiggle`, `push` or null for the squeezing throw
+ * @param {{event?: object|null}} [o] `event` is what the system's save dialog reads its skip key from
+ * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string, success?: boolean}>}
+ */
+async function rollSqueeze(formation, crossing, seen, step, { event = null } = {}) {
+  const { row, actor } = seen;
+  const press = step ? row.escape[step] : row;
+  const actorId = seen.member.actorId;
+  let roll;
+  if (step === "wiggle") {
+    const key = saveKeyOf({ save: WIGGLE_SAVE });
+    roll = await withSaveShift(actor, key, press.plan.target - seen.save.base, () => actor.rollSave(key, { event }));
+    if (!roll) return { ok: false, refused: "cancelled" };
+  } else {
+    roll = await new Roll("1d20").evaluate();
+  }
+  const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
+  const botch = step ? false : squeezeBotched(natural);
+  const success = !botch && roll.total >= press.plan.target;
+  const turn = seen.turn && { combatId: seen.turn.combatId, round: seen.turn.round };
+  const feet = escapeFeet();
+  const patch = step
+    ? escapeStep({ member: seen.record, way: step, success, natural, total: roll.total, turn, chokepoint: row.chokepoint, length: row.length, feet })
+    : squeezeThrowStep({ member: seen.record, success, botch, natural, total: roll.total, turn, chokepoint: row.chokepoint, length: row.length, advance: row.advance });
+  if (!(await writeMemberPatches(formation, crossing.id, [{ id: actorId, set: patch.set, unset: patch.unset }]))) return { ok: false, refused: "stale" };
+  const wanted = heldAfter({ state: patch.set.state });
+  const bodies = carriersOf(seen.member);
+  await syncHeld(bodies, crossing.id, wanted);
+  // An End that landed between the record's write and the hold released nothing, so what was just held goes too.
+  if (wanted.length && readCrossing(formation)?.id !== crossing.id) await syncHeld(bodies, crossing.id, []);
+  const tip = step ? escapeTargetTip(seen, step) : squeezeTargetTip(row);
+  const message = await postToJudges({
+    content: squeezeCard({ seen, press, step, roll, natural, set: patch.set, success, botch, feet, tip }),
+    speaker: { alias: formation.name },
+    rolls: [roll],
+  });
+  const outcome = squeezeOutcome({ step, set: patch.set, feet });
+  await settlePrompts(crossing.id, actorId, squeezeResultLine({ total: roll.total, target: press.plan.target, outcome }));
+  return { ok: true, message, step: patch.set.state, success };
+}
+
+/** One squeezer's entry for a seat: the logic's row with what the view and the throw read beside it. */
+function squeezeEntry(formation, crossing, { member, actor }, { seat, standing, record, load }) {
+  const monster = actor.type === "monster";
+  const stone = monster ? null : carriedBy(actor, load);
+  const turn = crossingTurn(formation, member);
+  const save = { base: actor.system?.saves?.[WIGGLE_SAVE]?.value == null ? null : saveSpec(actor, WIGGLE_SAVE, { magical: false }).target };
+  const pushFigure = resolveCheck(actor, PARTY_CHECKS.dungeonbashing);
+  const holds = holdsContortionism(actor);
+  const row = squeezeRow({
+    encumbrance: stone, holds, shape: crossing.shape === "squeeze" ? "squeeze" : "chokepoint", length: crossing.length, judgeMod: crossing.judgeMod,
+    pushFigure, save, speed: swimSpeeds(actor, stone ?? 0, false).combat, turn: turn && { combatId: turn.combatId, round: turn.round }, seat, standing, member: record,
+  });
+  return { actor, member, squeeze: true, standing, row, record, stone, holds, turn, pushFigure, save };
+}
+
+/** The squeeze crossing's setup for the template: the shape pick, the length and the Judge's modifier, each with the page. */
+function squeezeSetupView(crossing) {
+  const shape = crossing.shape === "squeeze" ? "squeeze" : "chokepoint";
+  const limit = chokepointFeet();
+  const cite = squeezeCite("chokepointFeet");
+  return {
+    shapes: ["chokepoint", "squeeze"].map((value) => ({ value, label: loc(`crossing.squeeze.shape.${value}`), checked: shape === value })),
+    shapeTip: limit == null ? cite : [loc("crossing.squeeze.tip.chokepointFigure", { feet: limit }), cite].join(" · "),
+    lengthTip: squeezingRef(),
+    length: crossing.length ?? "",
+    judgeMod: crossing.judgeMod ?? 0,
+    refs: { squeezing: squeezingRef() },
+  };
+}
+
+/** One squeeze row for the template, for the seat that reads it. */
+function squeezeRowView(crossing, entry) {
+  const { actor, row, record } = entry;
+  const judge = game.user.isGM;
+  const stuck = row.state === STUCK;
+  const through = row.state === "across";
+  const target = Number.isFinite(row.target) ? row.target : null;
+  const said = refusalText(row.refusal, actor);
+  const last = record?.last ?? null;
+  const condition = (id) => game.i18n.localize(conditionNameKey(id));
+  const implied = stuck ? [...conditionSet([STUCK])].filter((id) => id !== STUCK) : [];
+  const way = (name) => {
+    const own = row.escape[name];
+    const label = own.target === null ? "" : loc(`crossing.squeeze.escape.${name}Target`, { target: own.target });
+    return {
+      step: name,
+      actorId: entry.member.actorId,
+      can: own.can,
+      warn: own.warn,
+      label: own.target === null ? loc(`crossing.squeeze.escape.${name}`) : label,
+      aria: loc(`crossing.squeeze.escape.${name}For`, { name: actor.name }),
+      tip: escapeTargetTip(entry, name),
+    };
+  };
+  const stateTip = stuck
+    ? [loc("crossing.squeeze.tip.stuck", { condition: condition(STUCK) }), squeezingRef()].join(" · ")
+    : squeezingRef();
+  return {
+    actorId: entry.member.actorId,
+    name: actor.name,
+    state: row.state,
+    stateLabel: loc(`crossing.squeeze.state.${row.state}`),
+    stateTip,
+    stuck,
+    through,
+    yours: !judge && (actor.testUserPermission?.(game.user, "OWNER") ?? false),
+    holdsLabel: entry.holds ? loc("crossing.squeeze.badge.contortionism") : "",
+    badgeTip: [loc("crossing.squeeze.tip.holds"), squeezingRef()].join(" · "),
+    target: !stuck && !through && target !== null ? `${target}+` : "",
+    targetTip: squeezeTargetTip(row),
+    covered: row.chokepoint || row.length === null ? "" : loc("crossing.squeeze.covered", { covered: row.covered, length: row.length }),
+    coveredTip: [row.advance === null ? "" : loc("crossing.squeeze.tip.advance", { feet: row.advance }), squeezingRef()].filter(Boolean).join(" · "),
+    implied: implied.map((id) => ({ statusId: id, label: condition(id), tip: [loc("crossing.swim.tip.implied", { condition: condition(id), by: condition(STUCK) }), squeezingRef()].join(" · ") })),
+    can: row.can,
+    warn: row.warn,
+    said: stuck ? "" : said,
+    last: last && last.total != null
+      ? {
+        text: loc("crossing.squeeze.last", { total: last.total, outcome: loc(`crossing.squeeze.lastOutcome.${last.kind}.${last.botch ? "botch" : last.success ? "made" : "missed"}`) }),
+        tip: loc("crossing.tip.lastThrow", { natural: last.natural, total: last.total }),
+      }
+      : null,
+    escape: stuck
+      ? {
+        text: loc("crossing.squeeze.escape.tries", { tries: row.escape.tries }),
+        penalty: row.escape.penalty ? loc("crossing.squeeze.escape.penalty", { penalty: row.escape.penalty }) : "",
+        tip: [loc("crossing.squeeze.escape.tip"), squeezeCite("escapePenaltyStep")].join(" · "),
+        said: refusalText(row.escape.wiggle.refusal ?? row.escape.push.refusal, actor),
+        wiggle: way("wiggle"),
+        push: way("push"),
+      }
+      : null,
+  };
 }

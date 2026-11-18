@@ -10,7 +10,7 @@ import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
 import {
-  JUMP_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setRescuer, throwFor,
+  JUMP_KIND, SQUEEZE_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setRescuer, squeezePress, throwFor,
 } from "./crossing.mjs";
 import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
@@ -68,7 +68,10 @@ async function whisperCrossingRefusal(formation, user, reason, actor, words = re
 }
 
 /** The presses a relayed crossing request may name: the jump itself, a hanging jumper's climb up, and a swimmer's rescuer. */
-const CROSSING_STEPS = Object.freeze(["attempt", "climbUp", "rescue"]);
+const CROSSING_STEPS = Object.freeze(["attempt", "climbUp", "rescue", "wiggle", "push"]);
+
+/** The relayed steps that are a jump's; a squeezer's two escapes are thrown as the crossing's own throw. */
+const JUMP_STEPS = Object.freeze(["attempt", "climbUp"]);
 
 /**
  * A rescuer named, or cleared, on a drowning member, for a seat that owns the
@@ -360,12 +363,12 @@ async function executeRequest(formation, user, type, payload) {
       // The declaration is made once every check has passed and the member's
       // throw is claimed, so a refused or busy request declares nothing. A press
       // over a gap names its step; anything else is a stretch thrown.
-      const beforeRoll = () => announceDeclaration(formation, user, loc({ attempt: "request.crossingJump", climbUp: "request.crossingClimbUp" }[step] ?? "request.crossing", {
+      const beforeRoll = () => announceDeclaration(formation, user, loc({ attempt: "request.crossingJump", climbUp: "request.crossingClimbUp", wiggle: "request.crossingWiggle", push: "request.crossingPush" }[step] ?? "request.crossing", {
         name: foundry.utils.escapeHTML(actor?.name ?? "?"),
       }));
-      const out = step
+      const out = JUMP_STEPS.includes(step)
         ? await jumpFor(formation, actorId, { step, player: !user.isGM, crossingId, beforeRoll })
-        : await throwFor(formation, actorId, { player: !user.isGM, crossingId, beforeRoll });
+        : await throwFor(formation, actorId, { player: !user.isGM, crossingId, beforeRoll, step });
       if (!out.ok) return refuse(out.refused);
       return { ok: true };
     }
@@ -436,7 +439,8 @@ export async function requestTakeOut(formation, actorId) {
  * first and a refusal is said here, so a press that cannot succeed is never
  * sent; the GM client reads the row again and is the one that rolls, writes
  * and posts. The request names the formation, the crossing the seat saw, the
- * member and, over a gap, the step pressed (`attempt` or `climbUp`), and nothing else.
+ * member and, over a gap, the step pressed (`attempt` or `climbUp`) or, for a stuck
+ * squeezer, the way out (`wiggle` or `push`), and nothing else.
  * @returns {Promise<{ok: boolean, refused?: string}>} whether the request was
  *   sent and the GM client took it, or why not
  */
@@ -447,6 +451,7 @@ export async function requestCrossingThrow(formation, actorId, step = null) {
   if (!crossing) refused = "closed";
   else if (!entry) refused = "member";
   else if (crossing.kind === JUMP_KIND) refused = step ? jumpPressRefusal(formation, crossing, entry, step) : JUMP_KIND;
+  else if (crossing.kind === SQUEEZE_KIND) refused = squeezePress({ ...entry, ...rowFor(formation, crossing, entry) }, step).refused;
   else if (step) refused = "stale";
   else {
     const { row } = rowFor(formation, crossing, entry);
