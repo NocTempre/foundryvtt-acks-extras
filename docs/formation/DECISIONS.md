@@ -448,3 +448,24 @@ The positions the attempt takes:
 **Rejected.** Rolling a save on every jump: 2026-08-15's second rejection stands. Rolling the slip for a jump that did not reach. A setup field naming what lies beneath the landing, which would be a table of options. Writing the footing pick's result to the record: the pick is the override of a card, not a second path to state. Counting the distance against a round the crossing does not track.
 
 **Cost.** `jumping.mjs` publishes `jumpAt` on `api.formation.jumping`, so formation's `apiVersion` is 31. A world needs the jumping table (the die) and, for a precarious or charging landing, the shortfall die, before the press rolls anything; until then the attempt is refused for every seat with no words. A member may be left in `landing` until the Judge presses again or the crossing ends.
+
+## 2026-11-17 — A swim crossing holds drowning as a crossing status, and a creature with no swim figure has no throw
+
+Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: "(a)", a prompt card at the member's turn whose button throws.
+
+**Ruled.**
+- Deep water is a crossing kind, `swim`. A failed throw makes the member `drowning` and the crossing holds the condition through the path an obstacle's Vulnerable takes (`CROSSING_STATUSES` gains `drowning`), so End, a haul and a dropped member release it. Vulnerable is not held a second time: the condition implies it, and the row's chip is read from `lib/conditions.mjs`.
+- The driver (`crossing-driver.mjs`) runs on the primary GM's client alone and acts once for each round through stamps on the member's record: `promptedAt` for the prompt card, `thrownAt` for the throw, `drownedAt` for the round counted and `breathOut` for the one report of the breath running out. A turn no later than the stamp (a step back, the tracker re-sorting) adds nothing, and outside a fight nothing is counted.
+- A rescuer is a pair of links, `rescuer` on the drowning member and `hauling` on the rescuer, written in one patch (`writeMemberPatches`, which writes by dotted path so a throw landing beside it does not overwrite it). A rescuer whose throw fails lets the body go; a haul clears every link and stamp. The body's stone and a share of its gear are added to the rescuer's own throw.
+- A player names a rescuer through the relay as the rescuer's owner, never the drowning member's: the request carries the rescuer's actor id so the ownership check is the throw's. A player may not replace or clear a rescuer another seat owns.
+- A drowning member's row is refused for every seat, the Judge included, and no control carries a swimmer across: whether they arrive is the Judge's call.
+- A monster with no swim figure the module can read has no stone, so its throw is refused for every seat with no words, and the approved board's "Throw anyway" on that row is not built.
+
+**Rejected.** The throw rolling itself at the start of the turn (OQ9 b). Holding Vulnerable as a second effect beside drowning.
+
+**Cost.** The prompt card is the only automation, so a fight with no primary GM client posts none; the row's own Throw stands. A defeated status is never applied for a breath that ran out. **Open for the owner:** the board draws a "Throw anyway" for a monster with no Adventuring figure; a monster has no swim target to throw against, so the press would roll against nothing. Building it needs a ruling on what a Judge rolls against.
+
+| Position | Strongest counter | Strength |
+|---|---|---|
+| Drowning is held through the crossing's own path | A second status mechanism for drowning is already in the conditions registry and the row could simply read it | Medium: the held path is what End, a drop and a haul already release, and a hand-set Drowning stays untouched |
+| A player names a rescuer only among members they own | The drowning member's owner is the one with something at stake | Weak: a drowning character cannot name who rescues them in play, and the rescuer's owner is who acts |

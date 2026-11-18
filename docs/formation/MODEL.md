@@ -2784,7 +2784,7 @@ the turn plan. The rules are `crossing-logic.mjs`'s (no Foundry, no dice); the
 state, the roll, the card and the view are `crossing.mjs`'s.
 
 **Who sees what.** A Judge always has the begin row: a kind pick (the six
-obstacles and a jump) and Begin. While a crossing is open every seat has the
+obstacles, a jump and deep water) and Begin. While a crossing is open every seat has the
 member rows, and the Judge also the setup fields (length, depth, rope fixed and
 the Judge modifier; for a jump, gap, run-up, precarious, charging, the depth
 a fall over empty space is figured on and the rope a climb up from the edge
@@ -2795,7 +2795,8 @@ row.
 
 **State.** The party actor's `flags["acks-extras"].crossing` holds the setup
 (`id`, `kind`, `length`, `depth`, `ropeFixed`, `judgeMod`, `gap`, `runUp`,
-`precarious`, `charging`) and `members`, one record per actor id: `covered`,
+`precarious`, `charging`, and for deep water `penaltyPick`, `penaltyLarger`,
+`waterCold`, `waterRough`, `waterFast`, `movement`) and `members`, one record per actor id: `covered`,
 `throws`, `state` (`climbing`, `across`, `fell`, `stalled`) and `last`, the
 throw's total, natural result, success and the imported words. Begin replaces
 the whole flag with a fresh id and no members and End unsets it. Every other
@@ -2950,9 +2951,9 @@ the member hanging), so the outcome reads "Climbed up" or "Fell", a fall shows
 the setup's depth with the imported dice (`fallFromDepth`), and the tooltip
 adds the climb up's throw. A stalled climb up reads "Hanging" still.
 
-**A swimmer's row.** Deep water is a row of its own, `swimRow` in
-`crossing-logic.mjs`, with no surface yet. It prices the round's throw through
-`swimmingThrow` on the member's carried stone, the water penalty and the
+**A swimmer's row.** Deep water is a crossing kind of its own, `swim` (`SWIM_KIND`),
+and a row of its own, `swimRow` in `crossing-logic.mjs`. It prices the round's
+throw through `swimmingThrow` on the member's carried stone, the water penalty and the
 conditions ticked as its reason, and `holds` (`holdsSwimming`) is what lets a
 target of nothing or less skip the throw (`skip: "proficiency"`); a member who
 does not hold Swimming throws at any target. A creature with a swim speed of its
@@ -2961,16 +2962,74 @@ own (`ownSwimSpeed`: the `swim` row of a monster's Speed table) takes no throw
 step (`swimWaterPenaltySteps`) or a figure larger than every step
 (`waterPenaltyAllowed`), and with no steps imported any size stands; any other
 size is a permission refusal, which stops a player and warns a Judge, and a
-holder's bonus not imported is an absence refusal that stops every seat. The pace is the imported share of the member's combat and running
-speeds (`swimSpeedShare`), each null while it is unknown. A member in the
-`drowning` state takes no throw and no pace and is a seat refusal on every seat;
-their row carries the breath, the sink rate and the depth at death
-(`drowning`), the rounds spent (`drownedRounds` on the record), the breath left
-and the depth reached, and the stone a rescuer lifts (`rescueStone`: the body
-and a share of the gear). Each figure that is not imported reads null and is
-named in its own `unknown`; only the throw's own two figures refuse the row.
-Each carries the `{key, value}` parts a tooltip lists. The round's driver, the
-dice and the applying of drowning are the surface's.
+holder's bonus not imported is an absence refusal that stops every seat. The pace
+is the imported share of the member's combat and running speeds (`swimSpeedShare`),
+each null while it is unknown. A creature that carries nothing the module reads
+has no stone, so its throw is refused for every seat with no words and its row
+shows a blank target whose tooltip is the page. Each figure that is not imported
+reads null and is named in its own `unknown`; only the throw's own figures refuse
+the row. Each carries the `{key, value}` parts a tooltip lists.
+
+**Drowning is a crossing status.** A failed throw writes the member `drowning` with
+one round counted (`drownedRounds`), and the crossing holds the condition on the
+member's body through the held-condition path the obstacles use
+(`CROSSING_STATUSES`, `heldAfter`), so End, a haul and a member the party drops
+release it with the rest. The condition implies Vulnerable (`lib/conditions.mjs`),
+so the row's Vulnerable chip is read from that implication and no second effect is
+held. A drowning member takes no throw and no pace on any seat: the refusal is a
+seat refusal, and a Judge is refused as a player is. Their row carries the breath
+and the sink rate (`drowning`), the breath left, and the stone a rescuer lifts
+(`rescueStone`: the body and a share of the gear). No control moves a swimmer
+across: a swimmer's arrival is the Judge's call (ROADMAP).
+
+**The setup and the rows.** A swim crossing's setup holds `penaltyPick` (`none`, an
+imported size as its string, or `larger`), `penaltyLarger`, the three water
+conditions (`waterCold`, `waterRough`, `waterFast`), `movement` (`combat` or
+`running`, for the whole crossing) and the Judge modifier. `swimPenalty` and
+`swimConditions` read them; `applyCrossingForm` writes them from the form by the
+same dotted paths as any setup field. The view's `swim` object carries the pick's
+options (each built with its own `selected`: Foundry has no helper for it, and the
+value of an option is the imported size, never its place in the list), the line a
+player reads instead of the fields ("Penalty in force … set by the Judge"), and
+the round of the running fight (`crossingTurn`: the combat in which a combatant
+stands as the member, `standsAs`). A row shows the target or "No throw", the state
+(Afloat or Drowning), the pace for the movement picked (running reads "Cannot run"
+for a member a condition forbids running to), the breath and the sink rate of a
+drowning member, the Vulnerable chip, the last throw and, to the Judge, the haul.
+Each figure's tooltip names its parts with the member's own numbers and ends on
+the page its import cites; a figure nobody imported is blank and its tooltip is
+the page alone. "Cannot throw while drowning" is worded to a player's seat only.
+Every row carries `data-press-home`.
+
+**Rescue.** A drowning member names a rescuer (`setRescuer`): the member's record
+takes `rescuer`, the rescuer's `hauling`, and a rescuer named before is let go in
+the same write. `rescueCheck` is the question: a rescuer is not the drowning
+member, is not drowning, is not down, left behind or detached, and is not already
+carrying another (`rescueRefusal`), so the Rescuer select offers only members the
+write would take. The rescuer's own throw is then priced with the body's stone
+added (`hauled`), a rescuer whose throw fails lets the body go, and
+`haulToSurface` (the Judge's alone, the Haul button) brings the member afloat with
+no rounds counted, every link gone and the held drowning released. The select is a
+staging pick (`data-pick="crossing-rescuer-<id>"`), so its change is no form
+submit; `bindCrossingRescuer` listens on it and the Judge's seat writes, a
+player's seat relays. A player names only a member they own as the rescuer, or
+clears the rescuer they own, and never replaces a rescuer another seat owns: the
+relayed `crossing` request names step `rescue`, carries the rescuer's actor id
+(or, to clear, the named rescuer's, with `clear`) so the owner check is the one a
+throw has, and the drowning member in `drownedId`. The GM client checks it again
+(`rescueStep`), declares it publicly once `setRescuer` has taken it, and words a
+refusal with `crossing.relay.rescue*`.
+
+**The driver.** `crossing-driver.mjs` is registered at `init` and acts on the
+primary GM's client alone. When a turn begins in a fight it finds the swim
+crossing's member whose token is the current combatant's and, for one afloat with a
+throw left, posts the prompt card (`crossing-prompt.mjs`) to the member's owners and
+the Judges, once for each round (`promptedAt`); nothing rolls by itself, and the
+card's Throw, or the row's, rolls (`thrownAt` keeps a round to one throw). For a
+drowning member it counts one round (`swimTick`, `drownedAt`), and reports the round
+the breath runs out once (`breathOut`) on a card to the Judges: hit points and
+defeat are the Judge's to write. A turn that is a step back or a re-sort acts on
+nothing, and outside a fight nothing is counted.
 
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the

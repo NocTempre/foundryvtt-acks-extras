@@ -4951,6 +4951,48 @@ uuid. A step that needs a known shape asserts it at its start: step 2 needs no
 `crossing` flag, step 5b needs the adventurer to have no Climbing and step 9
 the same.
 
+### Swim rows (added with S13 of the dungeon close-out)
+
+Built for the Dungeon tab's crossing when the kind is **Swim · deep water**: the Judge's setup (water conditions, Penalty, Larger penalty, Movement, Judge modifier), a player's "Penalty in force" line, the rows (No throw or the target, Afloat or Drowning, the pace, the breath and the sink rate, the Vulnerable chip, the last throw, the Rescuer select, Haul to the surface), and the driver that posts the prompt card at a member's turn. A mock cannot prove that the driver fires on a real `combatTurnChange`, that the prompt card reaches the owner's seat and not a bystander's, or that the Rescuer select's change reaches the code on a control with no `data-action`. Path: Actors sidebar → party sheet → Dungeon tab → The crossing.
+
+Before the first step the Rules tables must be imported in the test world: the walk reads `swimmingBonus`, `swimWaterPenaltySteps`, `swimSpeedShare`, `breathRounds`, `sinkFeetPerStone`, `carriedBodyStone` and `carriedGearShare` through `formationValue`. Without them the penalty offers None and Larger alone and the pace, breath and sink cells are blank, which is step S2's second half and not the walk.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`; `own: <tag>` and `@<tag>` markers where a peer is on this surface).
+- `formation/swim-party` — a party actor in Dungeon mode with its token deployed on a scene, holding the members below, each deployed as a token on the scene so a combatant stands as it.
+- `formation/swim-owner` — a character the Player seat owns, carrying a stone figure the target reads (a character with gear), no Swimming.
+- `formation/swim-friend` — a second character the same Player seat owns, to be the rescuer.
+- `formation/swim-stranger` — a character the second player seat owns, to prove a seat cannot name a rescuer it does not own.
+- `formation/swim-swimmer` — a character holding the imported Swimming, whose row reads No throw while the target is zero or less.
+- `formation/swim-beast` — a monster actor with no carried stone, whose row has a blank target and no press for any seat.
+- `formation/swim-fight` — a combat on that scene with a combatant for each token, begun.
+
+**Drive mechanics.**
+- Begin is the pick `[data-pick="crossing-kind"]` set to `swim` and `[data-action="crossingBegin"]`. The setup fields submit on change like any setup field: set the value, dispatch a bubbling `change`, wait for the render, and read the result from the party actor's `crossing` flag. The Larger penalty input is disabled until the pick reads Larger…, so the pick is set, the render awaited, and then the figure typed.
+- The Rescuer select is `select[data-rescue-for="<drowned actor id>"]`, a staging pick with no `name`: set its value and dispatch `change`. Its change is not a form submit, so the flag changes only after the handler's write (the Judge's seat) or the relay's (a player's).
+- A throw is the row's `[data-action="crossingThrow"]`, or the prompt card's own Throw button. The die is rigged with `CONFIG.Dice.randomUniform`: 0.975 throws a 1 (a miss), 0.025 a 20. Restore it in a `finally`.
+- The driver is driven by a real turn change: `combat.nextTurn()` on the fixture combat, from the primary GM's pane. Never post the card by calling the driver's function, which skips the hook.
+- A card is found as the messages that appear across the press (the set of `game.messages` ids before and after), each `api.track`ed by uuid. The prompt card is a whisper to the member's owners and the Judges; read it from the owner's pane.
+
+| # | Step | Observable |
+|---|---|---|
+| S0 | Re-import the Rulebook's tables; assert no `crossing` flag | The seven figures read back through `formationValue`; End a crossing if one stands |
+| S1 | The GM begins a swim crossing | Rows for every member on the GM and Player seats; the Judge's pane has the three condition boxes, Penalty, Larger penalty (disabled), Movement and Judge modifier; the Player's pane has none of them and reads "Penalty in force: …" |
+| S2 | Penalty set to each imported step, then Larger… with a figure, then with no steps imported (clear `swimWaterPenaltySteps` in the Ruledata Browser) | Each pick's value is the imported size; the target of the owner's row moves by that size; the in-force line on the Player's pane reads the size and the conditions ticked; hovering the Penalty names the step, what was ticked and the page; with no steps the pick offers None and Larger… alone and the tooltip is the page alone |
+| S3 | The hover pass over a row | The target's parts (carrying, Swimming, water, Judge modifier) against the page; the pace's parts (speed, share); a blank figure's tooltip is the page reference alone; No throw on the Swimming holder, with the working |
+| S4 | Movement set to Running, then a hand-set Prone on the owner's character | The pace for Running; "Cannot run" with the condition named in its tooltip on the Prone member; Combat still reads a pace |
+| S5 | The fight's turn reaches the owner's character (`combat.nextTurn()`) | One prompt card, a whisper to the owner and the Judges, titled for that member's turn with "Swimming throw N+" and a Throw button; no die rolled; a second turn change in the same round posts no second card; a bystander seat sees none |
+| S6 | The owner presses the card's Throw, the die rigged to miss | The card keeps the line "N vs T+ — starts drowning" and loses its button; the member's record is drowning with one round counted; the row reads Drowning, Breath {left} of {rounds} rounds, Sinks {feet} ft / round and a Vulnerable chip; the owner's pane reads "Cannot throw while drowning", the Judge's pane reads no such line; the member carries one held effect `crossing:<id>:drowning` |
+| S7 | The owner's character's next turn | One round counted, once; the Judge stepping the tracker back and forward adds none; the round the breath reaches its last posts one card to the Judges and never again; no hit point is written |
+| S8 | The Judge picks the rescuer on the drowning member's Rescuer select | The select lists the members who are not drowning, each "(load +n stone)"; the pick writes the rescuer's `hauling` and the member's `rescuer`; the rescuer's target rises by the body's stone |
+| S9 | The Player's pane picks its own second character as the rescuer, then the stranger's by a hand-made request, then clears | A public declaration for the first; the select on that pane lists only the members that seat owns, so the stranger's is not offered; the hand-made request for it is refused with a whisper to that seat; clearing writes nothing but the links |
+| S10 | The rescuer's throw rigged to miss | The rescuer drowns too and the body is let go: both links gone, the card's line saying the body is released |
+| S11 | The Judge presses Haul to the surface on the drowning member | Afloat again, no rounds counted, links gone, the held drowning effect removed; the button is absent on the Player's pane |
+| S12 | End | Every held effect off every member; the prompt cards stay |
+| S13 | A second party sheet, a detached window, the type size on a fresh window | Rows reflow and nothing clips; focus returns to the pressed row or its button; the rescuer select keeps what was stored across a render |
+| S14 | Teardown | End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; the fight ended |
+
+Steps S5 to S7 need a GM pane seated as the primary GM: the driver acts on that client alone. A Player's press on the prompt card is relayed like a row's throw, so S6 is walked from the owner's own pane.
+
 ## The trap item sheet and the trap zone's config (added with U16 of the dungeon close-out)
 
 Built for the trap Item's sheet (Items sidebar → a Trap item) and the trap
