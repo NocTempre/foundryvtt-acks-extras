@@ -896,8 +896,10 @@ the copies and the fixtures stay.
   wrap. Wait about 600 ms after a step: the window re-renders on the
   `targetToken` hook after a short debounce. `tools/live/magic-cast-spell.mjs`
   section 1b walks X, T, an Actor drop, a Token drop and Add my token with a shot
-  after each, and reads the effect cells' tone classes (`is-neg` for a damage
-  row, `is-pos` for a heal row) with `H.bucketOf`.
+  after each, and checks with `H.bucketOf` that the footer sits outside the
+  scrolling body. A damage spell has no row a seat picks among, so it renders
+  no effect cell; the tone cells are read on the kind pick
+  (`magic-cast-buffs.mjs` step D).
 - Rig the dice with `CONFIG.Dice.randomUniform` (reads from the top: 0.025
   throws a 20, 0.975 a 1) and restore it in `finally`.
 - Targets are set with `canvas.tokens.setTargets(ids, {mode: "replace"})` on

@@ -1346,7 +1346,9 @@ try {
     await run(gm, P.target, { sceneId, tokenIds });
     const opened = await stepOf("open");
     check("1b: the bucket lists the three targeted tokens, each with an X, the count, the drop strip and Add my token", opened.dialog && opened.bucket.rows.length === 3 && opened.bucket.rows.every((r) => r.x) && opened.bucket.count !== "" && opened.bucket.drop && opened.bucket.addMine, opened.bucket);
-    check("1b: the effect rows wear the sheet's tones (a damage row is negative) and the footer sits outside the scrolling body", opened.bucket.tones.length > 0 && opened.bucket.tones.every((t) => t !== "") && opened.bucket.footerPinned, { tones: opened.bucket.tones });
+    // A damage spell has no row a seat picks among, so it renders no effect
+    // cell; the tone cells are checked on the kind pick (magic-cast-buffs D).
+    check("1b: the footer sits outside the scrolling body", opened.bucket.footerPinned, { tones: opened.bucket.tones });
     check("1b: each row's distance carries a tooltip", opened.bucket.rows.every((r) => r.lineTip));
     await shoot("1-three");
     const afterX = await stepOf("x");
