@@ -538,6 +538,17 @@ slots at zero.
     reaching the caster's turn and then passing it with no cast. *Observable:*
     the pending record is still there at the turn, deleted when the turn ends,
     the flag is clear, and the spend stands.
+18. **A declaration resolves on its declared targets.** In a begun fight the
+    Player targets two fixture tokens and declares the damage spell. The Player
+    then targets a third token instead and the tracker reaches the caster's
+    turn. *Observable:* the cast resolves with no dialog; the card's targets are
+    the two declared; the Player's targets (`game.user.targets`) are those two and
+    not the third; the slot is not spent again. Then a second declaration at the
+    two, one of the two tokens deleted from the scene, and the turn reached.
+    *Observable:* the dialog opens, its bucket holds the one remaining token, its
+    mode, picks, level and situational figure are those declared, the notice
+    says one declared target is no longer there, and nothing is spent. Cancelling leaves the
+    pending record and the flag, as a cancelled cast does.
 
 ### The defense steps
 
@@ -1068,6 +1079,12 @@ fails that check; re-import it (the Spells repair).
 - A copy's duration is the walk's own so that a record's absence is the row's
   doing; an imported duration may be untimed or held, which writes none or
   another record. The hand-built summoning spells carry the shape they test.
+- The cast dialog is the ApplicationV2 window of "Casting a spell (the cast
+  engine)", "Drive mechanics": the walk's `cast` finds it by
+  `.application.acks-extras-cast`, reads the live element again after every
+  change, and picks a form with the `input[name="mode"]` radio, which the header
+  draws only for a spell with more than one form (the reversed twin's step reads
+  the forms offered from those radios; a spell with one form lists none).
 - A summons' tokens are found by the summoner's flag on the world, never by
   position; a created world copy of the named creature is the run's only where
   none stood before it.
@@ -1081,3 +1098,180 @@ run's casts are deleted first, by cast id, so their funnels post their cards
 before the cards of the fixtures since the run began are listed by id; the sweep
 deletes exactly that list and its result is quoted. The fixtures stay, and the
 world is paused again if the run unpaused it.
+
+## Saves, gates and record lives (S4)
+
+Walk: `node tools/live/run.mjs magic-cast-saves`, on the GM seat. The spells it
+casts are invented world spells on invented names, each rewritten at its step from
+rows the walk authors (`spellFlag` and `rowOf` of `tools/live/_magic-cast-kit.mjs`,
+which the two spell-effects walks share); no figure of a book is in it. Its first
+stage imports seven register spells through the importer when the seat's RR is open
+and reads the kinds of the rows they carry (SKIP when the book is closed); the
+register's located figures are printed as booleans and never compared.
+
+### Fixtures
+
+Found by marker with `api.fixture`, built when nothing carries it, and kept.
+
+| Marker | What it is |
+|---|---|
+| `magic/saves-scene` | A gridded field, no vision, global light, the GM seat views it. |
+| `magic/saves-class` | An `acks-extras.class` item, one vancian tradition, nine first-level slots. |
+| `magic/saves-caster` | A character the Player owns, bound to the class, level 5, spells enabled. |
+| `magic/saves-spell-<slug>` | Ten invented spells on the caster (`gate`, `kind`, `negate`, `none`, `toggle`, `slay`, `destroy`, `lift`, `ends`, `follow`), each rewritten whole at its step: the old flag is deleted first, so no stale key survives. |
+| `magic/saves-m-a`, `-m-b` | Two linked monsters, brought to known hit points, Hit Dice, saves and creature kinds at each step's start. |
+| `magic/saves-w-a1`, `-a2`, `-b1`, `-b2` | Two weapons on each monster, brought to no destroyed mark and one equipped at the destroy step's start. |
+
+A kept monster may carry records of an earlier run that died. Every step starts by
+deleting the records cast by one of this walk's own casters (the caster's marker
+matches `^magic/saves-`) and the run's own cast ids, by id.
+
+### Steps
+
+1. *A strict Hit Dice gate.* Hit Dice 3 and 4 against a bound of 4. *Observable:*
+   the bucket marks the target at the bound `is-off` before the cast; after it the
+   lower target's entry is applied and it holds the condition, the one at the bound
+   has `state: "exempt"` with `gate.key: "hd"`, made no save (`resist` null) and
+   holds nothing.
+2. *A creature-kind filter.* An undead and an animal against `filters: ["undead"]`.
+   *Observable:* the animal is off in the bucket, exempt with `gate.key: "kind"`,
+   and holds nothing; the undead holds the condition. The refused target carries a
+   wrong kind: a creature of no known kind is never gated.
+3. *A save that negates, and `none`.* *Observable:* a passed save leaves an applied
+   entry with `saved: true`, no `recordIds` and no condition; a failed one writes
+   the record and the condition. A spell whose save is `none` makes no throw
+   (`resist` null) and writes the condition.
+4. *Ruling 126's save toggle.* *Observable:* with a modifier read, the toggle is
+   enabled and off and the save band lists no part of the spell's; switched on it
+   lists one part, signed; the card keeps `saveMod`, and the target's save figure
+   (`resist.target`) moves by exactly the modifier while `baseTarget` does not,
+   with a `spell:save` part on the throw; with the modifier blank the toggle is
+   `disabled`.
+5. *A slay row.* *Observable:* a passed save leaves the hit points and an entry that
+   saved; a failed one takes them to zero and leaves the `dead` status.
+6. *A destroy row, a weapon per holder (ruling 124).* Two monsters of two weapons
+   each, a count of two. *Observable:* each holder's row offers a pill per weapon
+   with the picked one `is-on` and the second holder's default its equipped weapon;
+   after the cast the weapon picked for the first holder is marked destroyed and the
+   other is not, the second holder's default is marked and its other is not, and
+   every weapon is still carried: the module marks a weapon and never deletes it.
+7. *A lifting row.* A hand-made `frightened` effect on the target. *Observable:* the
+   entry is applied with no save and names what it lifted; the effect and the status
+   are gone.
+8. *A record that ends on damage.* *Observable:* the record's flag names `damage`;
+   lowering the bearer's hit points deletes it and the condition goes; the same row
+   with no cause stands through the same hurt.
+9. *A following-turn duration.* *Observable:* outside a fight the record has a clock
+   of two rounds and no turn life, stands a second short of it and is gone once it
+   passes; in a begun fight its turn life starts at a turn's start and counts two.
+
+### Drive mechanics
+
+- The dialog is the ApplicationV2 of "Casting a spell (the cast engine)", "Drive
+  mechanics". The walk's `cast` picks a weapon with
+  `.acks-extras-cast-trow[data-uuid="<token uuid>"] .acks-extras-cast-pill[data-weapon]`,
+  the toggle is `input[name="saveMod"]` (disabled while the spell's modifier is
+  blank), and a bucket row's `is-off` is the gate's verdict.
+- A save is rigged on the casting seat: `CONFIG.Dice.randomUniform` reads from the
+  top (0.025 throws a 20, 0.975 a 1) against a target of 15 on each monster.
+- The record's `endsOn` and `turnLife` are the flags `flags["acks-extras"].endsOn`
+  and `.turnLife`; the damage that ends a record is an update of the actor's hit
+  points made on the GM seat, since the client that makes the change runs the loss.
+- `target.hdBelow`, `target.filters`, `save.modifier` and `target.count` are written
+  on the invented spell's flag; the walk sets an invented count of two on the destroy
+  spell so the cap of weapons does not refuse the second holder.
+
+### Teardown
+
+Tokens, cards, the hand-made condition and the Combat are tracked by uuid as they are
+made; the records of the run's casts and of any cast by one of the walk's own
+casters, and the cards speaking as its fixtures since it began, are listed by id and
+tracked; the sweep deletes exactly that list and its result is quoted. The fixtures
+stay. The weapons are reset to carry no mark.
+
+## Buffs and granted throws (S5)
+
+Walk: `node tools/live/run.mjs magic-cast-buffs`, on the GM and Player seats. Like
+the saves walk it casts invented world spells (and names invented definition ids:
+the immunity's spell and two proficiencies), reads the kinds of nine imported
+register rows when the RR is open, and prints SKIP when it is not. Its armour
+figures are read off the bearer's own armour class so every lift is positive.
+
+### Fixtures
+
+| Marker | What it is |
+|---|---|
+| `magic/buffs-scene`, `magic/buffs-class` | A gridded field both seats view; a class with nine first-level slots and none at level two. |
+| `magic/buffs-caster` | A character the Player owns, bound to the class, Lawful, level 5. |
+| `magic/buffs-caster-b` | A second character only the GM owns, bound to the same class: the other caster. |
+| `magic/buffs-spell-<slug>` | Eight invented spells on the first caster (`ac`, `bolt`, `plain`, `kind`, `grant`, `auto`, `cant`, `cap`), rewritten whole at their steps. `cant` is listed at level two, which the class has no slot for. |
+| `magic/buffs-b-grant` | The second caster's copy of the granting spell. |
+| `magic/buffs-bearer`, `-foe`, `-ally`, `-undead`, `-animal` | Linked monsters; the last two carry one creature kind each. |
+| `magic/buffs-foe-blade`, `magic/buffs-ally-blade` | A weapon that attacks in melee and at range, on the foe and the ally. |
+
+### Steps
+
+1. *Armour class set by attack kind.* One set for missile and thrown and one for
+   melee, each above the bearer's armour class. *Observable:* the bearer's one record
+   holds two `ac` parts of mode `set` with the right kinds and an `immune` part
+   naming the spell; a real missile attack at the bearer carries one row for the
+   spell of the missile figure's lift, a melee attack one of the melee figure's, and
+   the two lifts differ by the two figures' difference.
+2. *An immunity to a named spell.* *Observable:* the spell carrying the named id is
+   exempt on the bearer with `gate.key: "immune"`; another spell is applied and the
+   bearer holds its condition.
+3. *A creature-kind pick (ruling 139).* *Observable:* the dialog's kind select lists
+   the row's two kinds; the ally's record holds the attack bonus narrowed to the picked
+   kind alone; the ally's attack at a creature of that kind carries a row for the spell,
+   its attack at the other kind none.
+4. *Granted throws on the Rolls tab* (Character sheet → Rolls tab → Proficiencies &
+   powers). *Observable:* (a) with no record on the caster, one pale row (`is-latent`,
+   no `is-roll`, no action, its pin disabled) whose figure's tooltip names the spell;
+   the Player's seat shows the same row and pressing it, its figure or its pin posts
+   nothing; (b) after the caster casts the spell on itself the one row is gold
+   (`is-granted`), rolls and has its pin, with no pale twin; (c) with that record
+   deleted and the other caster's cast on the character, the only record was cast by
+   the other caster and the row is gold again; (d) a spell the character cannot cast
+   (listed at a level the class has no slot for) leaves no row, pale or gold; the
+   castable register does not list it; (e) rolling the gold row posts one card on the
+   party roll card's format that names the spell.
+5. *An automatic Adventuring throw.* *Observable:* with the record on the caster the
+   Climbing row's figure changes and its tooltip names the spell; rolling it posts one
+   card, on the party card's format, that says it is automatic through the spell.
+6. *The cast dialog with three targets, and the target cap.* *Observable:* three
+   rows, each with its X, the count, the drop strip and Add my token; the effect rows
+   wear tone cells and the footer is outside the scrolling body. With a cap of two and
+   three targets the count reads over; the Judge's dialog warns and Cast stays enabled,
+   the Player's blocks and Cast is disabled.
+
+### Owner-facing shots
+
+Taken into the logs directory (`ACKS_WALK_SHOTS=0` takes none), each clipped to an
+element, never the viewport: `magic-cast-buffs-a-pale-row.png`, `-a-pale-tip.png`
+(the sheet and the tooltip core's manager shows beside it, in one clip over an
+invisible box the walk adds and removes), `-b-gold-self.png`, `-c-gold-other.png`,
+`-e-granted-card.png`, `-f-auto-card.png` and `-g-dialog.png`. Shot (d) is an
+assertion: a spell the character cannot cast has no row to show.
+
+### Drive mechanics
+
+- A granted throw's row id is `grant:<ref>:<key>`. An invented proficiency that is
+  not imported has the blank throw, key `grant`; the grant's `set` figure gives it a
+  target. A pale row has no `data-action`, so a Player's press on it, its figure or its
+  pin does nothing: the walk presses with the skip-dialog key held, as a user does,
+  and one dispatch on the row is one roll.
+- Core's tooltip is a node of the page outside the sheet. The walk dispatches a
+  `pointerenter` on the figure, waits the manager's delay, reads
+  `game.tooltip.tooltip`, and shoots a clip over the union of the sheet's and the
+  tooltip's boxes; a second shot of the sheet alone is taken after the hover is let go.
+- An attack at the buffed token is `actor.makeAttackThrow({item, attackType,
+  skipDialog: true})` with the seat's targets set; the attack types a weapon offers
+  are its `melee`, `missile` and thrown flags, so the walk's weapon sets both.
+- The record's parts are flags on the effect, `flags["acks-extras"].rollMods.parts`;
+  the cast's mark names the caster as `casterUuid`.
+
+### Teardown
+
+As the saves walk's: tokens and cards by uuid as they are made, the records the run's
+casts and the walk's own casters left on its fixtures and the cards speaking as them
+listed by id and swept. The fixtures stay.

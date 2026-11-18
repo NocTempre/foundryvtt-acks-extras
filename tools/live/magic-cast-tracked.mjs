@@ -238,20 +238,22 @@ const P = {
     const item = actor.items.get(spellId);
     const before = new Set([...game.messages].map((m) => m.id));
     item.use({ skipDialog: true });
-    const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
-    if (!dialog) return { dialog: false };
-    const root = dialog.closest(".application");
-    const select = dialog.querySelector("[data-cast-mode]");
-    const modes = select ? [...select.options].map((o) => o.value) : [];
-    if (mode && select) { select.value = mode; select.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(200); }
-    const castButton = root.querySelector('button[data-action="cast"]');
-    const shown = { dialog: true, modes, castDisabled: !!castButton?.disabled, severities: [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")].map((li) => li.dataset.severity) };
+    const found = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+    if (!found) return { dialog: false };
+    // The window re-renders on every change, so each read goes back to the live element.
+    const live = () => document.querySelector(".application.acks-extras-cast") ?? found;
+    // The form is a segmented radio group in the header, drawn only where the spell has more than one.
+    const modes = [...live().querySelectorAll('input[name="mode"]')].map((r) => r.value);
+    const modeRadio = mode ? live().querySelector(`input[name="mode"][value="${mode}"]`) : null;
+    if (modeRadio) { modeRadio.checked = true; modeRadio.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(300); }
+    const castButton = live().querySelector('button[data-action="cast"]');
+    const shown = { dialog: true, modes, castDisabled: !!castButton?.disabled, severities: [...live().querySelectorAll(".acks-extras-cast-verdicts li")].map((li) => li.dataset.severity) };
     if (castButton.disabled) {
-      root.querySelector('button[data-action="cancel"]')?.click();
+      live().querySelector('button[data-action="cancel"]')?.click();
       await H.sleep(600);
       return { ...shown, card: false };
     }
-    castButton.click();
+    live().querySelector('button[data-action="cast"]').click();
     const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 120, every: 250 });
     if (!message) return { ...shown, card: false };
     await H.sleep(1500);
