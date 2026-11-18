@@ -1,10 +1,13 @@
 /* global game, foundry, Hooks */
 /**
- * Item-sheet flag injector. Core's weapon / ability / item schemas cannot hold
- * the monster enum metadata (damage type, ability category, spoil component
- * data), so an item owned by a `monster` gets an "ACKS Monster" group that
- * reads and writes `flags["acks-extras"]`; the monster sheet's abilities and
- * spoils tabs render tags from those flags.
+ * Item-sheet annotation injector. Core's ability / item schemas cannot hold the
+ * monster enum metadata (ability category, spoil component data), so an item
+ * owned by a `monster` gets an "ACKS Monster" group that reads and writes
+ * `flags["acks-extras"]`; the monster sheet's abilities and spoils tabs render
+ * tags from those flags. A weapon's damage type and extraordinary mark are
+ * core's own fields (`system.damage.base.types` and `.extraordinary`, which
+ * core's attack roll reads), so the group edits those through `item.update`;
+ * only the natural-weapon choice is a flag, since core has no field for it.
  *
  * Hooks the generic `renderApplicationV2` (it fires for the system's item
  * sheet too) and keys off `app.document`. The group goes INSIDE the sheet's
@@ -16,6 +19,7 @@ import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, NATURAL_WEAPONS, SPECIAL_ABILITIES, USAGE, choicesOf } from "./config.mjs";
 import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { coreDamageKey, damageTypeUpdate, extraordinaryOf, ownDamageType } from "../lib/damage-type.mjs";
 
 const SECTION_CLASS = "acks-monsters-flags";
 const ANNOTATED_TYPES = [ITEM_TYPE.weapon, ITEM_TYPE.ability, ITEM_TYPE.item];
@@ -69,6 +73,9 @@ function checkField(labelKey, field, checked) {
     </label>`;
 }
 
+/** The damage types the system's weapon accepts, as a choices map. */
+const coreChoices = () => Object.fromEntries(Object.entries(choicesOf(DAMAGE_TYPES)).filter(([key]) => coreDamageKey(key)));
+
 /** Field definitions per item type. */
 function fieldsFor(item) {
   const flag = (key, fallback = "") => item.getFlag(MODULE_ID, key) ?? fallback;
@@ -76,8 +83,8 @@ function fieldsFor(item) {
     case ITEM_TYPE.weapon:
       return (
         selectField("ACKS-MONSTERS.item.naturalWeapon", "naturalWeapon", choicesOf(NATURAL_WEAPONS), flag("naturalWeapon")) +
-        selectField("ACKS-MONSTERS.item.damageType", "damageType", choicesOf(DAMAGE_TYPES), flag("damageType")) +
-        checkField("ACKS-MONSTERS.item.extraordinary", "extraordinary", item.getFlag(MODULE_ID, "extraordinary"))
+        selectField("ACKS-MONSTERS.item.damageType", "damageType", coreChoices(), ownDamageType(item) ?? "") +
+        checkField("ACKS-MONSTERS.item.extraordinary", "extraordinary", extraordinaryOf(item))
       );
     case ITEM_TYPE.ability:
       return (
@@ -99,6 +106,17 @@ function fieldsFor(item) {
     default:
       return null;
   }
+}
+
+/**
+ * Write one group control. A weapon's damage type and extraordinary mark go to
+ * the system's fields, which core's roll reads, and set no flag; every other
+ * control is a flag of the module.
+ */
+async function writeField(item, field, target) {
+  if (item.type === ITEM_TYPE.weapon && field === "damageType") return item.update(damageTypeUpdate(target.value));
+  if (item.type === ITEM_TYPE.weapon && field === "extraordinary") return item.update({ "system.damage.base.extraordinary": target.checked });
+  return writeFlag(item, field, target);
 }
 
 async function writeFlag(item, field, target) {
@@ -174,9 +192,11 @@ export function registerItemAnnotations() {
 
       for (const el of section.querySelectorAll("[data-field]")) {
         el.addEventListener("change", (event) => {
+          // The host sheet submits its form on a bubbling change; the group's write is its own.
+          event.stopPropagation();
           const t = event.currentTarget;
-          writeFlag(item, t.dataset.field, t).catch((err) =>
-            console.error(`${MODULE_ID} | item flag write failed`, err),
+          writeField(item, t.dataset.field, t).catch((err) =>
+            console.error(`${MODULE_ID} | item annotation write failed`, err),
           );
         });
       }

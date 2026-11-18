@@ -31,7 +31,7 @@ import {
   ensureItemFolder, prepareItemShelves, libraryNameIndex, printedName,
 } from "./target.mjs";
 import { abilityIcon } from "./abilities.mjs";
-import { weaponDamage } from "./monster.mjs";
+import { weaponBaseDamage } from "../../lib/damage-type.mjs";
 
 /**
  * Does the document the library holds already say everything this import
@@ -414,7 +414,7 @@ export function bindEquipment(entry, node, id) {
     // A page-extracted value wins; gear the weapons table never listed falls
     // back to the equipment root's stat. melee/missile likewise.
     const damage = f.damage ?? (klass?.damage || undefined);
-    if (damage) typed.damage = weaponDamage(damage);
+    if (damage) typed.damage = weaponBaseDamage(damage);
     if (Number.isFinite(f.bonus)) typed.bonus = { attack: f.bonus, damage: 0 };
     const melee = typeof f.melee === "boolean" ? f.melee : klass?.melee;
     const missile = typeof f.missile === "boolean" ? f.missile : klass?.missile;

@@ -22,7 +22,7 @@ import { sizeSquares } from "../../monsters/sizes.mjs";
 import { hdFormula } from "../../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../../lib/encounter-line.mjs";
 import { ALIGN_WORD } from "../character-binding.mjs";
-import { DAMAGE_TYPES } from "../../lib/vocab.mjs";
+import { weaponBaseDamage } from "../../lib/damage-type.mjs";
 import { scanMonsterSpells, castsAsClass, castSourceOf } from "../../magic/spell-names.mjs";
 import {
   slotsFromCells, slotsOfClass, coreSlotsPatch, repertoireFor, spellPayload, spellsByName, classNamed,
@@ -445,14 +445,12 @@ export function bindMonster(node) {
         flags: {
           [MODULE_ID]: {
             ...(seg.naturalWeapon ? { naturalWeapon: seg.naturalWeapon } : {}),
-            ...(seg.damageType?.key ? { damageType: seg.damageType.key } : {}),
-            extraordinary: seg.quality === "extraordinary",
             ...(mi > 0 ? { attackMode: mi } : {}),
           },
         },
         system: {
           description: "",
-          damage: weaponDamage(formula, seg.damageType?.key, seg.quality === "extraordinary"),
+          damage: weaponBaseDamage(formula, seg.damageType?.key, seg.quality === "extraordinary"),
           bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: mi === 0,
           pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
         },
@@ -552,40 +550,6 @@ const nameLabelOf = (label) =>
     .trim()
     .replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
-/** The system's key for a weapon whose damage type is the weapon's own; the extract spells it `varies`. */
-const CORE_VARIES_BY_WEAPON = "variesByWeapon";
-
-/**
- * Does the running system's weapon schema accept this damage-type key? Read
- * from the field's own choices, so an unknown key never refuses the whole item;
- * with no schema to ask (offline), the module's own vocabulary answers.
- */
-function systemKnowsDamageType(key) {
-  let choices = null;
-  try {
-    choices = CONFIG?.Item?.dataModels?.weapon?.schema?.getField?.("damage.base.types")?.element?.choices ?? null;
-    if (typeof choices === "function") choices = choices();
-  } catch {
-    choices = null;
-  }
-  if (!choices) return key === CORE_VARIES_BY_WEAPON || key in DAMAGE_TYPES;
-  return Array.isArray(choices) ? choices.includes(key) : key in choices;
-}
-
-/**
- * A weapon's `system.damage` in the system's shape: the printed die as the
- * base formula, the extract's damage-type key as the base type where the
- * system knows the key, and the extraordinary mark where the page coloured it.
- * The `damageType` flag carries the key whether or not the system took it.
- */
-export function weaponDamage(formula, typeKey = null, extraordinary = false) {
-  const key = typeKey === "varies" ? CORE_VARIES_BY_WEAPON : typeKey;
-  const base = { formula: formula ?? "" };
-  if (key && systemKnowsDamageType(key)) base.types = [key];
-  if (extraordinary) base.extraordinary = true;
-  return { base };
-}
-
 /** One weapon-item payload, the same shape bindMonster embeds. */
 const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, attackMode = 0 } = {}) => ({
   name,
@@ -594,12 +558,11 @@ const weaponPayload = (name, damage, { naturalWeapon = null, damageType = null, 
   flags: {
     [MODULE_ID]: {
       ...(naturalWeapon ? { naturalWeapon } : {}),
-      ...(damageType ? { damageType } : {}),
       ...(attackMode > 0 ? { attackMode } : {}),
     },
   },
   system: {
-    description: "", damage: weaponDamage(damage, damageType), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: attackMode === 0,
+    description: "", damage: weaponBaseDamage(damage, damageType), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: attackMode === 0,
     pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
   },
 });
@@ -1423,7 +1386,7 @@ export function bindLegacyMonster(node) {
         type: "weapon",
         img: DEFAULT_IMG.ATTACK,
         system: {
-          description: "", damage: weaponDamage(dmg), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
+          description: "", damage: weaponBaseDamage(dmg), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
           pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
         },
       },
@@ -1500,7 +1463,7 @@ export function bindNpc(node) {
       type: "weapon",
       img: DEFAULT_IMG.ATTACK,
       system: {
-        description: "", damage: weaponDamage(lift?.formula ?? (diceOf(sl.dmg) || "")), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
+        description: "", damage: weaponBaseDamage(lift?.formula ?? (diceOf(sl.dmg) || "")), bonus: { attack: 0, damage: 0 }, melee: true, missile: false, equipped: true,
         pattern: "transparent", counter: { value: 1, max: 1 }, cost: 0, weight: 0, weight6: 0,
       },
     });

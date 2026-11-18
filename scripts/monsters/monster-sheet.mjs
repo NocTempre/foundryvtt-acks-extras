@@ -32,7 +32,7 @@ import { makeEncounter } from "../lib/group-encounter.mjs";
 import { ANIMAL_TRAINING } from "../lib/data/animal-data.mjs";
 import { FRAME_CLASS, FRAME_LANG_PREFIX, FRAME_VIEW_ACTIONS, FrameMixin } from "../lib/frame.mjs";
 import { SAVE_KEYS, saveCells, hpCell, num, sheetFlag } from "../lib/frame-model.mjs";
-import { statblockColumns, rollRows, attackReading, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
+import { statblockColumns, rollRows, attackReading, attackRowOf, hdRating, bodyFormIcon, moveReading, sensesReading, feet, derivationTips } from "./statblock.mjs";
 import { bodyFormView } from "./body-forms.mjs";
 import { importedKits } from "./kits.mjs";
 import { openHpTool } from "../lib/apps/hp-app.mjs";
@@ -498,15 +498,7 @@ export function createFullMonsterSheet(Base) {
         })(),
         attackThrow: sys.attack?.throw,
         damageMod: Number(sys.damage?.mod?.melee) || 0,
-        attacks: (context.owned?.weapons ?? []).map((w) => ({
-          id: w.id,
-          name: w.name,
-          damage: w.system?.damage?.base?.formula ?? w.system?.damage?.formula ?? "",
-          damageType: labelOf(CFG.DAMAGE_TYPES, flagsOf(w).damageType),
-          natural: !!flagsOf(w).naturalWeapon,
-          extraordinary: !!flagsOf(w).extraordinary,
-          counter: { value: num(w.system?.counter?.value), max: num(w.system?.counter?.max) },
-        })),
+        attacks: (context.owned?.weapons ?? []).map((w) => attackRowOf(w, (key) => labelOf(CFG.DAMAGE_TYPES, key))),
         hp: { value: sys.hp?.value, max: sys.hp?.max, formula: sys.hp?.hd ?? "" },
         hdText: hdRating(extras.hd) ?? (sys.hp?.hd ? String(sys.hp.hd) : null),
         abilities: (context.abilities ?? []).map((a) => ({

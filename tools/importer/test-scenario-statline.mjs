@@ -19,7 +19,7 @@ const t = (name, fn) => Promise.resolve(fn()).then(() => {
 
 const WORDS = { piercing: "piercing", slashing: "slashing" };
 const bind = (line, extra = {}) => bindNpc({ fields: { statline: { ...parseStatline(line), ...extra } } });
-const weapons = (b) => b.items.map((i) => [i.name, i.system.damage.base.formula, i.flags?.[MODULE_ID]?.damageType ?? null]);
+const weapons = (b) => b.items.map((i) => [i.name, i.system.damage.base.formula, Array.from(i.system.damage.base.types ?? [])[0] ?? null]);
 
 /* ---------------- the routines ---------------- */
 

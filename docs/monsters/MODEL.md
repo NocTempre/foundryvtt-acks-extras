@@ -69,7 +69,14 @@ takes it in the Description tab, where an ability's properties that are not
 rolls live. The system's own item sheet, picked by hand, takes it in its
 `details` part.
 
-- **weapon**: `damageType` (enum), `extraordinary` (bool), `naturalWeapon` (enum)
+- **weapon**: `naturalWeapon` (enum) is the one flag. Its damage type and extraordinary
+  mark are core's own fields, `system.damage.base.types` and
+  `system.damage.base.extraordinary`, which core's attack roll reads; the group's
+  Damage Type select and Extraordinary checkbox edit those through `item.update`
+  and write no flag. The select shows the weapon's own first type and names no
+  fallback, so it shows what it writes; a pick replaces the whole set and a blank
+  pick clears it. The monster sheet's attack rows read the same fields, with the
+  Rolls tab's fallback order for the type (`lib/damage-type.mjs` `damageTypeOf`).
 - **ability**: `abilityCategory` (enum), `usage` (lib's `SPELL_LIKE_FREQ`, re-exported as `USAGE`), `xpAsterisks` (optional)
 - **item (spoil)**: `component` (bool), `researchEffects` (string[])
 
@@ -326,7 +333,7 @@ read or null. Which types each rule covers is the importer's procedure
 (`stats-map.mjs` `extraordinaryNatural`). The Judge edits both tables in the
 Ruledata Browser like any imported table, and the override wins. Without them
 an imported natural attack carries the damage type its stat block's icon
-names, or none, and carries no `extraordinary` flag where the monster's type
+names, or none, and writes no extraordinary mark where the monster's type
 needs an edge, which the sheet reads as unticked; an incarnation, an enchanted
 creature and a humanoid are decided without any edge.
 

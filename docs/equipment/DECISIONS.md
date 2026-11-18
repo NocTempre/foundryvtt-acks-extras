@@ -21,7 +21,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - undated — [Named-item rungs advance on level-up, not absolute level](DECISIONS-through-v11.14.5.md#named-item-rungs-advance-on-level-up-not-absolute-level)
 - 2026-08-03 — [Gear declares where it sits; the heuristics are only a fallback (2026-08-03)](DECISIONS-through-v11.14.5.md#gear-declares-where-it-sits-the-heuristics-are-only-a-fallback-2026-08-03)
 - 2026-08-03 — [Retrieval cost is per-container, not per-slot (2026-08-03)](DECISIONS-through-v11.14.5.md#retrieval-cost-is-per-container-not-per-slot-2026-08-03)
-- 2026-08-06 — [Silver is a quality, not a material (2026-08-06)](DECISIONS-through-v11.14.5.md#silver-is-a-quality-not-a-material-2026-08-06)
+- 2026-08-06 — [Silver is a quality, not a material (2026-08-06)](DECISIONS-through-v11.14.5.md#silver-is-a-quality-not-a-material-2026-08-06) — superseded in part by "2026-11-17 — Silver's answer reads the weapon's own extraordinary mark"
 - 2026-08-06 — [The weapon table is searched longest-key-first (2026-08-06)](DECISIONS-through-v11.14.5.md#the-weapon-table-is-searched-longest-key-first-2026-08-06) — superseded in part by "The weapon table is gone: rows come from the import, and only the procedure stays (2026-11-11)" and, for its armour-training paragraph, "Armour Training's step is imported, and its name grants nothing (2026-11-04)"
 - 2026-08-15 — [Base type is a flag on the item, and it refines the document type rather than replacing it (2026-08-15)](DECISIONS-through-v11.14.5.md#base-type-is-a-flag-on-the-item-and-it-refines-the-document-type-rather-than-replacing-it-2026-08-15)
 - 2026-08-23 — [One item sheet, this module's own markup (2026-08-23)](DECISIONS-through-v11.14.5.md#one-item-sheet-this-modules-own-markup-2026-08-23)
@@ -104,3 +104,15 @@ shows the early answers until it redraws.
 
 **Ruled.** The five categories a named item's points go to (`overlays/named.mjs` `NAMED_CATEGORIES`, JJ p. 399) stay in source: each is a modifier the overlay applies to a field core owns, and the code that applies it is keyed by it, so the set is which modifiers exist and not a table of options read off a page. A label names its field and carries no size; the count beside it is the ladder the Judge set, one point a rung. The building session's call with the owner away. A reversal registers the categories as an imported table and has `toItemUpdates` read which field each one writes.
 **Rejected.** A label that states the size of a point, which is the page's figure in a string.
+
+## 2026-11-17 — Silver's answer reads the weapon's own extraordinary mark
+
+Supersedes in part "Silver is a quality, not a material (2026-08-06)": its line
+that the monsters feature asks whether an attack deals extraordinary damage
+"through its own `extraordinary` flag". The one question stands, and so does
+`dealsExtraordinaryDamage`, which still answers it for silver. The mark it
+reads is now the weapon's `system.damage.base.extraordinary` (lib
+`extraordinaryOf`), because the monsters feature writes that field and no
+longer the flag (monsters DECISIONS, "2026-11-17 — A monster weapon's damage
+type and extraordinary mark are core's fields"). An old `extraordinary` flag
+answers nothing.

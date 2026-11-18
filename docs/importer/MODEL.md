@@ -58,7 +58,12 @@ has no extras at all and reads the same, so none is migrated.
 ## A stat block's natural attacks
 
 `mapPairs` (`stats-map.mjs`) recognises a natural weapon by name stem and sets
-`flags.acks-extras.naturalWeapon`. Two figures it needs are the Judge's import
+`flags.acks-extras.naturalWeapon`, the one weapon flag an imported monster
+carries. A weapon's damage type and extraordinary mark are written to the
+system's own fields (`system.damage.base.types`, `.extraordinary`) through
+`lib/damage-type.mjs` `weaponBaseDamage`, the shape every monster and
+equipment weapon payload takes, so core's attack roll reads them and no flag
+copies them. Two figures it needs are the Judge's import
 and are passed in, never held in source: the damage type each natural weapon
 is listed against (registry document `monsters`, table `naturalWeaponDamage`,
 a `gridRows` read of the Damage table, MM Overview p. 12) and the edges of
@@ -69,7 +74,8 @@ callers read them with `monsters/natural-weapons.mjs`
 stat block's own damage icon where the block prints one, else the imported
 table's, else none is written. Which monster types each rule covers stays in
 `extraordinaryNatural`; where its answer needs an edge that was not imported,
-or a size that was not read, the `extraordinary` flag is left unwritten.
+or a size that was not read, the extraordinary mark is left unwritten, which
+the system reads as mundane.
 `docs/monsters/MODEL.md`, "Natural weapons and extraordinary damage", has the
 reader's side.
 
@@ -2221,7 +2227,7 @@ routine's throw and damage inside its attack parenthesis routine by routine
 (`scenarioRoutines`, `statline-attacks.mjs`) into `atks[]`; `atk` stays the
 first routine, and a line that keeps its damage under its own key reads no
 `atks`. Each routine is one weapon (`weaponPayload`) typed by its own damage
-word in `flags["acks-extras"].damageType`. A routine whose throw differs from
+word in the weapon's `system.damage.base.types`. A routine whose throw differs from
 the first's carries the difference as the weapon's `bonus.attack`, since the
 actor holds one attack throw. A line that prints hit dice and no hit points
 takes hit points from its dice by `bindStatsScalars`' rule, for every adventure

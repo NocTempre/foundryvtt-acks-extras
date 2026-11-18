@@ -3242,10 +3242,15 @@ check("armour cannot be silvered", !canBeSilvered(silverItem("Silvered Plate", "
 check("a silver ring is not a silver weapon", !isSilvered(silverItem("Silver Ring", "item")));
 check("ammunition can be silvered", isSilvered(silverItem("Silver Arrow", "item")));
 
-// The three rulings collapse into one question, which the monsters feature's
-// own weapon flag already asks.
+// The three rulings collapse into one question, which the system's own
+// extraordinary field already asks.
+const markedItem = (name, extraordinary, flags = {}) => ({
+  ...silverItem(name, "weapon", flags),
+  system: { cost: 10, weight6: 1, damage: { base: { formula: "1d4", extraordinary } } },
+});
 check("silver deals extraordinary damage", dealsExtraordinaryDamage(silverItem("Silver Dagger")));
-check("an already-extraordinary weapon still does", dealsExtraordinaryDamage(silverItem("Sword", "weapon", { extraordinary: true })));
+check("an already-extraordinary weapon still does", dealsExtraordinaryDamage(markedItem("Sword", true)));
+check("a stale extraordinary flag alone does not", !dealsExtraordinaryDamage(markedItem("Sword", false, { extraordinary: true })));
 check("an ordinary sword does not", !dealsExtraordinaryDamage(silverItem("Sword")));
 
 // PRICE. Plating scales the weapon's own listed price by the imported

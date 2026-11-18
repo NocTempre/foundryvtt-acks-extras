@@ -10,7 +10,7 @@
  */
 import assert from "node:assert";
 import {
-  hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows, attackReading,
+  hdRating, bodyFormIcon, BODY_FORM_ICONS, DEFAULT_GLYPH, feet, moveReading, sensesReading, loadReading, statblockColumns, rollRows, attackReading, attackRowOf,
 } from "../scripts/monsters/statblock.mjs";
 import { printKey } from "../scripts/importer/printed-name.mjs";
 
@@ -307,6 +307,37 @@ test("the load group is a bar with the rider as its one row, and says so when no
 test("the load note names no maximum where there is none", () => {
   const { columns } = statblockColumns({ ...snap(), load: { stone: 15, normal: 10, max: null, rider: null } }, loc);
   assert.equal(columns[2][2].note, `statblock.note.loadNoMax:${JSON.stringify({ stone: 15, normal: 10 })}`);
+});
+
+console.log("monster sheet: an attack row");
+/** A live-shaped owned weapon: the system's `types` is a Set, and the flags sit on the document. */
+const weaponDoc = ({ types = [], extraordinary, flags = {} } = {}) => ({
+  id: "w1",
+  name: "Bite",
+  flags: { "acks-extras": flags },
+  getFlag: (m, k) => (m === "acks-extras" ? flags[k] : undefined),
+  system: { damage: { base: { formula: "1d6", types: new Set(types), ...(extraordinary === undefined ? {} : { extraordinary }) } }, counter: { value: 1, max: 1 } },
+});
+const asKey = (key) => key ?? "";
+test("a core type beats a stale flag", () => {
+  assert.equal(attackRowOf(weaponDoc({ types: ["fire"], flags: { damageType: "slashing" } }), asKey).damageType, "fire");
+});
+test("the flag answers only where core states no type", () => {
+  assert.equal(attackRowOf(weaponDoc({ flags: { damageType: "slashing" } }), asKey).damageType, "slashing");
+  assert.equal(attackRowOf(weaponDoc(), asKey).damageType, "");
+});
+test("the core extraordinary mark shows with no flag, and a stale flag alone does not", () => {
+  assert.equal(attackRowOf(weaponDoc({ extraordinary: true }), asKey).extraordinary, true);
+  assert.equal(attackRowOf(weaponDoc({ extraordinary: false, flags: { extraordinary: true } }), asKey).extraordinary, false);
+});
+test("the natural-weapon mark stays the monster feature's flag", () => {
+  assert.equal(attackRowOf(weaponDoc({ flags: { naturalWeapon: "bite" } }), asKey).natural, true);
+  assert.equal(attackRowOf(weaponDoc(), asKey).natural, false);
+});
+test("the row carries the die and the counter", () => {
+  const row = attackRowOf(weaponDoc(), asKey);
+  assert.equal(row.damage, "1d6");
+  assert.deepEqual(row.counter, { value: 1, max: 1 });
 });
 
 console.log(`\nmonster sheet: ${passed} passed`);

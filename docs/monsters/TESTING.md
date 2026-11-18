@@ -643,20 +643,22 @@ build it with `api.fixture("monsters/natural-weapons", "Actor", {type:
    of weapon words, and `extraordinaryRule` lists `animalHd`, `animalSize` and
    `otherHd`; both cite MM p. 12.
 2. Select the fixture's token and run `acksExtras.importer.applyStats()` in the
-   console, then read the minted weapon items' `flags.acks-extras`.
-   *Observable:* a natural attack the stat block prints no icon for carries the
-   `damageType` the table lists its weapon word under and none where the table
-   does not list it; an attack with an icon carries the icon's type; the
-   `extraordinary` flag follows the monster's types, hit dice and size against
-   the imported edges.
+   console, then read the minted weapon items' `system.damage.base` and
+   `flags.acks-extras`.
+   *Observable:* a natural attack the stat block prints no icon for holds in
+   `types` the type the table lists its weapon word under, and an empty set
+   where the table does not list it; an attack with an icon holds the icon's
+   type; `extraordinary` follows the monster's types, hit dice and size against
+   the imported edges; `formula` holds the printed damage. The flags hold
+   `naturalWeapon` and neither `damageType` nor `extraordinary`.
 3. Override `extraordinaryRule`'s `animalSize` with another category, apply
-   again, and read the flags.
-   *Observable:* the animal's flag follows the override; clearing it returns the
+   again, and read `system.damage.base.extraordinary`.
+   *Observable:* the animal's mark follows the override; clearing it returns the
    imported edge.
 4. Take the world layer of `monsters` off the registry, as in battlemap TESTING
-   6a, apply again, and read the flags.
-   *Observable:* no natural attack carries a type except from its icon, and an
-   attack of an animal or other edge-bound type carries no `extraordinary` key.
+   6a, apply again, and read `system.damage.base`.
+   *Observable:* no natural attack holds a type except from its icon, and an
+   attack of an animal or other edge-bound type reads `extraordinary` false.
    Re-import to restore.
 
 **Teardown.** The fixture stays; `api.sweepTracked()` for anything the run
@@ -802,8 +804,20 @@ name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
   lands, since core frees the next on an animation frame.
 - In a hidden browser pane `requestAnimationFrame` never fires; read layout
   straight after `await app.render({force: true})` instead.
+- `system.damage.base.types` is a Set live (its source is an array): read it
+  with `Array.from`.
+- An attack at a target: place a token of the fixture on a scene (the magic
+  recipe's `magic/cast-scene` keeps none between walks, so the run places its
+  own and deletes it by id), view the scene, `canvas.tokens.setTargets([id],
+  {mode: "replace"})`, then attack from the TOKEN's actor:
+  `token.actor.makeAttackThrow({item, attackType: "melee", skipDialog:
+  true})`, with `CONFIG.Dice.randomUniform` returning 0.025 (a natural 20 on
+  core 14) and put back after. The card's speaker resolves to the token, so an
+  attack from the world actor while its unlinked token is on the viewed scene
+  is looked up under the token's actor and carries no stamp. Only a hit's card
+  carries one. The run deletes its token and its cards by id.
 
-**Steps.** Each step clears the flags it sets before it starts.
+**Steps.** Each step clears what it sets before it starts.
 
 1. Open the fixture's weapon on its Details tab.
    *Observable:* the group is the last child of the Details panel's stack,
@@ -816,11 +830,30 @@ name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
    *Observable:* `flags.acks-extras.naturalWeapon` holds the key, the select
    shows it, the sheet holds one group, and after the re-render the body is
    still scrolled to its end with the group in view.
-4. Open the fixture's ability.
+4. Pick a Damage Type in the weapon's group.
+   *Observable:* `system.damage.base.types` holds the key core spells
+   (`variesByWeapon` for Varies by Weapon) and nothing else, no `damageType`
+   flag is written, and the select, the monster's attack row (Full sheet) and
+   the weapon's Rolls tab name the same type. Clearing the select empties the
+   set.
+5. Tick Extraordinary damage.
+   *Observable:* `system.damage.base.extraordinary` is true, no
+   `extraordinary` flag is written, and the monster's attack row marks it.
+6. With the weapon typed and marked, attack a target with it (Drive
+   mechanics).
+   *Observable:* the card's `flags.acks-extras.attackApply` holds the picked
+   type in `types` and `extraordinary` true. Cleared and unticked, the next
+   card holds empty `types` and `extraordinary` false.
+7. Open the weapon on the system's own item sheet (picked by hand in the
+   sheet's configuration), pick a type in the group and read the field back
+   after a second.
+   *Observable:* the field keeps the pick, and core's own Damage Type control
+   shows it. Put the weapon back on the default sheet.
+8. Open the fixture's ability.
    *Observable:* the group is the last child of the `description` part and
    has no box on Rolls or Mechanics; a picked Usage lands in
    `flags.acks-extras.usage`.
-5. Open the fixture's generic item and check Spoil.
+9. Open the fixture's generic item and check Spoil.
    *Observable:* the group ends the Details panel, or the body in the sheet's
    no-tab view; `flags.acks-extras.spoil` is true.
 

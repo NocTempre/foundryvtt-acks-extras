@@ -82,40 +82,49 @@ resetTables();
 /* --- the stat-block mapping --------------------------------------------------- */
 const attack = (list, damage, extra, options) => mapPairs([{ label: "Attacks", value: `2 (${list} 5+)` }, { label: "Damage", value: damage }, ...extra], options).items.filter((i) => i.type === "weapon");
 const flagsOf = (item) => item.flags["acks-extras"];
+/** The system's own damage fields, where the type and the mark are written. */
+const baseOf = (item) => item.system.damage.base;
 
 {
   const items = attack("bite, claw", "1d6 / 1d4", [], { naturalDamage: { bite: "cold" } });
-  check("a listed weapon takes the imported type", flagsOf(items[0]).damageType === "cold" && flagsOf(items[0]).naturalWeapon === "bite");
-  check("a weapon the table does not list carries no type", !("damageType" in flagsOf(items[1])) && flagsOf(items[1]).naturalWeapon === "claw");
+  check("a listed weapon takes the imported type", Array.from(baseOf(items[0]).types).join() === "cold" && flagsOf(items[0]).naturalWeapon === "bite");
+  check("a weapon the table does not list carries no type", !("types" in baseOf(items[1])) && flagsOf(items[1]).naturalWeapon === "claw");
+  check("the die is the base formula", baseOf(items[0]).formula === "1d6" && baseOf(items[1]).formula === "1d4");
 }
 {
   const items = attack("bite, claw", `1d6${FIRE_ICON} / 1d4`, [], { naturalDamage: { bite: "cold", claw: "cold" } });
-  check("the stat block's own icon outranks the table", flagsOf(items[0]).damageType === "fire" && flagsOf(items[1]).damageType === "cold");
+  check("the stat block's own icon outranks the table", baseOf(items[0]).types.join() === "fire" && baseOf(items[1]).types.join() === "cold");
 }
 {
   const items = attack("bite, claw", "1d6 / 1d4", [], {});
-  check("with no table imported no natural weapon carries a type", items.every((i) => !("damageType" in flagsOf(i))));
+  check("with no table imported no natural weapon carries a type", items.every((i) => !("types" in baseOf(i))));
+}
+{
+  const [item] = attack("bite", `1d6${FIRE_ICON}`, [{ label: "Type", value: "Incarnation" }, { label: "Hit Dice", value: "1" }, { label: "Size", value: "Man" }], {});
+  check("neither the type nor the mark is written to a flag", !("damageType" in flagsOf(item)) && !("extraordinary" in flagsOf(item)) && baseOf(item).types.join() === "fire" && baseOf(item).extraordinary === true);
 }
 
 const typed = (type, hd, size, options) => attack("bite", "1d6", [{ label: "Type", value: type }, { label: "Hit Dice", value: hd }, { label: "Size", value: size }], options)[0];
+// The system reads an unwritten mark as mundane, so "unmarked" and "left unwritten" are the same data.
+const marked = (item) => baseOf(item).extraordinary === true;
 const EDGES = { animalHd: { count: 7, bonus: 2 }, animalSize: "gigantic", otherHd: { count: 6, bonus: 0 } };
 {
-  check("an animal past the hit-dice edge and at the size edge is marked", flagsOf(typed("Animal", "7+3", "Gigantic", { extraordinaryEdges: EDGES })).extraordinary === true);
-  check("the same animal below the size edge is unmarked", flagsOf(typed("Animal", "7+3", "Large", { extraordinaryEdges: EDGES })).extraordinary === false);
-  check("an animal at the hit-dice edge is unmarked, bonus included", flagsOf(typed("Animal", "7+2", "Colossal", { extraordinaryEdges: EDGES })).extraordinary === false);
-  check("an animal past the edge with no size read is not marked either way", !("extraordinary" in flagsOf(typed("Animal", "9", "", { extraordinaryEdges: EDGES }))));
-  check("another listed type is held to the other hit-dice edge", flagsOf(typed("Undead", "7", "Man", { extraordinaryEdges: EDGES })).extraordinary === true && flagsOf(typed("Undead", "6", "Man", { extraordinaryEdges: EDGES })).extraordinary === false);
-  check("a type the rule does not list is unmarked", flagsOf(typed("Plant", "20", "Colossal", { extraordinaryEdges: EDGES })).extraordinary === false);
+  check("an animal past the hit-dice edge and at the size edge is marked", marked(typed("Animal", "7+3", "Gigantic", { extraordinaryEdges: EDGES })));
+  check("the same animal below the size edge is unmarked", !marked(typed("Animal", "7+3", "Large", { extraordinaryEdges: EDGES })));
+  check("an animal at the hit-dice edge is unmarked, bonus included", !marked(typed("Animal", "7+2", "Colossal", { extraordinaryEdges: EDGES })));
+  check("an animal past the edge with no size read is not marked either way", !("extraordinary" in baseOf(typed("Animal", "9", "", { extraordinaryEdges: EDGES }))));
+  check("another listed type is held to the other hit-dice edge", marked(typed("Undead", "7", "Man", { extraordinaryEdges: EDGES })) && !marked(typed("Undead", "6", "Man", { extraordinaryEdges: EDGES })));
+  check("a type the rule does not list is unmarked", !marked(typed("Plant", "20", "Colossal", { extraordinaryEdges: EDGES })));
 }
 {
-  check("with no edges an animal's mark is left unwritten", !("extraordinary" in flagsOf(typed("Animal", "9", "Gigantic", {}))));
-  check("with no edges another listed type's mark is left unwritten", !("extraordinary" in flagsOf(typed("Undead", "9", "Man", {}))));
-  check("a humanoid is unmarked and an incarnation marked without any edge", flagsOf(typed("Humanoid", "9", "Man", {})).extraordinary === false && flagsOf(typed("Incarnation", "1", "Man", {})).extraordinary === true);
-  check("an edge half imported answers only for what it covers", !("extraordinary" in flagsOf(typed("Animal", "9", "Gigantic", { extraordinaryEdges: { ...EDGES, animalSize: null } }))) && flagsOf(typed("Undead", "9", "Man", { extraordinaryEdges: { ...EDGES, animalSize: null } })).extraordinary === true);
+  check("with no edges an animal's mark is left unwritten", !("extraordinary" in baseOf(typed("Animal", "9", "Gigantic", {}))));
+  check("with no edges another listed type's mark is left unwritten", !("extraordinary" in baseOf(typed("Undead", "9", "Man", {}))));
+  check("a humanoid is unmarked and an incarnation marked without any edge", !marked(typed("Humanoid", "9", "Man", {})) && marked(typed("Incarnation", "1", "Man", {})));
+  check("an edge half imported answers only for what it covers", !marked(typed("Animal", "9", "Gigantic", { extraordinaryEdges: { ...EDGES, animalSize: null } })) && marked(typed("Undead", "9", "Man", { extraordinaryEdges: { ...EDGES, animalSize: null } })));
 }
 {
   const sword = mapPairs([{ label: "Attacks", value: "1 (sword 5+)" }, { label: "Damage", value: "1d8" }, { label: "Type", value: "Animal" }], {}).items.find((i) => i.type === "weapon");
-  check("an attack that is no natural weapon is unmarked and untyped", flagsOf(sword).extraordinary === false && !("damageType" in flagsOf(sword)) && !("naturalWeapon" in flagsOf(sword)));
+  check("an attack that is no natural weapon is unmarked and untyped", !marked(sword) && !("types" in baseOf(sword)) && !("naturalWeapon" in flagsOf(sword)));
 }
 
 /* --- the vocabulary ------------------------------------------------------------ */

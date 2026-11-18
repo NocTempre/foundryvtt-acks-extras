@@ -11,6 +11,7 @@ import { savesForLevel, parseHitDice } from "./stats.mjs";
 import { hdFormula } from "../lib/actor-read.mjs";
 import { parseEncounterLine, appearingFormula } from "../lib/encounter-line.mjs";
 import { SIZE_ORDER } from "../monsters/natural-weapons.mjs";
+import { weaponBaseDamage } from "../lib/damage-type.mjs";
 import { MODULE_ID, DEFAULT_IMG } from "./constants.mjs";
 
 const TYPE_KEYS = ["animal", "beastman", "construct", "enchanted", "giant", "humanoid", "incarnation", "monstrosity", "ooze", "plant", "undead", "vermin"];
@@ -325,16 +326,11 @@ export function mapPairs(pairs, { proficiency = namesakeAbility, naturalDamage =
         name,
         type: "weapon",
         img: DEFAULT_IMG.ATTACK,
-        flags: {
-          [MODULE_ID]: {
-            ...(nw ? { naturalWeapon: nw } : {}),
-            ...(damageType ? { damageType } : {}),
-            ...(nw && extraNatural === null ? {} : { extraordinary: nw ? extraNatural : false }),
-          },
-        },
+        flags: { [MODULE_ID]: { ...(nw ? { naturalWeapon: nw } : {}) } },
         system: {
           description: "",
-          damage: dmg,
+          // The type and the mark ride on the system's own fields; an unread mark (null) writes nothing.
+          damage: weaponBaseDamage(dmg, damageType, nw ? extraNatural === true : false),
           bonus: 0,
           melee: true,
           missile: false,

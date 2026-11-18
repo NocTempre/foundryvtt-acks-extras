@@ -18,6 +18,8 @@ import { loadStanding } from "./load-rule.mjs";
 import { printKey } from "../importer/printed-name.mjs";
 import { numOrNull } from "../lib/util.mjs";
 import { blankLoyaltyCite } from "../lib/score-bounds.mjs";
+import { damageTypeOf, extraordinaryOf } from "../lib/damage-type.mjs";
+import { MODULE_ID } from "./constants.mjs";
 
 /**
  * The glyph a body form puts on the band, keyed by `printKey` of the form's
@@ -129,6 +131,25 @@ export function loadReading({ stone = 0, normal = null, max = null, maxMultiple 
   const tick = clampPct((n / denom) * 100);
   const tone = state === "overloaded" ? "bad" : state === "encumbered" ? "warn" : null;
   return { pct, tick, tone, unset: false, carried, normal: n, max: ceiling };
+}
+
+/**
+ * One owned weapon as the snapshot's attack row. The damage type and the
+ * extraordinary mark are the weapon's own system fields, read the way its Rolls
+ * tab reads them (`damageTypeOf`, with its fallbacks), so the row agrees with
+ * what the attack rolls; `natural` is the monster feature's own flag, which the
+ * system has no field for. `damageLabel` turns a damage-type key into text.
+ */
+export function attackRowOf(weapon, damageLabel) {
+  return {
+    id: weapon.id,
+    name: weapon.name,
+    damage: weapon.system?.damage?.base?.formula ?? weapon.system?.damage?.formula ?? "",
+    damageType: damageLabel(damageTypeOf(weapon)),
+    natural: !!weapon.flags?.[MODULE_ID]?.naturalWeapon,
+    extraordinary: extraordinaryOf(weapon),
+    counter: { value: num(weapon.system?.counter?.value), max: num(weapon.system?.counter?.max) },
+  };
 }
 
 /**

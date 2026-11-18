@@ -146,3 +146,41 @@ offset, so an offset inside it is clamped to the shorter body; the hook reads
 the offset before the render and puts it back. The weapon's damage type and
 extraordinary fields still write flags beside core's own fields, which the
 attack roll reads; that is its own change.
+
+## 2026-11-17 — A monster weapon's damage type and extraordinary mark are core's fields
+
+**Ruled.** The ACKS Monster group's Damage Type and Extraordinary damage
+controls read and write the weapon's `system.damage.base.types` and
+`.extraordinary`, the fields the attack roll and lib's damage stage read. They
+wrote flags beside those fields, so an edit in the group never reached the
+roll. This is the change the entry above left for later; the group now edits
+six flags and these two fields. The controls are the approved ones, so nothing
+was redrawn. The importer stops writing the two flags on both monster paths:
+the cookbook import already wrote core's fields beside them, and Apply Stats
+wrote only the flags, with the damage as a bare formula that core reads as
+untyped and mundane. The monster sheet's attack rows read lib's
+`damageTypeOf` and `extraordinaryOf`, and equipment's silver answer reads the
+same mark (equipment DECISIONS, 2026-11-17). Natural Weapon stays a flag: core
+has no such field.
+
+**Calls made here.** A pick replaces the weapon's whole type set and clearing
+empties it, so a weapon given two types on the system's sheet keeps one after
+a pick. The select shows `ownDamageType`, core's alone, so the control shows
+what it writes; the attack row and the Rolls tab show `damageTypeOf`, which
+falls back past core. An old flag is not cleared on write. The owner: "cancel
+any new time on tools designed to repair previous versions". The `damageType`
+key is also equipment's per-item override, so it is not this feature's to
+clear. The group's change stops at the group, so the host sheet's
+submit-on-change never posts the form's own copies of the same fields.
+
+**Rejected.** Keeping the flags and copying them into core's fields on write:
+two stores of one fact. A flag for a type core does not accept: core accepts
+all thirteen. Clearing the old flags on write: a repair of what earlier
+versions wrote.
+
+**What it cost.** A monster given stats by Apply Stats before this change
+holds its type and mark only in flags. Its attacks rolled untyped all along,
+and its attack row stops showing the mark. Applying stats again replaces its
+minted weapons with core-typed ones. Where such a weapon holds a type flag and
+no core type, the attack row still names the flag's type through lib's
+fallback while the roll carries none; that fallback is lib's to settle.

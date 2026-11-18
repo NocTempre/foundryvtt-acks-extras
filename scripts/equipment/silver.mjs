@@ -3,8 +3,8 @@
  *
  * Silver changes nothing about the weapon itself (RR ch.4); what matters is
  * what the blade COUNTS AS when it lands: extraordinary damage (RR ch.6,
- * RR p. 159). The monsters feature already asks that question of a weapon
- * through its own `extraordinary` flag, so silver answers it here through
+ * RR p. 159). The system's weapon already asks that question through its
+ * `damage.base.extraordinary` field, so silver answers it here through
  * `dealsExtraordinaryDamage` and opens no second question.
  *
  * The module says what the weapon counts as and never decides the outcome:
@@ -19,6 +19,7 @@ import { weaponRow } from "../lib/weapons.mjs";
 import { silveredFlagOf, recomputeItemFields } from "./properties.mjs";
 import { isAmmoItem } from "../lib/item-model.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
+import { extraordinaryOf } from "../lib/damage-type.mjs";
 
 /**
  * Silver is a WEAPON quality, so only a weapon, or a stack of ammunition fired
@@ -42,12 +43,12 @@ export function isSilvered(item) {
 }
 
 /**
- * Does an attack with this weapon deal EXTRAORDINARY damage? True when the item
- * is already flagged so (the monsters feature's own annotation) or when it is
- * silver.
+ * Does an attack with this weapon deal EXTRAORDINARY damage? True when the
+ * weapon's own base damage carries the system's extraordinary mark or when it
+ * is silver.
  */
 export function dealsExtraordinaryDamage(item) {
-  return !!item?.getFlag?.(MODULE_ID, "extraordinary") || isSilvered(item);
+  return extraordinaryOf(item) || isSilvered(item);
 }
 
 /**

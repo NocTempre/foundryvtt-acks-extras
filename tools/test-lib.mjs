@@ -4300,5 +4300,64 @@ t("areEnemies: friendly against hostile is true, one side false, neutral secret 
   });
 }
 
+{
+  const { coreDamageKey, weaponBaseDamage, extraordinaryOf, damageTypeUpdate, damageTypeOf, ownDamageType } = await import("../scripts/lib/damage-type.mjs");
+  const MODULE = "acks-extras";
+  /** A live-shaped weapon: `types` is a Set, as the system's SetField hydrates it. */
+  const weapon = ({ types = [], extraordinary, flags = {} } = {}) => ({
+    system: { damage: { base: { types: new Set(types), ...(extraordinary === undefined ? {} : { extraordinary }) } } },
+    getFlag: (m, k) => (m === MODULE ? flags[k] : undefined),
+  });
+
+  t("coreDamageKey: every vocabulary key is the system's, and varies is variesByWeapon", () => {
+    for (const key of Object.keys(vocab.DAMAGE_TYPES)) {
+      assert.equal(coreDamageKey(key), key === "varies" ? "variesByWeapon" : key, key);
+    }
+    assert.equal(Object.keys(vocab.DAMAGE_TYPES).length, 13);
+  });
+  t("coreDamageKey: a key the system does not accept is null", () => {
+    assert.equal(coreDamageKey("zorp"), null);
+    assert.equal(coreDamageKey(""), null);
+    assert.equal(coreDamageKey(null), null);
+    assert.equal(coreDamageKey("toString"), null);
+  });
+  t("coreDamageKey: the weapon schema's own choices decide where there is one", () => {
+    globalThis.CONFIG = { Item: { dataModels: { weapon: { schema: { getField: () => ({ element: { choices: { fire: {}, variesByWeapon: {} } } }) } } } } };
+    try {
+      assert.equal(coreDamageKey("fire"), "fire");
+      assert.equal(coreDamageKey("varies"), "variesByWeapon");
+      assert.equal(coreDamageKey("cold"), null, "a vocabulary key the schema does not list");
+    } finally {
+      delete globalThis.CONFIG;
+    }
+  });
+  t("weaponBaseDamage: the die, the system's type key and the extraordinary mark", () => {
+    assert.deepEqual(weaponBaseDamage("1d6", "fire", true), { base: { formula: "1d6", types: ["fire"], extraordinary: true } });
+    assert.deepEqual(weaponBaseDamage("1d6", "varies"), { base: { formula: "1d6", types: ["variesByWeapon"] } });
+    assert.deepEqual(weaponBaseDamage(undefined), { base: { formula: "" } });
+    assert.deepEqual(weaponBaseDamage("1d4", "zorp", null), { base: { formula: "1d4" } }, "an unknown type and an unset mark write nothing");
+  });
+  t("damageTypeOf: a core type beats a stale flag, and the flag answers where core is silent", () => {
+    assert.equal(damageTypeOf(weapon({ types: ["fire"], flags: { damageType: "slashing" } })), "fire");
+    assert.equal(damageTypeOf(weapon({ types: [], flags: { damageType: "slashing" } })), "slashing");
+    assert.equal(damageTypeOf(weapon({ types: ["variesByWeapon"] })), "varies");
+  });
+  t("ownDamageType: reads core only, never the flag", () => {
+    assert.equal(ownDamageType(weapon({ types: [], flags: { damageType: "slashing" } })), null);
+    assert.equal(ownDamageType(weapon({ types: ["cold"], flags: { damageType: "slashing" } })), "cold");
+  });
+  t("extraordinaryOf: only the system's own field is true", () => {
+    assert.equal(extraordinaryOf(weapon({ extraordinary: true })), true);
+    assert.equal(extraordinaryOf(weapon({ extraordinary: false, flags: { extraordinary: true } })), false);
+    assert.equal(extraordinaryOf(weapon({ flags: { extraordinary: true } })), false);
+    assert.equal(extraordinaryOf(null), false);
+  });
+  t("damageTypeUpdate: a pick replaces the set, a blank clears it, varies maps", () => {
+    assert.deepEqual(damageTypeUpdate("cold"), { "system.damage.base.types": ["cold"] });
+    assert.deepEqual(damageTypeUpdate("varies"), { "system.damage.base.types": ["variesByWeapon"] });
+    assert.deepEqual(damageTypeUpdate(""), { "system.damage.base.types": [] });
+    assert.deepEqual(damageTypeUpdate(null), { "system.damage.base.types": [] });
+  });
+}
 
 console.log(`\n${n} tests passed`);

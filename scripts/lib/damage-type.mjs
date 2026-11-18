@@ -1,18 +1,19 @@
-/* global game */
+/* global game, CONFIG */
 /**
  * Damage typing for weapons, and the attack options an actor actually has.
  *
  * A core weapon Item types its base damage itself (`system.damage.base.types`,
- * a set the sheet edits), but an older or hand-made weapon leaves the set
- * empty, and the equipment feature only stamps `flags.acks-extras.damageType`
- * when its annotate macro has run, so this falls through to that feature's own
- * classifier — every profiled weapon is typed with no annotation step and no
- * second copy of the data.
+ * a set the sheet edits, and `system.damage.base.extraordinary`), and core's
+ * attack roll reads those fields. An older or hand-made weapon leaves the set
+ * empty, so a read falls through to `flags.acks-extras.damageType`, which the
+ * readied torch and a pre-existing import write, and then to the equipment
+ * feature's own classifier — every profiled weapon is typed with no annotation
+ * step and no second copy of the data. A write goes to core's fields only.
  *
  * Resolution order, most explicit first:
  *   1. `flags.acks-extras.damageTypeOverride` — a hand-set override (ad-hoc weapons)
  *   2. `system.damage.base.types`             — the weapon's own first type
- *   3. `flags.acks-extras.damageType`         — the stamped classifier value
+ *   3. `flags.acks-extras.damageType`         — the flag's value, where one was written
  *   4. equipment's live `classifyWeapon(item).type`
  *   5. null — genuinely unknown; the UI shows a neutral icon rather than guessing
  *
@@ -92,6 +93,49 @@ export function ownDamageType(item) {
   const key = first === CORE_VARIES ? "varies" : first;
   return key && DAMAGE_TYPES[key] ? key : null;
 }
+
+/**
+ * The system's key for a module damage-type key, or null when the system does
+ * not accept it. Read from the weapon schema's own choices, so an unknown key
+ * never refuses a whole item; with no schema to ask (offline), the module's
+ * vocabulary answers. `varies` is the system's `variesByWeapon`.
+ */
+export function coreDamageKey(key) {
+  if (typeof key !== "string" || !key) return null;
+  const core = key === "varies" ? CORE_VARIES : key;
+  let choices = null;
+  try {
+    choices = CONFIG?.Item?.dataModels?.weapon?.schema?.getField?.("damage.base.types")?.element?.choices ?? null;
+    if (typeof choices === "function") choices = choices();
+  } catch {
+    choices = null;
+  }
+  if (!choices) return core === CORE_VARIES || Object.hasOwn(DAMAGE_TYPES, core) ? core : null;
+  return (Array.isArray(choices) ? choices.includes(core) : core in choices) ? core : null;
+}
+
+/**
+ * A weapon's `system.damage` in the system's shape: the printed die as the
+ * base formula, the damage-type key as the base type where the system knows
+ * the key, and the extraordinary mark where it is true. An unset mark writes
+ * nothing, which the system reads as mundane.
+ */
+export function weaponBaseDamage(formula, typeKey = null, extraordinary = false) {
+  const base = { formula: formula ?? "" };
+  const key = coreDamageKey(typeKey);
+  if (key) base.types = [key];
+  if (extraordinary) base.extraordinary = true;
+  return { base };
+}
+
+/** Does the weapon's own base damage carry the extraordinary mark? Only the system's field answers. */
+export const extraordinaryOf = (item) => item?.system?.damage?.base?.extraordinary === true;
+
+/**
+ * The item update that types a weapon's base damage: a pick replaces the whole
+ * set with the system's key for it, and a blank pick clears the set.
+ */
+export const damageTypeUpdate = (key) => ({ "system.damage.base.types": key ? [coreDamageKey(key)].filter(Boolean) : [] });
 
 /**
  * The damage type of a weapon item, or null when unknown.
