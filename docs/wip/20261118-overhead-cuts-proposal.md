@@ -143,7 +143,8 @@ the skeleton, the manifest, the drift workflow, the nightly script and two skill
 suite. The 14 suites that test the tools this repo runs move here with the capture driver, and
 the release workflow is inlined, which pins it. *Lost:* a one-command scaffold for a second
 module, and toolchain commits kept out of this repo's history.
-*Adopted 2026-11-18* (the owner: "Implement"). Its plan is `20261118-template-fold-plan.md`.
+*Adopted 2026-11-18* (the owner: "Implement"), and landed the same day (the owner: "Land now").
+The ruling is `docs/DECISIONS.md`, 2026-11-18; retiring the template repository is still owed.
 
 **C2. A release commit that changes only the version and the changelog skips its local full
 gate, and release step 5 runs the local rules suites alone.** Its runtime already passed the
