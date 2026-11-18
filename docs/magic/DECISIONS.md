@@ -1244,3 +1244,18 @@ identification), and requires no throw to gain the formula of a common spell, wh
 Ruling 223 names none of them, and a Finish without them writes wrong outcomes. They are procedure and the
 actor's or the subject's own numbers, and ship. A sample's bonus and a proficiency's bonus are printed
 figures, so they are ROADMAP rows, read from the import when they are built, never constants.
+
+## 2026-11-18 — Board 17 approved: ritual project, power row, formula Finish
+
+The owner, on board 17 (canvas v30): "Approve, build it", A–E as drawn. On ruling 223, relayed by the
+coordinator: it did not mean to exclude anything the page prints ("No house rules ship", only printed
+procedure). So the previous entry's findings are built as procedure: the Intellect bonus on the die, the
+target raised by the level of the spell or effect, and a Judge's no-throw for a common spell, with every
+figure imported or left blank.
+
+- **Two slices.** M-r1 builds the procedure fixes (the short-bucket hold, the formula's no-throw, power as
+  matched, the Intellect bonus, the level on the target, the common-spell no-throw) with no new surface but
+  a hold reason. M-r2 builds board 17's surfaces: A, the ritual band in the cast dialog; B, the ritual
+  project's barred row and throw parts; C, where a cast ritual goes; D, Add power; E, the Finish (formula)
+  button and card. Each takes one gate and one walk. *Counter (low):* two landings of one board's work;
+  the procedure is correct without the surfaces and is walked first.
