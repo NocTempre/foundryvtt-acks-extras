@@ -605,3 +605,4 @@ and `/design`. Release waits on it.
 - **Owner question:** where does the Judge pick the setting column? Default: per pot, in the deal
 panel, remembered; blank rolls no type. Counter (moderate): a world setting is simpler, but the
 page ties the column to the treasure's source. Everything else above follows the printed procedure.
+- 2026-11-18: the owner answered the T6c setting-column question with "Accept recommended": the Judge picks the column per pot, in the deal panel, remembered; blank rolls no type. T6c-3 still needs its /design board before it is built.
