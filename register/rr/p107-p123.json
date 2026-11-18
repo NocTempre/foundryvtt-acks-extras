@@ -2070,6 +2070,28 @@
       "general": false,
       "repeatable": true
     },
+    "rolls": [
+      {
+        "key": "identifyMagicItems",
+        "label": {
+          "pattern": "(recognize\\s*conventional\\s*and\\s*usual\\s*magical\\s*items)"
+        },
+        "target": {
+          "pattern": "examining\\s*them[^.]{0,60}?proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        },
+        "note": "The improvement by rank the page prints is not modelled here."
+      },
+      {
+        "key": "identifyComponents",
+        "label": {
+          "pattern": "magical\\s*items\\s*or\\s*(special\\s*components)"
+        },
+        "target": {
+          "pattern": "examining\\s*them[^.]{0,60}?proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        },
+        "note": "The improvement by rank the page prints is not modelled here."
+      }
+    ],
     "icon": "systems/acks/assets/icons/orbital.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/gears.svg"
   },
@@ -2402,6 +2424,28 @@
       "category": "proficiency",
       "general": true
     },
+    "rolls": [
+      {
+        "key": "identifyNature",
+        "label": {
+          "pattern": "can\\s*(appraise\\s*the\\s*value\\s*of\\s*a\\s*monster.s\\s*parts)"
+        },
+        "target": {
+          "pattern": "successful\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        },
+        "note": "The improvement by rank the page prints is not modelled here."
+      },
+      {
+        "key": "identifyComponents",
+        "label": {
+          "pattern": "(identify\\s*special\\s*components)"
+        },
+        "target": {
+          "pattern": "On\\s*(\\d+)\\+,\\s*the\\s*character\\s*can\\s*identify\\s*special\\s*components"
+        },
+        "note": "The improvement by rank the page prints is not modelled here."
+      }
+    ],
     "icon": "systems/acks/assets/icons/naturalism.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/herbs-bundle.svg"
   },
@@ -3102,6 +3146,17 @@
     },
     "audited": "2026-07-18",
     "auditor": "first-pass",
+    "rolls": [
+      {
+        "key": "recognizeFaiths",
+        "label": {
+          "pattern": "(recognize\\s*those\\s*of\\s*other\\s*faiths)"
+        },
+        "target": {
+          "pattern": "other\\s*faiths\\s*with\\s*a\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\+"
+        }
+      }
+    ],
     "icon": "systems/acks/assets/icons/theology.webp",
     "iconNiche": "modules/game-icons-net/blacktransparent/prayer-beads.svg"
   },
