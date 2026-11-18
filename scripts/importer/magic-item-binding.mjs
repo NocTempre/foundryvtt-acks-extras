@@ -25,12 +25,20 @@
  * place leaves the one standing there in its place, so a roll never ends on a
  * non-item. A hop is resolved against the key set of an id, every caption either
  * book prints for it, whichever book's list stands there.
+ *
+ * A row of an item list (one that does not hop, in `classic`, `heroic` or
+ * `subtables`) is also linked to the cookbook entry it names, when the caller
+ * passes the book's entry keys: `ref` is the id of the entry whose key is the
+ * row's `itemKey`, looked up in the book the list was read from (the page
+ * its `listCites` entry names, else the book that declared it), and null where
+ * none or more than one entry has that key.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc, joinCites } from "./produces.mjs";
-import { printKey } from "./printed-name.mjs";
+import { itemKey, printKey } from "./printed-name.mjs";
+import { parseCite } from "./books.mjs";
 import { clean, sentence, tiles } from "./treasure-binding.mjs";
 import { BOOK_CODE } from "./books/index.mjs";
 
@@ -309,6 +317,22 @@ export function listCitesOf(cites = {}, keysOf = SHARED_KEYS) {
   return out;
 }
 
+/** The tables whose non-hopping lists are item lists a row of which can link to an entry. */
+const REF_TABLES = Object.freeze(["classic", "heroic", "subtables"]);
+
+/**
+ * The bands with `ref` on every leaf band and inner band: the entry id `index`
+ * (`{key: id|null}`, a null for a key two entries share) holds for the row's
+ * `itemKey`, else null. A tail's outer band carries none.
+ */
+export function linkBands(bands, index = {}) {
+  const link = (b) => {
+    const key = typeof b.item === "string" ? itemKey(b.item) : "";
+    return { ...b, ref: key && Object.hasOwn(index, key) ? index[key] ?? null : null };
+  };
+  return bands.map((b) => (b.sub ? { ...b, sub: b.sub.map(link) } : link(b)));
+}
+
 /** The leaf bands of a list: every band with no inner bands, and every inner band. */
 const leavesOf = (bands) => bands.flatMap((b) => (b.sub ? b.sub : [b]));
 
@@ -322,13 +346,17 @@ const leavesOf = (bands) => bands.flatMap((b) => (b.sub ? b.sub : [b]));
  * @param {object} [options]
  * @param {Record<string, object>} [options.books] each book's contribution (`magicItemLists`);
  *   every registered book's by default
+ * @param {Record<string, Record<string, string|null>>} [options.keys] each book's entry keys,
+ *   `{<book id>: {<itemKey>: <entry id>|null}}` (`keysByBook`); without it no row is linked
+ * @param {Record<string, string>} [options.cites] the document's raw `cites`, by raw key,
+ *   which name the book a shared list was read from
  * @returns {{engine: object, keysOf: Record<string, string[]>, unplaced: string[]}}
  *   `engine` the assembled tables; `keysOf` the raw keys behind each list id (the lists
  *   that stand, and a shared list that did not assemble); `unplaced` the id of every book
  *   list whose pages were read and that does not stand; `keySets` each hop target id's
  *   folded caption keys, `{<table>.<column>: [key]}`
  */
-export function magicItemPlacement(raw = {}, { books = BOOK_CODE } = {}) {
+export function magicItemPlacement(raw = {}, { books = BOOK_CODE, keys = null, cites = {} } = {}) {
   const { units, alsoKeys } = declarationsOf(books);
   const lists = units.flatMap((unit) =>
     Object.entries(unit.columns).map(([column, keys]) => ({ id: `${unit.table}.${column}`, table: unit.table, column, keys, unit, bands: assembleNested(keys.map((k) => raw[k])) })),
@@ -413,6 +441,16 @@ export function magicItemPlacement(raw = {}, { books = BOOK_CODE } = {}) {
   }
   if (Object.keys(heads).length) engine.captions = heads;
 
+  // A row of an item list is linked to its own book's entry of that name.
+  if (keys) {
+    const standingCites = listCitesOf(cites, keysOf);
+    for (const l of standing.values()) {
+      if (!REF_TABLES.includes(l.table) || l.unit.hops) continue;
+      const book = parseCite(standingCites[l.id])?.book ?? l.unit.from;
+      engine[l.table][l.column] = linkBands(engine[l.table][l.column], Object.hasOwn(keys, book) ? keys[book] : {});
+    }
+  }
+
   for (const [table, rawKey] of Object.entries(ARMS_RAW_KEYS)) {
     const grid = assembleArms(raw[rawKey]);
     if (grid) engine[table] = grid;
@@ -439,13 +477,14 @@ export function assembleMagicItemTables(raw = {}, options) {
  * Merge the engine-shaped tables into the imported `magicItemTables` doc. Raw
  * tables stay beside the assembled ones, so a re-import grows the doc instead
  * of replacing it. `unplaced` names each list of a book's whose pages were read
- * and that the shared list still stands in for.
+ * and that the shared list still stands in for. `keys` (`keysByBook()`) links
+ * each item row to its entry (`ref`).
  */
-export async function applyMagicItemImport() {
+export async function applyMagicItemImport({ keys = null } = {}) {
   const svc = services.get("ruledata-import");
   const doc = getLayer(MAGIC_ITEM_DOC_ID, PRIORITY.WORLD);
   if (!svc || !doc) return { assembled: [], unplaced: [] };
-  const { engine, keysOf, unplaced } = magicItemPlacement(doc.tables ?? {});
+  const { engine, keysOf, unplaced } = magicItemPlacement(doc.tables ?? {}, { keys, cites: doc.cites });
   if (!Object.keys(engine).length) return { assembled: [], unplaced };
   const listCites = listCitesOf(doc.cites, keysOf);
   if (Object.keys(listCites).length) engine.listCites = listCites;

@@ -30,7 +30,8 @@ const ADVENTURE = "scripts/importer/adventure-binding.mjs";
 const BRIEFS = {
   Item:
     "What a character is, knows, wears, carries and casts, with the traps and trade goods of the world around them. " +
-    "Filed by kind rather than by book, and each class's starting templates are filed beside them.",
+    "Filed by kind rather than by book, and each class's starting templates are filed beside them. " +
+    "The magic items a book prints are the exception: a folder for the book, and inside it a folder for each kind of item.",
   Actor:
     "The creatures your books describe: a folder for each book and, inside it, a shelf for each kind of creature. " +
     "Animals share one shelf across books. In a Judge's set, an adventure's people, keyed places and organisations as well.",

@@ -1002,7 +1002,13 @@ declarations that carry a book's print facts without one are listed here:
 - Seeded rows: the pilot name pass, then `census-rows seed --verdict` for the pilot
   and each batch, with `census-rows check` clean and `verify-cookbook` run on its
   pages.
-- The Tome as a Judge's book (`judge: true`), the `ref` link from table rows to
-  entries, and the walk of the import on `main`.
+- The Tome as a Judge's book (`judge: true`): it changes the shelf every Tome import
+  lands on, so it waits for the owner (the Tome's items now go to the open line's
+  Item pack).
+- The roller card's link to a linked row's item (`item.uuid` is already in the
+  result): waits on `/design`.
+- The report of table rows with no entry (a reviewer adds an `alsoKey` or records
+  that the row prints none), per list.
+- The walk of the import on `main` (the "Magic item entries" recipe).
 - A magic item's rarity waits on the markets ruling; the cursed mark and the card
   link wait on their designs.

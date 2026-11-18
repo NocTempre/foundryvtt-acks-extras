@@ -41,7 +41,7 @@ import { applyExperienceImport, EXPERIENCE_DOC_ID } from "./experience-binding.m
 import { applyLightImport, LIGHT_DOC_ID } from "./light-binding.mjs";
 import { applyDelveEncounterImport, DELVE_ENCOUNTER_DOC_ID } from "./delve-encounter-binding.mjs";
 import { applyWeaponListsImport, WEAPON_PROSE_DOC_ID } from "./weapon-binding.mjs";
-import { syncHeldRaceTongues } from "./cookbook.mjs";
+import { syncHeldRaceTongues, keysByBook } from "./cookbook.mjs";
 import { getDoc } from "../lib/tables.mjs";
 
 /**
@@ -77,7 +77,7 @@ const ASSEMBLED = Object.freeze([
   { id: VOYAGES_DOC_ID, label: "voyage", assemble: applyVoyagesImport, shown: (r) => r.assembled },
   { id: TREASURE_DOC_ID, label: "treasure", assemble: applyTreasureImport, shown: (r) => r.assembled },
   // A book list that was read and could not place is named: the Journal's list still stands in its place.
-  { id: MAGIC_ITEM_DOC_ID, label: "magic-item", assemble: applyMagicItemImport, shown: (r) => (r.unplaced?.length ? { assembled: r.assembled, unplaced: r.unplaced } : r.assembled) },
+  { id: MAGIC_ITEM_DOC_ID, label: "magic-item", assemble: () => applyMagicItemImport({ keys: keysByBook() }), shown: (r) => (r.unplaced?.length ? { assembled: r.assembled, unplaced: r.unplaced } : r.assembled) },
 ]);
 
 /**

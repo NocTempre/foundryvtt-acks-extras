@@ -1061,6 +1061,24 @@ await test("a hopping list keeps every band's hop, and a tail's inner hops, acro
   assert.deepEqual([...made.results].map((r) => r.description), ["Zz leaf — dim"]);
 });
 
+await test("a subtable row keeps its ref across a drop where its range stood, and a range that moved has none", async () => {
+  world({
+    registry: {
+      magicItemTables: {
+        subtables: { qq1: [{ min: 1, max: 40, item: "Zz leaf", ref: "zz.item1" }, { min: 41, max: 100, item: "Zz other", ref: "zz.item2" }] },
+      },
+    },
+  });
+  const list = entryAt("magicItemTables.subtables.qq1");
+  assert.ok(list?.rollable);
+  const back = await parseDrop(list, droppedTable([{ range: [1, 40], description: "Zz leaf (edited)" }, { range: [41, 90], description: "Zz other" }, { range: [91, 100], description: "Zz new" }]));
+  assert.deepEqual(back.data.qq1, [
+    { min: 1, max: 40, item: "Zz leaf (edited)", ref: "zz.item1" },
+    { min: 41, max: 90, item: "Zz other" },
+    { min: 91, max: 100, item: "Zz new" },
+  ]);
+});
+
 await test("a value list whose dice are a legend carries the legend in its description and never claims one formula for it", async () => {
   world({ registry: itemRegistry() });
   await materializeAll();

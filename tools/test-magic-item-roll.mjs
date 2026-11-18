@@ -8,7 +8,7 @@
 import assert from "node:assert";
 import { PRIORITY, registerTable, resetTables, expectedTables, unregisterTable } from "../scripts/lib/tables.mjs";
 import * as services from "../scripts/lib/services.mjs";
-import { MAGIC_ITEM_DOC, MAGIC_ITEM_ROLL_CONTRACT } from "../scripts/magic-items/constants.mjs";
+import { COOKBOOK_ITEMS_CONTRACT, MAGIC_ITEM_DOC, MAGIC_ITEM_ROLL_CONTRACT } from "../scripts/magic-items/constants.mjs";
 import { MAGIC_ITEM_DOC_ID } from "../scripts/importer/magic-item-binding.mjs";
 
 let pass = 0;
@@ -134,6 +134,30 @@ check("the api carries the entry point and the window", typeof acksExtras.magicI
   const out = await services.get(MAGIC_ITEM_ROLL_CONTRACT).roll({ from: "heroic.rr", ...r(5) });
   eq("the contract roll is deterministic with a roller and keeps uuid null", [out.ok, out.item.text, out.item.uuid], [true, "Xx twenty", null]);
 }
+/* --- a linked row fills uuid through the cookbook-items contract ----------------------- */
+eq("the provider contract name is the documented one", COOKBOOK_ITEMS_CONTRACT, "cookbook-items");
+{
+  const linked = { classic: { kk: [{ min: 1, max: 5, item: "Xx linked", ref: "zz.item1" }, { min: 6, max: 10, item: "Xx loose", ref: null }] } };
+  const asked = [];
+  const roll5 = (extra = {}) => rollMagicItem({ from: "classic.kk", tables: linked, ...r(extra.total ?? 2) });
+  const none = await roll5();
+  eq("with no provider the uuid stays null and the ref is kept", [none.item.ref, none.item.uuid], ["zz.item1", null]);
+  eq("the ref is not one of the item's fields", Object.keys(none.item.fields), ["item"]);
+
+  services.register(COOKBOOK_ITEMS_CONTRACT, { documentOf: async (id) => { asked.push(id); return id === "zz.item1" ? { uuid: "Item.abc123" } : null; } });
+  const got = await roll5();
+  eq("an injected provider fills the uuid of a linked row", [got.item.ref, got.item.uuid, asked], ["zz.item1", "Item.abc123", ["zz.item1"]]);
+  const loose = await roll5({ total: 8 });
+  eq("a row with no ref asks nothing and keeps a null uuid", [loose.item.ref, loose.item.uuid, asked.length], [null, null, 1]);
+
+  services.register(COOKBOOK_ITEMS_CONTRACT, { documentOf: async () => null });
+  eq("a ref the provider has no document for leaves the uuid null", (await roll5()).item.uuid, null);
+  services.register(COOKBOOK_ITEMS_CONTRACT, { documentOf: async () => { throw new Error("gone"); } });
+  eq("a provider that throws leaves the uuid null and the roll ok", [(await roll5()).ok, (await roll5()).item.uuid], [true, null]);
+  eq("a provider with no documentOf is ignored", (services.register(COOKBOOK_ITEMS_CONTRACT, {}), (await roll5()).item.uuid), null);
+  services.register(COOKBOOK_ITEMS_CONTRACT, undefined);
+}
+
 for (const fn of hooks.setup) fn();
 eq("the feature declares what it reads", expectedTables().find((e) => e.docId === MAGIC_ITEM_DOC)?.tableIds, ["classicType", "classic", "heroic", "captions"]);
 

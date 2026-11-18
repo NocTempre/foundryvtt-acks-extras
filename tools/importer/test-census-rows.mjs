@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { boundaryProblems, checkRows, parsePages, seedRows, writeRows } from "./census-rows.mjs";
+import { boundaryProblems, checkRows, firstBodyLine, opensWith, readNameOf, parsePages, seedRows, writeRows } from "./census-rows.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let n = 0;
@@ -156,6 +156,25 @@ t("check reports coverage outside the band and the heading-size runs a flow abso
   });
   assert.deepEqual(result.coverage, [{ n: 2, ratio: 0.6 }, { n: 3, ratio: 1.2 }]);
   assert.deepEqual(result.absorbed, { 3: 2 });
+});
+
+t("the name an executor read is its title under a hash anchor and its found line under a display anchor", () => {
+  assert.equal(readNameOf({ ok: true, title: "Zz Alpha" }), "Zz Alpha");
+  assert.equal(readNameOf({ ok: true, found: "Zz Beta" }), "Zz Beta");
+  assert.equal(readNameOf({ ok: false }), "");
+  assert.equal(readNameOf(undefined), "");
+});
+
+t("the header line is read past a superscript that sits above it, and a variant-led line is told by what opens it", () => {
+  const run = (str, x, y, h) => ({ str, x, y, h });
+  // A superscript at y=603 sits above the baseline (y=606) of a 9pt line and is smaller than it.
+  const runs = [run("th", 279, 603, 5.2), run("Quorv 2,000gp:", 45, 606, 9), run("alpha", 122, 606, 9), run("later line", 45, 616, 9)];
+  assert.equal(firstBodyLine(runs, 10.6), "Quorv 2,000gp: alpha");
+  assert.equal(firstBodyLine([run("Big", 45, 100, 14)], 10.6), "");
+  const pattern = "Quorv\\s*(\\d+)";
+  assert.equal(opensWith("Quorv 2,000gp: alpha", pattern), true);
+  assert.equal(opensWith("Other Quorv 5", pattern), false);
+  assert.equal(opensWith("", pattern), true);
 });
 
 console.log(`\ncensus-rows: ${n} checks OK`);

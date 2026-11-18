@@ -115,3 +115,27 @@ and light themes, and the type-size knob on the window and the card.
 for step 6, `{priority: 30}`. Delete the cards by the ids the run tracked
 (`api.sweepTracked()`), and report its removed / could-not-find / refused
 object. The feature creates nothing else.
+
+## A rolled row names its imported item (the Tome's entries)
+
+### Fixtures
+
+The Tome connected, its magic items imported (importer recipe step 1), and the
+rules tables imported with the Tome open (step 5). Nothing is built here.
+
+### Steps
+
+1. `acksExtras.magicItems.roll({from: "subtables.potions4", roller})`, with a
+   roller returning a total on a row that names an imported entry.
+   *Observable:* `item.ref` is `tt.item<n>` and `item.uuid` resolves with
+   `fromUuid` to that item.
+2. The same roll on a row with no entry. *Observable:* `item.ref` and `item.uuid`
+   are null, and `ok` is true.
+3. With the `cookbook-items` service absent (a world where the importer is
+   disabled), the roll of step 1. *Observable:* `ok` true, `uuid` null.
+4. Open the roller's chat card for step 1's roll. *Observable:* the card is as
+   before; it draws no link (the card's link waits on its design).
+
+### Teardown
+
+None; nothing is created.

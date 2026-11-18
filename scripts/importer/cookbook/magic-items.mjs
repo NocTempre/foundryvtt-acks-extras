@@ -42,6 +42,41 @@ export function magicItemEntries() {
 }
 
 /**
+ * Each book's magic-item entries by key, `{<book id>: {<itemKey>: <entry id>|null}}`:
+ * the key a compiled entry carries (`key`) and every spelling it is also named by
+ * (`alsoKeys`). A key that two entries of one book answer for maps to null, so a
+ * row never links to the wrong entry. Pure over `books`, a map of book id to
+ * cookbook (`{entries}`); the loaded books by default.
+ */
+export function keysByBook(books = data.books) {
+  const out = {};
+  for (const [bookId, cb] of books instanceof Map ? books : Object.entries(books ?? {})) {
+    const index = (out[bookId] = {});
+    for (const [id, e] of Object.entries(cb?.entries ?? {})) {
+      if (e?.kind !== "kind.magicItem") continue;
+      for (const key of [e.key, ...(e.alsoKeys ?? [])]) {
+        if (!key) continue;
+        index[key] = Object.hasOwn(index, key) && index[key] !== id ? null : id;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * The `cookbook-items` service (docs/lib/API.md): `documentOf(id)` answers the
+ * Item the importer made of a cookbook entry, an id merged into another document
+ * included, as `{uuid}`, or null when none stands. The magic-item roller asks it
+ * to fill the rolled item's `uuid`.
+ */
+export const cookbookItemsProvider = Object.freeze({
+  documentOf: async (id) => {
+    const doc = await importedItem(id);
+    return doc?.uuid ? { uuid: doc.uuid } : null;
+  },
+});
+
+/**
  * The creation data of one magic item, from its executed page. The whitelist is
  * the name (read from the page, else the row's label), the description and the
  * two located figures; whatever else the executor's scans produced for the

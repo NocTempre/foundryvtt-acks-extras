@@ -1,0 +1,1829 @@
+{
+  "schema": "acks-cookbook/2",
+  "book": {
+    "id": "tt",
+    "label": "ACKS II Treasure Tome",
+    "short": "TT",
+    "pages": 346,
+    "titleRe": "Treasure Tome"
+  },
+  "entries": {
+    "tt.item1": {
+      "kind": "kind.magicItem",
+      "name": "Bottle of Air",
+      "cite": "TT p.58",
+      "pages": [
+        60
+      ],
+      "key": "leolhk",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 46.5,
+            "x1": 287,
+            "y0": 579,
+            "y1": 598
+          },
+          "text": "Bottle of Air"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 600.0029999999999,
+                "y1": 629
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6,
+                  8,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 643,
+                "y1": 739
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  10,
+                  11,
+                  13,
+                  14,
+                  16
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 83,
+                "y1": 159
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item2": {
+      "kind": "kind.magicItem",
+      "name": "Bottled Billow",
+      "cite": "TT p.58",
+      "pages": [
+        60
+      ],
+      "key": "z2o9mo",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 159,
+            "y1": 178
+          },
+          "text": "Bottled Billow"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 180.00300000000004,
+                "y1": 199
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 213,
+                "y1": 279
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item3": {
+      "kind": "kind.magicItem",
+      "name": "Bottled Fountain",
+      "cite": "TT p.58",
+      "pages": [
+        60
+      ],
+      "key": "clexfr",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 279,
+            "y1": 298
+          },
+          "text": "Bottled Fountain"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 300.003,
+                "y1": 319
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 333,
+                "y1": 429
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item4": {
+      "kind": "kind.magicItem",
+      "name": "Dryad’s Nectar",
+      "cite": "TT p.58",
+      "pages": [
+        60
+      ],
+      "key": "rz0l2p",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 429,
+            "y1": 448
+          },
+          "text": "Dryad’s Nectar"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 450.003,
+                "y1": 479
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6,
+                  8,
+                  10,
+                  11
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 493,
+                "y1": 629
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item5": {
+      "kind": "kind.magicItem",
+      "name": "Elixir of Stolen Life",
+      "cite": "TT p.58",
+      "pages": [
+        60,
+        61
+      ],
+      "key": "1gri4ju",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 60,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 629,
+            "y1": 648
+          },
+          "text": "Elixir of Stolen Life"
+        },
+        "description": {
+          "op": "text",
+          "page": 60,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 650.0029999999999,
+                "y1": 669
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 683,
+                "y1": 739
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 83,
+                "y1": 129
+              },
+              "page": 61,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 143,
+                "y1": 199
+              },
+              "page": 61,
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2,
+                  3,
+                  4,
+                  5
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item6": {
+      "kind": "kind.magicItem",
+      "name": "Healing Salve",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "163rxzm",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 73.5,
+            "x1": 314,
+            "y0": 199,
+            "y1": 218
+          },
+          "text": "Healing Salve"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 223,
+                "y1": 229
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 243,
+                "y1": 279
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item7": {
+      "kind": "kind.magicItem",
+      "name": "Item 7",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "7yg0uz",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "heading",
+          "page": 61,
+          "box": {
+            "x0": 73.5,
+            "x1": 314,
+            "y0": 279,
+            "y1": 298
+          },
+          "hash": "7yg0uz"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 300.003,
+                "y1": 309
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 323,
+                "y1": 369
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 383,
+                "y1": 469
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  14
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 483,
+                "y1": 559
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item8": {
+      "kind": "kind.magicItem",
+      "name": "Kraken Ink",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "1dayayp",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 73.5,
+            "x1": 314,
+            "y0": 559,
+            "y1": 578
+          },
+          "text": "Kraken Ink"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 580.0029999999999,
+                "y1": 599
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 58,
+                "x1": 314.99,
+                "y0": 613,
+                "y1": 709
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item9": {
+      "kind": "kind.magicItem",
+      "name": "Mead of Inspiration",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "12b9xjd",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 330,
+            "x1": 572,
+            "y0": 69,
+            "y1": 88
+          },
+          "text": "Mead of Inspiration"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 90.00300000000004,
+                "y1": 109
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 123,
+                "y1": 239
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  13,
+                  14
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item10": {
+      "kind": "kind.magicItem",
+      "name": "Midnight Oil",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "100j6z3",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 330,
+            "x1": 572,
+            "y0": 389,
+            "y1": 408
+          },
+          "text": "Midnight Oil"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 410.003,
+                "y1": 429
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 443,
+                "y1": 549
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  15,
+                  16,
+                  17,
+                  18
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item11": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Bane-Rune",
+      "cite": "TT p.59",
+      "pages": [
+        61
+      ],
+      "key": "pb924i",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 61,
+          "box": {
+            "x0": 330,
+            "x1": 572,
+            "y0": 549,
+            "y1": 568
+          },
+          "text": "Oil of Bane-Rune"
+        },
+        "description": {
+          "op": "text",
+          "page": 61,
+          "paras": [
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 570.0029999999999,
+                "y1": 589
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  9
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 315,
+                "x1": 572,
+                "y0": 603,
+                "y1": 739
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  7,
+                  8,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18
+                ],
+                "mergeHyphen": [
+                  9
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item12": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Excavation",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "6zp30c",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 46.5,
+            "x1": 287,
+            "y0": 69,
+            "y1": 88
+          },
+          "text": "Oil of Excavation"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 90.00300000000004,
+                "y1": 109
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 123,
+                "y1": 239
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item13": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Extra-Sharpness",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "1tegrgr",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 46.5,
+            "x1": 287,
+            "y0": 239,
+            "y1": 258
+          },
+          "text": "Oil of Extra-Sharpness"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 260.00300000000004,
+                "y1": 289
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  13
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 303,
+                "y1": 409
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  13,
+                  14,
+                  15
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item14": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Invisibility",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "1g00lh5",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 46.5,
+            "x1": 287,
+            "y0": 409,
+            "y1": 428
+          },
+          "text": "Oil of Invisibility"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 430.003,
+                "y1": 449
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 463,
+                "y1": 519
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  3,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item15": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Liquefaction",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "8xd4xa",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 46.5,
+            "x1": 287,
+            "y0": 519,
+            "y1": 538
+          },
+          "text": "Oil of Liquefaction"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 540.0029999999999,
+                "y1": 559
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 31,
+                "x1": 287.99,
+                "y0": 573,
+                "y1": 726.6499
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item16": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Ooze",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "yhorp9",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 69,
+            "y1": 88
+          },
+          "text": "Oil of Ooze"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 90.00300000000004,
+                "y1": 99
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  2
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 113,
+                "y1": 239
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "tt.item17": {
+      "kind": "kind.magicItem",
+      "name": "Oil of Permanency",
+      "cite": "TT p.60",
+      "pages": [
+        62
+      ],
+      "key": "1n3a7t4",
+      "meta": {
+        "category": "potions"
+      },
+      "fields": {
+        "name": {
+          "op": "expect",
+          "page": 62,
+          "box": {
+            "x0": 303,
+            "x1": 572,
+            "y0": 239,
+            "y1": 258
+          },
+          "text": "Oil of Permanency"
+        },
+        "description": {
+          "op": "text",
+          "page": 62,
+          "paras": [
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 260.00300000000004,
+                "y1": 279
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  4,
+                  5
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 293,
+                "y1": 359
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 373,
+                "y1": 469
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 483,
+                "y1": 569
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  11,
+                  12
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 583,
+                "y1": 669
+              },
+              "fixes": {
+                "joinSpace": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9,
+                  10,
+                  12,
+                  13,
+                  14,
+                  15,
+                  16,
+                  17,
+                  18
+                ]
+              }
+            },
+            {
+              "box": {
+                "x0": 288,
+                "x1": 572,
+                "y0": 736.1499,
+                "y1": 742.1499
+              },
+              "fixes": {
+                "joinSpace": [
+                  0
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "field": "baseCostGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Base\\s*Cost\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            },
+            {
+              "field": "apparentValueGp",
+              "from": {
+                "into": "amount",
+                "pattern": "Apparent\\s*Value\\s*:?\\s*(\\d[\\d,]*(?:\\.\\d+)?)\\s*gp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "skips": {
+    "60": [
+      {
+        "x0": 0,
+        "x1": 612,
+        "y0": 0,
+        "y1": 50,
+        "reason": "running-head"
+      },
+      {
+        "x0": 0,
+        "x1": 34,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      },
+      {
+        "x0": 0,
+        "x1": 305,
+        "y0": 50,
+        "y1": 585,
+        "reason": "section-intro"
+      }
+    ],
+    "61": [
+      {
+        "x0": 0,
+        "x1": 612,
+        "y0": 0,
+        "y1": 50,
+        "reason": "running-head"
+      },
+      {
+        "x0": 578,
+        "x1": 612,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      }
+    ],
+    "62": [
+      {
+        "x0": 0,
+        "x1": 612,
+        "y0": 0,
+        "y1": 50,
+        "reason": "running-head"
+      },
+      {
+        "x0": 0,
+        "x1": 34,
+        "y0": 0,
+        "y1": 792,
+        "reason": "margin-furniture"
+      }
+    ]
+  }
+}

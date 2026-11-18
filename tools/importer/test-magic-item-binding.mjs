@@ -26,10 +26,11 @@ import {
   captionKeys,
   applyMagicItemImport,
   hopOf,
+  linkBands,
   listCitesOf,
   magicItemPlacement,
 } from "../../scripts/importer/magic-item-binding.mjs";
-import { printKey } from "../../scripts/importer/printed-name.mjs";
+import { itemKey, printKey } from "../../scripts/importer/printed-name.mjs";
 import * as services from "../../scripts/lib/services.mjs";
 import { PRIORITY, registerTable, resetTables } from "../../scripts/lib/tables.mjs";
 import { assembleLegend, assembleSpecialPer, assembleTypeUnits } from "../../scripts/importer/treasure-binding.mjs";
@@ -249,6 +250,43 @@ const place = (raw, books = zz(BLADE)) => magicItemPlacement(raw, { books });
   eq("a whole grid replaces every column of the shared table", Object.keys(whole.engine.scrollSpellLevels).sort(), ["col1", "col2"]);
   const part = place({ ...shared, zzLv1Raw: lv("4"), zzLv2Raw: seg(null, one("5", 1, 100), one("6", 102, 110)) });
   eq("a grid with a list that does not tile replaces none", [Object.keys(part.engine.scrollSpellLevels).sort(), part.unplaced], [["col1", "col2", "col3"], ["scrollSpellLevels.col1", "scrollSpellLevels.col2"]]);
+}
+/* --- ref: a row linked to its own book's entry ---------------------------------------- */
+{
+  const raw = { ...sharedRaw(), ...zzRaw() };
+  const idx = { zz: { [itemKey("Item a")]: "zz.item1", [itemKey("Item b")]: null }, jj: { [itemKey("Shared ring")]: "jj.item4", [itemKey("Item a")]: "jj.item9" } };
+  const cites = { ringsRaw: "JJ p.8", potionsRaw: "JJ p.9", swordsRaw: "JJ p.10", zzSub1Raw: "ZZ p.1" };
+  const p = magicItemPlacement(raw, { books: zz(BLADE), keys: idx, cites });
+  eq("a placed book's subtable row links to that book's entry", p.engine.subtables.potions1, [{ min: 1, max: 100, item: "Item a", ref: "zz.item1" }]);
+  eq("a key the book's entries share (null) gives a null ref", p.engine.subtables.potions2, [{ min: 1, max: 100, item: "Item b", ref: null }]);
+  eq("a shared list's row links within the book its cite names, not another book that holds the key", [p.engine.classic.rings[0].ref, p.engine.classic.swords[0].ref], ["jj.item4", null]);
+  check("a hopping list's rows, the type list's and a tail's outer face carry no ref", p.engine.classic.potions.every((b) => !("ref" in b)) && p.engine.classicType.bands.every((b) => !("ref" in b)));
+  check("a tail's inner bands of a hopping list carry no ref", p.engine.classic.potions[1].sub.every((s) => !("ref" in s)));
+  check("a row's own book decides: the same words in the other book's index do not link a placed list", p.engine.subtables.potions1[0].ref !== "jj.item9");
+  const none = magicItemPlacement(raw, { books: zz(BLADE) });
+  check("with no keys passed no row is linked at all", JSON.stringify(none.engine).indexOf("\"ref\"") === -1);
+}
+{
+  const bands = [{ min: 1, max: 3, item: "Zz Alpha [ab]" }, { min: 4, max: 4, sub: [{ min: 1, max: 5, item: "Zz Beta" }, { min: 6, max: 9 }] }];
+  const linked = linkBands(bands, { [itemKey("Zz Alpha")]: "zz.item3", [itemKey("Zz Beta")]: "zz.item4" });
+  eq("a row's bracketed marker is dropped from its key; inner bands are linked; a tail's outer band is not", linked, [
+    { min: 1, max: 3, item: "Zz Alpha [ab]", ref: "zz.item3" },
+    { min: 4, max: 4, sub: [{ min: 1, max: 5, item: "Zz Beta", ref: "zz.item4" }, { min: 6, max: 9, ref: null }] },
+  ]);
+  eq("an index with no entry for a row gives null, and a key such as 'constructor' is never inherited", linkBands([{ min: 1, max: 1, item: "constructor" }], {}), [{ min: 1, max: 1, item: "constructor", ref: null }]);
+}
+{
+  // applyMagicItemImport links through the keys it is handed.
+  resetTables();
+  const imported = [];
+  services.register("ruledata-import", { importDoc: async (d) => imported.push(d) });
+  registerTable({ id: MAGIC_ITEM_DOC_ID, cites: { ringsRaw: "JJ p.8" }, tables: sharedRaw() }, { priority: PRIORITY.WORLD });
+  await applyMagicItemImport({ keys: { jj: { [itemKey("Shared ring")]: "jj.item4" } } });
+  eq("the import writes the linked ref into the assembled tables", imported.at(-1).tables.classic.rings[0].ref, "jj.item4");
+  await applyMagicItemImport();
+  eq("an import with no keys links nothing", imported.at(-1).tables.classic.rings[0].ref, undefined);
+  services.resetServices();
+  resetTables();
 }
 eq("no book's map: no list is unplaced and no subtables table", [place(sharedRaw(), {}).unplaced, "subtables" in place(sharedRaw(), {}).engine], [[], false]);
 check("PRODUCES carries the engine tables the Journal's lists make", Object.keys(PRODUCES[MAGIC_ITEM_DOC_ID]).includes("classicType"));

@@ -43,7 +43,7 @@ const tables = () => ({
   eq("a two-stage chain rolls the start list then the list it names", out.steps.map((s) => s.list), ["kinds.bands", "things.alpha"]);
   eq("each die is read off the list's own bands", r.exprs, ["1d6", "1d100"]);
   eq("a step records the die, the total and the band", out.steps[0], { list: "kinds.bands", die: "1d6", total: 2, band: { min: 1, max: 3 }, fields: { item: "Zq Alpha" } });
-  eq("the item is the last step's text", out.item, { list: "things.alpha", text: "Xx two", fields: { item: "Xx two" }, flag: null, uuid: null });
+  eq("the item is the last step's text", out.item, { list: "things.alpha", text: "Xx two", fields: { item: "Xx two" }, flag: null, ref: null, uuid: null });
   eq("no error", out.error, null);
   check("every step names its list and a whole-number total", out.steps.every((s) => typeof s.list === "string" && Number.isInteger(s.total)));
 }
@@ -219,6 +219,28 @@ const banded = () => ({
   const tables = { kinds: { bands: [{ min: 1, max: 4, item: "Zq Alpha", hop: "cats.items" }] }, cats: { items: [{ min: 1, max: 100, item: "Xx plain" }] } };
   const out = await walkChain({ tables, from: "kinds.bands", roll: rig(2, 40).roll });
   eq("a hop into a list that holds items ends on the item, unflagged", [out.item.text, out.item.flag], ["Xx plain", null]);
+}
+
+/* --- ref: the entry a row was linked to ------------------------------------------------ */
+{
+  const tables = {
+    kinds: { bands: [{ min: 1, max: 6, item: "Zq Alpha", hop: "things.alpha" }] },
+    things: {
+      alpha: [
+        { min: 1, max: 4, item: "Xx linked", ref: "zz.item7" },
+        { min: 5, max: 5, item: "Xx loose", ref: null },
+        { min: 6, max: 6, sub: [{ min: 1, max: 3, item: "Xx inner", ref: "zz.item9" }, { min: 4, max: 6, item: "Xx bare" }] },
+      ],
+    },
+  };
+  const walk = (...totals) => walkChain({ tables, from: "kinds.bands", roll: rig(...totals).roll });
+  const linked = await walk(1, 2);
+  eq("a leaf band's ref rides on the item and is not one of its fields", [linked.item.ref, linked.item.uuid, Object.keys(linked.item.fields), Object.keys(linked.steps[1].fields)], ["zz.item7", null, ["item"], ["item"]]);
+  eq("a band with a null ref gives a null ref", (await walk(1, 5)).item.ref, null);
+  eq("an inner band's ref is the item's", (await walk(1, 6, 2)).item.ref, "zz.item9");
+  eq("an inner band with no ref gives null", (await walk(1, 6, 5)).item.ref, null);
+  const flagged = await walkChain({ tables: { kinds: { bands: [{ min: 1, max: 1, item: "Zq", hop: null, ref: "zz.item1" }] } }, from: "kinds.bands", roll: rig(1).roll });
+  eq("a flagged item keeps the ref of the band it reached", [flagged.item.flag, flagged.item.ref], ["unresolved-hop", "zz.item1"]);
 }
 
 console.log(`test-magic-item-chain: ${pass} checks passed.`);

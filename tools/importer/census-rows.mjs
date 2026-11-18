@@ -199,6 +199,13 @@ async function openDoc(book) {
   return { doc, colOf, compiler };
 }
 
+/**
+ * The words the executor read for an entry's name: `title` where a hash anchor
+ * read the heading, `found` where a display anchor matched a line. Empty when
+ * neither is there.
+ */
+export const readNameOf = (nameField) => String(nameField?.title ?? nameField?.found ?? "");
+
 /** Reading-order key of a run on a page: column then y. */
 const place = (colOf, cols, it) => [colOf(it.x, cols), it.y];
 const before = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
@@ -246,19 +253,34 @@ export function pdfSpanOf(ctxPdf) {
   };
 }
 
-/** Whether a page's header line under `entry`'s heading opens with the kind's first locator: false marks a variant-led entry. */
+/**
+ * The text of the first body-size line among `runs` (items under a heading, in
+ * one column), read left to right. A superscript sits above its line's baseline
+ * and is smaller than the line, so it is left out; a run taller than
+ * `bodyMaxH` is not body type. Empty when no run qualifies.
+ */
+export function firstBodyLine(runs, bodyMaxH) {
+  const body = runs.filter((it) => it.h <= bodyMaxH);
+  const bodyH = Math.max(0, ...body.map((it) => it.h));
+  const line = body.filter((it) => it.h >= bodyH * 0.8).sort((x, y) => x.y - y.y || x.x - y.x);
+  if (!line.length) return "";
+  return line.filter((it) => Math.abs(it.y - line[0].y) < 2).sort((x, y) => x.x - y.x).map((it) => it.str).join(" ");
+}
+
+/** Whether a header line opens with the kind's first locator: false marks a variant-led entry. An empty line is not variant-led. */
+export function opensWith(line, pattern) {
+  if (!line) return true;
+  const m = new RegExp(pattern, "i").exec(line);
+  return !!m && line.slice(0, m.index).trim() === "";
+}
+
+/** Whether a page's header line under `entry`'s heading opens with the kind's first locator. */
 async function opensWithLabel(ctxPdf, entry, pattern) {
   const { doc, colOf, compiler } = ctxPdf;
   const pd = await compiler.axPageItems(doc, entry.pdfPage);
   const cols = compiler.axColumns(pd);
-  const near = pd.items
-    .filter((it) => colOf(it.x, cols) === entry.column && it.y > entry.y + 2 && it.y < entry.y + 20)
-    .sort((a, b) => a.y - b.y || a.x - b.x);
-  if (!near.length) return true;
-  const firstY = near[0].y;
-  const line = near.filter((it) => Math.abs(it.y - firstY) < 2).map((it) => it.str).join(" ");
-  const m = new RegExp(pattern, "i").exec(line);
-  return !!m && line.slice(0, m.index).trim() === "";
+  const near = pd.items.filter((it) => colOf(it.x, cols) === entry.column && it.y > entry.y + 2 && it.y < entry.y + 20);
+  return opensWith(firstBodyLine(near, compiler.AX_BODY_MAX_H), pattern);
 }
 
 const readJson = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
@@ -284,7 +306,7 @@ async function main(argv) {
   if (cmd === "seed") {
     const verdictPath = arg(argv, "--verdict");
     const clear = verdictPath ? new Set(readJson(verdictPath).clear ?? []) : null;
-    const seeded = seedRows(census, { book, pages, clear, spanOf: (e) => spanOf.get(e.n), variantLed: (e) => variant.has(e.n), named: new Date().toISOString().slice(0, 10) });
+    const seeded = seedRows(census, { book, pages, clear, spanOf: (e) => spanOf.get(e.n), variantLed: (e) => variant.has(e.n), named: new Date().toLocaleDateString("sv-SE") });
     const refused = boundaryProblems(census, seeded.rows, pages);
     const ords = seeded.rows.map((r) => +r.id.split(".item")[1]);
     console.log(`seed ${book} PDF ${pages[0]}-${pages[1]}: ${seeded.rows.length} rows, ordinals ${ords[0]}-${ords[ords.length - 1]}; cleared ${seeded.cleared.length}, flagged ${seeded.flagged.length}, hash fallback [${seeded.hashFallback}], variant-led [${seeded.variantLed}]`);
@@ -344,7 +366,7 @@ async function main(argv) {
   const result = checkRows(census, rows, {
     book, pages,
     spanOf: (e) => spanOf.get(e.n),
-    readKey: (id) => (nodes.get(id)?.ok ? printKey(nodes.get(id).fields.name?.title ?? "") : null),
+    readKey: (id) => (nodes.get(id)?.ok ? printKey(readNameOf(nodes.get(id).fields.name)) : null),
     coverage: (id) => measured.get(id),
   });
   console.log(`check ${book} PDF ${pages[0]}-${pages[1]}: ${entriesOn(census, pages).length} headings, ${rows.size} rows`);

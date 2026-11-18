@@ -327,10 +327,31 @@ Judge's tables are not imported, and no figure stands in place), `rarity-require
 `unknown-style`, or a walk error (`bands-untiled`, `roll-failed`, `die-mismatch`,
 `roll-out-of-range`); `steps` then holds what was rolled before it. Each step is
 `{list, die, total, band: {min, max}, inner?: {die, total, band}, fields, caption,
-cite, overridden}`. `item` is `{list, text, fields, flag, hop?, uuid}`: `flag` is
+cite, overridden}`. `item` is `{list, text, fields, flag, ref, hop?, uuid}`: `flag` is
 null or `unresolved-hop`, `missing-list`, `cycle` or `too-deep` (the item reached
-where the chain could not go on), and `uuid` is always null, reserved for a linked
-item. `rolls` holds the Foundry `Roll`s of the default roller.
+where the chain could not go on). `ref` is the cookbook entry id the importer linked
+the reached row to when it assembled the tables, else null; it is not one of `fields`.
+`uuid` is the document of `ref` where a `cookbook-items` provider (below) answers
+one, else null. `rolls` holds the Foundry `Roll`s of the default roller.
+
+### Contract `cookbook-items` v1
+
+Provider: the importer subsystem (`scripts/importer/cookbook/magic-items.mjs`,
+`cookbookItemsProvider`, registered at `ready`). Consumer: the magic-items roll
+(`scripts/magic-items/roll-service.mjs`), which asks it only for a rolled row that
+carries a `ref`. Shape:
+
+```
+{
+  documentOf(id: string) → Promise<{uuid: string}|null>
+}
+```
+
+`id` is a cookbook entry id (`<book>.item<n>`). The provider answers the Item the
+importer made of that entry, one merged into another document included, and null
+when none stands; a consumer treats a null, a throw and no registered provider alike
+and leaves the uuid null. The roll's result carries the uuid as data; no card or
+window draws it yet.
 
 ## `vocab` — Foundry-free enums (Node-importable)
 

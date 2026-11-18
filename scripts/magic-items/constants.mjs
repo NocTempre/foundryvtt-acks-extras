@@ -24,5 +24,12 @@ export const MAGIC_ITEM_DOC = "magicItemTables";
 /** The `services` contract name the roll is offered under (docs/lib/API.md). */
 export const MAGIC_ITEM_ROLL_CONTRACT = "magic-item-roll";
 
+/**
+ * The `services` contract that answers a cookbook entry id with the document the
+ * importer made of it (docs/lib/API.md). The importer provides it; this feature
+ * only asks, and nothing here names the importer.
+ */
+export const COOKBOOK_ITEMS_CONTRACT = "cookbook-items";
+
 /** The tables the feature reads from the document, declared for the missing-tables notice. */
 export const EXPECTED_TABLES = Object.freeze(["classicType", "classic", "heroic", "captions"]);

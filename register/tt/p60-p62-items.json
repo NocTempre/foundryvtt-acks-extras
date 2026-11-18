@@ -1,0 +1,289 @@
+[
+  {
+    "id": "tt.item1",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bottle of Air",
+    "anchor": {
+      "display": "Bottle of Air"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      60
+    ],
+    "meta": {
+      "category": "potions"
+    },
+    "assists": {
+      "skips": [
+        {
+          "page": 60,
+          "box": {
+            "x0": 0,
+            "x1": 305,
+            "y0": 50,
+            "y1": 585
+          },
+          "reason": "section-intro"
+        }
+      ]
+    }
+  },
+  {
+    "id": "tt.item2",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bottled Billow",
+    "anchor": {
+      "display": "Bottled Billow"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      60
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item3",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bottled Fountain",
+    "anchor": {
+      "display": "Bottled Fountain"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      60
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item4",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dryad’s Nectar",
+    "anchor": {
+      "display": "Dryad’s Nectar"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      60
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item5",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Elixir of Stolen Life",
+    "anchor": {
+      "display": "Elixir of Stolen Life"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      60,
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item6",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Healing Salve",
+    "anchor": {
+      "display": "Healing Salve"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item7",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 7",
+    "anchor": {
+      "hash": "7yg0uz",
+      "as": "display"
+    },
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item8",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Kraken Ink",
+    "anchor": {
+      "display": "Kraken Ink"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item9",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Mead of Inspiration",
+    "anchor": {
+      "display": "Mead of Inspiration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item10",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Midnight Oil",
+    "anchor": {
+      "display": "Midnight Oil"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item11",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Bane-Rune",
+    "anchor": {
+      "display": "Oil of Bane-Rune"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      61
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item12",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Excavation",
+    "anchor": {
+      "display": "Oil of Excavation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item13",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Extra-Sharpness",
+    "anchor": {
+      "display": "Oil of Extra-Sharpness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item14",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Invisibility",
+    "anchor": {
+      "display": "Oil of Invisibility"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item15",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Liquefaction",
+    "anchor": {
+      "display": "Oil of Liquefaction"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item16",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Ooze",
+    "anchor": {
+      "display": "Oil of Ooze"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  },
+  {
+    "id": "tt.item17",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Oil of Permanency",
+    "anchor": {
+      "display": "Oil of Permanency"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      62
+    ],
+    "meta": {
+      "category": "potions"
+    }
+  }
+]

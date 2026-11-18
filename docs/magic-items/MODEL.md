@@ -68,6 +68,12 @@ band it landed on names another list, rolls that. Pure; the roller is
   or the walk's error code. The default roller evaluates a Foundry `Roll` and
   answers `sides` from its first die's faces, keeping each `Roll` in `rolls`.
   `tables` replaces the registry read (tests, the live walk).
+- A band the importer linked to its entry carries `ref` (`<book>.item<n>`), set when
+  the tables are assembled, within the list's own book; the walk keeps the reached
+  band's `ref` on the item (never in `fields`). `rollMagicItem` asks the
+  `cookbook-items` service (`documentOf(ref)`, `docs/lib/API.md`) only for a row with a
+  `ref` and fills `item.uuid` from its answer; with no provider, no document or a throw,
+  `uuid` is null. The roller's card does not draw the link.
 - `starts(tables)` is `{classicType, classic: [{key, id, caption}], heroic: [...]}`
   for a roller window to list; a list the import did not read is absent.
 

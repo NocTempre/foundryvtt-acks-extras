@@ -4063,6 +4063,60 @@ marker, and are read, never driven.
 The import is kept. Step 4's edit is removed by Remove override on that entry;
 nothing is swept.
 
+## Magic item entries
+
+The Tome's magic-item entries (`kind.magicItem`, rows `tt.item<n>`) imported as
+core items, and the roll's `item.uuid` for a row linked to one. The pilot is
+PDF 60-62, ordinals 1-17, potions. `verify-cookbook tt 60 62` and
+`census-rows check` prove the compile offline; this walk proves the import
+writes the items, a repair holds a Judge's edit and a roll names the document.
+
+### Fixtures
+
+The Tome connected on the seat. Each imported item is found by its cookbook id
+(`flags["acks-extras"].cookbook.id`, `tt.item<n>`) and carries no
+`flags.world.fixture` marker: it is the import's own product. A step that edits
+or deletes one first builds the marker `importer/magic-item-<n>` by
+`api.mark(uuid, marker)` on the item the import made, and sweeps it by the run's
+ledger. Setup is the subject of step 1, so nothing is kept before it.
+
+### Steps
+
+1. **Import.** Settings tab → Game Settings → ACKS II — Extras → Manage imports,
+   the Rebuild tab, Shelf, book or tables → Magic Items (or Import Everything),
+   with the Tome open. *Observable:* the notice reads 17 imported, 0 refused;
+   each item sits in the Tome's folder of the Item compendium its line keeps (the
+   Tome is not marked `judge`, so that is the open line's pack, not the Judge's),
+   under its category folder (all potions in the pilot), 17 in the Potions
+   folder. Each is a core item named from the page (16) or `Item 7` (1), with a
+   description of at least one paragraph.
+2. Read `flags["acks-extras"].markets` on `tt.item1`. *Observable:* `magic: true`
+   with both `baseCostGp` and `apparentValueGp` numbers and no other key; no
+   `rarity`, no `cursed`.
+3. **A held edit.** Change `baseCostGp` on one item by hand, then run
+   Import Everything in repair mode. *Observable:* the edit stands; an
+   untouched item's figures are rewritten from the page; `quantity` and
+   `equipped` keep their values.
+4. **The delete path.** Delete one imported item and run Magic Items again.
+   *Observable:* 1 imported, 16 already present, and the item is back in its
+   folder.
+5. **The link.** Import the rules tables with the Tome open (Rules tables,
+   `magicItemTables only`). Read `getTable("magicItemTables","subtables").potions4`.
+   *Observable:* the rows that name a pilot entry carry `ref: "tt.item<n>"`; the
+   others `ref: null`. Roll `from: "subtables.potions4"` through
+   `acksExtras.magicItems.roll` with the dice rig set to land on a linked row.
+   *Observable:* `item.ref` is the id and `item.uuid` the imported item's uuid.
+   Delete that item and roll again. *Observable:* `uuid` is null.
+6. With the Tome open, rerun step 5's roll from `classicType.bands` a few times.
+   *Observable:* the card is unchanged (it does not show a link), and no card
+   ends flagged.
+
+### Teardown
+
+The imports stay. The item deleted in step 4 is re-imported by the step; the
+edit of step 3 is repaired by the next repair. Nothing is swept but the marked
+items by ledger.
+
 ## The gnostic tables, read from By This Axe
 
 The `gnosis` ruledata document (MODEL, "The gnostic tables"): five tables, no

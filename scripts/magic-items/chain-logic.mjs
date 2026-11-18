@@ -26,8 +26,8 @@ import { bandDie, bracketRow } from "../lib/tables.mjs";
 /** The most hops one walk follows; a chain longer than this ends flagged `too-deep`. */
 export const MAX_HOPS = 8;
 
-/** Keys of a band that are not the item's fields. */
-const STRUCTURE = new Set(["min", "max", "sub", "hop"]);
+/** Keys of a band that are not the item's fields (`ref` names the cookbook entry the importer linked the row to). */
+const STRUCTURE = new Set(["min", "max", "sub", "hop", "ref"]);
 
 /**
  * The bands of a list id `"<table>.<column>"` in a document's tables, or null
@@ -102,7 +102,9 @@ function hopsList(bands) {
  *   `flag` null or one of `unresolved-hop`, `missing-list`, `cycle`, `too-deep`;
  *   `error` is `{code, list}` with `code` one of `not-imported`, `bands-untiled`,
  *   `roll-failed`, `die-mismatch`, `roll-out-of-range`, and `steps` holds what
- *   was rolled before it. `uuid` is reserved for a linked item and is null.
+ *   was rolled before it. `ref` is the deepest band's `ref` (the id of the
+ *   cookbook entry the importer linked the row to, else null); `uuid` is null
+ *   here and is filled by the caller from `ref`.
  */
 export async function walkChain({ tables, from, roll, maxHops = MAX_HOPS }) {
   const steps = [];
@@ -127,7 +129,7 @@ export async function walkChain({ tables, from, roll, maxHops = MAX_HOPS }) {
     step.fields = fieldsOf(deepest);
     steps.push(step);
 
-    const item = { list, text: textOf(step.fields), fields: step.fields, flag: null, uuid: null };
+    const item = { list, text: textOf(step.fields), fields: step.fields, flag: null, ref: typeof deepest.ref === "string" ? deepest.ref : null, uuid: null };
     if (!hopsList(bands)) return { steps, item, error: null };
 
     const target = deepest.hop;

@@ -8,8 +8,9 @@
  * from the `magicItemTables` document the Judge's own copy filled, and a world
  * with nothing imported answers `not-imported` instead of a figure.
  */
+import * as services from "../lib/services.mjs";
 import { getDoc, getLayer, hasDoc, citeOf, PRIORITY } from "../lib/tables.mjs";
-import { MAGIC_ITEM_DOC } from "./constants.mjs";
+import { COOKBOOK_ITEMS_CONTRACT, MAGIC_ITEM_DOC } from "./constants.mjs";
 import { listAt, walkChain } from "./chain-logic.mjs";
 
 /** The document's merged tables, or null while nothing is imported. */
@@ -79,6 +80,24 @@ export function foundryRoller(rolls = []) {
 }
 
 /**
+ * The document a rolled row links to: `{uuid}` from the `cookbook-items`
+ * provider's `documentOf(ref)`, or null when the row carries no `ref`, no
+ * provider is registered, the provider answers no document or it throws. Only a
+ * row with a `ref` asks.
+ */
+export async function linkedDocument(ref) {
+  if (typeof ref !== "string" || !ref) return null;
+  const provider = services.get(COOKBOOK_ITEMS_CONTRACT);
+  if (typeof provider?.documentOf !== "function") return null;
+  try {
+    const doc = await provider.documentOf(ref);
+    return typeof doc?.uuid === "string" && doc.uuid ? { uuid: doc.uuid } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Roll one magic item. A world with nothing imported, a start that cannot be
  * named and a list that cannot be rolled each answer `{ok: false, reason}`
  * with whatever was rolled before; nothing here throws on the tables' content.
@@ -93,6 +112,8 @@ export function foundryRoller(rolls = []) {
  * @returns {Promise<{ok: boolean, reason?: string, start: string|null,
  *   steps: object[], item: object|null, error?: object, rolls: Roll[]}>}
  *   Each step is a walk step with the list's `caption`, `cite` and `overridden`.
+ *   The item's `uuid` is the linked document's where its `ref` names one the
+ *   `cookbook-items` provider answers, else null.
  */
 export async function rollMagicItem({ from, style, rarity, category, roller, tables } = {}) {
   const rolls = [];
@@ -106,5 +127,6 @@ export async function rollMagicItem({ from, style, rarity, category, roller, tab
   if (walked.error) {
     return { ok: false, reason: walked.error.code, start: start.from, steps, item: null, error: walked.error, rolls };
   }
-  return { ok: true, start: start.from, steps, item: walked.item, rolls };
+  const linked = await linkedDocument(walked.item?.ref);
+  return { ok: true, start: start.from, steps, item: linked ? { ...walked.item, uuid: linked.uuid } : walked.item, rolls };
 }

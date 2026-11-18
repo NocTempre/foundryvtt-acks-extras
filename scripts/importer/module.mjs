@@ -49,7 +49,7 @@ import {
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
   cookbookImportJournals, cookbookImportPoiPlaces, cookbookImportMarketProfiles, cookbookImportFactions, cookbookImportRollTables, cookbookImportScenes, cookbookAudit, lastAudit, cookbookReimportShelf, reimportableShelves, cookbookReimportBook, reimportableBooks, cookbookReimportEntries,
   cookbookImportAdventures, bookCensus, cookbookReimportAdventure, adventureBooks, rebuildOptions, runRebuildPick,
-  cookbookImportAdventureItems, cookbookImportMagicItems, cookbookImportLinks, cookbookReimportEverything,
+  cookbookImportAdventureItems, cookbookImportMagicItems, cookbookItemsProvider, cookbookImportLinks, cookbookReimportEverything,
 } from "./cookbook.mjs";
 import { registerGettingStartedSettings, runImportEverything, runImportStep, GM_STEPS, gettingStartedDismissed, SETTING_DISMISSED } from "./getting-started.mjs";
 import { ImportManagerMenu, installImportManager, openImportManager } from "./apps/import-manager.mjs";
@@ -2404,6 +2404,8 @@ Hooks.once("ready", async () => {
   // The ability-resolution contract (docs/lib/API.md), through which other
   // features embed proficiency packages without naming this feature.
   services.register("ability-provider", { resolve: resolveAbilities });
+  // The cookbook-items contract: the Item made of a cookbook entry, for a roll that links its row.
+  services.register("cookbook-items", cookbookItemsProvider);
   console.log(
     `${MODULE_ID} | ready. Macros in the "ACKS Extras Macros" compendium (folders "Your Books" and "Import from your books"), or: acksExtras.importer.bookStatus() · acksExtras.importer.cookbookImport() · acksExtras.importer.cookbookImportAbilitiesDialog() · acksExtras.importer.cookbookUpdateAbilities() · acksExtras.importer.importClasses() · acksExtras.importer.cookbookUpdateClasses() · acksExtras.importer.browseAndLoad().`,
   );

@@ -108,9 +108,9 @@ const COLUMN_GRIDS = [
   // stands. `fieldsBy` names the fields of each list of a set whose lists
   // differ.
   { docId: "magicItemTables", tableId: "classicType", field: "item", keep: ["hop"] },
-  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["hop"] },
-  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true, keep: ["hop"] },
-  { docId: "magicItemTables", tableId: "subtables", field: "item", fields: ["item", "cues"], ownDie: true },
+  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["hop", "ref"] },
+  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true, keep: ["hop", "ref"] },
+  { docId: "magicItemTables", tableId: "subtables", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["ref"] },
   { docId: "magicItemTables", tableId: "scrollLanguages", field: "item" },
   { docId: "magicItemTables", tableId: "scrollSpellLevels", field: "level", ownDie: true },
   {

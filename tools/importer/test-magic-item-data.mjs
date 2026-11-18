@@ -6,7 +6,7 @@
  * Usage: node tools/importer/test-magic-item-data.mjs
  */
 import assert from "node:assert/strict";
-import { CATEGORY_CORE_TYPE, MAGIC_CATEGORIES, coreTypeOf, magicItemData } from "../../scripts/importer/cookbook/magic-items.mjs";
+import { CATEGORY_CORE_TYPE, MAGIC_CATEGORIES, coreTypeOf, keysByBook, magicItemData } from "../../scripts/importer/cookbook/magic-items.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -85,6 +85,22 @@ t("the core type follows the category, and the vocabulary is the classic lists' 
 t("the folder rides a create and is absent from a repair's data", () => {
   assert.equal(magicItemData("zz", ID, entry, node(), "folder1").folder, "folder1");
   assert.equal(magicItemData("zz", ID, entry, node()).folder, null);
+});
+
+t("keysByBook maps each book's keys and alsoKeys to its entry ids, and a key two entries share to null", () => {
+  const books = new Map([
+    ["zz", { entries: {
+      "zz.item1": { kind: "kind.magicItem", key: "k1", alsoKeys: ["a1", "shared"] },
+      "zz.item2": { kind: "kind.magicItem", key: "k2", alsoKeys: ["shared"] },
+      "zz.other": { kind: "kind.prose", key: "k1" },
+    } }],
+    ["yy", { entries: { "yy.item1": { kind: "kind.magicItem", key: "k1" } } }],
+    ["ww", { entries: {} }],
+  ]);
+  assert.deepEqual(keysByBook(books), { zz: { k1: "zz.item1", a1: "zz.item1", shared: null, k2: "zz.item2" }, yy: { k1: "yy.item1" }, ww: {} });
+  assert.equal(keysByBook({ zz: books.get("zz") }).zz.k1, "zz.item1", "a plain object of books reads the same");
+  const twice = new Map([["zz", { entries: { "zz.item1": { kind: "kind.magicItem", key: "k1", alsoKeys: ["k1"] } } }]]);
+  assert.deepEqual(keysByBook(twice), { zz: { k1: "zz.item1" } }, "an entry naming its own key twice still owns it");
 });
 
 console.log(`\nmagic-item-data: ${n} checks OK`);
