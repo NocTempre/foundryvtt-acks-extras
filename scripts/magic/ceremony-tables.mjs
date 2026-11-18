@@ -249,8 +249,9 @@ export function degreeAt(degrees, level) {
 /**
  * The mishap table: `{present, die, rows: [{min, max, cells}], cite, byHand}`.
  * A row's face is its own label, so `min` and `max` are that one number; a
- * row with no integer label cannot be placed and is left out. `cells` are the
- * degree columns in print order, each the cell's text or null. `die` is the
+ * row with no integer label cannot be placed and is left out. `cells[n - 1]`
+ * is degree column `n`: the cell's text, or null where the row holds nothing
+ * for that column. `die` is the
  * die the faces fit (`bandDie`), null with no rows.
  */
 export function readMishap(raw, prov = {}) {
@@ -258,7 +259,10 @@ export function readMishap(raw, prov = {}) {
   for (const [, row] of realRows(raw)) {
     const label = typeof row.label === "string" && /^\d+$/.test(row.label.trim()) ? Number(row.label) : row.label;
     if (!Number.isInteger(label)) continue;
-    rows.push({ min: label, max: label, cells: cellKeys(row).map((k) => cellText(row[k])) });
+    // The extractor writes no key for a cell with no runs, so a column is its
+    // number and never its place among the keys present.
+    const last = Math.max(0, ...cellKeys(row).map((k) => Number(k.slice(1))));
+    rows.push({ min: label, max: label, cells: Array.from({ length: last }, (_, i) => cellText(row[`c${i + 1}`])) });
   }
   return { present: raw != null, die: bandDie(rows), rows, cite: prov.cite ?? null, byHand: prov.byHand === true };
 }

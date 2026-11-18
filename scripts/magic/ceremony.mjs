@@ -11,9 +11,10 @@
  *
  * - Success: the total meets the target and the natural roll is outside the
  *   pace's failure band.
- * - Failure: otherwise; no rows run and a stigma mark is left.
- * - Botch: the natural roll is in the band, or the invoker was hurt. A stigma
- *   mark and a damage mark on the set are left, then a mishap throw is made
+ * - Failure: otherwise; no rows run and the stigma a failure leaves is counted.
+ * - Botch: the natural roll is in the band, or the invoker was hurt. The
+ *   stigma of a failure and the damage a botch does to the set are counted,
+ *   then a mishap throw is made
  *   with the same parts against the same target. Only if it fails is the
  *   degree read, at the invocation level moved by the pace's degree rule; a
  *   level under the lowest band loses the set and rolls nothing. Otherwise the

@@ -238,6 +238,15 @@ t("a mishap row's face is its label, the die fits the faces, and a row with no l
   assert.deepEqual(unlabeled.rows.map((r) => [r.min, r.max]), [[2, 2]]);
 });
 
+t("a mishap column is its number: a row with no first cell hands the second degree the second cell", () => {
+  const m = T.readMishap({ r1: { label: 1, c2: "only second", c3: "only third" }, r2: { label: 2, c1: "first" } });
+  assert.equal(T.mishapAt(m, 1, 1).cell, null);
+  assert.equal(T.mishapAt(m, 1, 2).cell, "only second");
+  assert.equal(T.mishapAt(m, 1, 3).cell, "only third");
+  assert.equal(T.mishapAt(m, 2, 1).cell, "first");
+  assert.equal(T.mishapAt(m, 2, 2).cell, null);
+});
+
 t("a mishap cell that is a dash, a face with no row, or a degree with no column answers null with the page", () => {
   const m = tables().mishap;
   for (const [face, degree] of [[2, 3], [6, 1], [9, 1], [1, 4], [1, 0]]) {
