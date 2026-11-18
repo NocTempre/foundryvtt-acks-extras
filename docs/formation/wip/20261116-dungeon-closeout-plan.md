@@ -1252,6 +1252,70 @@ Inferred from the plan rows, not from code:
 - **BQ1:** who handles a door's lock: formation registers key and pick, equipment extends `locks.mjs`, or the row is deleted.
 - **OQ6:** what happens to archived entries that state figures.
 
+### A0 results (architect, 2026-11-18, read-only)
+
+Page checks were made against the printed RR. Figures are named by role and
+page, never by value.
+
+1. **Bash target:** `resolveCheck(actor, PARTY_CHECKS.dungeonbashing)`.
+   - RR ch. 3 (p. 105) and RR ch. 6 Doors (p. 267) print the same target,
+     and core stores it per character (`adventuring.dungeonbashing`).
+   - D1 imports no target. A window on p. 267 was rejected, because it would
+     give the figure two owners.
+   - Guard a null actor: monsters have no `adventuring` field. D2 looks up
+     how a monster throws in MM ch. 1.
+2. **Strength factor:** a window on RR p. 267, which is already inside
+   `source.pages`.
+   - This corrects §7's false-sentences item 2 and the A0 bullet above.
+   - `bashStrBonus` stays the one reader; qualify In-force row 11 in the same
+     change.
+   - D1 adds **p. 266**, where the door grid and the Opening Doors table sit.
+3. **Automatic-failure band:** no reader exists.
+   - Add `scripts/lib/throws.mjs`, shaped like `lib/defenses.mjs`: a
+     lib-owned `throws` document with a window on RR p. 10, read with
+     `take: "band"`.
+   - Exports: `isAutoFail(natural)` (true, false or null), `dieFloor()`, and
+     a cite.
+   - The natural die is read before the target. With nothing imported, the
+     target alone decides, per the 2026-11-16 entry.
+4. **Door grid:** imported rows, no default kind.
+   - `DOOR_KINDS` and the `ironBanded` default go.
+   - Rows are keyed by ordinal plus label, since two rows share a name.
+   - Batter is owned by each row's notes cell: parse unit and tool, else null.
+   - AC and SHP are not imported, since they have no reader.
+   - Old stored keys read as unset.
+5. **Refusal:** the 2026-11-14 blank rule supersedes 2026-08-30 in part.
+   D2 writes this DECISIONS entry and qualifies In-force row 10 in the same
+   change:
+   > ## 2026-11-18 — An unimported door figure leaves bash or batter blank
+   > **Supersedes** (in part) *The door numbers are content, and move behind the registry (2026-08-30)*: bash and batter "report that no door table has been imported", the `doors` document route, and the bash target as an import. **Evidence:** the template's 2026-11-14 "A field with nothing imported stays blank"; the target is the character's Adventuring throw.
+   > **Ruled.** A bash missing a term it applies is not thrown: needs blank, Bash disabled, tooltip RR p. 267; callers get `{ok: false, missing}`, never "incapable". A door with no imported row shows no batter (RR p. 266). No message says so. A construction no axe beats still refuses.
+   > **Rejected.** A remembered figure. **Cost.** A bookless world bashes no door.
+6. **R2:** add `executeAsUser(action, userId, payload)` to `lib/sockets.mjs`,
+   shaped like `executeAsGM`.
+   - Without socketlib, or on any throw, it returns undefined, read as
+     disarmed.
+   - The seat asked: `user.id` from player-requests, `game.user.id` from
+     trapbreak-app, and `entry.by` from the turn plan, so `resolveDue` passes
+     `entry` to `def.resolve`.
+   - Write the disarmed state first.
+
+**Findings for the bug-intake ledger:**
+- `bashDoor`, `attemptDisarm` and `rollCheckFor` test the total before the
+  natural die.
+- `bashOpen` applies no Strength term.
+- `bashPlan.hopeless` ignores the automatic-success clause.
+
+**Owner answers (2026-11-18):**
+- OQ11, assisted rappel and crawl: "Mountaineer's level". The member throws
+  at the assisting mountaineer's level, per RR ch. 3 Mountaineering
+  (p. 115). RR ch. 6's two sentences giving the member's own level (p. 269)
+  are not followed; DECISIONS records it in S24's change.
+- Pair bash: "Follow raw". The builder reads RR ch. 6 Doors and ch. 3 for
+  how a pair's throw is made and follows the page. Where the page prints no
+  combination, the basher throws at their own target and the partner adds
+  only the terms the page gives a partner; no combination rule is invented.
+
 ### Phase 3's questions, put for one pass
 
 Phase 2 read RR ch. 3 and ch. 6 against §5's OQ2 to OQ5 (an `architect`,
