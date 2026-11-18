@@ -2241,6 +2241,49 @@ await ok("a rescuer a player does not own, a rescuer another seat holds, a drown
   assert.ok(seen.warned.at(-1).includes("Dane"));
 });
 
+await ok("a Judge is offered a rescuer who is detached or busy and warned in the refusal's words as the link is written; a structural refusal stands", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9 }], ["Birch", { stone: 4 }], ["Cedar", { stone: 4 }], ["Dane", { stone: 4 }], ["Elm", { stone: 4 }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Dane");
+  formation.members[1].detached = true;
+  await setRescuer(formation, "Dane", "Cedar");
+  const options = rowOf(swimView(formation), "Alder").rescue.options.map((o) => o.value);
+  assert.deepEqual(options, ["", "Birch", "Cedar", "Elm"], "the detached and the busy are listed for the Judge, the drowning and the body itself are not");
+  seen.warned.length = 0;
+  assert.deepEqual(await setRescuer(formation, "Alder", "Birch"), { ok: true });
+  assert.deepEqual(seen.warned, [format("ACKS-FORMATION.crossing.relay.rescueStanding", { name: "Birch" })], "warned in the refusal's own words");
+  assert.deepEqual([memberOf(formation, "Alder").rescuer, memberOf(formation, "Birch").hauling], ["Birch", "Alder"], "and the link is written");
+  assert.deepEqual(await setRescuer(formation, "Alder", "Cedar"), { ok: true });
+  assert.deepEqual(seen.warned.at(-1), format("ACKS-FORMATION.crossing.relay.rescueBusy", { name: "Cedar" }));
+  assert.deepEqual([memberOf(formation, "Alder").rescuer, memberOf(formation, "Cedar").hauling, memberOf(formation, "Dane").rescuer], ["Cedar", "Alder", undefined], "the body a busy rescuer held is let go");
+  seen.warned.length = 0;
+  assert.deepEqual(await setRescuer(formation, "Alder", "Alder"), { ok: false, refused: "self" });
+  assert.deepEqual(await setRescuer(formation, "Alder", "Dane"), { ok: false, refused: "drowning" });
+  assert.deepEqual(await setRescuer(formation, "Elm", "Birch"), { ok: false, refused: "notDrowning" });
+  assert.deepEqual(seen.warned, [], "a refusal of structure is not a warning, it is a refusal");
+});
+
+await ok("a player's seat is still refused a rescuer who is detached or busy, in the same words, through the seat and the relay, and is not offered them", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 4, owner: PLAYER.id }], ["Cedar", { stone: 4, owner: PLAYER.id }], ["Dane", { stone: 4, owner: PLAYER.id }]]);
+  naturals.push(3, 3);
+  await throwFor(formation, "Alder");
+  await throwFor(formation, "Dane");
+  formation.members[1].detached = true;
+  await setRescuer(formation, "Dane", "Cedar");
+  assert.deepEqual(rowOf(swimView(formation, PLAYER), "Alder").rescue.options.map((o) => o.value), [""], "a player's list holds neither");
+  seen.warned.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "Birch")), { ok: false, refused: "standing" });
+  assert.deepEqual(seen.warned, [format("ACKS-FORMATION.crossing.relay.rescueStanding", { name: "Birch" })]);
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingRescue(formation, "Alder", "Cedar")), { ok: false, refused: "busy" });
+  const crossingId = readCrossing(formation).id;
+  seen.created.length = 0;
+  const out = await relay(PLAYER, formation, "crossing", { crossingId, step: "rescue", drownedId: "Alder", actorId: "Birch" });
+  assert.deepEqual(out, { ok: false, refused: "standing" }, "the GM client refuses the relayed request too");
+  assert.ok(seen.created.at(-1).content.includes(format("ACKS-FORMATION.crossing.relay.rescueStanding", { name: "Birch" })));
+  assert.deepEqual([memberOf(formation, "Alder").rescuer, memberOf(formation, "Birch")?.hauling, memberOf(formation, "Dane").rescuer], [undefined, undefined, "Cedar"], "nothing is written");
+});
+
 await ok("a rescue step names a swim crossing alone", async () => {
   reset();
   load();

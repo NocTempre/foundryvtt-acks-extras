@@ -771,6 +771,17 @@ export function rescueRefusal({ drowner, rescuer, standing = null } = {}) {
 }
 
 /**
+ * Whether a refusal of `rescueRefusal` is a circumstance rather than structure:
+ * the rescuer is down, detached, left behind or busy, which a player's seat is
+ * stopped by and a Judge is warned of. Not the drowning member's own state, not
+ * a rescuer rescuing themselves, not one who is drowning: those stay refused.
+ *
+ * @param {string|null} reason a `rescueRefusal` answer
+ * @returns {boolean}
+ */
+export const rescueIsCircumstance = (reason) => reason === "standing" || reason === "busy";
+
+/**
  * The patch that brings a drowning member to the surface: afloat again with no
  * rounds counted and every link and stamp of the drowning gone. The rescuer the
  * member had is named in `released`, so their hauling goes with it.

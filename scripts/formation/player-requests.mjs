@@ -89,7 +89,7 @@ async function rescueStep(formation, user, actor, payload, crossingId) {
     if (clear && named !== actor?.id) return refuse("notOwner");
     if (named && named !== actor?.id && !userOwnsMember(formation, user, named)) return refuse("notOwner");
   }
-  const out = await setRescuer(formation, drownedId, clear ? "" : actor.id, { crossingId });
+  const out = await setRescuer(formation, drownedId, clear ? "" : actor.id, { crossingId, player: !user.isGM });
   if (!out.ok) return refuse(out.refused);
   await announceDeclaration(formation, user, loc(clear ? "request.crossingRescueClear" : "request.crossingRescue", {
     name: foundry.utils.escapeHTML(actor.name),

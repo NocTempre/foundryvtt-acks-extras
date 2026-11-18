@@ -52,7 +52,7 @@ import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet
 import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallDie } from "./jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, DROWNING, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, SWIMMING, climbUpRow, crossingHeld, crossingOfHolder,
-  fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, stepMember, swimRow,
+  fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
   swimThrowStep, withFooting,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
@@ -1260,10 +1260,12 @@ function swimDrownView(row) {
 
 /**
  * A drowning member's rescuer control for the seat: the options the member may
- * be rescued by (`rescueRefusal` answers null for each, so nothing is offered
- * that `setRescuer` would refuse), each with the load it would take on, and the
- * rescuer now named. A Judge picks among every one; a player's seat among the
- * members it owns, and only while the rescuer named, if any, is its own too.
+ * be rescued by (nothing is offered that `setRescuer` would refuse the seat),
+ * each with the load it would take on, and the rescuer now named. A player's
+ * seat is offered the members `rescueRefusal` passes among those it owns, and
+ * only while the rescuer named, if any, is its own too. A Judge is offered
+ * every member but the structural refusals, so a member who is down, detached,
+ * left behind or busy is listed and a pick of one is warned, not refused.
  */
 function swimRescueView(entry, entries) {
   const { row, record } = entry;
@@ -1272,11 +1274,15 @@ function swimRescueView(entry, entries) {
   const owns = (e) => judge || (e.actor.testUserPermission?.(game.user, "OWNER") ?? false);
   const current = record?.rescuer ?? null;
   const stone = row.rescue?.stone ?? null;
-  const offered = entries.filter((e) => e.member.actorId !== actorId && owns(e) && rescueRefusal({
-    drowner: { actorId, state: row.state },
-    rescuer: { actorId: e.member.actorId, state: e.record?.state ?? SWIMMING, hauling: e.record?.hauling },
-    standing: e.standing,
-  }) === null);
+  const offered = entries.filter((e) => {
+    if (e.member.actorId === actorId || !owns(e)) return false;
+    const refusal = rescueRefusal({
+      drowner: { actorId, state: row.state },
+      rescuer: { actorId: e.member.actorId, state: e.record?.state ?? SWIMMING, hauling: e.record?.hauling },
+      standing: e.standing,
+    });
+    return refusal === null || (judge && rescueIsCircumstance(refusal));
+  });
   const named = entries.find((e) => e.member.actorId === current) ?? null;
   const options = [{ value: "", label: loc("crossing.swim.rescuerNone"), selected: !current }];
   for (const e of offered) {
@@ -1363,21 +1369,30 @@ export function rescueCheck(formation, crossing, drownedId, rescuerId) {
  * Name or clear a drowning member's rescuer: the member takes `rescuer`, the
  * rescuer `hauling`, and a rescuer the member had before is let go, in one
  * write. `rescuerId` "" clears the link. A GM client's work; a player's choice
- * reaches it through the relay, which has checked who may set it.
+ * reaches it through the relay, which has checked who may set it and passes
+ * `player`. A player's choice is refused for a rescuer who is down, detached,
+ * left behind or busy; a Judge's is warned in those words and written, the body
+ * the busy rescuer held let go. A refusal of structure (themselves, drowning,
+ * a body not drowning) stands for both.
  *
+ * @param {object} [o]
+ * @param {boolean} [o.player] the choice is a player's, relayed to this client
  * @returns {Promise<{ok: boolean, refused?: string}>} `refused` is `notGM`, `closed`, `notSwim`,
  *   `member`, `stale` or a `rescueRefusal` reason
  */
-export async function setRescuer(formation, drownedId, rescuerId, { crossingId = null } = {}) {
+export async function setRescuer(formation, drownedId, rescuerId, { crossingId = null, player = false } = {}) {
   if (!game.user.isGM) return { ok: false, refused: "notGM" };
   const crossing = readCrossing(formation);
   if (!crossing) return { ok: false, refused: "closed" };
   if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
   if (crossing.kind !== SWIM_KIND) return { ok: false, refused: "notSwim" };
   const refused = rescueCheck(formation, crossing, drownedId, rescuerId);
-  if (refused) return { ok: false, refused };
+  if (refused && (player || !rescueIsCircumstance(refused))) return { ok: false, refused };
+  if (refused) ui.notifications.warn(rescueRefusalWords(refused, game.actors.get(rescuerId)));
   const record = crossing.members?.[drownedId] ?? null;
   const patches = [];
+  const busyWith = crossing.members?.[rescuerId]?.hauling ?? null;
+  if (busyWith && busyWith !== drownedId) patches.push({ id: busyWith, unset: ["rescuer"] });
   if (record?.rescuer && record.rescuer !== rescuerId) patches.push({ id: record.rescuer, unset: ["hauling"] });
   if (rescuerId) {
     patches.push({ id: rescuerId, set: { hauling: drownedId } }, { id: drownedId, set: { rescuer: rescuerId } });

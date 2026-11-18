@@ -3005,8 +3005,13 @@ Every row carries `data-press-home`.
 takes `rescuer`, the rescuer's `hauling`, and a rescuer named before is let go in
 the same write. `rescueCheck` is the question: a rescuer is not the drowning
 member, is not drowning, is not down, left behind or detached, and is not already
-carrying another (`rescueRefusal`), so the Rescuer select offers only members the
-write would take. The rescuer's own throw is then priced with the body's stone
+carrying another (`rescueRefusal`). A rescuer who is the member or is drowning,
+and a member who is not drowning, are refused for every seat. A rescuer who is
+down, left behind, detached or busy (`rescueIsCircumstance`) blocks a player and
+warns a Judge: a player's Rescuer select does not list such a
+member and `setRescuer` refuses the relayed request, while a Judge's select lists
+them and `setRescuer` warns in the refusal's words (`crossing.relay.rescue*`),
+writes the link and lets go the body a busy rescuer held. The rescuer's own throw is then priced with the body's stone
 added (`hauled`), a rescuer whose throw fails lets the body go, and
 `haulToSurface` (the Judge's alone, the Haul button) brings the member afloat with
 no rounds counted, every link gone and the held drowning released. The select is a
