@@ -793,8 +793,13 @@ name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
 - The group is `.acks-monsters-flags`; its scroller is the nearest ancestor
   whose computed `overflow-y` is `auto`: the extras sheet's `body` part, the
   abilities sheet's `description` part.
-- A re-render puts a hand-set window height back to `auto`, on any item, so
-  read a shortened window's layout before the change that re-renders it.
+- Shorten the window the way a user does. Core's corner handler writes the
+  dragged size into `options.position`, and a re-render keeps it;
+  `app.setPosition({height})` leaves `options.position.height` at `auto`,
+  which the next render puts back. Scripted, the drag is a `pointerdown` on
+  `.window-resize-handle`, then a `pointermove` and a `pointerup` on the
+  frame, each with `pointerId: 1`; in a hidden pane only the first move
+  lands, since core frees the next on an animation frame.
 - In a hidden browser pane `requestAnimationFrame` never fires; read layout
   straight after `await app.render({force: true})` instead.
 
@@ -804,7 +809,7 @@ name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
    *Observable:* the group is the last child of the Details panel's stack,
    inside the `body` part; on the Rolls tab it has no box
    (`getClientRects().length === 0`).
-2. Shorten the window with `app.setPosition({height: 320})`.
+2. Drag the window's corner up to about 320 px tall.
    *Observable:* the body part's `scrollHeight` takes in the group, and
    scrolling the body to its end brings the group's checkbox into view.
 3. With the body scrolled to its end, pick a Natural Weapon.
