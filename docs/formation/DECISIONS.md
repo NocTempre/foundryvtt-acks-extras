@@ -539,7 +539,7 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 - The share is the cell's printed fraction; a cell that names a speed and no fraction is the whole speed. A cell that names no speed, two, or any figure other than one fraction (a bare number, a share written in words) decides nothing and is left out, so no other rate is ever read in its place. The two speed names are the speeds' own words with letter edges, since extraction welds a figure onto them.
 - `progressRate(kind, which)` (`obstacles.mjs`) answers `{share, speed}` or null, and a Judge's override counts only as a share above zero of a named speed, as `adventuringTarget` and `botchBand` validate theirs. With nothing imported the answer is null.
 - Core derives `system.movementacks.climb` for a character, but that figure carries the system's own fraction of the combat speed, not the page's; the imported share is what a later reader multiplies a member's speed by, so a Judge's override of the share is honoured and core's constant is not relied on.
-- No name is published on `api.formation`, so `apiVersion` stays.
+- `obstacles.mjs` is published whole as `api.formation.obstacles`, so `progressRate` and `PROGRESS_SPEEDS` are new published names and formation's `apiVersion` is 33.
 
 **Not built, and why.** The crossing reads no rate yet and spends no rounds: the page prints a rate and a throw per stretch and says nothing about how those become rounds on a clock, so the build waits on the questions below. The first half of the slice (the import and its reader) is the part no ruling can change.
 

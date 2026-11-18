@@ -263,8 +263,8 @@ eq("a cell that names no speed, two, or a word that merely holds one decides not
   ["no progress for a round", "Scale @ 2/5 Speed", "Scale @ 2/5 Combat or Run Speed", "a runner's speed", "combatant speed", "", null].map(parseProgressCell),
   [null, null, null, null, null, null, null]);
 eq("a figure that is not one fraction decides nothing, never another rate",
-  ["Scale @ 3 Combat Speed", "Scale @ half Combat Speed", "Scale @ three-fifths Combat Speed", "Scale @ 0/4 Combat Speed",
-    "Scale @ 1/0 Combat Speed", "Scale @ 2/5 and 1/5 Combat Speed", "Scale @ full Combat Speed"].map(parseProgressCell),
+  ["Scale @ 3 Combat Speed", "Scale @ quarter Combat Speed", "Scale @ three-fifths Combat Speed", "Scale @ 0/4 Combat Speed",
+    "Scale @ 1/0 Combat Speed", "Scale @ 2/5 and 1/5 Combat Speed", "Scale @ twice Combat Speed"].map(parseProgressCell),
   [null, null, null, null, null, null, null]);
 eq("the speeds a cell can name are two", Object.keys(PROGRESS_SPEED_WORDS), ["combat", "run"]);
 const PROGRESS_GRID = {
