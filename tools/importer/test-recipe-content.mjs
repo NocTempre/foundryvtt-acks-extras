@@ -34,7 +34,7 @@ import { SIZES } from "../../scripts/monsters/config.mjs";
 import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
@@ -115,7 +115,7 @@ const TABLES = {
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
   // and their missed-throw outcomes, and the street's two dice.
-  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
+  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "climbPaceProse", "crawlPaceProse", "balancePaceProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
   // The cultures' name lists and appearance palettes, each read by the keys of
   // its page; a culture's name list may be in a supplement. The supplement's
@@ -715,6 +715,16 @@ VERIFY["formation.squeezingProse"] = (out, recipe, fail) => {
   missingFigures(figures, ["chokepointFeet", "contortionismBonus", "escapeFeet", "escapePenaltyStep"], fail);
   for (const [key, n] of Object.entries(figures)) if (!(n > 0)) fail(`${key}: not above zero`);
 };
+// The faster-pace paragraphs: each window must read through the binding's own
+// parser into its pair of sizes, both above zero. Shape only; no figure is named.
+for (const [table, key] of [["climbPaceProse", "climbPacePenalties"], ["crawlPaceProse", "crawlPacePenalties"], ["balancePaceProse", "balancePacePenalties"]]) {
+  VERIFY[`formation.${table}`] = (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const pair = assemblePacePenalties({ [table]: out })[key];
+    if (!pair) return fail(`${key}: the window did not read as two sizes`);
+    if (pair.length !== 2 || pair.some((n) => !(n > 0))) fail(`${key}: not two sizes above zero`);
+  };
+}
 VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   const landing = assembleJumping({}, out);

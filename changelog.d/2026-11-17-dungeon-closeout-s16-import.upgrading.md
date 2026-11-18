@@ -1,0 +1,1 @@
+- **Judges: re-run the Rules tables import so the climbing paces are read** (`Compendium Packs → ACKS II — Extras → Macros → ACKS Extras Macros → Reimport One Shelf (GM)`, choose **Rules tables**, with the Revised Rulebook open). Until you re-run it the three pace pairs in the `formation` table stay blank.

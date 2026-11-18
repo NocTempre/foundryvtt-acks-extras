@@ -386,6 +386,8 @@ Hooks.once("init", () => {
     "pitSpikeCount", "pitSpikeDie",
     // The squeeze and its two ways out (`assembleSqueezing`).
     "contortionismBonus", "chokepointFeet", "escapeFeet", "escapePenaltyStep",
+    // A proficient climber's faster paces, one pair per way of crossing (`assemblePacePenalties`).
+    "climbPacePenalties", "crawlPacePenalties", "balancePacePenalties",
   ]);
   // The delve's wandering throw (`getEncounterParams`): with no die and target
   // no throw is made, and with no dice no distance is rolled.

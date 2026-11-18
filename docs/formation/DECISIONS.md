@@ -500,3 +500,14 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 3. What a member who wiggles back to the entrance is, and where a stuck member goes when the crossing ends. Built: still squeezing at the start; stuck is released at End and no token moves.
 4. Whether the push takes a Strength term. Built: no.
 5. The botch band has no import and no Browser row, so no throw leaves a member stuck. Ruling wanted: a recipe window and binding (a follow-up to S14), or the lowest result as structure like the door's.
+
+## 2026-11-17 — The faster paces' penalties are imported as three ordered pairs, one recipe each
+
+**Ruled.** (Dungeon close-out plan §6 item 6, slice S16, finding B6.)
+- Three recipes in `TABLE_RECIPES.formation` (`climbPaceProse`, `crawlPaceProse`, `balancePaceProse`) read the three paragraphs that price a proficient climber's faster paces (RR pp. 269-270); `assemblePacePenalties` yields `climbPacePenalties`, `crawlPacePenalties` and `balancePacePenalties` as flat keys of the `formation` document, listed in `PRODUCES` and in the feature's `expectTables`. The document's `source.pages` now names every page those recipes read.
+- Each key is a pair `[faster, fastest]` of positive magnitudes, as `swimWaterPenaltySteps` is a list of magnitudes: the reader raises a target by the size. Two recipes share a page and a third is on the next, and each pair is still its own recipe so that `citeOf` names exactly the page its figures were read from.
+- The order is the printed one and is checked, not assumed: the sentence names the two paces by their words, and a window whose paces appear in the other order, or with other than two sizes, answers null. A pair that cannot be told apart would price a pace by the other's size.
+
+**Rejected.** One recipe for the three paragraphs: it would cite pages 269 and 270 for every pair. A key per pace: the page prices two paces per way of crossing, and a third key set would invent a pace the page does not name. A fallback pair from the climb for a way of crossing whose paragraph did not read: each way is priced apart on the page, and a world without the figure has none.
+
+**Cost.** A world must re-run the Rules tables import before a pace is priced; until then each pair answers null and the Judge may set it in the Ruledata Browser. Nothing reads the pairs until the pace pick lands, in the same slice.

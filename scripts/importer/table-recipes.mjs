@@ -852,7 +852,7 @@ const SHARED_TABLE_RECIPES = {
   // each figure; formation-binding.mjs parses them into the engine shape
   // declared via expectTables.
   formation: {
-    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 265, 267-268, 270-271, 288, 293; JJ 239" },
+    source: { book: "ACKS II Revised Rulebook + Judges Journal", pages: "RR 265, 267-271, 288, 293; JJ 239" },
     tables: {
       // RR ch. 6 combatant frontage and interval: prose only. One sentence names
       // the wide frontage and the march frontage together, so each window opens on
@@ -964,6 +964,37 @@ const SHARED_TABLE_RECIPES = {
           { key: "advance", find: "adventurer advances", take: "window", span: 15 },
           { key: "penalty", find: "cumulative", take: "window", span: 20 },
         ],
+      },
+      // The faster paces of a proficient climber (RR pp. 269-270): each way of
+      // crossing prices its two paces in its own paragraph, so each is its own
+      // recipe and its own page. One window apiece holds both sizes and the
+      // words that order them; formation-binding parses the pair.
+      climbPaceProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 269,
+        locate: "Whether scaling an easy obstacle",
+        locateBare: true,
+        column: { xMin: 60, xMax: 320 },
+        values: [{ key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 }],
+      },
+      crawlPaceProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 269,
+        locate: "proficient in Climbing can traverse at",
+        locateBare: true,
+        column: { xMin: 320, xMax: 592 },
+        values: [{ key: "pace", find: "proficient in climbing can traverse", take: "window", span: 170 }],
+      },
+      balancePaceProse: {
+        shape: "proseValues",
+        book: "rr",
+        printedPage: 270,
+        locate: "Whether traversing a narrow or precarious",
+        locateBare: true,
+        column: { xMin: 40, xMax: 300 },
+        values: [{ key: "pace", find: "climbing proficiency can take a", take: "window", span: 130 }],
       },
       restProse: {
         shape: "proseValues",

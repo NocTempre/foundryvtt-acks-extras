@@ -33,7 +33,10 @@
  * pit's two dice. The Squeezing passage (RR ch. 6) gives four more
  * (`assembleSqueezing`): the length a chokepoint is told by, the bonus
  * Contortionism adds, the distance an escape carries and the penalty each
- * failed escape adds to the next.
+ * failed escape adds to the next. The faster paces of a proficient climber (RR
+ * pp. 269-270) give three pairs (`assemblePacePenalties`): the two penalties a
+ * climb, a crawling traverse and a balancing traverse each price a faster pace
+ * at, in printed order, the pace nearer the base one first.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -86,6 +89,9 @@ export const PRODUCES = Object.freeze({
     chokepointFeet: "squeezingProse",
     escapeFeet: "squeezingProse",
     escapePenaltyStep: "squeezingProse",
+    climbPacePenalties: "climbPaceProse",
+    crawlPacePenalties: "crawlPaceProse",
+    balancePacePenalties: "balancePaceProse",
   },
 });
 
@@ -150,6 +156,20 @@ export function firstCount(text) {
 export function parseWaterPenaltySteps(window) {
   const steps = signedFigures(firstSentence(window)).map(Math.abs).filter((n) => n > 0);
   return steps.length ? steps : null;
+}
+
+/**
+ * The two penalties a faster pace costs, in printed order: the sentence's
+ * signed figures as sizes, the pace nearer the base one first. Exactly two are
+ * read, each above zero; a sentence with another count, or a size of nothing,
+ * answers null, because a pair that cannot be told which pace is which would
+ * price the wrong one.
+ *
+ * @returns {number[]|null} `[nearer, farther]`
+ */
+export function parsePacePenalties(window) {
+  const sizes = signedFigures(firstSentence(window)).map(Math.abs);
+  return sizes.length === 2 && sizes.every((n) => n > 0) ? sizes : null;
 }
 
 /** A bonus as a magnitude: the first signed figure of the sentence; null when none. */
@@ -553,6 +573,25 @@ export function assembleSqueezing(raw = {}) {
   return out;
 }
 
+/**
+ * The faster-pace penalties, one pair for each way of crossing, each read from
+ * its own paragraph: `climbPacePenalties`, `crawlPacePenalties` and
+ * `balancePacePenalties`. A paragraph that did not read leaves its pair out and
+ * costs nothing beside it.
+ */
+export function assemblePacePenalties(raw = {}) {
+  const out = {};
+  for (const [key, table] of [
+    ["climbPacePenalties", raw.climbPaceProse],
+    ["crawlPacePenalties", raw.crawlPaceProse],
+    ["balancePacePenalties", raw.balancePaceProse],
+  ]) {
+    const pair = parsePacePenalties(table?.pace);
+    if (pair) out[key] = pair;
+  }
+  return out;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Assembly                                                           */
 /* ------------------------------------------------------------------ */
@@ -609,6 +648,7 @@ export function assembleFormationTables(raw = {}) {
 
   Object.assign(out, assembleTrapFigures(raw));
   Object.assign(out, assembleSqueezing(raw.squeezingProse));
+  Object.assign(out, assemblePacePenalties(raw));
 
   return out;
 }

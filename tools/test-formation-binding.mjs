@@ -23,7 +23,7 @@ import { registerTable, unregisterTable, getLayer, PRIORITY } from "../scripts/l
 import {
   FORMATION_DOC_ID, PRODUCES, SPELUNKING_COLUMNS, assembleFall, assembleFormationTables,
   assembleTrapFigures, parseBandTop, parseBotchBand,
-  assembleJumping, assembleSpelunking, assembleSqueezing, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
+  assembleJumping, assembleSpelunking, assembleSqueezing, assemblePacePenalties, parsePacePenalties, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap,
@@ -325,9 +325,10 @@ const FRONTAGE_KEYS = ["marchFrontageFeet", "wideFrontageFeet", "rankIntervalFee
 const TRAP_PROSE = ["searchProse", "trapProse", "actionProse", "pitSpikeProse"];
 const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PROSE.includes(PRODUCES[FORMATION_DOC_ID][k]));
 const SQUEEZE_PROSE_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => PRODUCES[FORMATION_DOC_ID][k] === "squeezingProse");
+const PACE_KEYS = ["climbPacePenalties", "crawlPacePenalties", "balancePacePenalties"];
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
-    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS].includes(k)).sort());
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS].includes(k)).sort());
 eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -456,6 +457,53 @@ eq("a Judge's override wins its own figure and leaves the others", SQUEEZE_KEYS.
 unregisterTable(FORMATION_DOC_ID);
 registerTable({ id: FORMATION_DOC_ID, tables: { restProse: raw.restProse } }, { priority: PRIORITY.WORLD });
 eq("a registered document that lacks a figure still answers null", SQUEEZE_KEYS.map((k) => formationValue(k)), [null, null, null, null]);
+unregisterTable(FORMATION_DOC_ID);
+
+/* --- the faster paces: invented prose through the three recipes ------------- */
+// Each way of crossing prices its two paces in a paragraph of its own: the
+// climb and the balance name the sizes before the paces, the crawl names the
+// pace first. The pace words here are invented. Every pair here is invented and differs from the others, so a
+// reader that took one table's pair for another's cannot pass.
+const column = (x, lines) => lines.map((str, i) => ({ x, y: 100 + i * 12, str }));
+const PACE_CLIMB = column(60, [
+  "Mole tunnels run steep. A mole with Climbing proficiency can take a -3 penalty to move",
+  "at a trot or -8 penalty to move at a gallop. The Judge may add more.",
+]);
+const PACE_CRAWL = column(340, [
+  "A mole proficient in Climbing can traverse at a trot by taking a -4 penalty to the",
+  "throw and at a gallop by taking a -9 penalty to the throw. Burrows vary.",
+]);
+const PACE_BALANCE = column(60, [
+  "Whether traversing a ridge or a root, a mole with Climbing proficiency can take a -6 penalty",
+  "to move at a trot or -12 penalty to move at a gallop. Rain changes things.",
+]);
+const paceRaw = {
+  climbPaceProse: extractTable(PACE_CLIMB, recipes.climbPaceProse),
+  crawlPaceProse: extractTable(PACE_CRAWL, recipes.crawlPaceProse),
+  balancePaceProse: extractTable(PACE_BALANCE, recipes.balancePaceProse),
+};
+eq("each paragraph reads through its own recipe", Object.values(paceRaw).map((t) => Object.keys(t)), [["pace"], ["pace"], ["pace"]]);
+eq("each way of crossing is read from its own paragraph, in printed order", assemblePacePenalties(paceRaw),
+  { climbPacePenalties: [3, 8], crawlPacePenalties: [4, 9], balancePacePenalties: [6, 12] });
+eq("assemblePacePenalties is what the binding calls", assembleFormationTables(paceRaw), assemblePacePenalties(paceRaw));
+eq("each pair is produced from its own recipe", PACE_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), ["climbPaceProse", "crawlPaceProse", "balancePaceProse"]);
+eq("the three recipes cite the pages their paragraphs print on",
+  PACE_KEYS.map((k) => recipes[PRODUCES[FORMATION_DOC_ID][k]].printedPage), [269, 269, 270]);
+eq("a pair needs both sizes, and no more", [parsePacePenalties(" -3 penalty at a trot, then a gallop"), parsePacePenalties(" -3 at a trot, -8 at a gallop, -9 at a bolt")], [null, null]);
+eq("a size of nothing is no size", parsePacePenalties(" -0 at a trot or -8 at a gallop."), null);
+eq("sizes with no sign are not read", parsePacePenalties(" 3 at a trot or 8 at a gallop."), null);
+eq("the sizes are read in the order printed", parsePacePenalties(" -8 at a gallop or -3 at a trot."), [8, 3]);
+eq("a size past the full stop is the next rule's", parsePacePenalties(" -3 at a trot or -8 at a gallop. Add -4 in rain."), [3, 8]);
+eq("a drifted paragraph costs its own pair and nothing beside it",
+  Object.keys(assemblePacePenalties({ ...paceRaw, crawlPaceProse: { pace: " whatever the burrow allows" } })).sort(), ["balancePacePenalties", "climbPacePenalties"]);
+eq("nothing assembles from an absent passage", [assemblePacePenalties(), assemblePacePenalties({}), assembleFormationTables({ restProse: raw.restProse })].map((o) => PACE_KEYS.filter((k) => k in o)), [[], [], []]);
+// A pair reads through the registry like every other figure: blank until
+// imported, the import's layer under a Judge's override.
+eq("with nothing registered every pair reads null", PACE_KEYS.map((k) => formationValue(k)), [null, null, null]);
+registerTable({ id: FORMATION_DOC_ID, tables: assemblePacePenalties(paceRaw) }, { priority: PRIORITY.WORLD });
+eq("an imported pair reads through", PACE_KEYS.map((k) => formationValue(k)), [[3, 8], [4, 9], [6, 12]]);
+registerTable({ id: FORMATION_DOC_ID, tables: { crawlPacePenalties: [7, 13] } }, { priority: PRIORITY.OVERRIDE });
+eq("a Judge's override wins its own pair and leaves the others", PACE_KEYS.map((k) => formationValue(k)), [[3, 8], [7, 13], [6, 12]]);
 unregisterTable(FORMATION_DOC_ID);
 
 /* --- absent input is absent output, never a default ------------------------ */
