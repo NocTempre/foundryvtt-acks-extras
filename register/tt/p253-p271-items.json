@@ -1,0 +1,1693 @@
+[
+  {
+    "id": "tt.item1024",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1024",
+    "anchor": {
+      "hash": "1qptc9g",
+      "as": "display"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1025",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1025",
+    "anchor": {
+      "hash": "1xm623t",
+      "as": "display"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1026",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1026",
+    "anchor": {
+      "hash": "1wjgebn",
+      "as": "display"
+    },
+    "pages": [
+      253
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1027",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1027",
+    "anchor": {
+      "hash": "430gro",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1028",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1028",
+    "anchor": {
+      "hash": "1h0yhra",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1029",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1029",
+    "anchor": {
+      "hash": "1mx87mp",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1030",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1030",
+    "anchor": {
+      "hash": "18breex",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1031",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1031",
+    "anchor": {
+      "hash": "bbq6do",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1032",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1032",
+    "anchor": {
+      "hash": "kguyb",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1033",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1033",
+    "anchor": {
+      "hash": "1e45127",
+      "as": "display"
+    },
+    "pages": [
+      254
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1034",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Axe of Bitterness",
+    "anchor": {
+      "display": "Axe of Bitterness"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1035",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1035",
+    "anchor": {
+      "hash": "yqei91",
+      "as": "display"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1036",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1036",
+    "anchor": {
+      "hash": "5e3dej",
+      "as": "display"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1037",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1037",
+    "anchor": {
+      "hash": "maah6z",
+      "as": "display"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1038",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1038",
+    "anchor": {
+      "hash": "w47hdt",
+      "as": "display"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1039",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1039",
+    "anchor": {
+      "hash": "jq94ob",
+      "as": "display"
+    },
+    "pages": [
+      255
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1040",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1040",
+    "anchor": {
+      "hash": "b08tsf",
+      "as": "display"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1041",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1041",
+    "anchor": {
+      "hash": "1h7prq3",
+      "as": "display"
+    },
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1042",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bow of the Fallen Sky",
+    "anchor": {
+      "display": "Bow of the Fallen Sky"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      256
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1043",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bow of the Great Eagles",
+    "anchor": {
+      "display": "Bow of the Great Eagles"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      256,
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1044",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bow of the Unconquered Sun",
+    "anchor": {
+      "display": "Bow of the Unconquered Sun"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1045",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1045",
+    "anchor": {
+      "hash": "1vv110s",
+      "as": "display"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1046",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1046",
+    "anchor": {
+      "hash": "1xpi6e3",
+      "as": "display"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1047",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1047",
+    "anchor": {
+      "hash": "2gb92h",
+      "as": "display"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1048",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1048",
+    "anchor": {
+      "hash": "6zy7im",
+      "as": "display"
+    },
+    "pages": [
+      257
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1049",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1049",
+    "anchor": {
+      "hash": "5q8fwb",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1050",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1050",
+    "anchor": {
+      "hash": "wnigu0",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1051",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1051",
+    "anchor": {
+      "hash": "1qrychd",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1052",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1052",
+    "anchor": {
+      "hash": "um33hm",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item1053",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1053",
+    "anchor": {
+      "hash": "2kip32",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1054",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1054",
+    "anchor": {
+      "hash": "xy0tf2",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1055",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1055",
+    "anchor": {
+      "hash": "18nr6cy",
+      "as": "display"
+    },
+    "pages": [
+      258
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1056",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Spear",
+    "anchor": {
+      "display": "Crystal Spear"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      258,
+      259
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1057",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1057",
+    "anchor": {
+      "hash": "1vwciqt",
+      "as": "display"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1058",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1058",
+    "anchor": {
+      "hash": "medz4y",
+      "as": "display"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1059",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1059",
+    "anchor": {
+      "hash": "1iefsha",
+      "as": "display"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1060",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1060",
+    "anchor": {
+      "hash": "3jzmzu",
+      "as": "display"
+    },
+    "pages": [
+      259
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1061",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1061",
+    "anchor": {
+      "hash": "1y8g6h3",
+      "as": "display"
+    },
+    "pages": [
+      259,
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1062",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1062",
+    "anchor": {
+      "hash": "w6mvs2",
+      "as": "display"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1063",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Goblin-Spitter",
+    "anchor": {
+      "display": "Goblin-Spitter"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1064",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1064",
+    "anchor": {
+      "hash": "w6sj97",
+      "as": "display"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1065",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1065",
+    "anchor": {
+      "hash": "165umv6",
+      "as": "display"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1066",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1066",
+    "anchor": {
+      "hash": "1o29vkd",
+      "as": "display"
+    },
+    "pages": [
+      260
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1067",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1067",
+    "anchor": {
+      "hash": "jsnbib",
+      "as": "display"
+    },
+    "pages": [
+      260,
+      261
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1068",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Great Axe of the North",
+    "anchor": {
+      "display": "Great Axe of the North"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1069",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1069",
+    "anchor": {
+      "hash": "mm9ask",
+      "as": "display"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1070",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1070",
+    "anchor": {
+      "hash": "zdult9",
+      "as": "display"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1071",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1071",
+    "anchor": {
+      "hash": "j1awbn",
+      "as": "display"
+    },
+    "pages": [
+      261
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1072",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1072",
+    "anchor": {
+      "hash": "1f0v3b7",
+      "as": "display"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1073",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1073",
+    "anchor": {
+      "hash": "rs9nlu",
+      "as": "display"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1074",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1074",
+    "anchor": {
+      "hash": "xcz6cw",
+      "as": "display"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1075",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1075",
+    "anchor": {
+      "hash": "18j4io9",
+      "as": "display"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1076",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1076",
+    "anchor": {
+      "hash": "14pg2x4",
+      "as": "display"
+    },
+    "pages": [
+      262
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1077",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1077",
+    "anchor": {
+      "hash": "1iv6frs",
+      "as": "display"
+    },
+    "pages": [
+      262,
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1078",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1078",
+    "anchor": {
+      "hash": "1skxin1",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1079",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1079",
+    "anchor": {
+      "hash": "1cn0ou1",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1080",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1080",
+    "anchor": {
+      "hash": "17q3xr6",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1081",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1081",
+    "anchor": {
+      "hash": "1tlhn6m",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1082",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1082",
+    "anchor": {
+      "hash": "cfrove",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1083",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1083",
+    "anchor": {
+      "hash": "cpq4dg",
+      "as": "display"
+    },
+    "pages": [
+      263
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1084",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1084",
+    "anchor": {
+      "hash": "shmv4s",
+      "as": "display"
+    },
+    "pages": [
+      264
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1085",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1085",
+    "anchor": {
+      "hash": "sq0we3",
+      "as": "display"
+    },
+    "pages": [
+      264
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1086",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1086",
+    "anchor": {
+      "hash": "tgs30m",
+      "as": "display"
+    },
+    "pages": [
+      264
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1087",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Maul of the Earth’s Heart",
+    "anchor": {
+      "display": "Maul of the Earth’s Heart"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      264
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1088",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1088",
+    "anchor": {
+      "hash": "1rc0wd3",
+      "as": "display"
+    },
+    "pages": [
+      264,
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1089",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1089",
+    "anchor": {
+      "hash": "1esihwk",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1090",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1090",
+    "anchor": {
+      "hash": "1xl23nu",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1091",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1091",
+    "anchor": {
+      "hash": "1lwuahl",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1092",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1092",
+    "anchor": {
+      "hash": "kd7dhx",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1093",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1093",
+    "anchor": {
+      "hash": "gteg4z",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1094",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1094",
+    "anchor": {
+      "hash": "1qbrcfs",
+      "as": "display"
+    },
+    "pages": [
+      265
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1095",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1095",
+    "anchor": {
+      "hash": "3tnvwu",
+      "as": "display"
+    },
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1096",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1096",
+    "anchor": {
+      "hash": "unw2aw",
+      "as": "display"
+    },
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1097",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1097",
+    "anchor": {
+      "hash": "1370h5a",
+      "as": "display"
+    },
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1098",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Scourge of Law",
+    "anchor": {
+      "display": "Scourge of Law"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1099",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Shining Spear",
+    "anchor": {
+      "display": "Shining Spear"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1100",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1100",
+    "anchor": {
+      "hash": "1u0ts8e",
+      "as": "display"
+    },
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1101",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1101",
+    "anchor": {
+      "hash": "sb41u1",
+      "as": "display"
+    },
+    "pages": [
+      266
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1102",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1102",
+    "anchor": {
+      "hash": "spin1k",
+      "as": "display"
+    },
+    "pages": [
+      266,
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1103",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1103",
+    "anchor": {
+      "hash": "1mg0h49",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1104",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1104",
+    "anchor": {
+      "hash": "1kzakp9",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1105",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1105",
+    "anchor": {
+      "hash": "r2c7yn",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1106",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1106",
+    "anchor": {
+      "hash": "155hhci",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1107",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1107",
+    "anchor": {
+      "hash": "1ohx1a5",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1108",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1108",
+    "anchor": {
+      "hash": "sb0yi4",
+      "as": "display"
+    },
+    "pages": [
+      267
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1109",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1109",
+    "anchor": {
+      "hash": "y3k4q6",
+      "as": "display"
+    },
+    "pages": [
+      268
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1110",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1110",
+    "anchor": {
+      "hash": "1ylgd0k",
+      "as": "display"
+    },
+    "pages": [
+      268
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1111",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1111",
+    "anchor": {
+      "hash": "reh5lh",
+      "as": "display"
+    },
+    "pages": [
+      268
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1112",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1112",
+    "anchor": {
+      "hash": "x4wsbm",
+      "as": "display"
+    },
+    "pages": [
+      268
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1113",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1113",
+    "anchor": {
+      "hash": "rrg6ex",
+      "as": "display"
+    },
+    "pages": [
+      268
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1114",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1114",
+    "anchor": {
+      "hash": "ee4li0",
+      "as": "display"
+    },
+    "pages": [
+      268,
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1115",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1115",
+    "anchor": {
+      "hash": "184s02t",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1116",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1116",
+    "anchor": {
+      "hash": "1thgnwo",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1117",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1117",
+    "anchor": {
+      "hash": "12u8b1r",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1118",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1118",
+    "anchor": {
+      "hash": "gt948i",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1119",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1119",
+    "anchor": {
+      "hash": "1id7fmy",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1120",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1120",
+    "anchor": {
+      "hash": "12ngoq6",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1121",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1121",
+    "anchor": {
+      "hash": "t1nsoj",
+      "as": "display"
+    },
+    "pages": [
+      269
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1122",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1122",
+    "anchor": {
+      "hash": "6e851b",
+      "as": "display"
+    },
+    "pages": [
+      269,
+      270
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1123",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1123",
+    "anchor": {
+      "hash": "19d8hfg",
+      "as": "display"
+    },
+    "pages": [
+      270
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1124",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1124",
+    "anchor": {
+      "hash": "zfbg2d",
+      "as": "display"
+    },
+    "pages": [
+      270
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1125",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1125",
+    "anchor": {
+      "hash": "xe3ohh",
+      "as": "display"
+    },
+    "pages": [
+      270,
+      271
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1126",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1126",
+    "anchor": {
+      "hash": "1brenoq",
+      "as": "display"
+    },
+    "pages": [
+      271
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1127",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1127",
+    "anchor": {
+      "hash": "6mfuen",
+      "as": "display"
+    },
+    "pages": [
+      271
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  },
+  {
+    "id": "tt.item1128",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1128",
+    "anchor": {
+      "hash": "9h9z6",
+      "as": "display"
+    },
+    "pages": [
+      271
+    ],
+    "meta": {
+      "category": "weapons"
+    }
+  }
+]
