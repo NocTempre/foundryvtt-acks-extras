@@ -11,7 +11,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
 import { elementOf, ownsSheet, unset } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { powerSectionHtml, wirePowerChip } from "./power-chip.mjs";
+import { forgetPowerSwitch, powerSectionHtml, powerSwitchOf, wirePowerChip } from "./power-chip.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
 export function slotRowAt(tradition, level) {
@@ -124,9 +124,9 @@ export async function restPools(actor) {
 }
 
 /** Render the strip markup for one actor (empty string when nothing casts and no power is held). */
-function stripHtml(actor) {
+function stripHtml(actor, switches) {
   const state = poolState(actor);
-  const power = powerSectionHtml(actor, state.length > 0);
+  const power = powerSectionHtml(actor, state.length > 0, switches);
   if (!state.length && !power) return "";
   const parts = state.map((t) => {
     if (t.slots) {
@@ -159,15 +159,18 @@ function stripHtml(actor) {
  * The strip as an element with its controls wired — a pip spends or refunds
  * a slot, the +/− pair adjusts a points pool, the bed rests. Null when nothing
  * casts. The core-sheet injector below and the module's own character sheet
- * mount exactly this, so the two cannot drift.
+ * mount exactly this, so the two cannot drift. `app` is the window that hosts
+ * the strip: it keys the power ledger's Fades / Stays switch state, which each
+ * render of the strip reads back (`power-chip.mjs`).
  */
-export function castingStripElement(actor) {
-  const html = stripHtml(actor);
+export function castingStripElement(actor, app) {
+  const switches = powerSwitchOf(app);
+  const html = stripHtml(actor, switches);
   if (!html) return null;
   const holder = document.createElement("div");
   holder.innerHTML = html;
   const strip = holder.firstElementChild;
-  wirePowerChip(strip, actor);
+  wirePowerChip(strip, actor, switches);
   strip.addEventListener("click", (event) => {
     const pip = event.target.closest(".acks-extras-classes-pip");
     if (pip) {
@@ -198,7 +201,7 @@ function onRenderCharacterSheet(app, element) {
   // tab wants it; this injector dresses the system's sheet alone.
   if (ownsSheet(app)) return;
   root.querySelector(".acks-extras-classes-strip")?.remove();
-  const strip = castingStripElement(doc);
+  const strip = castingStripElement(doc, app);
   if (!strip) return;
   // Core's class field, else core's own header SECTION — never a bare
   // `header`, which matches the window frame's header on every sheet and put
@@ -208,7 +211,8 @@ function onRenderCharacterSheet(app, element) {
   anchor.insertAdjacentElement("afterend", strip);
 }
 
-/** Register the strip's render hook (called once from classes/module.mjs). */
+/** Register the strip's render hook and the close hook that ends a window's switch state (called once from classes/module.mjs). */
 export function registerCastingUi() {
   Hooks.on("renderApplicationV2", onRenderCharacterSheet);
+  Hooks.on("closeApplicationV2", (app) => forgetPowerSwitch(app));
 }

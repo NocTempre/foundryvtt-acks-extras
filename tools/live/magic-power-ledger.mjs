@@ -9,9 +9,11 @@
  * gates), a Player's request on an actor it cannot write relayed to the GM's
  * client and refused there, expiry by the calendar day against a lifetime in the
  * registry, nothing expiring with none, the Judge's Fades / Stays switch (a lot
- * that stays outlives a backdated lifetime and shows its pin, a minus draws the
- * fading lot first, a Player's strip has no switch and its request for a lot
- * that stays is refused), and a bucket's power row capped by the balance.
+ * that stays outlives a backdated lifetime and shows its pin, a minus on Fades
+ * draws the fading lot first, a minus on Stays removes a point that stays, the
+ * switch holds across the render each write causes and is its own in a second
+ * window, a Player's strip has no switch and its request for a lot that stays is
+ * refused), and a bucket's power row capped by the balance.
  *
  * The lifetime is the registry's `divineLifetime` through its override layer
  * (invented, three days), so the walk needs no import and sets nothing a Judge
@@ -104,6 +106,8 @@ try {
   const S = stranger.uuid;
   // A step that needs a known shape asserts it at its start: a kept fixture carries whatever the last walk left.
   const clear = `await Promise.all([actor(), fromUuidSync(V)].map((a) => a.update({ "flags.acks-extras.-=power": null }))); await sleep(300); return [actor(), fromUuidSync(V)].map((a) => !!a.flags?.["acks-extras"]?.power);`;
+  // The switch's state lives on the open sheet window until it closes, so a run that died mid-section starts from a closed one.
+  await run(gm, U, `await closeSheet();`);
   const cleared = await run(gm, U, clear, S);
   check("both fixtures start with no ledger", cleared.every((held) => held === false), cleared);
   await gm.eval(`globalThis.__pl = { updates: 0, hook: Hooks.on("updateActor", (a) => { if (a.uuid === ${JSON.stringify(U)} || a.uuid === ${JSON.stringify(S)}) __pl.updates++; }) }`);
@@ -288,7 +292,7 @@ try {
     const tip = tag("divine")?.getAttribute("data-tooltip-text") ?? "";
     return { n: e.length, stays: e[0]?.stays === true, by: e[0]?.by, pin: !!line?.querySelector(".fa-thumbtack"), caption: (line?.textContent ?? "").trim().toLowerCase(), tipSays: tip.toLowerCase().includes("stays until removed"), shown: shown("divine"), reset: [...strip().querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed")) };`);
   check("Stays then plus wrote one entry marked as staying, by hand; its row carries the pin and 'stays until removed', and so does the chip's tooltip", s2.n === 1 && s2.stays && s2.by === "judge" && s2.pin && s2.caption.includes("stays until removed") && s2.tipSays && s2.shown === 1, s2);
-  check("the switch is back on Fades after the render the write made", s2.reset[0] === "true" && s2.reset[1] === "false", s2.reset);
+  check("the switch still shows Stays after the render the write made", s2.reset[0] === "false" && s2.reset[1] === "true", s2.reset);
   const s3 = await run(gm, U, `
     const today = await day();
     const list = foundry.utils.deepClone(flag().divine.entries);
@@ -299,6 +303,7 @@ try {
     return { kept: flag().divine.entries[0].stays === true, balance: power().balance(actor(), "divine"), shown: shown("divine"), off: rows()[0].classList.contains("is-off"), expiry: power().expiry(actor(), "divine") };`);
   check("with the lot's day thirty days back against a three-day lifetime it still stands: the balance, the face and the row are as before and nothing is due to fade", s3.kept && s3.balance === 1 && s3.shown === 1 && s3.off === false && s3.expiry === null, s3);
   const s4 = await run(gm, U, `
+    await press('[data-power-stay="0"][data-power-kind="divine"]');
     await press('[data-power="divine"] ~ [data-power-adjust="1"]');
     const added = flag().divine.entries.at(-1);
     const fresh = { stays: added.stays === true, n: flag().divine.entries.length, balance: power().balance(actor(), "divine") };
@@ -309,7 +314,7 @@ try {
     await sleep(600);
     await openSheet();
     return { fresh, balance: power().balance(actor(), "divine"), off: rows().map((r) => r.classList.contains("is-off")) };`);
-  check("Fades then plus wrote an entry with no mark, which stands the day it is gained", s4.fresh.stays === false && s4.fresh.n === 2 && s4.fresh.balance === 2, s4.fresh);
+  check("Fades pressed, then plus wrote an entry with no mark, which stands the day it is gained", s4.fresh.stays === false && s4.fresh.n === 2 && s4.fresh.balance === 2, s4.fresh);
   check("once its day is a whole lifetime back it has faded and the one that stays has not (rows newest first)", s4.balance === 1 && s4.off[0] === true && s4.off[1] === false, s4);
   const s5 = await run(gm, U, `
     await press('[data-power="divine"] ~ [data-power-adjust="1"]');
@@ -329,6 +334,88 @@ try {
     return { isGM: game.user.isGM, pills: strip().querySelectorAll("[data-power-stay]").length, groups: strip().querySelectorAll('[role="group"]').length, pinRows: rows().filter((r) => r.querySelector(".fa-thumbtack")).length, asked, same: JSON.stringify(flag()) === before };`);
   check("the Player's strip draws no switch but shows the lot that stays with its pin, and a Player's own request for a lot that stays is refused and writes nothing", s6.isGM === false && s6.pills === 0 && s6.groups === 0 && s6.pinRows === 1 && s6.asked.ok === false && s6.asked.reason === "judge" && s6.same, s6);
   await run(player, U, `await closeSheet();`);
+
+  section("6c. the switch holds across a render, the minus follows it, and a second window opens on Fades");
+  const h0 = await run(gm, U, `
+    await closeSheet();
+    await actor().update({ "flags.acks-extras.-=power": null });
+    await sleep(400);
+    await openSheet();
+    const pair = (kind) => [...strip().querySelectorAll('[data-power-stay][data-power-kind="' + kind + '"]')].map((p) => p.getAttribute("aria-pressed"));
+    const minusLabel = () => strip().querySelector('[data-power-adjust="-1"][data-power-kind="divine"]')?.getAttribute("aria-label") ?? "";
+    const fadesLabel = minusLabel();
+    await press('[data-power-stay="1"][data-power-kind="divine"]');
+    const stayLabel = minusLabel();
+    const marks = [];
+    for (let i = 0; i < 2; i++) {
+      const was = strip();
+      await press('[data-power="divine"] ~ [data-power-adjust="1"]');
+      marks.push({ rerendered: strip() !== was, divine: pair("divine"), arcane: pair("arcane"), label: minusLabel() === stayLabel });
+    }
+    return { labelsDiffer: fadesLabel.length > 0 && stayLabel.length > 0 && fadesLabel !== stayLabel, marks, entries: (flag().divine?.entries ?? []).map((x) => x.stays === true) };`);
+  check("Stays pressed, then plus twice: after each render the divine pair still shows Stays and its minus keeps the staying label, the arcane pair stays on Fades, and both entries stay", h0.labelsDiffer && h0.marks.every((m) => m.rerendered && m.divine[0] === "false" && m.divine[1] === "true" && m.arcane[0] === "true" && m.arcane[1] === "false" && m.label) && h0.entries.length === 2 && h0.entries.every(Boolean), h0);
+  const h1 = await run(gm, U, `
+    const P = await import("/modules/acks-extras/scripts/magic/power-ledger.mjs");
+    const pair = () => [...strip().querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed"));
+    await press('[data-power-stay="0"][data-power-kind="divine"]');
+    await press('[data-power="divine"] ~ [data-power-adjust="1"]');
+    await press('[data-power-stay="1"][data-power-kind="divine"]');
+    await press('[data-power="divine"] ~ [data-power-adjust="-1"]');
+    const e = flag().divine.entries;
+    const lots = P.standing(P.readLedger(flag()).divine.entries, await day(), power().lifetimes(actor()).divine.span).map((l) => ({ stays: l.stays, left: l.left }));
+    const caption = (rows()[0]?.querySelector(".acks-extras-classes-powerline")?.textContent ?? "").trim().toLowerCase();
+    return { n: e.length, fading: e[2]?.stays !== true, removal: { amount: e[3]?.amount, by: e[3]?.by, fromStays: e[3]?.fromStays === true }, lots, balance: power().balance(actor(), "divine"), shown: shown("divine"), pair: pair(), caption };`);
+  check("with a fading lot standing, a minus on Stays wrote a removal marked as from the lots that stay, by hand, and took the oldest point that stays, not the fading one", h1.n === 4 && h1.fading && h1.removal.amount === -1 && h1.removal.by === "judge" && h1.removal.fromStays && h1.lots.length === 3 && h1.lots[0].stays && h1.lots[0].left === 0 && h1.lots[1].stays && h1.lots[1].left === 1 && !h1.lots[2].stays && h1.lots[2].left === 1 && h1.balance === 2 && h1.shown === 2, h1);
+  check("the removal's row says a point that stays was removed, and the switch still shows Stays after the render", h1.caption.includes("removed a point that stays") && h1.pair[0] === "false" && h1.pair[1] === "true", { caption: h1.caption, pair: h1.pair });
+  const h2 = await run(gm, U, `
+    const P = await import("/modules/acks-extras/scripts/magic/power-ledger.mjs");
+    await press('[data-power-stay="0"][data-power-kind="divine"]');
+    await press('[data-power="divine"] ~ [data-power-adjust="-1"]');
+    const e = flag().divine.entries;
+    const lots = P.standing(P.readLedger(flag()).divine.entries, await day(), power().lifetimes(actor()).divine.span).map((l) => ({ stays: l.stays, left: l.left }));
+    return { n: e.length, plain: e[4]?.fromStays !== true && e[4]?.amount === -1, lots, balance: power().balance(actor(), "divine") };`);
+  check("with the switch on Fades the minus is the ordinary spend and takes the fading lot, leaving the remaining point that stays", h2.n === 5 && h2.plain && h2.lots[1].stays && h2.lots[1].left === 1 && !h2.lots[2].stays && h2.lots[2].left === 0 && h2.balance === 1, h2);
+  const wd0 = await updates();
+  const h2b = await run(gm, U, `
+    await press('[data-power-stay="1"][data-power-kind="divine"]');
+    await press('[data-power="divine"] ~ [data-power-adjust="-1"]');
+    const afterFirst = { n: flag().divine.entries.length, last: flag().divine.entries.at(-1)?.fromStays === true, balance: power().balance(actor(), "divine") };
+    await press('[data-power="divine"] ~ [data-power-adjust="-1"]');
+    return { afterFirst, n: flag().divine.entries.length, balance: power().balance(actor(), "divine") };`);
+  const wd1 = await updates();
+  check("the last point that stays goes to a minus on Stays, and a second minus on Stays, with none left, writes nothing (one update, the entry count and the balance hold)", h2b.afterFirst.n === 6 && h2b.afterFirst.last && h2b.afterFirst.balance === 0 && h2b.n === 6 && h2b.balance === 0 && wd1 - wd0 === 1, { ...h2b, writes: wd1 - wd0 });
+  const wh0 = await updates();
+  const h3 = await run(gm, U, `
+    const pairOf = (app) => [...app.element.querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed"));
+    await press('[data-power-stay="1"][data-power-kind="divine"]');
+    const first = actor().sheet;
+    const second = new first.constructor({ document: actor(), id: "qa-power-second-window" });
+    let out;
+    try {
+      await second.render({ force: true });
+      await until(() => second.element?.isConnected);
+      second.changeTab?.("magic", "primary");
+      await until(() => second.element?.querySelector(".acks-extras-classes-strip"));
+      await sleep(300);
+      const opened = { second: pairOf(second), first: pairOf(first) };
+      second.element.querySelector('[data-power="divine"] ~ [data-power-adjust="1"]').click();
+      await sleep(900);
+      const e = flag().divine.entries;
+      out = { opened, added: e.length === 7 && e[6].stays !== true && e[6].amount === 1, after: { second: pairOf(second), first: pairOf(first) } };
+    } finally {
+      await second.close({ animate: false });
+    }
+    return out;`);
+  const wh1 = await updates();
+  check("a second window on the same actor opens with its divine pair on Fades while the first holds Stays, and a plus pressed in it writes a fading point", h3.opened.second[0] === "true" && h3.opened.second[1] === "false" && h3.opened.first[0] === "false" && h3.opened.first[1] === "true" && h3.added, h3);
+  check("after the write both windows kept their own state", h3.after.second[0] === "true" && h3.after.first[1] === "true", h3.after);
+  check("pressing Stays and opening the second window wrote nothing to the actor: the one update between them is the plus pressed in the second window", wh1 - wh0 === 1, { writes: wh1 - wh0 });
+  const h4 = await run(gm, U, `
+    await closeSheet();
+    await openSheet();
+    return { pair: [...strip().querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed")) };`);
+  check("a window closed and opened again starts on Fades", h4.pair[0] === "true" && h4.pair[1] === "false", h4);
+  await run(gm, U, `await closeSheet();`);
   const cleared3 = await run(gm, U, `
     ${lifetimeKit}
     await STORE.clearOverride(D, "divineLifetime");

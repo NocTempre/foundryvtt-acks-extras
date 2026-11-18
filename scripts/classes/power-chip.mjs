@@ -4,32 +4,60 @@
  * balance on its face and the entries in its tooltip, the entries below it as
  * rows, and, for a Judge alone, a plus and a minus on each tag, a Fades / Stays
  * switch beside them and the arcane lifetime's count. The switch sets what that
- * tag's plus writes: a point that fades after the lifetime, or one that stays
- * until a minus takes it. Its state is a closure of `wirePowerChip`, so it lives
- * as long as the strip does and every render starts it on Fades; it is never
- * written to the actor. The classes feature hosts the chip; the ledger is
- * magic's, read and written through `magic/power-ledger-live.mjs`. A Player's
- * strip draws no buttons, no switch and no count, and never a kind with no
- * entries.
+ * tag's pair does: on Fades the plus adds a point that fades after the lifetime
+ * and the minus spends fading points first; on Stays the plus adds a point that
+ * stays until removed and the minus removes one. Its state is a per-window
+ * record, `powerSwitchOf(app)`, which every render of the strip reads and the
+ * wiring writes, so it survives the re-render each write causes; it starts on
+ * Fades, ends when its window closes (`forgetPowerSwitch`) and is never written
+ * to the actor. The classes feature hosts the chip; the ledger is magic's, read and
+ * written through `magic/power-ledger-live.mjs`. A Player's strip draws no
+ * buttons, no switch and no count, and never a kind with no entries.
  */
 import { chipModelFor, powerApi, announce } from "../magic/power-ledger-live.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 
-/** A Judge's Fades / Stays switch for one tag: two pills, one pressed, Fades first and pressed. */
-function stayHtml(k) {
+/** Each window's switch state, held by the window itself so that it ends with it. */
+const SWITCHES = new WeakMap();
+
+/**
+ * The switch state of one window: `{divine, arcane}`, each true where that tag is
+ * on Stays. The window is the application that hosts the strip, so two windows on
+ * one actor hold two records, and a window that never set a tag reads it as Fades.
+ * With no window to key on the record is a fresh one that nothing keeps.
+ */
+export function powerSwitchOf(app) {
+  if (!app || (typeof app !== "object" && typeof app !== "function")) return { divine: false, arcane: false };
+  let state = SWITCHES.get(app);
+  if (!state) SWITCHES.set(app, (state = { divine: false, arcane: false }));
+  return state;
+}
+
+/**
+ * Drop a window's switch state, so that the same window opened again reads Fades.
+ * A document keeps one sheet instance for as long as the world runs, so closing
+ * the window is the end of the state, not the instance's lifetime.
+ */
+export function forgetPowerSwitch(app) {
+  if (app && (typeof app === "object" || typeof app === "function")) SWITCHES.delete(app);
+}
+
+/** A Judge's Fades / Stays switch for one tag: two pills, the one in `onStays`'s state pressed. */
+function stayHtml(k, onStays) {
   const pill = (stays, label, tip) =>
-    `<button type="button" class="acks-extras-classes-powerpill" data-power-stay="${stays ? 1 : 0}" data-power-kind="${k.kind}" aria-pressed="${stays ? "false" : "true"}" data-tooltip-text="${esc(tip)}">${esc(label)}</button>`;
+    `<button type="button" class="acks-extras-classes-powerpill" data-power-stay="${stays ? 1 : 0}" data-power-kind="${k.kind}" aria-pressed="${stays === onStays ? "true" : "false"}" data-tooltip-text="${esc(tip)}">${esc(label)}</button>`;
   return `<span class="acks-extras-classes-powerstay" role="group" aria-label="${esc(k.stay.group)}">${pill(false, k.stay.fades, k.stay.fadesTip)}${pill(true, k.stay.stays, k.stay.staysTip)}</span>`;
 }
 
 /** One power's tag, with a Judge's controls beside it, all in one wrapping group. */
-function chipHtml(model, k) {
+function chipHtml(model, k, state) {
+  const onStays = state[k.kind] === true;
   const buttons = model.judge
     ? `<button type="button" class="acks-extras-classes-powerbtn" data-power-adjust="1" data-power-kind="${k.kind}" aria-label="${esc(k.addLabel)}" data-tooltip=""><i class="fa-solid fa-plus" inert></i></button>` +
-      `<button type="button" class="acks-extras-classes-powerbtn" data-power-adjust="-1" data-power-kind="${k.kind}" aria-label="${esc(k.removeLabel)}" data-tooltip=""><i class="fa-solid fa-minus" inert></i></button>`
+      `<button type="button" class="acks-extras-classes-powerbtn" data-power-adjust="-1" data-power-kind="${k.kind}" data-power-label="${esc(k.removeLabel)}" data-power-label-stays="${esc(k.removeStaysLabel)}" aria-label="${esc(onStays ? k.removeStaysLabel : k.removeLabel)}" data-tooltip=""><i class="fa-solid fa-minus" inert></i></button>`
     : "";
-  const stay = model.judge && k.stay ? stayHtml(k) : "";
+  const stay = model.judge && k.stay ? stayHtml(k, onStays) : "";
   const count = k.count
     ? `<input type="number" min="1" step="1" class="acks-input acks-extras-classes-powercount acks-nums" data-power-count value="${esc(k.count.value)}" aria-label="${esc(k.count.label)}" data-tooltip-text="${esc(k.count.tip)}">`
     : "";
@@ -64,8 +92,9 @@ function rowHtml(row) {
  * Player with no entries, or an actor that casts nothing and holds no power.
  * @param {Actor} actor
  * @param {boolean} casts whether the actor has any casting pool to draw
+ * @param {{divine: boolean, arcane: boolean}} [state] the window's switch state (`powerSwitchOf`); each pill pair is drawn pressed to match
  */
-export function powerSectionHtml(actor, casts) {
+export function powerSectionHtml(actor, casts, state = powerSwitchOf(null)) {
   let model;
   try {
     model = chipModelFor(actor);
@@ -79,23 +108,32 @@ export function powerSectionHtml(actor, casts) {
   const list = rows.length
     ? `<ul class="acks-extras-classes-powerlist">${rows.map(rowHtml).join("")}</ul>`
     : `<span class="acks-extras-classes-powerempty">${esc(model.emptyText)}</span>`;
-  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(model, k)).join("")}</div>${list}</div>`;
+  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(model, k, state)).join("")}</div>${list}</div>`;
 }
 
 /**
  * Wire the ledger's controls on a strip: a Judge's plus, minus, Fades / Stays
- * switch and Undo, and the arcane count. The switch is read at the plus: a tag
- * set to Stays writes its next gain as a lot that stays. A press of the switch
- * writes nothing; its state is this call's, per strip, and starts on Fades.
+ * switch and Undo, and the arcane count. The switch is read at the press: a tag
+ * set to Stays writes its plus as a lot that stays and its minus as a removal
+ * from the lots that stay. A press of the switch writes nothing to the actor; it
+ * sets `state`, the window's record (`powerSwitchOf`), which a render of the strip
+ * reads back, and relabels that tag's minus.
+ * @param {Element} strip
+ * @param {Actor} actor
+ * @param {{divine: boolean, arcane: boolean}} [state] the window's switch state; a fresh one when none is passed
  */
-export function wirePowerChip(strip, actor) {
-  const stays = { divine: false, arcane: false };
+export function wirePowerChip(strip, actor, state = powerSwitchOf(null)) {
   strip.addEventListener("click", (event) => {
     const pill = event.target.closest("[data-power-stay]");
     if (pill) {
       event.preventDefault();
-      stays[pill.dataset.powerKind] = pill.dataset.powerStay === "1";
+      const kind = pill.dataset.powerKind;
+      const onStays = pill.dataset.powerStay === "1";
+      state[kind] = onStays;
       for (const other of pill.parentElement?.querySelectorAll?.("[data-power-stay]") ?? []) other.setAttribute("aria-pressed", String(other === pill));
+      const minus = strip.querySelector?.(`[data-power-adjust="-1"][data-power-kind="${kind}"]`);
+      const label = minus?.dataset?.[onStays ? "powerLabelStays" : "powerLabel"];
+      if (label) minus.setAttribute("aria-label", label);
       return;
     }
     const adjust = event.target.closest("[data-power-adjust]");
@@ -103,7 +141,8 @@ export function wirePowerChip(strip, actor) {
       event.preventDefault();
       const { powerKind: kind, powerAdjust } = adjust.dataset;
       const args = { amount: 1, by: "judge" };
-      if (Number(powerAdjust) > 0 && stays[kind] === true) args.stays = true;
+      const onStays = state[kind] === true;
+      if (onStays) args[Number(powerAdjust) > 0 ? "stays" : "fromStays"] = true;
       void (Number(powerAdjust) > 0 ? powerApi.gain(actor, kind, args) : powerApi.spend(actor, kind, args)).then(announce);
       return;
     }

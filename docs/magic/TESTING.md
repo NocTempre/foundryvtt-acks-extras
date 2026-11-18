@@ -1509,15 +1509,29 @@ is what "written" is read from. The walk makes no document of its own.
    on a ledger unset first. On the GM seat press Stays on the divine tag, then its plus. *Observable:*
    the press of Stays moves `aria-pressed`, re-renders nothing and writes nothing (the counter holds);
    the plus writes one entry with `stays: true` and `by: "judge"`; its row has the pin and "stays until
-   removed", and so does the tag's tooltip; the switch reads Fades again after the render the write made.
+   removed", and so does the tag's tooltip; the switch still reads Stays after the render the write made.
    Write that entry's `day` thirty days back: the balance, the face and the row are unchanged, nothing
-   is due to fade. Press the plus on Fades: an entry with no mark, which expires once its `day` is a
+   is due to fade. Press Fades, then the plus: an entry with no mark, which expires once its `day` is a
    lifetime back (rows newest first, the expired one dimmed). Add a fading lot and press the minus: it
    takes the fresh fading lot, not the older lot that stays, and not the one that had expired (read
    with `standing` imported from `power-ledger.mjs`). On the Player seat: no `[data-power-stay]`, no
    group, the lot that stays shown with its pin, and `gain(actor, "divine", {amount: 1, stays: true})`
    answers `judge` with nothing written.
-9. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
+9. **The switch holds, and the minus follows it.** Walked in the walk's section 6c, on a ledger unset
+   first, under the same override. On the GM seat press Stays on the divine tag, then the plus twice.
+   *Observable:* after each render (the strip element is a new one) the divine pair still reads Stays
+   pressed and its minus carries the staying `aria-label`, the arcane pair is on Fades, and both entries
+   carry `stays: true`. Press Fades and the plus (a fading lot), press Stays and the minus. *Observable:*
+   the new spend carries `fromStays: true` and `by: "judge"`, `standing` shows the oldest point that
+   stays at nothing and the fading lot untouched, its row reads "Removed a point that stays", and the
+   pair still reads Stays. Press Fades and the minus: a spend with no `fromStays`, which took the fading
+   lot. With the point that stays gone, press Stays and the minus twice more: the first removes the
+   last one, the second writes nothing (the entry count and the counter hold). Press Stays on the first window, open a second window on the
+   same actor (`new sheet.constructor({document, id})`, Magic tab). *Observable:* its divine pair reads
+   Fades while the first reads Stays, a plus pressed in it writes an entry with no mark, and both keep
+   their own state after the write. The presses and the open wrote nothing (the counter moved once, for
+   that plus). Close the sheet and open it again: Fades.
+10. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
    *Observable:* `power:divine`, quantity and cap five; a smaller ask stands; a power with none held
    gives no row; `power.settle` of a handed row spends it.
 
@@ -1527,9 +1541,10 @@ The plus and minus sit beside their tag as siblings, so each is found as
 `[data-power="<kind>"] ~ [data-power-adjust="1|-1"]` and the first match is that kind's; the Fades /
 Stays pills are `[data-power-stay="0|1"][data-power-kind="<kind>"]` inside a group that follows the
 minus. A press of a plus or minus re-renders the sheet, so the strip is looked up again after each; a
-press of a pill does not, and the pill's state lives in the strip's closure, so the plus must be
-pressed on the same strip. The press of Stays and the plus that follows are two presses, and a render
-in between (a write by a peer) would reset it to Fades. The clock is shared by every seat
+press of a pill does not. The pill's state lives on the sheet window (`powerSwitchOf`, keyed by the
+application), so it survives that render and a second window is its own; a close ends it, though the
+document keeps its one `actor.sheet` instance. A second window is built by hand with an `id` of its
+own and closed in a `finally`. The clock is shared by every seat
 and the walk never moves it: a lot's day is written in the past (`actor.update` of the kind's
 `entries`), which is what a gain a lifetime ago is, and the balance reads the clock as it stands.
 A real advance of the clock, and the calendar's own weekday list for a lifetime counted in weeks

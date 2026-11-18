@@ -730,14 +730,15 @@ await ta("the switch sets what that tag's plus writes, starts on Fades, and writ
   plus("arcane");
   await tick();
   assert.equal("stays" in entries("arcane")[0], false, "the other tag's switch is its own, still Fades");
+  pressPill(divine[0]);
+  assert.deepEqual(divine.map((p) => p.pressed), [true, false]);
   minus("divine");
   await tick();
   assert.equal(entries("divine")[2].amount, -1);
-  assert.equal("stays" in entries("divine")[2], false, "a minus never carries the mark");
+  assert.equal("stays" in entries("divine")[2], false, "a minus never carries the gain's mark");
+  assert.equal("fromStays" in entries("divine")[2], false, "on Fades the minus is the ordinary spend");
   assert.equal(L.powerApi.balance(actor, "divine"), 1, "the minus drew the fading point, so the point that stays is what is left");
   assert.equal(P.standing(entries("divine"), 5, null).find((l) => l.stays).left, 1);
-  pressPill(divine[0]);
-  assert.deepEqual(divine.map((p) => p.pressed), [true, false]);
   plus("divine");
   await tick();
   assert.equal("stays" in entries("divine")[3], false, "Fades then plus fades again");
@@ -745,13 +746,239 @@ await ta("the switch sets what that tag's plus writes, starts on Fades, and writ
   C.wirePowerChip({ addEventListener: (type, fn) => (fresh[type] = fn) }, actor);
   fresh.click({ target: { closest: (s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: "divine", powerAdjust: "1" } } : null) }, preventDefault() {} });
   await tick();
-  assert.equal("stays" in entries("divine")[4], false, "a strip wired afresh (a render) starts on Fades");
+  assert.equal("stays" in entries("divine")[4], false, "a strip wired with no window's record starts on Fades");
   gameState.isGM = false;
   pressPill(divine[1]);
   plus("divine");
   await tick();
   assert.equal(entries("divine").length, 5, "a Player's stay press, were one sent, writes nothing");
   assert.ok(gameState.warned.filter((m) => m === "ACKS-MAGIC.power.refused.judge").length >= 1);
+  gameState.isGM = true;
+});
+
+/* ------------------------------ a minus that removes a point that stays ------------------------------ */
+
+t("a spend's from-stays mark survives a clean only on a spend, and a stored spend without one reads as it always did", () => {
+  assert.deepEqual(P.cleanEntry({ id: "s", amount: -1, day: 1, fromStays: true }), { id: "s", amount: -1, day: 1, name: "", img: "", ref: "", by: "", fromStays: true });
+  assert.equal("fromStays" in P.cleanEntry({ id: "s", amount: -1, day: 1 }), false, "no key where there was no mark");
+  for (const bad of [false, "true", 1, null]) assert.equal("fromStays" in P.cleanEntry({ id: "s", amount: -1, fromStays: bad }), false, String(bad));
+  assert.equal("fromStays" in P.cleanEntry({ id: "g", amount: 2, fromStays: true }), false, "a gain is never a removal");
+  assert.equal(P.readLedger({ divine: { entries: [{ id: "s", amount: -1, fromStays: true }] } }).divine.entries[0].fromStays, true, "kept through a read of the flag");
+  assert.equal(P.withEntry(P.readLedger(null), "divine", e("s", -1, 1, { fromStays: true })).divine.entries[0].fromStays, true, "and through an append");
+});
+
+t("a spend from the lots that stay draws only on them, oldest first, and leaves every fading lot", () => {
+  const left = (entries, today, span = 30) => Object.fromEntries(P.standing(entries, today, span).map((l) => [l.id, l.left]));
+  const keep1 = e("k1", 2, 0, { stays: true });
+  const keep2 = e("k2", 3, 4, { stays: true });
+  assert.deepEqual(left([e("f", 4, 1), keep1, keep2, e("s", -1, 6, { fromStays: true })], 7), { f: 4, k1: 1, k2: 3 }, "the oldest lot that stays pays, not the fading lot an ordinary spend takes first");
+  assert.deepEqual(left([e("f", 4, 1), keep1, keep2, e("s", -3, 6, { fromStays: true })], 7), { f: 4, k1: 0, k2: 2 }, "it runs on to the next lot that stays");
+  assert.deepEqual(left([e("f", 4, 1), keep1, e("s", -3, 6, { fromStays: true })], 7), { f: 4, k1: 0 }, "and stops at them: it never reaches into a fading lot");
+  assert.deepEqual(left([e("f", 4, 1), keep1, e("s", -1, 6)], 7), { f: 3, k1: 2 }, "an ordinary spend is as before");
+  assert.equal(P.stayingBalanceOf([e("f", 4, 1), keep1, keep2, e("s", -5, 6)], 7, 30), 4, "the ordinary spend drew the fading four first and then one that stays");
+  assert.equal(P.stayingBalanceOf([e("f", 4, 1), keep1, keep2], 9999, 30), 5, "lots that stay count past any span");
+  assert.equal(P.stayingBalanceOf([e("f", 4, 1)], 7, 30), 0);
+});
+
+await ta("a Judge's minus on Stays takes the oldest point that stays and leaves the fading ones; an Undo gives it back", async () => {
+  const r = rig({ span: 50 });
+  await r.ops.gain(r.actor, "divine", { amount: 2, name: "kept1", by: "judge", stays: true });
+  r.today = 101;
+  await r.ops.gain(r.actor, "divine", { amount: 3, name: "faded", by: "judge" });
+  await r.ops.gain(r.actor, "divine", { amount: 4, name: "kept2", by: "judge", stays: true });
+  const done = await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge", fromStays: true });
+  assert.deepEqual([done.ok, done.amount, done.balance, done.warn], [true, 1, 8, undefined]);
+  const entry = r.flag.divine.entries.at(-1);
+  assert.deepEqual([entry.amount, entry.by, entry.fromStays, "stays" in entry], [-1, "judge", true, false]);
+  const lots = (ledger = r.flag) => Object.fromEntries(P.standing(P.readLedger(ledger).divine.entries, r.today, 50).map((l) => [l.name, l.left]));
+  assert.deepEqual(lots(), { kept1: 1, faded: 3, kept2: 4 });
+  assert.deepEqual(await r.ops.undo(r.actor, "divine", done.id), { ok: true, balance: 9 });
+  assert.deepEqual(lots(), { kept1: 2, faded: 3, kept2: 4 }, "Undo took the removal back like any hand spend");
+  await r.ops.spend(r.actor, "divine", { amount: 3, by: "judge", fromStays: true });
+  assert.deepEqual(lots(), { kept1: 0, faded: 3, kept2: 3 }, "a removal runs on to the next lot that stays");
+  const plain = await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge" });
+  assert.equal("fromStays" in r.flag.divine.entries.at(-1), false, "the ordinary spend carries no mark");
+  assert.deepEqual(lots(), { kept1: 0, faded: 2, kept2: 3 }, "and still takes the fading lot first");
+  assert.equal(plain.ok, true);
+});
+
+await ta("a Judge's minus on Stays with no point that stays writes nothing and warns, even where fading power is held", async () => {
+  const r = rig({ span: 50 });
+  await r.ops.gain(r.actor, "divine", { amount: 3, name: "faded", by: "judge" });
+  const writes = r.writes;
+  const none = await r.ops.spend(r.actor, "divine", { amount: 1, by: "judge", fromStays: true });
+  assert.deepEqual([none.ok, none.amount, none.warn, none.balance], [true, 0, "staysShort", 3], "the balance is what is held, not zero");
+  assert.equal(r.writes, writes);
+  await r.ops.gain(r.actor, "divine", { amount: 1, by: "judge", stays: true });
+  const some = await r.ops.spend(r.actor, "divine", { amount: 5, by: "judge", fromStays: true });
+  assert.deepEqual([some.ok, some.amount, some.warn, some.balance], [true, 1, "staysShort", 3], "short of the lots that stay it takes what they hold and leaves the fading power");
+  const empty = rig();
+  assert.deepEqual([(await empty.ops.spend(empty.actor, "arcane", { amount: 1, fromStays: true })).warn, empty.writes], ["staysShort", 0]);
+});
+
+await ta("a Player can never draw from the lots that stay alone: refused direct, unsent, relayed and applied, and nothing is written", async () => {
+  const own = rig({ judge: false, canWrite: true });
+  own.flag = { divine: { entries: [e("k", 3, 90, { stays: true })] } };
+  assert.deepEqual(await own.ops.spend(own.actor, "divine", { amount: 1, fromStays: true }), { ok: false, reason: "judge" });
+  const away = rig({ judge: false, canWrite: false });
+  assert.deepEqual(await away.ops.spend(away.actor, "divine", { amount: 1, fromStays: true }), { ok: false, reason: "judge" });
+  assert.deepEqual([own.writes, away.relays.length, away.writes], [0, 0, 0], "refused before a request is sent");
+  const ask = (args, who) => P.checkPowerRequest({ kind: "divine", op: "spend", args }, { actor: {}, ...who });
+  assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: false, owns: true }), { refused: "judge" });
+  assert.deepEqual(ask({ amount: 1, fromStays: true }, { fromJudge: true, owns: false }), { ok: true });
+  assert.deepEqual(ask({ amount: 1, fromStays: false }, { fromJudge: false, owns: true }), { ok: true }, "only a request for the mark is the Judge's");
+  const gm = rig({ judge: true });
+  gm.flag = { divine: { entries: [e("k", 3, 90, { stays: true }), e("f", 3, 90)] } };
+  assert.deepEqual(await gm.ops.apply(gm.actor, "divine", "spend", { amount: 1, fromStays: true }, false), { ok: false, reason: "judge" }, "applied for a sender who is no Judge it is refused, not run as an ordinary spend");
+  assert.equal(gm.writes, 0);
+  assert.equal((await gm.ops.apply(gm.actor, "divine", "spend", { amount: 1, fromStays: true }, true)).ok, true);
+  assert.equal(gm.flag.divine.entries.at(-1).fromStays, true);
+});
+
+await ta("the relay handler refuses an owner's removal from the lots that stay and runs a Judge's", async () => {
+  resetTables();
+  gameState.isGM = true;
+  const actor = worldActor("Actor.h3", { flags: { divine: { entries: [e("k", 3, 5, { stays: true }), e("f", 3, 5)] } } });
+  actor.owners = ["owner3"];
+  gameState.users.set("owner3", { id: "owner3", isGM: false });
+  const ask = (args, requestUserId) => L.powerHandler({ actorUuid: "Actor.h3", kind: "divine", op: "spend", args, requestUserId });
+  assert.deepEqual(await ask({ amount: 1, fromStays: true }, "owner3"), { ok: false, reason: "judge" });
+  assert.equal(actor.updates.length, 0);
+  assert.equal((await ask({ amount: 1 }, "owner3")).ok, true, "an owner's ordinary spend still runs");
+  assert.equal((await ask({ amount: 1, fromStays: true }, undefined)).ok, true, "the Judge's own client may");
+  assert.equal(actor.flags["acks-extras"].power.divine.entries.at(-1).fromStays, true);
+  assert.equal("fromStays" in actor.flags["acks-extras"].power.divine.entries[2], false);
+});
+
+t("a removal from the lots that stay captions itself, and the chip carries the minus's second label", () => {
+  const raw = { divine: { entries: [e("k", 3, 0, { by: "judge", stays: true }), e("s", -1, 1, { by: "judge", fromStays: true }), e("t", -1, 2, { by: "judge" })] } };
+  const k = model(raw, { judge: true }).kinds[0];
+  const row = (id) => k.rows.find((r) => r.id === id);
+  assert.deepEqual([row("s").caption, row("s").fromStays, row("s").stays], ["removedStays", true, false]);
+  assert.deepEqual([row("t").caption, row("t").fromStays], ["", false]);
+  assert.equal(k.removeStaysLabel, 'removeStaysLabel{"label":"kind.divine"}');
+  assert.equal(k.balance, 1);
+});
+
+/** A strip whose pills and minus buttons are objects, wired over a window's own record. */
+function wiredStrip(actor, state) {
+  const handlers = {};
+  const buttons = Object.fromEntries(["divine", "arcane"].map((kind) => [kind, { dataset: { powerLabel: `remove ${kind}`, powerLabelStays: `remove staying ${kind}` }, label: `remove ${kind}`, setAttribute(name, value) { if (name === "aria-label") this.label = value; } }]));
+  const strip = { addEventListener: (type, fn) => (handlers[type] = fn), querySelector: (sel) => buttons[/data-power-kind="(\w+)"/.exec(sel)?.[1]] ?? null };
+  C.wirePowerChip(strip, actor, state);
+  const pills = Object.fromEntries(["divine", "arcane"].map((kind) => {
+    const list = ["0", "1"].map((v) => ({ dataset: { powerStay: v, powerKind: kind }, pressed: v === "0", setAttribute(name, value) { if (name === "aria-pressed") this.pressed = value === "true"; } }));
+    for (const pill of list) pill.parentElement = { querySelectorAll: () => list };
+    return [kind, list];
+  }));
+  const click = (hit) => handlers.click({ target: { closest: (s) => hit(s) }, preventDefault() {} });
+  return {
+    buttons,
+    pills,
+    press: (kind, v) => click((s) => (s === "[data-power-stay]" ? pills[kind][v] : null)),
+    plus: (kind) => click((s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: kind, powerAdjust: "1" } } : null)),
+    take: (kind) => click((s) => (s === "[data-power-adjust]" ? { dataset: { powerKind: kind, powerAdjust: "-1" } } : null)),
+  };
+}
+
+await ta("the switch holds across a render: kept per window and per tag, never on the actor, and Fades for a window that has not set it", async () => {
+  resetTables();
+  gameState.isGM = true;
+  const actor = worldActor("Actor.c6", { flags: {} });
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const entries = (kind) => actor.flags["acks-extras"].power?.[kind]?.entries ?? [];
+  const windowA = {};
+  const windowB = {};
+  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "a window that has not set it reads Fades");
+  assert.equal(C.powerSwitchOf(windowA), C.powerSwitchOf(windowA), "one record per window");
+  assert.notEqual(C.powerSwitchOf(windowA), C.powerSwitchOf(windowB), "two windows, two records");
+  assert.notEqual(C.powerSwitchOf(null), C.powerSwitchOf(null), "no window, nothing kept");
+  const render1 = wiredStrip(actor, C.powerSwitchOf(windowA));
+  render1.press("divine", 1);
+  assert.equal(render1.buttons.divine.label, "remove staying divine", "the divine minus is relabelled");
+  assert.equal(render1.buttons.arcane.label, "remove arcane", "and the arcane one is not");
+  const writes = actor.updates.length;
+  assert.equal(writes, 0, "a pill press writes nothing to the actor");
+  render1.plus("divine");
+  await tick();
+  const render2 = wiredStrip(actor, C.powerSwitchOf(windowA));
+  render2.plus("divine");
+  await tick();
+  assert.deepEqual(entries("divine").map((x) => x.stays === true), [true, true], "after a render the next plus still stays");
+  assert.deepEqual(actor.updates.map((u) => Object.keys(u)[0]), ["flags.acks-extras.power.divine", "flags.acks-extras.power.divine"], "only the two gains were written");
+  render2.plus("arcane");
+  await tick();
+  assert.equal("stays" in entries("arcane")[0], false, "the arcane tag was never set, so it fades");
+  const other = wiredStrip(actor, C.powerSwitchOf(windowB));
+  other.plus("divine");
+  await tick();
+  assert.equal("stays" in entries("divine")[2], false, "a second window on the same actor opens on Fades");
+  const html = (win) => C.powerSectionHtml(actor, true, C.powerSwitchOf(win));
+  const a = html(windowA);
+  assert.ok(/data-power-stay="1" data-power-kind="divine" aria-pressed="true"/.test(a) && /data-power-stay="0" data-power-kind="divine" aria-pressed="false"/.test(a), "the render draws the divine pair as set");
+  assert.ok(/data-power-stay="0" data-power-kind="arcane" aria-pressed="true"/.test(a), "and the arcane pair on Fades");
+  assert.ok(/data-power-kind="divine" data-power-label="[^"]*" data-power-label-stays="[^"]*" aria-label="[^"]*removeStaysLabel/.test(a), "the divine minus is drawn with its second label");
+  assert.ok(/data-power-kind="arcane" data-power-label="[^"]*" data-power-label-stays="[^"]*" aria-label="[^"]*removeLabel/.test(a), "the arcane one with its first");
+  const b = html(windowB);
+  assert.ok(/data-power-stay="0" data-power-kind="divine" aria-pressed="true"/.test(b), "the other window's pair is on Fades");
+  render2.press("divine", 0);
+  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "pressing Fades puts it back");
+  render2.press("divine", 1);
+  render2.press("arcane", 1);
+  assert.deepEqual(C.powerSwitchOf(windowA), { divine: true, arcane: true }, "each tag holds its own state");
+  C.forgetPowerSwitch(windowB);
+  assert.deepEqual(C.powerSwitchOf(windowA), { divine: true, arcane: true }, "closing another window leaves this one's record");
+  C.forgetPowerSwitch(windowA);
+  assert.deepEqual(C.powerSwitchOf(windowA), { divine: false, arcane: false }, "a window closed and opened again reads Fades");
+  C.forgetPowerSwitch(null);
+  C.forgetPowerSwitch("not a window");
+  assert.equal(actor.updates.length, 4, "still only the four gains were written");
+  const bareA = wiredStrip(actor);
+  const bareB = wiredStrip(actor);
+  bareA.press("divine", 1);
+  bareB.plus("divine");
+  await tick();
+  assert.equal("stays" in entries("divine").at(-1), false, "two strips wired with no window's record share nothing");
+});
+
+await ta("the minus on a tag set to Stays removes a point that stays, and on Fades spends as it did; the switch is read at each press", async () => {
+  resetTables();
+  gameState.isGM = true;
+  gameState.warned = [];
+  const actor = worldActor("Actor.c7", { flags: {} });
+  const tick = () => new Promise((r) => setTimeout(r, 0));
+  const entries = () => actor.flags["acks-extras"].power.divine.entries;
+  const window = {};
+  const strip = wiredStrip(actor, C.powerSwitchOf(window));
+  strip.plus("divine");
+  strip.press("divine", 1);
+  strip.plus("divine");
+  strip.plus("divine");
+  await tick();
+  assert.deepEqual(entries().map((x) => x.stays === true), [false, true, true]);
+  const strip2 = wiredStrip(actor, C.powerSwitchOf(window));
+  strip2.take("divine");
+  await tick();
+  assert.deepEqual([entries()[3].amount, entries()[3].fromStays, entries()[3].by], [-1, true, "judge"], "on Stays the minus is a removal from the lots that stay");
+  const lots = () => Object.fromEntries(P.standing(entries(), 5, null).map((l) => [l.id, l.left]));
+  assert.deepEqual(Object.values(lots()), [1, 0, 1], "the oldest point that stays went and the fading one is untouched");
+  strip2.press("divine", 0);
+  strip2.take("divine");
+  await tick();
+  assert.equal("fromStays" in entries()[4], false, "on Fades the minus is the ordinary spend");
+  assert.deepEqual(Object.values(lots()), [0, 0, 1], "which took the fading point first");
+  strip2.press("divine", 1);
+  strip2.take("divine");
+  await tick();
+  strip2.take("divine");
+  await tick();
+  assert.equal(entries().length, 6, "with no point that stays left, a second removal writes nothing");
+  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.warn.staysShort"), "and warns the Judge");
+  gameState.isGM = false;
+  strip2.take("divine");
+  await tick();
+  assert.equal(entries().length, 6, "a Player's removal, were one sent, writes nothing");
+  assert.ok(gameState.warned.includes("ACKS-MAGIC.power.refused.judge"));
   gameState.isGM = true;
 });
 

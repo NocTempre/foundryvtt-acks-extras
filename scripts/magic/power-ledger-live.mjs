@@ -140,7 +140,7 @@ export const powerApi = {
   },
   /** Power gained: `gain(actor, kind, {amount, name, img, ref})`; a Judge's `stays: true` writes a lot that never expires (a Player's is refused). */
   gain: (actor, kind, args) => ops().gain(actor, kind, args),
-  /** Power spent: `spend(actor, kind, {amount, name, img, ref})`. */
+  /** Power spent: `spend(actor, kind, {amount, name, img, ref})`, which draws fading lots first and then lots that stay. A Judge's `fromStays: true` draws on the lots that stay alone (a Player's is refused). */
   spend: (actor, kind, args) => ops().spend(actor, kind, args),
   /** A spend taken back by its entry id (the Judge's). */
   undo: (actor, kind, id) => ops().undo(actor, kind, id),

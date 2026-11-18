@@ -770,7 +770,7 @@ default proceeded on and the counter:
   under the handler `magicProject`. *Counter (low):* an array path per project would write less
   and race less; Foundry's flag update replaces arrays whole either way.
 
-## 2026-11-18 — The hand plus: a Fades/Stays switch (owner, board 14 B)
+## 2026-11-18 — The hand plus: a Fades/Stays switch (owner, board 14 B) — SUPERSEDED IN PART 2026-11-18
 
 This entry supersedes in part "The ledger's plus and minus: the owner's two answers": its
 sentence "Until then every hand plus fades", and qualifies "The power ledger and its chip (M-l,
@@ -841,3 +841,67 @@ closed list. Asked to review it, the owner answered "Approve as built".
   Start button.
 - *Cost:* the design step came after the build this once, so the owner reviewed working code
   rather than a drawing. A change asked for then would have been a rework on main.
+
+## 2026-11-18 — The minus follows the switch, and the switch holds (owner)
+
+This entry supersedes in part "The hand plus: a Fades/Stays switch (owner, board 14 B)": its
+first judgment call (the switch's state lives in the strip's closure and every render starts it
+on Fades) and its sentence that a minus takes fading lots first and then lots that stay, for the
+Judge's minus on a tag set to Stays. The new evidence, less than a day after the ruling it
+changes, is the owner's answer to a question the build raised and what board 14 draws.
+
+- **The minus follows the switch.** Asked whether a Judge should get a direct way to remove a
+  point that stays, the owner chose "Yes: − follows the switch". With a tag's switch on Stays, its
+  minus removes a point that stays, oldest first; on Fades it spends as before, fading points
+  first and then the ones that stay. No new control. For example, a Judge who presses Stays on the
+  divine tag and then the minus, holding two staying points and one fading point, ends with one
+  staying point and the fading point untouched.
+- **The reset was a defect against board 14.** Board 14 draws a switch that holds its setting.
+  The first entry shipped one that fell back to Fades after each plus, on its reading of the
+  board's words "state that a re-render resets". A build that disagrees with the board the owner
+  approved is fixed to the board, not re-decided. The state is kept per sheet window and per tag (divine, arcane), and is never
+  written to the actor. A window that has not set it reads Fades. For example, a Judge presses
+  Stays and then the plus twice: both points stay, and the switch still reads Stays after each
+  render. A second window on the same character opens on Fades.
+
+Judgment calls made in the fix, each with the default proceeded on and the counter:
+
+- **A removal is a spend marked `fromStays: true`, written by hand like any Judge's minus.** Its
+  entry is a negative amount with `by: "judge"`, so Undo takes it back as it takes any hand spend
+  and the ledger's order of entries is unchanged. The mark is written on a spend only and a stored
+  spend without it reads as before, so no flag is migrated. *Counter (low):* reusing `stays` on a
+  spend would add no key, and would make one key mean "never expires" on a gain and "drew only on
+  lots that stay" on a spend, so a row's glyph and tooltip would have to tell them apart.
+- **The mark is the Judge's on all three authorization sites,** the same three the gain that stays
+  uses: `run` answers `judge` to a Player before any request is sent, `checkPowerRequest` refuses
+  it on the sender Foundry attested, and `apply` refuses it for a sender who is no Judge. A Player
+  can never draw from lots that stay alone. *Counter (low):* at `apply` the gain's mark is dropped
+  and the gain still runs as a fading point; dropping a spend's mark would run a Player's request as
+  an ordinary spend, which is a write nobody asked for, so `apply` refuses.
+- **A removal short of the lots that stay takes what they hold and warns `staysShort`; with none
+  held it writes nothing.** It never reaches into a fading lot, and a Player is never in this case.
+  The chip's minus asks for one, so on the strip the case is the none-held one. *Counter (low):*
+  falling back to a fading lot when none stays would make the Stays minus a second Fades minus
+  exactly when the Judge pressed it to take a point that stays.
+- **The state is a `WeakMap` keyed by the application that hosts the strip, and it ends when the
+  window closes.** A document keeps one sheet instance for as long as the world runs, so keying
+  alone would carry a Stays across a close and a reopen; `closeApplicationV2` drops the record. A
+  forgotten Stays would write permanent power at the next plus, and Fades is the safe resting
+  state the first entry named. *Counter (medium):* keeping it for the life of the instance spares
+  a Judge who closes and reopens a sheet one press, and leaves a Stays standing after the window
+  that set it is gone.
+- **Nothing on the document.** No flag, no setting. *Counter (medium):* a stored switch would hold
+  across sessions and windows; the owner's word was "never persisted", and two seats on one actor
+  would then share a Stays one of them forgot.
+- **The minus is labelled for what it does.** Its `aria-label` (which an empty `data-tooltip`
+  shows) reads "Remove a point that stays from …" while its tag is on Stays, and the group's name
+  and the two pills' tooltips now describe the pair, not the plus alone. A removal's row reads
+  "Removed a point that stays" where it has no cast to name. *Counter (low):* the owner said no
+  new control; a label is not one, and a minus whose effect changes under an unchanged name would
+  hide the switch's state from a keyboard or a screen reader.
+- *Cost:* a Judge who leaves a tag on Stays and presses the minus meaning to spend power spends
+  nothing from the fading lots; the pressed pill and the minus's label are what tell them. A
+  window left open holds its Stays until the Judge presses Fades.
+
+Not changed here, found on the way: the changelog fragment for the switch
+(`2026-11-18-spell-effects-power-stays.added.md`) still says every render starts it on Fades.

@@ -651,7 +651,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   #mountCasting() {
     const mount = this.element.querySelector('[data-mount="casting"]');
     if (!mount || mount.children.length) return;
-    const strip = castingStripElement(this.actor);
+    const strip = castingStripElement(this.actor, this);
     if (strip) mount.append(strip);
   }
 
