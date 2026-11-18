@@ -1025,3 +1025,22 @@ whole actor is deleted, since Foundry fires no per-record hook for it
 ([ROADMAP.md](ROADMAP.md)).
 
 What is not built yet is in [ROADMAP.md](ROADMAP.md) and the plan, `wip/`.
+
+## The research tables
+
+The printed figures magic research, ritual casting and blood sacrifice run on
+are imported into the `magicResearch` registry document (importer MODEL, "The
+magic research tables") and read by `scripts/magic/research-tables.mjs`,
+which is Foundry-free and takes the registry as an injectable lookup, as
+`ceremony-tables.mjs` does. Each reader answers `{present, ..., cite, byHand}`:
+`present: false` and every figure null when nothing is imported, `cite` the
+page the table was read from, and `byHand: true` with no page when a Judge's
+override replaced it. What ships is the procedure the helpers apply to the
+figures: the capped research rate (`researchRateAt`), the pro-rated
+substitution penalty (`substitutionPenalty`), assistant capacity, a facility's
+minimum by level and the bonus its surplus buys, divided among the researchers
+sharing it (`facilityMinimum`, `facilityBonus`), a library's share of a
+research's spend, ritual costs by level and the sacrifice bonus. Each helper
+answers null when a figure it needs is unread, and nothing here falls back to
+a default. No window reads these yet; the research, ritual and sacrifice slices
+consume them.

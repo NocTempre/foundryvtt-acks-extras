@@ -2622,3 +2622,48 @@ checks rows from a local-only heading census. At import `magicItemData`
 (`cookbook/magic-items.mjs`) builds the core item from the name, the description and
 the located figures only, into the book's folder of its category. The ruling and
 its rejected alternatives: DECISIONS 2026-11-17, "A magic item is `kind.magicItem`".
+
+## The magic research tables
+
+The `magicResearch` registry document reads the Revised Rulebook's research,
+ritual, blood-sacrifice and arcane-power passages from the Judge's own copy
+(RR 73, 388-393, 397-398 and 422). The Rulebook folder's
+`books/rr/table-recipes-research.mjs` carries geometry and anchors only and
+reaches `TABLE_RECIPES` through `books/rr/index.mjs`; `scripts/magic/research-tables.mjs`
+reads the stored cells.
+One table is one passage, so a figure cites the folio that prints it.
+
+**The ladder** (`researchLadder`) is a `gridRows` of generic optional rows,
+each read by `labelInt` and two windowed `raw` cells (the rate and the throw),
+so no level list or row count ships and the table ends where the page's rows
+do. The footnote mark on the upper rungs is a lone glyph that `gridRows`
+drops from its cells; `researchLadderNote` reads the figure the footnote gives
+other projects, and the reader caps a rung at it. A rung the note does not
+reduce is its printed rate; with the note unread a capped read answers null.
+
+**Prose figures** are `proseValues` windows: a single number is taken as one
+(`gp`, `signed`, `int`, `wordInt`, `pct`, `times`, `band`), and a fraction or a
+list of cost and level pairs is a `window` the reader parses, since no `take`
+reads a slashed fraction and the list's ordinal suffixes arrive as stray words
+beside the figures. A passage that repeats an anchor takes the occurrence in
+reading order (`occurrence`), and each page splits its columns at its own x
+(`colSplit`: the recto pages print the right column further in).
+
+**One passage per kind of facility.** The spell library, the item workshop,
+Identifying Magic Items' library, the ritual library and the ritual workshop
+each print their own bonus step, size and cap, and are read as their own
+tables; a cap is never borrowed from another kind. The identification
+passage shares its page with the workshop's, so its bonus takes the second
+occurrence of each anchor.
+
+**The sacrifice table** (`sacrificeTraits`) is a `gridRows` of rows labelled
+by `labelText`: the victim traits are the page's words and arrive at import,
+never from source. A row that prints the component value with no factor is
+read as one factor of one by the reader; the factor after a multiplication
+sign is the row's figure.
+
+Nothing is imported means every reader answers `present: false` and every
+figure null. Layered and edited as any registry document: the Ruledata
+Browser's override layer replaces a whole table. The recipes' shape and the
+readers' parse of every field are held against the real book by
+`tools/importer/test-recipe-content.mjs` (no figure is asserted).

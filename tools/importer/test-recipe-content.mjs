@@ -35,10 +35,16 @@ import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
 import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import * as RT from "../../scripts/magic/research-tables.mjs";
 import { FILES } from "./reference-lib.mjs";
 
 /** The tables under test, by recipe document. Each is one entry of `TABLE_RECIPES`. */
 const TABLES = {
+  // Magic research, ritual casting and blood sacrifice: every table the readers in magic/research-tables.mjs parse.
+  magicResearch: [
+    "researchLadder", "researchLadderNote", "arcaneLifetime", "researchProse", "assistantProse", "libraryProse",
+    "sampleProse", "workshopProse", "ritualCostProse", "ritualWorkshopProse", "sacrificeTraits", "divineLifetime", "powerOfSacrifice",
+  ],
   availability: ["equipmentAvailability", "marketRulesProse", "bargainingProse", "arrivalProse"],
   magicItems: ["transactionsByMarketClass", "priceProse", "identifyProse"],
   mercantile: [
@@ -1294,6 +1300,97 @@ for (const id of Object.keys(TABLE_RECIPES.magicItemTables.tables)) {
     }
   };
 }
+
+/* ------------------------- magic research tables -------------------------- */
+
+/** The extraction of one table, handed to a reader of magic/research-tables.mjs as the registry would. */
+const readVia = (tableId, out) => ({ table: (_doc, id) => (id === tableId ? out : null), citeOf: () => null, isOverridden: () => false });
+/** Names each key of `figures` that is null: a field the reader could not parse out of the extraction. */
+const unread = (figures, fail, where) => {
+  for (const [key, v] of Object.entries(figures)) if (v === null || v === undefined) fail(`${where}${key}: the reader parses no figure from the extraction`);
+};
+/** Cost lists that must hold the same levels, in rising order. */
+const sameLevels = (lists, fail) => {
+  const keys = (l) => (l ?? []).map((c) => c.level).join(",");
+  const first = keys(lists[0]);
+  if (!first) fail("a cost list is empty");
+  lists.forEach((l, i) => { if (keys(l) !== first) fail(`cost list ${i + 1} holds other levels than list 1`); });
+};
+const RESEARCH_VERIFY = {
+  researchLadder: (out, recipe, fail) => {
+    const rows = Object.entries(out ?? {});
+    if (!rows.length) fail("no rung read");
+    for (const [key, row] of rows) {
+      if (isMissingRow(row)) { fail(`row ${key}: __missing placeholder`); continue; }
+      if (RT.figure(row.label) === null) fail(`row ${key}: level did not parse`);
+      if (RT.parseGp(row.rate) === null) fail(`row ${key}: rate did not parse`);
+      if (RT.parseThrow(row.throw) === null) fail(`row ${key}: throw did not parse`);
+    }
+    const ladder = RT.readLadder(readVia("researchLadder", out));
+    if (ladder.rungs.length !== rows.length) fail("the reader keeps fewer rungs than the table read");
+    ladder.rungs.forEach((r, i) => { if (i && !(r.level > ladder.rungs[i - 1].level)) fail(`rung ${i + 1}: level does not rise`); });
+  },
+  researchLadderNote: (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    if (!(RT.readLadder(readVia("researchLadderNote", out)).otherProjectsRate > 0)) fail("otherProjectsRate: not above zero");
+  },
+  arcaneLifetime: (out, recipe, fail) => {
+    if (!isText(out?.unit)) fail("unit: absent");
+  },
+  researchProse: (out, recipe, fail) => {
+    for (const v of recipe.values) if (out?.[v.key] === undefined) fail(`${v.key}: absent`);
+    const p = RT.readResearchProse(readVia("researchProse", out));
+    unread({ ancillary: p.ancillary, autoFail: p.autoFail, penalty: p.penalty, penaltyMinimum: p.penaltyMinimum }, fail, "");
+    if (p.autoFail && p.autoFail.min > p.autoFail.max) fail("autoFailBand: minimum exceeds maximum");
+  },
+  assistantProse: (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const { present, cite, byHand, ...figures } = RT.readAssistants(readVia("assistantProse", out));
+    unread(figures, fail, "");
+  },
+  libraryProse: (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const f = RT.readFacility("library", readVia("libraryProse", out));
+    unread({ minimum: f.minimum, step: f.step, share: f.share, ...f.bonus }, fail, "");
+  },
+  sampleProse: (out, recipe, fail) => proseKeys(out, recipe, fail),
+  workshopProse: (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    const via = readVia("workshopProse", out);
+    const w = RT.readFacility("workshop", via);
+    unread({ minimum: w.minimum, step: w.step, ...w.bonus }, fail, "workshop ");
+    const id = RT.readIdentification(via);
+    unread({ minimumLevel: id.minimumLevel, material: id.material, research: id.research, ...id.library.bonus }, fail, "identification ");
+  },
+  ritualCostProse: (out, recipe, fail) => {
+    for (const v of recipe.values) if (out?.[v.key] === undefined) fail(`${v.key}: absent`);
+    const via = readVia("ritualCostProse", out);
+    const c = RT.readRitualCosts(via);
+    const f = RT.readFacility("ritualLibrary", via);
+    unread({ ...c.learn, ...c.cast, minimums: f.minimums, ...f.bonus }, fail, "");
+    sameLevels([c.learn.material, c.learn.research, c.cast.component, c.cast.material, c.cast.research, f.minimums], fail);
+  },
+  ritualWorkshopProse: (out, recipe, fail) => {
+    for (const v of recipe.values) if (out?.[v.key] === undefined) fail(`${v.key}: absent`);
+    const f = RT.readFacility("ritualWorkshop", readVia("ritualWorkshopProse", out));
+    unread({ minimums: f.minimums, ...f.bonus }, fail, "");
+  },
+  sacrificeTraits: (out, recipe, fail) => {
+    const rows = Object.entries(out ?? {});
+    if (!rows.length) fail("no row read");
+    for (const [key, row] of rows) if (isMissingRow(row)) fail(`row ${key}: __missing placeholder`);
+    const s = RT.readSacrificeTraits(readVia("sacrificeTraits", out));
+    if (s.rows.length !== rows.length) fail("the reader keeps fewer rows than the table read");
+    s.rows.forEach((r, i) => { if (r.times === null) fail(`row ${i + 1}: no factor parsed`); });
+    if (new Set(s.rows.map((r) => r.label)).size !== s.rows.length) fail("two rows share a label");
+  },
+  divineLifetime: (out, recipe, fail) => {
+    proseKeys(out, recipe, fail);
+    if (!isText(out?.unit)) fail("unit: absent");
+  },
+  powerOfSacrifice: (out, recipe, fail) => proseKeys(out, recipe, fail),
+};
+for (const [id, verify] of Object.entries(RESEARCH_VERIFY)) VERIFY[`magicResearch.${id}`] = verify;
 
 /* --------------------------------- the run -------------------------------- */
 

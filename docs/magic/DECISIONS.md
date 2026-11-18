@@ -524,3 +524,62 @@ spell. An implement row's page is its procedure's `cite`.
 The level and the procedure's answer (buckets and the pick) were already fields of the
 stored answer (`ANSWER_FIELDS`); R-c is what writes them, so a declaration made in the
 dialog now resolves at its turn from the level and the pick it stored, with no dialog.
+
+## 2026-11-18 — The research, ritual and sacrifice figures are imported rows (M-i, rulings 219, 227)
+
+Every figure the research, ritual, sacrifice and power-ledger slices read is printed,
+so it arrives through the importer into one registry document, `magicResearch`, and
+nothing ships as a constant: the research ladder, the other-projects rate its footnote
+gives, the ancillary share, the automatic-failure band, the substitution penalty and
+its minimum, the assistants' levels and counts, the library, workshop, ritual-library
+and ritual-workshop minimums, steps and bonuses, a library's share of a research's
+spend, the sample's bonus, identification's costs and level, the ritual costs by level,
+the victim-trait table, both power lifetimes and the demonologist's multiple. The
+recipes are a file of the Rulebook's own folder (`books/rr/table-recipes-research.mjs`,
+merged by `books/rr/index.mjs`), so the Treasure Tome work in `table-recipes.mjs` shares
+no hunk with this, and the book gate (`check-silos`) counts no new book reference
+outside `books/`.
+
+Rulings made in building it, each with the default proceeded on:
+
+- **One table per passage, one reader per table.** A figure cites the folio that
+  prints it, and the facility kinds are separate tables because each prints its own
+  step, size and cap. A cap is never borrowed across kinds: an unread cap answers null,
+  and so does the bonus that needs it. *Counter (medium):* the four bonus sentences
+  read alike, so one shared row would be smaller; it would also state a figure on a
+  page that does not print it.
+- **The ladder footnote is read from its figure, not its mark.** The mark is a lone
+  glyph that `gridRows` drops from the cells, so which rungs it marks is not read. The
+  footnote names a rate for other projects and the reader takes the lesser of that and
+  a rung's rate, which is the footnote's own effect; `researchRateAt` answers null for
+  a capped read while the footnote's rate is unread. *Counter (medium):* it reads a
+  rung as marked only if its rate exceeds the footnote's, so a page that marked a rung
+  at or under it would be misread; the ladder is monotone and the marked rungs are the
+  top of it, which the rules test confirms against the wiki capture.
+- **The substitution penalty rounds toward zero.** The page says to round up with a
+  minimum of one; read as a negative number's "up", the minimum has work to do, and read
+  as a larger size it would have none. The helper takes the integer part of the
+  pro-rated penalty and applies the minimum. *Counter (medium):* "round up" read as
+  "away from zero" gives one point more on every uneven share. The page's worked
+  example is exact either way, so it cannot decide; the helper is one line
+  (`substitutionPenalty`) if the owner rules the other way.
+- **A sacrifice row with no factor counts once.** The first trait prints the component
+  value and no multiplication, which the reader reads as a factor of one. *Counter
+  (low):* a row with no factor could be read as unknown; the row's own text says what it
+  adds, so it is not.
+- **The assistant count adds one per point of Intellect bonus.** The page prints "one
+  assistant plus an additional assistant for each point", with no other figure than the
+  base count, so the per-point ratio is the procedure and not a row.
+- **Arcane power's lifetime is a unit with no count.** The page names the month and no
+  number, so `arcaneLifetime` carries a unit and the reader's `count` is null; the
+  ledger slice supplies the count.
+- **Not imported here, by design.** The ritual's throw increase is "the level of the
+  ritual spell", the item-creation effect-type costs and the spell-research cost per
+  level are not named by rulings 219 or 227 and are not read; the XP award by level that
+  ruling 226 values a character victim by is a class-experience table whose producer
+  was not checked here. Each is reported as a finding for the slice that reads it.
+
+The recipes' shape and each reader's parse of every field are held against the real
+book by `test-recipe-content` (no figure asserted); the figures themselves are checked
+against the fan wiki's capture in a local-only rules test (ladder, sacrifice, ritual
+lists and scalars, as counts).
