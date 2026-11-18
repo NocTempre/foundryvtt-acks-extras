@@ -15,7 +15,7 @@
 
   {{#each fields as |f|}}
     {{#if (eq f.kind "set")}}
-      <fieldset class="acks-extras-effect-set">
+      <fieldset class="acks-extras-effect-set"{{#if f.tip}} data-tooltip-text="{{f.tip}}"{{/if}}>
         <legend>{{f.label}}</legend>
         <div class="acks-extras-effect-picks">
           {{#each f.options as |o|}}
@@ -79,13 +79,13 @@
         <label>{{f.label}}</label>
         <div class="form-fields">
           {{#if (eq f.kind "boolean")}}
-            <input type="checkbox" name="{{f.name}}" {{checked f.checked}}>
+            <input type="checkbox" name="{{f.name}}" {{checked f.checked}}{{#if f.disabled}} disabled{{/if}}>
           {{else if (eq f.kind "select")}}
             <select name="{{f.name}}"{{#if f.tip}} aria-label="{{f.label}}"{{/if}}{{#if f.disabled}} disabled{{/if}}>{{selectOptions f.choices selected=f.value blank=@root.none}}</select>
           {{else if (eq f.kind "number")}}
             <input type="number" step="{{f.step}}"{{#if f.min}} min="{{f.min}}"{{/if}} name="{{f.name}}" value="{{f.value}}" placeholder="—">
           {{else if f.list}}
-            <input type="text" name="{{f.name}}" value="{{f.value}}" list="{{@root.partId}}-{{f.name}}">
+            <input type="text" name="{{f.name}}" value="{{f.value}}" list="{{@root.partId}}-{{f.name}}"{{#if f.disabled}} disabled{{/if}}>
             <datalist id="{{@root.partId}}-{{f.name}}">
               {{#each f.list as |o|}}<option value="{{o.key}}">{{o.label}}</option>{{/each}}
             </datalist>

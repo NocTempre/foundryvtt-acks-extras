@@ -1408,9 +1408,9 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
   // The row editor declares a window class at load, so it needs the two application bases.
   const priorFoundry = globalThis.foundry;
   const priorGame = globalThis.game;
-  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class { render() {} } } }, utils: {} };
+  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class { render() {} async _prepareContext() { return {}; } close() {} } } }, utils: {} };
   globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
-  const { mergeRowEdit, anyOfText, fieldsForType, effectRowActions } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+  const { mergeRowEdit, anyOfText, fieldsForType, effectRowActions, EffectRowEditor } = await import("../scripts/lib/apps/effect-row-editor.mjs");
   globalThis.foundry = priorFoundry;
   globalThis.game = priorGame;
 
@@ -1496,6 +1496,106 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.deepEqual(mergeRowEdit(limit, { gate: { armourMax: "medium", noShield: true } }).gate, { kind: "armourCeiling", armourMax: "medium", noShield: true }, "an armour edit merges as before");
     assert.deepEqual(mergeRowEdit({ type: "limitation" }, { gate: { armourMax: "light" } }).gate, { armourMax: "light", kind: "armourCeiling" }, "a first armour field takes the armour kind");
     assert.deepEqual(mergeRowEdit(limit, { gate: { light: "dim" } }).gate, limit.gate, "a stray light value cannot touch an armour gate");
+  });
+
+  t("the fields a spell's rows gained are edited per kind, each with a label and a tooltip in the lang file", async () => {
+    const { readFileSync } = await import("node:fs");
+    const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+    const said = (part) => lang[`ACKS-LIB.effectEditor.${part}`] ?? lang[`ACKS-MAGIC.editor.${part}`];
+    const kinds = {
+      modifier: ["ownSave", "ifHas", "pickKind", "attackKinds", "gate.status", "gate.occasion", "endsOn"],
+      ward: ["saveEffect", "endsOn"],
+      grants: ["appliesTo", "mode", "value", "atLevelNum", "atLevelDen"],
+      modifies: ["appliesTo", "appliesToRoll", "ifHas"],
+      conditionGrant: ["untimed", "endsOn", "exemptSizeOver"],
+      ignite: ["endsOn"],
+      damage: ["exemptSizeOver"],
+      slay: ["appliesTo", "saveEffect", "reversed"],
+      destroyItem: ["appliesTo", "saveEffect", "reversed"],
+      spellcastingMod: ["target", "value", "schools", "elements", "bySelection", "saveCategories", "perDie", "stacksWith", "notStacksWith", "ifHas"],
+    };
+    const mine = ["ownSave", "pickKind", "attackKinds", "endsOn", "untimed", "exemptSizeOver", "ifHas", "appliesToRoll", "schools", "elements", "bySelection", "saveCategories", "perDie", "gate.status", "gate.occasion"];
+    for (const [kind, names] of Object.entries(kinds)) {
+      for (const name of names) {
+        assert.ok(fieldsForType(kind).includes(name), `${kind} edits ${name}`);
+        assert.ok(said(`field.${name}`), `a label for ${name}`);
+      }
+    }
+    for (const name of mine.filter((n) => n !== "gate.status")) assert.ok(said(`tip.${name}`), `a tooltip for ${name}`);
+    for (const key of ["statusTip", "statusLocked", "tip.cite", "attackKind.melee", "attackKind.missile", "attackKind.thrown", "endsOn.damage", "endsOn.attack", "bucket.casterLevel", "bucket.save", "bucket.damage"]) assert.ok(said(key), key);
+    assert.ok(!fieldsForType("slay").includes("value") && !fieldsForType("destroyItem").includes("range"), "neither kind offers a figure it never reads");
+  });
+
+  t("a cast's own fields are left off an ability's row; the narrowing ones stay, and a spellcasting row still stacks", () => {
+    for (const name of ["ownSave", "pickKind", "endsOn", "untimed", "exemptSizeOver"]) {
+      assert.ok(!fieldsForType("modifier", "ability").includes(name), `a modifier offers ${name} to an ability`);
+      assert.ok(!fieldsForType("conditionGrant", "ability").includes(name), `a condition row offers ${name} to an ability`);
+    }
+    for (const name of ["attackKinds", "ifHas", "gate.status", "gate.occasion"]) assert.ok(fieldsForType("modifier", "ability").includes(name), `an ability's modifier edits ${name}`);
+    const cast = fieldsForType("spellcastingMod", "ability");
+    for (const name of ["schools", "elements", "bySelection", "saveCategories", "perDie", "stacksWith", "notStacksWith", "ifHas"]) assert.ok(cast.includes(name), `a spellcasting row edits ${name}`);
+    assert.ok(!fieldsForType("modifier", "ability").includes("stacksWith"), "the exemption is the spellcasting row's alone");
+  });
+
+  t("a status named on a modifier makes its gate, a blank one clears it, and it never replaces another kind", () => {
+    const plain = { type: "modifier", target: "save" };
+    const set = mergeRowEdit(plain, { gate: { light: "", status: "alpha", occasion: false } });
+    assert.deepEqual(set.gate, { kind: "status", status: "alpha" }, "a status on a gateless row makes a status gate, with no occasion mark");
+    const marked = mergeRowEdit(set, { gate: { status: "alpha", occasion: true } });
+    assert.deepEqual(marked.gate, { kind: "status", status: "alpha", occasion: true });
+    assert.deepEqual(mergeRowEdit(marked, { gate: { status: "beta", occasion: false } }).gate, { kind: "status", status: "beta" }, "the mark goes when it is cleared");
+    assert.equal(mergeRowEdit(marked, { gate: { status: "", occasion: true } }).gate, undefined, "a blank status removes the gate");
+    assert.equal("gate" in mergeRowEdit(plain, { gate: { status: "", occasion: false } }), false, "blank on a gateless row gives it none");
+    const light = { type: "modifier", gate: { kind: "light", light: "dim" } };
+    assert.deepEqual(mergeRowEdit(light, { gate: { status: "alpha", occasion: true } }).gate, light.gate, "a light gate stays as stored");
+    assert.deepEqual(mergeRowEdit(marked, { note: "x" }).gate, marked.gate, "an edit that does not name the status leaves the gate");
+    assert.deepEqual(mergeRowEdit({ ...marked, gate: { ...marked.gate, loadMax: 3 } }, { gate: { status: "" } }).gate, { loadMax: 3 }, "clearing keeps what else the gate holds, minus the kind");
+    assert.ok(!("status" in mergeRowEdit(light, { gate: { light: "dim", status: "alpha" } }).gate), "a status never rides into a light gate");
+  });
+
+  t("the set and list fields a row gained are replaced as the window holds them", () => {
+    const row = { type: "conditionGrant", conditions: ["alpha"], untimed: ["alpha"], endsOn: ["damage"], attackKinds: ["melee"], ifHas: ["x"], schools: ["one"] };
+    const next = mergeRowEdit(row, { endsOn: ["damage", "attack"], untimed: [], attackKinds: ["missile"], ifHas: ["y", "z"], schools: [] });
+    assert.deepEqual([next.endsOn, next.untimed, next.attackKinds, next.ifHas, next.schools], [["damage", "attack"], [], ["missile"], ["y", "z"], []]);
+  });
+
+  // A window's context is read after an await, so the test is awaited and the globals it set are still its own.
+  const awaited = async (name, fn) => {
+    await fn();
+    n++;
+    console.log(`ok - ${name}`);
+  };
+  await awaited("the window offers an untimed pick from the row's own conditions, locks a status under another gate, and names the page on a blank located figure", async () => {
+    const prior = { foundry: globalThis.foundry, game: globalThis.game };
+    globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: { randomID: () => "x", getProperty: (o, path) => path.split(".").reduce((v, k) => v?.[k], o) } };
+    globalThis.game = { i18n: { format: (key, data) => key + (data?.cite ? ` ${data.cite}` : ""), localize: (key) => key } };
+    try {
+      const open = async (row, store = {}) => {
+        const editor = new EffectRowEditor({ store: { key: "k", label: "L", domain: "spell", read: () => [row], write: async () => {}, ...store }, index: 0 });
+        return (await editor._prepareContext({})).fields;
+      };
+      const none = await open({ type: "conditionGrant" });
+      assert.ok(!none.some((f) => f.name === "untimed"), "a row that lists no condition offers no clock pick");
+      const some = (await open({ type: "conditionGrant", conditions: ["alpha"], untimed: ["beta"] })).find((f) => f.name === "untimed");
+      assert.deepEqual(some.options.map((o) => [o.key, o.checked]), [["alpha", false], ["beta", true]], "the row's conditions and what it already stores");
+      const kinds = (await open({ type: "modifier", attackKinds: ["melee"] })).find((f) => f.name === "attackKinds");
+      assert.deepEqual(kinds.options.filter((o) => o.checked).map((o) => o.key), ["melee"]);
+      const locked = await open({ type: "modifier", gate: { kind: "light", light: "dim" } });
+      assert.ok(locked.find((f) => f.name === "gate.status").disabled && locked.find((f) => f.name === "gate.occasion").disabled, "a light gate locks the status fields");
+      assert.ok(!locked.find((f) => f.name === "gate.light").disabled, "and not its own");
+      const free = await open({ type: "modifier", gate: { kind: "status", status: "alpha" } });
+      assert.ok(!free.find((f) => f.name === "gate.status").disabled && free.find((f) => f.name === "gate.light").disabled, "a status gate locks the light level instead");
+      const named = await open({ type: "conditionGrant", exemptSizeFrom: "alpha" }, { cite: "p. 9" });
+      assert.ok(!named.find((f) => f.name === "exemptSizeFrom").tip.includes("p. 9"), "a figure that is set carries no reference");
+      assert.ok(named.find((f) => f.name === "exemptSizeOver").tip.includes("p. 9"), "a blank located figure carries the page");
+      const bare = await open({ type: "conditionGrant" });
+      assert.ok(!bare.find((f) => f.name === "exemptSizeOver").tip.includes("tip.cite"), "a store that names no page adds none");
+      const own = (await open({ type: "spellcastingMod" })).find((f) => f.name === "target");
+      assert.deepEqual(own.list.map((o) => o.key), ["casterLevel", "save", "damage"], "a spellcasting row's target offers its three figures");
+    } finally {
+      globalThis.foundry = prior.foundry;
+      globalThis.game = prior.game;
+    }
   });
 
   t("an ability's row is offered none of a cast's fields", () => {

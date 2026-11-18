@@ -31,7 +31,16 @@
  * who it meets), the choice group it belongs to and its option within it
  * (`pick`, `pickOption`), the ceiling on an instance count (`max`), the
  * rounds a `rounds` lasting counts, the size at which a target is exempt, and
- * the reversed form (`reversed`). `extraordinary` is nullable, since a capture that read none is
+ * the reversed form (`reversed`). A spell's modifier row edits what narrows it
+ * beyond its scope: the attack kinds it answers, the creature kind the caster
+ * picks (`pickKind`), whether it is on the spell's own save (`ownSave`), and a
+ * status gate (`gate.status`, `gate.occasion`), shown disabled under a gate of
+ * another kind like the light level. A condition row also edits what ends its
+ * record (`endsOn`), the conditions written with no clock (`untimed`, offered
+ * from the row's own conditions) and the size strictly above which a target is
+ * exempt. A spellcasting row edits its target, figure and the words it narrows
+ * on. A store that names a `cite` (the page the row is read from) puts it in
+ * the tooltip of a located figure left blank. `extraordinary` is nullable, since a capture that read none is
  * not a "no": its select offers unset, yes and no, and unset stores null. A
  * row's `key` is shown and never edited.
  */
@@ -42,10 +51,19 @@ import { summonRefName } from "../summons-logic.mjs";
 import { byCookbookId } from "../library.mjs";
 import { SLOT_VOCAB } from "../proficiency-strip.mjs";
 import { LIGHT_LEVELS } from "../light.mjs";
+import { ATTACK_KINDS } from "../conditions.mjs";
+import { ENDS_ON_CAUSES } from "../ends-on.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
-const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.effectEditor.${key}`, data ?? {});
+/**
+ * The editor's words: a key under the library's own `effectEditor` root, else the
+ * same path under the magic feature's `editor` root, where the spell-row fields' words live.
+ */
+const loc = (key, data) => {
+  const own = `${LANG_PREFIX}.effectEditor.${key}`;
+  return game.i18n.format(game.i18n.has?.(own) === false ? `ACKS-MAGIC.editor.${key}` : own, data ?? {});
+};
 
 /**
  * How each field of `effectField()` is edited. `set` renders one box per
@@ -53,7 +71,8 @@ const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.effectEditor.${key}`
  */
 const FIELD_SPECS = {
   appliesTo: { kind: "select", choices: (domain) => V.choicesOf(V.effectSubjectsFor(domain)) },
-  target: { kind: "text", list: () => V.choicesOf(V.MODIFIER_TARGETS) },
+  // A spellcasting row's target is one of the caster's three figures; every other row's a modifier target.
+  target: { kind: "text", list: (domain, row) => (row?.type === "spellcastingMod" ? bucketChoices() : V.choicesOf(V.MODIFIER_TARGETS)) },
   mode: { kind: "select", choices: () => V.choicesOf(V.EFFECT_MODES) },
   value: { kind: "levelValue" },
   forWhat: { kind: "text" },
@@ -123,6 +142,26 @@ const FIELD_SPECS = {
   rounds: { kind: "text" },
   // A monsters size key, offered from the size vocabulary where the client has it; free text keeps any stored key.
   exemptSizeFrom: { kind: "text", list: () => sizeChoices() },
+  // The size key a target must be strictly above to be exempt, beside the at-or-above one.
+  exemptSizeOver: { kind: "text", list: () => sizeChoices() },
+  // A modifier on the saving throw made against the spell itself.
+  ownSave: { kind: "boolean" },
+  // A modifier whose creature kind the caster picks at the cast, from the row's `vsKinds`.
+  pickKind: { kind: "boolean" },
+  // The kinds of attack made against the bearer that a row narrows to; blank is every kind.
+  attackKinds: { kind: "set", choices: () => Object.fromEntries(ATTACK_KINDS.map((kind) => [kind, loc(`attackKind.${kind}`)])) },
+  // What ends the record a row writes: the bearer's hurt or the bearer's own attack.
+  endsOn: { kind: "set", choices: () => Object.fromEntries(ENDS_ON_CAUSES.map((cause) => [cause, loc(`endsOn.${cause}`)])) },
+  // The row's own conditions that are written with no clock; offered only once the row lists a condition.
+  untimed: { kind: "set", hideEmpty: true, choices: (domain, row) => untimedChoices(row) },
+  ifHas: { kind: "list" },
+  appliesToRoll: { kind: "text" },
+  // What a spellcasting row narrows on: authored words, a comma line each.
+  schools: { kind: "list" },
+  elements: { kind: "list" },
+  saveCategories: { kind: "list" },
+  bySelection: { kind: "boolean" },
+  perDie: { kind: "boolean" },
   max: { kind: "levelValue" },
   pick: { kind: "text" },
   pickOption: { kind: "text" },
@@ -137,7 +176,22 @@ const FIELD_SPECS = {
   // A modifier's light gate: the dimmest level at which the row counts, read at
   // the roll. Shown disabled while the row carries a gate of another kind.
   "gate.light": { kind: "select", choices: () => Object.fromEntries(LIGHT_LEVELS.map((level) => [level, game.i18n.localize(`${LANG_PREFIX}.light.level.${level}`)])) },
+  // A modifier's status gate: the status the bearer must carry, and whether it
+  // holds only where the roll names that occasion. Disabled under another kind of gate.
+  "gate.status": { kind: "text", list: () => V.choicesOf(V.CONDITION_KEYS) },
+  "gate.occasion": { kind: "boolean" },
 };
+
+/** The three figures of a spellcasting row's `target`, each with the lang label it is offered under. */
+function bucketChoices() {
+  return Object.fromEntries(SPELLCASTING_TARGETS.map((key) => [key, loc(`bucket.${key}`)]));
+}
+
+/** The conditions a row may write with no clock: the ones it lists, and any the row already stores. */
+function untimedChoices(row) {
+  const keys = new Set([...(row?.conditions ?? []), ...(row?.untimed ?? [])]);
+  return Object.fromEntries([...keys].map((key) => [key, V.CONDITION_KEYS[key]?.label ?? key]));
+}
 
 /**
  * The size keys a size field offers, `{key: label}`. Lib sits below the
@@ -156,13 +210,26 @@ const GATE_KIND = "armourCeiling";
 /** The gate kind a modifier row takes once a light level is chosen on it. */
 const LIGHT_GATE_KIND = "light";
 
+/** The figures a spellcasting row's `target` names; `magic/cast-abilities.mjs` `ABILITY_BUCKETS` is the reader. */
+const SPELLCASTING_TARGETS = ["casterLevel", "save", "damage"];
+
+/** The gate kind a modifier row takes once a status is named on it. */
+const STATUS_GATE_KIND = "status";
+
+/** The page reference the store names for its row, where it names one: a string or a function of nothing. */
+function citeOfStore(store) {
+  const cite = typeof store?.cite === "function" ? store.cite() : store?.cite;
+  return typeof cite === "string" ? cite.trim() : "";
+}
+
 /** The scope fields a modifier or a ward row edits, in the order they are shown. */
 const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"];
 
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
-  modifier: ["appliesTo", "target", "mode", "value", "forWhat", "stacksWith", "notStacksWith", ...SCOPE_FIELDS, "gate.light"],
-  ward: ["appliesTo", "value", "range", ...SCOPE_FIELDS],
+  // A modifier's tail groups what narrows it: scope, the kind the caster picks, the attack kinds, then the gates.
+  modifier: ["appliesTo", "target", "mode", "value", "forWhat", "ownSave", "stacksWith", "notStacksWith", "ifHas", ...SCOPE_FIELDS, "pickKind", "attackKinds", "gate.light", "gate.status", "gate.occasion", "endsOn"],
+  ward: ["appliesTo", "value", "range", "saveEffect", ...SCOPE_FIELDS, "endsOn"],
   attributeSubstitution: ["attribute", "insteadOf", "target"],
   throw: ["forWhat", "roll", "rollType", "value"],
   progressionAs: ["as", "atLevelNum", "atLevelDen"],
@@ -170,8 +237,8 @@ const TYPE_FIELDS = {
   limitation: ["restriction", "gate.armourMax", "gate.noShield"],
   outcome: ["trigger", "naturalMax", "belowFraction", "consequence"],
   requires: ["refs", "choose"],
-  grants: ["refs", "choose"],
-  modifies: ["refs", "domain", "target", "mode", "value"],
+  grants: ["refs", "choose", "appliesTo", "mode", "value", "atLevelNum", "atLevelDen"],
+  modifies: ["refs", "domain", "target", "mode", "value", "appliesTo", "appliesToRoll", "ifHas"],
   reroll: ["forWhat", "target", "keep", "times"],
   companion: ["ref", "amount"],
   immunity: ["appliesTo", "damage", "effects", "conditions"],
@@ -181,22 +248,25 @@ const TYPE_FIELDS = {
   movement: ["appliesTo", "movementMode", "value"],
   naturalAttack: ["naturalWeapon", "routine"],
   spellLike: ["spell", "frequency", "castingTime"],
-  spellcastingMod: ["school", "casterLevelDelta"],
+  spellcastingMod: ["target", "value", "school", "casterLevelDelta", "schools", "elements", "bySelection", "saveCategories", "perDie", "stacksWith", "notStacksWith", "ifHas"],
   resource: ["resource", "action", "amount"],
-  conditionGrant: ["appliesTo", "conditions", "saveEffect", "lasts", "rounds", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "reversed"],
+  conditionGrant: ["appliesTo", "conditions", "saveEffect", "lasts", "rounds", "untimed", "endsOn", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "exemptSizeOver", "reversed"],
   conditionRemove: ["appliesTo", "conditions"],
-  ignite: ["appliesTo", "lasts", "rounds", "reversed"],
+  ignite: ["appliesTo", "lasts", "rounds", "endsOn", "reversed"],
   economic: ["amount", "unit", "period"],
   capability: ["frequency", "restriction"],
-  damage: ["appliesTo", "roll", "damage", "value", "max", "saveEffect", "delivery", "extraordinary", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "reversed"],
+  damage: ["appliesTo", "roll", "damage", "value", "max", "saveEffect", "delivery", "extraordinary", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "exemptSizeOver", "reversed"],
   heal: ["appliesTo", "healKind", "roll", "value", "max", "saveEffect", "reversed"],
   summon: ["summonFormat", "ref", "amount", "value", "control"],
   control: ["appliesTo", "control"],
+  // Neither kind reads a figure: a save decides whether it lands, and `appliesTo` names who it meets.
+  slay: ["appliesTo", "saveEffect", "reversed"],
+  destroyItem: ["appliesTo", "saveEffect", "reversed"],
 };
 const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 const TAIL_FIELDS = ["condition", "note"];
-const SET_FIELDS = new Set(["damage", "effects", "conditions"]);
-const LIST_FIELDS = new Set(["refs", "vsKinds", "stacksWith", "notStacksWith"]);
+const SET_FIELDS = new Set(["damage", "effects", "conditions", "attackKinds", "endsOn", "untimed"]);
+const LIST_FIELDS = new Set(["refs", "vsKinds", "stacksWith", "notStacksWith", "ifHas", "schools", "elements", "saveCategories"]);
 /** The fields edited as a level value, which a merge lays over the stored one rather than replacing. */
 const LEVEL_VALUE_FIELDS = ["value", "max"];
 
@@ -207,17 +277,26 @@ const PICK_FIELDS = ["pick", "pickOption"];
 const TIPPED_FIELDS = new Set([
   "key", "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed", "stacksWith", "notStacksWith",
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom",
+  "exemptSizeOver", "ownSave", "pickKind", "attackKinds", "endsOn", "untimed", "ifHas", "appliesToRoll",
+  "schools", "elements", "bySelection", "saveCategories", "perDie", "gate.occasion",
 ]);
+
+/** The located figures: while one is blank its tooltip carries the page reference of the store's row, when the store names one. */
+const LOCATED_FIELDS = new Set(["rounds", "exemptSizeFrom", "exemptSizeOver"]);
 
 /** The fields only a spell's row edits: what a cast does with the row, which no ability row has. */
 const SPELL_ONLY_FIELDS = new Set([
   "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed",
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom", "stacksWith",
+  "exemptSizeOver", "ownSave", "pickKind", "endsOn", "untimed",
 ]);
+
+/** What a spell-only field is still offered on, outside a spell: an ability's spellcasting row stacks by it. */
+const ABILITY_KEEPS = { spellcastingMod: new Set(["stacksWith"]) };
 
 /** The fields a row of this type edits in a store of this domain; outside a spell the cast's fields are left out. */
 export const fieldsForType = (type, domain = "spell") => [
-  ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name))),
+  ...new Set([...(TYPE_FIELDS[type] ?? DEFAULT_FIELDS), ...PICK_FIELDS, ...TAIL_FIELDS].filter((name) => domain === "spell" || !SPELL_ONLY_FIELDS.has(name) || ABILITY_KEEPS[type]?.has(name))),
 ];
 
 /**
@@ -245,9 +324,16 @@ export function mergeRowEdit(current, form) {
   // The gate's fields arrive as a fragment: merged into the row's gate, never
   // over it, and the row keeps its kind or takes the armour limit's once a
   // field of it is set; a row that sets none stays a plain limitation.
-  if (form.gate && typeof form.gate === "object" && (current.gate?.kind || form.gate.armourMax || form.gate.noShield)) next.gate = { ...(current.gate ?? {}), ...form.gate, kind: current.gate?.kind || GATE_KIND };
-  if (form.gate && typeof form.gate === "object" && "light" in form.gate) {
-    const gate = lightGateOf(current.gate, form.gate.light);
+  // The status gate's fields are set apart: they never ride into another kind's gate.
+  const { status, occasion, ...fragment } = form.gate && typeof form.gate === "object" ? form.gate : {};
+  if (form.gate && typeof form.gate === "object" && (current.gate?.kind || fragment.armourMax || fragment.noShield)) next.gate = { ...(current.gate ?? {}), ...fragment, kind: current.gate?.kind || GATE_KIND };
+  if (form.gate && typeof form.gate === "object" && "light" in fragment) {
+    const gate = lightGateOf(current.gate, fragment.light);
+    if (gate) next.gate = gate;
+    else delete next.gate;
+  }
+  if (form.gate && typeof form.gate === "object" && "status" in form.gate) {
+    const gate = statusGateOf(next.gate, status, occasion);
     if (gate) next.gate = gate;
     else delete next.gate;
   }
@@ -268,6 +354,27 @@ function lightGateOf(stored, light) {
   const rest = { ...(stored ?? {}) };
   delete rest.light;
   if (light) return { ...rest, kind: LIGHT_GATE_KIND, light };
+  delete rest.kind;
+  return Object.keys(rest).length ? rest : undefined;
+}
+
+/**
+ * A row's gate once its status is named or cleared. A status makes the gate a
+ * `status` gate, carrying `occasion` only while it is on; a blank one removes
+ * the status gate and leaves whatever else the stored gate holds. A gate of
+ * another kind is returned as stored: a status never replaces it.
+ * @param {object|undefined} stored the row's gate so far
+ * @param {string} status the status id, "" for none
+ * @param {boolean} occasion whether the gate holds only where the roll names its status
+ * @returns {object|undefined} the gate the row now holds, undefined for none
+ */
+function statusGateOf(stored, status, occasion) {
+  if (stored?.kind && stored.kind !== STATUS_GATE_KIND) return stored;
+  const rest = { ...(stored ?? {}) };
+  delete rest.status;
+  delete rest.occasion;
+  const named = String(status ?? "").trim();
+  if (named) return { ...rest, kind: STATUS_GATE_KIND, status: named, ...(occasion === true || occasion === "true" ? { occasion: true } : {}) };
   delete rest.kind;
   return Object.keys(rest).length ? rest : undefined;
 }
@@ -350,6 +457,7 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     if (row.type && !context.types[row.type]) context.types[row.type] = V.EFFECT_TYPES[row.type]?.label ?? row.type;
     context.none = loc("none");
     const names = [...(row.key ? ["key"] : []), ...fieldsForType(row.type, domain)];
+    const cite = citeOfStore(this.store);
     context.fields = names.filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
@@ -359,11 +467,11 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       } else if (spec.kind === "boolean") {
         field.checked = value === true;
       } else if (spec.kind === "select") {
-        field.choices = spec.choices(domain);
+        field.choices = spec.choices(domain, row);
         field.value = typeof value === "boolean" ? String(value) : (value ?? "");
       } else if (spec.kind === "set") {
         const have = new Set([...(value ?? [])]);
-        field.options = Object.entries(spec.choices()).map(([key, label]) => ({ key, label, checked: have.has(key) }));
+        field.options = Object.entries(spec.choices(domain, row)).map(([key, label]) => ({ key, label, checked: have.has(key) }));
       } else if (spec.kind === "levelValue") {
         // A bare number is a valid flat value; it is shown in the flat box.
         const v = typeof value === "number" ? { kind: "flat", flat: value } : (value ?? {});
@@ -381,12 +489,18 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
           field.step = spec.step ?? "any";
           field.min = spec.min ?? "";
         }
-        if (spec.list) field.list = Object.entries(spec.list()).map(([key, label]) => ({ key, label }));
+        if (spec.list) field.list = Object.entries(spec.list(domain, row)).map(([key, label]) => ({ key, label }));
       }
       if (TIPPED_FIELDS.has(name)) field.tip = loc(`tip.${name}`);
+      // A located figure left blank carries the page it is read from, and no figure.
+      if (LOCATED_FIELDS.has(name) && cite && !String(field.value ?? "").trim()) field.tip = [field.tip, loc("tip.cite", { cite })].join(" · ");
       if (name === "gate.light") {
         field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;
         field.tip = loc(field.disabled ? "lightLocked" : "lightTip");
+      }
+      if (name === "gate.status" || name === "gate.occasion") {
+        field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== STATUS_GATE_KIND;
+        field.tip = loc(field.disabled ? "statusLocked" : name === "gate.status" ? "statusTip" : "tip.gate.occasion");
       }
       if (name === "ref" && row.type === "summon") {
         field.drop = true;
@@ -395,6 +509,8 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       }
       return field;
     });
+    // A set offering nothing (conditions the row does not list) is left off the window.
+    context.fields = context.fields.filter((field) => !(FIELD_SPECS[field.name]?.hideEmpty && !field.options?.length));
     return context;
   }
 
