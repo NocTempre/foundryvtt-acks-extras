@@ -412,6 +412,13 @@ Each question gives its options, what is built now, a recommendation, and the
 strongest counter-argument with how strong it is. Answer with the option
 letters, e.g. "1c, 2a, 3b".
 
+**Answered 2026-11-17.** The owner: "Take recommendations". So 1c, 2b (the
+picker after the minor; it needs `/design`), 3b, 4a, 5a, 6a (fully identified
+cards only), 7a, 8a, 11a-a plus the Judge warning, and 11b-a. Where each
+lands: 1c, 3b and 6a on `main`, since R4 and R5 ship in the minor; the 11a
+Judge warning on `topic/treasure`; 8a in the tt-importer track. 4a, 5a, 7a
+and 11b-a are what is built.
+
 1. **Who may press Quick grab?**
    (a) Any seat that may Take. This is built: a player's press places goods on
    members that player does not own.
