@@ -1,7 +1,9 @@
 {{!
   One effect row of one list. The kind is chosen first; the fields under it
   are the ones that kind reads, and a change re-renders the window with the
-  new kind's fields. There is no Save button: fields apply as they are made.
+  new kind's fields. Fields apply as they are made, except the rungs of an
+  invocation-level ladder: they are drafted inline and written by the pinned
+  footer's Save row (`rung-footer.hbs`).
 }}
 <div class="acks-extras-effect-editor-body">
 
@@ -30,12 +32,15 @@
       <fieldset class="acks-extras-effect-value">
         <legend>{{f.label}}</legend>
         <div class="form-group">
+          {{!-- label-ok: the button group beside it is a role=group that names itself by aria-label --}}
           <label>{{localize "ACKS-LIB.effectEditor.value.kind"}}</label>
           <div class="form-fields">
-            <select name="{{f.name}}.kind">{{selectOptions f.kinds selected=f.value.kind}}</select>
+            {{> "modules/acks-extras/templates/lib/figure-kind.hbs" f.kindGroup}}
           </div>
         </div>
-        {{#if f.isFlat}}
+        {{#if f.isInvocation}}
+          {{> "modules/acks-extras/templates/lib/rung-ladder.hbs" f.ladder}}
+        {{else if f.isFlat}}
           <div class="form-group">
             <label>{{localize "ACKS-LIB.effectEditor.value.flat"}}</label>
             <div class="form-fields">

@@ -1251,6 +1251,114 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
   margin: 0;
 }
 
+/* --- The inline rung editor ---
+   A level value's kind switch (a button group) and, under it on the
+   invocation scale, the drafted rungs with their Save and Cancel bar. The
+   effect-row editor pins the bar in a footer part below its scrolling body; the
+   spell sheet draws it under each figure. Core pins a button's type size and
+   stretches it, so these buttons re-take both. */
+
+.acks-extras-effect-value .acks-btn-group,
+.acks-magic-lv .acks-btn-group {
+  flex-wrap: wrap;
+}
+
+.acks-extras-effect-value .acks-btn-group .acks-btn,
+.acks-magic-lv .acks-btn-group .acks-btn,
+.acks-extras-rung-ladder .acks-btn,
+.acks-extras-rung-actions .acks-btn {
+  flex: 0 0 auto;
+  width: auto;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-rung-inline,
+.acks-extras-effect-value > .acks-extras-rung-ladder {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras-rung-ladder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  min-width: 0;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-rung-grid {
+  display: grid;
+  grid-template-columns: minmax(5em, 8em) minmax(0, 1fr) auto;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+  align-items: center;
+}
+
+.acks-extras-rung-head {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+  text-transform: uppercase;
+}
+
+.acks-extras-rung-grid input {
+  min-width: 0;
+  font-size: var(--acks-fs-body);
+}
+
+/* A rung a hand changed or added carries a gold edge. */
+.acks-extras-rung-grid input.is-edited {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-gold, var(--acks-spot));
+}
+
+.acks-extras-rung-grid input[aria-invalid="true"] {
+  border-color: var(--acks-danger);
+}
+
+.acks-extras-rung-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-rung-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-3);
+}
+
+.acks-extras-rung-state {
+  flex: 1 1 12em;
+  font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-medium);
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-rung-acts {
+  display: flex;
+  gap: var(--acks-sp-2);
+  margin-inline-start: auto;
+}
+
+.acks-extras-rung-actions .acks-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The effect-row editor's pinned footer: the body above is the scroller, so the footer never shrinks and Save row stays in reach. */
+.acks-extras-effect-editor .acks-extras-rung-footer {
+  flex: 0 0 auto;
+  padding: var(--acks-sp-2) var(--acks-sp-3);
+  border-top: var(--acks-border-soft);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-effect-editor .acks-extras-rung-footer[hidden] {
+  display: none;
+}
+
 /* --- The palette editor: a scrolling body over a pinned footer ---
    The body part is the scroller, so the re-render after each move keeps its
    place; the footer never shrinks, so Save stays in reach. Tiles wrap, so a

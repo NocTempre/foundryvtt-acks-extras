@@ -1391,3 +1391,65 @@ initiatives after opening it (the caster is at its turn only with its initiative
 
 The sets and cards by id as they are made, the fight deleted by its uuid, the class row, the
 ladder and the level restored, and the procedure taken off on each seat.
+
+## The rung editor (R-e)
+
+A Judge edits an imported invocation-level ladder inline: in the effect-row editor (a
+spell sheet's Mechanics tab, a row's Edit button) and on the spell sheet's Overview.
+Offline: `tools/test-rung-editor.mjs`. Live: `tools/live/magic-rung-editor.mjs`, the GM seat
+and a Player seat together (`SEAT_GM`, `SEAT_PLAYER`).
+
+### Fixtures
+
+One spell Item the walk creates (`type: "spell"`, ownership default Owner so the Player seat
+owns it), carrying an invented three-rung ladder on a damage row's `value` and on
+`target.count` (model `creature`, which shows the count on the Overview). The walk tracks its
+uuid and sweeps it at the end; nothing else is made. The Player must be no GM and an owner of
+the spell, so that only `game.user.isGM` can be what refuses a write. A counter hook on the GM
+seat (`updateItem` for the spell's uuid) is what "written once" is read from.
+
+### Steps
+
+1. **The switch and the inline rungs.** Open the spell sheet's Mechanics tab and the row's
+   editor. *Observable:* the Figure field is three buttons (Flat, By caster level, By
+   invocation level) with the last pressed and no `<select>`; the three rungs show under it
+   with no `name` on any rung box; no window of the rung editor class is open; the footer
+   part is drawn with Save row on.
+2. **A draft writes nothing.** Edit a rung's figure, add a rung, remove another.
+   *Observable:* the box shows the draft, the edited rung and the added one carry the gold
+   edge, the edited figure's tooltip names the figure it replaced, and the update counter has
+   not moved. Then change another field of the row (the note): it writes once, on change, and
+   the redraw keeps the draft.
+3. **An invalid draft.** Give two rungs the same level. *Observable:* the footer names the
+   fault, the level box is `aria-invalid`, Save row is `aria-disabled` and points at the
+   verdict, a click on it writes nothing, and the footer sits inside the window.
+4. **Restore.** *Observable:* an edited rung is back as imported, an added one is gone, a
+   removed one stays removed, nothing is written.
+5. **Cancel.** *Observable:* the stored ladder shows again; nothing is written.
+6. **Save row.** Edit one rung and add one. *Observable:* exactly one write; the stored rungs
+   carry `hand` (`edited`, `added`) and the edited one its `was`; the row's `origin` is blank;
+   the window shows the saved ladder with a clean footer.
+7. **The kind buttons.** By caster level writes at once and the ladder and footer go; By
+   invocation level brings the saved rungs back.
+8. **The Overview.** On the Overview tab the count figure is the same button group with the
+   rungs inline and a Save / Cancel bar under them. *Observable:* an edit and an added rung
+   write nothing, survive `sheet.submit()` and a redraw, an invalid draft keeps Save off,
+   Restore and Cancel behave as above, and Save writes the flag once with the marks.
+9. **A Player.** The Player seat opens the same editor and the Overview. *Observable:* the
+   rung boxes are read-only, no rung button and no footer or bar is drawn, the kind buttons
+   are disabled, every call the Player's client makes to add, change, remove, restore, save or
+   switch is refused, and the GM seat's counter does not move.
+
+### Drive mechanics
+
+A rung is typed by setting the box's value and dispatching `input` then `change` with
+`bubbles`: the `input` moves the draft, and the `change` must reach nothing, which is what the
+update counter proves. Buttons are clicked, not driven through their actions, except for the
+Player's refusals, which call the window's own `DEFAULT_OPTIONS.actions` as a Player's client
+would. After an add or a remove the part redraws, so the boxes are looked up again by
+`data-rung-at` / `data-rung-value` under `[data-rung-ladder="<field or path>"]`.
+
+### Teardown
+
+The windows are closed on both seats, the counter hook is removed, and the spell is deleted by
+its uuid from the run's own ledger.

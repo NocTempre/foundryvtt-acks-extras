@@ -1,4 +1,4 @@
-# lib API (apiVersion 61)
+# lib API (apiVersion 62)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 61,
+  apiVersion: 62,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -479,6 +479,12 @@ numbers bounding the levels it applies at, both inclusive, a blank side open.
 neither bound is in at every level, with or without one; a bounded row with no
 level set is out; a side counts as set only when it is an integer. The
 effect-row editor offers both fields on every spell-domain kind.
+
+A rung of a `conditional` ladder (`breakpoints[]`) may also carry `hand`
+(`"edited"` or `"added"`, blank as imported), `was` and `wasAt` (the figure and
+level an edit replaced): display marks a Judge's edit in the rung editor
+leaves, read by nothing that resolves. The rung editor is not on the lib api;
+its model is `rung-ladder.mjs` (magic MODEL, "The rung editor").
 
 ### Rerolls
 

@@ -1,11 +1,19 @@
 {{!
   One level value: a flat number, or a base plus a per-level rate with its
-  rounding. A stored kind the control cannot edit (a breakpoint ladder, a
-  conditional scale) is shown by name and left as it is.
+  rounding, or a ladder on the invocation level. The kind is a button group;
+  the hidden input beside it carries the kind the sheet submits. The ladder's
+  rungs are drafted inline and written by their own Save, never by the sheet's
+  submit-on-change. A stored kind the control cannot edit (a breakpoint ladder,
+  a conditional scale) is shown by name and left as it is.
 }}
-<div class="acks-magic-lv">
-  <select name="{{name}}.kind" aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.kind'}}">{{selectOptions kinds selected=value.kind}}</select>
-  {{#if isFlat}}
+<div class="acks-magic-lv" data-figure="{{path}}">
+  {{> "modules/acks-extras/templates/lib/figure-kind.hbs" kindGroup}}
+  {{#if isInvocation}}
+    <div class="acks-extras-rung-inline">
+      {{> "modules/acks-extras/templates/lib/rung-ladder.hbs" ladder}}
+      {{#if ladderActions.editable}}{{> "modules/acks-extras/templates/lib/rung-actions.hbs" ladderActions}}{{/if}}
+    </div>
+  {{else if isFlat}}
     <input type="number" step="any" name="{{name}}.flat" value="{{value.flat}}" placeholder="—"
            aria-label="{{label}}: {{localize 'ACKS-LIB.effectEditor.value.flat'}}">
   {{else if isPerLevel}}

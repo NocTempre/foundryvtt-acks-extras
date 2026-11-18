@@ -10,9 +10,14 @@
  * pickers offer (`effectTypesFor`, `effectSubjectsFor`); a stored row keeps
  * its type whatever the picker shows.
  *
- * Edits apply as they are made; there is no Save button. A row is addressed by
- * index, so the sheet closes every editor on the store when it deletes or
- * reorders a row.
+ * Edits apply as they are made. A row is addressed by index, so the sheet closes
+ * every editor on the store when it deletes or reorders a row. The one exception
+ * is a figure on the invocation scale: a spell's kind switch (a button group)
+ * offers "By invocation level", and the rungs of the ladder it holds are edited
+ * inline and kept as a draft until the pinned footer's "Save row", which writes
+ * every changed ladder of the row at once. A figure that is no ladder, and every
+ * other field, keeps applying on change. A Player sees the rungs read-only, with
+ * no footer (`rung-view.mjs`).
  *
  * A modifier or ward row edits its scope: the kinds it applies against, an
  * alignment (a fixed one or the source's) with its mode, and the enemy test. A
@@ -53,10 +58,16 @@ import { SLOT_VOCAB } from "../proficiency-strip.mjs";
 import { LIGHT_LEVELS } from "../light.mjs";
 import { ATTACK_KINDS } from "../conditions.mjs";
 import { ENDS_ON_CAUSES } from "../ends-on.mjs";
+import { RungDrafts, isInvocationLadder, withKindChoice } from "../rung-ladder.mjs";
+import { RUNG_ACTIONS, actionsContext, isJudge, kindAllowed, kindContext, ladderContext, wireRungs } from "../rung-view.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
 const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.effectEditor.${key}`, data ?? {});
+
+const RUNG_LADDER = `modules/${MODULE_ID}/templates/lib/rung-ladder.hbs`;
+const FIGURE_KIND = `modules/${MODULE_ID}/templates/lib/figure-kind.hbs`;
+const RUNG_ACTIONS_PARTIAL = `modules/${MODULE_ID}/templates/lib/rung-actions.hbs`;
 
 /**
  * How each field of `effectField()` is edited. `set` renders one box per
@@ -316,8 +327,11 @@ export function mergeRowEdit(current, form) {
   if (current.key !== undefined) next.key = current.key;
   if ("extraordinary" in form) next.extraordinary = form.extraordinary === true || form.extraordinary === "true" ? true : form.extraordinary === false || form.extraordinary === "false" ? false : null;
   // A level value arrives as the fragment its controls hold, merged into the stored one
-  // so a ladder the controls do not show keeps its rungs.
-  for (const name of LEVEL_VALUE_FIELDS) if (form[name] && typeof form[name] === "object") next[name] = { ...(current[name] ?? {}), ...form[name] };
+  // so a ladder the controls do not show keeps its rungs. The kind switch's invocation
+  // choice becomes the conditional on that scale (`withKindChoice`).
+  for (const name of LEVEL_VALUE_FIELDS) {
+    if (form[name] && typeof form[name] === "object") next[name] = { ...(current[name] ?? {}), ...withKindChoice(current[name], form[name]) };
+  }
   // A frequency picked here is the Judge's own: the phrase the importer read
   // for the previous one no longer describes it.
   if ("frequency" in form && form.frequency !== (current.frequency ?? "")) delete next.frequencyText;
@@ -418,11 +432,21 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     position: { width: 480, height: "auto" },
     window: { icon: "fa-solid fa-gears", contentClasses: ["standard-form"], resizable: true },
     form: { handler: EffectRowEditor.#onChange, submitOnChange: true, closeOnSubmit: false },
+    actions: { ...RUNG_ACTIONS, figureKind: EffectRowEditor.#onFigureKind },
   };
 
+  // The body is the scroller and the footer a part of its own, so the rungs' Save row stays pinned below the fields.
   static PARTS = {
-    form: { template: `modules/${MODULE_ID}/templates/lib/effect-row-editor.hbs`, scrollable: [""] },
+    form: { template: `modules/${MODULE_ID}/templates/lib/effect-row-editor.hbs`, templates: [RUNG_LADDER, FIGURE_KIND], scrollable: [""] },
+    footer: { template: `modules/${MODULE_ID}/templates/lib/rung-footer.hbs`, templates: [RUNG_ACTIONS_PARTIAL] },
   };
+
+  /**
+   * The rungs of this row's ladders as drafts, keyed by field (`value`, `max`).
+   * They live on the window, apart from the form, so a redraw after any other
+   * field's write keeps them; closing the window drops them.
+   */
+  rungs = new RungDrafts({ read: (field) => foundry.utils.getProperty(this.store.read()[this.index] ?? {}, field), editable: isJudge });
 
   /** The type the window rendered with, so a change event reads the fields that are on screen. */
   #shownType = null;
@@ -458,6 +482,8 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     context.none = loc("none");
     const names = [...(row.key ? ["key"] : []), ...fieldsForType(row.type, domain)];
     const cite = citeOfStore(this.store);
+    // The row's ladders, in the order shown: one Save row writes every changed one.
+    const ladders = domain === "spell" ? names.filter((name) => FIELD_SPECS[name]?.kind === "levelValue" && isInvocationLadder(foundry.utils.getProperty(row, name))) : [];
     context.fields = names.filter((name) => name !== "anyOf" || row.anyOf?.length).map((name) => {
       const spec = FIELD_SPECS[name] ?? { kind: "text" };
       const value = foundry.utils.getProperty(row, name);
@@ -477,10 +503,13 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
         const v = typeof value === "number" ? { kind: "flat", flat: value } : (value ?? {});
         const kind = v.kind || "flat";
         field.value = v;
+        // An ability's switch has no invocation choice, so a ladder on that scale there is shown as the kind it is stored under.
+        field.isInvocation = domain === "spell" && isInvocationLadder(v);
         field.isFlat = kind === "flat";
         field.isPerLevel = kind === "perLevel";
-        field.kinds = V.choicesOf(V.VALUE_KINDS);
+        field.kindGroup = kindContext(name, field.label, v, { invocation: domain === "spell", field: name });
         field.rounds = V.choicesOf(V.VALUE_ROUNDING);
+        if (field.isInvocation) field.ladder = ladderContext(this.rungs, name, { group: "row", keys: ladders, cite, idBase: this.id });
       } else if (spec.kind === "list") {
         field.value = [...(value ?? [])].join(", ");
       } else {
@@ -511,12 +540,14 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     });
     // A set offering nothing (conditions the row does not list) is left off the window.
     context.fields = context.fields.filter((field) => !(FIELD_SPECS[field.name]?.hideEmpty && !field.options?.length));
+    context.footer = { show: ladders.length > 0 && isJudge(), ...actionsContext(this.rungs, { group: "row", keys: ladders, idBase: this.id, saveLabel: "saveRow" }) };
     return context;
   }
 
   /** @override */
   async _onRender(context, options) {
     await super._onRender(context, options);
+    wireRungs(this);
     for (const group of this.element?.querySelectorAll?.("[data-acks-extras-ref-drop]") ?? []) {
       group.addEventListener("dragover", (event) => event.preventDefault());
       group.addEventListener("drop", (event) => this.#onDropRef(event, group));
@@ -563,11 +594,11 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
    * fields not on screen keep what the row holds — switching kinds costs
    * nothing that was typed under the previous one.
    */
-  async #apply() {
+  async #apply(patch = {}) {
     const rows = this.store.read();
     const current = rows[this.index];
     if (!current) return this.close();
-    const form = this.#fromForm() ?? {};
+    const form = { ...(this.#fromForm() ?? {}), ...patch };
     rows[this.index] = mergeRowEdit(current, form);
     await this.store.write(rows);
     this.render();
@@ -576,11 +607,50 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #onChange() {
     await this.#apply();
   }
+
+  /**
+   * A kind button of a level-value figure: applies the kind at once, as any
+   * other field does, and drops the figure's drafted rungs, since the figure
+   * is no longer the ladder they were drafted for. A Player's switch is refused
+   * where it would move a figure on or off the invocation scale.
+   */
+  static async #onFigureKind(event, target) {
+    const field = target.dataset.field;
+    const kind = target.dataset.kind;
+    if (!LEVEL_VALUE_FIELDS.includes(field) || !kind) return;
+    if (!kindAllowed(this.store.read()[this.index]?.[field], kind)) return;
+    const form = this.#fromForm() ?? {};
+    this.rungs.discard([field]);
+    await this.#apply({ [field]: { ...(form[field] ?? {}), kind } });
+  }
+
+  /** The page the store cites for the row, for a rung's tooltip. */
+  rungCite() {
+    return citeOfStore(this.store);
+  }
+
+  /** Redraw the body and the footer from the drafts. */
+  rungRedraw() {
+    this.render();
+  }
+
+  /**
+   * Write every changed ladder of the row through the store in one write, as
+   * any edit of the row is (`mergeRowEdit`, then `store.write`).
+   * @param {Record<string, object>} values the level values, by field
+   */
+  async rungWrite(values) {
+    const rows = this.store.read();
+    const current = rows[this.index];
+    if (!current) return;
+    rows[this.index] = mergeRowEdit(current, values);
+    await this.store.write(rows);
+  }
 }
 
 /* -------------------------------------------- */
 
-/** Every open editor on one store. */
+/** Every open row editor on one store. */
 function editorsOn(storeKey) {
   const open = foundry.applications.instances?.values?.() ?? [];
   return [...open].filter((app) => app instanceof EffectRowEditor && app.store?.key === storeKey);
@@ -598,7 +668,10 @@ export function openEffectEditor(store, index) {
   return editor;
 }
 
-/** Close every editor on a store — after a delete or a reorder, no index it holds is still true. */
+/**
+ * Close every editor on a store — after a delete or a reorder, no index it
+ * holds is still true. Rungs drafted in a closed editor are dropped with it.
+ */
 export async function closeEffectEditors(store) {
   await Promise.all(editorsOn(store.key).map((app) => app.close()));
 }

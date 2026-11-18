@@ -1,0 +1,14 @@
+{{!--
+  A level value's kind switch: one button per kind, the chosen one pressed. The
+  hidden input beside it holds the kind the form submits, so every other change
+  of the window carries the kind it is on; a button sets it and applies.
+--}}
+<input type="hidden" name="{{name}}.kind" value="{{choice}}" data-kind-input>
+<span class="acks-btn-group" role="group" aria-label="{{groupLabel}}">
+  {{#each buttons as |b|}}
+    <button type="button" class="acks-btn acks-btn--sm{{#unless b.pressed}} acks-btn--secondary{{/unless}}" data-action="figureKind"
+            data-kind="{{b.kind}}"{{#if ../field}} data-field="{{../field}}"{{/if}} aria-pressed="{{#if b.pressed}}true{{else}}false{{/if}}"{{#if b.disabled}} disabled{{/if}}>
+      {{#if b.ladder}}<i class="fa-solid fa-stairs" aria-hidden="true"></i> {{/if}}{{b.label}}
+    </button>
+  {{/each}}
+</span>

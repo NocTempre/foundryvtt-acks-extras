@@ -19,6 +19,8 @@ import SpellExtras from "./spell-extras.mjs";
 import { effectRowView } from "./describe.mjs";
 import { displayRange, displayDuration, coreFieldsFrom, retiredWith } from "./spell-logic.mjs";
 import { effectRowActions } from "../lib/apps/effect-row-editor.mjs";
+import { RungDrafts, isInvocationLadder, withKindChoice } from "../lib/rung-ladder.mjs";
+import { RUNG_ACTIONS, actionsContext, isJudge, kindAllowed, kindContext, ladderContext, wireRungs } from "../lib/rung-view.mjs";
 import { cookbookId, byCookbookId } from "../lib/library.mjs";
 import { summonRefName } from "../lib/summons-logic.mjs";
 import { classItems } from "../classes/registry.mjs";
@@ -32,6 +34,9 @@ const T = `modules/${MODULE_ID}/templates/magic`;
 const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
 /** The flat / per-level value control the Overview tab repeats. */
 export const LEVEL_VALUE_PARTIAL = `${T}/level-value.hbs`;
+
+/** The lib partials the level-value partial draws: the kind switch, the rungs and their Save / Cancel bar. */
+export const RUNG_PARTIALS = ["figure-kind", "rung-ladder", "rung-actions"].map((name) => `modules/${MODULE_ID}/templates/lib/${name}.hbs`);
 /** The fields of one duration, used for the spell's own and for its reversed form's. */
 export const DURATION_PARTIAL = `${T}/duration-fields.hbs`;
 /** The flag's dotted path in an update. */
@@ -66,18 +71,73 @@ export function spellEffectStore(item) {
   };
 }
 
-/** A level value as the template's control context. */
-function levelValue(name, value, label) {
+/**
+ * The Overview's spell-wide figures that are level values, by their path inside
+ * the spell flag. Each takes the kind switch's "By invocation level", and the
+ * ladder under it is edited inline, drafted until its own Save.
+ */
+export const LEVEL_VALUE_PATHS = Object.freeze([
+  "target.count",
+  "target.hdPool",
+  "target.area.size",
+  "target.area.width",
+  "save.modifier",
+  "target.hdCap",
+  "target.hdBelow",
+  "save.exemptBelowHd",
+]);
+
+/**
+ * A level value as the template's control context. `path` is its place in the
+ * flag and its draft's key, `cite` the page the spell is read from, and
+ * `drafts` the sheet's rungs: a figure on the invocation scale shows its
+ * ladder, drafted inline, with its own Save and Cancel under it.
+ */
+function levelValue(path, value, label, { cite = "", drafts, idBase }) {
   const v = value ?? {};
   const kind = v.kind || "flat";
+  const name = `${FLAG_PATH}.${path}`;
+  const isInvocation = isInvocationLadder(v);
+  const scope = { group: path, keys: [path], idBase };
   return {
     name,
+    path,
     label,
     value: v,
+    isInvocation,
+    kindGroup: kindContext(name, label, v, { invocation: true }),
+    ladder: isInvocation ? ladderContext(drafts, path, { ...scope, cite }) : null,
+    ladderActions: isInvocation ? actionsContext(drafts, { ...scope, saveLabel: "saveRungs" }) : null,
     isFlat: kind === "flat",
     isPerLevel: kind === "perLevel",
-    kinds: V.choicesOf(V.VALUE_KINDS),
     rounds: V.choicesOf(V.VALUE_ROUNDING),
+  };
+}
+
+/**
+ * The store over the spell's level-value figures: reads one off the spell's
+ * flag by its path and writes it back through the flag's normalisation as a
+ * sheet submit would, letting core's strings follow a shape that changed.
+ * @param {Item} item the spell
+ */
+export function spellFigureStore(item) {
+  return {
+    cite: () => SpellExtras.fromItem(item).toObject().cite,
+    read: (path) => foundry.utils.getProperty(SpellExtras.fromItem(item).toObject(), path),
+    write: async (path, levelValue) => {
+      const stored = SpellExtras.fromItem(item).toObject();
+      const data = foundry.utils.deepClone(stored);
+      foundry.utils.setProperty(data, path, levelValue);
+      const clean = SpellExtras.normalize(data);
+      const update = { [`${FLAG_PATH}.${path}`]: foundry.utils.getProperty(clean, path) };
+      const before = coreFieldsFrom(SpellExtras.normalize(stored));
+      for (const [key, value] of Object.entries(coreFieldsFrom(clean))) {
+        const current = item.system?.[key];
+        if (before[key] !== value || current == null || current === "") update[`system.${key}`] = value;
+      }
+      await item.update(update);
+      return update[`${FLAG_PATH}.${path}`];
+    },
   };
 }
 
@@ -198,7 +258,7 @@ export function createSpellSheet(Base) {
   // Foundry's Active Effects). Core's `effects` part is folded into
   // mechanics rather than kept beside it.
   const parts = { header: P.header, tabs: P.tabs };
-  parts.overview = { template: `${T}/tab-overview.hbs`, templates: [LEVEL_VALUE_PARTIAL, DURATION_PARTIAL], scrollable: [""] };
+  parts.overview = { template: `${T}/tab-overview.hbs`, templates: [LEVEL_VALUE_PARTIAL, DURATION_PARTIAL, ...RUNG_PARTIALS], scrollable: [""] };
   if (P.description) parts.description = P.description;
   parts.mechanics = { template: `${T}/tab-mechanics.hbs`, templates: [CORE_EFFECTS_PARTIAL], scrollable: [""] };
 
@@ -216,12 +276,39 @@ export function createSpellSheet(Base) {
         listAdd: AcksSpellSheet.#onListAdd,
         listDelete: AcksSpellSheet.#onListDelete,
         openReverse: AcksSpellSheet.#onOpenReverse,
+        ...RUNG_ACTIONS,
+        figureKind: AcksSpellSheet.#onFigureKind,
       },
     };
     static PARTS = parts;
     static TABS = { primary: { tabs: tabList, initial: tabList[0].id } };
 
     tabGroups = { primary: tabList[0].id };
+
+    /** The rungs of the Overview's ladders as drafts, keyed by their path in the flag; they outlive every redraw and the sheet's own submit, and closing the sheet drops them. */
+    rungs = new RungDrafts({ read: (path) => spellFigureStore(this.item).read(path), editable: isJudge });
+
+    /** The page the spell is read from, for a rung's tooltip. */
+    rungCite() {
+      return SpellExtras.fromItem(this.item).toObject().cite ?? "";
+    }
+
+    /** Redraw the Overview from the drafts. */
+    rungRedraw() {
+      this.render({ parts: ["overview"] });
+    }
+
+    /** Write each changed ladder through the flag's normalisation, one write for each figure. */
+    async rungWrite(values) {
+      const store = spellFigureStore(this.item);
+      for (const [path, levelValue] of Object.entries(values)) await store.write(path, levelValue);
+    }
+
+    /** @override */
+    async _onRender(context, options) {
+      await super._onRender(context, options);
+      wireRungs(this);
+    }
 
     /** @override */
     async _prepareContext(options) {
@@ -263,15 +350,16 @@ export function createSpellSheet(Base) {
       };
       context.rangeText = displayRange(data.range);
       context.durations = { main: durationView("duration", data.duration), reversed: durationView("reversedDuration", data.reversedDuration) };
+      const lv = { cite: data.cite ?? "", drafts: this.rungs, idBase: this.id };
       context.levelValues = {
-        count: levelValue(`${FLAG_PATH}.target.count`, data.target?.count, loc("overview.count")),
-        hdPool: levelValue(`${FLAG_PATH}.target.hdPool`, data.target?.hdPool, loc("overview.hdPool")),
-        areaSize: levelValue(`${FLAG_PATH}.target.area.size`, data.target?.area?.size, loc("overview.areaSize")),
-        areaWidth: levelValue(`${FLAG_PATH}.target.area.width`, data.target?.area?.width, loc("overview.areaWidth")),
-        saveModifier: levelValue(`${FLAG_PATH}.save.modifier`, data.save?.modifier, loc("overview.saveModifier")),
-        hdCap: levelValue(`${FLAG_PATH}.target.hdCap`, data.target?.hdCap, loc("overview.hdCap")),
-        hdBelow: levelValue(`${FLAG_PATH}.target.hdBelow`, data.target?.hdBelow, loc("overview.hdBelow")),
-        exemptBelowHd: levelValue(`${FLAG_PATH}.save.exemptBelowHd`, data.save?.exemptBelowHd, loc("overview.exemptBelowHd")),
+        count: levelValue("target.count", data.target?.count, loc("overview.count"), lv),
+        hdPool: levelValue("target.hdPool", data.target?.hdPool, loc("overview.hdPool"), lv),
+        areaSize: levelValue("target.area.size", data.target?.area?.size, loc("overview.areaSize"), lv),
+        areaWidth: levelValue("target.area.width", data.target?.area?.width, loc("overview.areaWidth"), lv),
+        saveModifier: levelValue("save.modifier", data.save?.modifier, loc("overview.saveModifier"), lv),
+        hdCap: levelValue("target.hdCap", data.target?.hdCap, loc("overview.hdCap"), lv),
+        hdBelow: levelValue("target.hdBelow", data.target?.hdBelow, loc("overview.hdBelow"), lv),
+        exemptBelowHd: levelValue("save.exemptBelowHd", data.save?.exemptBelowHd, loc("overview.exemptBelowHd"), lv),
       };
       context.figureTips = {
         hdCap: figureTip(data.target?.hdCap, data.cite),
@@ -324,6 +412,11 @@ export function createSpellSheet(Base) {
       const raw = foundry.utils.getProperty(submitData, FLAG_PATH);
       if (!raw || typeof raw !== "object") return submitData;
       const stored = foundry.utils.deepClone(this.item.getFlag(MODULE_ID, FLAG_SPELL) ?? {});
+      // The kind switch's invocation choice is no stored kind: it becomes the ladder on that scale.
+      for (const path of LEVEL_VALUE_PATHS) {
+        const fragment = foundry.utils.getProperty(raw, path);
+        if (fragment && typeof fragment === "object") foundry.utils.setProperty(raw, path, withKindChoice(foundry.utils.getProperty(stored, path), fragment));
+      }
       const merged = foundry.utils.mergeObject(stored, raw, { inplace: false, overwrite: true, insertKeys: true });
       let clean;
       try {
@@ -370,6 +463,23 @@ export function createSpellSheet(Base) {
       if (!(index >= 0 && index < rows.length)) return;
       rows.splice(index, 1);
       await this.item.update({ [`${FLAG_PATH}.lists`]: rows });
+    }
+
+    /**
+     * A kind button of a figure: sets the figure's hidden kind input and submits
+     * the sheet, as the select it replaces did on change, and drops the figure's
+     * drafted rungs. A Player's switch is refused where it would move a figure
+     * on or off the invocation scale.
+     */
+    static async #onFigureKind(event, target) {
+      const box = target.closest("[data-figure]");
+      const path = box?.dataset.figure;
+      const input = box?.querySelector("input[data-kind-input]");
+      if (!input || !LEVEL_VALUE_PATHS.includes(path) || !target.dataset.kind) return;
+      if (!kindAllowed(spellFigureStore(this.item).read(path), target.dataset.kind)) return;
+      this.rungs.discard([path]);
+      input.value = target.dataset.kind;
+      await this.submit();
     }
 
     static async #onOpenReverse() {

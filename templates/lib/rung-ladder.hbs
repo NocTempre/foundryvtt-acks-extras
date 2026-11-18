@@ -1,0 +1,44 @@
+{{!--
+  The rungs of one invocation-level figure, drafted inline: a level and the
+  figure that holds from it. The boxes carry no `name`, so the form's
+  submit-on-change never sees them; the window holds the draft and writes it on
+  Save (`rung-view.mjs`). A Player gets the same grid read-only, with none of
+  the write buttons.
+--}}
+<div class="acks-extras-rung-ladder" data-rung-ladder="{{key}}" data-rung-group="{{group}}" data-rung-keys="{{keys}}">
+  {{#if empty}}
+    <p class="hint">{{localize "ACKS-LIB.rungEditor.empty"}}</p>
+  {{else}}
+    <div class="acks-extras-rung-grid" role="group" aria-label="{{localize 'ACKS-LIB.rungEditor.gridLabel'}}">
+      <span class="acks-extras-rung-head">{{localize "ACKS-LIB.rungEditor.fromLevel"}}</span>
+      <span class="acks-extras-rung-head">{{localize "ACKS-LIB.rungEditor.figure"}}</span>
+      <span></span>
+      {{#each rungs as |r|}}
+        <input type="number" step="1" class="acks-input acks-input--num" data-rung-at="{{r.index}}" value="{{r.at}}"
+               aria-label="{{r.atLabel}}"{{#if r.invalid}} aria-invalid="true" aria-describedby="{{../errId}}"{{/if}}{{#unless ../editable}} readonly{{/unless}}>
+        <input type="number" step="any" class="acks-input{{#if r.hand}} is-edited{{/if}}" data-rung-value="{{r.index}}" value="{{r.value}}" placeholder="—"
+               aria-label="{{r.valueLabel}}"{{#if r.tip}} data-tooltip-text="{{r.tip}}"{{/if}}{{#unless ../editable}} readonly{{/unless}}>
+        {{#if ../editable}}
+          <button type="button" class="acks-btn acks-btn--quiet acks-btn--icon" data-action="rungRemove" data-rung-key="{{../key}}" data-index="{{r.index}}" aria-label="{{r.removeLabel}}">
+            <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+          </button>
+        {{else}}
+          <span></span>
+        {{/if}}
+      {{/each}}
+    </div>
+  {{/if}}
+  {{#if editable}}
+    <div class="acks-extras-rung-bar">
+      <button type="button" class="acks-btn acks-btn--secondary" data-action="rungAdd" data-rung-key="{{key}}">
+        <i class="fa-solid fa-plus" aria-hidden="true"></i>
+        {{localize "ACKS-LIB.rungEditor.add"}}
+      </button>
+      <button type="button" class="acks-btn acks-btn--secondary" data-action="rungRestore" data-rung-key="{{key}}"{{#unless canRestore}} disabled{{/unless}}>
+        <i class="fa-solid fa-rotate-left" aria-hidden="true"></i>
+        {{localize "ACKS-LIB.rungEditor.restore"}}
+      </button>
+    </div>
+    <p class="hint">{{localize "ACKS-LIB.rungEditor.restoreHint"}}</p>
+  {{/if}}
+</div>

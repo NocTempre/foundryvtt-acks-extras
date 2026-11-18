@@ -150,6 +150,39 @@ measure, the figure and unit as printed, the unit's worth in feet, and the page
 reference, which stands alone where nothing could be normalized. A size that
 varies by level shows no extent on the sheet.
 
+**The rung editor** (lib `rung-view.mjs`, draft and model `rung-ladder.mjs`). A
+figure that is a level value takes a kind switch drawn as a button group (Flat,
+By caster level, By invocation level; `aria-pressed`), and "By invocation
+level" is a UI choice, never a stored kind: it stores `{kind: "conditional",
+on: "invocationLevel", breakpoints}`, and a figure the importer wrote as that
+ladder opens on it. The switch is on each of the Overview's eight figures
+(`LEVEL_VALUE_PATHS`) and on a row's `value` and `max` in the effect-row
+editor. The ladder's rungs (a level and the figure from it up) are edited
+inline, under the switch, in the row editor and on the Overview alike. They are
+a DRAFT (`RungDrafts`), held on the window and keyed by figure, apart from the
+form: a rung box has no `name` and its `change` is stopped below the form, so
+neither the row editor's apply-on-change nor core's submit-on-change sees it,
+and the draft outlives every redraw those make. Only a ladder is drafted. Every
+other field of the window, and a figure that is no ladder, keeps writing on
+change. Levels are whole numbers and rise strictly, a figure left blank is null
+and resolves to no figure, and a ladder's bar (the verdict, Cancel, Save) is
+disabled while the draft is invalid, so no invalid ladder is ever written. The
+row editor's bar is a pinned footer part, "Save row", over every ladder the row
+holds (a row's `value` and `max` save in one write); the Overview draws the
+bar under each figure's rungs, "Save rungs". Save writes once. A kind button
+applies at once and drops the figure's draft; closing a window drops its
+drafts. The Overview's store (`spellFigureStore`) writes the figure's flag
+path through the spell's normalisation and lets core's strings follow, as a
+sheet submit does; a row writes through the row's own `store.write`, which
+makes the row the Judge's. The write is a Judge's (`game.user.isGM`, checked in
+every draft mutator and in Save): a Player sees the ladder read-only, with no
+bar and the kind buttons off the invocation scale, and no write is sent. A rung
+a hand changed or added carries `hand`, and an edit keeps the figure and level
+it replaced (`was`, `wasAt`): the gold edge and the tooltip read them, and the
+page the spell cites stays on every imported rung's tooltip, alone where the
+import left the figure blank. "Restore imported" puts edited rungs back and
+drops added ones; a rung a hand removed is not kept anywhere.
+
 **A row's scope.** A modifier or ward row scopes itself with `lib`'s scope fields
 (docs/lib/API.md, "Scoping"): kinds, an alignment fixed or the source's, an enemy
 test and an `anyOf` of branches. A spell's rows author them as structure, and

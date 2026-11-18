@@ -1,0 +1,8 @@
+{{!--
+  The effect-row editor's pinned footer, a part of its own so it stays below the
+  scrolling body. It always renders one element, since a part must; a row with
+  no ladder, or a Player, gets it hidden.
+--}}
+<footer class="form-footer acks-extras-rung-footer"{{#unless footer.show}} hidden{{/unless}}>
+  {{#if footer.show}}{{> "modules/acks-extras/templates/lib/rung-actions.hbs" footer}}{{/if}}
+</footer>

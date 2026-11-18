@@ -132,8 +132,20 @@ export function levelValueField() {
     // DECLARE its outcome (`auto`, `none`; blank is a target) and carries the
     // cell's printed text for display. `text` is what the page says; `outcome`
     // is the only part a machine acts on.
+    //
+    // A Judge's edit of a rung is marked on it (`rung-ladder.mjs`): `hand` is
+    // "edited" or "added", `was` and `wasAt` the figure and level an edit
+    // replaced. They are display only; nothing resolves from them.
     breakpoints: new ArrayField(
-      new SchemaField({ atLevel: num({ integer: true }), value: num(), outcome: choice(RUNG_OUTCOMES), text: str() }),
+      new SchemaField({
+        atLevel: num({ integer: true }),
+        value: num(),
+        outcome: choice(RUNG_OUTCOMES),
+        text: str(),
+        hand: str(),
+        was: num(),
+        wasAt: num({ integer: true }),
+      }),
     ),
     on: choice(VALUE_SCALES), // conditional: which scale the ladder is keyed on
     // Fractional per-level values are printed with their rounding; without

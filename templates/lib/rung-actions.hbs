@@ -1,0 +1,21 @@
+{{!--
+  The Save and Cancel of the rungs drafted under it, and the reason Save is off.
+  Drawn only for a Judge. The verdict is redrawn in place as a rung is typed
+  (`paintBar`), so its two children carry the hooks it finds them by.
+--}}
+<div class="acks-extras-rung-actions" data-rung-actions data-rung-group="{{group}}">
+  <span id="{{errId}}" class="acks-extras-rung-state" aria-live="polite">
+    <i class="fa-solid fa-triangle-exclamation" aria-hidden="true" data-rung-state-icon{{#unless error}} hidden{{/unless}}></i>
+    <span data-rung-state-text>{{error}}</span>
+  </span>
+  <div class="acks-extras-rung-acts">
+    <button type="button" class="acks-btn acks-btn--secondary" data-action="rungCancel" data-rung-keys="{{keys}}">
+      <i class="fa-solid fa-ban" aria-hidden="true"></i>
+      {{localize "ACKS-LIB.rungEditor.cancel"}}
+    </button>
+    <button type="button" class="acks-btn acks-btn--roll" data-action="rungSave" data-rung-keys="{{keys}}"{{#unless canSave}} aria-disabled="true" aria-describedby="{{errId}}"{{/unless}}>
+      <i class="fa-solid fa-floppy-disk" aria-hidden="true"></i>
+      {{saveLabel}}
+    </button>
+  </div>
+</div>

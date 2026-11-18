@@ -813,3 +813,66 @@ one `locationOfRegion` lookup at entry and a redraw hook.
 *Cost:* a thing whose `ref` was deleted stays until the Judge removes it, and
 reads as a missing document rather than vanishing; nothing migrates, since no
 earlier shape shipped.
+
+## 2026-11-18 — The rung editor is inline, with a draft and its own Save
+
+Slice R-e (rework R-e2) of the spell-effects plan. The owner, asked "Ship a
+Judge editor for imported invocation level tables in this minor?": "Yes, build
+it". On the design boards: "The multi-check isn't a match for current group
+rolls. But otherwise close enough, start building it." (boards 6-8). Board 8 is
+the reference. The first build (a window of its own, a select kind switch) was
+rejected on that board: "Rework to the board". Rulings 233 to 236 of the plan
+are the owner's; what follows are the calls the build made.
+
+- **Inline, as drawn (233).** The kind switch is the button group on board 8
+  (Flat, By caster level, By invocation level; `aria-pressed`), and the rungs
+  are edited under it in the effect-row editor and in the Overview, with no
+  window of their own. *Rejected:* the earlier window with a draft, and a
+  select with one more option.
+- **Only a ladder is drafted (235, 236).** The row editor applies every change
+  as it is made and has no Save; a rung just added is invalid until it is
+  filled in, so rungs cannot be written a change at a time without storing an
+  invalid ladder or hiding a draft. A figure on the ladder keeps its rungs in a
+  draft (`RungDrafts`) held on the window, apart from the form, until a Save
+  validates and writes once; every other field, and a figure that is no ladder,
+  writes on change as it always did. The row editor's Save row is the board's
+  pinned footer, a part of its own, and covers every ladder of the row in one
+  write; the Overview, which has up to eight figures and no footer of its own,
+  draws the same verdict, Cancel and Save rungs under each figure's rungs.
+  *Counter (low):* the Overview's bar scrolls with the sheet body. It sits
+  against the rungs it saves.
+- **The draft stays out of the submit path.** A rung box carries no `name`, and
+  its `change` event is stopped on a container below the form, which is what
+  both the row editor and core's submit-on-change listen on; a typed rung moves
+  the draft and repaints the verdict and Save in place, so the caret stays. The
+  draft is a window instance field keyed by figure, so it survives every redraw
+  and closes with the window. A kind button applies at once and drops that
+  figure's draft, since the figure is no longer the ladder it was drafted for.
+- **The kind switch is a choice, never a stored kind.** "By invocation level"
+  becomes the conditional on the scale (`withKindChoice`), keeping the rungs a
+  figure on that scale already holds, and a hidden `<name>.kind` input carries
+  the chosen kind so every other change submits it unchanged. A stored kind
+  with no button (breakpoints, progression, a conditional on another scale) is
+  shown by name and left as it is; the select this replaces offered them with
+  no editor behind them. A spell's switch offers By invocation level, an
+  ability's does not.
+- **A figure is a number.** A rung's `value` is `num()` and `resolveLevelValue`
+  returns a number, so the figure box is numeric and a blank is null. Board 8's
+  "2d6" was a sample. *Counter (medium):* a damage figure printed as dice is not
+  editable here; it is the row's `roll`.
+- **A hand's mark is on the rung (234).** `hand`, `was` and `wasAt` ride each
+  rung (`levelValueField`), where a rung-less value carries nothing extra. A
+  snapshot of the whole imported ladder would add a key to every level value in
+  the module. *Cost:* Restore imported puts back an edited rung and drops an
+  added one, and cannot bring back a rung a hand removed, since nothing keeps
+  it. *Counter (medium):* a removed rung is the one a Judge most wants back.
+- **An edited figure drops the import's `outcome` and `text`**, which described
+  the figure it replaces; an edit of the level alone keeps them.
+- **A Player sees it read-only, by `game.user.isGM`** (never `isOwner`, which a
+  Player owning the spell's actor would pass). The gate is in every draft
+  mutator and in Save, not only in the template, and a Player's kind buttons are
+  off wherever the choice would move a figure on or off the invocation scale.
+- **Closing a window with an unsaved draft discards it.** Board 8 draws no
+  notice, so there is none.
+
+*Cost:* a rung gains three members, so lib `apiVersion` is 62.
