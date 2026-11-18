@@ -6,7 +6,8 @@
  * The flag is `{id, label, cite, sourceAlignment, parts}`. A part is `{key,
  * on, value, itemId, gate, stacksWith, notStacksWith, provides}` plus the scope
  * fields `scopeApplies` reads (`vsKinds`, `vsAlignment`, `vsAlignmentOf`,
- * `vsAlignmentMode`, `vsEnemy`, `anyOf`). `on` names the roll: `attack` and
+ * `vsAlignmentMode`, `vsEnemy`, `anyOf`), and on a `ward` part the `save` the
+ * attacker would throw, whose target number the notice carries. `on` names the roll: `attack` and
  * `damage` on the weapon the bearer attacks with, `ac` on an attack made against
  * the bearer, `save` on a saving throw, `ward` for a protection that is told and
  * never added. The feature that writes a record resolves the figures; lib reads
@@ -27,6 +28,8 @@ import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS } from "./constants.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import { gateVerdict, registerGate, resolveStacking, stackingPart } from "./typed-modifiers.mjs";
 import { hasScope, scopeApplies } from "./vocab.mjs";
+import { vocabLabel } from "./magic-vocab.mjs";
+import { saveSpec } from "./saves.mjs";
 import { actorAlignment, areEnemies, creatureKinds } from "./actor-read.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { isMagical } from "./item-model.mjs";
@@ -246,6 +249,19 @@ function attackerSide(ctx, on, rows, told) {
   }
 }
 
+/**
+ * The saving throw a ward part names (its `save`, a system save key) as the
+ * attacker would make it: `{save, number}` with the save's label and its target
+ * number, or null when the part names none or the attacker has no target stored.
+ * A ward is told, never refused; the figure is for the Judge who rolls it.
+ */
+function wardSaveTarget(attacker, part) {
+  if (typeof part?.save !== "string" || !part.save) return null;
+  const { target } = saveSpec(attacker, part.save);
+  if (typeof target !== "number" || !Number.isFinite(target)) return null;
+  return { save: vocabLabel("saveCategory", part.save), number: target };
+}
+
 /** The target's `ac` parts, as the minus terms they are on an attack against it, and its `ward` parts, told. */
 function defenderSide(ctx, rows, told) {
   const { actor, token, target, targetActor } = ctx;
@@ -257,7 +273,11 @@ function defenderSide(ctx, rows, told) {
     const verdict = settle(entry, actor, enemy);
     const data = { spell: entry.label, target: ctx.targetName ?? "", attacker: actor?.name ?? "" };
     if (entry.part.on === "ward") {
-      if (verdict.applies || verdict.undetermined) told.push(note(entry, "notice.ward", "warn", data, actor?.uuid));
+      if (verdict.applies || verdict.undetermined) {
+        const throwTarget = wardSaveTarget(actor, entry.part);
+        if (throwTarget === null) told.push(note(entry, "notice.ward", "warn", data, actor?.uuid));
+        else told.push(note(entry, "notice.wardSave", "warn", { ...data, ...throwTarget }, actor?.uuid));
+      }
     } else if (verdict.undetermined) told.push(note(entry, "notice.undetermined", "warn", data, actor?.uuid));
     else if (verdict.applies) applying.push(spellStackingPart(entry, verdict.sign));
   }

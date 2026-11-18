@@ -1,4 +1,4 @@
-# lib API (apiVersion 56)
+# lib API (apiVersion 57)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 56,
+  apiVersion: 57,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -362,15 +362,16 @@ to `{ key: label }` for DataModel `choices`.
   migration): `DAMAGE_TYPES`, `MOVEMENT_TYPES`, `VISION_TYPES`, `SENSE_TYPES`,
   `NATURAL_WEAPONS`, `ALIGNMENTS`.
 - **Ability effect model** (new): `ABILITY_CATEGORIES`, `EFFECT_TYPES`
-  (spell kinds marked `domain: "spell"`; `effectTypesFor(domain)` is a
-  picker's list), `MODIFIER_TARGETS`, `EFFECT_KEYS`, `CONDITION_KEYS`,
+  (spell kinds marked `domain: "spell"`, `slay` and `destroyItem` among them;
+  `effectTypesFor(domain)` is a picker's list), `MODIFIER_TARGETS`, `EFFECT_KEYS`, `CONDITION_KEYS`,
   `PROGRESSION_CLASSES`, `RESOURCE_KINDS`, `ROLL_TYPES`, `REROLL_KEEP`,
   `VALUE_SCALES`, `CONVERSION_STATUS`.
 - **Magic families** (`magic-vocab.mjs`, re-exported here): `SPELL_TYPES`,
   `RANGE_SHAPES`, `DISTANCE_UNITS`, `DURATION_SHAPES`, `TIME_UNITS`,
   `CONCENTRATION_KINDS`, `CASTING_TIME_SHAPES`, `TARGET_MODELS`,
-  `AREA_SHAPES`, `TARGET_FILTERS`, `SAVE_CATEGORIES`, `SAVE_EFFECTS`,
-  `EFFECT_LASTS` (`instant`, `duration`, `nextTurn`, `rounds`),
+  `AREA_SHAPES`, `TARGET_FILTERS`, `SAVE_CATEGORIES`, `SAVE_EFFECTS` (`none`
+  marks a row no save governs), `EFFECT_LASTS` (`instant`, `duration`,
+  `nextTurn`, `followingTurn`, `rounds`),
   `EFFECT_RECURRENCES` (`none`, `eachRound`, `laterRounds`) and the three a
   recurring spell row names: `EFFECT_RECUR_MOMENTS` (`recurAt`),
   `EFFECT_RECUR_SAVES` (`recurSave`), `EFFECT_RECUR_TARGETS` (`recurTarget`),
@@ -1085,6 +1086,9 @@ acksExtras.lib.rollMods = {
 acksExtras.lib.loseStates(actor, cause) → Promise<string[]>   // cause: "damage" | "save" | "moved"
 acksExtras.lib.lossInFlight(actor) → {cause, ids} | null       // held while loseStates lifts, on that client
 acksExtras.lib.STATES_LOST_HOOK                                // "acksExtras.statesLost", called with (actor, ids, cause)
+acksExtras.lib.lift(actor, ids) → Promise<void>                // statuses off an actor, through the system's toggle
+acksExtras.lib.loseRecords(actor, cause) → Promise<string[]>   // cause: "damage" | "attack"; the ids deleted
+acksExtras.lib.endsOn = {FLAG: "endsOn", CAUSES, readEndsOn(flag) → string[], endedBy(effects, cause) → string[]}
 ```
 
 **The `rollMods` flag** is `{id, label, cite, sourceAlignment, parts}`, `id` the
@@ -1103,7 +1107,19 @@ the throw is made against, and `bearerToken` the saver's own token; a `save`
 part that applies is a target part, one that cannot be settled is in `pending`
 with `when: "source"`. Core's own `rollSave` reads only the unscoped, ungated
 `save` parts and tells each scoped one. `lossInFlight` is read by a delete hook
-the lift fires on the same client.
+the lift fires on the same client. A `ward` part that names a `save` (a system
+save key) has its notice carry the attacker's target number for that throw
+(`saveSpec`), and the notice stays the plain one when the part names none or the
+attacker has no target stored; a ward is told and never refused.
+
+**The `endsOn` flag** (apiVersion 57) is a list of causes on an Active Effect,
+`flags["acks-extras"].endsOn`: `damage` and `attack`. The loss hooks delete such
+a record by id: on `damage` when the bearer's hit points fall (the records first,
+then the states damage costs, in that order), and on `attack` after the bearer's
+own attack throw resolves, on the client that made it, a spell carrier's attack
+included. A word that is no cause, or a flag that is not a list, ends nothing.
+The catalogue's `slumbering` is lost to `damage` and `moved` through
+`loseStates`, as `casting` is.
 
 A contributor passed to `addContributor` may declare `carriers: ["attack" |
 "damage"]`: the questions it answers for a spell carrier's attack. Without it a

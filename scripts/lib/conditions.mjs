@@ -271,6 +271,7 @@ export const CONDITIONS = Object.freeze({
   },
   slumbering: {
     label: "Slumbering", img: "icons/svg/sleep.svg", implies: ["helpless", "blinded", "deafened", "mute"],
+    lost: ["damage", "moved"],
   },
   sneaking: { label: "Sneaking", img: "icons/svg/mole.svg" },
   starving: {

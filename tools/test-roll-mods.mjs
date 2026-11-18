@@ -346,6 +346,23 @@ await ok("a ward whose scope applies or is undetermined is told on the attacking
   assert.deepEqual([outside.rows, outside.told], [[], []]);
 });
 
+await ok("a ward that names a save carries the attacker's save target, still told and never refused", () => {
+  const ally = circled([part("ward", 0, { vsKinds: ["undead"], value: undefined, save: "spell" })]);
+  const foe = striker();
+  foe.system.saves = { spell: { value: 14 } };
+  const hit = rollModRows(attackCtx(foe, ally), "melee", "attack");
+  assert.deepEqual(hit.rows, [], "a ward adds no row");
+  assert.deepEqual(hit.told.map((t) => [t.lang, t.level, t.data]), [["notice.wardSave", "warn", { spell: "Test Edge", target: "Ally", attacker: "Striker", save: "Spells", number: 14 }]]);
+  // The target is the attacker's after its own conditions: a stored figure it has none for tells the plain notice.
+  const unstored = striker();
+  assert.equal(rollModRows(attackCtx(unstored, ally), "melee", "attack").told[0].lang, "notice.ward", "no stored target, no figure");
+  const unnamed = circled([part("ward", 0, { vsKinds: ["undead"], value: undefined })]);
+  assert.equal(rollModRows(attackCtx(foe, unnamed), "melee", "attack").told[0].lang, "notice.ward", "a ward naming no save tells the plain notice");
+  const outside = actorOf("Plain", { type: "monster", types: ["beast"], disposition: -1 });
+  outside.system.saves = { spell: { value: 14 } };
+  assert.deepEqual(rollModRows(attackCtx(outside, ally), "melee", "attack").told, [], "an attacker outside the scope is told nothing");
+});
+
 await ok("the enemy test reads the attacker's token against the bearer's", () => {
   const ally = circled([part("ac", 2, { vsEnemy: true })]);
   assert.equal(rollModRows(attackCtx(striker(), ally), "melee", "attack").rows.length, 1);

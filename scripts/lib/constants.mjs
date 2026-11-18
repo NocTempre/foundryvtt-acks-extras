@@ -29,6 +29,14 @@ export const FLAG_ROLL_MODS = "rollMods";
 export const FLAG_TURN_LIFE = "turnLife";
 
 /**
+ * Flag key under `flags["acks-extras"]` on an Active Effect that ends when its
+ * bearer does something (`ends-on.mjs`): a list of causes, `damage` and
+ * `attack`. Named here because the feature that writes the record and the
+ * tracker's loss hooks that end it both name it.
+ */
+export const FLAG_ENDS_ON = "endsOn";
+
+/**
  * The actor sub-types this library adds to the system. Named here, in the
  * one Foundry-free constants file, so a pure-logic module (and the Node test
  * harness that loads it) can import them without pulling in the sheets and

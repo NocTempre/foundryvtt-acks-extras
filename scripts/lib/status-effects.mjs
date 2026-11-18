@@ -19,6 +19,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, STATES_LOST_HOOK, TURN_BEGAN_HOOK, TURN_ENDED_HOOK, FLAG_TURN_LIFE } from "./constants.mjs";
 import { readTurnLife, turnLifeStep, turnEdges } from "./turn-life.mjs";
+import { endedBy } from "./ends-on.mjs";
 import { expectTables } from "./tables.mjs";
 import { signed } from "./frame-model.mjs";
 import { isPrimaryGM, numOrNull } from "./util.mjs";
@@ -26,7 +27,7 @@ import { saveKindOf } from "./actor-compat.mjs";
 import { sizeRank } from "./actor-read.mjs";
 import { STATUS_RUNNING } from "./perception.mjs";
 import { fixEach, registerRepairCheck, worldActors } from "./repair.mjs";
-import { addAttackContributor } from "./patches/attack-throw.mjs";
+import { addAttackContributor, POST_ATTACK_HOOK } from "./patches/attack-throw.mjs";
 import { sheetSaveShift, tellRollMods } from "./roll-mods.mjs";
 import {
   CONDITIONS, CONDITIONS_DOC, CONDITIONS_TABLE, STACKS_FLAG,
@@ -569,8 +570,12 @@ export async function withSurpriseConditions(pools, run) {
 /*  The tracker lifting what it ends             */
 /* -------------------------------------------- */
 
-/** Take the statuses `ids` off an actor, one at a time. */
-async function lift(actor, ids) {
+/**
+ * Take the statuses `ids` off an actor, one at a time, through the system's own
+ * toggle so every effect carrying a status goes with it. A status that cannot
+ * be lifted is logged and the rest still are.
+ */
+export async function lift(actor, ids) {
   for (const id of ids) {
     try {
       await actor.toggleStatusEffect(id, { active: false });
@@ -797,6 +802,32 @@ export async function loseStates(actor, cause) {
   return ids;
 }
 
+/**
+ * Delete, by id, the actor's records that end on `cause` (`damage` or `attack`,
+ * the words of a record's `endsOn` flag) and say so. The ids are read from the
+ * actor as it stands when this runs, so a record an earlier loss already took
+ * is not asked for twice; a delete that fails is logged and ends nothing. Run
+ * by the client that made the change, as `loseStates` is.
+ *
+ * @param {Actor} actor
+ * @param {string} cause
+ * @returns {Promise<string[]>} the ids deleted
+ */
+export async function loseRecords(actor, cause) {
+  const effects = [...(actor?.effects ?? [])];
+  const ids = endedBy(effects, cause);
+  if (!ids.length) return [];
+  const names = effects.filter((e) => ids.includes(e.id)).map((e) => e.name).filter(Boolean);
+  try {
+    await actor.deleteEmbeddedDocuments("ActiveEffect", ids);
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not end ${actor.name}'s records on ${cause}`, err);
+    return [];
+  }
+  ui.notifications?.info(loc("notice.recordsLost", { name: actor.name, records: names.join(", "), cause: loc(`lost.${cause}`) }));
+  return ids;
+}
+
 /** After a saving throw resolves: one that came up under its number costs what a failed save costs. */
 async function loseOnFailedSave(actor, rolled, target) {
   try {
@@ -809,24 +840,43 @@ async function loseOnFailedSave(actor, rolled, target) {
 
 /**
  * Before an actor's update: mark the operation when it lowers the hit points
- * of a creature with a state damage costs. The earlier value exists only here.
+ * of a creature with a state or a record damage costs. The earlier value
+ * exists only here.
  */
 function notePriorHp(actor, changed, options) {
   const next = numOrNull(changed?.system?.hp?.value ?? changed?.["system.hp.value"]);
   const prior = numOrNull(actor?.system?.hp?.value);
-  if (next == null || prior == null || next >= prior || !lostTo(actor.statuses, "damage").length) return;
+  if (next == null || prior == null || next >= prior) return;
+  if (!lostTo(actor.statuses, "damage").length && !endedBy(actor.effects, "damage").length) return;
   options[MODULE_ID] = { ...options[MODULE_ID], [HP_FELL]: true };
 }
 
-/** Listen for what takes a state away early: damage, and a token moved out of its turn. */
+/**
+ * What damage costs a creature: its records that end on damage first, then the
+ * states it loses to damage. In order, because a record may carry a state and
+ * the second reads what is left.
+ */
+async function loseToDamage(actor) {
+  try {
+    await loseRecords(actor, "damage");
+    await loseStates(actor, "damage");
+  } catch (err) {
+    console.error(`${MODULE_ID} | could not take away what damage costs ${actor?.name}`, err);
+  }
+}
+
+/** Listen for what takes a state away early: damage, an attack made, and a token moved out of its turn. */
 function registerLosses() {
   Hooks.on("preUpdateActor", notePriorHp);
   // A token actor's update runs preUpdateActor; a write to its ActorDelta document runs the delta's.
   Hooks.on("preUpdateActorDelta", (delta, changed, options) => notePriorHp(delta?.syntheticActor, changed, options));
   Hooks.on("updateActor", (actor, _changed, options, userId) => {
     if (userId !== game.user?.id || !options?.[MODULE_ID]?.[HP_FELL]) return;
-    void loseStates(actor, "damage");
+    void loseToDamage(actor);
   });
+  // The hook fires on the attacker's own client, after the attack has resolved, so the attacker's
+  // records are its own to end; a spell carrier's attack counts like any other.
+  Hooks.on(POST_ATTACK_HOOK, (actor) => void loseRecords(actor, "attack"));
   // A token that moves while another combatant acts was moved, or spent what it held.
   // Before a round's initiative is rolled nobody acts, and a move there costs nothing.
   Hooks.on("moveToken", (token, movement, _operation, user) => {

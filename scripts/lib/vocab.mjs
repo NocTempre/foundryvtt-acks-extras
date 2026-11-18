@@ -666,6 +666,12 @@ export const EFFECT_TYPES = {
   // Sets things alight: a record and a card line, with no arithmetic. What burns
   // is the Judge's call, so the row's `appliesTo` and `note` carry the rest.
   ignite: { label: "Ignite", domain: "spell" },
+  // Takes a target's hit points to zero with no defense stage and marks it dead
+  // through a record; the cast's Undo restores both.
+  slay: { label: "Slay", domain: "spell" },
+  // Destroys one weapon of each holder the row reaches, up to `target.count`,
+  // on a failed save: the weapon is marked destroyed, never deleted.
+  destroyItem: { label: "Destroy Item", domain: "spell" },
 };
 
 /**

@@ -26,8 +26,9 @@
  */
 import { acksExtras } from "../namespace.mjs";
 import * as movementScales from "./movement-scales.mjs";
-import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK, FLAG_ROLL_MODS, FLAG_TURN_LIFE, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
+import { MODULE_ID, LANG_PREFIX, ANIMAL_TYPE, GROUP_TYPE, TEMPLATE_TYPE, STATES_LOST_HOOK, FLAG_ROLL_MODS, FLAG_TURN_LIFE, FLAG_ENDS_ON, TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "./constants.mjs";
 import { turnLifeStep, readTurnLife, turnEdges, TURN_LIFE_EDGES } from "./turn-life.mjs";
+import { ENDS_ON_CAUSES, readEndsOn, endedBy } from "./ends-on.mjs";
 import { elementOf, isPrimaryGM, primaryGMSettled } from "./util.mjs";
 import { registerUiPresetSettings, promptUiPreset, effectiveLook, refreshSheetDefaults } from "./ui-preset.mjs";
 import * as vocab from "./vocab.mjs";
@@ -116,7 +117,7 @@ import * as perception from "./perception.mjs";
 import { registerPerceptionModes } from "./perception.mjs";
 import * as conditions from "./conditions.mjs";
 import {
-  STATUS_PALETTE_SETTING, installConditionRolls, loseStates, lossInFlight, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
+  STATUS_PALETTE_SETTING, installConditionRolls, lift, loseRecords, loseStates, lossInFlight, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
 import { installRollMods, registerItemBonusSource, rollModsOf } from "./roll-mods.mjs";
@@ -157,7 +158,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 56,
+  apiVersion: 57,
   vocab,
   fields,
   /**
@@ -439,6 +440,17 @@ const localImpl = Object.freeze({
   loseStates,
   lossInFlight,
   STATES_LOST_HOOK,
+  /**
+   * `lift(actor, ids)` takes statuses off an actor through the system's toggle.
+   * `loseRecords(actor, cause)` deletes, by id, the actor's records whose flag
+   * `flags["acks-extras"][FLAG_ENDS_ON]` lists `cause` (`damage` or `attack`)
+   * and returns the ids; the loss hooks run it on damage and, on the attacker's
+   * client, after an attack resolves. `endsOn` is the pure reading:
+   * `readEndsOn(flag)` the known causes, `endedBy(effects, cause)` the ids.
+   */
+  lift,
+  loseRecords,
+  endsOn: { FLAG: FLAG_ENDS_ON, CAUSES: ENDS_ON_CAUSES, readEndsOn, endedBy },
   /**
    * The tracker's turn edges. `TURN_BEGAN_HOOK` and `TURN_ENDED_HOOK` fire
    * with `(combat, combatantId)` on the primary GM's client, the second as the

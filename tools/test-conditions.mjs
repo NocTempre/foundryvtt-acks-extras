@@ -414,7 +414,7 @@ ok("damage and a failed save cost a caster its spell and a readied creature its 
   assert.deepEqual(lostTo(on, "save"), ["casting", "readied"]);
   assert.deepEqual(lostTo(on, "moved"), ["readied"]);
   assert.deepEqual(lostTo(null, "damage"), []);
-  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "concentrating", "concentratingStationary", "readied"]);
+  assert.deepEqual(CONDITION_IDS.filter((key) => CONDITIONS[key].lost), ["casting", "concentrating", "concentratingStationary", "readied", "slumbering"]);
 });
 
 ok("both concentration states are lost to damage and to a failed save, and never to a move", () => {

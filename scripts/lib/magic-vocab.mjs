@@ -189,8 +189,12 @@ export const SAVE_CATEGORIES = Object.freeze({
   spell: { label: "Spells" },
 });
 
-/** What a successful save does to the spell's effect. */
+/**
+ * What a successful save does to the spell's effect. `none` marks a row no
+ * saving throw governs: nothing is resisted and the whole effect applies.
+ */
 export const SAVE_EFFECTS = Object.freeze({
+  none: { label: "No saving throw governs it" },
   negates: { label: "Negates the effect" },
   half: { label: "Halves the effect" },
   partial: { label: "Reduces the effect" },
@@ -223,12 +227,13 @@ export const EFFECT_DELIVERIES = Object.freeze({
  * Whether a row is spent in the cast (`instant`), lasts as long as the spell
  * (`duration`), ends with the bearer's next turn (`nextTurn`) or after a
  * number of the bearer's rounds read from the page (`rounds`, with the row's
- * `rounds` formula).
+ * `rounds` formula) or until the bearer's following turn begins (`followingTurn`).
  */
 export const EFFECT_LASTS = Object.freeze({
   instant: { label: "Once, at the cast" },
   duration: { label: "For the duration" },
   nextTurn: { label: "Until the bearer's next turn ends" },
+  followingTurn: { label: "Until the bearer's following turn begins" },
   rounds: { label: "For a number of rounds" },
 });
 

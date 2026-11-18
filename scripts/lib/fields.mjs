@@ -389,6 +389,11 @@ export function effectField() {
     recurTarget: choice(EFFECT_RECUR_TARGETS),
     rounds: str(),
     exemptSizeFrom: str(),
+    // `endsOn` lists what the record this row writes ends on (`ends-on.mjs`
+    // `ENDS_ON_CAUSES`: damage, attack); `untimed` lists the condition keys the
+    // row writes with no clock of their own.
+    endsOn: wordList(),
+    untimed: wordList(),
     saveEffect: choice(SAVE_EFFECTS),
     delivery: choice(EFFECT_DELIVERIES),
     extraordinary: new (F().BooleanField)({ required: false, nullable: true, initial: null }),

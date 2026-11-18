@@ -89,6 +89,8 @@ export default class SpellExtras extends foundry.abstract.DataModel {
         hdPool: levelValueField(),
         // The Hit Dice a target must be under to be affected at all; a target over it reads unaffected on its row.
         hdCap: levelValueField(),
+        // The Hit Dice a target must be under, strictly: a target at or above it is exempt. `hdCap` stays inclusive.
+        hdBelow: levelValueField(),
         // `measure` is the word the page prints the size in; `size` and `width`
         // are read in `unit`, and `areaExtent` (cast-area.mjs) normalizes them.
         area: new SchemaField({

@@ -1538,6 +1538,20 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     assert.ok(Object.hasOwn(V.effectTypesFor("spell"), "ignite"));
   });
 
+  t("the save, lasting and kind vocabulary of the saves-and-conditions entries has its words, and the row and target carry the new fields", async () => {
+    const { readFileSync } = await import("node:fs");
+    const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
+    assert.ok(V.SAVE_EFFECTS.none && lang["ACKS-LIB.enum.saveEffect.none"], "a row no save governs");
+    assert.ok(V.EFFECT_LASTS.followingTurn && lang["ACKS-LIB.enum.effectLasts.followingTurn"], "the bearer's following turn");
+    for (const kind of ["slay", "destroyItem"]) {
+      assert.equal(V.EFFECT_TYPES[kind].domain, "spell", `${kind} is a spell kind`);
+      assert.ok(Object.hasOwn(V.effectTypesFor("spell"), kind) && !Object.hasOwn(V.effectTypesFor("ability"), kind), `${kind} is offered to a spell and not to an ability`);
+    }
+    const row = schemaProbe.effects.element.fields;
+    assert.ok("endsOn" in row && "untimed" in row, "a row names what ends its record and what it writes untimed");
+    assert.ok("hdBelow" in schemaProbe.target.fields && "hdCap" in schemaProbe.target.fields, "a strict bound beside the inclusive cap");
+  });
+
   t("only a modifier row edits a light level", () => {
     assert.ok(fieldsForType("modifier").includes("gate.light"));
     for (const type of ["ward", "limitation", "damage"]) assert.ok(!fieldsForType(type).includes("gate.light"), type);
