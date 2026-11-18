@@ -19,7 +19,7 @@ import { addThingTo, thingsOf } from "../lib/place-things.mjs";
 import { countsOf, descriptorOf, refusalOfDrop, thingOfDrop } from "./region-place-logic.mjs";
 
 const ROW = "acks-extras-region-place";
-const LANG = "ACKS-FORMATION.REGION_PLACE";
+const LANG_PREFIX = "ACKS-FORMATION.REGION_PLACE";
 
 /** Log a rejected promise where a developer looks; the row never throws into core's render. */
 const report = (run, what) => Promise.resolve(run).catch((err) => console.error(`${MODULE_ID} | ${what} failed`, err));
@@ -83,17 +83,17 @@ function countsLineOf(place) {
   line.className = `${ROW}-counts`;
   const rows = place ? countsOf(thingsOf(place), nameOfRef) : [];
   if (!rows.length) {
-    line.textContent = game.i18n.localize(`${LANG}.holdsNone`);
+    line.textContent = game.i18n.localize(`${LANG_PREFIX}.holdsNone`);
     return line;
   }
   const lead = document.createElement("span");
-  lead.textContent = game.i18n.localize(`${LANG}.holds`);
+  lead.textContent = game.i18n.localize(`${LANG_PREFIX}.holds`);
   line.append(lead);
   for (const { kind, count, names } of rows) {
     const span = document.createElement("span");
     span.className = `${ROW}-count`;
     span.dataset.tooltipText = names.join(", ");
-    span.textContent = game.i18n.format(`${LANG}.${kind}.${count === 1 ? "one" : "other"}`, { count });
+    span.textContent = game.i18n.format(`${LANG_PREFIX}.${kind}.${count === 1 ? "one" : "other"}`, { count });
     line.append(" ", span);
   }
   return line;
@@ -112,7 +112,7 @@ function countsLineOf(place) {
  * @returns {Promise<object|null>} the thing's list after the write, or null
  */
 export async function dropOnRegionPlace({ region, scenes, data }) {
-  const warn = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG}.refused.${key}`));
+  const warn = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.${key}`));
   const dropped = data?.type === "Item" && data.uuid ? await fromUuid(data.uuid).catch(() => null) : null;
   const drop = descriptorOf(dropped, data?.uuid);
   const kind = drop ? kindOfDrop(drop) : null;
@@ -148,7 +148,7 @@ function mountRegionPlaceRow(app) {
   // A write can re-render the window and strand the nodes this closed over,
   // so a refresh finds the window's present element again rather than reusing one.
   const remount = () => mountRegionPlaceRow(app);
-  const say = (key) => game.i18n.localize(`${LANG}.${key}`);
+  const say = (key) => game.i18n.localize(`${LANG_PREFIX}.${key}`);
   const place = scenes.locationOfRegion(region);
 
   const row = document.createElement("div");
