@@ -73,7 +73,8 @@ const summoning = (item) => isSummonSpell(item) || effectRowsOf(item).some((row)
 /**
  * Does this claimant take this cast? A flagged spell item on an actor this
  * seat owns whose tradition has a registered procedure (rows or not, and a
- * summoning too), else one with no summoning and rows of its own or its twin's.
+ * summoning too), or that is marked a ritual (rows or not), else one with no
+ * summoning and rows of its own or its twin's.
  * @param {Item} item
  * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
  * @param {((actor: object) => object|null)|null} [classFor]  the classes feature's `classForActor`, which tells the tradition that cast the spell; without it no procedure is found
@@ -83,6 +84,8 @@ export function castSpellClaims(item, lookups = worldLookups(), classFor = null)
   const flag = item.flags?.[MODULE_ID]?.[FLAG_SPELL];
   if (!flag || typeof flag !== "object" || !Object.keys(flag).length) return false;
   if (spellProcedureKind(item, classFor)) return true;
+  // A ritual is opened as a project whatever rows it has and whichever tradition cast it.
+  if (flag.ritual === true) return true;
   if (summoning(item)) return false;
   return rowsOf(item, lookups).rows.length > 0;
 }
@@ -487,6 +490,9 @@ const liveDeps = () => ({
   holds: async (uuid) => Boolean(await fromUuid(uuid).catch(() => null)),
   adjustPool: async (actor, tradition, slotKey) => (await import("../classes/casting.mjs")).adjustPool(actor, tradition, slotKey, 1),
   castId: () => newCastId(),
+  // The locations a caster is linked to, and the opening of a ritual's project at one of them.
+  ritualLocations: async (caster) => (await import("./research-project-live.mjs")).locationsOf(caster),
+  ritualOpen: async ({ location, spell, caster }) => (await import("./research-project-live.mjs")).openRitual(location, { spell, caster }),
   roll: (formula) => new Roll(formula).evaluateSync().total,
   post: postCastCard,
   apply: requestApply,
@@ -545,6 +551,22 @@ const modCardRow = (keyed, part) => ({
 const weaponsOf = (actor) => [...(actor?.items ?? [])].filter((i) => i.type === "weapon").map((i) => ({ id: i.id, name: i.name, magic: isMagical(i) }));
 
 /**
+ * The cast of a ritual spell: the dialog offers the locations the caster is linked to, and the answer opens a research project
+ * of kind ritual there (`deps.ritualOpen`). Nothing is spent and no turn is read: the cast is the project, worked at the location.
+ * @returns {Promise<{ok: boolean, reason?: string, ritual?: boolean, projectId?: string, locationUuid?: string}>}
+ */
+async function castRitual(spell, deps) {
+  const caster = spell.parent;
+  const locations = (await deps.ritualLocations?.(caster)) ?? [];
+  const answer = await deps.ask({ spell, caster, isGM: deps.isGM(), ritual: { locations, level: spell.system?.lvl ?? null } });
+  if (!answer) return { ok: false, reason: "cancelled" };
+  const location = locations.find((l) => l.uuid === answer.ritual?.locationUuid);
+  if (!location) return { ok: false, reason: "noLocation" };
+  const made = await deps.ritualOpen({ location, spell, caster });
+  return made?.ok ? { ok: true, ritual: true, projectId: made.id, locationUuid: location.uuid } : { ok: false, reason: made?.reason ?? "ritual" };
+}
+
+/**
  * The cast of one spell with rows. Asks, then refuses or spends, rolls,
  * posts and applies. `spend()` runs once and only after the dialog confirms
  * and the verdicts allow it, before any dice.
@@ -558,8 +580,10 @@ const weaponsOf = (actor) => [...(actor?.items ?? [])].filter((i) => i.type === 
 export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}) {
   const caster = spell.parent;
   await deps.ready?.();
-  const { rows: all } = rowsOf(spell, deps.lookups);
   const extras = flagOf(spell);
+  // A ritual is not cast from a slot or a turn: its dialog names a location and the cast opens a project there.
+  if (extras.ritual === true) return castRitual(spell, deps);
+  const { rows: all } = rowsOf(spell, deps.lookups);
   const world = await deps.read(spell);
   // The seat's targets are read apart from the world: the dialog is a bucket the seat fills and empties, and the cast reads them again once it is answered.
   const readSeat = () => deps.targets?.(world) ?? { tokens: world.tokens ?? [], gaps: world.gaps ?? {} };
@@ -652,7 +676,6 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       instances: instancesFor(mode, picks, levelValue, typed, inv),
       invocation: { value, cap, reads },
       procedure: view ? [...procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer), ...view.findings] : [],
-      ritual: extras.ritual === true,
     });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.

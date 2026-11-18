@@ -135,6 +135,23 @@
 
       {{> "modules/acks-extras/templates/lib/bucket.hbs" bucket}}
 
+      {{#if addPower.show}}
+      <div class="acks-extras-research__power">
+        <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-action="toggleResearchPower" data-research-control aria-expanded="{{addPower.open}}" data-tooltip-text="{{addPower.tip}}"><i class="fa-solid fa-bolt" inert></i> {{addPower.label}}</button>
+        {{#if addPower.open}}
+        <div class="acks-extras-research__power-row">
+          <span class="acks-extras-research__pills" role="group" aria-label="{{addPower.pillsLabel}}">
+            {{#each addPower.kinds}}<button type="button" class="acks-extras-research__pill" data-action="pickResearchPower" data-research-control data-kind="{{key}}" aria-pressed="{{pressed}}">{{label}}</button>{{/each}}
+          </span>
+          <input type="number" class="acks-input acks-input--num" min="1" max="{{addPower.max}}" step="1" value="{{addPower.amount}}" data-research-power-amount{{#unless addPower.disabled}} data-research-control{{/unless}} aria-label="{{addPower.amountLabel}}"{{#if addPower.disabled}} disabled{{/if}}>
+          <span class="acks-extras-research__cap" tabindex="0" data-tooltip-text="{{addPower.heldTip}}">{{addPower.heldText}}</span>
+          <button type="button" class="acks-btn" data-action="addResearchPower"{{#unless addPower.disabled}} data-research-control{{/unless}}{{#if addPower.disabled}} disabled{{/if}}>{{addPower.addLabel}}</button>
+          {{#if addPower.note}}<span class="acks-extras-research__cap">{{addPower.note}}</span>{{/if}}
+        </div>
+        {{/if}}
+      </div>
+      {{/if}}
+
       <footer class="acks-extras-research__foot">
         <span class="acks-extras-research__pace" role="radiogroup" aria-label="{{pace.legend}}">
           <span class="acks-extras-research__cap">{{pace.legend}}</span>
@@ -144,12 +161,25 @@
         </span>
         <span class="acks-extras-research__acts">
           {{#if post.can}}<button type="button" class="acks-btn acks-btn--secondary" data-action="{{#if post.range}}postResearchDays{{else}}postResearchDay{{/if}}"{{#unless post.disabled}} data-research-control{{/unless}}{{#if post.disabled}} disabled{{/if}} data-tooltip-text="{{post.tip}}">{{post.label}}</button>{{/if}}
+          {{#if finish.tag}}<span class="acks-tag is-ok" tabindex="0" data-tooltip-text="{{finish.tag.tip}}">{{finish.tag.text}}</span>{{/if}}
           <button type="button" class="acks-btn acks-btn--roll" data-action="finishResearchProject"{{#if finish.live}} data-research-control{{else}} disabled{{/if}} data-tooltip-text="{{finish.tip}}">{{finish.label}}</button>
         </span>
         <span class="acks-extras-research__verdict">{{finish.why}}</span>
       </footer>
     </article>
     {{/each}}
+
+    {{#if research.awaiting.length}}
+    <ul class="acks-extras-research__awaiting">
+      {{#each research.awaiting}}
+      <li class="acks-extras-research__awaiting-row" data-project-id="{{id}}">
+        <span>{{name}}</span>
+        <span class="acks-tag is-ok" tabindex="0" data-tooltip-text="{{tag.tip}}">{{tag.text}}</span>
+        <button type="button" class="acks-btn" disabled data-tooltip-text="{{choose.tip}}">{{choose.label}}</button>
+      </li>
+      {{/each}}
+    </ul>
+    {{/if}}
 
     {{#if research.closed.length}}
     <details class="acks-extras-research__closed">

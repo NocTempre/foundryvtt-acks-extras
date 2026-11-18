@@ -71,7 +71,10 @@
  * low dimmed with its reason, a drop, X, a radio), the no-set-reaches verdict on
  * both seats, the level on the card, and a declared cast keeping the level and the
  * pick; declare 18 walks a declaration resolving on its declared targets. All assert relations between records, cards and counters and print
- * booleans and counts.
+ * booleans and counts. Last, the ritual steps (`walkRitual`): a ritual spell's dialog shows the Ritual band with the caster's linked location and
+ * an enabled Open ritual project, pressing it opens one `ritual` project on that location (the spell its subject, the caster its researcher) with
+ * nothing spent and the location's sheet on its Research tab, and a caster linked to no location is blocked with the reason shown; the project
+ * is closed through the research API at the end. Fixtures: `magic/cast-ritual-place`, `-caster`, `-loner`, `-spell` and `-spell-loner`.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
  * `magic/cast-scene` (the field), `magic/cast-class` (a class with one vancian
@@ -866,6 +869,101 @@ const P = {
     const rec = [...game.actors.get(casterId).effects].map((e) => e.flags?.["acks-extras"]?.spellEffect?.pending).find(Boolean);
     return rec ? { invocationLevel: rec.invocationLevel ?? null, picked: rec.procedure?.picked ?? null, kept: (rec.procedure?.buckets?.implements ?? []).map((e) => e.uuid), targets: rec.targets ?? null } : null;
   },
+  /**
+   * The ritual steps' kept fixtures brought to a known shape: the place's open projects closed through the research API (nothing deleted), its roster
+   * holding the linked caster alone, and each spell a level-3 ritual. Answers the places each caster is linked to, read as the dialog reads them.
+   */
+  ritualShape: async ({ placeUuid, casterUuid, loneUuid }) => {
+    const H = globalThis.__mcs;
+    const place = fromUuidSync(placeUuid);
+    const PL = await import("/modules/acks-extras/scripts/lib/place.mjs");
+    const live = await import("/modules/acks-extras/scripts/magic/research-project-live.mjs");
+    let closed = 0;
+    for (const p of place.flags?.["acks-extras"]?.magic?.projects ?? []) {
+      if (p.status !== "open") continue;
+      if ((await acksExtras.magic.research.close(place, p.id))?.ok) closed++;
+    }
+    await place.update({ "system.roster": [] });
+    await H.sleep(300);
+    await PL.addOccupant(place, fromUuidSync(casterUuid));
+    await H.sleep(500);
+    for (const uuid of [casterUuid, loneUuid]) {
+      const item = fromUuidSync(uuid).items.find((i) => i.type === "spell");
+      await item.update({ "system.lvl": 3, "flags.acks-extras.spell.ritual": true });
+    }
+    await H.sleep(300);
+    return { closed, roster: place.system.roster.map((r) => r.uuid), casterLinks: live.locationsOf(fromUuidSync(casterUuid)).map((l) => l.uuid), loneLinks: live.locationsOf(fromUuidSync(loneUuid)).map((l) => l.uuid) };
+  },
+  /**
+   * Cast a ritual spell as a user does: `item.use()`, then read the dialog it opens (the Ritual band, its location select or its reason, the bands
+   * and controls of the ordinary cast, the footer's primary button). Without `press` the dialog is cancelled; with it the button is pressed, and the
+   * answer carries the projects the place gained, what the caster spent, the cast cards posted, and whether the place's sheet rendered on its Research
+   * tab with the new project's card.
+   */
+  ritualCast: async ({ casterId, spellId, placeUuid, press }) => {
+    const H = globalThis.__mcs;
+    const actor = game.actors.get(casterId);
+    const item = actor.items.get(spellId);
+    const place = fromUuidSync(placeUuid);
+    const projectsOf = () => place?.flags?.["acks-extras"]?.magic?.projects ?? [];
+    const spendOf = () => JSON.stringify({ cast: actor.items.filter((i) => i.type === "spell").map((i) => [i.id, i.system.cast]), classes: actor.getFlag("acks-extras", "classes") ?? null });
+    const before = { ids: projectsOf().map((p) => p.id), spend: spendOf(), msgs: [...game.messages].map((m) => m.id) };
+    item.use({ skipDialog: true });
+    const found = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+    if (!found) return { dialog: false };
+    await H.sleep(500);
+    const live = () => document.querySelector(".application.acks-extras-cast") ?? found;
+    const root = live();
+    const band = root.querySelector(".acks-extras-cast-ritual");
+    const button = root.querySelector('button[data-action="cast"]');
+    const shown = {
+      dialog: true,
+      bands: root.querySelectorAll(".acks-extras-cast-band").length,
+      ritualBand: !!band,
+      legend: band?.querySelector("h3")?.textContent.trim() ?? "",
+      options: [...root.querySelectorAll('select[name="ritualLocation"] option')].map((o) => ({ value: o.value, name: o.textContent.trim(), selected: o.selected })),
+      reason: band?.querySelector(".acks-extras-cast-verdicts li")?.textContent.trim() ?? "",
+      ordinary: ["mode", "pickKind", "casterLevel", "invocationLevel", "situational", "visibility"].filter((n) => root.querySelector(`[name="${n}"]`)).concat(root.querySelector("[data-pick], .acks-extras-cast-targets, .acks-extras-cast-trow") ? ["picks or targets"] : []),
+      button: { text: button?.textContent.trim() ?? "", disabled: !!button?.disabled, primary: !!button?.classList.contains("acks-extras-cast-go") },
+      expected: { open: game.i18n.localize("ACKS-MAGIC.cast.dialog.openRitual"), legend: game.i18n.localize("ACKS-MAGIC.cast.dialog.ritualLegend"), none: game.i18n.format("ACKS-MAGIC.cast.dialog.ritualNone", { name: actor.name }) },
+    };
+    const gained = () => projectsOf().filter((p) => !before.ids.includes(p.id));
+    const cards = () => [...game.messages].filter((m) => !before.msgs.includes(m.id) && m.flags?.["acks-extras"]?.castCard).length;
+    if (!press) {
+      live().querySelector('button[data-action="cancel"]')?.click();
+      await H.sleep(600);
+      return { ...shown, cancelled: !document.querySelector(".application.acks-extras-cast"), gained: gained().length, spendSame: spendOf() === before.spend, cards: cards() };
+    }
+    button.click();
+    await H.poll(() => gained().length > 0, { tries: 60, every: 250 });
+    await H.sleep(500);
+    const made = gained();
+    const first = made[0] ?? null;
+    const sheetUp = await H.poll(() => {
+      const el = H.root(place.sheet);
+      return !!el?.isConnected && !!el.querySelector('section[data-tab="research"]')?.classList.contains("active");
+    }, { tries: 40, every: 250 });
+    const sheetEl = H.root(place.sheet);
+    return {
+      ...shown,
+      closed: !document.querySelector(".application.acks-extras-cast"),
+      gained: made.length,
+      project: first && { id: first.id, kind: first.kind, status: first.status, subject: first.subject?.uuid ?? null, researcher: first.researcher },
+      spendSame: spendOf() === before.spend,
+      cards: cards(),
+      sheet: { up: !!sheetUp, card: !!(first && sheetEl?.querySelector(`section[data-tab="research"] [data-project-id="${first.id}"]`)) },
+      spellUuid: item.uuid,
+      casterUuid: actor.uuid,
+    };
+  },
+  /** Close a ritual project through the research API (it stays on the record) and put the place's sheet away. */
+  ritualClose: async ({ placeUuid, ids }) => {
+    const place = fromUuidSync(placeUuid);
+    const out = [];
+    for (const id of ids) out.push((await acksExtras.magic.research.close(place, id))?.ok === true);
+    await place.sheet?.close({ animate: false });
+    return out;
+  },
   restore: async () => {
     const H = globalThis.__mcs;
     if (!H?.patched) return "never installed";
@@ -1613,6 +1711,59 @@ async function walkLostItem(K) {
   note("lost-item sweep", await sweepStep(mine));
 }
 
+/**
+ * The ritual steps: a ritual spell (`ritual === true`) is claimed by the cast seam, and its dialog offers the locations the caster is linked to
+ * (the roster rows `locationsOf` reads) instead of the ordinary bands. Pressing "Open ritual project" opens a `ritual` project on the chosen
+ * location through the research API and puts that location's sheet on its Research tab; a caster linked to no location is blocked with the reason
+ * shown. The GM seat drives it. Fixtures, kept and found by marker: `magic/cast-ritual-place` (a location whose roster the step sets to the linked
+ * caster alone), `magic/cast-ritual-caster` (on that roster) and `magic/cast-ritual-loner` (on no roster), each with one invented level-3 ritual
+ * spell (`magic/cast-ritual-spell`, `magic/cast-ritual-spell-loner`). The project the press makes is closed through the research API (it stays on
+ * the record); nothing is deleted, so the run adds nothing to the sweep.
+ */
+async function walkRitual() {
+  const idOf = (doc) => doc.id ?? String(doc.uuid).split(".").pop();
+  const base = { prototypeToken: { actorLink: true }, system: { spells: { enabled: true }, hp: { value: 9, max: 9 } }, ownership: { default: 0 } };
+  const place = await gm.fixture("magic/cast-ritual-place", "Actor", { name: "QA Ritual Place", type: "acks-extras.location", ownership: { default: 2 } });
+  const caster = await gm.fixture("magic/cast-ritual-caster", "Actor", { name: "QA Ritual Caster", type: "character", ...base });
+  const loner = await gm.fixture("magic/cast-ritual-loner", "Actor", { name: "QA Ritual Loner", type: "character", ...base });
+  const spellData = (name) => ({ name, type: "spell", system: { lvl: 3 }, flags: { "acks-extras": { spell: { ritual: true } } } });
+  const spell = await gm.fixture("magic/cast-ritual-spell", "Item", spellData("QA Ritual Spell"), { parent: caster.uuid });
+  const lonerSpell = await gm.fixture("magic/cast-ritual-spell-loner", "Item", spellData("QA Ritual Spell Alone"), { parent: loner.uuid });
+  const made = [];
+  try {
+    section("ritual 0. the kept fixtures are brought to a known shape");
+    const shape = await run(gm, P.ritualShape, { placeUuid: place.uuid, casterUuid: caster.uuid, loneUuid: loner.uuid });
+    check("ritual 0: the place's roster holds the caster alone, the caster is linked to the place and the loner to no location", shape.roster.length === 1 && shape.roster[0] === caster.uuid && shape.casterLinks.includes(place.uuid) && shape.loneLinks.length === 0, shape);
+
+    section("ritual 1. a ritual spell's dialog: the Ritual band, the linked location, none of the ordinary bands, an enabled Open ritual project");
+    const d = await run(gm, P.ritualCast, { casterId: idOf(caster), spellId: idOf(spell), placeUuid: place.uuid, press: false });
+    check("ritual 1: the cast opens a dialog (a ritual is claimed by the cast seam)", d.dialog === true, d);
+    check("ritual 1: the dialog shows the Ritual band, headed by its legend, with a Location select and no reason", d.ritualBand && d.legend === d.expected?.legend && d.options?.length > 0 && d.reason === "", { legend: d.legend, options: d.options?.length, reason: d.reason });
+    check("ritual 1: the select lists the caster's linked location and nothing else, and it is the one standing", d.options?.length === 1 && d.options[0].value === place.uuid && d.options[0].name.length > 0 && d.options[0].selected === true, d.options);
+    check("ritual 1: the ordinary bands are hidden (the Ritual band is the only band; no mode, level, picks, targets or visibility control)", d.bands === 1 && d.ordinary?.length === 0, { bands: d.bands, ordinary: d.ordinary });
+    check("ritual 1: the footer's primary button reads Open ritual project and is enabled", d.button?.text === d.expected?.open && d.button.primary && d.button.disabled === false, d.button);
+    check("ritual 1: cancelling creates no project, spends nothing and posts no cast card", d.cancelled === true && d.gained === 0 && d.spendSame === true && d.cards === 0, { cancelled: d.cancelled, gained: d.gained, spendSame: d.spendSame, cards: d.cards });
+
+    section("ritual 2. pressing it opens one ritual project on the location, spends nothing and shows the Research tab");
+    const p = await run(gm, P.ritualCast, { casterId: idOf(caster), spellId: idOf(spell), placeUuid: place.uuid, press: true });
+    if (p.project?.id) made.push(p.project.id);
+    check("ritual 2: exactly one project was added to the location", p.gained === 1, { gained: p.gained });
+    check("ritual 2: it is a ritual project, open, with the spell as its subject and the caster as its researcher", p.project?.kind === "ritual" && p.project.status === "open" && p.project.subject === spell.uuid && p.project.researcher === caster.uuid, p.project);
+    check("ritual 2: the dialog closed, nothing was spent (no slot, pool or counter changed) and no cast card was posted", p.closed === true && p.spendSame === true && p.cards === 0, { closed: p.closed, spendSame: p.spendSame, cards: p.cards });
+    check("ritual 2: the location's sheet rendered on its Research tab, holding the new project's card", p.sheet?.up === true && p.sheet.card === true, p.sheet);
+
+    section("ritual 3. a caster linked to no location: the button is disabled and the band says why");
+    const n = await run(gm, P.ritualCast, { casterId: idOf(loner), spellId: idOf(lonerSpell), placeUuid: place.uuid, press: false });
+    check("ritual 3: the dialog shows the Ritual band with no Location select", n.dialog === true && n.ritualBand && n.options?.length === 0, { band: n.ritualBand, options: n.options?.length });
+    check("ritual 3: the band shows the reason as text, naming the caster", n.reason?.length > 0 && n.reason === n.expected?.none, n.reason);
+    check("ritual 3: the primary button is disabled and the ordinary bands are hidden", n.button?.disabled === true && n.bands === 1 && n.ordinary?.length === 0, { button: n.button, bands: n.bands, ordinary: n.ordinary });
+    check("ritual 3: cancelling creates no project, spends nothing and posts no cast card", n.cancelled === true && n.gained === 0 && n.spendSame === true && n.cards === 0, { cancelled: n.cancelled, gained: n.gained, spendSame: n.spendSame, cards: n.cards });
+  } finally {
+    // Closed through the research API: a project lives on the location's flags and stays there as a closed record.
+    try { note("ritual projects closed", await run(gm, P.ritualClose, { placeUuid: place.uuid, ids: made })); } catch (err) { console.error("ritual close:", err?.message ?? err); }
+  }
+}
+
 try {
   section("seats");
   gm = await connect({ browser, origin, user: MACHINE.gm, port: PORTS.gm, own: MACHINE.own });
@@ -1869,6 +2020,14 @@ try {
     checks.push(["the buff steps ran to the end", false]);
   }
 
+  // The ritual steps run apart, so a throw in one still reaches the console check below.
+  try {
+    await walkRitual();
+  } catch (err) {
+    console.error("WALK ERROR (ritual steps):", err?.stack ?? err);
+    checks.push(["the ritual steps ran to the end", false]);
+  }
+
   section("9. the console");
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     const d = await run(seat, P.drain);
@@ -1902,7 +2061,7 @@ try {
   } catch (err) { console.error("ledger:", err?.message ?? err); }
   try { if (gm && runCombatUuid) { await track(runCombatUuid, "Combat"); } } catch (err) { console.error("combat:", err?.message ?? err); }
   try { if (gm && own.length) note("swept", await gm.sweepTracked({ only: own })); } catch (err) { console.error("sweep:", err?.message ?? err); }
-  console.log("fixtures kept: magic/cast-scene, magic/cast-class, magic/cast-caster, magic/cast-spell-damage, magic/cast-spell-cure, magic/cast-spell-fright, magic/cast-target-a, magic/cast-target-b, magic/cast-target-c, magic/cast-monster, magic/cast-monster-weapon, magic/cast-spell-circle, magic/cast-spell-edge, magic/cast-ally, magic/cast-ally-blade, magic/cast-ally-fine, magic/cast-foe, magic/cast-foe-claw, magic/cast-foe-spell, magic/cast-stranger, magic/cast-stranger-claw");
+  console.log("fixtures kept: magic/cast-scene, magic/cast-class, magic/cast-caster, magic/cast-spell-damage, magic/cast-spell-cure, magic/cast-spell-fright, magic/cast-target-a, magic/cast-target-b, magic/cast-target-c, magic/cast-monster, magic/cast-monster-weapon, magic/cast-spell-circle, magic/cast-spell-edge, magic/cast-ally, magic/cast-ally-blade, magic/cast-ally-fine, magic/cast-foe, magic/cast-foe-claw, magic/cast-foe-spell, magic/cast-stranger, magic/cast-stranger-claw, magic/cast-ritual-place, magic/cast-ritual-caster, magic/cast-ritual-loner, magic/cast-ritual-spell, magic/cast-ritual-spell-loner");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

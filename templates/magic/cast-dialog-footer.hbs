@@ -9,6 +9,7 @@
   </ul>
   {{/if}}
   <div class="acks-extras-cast-foot__bar">
+    {{#unless f.ritual}}
     {{#if f.capacity.line}}<span class="acks-extras-cast-hint" data-tooltip-text="{{f.capacity.tip}}">{{f.capacity.line}}</span>{{/if}}
     <label class="acks-extras-cast-vis">
       <span>{{localize "ACKS-MAGIC.cast.dialog.visibility"}}</span>
@@ -16,6 +17,7 @@
         {{#each f.visibility}}<option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
       </select>
     </label>
+    {{/unless}}
     <button type="button" data-action="cancel"><i class="fa-solid fa-xmark" inert></i>{{localize "ACKS-MAGIC.cast.dialog.cancel"}}</button>
     <button type="button" class="acks-extras-cast-go" data-action="cast"{{#if f.blocked}} disabled{{/if}}><i class="fa-solid fa-wand-sparkles" inert></i>{{f.cast}}</button>
   </div>

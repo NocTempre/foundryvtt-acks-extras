@@ -21,6 +21,7 @@ import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC } from "./constants.mjs";
 import { FORMULAS_KEY, PROJECT_KIND, powerRowFit, powerRowValue, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
 import { kindOfRow, POWER_ROW_PREFIX } from "./power-ledger.mjs";
 import { cookbookId } from "../lib/library.mjs";
+import { ACTOR_TYPE } from "../lib/vocab.mjs";
 
 /** A string of the research lang group. */
 const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.research.${key}`, data ?? {});
@@ -47,6 +48,19 @@ export const cookbookOf = (uuid) => cookbookId(resolve(uuid));
 export const subjectTypeOf = (uuid) => resolve(uuid)?.type ?? null;
 
 /**
+ * What a ritual values a component document by: null for a document that is no component, else `{xp, effects}` where the
+ * part was taken from a monster (the monster's own XP award, null while it is not read: the default zero is not an award)
+ * and the part's `researchEffects` for the fit match. A component with no monster behind it carries no XP, so it is blank.
+ */
+export function partXpOf(doc) {
+  const flags = doc?.flags?.[MODULE_ID];
+  if (doc?.documentName !== "Item" || !flags?.component) return null;
+  const monster = doc.parent?.documentName === "Actor" && doc.parent.type === ACTOR_TYPE.monster ? doc.parent : null;
+  const xp = Number(monster?.system?.details?.xp);
+  return { xp: Number.isFinite(xp) && xp > 0 ? xp : null, effects: Array.isArray(flags.researchEffects) ? flags.researchEffects : [] };
+}
+
+/**
  * The components bucket of a project as lib entries, valued and fitted by the project's policy: each stored row's
  * document read again, then the power rows (a row names no document; it is read from the researcher's ledger, held
  * to the balance, and is matched unless the stored row says otherwise: power is no substitute, so it takes no
@@ -54,7 +68,7 @@ export const subjectTypeOf = (uuid) => resolve(uuid)?.type ?? null;
  */
 export async function projectEntries(project) {
   const { entriesFromAnswer } = await import("../lib/bucket.mjs");
-  const policy = componentPolicy(project);
+  const policy = componentPolicy(project, { cite: loc("cite.costs"), partXp: partXpOf });
   const docs = (await entriesFromAnswer(project.bucket, resolveAsync, { policy })).entries;
   const { powerApi } = await import("./power-ledger-live.mjs");
   const actor = resolve(project.researcher);
@@ -147,8 +161,8 @@ export function outcomeDeps() {
       const name = project.subject.name || loc(`kind.${project.kind}`);
       const modifier = plan.modifier;
       const signed = (n) => (n >= 0 ? `+${n}` : String(n));
-      // A Finish with no throw names why and carries no die, total or target.
-      const parts = result.noThrow ? [result.noThrow === "formula" ? loc("throwPartFormula") : loc("throwPartCommon")] : [
+      // A Finish with no throw carries no die, total or target, and its outcome strip says how it was made.
+      const parts = result.noThrow ? [] : [
         plan.levelRaise ? loc("throwPartLevel", { n: plan.levelRaise }) : "",
         plan.int !== null ? loc("throwPartInt", { n: signed(plan.int) }) : "",
         plan.bonusRead ? loc("throwPartBonus", { n: plan.bonus }) : "",
@@ -163,12 +177,13 @@ export function outcomeDeps() {
         else if (w.what === "item") lines.push(loc("card.itemDelivered", { name: w.name, actor: w.actor }));
         else if (w.what === "blank") lines.push(loc("card.blank", { name: w.name }));
         else if (w.what === "formula") lines.push(loc("card.formula", { name: w.name, actor: w.actor }));
+        else if (w.what === "ritual") lines.push(loc("card.ritualCast", { name: w.name }));
       }
       if (settled && (settled.spent || settled.marked || settled.power.some((p) => p?.ok))) lines.push(loc("card.settled", { spent: settled.spent + settled.power.filter((p) => p?.ok).length, marked: settled.marked }));
       for (const f of failed) lines.push(loc("card.failed", { what: loc(`card.what.${f.what}`) }));
       const outcome = { outcome: result.success ? loc("card.success") : loc("card.failure"), emphasis: result.success ? "success" : "failure" };
       const row = result.noThrow
-        ? { name: actor?.name ?? "", total: "", detail: parts.join(" · "), ...outcome }
+        ? { name: actor?.name ?? "", total: "", outcome: loc(`card.noThrow.${result.noThrow}`), emphasis: outcome.emphasis }
         : {
             name: actor?.name ?? "",
             total: result.total,

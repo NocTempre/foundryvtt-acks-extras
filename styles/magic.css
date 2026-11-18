@@ -942,3 +942,59 @@
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-soft);
 }
+
+/* The Add power row under a project's components bucket, and the cast rituals waiting on a placement. */
+.acks-extras-research__power {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+}
+.acks-extras-research__power-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3);
+  border: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-research__pills {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+}
+.acks-extras-research__pill {
+  min-block-size: 1.8em;
+  padding: 0 var(--acks-sp-4);
+  font-size: var(--acks-fs-label);
+  border: var(--acks-border-hair);
+  background: transparent;
+  color: var(--acks-spot);
+  cursor: pointer;
+}
+.acks-extras-research__pill[aria-pressed="true"] {
+  background: var(--acks-burgundy);
+  border-color: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+.acks-extras-research__pill:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+  outline: none;
+}
+.acks-extras-research__awaiting {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acks-extras-research__awaiting-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3);
+  border: var(--acks-border-soft);
+}

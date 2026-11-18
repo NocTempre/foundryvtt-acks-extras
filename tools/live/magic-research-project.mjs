@@ -23,7 +23,7 @@
  * known item delivered, an identification marked, a spell added and not added twice, a novel subject opening a
  * blank world item for the Judge, a failure and the automatic-failure band (the card posts, the project closes,
  * the bucket is spent), the formula recorded, read by the next throw and turned off by a substitute, Finish
- * disabled while the cost is not credited, for a ritual and with no throw read, and a Player's own Finish
+ * disabled while the cost is not credited, with no throw read, and a Player's own Finish
  * (relayed) and the two they are refused. Every document it makes is tracked by uuid and swept by that list.
  *
  * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
@@ -74,7 +74,7 @@ let rigged = false;
 /** The uuid of every document this run made (items, cards, delivered items), swept in the finally by id and nothing else. */
 const tracked = [];
 
-const TABLE_IDS = ["libraryProse", "workshopProse", "researchLadder", "researchLadderNote", "researchProse", "assistantProse"];
+const TABLE_IDS = ["libraryProse", "workshopProse", "researchLadder", "researchLadderNote", "researchProse", "assistantProse", "ritualWorkshopProse"];
 
 /** The page helpers every step shares, for the place at `uuid`. */
 const kit = (uuid, ids = {}) => `
@@ -903,7 +903,7 @@ try {
     await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
     await sleep(600);
     return out;`, ids13);
-  check("with the research cost not credited, and for a ritual (its result is kept out of this slice), Finish is disabled with no control mark and its reason beside it; the API refuses both before anything is rolled", [fh.waiting, fh.ritual].every((s) => s.disabled && !s.mark && s.why.length > 0) && fh.refused[0] === "notComplete" && fh.refused[1] === "ritual", fh);
+  check("with the research cost not credited, for a project and for a ritual alike, Finish is disabled with no control mark and its reason beside it; the API refuses both as notComplete before anything is rolled", [fh.waiting, fh.ritual].every((s) => s.disabled && !s.mark && s.why.length > 0) && fh.refused[0] === "notComplete" && fh.refused[1] === "notComplete", fh);
   check("a credited project whose ladder prints no throw reads no target and is disabled with its reason; the API refuses it as throwUnread (the throw is not made up)", fh.complete === true && fh.target === null && fh.blind.disabled && !fh.blind.mark && fh.blind.why.length > 0 && fh.refused[2] === "throwUnread", fh);
 
   check("a credited project whose facility bonus cannot be read (no level entered) is held, not thrown with the bonus missing: Finish is disabled with its reason and the page in its tooltip, the plan says the bonus is unread, the API refuses it as bonusUnread, and entering the level frees it", fh.unlevelled.disabled && !fh.unlevelled.mark && fh.unlevelled.why.length > 0 && /RR/.test(fh.unlevelled.tip) && fh.unlevelled.plan === true && fh.unlevelled.refused === "bonusUnread" && fh.levelled.disabled === false && fh.levelled.mark === true, { unlevelled: fh.unlevelled, levelled: fh.levelled });
@@ -952,6 +952,116 @@ try {
     await fromUuidSync(ID.hero).update({ "flags.acks-extras.magic.-=formulas": null });
     await fromUuidSync(ID.relic).update({ "flags.acks-extras.markets.-=identified": null });
     await sleep(600);
+    return true;`, ids13);
+
+  section("14. board 17: a ritual project, Add power and Finish (formula)");
+  // Not yet run: written with the slice. The ritual's workshop passage is read with invented figures, like the sections above.
+  await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "ritualWorkshopProse", { workshopMinimums: "1,000gp for 5 level spells", bonusStep: 5000, bonusSize: 2, bonusCap: 6 }, { sourceName: "qa-research-project" });
+    await research().setFacility(place(), "workshop", 90000);
+    await fromUuidSync(ID.hero).update({ "system.details.level": 5, "flags.acks-extras.magic.-=formulas": null, "flags.acks-extras.-=power": null });
+    await sleep(600);
+    return true;`, ids13);
+  // A. a ritual: a miscellaneous row is barred and the bucket stays short; matched components let it be thrown for, and it waits on where it goes.
+  const partR = await mkPart("QA Research Component R");
+  const partM = await mkPart("QA Research Component M");
+  const ritual = await makeReady({ kind: "ritual", level: 5, subject: { uuid: ids13.spell, name: "QA Research Spell" } }, [{ uuid: partM, qty: 1, fit: "miscellaneous" }]);
+  const ra = await run(gm, U, `
+    await open();
+    const c = card(${JSON.stringify(ritual.id)});
+    const chip = c.querySelector('.acks-extras-bucket__row [data-fit]');
+    const btn = c.querySelector('[data-action="finishResearchProject"]');
+    return { chip: chip?.textContent.trim(), chipTone: chip?.className ?? "", chipTip: chip?.dataset.tooltipText ?? "", off: !!c.querySelector(".acks-extras-bucket__row.is-off"), disabled: btn?.disabled === true, why: c.querySelector(".acks-extras-research__verdict")?.textContent.trim() ?? "", refused: (await research().finish(place(), ${JSON.stringify(ritual.id)})).reason };`, ids13);
+  check("a ritual's miscellaneous component wears the barred chip (danger tone, the page in its tooltip), the row is dimmed, the bucket stays short, Finish is disabled with its reason and the API refuses it as componentsShort", ra.chip?.toLowerCase() === "barred" && /is-bad/.test(ra.chipTone) && ra.chipTip.length > 0 && ra.off && ra.disabled && ra.why.length > 0 && ra.refused === "componentsShort", ra);
+  await rig13(20);
+  const rb = await run(gm, U, `
+    ${snap}
+    await research().update(place(), ${JSON.stringify(ritual.id)}, { bucket: [{ uuid: ${JSON.stringify(partM)}, qty: 1, fit: "miscellaneous" }, { uuid: ${JSON.stringify(partR)}, qty: 1, fit: "matched" }] });
+    await sleep(800);
+    await open();
+    const btn = card(${JSON.stringify(ritual.id)}).querySelector('[data-action="finishResearchProject"]');
+    const out = { enabled: !!btn && !btn.disabled };
+    btn.click();
+    await until(() => proj(${JSON.stringify(ritual.id)})?.status === "closed", 80);
+    await sleep(2000);
+    const p = proj(${JSON.stringify(ritual.id)});
+    out.status = p.status;
+    out.outcome = p.outcome;
+    await open();
+    const row = tab().querySelector('.acks-extras-research__awaiting-row[data-project-id="' + ${JSON.stringify(ritual.id)} + '"]');
+    out.awaiting = { present: !!row, tag: row?.querySelector(".acks-tag")?.textContent.trim() ?? "", chooseDisabled: row?.querySelector("button")?.disabled === true };
+    out.cards = newCards().map((m) => m.uuid);
+    out.kept = !!fromUuidSync(${JSON.stringify(partM)});
+    out.spent = !fromUuidSync(${JSON.stringify(partR)}) || Number(fromUuidSync(${JSON.stringify(partR)}).system.quantity?.value) === 0;
+    return out;`, ids13);
+  for (const u of rb.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("with a matched component the ritual is thrown for: the project closes, stamps `pending: placement`, shows `cast · awaiting where it goes` with a disabled Choose…, the card posts, the matched row is spent and the barred row is kept", rb.enabled && rb.status === "closed" && rb.outcome?.result === "success" && rb.outcome?.pending === "placement" && rb.awaiting.present && rb.awaiting.tag.length > 0 && rb.awaiting.chooseDisabled && rb.cards.length === 1 && rb.kept && rb.spent, rb);
+
+  // B. Add power: the control opens a row, Add writes a power row worth its amount, and with none held it says so.
+  const spellProj = await makeReady({ kind: "spell", subject: { uuid: ids13.spell, name: "QA Research Spell" } }, [], 4);
+  const pw = await run(gm, U, `
+    const hero = fromUuidSync(ID.hero);
+    await acksExtras.magic.power.gain(hero, "arcane", { amount: 5, name: "QA walk" });
+    await sleep(700);
+    await open();
+    const c = () => card(${JSON.stringify(spellProj.id)});
+    c().querySelector('[data-action="toggleResearchPower"]').click();
+    await until(() => c().querySelector("[data-research-power-amount]"), 60);
+    const open1 = !!c().querySelector("[data-research-power-amount]");
+    const heldText = c().querySelector(".acks-extras-research__power-row .acks-extras-research__cap")?.textContent.trim() ?? "";
+    const box = c().querySelector("[data-research-power-amount]");
+    box.value = "3";
+    c().querySelector('[data-action="addResearchPower"]').click();
+    await until(() => projects().find((p) => p.id === ${JSON.stringify(spellProj.id)})?.bucket?.some((r) => r.uuid === "power:arcane"), 60);
+    await sleep(900);
+    await open();
+    const row = c().querySelector('.acks-extras-bucket__row[data-kind="power"]');
+    const out = { open1, heldText, bucket: projects().find((p) => p.id === ${JSON.stringify(spellProj.id)}).bucket, bolt: !!row?.querySelector(".fa-bolt"), chip: row?.querySelector("[data-fit]")?.textContent.trim() ?? "", total: c().querySelector(".acks-extras-bucket__total")?.textContent.trim() ?? "" };
+    c().querySelector('[data-action="toggleResearchPower"]')?.click();
+    await sleep(300);
+    await open();
+    c().querySelector('[data-action="toggleResearchPower"]').click();
+    await until(() => c().querySelector('[data-action="pickResearchPower"][data-kind="divine"]'), 60);
+    c().querySelector('[data-action="pickResearchPower"][data-kind="divine"]').click();
+    await until(() => c().querySelector('[data-action="addResearchPower"]')?.disabled === true, 60);
+    out.none = { disabled: c().querySelector('[data-action="addResearchPower"]')?.disabled === true, note: c().querySelector(".acks-extras-research__power-row")?.textContent.replace(/\\s+/g, " ").trim() ?? "" };
+    return out;`, ids13);
+  check("Add power opens the row on the first power, shows 'of N held' from the ledger, and Add writes `power:arcane` at the amount typed into the project's bucket; the row draws the bolt, the matched chip and the amount as the figure toward the cost", pw.open1 && /5/.test(pw.heldText) && pw.bucket.some((r) => r.uuid === "power:arcane" && r.qty === 3) && pw.bolt && pw.chip.toLowerCase() === "matched" && /^3/.test(pw.total), pw);
+  check("with none of a power held the row says so and Add is disabled", pw.none.disabled && /no divine power held/i.test(pw.none.note), pw.none);
+  await run(gm, U, `
+    await research().close(place(), ${JSON.stringify(spellProj.id)});
+    await fromUuidSync(ID.hero).update({ "flags.acks-extras.-=power": null });
+    return true;`, ids13);
+
+  // C. a known formula: the button, its tag, its tooltip and the card.
+  const partF = await mkPart("QA Research Component F");
+  const first = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partF, qty: 1, fit: "matched" }]);
+  await rig13(20);
+  await run(gm, U, `${snap} await research().finish(place(), ${JSON.stringify(first.id)}); await sleep(2000); return true;`, ids13);
+  const partG2 = await mkPart("QA Research Component F2");
+  const again = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partG2, qty: 1, fit: "matched" }]);
+  const fo = await run(gm, U, `
+    ${snap}
+    await open();
+    const c = card(${JSON.stringify(again.id)});
+    const btn = c.querySelector('[data-action="finishResearchProject"]');
+    const tag = btn?.previousElementSibling;
+    const out = { label: btn?.textContent.trim(), tag: tag?.textContent.trim() ?? "", tagTip: tag?.dataset.tooltipText ?? "" };
+    out.throwChip = [...c.querySelectorAll(".acks-extras-research__parts .acks-tag")].map((e) => e.textContent.trim()).join("|");
+    btn.click();
+    await until(() => proj(${JSON.stringify(again.id)})?.status === "closed", 80);
+    await sleep(2000);
+    const msg = newCards().at(-1);
+    out.card = { text: msg ? String(msg.content).replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim() : "", rolls: msg?.rolls?.length ?? -1, targetColumn: msg ? /Target/i.test(String(msg.content)) : null };
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of fo.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("with the formula known and no substitute held the button reads Finish (formula) beside a `formula` tag whose tooltip names the formula and the page, the throw chip shows no target, and the card says Made from the formula with no die and no target column", /finish \(formula\)/i.test(fo.label) && fo.tag.toLowerCase() === "formula" && fo.tagTip.length > 0 && !/\d\+/.test(fo.throwChip) && /made from the formula/i.test(fo.card.text) && fo.card.rolls === 0 && fo.card.targetColumn === false, fo);
+  await run(gm, U, `
+    ${tablesKit}
+    await STORE.clearOverride(D, "ritualWorkshopProse");
+    await fromUuidSync(ID.hero).update({ "flags.acks-extras.magic.-=formulas": null });
     return true;`, ids13);
 
   section("Days teardown");

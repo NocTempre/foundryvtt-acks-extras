@@ -1,4 +1,4 @@
-/* global game, foundry, fromUuid, ui */
+/* global game, foundry, fromUuid, fromUuidSync, ui */
 /**
  * The Research tab of the location sheet: the facility values, the open projects
  * with their researchers, credited research and costs, and each project's
@@ -17,8 +17,8 @@
  * its result through the API; the result is a chat card, so the tab draws nothing for it.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce, projectEntries, formulasOf, cookbookOf, subjectTypeOf } from "./research-project-live.mjs";
-import { PROJECT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, panelModel, componentPolicy } from "./research-project.mjs";
+import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf } from "./research-project-live.mjs";
+import { PROJECT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, POWER_PILLS, panelModel, componentPolicy, withPowerRow } from "./research-project.mjs";
 import { elementOf } from "../lib/util.mjs";
 import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop, nextFit } from "../lib/bucket.mjs";
 
@@ -37,6 +37,17 @@ const resolveDoc = (uuid) => fromUuid(uuid).catch(() => null);
 /** Each window's pace choice per project, held by the window and never written to the record. */
 const paceMemory = new WeakMap();
 
+/** Each window's Add power row per project (open, the power it stands on and the amount typed), held by the window and never written to the record. */
+const powerMemory = new WeakMap();
+
+/** This window's Add power row for a project; closed, on the first power and blank until the viewer opens or edits it. */
+export function powerRowOf(sheet, projectId) {
+  if (!powerMemory.has(sheet)) powerMemory.set(sheet, new Map());
+  const held = powerMemory.get(sheet);
+  if (!held.has(projectId)) held.set(projectId, { open: false, kind: POWER_PILLS[0], amount: "" });
+  return held.get(projectId);
+}
+
 /** The pace a window has chosen for a project's day: dedicated until one is picked. */
 export function paceOf(sheet, projectId) {
   return paceMemory.get(sheet)?.get(projectId) ?? PACE.dedicated;
@@ -53,6 +64,7 @@ export async function prepareResearchTab(sheet, context) {
   const entries = {};
   for (const project of record.projects.filter((p) => p.status === "open")) entries[project.id] = await projectEntries(project);
   const deps = liveDeps();
+  const { powerApi } = await import("./power-ledger-live.mjs");
   context.research = panelModel({
     record,
     tables: deps.tables(),
@@ -69,6 +81,8 @@ export async function prepareResearchTab(sheet, context) {
     formulasOf,
     cookbookOf,
     subjectTypeOf,
+    powerOf: (uuid, kind) => powerApi.balance(fromUuidSync(uuid), kind),
+    addPowerOf: (id) => powerRowOf(sheet, id),
   });
   context.researchOpen = context.research.openCount;
 }
@@ -216,6 +230,44 @@ async function onBucketFit(_event, target) {
   this.render();
 }
 
+/** Press of Add power: the row opens or closes in this window. */
+function onTogglePower(_event, target) {
+  const id = projectIdOf(target);
+  if (!id) return;
+  const row = powerRowOf(this, id);
+  row.open = !row.open;
+  this.render();
+}
+
+/** Press of a power pill: the row stands on that power in this window. */
+function onPickPower(_event, target) {
+  const id = projectIdOf(target);
+  if (!id || !POWER_PILLS.includes(target.dataset.kind)) return;
+  powerRowOf(this, id).kind = target.dataset.kind;
+  this.render();
+}
+
+/**
+ * Press of Add: the typed amount joins the power row of that power in the project's bucket, held to what the researcher's
+ * ledger holds, through the project's own update (a Player's is refused for a researcher they do not own, as every project write).
+ */
+async function onAddPower(_event, target) {
+  const id = projectIdOf(target);
+  const project = recordOf(this.actor).projects.find((p) => p.id === id);
+  if (!project) return;
+  const row = powerRowOf(this, id);
+  const box = target.closest("[data-project-id]")?.querySelector("[data-research-power-amount]");
+  const { powerApi } = await import("./power-ledger-live.mjs");
+  const bucket = withPowerRow(project.bucket, row.kind, box ? box.value : row.amount, powerApi.balance(fromUuidSync(project.researcher), row.kind));
+  if (!bucket) {
+    ui.notifications?.warn(loc("refused.power"));
+    return;
+  }
+  announce(await researchApi.update(this.actor, id, { bucket }));
+  row.amount = "";
+  this.render();
+}
+
 /** Press of an assistant's remove control. */
 async function onRemoveAssistant(_event, target) {
   const id = projectIdOf(target);
@@ -243,6 +295,9 @@ export const RESEARCH_TAB_ACTIONS = {
   closeResearchProject: onCloseProject,
   finishResearchProject: onFinishProject,
   removeResearchAssistant: onRemoveAssistant,
+  toggleResearchPower: onTogglePower,
+  pickResearchPower: onPickPower,
+  addResearchPower: onAddPower,
   [BUCKET_ACTIONS.remove]: onBucketRemove,
   [BUCKET_ACTIONS.fit]: onBucketFit,
 };
@@ -293,6 +348,13 @@ export function bindResearchTab(sheet) {
       write(researchApi.update(location, id, patchOf(path, value)));
     });
   }
+  for (const box of root.querySelectorAll("[data-research-power-amount]")) {
+    box.addEventListener("change", (event) => {
+      event.stopPropagation();
+      const id = projectIdOf(box);
+      if (id) powerRowOf(sheet, id).amount = box.value;
+    });
+  }
   for (const radio of root.querySelectorAll("[data-research-pace]")) {
     radio.addEventListener("change", (event) => {
       event.stopPropagation();
@@ -318,7 +380,7 @@ export function bindResearchTab(sheet) {
       const project = recordOf(location).projects.find((p) => p.id === id);
       if (!project) return;
       const held = (await entriesFromAnswer(project.bucket, resolveDoc)).entries;
-      const made = await entryFromDrop(data, resolveDoc, { policy: componentPolicy(project), present: held });
+      const made = await entryFromDrop(data, resolveDoc, { policy: componentPolicy(project, { partXp: partXpOf }), present: held });
       if (made.refused) {
         ui.notifications?.warn(loc(`refused.drop.${made.refused}`, { name: made.name ?? "" }));
         return;

@@ -17,7 +17,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC, PROJECT_HANDLER } from "./constants.mjs";
 import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, THROW_DIE, COMPONENT_FIT, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText, throwPlan, subjectRef, knowsFormula } from "./research-project.mjs";
-import { outcomeDeps, canFinish, projectEntries, formulasOf, cookbookOf, subjectTypeOf } from "./research-outcome-live.mjs";
+import { outcomeDeps, canFinish, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf } from "./research-outcome-live.mjs";
 import { readResearchTables } from "./research-tables.mjs";
 import { dayOfWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
@@ -50,6 +50,33 @@ export function linkedCharacters(location) {
     if (actor?.documentName === "Actor" && actor.type === ACTOR_TYPE.character) out.push({ uuid: actor.uuid, name: actor.name, img: actor.img ?? "" });
   }
   return out;
+}
+
+/**
+ * The locations a character is linked to: the inverse of `linkedCharacters`, so a character is offered the places the Research tab
+ * would let it research at.
+ * @returns {{uuid: string, name: string}[]}
+ */
+export function locationsOf(actor) {
+  return (game.actors ?? []).filter(isLocation).filter((place) => linkedCharacters(place).some((a) => a.uuid === actor?.uuid)).map((place) => ({ uuid: place.uuid, name: place.name }));
+}
+
+/**
+ * Open a ritual's project: the spell as its subject at its own level, the caster as its researcher, at a location the caster is
+ * linked to. A refusal or a warning is told as the Research tab tells it; on success the location's sheet opens on its Research tab.
+ * @returns {Promise<{ok: boolean, id?: string, reason?: string}>}
+ */
+export async function openRitual(location, { spell, caster }) {
+  const place = resolve(location?.uuid);
+  if (!isLocation(place)) return { ok: false, reason: "noLocation" };
+  const made = await researchApi.create(place, { kind: PROJECT_KIND.ritual, subject: { uuid: spell.uuid, name: spell.name, img: spell.img ?? "" }, level: spell.system?.lvl ?? null, researcher: caster.uuid });
+  announce(made);
+  if (made?.ok) {
+    const sheet = place.sheet;
+    await sheet?.render({ force: true });
+    sheet?.changeTab?.("research", "primary", { force: true });
+  }
+  return made;
 }
 
 /** A participant's class level, whole and at least zero; null where the actor or the level is not there. */
@@ -91,7 +118,7 @@ export const liveDeps = () => ({
   outcome: outcomeDeps(),
 });
 
-export { projectEntries, formulasOf, cookbookOf, subjectTypeOf };
+export { projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf };
 
 const ops = () => projectOps(liveDeps());
 
@@ -255,7 +282,7 @@ export const researchApi = {
    * delivered to the researcher, a known spell added to their repertoire, an item marked fully identified, or a blank
    * document made and opened for the Judge where the subject names none; a spell or an item's formula is recorded on the
    * researcher. The components bucket is settled on every outcome and the result is one chat card. It is refused (`notComplete`,
-   * `componentsShort`, `throwUnread`, `intUnread`, `bonusUnread`, `penaltyUnread`, `ritual`, `subject`, `bucketOwner`, `subjectOwner`) before anything is rolled or written, and a Player's
+   * `componentsShort`, `throwUnread`, `intUnread`, `bonusUnread`, `penaltyUnread`, `subject`, `bucketOwner`, `subjectOwner`) before anything is rolled or written, and a Player's
    * request keeps a Player's rules where the GM's client runs it. A project with no throw to make (an item whose formula is known and applied, or a spell the Judge marked `common` through `update`) rolls
    * nothing and succeeds. Answers `{ok, id, outcome, die, total, target, auto, modifier, formula, noThrow, written, failed, settled}`
    * (`die`, `total` and `target` null with no throw).

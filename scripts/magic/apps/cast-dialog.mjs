@@ -192,7 +192,7 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const mode = form.querySelector('input[name="mode"]:checked');
     if (mode) a.mode = mode.value;
     for (const radio of form.querySelectorAll("input[data-pick]:checked")) a.picks[radio.dataset.pick] = radio.value;
-    for (const name of ["pickKind", "casterLevel", "invocationLevel", "situational", "visibility"]) {
+    for (const name of ["pickKind", "casterLevel", "invocationLevel", "situational", "visibility", "ritualLocation"]) {
       const el = field(name);
       if (el) a[name] = el.value;
     }

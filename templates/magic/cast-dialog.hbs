@@ -28,6 +28,28 @@
 
   {{#if declaring}}<p class="acks-extras-cast-hint">{{declaring}}</p>{{/if}}
 
+  {{#if ritual.show}}
+  <section class="acks-extras-cast-band acks-extras-cast-ritual">
+    <header class="acks-extras-cast-targets__head">
+      <h3><i class="fa-solid fa-landmark" inert></i> {{ritual.legend}}</h3>
+      <span class="acks-extras-cast-hint">{{ritual.caption}}</span>
+    </header>
+    {{#if ritual.none}}
+    <ul class="acks-extras-cast-verdicts"><li data-severity="block" class="is-block"><i class="fa-solid fa-ban" inert></i>{{ritual.noneText}}</li></ul>
+    {{else}}
+    <div class="acks-extras-cast-field">
+      <label>
+        <span>{{ritual.label}}</span>
+        <select name="ritualLocation">
+          {{#each ritual.locations}}<option value="{{uuid}}"{{#if selected}} selected{{/if}}>{{name}}</option>{{/each}}
+        </select>
+      </label>
+    </div>
+    <p class="acks-extras-cast-hint">{{ritual.hint}}</p>
+    {{/if}}
+  </section>
+  {{else}}
+
   {{#with spell as |sp|}}
   {{#if sp.show}}
   <section class="acks-extras-cast-band">
@@ -181,4 +203,5 @@
     </div>
     {{#if bucket.rangeNote}}<p class="acks-extras-cast-hint">{{bucket.rangeNote}}</p>{{/if}}
   </section>
+  {{/if}}
 </section>

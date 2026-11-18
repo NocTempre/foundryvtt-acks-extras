@@ -117,7 +117,7 @@ export function initialState(ctx, { visibility = "public" } = {}) {
   // The invocation level opens on the tradition's cap where there is one and the level is asked (R.1); with none it opens blank, never defaulted.
   const first = ctx.invocation?.[ctx.modes?.[0] ?? "normal"];
   const preset = first?.offered && invocationFigure(first.cap) !== null ? String(first.cap) : "";
-  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", invocationLevel: preset, situational: "", saveMod: false, procedure: {}, visibility };
+  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", invocationLevel: preset, situational: "", saveMod: false, procedure: {}, visibility, ritualLocation: "" };
   const from = ctx.initial;
   if (!from) return base;
   const given = Object.fromEntries(Object.keys(base).filter((key) => from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
@@ -166,6 +166,48 @@ const kindOf = (kept, state) => {
   return { options, value: options.includes(state.pickKind) ? state.pickKind : (options[0] ?? "") };
 };
 
+/** The location a ritual dialog stands on: the seat's pick where the caster is still linked to it, else the first location. */
+export const ritualLocationOf = (ctx, state) => {
+  const places = ctx.ritual?.locations ?? [];
+  return places.some((l) => l.uuid === state.ritualLocation) ? state.ritualLocation : (places[0]?.uuid ?? "");
+};
+
+/**
+ * What the ritual dialog shows: the caster and the spell, the Ritual band (the locations the caster is linked to, or the reason there is none)
+ * and a footer whose one answer opens the project. Nothing of the ordinary cast's bands is drawn.
+ */
+function ritualContext(ctx, st) {
+  const places = ctx.ritual.locations ?? [];
+  const chosen = ritualLocationOf(ctx, st);
+  const none = places.length === 0;
+  return {
+    header: {
+      portrait: ctx.caster?.img ?? "",
+      spell: ctx.spell?.name ?? loc("dialog.title"),
+      caster: ctx.caster?.name ?? "",
+      level: { line: ctx.ritual.level ? loc("dialog.ritualLevel", { level: ctx.ritual.level }) : loc("dialog.ritualOnly"), tip: loc("tip.ritualLevel") },
+      hasModes: false,
+      modes: [],
+    },
+    declaring: "",
+    ritual: {
+      show: true,
+      legend: loc("dialog.ritualLegend"),
+      caption: loc("dialog.ritualCaption"),
+      label: loc("dialog.ritualLocation"),
+      hint: loc("dialog.ritualHint"),
+      none,
+      noneText: loc("dialog.ritualNone", { name: ctx.caster?.name ?? "" }),
+      locations: places.map((l) => ({ uuid: l.uuid, name: l.name, selected: l.uuid === chosen })),
+    },
+    spell: { show: false },
+    invocation: { show: false },
+    saves: { show: false },
+    bucket: { count: { n: 0, over: false, text: "", tip: "" }, rows: [], empty: true, rangeNote: "" },
+    footer: { visibility: [], capacity: {}, verdicts: [], blocked: none, cast: loc("dialog.openRitual"), ritual: true },
+  };
+}
+
 /**
  * What the seat answered, as the cast reads it. The weapon of a holder is
  * answered only where its pick was shown, and a throw split only where its row
@@ -176,6 +218,7 @@ const kindOf = (kept, state) => {
  * @returns {{mode: string, picks: Record<string, string>, pickKind: string|null, items: Record<string, string>, allocation: Record<string, Record<string, string>>, casterLevel: string, situational: string, saveMod: boolean, procedure: object, visibility: string}}
  */
 export function answerOf(ctx, state) {
+  if (ctx.ritual) return { ritual: { locationUuid: ritualLocationOf(ctx, state) }, visibility: "public" };
   const mode = (ctx.modes ?? []).includes(state.mode) ? state.mode : (ctx.modes?.[0] ?? "normal");
   const inv = invocationOf(ctx, state, mode).value ?? null;
   const picks = picksOf(ctx, state, mode, inv);
@@ -375,6 +418,7 @@ export function bucketViews(proc, entries, ctx = {}) {
  */
 export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilityLabel = (k) => k, statusImg = () => null, visibility = "public", entries = {} } = {}) {
   const st = { ...initialState(ctx, { visibility }), ...state };
+  if (ctx.ritual) return ritualContext(ctx, st);
   const mode = (ctx.modes ?? []).includes(st.mode) ? st.mode : (ctx.modes?.[0] ?? "normal");
   // The invocation level the seat holds: every question below is asked at it.
   const read = invocationOf(ctx, st, mode);

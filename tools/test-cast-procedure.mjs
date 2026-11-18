@@ -240,7 +240,7 @@ t("the casting time of a spell is its own flag's, else its library twin's", () =
 /*  Verdicts                                                          */
 /* ------------------------------------------------------------------ */
 
-t("a procedure's findings, a long cast and a ritual take their severity from the plan: a Player is blocked and a Judge warned", () => {
+t("a procedure's findings and a long cast take their severity from the plan: a Player is blocked and a Judge warned", () => {
   const base = { capacity: { verdict: "ok" } };
   const found = [{ key: "tooHasty", notice: "Too hasty here." }];
   assert.deepEqual(keysOf(castVerdicts({ ...base, procedure: found })), [["tooHasty", "block"]]);
@@ -248,8 +248,7 @@ t("a procedure's findings, a long cast and a ritual take their severity from the
   assert.equal(castVerdicts({ ...base, procedure: found })[0].notice, "Too hasty here.", "the procedure's own words ride along");
   assert.deepEqual(keysOf(castVerdicts({ ...base, moment: MOMENT.long })), [["longCast", "block"]]);
   assert.deepEqual(keysOf(castVerdicts({ ...base, moment: MOMENT.long, isGM: true })), [["longCast", "warn"]]);
-  assert.deepEqual(keysOf(castVerdicts({ ...base, ritual: true })), [["ritualPending", "block"]]);
-  assert.deepEqual(keysOf(castVerdicts({ ...base, ritual: true, isGM: true })), [["ritualPending", "warn"]]);
+  assert.equal("ritualPending" in VERDICT, false, "a ritual is no verdict: the dialog opens its project");
   assert.deepEqual(keysOf(castVerdicts({ ...base, bucketsGone: ["Item.gone"] })), [], "a gone bucket entry is no verdict: it is dropped, and what is left is judged by the procedure's own findings");
   assert.equal("bucketChanged" in VERDICT, false);
   assert.deepEqual(castVerdicts(base), [], "none given, none drawn");
@@ -733,15 +732,61 @@ await ta("a cast with no `holds` dep takes every stored bucket entry as present"
 /*  Rituals                                                           */
 /* ------------------------------------------------------------------ */
 
-await ta("a ritual spell is refused a Player and warns a Judge until the ritual project lands; a spell that is no ritual is untouched", async () => {
-  let r = runDeps({ answer: { mode: "normal", picks: {} } });
-  const refused = await cast(spell([heal()], { ritual: true }), r.deps, () => r.calls.spends++);
-  assert.deepEqual([refused.ok, refused.reason, r.calls.spends], [false, "ritualPending", 0]);
-  r = runDeps({ isGM: true, answer: { mode: "normal", picks: {} } });
-  assert.equal((await cast(spell([heal()], { ritual: true }), r.deps)).ok, true);
-  assert.ok(r.calls.notices.some(([lvl, key]) => lvl === "warn" && key === "verdict.ritualPending"));
+/** A ritual spell's run: the caster is linked to the places given, and opening a project answers as given. */
+function ritualDeps({ places = [{ uuid: "Actor.L1", name: "Invented Tower" }, { uuid: "Actor.L2", name: "Invented Lodge" }], answer = { ritual: { locationUuid: "Actor.L2" } }, open = { ok: true, id: "n1" }, isGM = false } = {}) {
+  const r = runDeps({ answer, isGM });
+  r.calls.opened = [];
+  r.deps.ritualLocations = async (caster) => (r.calls.locationsOf = caster.uuid, places);
+  r.deps.ritualOpen = async (from) => (r.calls.opened.push(from), open);
+  return r;
+}
+
+await ta("a ritual spell opens a project at the chosen linked location and spends nothing; no linked location answers nothing to open", async () => {
+  const ritual = (rows = []) => spell(rows, { ritual: true });
+  let r = ritualDeps();
+  const done = await cast(ritual(), r.deps, () => r.calls.spends++);
+  assert.deepEqual([done.ok, done.ritual, done.projectId, done.locationUuid, r.calls.spends], [true, true, "n1", "Actor.L2", 0], "no slot, no verdict and no card: the cast is the project");
+  assert.deepEqual([r.calls.opened[0].location.uuid, r.calls.opened[0].spell.name, r.calls.opened[0].caster.uuid], ["Actor.L2", "Testrite", "Actor.c1"]);
+  assert.equal(r.calls.locationsOf, "Actor.c1", "the places are the caster's own");
+  assert.deepEqual([r.calls.asked.ritual.locations.map((l) => l.name), r.calls.asked.ritual.level, r.calls.notices], [["Invented Tower", "Invented Lodge"], 1, []]);
+  r = ritualDeps({ isGM: true });
+  assert.equal((await cast(ritual([heal()]), r.deps)).ok, true, "a ritual with rows is the same, for a Judge too");
+  assert.deepEqual(r.calls.notices, [], "a Judge is warned of nothing: the ritual verdict is gone");
+  r = ritualDeps({ answer: null });
+  assert.deepEqual([(await cast(ritual(), r.deps)).reason, r.calls.opened.length], ["cancelled", 0]);
+  r = ritualDeps({ answer: { ritual: { locationUuid: "Actor.elsewhere" } } });
+  assert.deepEqual([(await cast(ritual(), r.deps)).reason, r.calls.opened.length], ["noLocation", 0], "a place the caster is not linked to is never opened");
+  r = ritualDeps({ places: [], answer: { ritual: { locationUuid: "" } } });
+  assert.deepEqual([(await cast(ritual(), r.deps)).ok, r.calls.opened.length], [false, 0]);
+  r = ritualDeps({ open: { ok: false, reason: "facility" } });
+  assert.deepEqual([(await cast(ritual(), r.deps)).reason], ["facility"], "a refused project is the cast's refusal");
   r = runDeps({ answer: { mode: "normal", picks: {} } });
-  assert.equal((await cast(spell([heal()], { ritual: false }), r.deps)).ok, true);
+  assert.equal((await cast(spell([heal()], { ritual: false }), r.deps)).ok, true, "a spell that is no ritual is untouched");
+});
+
+t("a rowless ritual spell is claimed whatever its tradition; a rowless spell that is no ritual stays the system's", () => {
+  const rowless = spell([], { ritual: true });
+  assert.equal(castSpellClaims(rowless, NO_TWIN, () => null), true, "no procedure and no rows: still claimed, so the dialog reaches it");
+  assert.equal(castSpellClaims(rowless, NO_TWIN), true, "and with no class reader");
+  assert.equal(castSpellClaims(spell([], { ritual: false }), NO_TWIN, () => null), false);
+  assert.equal(castSpellClaims({ ...rowless, parent: { ...rowless.parent, isOwner: false } }, NO_TWIN), false, "a seat that does not own the caster is not offered it");
+});
+
+await ta("the ritual dialog shows the Ritual band over the linked locations, opens on the first, and disables the one answer with none", async () => {
+  const { dialogContext, answerOf, initialState } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
+  const ctx = (locations) => ({ spell: { name: "Testrite" }, caster: { name: "Tester", img: "t.png" }, isGM: false, ritual: { locations, level: 8 } });
+  const places = [{ uuid: "Actor.L1", name: "Invented Tower" }, { uuid: "Actor.L2", name: "Invented Lodge" }];
+  const view = dialogContext(ctx(places), initialState(ctx(places)));
+  assert.deepEqual([view.ritual.show, view.ritual.none, view.ritual.locations.map((l) => [l.uuid, l.selected]), view.footer.blocked, view.footer.ritual, view.spell.show, view.invocation.show, view.saves.show], [true, false, [["Actor.L1", true], ["Actor.L2", false]], false, true, false, false, false]);
+  assert.match(view.footer.cast, /openRitual/);
+  assert.match(view.header.level.line, /ritualLevel.*8/);
+  const picked = { ...initialState(ctx(places)), ritualLocation: "Actor.L2" };
+  assert.equal(dialogContext(ctx(places), picked).ritual.locations[1].selected, true);
+  assert.deepEqual(answerOf(ctx(places), picked), { ritual: { locationUuid: "Actor.L2" }, visibility: "public" });
+  assert.equal(answerOf(ctx(places), { ...picked, ritualLocation: "Actor.gone" }).ritual.locationUuid, "Actor.L1", "a place the caster is no longer linked to falls back to the first");
+  const none = dialogContext(ctx([]), initialState(ctx([])));
+  assert.deepEqual([none.ritual.none, none.footer.blocked, none.ritual.noneText.includes("ritualNone"), none.ritual.locations], [true, true, true, []], "no linked location: the button is off and the band says why");
+  assert.equal(answerOf(ctx([]), initialState(ctx([]))).ritual.locationUuid, "");
 });
 
 console.log(`\n${n} cast procedure tests passed`);

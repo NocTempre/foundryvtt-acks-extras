@@ -101,6 +101,16 @@ export function creatureValue(actor, { items = [...(actor?.items ?? [])], isComp
 }
 
 /**
+ * A monster part valued by the XP of the monster it came from, taken as the award itself (the caller's reading of the part's rule
+ * applies no multiplier). `xp` is that award; where it was not read the value is blank, never the part's own cost and never zero.
+ * `effects` are the names the part answers to, which the fit match reads.
+ * @param {{xp: *, effects?: string[], cite?: string|null}} part
+ */
+export function xpPartValue({ xp, effects = [], cite = null } = {}) {
+  return { ...awardValue(xp, undefined, cite), effects: (Array.isArray(effects) ? effects : []).map((e) => String(e).trim()).filter(Boolean) };
+}
+
+/**
  * A character victim: the XP award for its level, read from the imported
  * table the caller holds, through the multiplier. `award(level)` answers a
  * figure or null; with no table imported the value is blank.

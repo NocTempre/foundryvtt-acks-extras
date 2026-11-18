@@ -41,6 +41,8 @@
  */
 import { facilityMinimum, facilityBonus, researchRateAt, footnoteNames, assistantCapacity, assistantMinimum, substitutionPenalty, isAutoFail } from "./research-tables.mjs";
 import { bucketView, settlementPlan, counts, coverage, COVERAGE, ENTRY_KIND, OUTCOME, SETTLE } from "../lib/bucket.mjs";
+import { xpPartValue } from "../lib/bucket-value.mjs";
+import { POWER_KIND, POWER_ROW_PREFIX } from "./power-ledger.mjs";
 import { foldName } from "../lib/spell-sources.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -58,16 +60,13 @@ export const FACILITY_KEYS = Object.freeze(Object.values(FACILITY));
 
 /**
  * Which facility value a kind reads and which imported passage gives its minimum
- * and bonus (`readFacility`'s kinds). A ritual reads both of its facilities.
+ * and bonus (`readFacility`'s kinds). A ritual project is a casting, which is worked at a workshop.
  */
 export const KIND_FACILITIES = Object.freeze({
   spell: Object.freeze([{ value: FACILITY.library, table: "library" }]),
   item: Object.freeze([{ value: FACILITY.workshop, table: "workshop" }]),
   identify: Object.freeze([{ value: FACILITY.library, table: "identify" }]),
-  ritual: Object.freeze([
-    { value: FACILITY.library, table: "ritualLibrary" },
-    { value: FACILITY.workshop, table: "ritualWorkshop" },
-  ]),
+  ritual: Object.freeze([{ value: FACILITY.workshop, table: "ritualWorkshop" }]),
 });
 
 /** The kinds of document a project's components bucket takes by a drop (lib's bucket entry kinds). */
@@ -89,11 +88,35 @@ export const PROJECT_OP = Object.freeze({ create: "create", update: "update", cl
 export const THROW_DIE = "1d20";
 
 /**
- * How a component row stands to the project: matched to the effect or a substitute for it. The
- * substituted share of the component cost takes a throw penalty and turns the formula off. A row that
- * is arcane or divine power is matched unless the Judge marks it a substitute (`projectEntries`).
+ * How a component row stands to the project: matched to the effect, a substitute for it, or a
+ * miscellaneous component. The substituted share of the component cost takes a throw penalty and turns the
+ * formula off, and a miscellaneous row stands as a substitute in every kind but a ritual, which takes none
+ * (`barredEntries`). A row that is arcane or divine power is matched unless the Judge marks it otherwise (`projectEntries`).
  */
-export const COMPONENT_FIT = Object.freeze({ matched: "matched", substitute: "substitute" });
+export const COMPONENT_FIT = Object.freeze({ matched: "matched", substitute: "substitute", miscellaneous: "miscellaneous" });
+
+/** The reason a ritual's miscellaneous row counts for nothing (lib's entry `reason`). */
+export const RITUAL_BARRED = "miscellaneous";
+
+/**
+ * The bucket's rows as a project counts them: in a ritual project a miscellaneous row carries the reason
+ * `RITUAL_BARRED`, so it is listed, dimmed and never totalled, never part of the substituted share and never
+ * spent. Any other kind's rows are returned as they are.
+ */
+export function barredEntries(project, entries) {
+  if (project?.kind !== PROJECT_KIND.ritual) return entries ?? [];
+  return (entries ?? []).map((e) => (e.fit === COMPONENT_FIT.miscellaneous && !e.reason ? { ...e, reason: RITUAL_BARRED } : e));
+}
+
+/** A stored bucket with a power row added: the amount joins a row already there, and a row is never held above `held`. Null where nothing can be added. */
+export function withPowerRow(bucket, kind, amount, held) {
+  const uuid = `power:${kind}`;
+  const have = (bucket ?? []).find((r) => r.uuid === uuid);
+  const room = Math.floor(Number(held)) - (have?.qty ?? 0);
+  const add = Math.min(Math.floor(Number(amount)), room);
+  if (!Number.isFinite(add) || add < 1) return null;
+  return have ? bucket.map((r) => (r.uuid === uuid ? { ...r, qty: r.qty + add } : r)) : [...(bucket ?? []), { uuid, qty: add, fit: "" }];
+}
 
 /** The fit a stored power row stands at: matched unless the row says otherwise (power is no substitute); a document row's default is the policy's. */
 export const powerRowFit = (stored) => str(stored) || COMPONENT_FIT.matched;
@@ -114,13 +137,16 @@ export const FORMULAS_KEY = "formulas";
 export const FORMULA_KINDS = Object.freeze([PROJECT_KIND.spell, PROJECT_KIND.item]);
 
 /** Why a Finish is refused, by the reason the state names; `announce` reads `refused.<reason>`. */
-const FINISH_REFUSAL = Object.freeze({ credited: "notComplete", components: "componentsShort", throw: "throwUnread", int: "intUnread", bonus: "bonusUnread", penalty: "penaltyUnread", ritual: "ritual", subject: "subject" });
+const FINISH_REFUSAL = Object.freeze({ credited: "notComplete", components: "componentsShort", throw: "throwUnread", int: "intUnread", bonus: "bonusUnread", penalty: "penaltyUnread", subject: "subject" });
 
 /** The kinds whose ladder target is raised by the project's level of effect: every kind a project is. */
 export const LEVEL_RAISED_KINDS = Object.freeze([PROJECT_KIND.spell, PROJECT_KIND.item, PROJECT_KIND.identify, PROJECT_KIND.ritual]);
 
 /** Why a Finish needs no throw: the researcher's formula completes an item, or the Judge marked a spell common. */
 export const NO_THROW = Object.freeze({ formula: "formula", common: "common" });
+
+/** What a closed project still waits on: a cast ritual waits for the caster to say where its effect goes. */
+export const PENDING = Object.freeze({ placement: "placement" });
 
 /** The most days one range post takes: a bound on one write, not a rule of the book. */
 export const RANGE_MAX = 366;
@@ -228,12 +254,14 @@ const num = (raw) => (raw === null || raw === undefined || raw === "" || !Number
 
 /**
  * What Finish came to as stored: `{result, die, total, target, day}`, or null where there is none to read. A Finish
- * that made no throw has no die, total or target and names why in `noThrow` (`NO_THROW`).
+ * that made no throw has no die, total or target and names why in `noThrow` (`NO_THROW`); a cast ritual names what it
+ * waits on in `pending` (`PENDING`).
  */
 export function cleanOutcome(raw) {
   if (!raw || typeof raw !== "object" || !["success", "failure"].includes(raw.result)) return null;
   const noThrow = Object.values(NO_THROW).includes(raw.noThrow) ? raw.noThrow : null;
-  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day), ...(noThrow ? { noThrow } : {}) };
+  const pending = Object.values(PENDING).includes(raw.pending) ? raw.pending : null;
+  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day), ...(noThrow ? { noThrow } : {}), ...(pending ? { pending } : {}) };
 }
 
 /**
@@ -540,26 +568,37 @@ function joinGates(...gates) {
  * The policy of a project's components bucket (lib's bucket policy): the kinds a drop may be, the fit a
  * row opens on (a row whose own names, or the names its effects answer to, match the subject's name is
  * matched; any other document is a substitute until the seat changes it, and a power row is matched, `powerRowFit`), the amount due and what an outcome does
- * to the rows. `loc` words the fit labels; `cite` is the page of the amount due.
+ * to the rows. `loc` words the fit labels; `cite` is the page of the amount due; `partXp(doc)` answers null for a document that
+ * is no monster part and `{xp, effects}` for one (`xp` null where the monster's award is not read), which a ritual values by.
  */
-export function componentPolicy(project, { loc = (key) => key, cite = "" } = {}) {
+export function componentPolicy(project, { loc = (key) => key, cite = "", partXp = null } = {}) {
   const names = project.subject.name ? [project.subject.name] : [];
+  const ritual = project.kind === PROJECT_KIND.ritual;
   return {
     accepts: { kinds: COMPONENT_KINDS },
-    fit: { options: [{ key: COMPONENT_FIT.matched, label: loc("fit.matched"), names }, { key: COMPONENT_FIT.substitute, label: loc("fit.substitute") }], fallback: COMPONENT_FIT.substitute },
+    fit: {
+      options: [
+        { key: COMPONENT_FIT.matched, label: loc("fit.matched"), names, tone: "ok" },
+        { key: COMPONENT_FIT.substitute, label: loc("fit.substitute"), tone: "warn" },
+        { key: COMPONENT_FIT.miscellaneous, label: loc("fit.miscellaneous"), tone: "warn" },
+      ],
+      fallback: COMPONENT_FIT.substitute,
+    },
     due: { gp: project.costs.component, cite },
     settle: COMPONENT_SETTLE,
+    // A ritual values a monster part by the XP of the monster it came from (a part of another document stays at its own cost).
+    ...(ritual && partXp ? { value: (doc) => { const part = partXp(doc); return part ? xpPartValue({ xp: part.xp, effects: part.effects, cite }) : null; } } : {}),
   };
 }
 
 /**
- * The share of the component cost the rows that are substitutes make up, and how many such rows
+ * The share of the component cost the rows that are substitutes (or miscellaneous, which stands as one) make up, and how many such rows
  * there are. `share` is 0 with none, and null where a substitute's value or the cost is not read
  * (a share that cannot be told is never taken for none). A share above the whole is held to one.
  * @returns {{share: number|null, substituted: number}}
  */
 export function substitutedShare(entries, dueGp) {
-  const rows = (entries ?? []).filter((e) => counts(e) && e.fit === COMPONENT_FIT.substitute);
+  const rows = (entries ?? []).filter((e) => counts(e) && (e.fit === COMPONENT_FIT.substitute || e.fit === COMPONENT_FIT.miscellaneous));
   if (!rows.length) return { share: 0, substituted: 0 };
   const values = rows.map((e) => num(e.value?.gp));
   const due = num(dueGp);
@@ -615,7 +654,8 @@ export function withFormula(formulas, entry) {
  * is not read (a kind with no component cost is never held).
  * @returns {{target: number|null, by: "hand"|"ladder"|null, levelRaise: number, int: number|null, intUnread: boolean, bonus: number, bonusRead: boolean, bonusUnread: boolean, share: number|null, substituted: number, penalty: number|null, penaltyUnread: boolean, modifier: number, formula: {known: boolean, used: boolean}, noThrow: string|null, components: {due: number|null, total: number, short: boolean, unread: boolean, hold: boolean}}}
  */
-export function throwPlan(project, { tables, levelOf = () => null, intBonusOf = () => null, verdicts = [], entries = [], known = false }) {
+export function throwPlan(project, { tables, levelOf = () => null, intBonusOf = () => null, verdicts = [], entries: held = [], known = false }) {
+  const entries = barredEntries(project, held);
   const base = ladderThrow(tables?.ladder, levelOf(project.researcher));
   const hand = project.throw?.target ?? null;
   const raised = LEVEL_RAISED_KINDS.includes(project.kind);
@@ -659,21 +699,19 @@ export function throwResult(plan, prose, die) {
   return { die, total, target: plan.target, auto, success, outcome: success ? OUTCOME.success : OUTCOME.failure };
 }
 
-/** Whether a resolved subject's document type suits the kind: a spell project takes a spell, the others an item that is not one. */
-export const subjectFits = (kind, type) => (kind === PROJECT_KIND.spell ? type === ITEM_TYPE.spell : ![ITEM_TYPE.spell, ITEM_TYPE.ability, ITEM_TYPE.language].includes(type));
+/** Whether a resolved subject's document type suits the kind: a spell or ritual project takes a spell, the others an item that is not one. */
+export const subjectFits = (kind, type) => (kind === PROJECT_KIND.spell || kind === PROJECT_KIND.ritual ? type === ITEM_TYPE.spell : ![ITEM_TYPE.spell, ITEM_TYPE.ability, ITEM_TYPE.language].includes(type));
 
 /**
- * Whether Finish may be pressed and, where it may not, why: `ritual` (a ritual's result is not written here),
- * `credited` (the research cost is not credited), `components` (the component cost is not met by the bucket, or a
+ * Whether Finish may be pressed and, where it may not, why: `credited` (the research cost is not credited), `components` (the component cost is not met by the bucket, or a
  * row's value is not read), then, unless the plan makes no throw (`noThrow`): `throw` (no target is read), `int` (the
  * Intellect bonus is not read), `bonus` (a facility's bonus is not read) or `penalty` (a substitute is held and its
- * penalty's size is not read); and last `subject` (an identification with no item to identify, or a subject whose
+ * penalty's size is not read); and last `subject` (an identification with no item to identify, a ritual with no spell, or a subject whose
  * document does not suit the kind). A throw is never rolled with a figure missing, and the throw is made after the
  * component cost is paid. `subjectType` is the resolved subject document's type, or null where it names none.
  * @returns {{ok: boolean, why: string}}
  */
 export function finishState(project, prog, plan, { subjectType = null } = {}) {
-  if (project.kind === PROJECT_KIND.ritual) return { ok: false, why: "ritual" };
   if (prog.complete !== true) return { ok: false, why: "credited" };
   if (plan.components?.hold) return { ok: false, why: "components" };
   if (!plan.noThrow) {
@@ -683,7 +721,7 @@ export function finishState(project, prog, plan, { subjectType = null } = {}) {
     if (plan.penaltyUnread) return { ok: false, why: "penalty" };
   }
   const named = subjectType !== null;
-  if ((project.kind === PROJECT_KIND.identify && !named) || (named && !subjectFits(project.kind, subjectType))) return { ok: false, why: "subject" };
+  if (((project.kind === PROJECT_KIND.identify || project.kind === PROJECT_KIND.ritual) && !named) || (named && !subjectFits(project.kind, subjectType))) return { ok: false, why: "subject" };
   return { ok: true, why: "" };
 }
 
@@ -714,6 +752,7 @@ export function projectOps(deps) {
    * the natural die, `deliver`, `identify`, `addSpell`, `blank` and `recordFormula` the writers, `settle(project, plan)` and
    * `card(summary)`. A writer that throws is reported in `failed` and stops nothing after it: the bucket is settled and the
    * card posted whatever happened. A Player's request is held to what the sender owns: every component and an identified item.
+   * A ritual's success writes no document: its stamp carries `pending: "placement"`, which the project's card shows until the caster says where the effect goes.
    */
   async function finish(location, record, project, who) {
     const out = deps.outcome;
@@ -727,7 +766,7 @@ export function projectOps(deps) {
     );
     if (!gate.ok) return gate;
     const doc = await out.subject(project);
-    const entries = await out.entries(project);
+    const entries = barredEntries(project, await out.entries(project));
     const ref = subjectRef(project.subject, doc?.cookbookId);
     const known = FORMULA_KINDS.includes(project.kind) && knowsFormula(await out.formulas(project.researcher), project.kind, ref);
     const verdicts = facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables: ctx.tables });
@@ -735,13 +774,15 @@ export function projectOps(deps) {
     const state = finishState(project, progressOf(project, ctx), plan, { subjectType: doc?.type ?? null });
     if (!state.ok) return { ok: false, reason: FINISH_REFUSAL[state.why] };
     if (!judge) {
-      if (entries.some((e) => e.kind !== ENTRY_KIND.power && who.owns(e.uuid) !== true)) return { ok: false, reason: "bucketOwner" };
+      if (entries.some((e) => counts(e) && e.kind !== ENTRY_KIND.power && who.owns(e.uuid) !== true)) return { ok: false, reason: "bucketOwner" };
       if (project.kind === PROJECT_KIND.identify && who.owns(project.subject.uuid) !== true) return { ok: false, reason: "subjectOwner" };
     }
     // A Finish with no throw rolls no die and succeeds; the card and the stamp carry no die, total or target.
     const rolled = plan.noThrow ? null : await out.roll(THROW_DIE);
     const result = plan.noThrow ? { die: null, total: null, target: null, auto: false, success: true, outcome: OUTCOME.success, noThrow: plan.noThrow } : throwResult(plan, ctx.tables?.prose, rolled.die);
-    const stamp = { result: result.success ? "success" : "failure", die: result.die, total: result.total, target: result.target, day: ctx.today, ...(plan.noThrow ? { noThrow: plan.noThrow } : {}) };
+    // A cast ritual waits for the caster to say where its effect goes.
+    const waits = result.success && project.kind === PROJECT_KIND.ritual;
+    const stamp = { result: result.success ? "success" : "failure", die: result.die, total: result.total, target: result.target, day: ctx.today, ...(plan.noThrow ? { noThrow: plan.noThrow } : {}), ...(waits ? { pending: PENDING.placement } : {}) };
     await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? { ...p, status: "closed", closed: ctx.today, outcome: stamp } : p)) });
     const written = [];
     const failed = [];
@@ -761,6 +802,7 @@ export function projectOps(deps) {
       else if (FORMULA_KINDS.includes(project.kind)) {
         await attempt("blank", async () => (made = await out.blank(project)));
       }
+      if (waits) written.push({ what: "ritual", name: project.subject.name });
       if (FORMULA_KINDS.includes(project.kind)) await attempt("formula", () => out.recordFormula(project, { ...ref, uuid: ref.uuid || made?.uuid || "", day: ctx.today }));
     }
     const settlement = settlementPlan(entries, result.success ? OUTCOME.success : OUTCOME.failure, COMPONENT_SETTLE);
@@ -775,7 +817,7 @@ export function projectOps(deps) {
     } catch (err) {
       failed.push({ what: "card", error: String(err?.message ?? err) });
     }
-    return { ok: true, id: project.id, outcome: stamp.result, die: result.die, total: result.total, target: result.target, auto: result.auto, modifier: plan.modifier, formula: plan.formula, noThrow: plan.noThrow, written, failed, settled, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
+    return { ok: true, id: project.id, outcome: stamp.result, ...(waits ? { pending: PENDING.placement } : {}), die: result.die, total: result.total, target: result.target, auto: result.auto, modifier: plan.modifier, formula: plan.formula, noThrow: plan.noThrow, written, failed, settled, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
   }
 
   /** Run one op here, on a location this client may write; `who` is the requester's: `{judge, owns(uuid)}`. */
@@ -961,6 +1003,9 @@ export function projectOps(deps) {
 
 const GLYPH = Object.freeze({ spell: "fa-wand-sparkles", item: "fa-gem", identify: "fa-magnifying-glass", ritual: "fa-moon" });
 
+/** The powers the Add power row offers, in the order the board draws them. */
+export const POWER_PILLS = Object.freeze([POWER_KIND.arcane, POWER_KIND.divine]);
+
 /** The most cells the day strip draws; the count it labels is always the whole. */
 const STRIP_MAX = 60;
 
@@ -975,9 +1020,10 @@ const goldText = (n) => (n === null || n === undefined ? "" : Number.isInteger(n
  * entries, `levelOf(uuid)` a participant's class level or null, `intBonusOf(uuid)` an
  * Intellect bonus and `paceOf(id)` the pace this window has chosen for a project's day.
  * `formulasOf(uuid)` is a researcher's recorded formulas, `cookbookOf(uuid)` a subject's cookbook id and
- * `subjectTypeOf(uuid)` the type of the subject's document, null where it resolves to none.
+ * `subjectTypeOf(uuid)` the type of the subject's document, null where it resolves to none, `powerOf(uuid, kind)` the power of a kind
+ * a researcher holds and `addPowerOf(id)` this window's Add power row for a project, `{open, kind, amount}`.
  */
-export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, owns, entries = {}, levelOf = () => null, intBonusOf = () => 0, paceOf = () => PACE.dedicated, formulasOf = () => [], cookbookOf = () => "", subjectTypeOf = () => null }) {
+export function panelModel({ record, tables, linked, today, loc, bucketLoc, judge, owns, entries = {}, levelOf = () => null, intBonusOf = () => 0, paceOf = () => PACE.dedicated, formulasOf = () => [], cookbookOf = () => "", subjectTypeOf = () => null, powerOf = () => 0, addPowerOf = () => ({}) }) {
   const open = openProjects(record.projects);
   const nameOf = (uuid) => linked.find((a) => a.uuid === uuid)?.name ?? loc("gone");
   const imgOf = (uuid) => linked.find((a) => a.uuid === uuid)?.img ?? "";
@@ -1015,7 +1061,7 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     const done = creditedTotal(p);
     const prog = progressOf(p, { today, tables, levelOf, intBonusOf });
     const subject = p.subject;
-    const held = entries[p.id] ?? [];
+    const held = barredEntries(p, entries[p.id] ?? []);
     const ref = subjectRef(subject, cookbookOf(subject.uuid));
     const known = FORMULA_KINDS.includes(p.kind) && knowsFormula(formulasOf(p.researcher), p.kind, ref);
     const verdictRows = facilityVerdicts(p, { facilities: record.facilities, projects: record.projects, tables });
@@ -1039,7 +1085,7 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       ...(known ? [plan.formula.used ? loc("throwPartFormula") : loc("throwPartFormulaOff")] : []),
     ].join(" · ");
     // With no throw the tip says why and lists no throw part.
-    const finishTip = plan.noThrow ? loc(`finishTipNo.${plan.noThrow}`) : loc("finishTip", { parts: throwParts });
+    const finishTip = plan.noThrow ? loc(`finishTipNo.${plan.noThrow}`, { cite: citeOf("costs") }) : loc("finishTip", { parts: throwParts });
     const personOf = (uuid) => prog.people.find((x) => x.uuid === uuid);
     const rateView = (uuid) => {
       const who = personOf(uuid);
@@ -1083,6 +1129,47 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     const paceChosen = paceOf(p.id);
     const factor = (pace) => paceFactor(tables?.prose, pace);
     const postedToday = p.posted.some((row) => row.day === today);
+    // A power row says how much of the held power it takes; a ritual's barred row loses its reason line to the chip it wears instead.
+    const rowExtras = Object.fromEntries(
+      held.flatMap((e) => {
+        if (e.kind === ENTRY_KIND.power) return [[e.uuid, { caption: loc("powerCaption", { n: e.qty, held: e.cap ?? e.qty }), captionTip: loc("powerLedgerTip", { name: e.name, who: nameOf(p.researcher), n: e.cap ?? e.qty }) }]];
+        return e.reason === RITUAL_BARRED ? [[e.uuid, { reason: "" }]] : [];
+      })
+    );
+    const bucket = bucketView(componentPolicy(p, { loc, cite: citeOf("costs") }), held, {
+      key: p.id,
+      loc: bucketLoc,
+      legend: loc("components"),
+      icon: "fa-flask",
+      locked: !can,
+      dropText: loc("dropComponents"),
+      emptyText: loc("noComponents"),
+      rows: rowExtras,
+    });
+    bucket.rows = bucket.rows.map((row) => (rowExtras[row.uuid]?.reason === "" && row.fit ? { ...row, fit: { ...row.fit, label: loc("barred"), tone: "bad", tip: loc("barredTip", { cite: citeOf("costs") }) } } : row));
+    // The Add power row: the kind this window holds, how much of it the researcher holds and how much of that is not in the bucket yet.
+    const adding = addPowerOf(p.id) ?? {};
+    const powerKind = POWER_PILLS.includes(adding.kind) ? adding.kind : POWER_PILLS[0];
+    const powerHeld = Math.max(0, Math.floor(Number(powerOf(p.researcher, powerKind))) || 0);
+    const powerRoom = Math.max(0, powerHeld - (p.bucket.find((r) => r.uuid === `${POWER_ROW_PREFIX}${powerKind}`)?.qty ?? 0));
+    const addPower = {
+      show: can,
+      open: adding.open === true,
+      label: loc("addPower"),
+      tip: loc("addPowerTip"),
+      pillsLabel: loc("powerPillsLabel"),
+      kinds: POWER_PILLS.map((key) => ({ key, label: loc(`powerPill.${key}`), pressed: key === powerKind })),
+      kind: powerKind,
+      amount: adding.amount ?? "",
+      amountLabel: loc("powerAmountLabel"),
+      max: powerRoom,
+      heldText: loc("powerOfHeld", { n: powerHeld }),
+      heldTip: loc("powerLedgerTip", { name: loc(`powerName.${powerKind}`), who: nameOf(p.researcher), n: powerHeld }),
+      // With none held the row says so; with all of it in the bucket already it says that.
+      note: powerHeld < 1 ? loc(`powerNone.${powerKind}`) : powerRoom < 1 ? loc("powerAllIn") : "",
+      addLabel: loc("addPowerGo"),
+      disabled: powerRoom < 1,
+    };
     const ancillary = tables?.prose?.ancillary;
     return {
       id: p.id,
@@ -1142,21 +1229,15 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
         ? { label: loc("postDays"), can, range: true, disabled: false, tip: loc("postDaysTip") }
         : { label: loc("post"), can, range: false, disabled: postedToday, tip: postedToday ? loc("postedToday") : loc("postTip") },
       verdicts,
-      throw: throwTarget === null ? { text: "", tip: loc("throwUnread", { cite: citeOf("ladder") }) } : { text: loc("throw", { n: throwTarget }), tip: throwParts },
+      // A project that makes no throw shows why in the chip, with no target.
+      throw: plan.noThrow ? { text: loc(`finishTag.${plan.noThrow}`), tip: finishTip } : throwTarget === null ? { text: "", tip: loc("throwUnread", { cite: citeOf("ladder") }) } : { text: loc("throw", { n: throwTarget }), tip: throwParts },
       formula: known ? { text: loc("formulaKnown"), tone: plan.formula.used ? "ok" : "", tip: plan.formula.used ? loc("formulaTip") : loc("formulaOffTip") } : null,
       throwLabel: loc("throwLabel"),
-      bucket: bucketView(componentPolicy(p, { loc, cite: citeOf("costs") }), held, {
-        key: p.id,
-        loc: bucketLoc,
-        legend: loc("components"),
-        icon: "fa-flask",
-        locked: !can,
-        dropText: loc("dropComponents"),
-        emptyText: loc("noComponents"),
-      }),
+      bucket,
+      addPower,
       closeLabel: loc("close", { name: subject.name || loc(`kind.${p.kind}`) }),
       // Finish is live for a viewer who may act on the project once the state allows it; a disabled one carries its reason.
-      finish: { label: loc("finish"), why: state.ok ? "" : loc(`finishWhy.${state.why}`), live: state.ok && can, tip: state.ok ? finishTip : state.why === "components" ? componentsTip : (unreadTip[state.why] ?? loc(`finishWhy.${state.why}`)) },
+      finish: { label: plan.noThrow ? loc(`finishNo.${plan.noThrow}`) : loc("finish"), tag: plan.noThrow ? { text: loc(`finishTag.${plan.noThrow}`), tip: finishTip } : null, why: state.ok ? "" : loc(`finishWhy.${state.why}`), live: state.ok && can, tip: state.ok ? finishTip : state.why === "components" ? componentsTip : (unreadTip[state.why] ?? loc(`finishWhy.${state.why}`)) },
       opened: p.opened ?? "",
       today,
     };
@@ -1167,7 +1248,9 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     facilities,
     projects,
     openCount: open.length,
-    closed: record.projects.filter((p) => p.status === "closed").map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), day: p.closed ?? "", dayText: p.closed === null ? "" : loc("closedOn", { day: p.closed }) })),
+    // A cast ritual waits for the caster to say where its effect goes; the choice is the next slice's, so its control is drawn off.
+    awaiting: record.projects.filter((p) => p.status === "closed" && p.outcome?.pending === PENDING.placement).map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), tag: { text: loc("awaiting"), tip: loc("awaitingTip") }, choose: { label: loc("choose"), tip: loc("chooseTip") } })),
+    closed: record.projects.filter((p) => p.status === "closed" && p.outcome?.pending !== PENDING.placement).map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), day: p.closed ?? "", dayText: p.closed === null ? "" : loc("closedOn", { day: p.closed }) })),
     canCreate: linked.some((a) => judge || owns(a.uuid) === true),
     createLabel: loc("newProject"),
     noLinked: linked.length === 0,

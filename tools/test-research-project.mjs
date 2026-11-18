@@ -97,9 +97,9 @@ t("credited research adds up, and a closed project is not open", () => {
 
 t("sharers count the open projects reading a facility, and the one being created", () => {
   const projects = [proj({ id: "a", kind: "spell" }), proj({ id: "b", kind: "item" }), proj({ id: "c", kind: "ritual" }), proj({ id: "d", kind: "spell", status: "closed" })];
-  assert.equal(M.sharersOf(projects, "library"), 2, "a spell and a ritual read the library; the closed one does not");
+  assert.equal(M.sharersOf(projects, "library"), 1, "a spell reads the library; a ritual does not, and the closed one does not");
   assert.equal(M.sharersOf(projects, "workshop"), 2, "an item and a ritual read the workshop");
-  assert.equal(M.sharersOf(projects, "library", { adding: "identify" }), 3);
+  assert.equal(M.sharersOf(projects, "library", { adding: "identify" }), 2);
   assert.equal(M.sharersOf(projects, "workshop", { adding: "spell" }), 2, "a spell reads no workshop");
 });
 
@@ -129,14 +129,14 @@ t("a figure that is not read gives no verdict, no minimum and no bonus; and a le
   assert.deepEqual(M.facilityVerdicts(p, { facilities: {}, projects: [p], tables: undefined })[0].verdict, "unknown");
 });
 
-t("an identification reads its library against the imported research figure, and a ritual reads both its facilities", () => {
+t("an identification reads its library against the imported research figure, and a ritual, a casting, reads its workshop alone", () => {
   const id = proj({ kind: "identify", level: null });
   const v = M.facilityVerdicts(id, { facilities: { library: 800 }, projects: [id], tables: TABLES });
   assert.equal(v.length, 1);
   assert.deepEqual([v[0].minimum, v[0].verdict, v[0].bonus], [800, "ok", 0]);
   const rit = proj({ kind: "ritual", level: 5 });
   const both = M.facilityVerdicts(rit, { facilities: { library: 13000, workshop: 11999 }, projects: [rit], tables: TABLES });
-  assert.deepEqual(both.map((x) => [x.value, x.minimum, x.verdict]), [["library", 13000, "ok"], ["workshop", 12000, "below"]]);
+  assert.deepEqual(both.map((x) => [x.value, x.minimum, x.verdict]), [["workshop", 12000, "below"]]);
   assert.equal(M.facilityVerdicts(proj({ kind: "ritual", level: 7 }), { facilities: {}, projects: [], tables: TABLES })[0].minimum, null, "a level the passage lists no minimum for is unread");
 });
 
@@ -792,7 +792,7 @@ const linked = [{ uuid: "A.hero", name: "Hero", img: "hero.png" }, { uuid: "A.pe
 const panel = (record, o = {}) => M.panelModel({ record: M.readRecord(record), tables: TABLES, linked, today: 4, loc: loc2, bucketLoc: loc2, judge: false, owns: (u) => u === "A.hero", levelOf: (u) => (u === "A.hero" ? 5 : null), ...o });
 
 t("the panel draws each facility with its value, who may write it and how many open projects use it", () => {
-  const p = panel({ facilities: { library: 9000 }, projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero" }, { id: "b", kind: "ritual", level: 5, researcher: "A.pell" }] });
+  const p = panel({ facilities: { library: 9000 }, projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero" }, { id: "b", kind: "identify", level: 5, researcher: "A.pell" }] });
   const lib = p.facilities.find((f) => f.key === "library");
   assert.deepEqual([lib.value, lib.text, lib.editable, lib.users], [9000, "9000", false, 2]);
   assert.equal(p.facilities.find((f) => f.key === "workshop").text, "", "an unset value stays blank");
@@ -949,8 +949,10 @@ t("every string the tab asks for exists, and none is a printed value", () => {
   for (const k of ["assistantLevel", "assistantCount"]) keys.add(`warn.${k}`);
   for (const k of ["range", "credited", "notPosted"]) keys.add(`refused.${k}`);
   for (const k of ["postedRange", "postedSkipped", "postedNone"]) keys.add(k);
-  for (const k of ["ritual", "throw", "subject", "credited"]) keys.add(`finishWhy.${k}`);
-  for (const k of ["notComplete", "throwUnread", "ritual", "subject", "bucketOwner", "subjectOwner"]) keys.add(`refused.${k}`);
+  for (const k of ["throw", "subject", "credited"]) keys.add(`finishWhy.${k}`);
+  for (const k of ["notComplete", "throwUnread", "subject", "bucketOwner", "subjectOwner", "power"]) keys.add(`refused.${k}`);
+  for (const k of Object.values(M.NO_THROW)) for (const prefix of ["finishNo", "finishTag", "finishTipNo", "card.noThrow"]) keys.add(`${prefix}.${k}`);
+  for (const k of M.POWER_PILLS) for (const prefix of ["powerPill", "powerName", "powerNone"]) keys.add(`${prefix}.${k}`);
   for (const k of M.PACES) keys.add(`paceName.${k}`);
   for (const k of Object.values(M.COMPONENT_FIT)) keys.add(`fit.${k}`);
   for (const k of ["identify", "spell", "item", "blank", "formula", "settle", "card"]) keys.add(`card.what.${k}`);
@@ -1293,7 +1295,7 @@ await ta("registering the projects watches the clock for forward steps and the f
 
 /* ----------------------------- finishing a project (ruling 223) ----------------------------- */
 
-const { makeEntry, settlementPlan } = await import("../scripts/lib/bucket.mjs");
+const { makeEntry, settlementPlan, nextFit } = await import("../scripts/lib/bucket.mjs");
 const { COMPONENT_FIT, COMPONENT_SETTLE, THROW_DIE } = M;
 
 /** The invented tables with an automatic-failure band and a substitution penalty (neither is a printed figure). */
@@ -1368,10 +1370,10 @@ function finRig({ project = {}, judge = true, owned = ["A.hero"], here = true, c
   return { loc, ops: M.projectOps(deps), calls, recorded, settlements, cards, now: () => M.readRecord(loc.flag).projects[0] };
 }
 
-t("the components' policy offers matched and substitute, opens a row on the subject's name, and spends everything on every outcome", () => {
+t("the components' policy offers matched, substitute and miscellaneous, opens a row on the subject's name, and spends everything on every outcome", () => {
   const p = proj({ subject: { name: "Lantern of Dusk" }, costs: { component: 100 } });
   const policy = M.componentPolicy(p, { loc: (k) => k, cite: "Invented p. 9" });
-  assert.deepEqual(policy.fit.options.map((o) => o.key), ["matched", "substitute"]);
+  assert.deepEqual(policy.fit.options.map((o) => o.key), ["matched", "substitute", "miscellaneous"]);
   assert.equal(policy.fit.fallback, "substitute", "a row nothing names is a substitute until the seat says otherwise");
   assert.deepEqual(policy.due, { gp: 100, cite: "Invented p. 9" });
   assert.deepEqual(policy.fit.options[0].names, ["Lantern of Dusk"]);
@@ -1439,7 +1441,9 @@ t("Finish is allowed once the cost is credited and a target is read, and says wh
   assert.equal(M.finishState(p, { complete: false }, plan).why, "credited");
   assert.equal(M.finishState(p, { complete: null }, plan).why, "credited", "unknown is not complete");
   assert.equal(M.finishState(p, { complete: true }, { target: null }).why, "throw");
-  assert.equal(M.finishState(proj({ kind: "ritual" }), { complete: true }, plan).why, "ritual");
+  assert.equal(M.finishState(proj({ kind: "ritual" }), { complete: true }, plan).why, "subject", "a ritual needs the spell it casts");
+  assert.equal(M.finishState(proj({ kind: "ritual" }), { complete: true }, plan, { subjectType: "spell" }).ok, true, "and is thrown for like any other kind");
+  assert.equal(M.finishState(proj({ kind: "ritual" }), { complete: true }, plan, { subjectType: "item" }).why, "subject");
   assert.equal(M.finishState(proj({ kind: "identify" }), { complete: true }, plan).why, "subject", "an identification needs an item");
   assert.equal(M.finishState(proj({ kind: "identify" }), { complete: true }, plan, { subjectType: "item" }).ok, true);
   assert.equal(M.finishState(p, { complete: true }, plan, { subjectType: "item" }).why, "subject", "a spell project's subject is a spell");
@@ -1500,7 +1504,7 @@ await ta("a failure writes no result and records no formula, but closes the proj
   assert.equal(auto.calls.includes("addSpell"), false);
 });
 
-await ta("it refuses, before rolling or writing, a project not credited, with no target read, a ritual, or a subject that does not suit", async () => {
+await ta("it refuses, before rolling or writing, a project not credited, with no target read, a ritual with no spell, or a subject that does not suit", async () => {
   const ask = async (o) => {
     const f = finRig(o);
     const r = await f.ops.finish(f.loc, "f1");
@@ -1517,7 +1521,7 @@ await ta("it refuses, before rolling or writing, a project not credited, with no
     [{ bucket: [part("Item.s", { value: { gp: 99, source: "cost" } })] }, "componentsShort"],
     [{ tables: { ...FIN, prose: { ...FIN.prose, penalty: null } }, bucket: [part("Item.s", { fit: "substitute" })] }, "penaltyUnread"],
     [{ bucket: [part("Item.s", { fit: "substitute", value: { gp: null, source: "" } })] }, "componentsShort"],
-    [{ project: { kind: "ritual", level: 5 } }, "ritual"],
+    [{ project: { kind: "ritual", level: 5 } }, "subject"],
     [{ project: { kind: "identify" }, subject: null }, "subject"],
     [{ subject: { type: "item" } }, "subject"],
   ];
@@ -1700,7 +1704,8 @@ t("the panel's hold for the components names the bucket and the page, and the th
   assert.deepEqual([noInt.finish.live, noInt.finish.why], [false, "finishWhy.int"], "an Intellect bonus not read holds Finish with its reason");
   assert.match(noInt.finish.tip, /throwPartIntUnread/);
   const freeSpell = panel({ projects: [{ ...credited, common: true }] }, { ...base, tables: { ...FIN, ladder: NOTHING.ladder }, entries: { a: [part("Item.m")] } }).projects[0];
-  assert.deepEqual([freeSpell.finish.live, freeSpell.finish.why, freeSpell.finish.tip], [true, "", 'finishTipNo.common'], "a common spell needs no throw figure to be live");
+  assert.deepEqual([freeSpell.finish.live, freeSpell.finish.why, freeSpell.finish.tip], [true, "", 'finishTipNo.common{"cite":"cite.costs"}'], "a common spell needs no throw figure to be live");
+  assert.deepEqual([freeSpell.finish.label, freeSpell.finish.tag.text, freeSpell.throw.text], ["finishNo.common", "finishTag.common", "finishTag.common"], "the button, its tag and the throw chip say why, and the chip shows no target");
   const nothing = panel({ projects: [{ ...credited, costs: { research: 90 } }] }, { ...base, entries: {} }).projects[0];
   assert.equal(nothing.finish.live, true, "no component cost, nothing to hold");
 });
@@ -1878,7 +1883,11 @@ await ta("the live writers: a held spell is not added twice, an identification m
   await out.card({ project: project(), plan: { ...plan, noThrow: "formula" }, result: free, rolled: null, written: [], failed: [], settled: null, made: null });
   assert.deepEqual(posted[2].rolls, [], "a Finish with no throw has no dice on its card");
   assert.match(posted[2].content, /is-success/);
-  assert.match(posted[2].content, /throwPartFormula/, "and names why no throw was made");
+  assert.match(posted[2].content, /card.noThrow.formula/, "and the outcome strip says how it was made, in place of a die and a target");
+  assert.doesNotMatch(posted[2].content, /colTarget/, "no target column");
+  await out.card({ project: project(), plan: { ...plan, noThrow: "common" }, result: { ...free, noThrow: "common" }, rolled: null, written: [], failed: [], settled: null, made: null });
+  assert.match(posted[3].content, /card.noThrow.common/, "a common spell's strip says so");
+  posted.pop();
   assert.doesNotMatch(posted[2].content, /throwTip|dieTip|\b0\+/, "with no target, no die and no zero standing in for either");
   // A seat that may write the place and the researcher but not the identified item asks the GM.
   state.isGM = false;
@@ -1913,7 +1922,7 @@ t("the panel draws Finish live only where the viewer may act and the project all
   const waiting = panel({ projects: [{ ...credited, credited: [] }] }, base).projects[0];
   assert.deepEqual([waiting.finish.live, waiting.finish.why], [false, "finishWhy.credited"]);
   const ritual = panel({ projects: [{ ...credited, kind: "ritual", level: 5 }] }, base).projects[0];
-  assert.equal(ritual.finish.why, "finishWhy.ritual");
+  assert.equal(ritual.finish.why, "finishWhy.subject", "a ritual with no spell named is held on its subject, not refused as a kind");
   const unread = panel({ projects: [credited] }, { ...base, tables: { ...FIN, ladder: NOTHING.ladder } }).projects[0];
   assert.equal(unread.finish.why, "finishWhy.throw");
   const noBonus = panel({ projects: [credited] }, { ...base, tables: { ...FIN, facilities: { ...FIN.facilities, library: { ...FIN.facilities.library, minimum: null, minimums: null, cite: "Invented p. 7" } } } }).projects[0];
@@ -1955,6 +1964,188 @@ t("the sheet wires Finish and the fit chip, and writes no result itself", () => 
   assert.match(tab, /\[BUCKET_ACTIONS\.fit\]: onBucketFit/);
   assert.match(tab, /researchApi\.finish\(this\.actor, id\)/, "the press asks the API, which is the one place a Finish is made");
   assert.doesNotMatch(tab, /deliverDrop|markIdentified|createEmbeddedDocuments/, "no writer of the result is in the sheet's file");
+});
+
+/* ------------------------ the ritual project, Add power, Finish (formula) (M-r2) ------------------------ */
+
+const { xpPartValue } = await import("../scripts/lib/bucket-value.mjs");
+const OL = await import("../scripts/magic/research-outcome-live.mjs");
+
+/** A ritual project ready to finish: level 5 at the workshop, the hero researching, a spell for its subject. */
+const ritualRig = (o = {}) => finRig({ project: { kind: "ritual", level: 5, subject: { uuid: "Item.spell", name: "Lantern" } }, subject: { type: "spell" }, die: 18, ...o });
+
+t("a ritual's miscellaneous row is barred: listed, never counted, never a substitute; any other kind takes it as a substitute", () => {
+  const misc = part("Item.misc", { fit: COMPONENT_FIT.miscellaneous });
+  const ritual = proj({ kind: "ritual", level: 5, costs: { component: 100 } });
+  const barred = M.barredEntries(ritual, [part("Item.ok"), misc]);
+  assert.deepEqual(barred.map((e) => e.reason ?? null), [null, M.RITUAL_BARRED]);
+  assert.equal(M.barredEntries(proj({ kind: "item" }), [misc])[0].reason, undefined, "another kind keeps the row as it is");
+  assert.deepEqual(M.barredEntries(ritual, [part("Item.s", { fit: "substitute" })]).map((e) => e.reason ?? null), [null], "a substitute is not barred");
+  const plan = (project, entries) => M.throwPlan(project, { tables: FIN, levelOf: () => 5, intBonusOf: () => 0, entries });
+  const short = plan(ritual, [misc]);
+  assert.deepEqual([short.components.total, short.components.short, short.components.hold, short.substituted], [0, true, true, 0], "the barred row pays nothing, so the bucket stays short, and it is no substitute");
+  assert.equal(plan(ritual, [misc, part("Item.ok")]).components.hold, false, "a counted row that meets the cost frees the hold");
+  const item = proj({ kind: "item", level: 2, costs: { component: 100 } });
+  const asSub = plan(item, [part("Item.ok", { value: { gp: 50, source: "cost" } }), part("Item.misc", { fit: COMPONENT_FIT.miscellaneous, value: { gp: 50, source: "cost" } })]);
+  assert.deepEqual([asSub.substituted, asSub.share, asSub.components.hold], [1, 0.5, false], "off a ritual a miscellaneous row behaves as a substitute: it counts, takes the share, and turns the formula off");
+  assert.equal(asSub.formula.used, false);
+});
+
+t("a ritual project reads its workshop alone; a ritual takes a spell", () => {
+  assert.deepEqual(M.KIND_FACILITIES.ritual.map((f) => f.value), ["workshop"]);
+  assert.equal(M.subjectFits("ritual", "spell"), true);
+  assert.equal(M.subjectFits("ritual", "item"), false);
+});
+
+t("a ritual's monster part is valued by its monster's XP taken whole, and blank where that is not read", () => {
+  assert.deepEqual(xpPartValue({ xp: 40, effects: [" Glow "], cite: "Invented p. 3" }), { gp: 40, source: "xp", cite: "Invented p. 3", basis: { xp: 40 }, effects: ["Glow"] });
+  assert.equal(xpPartValue({ xp: null }).gp, null, "an unread award is blank, never a cost and never zero");
+  const ritual = proj({ kind: "ritual", level: 5 });
+  const partXp = (doc) => (doc === "part" ? { xp: 60, effects: ["Lantern"] } : doc === "orphan" ? { xp: null, effects: [] } : null);
+  const policy = M.componentPolicy(ritual, { partXp, cite: "Invented p. 3" });
+  assert.deepEqual([policy.value("part").gp, policy.value("part").effects], [60, ["Lantern"]]);
+  assert.equal(policy.value("orphan").gp, null, "a part with no monster behind it holds blank");
+  assert.equal(policy.value("goods"), null, "any other document stays at its own cost");
+  assert.equal(M.componentPolicy(proj({ kind: "item" }), { partXp }).value, undefined, "only a ritual values by the monster's XP");
+  const part = (xp, flags = { component: true, researchEffects: ["Lantern"] }, parent = { documentName: "Actor", type: "monster", system: { details: { xp } } }) => ({ documentName: "Item", flags: { "acks-extras": flags }, parent });
+  assert.deepEqual(OL.partXpOf(part(25)), { xp: 25, effects: ["Lantern"] });
+  assert.equal(OL.partXpOf(part(0)).xp, null, "the monster's default of zero is no award");
+  assert.equal(OL.partXpOf(part(25, undefined, null)).xp, null, "a part off its monster is blank");
+  assert.equal(OL.partXpOf(part(25, undefined, { documentName: "Actor", type: "character", system: { details: { xp: 25 } } })).xp, null, "only a monster's award counts");
+  assert.equal(OL.partXpOf(part(25, {})), null, "an item that is no component is no part");
+});
+
+await ta("a ritual is thrown for like any kind, closes and waits on where it goes, spends its counted rows and keeps its barred one", async () => {
+  const f = ritualRig({ bucket: [payment(), part("Item.misc", { fit: COMPONENT_FIT.miscellaneous })] });
+  const r = await f.ops.finish(f.loc, "f1");
+  assert.deepEqual([r.ok, r.outcome, r.pending, f.calls.includes("roll:1d20")], [true, "success", "placement", true]);
+  assert.deepEqual(f.now().outcome, { result: "success", die: 18, total: 18, target: 16, day: 10, pending: "placement" }, "the ladder's rung raised by the level, and the wait stored on the stamp");
+  assert.equal(f.now().status, "closed");
+  assert.deepEqual(f.settlements[0].map((s) => [s.uuid, s.action]), [["power:pay", "consume"], ["Item.misc", "keep"]], "a barred row is not spent");
+  assert.deepEqual(f.cards[0].written, [{ what: "ritual", name: "Lantern" }], "the card is told the ritual was cast; nothing else is written");
+  assert.deepEqual(f.calls, ["roll:1d20", "write", "settle", "card"]);
+  assert.equal((await f.ops.finish(f.loc, "f1")).reason, "noProject", "a second press finds it closed");
+  const lost = ritualRig({ die: 1 });
+  const l = await lost.ops.finish(lost.loc, "f1");
+  assert.deepEqual([l.outcome, l.pending, lost.now().outcome.pending, lost.now().status], ["failure", undefined, undefined, "closed"], "a failure closes as any other kind and waits on nothing");
+  const bare = ritualRig({ bucket: [part("Item.misc", { fit: COMPONENT_FIT.miscellaneous })] });
+  const held = await bare.ops.finish(bare.loc, "f1");
+  assert.deepEqual([held.reason, bare.calls], ["componentsShort", []], "a bucket of miscellaneous rows alone is short, and nothing is rolled");
+  const noSpell = ritualRig({ project: { kind: "ritual", level: 5, subject: {} }, subject: null });
+  assert.equal((await noSpell.ops.finish(noSpell.loc, "f1")).reason, "subject");
+});
+
+await ta("a ritual's facility is its workshop: a Player below it is blocked, the library is not read", async () => {
+  const lowShop = ritualRig({ judge: false, facilities: { library: 99999, workshop: 100 } });
+  assert.deepEqual([(await lowShop.ops.finish(lowShop.loc, "f1")).reason, lowShop.calls], ["facility", []]);
+  const lowLib = ritualRig({ facilities: { library: 0, workshop: 12000 } });
+  assert.equal((await lowLib.ops.finish(lowLib.loc, "f1")).ok, true);
+});
+
+t("a stored outcome keeps what a cast ritual waits on, and no other wait", () => {
+  const stored = M.cleanProject({ id: "r", kind: "ritual", status: "closed", outcome: { result: "success", day: 3, pending: "placement" } });
+  assert.deepEqual(stored.outcome, { result: "success", die: null, total: null, target: null, day: 3, pending: "placement" });
+  assert.equal(M.cleanProject({ id: "r", kind: "ritual", status: "closed", outcome: { result: "success", pending: "elsewhere" } }).outcome.pending, undefined);
+});
+
+t("the panel lists a cast ritual awaiting its placement apart from the closed ones, with a Choose control drawn off", () => {
+  const p = panel({ projects: [{ id: "r", kind: "ritual", level: 5, researcher: "A.hero", subject: { name: "Lantern" }, status: "closed", closed: 4, outcome: { result: "success", day: 4, pending: "placement" } }, { id: "c", kind: "spell", researcher: "A.hero", subject: { name: "Old" }, status: "closed", closed: 3, outcome: { result: "failure", day: 3 } }] });
+  assert.deepEqual(p.awaiting.map((a) => [a.id, a.name, a.tag.text, a.choose.label]), [["r", "Lantern", "awaiting", "choose"]]);
+  assert.deepEqual(p.closed.map((c) => c.id), ["c"], "it is not also listed as closed");
+  const html = render(p);
+  assert.match(html, /acks-extras-research__awaiting-row[\s\S]*awaiting[\s\S]*<button type="button" class="acks-btn" disabled[^>]*>choose</, "the control is drawn and disabled");
+  assert.doesNotMatch(html, /data-action="chooseRitual/, "and wired to nothing");
+});
+
+const ritualCard = { id: "a", kind: "ritual", level: 5, subject: { name: "Lantern" }, researcher: "A.hero", costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }], bucket: [] };
+
+t("a ritual's miscellaneous row wears the barred chip, dimmed, with the page in its tooltip and no reason line; its fit still changes", () => {
+  const rows = panel({ projects: [ritualCard] }, { tables: FIN, entries: { a: [part("Item.misc", { fit: "miscellaneous" }), part("Item.s", { fit: "substitute" })] } }).projects[0].bucket.rows;
+  assert.deepEqual([rows[0].fit.label, rows[0].fit.tone, rows[0].fit.changeable, rows[0].off, rows[0].reason], ["barred", "bad", true, true, ""]);
+  assert.match(rows[0].fit.tip, /barredTip.*cite\.costs/);
+  assert.deepEqual([rows[1].fit.label, rows[1].fit.tone, rows[1].off], ["fit.substitute", "warn", false]);
+  const other = panel({ projects: [{ ...ritualCard, kind: "item" }] }, { tables: FIN, entries: { a: [part("Item.misc", { fit: "miscellaneous" })] } }).projects[0].bucket.rows[0];
+  assert.deepEqual([other.fit.label, other.fit.tone, other.off], ["fit.miscellaneous", "warn", false], "off a ritual it is a substitute, not barred");
+  const cover = panel({ projects: [ritualCard] }, { tables: FIN, entries: { a: [part("Item.misc", { fit: "miscellaneous" })] } }).projects[0];
+  assert.equal(cover.bucket.head.status, "short", "the bucket stays short");
+  assert.equal(cover.finish.why, "finishWhy.components");
+});
+
+t("the fit chip cycles through the three fits", () => {
+  const policy = M.componentPolicy(proj({}), {});
+  const next = (fit) => nextFit({ fit }, policy.fit);
+  assert.deepEqual([next("matched"), next("substitute"), next("miscellaneous")], ["substitute", "miscellaneous", "matched"]);
+});
+
+t("Add power joins the bucket merged and held to what is held; none held adds nothing", () => {
+  assert.deepEqual(M.withPowerRow([], "arcane", 3, 5), [{ uuid: "power:arcane", qty: 3, fit: "" }]);
+  assert.deepEqual(M.withPowerRow([{ uuid: "power:arcane", qty: 2, fit: "substitute" }, { uuid: "Item.a", qty: 1, fit: "" }], "arcane", 2, 5), [{ uuid: "power:arcane", qty: 4, fit: "substitute" }, { uuid: "Item.a", qty: 1, fit: "" }], "a second Add joins the row, keeping its fit");
+  assert.equal(M.withPowerRow([{ uuid: "power:arcane", qty: 4, fit: "" }], "arcane", 9, 5)[0].qty, 5, "held to the balance");
+  assert.equal(M.withPowerRow([], "arcane", 3, 0), null, "nothing held, nothing added");
+  assert.equal(M.withPowerRow([{ uuid: "power:arcane", qty: 5, fit: "" }], "arcane", 1, 5), null, "all of it is in already");
+  assert.equal(M.withPowerRow([], "arcane", 0, 5), null);
+  assert.equal(M.withPowerRow([], "arcane", "x", 5), null);
+  assert.equal(M.withPowerRow([{ uuid: "power:arcane", qty: 2, fit: "" }], "divine", 1, 1).length, 2, "each power has its own row");
+});
+
+t("the Add power row names the power, the amount it can take and the ledger, and says so when none is held", () => {
+  const rec = { projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero", bucket: [{ uuid: "power:arcane", qty: 2, fit: "" }] }] };
+  const open = (o = {}, held = { arcane: 5, divine: 0 }) => panel(rec, { owns: (u) => u === "A.hero", powerOf: (uuid, kind) => held[kind], addPowerOf: () => ({ open: true, ...o }) }).projects[0].addPower;
+  const a = open();
+  assert.deepEqual([a.show, a.open, a.kind, a.max, a.heldText, a.disabled, a.note], [true, true, "arcane", 3, 'powerOfHeld{"n":5}', false, ""], "the room is what is held less what the bucket already holds");
+  assert.deepEqual(a.kinds.map((k) => [k.key, k.pressed]), [["arcane", true], ["divine", false]]);
+  assert.match(a.heldTip, /powerLedgerTip.*powerName\.arcane.*Hero.*"n":5/, "the figure says whose ledger it is read from");
+  const d = open({ kind: "divine" });
+  assert.deepEqual([d.disabled, d.note, d.max], [true, "powerNone.divine", 0], "none held: the row says so and Add is off");
+  const all = open({}, { arcane: 2, divine: 0 });
+  assert.deepEqual([all.disabled, all.note], [true, "powerAllIn"]);
+  assert.equal(panel(rec, { owns: () => false }).projects[0].addPower.show, false, "a viewer who may not act on the project has no Add power");
+  assert.equal(panel(rec, { owns: (u) => u === "A.hero" }).projects[0].addPower.open, false, "closed until opened in this window");
+});
+
+t("a power row draws the bolt, its held figure and the matched chip, and the tab draws the Add power controls", () => {
+  const rec = { projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero", bucket: [{ uuid: "power:arcane", qty: 2, fit: "" }] }] };
+  const power = makeEntry({ uuid: "power:arcane", kind: "power", name: "Arcane power", qty: 2, cap: 5, value: { gp: 2, source: "power", cite: "Invented p. 4" }, fit: "matched" });
+  const model = panel(rec, { owns: (u) => u === "A.hero", entries: { a: [power] }, powerOf: () => 5, addPowerOf: () => ({ open: true, kind: "arcane", amount: "2" }) });
+  const row = model.projects[0].bucket.rows[0];
+  assert.deepEqual([row.glyph, row.fit.label, row.fit.tone, row.fit.changeable, row.showValue, row.caption], ["fa-bolt", "fit.matched", "ok", true, false, 'powerCaption{"n":2,"held":5}']);
+  assert.match(row.captionTip, /powerLedgerTip.*Arcane power.*Hero/);
+  const html = render(model);
+  assert.match(html, /data-action="toggleResearchPower" data-research-control aria-expanded="true"/);
+  assert.match(html, /data-action="pickResearchPower" data-research-control data-kind="arcane" aria-pressed="true"/);
+  assert.match(html, /data-action="pickResearchPower" data-research-control data-kind="divine" aria-pressed="false"/);
+  assert.match(html, /data-research-power-amount data-research-control aria-label="powerAmountLabel"/);
+  assert.match(html, /data-action="addResearchPower" data-research-control>addPowerGo</);
+  const none = render(panel(rec, { owns: (u) => u === "A.hero", powerOf: () => 0, addPowerOf: () => ({ open: true, kind: "divine" }) }));
+  assert.match(none, /data-action="addResearchPower" disabled>addPowerGo</, "Add is disabled with none held and carries no control mark");
+  assert.match(none, /powerNone\.divine/);
+  assert.doesNotMatch(render(panel(rec, { owns: () => false })), /toggleResearchPower/);
+  assert.doesNotMatch(html, /\sid="/, "no literal id");
+});
+
+await ta("a Player adds power to their own researcher's project and is refused for another's", async () => {
+  const bucket = M.withPowerRow([], "arcane", 3, 5);
+  const mine = rig({ judge: false, owned: ["A.hero"] });
+  mine.loc.flag = { facilities: { library: 99999, workshop: 99999 }, projects: [] };
+  const made = (await mine.ops.create(mine.loc, { kind: "spell", level: 2, researcher: "A.hero" })).id;
+  const ok = await mine.ops.update(mine.loc, made, { bucket });
+  assert.deepEqual([ok.ok, ok.project.bucket], [true, [{ uuid: "power:arcane", qty: 3, fit: "" }]]);
+  const theirs = rig({ judge: false, owned: ["A.hero"] });
+  theirs.loc.flag = { facilities: {}, projects: [{ id: "x", kind: "spell", level: 2, researcher: "A.pell", status: "open" }] };
+  assert.deepEqual([(await theirs.ops.update(theirs.loc, "x", { bucket })).reason], ["owner"], "another researcher's project is not theirs to add to");
+});
+
+t("a project that makes no throw says why on its button and tag, and its throw chip shows no target", () => {
+  const item = { id: "a", kind: "item", level: 2, subject: { name: "Lantern" }, researcher: "A.hero", costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }], bucket: [] };
+  const known = (extra = {}) => panel({ facilities: { workshop: 12000 }, projects: [item] }, { tables: FIN, owns: (u) => u === "A.hero", entries: { a: [part("Item.m")] }, formulasOf: () => [{ kind: "item", key: "lantern", name: "Lantern" }], ...extra }).projects[0];
+  const free = known();
+  assert.deepEqual([free.finish.label, free.finish.tag.text, free.finish.live], ["finishNo.formula", "finishTag.formula", true]);
+  assert.match(free.finish.tip, /finishTipNo\.formula.*cite\.costs/, "the tooltip says the formula is known and applied, with the page");
+  assert.deepEqual([free.throw.text, free.throw.tip], ["finishTag.formula", free.finish.tip], "the throw chip is the reason, with no target");
+  const html = render(panel({ facilities: { workshop: 12000 }, projects: [item] }, { tables: FIN, owns: (u) => u === "A.hero", entries: { a: [part("Item.m")] }, formulasOf: () => [{ kind: "item", key: "lantern", name: "Lantern" }] }));
+  assert.match(html, /<span class="acks-tag is-ok" tabindex="0" data-tooltip-text="finishTipNo\.formula[^"]*">finishTag\.formula<\/span>\s*<button[^>]*>finishNo\.formula</, "the tag sits beside the button");
+  const thrown = known({ formulasOf: () => [] });
+  assert.deepEqual([thrown.finish.label, thrown.finish.tag, thrown.throw.text], ["finish", null, 'throw{"n":13}'], "with a throw to make the button reads as it did and shows a target");
 });
 
 console.log(`research-project: ${n} cases passed`);
