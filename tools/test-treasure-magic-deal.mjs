@@ -83,6 +83,30 @@ const LISTS = {
   eq(startFor("widgets", "classic", { classic: [{ id: "classic.wd", caption: null }] }), { ok: false, reason: MAGIC_REASON.noMatch }, "a list with no caption read is never named");
 }
 
+/* --- the shapes a real import prints, in invented words ------------------------- */
+{
+  // A group whose captions all carry one trailing word the cells leave off, its
+  // keys camel-cased; one name is a later word of a sibling's, one a substring.
+  const TIERS = {
+    heroic: [
+      { key: "plain", id: "heroic.plain", caption: "Plain Things" },
+      { key: "unplain", id: "heroic.unplain", caption: "Unplain Things" },
+      { key: "odd", id: "heroic.odd", caption: "Odd Things" },
+      { key: "veryOdd", id: "heroic.veryOdd", caption: "Very Odd Things" },
+    ],
+  };
+  eq(startFor("odd", "heroic", TIERS), { ok: true, id: "heroic.odd" }, "a noun without the group's trailing word meets its list's key");
+  eq(startFor("very odd", "heroic", TIERS), { ok: true, id: "heroic.veryOdd" }, "a two-word noun meets a camel-cased key");
+  eq(startFor("plain", "heroic", TIERS), { ok: true, id: "heroic.plain" }, "a name inside a longer sibling name names only its own list");
+  eq(startFor("unplain", "heroic", TIERS), { ok: true, id: "heroic.unplain" }, "the longer name names its own list");
+  eq(startFor("odd things", "heroic", TIERS), { ok: true, id: "heroic.odd" }, "the full caption still names its list");
+  eq(startFor("things", "heroic", TIERS), { ok: false, reason: MAGIC_REASON.noMatch }, "the shared trailing word alone names no list");
+  eq(startFor("widget, gizmo, or sprocket", "classic", LISTS), { ok: false, reason: MAGIC_REASON.compound }, "a noun naming a choice of lists is refused, not matched by its first word");
+  eq(startFor("of each other kind (widget, gizmo)", "classic", LISTS), { ok: false, reason: MAGIC_REASON.compound }, "a noun naming one of each of a list is refused");
+  eq(startFor("widget; gizmo", "classic", LISTS), { ok: false, reason: MAGIC_REASON.compound }, "a semicolon is a compound too");
+  eq(startFor("whatever", "classic", { ...LISTS, classicType: { key: "bands", id: "classicType.bands", caption: "Kind" } }), { ok: false, reason: MAGIC_REASON.noMatch }, "a noun that names no list never falls to the type list");
+}
+
 {
   const { dealHoard: engine } = await import("../scripts/treasure/hoard-logic.mjs");
   const dealt = engine({ type: "A", tables: { type: { rows: { A: { magic: "1" } }, cite: "INV" } }, kinds: [{ key: "magic", pool: "magic", column: "magic", names: [] }], roll: () => null });

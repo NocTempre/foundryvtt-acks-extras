@@ -30,6 +30,7 @@ export const MAGIC_REASON = Object.freeze({
   noNoun: "no-noun",
   noMatch: "no-match",
   ambiguous: "ambiguous",
+  compound: "compound",
   noRoller: "no-roller",
   noItem: "no-item",
   failed: "roll-failed",
@@ -39,10 +40,27 @@ export const MAGIC_REASON = Object.freeze({
 const overlaps = (a, b) => [...a].some((k) => b.has(k));
 
 /**
+ * Whether a noun is several in one: a list of lists, or a count of each of a
+ * list, written with a comma, a semicolon or a parenthetical. Matching such a
+ * noun by its leading words names one list where the cell named several, so
+ * it is refused before matching.
+ */
+const isCompound = (noun) => /[,;()]/.test(noun);
+
+/**
+ * The names a list goes by: its caption as imported, and its own key in the
+ * imported tables. A noun printed without a word every caption of its group
+ * carries meets the list's key where it misses the caption.
+ */
+const listKeys = (entry) => new Set([...creatureKeys(entry.caption ?? ""), ...creatureKeys(entry.key ?? "")]);
+
+/**
  * The list a noun names, among the lists a roll may begin at for a style.
  * Classic begins at its category lists; heroic and gritty at the rarity lists.
- * A caption and a noun are the same word when their name keys meet, a plural
- * last word standing for its singular (`creatureKeys`).
+ * A list and a noun are the same word when the noun's name keys meet the
+ * list's caption's or its key's, a plural last word standing for its singular
+ * (`creatureKeys`); whole keys only, so a word inside a longer name never
+ * stands for it. A compound noun (`isCompound`) names no single list.
  *
  * @param {string|null} noun the hoard cell's printed noun
  * @param {"classic"|"heroic"|"gritty"} style
@@ -52,9 +70,10 @@ const overlaps = (a, b) => [...a].some((k) => b.has(k));
 export function startFor(noun, style, lists) {
   const mine = creatureKeys(noun);
   if (!mine.size) return { ok: false, reason: MAGIC_REASON.noNoun };
+  if (isCompound(String(noun))) return { ok: false, reason: MAGIC_REASON.compound };
   const entries = (style === "classic" ? lists?.classic : lists?.heroic) ?? [];
   if (!entries.length) return { ok: false, reason: "not-imported" };
-  const hits = entries.filter((e) => e?.id && e.caption && overlaps(creatureKeys(e.caption), mine));
+  const hits = entries.filter((e) => e?.id && (e.caption || e.key) && overlaps(listKeys(e), mine));
   if (hits.length > 1) return { ok: false, reason: MAGIC_REASON.ambiguous };
   return hits.length ? { ok: true, id: hits[0].id } : { ok: false, reason: MAGIC_REASON.noMatch };
 }

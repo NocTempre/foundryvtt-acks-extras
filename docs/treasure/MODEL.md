@@ -525,11 +525,16 @@ captions or list ids: everything it matches arrives from the import.
 - **Noun to start.** Each magic placeholder's `tableRef` is matched against the
   captions of the lists a roll may begin at for the deal's style (`starts()` of
   the magic-items API: the category lists for classic, the rarity lists for
-  heroic and gritty), by `lib/vocab.mjs` `creatureKeys`, so a plural noun meets a
-  singular caption and a caption's name forms are read. The one list it names is
-  the roll's `from`. A noun that names no list, two lists, or none (a magic
-  column that prints no noun) does not roll, and nor does a style with no list
-  imported.
+  heroic and gritty), and against each list's own key in the imported tables, by
+  `lib/vocab.mjs` `creatureKeys`, so a plural noun meets a singular caption, a
+  caption's name forms are read, and a noun printed without a word every caption
+  of its group carries still meets its list. Keys match whole, so a name inside a
+  sibling's longer name names only its own list. The one list it names is the
+  roll's `from`. A noun that names no list, two lists, or none (a magic column
+  that prints no noun) does not roll, and nor does a compound noun (a comma, a
+  semicolon or a parenthetical: a choice among lists, or one of each of a list)
+  or a style with no list imported. A noun that names no list never falls back
+  to the type list.
 - **One roll per card**, through the `magic-item-roll` contract
   (`docs/lib/API.md`; treasure imports nothing of `magic-items`), on core's dice
   unless `dealLettersIntoPot` is given a `roller`.
