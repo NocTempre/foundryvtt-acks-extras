@@ -10,8 +10,11 @@ import { executeAsGM, registerHandler } from "../lib/sockets.mjs";
 import { rollPartyCheck, PARTY_CHECKS } from "./party-rolls.mjs";
 import { attemptDisarm, attemptRearm } from "./trap-zone.mjs";
 import {
-  JUMP_KIND, SQUEEZE_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setRescuer, squeezePress, throwFor,
+  JUMP_KIND, SQUEEZE_KIND, SWIM_KIND, crossingMembers, jumpFor, jumpPressRefusal, readCrossing, relayRefusalWords, rescueCheck, rescueRefusalWords, rowFor, setPace, setRescuer, squeezePress, throwFor,
 } from "./crossing.mjs";
+import { paceStep } from "./crossing-logic.mjs";
+import { PACES } from "./climb-pace.mjs";
+import { OBSTACLES } from "./obstacles.mjs";
 import { addLight, addSpell, toggleLight, toggleShield } from "./turn-engine.mjs";
 import { activityLabel, lockPlan, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { turnActivity } from "../lib/turn-activities.mjs";
@@ -67,8 +70,8 @@ async function whisperCrossingRefusal(formation, user, reason, actor, words = re
   });
 }
 
-/** The presses a relayed crossing request may name: the jump itself, a hanging jumper's climb up, and a swimmer's rescuer. */
-const CROSSING_STEPS = Object.freeze(["attempt", "climbUp", "rescue", "wiggle", "push"]);
+/** The presses a relayed crossing request may name: the jump itself, a hanging jumper's climb up, a swimmer's rescuer, a squeezer's ways out and a climber's pace. */
+const CROSSING_STEPS = Object.freeze(["attempt", "climbUp", "rescue", "wiggle", "push", "pace"]);
 
 /** The relayed steps that are a jump's; a squeezer's two escapes are thrown as the crossing's own throw. */
 const JUMP_STEPS = Object.freeze(["attempt", "climbUp"]);
@@ -97,6 +100,27 @@ async function rescueStep(formation, user, actor, payload, crossingId) {
   await announceDeclaration(formation, user, loc(clear ? "request.crossingRescueClear" : "request.crossingRescue", {
     name: foundry.utils.escapeHTML(actor.name),
     drowned: foundry.utils.escapeHTML(game.actors.get(drownedId)?.name ?? "?"),
+  }));
+  return { ok: true };
+}
+
+/**
+ * A climber's pace set, or put back to the base pace, for a member the seat owns.
+ * The pick is checked against the closed set of paces on the GM client by
+ * `setPace`, which refuses a player for a member who cannot be moved on (down,
+ * detached, left behind, stalled) and warns a Judge. The declaration is made once
+ * `setPace` has taken the change.
+ */
+async function paceRelay(formation, user, actor, payload, crossingId) {
+  const pick = typeof payload.pace === "string" ? payload.pace : "";
+  const out = await setPace(formation, actor.id, pick, { player: !user.isGM, crossingId });
+  if (!out.ok) {
+    await whisperCrossingRefusal(formation, user, out.refused, actor);
+    return { ok: false, refused: out.refused };
+  }
+  await announceDeclaration(formation, user, loc("request.crossingPace", {
+    name: foundry.utils.escapeHTML(actor.name),
+    pace: game.i18n.localize(`ACKS-FORMATION.crossing.pace.${PACES.includes(pick) ? pick : "normal"}`),
   }));
   return { ok: true };
 }
@@ -360,6 +384,8 @@ async function executeRequest(formation, user, type, payload) {
       const crossingId = typeof payload.crossingId === "string" ? payload.crossingId : "";
       // A swimmer's rescuer is named or cleared; nothing is thrown.
       if (step === "rescue") return rescueStep(formation, user, actor, payload, crossingId);
+      // A climber's pace is set or cleared; nothing is thrown.
+      if (step === "pace") return paceRelay(formation, user, actor, payload, crossingId);
       // The declaration is made once every check has passed and the member's
       // throw is claimed, so a refused or busy request declares nothing. A press
       // over a gap names its step; anything else is a stretch thrown.
@@ -490,6 +516,29 @@ export async function requestCrossingRescue(formation, drownedId, rescuerId) {
   const answer = await requestPartyAction(formation.id, "crossing", {
     crossingId: crossing.id, actorId, drownedId, step: "rescue", ...(rescuerId ? {} : { clear: true }),
   });
+  return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
+}
+
+/**
+ * A seat's pick of a pace for a member it owns: the base pace for "". The pick is
+ * checked for this seat first and a refusal said here; the GM client checks it
+ * again and is the one that writes.
+ * @returns {Promise<{ok: boolean, refused?: string}>}
+ */
+export async function requestCrossingPace(formation, actorId, pick) {
+  const crossing = readCrossing(formation);
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  let refused = null;
+  if (!crossing) refused = "closed";
+  else if (!Object.hasOwn(OBSTACLES, crossing.kind)) refused = "notClimb";
+  else if (!entry) refused = "member";
+  else refused = paceStep(rowFor(formation, crossing, entry).row.pace, pick).refusal?.reason ?? null;
+  if (refused) {
+    const said = relayRefusalWords(refused, entry?.actor ?? game.actors.get(actorId));
+    if (said) ui.notifications.warn(said);
+    return { ok: false, refused };
+  }
+  const answer = await requestPartyAction(formation.id, "crossing", { crossingId: crossing.id, actorId, step: "pace", pace: pick });
   return answer?.ok === false ? { ok: false, refused: answer.refused } : { ok: true };
 }
 

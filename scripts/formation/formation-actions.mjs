@@ -38,11 +38,11 @@ import {
 } from "./marching-templates.mjs";
 import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
-  applyCrossingForm, beginCrossing, endCrossing, haulToSurface, jumpFor, landFor, readCrossing, reportLanding, rescueRefusalWords, setRescuer, throwAll, throwFor,
+  applyCrossingForm, beginCrossing, endCrossing, haulToSurface, jumpFor, landFor, readCrossing, relayRefusalWords, reportLanding, rescueRefusalWords, setPace, setRescuer, throwAll, throwFor,
 } from "./crossing.mjs";
 import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
-import { requestBringIn, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
+import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
 import { arrangeFastest, chooseConveyance, setGroupMovement, undoArrangement } from "./conveyance.mjs";
 import { announce } from "./announce.mjs";
@@ -1361,6 +1361,39 @@ export function bindCrossingRescuer(app) {
         }
       } else {
         await requestCrossingRescue(formation, drownedId, select.value);
+      }
+      app.render?.();
+    });
+  }
+}
+
+/** The pace selects already carrying a listener, so a re-render of a part that kept its element does not stack a second. */
+const paceBound = new WeakSet();
+
+/**
+ * Bind each holder's Pace select: a change sets or clears the member's pace. The
+ * Judge's seat writes it; a player's relays it for a member they own
+ * (`requestCrossingPace`). The select is a staging pick, so its change is no form
+ * submit, and it is spent before the write so the redraw shows what was stored; a
+ * refusal is said as a warning and the redraw puts the stored pace back.
+ */
+export function bindCrossingPace(app) {
+  for (const select of app.element?.querySelectorAll?.("select[data-pace-for]") ?? []) {
+    if (paceBound.has(select)) continue;
+    paceBound.add(select);
+    select.addEventListener("change", async () => {
+      const formation = app.formation;
+      const actorId = select.dataset.paceFor;
+      if (!formation || !actorId) return;
+      spendPicks(app.element, [select.dataset.pick]);
+      if (game.user.isGM) {
+        const result = await setPace(formation, actorId, select.value);
+        if (!result.ok) {
+          const said = relayRefusalWords(result.refused, game.actors.get(actorId));
+          if (said) ui.notifications.warn(said);
+        }
+      } else {
+        await requestCrossingPace(formation, actorId, select.value);
       }
       app.render?.();
     });

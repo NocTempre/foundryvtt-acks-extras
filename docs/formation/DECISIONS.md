@@ -511,3 +511,24 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 **Rejected.** One recipe for the three paragraphs: it would cite pages 269 and 270 for every pair. A key per pace: the page prices two paces per way of crossing, and a third key set would invent a pace the page does not name. A fallback pair from the climb for a way of crossing whose paragraph did not read: each way is priced apart on the page, and a world without the figure has none.
 
 **Cost.** A world must re-run the Rules tables import before a pace is priced; until then each pair answers null and the Judge may set it in the Ruledata Browser. Nothing reads the pairs until the pace pick lands, in the same slice.
+
+## 2026-11-17 — A climber's pace is a pick on the member's record, priced from the imported pair
+
+**Ruled.** (Dungeon close-out plan §4 rows B6 and A8 in part, slice S16, to the approved board "ClimbPace".)
+- The pick is `crossing.members.<actorId>.pace`, `faster` or `fastest`, absent at the base pace, written only by `setPace` by its own dotted path. It is per member and per crossing, so End unsets it with the record and a crossing never carries one over. The names are the board's, and the ids are neutral: they say that one pace is nearer the base one, not how fast either is.
+- A holder is a member who holds Climbing (`holdsClimbing`), the reading the climb rows already use, and the pick is offered at the obstacles that price a pace: a climb, a crawl, a balancing ledge. `memberRow` raises the target by the size and puts the pick and its size on `plan`, so `readThrow` and the later slices that extend it (S20's exemption, S24's cookbook terms) read one place.
+- The seats follow the owner's ruling, "Players get blocks, judges get warnings": a member who is down, left behind, detached or stalled stops a player's pick and warns a Judge's, which is written; structure (no Climbing, no pace priced here, a pace outside the set, a member whose crossing is over) stands for both. A pace with no size is an absence, which stops every seat.
+- A stored pick whose size has gone refuses the throw for every seat and says nothing, and with nothing imported the pick offers *Normal* alone and cites the page; no figure stands in for a pair nobody imported.
+- It is not published on `api.formation`, as `setRescuer` is not, so `apiVersion` stays.
+- The treasure plan's party roster already has a `pace` (`party-roster.mjs`, a member's travel speed under a load). It is a different thing under the same word and is not reused; the crossing's is named `pace` only inside `crossing.members`.
+
+**Rejected.** A pace on the crossing's setup: each member's pace is their own, and the Judge's modifier is already the setup's one shared term. A pick for a member who holds no Climbing: the pair is the proficient climber's, so a non-holder has no figure to be priced by and a row offering it would price one nobody holds. A default pair when nothing is imported, or the base pace's target for a stored pick that has lost its size: either rolls a wrong figure.
+
+**Cost.** A world must re-run the Rules tables import before a pace is offered. A bystander's seat is drawn the pick disabled where the board draws only the Judge's row.
+
+**Open for the owner.**
+- A seat that cannot set the pick sees it disabled. The board shows only the Judge's holder row; hiding it from a bystander is the other reading.
+- A rappel prices no pace, so a holder's rappel has no pick; whether it should is the owner's call.
+- A hanging jumper's climb up (`climbUpRow`) takes no pick. It is a climb, and a pace there would need the jump row to carry the record's key.
+- A faster pace does not yet change how much ground a made throw covers; that is S17's reading of the progress row.
+- The pick is a Climbing holder's by `holdsClimbing`, which is Climbing alone. Whether Mountaineering counts is OQ4's answer, put to S24.

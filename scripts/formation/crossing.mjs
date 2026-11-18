@@ -8,7 +8,8 @@
  * Storage is the party actor's `flags["acks-extras"].crossing`: the setup (id,
  * kind, length, depth, rope, Judge modifier, gap, run-up, precarious,
  * charging) and `members`, one record per actor id (`covered`, `throws`,
- * `state`, `last`). Only a GM client writes it. Begin replaces the whole flag
+ * `state`, `last`, and for a Climbing holder on an obstacle that prices one, `pace`: `faster` or
+ * `fastest`, absent at the base pace). Only a GM client writes it. Begin replaces the whole flag
  * with a fresh id and no members; End unsets it. A setup edit writes the
  * setup keys it changes by dotted path and a throw writes its member's record
  * by dotted path, so neither can drop the other's concurrent write. A throw
@@ -47,6 +48,7 @@ import { carriersOf } from "./mapper-kit.mjs";
 import { standsAs } from "./deployment.mjs";
 import { WATER, holdsSwimming, ownSwimSpeed, rescueStone, waterPenaltySteps } from "./swimming.mjs";
 import { chokepointFeet, escapeFeet, holdsContortionism, squeezeBotched } from "./squeezing.mjs";
+import { paceTableOf } from "./climb-pace.mjs";
 import { settlePrompts } from "./crossing-prompt.mjs";
 import { PARTY_CHECKS, citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
@@ -54,7 +56,7 @@ import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallD
 import {
   CLIMB_CHECK, CROSSING_STATUSES, DROWNING, ESCAPES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, STUCK, SWIMMING, WIGGLE_SAVE, climbUpRow, crossingHeld, crossingOfHolder,
   fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
-  swimThrowStep, withFooting, escapeStep, squeezeRow, squeezeThrowStep,
+  swimThrowStep, withFooting, escapeStep, squeezeRow, squeezeThrowStep, paceStep,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { capacityStone, movementBearing } from "../lib/capacity.mjs";
@@ -454,19 +456,23 @@ const citeFor = (table) => citeOf(FORMATION_DOC, table);
 /**
  * A member's target as a tooltip: where the figure was read from with the figure
  * it starts at, each part that moved it with the page its import cites, and the
- * Judge's modifier where one is set. `resolveCheck` itemizes only what lowered
+ * Judge's modifier where one is set, and the pace the member moves at with its own
+ * page (`pace`: `{label, size, cite}` from `paceOfRow`). `resolveCheck` itemizes only what lowered
  * the figure, so the starting figure (a ladder's rung at the member's level, or the
  * sheet's stored figure) is read back as the target plus those parts. Conditions
  * arrive as a part of the figure. The procedure's page ends the line unless a
  * part names its own.
  */
-export function targetTooltip(figure, judgeMod = 0) {
+export function targetTooltip(figure, judgeMod = 0, pace = null) {
   if (!figure) return spelunkingRef();
   const parts = figure.parts ?? [];
   const mod = Number(judgeMod) || 0;
   const start = Number.isFinite(figure.target) ? figure.target + parts.reduce((sum, part) => sum + part.value, 0) : null;
   const source = start === null ? figure.source : loc("crossing.tip.base", { source: figure.source, base: start });
-  const line = citedSource({ source, parts }, mod ? [partText({ value: mod, label: loc("crossing.judgeMod") })] : []);
+  const extra = [];
+  if (mod) extra.push(partText({ value: mod, label: loc("crossing.judgeMod") }));
+  if (pace) extra.push(`${partText({ value: -pace.size, label: pace.label })} (${pace.cite})`);
+  const line = citedSource({ source, parts }, extra);
   return parts.some((part) => part.cite) ? line : [line, spelunkingRef()].join(" · ");
 }
 
@@ -554,6 +560,50 @@ export function kindLabel(kind) {
 /*  The view                                    */
 /* -------------------------------------------- */
 
+/** The page every pace figure names. */
+const paceRef = () => loc("crossing.ref.pace");
+
+/** The pace's name as the pick words it: the base pace, or a faster one. */
+const paceName = (pace) => loc(`crossing.pace.${pace ?? "normal"}`);
+
+/**
+ * The pace a row moves at as a part of its target: its name, size and the page the
+ * pair was imported from, or null at the base pace or where the size is gone.
+ */
+function paceOfRow(row) {
+  const pace = row.pace;
+  if (!pace?.pick || !(pace.penalty > 0)) return null;
+  return {
+    label: loc("crossing.pace.part", { pace: paceName(pace.pick) }),
+    size: pace.penalty,
+    cite: citeFor(paceTableOf(row.effective)) ?? paceRef(),
+  };
+}
+
+/**
+ * The pace pick of a holder's row, or null where there is none to show: a member
+ * who holds no Climbing, an obstacle that prices no pace, or a member whose
+ * crossing is over. Every option is built with its own `selected`; a pick
+ * whose size has gone stays listed by name so it can be seen and put back. With
+ * no size imported the pick offers the base pace alone and is disabled, and its
+ * tooltip is the page reference.
+ */
+function paceView(entry) {
+  const { row } = entry;
+  const pace = row.pace;
+  if (!pace?.applies || SETTLED.includes(row.state)) return null;
+  const options = [{ value: "", label: paceName(null), selected: !pace.pick }];
+  for (const { id, penalty } of pace.options) options.push({ value: id, label: loc("crossing.pace.option", { pace: paceName(id), size: penalty }), selected: pace.pick === id });
+  if (pace.pick && !pace.options.some((o) => o.id === pace.pick)) options.push({ value: pace.pick, label: paceName(pace.pick), selected: true });
+  const cite = citeFor(paceTableOf(row.effective)) ?? paceRef();
+  return {
+    label: loc("crossing.pace.label"),
+    options,
+    disabled: !pace.can || (!pace.options.length && !pace.pick),
+    tip: [...pace.options.map(({ id, penalty }) => loc("crossing.pace.size", { pace: paceName(id), size: penalty })), cite].join(" · "),
+  };
+}
+
 /**
  * The Permitted cell and its tooltip. A member who holds Climbing is permitted
  * at any obstacle the row resolves (`memberRow` plans a holder as permitted
@@ -621,7 +671,8 @@ function obstacleRowView(crossing, entry) {
     settled,
     stalled: row.state === STALLED,
     target: target === null ? "" : `${target}+`,
-    targetTip: target === null ? spelunkingRef() : targetTooltip(figure, row.judgeMod),
+    targetTip: target === null ? spelunkingRef() : targetTooltip(figure, row.judgeMod, paceOfRow(row)),
+    pace: paceView(entry),
     holds: entry.holds,
     holdsLabel: entry.holds ? loc("crossing.holds") : "",
     ...permittedCell(entry.holds, permitted, row.effective, crossing.kind),
@@ -940,6 +991,7 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
   if (plan.overRefusal) {
     foot.push(loc("crossing.card.overRefusal", { reason: refusalText(row.refusal, actor) || loc("crossing.card.overRefusalBare") }));
   }
+  if (row.pace?.pick && row.pace.penalty > 0) foot.push(loc("crossing.pace.card", { pace: paceName(row.pace.pick) }));
   if (row.stretches !== null && row.stretches > 1 && stepped.state !== "across") {
     foot.push(loc("crossing.card.covered", { covered: stepped.covered, stretches: row.stretches }));
   }
@@ -959,7 +1011,7 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
         name: actor.name,
         total: roll.total,
         target: target ?? undefined,
-        targetTooltip: target === null ? "" : targetTooltip(figure, row.judgeMod),
+        targetTooltip: target === null ? "" : targetTooltip(figure, row.judgeMod, paceOfRow(row)),
         detail: read.botch ? loc("crossing.card.botch", { natural }) : "",
         outcome: loc(`crossing.state.${stepped.state}`),
         emphasis: read.success ? "success" : "failure",
@@ -1099,6 +1151,47 @@ export async function throwAll(formation) {
     } else out.left++;
   }
   return out;
+}
+
+/* -------------------------------------------- */
+/*  The pace                                    */
+/* -------------------------------------------- */
+
+/**
+ * Set or clear a Climbing holder's pace on an obstacle: the member's record takes
+ * `pace` (a member of `PACES`) or loses it for "" or "normal", by its own dotted path, so
+ * a throw landing at the same time keeps it. A GM client's work; a player's pick
+ * reaches it through the relay, which has checked who owns the member, and passes
+ * `player`. A member who is down, left behind, detached or stalled blocks a player's
+ * pick and warns a Judge's, which is written; a refusal of structure (no Climbing,
+ * an obstacle that prices no pace, a pace whose size is not imported, a member whose
+ * crossing is over) stands for both.
+ *
+ * @param {object} formation
+ * @param {string} actorId the member's actor id
+ * @param {string|null} pick `faster`, `fastest`, or "" for the base pace
+ * @param {object} [o]
+ * @param {boolean} [o.player] the pick is a player's, relayed to this client
+ * @param {string|null} [o.crossingId] the crossing the requester saw; null skips the check
+ * @returns {Promise<{ok: boolean, refused?: string}>} `refused` is `notGM`, `closed`, `stale`,
+ *   `notClimb`, `member`, `paceNone`, `paceOption`, `pace` or a refusal reason of the row
+ */
+export async function setPace(formation, actorId, pick, { player = false, crossingId = null } = {}) {
+  if (!game.user.isGM) return { ok: false, refused: "notGM" };
+  const crossing = readCrossing(formation);
+  if (!crossing) return { ok: false, refused: "closed" };
+  if (crossingId !== null && crossingId !== crossing.id) return { ok: false, refused: "stale" };
+  if (!Object.hasOwn(OBSTACLES, crossing.kind)) return { ok: false, refused: "notClimb" };
+  const entry = crossingMembers(formation).find((e) => e.member.actorId === actorId);
+  if (!entry) {
+    await pruneMembers(formation);
+    return { ok: false, refused: "member" };
+  }
+  const { row } = rowFor(formation, crossing, entry, player ? { judge: false, owns: true } : { judge: true });
+  const step = paceStep(row.pace, pick);
+  if (!step.can) return { ok: false, refused: step.refusal?.reason ?? "member" };
+  if (step.warn) ui.notifications.warn(refusalText(step.refusal, entry.actor) || loc("crossing.card.overRefusalBare"));
+  return (await writeMemberPatches(formation, crossing.id, [{ id: actorId, ...step.patch }])) ? { ok: true } : { ok: false, refused: "stale" };
 }
 
 /* -------------------------------------------- */

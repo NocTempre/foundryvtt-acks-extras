@@ -34,6 +34,7 @@ import { OBSTACLES, obstaclePlan, obstacleStep, stretchFeet, throwsFor } from ".
 import { canClear, fallFigures, landingFailure, landingSave } from "./jumping.mjs";
 import { pitDamage } from "./trap-rules.mjs";
 import { carriedBody } from "./constants.mjs";
+import { PACES, pacePrices, paceOfPick } from "./climb-pace.mjs";
 import {
   breathRounds, drowning, rescueStone, sinkFeetPerStone, swimSpeed as paceOf, swimSpeedShare, swimmingThrow, waterPenaltyAllowed,
 } from "./swimming.mjs";
@@ -161,12 +162,69 @@ function seatRefusals({ seat, standing, state }) {
 }
 
 /**
+ * A member's pace at an obstacle and who may change it. Only a Climbing holder
+ * at an obstacle that prices a pace (`PACE_TABLE`) has one to pick: anyone else
+ * has no pick for any seat, a refusal of structure. The pick is the base pace
+ * unless the member's record names a faster one whose size is imported; its size
+ * is `penalty`, 0 at the base pace, and null for a pick whose size is no longer
+ * there, which `memberRow` refuses as an absence. A member who is down, left
+ * behind, detached or stalled blocks a player's pick and warns a Judge's;
+ * a member whose crossing is over, and a seat that does not own the member,
+ * block every player.
+ *
+ * @param {object} o
+ * @param {string} o.kind the obstacle as planned (`plan.effective`)
+ * @param {boolean} [o.holds] the member holds Climbing
+ * @param {string|null} [o.pick] the record's pace
+ * @param {{judge?: boolean, owns?: boolean}} [o.seat]
+ * @param {string|null} [o.standing]
+ * @param {string} [o.state] the member's crossing state
+ * @returns {{applies: boolean, pick: string|null, penalty: number|null, options: Array<{id: string, penalty: number}>,
+ *   refusal: {cls: string, reason: string}|null, can: boolean, warn: boolean}}
+ *   `options` are the paces whose size is imported, the nearer first. `can` and `warn` are
+ *   for changing the pick; `applies` is false where there is no pick to show.
+ */
+export function paceRow({ kind, holds = false, pick = null, seat = {}, standing = null, state = "climbing" } = {}) {
+  const prices = pacePrices(kind);
+  const applies = !!holds && prices !== null;
+  const current = applies ? paceOfPick(pick) : null;
+  const options = applies ? PACES.filter((id) => prices[id] !== null).map((id) => ({ id, penalty: prices[id] })) : [];
+  const refusals = seatRefusals({ seat, standing, state });
+  if (!applies) refusals.push({ cls: REFUSAL.seat, reason: "paceNone" });
+  const { refusal, can, warn } = settle(refusals, seat?.judge);
+  return { applies, pick: current, penalty: current ? prices[current] : 0, options, refusal, can: applies && can, warn: applies && warn };
+}
+
+/**
+ * What a seat's pick writes: the pick named, or the base pace for "" or
+ * `"normal"`, checked against `paceRow`'s answer. A pick outside `PACES`, or a
+ * pace whose size is not imported, is refused for every seat, since nothing
+ * would price it. Clearing the pick asks nothing of the table, so a pick whose
+ * size has gone can still be put back to the base pace.
+ *
+ * @param {object} row `paceRow`'s answer for the seat that asks
+ * @param {string|null} pick
+ * @returns {{refusal: {cls: string, reason: string}|null, can: boolean, warn: boolean,
+ *   patch: {set?: object, unset?: string[]}|null}} `patch` is a member record's change, null where refused
+ */
+export function paceStep(row, pick) {
+  if (!row.applies) return { refusal: row.refusal, can: false, warn: false, patch: null };
+  const ask = pick == null || pick === "" || pick === "normal" ? null : String(pick);
+  if (ask !== null && !PACES.includes(ask)) return { refusal: { cls: REFUSAL.seat, reason: "paceOption" }, can: false, warn: false, patch: null };
+  if (ask !== null && !row.options.some((o) => o.id === ask)) return { refusal: { cls: REFUSAL.absence, reason: "pace" }, can: false, warn: false, patch: null };
+  if (!row.can) return { refusal: row.refusal, can: false, warn: false, patch: null };
+  return { refusal: row.refusal, can: true, warn: row.warn, patch: ask === null ? { unset: ["pace"] } : { set: { pace: ask } } };
+}
+
+/**
  * One member's row at an obstacle: what may be pressed from this seat, against
  * what, and why not.
  *
  * The member's own figure is the target, held by a Climbing holder or not. The
  * table's Adventuring column is read only for whether the member may try; the
- * number it holds is not the member's.
+ * number it holds is not the member's. A holder's pace (`paceRow`) raises the
+ * target by its size, and a pace whose size is gone refuses the row as an
+ * absence rather than throwing at the base pace's target.
  *
  * @param {object} o
  * @param {string} o.kind a key of OBSTACLES
@@ -178,14 +236,16 @@ function seatRefusals({ seat, standing, state }) {
  * @param {number} [o.judgeMod] the Judge's throw modifier; positive lowers the target
  * @param {{judge?: boolean, owns?: boolean}} [o.seat] who is pressing
  * @param {string|null} [o.standing] `down`, `leftBehind` or `detached`, else null
- * @param {{state?: string, covered?: number, throws?: number}|null} [o.member] the member's crossing record
+ * @param {{state?: string, covered?: number, throws?: number, pace?: string}|null} [o.member] the member's crossing record
  * @returns {{kind: string, effective: string|null, stretches: number|null, target: number|null,
  *   judgeMod: number, parts: object[], covered: number, throws: number, state: string,
  *   refusal: {cls: string, reason: string}|null, can: boolean, warn: boolean,
- *   plan: object|null, unknown: string[]}}
- *   `plan` is what `readThrow` takes and is null while `can` is false; its
- *   `overRefusal` is true where a Judge goes ahead over a permission refusal.
- *   `unknown` names each figure missing: `stretchFeet`, `spelunking`, `figure`.
+ *   pace: object, plan: object|null, unknown: string[]}}
+ *   `pace` is `paceRow`'s answer for the member. `plan` is what `readThrow` takes and is
+ *   null while `can` is false; its `overRefusal` is true where a Judge goes ahead over a
+ *   permission refusal, and its `pace` and `paceSize` are the pick in force and what it
+ *   added to the target. `unknown` names each figure missing: `stretchFeet`, `spelunking`,
+ *   `figure`, `pace`.
  */
 export function memberRow({
   kind, ropeFixed = false, feet = null, holds = false, figure = null, judgeMod = 0, seat = {}, standing = null, member = null,
@@ -212,10 +272,15 @@ export function memberRow({
     unknown.push("figure");
   }
   if (base.reason === "notPermitted") refusals.push({ cls: REFUSAL.permission, reason: "notPermitted" });
+  const effective = base.effective ?? null;
+  const pace = paceRow({ kind: effective ?? kind, holds, pick: member?.pace, seat, standing, state });
+  if (pace.penalty === null) {
+    refusals.push({ cls: REFUSAL.absence, reason: "pace" });
+    unknown.push("pace");
+  }
 
   const { refusal, can, warn } = settle(refusals, seat?.judge);
-  const target = own === null ? null : own - mod;
-  const effective = base.effective ?? null;
+  const target = own === null ? null : own - mod + (pace.penalty ?? 0);
   return {
     kind,
     effective,
@@ -229,7 +294,8 @@ export function memberRow({
     refusal,
     can,
     warn,
-    plan: can ? { kind, effective, obstacle: base.obstacle, permitted: true, target, reason: null, overRefusal: warn } : null,
+    pace,
+    plan: can ? { kind, effective, obstacle: base.obstacle, permitted: true, target, reason: null, overRefusal: warn, pace: pace.pick, paceSize: pace.penalty ?? 0 } : null,
     unknown,
   };
 }

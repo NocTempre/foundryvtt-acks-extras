@@ -2799,7 +2799,8 @@ row.
 `precarious`, `charging`, and for deep water `penaltyPick`, `penaltyLarger`,
 `waterCold`, `waterRough`, `waterFast`, `movement`) and `members`, one record per actor id: `covered`,
 `throws`, `state` (`climbing`, `across`, `fell`, `stalled`) and `last`, the
-throw's total, natural result, success and the imported words. Begin replaces
+throw's total, natural result, success and the imported words, and, for a Climbing
+holder on an obstacle that prices a pace, `pace` ("The climber's pace"). Begin replaces
 the whole flag with a fresh id and no members and End unsets it. Every other
 write is a dotted path: a setup edit writes the keys it changed (a blank number
 unsets its key) and a throw writes `crossing.members.<actorId>`, so neither
@@ -3140,6 +3141,55 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   step, the Dungeonbashing figure, the save cell) stops every seat and rolls
   nothing. Every figure carries its parts and page in its tooltip and is blank
   with the page alone where nothing was imported.
+
+### The climber's pace
+
+A Climbing holder crossing an obstacle may take a faster pace than the base one
+(RR pp. 269-270). It is a pick on the holder's row, the *Pace* select, first
+among the row's cells, offering *Normal* and each pace whose size is imported:
+*Faster* and *Fastest*, each labelled with its size. The pick is stored on the
+member's record, `crossing.members.<actorId>.pace`: the string `faster` or
+`fastest`, and no key at the base pace. That key is the one reader's contract:
+a later slice that asks whether a member moved at the base pace reads
+`row.pace.pick` (`null` is the base pace) or `row.plan.pace`, never the select.
+
+- **Which rows have a pick.** `paceRow` (`crossing-logic.mjs`) answers it from
+  `holds` (`holdsClimbing`) and the obstacle as planned (`climb-pace.mjs`
+  `PACE_TABLE`): a climb, a crawl and a balancing ledge price a pace, each from
+  its own imported pair (`climbPacePenalties`, `crawlPacePenalties`,
+  `balancePacePenalties`, `[faster, fastest]`; the importer's half is "The delve's
+  printed figures"); a rappel, a jump, a swim and a squeeze price none. A member
+  who holds no Climbing has no pick for any seat, whatever the record says, and a
+  member whose crossing is over has none drawn. A fixed rope plans a sheer climb
+  as the easy one, which reads the same pair.
+- **What it does to the throw.** `memberRow` raises the target by the pace's
+  size, beside the Judge's modifier, so `plan.target` is the figure rolled and
+  `readThrow` is unchanged; `plan.pace` and `plan.paceSize` carry the pick and
+  its size for a later reader. The target's tooltip lists the pace as a part with
+  its page (`targetTooltip`'s `pace`), the card's foot names the pace, and
+  nothing changes at the base pace.
+- **Nothing imported.** With no pair imported the holder's pick offers *Normal*
+  alone, disabled, its tooltip the page reference alone; a size that is not a
+  positive number is not a size, so a pair with one size offers one pace. A stored
+  pick whose size is gone (the pair re-imported without it, a Judge's override
+  removed) refuses the throw as an absence for every seat, with no words, rather
+  than throwing at the base pace's target; the pick stays listed by its name and
+  may be put back to *Normal*.
+- **Who may set it.** `setPace` (`crossing.mjs`), a GM client's work, writes the
+  pick by its own dotted path, so a throw landing at the same time keeps it (a
+  throw's step writes the record's other keys and never `pace`). A player's pick is
+  relayed as a crossing request of step `pace` (`requestCrossingPace`, then
+  `paceRelay`) for a member they own, checked again on the GM client against the
+  closed set of paces, and declared publicly. The refusal classes are the
+  row's: a member who is down, left behind, detached or stalled stops a player and
+  warns a Judge, whose pick is written; a seat that does not own the member, a
+  member with no pick, a pace outside the set, a pace with no size and a crossing
+  that is over stop every seat. A bystander's seat is drawn the pick
+  disabled. The pick is not on `api.formation`.
+- **Not the party roster's pace.** `party-roster.mjs`'s `pace` answers a member's
+  travel speed under a load, `{rank, speed}`, for the treasure grab's planner; it
+  shares a word with this and nothing else, so the two are never read for each
+  other.
 
 ## Deliberate non-features
 

@@ -5090,3 +5090,34 @@ tables every lane of the shared world reads, so the walk leaves them;
 
 Teardown: nothing is swept; the fixtures stay. Restore the imported tables the
 passes removed.
+
+### The climber's pace (added with S16 of the dungeon close-out)
+
+Built for the crossing's rows when the kind is a climb, a crawl or a balancing ledge (Actors sidebar → the party sheet → Dungeon tab → The crossing). A mock cannot prove that core's update merges the pick into the record beside a throw's write, that a player's seat relays the pick, or that the select keeps the value the user chose across the render that follows.
+
+Before the first step the Rules tables must be imported: the walk reads `climbPacePenalties`, `crawlPacePenalties` and `balancePacePenalties` through `formationValue`, and a standing import from before them holds none. Step P1 is the absent path on purpose.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`; `own: <tag>` and `@<tag>` markers where a peer is on this surface).
+- `formation/crossing-party`, `formation/crossing-climber` and `formation/crossing-adventurer`, as "The crossing" builds them: the party, a holder and a member with no Climbing.
+- `formation/pace-climber` — a character the Player seat owns, holding the imported Climbing, added from the imported library as a user adds it, a member of the party.
+- `formation/pace-fallen` — a character the Player seat owns at 0 hit points, a member of the party, for the blocked-and-warned step.
+
+**Drive mechanics.**
+- The pick is the select `[data-pace-for="<actorId>"]`; set its value and dispatch a bubbling `change`, then wait for the render. Read the result from the flag, `game.actors.get(partyId).getFlag("acks-extras", "crossing").members[actorId].pace`, not from the select.
+- A throw is the row's `[data-action="crossingThrow"]`; rig the die with `CONFIG.Dice.randomUniform` (0.975 a 20, 0.025 a 1).
+- Run the walk on a climb; repeat the pick on a crawl and a balancing ledge to see each read its own pair.
+
+| Step | Do | Observable |
+|---|---|---|
+| P1 | With the pace pairs not imported, begin a Sheer climb, length set | The holder's row has a Pace select reading Normal alone, disabled, its tooltip the page reference; no other row has a select; no throw is affected |
+| P2 | Import the Rules tables; reopen the section | The holder's select lists Normal and each imported pace with its size; the tooltip lists the sizes and the page; the member with no Climbing has no select on any seat |
+| P3 | Pick Faster on the Judge's pane | `members.<id>.pace` is `faster`; the row's target rises by the size and its tooltip lists the pace as a part with its page; the same on the Player's seat |
+| P4 | Rig a throw that clears the base target and misses the new one | A miss, one card to the Judges whose foot names the pace; the pick still stands and the next throw is penalised too |
+| P5 | Pick Normal | The key is gone from the record and the target returns |
+| P6 | On the Player's pane pick Fastest on the owned climber, then on a member the seat does not own | The owned pick is written and declared publicly; the other is refused in words with nothing written |
+| P7 | On the Player's pane pick for the fallen member | Refused in words, nothing written; the same pick on the Judge's pane is written and a warning names the member |
+| P8 | Begin a Rappel | No member has a select |
+| P9 | Remove the pair from the registry with a stored pick standing | The row's throw is refused with no words and no card; the select lists the pick by name; picking Normal restores the throw |
+| P10 | A second party sheet, a detached window, the type size on a fresh window | The select and its label reflow and nothing clips; the player's select stays live after a render |
+
+Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; restore the removed pair.

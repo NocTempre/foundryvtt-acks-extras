@@ -13,7 +13,7 @@ import { OUTCOMES_TABLE, obstaclePlan, readThrow } from "../scripts/formation/ob
 import { canClear, jumpAt } from "../scripts/formation/jumping.mjs";
 import {
   CLIMB_CHECK, CROSSING_STATUSES, FOOTINGS, FOOTING_STATE, HANGING, HANG_CLIMB, LANDING, REFUSAL, SETTLED, climbUpRow, crossingHeld, crossingOfHolder,
-  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting,
+  DROWNING, fallFromClimb, fallFromDepth, heldAfter, isHanging, haulStep, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueRefusal, escapeStep, squeezeRow, squeezeThrowStep, stepMember, swimRow, swimThrowStep, swimTick, withFooting, paceRow, paceStep,
 } from "../scripts/formation/crossing-logic.mjs";
 import { ownSwimSpeed } from "../scripts/formation/swimming.mjs";
 import { squeezeBotched } from "../scripts/formation/squeezing.mjs";
@@ -34,7 +34,10 @@ const OUTCOMES = {
 const JUMPING = { jumpDie: "1d8", runUpFeet: 15, standingShare: 0.5, feetPerStone: 3, creatureDex: 10, leapPlus: 2, leapMinimum: 1 };
 const FALL = { die: "1d8", feetPerDie: 15 };
 
-const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL } = {}) => {
+/** The faster paces' penalty pairs, invented and told apart so a way of crossing reading another's pair fails. */
+const PACES = { climbPacePenalties: [3, 8], crawlPacePenalties: [4, 9], balancePacePenalties: [6, 12] };
+
+const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL, pace = null } = {}) => {
   resetTables();
   registerTable(
     {
@@ -45,6 +48,7 @@ const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING,
         ...(outcomes && { [OUTCOMES_TABLE]: outcomes }),
         ...(jumping && { jumping }),
         ...(fall && { fall }),
+        ...(pace && pace),
       },
     },
     { priority: PRIORITY.WORLD, source: "test" },
@@ -1051,6 +1055,110 @@ await ok("a push forward that succeeds advances the member, through at a chokepo
   const missed = escapeStep({ member: stuckRecord({ tries: 1, plight: 1 }), way: "push", success: false, natural: 2, total: 2, feet: 8 });
   assert.deepEqual([missed.set.state, missed.set.tries, missed.set.plight], ["stuck", 2, 2]);
   assert.deepEqual([missed.set.last.kind, missed.set.last.success], ["push", false]);
+});
+
+// ---- a climber's pace ----------------------------------------------------------
+const holder = (kind, extra = {}) => memberRow({ kind, holds: true, figure: climber, seat: JUDGE, feet: 100, ...extra });
+
+await ok("a holder's pace raises the target by its imported size and the plan carries the pick", () => {
+  load({ pace: PACES });
+  const base = holder("sheerClimb");
+  assert.deepEqual([base.target, base.plan.pace, base.plan.paceSize], [12, null, 0], "the base pace costs nothing");
+  const faster = holder("sheerClimb", { member: { pace: "faster" } });
+  assert.deepEqual([faster.target, faster.plan.target, faster.plan.pace, faster.plan.paceSize], [15, 15, "faster", 3]);
+  const fastest = holder("sheerClimb", { member: { pace: "fastest" } });
+  assert.deepEqual([fastest.target, fastest.plan.paceSize], [20, 8]);
+  const modded = holder("sheerClimb", { member: { pace: "faster" }, judgeMod: 2 });
+  assert.equal(modded.target, 13, "a Judge's bonus and the pace's penalty are both in the target: 12 - 2 + 3");
+  // The throw reads the plan's target, so a roll that clears the base target and misses the pace's is a miss.
+  assert.equal(readThrow({ plan: base.plan, natural: 13, total: 13 }).success, true);
+  assert.equal(readThrow({ plan: faster.plan, natural: 13, total: 13 }).success, false);
+});
+
+await ok("each way of crossing prices its paces from its own pair, and a rappel prices none", () => {
+  load({ pace: PACES });
+  const sized = (kind) => [holder(kind, { member: { pace: "faster" } }).plan.paceSize, holder(kind, { member: { pace: "fastest" } }).plan.paceSize];
+  assert.deepEqual(sized("easyClimb"), [3, 8]);
+  assert.deepEqual(sized("sheerClimb"), [3, 8]);
+  assert.deepEqual(sized("crawl"), [4, 9]);
+  assert.deepEqual(sized("narrowLedge"), [6, 12]);
+  assert.deepEqual(sized("precariousLedge"), [6, 12]);
+  const rappel = holder("rappel", { member: { pace: "fastest" } });
+  assert.deepEqual([rappel.pace.applies, rappel.target, rappel.plan.pace], [false, 12, null], "a rappel has no pace to price, so a stored pick is ignored");
+  // A fixed rope makes a sheer climb the easy one, which is priced from the same pair.
+  assert.equal(holder("sheerClimb", { ropeFixed: true, member: { pace: "fastest" } }).plan.paceSize, 8);
+});
+
+await ok("a member who holds no Climbing has no pace, whatever a record says", () => {
+  load({ pace: PACES });
+  const plain = memberRow({ kind: "easyClimb", figure: { target: 14, parts: [] }, seat: JUDGE, feet: 100, member: { pace: "fastest" } });
+  assert.deepEqual([plain.pace.applies, plain.pace.pick, plain.target, plain.plan.paceSize], [false, null, 14, 0]);
+  for (const seat of [JUDGE, OWNER]) {
+    const asked = paceStep(memberRow({ kind: "easyClimb", figure: { target: 14, parts: [] }, seat, feet: 100 }).pace, "faster");
+    assert.deepEqual([asked.can, asked.patch, asked.refusal.reason], [false, null, "paceNone"], `no pick for ${JSON.stringify(seat)}`);
+  }
+});
+
+await ok("with no pair imported a holder has the base pace alone; a stored pick is refused as an absence for every seat", () => {
+  load();
+  const base = holder("sheerClimb");
+  assert.deepEqual([base.pace.applies, base.pace.options, base.pace.penalty, base.target, base.can], [true, [], 0, 12, true]);
+  assert.equal(paceStep(base.pace, "faster").refusal.reason, "pace", "an unpriced pace is refused");
+  for (const seat of [JUDGE, OWNER]) {
+    const row = holder("sheerClimb", { seat, member: { pace: "faster" } });
+    assert.deepEqual(row.refusal, { cls: REFUSAL.absence, reason: "pace" }, JSON.stringify(seat));
+    assert.deepEqual([row.can, row.warn, row.plan, row.unknown, row.pace.penalty], [false, false, null, ["pace"], null]);
+  }
+  assert.deepEqual(paceStep(holder("sheerClimb", { member: { pace: "faster" } }).pace, "").patch, { unset: ["pace"] }, "a stale pick can still be put back to the base pace");
+});
+
+await ok("a pair with one size imported prices that pace alone", () => {
+  load({ pace: { climbPacePenalties: [3] } });
+  const row = holder("sheerClimb");
+  assert.deepEqual(row.pace.options, [{ id: "faster", penalty: 3 }]);
+  assert.equal(paceStep(row.pace, "fastest").refusal.reason, "pace");
+  load({ pace: { climbPacePenalties: [0, "x"] } });
+  assert.deepEqual(holder("sheerClimb").pace.options, [], "a size that is no positive number is not a size");
+  load({ pace: { climbPacePenalties: "3,8" } });
+  assert.deepEqual(holder("sheerClimb").pace.options, [], "a pair that is no list is not read");
+});
+
+await ok("a pick is for a member the seat owns who can still be moved: a player is blocked where a Judge is warned", () => {
+  load({ pace: PACES });
+  const ask = (seat, extra) => paceStep(holder("sheerClimb", { seat, ...extra }).pace, "faster");
+  const downPlayer = ask(OWNER, { standing: "down" });
+  assert.deepEqual([downPlayer.can, downPlayer.patch, downPlayer.refusal.reason], [false, null, "down"]);
+  const downJudge = ask(JUDGE, { standing: "down" });
+  assert.deepEqual([downJudge.can, downJudge.warn, downJudge.refusal.reason, downJudge.patch], [true, true, "down", { set: { pace: "faster" } }]);
+  const stalledJudge = ask(JUDGE, { member: { state: "stalled" } });
+  assert.deepEqual([stalledJudge.can, stalledJudge.warn], [true, true]);
+  assert.deepEqual([ask(OWNER, { member: { state: "stalled" } }).can, ask(OTHER, {}).refusal.reason], [false, "notOwner"], "a seat that does not own the member is refused");
+  for (const seat of [JUDGE, OWNER]) {
+    const over = ask(seat, { member: { state: "across" } });
+    assert.deepEqual([over.can, over.warn], [false, false], "a member whose crossing is over has no pace to pick, for any seat");
+  }
+  const clear = ask(OWNER, {});
+  assert.deepEqual([clear.can, clear.warn, clear.refusal], [true, false, null]);
+});
+
+await ok("a pick is one of the closed set: anything else is refused, and the base pace is written as a removal", () => {
+  load({ pace: PACES });
+  const row = holder("sheerClimb").pace;
+  for (const bad of ["hasty", "__proto__", "FASTER", 3, {}]) {
+    assert.deepEqual([paceStep(row, bad).patch, paceStep(row, bad).refusal.reason], [null, "paceOption"], String(bad));
+  }
+  for (const base of ["", "normal", null, undefined]) assert.deepEqual(paceStep(row, base).patch, { unset: ["pace"] }, String(base));
+  assert.deepEqual(paceStep(row, "fastest").patch, { set: { pace: "fastest" } });
+  assert.equal(paceRow({ kind: "sheerClimb", holds: true, pick: "hasty" }).pick, null, "a stored pick outside the set reads as the base pace");
+});
+
+await ok("a throw's step leaves the record's pace alone to carry on: the step is the record's own keys only", () => {
+  load({ pace: PACES });
+  const row = holder("sheerClimb", { member: { pace: "faster" } });
+  const read = readThrow({ plan: row.plan, natural: 19, total: 19 });
+  const stepped = stepMember({ member: { pace: "faster" }, stretches: 3, read, natural: 19, total: 19 });
+  assert.equal(Object.keys(stepped).includes("pace"), false, "the step names no pace, so the dotted-path write beside it never touches the pick");
+  assert.equal(stepped.state, "climbing");
 });
 
 console.log(`\ntest-crossing: all ${passed} checks passed`);

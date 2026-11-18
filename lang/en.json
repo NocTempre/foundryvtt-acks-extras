@@ -2878,7 +2878,8 @@
       "crossingWiggle": "{name} wiggles backwards.",
       "crossingPush": "{name} pushes forward.",
       "crossingRescue": "{name} takes up {drowned}'s rescue.",
-      "crossingRescueClear": "{name} lets go of {drowned}'s rescue."
+      "crossingRescueClear": "{name} lets go of {drowned}'s rescue.",
+      "crossingPace": "{name} takes the {pace} pace."
     },
     "role": {
       "mapper": "Mapper",
@@ -7950,6 +7951,18 @@
   "ACKS-FORMATION.crossing.relay.rescueStanding": "{name} cannot rescue from where they stand.",
   "ACKS-FORMATION.crossing.relay.rescueNotDrowning": "That member is not drowning.",
   "ACKS-FORMATION.crossing.refusal.notSwim": "No swim crossing is open.",
+  "ACKS-FORMATION.crossing.ref.pace": "RR pp. 269-270",
+  "ACKS-FORMATION.crossing.pace.label": "Pace",
+  "ACKS-FORMATION.crossing.pace.normal": "Normal",
+  "ACKS-FORMATION.crossing.pace.faster": "Faster",
+  "ACKS-FORMATION.crossing.pace.fastest": "Fastest",
+  "ACKS-FORMATION.crossing.pace.option": "{pace} (−{size})",
+  "ACKS-FORMATION.crossing.pace.size": "{pace} −{size}",
+  "ACKS-FORMATION.crossing.pace.part": "{pace} pace",
+  "ACKS-FORMATION.crossing.pace.card": "{pace} pace",
+  "ACKS-FORMATION.crossing.refusal.notClimb": "No obstacle crossing is open.",
+  "ACKS-FORMATION.crossing.relay.paceNone": "{name} has no pace to pick here.",
+  "ACKS-FORMATION.crossing.relay.paceOption": "That is not a pace.",
   "ACKS-CLASSES.reopen.title": "Roll this character again?",
   "ACKS-CLASSES.reopen.tooltip": "Offer the Scores Generator again — this replaces what they own",
   "ACKS-CLASSES.reopen.confirm": "Offer the Scores Generator for <strong>{name}</strong> again? Generating a character replaces the last run of the page, so their {items} item(s) will be replaced by whatever the new build grants. Their scores stay as they are until the page is run.",

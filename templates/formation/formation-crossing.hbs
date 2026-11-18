@@ -341,6 +341,16 @@
       </button>
       {{/if}}
       <span class="acks-extras-crossing-cells">
+      {{#if this.pace}}
+      <label class="acks-extras-crossing-field" data-tooltip-text="{{this.pace.tip}}">
+        <span>{{this.pace.label}}</span>
+        <select data-pick="crossing-pace-{{this.actorId}}" data-pace-for="{{this.actorId}}"{{#if this.pace.disabled}} disabled{{/if}}>
+          {{#each this.pace.options}}
+          <option value="{{this.value}}"{{#if this.selected}} selected{{/if}}>{{this.label}}</option>
+          {{/each}}
+        </select>
+      </label>
+      {{/if}}
       <span class="acks-nums acks-extras-crossing-figure" data-tooltip-text="{{this.targetTip}}">{{this.target}}</span>
       <span class="acks-extras-crossing-permitted" data-tooltip-text="{{this.permittedTip}}">{{this.permitted}}</span>
       <span class="acks-nums acks-extras-crossing-covered" data-tooltip-text="{{this.coveredTip}}">{{this.covered}}</span>

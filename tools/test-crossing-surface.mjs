@@ -128,9 +128,9 @@ const { OUTCOMES_TABLE } = await import("../scripts/formation/obstacles.mjs");
 const crossing = await import("../scripts/formation/crossing.mjs");
 const {
   CROSSING_KINDS, applyCrossingForm, beginCrossing, buildCrossingView, canCross, endCrossing, jumpFor, landFor, pruneMembers, readCrossing, reportLanding,
-  throwAll, throwFor, writeMemberStep,
+  setPace, throwAll, throwFor, writeMemberStep,
 } = crossing;
-const { registerRequestSocket, requestCrossingRescue, requestCrossingThrow, requestPartyAction } = await import("../scripts/formation/player-requests.mjs");
+const { registerRequestSocket, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction } = await import("../scripts/formation/player-requests.mjs");
 
 /**
  * socketlib's stand-in. `relay` delivers a request to the registered handler as the GM
@@ -236,18 +236,21 @@ const OUTCOMES = {
 };
 const JUMPING = { jumpDie: "1d8", runUpFeet: 15, standingShare: 0.5, feetPerStone: 3, creatureDex: 10, leapPlus: 2, leapMinimum: 1 };
 const FALL = { die: "1d8", feetPerDie: 15 };
-const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL } = {}) => {
+/** The faster paces' pairs, invented; the three ways of crossing carry sizes that differ. */
+const PACE = { climbPacePenalties: [3, 8], crawlPacePenalties: [4, 9], balancePacePenalties: [6, 12] };
+const load = ({ spelunking = SPELUNKING, outcomes = OUTCOMES, jumping = JUMPING, fall = FALL, pace = null } = {}) => {
   resetTables();
   registerTable(
     {
       id: FORMATION_DOC,
       source: { pages: "XX p.1" },
-      cites: { spelunking: "XX p.1", fall: "XX p.2", jumping: "XX p.3" },
+      cites: { spelunking: "XX p.1", fall: "XX p.2", jumping: "XX p.3", ...(pace && { climbPacePenalties: "XX p.6", crawlPacePenalties: "XX p.6", balancePacePenalties: "XX p.7" }) },
       tables: {
         ...(spelunking && { spelunking }),
         ...(outcomes && { [OUTCOMES_TABLE]: outcomes }),
         ...(jumping && { jumping }),
         ...(fall && { fall }),
+        ...(pace && pace),
       },
     },
     { priority: PRIORITY.WORLD, source: "test" },
@@ -2641,6 +2644,187 @@ await ok("the partial draws the squeeze's setup and a stuck row's two escape pre
   }
   const source = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
   assert.ok(/^ {2}async crossingEscape\(/m.test(source));
+});
+
+/* --- a climber's pace -------------------------------------------------------- */
+const paceWorld = async (members, { kind = "easyClimb", pace = PACE } = {}) => {
+  reset();
+  load({ pace });
+  const actors = members.map(([name, extra]) => person(name, { items: extra?.holds === false ? [] : [CLIMBING()], ...extra }));
+  const made = world(actors);
+  await beginCrossing(made.formation, kind);
+  await applyCrossingForm(made.formation, { length: "100" });
+  return made;
+};
+
+await ok("a holder's row has a pace pick listing each imported size; a non-holder has none; with nothing imported it offers the base pace alone and cites the page", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id }], ["Birch", { holds: false }]]);
+  const alder = rowOf(buildCrossingView(formation), "Alder").pace;
+  assert.deepEqual(alder.options.map((o) => [o.value, o.label, o.selected]), [["", "Normal", true], ["faster", "Faster (−3)", false], ["fastest", "Fastest (−8)", false]]);
+  assert.deepEqual([alder.disabled, alder.tip], [false, "Faster −3 · Fastest −8 · XX p.6"], "each size with its name, then the page the pair was imported from");
+  assert.equal(rowOf(buildCrossingView(formation), "Birch").pace, null, "a member who holds no Climbing is offered no pick");
+  assert.equal(rowOf(as(PLAYER, () => buildCrossingView(formation)), "Birch").pace, null, "nor is a player's seat");
+  load();
+  const bare = rowOf(buildCrossingView(formation), "Alder").pace;
+  assert.deepEqual(bare.options.map((o) => o.label), ["Normal"], "no unpriced pace is offered");
+  assert.deepEqual([bare.disabled, bare.tip], [true, "RR pp. 269-270"], "disabled, the page reference alone");
+  load({ pace: { crawlPacePenalties: [4, 9] } });
+  assert.deepEqual(rowOf(buildCrossingView(formation), "Alder").pace.options.map((o) => o.label), ["Normal"], "a climb reads the climb's pair, not the crawl's");
+});
+
+await ok("each way of crossing offers its own pair; a rappel offers none", async () => {
+  const sizes = async (kind) => {
+    const { formation } = await paceWorld([["Alder", {}]], { kind });
+    return rowOf(buildCrossingView(formation), "Alder").pace?.options.map((o) => o.label) ?? null;
+  };
+  assert.deepEqual(await sizes("sheerClimb"), ["Normal", "Faster (−3)", "Fastest (−8)"]);
+  assert.deepEqual(await sizes("crawl"), ["Normal", "Faster (−4)", "Fastest (−9)"]);
+  assert.deepEqual(await sizes("narrowLedge"), ["Normal", "Faster (−6)", "Fastest (−12)"]);
+  assert.deepEqual(await sizes("precariousLedge"), ["Normal", "Faster (−6)", "Fastest (−12)"]);
+  assert.equal(await sizes("rappel"), null);
+});
+
+await ok("a pick moves the throw's target, its tooltip lists the parts that sum to it, the card says the pace, and the pick stands through the throws and clears back to the base", async () => {
+  const { formation } = await paceWorld([["Alder", {}]]);
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: true });
+  assert.equal(recordOf(formation, "Alder").pace, "faster", "the pick is on the member's record");
+  let row = rowOf(buildCrossingView(formation), "Alder");
+  assert.equal(row.target, "15+", "12 from the ladder and 3 from the pace");
+  assert.equal(row.targetTip, "Probe Climb (L6), base 12+; −3 Faster pace (XX p.6) · RR ch. 6, Spelunking", "the base, then the pace as a part with its page");
+  assert.deepEqual(row.pace.options.map((o) => o.selected), [false, true, false]);
+  naturals.push(14);
+  const miss = await throwFor(formation, "Alder");
+  assert.equal(miss.ok, true);
+  const card = seen.created.at(-1).content;
+  assert.ok(card.includes("Faster pace"), "the card says the pace it was thrown at");
+  assert.ok(card.includes("−3 Faster pace (XX p.6)"), "and its target's tooltip carries the pace");
+  assert.equal(readCrossing(formation).members.Alder.last.success, false, "14 clears the base target and misses the pace's");
+  assert.equal(recordOf(formation, "Alder").pace, "faster", "the throw's write leaves the pick");
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").target, "15+", "the next throw is penalised too");
+  naturals.push(15);
+  assert.equal((await throwFor(formation, "Alder")).ok, true);
+  assert.equal(recordOf(formation, "Alder").last.success, true);
+  assert.deepEqual(await setPace(formation, "Alder", ""), { ok: true });
+  assert.equal(recordOf(formation, "Alder").pace, undefined, "the base pace is the absence of a pick");
+  row = rowOf(buildCrossingView(formation), "Alder");
+  assert.equal(row.target, "12+");
+  assert.equal(row.targetTip.includes("Faster"), false);
+  const setups = seen.updates.filter(([who]) => who === "party").map(([, data]) => Object.keys(data).filter((k) => k.endsWith(".pace")));
+  assert.deepEqual(setups.flat(), ["flags.acks-extras.crossing.members.Alder.pace", "flags.acks-extras.crossing.members.Alder.pace"], "the pick is written by its own dotted path, never with the record");
+});
+
+await ok("a pick is a Climbing holder's: a member with none, a rappel, a jump and a crossing that is over are each refused to every seat", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id }], ["Birch", { holds: false, owner: PLAYER.id }]]);
+  for (const player of [false, true]) {
+    assert.deepEqual(await setPace(formation, "Birch", "faster", { player }), { ok: false, refused: "paceNone" }, `no Climbing, player ${player}`);
+  }
+  assert.equal(recordOf(formation, "Birch")?.pace, undefined);
+  assert.deepEqual(await setPace(formation, "Nobody", "faster"), { ok: false, refused: "member" });
+  assert.deepEqual(await setPace(formation, "Alder", "hasty"), { ok: false, refused: "paceOption" }, "a pace outside the closed set");
+  assert.deepEqual(await setPace(formation, "Alder", "faster", { crossingId: "other" }), { ok: false, refused: "stale" });
+  naturals.push(20);
+  await applyCrossingForm(formation, { length: "30" });
+  await throwFor(formation, "Alder");
+  assert.equal(recordOf(formation, "Alder").state, "across");
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: false, refused: "across" }, "nothing is left to pace");
+  assert.equal(rowOf(buildCrossingView(formation), "Alder").pace, null, "and no pick is drawn");
+  await endCrossing(formation);
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: false, refused: "closed" });
+  await beginCrossing(formation, "rappel");
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: false, refused: "paceNone" }, "a rappel prices no pace");
+  await endCrossing(formation);
+  await beginCrossing(formation, "jump");
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: false, refused: "notClimb" });
+  assert.deepEqual(await asAsync(PLAYER, () => setPace(formation, "Alder", "faster")), { ok: false, refused: "notGM" }, "a player's client writes nothing");
+});
+
+await ok("a player picks a pace for a member they own through the relay, declared and written on the GM client; a member they do not own, a crafted pace and a stale crossing are refused", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id }], ["Birch", { owner: OTHER.id }]]);
+  const id = readCrossing(formation).id;
+  seen.created.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingPace(formation, "Alder", "fastest")), { ok: true });
+  assert.equal(recordOf(formation, "Alder").pace, "fastest");
+  assert.equal(seen.created.length, 1, "one declaration");
+  assert.ok(seen.created[0].content.includes(format("ACKS-FORMATION.request.crossingPace", { name: "Alder", pace: "Fastest" })));
+  assert.equal(seen.created[0].whisper, undefined, "a declaration is public");
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingPace(formation, "Alder", "")), { ok: true });
+  assert.equal(recordOf(formation, "Alder").pace, undefined);
+  assert.ok(seen.created.at(-1).content.includes("Normal pace"));
+  seen.warned.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingPace(formation, "Birch", "faster")), { ok: false, refused: "notOwner" }, "the seat says it before it sends");
+  assert.equal(seen.warned.length, 1);
+  assert.equal(recordOf(formation, "Birch")?.pace, undefined);
+  // The GM client reads it again whatever the seat sent.
+  const send = (user, payload) => relay(user, formation, "crossing", { crossingId: id, step: "pace", ...payload });
+  seen.created.length = 0;
+  assert.deepEqual(await send(PLAYER, { actorId: "Birch", pace: "faster" }), { ok: false, refused: "notOwner" });
+  assert.deepEqual(await send(OTHER, { actorId: "Alder", pace: "faster" }), { ok: false, refused: "notOwner" }, "a bystander is refused");
+  assert.deepEqual(await send(PLAYER, { actorId: "Alder", pace: "hasty" }), { ok: false, refused: "paceOption" });
+  assert.deepEqual(await send(PLAYER, { actorId: "Alder", pace: { x: 1 } }), { ok: true }, "a pick that is no string is the base pace, still of a member they own");
+  assert.deepEqual(await send(PLAYER, { actorId: "Alder", pace: "faster", crossingId: "old" }), { ok: false, refused: "stale" });
+  assert.deepEqual(await send(PLAYER, { pace: "faster" }), { ok: false, refused: "notOwner" }, "no actor id is no member");
+  assert.equal(recordOf(formation, "Alder")?.pace, undefined, "nothing a refused request asked was written");
+  assert.deepEqual(await send(PLAYER, { actorId: "Alder", pace: "faster" }), { ok: true });
+  assert.equal(recordOf(formation, "Alder").pace, "faster");
+  assert.deepEqual(await send(GM, { actorId: "Birch", pace: "fastest" }), { ok: true }, "a Judge's relayed pick for any member");
+});
+
+await ok("a member who is down: a player's pick is refused with the reason said, a Judge's is written and warned", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id, hp: 0 }]]);
+  seen.warned.length = 0;
+  assert.deepEqual(await asAsync(PLAYER, () => requestCrossingPace(formation, "Alder", "faster")), { ok: false, refused: "down" });
+  assert.deepEqual(seen.warned, ["Alder is down"]);
+  assert.equal(recordOf(formation, "Alder")?.pace, undefined);
+  assert.deepEqual(await setPace(formation, "Alder", "faster", { player: true }), { ok: false, refused: "down" }, "the GM client blocks the player's too");
+  seen.warned.length = 0;
+  assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: true });
+  assert.deepEqual(seen.warned, ["Alder is down"], "the Judge is warned in the refusal's words");
+  assert.equal(recordOf(formation, "Alder").pace, "faster", "and the pick is written");
+  const view = rowOf(buildCrossingView(formation), "Alder").pace;
+  assert.equal(view.disabled, false, "the Judge's control is live");
+  assert.equal(rowOf(as(PLAYER, () => buildCrossingView(formation)), "Alder").pace.disabled, true, "the player's is not");
+});
+
+await ok("a pick whose size is no longer imported rolls nothing for any seat and says nothing; putting the pick back to the base pace is still allowed", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id }]]);
+  await setPace(formation, "Alder", "faster");
+  load();
+  const view = buildCrossingView(formation);
+  const row = rowOf(view, "Alder");
+  assert.deepEqual([row.can, row.said, row.target], [false, "", "12+"], "no throw, no words; the figure shown is the member's own");
+  assert.deepEqual(row.pace.options.map((o) => [o.label, o.selected]), [["Normal", false], ["Faster", true]], "the stored pick stays visible, by name");
+  assert.equal(row.pace.disabled, false, "and can be put back");
+  naturals.push(15);
+  seen.created.length = 0;
+  for (const player of [false, true]) {
+    const out = await throwFor(formation, "Alder", player ? { player: true } : {});
+    assert.deepEqual([out.ok, out.refused], [false, "pace"], `player ${player}`);
+  }
+  assert.deepEqual([seen.created.length, naturals.length], [0, 1], "no die was rolled and no card posted");
+  assert.equal(readCrossing(formation).members.Alder.throws, undefined);
+  assert.deepEqual(await setPace(formation, "Alder", ""), { ok: true });
+  assert.equal((await throwFor(formation, "Alder")).ok, true, "the base pace throws on the member's own figure");
+});
+
+await ok("the partial draws the pace pick for a holder only, with no literal id, no title and a handler on both seats", async () => {
+  const { formation } = await paceWorld([["Alder", { owner: PLAYER.id }], ["Birch", { holds: false }]]);
+  const judge = render({ crossing: buildCrossingView(formation) });
+  const player = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
+  for (const html of [judge, player]) {
+    assert.ok(html.includes('data-pace-for="Alder"') && html.includes('data-pick="crossing-pace-Alder"'));
+    assert.equal(html.includes('data-pace-for="Birch"'), false, "a non-holder has no pick");
+    assert.ok(html.includes('<option value="faster">Faster (−3)</option>'));
+    assert.equal(/\sid=/.test(html), false);
+    assert.equal(/title=/.test(html), false);
+  }
+  assert.equal(/data-pace-for="Alder"[^>]*disabled/.test(judge), false);
+  assert.equal(/data-pace-for="Alder"[^>]*disabled/.test(player), false, "an owner's pick is live");
+  const outsider = render({ crossing: as(OTHER, () => buildCrossingView(formation)) });
+  assert.ok(/data-pace-for="Alder"[^>]*disabled/.test(outsider), "a seat that owns nothing sees it, not live");
+  const actions = fs.readFileSync(new URL("../scripts/formation/formation-actions.mjs", import.meta.url), "utf8");
+  const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
+  assert.ok(/export function bindCrossingPace\(/.test(actions) && /select\[data-pace-for\]/.test(actions), "the select has a handler");
+  assert.ok(/\["pace", \(\) => bindCrossingPace\(this\)\]/.test(sheet), "and the sheet binds it on every render");
 });
 
 console.log(`\n${passed} passed`);
