@@ -397,3 +397,37 @@ decide that a turn ended, a second owner of the reading `turn-life.mjs` `turnEdg
 and `acksExtras.turnEnded` now give (MODEL.md, "Turn hooks"). Not built: the
 declaration's lapse listens to the hook and the local predicate goes, so the tracker's
 rounds that open before initiative is rolled are read once.
+
+## What System style does not hand back yet
+
+System style (the client `look` set to `core`) moves every ACKS colour and
+face onto Foundry's own, and TESTING ("The UI preset and its prompt", step 6)
+walks what holds. Players who asked for sheets that look like Foundry's
+default still find what follows. Each item changes what a user sees, so each
+starts with `/design`.
+
+- **The capitals.** This module's own sheets keep their uppercase labels,
+  though the setting's hint says System style hands the inscriptional
+  capitals back. Most `text-transform: uppercase` rules in `styles/` and
+  `vendor/acks-design/` carry no look scope. The likely shape is a caps token
+  that System style sets to `none`, read at each site.
+- **Buttons, table heads and gold.** `.acks-btn` and `.acks-table` carry no
+  `.acks-ui` scope, so they keep their own fills and capitals in place of
+  Foundry's. The gold tokens and the text colours drawn on burgundy are not
+  re-pointed at Foundry's variables (`vendor/acks-design/foundry.css` §8).
+  Foundry declares its `--button-*` variables only on `a.button`, `button`
+  and `kbd`, so an `<a class="acks-btn">` needs a fallback of its own.
+- **The frame's layout.** The band in the header, the portrait rails and the
+  design canvas's measured sizes (`styles/lib-frame.css`) hold under every
+  look. System style changes their colours and faces, not their shape.
+- **A player's own choice of sheets.** Which sheet a document type opens on is
+  the world's `uiPreset`, which the Judge sets. A player can choose their own
+  look but cannot choose the system's sheets for their seat alone. The ladder
+  already writes its defaults into each client's memory
+  (`scripts/lib/ui-preset.mjs`), so a client setting could pick the rung for
+  its seat. A Judge's pin on a type, a document's own sheet choice and the
+  sub-types only this module draws would still outrank it, and a new setting
+  makes it a minor.
+- **Foundry's own Font Size setting.** It sets only `html { font-size }`, so
+  this module's text follows `--acks-fs-base` and not core's knob. Whether
+  System style should follow core's knob is not ruled.
