@@ -119,9 +119,9 @@ try {
     await openSheet();
     const t = tag("divine");
     const tip = t?.getAttribute("data-tooltip-text") ?? "";
-    return { divine: shown("divine"), arcane: shown("arcane"), plus: strip().querySelectorAll('[data-power-adjust="1"]').length, minus: strip().querySelectorAll('[data-power-adjust="-1"]').length, count: strip().querySelectorAll("[data-power-count]").length, rows: rows().length, tipHasEntry: tip.includes("QA Sacrifice source") && tip.includes("+8"), tipHasPage: /\\bRR\\b/.test(tip), rowName: rows()[0]?.querySelector(".acks-extras-classes-powername")?.textContent.trim(), art: !!rows()[0]?.querySelector(".acks-extras-classes-powerart img, .acks-extras-classes-powerart i"), literalIds: strip().querySelectorAll("[id]").length };`);
+    return { divine: shown("divine"), arcane: shown("arcane"), plus: strip().querySelectorAll('[data-power-adjust="1"]').length, minus: strip().querySelectorAll('[data-power-adjust="-1"]').length, count: strip().querySelectorAll("[data-power-count]").length, rows: rows().length, tipHasEntry: tip.includes("QA Sacrifice source") && tip.includes("+8"), tipHasPage: /\\bRR\\b/.test(tip), rowName: rows()[0]?.querySelector(".acks-extras-classes-powername")?.textContent.trim(), art: !!rows()[0]?.querySelector(".acks-extras-classes-powerart img, .acks-extras-classes-powerart i"), literalIds: [...strip().querySelectorAll("[id]")].filter((e) => !e.id.startsWith(actor().sheet.id + "-")).length };`);
   check("the Judge's strip draws both tags, the balance on the divine one, a plus and a minus on each and one count box", c1.divine === 8 && c1.arcane === 0 && c1.plus === 2 && c1.minus === 2 && c1.count === 1, c1);
-  check("the tooltip lists the entry with its sign and the page, the entry is a row with the source's name and art, and no element carries an id", c1.tipHasEntry && c1.tipHasPage && c1.rows === 1 && c1.rowName === "QA Sacrifice source" && c1.art && c1.literalIds === 0, c1);
+  check("the tooltip lists the entry with its sign and the page, the entry is a row with the source's name and art, and no element carries an id but one lib's a11y binder seeds from the window", c1.tipHasEntry && c1.tipHasPage && c1.rows === 1 && c1.rowName === "QA Sacrifice source" && c1.art && c1.literalIds === 0, c1);
 
   section("2. a Judge's plus, minus and Undo on the strip");
   const w0 = await updates();

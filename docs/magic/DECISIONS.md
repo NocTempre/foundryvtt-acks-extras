@@ -597,7 +597,7 @@ penalty), which way should it round?", the owner chose "Bigger penalty (-3)".
   which is -3, not -2.
 - *Cost:* one point more on every uneven share than the reading this replaces.
 
-## 2026-11-18 — The power ledger and its chip (M-l, ruling 217)
+## 2026-11-18 — The power ledger and its chip (M-l, ruling 217) — SUPERSEDED IN PART 2026-11-18
 
 Built to board 12, which the owner approved with the v19 canvas: "Approve spell cast
 design". The art rule stands: "Find open art to attribute or better yet art/texture
@@ -657,3 +657,26 @@ of one up, so a row built over a balance of nothing counts one (`count` in `buck
 magic's `powerRow` returns no row below one. A week the calendar cannot list is null, which
 cannot be checked offline: `calendar.days.values` is read as the weekday list on the live
 walk only.
+
+## 2026-11-18 — The ledger's plus and minus: the owner's two answers
+
+This entry supersedes in part "The power ledger and its chip (M-l, ruling 217)": its
+bullet "A Judge's plus is a gain written by hand, and it fades like any other". The new
+evidence is the owner's answers to the two questions M-l raised.
+
+- **One pair per tag stands.** Asked whether the plus and minus should be one pair on
+  each tag or a single pair acting on the pressed tag, the owner chose "One pair per
+  tag". The chip stays as built: the divine tag and the arcane tag each carry their own.
+- **A Judge's plus may fade or stay.** Asked whether a hand plus should fade like any
+  gain or stay until removed, the owner answered "Allow both". The Judge picks one of the
+  two when adding: a fading point lapses at the lifetime, as before; a permanent point
+  stands until a minus takes it. How the Judge picks is a new control, so it waits for a
+  board variant the owner approves (`.claude/rules/ui-layout.md`). Until then every hand
+  plus fades.
+- *Cost:* a permanent lot is held apart from the lifetime the Judge imported, so a
+  balance can carry power the page's span would have ended. The Judge chooses it each time.
+
+The two points M-l left open were checked on the walk. Core 14's `calendar.days.values`
+is the world calendar's weekday list, with the weekday objects themselves as entries, so
+a week is that many days. The two page references (RR 388 arcane, RR 422 divine) are the
+pages from which the M-i walk's import read both lifetime passages.
