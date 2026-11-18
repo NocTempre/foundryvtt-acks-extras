@@ -23,12 +23,12 @@ import {
   EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
   SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope,
 } from "../../scripts/lib/vocab.mjs";
-import { AREA_MEASURES, DISTANCE_UNITS, REGISTER_KEY } from "../../scripts/lib/magic-vocab.mjs";
+import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
   "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
-  "pick", "pickOption", "reversed",
+  "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate",
 ]);
@@ -158,6 +158,8 @@ export function spellRecipeProblems({ effects, values } = {}) {
     if (!inTable(EFFECT_LASTS, spec.lasts)) out.push(`${label}.lasts "${spec.lasts}" is not a duration kind`);
     if (!inTable(EFFECT_RECURRENCES, spec.recur)) out.push(`${label}.recur "${spec.recur}" is not a recurrence`);
     if (!inTable(HEAL_KINDS, spec.healKind)) out.push(`${label}.healKind "${spec.healKind}" is not a heal kind`);
+    if (!inTable(SUMMON_FORMATS, spec.summonFormat)) out.push(`${label}.summonFormat "${spec.summonFormat}" is not a summon format`);
+    if (!inTable(CONTROL_KINDS, spec.control)) out.push(`${label}.control "${spec.control}" is not a control kind`);
     if (spec.type === "modifier" && !inTable(MODIFIER_TARGETS, spec.target)) out.push(`${label}.target "${spec.target}" is not a modifier target`);
     scopeProblems(spec, label, out);
     if (spec.anyOf !== undefined) anyOfProblems(spec.anyOf, label, out);

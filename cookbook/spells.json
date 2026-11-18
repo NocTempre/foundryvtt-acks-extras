@@ -5789,6 +5789,26 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "calling",
+              "control": "cooperative",
+              "ref": "mm.wolfCommon",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "calls\\s*(an?)\\s*\\w+\\s*to\\s*the\\s*caster"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -8125,6 +8145,29 @@
                   10
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "conjuration",
+              "control": "obedient",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "amount",
+                  "articles": true,
+                  "pattern": "conjure\\s*(an?)\\s*[\\w\\s]{1,40}?with\\s*\\d+\\s*HD"
+                },
+                {
+                  "into": "value",
+                  "pattern": "with\\s*(\\d+)\\s*HD"
+                }
+              ]
             }
           ]
         }
@@ -15319,6 +15362,16 @@
                   17
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "control": "obedient"
             }
           ]
         }
@@ -32858,6 +32911,26 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "summonFormat": "summoning",
+              "control": "obedient",
+              "ref": "mm.manes",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "max",
+                  "as": "perLevel",
+                  "pattern": "summons\\s*(one)\\s*\\w+\\s*per\\s*(?:caster\\s*)?level"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -35519,6 +35592,16 @@
                   10
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "creature",
+              "type": "summon",
+              "control": "obedient"
             }
           ]
         }
