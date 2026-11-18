@@ -408,28 +408,101 @@ tokens and combat per run.
 
 ### Owner questions
 
-1. Who may press Quick grab: any seat that may Take (built; it places goods on
-   characters the seat does not own), the Judge only, or a seat owning a member?
-2. A world with two or more parties needs a party picker on the pot (ROADMAP
-   row); until then the pot has no party there.
-3. A value card in a grab weighs its own `weight6`, while it is delivered as
-   minted coin: should it weigh the coin?
-4. Should a Judge be able to un-detect an identified item? The control allows it.
-5. Should "No magic" strike Judge-seeded cards?
-6. Should "Force cursed" set `curseKnown` on an item already fully identified?
-7. Special treasure is off unless asked (T4): right default?
-8. Should the tt-importer name each dice-legend row's special list (and mark
-   the "leave the lot" row), so T4 drops its order-and-wording pairing?
-9. The deal-a-letter control and T5's entry points need `/design`.
-10. T3: a tick control for the Judge to change a replace seed's lots (question B allows it in "Judge deals" mode; the mockup draws none, so both modes take the auto-pick; ROADMAP "Replace ticks") needs `/design`.
-11. T3: a seed the lots cannot cover takes none (built) rather than striking every free lot; a seed stands in its first struck lot's slot (built) rather than at a drawn position.
+Each question gives its options, what is built now, a recommendation, and the
+strongest counter-argument with how strong it is. Answer with the option
+letters, e.g. "1c, 2a, 3b".
+
+1. **Who may press Quick grab?**
+   (a) Any seat that may Take. This is built: a player's press places goods on
+   members that player does not own.
+   (b) The Judge only.
+   (c) A seat that owns at least one member of the pot's party.
+   Recommended: (c). An observer or a player outside the party loses the
+   button, and the party's own players still share out one load.
+   Counter (moderate): (c) still lets one player load another player's
+   character. Only (b) stops that, and it costs the Judge a click on every pot.
+2. **What does the pot do in a world with two or more parties?**
+   (a) Nothing more. This is built: the pot has no party, so the aside and
+   Quick grab stay hidden until a picker exists (ROADMAP row).
+   (b) A party picker on the staging rail, built next. It needs `/design`.
+   (c) It takes the party whose members own the most tokens on the scene, with
+   no control.
+   Recommended: (b), after the minor.
+   Counter (moderate): most tables run one party. (a) costs nothing until a
+   world hits the case, and (c) needs no design.
+3. **What does a value card weigh in a grab?**
+   (a) Its own `weight6`. This is built.
+   (b) The coin it is delivered as.
+   Recommended: (b). The member carries the coin after delivery, so a pace
+   worked out on the card's own weight is wrong as soon as the grab lands.
+   Counter (moderate): a coin's weight is a printed value that arrives by
+   import. With nothing imported, (b) has no weight to use and must fall back
+   to (a) anyway.
+4. **May a Judge un-detect an identified item?**
+   (a) Yes. This is built: the control steps back as well as forward.
+   (b) No. Identification only moves forward, and a Judge who needs to undo it
+   edits the item.
+   Recommended: (a). It is how a Judge undoes a misclick.
+   Counter (weak): chat cards already posted keep what players saw, so after an
+   un-detect the pot and the chat disagree.
+5. **Does "No magic" strike Judge-seeded cards?**
+   (a) Yes. This is built: the toggle means no magic in the pot at all, and a
+   by-hand pot has no roll to skip.
+   (b) No. It filters what the table rolls, and a seed is the Judge's explicit
+   choice. A seed added while the toggle is on raises a warning to the Judge.
+   Recommended: (a). The toggle does what its name says, and the Judge's
+   whisper names every card it struck.
+   Counter (moderate): a Judge who seeds a magic item on purpose into a "No
+   magic" pot loses it at open. The whisper reports the loss only after the
+   fact.
+6. **Does "Force cursed" set `curseKnown` on an item already fully
+   identified?**
+   (a) Yes. A fully identified card shows everything, so a curse forced on it
+   shows too.
+   (b) No. This is built: the toggle sets `markets.cursed` and never
+   `curseKnown`, so the curse stays hidden until the Judge ticks it.
+   Recommended: (a), for fully identified cards only. Under (b), a card marked
+   "full" hides part of itself, which contradicts its own state.
+   Counter (moderate): a Judge forcing a curse late may want it to catch the
+   party unaware. (b) allows that, and a hand tick reveals it later.
+7. **What is the default for special treasure (T4)?**
+   (a) Off unless the Judge ticks it. This is built.
+   (b) On.
+   (c) The Judge's last choice, remembered per world.
+   Recommended: (a). A deal does exactly what the rail shows.
+   Counter (moderate): under (a), a Judge who wants specials in every deal
+   ticks the toggle on every pot. (c) saves those clicks.
+8. **Does the tt-importer name each dice-legend row's special list?**
+   (a) Yes. The importer tags each row with its list key and marks the "leave
+   the lot" row, and T4 drops its pairing by order and wording.
+   (b) No. T4 keeps pairing by position, which works on today's import.
+   Recommended: (a), in the tt-importer track.
+   Counter (moderate): it adds a cookbook recompile and a stamp refresh to a
+   track that is already in flight (S6), for a pairing that works today. A
+   later printing that reorders the rows breaks only (b), though.
+11. **Two T3 behaviours**, answered separately as 11a and 11b.
+   11a. **A replacing seed that the free lots cannot cover:**
+   (a) takes no lots. This is built.
+   (b) takes every free lot.
+   (c) is refused, with a warning to the Judge.
+   Recommended: (a) plus the Judge warning from (c). The seed still lands, and
+   the Judge learns that the pot is worth more than the table rolled.
+   Counter (moderate): (b) keeps the pot's total close to the roll. (a)
+   inflates it by the seed's whole worth.
+   11b. **Where a seed sits in the pot:**
+   (a) in its first struck lot's slot. This is built.
+   (b) at a drawn position.
+   Recommended: (a). The face-down order then still says nothing about which
+   lots were rolled.
+   Counter (weak): a player watching the pot fill can see the seed land where
+   a lot was. (b) hides that, at the cost of a draw the replay cannot pin
+   without the injected RNG.
+
+9 and 10 are answered by the `/design` artifact https://claude.ai/artifact/MWGwR5rfqxhhgmzrjvytnR (deal a letter, T5's entry points and lair warning, T3's replace ticks), which waits on the owner's feedback.
 
 The plan's T3 line ("a random position is a `shuffle(...)`") no longer matches: placement uses the injected-rng `placeAdds`.
 
-Also outside these slices and not fixed: the Details-tab price ledger shows a
-player an unidentified magic item's true cost, and trade chat lines say
-"Apparent value". A player's slot badge can read below the cap while the place
-is marked full. The MODEL flag table's `origin` row predates R6.
+Also outside these slices: trade chat lines say "Apparent value" (not fixed). The price-ledger leak, the slot badge against the full mark and the stale `origin` row are fixed ("Progress after handover").
 `acks-extras-treasure-search__*` classes are unstyled. The staging screenshots,
 guide step and gallery row are stale. The magic colour is a literal oklch, for
 want of a blue token.
@@ -453,3 +526,6 @@ want of a blue token.
 - 2026-11-17: step 2 started (a fresh implementer on the price-ledger leak, the slot badge against the full mark and the MODEL origin row).
 - 2026-11-17: step 3 done: /design artifact https://claude.ai/artifact/MWGwR5rfqxhhgmzrjvytnR with four boards (deal a letter, monster sheet and selected tokens, lair warning, replace ticks). Nothing built.
 - 2026-11-17: step 1 done: the cover was a member's character sheet the walk opened in step 4 (z 103 over the pot's 102), so no product defect; the walk fronts the pot as the user's corner drag does, and locate names a cover's window. treasure-party on lane C: 26 pass, 0 fail.
+- 2026-11-17: step 2 walked: markets-undetected on lane C 74 pass, 0 fail (the player's ledger one line at the apparent 40, the Judge's at the true 250; the place full for the GM and not the player); landing through acks-commit.
+- 2026-11-17: step 4 started (owner questions 1 to 8 and 11 rewritten as answerable questions).
+- 2026-11-17: step 4 done: questions 1 to 8 and 11 under "Owner questions" above carry options, what is built, a recommendation and the strongest counter with its strength; 9 and 10 point at the design artifact.
