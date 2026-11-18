@@ -25,6 +25,30 @@ export function poolValueAt(tradition, level) {
   return rows.reduce((best, r) => (r.atLevel > best.atLevel ? r : best)).value;
 }
 
+/**
+ * The rung of the ladder a tradition's `levelCap` names, at `level`: exact
+ * rung, else the highest below it. Null where the row names no ladder, the
+ * class has no such ladder, or no rung is at or below `level`.
+ */
+function capRungAt(classItem, tradition, level) {
+  if (!tradition?.levelCap) return null;
+  const ladder = (classItem?.system?.ladders ?? []).find((l) => l.key === tradition.levelCap);
+  const rungs = (ladder?.values ?? []).filter((v) => v.atLevel <= level);
+  return rungs.length ? rungs.reduce((b, r) => (r.atLevel > b.atLevel ? r : b)) : null;
+}
+
+/**
+ * The number a tradition's level cap gives at class `level`: the rung of the
+ * ladder its casting row's `levelCap` names. `tradition` is the casting row
+ * or its key. Null where the row has no `levelCap`, the class has no such
+ * ladder, or the rung is not a number.
+ */
+export function traditionCapAt(classItem, tradition, level) {
+  const row = typeof tradition === "string" ? (classItem?.system?.casting ?? []).find((t) => t.key === tradition) : tradition;
+  const value = capRungAt(classItem, row, level)?.value;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
 /** Spent state for one actor: `{ [traditionKey]: {s1..s6 | points} }`. */
 const spentFor = (actor) => actor.getFlag(MODULE_ID, FLAG_CLASSES)?.pools ?? {};
 
@@ -61,13 +85,9 @@ export function poolState(actor) {
     // rung (the gnostic classes' maximum invocation level, named by the row's
     // `levelCap`) still shows what the character can reach — the
     // slot-equivalent, without a spend.
-    const ladder = t.levelCap ? (classItem.system.ladders ?? []).find((l) => l.key === t.levelCap) : null;
-    if (ladder) {
-      const rungs = (ladder.values ?? []).filter((v) => v.atLevel <= level);
-      const rung = rungs.length ? rungs.reduce((b, r) => (r.atLevel > b.atLevel ? r : b)) : null;
-      const cap = rung ? (rung.text || (rung.value != null ? String(rung.value) : "")) : "";
-      if (cap) out.push({ key: t.key, label: t.label || t.key, kind: t.kind, capacity: cap });
-    }
+    const rung = capRungAt(classItem, t, level);
+    const cap = rung ? (rung.text || (rung.value != null ? String(rung.value) : "")) : "";
+    if (cap) out.push({ key: t.key, label: t.label || t.key, kind: t.kind, capacity: cap });
   }
   return out;
 }

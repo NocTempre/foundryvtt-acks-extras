@@ -28,7 +28,7 @@ import {
 import { classUpdateData, damageBonusLadder, grantFixedAwards, rebindsHeldClass, syncClassTraining } from "../scripts/classes/apply.mjs";
 import { clampLevel, atLevelCap, levelCap } from "../scripts/classes/level-cap.mjs";
 import { classForActor, findByRef, publish } from "../scripts/classes/registry.mjs";
-import { poolState } from "../scripts/classes/casting.mjs";
+import { poolState, traditionCapAt } from "../scripts/classes/casting.mjs";
 import { casterLevel as resolveCasterLevel } from "../scripts/magic/cast-level.mjs";
 import { CLASS_TYPE, LANG_PREFIX, PROGRESSIONS_DOC_ID } from "../scripts/classes/constants.mjs";
 import { builderUpdate } from "../scripts/importer/builder-binding.mjs";
@@ -1957,6 +1957,28 @@ try {
     } finally {
       globalThis.fromUuidSync = () => null;
     }
+  });
+
+  test("traditionCapAt is the number at the class level on the ladder the row's levelCap names", () => {
+    const ladders = [
+      { key: "reachLadder", values: [{ atLevel: 1, value: 1 }, { atLevel: 4, value: 2 }, { atLevel: 7, value: 3 }] },
+      { key: "wordsOnly", values: [{ atLevel: 1, value: null, text: "two" }] },
+    ];
+    const rowOf = (levelCap) => ({ key: "reach", kind: "gnosis", levelCap });
+    const cls = { system: { casting: [rowOf("reachLadder")], ladders } };
+    assert.equal(traditionCapAt(cls, rowOf("reachLadder"), 1), 1);
+    assert.equal(traditionCapAt(cls, rowOf("reachLadder"), 4), 2, "an exact rung");
+    assert.equal(traditionCapAt(cls, rowOf("reachLadder"), 6), 2, "else the highest below");
+    assert.equal(traditionCapAt(cls, rowOf("reachLadder"), 12), 3);
+    assert.equal(traditionCapAt(cls, "reach", 7), 3, "a tradition key reads its row");
+    assert.equal(traditionCapAt(cls, "absent", 7), null, "an unknown key");
+    assert.equal(traditionCapAt(cls, rowOf(""), 7), null, "no levelCap");
+    assert.equal(traditionCapAt(cls, rowOf("absent"), 7), null, "no such ladder");
+    assert.equal(traditionCapAt(cls, rowOf("wordsOnly"), 7), null, "a rung that is not a number");
+    assert.equal(traditionCapAt(cls, rowOf("reachLadder"), 0), null, "a level below every rung");
+    assert.equal(traditionCapAt({ system: {} }, rowOf("reachLadder"), 5), null, "a class with no ladders");
+    assert.equal(traditionCapAt(null, rowOf("reachLadder"), 5), null);
+    assert.equal(traditionCapAt(cls, null, 5), null);
   });
 
   test("every compiled gnosis casting row names its level cap and leaves the caster level at the class level", () => {
