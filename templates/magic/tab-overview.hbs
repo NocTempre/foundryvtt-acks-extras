@@ -154,64 +154,15 @@
 
   <fieldset>
     <legend>{{localize "ACKS-MAGIC.overview.duration"}}</legend>
-    <div class="form-group">
-      <label>{{localize "ACKS-MAGIC.overview.shape"}}</label>
-      <div class="form-fields">
-        <select name="{{x}}.duration.shape">{{selectOptions choices.durationShape selected=extras.duration.shape blank=none}}</select>
-      </div>
-    </div>
-    {{#if show.concentration}}
-      <div class="form-group">
-        <label>{{localize "ACKS-MAGIC.overview.concentration"}}</label>
-        <div class="form-fields">
-          <select name="{{x}}.duration.concentration">{{selectOptions choices.concentrationKind selected=extras.duration.concentration blank=none}}</select>
-        </div>
-      </div>
-    {{/if}}
-    {{#if show.time}}
-      <div class="form-group">
-        <label>{{localize "ACKS-MAGIC.overview.time"}}</label>
-        <div class="form-fields">
-          <input type="number" step="any" min="0" name="{{x}}.duration.value" value="{{extras.duration.value}}" placeholder="—">
-          <select name="{{x}}.duration.unit">{{selectOptions choices.timeUnit selected=extras.duration.unit blank=none}}</select>
-        </div>
-        {{#if show.maxPerLevel}}
-          <label class="acks-magic-inline">
-            <input type="checkbox" name="{{x}}.duration.maxPerLevel" {{checked extras.duration.maxPerLevel}}>
-            {{localize "ACKS-MAGIC.overview.maxPerLevel"}}
-          </label>
-        {{/if}}
-      </div>
-    {{/if}}
-    {{#if show.dice}}
-      <div class="form-group">
-        <label>{{localize "ACKS-MAGIC.overview.dice"}}</label>
-        <div class="form-fields">
-          <input type="text" name="{{x}}.duration.dice" value="{{extras.duration.dice}}" placeholder="1d6">
-          <select name="{{x}}.duration.unit">{{selectOptions choices.timeUnit selected=extras.duration.unit blank=none}}</select>
-        </div>
-      </div>
-    {{/if}}
-    {{#if show.plus}}
-      <div class="form-group">
-        <label>{{localize "ACKS-MAGIC.overview.plus"}}</label>
-        <div class="form-fields">
-          <input type="number" step="any" min="0" name="{{x}}.duration.plus.value" value="{{extras.duration.plus.value}}" placeholder="—">
-          <select name="{{x}}.duration.plus.unit">{{selectOptions choices.timeUnit selected=extras.duration.plus.unit blank=none}}</select>
-        </div>
-        <p class="hint">{{localize "ACKS-MAGIC.overview.plusHint"}}</p>
-      </div>
-    {{/if}}
-    <div class="form-group">
-      <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
-      <div class="form-fields">
-        <input type="text" name="{{x}}.duration.note" value="{{extras.duration.note}}">
-      </div>
-    </div>
-    {{#if durationText}}
-      <p class="acks-magic-derived">{{localize "ACKS-MAGIC.overview.displayedAs" text=durationText}}</p>
-    {{/if}}
+    {{> "modules/acks-extras/templates/magic/duration-fields.hbs" durations.main}}
   </fieldset>
+
+  {{#if extras.reversible}}
+    <fieldset>
+      <legend>{{localize "ACKS-MAGIC.overview.reversedDuration"}}</legend>
+      {{> "modules/acks-extras/templates/magic/duration-fields.hbs" durations.reversed}}
+    </fieldset>
+  {{/if}}
 
   <fieldset>
     <legend>{{localize "ACKS-MAGIC.overview.casting"}}</legend>
@@ -274,6 +225,14 @@
         {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.hdCap}}
       </div>
       <p class="hint">{{localize "ACKS-MAGIC.overview.hdCapHint"}}</p>
+    </div>
+    <div class="form-group"{{#if figureTips.hdBelow}} data-tooltip-text="{{figureTips.hdBelow}}"{{/if}}>
+      {{!-- label-ok: the control is inside the level-value partial; associateLabels binds it at runtime --}}
+      <label>{{localize "ACKS-MAGIC.overview.hdBelow"}}</label>
+      <div class="form-fields">
+        {{> "modules/acks-extras/templates/magic/level-value.hbs" levelValues.hdBelow}}
+      </div>
+      <p class="hint">{{localize "ACKS-MAGIC.overview.hdBelowHint"}}</p>
     </div>
     {{#if show.area}}
       <div class="form-group">

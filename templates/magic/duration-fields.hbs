@@ -1,0 +1,63 @@
+{{!
+  The fields of one duration: the spell's own, or its reversed form's. The
+  context is `durationView()`'s: `name` the flag path the inputs submit to,
+  `d` the stored duration, `show` the controls its shape reads and `text`
+  the line the shape displays as.
+}}
+<div class="form-group">
+  <label>{{localize "ACKS-MAGIC.overview.shape"}}</label>
+  <div class="form-fields">
+    <select name="{{name}}.shape">{{selectOptions @root.choices.durationShape selected=d.shape blank=@root.none}}</select>
+  </div>
+</div>
+{{#if show.concentration}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MAGIC.overview.concentration"}}</label>
+    <div class="form-fields">
+      <select name="{{name}}.concentration">{{selectOptions @root.choices.concentrationKind selected=d.concentration blank=@root.none}}</select>
+    </div>
+  </div>
+{{/if}}
+{{#if show.time}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MAGIC.overview.time"}}</label>
+    <div class="form-fields">
+      <input type="number" step="any" min="0" name="{{name}}.value" value="{{d.value}}" placeholder="—">
+      <select name="{{name}}.unit">{{selectOptions @root.choices.timeUnit selected=d.unit blank=@root.none}}</select>
+    </div>
+    {{#if show.maxPerLevel}}
+      <label class="acks-magic-inline">
+        <input type="checkbox" name="{{name}}.maxPerLevel" {{checked d.maxPerLevel}}>
+        {{localize "ACKS-MAGIC.overview.maxPerLevel"}}
+      </label>
+    {{/if}}
+  </div>
+{{/if}}
+{{#if show.dice}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MAGIC.overview.dice"}}</label>
+    <div class="form-fields">
+      <input type="text" name="{{name}}.dice" value="{{d.dice}}" placeholder="1d6">
+      <select name="{{name}}.unit">{{selectOptions @root.choices.timeUnit selected=d.unit blank=@root.none}}</select>
+    </div>
+  </div>
+{{/if}}
+{{#if show.plus}}
+  <div class="form-group">
+    <label>{{localize "ACKS-MAGIC.overview.plus"}}</label>
+    <div class="form-fields">
+      <input type="number" step="any" min="0" name="{{name}}.plus.value" value="{{d.plus.value}}" placeholder="—">
+      <select name="{{name}}.plus.unit">{{selectOptions @root.choices.timeUnit selected=d.plus.unit blank=@root.none}}</select>
+    </div>
+    <p class="hint">{{localize "ACKS-MAGIC.overview.plusHint"}}</p>
+  </div>
+{{/if}}
+<div class="form-group">
+  <label>{{localize "ACKS-MAGIC.overview.note"}}</label>
+  <div class="form-fields">
+    <input type="text" name="{{name}}.note" value="{{d.note}}">
+  </div>
+</div>
+{{#if text}}
+  <p class="acks-magic-derived">{{localize "ACKS-MAGIC.overview.displayedAs" text=text}}</p>
+{{/if}}

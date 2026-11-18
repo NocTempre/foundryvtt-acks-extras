@@ -56,14 +56,7 @@ import { ENDS_ON_CAUSES } from "../ends-on.mjs";
 
 const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
-/**
- * The editor's words: a key under the library's own `effectEditor` root, else the
- * same path under the magic feature's `editor` root, where the spell-row fields' words live.
- */
-const loc = (key, data) => {
-  const own = `${LANG_PREFIX}.effectEditor.${key}`;
-  return game.i18n.format(game.i18n.has?.(own) === false ? `ACKS-MAGIC.editor.${key}` : own, data ?? {});
-};
+const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.effectEditor.${key}`, data ?? {});
 
 /**
  * How each field of `effectField()` is edited. `set` renders one box per

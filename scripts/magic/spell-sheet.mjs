@@ -32,6 +32,8 @@ const T = `modules/${MODULE_ID}/templates/magic`;
 const CORE_EFFECTS_PARTIAL = "systems/acks/templates/items/v2/common/item-active-effects.hbs";
 /** The flat / per-level value control the Overview tab repeats. */
 export const LEVEL_VALUE_PARTIAL = `${T}/level-value.hbs`;
+/** The fields of one duration, used for the spell's own and for its reversed form's. */
+export const DURATION_PARTIAL = `${T}/duration-fields.hbs`;
 /** The flag's dotted path in an update. */
 export const FLAG_PATH = `flags.${MODULE_ID}.${FLAG_SPELL}`;
 
@@ -50,6 +52,8 @@ export function spellEffectStore(item) {
     key: `${item.uuid}:${FLAG_SPELL}.effects`,
     label: item.name,
     domain: "spell",
+    // The page the spell is read from: a blank located figure's tooltip names it.
+    cite: () => SpellExtras.fromItem(item).toObject().cite,
     read: () => SpellExtras.fromItem(item).toObject().effects,
     write: async (rows, { removed } = {}) => {
       const data = SpellExtras.fromItem(item).toObject();
@@ -74,6 +78,29 @@ function levelValue(name, value, label) {
     isPerLevel: kind === "perLevel",
     kinds: V.choicesOf(V.VALUE_KINDS),
     rounds: V.choicesOf(V.VALUE_ROUNDING),
+  };
+}
+
+/**
+ * One duration as the duration partial's context: the flag path its inputs
+ * submit to, the stored duration, the controls its shape reads (the rest stay
+ * off the sheet rather than sitting inert beside a shape that never consults
+ * them) and the line it displays as.
+ */
+export function durationView(key, duration) {
+  const d = duration ?? {};
+  const shape = d.shape ?? "";
+  return {
+    name: `${FLAG_PATH}.${key}`,
+    d,
+    text: displayDuration(d),
+    show: {
+      time: ["fixed", "perLevel", "basePlusPerLevel", "concentrationMax"].includes(shape),
+      plus: ["basePlusPerLevel", "concentrationPlus"].includes(shape),
+      dice: shape === "dice",
+      concentration: shape.startsWith("concentration"),
+      maxPerLevel: shape === "concentrationMax",
+    },
   };
 }
 
@@ -171,7 +198,7 @@ export function createSpellSheet(Base) {
   // Foundry's Active Effects). Core's `effects` part is folded into
   // mechanics rather than kept beside it.
   const parts = { header: P.header, tabs: P.tabs };
-  parts.overview = { template: `${T}/tab-overview.hbs`, templates: [LEVEL_VALUE_PARTIAL], scrollable: [""] };
+  parts.overview = { template: `${T}/tab-overview.hbs`, templates: [LEVEL_VALUE_PARTIAL, DURATION_PARTIAL], scrollable: [""] };
   if (P.description) parts.description = P.description;
   parts.mechanics = { template: `${T}/tab-mechanics.hbs`, templates: [CORE_EFFECTS_PARTIAL], scrollable: [""] };
 
@@ -225,15 +252,9 @@ export function createSpellSheet(Base) {
       // Which controls a shape reads: the rest stay off the sheet rather than
       // sitting inert beside a shape that never consults them.
       const rs = data.range?.shape ?? "";
-      const ds = data.duration?.shape ?? "";
       const tm = data.target?.model ?? "";
       context.show = {
         distance: ["touchOrDistance", "distance", "distancePerLevel"].includes(rs),
-        time: ["fixed", "perLevel", "basePlusPerLevel", "concentrationMax"].includes(ds),
-        plus: ["basePlusPerLevel", "concentrationPlus"].includes(ds),
-        dice: ds === "dice",
-        concentration: ds.startsWith("concentration"),
-        maxPerLevel: ds === "concentrationMax",
         castingTimed: data.castingTime?.shape === "timed",
         count: ["creature", "recipient", "object"].includes(tm),
         hdPool: tm === "hdPool",
@@ -241,7 +262,7 @@ export function createSpellSheet(Base) {
         areaWidth: data.target?.area?.measure === "length",
       };
       context.rangeText = displayRange(data.range);
-      context.durationText = displayDuration(data.duration);
+      context.durations = { main: durationView("duration", data.duration), reversed: durationView("reversedDuration", data.reversedDuration) };
       context.levelValues = {
         count: levelValue(`${FLAG_PATH}.target.count`, data.target?.count, loc("overview.count")),
         hdPool: levelValue(`${FLAG_PATH}.target.hdPool`, data.target?.hdPool, loc("overview.hdPool")),
@@ -249,10 +270,12 @@ export function createSpellSheet(Base) {
         areaWidth: levelValue(`${FLAG_PATH}.target.area.width`, data.target?.area?.width, loc("overview.areaWidth")),
         saveModifier: levelValue(`${FLAG_PATH}.save.modifier`, data.save?.modifier, loc("overview.saveModifier")),
         hdCap: levelValue(`${FLAG_PATH}.target.hdCap`, data.target?.hdCap, loc("overview.hdCap")),
+        hdBelow: levelValue(`${FLAG_PATH}.target.hdBelow`, data.target?.hdBelow, loc("overview.hdBelow")),
         exemptBelowHd: levelValue(`${FLAG_PATH}.save.exemptBelowHd`, data.save?.exemptBelowHd, loc("overview.exemptBelowHd")),
       };
       context.figureTips = {
         hdCap: figureTip(data.target?.hdCap, data.cite),
+        hdBelow: figureTip(data.target?.hdBelow, data.cite),
         exemptBelowHd: figureTip(data.save?.exemptBelowHd, data.cite),
       };
       context.areaExtent = areaExtentView(data.target?.area, data.cite);

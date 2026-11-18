@@ -1501,7 +1501,7 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
   t("the fields a spell's rows gained are edited per kind, each with a label and a tooltip in the lang file", async () => {
     const { readFileSync } = await import("node:fs");
     const lang = JSON.parse(readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
-    const said = (part) => lang[`ACKS-LIB.effectEditor.${part}`] ?? lang[`ACKS-MAGIC.editor.${part}`];
+    const said = (part) => lang[`ACKS-LIB.effectEditor.${part}`];
     const kinds = {
       modifier: ["ownSave", "ifHas", "pickKind", "attackKinds", "gate.status", "gate.occasion", "endsOn"],
       ward: ["saveEffect", "endsOn"],
@@ -1740,5 +1740,100 @@ t("a delete retires a register row's key and nothing else", () => {
   assert.deepEqual(retiredWith(undefined, undefined), []);
 });
 
+/* ------------------------------------------------------------------ */
+/*  The spell sheet's Overview: the target and reversal figures        */
+/* ------------------------------------------------------------------ */
+
+{
+  // The sheet module reads Foundry globals at import and at its context; this fake supplies what they touch.
+  const prior = { foundry: globalThis.foundry, game: globalThis.game };
+  const { default: SpellExtras } = await import("../scripts/magic/spell-extras.mjs");
+  const fromSource = Object.getOwnPropertyDescriptor(SpellExtras, "fromSource");
+  const getProperty = (o, path) => path.split(".").reduce((v, k) => v?.[k], o);
+  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => class extends Base {}, ApplicationV2: class {} } }, utils: { deepClone: (o) => structuredClone(o), getProperty, randomID: () => "x" } };
+  globalThis.game = { i18n: { format: (key, data) => key + (data?.cite ? ` ${data.cite}` : ""), localize: (key) => key } };
+  SpellExtras.fromSource = (data) => ({ toObject: () => data });
+  const sheet = await import("../scripts/magic/spell-sheet.mjs");
+  const spell = (flag) => ({ uuid: "Item.invented", name: "Invented Spell", flags: { "acks-extras": { spell: flag } } });
+  const contextOf = async (flag) => {
+    const Sheet = sheet.createSpellSheet(class { static PARTS = {}; async _prepareContext() { return {}; } });
+    const view = Object.create(Sheet.prototype);
+    view.item = spell(flag);
+    return view._prepareContext({});
+  };
+  const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const overview = read("templates/magic/tab-overview.hbs");
+  const durationPartial = read("templates/magic/duration-fields.hbs");
+  const awaitedHere = async (name, fn) => {
+    await fn();
+    n++;
+    console.log(`ok - ${name}`);
+  };
+  try {
+    t("the editor's words are the library's own: no key of the old magic editor root remains, and the editor reads one root", () => {
+      assert.deepEqual(Object.keys(lang).filter((key) => key.startsWith(["ACKS-MAGIC", "editor", ""].join("."))), []);
+      assert.ok(!/ACKS-MAGIC/.test(read("scripts/lib/apps/effect-row-editor.mjs")), "the library names no feature's lang root");
+      for (const key of ["field.ownSave", "field.gate.status", "attackKind.melee", "endsOn.damage", "bucket.save", "tip.ownSave", "tip.cite", "statusTip", "statusLocked"]) {
+        assert.ok(lang[`ACKS-LIB.effectEditor.${key}`], `ACKS-LIB.effectEditor.${key}`);
+      }
+    });
+
+    t("the spell store names the spell's page, read when asked, so a blank located figure carries it", () => {
+      assert.equal(sheet.spellEffectStore(spell({ cite: "p. 12" })).cite(), "p. 12");
+      assert.equal(sheet.spellEffectStore(spell({})).cite(), undefined, "a spell that names no page gives none");
+    });
+
+    await awaitedHere("the page a spell's store names reaches the tooltip of a blank located figure in the row window", async () => {
+      const { EffectRowEditor } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+      const row = { type: "conditionGrant", lasts: "rounds", exemptSizeFrom: "alpha" };
+      const fields = async (flag) => {
+        const base = sheet.spellEffectStore(spell({ ...flag, effects: [row] }));
+        const editor = new EffectRowEditor({ store: { ...base, read: () => [row] }, index: 0 });
+        return (await editor._prepareContext({})).fields;
+      };
+      const cited = await fields({ cite: "p. 12" });
+      for (const name of ["rounds", "exemptSizeOver"]) assert.ok(cited.find((f) => f.name === name).tip.includes("p. 12"), `${name} carries the page`);
+      assert.ok(!cited.find((f) => f.name === "exemptSizeFrom").tip.includes("p. 12"), "a figure that is set carries none");
+      const bare = await fields({});
+      assert.ok(!bare.find((f) => f.name === "rounds").tip.includes("tip.cite"), "a spell that names no page adds none");
+    });
+
+    await awaitedHere("the Hit Dice below which a target is exempt is edited on the Overview like the cap, and a blank one carries the page alone", async () => {
+      const set = await contextOf({ cite: "p. 5", target: { hdBelow: { kind: "flat", flat: 7 } } });
+      assert.equal(set.levelValues.hdBelow.name, "flags.acks-extras.spell.target.hdBelow");
+      assert.equal(set.levelValues.hdBelow.value.flat, 7);
+      assert.ok(set.figureTips.hdBelow.includes("ACKS-MAGIC.overview.figureTip.value") && set.figureTips.hdBelow.includes("p. 5"), "a set figure and its page");
+      const blank = await contextOf({ cite: "p. 5" });
+      assert.equal(blank.figureTips.hdBelow, "ACKS-MAGIC.overview.figureTip.cite p. 5", "blank: the reference alone, no figure and no words");
+      assert.equal((await contextOf({})).figureTips.hdBelow, "", "no page, no tooltip");
+      assert.match(overview, /levelValues\.hdBelow/);
+      assert.match(overview, /figureTips\.hdBelow/);
+      for (const key of ["hdBelow", "hdBelowHint"]) assert.ok(lang[`ACKS-MAGIC.overview.${key}`], key);
+    });
+
+    await awaitedHere("a reversed duration has the duration's own controls, submitted under its own path, and shows only on a reversible spell", async () => {
+      const ctx = await contextOf({ reversible: true, duration: { shape: "fixed", value: 3, unit: "turns" }, reversedDuration: { shape: "dice", dice: "1d4", unit: "rounds" } });
+      assert.equal(ctx.durations.main.name, "flags.acks-extras.spell.duration");
+      assert.equal(ctx.durations.reversed.name, "flags.acks-extras.spell.reversedDuration");
+      assert.equal(ctx.durations.main.show.time, true);
+      assert.equal(ctx.durations.reversed.show.dice, true, "the reversed form's shape picks its own controls");
+      assert.equal(ctx.durations.reversed.show.time, false);
+      assert.equal(ctx.durations.reversed.text, displayDuration({ shape: "dice", dice: "1d4", unit: "rounds" }));
+      assert.equal((await contextOf({})).durations.reversed.show.dice, false, "a spell with no reversed duration shows none of its controls");
+      const uses = [...overview.matchAll(/duration-fields\.hbs" durations\.(\w+)/g)].map((m) => m[1]);
+      assert.deepEqual(uses, ["main", "reversed"], "one partial serves both");
+      assert.match(overview, /\{\{#if extras\.reversible\}\}\s*<fieldset>\s*<legend>\{\{localize "ACKS-MAGIC\.overview\.reversedDuration"\}\}<\/legend>\s*\{\{> "[^"]*duration-fields\.hbs" durations\.reversed\}\}/, "the reversed block sits inside the reversible gate");
+      assert.ok(lang["ACKS-MAGIC.overview.reversedDuration"]);
+      for (const name of ["shape", "concentration", "value", "unit", "maxPerLevel", "dice", "plus.value", "plus.unit", "note"]) assert.ok(durationPartial.includes(`name="{{name}}.${name}"`), `the partial submits ${name}`);
+      assert.ok(!/\bid=/.test(durationPartial) && !/\bid="(?!\{\{@root\.partId\}\})/.test(overview), "no literal id");
+      assert.ok(!/\{\{x\}\}\.duration/.test(overview), "the main duration's inputs moved into the partial whole");
+    });
+  } finally {
+    globalThis.foundry = prior.foundry;
+    globalThis.game = prior.game;
+    if (fromSource) Object.defineProperty(SpellExtras, "fromSource", fromSource);
+    else delete SpellExtras.fromSource;
+  }
+}
 
 console.log(`\n${n} magic tests passed`);
