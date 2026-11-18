@@ -27,7 +27,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
-import { DAMAGE_TYPES } from "../lib/vocab.mjs";
+import { DAMAGE_TYPES, CONDITION_KEYS } from "../lib/vocab.mjs";
 import { defenseCiteOf, defenseWord, namesDefense } from "../lib/attack-apply.mjs";
 import { docOf } from "../lib/util.mjs";
 import { isModRow } from "./cast-mods.mjs";
@@ -55,6 +55,7 @@ export const newTargetKey = (randomID = () => Math.random().toString(36).slice(2
 
 /** A damage type's label: its inline English label, or the key. */
 const typeLabel = (key) => DAMAGE_TYPES[key]?.label ?? key;
+const conditionLabel = (key) => CONDITION_KEYS[key]?.label ?? key;
 
 /**
  * The saving-throw figure's tooltip: its labelled parts with the creature's own
@@ -181,7 +182,7 @@ function titleOf(row, loc) {
 
 /**
  * What a kind of the dispatch's entry says on its line beside the result (`cast-kinds.mjs`): the weapon a destroy row names or took, the effects a
- * condition row lifted and the ones it left standing with the reason, that a holder had no weapon, why an entry was not written, and that a slain target is dead.
+ * condition row lifted and the ones it left standing with the reason, the conditions a condition row left off because a record of the bearer makes it immune to them, the ones a failed recurring save found already in force, that a row waits for a failed recurring save, that a holder had no weapon, why an entry was not written, and that a slain target is dead.
  */
 function kindDetail(row, entry, loc) {
   if (!entry || !kindOf(row.type)) return "";
@@ -191,6 +192,9 @@ function kindDetail(row, entry, loc) {
   if (row.type === "destroyItem" && entry.item === null) parts.push(loc("detail.noWeapon"));
   if (entry.lifted?.length) parts.push(loc("detail.lifted", { names: entry.lifted.map((d) => d.name).join(", ") }));
   if (entry.listed?.length) parts.push(loc("detail.listed", { names: entry.listed.map((l) => `${l.name || l.status} (${loc(`detail.reason.${l.reason}`)})`).join(", ") }));
+  if (entry.immune?.length) parts.push(loc("detail.immune", { names: entry.immune.map((i) => conditionLabel(i.condition)).join(", "), by: [...new Set(entry.immune.map((i) => i.label))].join(", ") }));
+  if (entry.already?.length) parts.push(loc("detail.already", { names: entry.already.map(conditionLabel).join(", ") }));
+  if (entry.awaits && entry.state === "applied") parts.push(loc("detail.awaitsFail"));
   if (row.type === "conditionRemove" && entry.state === "applied" && !entry.lifted?.length && !entry.listed?.length) parts.push(loc("detail.nothingToLift"));
   if (row.type === "slay" && entry.state === "applied" && entry.saved !== true) parts.push(loc("detail.slain"));
   if (entry.why && entry.state === "refused") parts.push(loc(`detail.why.${["badItem", "overCount"].includes(entry.why) ? entry.why : "failed"}`));

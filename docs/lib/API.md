@@ -374,7 +374,7 @@ to `{ key: label }` for DataModel `choices`.
   `nextTurn`, `followingTurn`, `rounds`),
   `EFFECT_RECURRENCES` (`none`, `eachRound`, `laterRounds`) and the three a
   recurring spell row names: `EFFECT_RECUR_MOMENTS` (`recurAt`),
-  `EFFECT_RECUR_SAVES` (`recurSave`), `EFFECT_RECUR_TARGETS` (`recurTarget`),
+  `EFFECT_RECUR_SAVES` (`recurSave`: `row`, `cast`, `fail`), `EFFECT_RECUR_TARGETS` (`recurTarget`),
   `HEAL_KINDS`, `CONTROL_KINDS`, `SUMMON_FORMATS`, `SPELL_LIKE_FREQ` (the
   one frequency table; the monsters feature's `USAGE` is this), the
   `MAGIC_VOCAB` registry keyed by lang id, and `vocabLabel(family, key)` /

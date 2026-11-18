@@ -4,14 +4,17 @@
  * a prompt on the chat card and never an automatic effect. A row that recurs
  * names its moment (`recurAt`: the caster's turn, the start or the end of its
  * bearer's turn), what its bearer throws first (`recurSave`: `row`, a pass ends
- * that bearer's record of the row; `cast`, a pass ends the cast) and whom it
+ * that bearer's record of the row; `cast`, a pass ends the cast; `fail`, a pass ends
+ * nothing and a fail writes the row's conditions) and whom it
  * meets (`recurTarget`: blank, its bearers; `pick`, a target the caster picks).
  *
  * A row recurs while its anchor stands. A caster-turn row stands on the caster's
  * record of the cast, which `cast-spell.mjs` writes for it; a bearer row on a
  * recipient record of the cast the bearer holds, which `cast-apply.mjs` writes
  * as a status-free anchor (`anchorsNeeded`) where the cast leaves the bearer none
- * of its own. A row `recurSave: row` stands on a record carrying its own row key.
+ * of its own. A row `recurSave: row` or `recurSave: fail` stands on a record carrying its
+ * own row key, and for `fail` one that writes no status (`anchorKeys`), since what a
+ * failed press writes carries the key too and must not outlast the cast's anchor.
  *
  * The pure half answers which prompts a turn edge raises, builds the prompt's
  * card model and checks a relayed press; the Foundry half posts the prompt on
@@ -51,14 +54,27 @@ const idOf = (targetKey, rowKey) => `${targetKey}_${rowKey}`;
  */
 export const promptRows = (keyed) => (keyed ?? []).filter(({ row }) => row.type === "damage" || row.type === "heal" || (row.type === "conditionGrant" && Boolean(row.recurSave)));
 
+/** The `recurSave` values whose row stands on a record carrying its own row key. */
+const OWN_RECORD_SAVES = Object.freeze(["row", "fail"]);
+
+/**
+ * The row keys a bearer's recipient records of a cast give the recurring rows to
+ * stand on. A record a failed press wrote (it carries a status and the key of a
+ * `recurSave: fail` row) is no anchor: it can outlast the cast, which the anchor cannot.
+ * @param {Array<{rowKey?: string, written: boolean}>} records  `written`: the record carries a status
+ * @param {Set<string>} failKeys  the keys of the cast's `recurSave: fail` rows
+ * @returns {string[]}
+ */
+export const anchorKeys = (records, failKeys) => (records ?? []).filter((r) => !(r.written && failKeys?.has(r.rowKey ?? ""))).map((r) => r.rowKey ?? "");
+
 /**
  * Does a bearer hold what a row recurs on? Any record of the cast, and for a row
- * `recurSave: row` one carrying that row's own key.
+ * `recurSave: row` or `fail` one carrying that row's own key.
  * @param {string} key  the row's key
  * @param {object} row
- * @param {string[]} records  the row keys of the bearer's recipient records of the cast ("" for a record with none)
+ * @param {string[]} records  the row keys of the bearer's recipient records of the cast ("" for a record with none; `anchorKeys`)
  */
-export const bearerHolds = (key, row, records) => (records?.length ?? 0) > 0 && (row?.recurSave !== "row" || records.includes(key));
+export const bearerHolds = (key, row, records) => (records?.length ?? 0) > 0 && (!OWN_RECORD_SAVES.includes(row?.recurSave) || records.includes(key));
 
 /**
  * Does a row's anchor stand? A caster-turn row needs the caster's record of the
@@ -78,7 +94,7 @@ const negated = (entry) => entry?.saved === true && !(entry.applied > 0) && !ent
  * The recurring rows of one bearer that need an anchor written because the cast
  * left none: each applied recurring row with a moment and a bearer to meet, that
  * the save did not negate and that wrote no record of its own. A row `recurSave:
- * row` needs a record carrying its own key; any other needs one record of the cast
+ * row` or `fail` needs a record carrying its own key (a fail row always writes its anchor, a pass of its save at the cast and a condition it wrote there included); any other needs one record of the cast
  * on the bearer, so only the first of them writes it where nothing else did.
  *
  * @param {object} from
@@ -88,13 +104,17 @@ const negated = (entry) => entry?.saved === true && !(entry.applied > 0) && !ent
  */
 export function anchorsNeeded({ rows, applied }) {
   const entries = new Map((applied ?? []).map((a) => [a.rowKey, a.entry]));
-  let held = (applied ?? []).some((a) => a.entry?.recordIds?.length);
+  // A condition a fail row wrote carries its key and is no anchor (`anchorKeys`), so it does not stand for any other row.
+  const failing = new Set((rows ?? []).filter(({ row }) => row.recurSave === "fail").map(({ key }) => key));
+  let held = (applied ?? []).some((a) => a.entry?.recordIds?.length && !failing.has(a.rowKey));
   const out = [];
   for (const keyed of rows ?? []) {
     const { row, key } = keyed;
     const entry = entries.get(key);
-    if (!isRecurring(row) || !row.recurAt || row.recurTarget === "pick" || entry?.state !== "applied" || negated(entry) || entry.recordIds?.length) continue;
-    if (row.recurSave === "row") out.push(keyed);
+    // A fail row's pass or written condition (an `eachRound` twin resolves at the cast) neither ends nor stands for its recurrence: it always needs the anchor.
+    const fails = row.recurSave === "fail";
+    if (!isRecurring(row) || !row.recurAt || row.recurTarget === "pick" || entry?.state !== "applied" || (!fails && (negated(entry) || entry.recordIds?.length))) continue;
+    if (OWN_RECORD_SAVES.includes(row.recurSave)) out.push(keyed);
     else if (!held) {
       out.push(keyed);
       held = true;
@@ -319,7 +339,8 @@ export function checkRecurRequest(req, world, check) {
  * Resolve one pressed entry on the GM's client: the amount of a damage or heal row
  * through the cast's amount path, a condition row as written, and then a passed
  * save's end, whichever the row asks (`row`: the bearer's records of the row;
- * `cast`: the cast). `deps` supplies the writes: `apply(card, targetKey,
+ * `cast`: the cast; `fail`: neither, a fail writes the row's conditions through the
+ * amount path's apply and a pass writes nothing). `deps` supplies the writes: `apply(card, targetKey,
  * requests)` is `applyOnTarget`, `writeEntry(id, entry)`, `endRow(actor, castId,
  * rowKey)` and `endCast(card, actor)` answer how many records they removed.
  *
@@ -337,7 +358,7 @@ export async function resolveRecurEntry({ card, targetKey, request, keyed, found
   const id = idOf(targetKey, key);
   const resist = card.targets?.[targetKey]?.resist ?? null;
   let entry;
-  if (row.type === "damage" || row.type === "heal") {
+  if (row.type === "damage" || row.type === "heal" || row.recurSave === "fail") {
     const done = await deps.apply(card, targetKey, [{ rowKey: key, rolled: request.rolled }]);
     entry = done.find((d) => d.id === id)?.entry;
     if (!entry) return { ok: false, reason: done.find((d) => d.id === id)?.skipped ?? "notApplied" };
@@ -345,7 +366,7 @@ export async function resolveRecurEntry({ card, targetKey, request, keyed, found
     entry = { by: deps.by ?? null, state: "applied", saved: resist ? (resist.success ?? null) : null, recordIds: [] };
     await deps.writeEntry(id, entry);
   }
-  if (!(row.recurSave && resist?.success === true)) return { ok: true, entry, ended: 0 };
+  if (!(row.recurSave && row.recurSave !== "fail" && resist?.success === true)) return { ok: true, entry, ended: 0 };
   const ended = row.recurSave === "cast" ? await deps.endCast(card, found.actor) : await deps.endRow(found.actor, card.castId, key);
   entry = { ...entry, ended: { kind: row.recurSave, count: ended } };
   await deps.writeEntry(id, entry);
@@ -383,10 +404,15 @@ async function castOf(castId) {
   const rows = rowsForMode(rowsOf(spell, await worldLookups()).rows, card.mode, card.picks);
   if (!rows.some(({ row }) => isRecurring(row))) return null;
   const { worldActors } = await import("../lib/repair.mjs");
+  const failKeys = new Set(rows.filter(({ row }) => row.recurSave === "fail").map(({ key }) => key));
   const bearers = [];
   for (const actor of worldActors()) {
-    const held = recordsOf(actor, castId).filter((r) => r.role === "recipient");
-    if (held.length) bearers.push({ uuid: actor.uuid, name: actor.name, records: held.map((r) => r.rowKey ?? "") });
+    const held = [...(actor?.effects ?? [])].flatMap((e) => {
+      const r = spellEffectOf(e);
+      return r?.castId === castId && r.role === "recipient" ? [{ rowKey: r.rowKey, written: Boolean(e.statuses?.size) }] : [];
+    });
+    const records = anchorKeys(held, failKeys);
+    if (records.length) bearers.push({ uuid: actor.uuid, name: actor.name, records });
   }
   return { castId, casterUuid: caster.uuid, rows, casterRecord: recordsOf(caster, castId).some((r) => r.role === "caster" && !r.pending), bearers, message, card, caster };
 }

@@ -14,7 +14,7 @@
  * `destroyItem` row takes from a holder (`pickWeapon`).
  */
 import { MODULE_ID } from "./constants.mjs";
-import { aimedAtSelf } from "./cast-rows.mjs";
+import { aimedAtSelf, awaitsFail } from "./cast-rows.mjs";
 import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { isManagedEffect } from "../lib/managed-effects.mjs";
 import { HELD_CONDITION_FLAG } from "../lib/held-condition.mjs";
@@ -93,7 +93,8 @@ export function liftPlan(effects, ids) {
  */
 export const APPLY_KINDS = Object.freeze({
   ignite: Object.freeze({ place: (row) => (writesRecipientRecord(row) ? "rowAndLine" : "line"), opens: () => true, resisted: () => false, lives: true }),
-  conditionGrant: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), lives: true }),
+  // A row that waits for a failed recurring save is no part of the cast save: it writes its anchor alone at the cast.
+  conditionGrant: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: (row) => !awaitsFail(row), lives: true }),
   conditionRemove: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: () => false }),
   slay: Object.freeze({ place: () => "row", opens: () => true }),
   destroyItem: Object.freeze({ place: () => "rowAndLine", opens: () => true, resisted: (_row, actor) => pickWeapon(actor) !== null, entry: (_row, actor) => ({ item: pickWeapon(actor) }), lineKey: "line.unheldWeapons" }),

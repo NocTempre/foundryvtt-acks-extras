@@ -9,7 +9,9 @@
  * and a row's `exemptSizeFrom` exempts a target at or above that size from that
  * row alone, its `exemptSizeOver` one strictly above it. A target whose own
  * records grant it immunity (`recordImmunity`) to the spell, or to every condition
- * a row writes, is exempt too. Both thresholds are LevelValues read at the caster level, and a
+ * a row writes, is exempt too; a row whose conditions the records cover in part leaves the
+ * target affected and lists the covered ones as `immune`, which the row's applier leaves
+ * unwritten. Both thresholds are LevelValues read at the caster level, and a
  * threshold the import left blank, or one that scales with a level none
  * resolved, gates nothing: a level is never defaulted. A target's Hit Dice are
  * `hitDiceOrLevel` (a monster's bonus to its Hit Dice is not counted), and a
@@ -83,17 +85,22 @@ function hdOf(actor) {
 }
 
 /**
- * What a target's records say of immunity to this spell or this row: null where
- * none applies, else the part naming the record. The spell's own immunity
- * exempts every row; a row is exempt by condition only where the record covers
- * every condition the row writes (a row covered in part still writes the rest).
+ * What a target's records say of immunity to this spell or this row: `why` is the
+ * part naming the record where the target is exempt, else null, and `immune` the
+ * conditions of the row a record covers where it covers some but not all. The
+ * spell's own immunity exempts every row; a row is exempt by condition only where
+ * the records cover every condition it writes, and one covered in part is affected
+ * and writes the rest.
+ *
+ * @returns {{why: {key: string, parts: object[]}|null, immune: Array<{condition: string, label: string}>}}
  */
 function immuneGate(actor, spell, row) {
   const conditions = Array.from(row?.conditions ?? []).map(String);
   const found = recordImmunity(actor, { spell, conditions });
-  if (spell && found.spell) return { key: GATE_KEYS.immune, parts: [{ key: "by", value: found.spell.label }] };
-  if (conditions.length && conditions.every((c) => found.conditions[c])) return { key: GATE_KEYS.immune, parts: [{ key: "by", value: [...new Set(conditions.map((c) => found.conditions[c].label))].join(", ") }] };
-  return null;
+  if (spell && found.spell) return { why: { key: GATE_KEYS.immune, parts: [{ key: "by", value: found.spell.label }] }, immune: [] };
+  const covered = conditions.filter((c) => found.conditions[c]);
+  if (conditions.length && covered.length === conditions.length) return { why: { key: GATE_KEYS.immune, parts: [{ key: "by", value: [...new Set(covered.map((c) => found.conditions[c].label))].join(", ") }] }, immune: [] };
+  return { why: null, immune: covered.map((condition) => ({ condition, label: found.conditions[condition].label })) };
 }
 
 /**
@@ -106,14 +113,15 @@ function immuneGate(actor, spell, row) {
  * with the world's own numbers: `hd` (the target's Hit Dice, the cap or the `bound`,
  * the caster level where it scales), `kind` (the filters and the target's kinds), `size` (the target's size key and the row's), or
  * `noSave` (the target's Hit Dice, the threshold, the level). A target no gate
- * touches answers `why.key` "". The cap and the bound are checked before the kinds, and the kinds before immunity and the size.
+ * touches answers `why.key` "". An affected target whose records cover some of the row's
+ * conditions also answers `immune`, `[{condition, label}]` (absent where none is covered). The cap and the bound are checked before the kinds, and the kinds before immunity and the size.
  *
  * @param {object} from
  * @param {object} from.actor  the target's actor
  * @param {{target?: {hdCap?: object, hdBelow?: object, filters?: Iterable<string>}, save?: {exemptBelowHd?: object}, spell?: {id?: string, provides?: string[]}}|null} [from.extras]  the spell's figures, and the spell as a record's immunity names it
  * @param {{exemptSizeFrom?: string, exemptSizeOver?: string, conditions?: string[]}|null} [from.row]  the spell's own row; absent, the spell-wide gates only
  * @param {number|null} [from.level]  the resolved caster level
- * @returns {{affected: boolean, noSave: boolean, why: {key: string, parts: Array<{key: string, value: number|string}>}}}
+ * @returns {{affected: boolean, noSave: boolean, why: {key: string, parts: Array<{key: string, value: number|string}>}, immune?: Array<{condition: string, label: string}>}}
  */
 export function targetGate({ actor, extras = null, row = null, level = null } = {}) {
   const clear = { affected: true, noSave: false, why: { key: "", parts: [] } };
@@ -129,8 +137,9 @@ export function targetGate({ actor, extras = null, row = null, level = null } = 
   }
   const kind = kindGate(actor, extras?.target?.filters);
   if (kind) return { affected: false, noSave: false, why: { key: GATE_KEYS.kind, parts: kind } };
-  const immune = immuneGate(actor, extras?.spell ?? null, row);
+  const { why: immune, immune: covered } = immuneGate(actor, extras?.spell ?? null, row);
   if (immune) return { affected: false, noSave: false, why: immune };
+  const partly = covered.length ? { immune: covered } : {};
   const from = String(row?.exemptSizeFrom ?? "").trim();
   const over = String(row?.exemptSizeOver ?? "").trim();
   const key = sizeKeyOf(actor);
@@ -145,9 +154,9 @@ export function targetGate({ actor, extras = null, row = null, level = null } = 
   }
   const below = hd === null ? null : figureAt(extras?.save?.exemptBelowHd, level);
   if (below && hd < below.value) {
-    return { affected: true, noSave: true, why: { key: GATE_KEYS.noSave, parts: [{ key: "hd", value: hd }, { key: "below", value: below.value }, ...below.parts] } };
+    return { affected: true, noSave: true, why: { key: GATE_KEYS.noSave, parts: [{ key: "hd", value: hd }, { key: "below", value: below.value }, ...below.parts] }, ...partly };
   }
-  return clear;
+  return { ...clear, ...partly };
 }
 
 /**

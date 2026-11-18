@@ -257,11 +257,14 @@ export const EFFECT_RECUR_MOMENTS = Object.freeze({
 /**
  * What a recurring row asks of its bearer before it resolves (`recurSave`):
  * blank asks nothing; `row` is a saving throw whose pass ends the bearer's
- * record of the row, `cast` one whose pass ends the cast.
+ * record of the row, `cast` one whose pass ends the cast, `fail` one that
+ * ends nothing and whose failure writes the row's conditions (a condition row
+ * that recurs from the later rounds writes nothing at the cast but its anchor).
  */
 export const EFFECT_RECUR_SAVES = Object.freeze({
   row: { label: "A pass ends this row" },
   cast: { label: "A pass ends the cast" },
+  fail: { label: "A fail writes the condition" },
 });
 
 /** Who a recurring row resolves against (`recurTarget`): blank is its bearer, `pick` a target the caster picks each time. */

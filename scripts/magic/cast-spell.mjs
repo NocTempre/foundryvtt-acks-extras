@@ -19,7 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, awaitsFail, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
@@ -301,7 +301,7 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
   const hasSelf = rows.some(({ row }) => aimedAtSelf(row));
   // A condition that lasts a number of rounds opens with its count rolled, once for this target's record and shown on the card; a formula the import left blank, or one that will not roll, opens with no count.
   const opened = async (row) => {
-    if (!livesKind(row.type) || row.lasts !== "rounds") return {};
+    if (!livesKind(row.type) || row.lasts !== "rounds" || awaitsFail(row)) return {};
     const formula = roundsFormulaOf(row);
     const none = { life: { kind: "rounds", count: null, formula } };
     if (!formula) return none;

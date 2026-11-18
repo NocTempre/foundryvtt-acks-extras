@@ -705,4 +705,95 @@ await ta("the cast's card takes the reverse's own duration in the reversed mode 
   assert.equal(writesRecipientRecord({ type: "ignite", lasts: "instant", appliesTo: "target" }), false);
 });
 
+/* ------------------------------------------------------------------ */
+/*  S5b-2: a row covered in part by a record's immunity                */
+/* ------------------------------------------------------------------ */
+
+const WARDED = [{ key: "w", on: "immune", conditions: ["prone", "paralysis"], provides: ["kw:spellrecord"] }];
+const warded = () => immuneCreature(WARDED, creature("3", "man", "Warded"));
+const MIXED = { key: "dread", type: "conditionGrant", conditions: ["prone", "afraid"] };
+const WHOLE = { key: "dread", type: "conditionGrant", conditions: ["prone", "paralysis"] };
+
+t("a row a record covers in part is affected and lists the covered conditions; a row covered whole is exempt and lists none; a plain target lists none", () => {
+  const gate = (row, actor = warded()) => targetGate({ actor, extras: SPELLED, row });
+  const mixed = gate(MIXED);
+  assert.equal(mixed.affected, true);
+  assert.deepEqual(mixed.immune, [{ condition: "prone", label: "Testward (T 3)" }]);
+  assert.deepEqual(gate(WHOLE).immune, undefined, "exempt: nothing is written, so nothing is left off");
+  assert.equal(gate(WHOLE).affected, false);
+  assert.equal("immune" in gate(MIXED, creature("3")), false, "a target no record covers");
+  const noSave = targetGate({ actor: immuneCreature(WARDED, creature("1")), extras: { ...SPELLED, ...belowOf(flat(3)) }, row: MIXED });
+  assert.deepEqual([noSave.affected, noSave.noSave, noSave.immune?.length], [true, true, 1], "the list rides the no-save verdict too");
+  assert.deepEqual(gate({ ...MIXED, conditions: ["afraid"] }), { affected: true, noSave: false, why: { key: "", parts: [] } }, "no covered condition, the gate is the plain one");
+});
+
+const MIXED_CARD = (entries = { t1_dread: { state: "pending" } }) =>
+  cardOfTargets({
+    order: ["dread"],
+    rows: { dread: { type: "conditionGrant", key: "dread", types: [], conditions: ["prone", "afraid"], lasts: "instant" } },
+    targets: { t1: { uuid: "Scene.s.Token.k1", name: "Warded", resist: null } },
+    entries,
+  });
+const mixedDeps = (actor, row = MIXED) => fakeDeps(actor, SPELLED, { rows: [{ key: "dread", row }] });
+
+await ta("the casting seat's apply writes only the uncovered conditions and names the covered ones on the entry; a row covered whole writes nothing", async () => {
+  const { deps, log } = mixedDeps(warded());
+  const out = await applyOnTarget(MIXED_CARD(), "t1", [{ rowKey: "dread" }], deps);
+  assert.deepEqual(log.made.map((d) => d.statuses), [["afraid"]], "prone is left off");
+  assert.deepEqual(out[0].entry.immune, [{ condition: "prone", label: "Testward (T 3)" }]);
+  assert.equal(out[0].entry.recordIds.length, 1);
+  const whole = mixedDeps(warded(), WHOLE);
+  const none = await applyOnTarget(MIXED_CARD(), "t1", [{ rowKey: "dread" }], whole.deps);
+  assert.deepEqual([none[0].skipped, whole.log.made], ["exempt", []]);
+  const plain = mixedDeps(creature("3"));
+  await applyOnTarget(MIXED_CARD(), "t1", [{ rowKey: "dread" }], plain.deps);
+  assert.deepEqual(plain.log.made.map((d) => d.statuses), [["prone"], ["afraid"]], "no record, both are written");
+  assert.equal(plain.log.entries.t1_dread.immune, undefined);
+});
+
+await ta("the relay checks a partly covered row as open and writes the same entry from the GM's recompute", async () => {
+  const actor = warded();
+  const open = checkApplyRequest(req({ entries: [{ rowKey: "dread" }] }), world({ rows: [{ row: MIXED, key: "dread" }], card: MIXED_CARD(), gateOf: gateOf(actor, SPELLED) }));
+  assert.deepEqual(open, { ok: true });
+  const whole = checkApplyRequest(req({ entries: [{ rowKey: "dread" }] }), world({ rows: [{ row: WHOLE, key: "dread" }], card: MIXED_CARD(), gateOf: gateOf(actor, SPELLED) }));
+  assert.equal(whole.refused, "exempt");
+  // The relay writes through `applyOnTarget` with the gate `castDeps` hands it (`inputs.gate`), recomputed on the writing client from the actor it resolves.
+  const { deps, log } = mixedDeps(actor);
+  await applyOnTarget(MIXED_CARD(), "t1", [{ rowKey: "dread" }], { ...deps, gate: (a, row) => targetGate({ actor: a, extras: SPELLED, row, level: 3 }) });
+  assert.deepEqual(log.made.map((d) => d.statuses), [["afraid"]]);
+  assert.equal(log.entries.t1_dread.immune[0].condition, "prone");
+});
+
+t("the card line names the conditions left off as immune and the record that grants it", () => {
+  const entry = { state: "applied", saved: null, recordIds: ["r0"], immune: [{ condition: "prone", label: "Testward (T 3)" }] };
+  const [line] = castCardView(MIXED_CARD({ t1_dread: entry }), { isGM: true, canPress: true }, loc).sections[0].rows;
+  assert.match(line.detail, /detail\.immune\|\{"names":"[^"]*","by":"Testward \(T 3\)"\}/);
+  const [plain] = castCardView(MIXED_CARD({ t1_dread: { ...entry, immune: undefined } }), { isGM: true, canPress: true }, loc).sections[0].rows;
+  assert.doesNotMatch(plain.detail, /detail\.immune/);
+});
+
+/* ------------------------------------------------------------------ */
+/*  S5b-2: no cast save for a row that waits for a failed save         */
+/* ------------------------------------------------------------------ */
+
+const FLOOR = { key: "floor", type: "conditionGrant", conditions: ["prone"], recur: "laterRounds", recurAt: "bearerStart", recurSave: "fail", saveEffect: "negates", lasts: "rounds", rounds: "1d4" };
+const floorCard = { rows: { floor: { type: "conditionGrant", key: "floor", conditions: ["prone"], lasts: "rounds" }, burn: { type: "damage", key: "burn", total: 5, delivery: "" } }, casterLevel: { value: 3 } };
+
+await ta("a spell whose only save-governed row waits for a failed save rolls no cast save and rolls no rounds for it; its row twin still rolls both, and a damage row beside it still draws the save", async () => {
+  const draw = (rows, tag) => buildTargets({ tokens: [tokenOf(creature("3"))], card: floorCard, rows: keyedOf(rows), save, situational: null, caster, randomID: () => `${tag}${++ids}` });
+  const only = await draw([FLOOR], "f");
+  const [t1] = Object.keys(only.targets);
+  assert.equal(only.targets[t1].resist, null, "no cast save");
+  assert.deepEqual(only.rolls, []);
+  assert.deepEqual(only.entries[`${t1}_floor`], { state: "pending" }, "an entry opens for the anchor, with no count rolled");
+  const twin = await draw([{ ...FLOOR, recurSave: "row" }], "g");
+  const [t2] = Object.keys(twin.targets);
+  assert.equal(twin.targets[t2].resist?.category, "spell", "the row twin keeps its cast save");
+  assert.equal(twin.entries[`${t2}_floor`].life.kind, "rounds", "and its count");
+  const both = await draw([FLOOR, SCORCH], "h");
+  assert.equal(Object.values(both.targets)[0].resist?.category, "spell", "a row that is saved against still draws it");
+  const each = await draw([{ ...FLOOR, recur: "eachRound" }], "i");
+  assert.equal(Object.values(each.targets)[0].resist?.category, "spell", "an eachRound twin resolves at the cast as any condition row does");
+});
+
 console.log(`${n} checks passed`);

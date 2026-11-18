@@ -122,6 +122,14 @@ export const isRecurring = (row) => RECURRENCES.includes(row?.recur);
 export const resolvesAtCast = (row) => row?.recur !== "laterRounds";
 
 /**
+ * Is this a condition row that waits for a failed recurring save? A `laterRounds` condition row with
+ * `recurSave: fail` writes nothing at the cast but its anchor (no cast save is rolled for it); each
+ * moment it recurs at, a failed press writes its conditions. An `eachRound` twin resolves at the cast as
+ * any condition row does.
+ */
+export const awaitsFail = (row) => row?.type === "conditionGrant" && row.recur === "laterRounds" && row.recurSave === "fail";
+
+/**
  * The recurring rows of one moment, from keyed rows (`keyedRows`, `rowsForMode`):
  * those that repeat and name that moment in `recurAt`. A recurring row with no
  * moment is named at none.

@@ -539,4 +539,139 @@ await ta("an ignite row that names a recipient and lasts is a row of the card; o
   assert.equal(r.calls.posts[0].lines.length, 1);
 });
 
+/* ------------------------------------------------------------------ */
+/*  S5b-2: a condition row that waits for a failed save                */
+/* ------------------------------------------------------------------ */
+
+const { EFFECT_RECUR_SAVES } = await import("../scripts/lib/magic-vocab.mjs");
+const { awaitsFail } = await import("../scripts/magic/cast-rows.mjs");
+const { anchorKeys } = await import("../scripts/magic/cast-recur.mjs");
+const { undoEntry } = await import("../scripts/magic/cast-apply.mjs");
+
+/** An invented floor: prone is written by a failed save at the start of each bearer's turn, never at the cast. */
+const FLOOR = { key: "floor", type: "conditionGrant", conditions: ["prone"], recur: "laterRounds", recurAt: "bearerStart", recurSave: "fail", saveEffect: "negates", lasts: "instant" };
+const floorKeyed = keyedRows([FLOOR]);
+const floorOf = (over = {}) => ({ castId: "c1", casterUuid: "Actor.caster", rows: floorKeyed, casterRecord: true, bearers: [bearer("Actor.a", ["floor"])], ...over });
+
+t("the vocabulary has a fail save, and only a laterRounds condition row with it waits for one", () => {
+  assert.deepEqual(Object.keys(EFFECT_RECUR_SAVES), ["row", "cast", "fail"]);
+  assert.equal(awaitsFail(FLOOR), true);
+  assert.equal(awaitsFail({ ...FLOOR, recur: "eachRound" }), false, "an eachRound row resolves at the cast");
+  assert.equal(awaitsFail({ ...FLOOR, recurSave: "row" }), false);
+  assert.equal(awaitsFail({ ...FLOOR, type: "damage" }), false);
+  assert.equal(awaitsFail({ ...FLOOR, recurSave: "" }), false);
+});
+
+t("a fail row stands on a record of its own that writes no status: what a failed press wrote is no anchor, and a bearer with none has no prompt", () => {
+  const failKeys = new Set(["floor"]);
+  assert.deepEqual(anchorKeys([{ rowKey: "floor", written: false }], failKeys), ["floor"]);
+  assert.deepEqual(anchorKeys([{ rowKey: "floor", written: true }], failKeys), [], "the written condition outlasts the cast and is no anchor");
+  assert.deepEqual(anchorKeys([{ rowKey: "other", written: true }, { rowKey: "floor", written: true }], failKeys), ["other"], "another row's record is its own");
+  assert.equal(bearerHolds("floor", FLOOR, ["other"]), false, "another row's record is not this row's");
+  assert.equal(bearerHolds("floor", FLOOR, ["floor"]), true);
+  assert.equal(bearerHolds("floor", { ...FLOOR, recurSave: "cast" }, ["other"]), true, "a cast save stands on any record of the cast");
+  assert.equal(anchorStands(FLOOR, "floor", { casterRecord: false, records: ["floor"] }), true);
+  assert.equal(anchorStands(FLOOR, "floor", { casterRecord: true, records: ["other"] }), false);
+  const [due] = duePrompts({ edge: "start", actorUuid: "Actor.a", casts: [floorOf()] });
+  assert.deepEqual([due.moment, due.rowKeys], ["bearerStart", ["floor"]]);
+  assert.deepEqual(duePrompts({ edge: "start", actorUuid: "Actor.a", casts: [floorOf({ bearers: [bearer("Actor.a", ["other"])] })] }), []);
+  assert.deepEqual(duePrompts({ edge: "end", actorUuid: "Actor.a", casts: [floorOf()] }), [], "a start-of-turn row is not asked at the end");
+});
+
+t("a fail row needs an anchor of its own whatever else the bearer holds or the cast wrote it, a pass at the cast included", () => {
+  const need = (applied) => anchorsNeeded({ rows: floorKeyed, applied }).map((r) => r.key);
+  assert.deepEqual(need([{ rowKey: "floor", entry: entry({ applied: undefined, awaits: true }) }]), ["floor"]);
+  assert.deepEqual(need([{ rowKey: "floor", entry: entry({ applied: undefined }) }, { rowKey: "other", entry: entry({ recordIds: ["r2"] }) }]), ["floor"], "another row's record is not its anchor");
+  assert.deepEqual(need([{ rowKey: "floor", entry: entry({ recordIds: ["r1"] }) }]), ["floor"], "an eachRound twin's written condition is no anchor");
+  assert.deepEqual(need([{ rowKey: "floor", entry: entry({ saved: true, applied: 0 }) }]), ["floor"], "a pass at the cast does not end a row that only asks for a fail");
+  assert.deepEqual(need([{ rowKey: "floor", entry: entry({ state: "judge" }) }]), [], "an entry that did not apply anchors nothing");
+  const beside = anchorsNeeded({ rows: [...keyed, ...floorKeyed], applied: [{ rowKey: "choke", entry: entry() }, { rowKey: "floor", entry: entry({ recordIds: ["r1"] }) }] }).map((r) => r.key);
+  assert.deepEqual(beside, ["choke", "floor"], "the condition a fail row wrote is no record of the cast for a row that asks only that");
+});
+
+const SAVED = { ...RESIST };
+const failApply = (over = {}, row = FLOOR) => applyDeps([row], { lose: async () => (failApply.lost.push(1), []), ...over });
+failApply.lost = [];
+
+await ta("at the cast a fail row writes its anchor alone: status-free, its row key, the cast's duration; the cast save it ignores, and no count of rounds is read", async () => {
+  failApply.lost.length = 0;
+  for (const row of [FLOOR, { ...FLOOR, lasts: "rounds", rounds: "1d4" }, { ...FLOOR, lasts: "duration" }, { ...FLOOR, lasts: "nextTurn" }]) {
+    const { deps, log } = failApply({}, row);
+    const card = castCard([row], { t1_floor: { state: "pending" } }, { targets: { t1: { uuid: "Token.t", name: "T", resist: RESIST } } });
+    const out = await applyOnTarget(card, "t1", [{ rowKey: "floor" }], deps);
+    assert.equal(log.made.length, 1, `${row.lasts}: one record`);
+    const record = spellEffectOf(log.made[0]);
+    assert.deepEqual([record.role, record.rowKey, record.startTime, record.duration], ["recipient", "floor", 500, { value: 60, units: "seconds" }]);
+    assert.deepEqual(log.made[0].statuses ?? [], [], "no prone yet");
+    assert.equal(out[0].entry.awaits, true);
+    assert.deepEqual([out[0].entry.saved, out[0].entry.recordIds.length], [null, 1], "a pass of another row's save negates nothing here");
+    assert.equal(out[0].entry.life, undefined);
+  }
+  assert.deepEqual(failApply.lost, [], "a pass loses nothing");
+});
+
+/** The press's prompt for the floor, with the bearer's save written on it as the relay writes it. */
+const floorPrompt = (resist) => {
+  const [due] = duePrompts({ edge: "start", actorUuid: "Actor.a", casts: [floorOf()] });
+  const model = promptModel({ source: SOURCE, due, rows: floorKeyed, round: 2, combatId: "f", bearer: "Actor.a", randomID: () => "z" });
+  const [key] = Object.keys(model.targets);
+  return { model: { ...model, targets: { [key]: { ...model.targets[key], resist } } }, key };
+};
+const press = async (resist, { held = [], row = FLOOR } = {}) => {
+  const { model, key } = floorPrompt(resist);
+  const actor = { name: "Bearer", effects: held };
+  const { deps, log } = applyDeps([row], { resolve: async () => ({ actor, hpTarget: null }) });
+  const ends = { endRow: async () => (log.endRow = [...(log.endRow ?? []), 1]) && 1, endCast: async () => (log.endCast = [...(log.endCast ?? []), 1]) && 1 };
+  const done = await resolveRecurEntry({ card: model, targetKey: key, request: { rowKey: "floor" }, keyed: keyedRows([row])[0], found: { actor }, deps: { ...deps, ...ends, apply: (c, t, r) => applyOnTarget(c, t, r, deps) } });
+  return { done, log, key };
+};
+
+await ta("a failed press writes the row's condition through the applier, and the entry carries it for Undo; a pass writes nothing and ends neither the row nor the cast", async () => {
+  const failed = await press(FAIL);
+  assert.equal(failed.done.ok, true);
+  assert.deepEqual(failed.log.made.map((d) => [d.statuses, spellEffectOf(d).rowKey, spellEffectOf(d).role]), [[["prone"], "floor", "recipient"]]);
+  assert.deepEqual([failed.done.entry.saved, failed.done.entry.recordIds.length, failed.done.ended], [false, 1, 0]);
+  assert.deepEqual([failed.log.endRow ?? [], failed.log.endCast ?? []], [[], []]);
+  assert.equal(failed.log.entries[`${failed.key}_floor`].recordIds.length, 1, "written on the prompt's card");
+  const passed = await press(RESIST);
+  assert.deepEqual(passed.log.made, [], "a pass writes nothing");
+  assert.deepEqual([passed.done.entry.saved, passed.done.entry.recordIds], [true, []]);
+  assert.deepEqual([passed.log.endRow ?? [], passed.log.endCast ?? [], passed.done.ended], [[], [], 0], "the anchor stands: a pass ends nothing");
+  const halved = await press(RESIST, { row: { ...FLOOR, saveEffect: "half" } });
+  assert.deepEqual([halved.log.made, halved.done.entry.state], [[], "applied"], "a pass writes nothing whatever the row's own effect says");
+});
+
+await ta("a failed press does not write what the bearer already holds from the row; an Undo takes the written record off", async () => {
+  const first = await press(FAIL);
+  const held = first.log.made.map((d, i) => ({ ...d, id: `rec${i}` }));
+  const again = await press(FAIL, { held });
+  assert.deepEqual(again.log.made, [], "prone from this row is already in force");
+  assert.deepEqual(again.done.entry.already, ["prone"]);
+  const removed = [];
+  const undone = await undoEntry(first.done.entry, { uuid: "Token.t" }, { resolve: async () => ({ actor: { name: "T" } }), deleteRecords: async (a, ids) => removed.push(...ids), restoreHp: async () => {} });
+  assert.equal(undone.state, "undone");
+  assert.deepEqual(removed, first.done.entry.recordIds, "the written record goes by its id");
+});
+
+t("a Save press on the floor's prompt is checked like any bearer row's: the owner of the bearer presses it, the caster's Roll is refused, the anchor must stand", () => {
+  const { model, key } = floorPrompt(FAIL);
+  const world = (over = {}) => ({ message: { authorId: "gm" }, card: model, stored: model, recur: { cardId: "m0", castId: "c1" }, authorIsGM: true, ownsTarget: true, ownsCaster: true, spellOfCaster: true, rows: floorKeyed, resist: { target: 13, min: 1, max: 20 }, boundsOf: () => null, anchor: true, ...over });
+  const req = (over = {}) => ({ requestUserId: "p1", kind: "save", targetKey: key, resist: FAIL, picked: false, entries: [{ rowKey: "floor" }], ...over });
+  assert.deepEqual(checkRecurRequest(req(), world(), checkApplyRequest), { ok: true });
+  assert.equal(checkRecurRequest(req({ kind: "roll" }), world(), checkApplyRequest).refused, "badKind");
+  assert.equal(checkRecurRequest(req(), world({ anchor: false }), checkApplyRequest).refused, "noAnchor");
+  assert.equal(checkRecurRequest(req(), world({ ownsTarget: false }), checkApplyRequest).refused, "notOwner");
+});
+
+t("the prompt offers the bearer's owner the Save press for the floor, and the cast's card says a failed save writes it on a later round", () => {
+  const { model } = floorPrompt(null);
+  assert.equal(model.rows.floor.recur.save, "fail");
+  const view = castCardView(model, { isGM: false, canPress: false, ownsTarget: () => true, ownsCaster: false }, loc);
+  assert.deepEqual(labels(lines(view)), ["magicCastSave"]);
+  const cast = castCard([FLOOR], { t1_floor: { state: "applied", saved: null, awaits: true, recordIds: ["a1"] } }, { rows: { floor: { type: "conditionGrant", key: "floor", conditions: ["prone"], lasts: "instant" } } });
+  const [line] = lines(castCardView(cast, { isGM: true, canPress: true }, loc));
+  assert.match(line.detail, /detail\.awaitsFail/);
+  assert.deepEqual(labels([line]), ["magicCastUndo"], "the Judge's Undo takes the anchor off");
+});
+
 console.log(`\n${n} recurring-row tests passed`);

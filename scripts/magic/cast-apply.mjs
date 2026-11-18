@@ -52,8 +52,8 @@
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage } from "./cast-rows.mjs";
-import { spellEffectData } from "./spell-effect.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail } from "./cast-rows.mjs";
+import { spellEffectData, spellEffectOf } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData, modifierFigure } from "./cast-mods.mjs";
 import { liftPlan, isDestroyed, pickWeapon } from "./cast-kinds.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
@@ -122,7 +122,7 @@ const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band,
 
 /**
  * The status-only records one condition row leaves on one target: one per
- * condition the row names. `row` is the spell's own row and `key` its key in the
+ * condition the row names, or one status-free record for an `anchor`. `row` is the spell's own row and `key` its key in the
  * cast; `duration` is the one this client computed or recomputed, never the card's.
  * A row that lasts a next turn or a number of rounds takes its `life`
  * (`cast-life.mjs` `lifeOf`) instead: the clock of one round or the rolled
@@ -135,8 +135,8 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
   const lived = Boolean(life?.rounds);
   const timed = lived || ((row.lasts === "duration" || anchor) && duration && !duration.none);
   const clock = lived ? { value: life.rounds, units: "rounds" } : duration;
-  // A row that names no condition (an ignite row, a recurring row's anchor) leaves one status-free record.
-  const statuses = row.type === "conditionGrant" ? Array.from(row.conditions ?? []) : [undefined];
+  // A row that names no condition (an ignite row) and a recurring row's anchor, whatever the row names, leave one status-free record.
+  const statuses = row.type === "conditionGrant" && !anchor ? Array.from(row.conditions ?? []) : [undefined];
   const free = new Set(Array.from(row.untimed ?? []));
   const endsOn = Array.from(row.endsOn ?? []);
   return statuses.map((status) => {
@@ -378,7 +378,7 @@ export async function applyOnTarget(card, targetKey, requests, deps) {
       const rolled = Number.isFinite(Number(r.rolled)) ? Number(r.rolled) : Number(existing.rolled ?? card.rows?.[r.rowKey]?.total);
       // A thrown row's hits: the request's, else the ones its entry holds; null for any row that is not applied by instances.
       const hits = Array.isArray(r.instances) ? r.instances : rowNeedsThrow(keyed.row) && Array.isArray(existing.instances) ? existing.instances.filter((i) => i.state === "pending") : null;
-      const entry = await applyRow({ card, keyed, id, rolled, hits, resist, found, deps, existing, rounds: r.rounds });
+      const entry = await applyRow({ card, keyed, id, rolled, hits, resist, found, deps, existing, rounds: r.rounds, gate: gateOf(keyed.row) });
       await deps.writeEntry(id, entry);
       out.push({ id, entry });
     }
@@ -437,7 +437,8 @@ async function anchorRecurring({ card, targetKey, resist, found, deps, out, requ
   for (const keyed of anchorsNeeded({ rows: deps.rows ?? [], applied })) {
     const entry = applied.find((a) => a.rowKey === keyed.key).entry;
     const asked = requests.find((r) => r.rowKey === keyed.key);
-    const life = hasLife(keyed.row) ? lifeOf(keyed.row, { count: asked?.rounds ?? null, fight: readsFight(keyed.row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    // A row that waits for a failed save has no life of its own at the cast: its `lasts` is the condition's, written later, and the anchor stands for the cast's duration.
+    const life = hasLife(keyed.row) && !awaitsFail(keyed.row) ? lifeOf(keyed.row, { count: asked?.rounds ?? null, fight: readsFight(keyed.row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
     const records = conditionRecords(keyed.row, card, { resist, startTime: deps.now(), key: keyed.key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life, anchor: true });
     const ids = await deps.createRecords(found.actor, records);
     const next = { ...entry, recordIds: [...(entry.recordIds ?? []), ...ids] };
@@ -466,17 +467,42 @@ async function applyIgnite({ card, keyed, found, deps, existing, base, rounds })
   return { ...base, state: "applied", saved: null, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
 }
 
-/** A condition row: one record per condition it names, timed from the spell's own row; a passed save that negates it writes none. */
-async function applyConditionGrant({ card, keyed, resist, found, deps, existing, base, rounds }) {
+/** The statuses a bearer already holds from one row of one cast: what a recurring failed save does not write twice. */
+function heldFromRow(actor, castId, rowKey) {
+  const held = new Set();
+  for (const e of actor?.effects ?? []) {
+    const r = spellEffectOf(e);
+    if (r?.role === "recipient" && r.castId === castId && r.rowKey === rowKey) for (const s of Array.from(e.statuses ?? [])) held.add(s);
+  }
+  return held;
+}
+
+/**
+ * A condition row: one record per condition it names, timed from the spell's own row; a passed save that negates it writes none.
+ * A condition a record of the bearer makes it immune to (`gate.immune`, `cast-gates.mjs`) is left off and named on the entry as `immune`, so a
+ * row covered in part writes the rest. A row that waits for a failed recurring save (`awaitsFail`) writes nothing at the cast: the entry is applied
+ * with no record and `awaits`, and the anchor (`anchorRecurring`) is its one record. On a recurring prompt (`card.recur`) a `recurSave: fail` row
+ * reads the press's save alone: a pass writes nothing, whatever the row's own effect, and a failure writes the conditions the bearer does not already hold from this row.
+ */
+async function applyConditionGrant({ card, keyed, resist, found, deps, existing, base, rounds, gate }) {
   const { row, key } = keyed;
-  const made = saveFractionOf(row, card.save, resist);
+  const immune = gate?.immune ?? [];
+  const left = new Set(immune.map((i) => i.condition));
+  const noted = immune.length ? { immune } : {};
+  if (awaitsFail(row) && !card.recur) return { ...base, state: "applied", saved: null, awaits: true, recordIds: [], ...noted };
+  const failing = row.recurSave === "fail" && card.recur;
+  const made = failing ? { fraction: resist?.success === true ? 0 : 1, saved: resist?.success ?? null } : saveFractionOf(row, card.save, resist);
   if (!wholeOrNone(made)) return { ...base, state: "judge", saved: made.saved };
-  if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
+  if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [], ...noted };
+  const held = failing ? heldFromRow(found.actor, card.castId, key) : new Set();
+  const named = Array.from(row.conditions ?? []).filter((c) => !left.has(c));
+  const writes = named.filter((c) => !held.has(c));
+  const already = named.filter((c) => held.has(c));
   // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
   const life = await lifeFor({ row, rounds, found, deps });
-  const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
-  const ids = await deps.createRecords(found.actor, records);
-  return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
+  const records = conditionRecords({ ...row, conditions: writes }, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
+  const ids = records.length ? await deps.createRecords(found.actor, records) : [];
+  return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...noted, ...(already.length ? { already } : {}), ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
 }
 
 /**
@@ -546,7 +572,7 @@ function checkItem(keyed, _e, world, { card, targetKey }) {
 
 /**
  * The row kinds a cast applies with no amount of their own, by type: the one dispatch (`cast-kinds.mjs` holds the same types' card and entry facts). Each entry:
- * `apply(ctx)` writes one row on one target and returns the card's entry, where `ctx` is `{card, keyed, id, resist, found, deps, existing, base, rounds}`;
+ * `apply(ctx)` writes one row on one target and returns the card's entry, where `ctx` is `{card, keyed, id, resist, found, deps, existing, base, rounds, gate}` (`gate`: the target's gate for this row, null for the caster's own target);
  * `check(keyed, request, world, {card, targetKey})` is what the relay holds a request for it to beyond the common checks (a refusal word, or null).
  * A new kind is added here and in `APPLY_KINDS`.
  */
@@ -562,14 +588,14 @@ const APPLIERS = Object.freeze({
 export const applyKind = (type) => (Object.hasOwn(APPLIERS, type) ? APPLIERS[type] : null);
 
 /** One row on one target: the entry it leaves. `keyed` is the spell's own row, `id` its entry's id. */
-async function applyRow({ card, keyed, id, rolled, hits = null, resist, found, deps, existing, rounds = null }) {
+async function applyRow({ card, keyed, id, rolled, hits = null, resist, found, deps, existing, rounds = null, gate = null }) {
   const { row } = keyed;
   const by = deps.by ?? null;
   if (hits) return applyInstances({ card, keyed, hits, resist, found, deps, existing });
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
   const kind = applyKind(row.type);
   // A kind has no amount, so a figure the card never held is no "rolled" on its entry.
-  if (kind) return kind.apply({ card, keyed, id, resist, found, deps, existing, base: Number.isFinite(rolled) ? base : { ...base, rolled: undefined }, rounds });
+  if (kind) return kind.apply({ card, keyed, id, resist, found, deps, existing, base: Number.isFinite(rolled) ? base : { ...base, rolled: undefined }, rounds, gate });
   // The defenses are read from the actor this client writes, as they stand now.
   const defenses = deps.defenses ? deps.defenses(found.actor) : { sources: actorDefenses(found.actor), figures: defenseFigures() };
   const amount = amountOf(row, card, resist, rolled, defenses);
