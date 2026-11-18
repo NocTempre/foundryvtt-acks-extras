@@ -40,7 +40,6 @@ can proceed from source, but a hotfix cannot be tagged from this machine
 | `foundryvtt-acks-core` | The ACKS II system (AutarchLLC fork). **Read-only reference — a module task never edits it.** |
 | `foundryvtt-acks-extras` | The merged module (`acks-extras`). Subsystems under `scripts/`: `lib abilities classes equipment formation henchmen influence location markets monsters vehicles importer` — the last is book connection and content/table extraction (`cookbook/`, `register/`, `tools/importer/`). |
 | `foundryvtt-acks-importer` | Retired 2026-09-01: a read-only archive. Its open issues are worked in extras. |
-| `acks-module-template` | Toolchain source of truth; skills, rules and hooks are canonical here. |
 | `acks-rules` | LOCAL-ONLY rules extracts + `TEST_ENVIRONMENT.md` + the intake ledger and hygiene audit. Never committed, never shipped. |
 | `acks-reference` | LOCAL-ONLY reference library (book scans/extracts, `WIKI-SNAPSHOT`). |
 | `acks-domains` | **Not part of this project.** A symptom routed here is `routed-elsewhere`, not a family fix. |
@@ -48,7 +47,7 @@ can proceed from source, but a hotfix cannot be tagged from this machine
 | `acksii-compendia` | Third-party stopgap compendia — not ours; a symptom here is not our bug. |
 | `acks-git-backups` | Pre-purge bundles. Not a live repo. |
 
-The template's `docs/TOOLCHAIN.md` §0 carries this same table as canon; it is
+`docs/TOOLCHAIN.md` §0 carries this same table; it is
 repeated here so orientation costs one read, not two. If the two ever disagree,
 TOOLCHAIN is right and this table is the stale one.
 
@@ -230,8 +229,8 @@ Reflexes that are wrong here (full statements in the module's `CLAUDE.md`):
 - `packs/_source/` is **generated**. Edit `tools/pack-data.mjs`; a direct edit is
   undone by the next `build:packs`. Compiled `packs/` is gitignored — there is no
   pack churn to discard.
-- `tools/build-packs.mjs` and `tools/validate.mjs` are **synced** from this
-  template. Fix the template and run `acks-sync-toolchain`; never hand-edit.
+- A change to a toolchain tool (`tools/validate.mjs`, `ip-scan.mjs`, a hook)
+  runs the suite that covers it in `tools/toolchain-tests/`.
 - One owner per wrapped core method. Overrides of core logic default to the
   shared `lib` subsystem, not to a feature.
 - Green offline proves nothing — `validate`/`npm test` run against mocked

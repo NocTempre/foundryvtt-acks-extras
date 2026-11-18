@@ -1,9 +1,9 @@
 # Extras (acks-extras)
 
 Foundry VTT module for the ACKS II system (`acks`), part of the NocTempre ACKS
-module family. Canonical conventions and shared toolchain:
-`C:\Proj\acks-module-template` — read its `docs/TOOLCHAIN.md` before changing
-build/release plumbing, and its `docs/DECISIONS.md` before a structural change.
+module family. Conventions and toolchain: read `docs/TOOLCHAIN.md` before
+changing build/release plumbing, and `docs/DECISIONS.md` before a structural
+change.
 
 ## Where a lesson lands
 
@@ -11,10 +11,10 @@ When something worth keeping is learned, walk down and stop at the first match:
 
 1. It recurred despite being written down → make it a **gate** (a validate
    rule, a hook, a preflight check) and delete the prose it replaces.
-2. True of every repo, durably → the template: `docs/TOOLCHAIN.md`, or a
-   synced `.claude/rules/` file.
-3. True of this repo → `docs/<feature>/` (MODEL / DECISIONS / TESTING), or
-   this repo's docs.
+2. True of the toolchain or of all work here, durably → `docs/TOOLCHAIN.md`,
+   or a `.claude/rules/` file.
+3. True of one feature → `docs/<feature>/` (MODEL / DECISIONS / TESTING), or
+   the repo-level docs.
 4. True only of this machine → `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
 5. Tentative or unconfirmed → auto-memory, until it earns a tier above.
 
@@ -23,7 +23,7 @@ Never state it in a second place — write a pointer. Promoting a lesson means
 
 ## Sizing the task
 
-Five synced agents (`.claude/agents/`) carry the model/effort routing —
+Five agents (`.claude/agents/`) carry the model/effort routing —
 `scout` (haiku: search/inventory), `implementer` (sonnet: scoped changes),
 `architect` (opus: design/diagnosis, read-only), `live-tester` (sonnet:
 drives the test world), `doc-scribe` (haiku: docs chores).
@@ -54,7 +54,7 @@ How much one agent and one session carry:
   the exception: the work that finds it fixes it
   (`.claude/rules/ip-doctrine.md`).
 - **Every agent and session starts on a model chosen for its work.** The
-  owner: "always select agent model intentionally". Picking a synced agent
+  owner: "always select agent model intentionally". Picking one of the five agents
   by the work is that choice: it is started with no model override, and work
   that needs a stronger model than `implementer`'s is design, and goes to
   `architect`. A start no definition covers names its model: a session
@@ -85,12 +85,14 @@ How much one agent and one session carry:
 - `packs/_source/` — JSON pack sources (committed). **Also GENERATED:**
   `build:packs` deletes and rewrites them from `tools/pack-data.mjs`, so
   editing them directly is silently undone. Edit `tools/pack-data.mjs`.
-- `tools/` — dev harness. `build-packs.mjs` and `validate.mjs` are **synced
-  from acks-module-template — never hand-edit**; change the template, then
-  run `/acks-sync-toolchain`. `pack-data.mjs` (and the data files it
-  re-exports) are module-owned.
-- `.claude/skills|rules|hooks/` — **synced canon from acks-module-template**
-  (COPY_DIRS); never hand-edit here, CI flags drift.
+- `tools/` — dev harness. A change to a toolchain tool (`validate.mjs`,
+  `ip-scan.mjs`, `ip-quarantine.mjs`, `logs.mjs`, `release-preflight.mjs`,
+  `walk-results.mjs`, `live/_capture.mjs`) runs the suite that covers it,
+  `tools/toolchain-tests/test-<name>.mjs`; those suites stay out of
+  `npm test`. `pack-data.mjs` (and the data files it re-exports) holds the
+  pack content.
+- `.claude/skills|rules|hooks|agents/` — this repo's own. A change to a hook
+  or to the commit and branch tools runs its suite in `tools/toolchain-tests/`.
 - Canonical ACKS II rules extracts: `C:\Proj\acks-rules\<feature>\RULES.md` —
   **LOCAL-ONLY, never committed or shipped** (licensed book text). Cite it
   instead of re-deriving rules; lookup order: `.claude/rules/rules-lookup.md`.

@@ -1,5 +1,5 @@
 /**
- * Compendium document content for acks-extras — the aggregator the synced
+ * Compendium document content for acks-extras — the aggregator
  * tools/build-packs.mjs consumes.
  *
  * Each merged feature keeps its own generator in tools/pack-data/<feature>.mjs;

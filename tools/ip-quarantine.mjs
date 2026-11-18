@@ -1,6 +1,6 @@
 /**
- * IP quarantine — the pre-commit half of the leak gate. Synced from
- * acks-module-template; do not hand-edit.
+ * IP quarantine — the pre-commit half of the leak gate. A change here runs
+ * tools/toolchain-tests/test-ip-quarantine.mjs.
  *
  * Commit time is the ONLY moment this can work. Once a flagged file is in a
  * commit, ignoring it later does not remove it from history, and the repo has

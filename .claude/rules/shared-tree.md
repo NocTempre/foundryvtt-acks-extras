@@ -3,7 +3,7 @@
 Several sessions write in `main`'s working tree at the same time. A commit
 there holds one session's change and nothing else, and the tree it holds is
 the tree that was gated. The mechanics are the `acks-commit` skill; the
-rulings behind this page are `acks-module-template/docs/DECISIONS.md`
+rulings behind this page are indexed in `docs/DECISIONS.md`, "In force"
 (2026-10-07, and 2026-11-12 for the branch model). The test world's half of
 this is `live-testing.md`, "Concurrency". A topic branch in a worktree of its
 own has one writer and none of this page's machinery but the last section's.
@@ -83,10 +83,6 @@ shape") names, run on the release's own commits.
   push is TOOLCHAIN §2 unless the user said otherwise.
 
 ## Topic and parked branches
-
-This section is in force in a repository once its synced `.claude/` holds it
-together with the hooks synced beside it. Until then a branch, a worktree, a
-rebase and a merge each wait for the owner's word.
 
 - **`main` is what is released and walked, and its tree never leaves
   `main`.** A hook refuses a switch of `main`'s tree to another branch or

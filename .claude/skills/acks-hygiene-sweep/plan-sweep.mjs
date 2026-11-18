@@ -143,8 +143,8 @@ function headOf(repoRoot) {
  * silently fall out of audit. Two deliberate exclusions remain, both invisible
  * to .gitignore because they are committed: vendored third-party pdf.js (not
  * ours to audit; vendor/acks-design stays IN scope — those tokens are the
- * family's own), and .claude/ hooks, which are template-synced canon audited
- * at their source, not per-copy. */
+ * family's own), and .claude/ hooks, which their own suites
+ * cover (tools/toolchain-tests/). */
 const AUDITED_EXT = /\.(mjs|hbs|css)$/;
 const DELIBERATE_SKIP = /(^|\/)vendor\/(pdf[.\w]*\.mjs|wasm)(\/|$)|^\.claude\//;
 

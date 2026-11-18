@@ -149,5 +149,5 @@ world backup.
 This doctrine is deliberately stricter than the licence requires on words and
 numbers — the margin is the point, and it is not relaxed because a particular
 string looks legally safe. The margin buys nothing on attribution, which is
-why it is not spent there. The ruling and its history live in
-`acks-module-template/docs/DECISIONS.md`.
+why it is not spent there. The ruling and its history are indexed in
+`docs/DECISIONS.md`, "In force".

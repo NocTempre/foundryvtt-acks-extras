@@ -1,6 +1,5 @@
 /**
  * Canonical compendium-pack builder.
- * Synced from acks-module-template — edit there and run bin/sync-toolchain.mjs.
  *
  * Document content lives in the module-owned tools/pack-data.mjs, which exports
  *   export const packs = { "<pack-name>": () => [documents...] };

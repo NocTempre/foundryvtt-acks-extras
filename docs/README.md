@@ -1,11 +1,14 @@
 # Documentation
 
 The document kinds, the dedup law, the `wip/` lifecycle and the
-comment/docstring rules are the synced `.claude/rules/docs-doctrine.md` —
+comment/docstring rules are `.claude/rules/docs-doctrine.md` —
 this file only indexes what this repo has.
 
+- [TOOLCHAIN.md](TOOLCHAIN.md) — build, release and dev-harness conventions,
+  cited across the repo by section number; [LICENSING.md](LICENSING.md) — the
+  license and disclaimer rules and the IP leak gates.
 - [DECISIONS.md](DECISIONS.md) — repo-level: namespacing, flag scope, the macro pack,
-  the docs site and its guards.
+  the docs site and its guards, and the toolchain's rulings.
 - [ROADMAP.md](ROADMAP.md) — repo-level: magic, the domain-module family.
 - [TESTING.md](TESTING.md) — repo-level: the entry point and the namespace load at all,
   and walking a shipped macro.
@@ -97,5 +100,5 @@ file out of a module directory. These are read on GitHub.
 
 That exclusion is a `docs/*` pattern in the release workflow, which is why the
 site lives under `docs/` rather than at the repo root: it needs no change to the
-synced template to stay out of the zip. Verified against a published artifact —
+workflow to stay out of the zip. Verified against a published artifact —
 `module.zip` carries no `docs/` entries at any depth.

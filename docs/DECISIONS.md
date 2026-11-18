@@ -33,6 +33,68 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - undated — [26. The module map and the API reference are generated, published and shipped (2026-11-10)](DECISIONS-through-v11.14.5.md#26-the-module-map-and-the-api-reference-are-generated-published-and-shipped-2026-11-10) — superseded in part by "2026-11-10 — The developer reference is on the site only"
 - undated — [27. The developer reference is on the site only (2026-11-10)](DECISIONS-through-v11.14.5.md#27-the-developer-reference-is-on-the-site-only-2026-11-10)
 
+Toolchain rulings made in `acks-module-template` before it was folded into this repo (2026-11-18), as its `docs/DECISIONS.md` held them at `a85dd50`:
+
+- 2026-08-04 — [A shared check must report what it checked](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-04--a-shared-check-must-report-what-it-checked--in-force)
+- 2026-08-01 — [Eight modules become one](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-01--eight-modules-become-one--in-force)
+- 2026-07-19 — [No value read from a book ships in any repo](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-07-19--no-value-read-from-a-book-ships-in-any-repo--in-force)
+- 2026-07-16 — [Rules extracts never enter a repo](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-07-16--rules-extracts-never-enter-a-repo--in-force)
+- 2026-07-19 — [Compiled packs are build output, not source](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-07-19--compiled-packs-are-build-output-not-source--in-force)
+- 2026-08-05 — [The worktree that renamed a repo, and the sync that ran ahead of the push](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-05--the-worktree-that-renamed-a-repo-and-the-sync-that-ran-ahead-of-the-push--in-force-except-the-single-branch-guards-scope-superseded-in-part-2026-11-12) — except the single-branch guard's scope (superseded in part 2026-11-12); its sync half superseded 2026-11-18 (the template is folded in)
+- 2026-09-01 — [Two modules become one](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-01--two-modules-become-one--in-force)
+- 2026-08-15 — [Math may ship; the book's words may not](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-15--math-may-ship-the-books-words-may-not--in-force-except-its-citation-clause-superseded-2026-09-03) — except its citation clause (superseded 2026-09-03)
+- 2026-08-19 — [The soak rules are removed; the recipe walk is the whole gate](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-08-19--the-soak-rules-are-removed-the-recipe-walk-is-the-whole-gate--in-force)
+- 2026-09-03 — [The page reference ships; removing it protected nothing](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-03--the-page-reference-ships-removing-it-protected-nothing--in-force)
+- 2026-09-05 — [Teardown is by the run's own ids; the prose that said so did not hold](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-05--teardown-is-by-the-runs-own-ids-the-prose-that-said-so-did-not-hold--in-force-except-a-sweep-at-the-end-of-every-run-superseded-2026-10-26) — except a sweep at the end of every run (superseded 2026-10-26)
+- 2026-09-07 — [The window contract gates what a caption can reach, not only what a window can scroll](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-07--the-window-contract-gates-what-a-caption-can-reach-not-only-what-a-window-can-scroll--in-force)
+- 2026-09-23 — [A template calls only helpers something registers](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-23--a-template-calls-only-helpers-something-registers--in-force)
+- 2026-09-23 — [The namespace check reads helpers through §2b's reader](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-23--the-namespace-check-reads-helpers-through-2bs-reader--in-force)
+- 2026-09-23 — [The namespace check reads globals and hooks where they are written](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-23--the-namespace-check-reads-globals-and-hooks-where-they-are-written--in-force)
+- 2026-09-24 — [The long-literal warning measures literals](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-24--the-long-literal-warning-measures-literals--in-force)
+- 2026-09-24 — [`tokenizeJs` tells a regex from a division by the scanner's rules](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-09-24--tokenizejs-tells-a-regex-from-a-division-by-the-scanners-rules--in-force)
+- 2026-10-01 — [The capture driver keeps its page in front and its tray out of frame](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-01--the-capture-driver-keeps-its-page-in-front-and-its-tray-out-of-frame--in-force)
+- 2026-10-01 — [A DOM node is not told by `instanceof`](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-01--a-dom-node-is-not-told-by-instanceof--in-force)
+- 2026-10-07 — [A commit on a shared tree is one session's hunks, gated as the tree it commits](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-07--a-commit-on-a-shared-tree-is-one-sessions-hunks-gated-as-the-tree-it-commits--in-force)
+- 2026-10-07 — [A worktree or a branch per session is rejected, and what is left lands as tools](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-07--a-worktree-or-a-branch-per-session-is-rejected-and-what-is-left-lands-as-tools--in-force-except-the-rejected-trial-for-sessions-that-walk-nothing-live-superseded-in-part-2026-11-12) — except the rejected trial for sessions that walk nothing live (superseded in part 2026-11-12)
+- 2026-10-07 — [A retired update key fails where it is written and passes where it is read](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-07--a-retired-update-key-fails-where-it-is-written-and-passes-where-it-is-read--in-force)
+- 2026-10-07 — [A release push the remote rejects is repeated whole, inside a bound](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-07--a-release-push-the-remote-rejects-is-repeated-whole-inside-a-bound--in-force)
+- 2026-10-07 — [The edit ledger and the shared-tree guard](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-07--the-edit-ledger-and-the-shared-tree-guard--in-force-except-a-line-changed-and-changed-back-and-a-division-that-keeps-no-added-line-superseded-2026-10-13-a-tie-of-added-lines-the-ledger-can-place-superseded-2026-10-14-and-a-tie-each-of-whose-places-names-this-change-superseded-2026-10-17) — except a line changed and changed back, and a division that keeps no added line (superseded 2026-10-13), a tie of added lines the ledger can place (superseded 2026-10-14), and a tie each of whose places names this change (superseded 2026-10-17)
+- 2026-10-08 — [The landing lease, and a gate whose serial work runs side by side](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-08--the-landing-lease-and-a-gate-whose-serial-work-runs-side-by-side--in-force)
+- 2026-10-10 — [The commit-time gate judges what the commit would hold, and the quarantine has a suite](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-10--the-commit-time-gate-judges-what-the-commit-would-hold-and-the-quarantine-has-a-suite--in-force)
+- 2026-10-10 — [The pre-commit hook is committed as an executable file, and the commit tool, the sync and the scaffolder each hold it there](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-10--the-pre-commit-hook-is-committed-as-an-executable-file-and-the-commit-tool-the-sync-and-the-scaffolder-each-hold-it-there--in-force) — the sync's and the scaffolder's halves superseded 2026-11-18 (the template is folded in)
+- 2026-10-13 — [A session that changed a line and changed it back has no claim on it, and a line a peer wrote over is not carved into a removal](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-13--a-session-that-changed-a-line-and-changed-it-back-has-no-claim-on-it-and-a-line-a-peer-wrote-over-is-not-carved-into-a-removal--in-force-except-a-line-its-own-writer-took-out-before-it-landed-superseded-2026-10-14) — except a line its own writer took out before it landed (superseded 2026-10-14)
+- 2026-10-13 — [A commit the hook is not asked about is read by nothing, and no reader is built for it](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-13--a-commit-the-hook-is-not-asked-about-is-read-by-nothing-and-no-reader-is-built-for-it--in-force)
+- 2026-10-14 — [A ledger record names the commit HEAD was at, and a line withdrawn before it landed has no claim on one that landed](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-14--a-ledger-record-names-the-commit-head-was-at-and-a-line-withdrawn-before-it-landed-has-no-claim-on-one-that-landed--in-force)
+- 2026-10-14 — [A hunk of added lines that ties across another writer's line is one session's where the ledger shows its lines unlanded and the rest HEAD's](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-14--a-hunk-of-added-lines-that-ties-across-another-writers-line-is-one-sessions-where-the-ledger-shows-its-lines-unlanded-and-the-rest-heads--in-force-except-its-cost-line-on-a-tie-it-cannot-settle-superseded-2026-10-17) — except its cost line on a tie it cannot settle (superseded 2026-10-17)
+- 2026-10-14 — [The commit tooling is frozen, a landing is one command, and a release reads git](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-14--the-commit-tooling-is-frozen-a-landing-is-one-command-and-a-release-reads-git--in-force-except-ruling-2s-push-superseded-2026-10-17) — except ruling 2's push (superseded 2026-10-17)
+- 2026-10-17 — [A session commits finished work unasked, and a commit stays local until the owner says push](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-17--a-session-commits-finished-work-unasked-and-a-commit-stays-local-until-the-owner-says-push--in-force)
+- 2026-10-17 — [A tie the ledger cannot place is this change's where every place is, and refused where every place holds a line of it beside another's](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-17--a-tie-the-ledger-cannot-place-is-this-changes-where-every-place-is-and-refused-where-every-place-holds-a-line-of-it-beside-anothers--in-force)
+- 2026-10-17 — [The commit tool lists a removed path under its own name, whatever git would pair it with](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-17--the-commit-tool-lists-a-removed-path-under-its-own-name-whatever-git-would-pair-it-with--in-force)
+- 2026-10-24 — [Every figure carries a tooltip that says where it came from](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-24--every-figure-carries-a-tooltip-that-says-where-it-came-from--in-force)
+- 2026-10-26 — [A fixture, once built, stays; only a check of setup deletes one](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-26--a-fixture-once-built-stays-only-a-check-of-setup-deletes-one--in-force)
+- 2026-10-28 — [The driver finds a kept fixture by its marker; a session's own is the recipe's marker with `@<tag>`, and a marker on two documents stops the run](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-28--the-driver-finds-a-kept-fixture-by-its-marker-a-sessions-own-is-the-recipes-marker-with-tag-and-a-marker-on-two-documents-stops-the-run--in-force)
+- 2026-10-29 — [A run's own leavings are its own to remove; the 2026-10-26 ruling relaxed the asking and preserved nothing](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-10-29--a-runs-own-leavings-are-its-own-to-remove-the-2026-10-26-ruling-relaxed-the-asking-and-preserved-nothing--in-force)
+- 2026-11-06 — [A changelog entry names its release shot, and the preflight refuses one that does not](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-06--a-changelog-entry-names-its-release-shot-and-the-preflight-refuses-one-that-does-not--in-force)
+- 2026-11-06 — [The disclaimer carries no registration number](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-06--the-disclaimer-carries-no-registration-number--in-force)
+- 2026-11-10 — [The developer reference is published, not shipped](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-10--the-developer-reference-is-published-not-shipped--in-force)
+- 2026-11-12 — [One slice per agent, about ten ledger rows per session](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--one-slice-per-agent-about-ten-ledger-rows-per-session--in-force)
+- 2026-11-12 — [Unpushed commits are named at the end of a turn](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--unpushed-commits-are-named-at-the-end-of-a-turn--in-force) — the template beside the checkout superseded 2026-11-18 (the template is folded in)
+- 2026-11-12 — [The release workflow scans the tree once](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--the-release-workflow-scans-the-tree-once--in-force)
+- 2026-11-12 — [A release is versioned by its day](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-is-versioned-by-its-day--in-force)
+- 2026-11-12 — [Changelog fragments, and a major rolls the logs](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--changelog-fragments-and-a-major-rolls-the-logs--in-force)
+- 2026-11-12 — [A later roll carries the live index forward](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-later-roll-carries-the-live-index-forward--in-force)
+- 2026-11-12 — [A tag needs a recorded walk result for every required walk](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-tag-needs-a-recorded-walk-result-for-every-required-walk--in-force)
+- 2026-11-12 — [A release commits before its live session and tags its docs commit](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-release-commits-before-its-live-session-and-tags-its-docs-commit--in-force-r15s-by-procedure-qualified-2026-11-15-a-topics-landing-is-guarded) — R15's "by procedure" qualified 2026-11-15 (a topic's landing is guarded)
+- 2026-11-12 — [Topic and parked branches return, opened and landed by one tool](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--topic-and-parked-branches-return-opened-and-landed-by-one-tool--in-force-except-which-work-takes-a-branch-superseded-in-part-2026-11-15) — except which work takes a branch (superseded in part 2026-11-15)
+- 2026-11-12 — [A new phase is a clean session, its own orchestrator](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-12--a-new-phase-is-a-clean-session-its-own-orchestrator--in-force)
+- 2026-11-14 — [A field with nothing imported stays blank](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-14--a-field-with-nothing-imported-stays-blank--in-force)
+- 2026-11-15 — [Every agent and session starts on a model chosen for its work](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-15--every-agent-and-session-starts-on-a-model-chosen-for-its-work--in-force)
+- 2026-11-15 — [A new feature is built on a topic branch](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-15--a-new-feature-is-built-on-a-topic-branch--in-force)
+- 2026-11-15 — [A topic is synced between landings, and `land` keeps its lease and the release window](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-15--a-topic-is-synced-between-landings-and-land-keeps-its-lease-and-the-release-window--in-force)
+- 2026-11-16 — [A UI element is designed and approved before it is built](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-16--a-ui-element-is-designed-and-approved-before-it-is-built--in-force)
+- 2026-11-18 — [Work is checked twice: its unit suites, and the land's gate](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-18--work-is-checked-twice-its-unit-suites-and-the-lands-gate--in-force-its-measured-paragraph-superseded-in-part-2026-11-18) — its "Measured" paragraph SUPERSEDED IN PART 2026-11-18
+- 2026-11-18 — [A change.json key the tool ignores, or a file it leaves, is refused](https://github.com/NocTempre/acks-module-template/blob/a85dd503534ec040653930309ad6a2860944c23d/docs/DECISIONS.md#2026-11-18--a-changejson-key-the-tool-ignores-or-a-file-it-leaves-is-refused--in-force)
+
 ## 2026-11-13 — 28. The walk runner records every walk; suites are discovered
 
 **Problem.** The template's release preflight now refuses a tag while a
@@ -353,3 +415,55 @@ two settings menus would show with no client behind them.
 
 *Cost:* a dev install junctioned to `main` has no bridge, so the owner's own
 testing runs from a checkout of the parked branch.
+
+## 2026-11-18 — The template is folded into this repo
+
+**Owner ruling.** "the release gates (full workflow toolchain really) need a
+full audit. They are hold-over from when the repo was very different in scope
+and structure. For example, module template seems redundant now." On the
+audit's cut C1, fold the template into this repo: "Yes, plan it", then
+"Implement".
+
+**Evidence.** The template's `manifest.mjs` listed this repo as its only sync
+target. A toolchain change was a template commit and push, a sync, a land here
+under a full gate, and a push; this repo took 21 sync commits in the month to
+2026-11-18. The live walks loaded their capture driver from the template's
+checkout, and a tag was built by the template's workflow as its `main` stood
+that day.
+
+**Ruled.** The toolchain is this repo's own, and is edited here: `.claude/`
+(skills, rules, hooks, agents, settings), `tools/validate.mjs`,
+`build-packs.mjs`, `ip-scan.mjs`, `ip-quarantine.mjs`, `release-preflight.mjs`,
+`logs.mjs`, `walk-results.mjs` and `.githooks/pre-commit`. The capture driver
+is `tools/live/_capture.mjs`. The 14 suites that test those tools are
+`tools/toolchain-tests/test-*.mjs`. They stay out of `npm test` and the land's
+gate, as they were: one sequential run took 1,648 s. A change to a tool runs
+the suite that covers it, and `.github/workflows/toolchain-tests.yml` runs
+them on a push that touches what they cover. The release procedure is
+`.github/workflows/release.yml`, whole. `docs/TOOLCHAIN.md` and
+`docs/LICENSING.md` live here, TOOLCHAIN with its section numbers kept. The
+sync tool, the scaffolder, the skeleton, the manifest, the drift workflow, the
+nightly script and the skills `acks-sync-toolchain` and `acks-new-module` are
+gone. No gate changed what it checks.
+
+The template's `docs/DECISIONS.md` is not copied. The `## In force` index
+above names each of its rulings that still governs, at the commit the fold
+copied from. A new toolchain ruling is an entry in this file.
+
+**Superseded**, among the template's rulings. Whole, so they take no index
+row: "The template's own tree was outside every gate it publishes"
+(2026-09-09), "The sync reads canon from a commit, holds what git cannot give
+back, and fails a target it did not read" (2026-10-08), "`blank-template/` is
+retired, and the scaffolder says whether the module it built is level with
+canon" (2026-10-09), "This repo's hook runs the quarantine in `skeleton/`, and
+no copy of it sits at the root" (2026-10-10). In part, as their rows say: the
+sync's half of "The worktree that renamed a repo, and the sync that ran ahead
+of the push" (2026-08-05), the sync's and the scaffolder's halves of "The
+pre-commit hook is committed as an executable file" (2026-10-10), and the
+template's checkout in "Unpushed commits are named at the end of a turn"
+(2026-11-12). That last ruling is under seven days old; what it did not know
+is the single consumer above.
+
+**Cost.** No one-command scaffold for a second module. Toolchain commits enter
+this repo's history. Nothing compares `LICENSE` or a toolchain file with a
+second copy, so a hand edit to one is caught by review and by its suite.

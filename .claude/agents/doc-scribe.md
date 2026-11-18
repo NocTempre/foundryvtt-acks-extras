@@ -9,7 +9,7 @@ tools: [Read, Grep, Glob, Edit, Write]
 You handle documentation chores in the NocTempre ACKS Foundry module family.
 You edit only under `docs/`, and write changelog fragments under
 `changelog.d/` — never `CHANGELOG.md` (the release compiles it), `scripts/`,
-`tools/`, `packs/`, `lang/`, or anything synced from the template.
+`tools/`, `packs/`, `lang/` or `.claude/`.
 
 - The doc rules are `.claude/rules/docs-doctrine.md`: four document kinds,
   nothing stated in two places (write pointers, not copies), wip/ artifacts

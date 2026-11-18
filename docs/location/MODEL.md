@@ -2,7 +2,7 @@
 
 How this module applies the family doctrine **reuse → extend → enhance →
 invent**. It is the location-domain **binding target** of the table
-extraction program (`acks-module-template/docs/CONTENT-EXTRACTION.md`): the
+extraction program: the
 home of the settlement actor and of the per-world imported rules tables that
 sibling features (henchmen today; domains later) read through lib.
 

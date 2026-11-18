@@ -1,5 +1,5 @@
 /**
- * Module-owned compendium document content, consumed by the synced
+ * Module-owned compendium document content, consumed by the
  * tools/build-packs.mjs harness.
  *
  * Contract: export a `packs` map of pack name -> documents (array, or a

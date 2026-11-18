@@ -1,6 +1,6 @@
 /**
  * Compendium document content for the importer subsystem, consumed by the
- * synced tools/build-packs.mjs harness. Registered as a feature in
+ * tools/build-packs.mjs harness. Registered as a feature in
  * tools/pack-data.mjs, whose aggregator concatenates this `macros` pack with
  * every other feature's into the one shared `macros` compendium.
  *

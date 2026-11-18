@@ -7,7 +7,7 @@ effort: high
 
 Release procedure for any NocTempre `acks-*` module. The kinds, the release
 shape (two commits and a tag) and the table of what each kind requires are
-`C:\Proj\acks-module-template\docs\TOOLCHAIN.md` §4; the walk gate is §4a; the
+`docs/TOOLCHAIN.md` §4; the walk gate is §4a; the
 capture rules are §4b. This file holds the steps and their commands. Work inside
 the module repo; confirm with the user which repo if not stated.
 
@@ -52,9 +52,7 @@ report says so. A gate result holds for the tree id it was recorded against and
 no other. With no checkpoint at all, the same table says where the release
 stands. Remove the checkpoint once step 12's report is written.
 
-The CI procedure itself lives in acks-module-template's
-`release-module.yml` (reusable workflow) — module `release.yml` files are thin
-synced callers; never edit either in a module repo. A pre-flight dry run of
+The CI procedure itself is `.github/workflows/release.yml`. A pre-flight dry run of
 the full pipeline (build + validate, no publish) is available anytime:
 `gh workflow run Release --repo NocTempre/<repo> --ref main`
 
@@ -66,14 +64,12 @@ the full pipeline (build + validate, no publish) is available anytime:
    `topic/*` branch has not landed does not ship: list each open topic to
    the owner once, from `git branch --list "topic/*"`, and say which have
    slices on `main` already. `--no-merged main` names the topics holding
-   unlanded commits; one it leaves out may be between two landings. Run the
-   toolchain
-   check, the one push-triggered gate no later step covers:
-   `node C:\Proj\acks-module-template\bin\sync-toolchain.mjs --check` (zero
-   drift against the template's pushed `main`, which is what CI checks out —
-   TOOLCHAIN §9). `ls .github/workflows` says what else fires on the push;
-   step 4's clone gate covers the Release workflow's build and validate, and
-   step 6's gate covers the docs site. A gate that genuinely cannot run locally
+   unlanded commits; one it leaves out may be between two landings.
+   `ls .github/workflows` says what fires on the push:
+   step 4's clone gate covers the Release workflow's build and validate,
+   step 6's gate covers the docs site, and `toolchain-tests.yml` fires only
+   where the push touches the toolchain, whose suites
+   (`tools/toolchain-tests/`) run here singly. A gate that genuinely cannot run locally
    is what step 10 is for; step 10 firing on anything runnable here means this
    step was skipped.
 2. **Bump and compile.** Read `git tag --sort=-v:refname | head -3` first: an
@@ -123,7 +119,7 @@ the full pipeline (build + validate, no publish) is available anytime:
 6. **The docs commit**, in this same live session while the world is up: the
    shots the kind calls for, `docs/GALLERY.md` and the guides (TOOLCHAIN §4b:
    what to capture, where it lives, how to compose and clip a frame). Capture
-   with `acks-module-template/bin/foundry-capture.mjs` to
+   with `tools/live/_capture.mjs` to
    `docs/releases/v<version>/<feature-slug>.png`; machine-specific values live in
    `TEST_ENVIRONMENT.md`. A major removes the orphan shot folders `roll` listed,
    once the new shots are linked. Land it through `acks-commit`, `land --no-push`,
@@ -198,8 +194,8 @@ the full pipeline (build + validate, no publish) is available anytime:
     Every run must end `success`; an empty list is a query that missed, never
     a pass. A failure is YOURS to resolve in this session: read its log
     (`gh run view <id> --log-failed`), fix the cause, push the fix, and
-    re-check — or, if the check itself is wrong, fix the check in its canonical
-    home (template workflows sync from acks-module-template). Never report the
+    re-check — or, if the check itself is wrong, fix the check
+    (`.github/workflows/`). Never report the
     release done over a red run without saying exactly which run is red and why.
 11. **Verify the manifest** resolves with the new version (bounded, `-m 15`):
     `curl -sm 15 -L https://github.com/NocTempre/<repo>/releases/latest/download/module.json`

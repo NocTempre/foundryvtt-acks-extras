@@ -6,8 +6,8 @@
  * interpreter sees the body: `C:\Proj\acks-rules` arrives as
  * `C:\Projacks-rules` with a BEL where `\a` was. Nothing errors — the file is
  * written and looks right in most viewers, the command runs against a path
- * that does not exist, and a control character can ride into a doc and
- * propagate through sync-toolchain. The fix is structural, not vigilance:
+ * that does not exist, and a control character can ride into a doc.
+ * The fix is structural, not vigilance:
  * write files with the Write/Edit tools and pass paths as arguments or env
  * vars; a heredoc script that truly must contain one builds it from chr(92).
  *

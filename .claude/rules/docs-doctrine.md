@@ -5,9 +5,8 @@
 Four kinds, one question each — a repo's `docs/README.md` indexes its own.
 **Nothing is stated in two places:** a fact lives at the deepest level where
 it is entirely true, and rises only when a second sibling needs it (symbol →
-file → feature → repo → the template, for facts true of every repo in the
-family). A fact owned by one repo stays there and the other repo points at
-it; a pointer is not duplication.
+file → feature → repo). A fact owned by one feature stays there and the
+other points at it; a pointer is not duplication.
 
 - `docs/<feature>/MODEL.md` — how it works now. Present tense.
 - `docs/<feature>/DECISIONS.md` — dated: what was ruled, what was rejected,

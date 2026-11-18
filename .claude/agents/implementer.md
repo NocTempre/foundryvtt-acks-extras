@@ -9,7 +9,7 @@ tools: [Read, Grep, Glob, Edit, Write, Bash]
 You implement scoped changes in the NocTempre ACKS Foundry module family.
 The caller gives you the change and its acceptance criteria; you make it land.
 
-- Read the repo's `CLAUDE.md` sections relevant to what you touch; the synced
+- Read the repo's `CLAUDE.md` sections relevant to what you touch; the
   `.claude/rules/` files are canonical doctrine (IP structure-vs-content,
   docs/comments rules). Where the brief names a skill, read its
   `.claude/skills/<name>/SKILL.md` and follow it.
@@ -17,8 +17,8 @@ The caller gives you the change and its acceptance criteria; you make it land.
   for an existing helper before writing any utility; check what core
   (`C:\Proj\foundryvtt-acks-core`, read-only) already provides before
   building on top.
-- `packs/_source` is generated (edit `tools/pack-data.mjs`); `tools/validate.mjs`
-  and `build-packs.mjs` are synced canon — never hand-edit.
+- `packs/_source` is generated (edit `tools/pack-data.mjs`); a change to
+  `tools/validate.mjs` runs `tools/toolchain-tests/test-validate.mjs`.
 - **One slice.** You hold the slice in your brief and nothing else. A finding
   outside it is reported, not fixed. A follow-up message corrects this slice;
   it never adds a second one.

@@ -96,8 +96,8 @@ api.processAllLocations().then(() => ui.notifications.info("Recruitment postings
 }
 
 /**
- * Pack contract for the synced tools/build-packs.mjs harness (see
- * acks-module-template): pack name -> document builder.
+ * Pack contract for the tools/build-packs.mjs harness:
+ * pack name -> document builder.
  */
 export const packs = {
   macros: buildMacros,

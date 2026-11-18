@@ -1,6 +1,6 @@
 ---
 name: acks-commit
-description: Commit this session's own change from a working tree other sessions are writing in — its hunks and no peer's, gated as the exact tree that is committed, with a base that moved under the gate refused or carried by rule. Use when the user says "commit", "commit when ready", "commit only your hunks" or "leave it unpushed" in an acks-* repo, and from acks-release steps 4 and 6. Not the release procedure itself (acks-release) and not a canon sync (acks-sync-toolchain).
+description: Commit this session's own change from a working tree other sessions are writing in — its hunks and no peer's, gated as the exact tree that is committed, with a base that moved under the gate refused or carried by rule. Use when the user says "commit", "commit when ready", "commit only your hunks" or "leave it unpushed" in an acks-* repo, and from acks-release steps 4 and 6. Not the release procedure itself (acks-release).
 ---
 
 The rule is `.claude/rules/shared-tree.md`; `commit-own-hunks.mjs`, beside this

@@ -31,7 +31,6 @@
       "Bash(curl -sL https://github.com/NocTempre/*)",
       "Bash(npm test *)",
       "Bash(node - *)",
-      "Bash(node /c/Proj/acks-module-template/bin/sync-toolchain.mjs --check)",
       "Bash(git fetch *)",
       "Bash(git check-ignore *)",
       "mcp__Claude_Browser__read_console_messages",

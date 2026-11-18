@@ -1,7 +1,6 @@
 /**
- * Canonical pre-release validation for ACKS module repos.
- * Synced from acks-module-template — edit there and run bin/sync-toolchain.mjs;
- * do not hand-edit per module. Pure-logic module tests belong in
+ * Canonical pre-release validation for ACKS module repos. A change here runs
+ * tools/toolchain-tests/test-validate.mjs. Pure-logic module tests belong in
  * tools/test-logic.mjs (run via `npm test`); a module that needs an extra
  * check to run as PART of validation (e.g. an IP-safety lint) drops a
  * tools/validate-extra.mjs — this validator auto-runs it (section 11), so

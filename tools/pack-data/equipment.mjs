@@ -1,6 +1,6 @@
 /**
  * Compendium document content for the equipment feature (module-owned; the harness in
- * tools/build-packs.mjs is synced from acks-module-template and consumes the
+ * tools/build-packs.mjs consumes the
  * `packs` map exported at the bottom of this file).
  *
  * Keep this file free of Foundry runtime imports — it runs under plain Node at
@@ -8,7 +8,7 @@
  *
  * _stats timestamps are FIXED, not Date.now(): a fixed stamp keeps every
  * rebuild byte-identical so `packs/_source` never churns (see
- * acks-module-template docs/TOOLCHAIN.md §2 and §8).
+ * docs/TOOLCHAIN.md §2 and §8).
  */
 
 const MODULE_ID = "acks-extras";
@@ -344,8 +344,8 @@ export function buildMacros() {
 export { MODULE_ID, STATS };
 
 /**
- * Pack contract for the synced tools/build-packs.mjs harness (see
- * acks-module-template): pack name -> document builder. Empty packs are
+ * Pack contract for the tools/build-packs.mjs harness:
+ * pack name -> document builder. Empty packs are
  * skipped by the harness and stay undeclared in module.json.
  */
 export const packs = {

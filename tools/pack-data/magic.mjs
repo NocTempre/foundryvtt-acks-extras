@@ -1,6 +1,6 @@
 /**
  * Compendium document content for the magic feature (module-owned; the
- * harness in tools/build-packs.mjs is synced from acks-module-template and
+ * harness in tools/build-packs.mjs
  * consumes the `packs` map exported at the bottom of this file).
  *
  * Keep this file free of Foundry runtime imports — it runs under plain Node
@@ -60,7 +60,7 @@ export function buildMacros() {
   }));
 }
 
-/** Pack contract for the synced tools/build-packs.mjs harness: pack name → document builder. */
+/** Pack contract for the tools/build-packs.mjs harness: pack name → document builder. */
 export const packs = {
   macros: buildMacros,
 };

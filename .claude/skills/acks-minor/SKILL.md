@@ -148,7 +148,7 @@ says so with a `no-shot:` marker rather than staging a frame for it.
 ## 5. Repo rules that bite
 
 The reflexes in `acks-hotfix` §5 apply here unchanged — generated
-`packs/_source`, synced `tools/*.mjs`, one owner per wrapped core method, and
+`packs/_source`, the toolchain suites, one owner per wrapped core method, and
 offline green proving nothing. Two that bite harder on a minor than on a patch:
 
 - A migration or a new setting is precisely the kind of change mocked globals

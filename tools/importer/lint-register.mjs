@@ -2,7 +2,7 @@
  * IP + schema lint for everything that ships: the register source
  * (register/<book>/, _kinds/, _refs/) and the compiled cookbook (cookbook/).
  * The hard guarantee that no passage can reach a release: every literal is
- * length-capped and shapes are validated. Module-owned (NOT the synced
+ * length-capped and shapes are validated. Module-owned (NOT
  * tools/validate.mjs); wired into `npm run validate` via package.json.
  *
  * No PDFs required — runs in CI. Usage: node tools/lint-register.mjs

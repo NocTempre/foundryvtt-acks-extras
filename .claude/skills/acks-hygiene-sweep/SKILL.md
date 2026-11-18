@@ -183,7 +183,7 @@ auto-owned file; adopt recurring ones into `clusters.json` for stable grouping,
 but nothing breaks if you don't. Deliberate exclusions (both committed, so
 invisible to `.gitignore`): vendored pdf.js (not ours to audit —
 `vendor/acks-design/*.css` stays in scope because those tokens are the
-family's own) and `.claude/` hooks (template-synced canon, audited at source).
+family's own) and `.claude/` hooks (their own suites cover them, `tools/toolchain-tests/`).
 
 ## Adding a category or lens
 

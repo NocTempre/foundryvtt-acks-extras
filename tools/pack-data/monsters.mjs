@@ -1,6 +1,5 @@
 /**
- * Pack contract for the synced tools/build-packs.mjs harness (see
- * acks-module-template).
+ * Pack contract for the tools/build-packs.mjs harness.
  *
  * The bestiary / spoils / treasure example packs are retired — the importer
  * materializes all three from the GM's own books. The monster feature itself

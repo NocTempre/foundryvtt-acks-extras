@@ -1,7 +1,7 @@
 /**
  * IP leak scan — the family-wide gate that stands between licensed book
- * material and a public release. Synced from acks-module-template; do not
- * hand-edit. Runs from tools/validate.mjs (so it gates every `npm run
+ * material and a public release. A change here runs
+ * tools/toolchain-tests/test-ip-scan.mjs. Runs from tools/validate.mjs (so it gates every `npm run
  * validate`, and therefore every release) and again in CI against the
  * *unpacked module.zip*, so the thing actually being published is what gets
  * checked — not just the working tree.

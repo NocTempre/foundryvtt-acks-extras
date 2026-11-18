@@ -11,9 +11,6 @@
  * the entry so the answer survives the next sweep.
  *
  * Usage: npm run find:dead-config     (or: node tools/find-dead-config.mjs [dir])
- *
- * Eventual home is acks-module-template so every module gets it; kept here
- * until the toolchain sync can carry it.
  */
 import fs from "node:fs";
 import path from "node:path";

@@ -43,7 +43,7 @@ batch — an issue in the queue may be the same defect and should close with it.
   through the site's bug form arrives pre-structured (versions, steps,
   expected, console output) — read the whole body, reporters put the real bug
   in whichever box they liked. Two machine-filed labels are also intake:
-  **`nightly-failure`** (the deterministic nightly run — see
+  **`nightly-failure`** (a scheduled deterministic run — see
   `.claude/rules/delegation.md`; one open issue per repo, close it when
   green) and **`local-triage`** (local-model verdicts; treat as unverified
   leads, never as diagnoses). **The repo an issue was filed against is a
@@ -207,7 +207,7 @@ defect must not be waved off as taste because fixing it is inconvenient.
 
 Fix it under `acks-hotfix` §4–§5 discipline (data loss outranks everything; a
 destructive write gets a guard, not just a repair; generated `packs/_source`;
-synced `tools/*.mjs`; offline green proves nothing).
+the toolchain suites; offline green proves nothing).
 
 **Release kind, standing designation (2026-08-11):** invoking this skill on a
 bug report is the user's declaration that broken code ships when the fix is

@@ -6,9 +6,8 @@ local ever becomes an autonomous author of record.
 
 ## Tier A — scripts, not models
 
-Most recurring work is deterministic: the nightly family run
-(`acks-module-template/bin/nightly.mjs` — build, validate, ip-scan, drift
-check across every repo) needs no model at all. Before designing an LLM
+Most recurring work is deterministic: a scheduled run of build, validate
+and ip-scan needs no model at all. Before designing an LLM
 worker for a task, ask whether it is actually a cron job. Scheduling is
 machine-specific and lives in `TEST_ENVIRONMENT.md`.
 

@@ -452,7 +452,7 @@ and it stays with the feature holding the rule — see the formation feature's
 [judge-override](../formation/MODEL.md#the-judges-override).
 
 Hooks fired — prefixed with the camelCase namespace `acksExtras` per
-acks-module-template `docs/TOOLCHAIN.md` §5b (shared registries carry the module
+`docs/TOOLCHAIN.md` §5b (shared registries carry the module
 key): `acksExtras.loadoutChanged (actor, loadout)`,
 `acksExtras.equipBlocked (actor, item, {reason, resolution})`,
 `acksExtras.purchased (actor, item, cost)`,
@@ -515,7 +515,7 @@ The Active-Effect modifier collector, the DOM-injection idiom and the
 `DAMAGE_TYPES` enum were duplicated across the pre-merge modules. They are now
 single implementations under `scripts/lib/` — see [`docs/lib/MODEL.md`](../lib/MODEL.md)
 — and this feature layers on them rather than vendoring copies. `build-packs.mjs`
-is a synced template file with one `tools/pack-data.mjs` behind it.
+is one builder with one `tools/pack-data.mjs` behind it.
 
 Overrides of core logic default to `lib`; this feature patches core directly only
 where the behavior is unique to equipment, and §1 says which and why.
