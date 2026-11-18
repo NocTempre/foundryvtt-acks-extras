@@ -1,0 +1,1766 @@
+[
+  {
+    "id": "tt.item914",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 914",
+    "anchor": {
+      "hash": "hx1yl2",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item915",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 915",
+    "anchor": {
+      "hash": "1pbfkxc",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item916",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 916",
+    "anchor": {
+      "hash": "1hxpgmq",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item917",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 917",
+    "anchor": {
+      "hash": "1bktg2i",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item918",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 918",
+    "anchor": {
+      "hash": "rit9y9",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item919",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 919",
+    "anchor": {
+      "hash": "1p9b16x",
+      "as": "display"
+    },
+    "pages": [
+      233
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item920",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 920",
+    "anchor": {
+      "hash": "65won8",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item921",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 921",
+    "anchor": {
+      "hash": "3np8cz",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item922",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 922",
+    "anchor": {
+      "hash": "1vxgqm7",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item923",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 923",
+    "anchor": {
+      "hash": "3oba6g",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item924",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 924",
+    "anchor": {
+      "hash": "3p3jsm",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item925",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 925",
+    "anchor": {
+      "hash": "10zcq65",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item926",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 926",
+    "anchor": {
+      "hash": "ssp40i",
+      "as": "display"
+    },
+    "pages": [
+      234
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item927",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 927",
+    "anchor": {
+      "hash": "fxraa3",
+      "as": "display"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item928",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 928",
+    "anchor": {
+      "hash": "1kwsm19",
+      "as": "display"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item929",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 929",
+    "anchor": {
+      "hash": "mcxcxi",
+      "as": "display"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item930",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 930",
+    "anchor": {
+      "hash": "hvmwet",
+      "as": "display"
+    },
+    "pages": [
+      235
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item931",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 931",
+    "anchor": {
+      "hash": "bybgu4",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item932",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 932",
+    "anchor": {
+      "hash": "krkljv",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item933",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 933",
+    "anchor": {
+      "hash": "wlcrvk",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item934",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 934",
+    "anchor": {
+      "hash": "1j1zty0",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item935",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 935",
+    "anchor": {
+      "hash": "807qkd",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item936",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 936",
+    "anchor": {
+      "hash": "1tc9xzn",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item937",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 937",
+    "anchor": {
+      "hash": "k5hgj4",
+      "as": "display"
+    },
+    "pages": [
+      236
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item938",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 938",
+    "anchor": {
+      "hash": "jftakg",
+      "as": "display"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item939",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 939",
+    "anchor": {
+      "hash": "19gbz5k",
+      "as": "display"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item940",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 940",
+    "anchor": {
+      "hash": "12mmn9x",
+      "as": "display"
+    },
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item941",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Fire-Eater Sword",
+    "anchor": {
+      "display": "Fire-Eater Sword"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      237
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item942",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Red Sword of the Warlord",
+    "anchor": {
+      "display": "Red Sword of the Warlord"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      237,
+      238
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item943",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 943",
+    "anchor": {
+      "hash": "1fake1n",
+      "as": "display"
+    },
+    "pages": [
+      238
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item944",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 944",
+    "anchor": {
+      "hash": "3jz1ln",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item945",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 945",
+    "anchor": {
+      "hash": "1l1wc4v",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item946",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 946",
+    "anchor": {
+      "hash": "1p114jr",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item947",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 947",
+    "anchor": {
+      "hash": "1o942l6",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item948",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 948",
+    "anchor": {
+      "hash": "1iwml2f",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item949",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 949",
+    "anchor": {
+      "hash": "xk2ix8",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item950",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 950",
+    "anchor": {
+      "hash": "hy7cs1",
+      "as": "display"
+    },
+    "pages": [
+      239
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item951",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 951",
+    "anchor": {
+      "hash": "1plyh8y",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item952",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 952",
+    "anchor": {
+      "hash": "dqwfo5",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item953",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 953",
+    "anchor": {
+      "hash": "1012n9g",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item954",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 954",
+    "anchor": {
+      "hash": "151ithc",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item955",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 955",
+    "anchor": {
+      "hash": "1oeg7y0",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item956",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 956",
+    "anchor": {
+      "hash": "opkldz",
+      "as": "display"
+    },
+    "pages": [
+      240
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item957",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 957",
+    "anchor": {
+      "hash": "s61iyf",
+      "as": "display"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item958",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 958",
+    "anchor": {
+      "hash": "lhkgt9",
+      "as": "display"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item959",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 959",
+    "anchor": {
+      "hash": "1csqywv",
+      "as": "display"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item960",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 960",
+    "anchor": {
+      "hash": "1fwe21z",
+      "as": "display"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item961",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 961",
+    "anchor": {
+      "hash": "aodhwe",
+      "as": "display"
+    },
+    "pages": [
+      241
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item962",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 962",
+    "anchor": {
+      "hash": "1t9i8cm",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item963",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 963",
+    "anchor": {
+      "hash": "58vebs",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item964",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 964",
+    "anchor": {
+      "hash": "eo8m06",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item965",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 965",
+    "anchor": {
+      "hash": "51611y",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item966",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 966",
+    "anchor": {
+      "hash": "1to1zax",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item967",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 967",
+    "anchor": {
+      "hash": "1rtqrhh",
+      "as": "display"
+    },
+    "pages": [
+      242
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item968",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 968",
+    "anchor": {
+      "hash": "1c04wfm",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item969",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 969",
+    "anchor": {
+      "hash": "lrmw6o",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item970",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 970",
+    "anchor": {
+      "hash": "1dv2fxc",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item971",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 971",
+    "anchor": {
+      "hash": "1qdabdi",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item972",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 972",
+    "anchor": {
+      "hash": "1xxqvuk",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item973",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 973",
+    "anchor": {
+      "hash": "1kbzesd",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item974",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 974",
+    "anchor": {
+      "hash": "1a87p0s",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item975",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 975",
+    "anchor": {
+      "hash": "1o166up",
+      "as": "display"
+    },
+    "pages": [
+      243
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item976",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 976",
+    "anchor": {
+      "hash": "1uhqmlq",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item977",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 977",
+    "anchor": {
+      "hash": "13xzwh8",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item978",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 978",
+    "anchor": {
+      "hash": "1m0fqv1",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item979",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 979",
+    "anchor": {
+      "hash": "dkjbom",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item980",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 980",
+    "anchor": {
+      "hash": "1n170mg",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item981",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 981",
+    "anchor": {
+      "hash": "xhnuf1",
+      "as": "display"
+    },
+    "pages": [
+      244
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item982",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 982",
+    "anchor": {
+      "hash": "1p5540k",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item983",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 983",
+    "anchor": {
+      "hash": "6gzkd7",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item984",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 984",
+    "anchor": {
+      "hash": "87qads",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item985",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 985",
+    "anchor": {
+      "hash": "1r52zmu",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item986",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 986",
+    "anchor": {
+      "hash": "1su0wnj",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item987",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 987",
+    "anchor": {
+      "hash": "i61bbh",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item988",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 988",
+    "anchor": {
+      "hash": "1uwkcef",
+      "as": "display"
+    },
+    "pages": [
+      245
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item989",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 989",
+    "anchor": {
+      "hash": "19kmd4j",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item990",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 990",
+    "anchor": {
+      "hash": "130brm2",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item991",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 991",
+    "anchor": {
+      "hash": "yti727",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item992",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 992",
+    "anchor": {
+      "hash": "v7ngwa",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item993",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 993",
+    "anchor": {
+      "hash": "1psng0g",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item994",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 994",
+    "anchor": {
+      "hash": "salkw",
+      "as": "display"
+    },
+    "pages": [
+      246
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item995",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 995",
+    "anchor": {
+      "hash": "6scvt6",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item996",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 996",
+    "anchor": {
+      "hash": "1g1jhns",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item997",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 997",
+    "anchor": {
+      "hash": "1c56r6o",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item998",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 998",
+    "anchor": {
+      "hash": "e5fmwk",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item999",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 999",
+    "anchor": {
+      "hash": "awga0v",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1000",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1000",
+    "anchor": {
+      "hash": "6jnsm5",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1001",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1001",
+    "anchor": {
+      "hash": "1ncfb5",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1002",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1002",
+    "anchor": {
+      "hash": "12jsqbt",
+      "as": "display"
+    },
+    "pages": [
+      247
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1003",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1003",
+    "anchor": {
+      "hash": "wpc7bl",
+      "as": "display"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1004",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1004",
+    "anchor": {
+      "hash": "18x2ktz",
+      "as": "display"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1005",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1005",
+    "anchor": {
+      "hash": "qj40qo",
+      "as": "display"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1006",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1006",
+    "anchor": {
+      "hash": "1lchgi",
+      "as": "display"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1007",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1007",
+    "anchor": {
+      "hash": "r7o34u",
+      "as": "display"
+    },
+    "pages": [
+      248
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1008",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Sword of Celerity",
+    "anchor": {
+      "display": "Sword of Celerity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      248,
+      249
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1009",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Sword of Fortune",
+    "anchor": {
+      "display": "Sword of Fortune"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      249
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1010",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Sword of Holy Fire",
+    "anchor": {
+      "display": "Sword of Holy Fire"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      249,
+      250
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1011",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Sword of Kings",
+    "anchor": {
+      "display": "Sword of Kings"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      250
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1012",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Sword of Withering",
+    "anchor": {
+      "display": "Sword of Withering"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      250
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1013",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1013",
+    "anchor": {
+      "hash": "1nkxh3n",
+      "as": "display"
+    },
+    "pages": [
+      250,
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1014",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1014",
+    "anchor": {
+      "hash": "ae0de",
+      "as": "display"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1015",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1015",
+    "anchor": {
+      "hash": "116ulmv",
+      "as": "display"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1016",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1016",
+    "anchor": {
+      "hash": "1oea3x6",
+      "as": "display"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1017",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1017",
+    "anchor": {
+      "hash": "1mqhnxw",
+      "as": "display"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1018",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1018",
+    "anchor": {
+      "hash": "cjbo70",
+      "as": "display"
+    },
+    "pages": [
+      251
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1019",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1019",
+    "anchor": {
+      "hash": "6spgam",
+      "as": "display"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1020",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1020",
+    "anchor": {
+      "hash": "itasaj",
+      "as": "display"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1021",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1021",
+    "anchor": {
+      "hash": "tr18a4",
+      "as": "display"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1022",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 1022",
+    "anchor": {
+      "hash": "1cale18",
+      "as": "display"
+    },
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  },
+  {
+    "id": "tt.item1023",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Vorpal Sword",
+    "anchor": {
+      "display": "Vorpal Sword"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      252
+    ],
+    "meta": {
+      "category": "swords"
+    }
+  }
+]
