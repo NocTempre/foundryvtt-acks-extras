@@ -87,7 +87,13 @@ export async function pictureBySize(page, { w, h }) {
   return samples;
 }
 
-/** A page's object by name, null when it does not arrive in time. */
+/**
+ * A page's object by name, null when it does not arrive in time. A picture
+ * painted on more than one page is named `g_…` and delivered to the document's
+ * `commonObjs`, every other to the page's `objs` (pdf.js's own rule). A `get`
+ * with a callback waits for its name and never throws, so asking the wrong
+ * store spends the whole wait and answers null.
+ */
 function objectNamed(page, name) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => resolve(null), OBJECT_WAIT_MS);
@@ -96,13 +102,9 @@ function objectNamed(page, name) {
       resolve(value ?? null);
     };
     try {
-      page.objs.get(name, done);
+      (name.startsWith("g_") ? page.commonObjs : page.objs).get(name, done);
     } catch {
-      try {
-        page.commonObjs.get(name, done);
-      } catch {
-        done(null);
-      }
+      done(null);
     }
   });
 }

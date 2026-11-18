@@ -1,0 +1,1 @@
+- Importing the Judges Journal's prepared scenarios, which are read from their pictures, no longer stalls for 40 to 50 seconds on each scenario page. The picture read waited out a ten-second timeout for each picture the page shares with other pages (its frame, title strip and corner marks) before it moved on.
