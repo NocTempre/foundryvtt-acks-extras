@@ -1698,6 +1698,82 @@ The cast-dialog toggle (126) and the per-holder weapon pick (124) are UI
 and wait for `/design` and the owner's feedback (`ui-layout.md`). Until
 then their figures stay on the card.
 
+### S5 (S5's architect, 2026-11-17)
+
+Rests on: every line of the "Early rulings for S5" list still holds, so
+rulings 75 to 82 stand except where amended here. New at the tip:
+- Core passes the attack kind and a carrier's `delivery` to contributors.
+- `actorDefenses` reads damage only.
+- `modifierDisposition` returns null for `modifies`, `grants` and
+  `immunity`.
+- A failed recurring press writes no condition.
+- Hiding and Sneaking are `def.skill.*` with `extras.rolls` throws (to be
+  proven in S5c).
+
+130. **Narrow, then resolve** (amends 76 and 80; new evidence: every spell
+     part provides `kw:spellrecord`). `recordParts` and `defenderSide`
+     filter by `ref`, `rollKey`, `saves` and `attackKinds` before
+     `resolveStacking`, and a part with no figure never reaches it.
+     *Counter (low):* an ordering contract a later edit could break.
+131. **A throw part takes `add`, `set` or `auto`** (amends 78).
+     `EFFECT_MODES.auto` makes the bearer's throws of that ref resolve
+     `auto`. *Counter (medium):* "unimpeded" may mean speed only (1c.20).
+132. **Influence** (79 stands). allure's row carries
+     `ifHas: ["kw:mysticaura"]` with no tones (1c.21).
+133. **Armour class set by attack kind** (80 stands). The lift reads DEX for
+     a character and 0 for a monster. Two sets give the larger lift; a set
+     and an add resolve together and the larger stands. Armour, shield,
+     powers and conditions compete with the set and never add to it.
+     *Counter (medium):* a shield is read as armour (1c.23).
+134. **Saves under a condition.** S5a owns ruling 81's lib change. A
+     modifier on the spell's own save is a row marked `ownSave: true`,
+     tested per saver through `partHolds`: it goes to `saveSpec` parts when
+     it holds and to `pending` when undecided, at every `rollResist` site
+     and in the relay. *Counter (medium):* one more row flag.
+135. **Immunity a record grants** is a part `{on: "immune", spells,
+     conditions}`. The cast marks the entry exempt on both the casting seat
+     and the relay. *Rejected:* widening `actorDefenses`. *Counter (low):* a
+     second immunity source.
+136. **Movement.** spiderClimbing grants climbing, or `auto` for a bearer who
+     already has it. leaping's bonus reaches the throw; its distances are
+     formation's (a ROADMAP row, 1c.22). *Counter (medium):* leaping's main
+     effect waits.
+137. **Stealth and tracking.** chameleon and silentStep land on the skill
+     throws. passWithoutTrace is a grant whose `atLevel` is `{value,
+     parts}`. Tracking and evasion are ROADMAP rows.
+138. **slickness**, three options:
+     - Objects: card lines.
+     - Floor: an area `conditionGrant` of prone, `laterRounds` at
+       `bearerStart`, with `EFFECT_RECUR_SAVES.fail` (a failed press writes
+       the condition). If the anchors or the fail press fail in S5b, the
+       floor becomes a Judge line plus a ROADMAP row.
+     - Willing creature: an `immune` part for the grapple conditions.
+     *Counter (medium):* new recur machinery for one spell.
+139. **baneRune's creature-kind pick**: `effectField.pickKind`, with one
+     dialog control offering the union of the rows' authored `vsKinds`
+     vocabulary keys. *Counter (medium):* the IP doctrine's "table of
+     options a reader picks from" (1c.24).
+140. **`exemptSizeOver`** (exempt strictly above a located size) sits beside
+     `exemptSizeFrom`.
+141. **sharpness's rows match the page.** Finding: `attack-apply` reads only
+     the base damage's `extraordinary` mark (a lib ROADMAP row, inferred).
+
+Owner questions, defaulting to yes; the early S5 questions still stand:
+- **1c.20** spiderClimbing on an already-proficient bearer needs no throw.
+- **1c.21** allure's bonus applies to every reaction tone.
+- **1c.22** leaping's distances wait for formation.
+- **1c.23** A shield counts as armour against arcaneArmor.
+- **1c.24** baneRune offers the module's kind keys.
+
+Slices:
+- D: one `/design` covering the editor fields, the kind pick and the
+  granted-throw row;
+- S5a lib;
+- S5b magic;
+- S5c abilities, beside S5d influence;
+- S5e register (nine entries);
+- the walk `tools/live/magic-cast-buffs.mjs`.
+
 ## Session 1d rulings
 
 Numbered 150 to 199.
