@@ -763,10 +763,9 @@ thing has one shape:
   `condition`, `lot`, `floor`. A feature registers the kinds it accepts in
   one `kindOfDrop` table (`place-things-logic.mjs`); there is no second table.
 - `ref` — the uuid of the document the thing stands for: a trap Item, a Hazard
-  (an obstacle or a condition), stored goods, a JournalEntryPage, an Actor.
-  The thing points and never copies. The Hazard is provisional: its document
-  type waits on the obstacle redesign's boards, and `ref` points at whatever
-  drag source the approved design makes.
+  (an `acks-extras.hazard` Item, an obstacle or a condition, keyed by its
+  `system.key`), stored goods, a JournalEntryPage, an Actor. The thing points
+  and never copies.
 - `hidden` — authored: the thing starts unseen by players.
 - `hint` — the Judge's optional line the table sees when something more
   remains, or null for the generic words.
