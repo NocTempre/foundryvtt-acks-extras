@@ -3392,6 +3392,64 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "bewitch",
+              "type": "conditionGrant",
+              "appliesTo": "target",
+              "conditions": [
+                "bewitched"
+              ],
+              "saveEffect": "negates",
+              "lasts": "duration"
+            },
+            {
+              "key": "orders",
+              "type": "limitation",
+              "appliesTo": "target",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(attempting\\s*to\\s*do\\s*so\\s*can\\s*give.*?discretion\\))"
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "bewitch\\s*an?\\s*(\\w+\\s+\\w+)\\s*target"
+                },
+                {
+                  "into": "target.hdBelow",
+                  "pattern": "with\\s*fewer\\s*than\\s*(\\d+)\\s*HD"
+                },
+                {
+                  "into": "save.modifier",
+                  "pattern": "receives\\s*an?\\s*\\+?\\s*(\\d+)\\s*bonus\\s*on\\s*its\\s*saving"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -11957,6 +12015,56 @@
                   7
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "crumble",
+              "type": "slay",
+              "appliesTo": "target",
+              "saveEffect": "negates"
+            },
+            {
+              "key": "remains",
+              "type": "limitation",
+              "appliesTo": "target",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(the\\s*skeleton\\s*or\\s*cadaver\\s*automatically.*?without\\s*a\\s*saving\\s*throw)"
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "\\bor\\s*an\\s*(\\w+)\\s*skeleton\\s*or\\s*zombie"
+                },
+                {
+                  "into": "target.hdBelow",
+                  "pattern": "of\\s*less\\s*than\\s*(\\d+)\\s*HD"
+                }
+              ]
             }
           ]
         }
@@ -21266,6 +21374,64 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "fury",
+              "type": "conditionGrant",
+              "appliesTo": "target",
+              "conditions": [
+                "infuriated"
+              ],
+              "saveEffect": "negates",
+              "lasts": "duration"
+            },
+            {
+              "key": "mate",
+              "type": "limitation",
+              "appliesTo": "target",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(female.*?offspring),\\s*(the\\s*creature\\s*may.*?ending\\s*the\\s*effect)",
+                "groups": [
+                  1,
+                  2
+                ]
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "enrage\\s*an?\\s*(\\w+\\s+\\w+)\\s*target"
+                },
+                {
+                  "into": "target.hdBelow",
+                  "pattern": "with\\s*fewer\\s*than\\s*(\\d+)\\s*HD"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -21335,6 +21501,60 @@
                   4
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "fury",
+              "type": "conditionGrant",
+              "appliesTo": "target",
+              "conditions": [
+                "infuriated"
+              ],
+              "saveEffect": "negates",
+              "lasts": "duration"
+            },
+            {
+              "key": "same",
+              "type": "limitation",
+              "appliesTo": "target",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(the\\s*effect\\s*is\\s*identical\\s*to\\s*that\\s*of\\s*infuriate\\s*beast)"
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "enrage\\s*an?\\s*(\\w+\\s+\\w+)\\s*target"
+                },
+                {
+                  "into": "target.hdBelow",
+                  "pattern": "with\\s*fewer\\s*than\\s*(\\d+)\\s*HD"
+                }
+              ]
             }
           ]
         }
@@ -26789,6 +27009,58 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "calm",
+              "type": "conditionRemove",
+              "appliesTo": "target",
+              "saveEffect": "none",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "conditions",
+                  "pattern": "ends\\s*the\\s*([^.]*?)\\s*condition"
+                }
+              ]
+            },
+            {
+              "key": "cause",
+              "type": "conditionGrant",
+              "appliesTo": "target",
+              "conditions": [
+                "frightened"
+              ],
+              "saveEffect": "negates",
+              "lasts": "duration",
+              "reversed": true
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "reversedDurationFromNote": true,
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                }
+              ]
+            }
+          ]
         }
       }
     },
@@ -27736,6 +28008,40 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "restHeal",
+              "type": "capability",
+              "appliesTo": "recipient",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(the\\s*recipient\\s*of\\s*the\\s*spell\\s*will\\s*heal.*?complete\\s*rest)"
+              }
+            },
+            {
+              "key": "enervated",
+              "type": "capability",
+              "appliesTo": "recipient",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(if\\s*the\\s*recipient\\s*is\\s*enervated.*?in\\s*a\\s*row)"
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "recipient"
+              },
+              "onMiss": "blank"
+            }
+          ]
         }
       }
     },
@@ -27813,6 +28119,52 @@
                   11
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "ward",
+              "type": "ward",
+              "appliesTo": "recipient",
+              "vsEnemy": true,
+              "saveEffect": "negates",
+              "lasts": "duration",
+              "endsOn": [
+                "attack"
+              ]
+            },
+            {
+              "key": "exceptions",
+              "type": "limitation",
+              "appliesTo": "recipient",
+              "saveEffect": "none",
+              "noteFrom": {
+                "pattern": "(an\\s*enemy\\s*that\\s*is\\s*casting.*?does\\s*not\\s*need\\s*to\\s*save)"
+              }
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "recipient"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save"
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                }
+              ]
             }
           ]
         }
@@ -28620,6 +28972,45 @@
                   6
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "shatter",
+              "type": "destroyItem",
+              "appliesTo": "target",
+              "saveEffect": "negates"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.count",
+                  "on": "level",
+                  "pairs": true,
+                  "pattern": "(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)\\s*weapons.*?(\\d+)\\w*\\s*level\\s*\\w+\\s*higher\\s*can\\s*shatter\\s*(\\w+)"
+                }
+              ]
             }
           ]
         }
@@ -29677,6 +30068,63 @@
                   15
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "sleep",
+              "type": "conditionGrant",
+              "appliesTo": "area",
+              "conditions": [
+                "slumbering"
+              ],
+              "saveEffect": "negates",
+              "lasts": "duration"
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "area",
+                "area": {
+                  "shape": "sphere",
+                  "measure": "diameter"
+                }
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "make\\s*(?:an?\\s*)?(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "any\\s*(\\w+)\\s*targets\\s*with\\s*fewer"
+                },
+                {
+                  "into": "target.hdBelow",
+                  "pattern": "targets\\s*with\\s*fewer\\s*than\\s*(\\d+)\\s*HD"
+                },
+                {
+                  "into": "save.exemptBelowHd",
+                  "pattern": "target\\s*has\\s*fewer\\s*than\\s*(\\d+)\\s*HD"
+                },
+                {
+                  "into": "target.area.size",
+                  "pattern": "(\\d+)\\S?\\s*diameter\\s*sphere"
+                }
+              ]
             }
           ]
         }
@@ -37793,6 +38241,58 @@
                   3
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "cmd",
+              "type": "conditionGrant",
+              "appliesTo": "target",
+              "saveEffect": "negates",
+              "lasts": "followingTurn",
+              "untimed": [
+                "prone"
+              ],
+              "pick": "command",
+              "onMiss": "blank",
+              "each": {
+                "pattern": "\\w+:\\s*the\\s*target\\s*immediately[\\s\\S]*?(?=\\s+\\w+:\\s*the\\s*target\\s*immediately|\\s*this\\s*list|$)"
+              },
+              "from": [
+                {
+                  "into": "conditions",
+                  "pattern": "immediately\\s*([^.]*)\\."
+                }
+              ]
+            }
+          ]
+        },
+        "values": {
+          "op": "effects",
+          "specs": [
+            {
+              "target": {
+                "model": "creature"
+              },
+              "save": {
+                "effect": "negates",
+                "kind": "save",
+                "perTarget": true
+              },
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "save.category",
+                  "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+                },
+                {
+                  "into": "target.filters",
+                  "pattern": "give\\s*an?\\s*(\\w+)\\s*target"
+                }
+              ]
             }
           ]
         }

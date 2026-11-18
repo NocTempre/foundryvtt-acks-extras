@@ -23,6 +23,7 @@ import {
   EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
   SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope, isCapabilityToken,
 } from "../../scripts/lib/vocab.mjs";
+import { ENDS_ON_CAUSES } from "../../scripts/lib/ends-on.mjs";
 import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGORIES, SPELL_TYPES, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
@@ -30,7 +31,7 @@ const ROW_KEYS = new Set([
   "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
   "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
-  "conditionFrom", "noteFrom", "audited", "gate", "each",
+  "conditionFrom", "noteFrom", "audited", "gate", "each", "endsOn", "untimed",
 ]);
 
 /**
@@ -202,6 +203,12 @@ export function spellRecipeProblems({ effects, values } = {}) {
       if (!SPELL_GATE_KINDS.includes(spec.gate?.kind)) out.push(`${label}.gate.kind "${spec.gate?.kind}" is not a spell gate kind`);
     }
     for (const key of spec.conditions ?? []) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.conditions names "${key}", which is no condition key`);
+    // What a row's record ends on, and the conditions it writes with no clock: words of lib's tables, never located.
+    if (spec.endsOn !== undefined && !(Array.isArray(spec.endsOn) && spec.endsOn.length && spec.endsOn.every((c) => ENDS_ON_CAUSES.includes(c)))) out.push(`${label}.endsOn is a non-empty list of ${ENDS_ON_CAUSES.join(", ")}`);
+    if (spec.untimed !== undefined) {
+      if (!Array.isArray(spec.untimed) || !spec.untimed.length) out.push(`${label}.untimed is a non-empty list of condition keys`);
+      else for (const key of spec.untimed) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.untimed names "${key}", which is no condition key`);
+    }
     for (const key of ["pick", "pickOption"]) if (spec[key] !== undefined && typeof spec[key] !== "string") out.push(`${label}.${key} is a string`);
     if (each !== undefined) eachProblems(spec, each, label, out);
     if (spec.pickOption !== undefined && !spec.pick) out.push(`${label}.pickOption names an option of a pick group and the row names no pick`);
