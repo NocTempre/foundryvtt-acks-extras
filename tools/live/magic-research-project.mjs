@@ -18,7 +18,8 @@
  * posted day (a waiting day's dashed cell and tag, a Player's own project, a Player refused on
  * another's, a credited day with no X).
  *
- * Section 13 walks Finish (M-q3, ruling 223) with the die rigged on the GM seat (restored in the finally): a
+ * Section 13 walks Finish (M-q3, ruling 223; M-r1's procedure: the component cost holds it, an item with a known formula and a
+ * spell marked common finish with no throw, the Intellect bonus and the level raise are on the throw) with the die rigged on the GM seat (restored in the finally): a
  * known item delivered, an identification marked, a spell added and not added twice, a novel subject opening a
  * blank world item for the Judge, a failure and the automatic-failure band (the card posts, the project closes,
  * the bucket is spent), the formula recorded, read by the next throw and turned off by a substitute, Finish
@@ -661,8 +662,9 @@ try {
   if (f0.carries) blocked("the hero already carries one of the walk's spell or gear items: a leaving of a run that did not sweep");
   check("the step starts from a known shape: the hero at level 5 and no formula researched", f0.level === 5 && f0.formulas === 0, f0);
   // A project made ready to finish: one past day posted at the dedicated pace and credited at the ladder's rate for level 5, so the research cost is met.
-  const makeReady = (spec, bucket = []) => run(gm, U, `
-    const r = await research().create(place(), { researcher: ID.hero, level: 2, costs: { research: 90, component: 40 }, ...${JSON.stringify(spec)} });
+  // The component cost is the 40 a component item is worth when a bucket is passed, else none (an empty bucket would hold Finish); `component` overrides it.
+  const makeReady = (spec, bucket = [], component = bucket.length ? 40 : 0) => run(gm, U, `
+    const r = await research().create(place(), { researcher: ID.hero, level: 2, costs: { research: 90, component: ${component} }, ...${JSON.stringify(spec)} });
     await research().post(place(), r.id, { day: ${today - 3}, pace: "dedicated" });
     await sleep(700);
     const c = await research().credit(place(), r.id);
@@ -686,7 +688,8 @@ try {
     ${snap}
     await open();
     const btn = card(${JSON.stringify(fa.id)}).querySelector('[data-action="finishResearchProject"]');
-    const out = { enabled: !!btn && !btn.disabled, controlMark: !!btn?.hasAttribute("data-research-control") };
+    const planA = await research().plan(place(), ${JSON.stringify(fa.id)});
+    const out = { enabled: !!btn && !btn.disabled, controlMark: !!btn?.hasAttribute("data-research-control"), plan: { target: planA.target, by: planA.by, levelRaise: planA.levelRaise, int: planA.int, intUnread: planA.intUnread, noThrow: planA.noThrow } };
     btn.click();
     await until(() => proj(${JSON.stringify(fa.id)})?.status === "closed", 80);
     await sleep(2000);
@@ -695,14 +698,15 @@ try {
     out.outcome = p.outcome;
     out.newItems = newItems().map((i) => ({ name: i.name, uuid: i.uuid }));
     out.formulas = research().formulas(hero).map((f) => [f.kind, f.name]);
-    out.cards = newCards().map((m) => ({ id: m.uuid, target: /11/.test(String(m.content)), success: /is-success/.test(String(m.content)), rolls: m.rolls?.length ?? 0 }));
+    out.cards = newCards().map((m) => ({ id: m.uuid, target: String(m.content).includes(out.plan.target + "+"), success: /is-success/.test(String(m.content)), rolls: m.rolls?.length ?? 0 }));
     out.cardGone = !card(${JSON.stringify(fa.id)});
     return out;`, ids13);
   for (const n of k1.newItems) { tracked.push(n.uuid); gm.track(n.uuid, "Item"); }
   for (const c of k1.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
   check("a project credited in full has a live Finish (the control mark); pressing it throws the rigged 20 on the Judge's seat, closes the project and stamps the outcome", fa.credited === 1 && fa.complete === true && k1.enabled && k1.controlMark && k1.status === "closed" && k1.outcome?.result === "success" && k1.outcome?.die === 20, { fa, k1: { enabled: k1.enabled, controlMark: k1.controlMark, outcome: k1.outcome, cardGone: k1.cardGone } });
+  check("the plan before the press reads the ladder's rung for level 5 (11) raised by the project's level of 2 (13), the Intellect bonus as a number, and no throw is waived", k1.plan.by === "ladder" && k1.plan.levelRaise === 2 && k1.plan.target === 13 && Number.isFinite(k1.plan.int) && k1.plan.intUnread === false && k1.plan.noThrow === null, k1.plan);
   check("on success the known item reaches the researcher as one new item and the formula for the subject is recorded on the researcher", k1.newItems.length === 1 && k1.newItems[0].name === "QA Research Gear" && k1.formulas.some(([kind, name]) => kind === "item" && name === "QA Research Gear"), { newItems: k1.newItems, formulas: k1.formulas });
-  check("the outcome is one card through the shared roll card, spoken as the researcher, carrying the die, the ladder's target and a success mark", k1.cards.length === 1 && k1.cards[0].target && k1.cards[0].success && k1.cards[0].rolls === 1, k1.cards);
+  check("the outcome is one card through the shared roll card, spoken as the researcher, carrying the die, the raised ladder target and a success mark", k1.cards.length === 1 && k1.cards[0].target && k1.cards[0].success && k1.cards[0].rolls === 1, k1.cards);
   check("the component bucket was settled: the component item no longer exists", (await gm.eval(`fromUuidSync(${JSON.stringify(partA)}) === null`)) === true);
 
   // B. an identification.
@@ -735,7 +739,7 @@ try {
     await sleep(700);
     const matched = await research().plan(place(), ${JSON.stringify(fc2.id)});
     return { sub, matched };`, ids13);
-  check("the next throw for the same subject reads the researcher's formula: with a matched component it is applied; with a substitute it is not, and the substitute takes the penalty at the invented figures (3 a level, level 2, the whole cost: 6) against the ladder's target of 11", pl1.matched.formula.known && pl1.matched.formula.used && pl1.matched.penalty === 0 && pl1.sub.formula.known && !pl1.sub.formula.used && pl1.sub.penalty === -6 && pl1.sub.modifier === pl1.sub.bonus - 6 && pl1.sub.target === 11 && pl1.sub.by === "ladder", { sub: pl1.sub, matched: pl1.matched });
+  check("the next throw for the same subject reads the researcher's formula: with a matched component it is applied; with a substitute it is not, and the substitute takes the penalty at the invented figures (3 a level, level 2, the whole cost: 6) against the ladder's target of 11 raised by the level (13), the modifier carrying the Intellect bonus", pl1.matched.formula.known && pl1.matched.formula.used && pl1.matched.penalty === 0 && pl1.sub.formula.known && !pl1.sub.formula.used && pl1.sub.penalty === -6 && pl1.sub.modifier === pl1.sub.bonus + pl1.sub.int - 6 && pl1.sub.target === 13 && pl1.sub.levelRaise === 2 && pl1.sub.by === "ladder" && pl1.sub.noThrow === null, { sub: pl1.sub, matched: pl1.matched });
   await rig13(20);
   const k3b = await run(gm, U, `
     ${snap}
@@ -762,7 +766,8 @@ try {
 
   // E. a failure and the automatic-failure band: nothing is written, but the project closes, the bucket is spent and the card posts.
   const partE = await mkPart("QA Research Component E");
-  const fe = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" }, throw: { target: 18 } }, [{ uuid: partE, qty: 1, fit: "matched" }]);
+  // The second gear: the first is a known formula by now, and a known item is finished with no throw.
+  const fe = await makeReady({ kind: "item", subject: { uuid: ids13.gear2, name: "QA Research Gear Two" }, throw: { target: 18 } }, [{ uuid: partE, qty: 1, fit: "matched" }]);
   await rig13(3);
   const k5 = await run(gm, U, `
     ${snap}
@@ -771,7 +776,7 @@ try {
     return { r: { ok: r.ok, outcome: r.outcome, auto: r.auto, written: r.written?.length }, newItems: newItems().length, status: proj(${JSON.stringify(fe.id)})?.status, result: proj(${JSON.stringify(fe.id)})?.outcome?.result, cards: newCards().map((m) => ({ id: m.uuid, failure: /is-failure/.test(String(m.content)) })) };`, ids13);
   for (const c of k5.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
   check("a plain failure (die 3 against a Judge's 18) writes nothing, closes the project as a failure, spends the component and posts a failure card", fe.complete === true && k5.r.ok && k5.r.outcome === "failure" && k5.r.auto === false && k5.r.written === 0 && k5.newItems === 0 && k5.status === "closed" && k5.result === "failure" && k5.cards.length === 1 && k5.cards[0].failure && (await gm.eval(`fromUuidSync(${JSON.stringify(partE)}) === null`)) === true, k5);
-  const fg = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" }, throw: { target: 1 } });
+  const fg = await makeReady({ kind: "item", subject: { uuid: ids13.gear2, name: "QA Research Gear Two" }, throw: { target: 1 } });
   await rig13(2);
   const k6 = await run(gm, U, `
     ${snap}
@@ -780,6 +785,90 @@ try {
     return { r: { ok: r.ok, outcome: r.outcome, auto: r.auto, total: r.total, target: r.target }, newItems: newItems().length, cards: newCards().map((m) => m.uuid) };`, ids13);
   for (const c of k6.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
   check("a die inside the imported automatic-failure band (2) fails although the total meets a target of 1, and delivers nothing", k6.r.ok && k6.r.outcome === "failure" && k6.r.auto === true && k6.r.total >= k6.r.target && k6.newItems === 0, k6);
+
+  // H. the component cost holds Finish: a short bucket is named on the card with the page, the API refuses it unrolled, and paying frees it.
+  const partH = await mkPart("QA Research Component H");
+  const fs1 = await makeReady({ kind: "item", subject: { name: "QA Short Thing" } }, [], 40);
+  await rig13(20);
+  const h1 = await run(gm, U, `
+    ${snap}
+    await open();
+    const read = () => { const c = card(${JSON.stringify(fs1.id)}); const b = c?.querySelector('[data-action="finishResearchProject"]'); return { disabled: b?.disabled === true, mark: !!b?.hasAttribute("data-research-control"), why: c?.querySelector(".acks-extras-research__verdict")?.textContent.trim() ?? "", tip: b?.dataset.tooltipText ?? "" }; };
+    const out = { short: read(), plan: (await research().plan(place(), ${JSON.stringify(fs1.id)}))?.components };
+    const refused = await research().finish(place(), ${JSON.stringify(fs1.id)});
+    out.refused = refused.reason;
+    out.untouched = { status: proj(${JSON.stringify(fs1.id)})?.status, items: newItems().length, cards: newCards().length };
+    await research().update(place(), ${JSON.stringify(fs1.id)}, { bucket: [{ uuid: ${JSON.stringify(partH)}, qty: 1, fit: "matched" }] });
+    await sleep(900);
+    await open();
+    out.paid = read();
+    out.paidPlan = (await research().plan(place(), ${JSON.stringify(fs1.id)}))?.components;
+    await research().close(place(), ${JSON.stringify(fs1.id)});
+    await sleep(600);
+    return out;`, ids13);
+  check("a bucket short of the component cost holds Finish: disabled with no control mark, its reason beside it and the page of the costs in its tooltip, the plan says short, and the API refuses it as componentsShort before a die, an item or a card exists", h1.short.disabled && !h1.short.mark && h1.short.why.length > 0 && /RR ch\. 8/.test(h1.short.tip) && h1.plan.short === true && h1.plan.hold === true && h1.refused === "componentsShort" && h1.untouched.status === "open" && h1.untouched.items === 0 && h1.untouched.cards === 0, h1);
+  check("the same project with a component worth the cost in its bucket is live again, and the plan no longer holds", h1.paid.disabled === false && h1.paid.mark === true && h1.paidPlan.hold === false && h1.paidPlan.short === false, { paid: h1.paid, plan: h1.paidPlan });
+
+  // I. an item whose formula is known is finished with no roll (the formula for the first gear was recorded in A).
+  const fi = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } });
+  await rig13(1);
+  const i1 = await run(gm, U, `
+    ${snap}
+    await open();
+    const btn = card(${JSON.stringify(fi.id)}).querySelector('[data-action="finishResearchProject"]');
+    const planI = await research().plan(place(), ${JSON.stringify(fi.id)});
+    // The delivery folds into the stack the hero already carries from A, so what it added is read as quantity.
+    const held = () => [...hero.items].filter((i) => i.name === "QA Research Gear").reduce((n, i) => n + Number(i.system.quantity?.value ?? 0), 0);
+    const out = { enabled: !!btn && !btn.disabled, tip: btn?.dataset.tooltipText ?? "", noThrow: planI.noThrow, formula: planI.formula, heldBefore: held() };
+    // The die is counted: the rigged 1 is inside the automatic-failure band, so a throw would fail; no throw reads no die at all.
+    const real = CONFIG.Dice.randomUniform;
+    let draws = 0;
+    CONFIG.Dice.randomUniform = () => { draws++; return real(); };
+    btn.click();
+    await until(() => proj(${JSON.stringify(fi.id)})?.status === "closed", 80);
+    await sleep(2000);
+    CONFIG.Dice.randomUniform = real;
+    const p = proj(${JSON.stringify(fi.id)});
+    out.draws = draws;
+    out.outcome = p.outcome;
+    out.heldAfter = held();
+    out.newItems = newItems().map((i) => ({ name: i.name, uuid: i.uuid }));
+    out.cards = newCards().map((m) => ({ id: m.uuid, success: /is-success/.test(String(m.content)), rolls: m.rolls?.length ?? 0 }));
+    return out;`, ids13);
+  for (const n of i1.newItems) { tracked.push(n.uuid); gm.track(n.uuid, "Item"); }
+  for (const c of i1.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
+  check("a project for an item whose formula the researcher holds, with no substitute, reads noThrow 'formula' and a live Finish whose tooltip says it makes no throw", fi.complete === true && i1.enabled && i1.noThrow === "formula" && i1.formula.used === true && /no throw/i.test(i1.tip), { fi, i1: { enabled: i1.enabled, noThrow: i1.noThrow, formula: i1.formula, tip: i1.tip } });
+  check("pressing it rolls no die (none drawn although the rigged 1 would have failed), closes the project as a success with no die, total or target stamped, delivers the item (the held stack grows by one) and posts one card with no dice", i1.draws === 0 && i1.outcome?.result === "success" && i1.outcome?.die === null && i1.outcome?.total === null && i1.outcome?.target === null && i1.outcome?.noThrow === "formula" && i1.heldAfter === i1.heldBefore + 1 && i1.cards.length === 1 && i1.cards[0].success && i1.cards[0].rolls === 0, i1);
+
+  // J. a spell the Judge marks common is finished with no roll; the throw's tooltip names the Intellect bonus and the level before it is.
+  const fj = await makeReady({ kind: "spell", subject: { uuid: ids13.spell, name: "QA Research Spell" } });
+  await rig13(1);
+  const jt1 = await run(gm, U, `
+    ${snap}
+    await open();
+    const tips = [...card(${JSON.stringify(fj.id)}).querySelectorAll("[data-tooltip-text]")].map((e) => e.dataset.tooltipText);
+    const planJ = await research().plan(place(), ${JSON.stringify(fj.id)});
+    return { tips: { intellect: tips.some((t) => /Intellect/.test(t)), level: tips.some((t) => /level of effect/.test(t)), signed: tips.some((t) => t.includes((planJ.int >= 0 ? "+" : "") + planJ.int + " Intellect")) }, plan: { noThrow: planJ.noThrow, int: planJ.int, levelRaise: planJ.levelRaise, target: planJ.target } };`, ids13);
+  check("the throw's tooltip names the Intellect bonus (with the actor's own figure) and the level of effect that raises the target", jt1.tips.intellect && jt1.tips.level && jt1.tips.signed && jt1.plan.levelRaise === 2 && jt1.plan.noThrow === null, jt1);
+  const jt2 = await run(player, U, `
+    const r = await research().update(place(), ${JSON.stringify(fj.id)}, { common: true });
+    await sleep(700);
+    return { reason: r.reason, ok: r.ok, stored: projects().find((p) => p.id === ${JSON.stringify(fj.id)})?.common };`, ids13);
+  check("a Player's write of the common mark is refused as the Judge's (relayed, the attested sender decides) and nothing is stored", jt2.ok === false && jt2.reason === "judge" && jt2.stored !== true, jt2);
+  const jt3 = await run(gm, U, `
+    ${snap}
+    const marked = await research().update(place(), ${JSON.stringify(fj.id)}, { common: true });
+    await sleep(900);
+    const planJ = await research().plan(place(), ${JSON.stringify(fj.id)});
+    const real = CONFIG.Dice.randomUniform;
+    let draws = 0;
+    CONFIG.Dice.randomUniform = () => { draws++; return real(); };
+    const r = await research().finish(place(), ${JSON.stringify(fj.id)});
+    await sleep(1500);
+    CONFIG.Dice.randomUniform = real;
+    return { marked: marked.ok, noThrow: planJ.noThrow, draws, r: { ok: r.ok, outcome: r.outcome, die: r.die, total: r.total, target: r.target, noThrow: r.noThrow, written: r.written?.map((w) => w.what) }, outcome: proj(${JSON.stringify(fj.id)})?.outcome, cards: newCards().map((m) => ({ id: m.uuid, success: /is-success/.test(String(m.content)), rolls: m.rolls?.length ?? 0 })) };`, ids13);
+  for (const c of jt3.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
+  check("a Judge's common mark is stored; the spell then finishes with no die drawn (the rigged 1 would have failed), as a success with no die, total or target, a card with no dice, and the spell reported held", jt3.marked === true && jt3.noThrow === "common" && jt3.draws === 0 && jt3.r.ok && jt3.r.outcome === "success" && jt3.r.die === null && jt3.r.total === null && jt3.r.target === null && jt3.r.noThrow === "common" && jt3.outcome?.noThrow === "common" && jt3.cards.length === 1 && jt3.cards[0].success && jt3.cards[0].rolls === 0, jt3);
 
   // F. Finish is disabled, with its reason beside it, until it can be made.
   const fh = await run(gm, U, `

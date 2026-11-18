@@ -40,7 +40,7 @@
  * and warns nothing, and a bonus is null.
  */
 import { facilityMinimum, facilityBonus, researchRateAt, footnoteNames, assistantCapacity, assistantMinimum, substitutionPenalty, isAutoFail } from "./research-tables.mjs";
-import { bucketView, settlementPlan, counts, ENTRY_KIND, OUTCOME, SETTLE } from "../lib/bucket.mjs";
+import { bucketView, settlementPlan, counts, coverage, COVERAGE, ENTRY_KIND, OUTCOME, SETTLE } from "../lib/bucket.mjs";
 import { foldName } from "../lib/spell-sources.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
 
@@ -90,9 +90,13 @@ export const THROW_DIE = "1d20";
 
 /**
  * How a component row stands to the project: matched to the effect or a substitute for it. The
- * substituted share of the component cost takes a throw penalty and turns the formula off.
+ * substituted share of the component cost takes a throw penalty and turns the formula off. A row that
+ * is arcane or divine power is matched unless the Judge marks it a substitute (`projectEntries`).
  */
 export const COMPONENT_FIT = Object.freeze({ matched: "matched", substitute: "substitute" });
+
+/** The fit a stored power row stands at: matched unless the row says otherwise (power is no substitute); a document row's default is the policy's. */
+export const powerRowFit = (stored) => str(stored) || COMPONENT_FIT.matched;
 
 /** What becomes of the components bucket on every outcome: spent. A creature is marked, never deleted (`settlementPlan`). */
 export const COMPONENT_SETTLE = Object.freeze({ [OUTCOME.success]: SETTLE.consume, [OUTCOME.failure]: SETTLE.consume, [OUTCOME.botch]: SETTLE.consume });
@@ -104,7 +108,13 @@ export const FORMULAS_KEY = "formulas";
 export const FORMULA_KINDS = Object.freeze([PROJECT_KIND.spell, PROJECT_KIND.item]);
 
 /** Why a Finish is refused, by the reason the state names; `announce` reads `refused.<reason>`. */
-const FINISH_REFUSAL = Object.freeze({ credited: "notComplete", throw: "throwUnread", bonus: "bonusUnread", penalty: "penaltyUnread", ritual: "ritual", subject: "subject" });
+const FINISH_REFUSAL = Object.freeze({ credited: "notComplete", components: "componentsShort", throw: "throwUnread", int: "intUnread", bonus: "bonusUnread", penalty: "penaltyUnread", ritual: "ritual", subject: "subject" });
+
+/** The kinds whose ladder target is raised by the project's level of effect: every kind a project is. */
+export const LEVEL_RAISED_KINDS = Object.freeze([PROJECT_KIND.spell, PROJECT_KIND.item, PROJECT_KIND.identify, PROJECT_KIND.ritual]);
+
+/** Why a Finish needs no throw: the researcher's formula completes an item, or the Judge marked a spell common. */
+export const NO_THROW = Object.freeze({ formula: "formula", common: "common" });
 
 /** The most days one range post takes: a bound on one write, not a rule of the book. */
 export const RANGE_MAX = 366;
@@ -123,10 +133,10 @@ export function daysText(days) {
 }
 
 /** The fields of a project only a Judge writes; a Player's request that names one is refused. */
-export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw", "dueDays"]);
+export const JUDGE_FIELDS = Object.freeze(["costs", "paid", "throw", "dueDays", "common"]);
 
 /** The fields an update may change. `level` is a Judge's after the project exists. */
-export const UPDATE_FIELDS = Object.freeze(["subject", "level", "costs", "paid", "throw", "dueDays", "assistants", "bucket"]);
+export const UPDATE_FIELDS = Object.freeze(["subject", "level", "costs", "paid", "throw", "dueDays", "assistants", "bucket", "common"]);
 
 /** A finite number of at least zero, else null. */
 const gold = (raw) => {
@@ -210,15 +220,20 @@ const uuids = (raw) => [...new Set((Array.isArray(raw) ? raw : []).map(str).filt
 /** A finite number, else null. */
 const num = (raw) => (raw === null || raw === undefined || raw === "" || !Number.isFinite(Number(raw)) ? null : Number(raw));
 
-/** What Finish came to as stored: `{result, die, total, target, day}`, or null where there is none to read. */
+/**
+ * What Finish came to as stored: `{result, die, total, target, day}`, or null where there is none to read. A Finish
+ * that made no throw has no die, total or target and names why in `noThrow` (`NO_THROW`).
+ */
 export function cleanOutcome(raw) {
   if (!raw || typeof raw !== "object" || !["success", "failure"].includes(raw.result)) return null;
-  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day) };
+  const noThrow = Object.values(NO_THROW).includes(raw.noThrow) ? raw.noThrow : null;
+  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day), ...(noThrow ? { noThrow } : {}) };
 }
 
 /**
  * One stored project cleaned to its shape, or null for one with no id or a kind
- * this module does not know. The researcher is never one of the assistants.
+ * this module does not know. The researcher is never one of the assistants. `common`
+ * is the Judge's mark that a spell is common (no research throw); it is false for any other kind.
  */
 export function cleanProject(raw) {
   if (!raw || typeof raw !== "object" || typeof raw.id !== "string" || !raw.id || !PROJECT_KINDS.includes(raw.kind)) return null;
@@ -238,6 +253,7 @@ export function cleanProject(raw) {
     dueDays: level(raw.dueDays),
     bucket: cleanBucket(raw.bucket),
     throw: target === null ? null : { target },
+    common: raw.kind === PROJECT_KIND.spell && raw.common === true,
     outcome: raw.status === "closed" ? cleanOutcome(raw.outcome) : null,
     status: raw.status === "closed" ? "closed" : "open",
     opened: dayOf(raw.opened),
@@ -357,7 +373,7 @@ export function paceFactor(prose, pace) {
  * researcher, and within the number the researcher manages (`assistantCapacity`). `why`
  * is "" for a person who counts, else "below" (under the level), "over" (past the number
  * managed) or "unread" (a figure that decides it is not read). `ctx` is `{tables,
- * levelOf(uuid), intBonusOf(uuid)}`.
+ * levelOf(uuid), intBonusOf(uuid)}`; an Intellect bonus that is not read (null) counts as zero here.
  * @returns {{uuid: string, role: "researcher"|"assistant", level: number|null, rate: number|null, counts: boolean, why: string}[]}
  */
 export function weighParticipants(project, { tables, levelOf = () => null, intBonusOf = () => 0 } = {}) {
@@ -365,7 +381,7 @@ export function weighParticipants(project, { tables, levelOf = () => null, intBo
   const rateOf = (level) => (level === null || level === undefined ? null : (researchRateAt(tables?.ladder, level, { named })?.rate ?? null));
   const researcherLevel = levelOf(project.researcher) ?? null;
   const minimum = assistantMinimum(tables?.assistants, "aid");
-  const capacity = assistantCapacity(tables?.assistants, { level: researcherLevel, intBonus: intBonusOf(project.researcher) });
+  const capacity = assistantCapacity(tables?.assistants, { level: researcherLevel, intBonus: intBonusOf(project.researcher) ?? 0 });
   const people = [{ uuid: project.researcher, role: "researcher", level: researcherLevel, rate: rateOf(researcherLevel), counts: true, why: "" }];
   let taken = 0;
   for (const uuid of project.assistants) {
@@ -517,7 +533,7 @@ function joinGates(...gates) {
 /**
  * The policy of a project's components bucket (lib's bucket policy): the kinds a drop may be, the fit a
  * row opens on (a row whose own names, or the names its effects answer to, match the subject's name is
- * matched; any other is a substitute until the seat changes it), the amount due and what an outcome does
+ * matched; any other document is a substitute until the seat changes it, and a power row is matched, `powerRowFit`), the amount due and what an outcome does
  * to the rows. `loc` words the fit labels; `cite` is the page of the amount due.
  */
 export function componentPolicy(project, { loc = (key) => key, cite = "" } = {}) {
@@ -578,27 +594,41 @@ export function withFormula(formulas, entry) {
 }
 
 /**
- * The research throw as the project stands: the target (a Judge's stored one, else the ladder's rung for the
- * researcher's level), the facility bonus (the sum of what each facility's verdict reads), the penalty a
- * substituted share takes (`substitutionPenalty`; null while its figures are not read) and whether the
- * researcher's formula is applied: it is known and no substitute is held. `modifier` is what the die is changed
- * by. The throw is never made with a figure missing (`finishState`): a target not read is null, `bonusUnread`
- * is true while any facility's bonus is not read (its table, its figures or the project's level), and
- * `penaltyUnread` while a substitute is held and the penalty's size is not read. `modifier` counts an unread
- * part as nothing, for display only.
- * @returns {{target: number|null, by: "hand"|"ladder"|null, bonus: number, bonusRead: boolean, bonusUnread: boolean, share: number|null, substituted: number, penalty: number|null, penaltyUnread: boolean, modifier: number, formula: {known: boolean, used: boolean}}}
+ * The research throw as the project stands: the target (a Judge's stored one taken whole, else the ladder's rung for
+ * the researcher's level raised by the project's level of effect, `levelRaise`), the researcher's Intellect bonus
+ * (`intBonusOf(uuid)`, null where it is not read), the facility bonus (the sum of what each facility's verdict reads),
+ * the penalty a substituted share takes (`substitutionPenalty`; null while its figures are not read) and whether the
+ * researcher's formula is applied: it is known and no substitute is held. `modifier` is what the die is changed by.
+ * A throw is never made with a figure missing (`finishState`): a target not read is null (the ladder's rung without
+ * the project's level included), `intUnread` is true while the Intellect bonus is not read, `bonusUnread` while any
+ * facility's bonus is not read (its table, its figures or the project's level) and `penaltyUnread` while a substitute
+ * is held and the penalty's size is not read. `modifier` counts an unread part as nothing, for display only.
+ * `noThrow` names why no throw is made (`NO_THROW`: an item whose formula is applied, or a spell the Judge marked
+ * common) and is null where one is; the throw's parts are not held then. `components` is the bucket against the
+ * component cost: `hold` is true while the cost is owed and the counted rows do not meet it or a counted row's value
+ * is not read (a kind with no component cost is never held).
+ * @returns {{target: number|null, by: "hand"|"ladder"|null, levelRaise: number, int: number|null, intUnread: boolean, bonus: number, bonusRead: boolean, bonusUnread: boolean, share: number|null, substituted: number, penalty: number|null, penaltyUnread: boolean, modifier: number, formula: {known: boolean, used: boolean}, noThrow: string|null, components: {due: number|null, total: number, short: boolean, unread: boolean, hold: boolean}}}
  */
-export function throwPlan(project, { tables, levelOf = () => null, verdicts = [], entries = [], known = false }) {
+export function throwPlan(project, { tables, levelOf = () => null, intBonusOf = () => null, verdicts = [], entries = [], known = false }) {
   const base = ladderThrow(tables?.ladder, levelOf(project.researcher));
   const hand = project.throw?.target ?? null;
+  const raised = LEVEL_RAISED_KINDS.includes(project.kind);
+  const ladder = base !== null && (!raised || project.level !== null) ? base + (raised ? project.level : 0) : null;
   const bonuses = verdicts.map((v) => v.bonus);
   const bonus = bonuses.reduce((n, b) => n + (b ?? 0), 0);
+  const int = num(intBonusOf(project.researcher));
   const { share, substituted } = substitutedShare(entries, project.costs.component);
   const raw = substituted === 0 ? 0 : share === null || project.level === null ? null : substitutionPenalty(tables?.prose, { level: project.level, share });
   const penalty = Number.isFinite(raw) ? raw : null;
+  const formula = { known, used: known && substituted === 0 };
+  const due = num(project.costs.component);
+  const cover = due !== null && due > 0 ? coverage(entries, due) : null;
   return {
-    target: hand ?? base,
-    by: hand !== null ? "hand" : base !== null ? "ladder" : null,
+    target: hand ?? ladder,
+    by: hand !== null ? "hand" : ladder !== null ? "ladder" : null,
+    levelRaise: hand === null && ladder !== null && raised ? project.level : 0,
+    int,
+    intUnread: int === null,
     bonus,
     bonusRead: bonuses.length > 0 && bonuses.every((b) => b !== null),
     bonusUnread: bonuses.some((b) => b === null),
@@ -606,8 +636,12 @@ export function throwPlan(project, { tables, levelOf = () => null, verdicts = []
     substituted,
     penalty,
     penaltyUnread: substituted > 0 && penalty === null,
-    modifier: bonus + (penalty ?? 0),
-    formula: { known, used: known && substituted === 0 },
+    modifier: bonus + (penalty ?? 0) + (int ?? 0),
+    formula,
+    noThrow: project.kind === PROJECT_KIND.item && formula.used ? NO_THROW.formula : project.kind === PROJECT_KIND.spell && project.common === true ? NO_THROW.common : null,
+    components: cover
+      ? { due, total: cover.total, short: cover.status === COVERAGE.short, unread: cover.status === COVERAGE.unknown, hold: cover.status !== COVERAGE.covered }
+      : { due, total: 0, short: false, unread: false, hold: false },
   };
 }
 
@@ -624,18 +658,24 @@ export const subjectFits = (kind, type) => (kind === PROJECT_KIND.spell ? type =
 
 /**
  * Whether Finish may be pressed and, where it may not, why: `ritual` (a ritual's result is not written here),
- * `credited` (the research cost is not credited), `throw` (no target is read), `bonus` (a facility's bonus is
- * not read), `penalty` (a substitute is held and its penalty's size is not read) or `subject` (an identification
- * with no item to identify, or a subject whose document does not suit the kind). A throw is never rolled with a
- * figure missing. `subjectType` is the resolved subject document's type, or null where it names none.
+ * `credited` (the research cost is not credited), `components` (the component cost is not met by the bucket, or a
+ * row's value is not read), then, unless the plan makes no throw (`noThrow`): `throw` (no target is read), `int` (the
+ * Intellect bonus is not read), `bonus` (a facility's bonus is not read) or `penalty` (a substitute is held and its
+ * penalty's size is not read); and last `subject` (an identification with no item to identify, or a subject whose
+ * document does not suit the kind). A throw is never rolled with a figure missing, and the throw is made after the
+ * component cost is paid. `subjectType` is the resolved subject document's type, or null where it names none.
  * @returns {{ok: boolean, why: string}}
  */
 export function finishState(project, prog, plan, { subjectType = null } = {}) {
   if (project.kind === PROJECT_KIND.ritual) return { ok: false, why: "ritual" };
   if (prog.complete !== true) return { ok: false, why: "credited" };
-  if (plan.target === null) return { ok: false, why: "throw" };
-  if (plan.bonusUnread) return { ok: false, why: "bonus" };
-  if (plan.penaltyUnread) return { ok: false, why: "penalty" };
+  if (plan.components?.hold) return { ok: false, why: "components" };
+  if (!plan.noThrow) {
+    if (plan.target === null) return { ok: false, why: "throw" };
+    if (plan.intUnread) return { ok: false, why: "int" };
+    if (plan.bonusUnread) return { ok: false, why: "bonus" };
+    if (plan.penaltyUnread) return { ok: false, why: "penalty" };
+  }
   const named = subjectType !== null;
   if ((project.kind === PROJECT_KIND.identify && !named) || (named && !subjectFits(project.kind, subjectType))) return { ok: false, why: "subject" };
   return { ok: true, why: "" };
@@ -662,6 +702,7 @@ export function projectOps(deps) {
   /**
    * Finish a project (ruling 223): throw, then stamp the outcome and close the project in one write (so a second
    * press finds it closed and throws nothing), write the result, settle the components bucket, and post the card.
+   * A project that needs no throw (`plan.noThrow`) rolls nothing and succeeds; its card is handed `rolled: null` and a result with no die.
    * `deps.outcome` is the world's half: `subject(project)` the resolved subject's `{type, cookbookId}` or null,
    * `entries(project)` the bucket's rows as lib entries, `formulas(uuid)` the researcher's recorded formulas, `roll(formula)`
    * the natural die, `deliver`, `identify`, `addSpell`, `blank` and `recordFormula` the writers, `settle(project, plan)` and
@@ -684,16 +725,17 @@ export function projectOps(deps) {
     const ref = subjectRef(project.subject, doc?.cookbookId);
     const known = FORMULA_KINDS.includes(project.kind) && knowsFormula(await out.formulas(project.researcher), project.kind, ref);
     const verdicts = facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables: ctx.tables });
-    const plan = throwPlan(project, { tables: ctx.tables, levelOf: ctx.levelOf, verdicts, entries, known });
+    const plan = throwPlan(project, { tables: ctx.tables, levelOf: ctx.levelOf, intBonusOf: ctx.intBonusOf, verdicts, entries, known });
     const state = finishState(project, progressOf(project, ctx), plan, { subjectType: doc?.type ?? null });
     if (!state.ok) return { ok: false, reason: FINISH_REFUSAL[state.why] };
     if (!judge) {
       if (entries.some((e) => e.kind !== ENTRY_KIND.power && who.owns(e.uuid) !== true)) return { ok: false, reason: "bucketOwner" };
       if (project.kind === PROJECT_KIND.identify && who.owns(project.subject.uuid) !== true) return { ok: false, reason: "subjectOwner" };
     }
-    const rolled = await out.roll(THROW_DIE);
-    const result = throwResult(plan, ctx.tables?.prose, rolled.die);
-    const stamp = { result: result.success ? "success" : "failure", die: result.die, total: result.total, target: result.target, day: ctx.today };
+    // A Finish with no throw rolls no die and succeeds; the card and the stamp carry no die, total or target.
+    const rolled = plan.noThrow ? null : await out.roll(THROW_DIE);
+    const result = plan.noThrow ? { die: null, total: null, target: null, auto: false, success: true, outcome: OUTCOME.success, noThrow: plan.noThrow } : throwResult(plan, ctx.tables?.prose, rolled.die);
+    const stamp = { result: result.success ? "success" : "failure", die: result.die, total: result.total, target: result.target, day: ctx.today, ...(plan.noThrow ? { noThrow: plan.noThrow } : {}) };
     await deps.write(location, { projects: record.projects.map((p) => (p.id === project.id ? { ...p, status: "closed", closed: ctx.today, outcome: stamp } : p)) });
     const written = [];
     const failed = [];
@@ -727,7 +769,7 @@ export function projectOps(deps) {
     } catch (err) {
       failed.push({ what: "card", error: String(err?.message ?? err) });
     }
-    return { ok: true, id: project.id, outcome: stamp.result, die: result.die, total: result.total, target: result.target, auto: result.auto, modifier: plan.modifier, formula: plan.formula, written, failed, settled, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
+    return { ok: true, id: project.id, outcome: stamp.result, die: result.die, total: result.total, target: result.target, auto: result.auto, modifier: plan.modifier, formula: plan.formula, noThrow: plan.noThrow, written, failed, settled, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
   }
 
   /** Run one op here, on a location this client may write; `who` is the requester's: `{judge, owns(uuid)}`. */
@@ -855,6 +897,8 @@ export function projectOps(deps) {
       const keys = Object.keys(patch);
       if (keys.some((key) => !UPDATE_FIELDS.includes(key))) return { ok: false, reason: "field" };
       if (!judge && keys.some((key) => key === "level" || JUDGE_FIELDS.includes(key))) return { ok: false, reason: "judge" };
+      // The common mark is a boolean on a spell project; written on any other kind it would store nothing, so it is refused.
+      if (patch.common !== undefined && (typeof patch.common !== "boolean" || project.kind !== PROJECT_KIND.spell)) return { ok: false, reason: "field" };
       const linked = new Set(deps.linked(location));
       if (patch.assistants !== undefined && uuids(patch.assistants).some((u) => u !== project.researcher && !linked.has(u))) return { ok: false, reason: "assistant" };
       // A patch of a keyed field changes the keys it names; the rest of that field stays.
@@ -969,21 +1013,27 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     const ref = subjectRef(subject, cookbookOf(subject.uuid));
     const known = FORMULA_KINDS.includes(p.kind) && knowsFormula(formulasOf(p.researcher), p.kind, ref);
     const verdictRows = facilityVerdicts(p, { facilities: record.facilities, projects: record.projects, tables });
-    const plan = throwPlan(p, { tables, levelOf, verdicts: verdictRows, entries: held, known });
+    const plan = throwPlan(p, { tables, levelOf, intBonusOf, verdicts: verdictRows, entries: held, known });
     const throwTarget = plan.target;
     const state = finishState(p, prog, plan, { subjectType: subject.uuid ? subjectTypeOf(subject.uuid) : null });
     const ladderCite = citeOf("ladder");
     const proseCite = citeOf("prose");
     // The pages of the facility passages whose bonus is not read: what a held Finish points at.
     const bonusCite = [...new Set(verdictRows.filter((v) => v.bonus === null).map((v) => (v.byHand ? citeOf(v.table) : (v.cite ?? citeOf(v.table)))))].filter(Boolean).join(", ");
-    const unreadTip = { bonus: loc("throwPartBonusUnread", { cite: bonusCite }), penalty: loc("throwPartPenaltyUnread", { cite: proseCite }) };
-    // The throw's parts, each named: where the target came from, the facility bonus, the substitutes' penalty and the formula.
+    const unreadTip = { bonus: loc("throwPartBonusUnread", { cite: bonusCite }), penalty: loc("throwPartPenaltyUnread", { cite: proseCite }), int: loc("throwPartIntUnread") };
+    // The component cost against the bucket: what the rows come to and the page of the cost, or the page alone where a row's value is not read.
+    const componentsTip = plan.components.unread ? loc("componentsTipUnread", { cite: citeOf("costs") }) : loc("componentsTipShort", { total: goldText(plan.components.total), due: goldText(plan.components.due), cite: citeOf("costs") });
+    // The throw's parts, each named: where the target came from, the level it is raised by, the Intellect bonus, the facility bonus, the substitutes' penalty and the formula.
     const throwParts = [
       plan.by === "hand" ? loc("throwTipHand") : loc("throwTip", { cite: ladderCite }),
+      ...(plan.levelRaise ? [loc("throwPartLevel", { n: plan.levelRaise })] : []),
+      plan.intUnread ? unreadTip.int : loc("throwPartInt", { n: plan.int >= 0 ? `+${plan.int}` : String(plan.int) }),
       plan.bonusUnread ? unreadTip.bonus : loc("throwPartBonus", { n: plan.bonus }),
       ...(plan.substituted ? [plan.penaltyUnread ? unreadTip.penalty : loc("throwPartPenalty", { n: plan.penalty, cite: proseCite })] : []),
       ...(known ? [plan.formula.used ? loc("throwPartFormula") : loc("throwPartFormulaOff")] : []),
     ].join(" · ");
+    // With no throw the tip says why and lists no throw part.
+    const finishTip = plan.noThrow ? loc(`finishTipNo.${plan.noThrow}`) : loc("finishTip", { parts: throwParts });
     const personOf = (uuid) => prog.people.find((x) => x.uuid === uuid);
     const rateView = (uuid) => {
       const who = personOf(uuid);
@@ -1100,7 +1150,7 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       }),
       closeLabel: loc("close", { name: subject.name || loc(`kind.${p.kind}`) }),
       // Finish is live for a viewer who may act on the project once the state allows it; a disabled one carries its reason.
-      finish: { label: loc("finish"), why: state.ok ? "" : loc(`finishWhy.${state.why}`), live: state.ok && can, tip: state.ok ? loc("finishTip", { parts: throwParts }) : (unreadTip[state.why] ?? loc(`finishWhy.${state.why}`)) },
+      finish: { label: loc("finish"), why: state.ok ? "" : loc(`finishWhy.${state.why}`), live: state.ok && can, tip: state.ok ? finishTip : state.why === "components" ? componentsTip : (unreadTip[state.why] ?? loc(`finishWhy.${state.why}`)) },
       opened: p.opened ?? "",
       today,
     };

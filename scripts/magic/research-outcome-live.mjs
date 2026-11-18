@@ -18,7 +18,7 @@
  * Every heavy import is taken where it is used, so the model's suites load this file without the world.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC } from "./constants.mjs";
-import { FORMULAS_KEY, PROJECT_KIND, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
+import { FORMULAS_KEY, PROJECT_KIND, powerRowFit, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
 import { kindOfRow, POWER_ROW_PREFIX } from "./power-ledger.mjs";
 import { cookbookId } from "../lib/library.mjs";
 
@@ -49,7 +49,8 @@ export const subjectTypeOf = (uuid) => resolve(uuid)?.type ?? null;
 /**
  * The components bucket of a project as lib entries, valued and fitted by the project's policy: each stored row's
  * document read again, then the power rows (a row names no document; it is read from the researcher's ledger, held
- * to the balance, and is a substitute unless the stored row says otherwise).
+ * to the balance, and is matched unless the stored row says otherwise: power is no substitute, so it takes no
+ * penalty and does not turn the formula off).
  */
 export async function projectEntries(project) {
   const { entriesFromAnswer } = await import("../lib/bucket.mjs");
@@ -60,7 +61,7 @@ export async function projectEntries(project) {
   const powers = [];
   for (const row of project.bucket) {
     const kind = kindOfRow(row.uuid);
-    const entry = kind && actor ? powerApi.row(actor, kind, { amount: row.qty, fit: row.fit || policy.fit.fallback }) : null;
+    const entry = kind && actor ? powerApi.row(actor, kind, { amount: row.qty, fit: powerRowFit(row.fit) }) : null;
     if (entry) powers.push(entry);
   }
   return [...docs, ...powers];
@@ -145,7 +146,11 @@ export function outcomeDeps() {
       const actor = resolve(project.researcher);
       const name = project.subject.name || loc(`kind.${project.kind}`);
       const modifier = plan.modifier;
-      const parts = [
+      const signed = (n) => (n >= 0 ? `+${n}` : String(n));
+      // A Finish with no throw names why and carries no die, total or target.
+      const parts = result.noThrow ? [result.noThrow === "formula" ? loc("throwPartFormula") : loc("throwPartCommon")] : [
+        plan.levelRaise ? loc("throwPartLevel", { n: plan.levelRaise }) : "",
+        plan.int !== null ? loc("throwPartInt", { n: signed(plan.int) }) : "",
         plan.bonusRead ? loc("throwPartBonus", { n: plan.bonus }) : "",
         plan.substituted && plan.penalty !== null ? loc("throwPartPenalty", { n: plan.penalty, cite: loc("cite.prose") }) : "",
         plan.formula.known ? (plan.formula.used ? loc("throwPartFormula") : loc("throwPartFormulaOff")) : "",
@@ -161,19 +166,21 @@ export function outcomeDeps() {
       }
       if (settled && (settled.spent || settled.marked || settled.power.some((p) => p?.ok))) lines.push(loc("card.settled", { spent: settled.spent + settled.power.filter((p) => p?.ok).length, marked: settled.marked }));
       for (const f of failed) lines.push(loc("card.failed", { what: loc(`card.what.${f.what}`) }));
-      const row = {
-        name: actor?.name ?? "",
-        total: result.total,
-        target: result.target,
-        targetSuffix: "+",
-        targetTooltip: plan.by === "hand" ? loc("throwTipHand") : loc("throwTip", { cite: loc("cite.ladder") }),
-        detail: parts.join(" · "),
-        tooltipText: loc("card.dieTip", { die: result.die, modifier: modifier >= 0 ? `+${modifier}` : String(modifier) }),
-        outcome: result.success ? loc("card.success") : loc("card.failure"),
-        emphasis: result.success ? "success" : "failure",
-      };
+      const outcome = { outcome: result.success ? loc("card.success") : loc("card.failure"), emphasis: result.success ? "success" : "failure" };
+      const row = result.noThrow
+        ? { name: actor?.name ?? "", total: "", detail: parts.join(" · "), ...outcome }
+        : {
+            name: actor?.name ?? "",
+            total: result.total,
+            target: result.target,
+            targetSuffix: "+",
+            targetTooltip: plan.by === "hand" ? loc("throwTipHand") : loc("throwTip", { cite: loc("cite.ladder") }),
+            detail: parts.join(" · "),
+            tooltipText: loc("card.dieTip", { die: result.die, modifier: modifier >= 0 ? `+${modifier}` : String(modifier) }),
+            ...outcome,
+          };
       const content = renderRollCard({ title: loc("card.title", { name }), subtitle: loc(`kind.${project.kind}`), sections: [{ rows: [row] }], footnote: lines.join(" ") || undefined });
-      await ChatMessage.create({ content, rolls: rolled.roll ? [rolled.roll] : [], speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined });
+      await ChatMessage.create({ content, rolls: rolled?.roll ? [rolled.roll] : [], speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined });
       return made;
     },
   };

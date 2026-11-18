@@ -58,8 +58,14 @@ export function levelOf(uuid) {
   return Number.isFinite(level) && level >= 0 ? Math.trunc(level) : null;
 }
 
-/** A participant's Intellect bonus, zero where there is none. */
-export const intBonusOf = (uuid) => Number(resolve(uuid)?.system?.scores?.int?.mod) || 0;
+/**
+ * A participant's Intellect bonus, null where the actor or the figure is not there: an unread bonus is never taken for
+ * zero (the throw holds on it); the assistants' capacity reads it as zero (`weighParticipants`).
+ */
+export const intBonusOf = (uuid) => {
+  const mod = resolve(uuid)?.system?.scores?.int?.mod;
+  return mod === null || mod === undefined || mod === "" || !Number.isFinite(Number(mod)) ? null : Number(mod);
+};
 
 /** The dependencies of `projectOps` as this client has them. */
 export const liveDeps = () => ({
@@ -196,7 +202,10 @@ export const researchApi = {
   },
   /** A project started: `create(location, {kind, subject, level, researcher, assistants})`; a Judge's carries `costs`, `paid` and `throw`. */
   create: (location, spec) => ops().create(location, spec),
-  /** A project's fields changed: `update(location, id, patch)`, the patch's keys from `UPDATE_FIELDS`. */
+  /**
+   * A project's fields changed: `update(location, id, patch)`, the patch's keys from `UPDATE_FIELDS`. `common` is a Judge's boolean on a spell
+   * project (a Player's write is refused `judge`, another kind's `field`); a common spell is finished with no throw.
+   */
   update: (location, id, patch) => ops().update(location, id, patch),
   /** A project closed; it stays on the record and counts for no facility. */
   close: (location, id) => ops().close(location, id),
@@ -246,12 +255,16 @@ export const researchApi = {
    * delivered to the researcher, a known spell added to their repertoire, an item marked fully identified, or a blank
    * document made and opened for the Judge where the subject names none; a spell or an item's formula is recorded on the
    * researcher. The components bucket is settled on every outcome and the result is one chat card. It is refused (`notComplete`,
-   * `throwUnread`, `bonusUnread`, `penaltyUnread`, `ritual`, `subject`, `bucketOwner`, `subjectOwner`) before anything is rolled or written, and a Player's
-   * request keeps a Player's rules where the GM's client runs it. Answers `{ok, id, outcome, die, total, target, auto, modifier,
-   * formula, written, failed, settled}`.
+   * `componentsShort`, `throwUnread`, `intUnread`, `bonusUnread`, `penaltyUnread`, `ritual`, `subject`, `bucketOwner`, `subjectOwner`) before anything is rolled or written, and a Player's
+   * request keeps a Player's rules where the GM's client runs it. A project with no throw to make (an item whose formula is known and applied, or a spell the Judge marked `common` through `update`) rolls
+   * nothing and succeeds. Answers `{ok, id, outcome, die, total, target, auto, modifier, formula, noThrow, written, failed, settled}`
+   * (`die`, `total` and `target` null with no throw).
    */
   finish: (location, id) => ops().finish(location, id),
-  /** The throw as the project stands, `{target, by, bonus, bonusRead, share, substituted, penalty, modifier, formula: {known, used}}`; null for a project that is not on the location. */
+  /**
+   * The throw as the project stands, `{target, by, levelRaise, int, intUnread, bonus, bonusRead, bonusUnread, share, substituted,
+   * penalty, penaltyUnread, modifier, formula: {known, used}, noThrow, components}` (`throwPlan`); null for a project that is not on the location.
+   */
   async plan(location, id) {
     const record = recordOf(location);
     const project = record.projects.find((p) => p.id === id);
@@ -259,7 +272,7 @@ export const researchApi = {
     const tables = liveDeps().tables();
     const known = knowsFormula(formulasOf(project.researcher), project.kind, subjectRef(project.subject, cookbookOf(project.subject.uuid)));
     const verdicts = facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables });
-    return throwPlan(project, { tables, levelOf, verdicts, entries: await projectEntries(project), known });
+    return throwPlan(project, { tables, levelOf, intBonusOf, verdicts, entries: await projectEntries(project), known });
   },
   /** The formulas an actor has researched, `[{kind, key, name, uuid, cookbookId, day, project}]`. */
   formulas: (actor) => formulasOf(actor?.uuid),
