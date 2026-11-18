@@ -121,6 +121,7 @@ All slices are built on `topic/scene-search` by fresh agents. Each brief quotes 
 | S4 | The screen, per SceneJudge and ScenePlayer: entries, party aside, assign by picker and by drag, Round and Spend a turn, the log, the haul tray. Recipe in `docs/scene-search/TESTING.md` | `implementer` | S2, S3 | | both seats |
 | S5 | Ways in: the fight-over card's Search the scene (Stage a pot removed); close-out's Dungeon tab button | `implementer` | S4; R-DC4 | | a real fight ends; a declared search with no fight |
 | S6 | Keying: the location sheet's Things here (SceneKey), the Judge's keying rail | `implementer` | S2 | | Judge seat |
+| R-I1 | Lore rolls: a `rolls` spec for Theology, Loremastery, Naturalism, Magical Engineering and Sensing Power, in the per-book layout `scripts/importer/books/rr/` (owner: "They should be building separate importer files per book... new work should be building that clean version"); each roll cites its page, no target ships. The Treasure Tome session reviews the recipe shape against `identifyComponents` before the first commit | `implementer`: a scoped importer recipe | S1 | cookbook compiles, silo gate | none |
 | S7a | Lore checks | `implementer` | R-I1 | | yes |
 | S7b | Harvest and identify, multi-turn | `architect` ruling on the imported schema first, then `implementer` | Treasure Tome H1–H4 | | yes |
 | S8 | MODEL, DECISIONS, guide, gallery, changelog; shots from data a user produced | session, plus `doc-scribe` | all | | |
@@ -136,3 +137,15 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
 > Land each slice that needs a walk, and walk it on main. Append results to this plan's "Results" section, and report to the owner.
 
 ## Results
+
+### 2026-11-18 — phase start (scene-search orchestrator, session local_80255613)
+
+- `topic/scene-search` is open in the sibling worktree, branched at defe2eff.
+- The lib thing-shape entry is co-signed by dungeon close-out and committed on the topic as d8efe23b, not landed. Close-out changed two things: the co-signer is obstacle regions, and the Hazard `ref` is provisional until the obstacle redesign's boards are approved.
+- R-DC5 is on main as f6dcc299. R-DC4 moves to this topic: S5 carries the Dungeon tab's Search here button and its relay, built after dungeon-closeout lands, and formation reviews it. Close-out confirmed `resolvePlanRound(formation)`, which returns `{results}` like `resolvePlanTurn`.
+- R-I1 is a scene-search slice (row above), assigned by the orchestrator.
+- S1, the pure model, is building. Its layer schema is the orchestrator's ruling: a layer is authored only, `{check: inspect|search|skill, capability, anyone, tools, turns, yields: {lots, clue, reveal}}`, and its runtime is at `state.layers` and `state.shown`.
+- Owner rulings relayed by the orchestrator:
+  1. Where the stack lives: "Everything to a place that can apply effects to a region. All to region if easiest". Close-out's architect picks the carrier by build cost, and S2 waits on that pick.
+  2. Harvest time between printed steps: "Round up" (S7b).
+  3. A dual-typed creature: "Any of its rows" qualifies a harvester, and the Judge overrides per body (S7b).
