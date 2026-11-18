@@ -3783,6 +3783,55 @@ stays open.
   - 1c.35: no changelog fragment for the declared cast yet. One is
     written with R-c's, since R-c is what makes it visible.
 
+### Results, R and K-b (2026-11-18)
+
+Landed on main from topic/spell-effects, each walked live on lane A with no
+other session on the server:
+- 26292903: R-p and K-b. The six cast walks are green, and
+  magic-cast-spell is 133/0 after 48f3814a.
+- 5ebfcc74: R-p2. magic-cast-spell 142/0, and the other five cast walks are
+  green.
+- 869eebc1: R-c. The walk fixes are 16f3e2e4 (the closing sweep had refused
+  whole after a mid-walk sweep) and fff58686 (every failure was on the walk
+  side). magic-cast-spell is 164/0.
+- 363d8f59: R-e2, with the walk fix bacb31e7 (Save row's
+  `aria-describedby` set while typing). magic-rung-editor 26/0,
+  magic-spell-recipes 36/0, magic-cast-spell 164/0.
+
+K-b has no window of its own. It is walked through R-c's implements bucket.
+topic/spell-effects stays open for the M slices and 1d-B.
+
+Findings registered and not worked, each with the default it proceeded on:
+- **K-b.1** 211 values a part by its spoil cost, and 225 values ritual parts
+  by the source monster's XP. Default: spoil cost. M-r exports the XP
+  valuer if 225 is meant.
+- **K-b.2** A hand-set bucket value is not in the stored answer
+  `{uuid, qty, fit}`, so re-reading a stored answer loses it. Default: not
+  stored.
+- **K-b.3** Marking a victim dead needs a write a Player seat lacks. M-s
+  relays it to the GM, since lib does not gate.
+- **R-p2.1** The card half of 231 is not built, because no chat card stores a
+  bucket answer yet. `withoutUuid` is generic, so the slice that puts an
+  answer on a card wires it.
+- **R-p2.2** "Moved off the holder" is read as an emptied stack. A move
+  between actors is a delete and a create under a new uuid. The resolve-time
+  `holds` check counts an emptied stack as present, so only the hook covers
+  that case.
+- **R-p2.3** An unaffected target row's reason is in its tooltip only, which
+  is a finding against ui-tooltips.md (`tooltip:2026-11-18`).
+- **R-c.1** The level select offers every whole level from 1 to the larger of
+  the ladder's top and the cap. With no ladder it is 202's number box,
+  marked as set by hand.
+- **R-c.2** The cap's tooltip names the ladder and the class level, but the
+  class ladder carries no page reference (`tooltip:2026-11-18`).
+- **R-c.3** The walk's band 3 drop check is vacuous: the dropped set was
+  already a carried row. The fix builds that item without its implement flag.
+- **R-e2.1** Each overview ladder has its own "Save rungs" bar, which
+  scrolls with the sheet body. Only the row editor's footer is pinned.
+- **R-e2.2** The kind group offers three kinds. A figure stored as
+  breakpoints, a progression or a conditional on another scale shows the
+  existing hint and is left as stored.
+
 ### Results, 1d
 
 **1d-A (2026-11-17), run from 1b.** topic/spell-effects-1d was landed at
