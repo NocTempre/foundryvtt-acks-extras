@@ -791,8 +791,8 @@ a trap thing and keeps no copy. scene-search: layers, activities, the screen
 and the session. treasure: the pot.
 
 **Derived, never stored:** doors (core walls touching the place's area, where
-`door === 2` is a hidden exit), old-style trap zones and trap walls in the area
-(hidden unless `known`), and a fight's bodies (read from Search the fallen's
+`door === 2` is a hidden exit), trap zones and trap walls placed on the map in
+the area (hidden unless `known`), and a fight's bodies (read from Search the fallen's
 record). Goods dropped on a place still go to its goods, as today.
 
 *Rejected:* an embedded copy of the trap or Hazard (two sources of truth, and a
@@ -800,8 +800,16 @@ book's text copied into a world flag); a list per feature (two writers of one
 place, and the owner's stacking across kinds needs one list); a per-kind
 switchboard of authored options (the owner's "Not doing a big switchboard").
 *Counter (medium):* one flag written whole means two GMs editing one place's
-things at once lose the earlier write; the write is GM-only and rare, and the
-other branch, a document per thing, costs a document type for what is a row.
+things at once lose the earlier write; the write is GM-only, frequent `state`
+writes come from one client, the primary GM's, and the other branch, a
+document per thing, costs a document type for what is a row.
+
+**Where the list lives.** The owner, 2026-11-18: "Everything to a place that
+can apply effects to a region. All to region if easiest". The list stays on the
+place, which applies its things over its linked Region. Keeping it on the Region
+instead would leave imported keyed rooms empty, since they are laid as place
+tokens with no Region, and it would need a second carrier. All it would save is
+one `locationOfRegion` lookup at entry and a redraw hook.
 
 *Cost:* a thing whose `ref` was deleted stays until the Judge removes it, and
 reads as a missing document rather than vanishing; nothing migrates, since no
