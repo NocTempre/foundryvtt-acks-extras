@@ -2867,6 +2867,31 @@ prompts, with one change: every walk runs on lane A, one at a time, without
 `FIXTURE_OWN`. 1c works in `topic/spell-effects` and 1d-A in
 `topic/spell-effects-1d` (opened at 6e1999dd).
 
+Progress, 2026-11-17:
+
+- **Rulings committed on main:** 102–129 at f7f7696b, 150–156 at b84656a1,
+  and 130–141 at 9209cc5b.
+- **On topic/spell-effects (implementer):**
+  - S3c-1, lib: 10ce7c8d.
+  - S4b, importer: 7684fd6c.
+  - S3c-2, the matcher: 9776f77e, with its suite passing 17/17 and a
+    six-point mutation check.
+- **The matcher's judgment calls, held for review:**
+  - words fold as `foldKey` does, plus a trailing `s`;
+  - `schools` also matches the spell's `type`;
+  - a named spell is decided by the first identifier both sides carry;
+  - stacking is greedy by single value;
+  - the level is clamped at 1.
+- **One /design canvas for the five UI pieces:** the 126 toggle, the 124
+  pick, the 139 kind pick, the 131/137 granted throw, and the editor
+  fields. It is sent to the owner. S3c-5, the 124 and 126 UI, and S5 slice
+  D wait for feedback.
+- **In flight:**
+  - S4a, lib;
+  - S3c-3, the wiring;
+  - the S3c-4 scout;
+  - 1d-A slice T, on topic/spell-effects-1d.
+
 ### Results, 1c
 
 ### Results, 1d
