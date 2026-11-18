@@ -658,7 +658,7 @@ magic's `powerRow` returns no row below one. A week the calendar cannot list is 
 cannot be checked offline: `calendar.days.values` is read as the weekday list on the live
 walk only.
 
-## 2026-11-18 — The ledger's plus and minus: the owner's two answers
+## 2026-11-18 — The ledger's plus and minus: the owner's two answers — SUPERSEDED IN PART 2026-11-18
 
 This entry supersedes in part "The power ledger and its chip (M-l, ruling 217)": its
 bullet "A Judge's plus is a gain written by hand, and it fades like any other". The new
@@ -769,3 +769,60 @@ default proceeded on and the counter:
   where Foundry lets the seat write the location (`canUserModify`), else asked of the GM's client
   under the handler `magicProject`. *Counter (low):* an array path per project would write less
   and race less; Foundry's flag update replaces arrays whole either way.
+
+## 2026-11-18 — The hand plus: a Fades/Stays switch (owner, board 14 B)
+
+This entry supersedes in part "The ledger's plus and minus: the owner's two answers": its
+sentence "Until then every hand plus fades", and qualifies "The power ledger and its chip (M-l,
+ruling 217)" on one bullet: "Spent power takes from the oldest lot that still stands" now
+reads fading lots first. The new evidence is the board the first entry waited for. Board 14
+drew two ways to choose: A, a menu on the plus ("Recommended" on the board), and B, a switch
+beside each pair. The owner chose B: "B: Fades/Stays switch", and on what it does: "a
+Fades/Stays switch beside each +/- pair sets what + adds, with the pin and 'stays until
+removed' on the row, and − spending fading points first, as drawn." Both earlier answers
+stand and are built on: "Allow both" (a Judge's hand plus may fade or stay: one press of the
+plus adds one point that stays after Stays is pressed, one that fades after Fades is) and "One
+pair per tag" (the divine tag and the arcane tag each keep their own plus and minus, and now
+their own switch).
+
+Built as drawn. A Judge's strip carries a pair of pills in a group, Fades first and pressed,
+beside each tag's plus and minus; a Player's strip draws none of it. A point that stays is a
+gain with `stays: true`: no lifetime, so it never expires, counts in the balance past any span
+and is never due to fade. Its row is led by a pin with "stays until removed", and the chip's
+tooltip names it for that entry. A spend, the minus, `spend` and `settle` alike, takes fading
+lots first and then lots that stay, each oldest first. Judgment calls made in building it, each
+with the default proceeded on and the counter:
+
+- **The switch's state lives in the strip's closure and every render starts it on Fades.** The
+  board says so: "state that a re-render resets". A plus writes the actor, which re-renders the
+  sheet, so a Judge presses Stays again before each point that should stay, which is what
+  choosing from board A's menu costs per press. Fades is also the safe resting state: a
+  forgotten Stays would write permanent power. *Counter (medium):* a state kept by the sheet
+  window, or by actor and tag, would survive a render and spare the second press; two windows
+  on one actor would then share it, and a Stays left on would be written by a later plus
+  with nothing on the screen having changed.
+- **The mark is a key on the entry, written only on a gain a Judge marked.** A stored entry
+  without it reads exactly as before, so no flag is migrated. *Counter (low):* a `permanent`
+  list beside `entries` would need its own spend order and its own undo.
+- **The spend order follows the mark, not the lifetime.** With no lifetime imported nothing
+  expires, yet a minus still takes unmarked points before the ones that stay, so the switch
+  means the same with and without an import. *Counter (low):* one pool oldest-first while
+  nothing fades would ignore the owner's "fading points first".
+- **A gain that stays is a Judge's act on every path.** The API's `gain` takes `stays: true` for
+  a Judge and answers `judge` to a Player, before any request is sent; the relay handler
+  refuses it on the sender Foundry attested; the apply step keeps the mark only for a Judge
+  sender as a third guard. The mark does not need `by: "judge"` beside it, so a Judge's
+  ritual or sacrifice slice may write a lot that stays without calling it a hand figure.
+  *Counter (medium):* requiring `by: "judge"` would keep every permanent point visibly a
+  hand figure; the later slices have no such rule to meet and the row names the source anyway.
+- **A lot spent to nothing shows "Used up" and no pin.** The pin and the caption mark a lot
+  that is still held. *Counter (low):* a spent lot could keep its pin.
+- **Board A's clock glyph on the fading caption is not built.** Board B says "rows and tooltip
+  are as in A" and the request lists the pin only; a fading row keeps its existing caption.
+  *Counter (low):* the clock would make the pair of captions read alike.
+- **Each tag, its plus and minus, its switch and its count box wrap together as one group.**
+  The board draws each tag on a line of its own; the group lets the switch drop to a second
+  line on a narrow strip without leaving its tag. *Counter (low):* one flat row, as before,
+  could strand a switch beside the wrong tag.
+- *Cost:* a Judge can now hold power the imported lifetime would have ended, and nothing in the
+  ledger says so but the pin; the lot is taken only by a minus, after every fading lot.

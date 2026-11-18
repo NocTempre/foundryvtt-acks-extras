@@ -482,6 +482,36 @@ legend > .acks-extras-classes-ctl {
   font-size: var(--acks-fs-label);
   cursor: pointer;
 }
+/* One power's tag and its controls wrap together, so the Judge's switch drops
+   to a second line on a narrow strip instead of splitting from its tag. */
+.acks-extras-classes-powerchip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+}
+.acks-extras-classes-powerstay {
+  display: inline-flex;
+  gap: var(--acks-sp-2);
+}
+.acks-extras-classes-powerpill {
+  min-block-size: 1.8em;
+  padding: 0 var(--acks-sp-4);
+  font-size: var(--acks-fs-label);
+  border: var(--acks-border-hair);
+  background: transparent;
+  color: var(--acks-spot);
+  cursor: pointer;
+}
+.acks-extras-classes-powerpill[aria-pressed="true"] {
+  background: var(--acks-burgundy);
+  border-color: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+.acks-extras-classes-powerpill:focus-visible {
+  box-shadow: var(--acks-focus-ring);
+  outline: none;
+}
 .acks-extras-classes-powercount {
   inline-size: 6ch;
   min-block-size: 1.8em;

@@ -8,8 +8,10 @@
  * read-only strip and its refused calls (an owner, so only `isGM` can be what
  * gates), a Player's request on an actor it cannot write relayed to the GM's
  * client and refused there, expiry by the calendar day against a lifetime in the
- * registry, nothing expiring with none, and a bucket's power row capped by the
- * balance.
+ * registry, nothing expiring with none, the Judge's Fades / Stays switch (a lot
+ * that stays outlives a backdated lifetime and shows its pin, a minus draws the
+ * fading lot first, a Player's strip has no switch and its request for a lot
+ * that stays is refused), and a bucket's power row capped by the balance.
  *
  * The lifetime is the registry's `divineLifetime` through its override layer
  * (invented, three days), so the walk needs no import and sets nothing a Judge
@@ -258,6 +260,82 @@ try {
     return { gone, byHand: read().byHand };`);
   overrode = !cleared2.gone;
   check("the override is cleared and the registry serves its own read again", cleared2.gone && cleared2.byHand === false, cleared2);
+
+  section("6b. a Judge's Fades / Stays switch sets what the plus writes");
+  overrode = true;
+  const s0 = await run(gm, U, `
+    ${lifetimeKit}
+    await STORE.setOverride(D, "divineLifetime", { count: 3, unit: "day" }, { sourceName: "qa-power-ledger" });
+    const served = await poll(() => read().span === 3);
+    await actor().update({ "flags.acks-extras.-=power": null });
+    await sleep(400);
+    await openSheet();
+    const pills = (kind) => [...strip().querySelectorAll('[data-power-stay][data-power-kind="' + kind + '"]')];
+    const groups = [...strip().querySelectorAll('[role="group"].acks-extras-classes-powerstay')];
+    return { served, groups: groups.length, named: groups.every((g) => (g.getAttribute("aria-label") ?? "").length > 0), pressed: ["divine", "arcane"].map((k) => pills(k).map((p) => p.getAttribute("aria-pressed"))) };`);
+  check("the lifetime reads as three days, and the Judge's strip draws a named group on each tag with Fades pressed and Stays not", s0.served && s0.groups === 2 && s0.named && s0.pressed.every(([fades, stays]) => fades === "true" && stays === "false"), s0);
+  const ws0 = await updates();
+  const s1 = await run(gm, U, `
+    const before = strip();
+    await press('[data-power-stay="1"][data-power-kind="divine"]');
+    return { same: strip() === before, divine: [...strip().querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed")), arcane: [...strip().querySelectorAll('[data-power-stay][data-power-kind="arcane"]')].map((p) => p.getAttribute("aria-pressed")), entries: (flag().divine?.entries ?? []).length };`);
+  const ws1 = await updates();
+  check("pressing Stays on the divine tag moves its pressed state, leaves the arcane tag on Fades, re-renders nothing and writes nothing", s1.same && s1.divine[0] === "false" && s1.divine[1] === "true" && s1.arcane[0] === "true" && s1.entries === 0 && ws1 === ws0, { ...s1, writes: ws1 - ws0 });
+  const s2 = await run(gm, U, `
+    await press('[data-power="divine"] ~ [data-power-adjust="1"]');
+    const e = flag().divine?.entries ?? [];
+    const line = rows()[0]?.querySelector(".acks-extras-classes-powerline");
+    const tip = tag("divine")?.getAttribute("data-tooltip-text") ?? "";
+    return { n: e.length, stays: e[0]?.stays === true, by: e[0]?.by, pin: !!line?.querySelector(".fa-thumbtack"), caption: (line?.textContent ?? "").trim().toLowerCase(), tipSays: tip.toLowerCase().includes("stays until removed"), shown: shown("divine"), reset: [...strip().querySelectorAll('[data-power-stay][data-power-kind="divine"]')].map((p) => p.getAttribute("aria-pressed")) };`);
+  check("Stays then plus wrote one entry marked as staying, by hand; its row carries the pin and 'stays until removed', and so does the chip's tooltip", s2.n === 1 && s2.stays && s2.by === "judge" && s2.pin && s2.caption.includes("stays until removed") && s2.tipSays && s2.shown === 1, s2);
+  check("the switch is back on Fades after the render the write made", s2.reset[0] === "true" && s2.reset[1] === "false", s2.reset);
+  const s3 = await run(gm, U, `
+    const today = await day();
+    const list = foundry.utils.deepClone(flag().divine.entries);
+    list[0].day = today - 30;
+    await actor().update({ "flags.acks-extras.power.divine": { entries: list } });
+    await sleep(600);
+    await openSheet();
+    return { kept: flag().divine.entries[0].stays === true, balance: power().balance(actor(), "divine"), shown: shown("divine"), off: rows()[0].classList.contains("is-off"), expiry: power().expiry(actor(), "divine") };`);
+  check("with the lot's day thirty days back against a three-day lifetime it still stands: the balance, the face and the row are as before and nothing is due to fade", s3.kept && s3.balance === 1 && s3.shown === 1 && s3.off === false && s3.expiry === null, s3);
+  const s4 = await run(gm, U, `
+    await press('[data-power="divine"] ~ [data-power-adjust="1"]');
+    const added = flag().divine.entries.at(-1);
+    const fresh = { stays: added.stays === true, n: flag().divine.entries.length, balance: power().balance(actor(), "divine") };
+    const today = await day();
+    const list = foundry.utils.deepClone(flag().divine.entries);
+    list[1].day = today - 3;
+    await actor().update({ "flags.acks-extras.power.divine": { entries: list } });
+    await sleep(600);
+    await openSheet();
+    return { fresh, balance: power().balance(actor(), "divine"), off: rows().map((r) => r.classList.contains("is-off")) };`);
+  check("Fades then plus wrote an entry with no mark, which stands the day it is gained", s4.fresh.stays === false && s4.fresh.n === 2 && s4.fresh.balance === 2, s4.fresh);
+  check("once its day is a whole lifetime back it has faded and the one that stays has not (rows newest first)", s4.balance === 1 && s4.off[0] === true && s4.off[1] === false, s4);
+  const s5 = await run(gm, U, `
+    await press('[data-power="divine"] ~ [data-power-adjust="1"]');
+    const balanceBefore = power().balance(actor(), "divine");
+    await press('[data-power="divine"] ~ [data-power-adjust="-1"]');
+    const P = await import("/modules/acks-extras/scripts/magic/power-ledger.mjs");
+    const today = await day();
+    const span = power().lifetimes(actor()).divine.span;
+    const lots = P.standing(P.readLedger(flag()).divine.entries, today, span).map((l) => ({ stays: l.stays, left: l.left, expired: l.expired }));
+    return { balanceBefore, balance: power().balance(actor(), "divine"), lots };`);
+  check("a minus drew the fresh fading lot, not the older lot that stays (and the lot that had faded was not drawn on)", s5.balanceBefore === 2 && s5.balance === 1 && s5.lots.length === 3 && s5.lots[0].stays === true && s5.lots[0].left === 1 && s5.lots[1].expired === true && s5.lots[2].left === 0, s5);
+  const s6 = await run(player, U, `
+    await openSheet();
+    const before = JSON.stringify(flag());
+    const asked = await power().gain(actor(), "divine", { amount: 1, stays: true });
+    await sleep(500);
+    return { isGM: game.user.isGM, pills: strip().querySelectorAll("[data-power-stay]").length, groups: strip().querySelectorAll('[role="group"]').length, pinRows: rows().filter((r) => r.querySelector(".fa-thumbtack")).length, asked, same: JSON.stringify(flag()) === before };`);
+  check("the Player's strip draws no switch but shows the lot that stays with its pin, and a Player's own request for a lot that stays is refused and writes nothing", s6.isGM === false && s6.pills === 0 && s6.groups === 0 && s6.pinRows === 1 && s6.asked.ok === false && s6.asked.reason === "judge" && s6.same, s6);
+  await run(player, U, `await closeSheet();`);
+  const cleared3 = await run(gm, U, `
+    ${lifetimeKit}
+    await STORE.clearOverride(D, "divineLifetime");
+    const gone = await poll(() => !STORE.hasOverride(D, "divineLifetime"));
+    return { gone };`);
+  overrode = !cleared3.gone;
+  check("the override is cleared again", cleared3.gone, cleared3);
 
   section("7. a bucket's power row is capped by the balance");
   const b1 = await run(gm, U, `

@@ -138,7 +138,7 @@ export const powerApi = {
     const ledger = ledgerOf(actor);
     return POWER_KINDS.includes(kind) ? nextExpiry(ledger[kind].entries, liveDeps().today(), lifetimesFor(ledger)[kind].span) : null;
   },
-  /** Power gained: `gain(actor, kind, {amount, name, img, ref})`. */
+  /** Power gained: `gain(actor, kind, {amount, name, img, ref})`; a Judge's `stays: true` writes a lot that never expires (a Player's is refused). */
   gain: (actor, kind, args) => ops().gain(actor, kind, args),
   /** Power spent: `spend(actor, kind, {amount, name, img, ref})`. */
   spend: (actor, kind, args) => ops().spend(actor, kind, args),

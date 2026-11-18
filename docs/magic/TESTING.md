@@ -1482,7 +1482,8 @@ is what "written" is read from. The walk makes no document of its own.
 1. **A gain.** The GM seat calls `acksExtras.magic.power.gain`. *Observable:* `{ok, balance}`, one
    entry whose `day` is `dayOfWorldTime(game.time.worldTime)`.
 2. **The chip.** Open the hero's sheet, Magic tab. *Observable:* a tag for divine power with the
-   balance, one for arcane power at nothing, a plus and a minus on each, one count box, one row for
+   balance, one for arcane power at nothing, a plus and a minus on each, a Fades / Stays group on each
+   (Fades pressed), one count box, one row for
    the entry (its name, a picture or a glyph), the tooltip listing the entry with its sign and the
    page, and no element with an `id`.
 3. **Plus, minus, Undo.** Press them. *Observable:* a plus adds one entry marked `by: "judge"`; a
@@ -1492,7 +1493,7 @@ is what "written" is read from. The walk makes no document of its own.
    starts blank with the page in its tooltip, writes `arcane.count` and leaves the entries, and a blank
    writes null.
 5. **A Player's seat.** Open the same sheet as the Player, who owns the character. *Observable:* the
-   divine tag, its rows and tooltip, no arcane tag, no plus, minus, Undo or count; a spend past the
+   divine tag, its rows and tooltip, no arcane tag, no plus, minus, Fades / Stays, Undo or count; a spend past the
    balance answers `short`; a hand's gain, an undo and the count answer `judge`; the GM seat's counter
    has not moved; a spend within the balance writes once, from the Player's seat.
 6. **The relay.** The Player calls `gain` on the stranger. *Observable:* `canUserModify` is false, the
@@ -1504,15 +1505,31 @@ is what "written" is read from. The walk makes no document of its own.
    sheet. *Observable:* the oldest lot is out of the balance and its row is dimmed, the next to fade is
    the middle lot one day away, a spend takes from the lots that stand. Override it with a blank unit:
    nothing expires, `expiry` is null. Clear the override: the registry serves its own read again.
-8. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
+8. **Fades and Stays.** Walked under step 7's override (the walk sets its own again, its section 6b),
+   on a ledger unset first. On the GM seat press Stays on the divine tag, then its plus. *Observable:*
+   the press of Stays moves `aria-pressed`, re-renders nothing and writes nothing (the counter holds);
+   the plus writes one entry with `stays: true` and `by: "judge"`; its row has the pin and "stays until
+   removed", and so does the tag's tooltip; the switch reads Fades again after the render the write made.
+   Write that entry's `day` thirty days back: the balance, the face and the row are unchanged, nothing
+   is due to fade. Press the plus on Fades: an entry with no mark, which expires once its `day` is a
+   lifetime back (rows newest first, the expired one dimmed). Add a fading lot and press the minus: it
+   takes the fresh fading lot, not the older lot that stays, and not the one that had expired (read
+   with `standing` imported from `power-ledger.mjs`). On the Player seat: no `[data-power-stay]`, no
+   group, the lot that stays shown with its pin, and `gain(actor, "divine", {amount: 1, stays: true})`
+   answers `judge` with nothing written.
+9. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
    *Observable:* `power:divine`, quantity and cap five; a smaller ask stands; a power with none held
    gives no row; `power.settle` of a handed row spends it.
 
 ### Drive mechanics
 
 The plus and minus sit beside their tag as siblings, so each is found as
-`[data-power="<kind>"] ~ [data-power-adjust="1|-1"]` and the first match is that kind's. A press
-re-renders the sheet, so the strip is looked up again after each. The clock is shared by every seat
+`[data-power="<kind>"] ~ [data-power-adjust="1|-1"]` and the first match is that kind's; the Fades /
+Stays pills are `[data-power-stay="0|1"][data-power-kind="<kind>"]` inside a group that follows the
+minus. A press of a plus or minus re-renders the sheet, so the strip is looked up again after each; a
+press of a pill does not, and the pill's state lives in the strip's closure, so the plus must be
+pressed on the same strip. The press of Stays and the plus that follows are two presses, and a render
+in between (a write by a peer) would reset it to Fades. The clock is shared by every seat
 and the walk never moves it: a lot's day is written in the past (`actor.update` of the kind's
 `entries`), which is what a gain a lifetime ago is, and the balance reads the clock as it stands.
 A real advance of the clock, and the calendar's own weekday list for a lifetime counted in weeks
