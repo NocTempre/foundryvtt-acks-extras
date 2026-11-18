@@ -827,7 +827,7 @@ t("progress, the throw and Finish read the record: Finish says why it cannot", (
   const fixed = panel({ projects: [{ ...rec.projects[0], throw: { target: 8 } }] }).projects[0];
   assert.equal(fixed.throw.text, 'throw{"n":8}');
   const done = panel({ projects: [{ ...rec.projects[0], credited: [{ day: 2, amount: 40 }] }] }).projects[0];
-  assert.equal(done.finish.why, "finishWhy.outcome");
+  assert.deepEqual([done.finish.why, done.finish.live], ["", true], "credited and the throw read: Finish is live for the researcher's owner, with no reason");
   const over = panel({ projects: [{ ...rec.projects[0], credited: [{ day: 2, amount: 99 }] }] }).projects[0];
   assert.equal(over.progress.pct, 100, "the bar is held to full");
   const blank = panel({ projects: [{ id: "a", kind: "spell", researcher: "A.hero" }] }).projects[0];
@@ -893,7 +893,7 @@ t("the tab writes no id and no title attribute, and a viewer's controls are the 
   assert.match(mine, /data-action="removeResearchAssistant"[^>]*data-uuid="A\.pell"/);
   const theirs = player.slice(player.indexOf('data-project-id="b"'));
   assert.doesNotMatch(theirs, /closeResearchProject|data-research-add-assistant|removeResearchAssistant|data-research-field/, "a project the viewer does not own draws no control");
-  assert.match(player, /<button type="button" class="acks-btn acks-btn--roll" disabled>/, "Finish is drawn disabled");
+  assert.match(player, /<button type="button" class="acks-btn acks-btn--roll" data-action="finishResearchProject" disabled data-tooltip-text="finishWhy.credited">/, "Finish is drawn disabled, with no control mark, while the research is not credited");
   assert.match(player, /finishWhy\.credited/, "and its reason is text on the surface");
   const judge = render(panel(rec, { judge: true, owns: () => true }));
   assert.match(judge, /data-research-facility="library"/);
@@ -917,7 +917,7 @@ t("the sheet carries the tab after Storage on every place, leaves its controls l
   assert.equal(ids[ids.indexOf("storage") + 1], "research");
   assert.match(sheet, /VIEWER_CONTROLS = [^\n]*\[data-research-control\]/);
   assert.match(sheet, /VIEWER_CONTROLS = [^\n]*\[data-tab="research"\] \[data-bucket\] button/, "a bucket row's X is live for a viewer who may change the bucket");
-  assert.doesNotMatch(sheet, /VIEWER_CONTROLS = [^\n]*\[data-tab="research"\] (:is\()?button/, "Finish stays disabled: the lock is not lifted on every button of the tab");
+  assert.doesNotMatch(sheet, /VIEWER_CONTROLS = [^\n]*\[data-tab="research"\] (:is\()?button/, "Finish lifts the lock by its own control mark, not by a rule over every button of the tab");
   assert.doesNotMatch(sheet, /MARKET_TABS = [^\n]*research/, "the tab is not gated on a market");
   const template = fs.readFileSync("templates/location/location-sheet.hbs", "utf8");
   const at = template.indexOf('data-tab="research"');
@@ -931,7 +931,7 @@ t("the sheet carries the tab after Storage on every place, leaves its controls l
 
 t("every string the tab asks for exists, and none is a printed value", () => {
   const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
-  const sources = ["scripts/magic/research-project.mjs", "scripts/magic/research-tab.mjs", "scripts/magic/research-project-live.mjs"].map((f) => fs.readFileSync(f, "utf8")).join("\n");
+  const sources = ["scripts/magic/research-project.mjs", "scripts/magic/research-tab.mjs", "scripts/magic/research-project-live.mjs", "scripts/magic/research-outcome-live.mjs"].map((f) => fs.readFileSync(f, "utf8")).join("\n");
   const GROUP = ["ACKS-MAGIC", "research", ""].join(".");
   const keys = new Set([...sources.matchAll(/\bloc\("([\w.]+)"/g)].map((m) => m[1]));
   // The keys the code builds from its own enumerations.
@@ -949,6 +949,11 @@ t("every string the tab asks for exists, and none is a printed value", () => {
   for (const k of ["assistantLevel", "assistantCount"]) keys.add(`warn.${k}`);
   for (const k of ["range", "credited", "notPosted"]) keys.add(`refused.${k}`);
   for (const k of ["postedRange", "postedSkipped", "postedNone"]) keys.add(k);
+  for (const k of ["ritual", "throw", "subject", "credited"]) keys.add(`finishWhy.${k}`);
+  for (const k of ["notComplete", "throwUnread", "ritual", "subject", "bucketOwner", "subjectOwner"]) keys.add(`refused.${k}`);
+  for (const k of M.PACES) keys.add(`paceName.${k}`);
+  for (const k of Object.values(M.COMPONENT_FIT)) keys.add(`fit.${k}`);
+  for (const k of ["identify", "spell", "item", "blank", "formula", "settle", "card"]) keys.add(`card.what.${k}`);
   assert.ok(keys.size > 40);
   for (const k of keys) assert.ok(lang[`${GROUP}${k}`] !== undefined, `${GROUP}${k}`);
   for (const [k, v] of Object.entries(lang)) if (k.startsWith(GROUP) && !k.includes(".cite.")) assert.doesNotMatch(v, /\d/, `${k} carries a number: ${v}`);
@@ -1010,8 +1015,10 @@ t("an assistant who does not count says so on the chip, a Player without the pro
 });
 
 t("Finish reads whether the research is complete, by the gold in", () => {
-  const done = dayPanel([{ ...dayRecord, credited: [{ day: 1, amount: 1000, by: "A.hero" }], posted: [] }]).projects[0];
-  assert.equal(done.finish.why, "finishWhy.outcome");
+  const done = dayPanel([{ ...dayRecord, level: 2, credited: [{ day: 1, amount: 1000, by: "A.hero" }], posted: [] }]).projects[0];
+  assert.equal(done.finish.why, "", "and nothing stands in the way once it is");
+  const noLevel = dayPanel([{ ...dayRecord, credited: [{ day: 1, amount: 1000, by: "A.hero" }], posted: [] }]).projects[0];
+  assert.equal(noLevel.finish.why, "finishWhy.bonus", "with no level entered the facility's bonus cannot be read, and the throw is not made without it");
   assert.equal(dayPanel([dayRecord]).projects[0].finish.why, "finishWhy.credited");
 });
 
@@ -1076,7 +1083,7 @@ t("a held day is a waiting cell and a waiting tag, each posted day has its row, 
   const held = dayPanel([{ ...rec, posted: [{ day: 2, pace: "dedicated" }, { day: 3, pace: "ancillary" }] }], { tables: noShare }).projects[0];
   assert.deepEqual(held.strip.cells.slice(0, 3), ["c", "p", "w"]);
   assert.deepEqual(held.postedList.rows.map((r) => [r.day, r.tag.text, r.tag.tone]), [[2, "tagPosted", ""], [3, "tagWaiting", "warn"]], "no credited day is listed");
-  assert.match(held.postedList.rows[0].label, /postedDay.*"day":2.*pace.dedicated/);
+  assert.match(held.postedList.rows[0].label, /postedDay.*"day":2.*paceName.dedicated/, "the list reads the capitalised name the board draws, not the radio's lowercase one");
   assert.equal(held.postedList.rows[0].tag.tip, "", "a posted tag has no tooltip");
   assert.equal(held.postedList.rows[1].tag.tip, 'waitingTip{"cite":"cite.ladder"}', "a waiting tag names the page of the rate it waits on");
   assert.deepEqual(held.postedList.rows.map((r) => r.canWithdraw), [true, true], "the owner of the researcher withdraws");
@@ -1279,6 +1286,492 @@ await ta("registering the projects watches the clock for forward steps and the f
     globalThis.Hooks = saved;
   }
   assert.deepEqual(seen, ["on:updateWorldTime", "once:ready"], "each registered once, however often it is asked");
+});
+
+/* ----------------------------- finishing a project (ruling 223) ----------------------------- */
+
+const { makeEntry, settlementPlan } = await import("../scripts/lib/bucket.mjs");
+const { COMPONENT_FIT, COMPONENT_SETTLE, THROW_DIE } = M;
+
+/** The invented tables with an automatic-failure band and a substitution penalty (neither is a printed figure). */
+const FIN = { ...RATES, prose: { ...RATES.prose, autoFail: { min: 1, max: 2 }, penalty: -3, penaltyMinimum: -2 } };
+const part = (uuid, o = {}) => makeEntry({ uuid, kind: "item", name: uuid, qty: 1, value: { gp: 40, source: "cost" }, fit: COMPONENT_FIT.matched, ...o });
+
+/**
+ * A location with one project ready to finish (spell, level 2, the hero researching, the research cost credited, a facility
+ * with a surplus of two), over deps whose world half records what it is asked and in what order.
+ */
+function finRig({ project = {}, judge = true, owned = ["A.hero"], here = true, canWrite = here, tables = FIN, die = 15, bucket = [], formulas = [], subject = null, failing = [], relay, facilities = { library: 12000, workshop: 12000 } } = {}) {
+  const calls = [];
+  const recorded = [];
+  const settlements = [];
+  const cards = [];
+  const loc = { uuid: "L.f", flag: { facilities, projects: [{ id: "f1", kind: "spell", level: 2, researcher: "A.hero", subject: { name: "Lantern" }, costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }], status: "open", ...project }] } };
+  const done = (name, ret) => async () => {
+    calls.push(name);
+    if (failing.includes(name)) throw new Error(`${name} failed`);
+    return ret;
+  };
+  const deps = {
+    read: (l) => l.flag,
+    write: async (l, patch) => {
+      calls.push("write");
+      l.flag = { ...l.flag, ...patch };
+    },
+    canWrite: () => canWrite,
+    canFinish: () => here,
+    relay: relay ?? (async () => undefined),
+    today: () => 10,
+    isJudge: () => judge,
+    owns: (u) => judge || owned.includes(u),
+    linked: () => ["A.hero", "A.pell"],
+    levelOf: (u) => LEVELS[u] ?? null,
+    intBonusOf: () => 0,
+    tables: () => tables,
+    newId: () => "n1",
+    outcome: {
+      subject: async () => subject,
+      entries: async () => bucket,
+      formulas: async () => formulas,
+      roll: async (formula) => {
+        calls.push(`roll:${formula}`);
+        return { die, roll: { total: die } };
+      },
+      deliver: done("deliver", { name: "Lantern", actor: "Hero" }),
+      identify: done("identify", { name: "Lantern" }),
+      addSpell: done("addSpell", { name: "Lantern", actor: "Hero" }),
+      blank: done("blank", { uuid: "Item.blank", name: "Lantern" }),
+      recordFormula: async (p, entry) => {
+        calls.push("formula");
+        if (failing.includes("formula")) throw new Error("formula failed");
+        recorded.push(entry);
+        return { name: "Lantern", actor: "Hero" };
+      },
+      settle: async (p, plan) => {
+        calls.push("settle");
+        if (failing.includes("settle")) throw new Error("settle failed");
+        settlements.push(plan);
+        return { spent: plan.filter((s) => s.action === "consume").length, marked: 0, power: [] };
+      },
+      card: async (c) => {
+        calls.push("card");
+        cards.push(c);
+      },
+    },
+  };
+  return { loc, ops: M.projectOps(deps), calls, recorded, settlements, cards, now: () => M.readRecord(loc.flag).projects[0] };
+}
+
+t("the components' policy offers matched and substitute, opens a row on the subject's name, and spends everything on every outcome", () => {
+  const p = proj({ subject: { name: "Lantern of Dusk" }, costs: { component: 100 } });
+  const policy = M.componentPolicy(p, { loc: (k) => k, cite: "Invented p. 9" });
+  assert.deepEqual(policy.fit.options.map((o) => o.key), ["matched", "substitute"]);
+  assert.equal(policy.fit.fallback, "substitute", "a row nothing names is a substitute until the seat says otherwise");
+  assert.deepEqual(policy.due, { gp: 100, cite: "Invented p. 9" });
+  assert.deepEqual(policy.fit.options[0].names, ["Lantern of Dusk"]);
+  assert.deepEqual(M.componentPolicy(proj({}), {}).fit.options[0].names, [], "no subject name, nothing to match");
+  assert.deepEqual(Object.values(COMPONENT_SETTLE), ["consume", "consume", "consume"]);
+  const plan = settlementPlan([part("Item.a", { qty: 2 }), makeEntry({ uuid: "Actor.b", kind: "actor", name: "b" })], "failure", COMPONENT_SETTLE);
+  assert.deepEqual(plan.map((s) => [s.uuid, s.action]), [["Item.a", "consume"], ["Actor.b", "mark"]], "an item is spent and a creature marked, never deleted");
+});
+
+t("the substituted share is the substitutes' value over the component cost, and unread when a figure is", () => {
+  const matched = part("Item.m");
+  const sub = part("Item.s", { fit: "substitute", value: { gp: 25, source: "cost" } });
+  assert.deepEqual(M.substitutedShare([matched], 100), { share: 0, substituted: 0 });
+  assert.deepEqual(M.substitutedShare([matched, sub], 100), { share: 0.25, substituted: 1 });
+  assert.equal(M.substitutedShare([sub], 10).share, 1, "held to the whole");
+  assert.equal(M.substitutedShare([sub], null).share, null, "no cost read, no share");
+  assert.equal(M.substitutedShare([part("Item.n", { fit: "substitute", value: null })], 100).share, null, "a value not read is not none");
+  assert.deepEqual(M.substitutedShare([part("Item.x", { fit: "substitute", reason: "barred" })], 100), { share: 0, substituted: 0 }, "a row that counts for nothing is no substitute");
+});
+
+t("the formulas a researcher holds are matched by cookbook id, else uuid, else name, and recorded once", () => {
+  const entry = { kind: "spell", key: "lantern", name: "Lantern", uuid: "Item.a", cookbookId: "ck1", day: 3, project: "p" };
+  assert.deepEqual(M.cleanFormulas([entry, { ...entry, uuid: "Item.z" }, { kind: "ritual", key: "x" }, { kind: "spell" }, null]), [{ ...entry }], "a repeat, a kind not recorded and an empty row are dropped");
+  const ref = (s, c = "") => M.subjectRef(s, c);
+  assert.equal(M.knowsFormula([entry], "spell", ref({ uuid: "Item.q", name: "Other" }, "ck1")), true, "the cookbook id decides when both have one");
+  assert.equal(M.knowsFormula([entry], "spell", ref({ uuid: "Item.q", name: "Lantern" }, "ck2")), false, "and a different id is a different spell whatever the name");
+  assert.equal(M.knowsFormula([{ ...entry, cookbookId: "" }], "spell", ref({ uuid: "Item.a", name: "Zzz" })), true, "else the uuid");
+  assert.equal(M.knowsFormula([{ ...entry, cookbookId: "", uuid: "" }], "spell", ref({ name: " LANTERN! " })), true, "else the name, folded");
+  assert.equal(M.knowsFormula([entry], "item", ref({ uuid: "Item.a", name: "Lantern" })), false, "a spell's formula is not an item's");
+  assert.equal(M.withFormula([entry], { ...entry, project: "q" }).length, 1);
+  assert.equal(M.withFormula([entry], { kind: "item", key: "lamp", name: "Lamp" }).length, 2);
+});
+
+t("the throw is the stored target else the ladder's, plus the facility bonus, less a substitute's penalty; the formula is applied only with no substitute", () => {
+  const p = proj({ level: 2, costs: { component: 100 } });
+  const verdicts = M.facilityVerdicts(p, { facilities: { library: 12000 }, projects: [p], tables: FIN });
+  const base = M.throwPlan(p, { tables: FIN, levelOf: (u) => LEVELS[u], verdicts, entries: [], known: false });
+  assert.deepEqual([base.target, base.by, base.bonus, base.bonusRead, base.penalty, base.modifier], [11, "ladder", 2, true, 0, 2]);
+  const hand = M.throwPlan({ ...p, throw: { target: 8 } }, { tables: FIN, levelOf: (u) => LEVELS[u], verdicts, entries: [], known: false });
+  assert.deepEqual([hand.target, hand.by], [8, "hand"], "a Judge's stored target outranks the ladder");
+  const sub = [part("Item.s", { fit: "substitute", value: { gp: 50, source: "cost" } })];
+  const pen = M.throwPlan(p, { tables: FIN, levelOf: (u) => LEVELS[u], verdicts, entries: sub, known: true });
+  assert.deepEqual([pen.share, pen.penalty, pen.modifier, pen.formula], [0.5, -3, -1, { known: true, used: false }], "the invented per-level size over level two, pro-rated by half and rounded up, with the formula off");
+  assert.equal(M.throwPlan(p, { tables: FIN, levelOf: (u) => LEVELS[u], verdicts, entries: [part("Item.m")], known: true }).formula.used, true, "a matched row leaves the formula on");
+  const unreadPenalty = M.throwPlan(p, { tables: RATES, levelOf: (u) => LEVELS[u], verdicts, entries: sub, known: false });
+  assert.deepEqual([unreadPenalty.penalty, unreadPenalty.modifier], [null, 2], "a penalty whose figures are not read adds nothing and says so");
+  const none = M.throwPlan(p, { tables: NOTHING, levelOf: () => null, verdicts: [], entries: [], known: false });
+  assert.deepEqual([none.target, none.by, none.bonusRead], [null, null, false], "no ladder, no target: nothing is made up");
+});
+
+t("a die in the imported automatic-failure band fails whatever it totals, and any other meets the target or not", () => {
+  const plan = { target: 11, modifier: 2 };
+  assert.deepEqual(M.throwResult(plan, FIN.prose, 9), { die: 9, total: 11, target: 11, auto: false, success: true, outcome: "success" }, "the total meets the target");
+  assert.equal(M.throwResult(plan, FIN.prose, 8).success, false);
+  const high = { target: 1, modifier: 30 };
+  assert.deepEqual([M.throwResult(high, FIN.prose, 2).auto, M.throwResult(high, FIN.prose, 2).success], [true, false], "the band's top edge is a failure");
+  assert.equal(M.throwResult(high, FIN.prose, 3).success, true, "one past the band is not");
+  assert.equal(M.throwResult({ target: 1, modifier: 0 }, RATES.prose, 1).success, true, "the band unread is no band");
+});
+
+t("Finish is allowed once the cost is credited and a target is read, and says why not otherwise", () => {
+  const p = proj({ level: 2 });
+  const plan = { target: 11 };
+  assert.deepEqual(M.finishState(p, { complete: true }, plan), { ok: true, why: "" });
+  assert.equal(M.finishState(p, { complete: false }, plan).why, "credited");
+  assert.equal(M.finishState(p, { complete: null }, plan).why, "credited", "unknown is not complete");
+  assert.equal(M.finishState(p, { complete: true }, { target: null }).why, "throw");
+  assert.equal(M.finishState(proj({ kind: "ritual" }), { complete: true }, plan).why, "ritual");
+  assert.equal(M.finishState(proj({ kind: "identify" }), { complete: true }, plan).why, "subject", "an identification needs an item");
+  assert.equal(M.finishState(proj({ kind: "identify" }), { complete: true }, plan, { subjectType: "item" }).ok, true);
+  assert.equal(M.finishState(p, { complete: true }, plan, { subjectType: "item" }).why, "subject", "a spell project's subject is a spell");
+  assert.equal(M.finishState(proj({ kind: "item" }), { complete: true }, plan, { subjectType: "spell" }).why, "subject", "and an item project's is not");
+  assert.equal(M.finishState(p, { complete: true }, plan, { subjectType: "spell" }).ok, true);
+});
+
+await ta("a known spell succeeds: the die, the one write that closes the project with the outcome, the spell added, the formula, the bucket settled, the card", async () => {
+  const f = finRig({ die: 9, subject: { type: "spell", cookbookId: "" }, bucket: [part("Item.a", { qty: 2 })] });
+  const r = await f.ops.finish(f.loc, "f1");
+  assert.equal(r.ok, true);
+  assert.deepEqual(f.calls, [`roll:${THROW_DIE}`, "write", "addSpell", "formula", "settle", "card"], "closed before anything is written, settled and posted whatever came");
+  assert.deepEqual([r.outcome, r.die, r.total, r.target, r.modifier, r.auto], ["success", 9, 11, 11, 2, false], "the die and the facility's two against the ladder's throw");
+  const p = f.now();
+  assert.deepEqual([p.status, p.closed, p.outcome], ["closed", 10, { result: "success", die: 9, total: 11, target: 11, day: 10 }]);
+  assert.deepEqual(f.recorded, [{ cookbookId: "", uuid: "", key: "lantern", day: 10 }], "the formula for the subject, by its name where nothing else names it");
+  assert.deepEqual(f.settlements[0].map((s) => [s.uuid, s.qty, s.action]), [["Item.a", 2, "consume"]]);
+  assert.deepEqual(r.written.map((w) => w.what), ["spell", "formula"]);
+  assert.equal(f.cards[0].result.success, true);
+  assert.equal(M.readRecord(f.loc.flag).projects.length, 1, "the project stays on the record");
+});
+
+await ta("a known item is delivered, an identification marks the item and records no formula, and each is a different writer", async () => {
+  const item = finRig({ project: { kind: "item", subject: { uuid: "Item.known", name: "Lamp" } }, subject: { type: "item" }, die: 10 });
+  assert.deepEqual((await item.ops.finish(item.loc, "f1")).written.map((w) => w.what), ["item", "formula"]);
+  assert.deepEqual(item.calls.filter((c) => !c.startsWith("roll") && c !== "write"), ["deliver", "formula", "settle", "card"]);
+  assert.equal(item.recorded[0].uuid, "Item.known", "the formula keeps the subject's own uuid");
+  const id = finRig({ project: { kind: "identify", subject: { uuid: "Item.cursed", name: "Ring" }, costs: { research: 90 } }, subject: { type: "item" }, die: 12 });
+  const r = await id.ops.finish(id.loc, "f1");
+  assert.deepEqual(r.written.map((w) => w.what), ["identify"]);
+  assert.deepEqual(id.recorded, [], "an identification is no formula");
+  assert.equal(id.calls.includes("deliver") || id.calls.includes("addSpell") || id.calls.includes("blank"), false);
+});
+
+await ta("a subject no document answers to becomes a blank document for the Judge, and the formula keeps its uuid", async () => {
+  const f = finRig({ die: 12, subject: null });
+  const r = await f.ops.finish(f.loc, "f1");
+  assert.deepEqual(f.calls.filter((c) => !c.startsWith("roll") && c !== "write"), ["blank", "formula", "settle", "card"]);
+  assert.deepEqual(f.recorded, [{ cookbookId: "", uuid: "Item.blank", key: "lantern", day: 10 }]);
+  assert.equal(r.written[0].uuid, "Item.blank");
+  assert.equal(f.cards[0].made.uuid, "Item.blank");
+  const item = finRig({ project: { kind: "item" }, die: 12, subject: null });
+  await item.ops.finish(item.loc, "f1");
+  assert.equal(item.calls.includes("blank"), true, "an item subject with no document is blank too");
+});
+
+await ta("a failure writes no result and records no formula, but closes the project and settles the bucket and posts the card", async () => {
+  const f = finRig({ die: 3, subject: { type: "spell" }, bucket: [part("Item.a")] });
+  const r = await f.ops.finish(f.loc, "f1");
+  assert.deepEqual([r.ok, r.outcome, r.total, r.written], [true, "failure", 5, []]);
+  assert.deepEqual(f.calls, [`roll:${THROW_DIE}`, "write", "settle", "card"]);
+  assert.deepEqual(f.now().outcome.result, "failure");
+  assert.deepEqual(f.settlements[0].map((s) => s.action), ["consume"], "components are spent on a failure as on a success");
+  assert.equal(f.recorded.length, 0);
+  const auto = finRig({ die: 2, project: { throw: { target: 1 } }, subject: { type: "spell" } });
+  const a = await auto.ops.finish(auto.loc, "f1");
+  assert.deepEqual([a.outcome, a.auto, a.total >= a.target], ["failure", true, true], "the band's die fails although the total meets a target of one");
+  assert.equal(auto.calls.includes("addSpell"), false);
+});
+
+await ta("it refuses, before rolling or writing, a project not credited, with no target read, a ritual, or a subject that does not suit", async () => {
+  const ask = async (o) => {
+    const f = finRig(o);
+    const r = await f.ops.finish(f.loc, "f1");
+    return { r, calls: f.calls, status: f.now().status };
+  };
+  const reasons = [
+    [{ project: { credited: [{ day: 1, amount: 50, by: "A.hero" }] } }, "notComplete"],
+    [{ tables: { ...FIN, ladder: NOTHING.ladder } }, "throwUnread"],
+    [{ tables: { ...FIN, facilities: NOTHING.facilities } }, "bonusUnread"],
+    [{ project: { level: null } }, "bonusUnread"],
+    [{ tables: { ...FIN, prose: { ...FIN.prose, penalty: null } }, bucket: [part("Item.s", { fit: "substitute" })] }, "penaltyUnread"],
+    [{ bucket: [part("Item.s", { fit: "substitute", value: { gp: null, source: "" } })] }, "penaltyUnread"],
+    [{ project: { kind: "ritual", level: 5 } }, "ritual"],
+    [{ project: { kind: "identify" }, subject: null }, "subject"],
+    [{ subject: { type: "item" } }, "subject"],
+  ];
+  for (const [o, reason] of reasons) {
+    const { r, calls, status } = await ask({ subject: null, ...o });
+    assert.deepEqual([r.ok, r.reason, calls, status], [false, reason, [], "open"], reason);
+  }
+  assert.equal((await ask({ subject: null })).r.ok, true, "the same project, ready, is not refused");
+  const unreadPenalty = { ...FIN, prose: { ...FIN.prose, penalty: null } };
+  assert.equal((await ask({ subject: null, tables: unreadPenalty, bucket: [part("Item.m")] })).r.ok, true, "a penalty's size left unread holds nothing while no substitute is in the bucket");
+  assert.equal((await ask({ subject: null, tables: unreadPenalty })).r.ok, true, "nor with an empty bucket");
+  const plain = M.throwPlan({ costs: { component: 100 }, level: 2, researcher: "A.hero" }, { tables: unreadPenalty, levelOf: () => 5, verdicts: [{ bonus: 2 }], entries: [part("Item.s", { fit: "substitute" })] });
+  assert.deepEqual([plain.penaltyUnread, plain.bonusUnread, plain.penalty], [true, false, null], "the plan names an unread penalty and no unread bonus");
+  const unread = M.throwPlan({ costs: { component: 100 }, level: 2, researcher: "A.hero" }, { tables: FIN, levelOf: () => 5, verdicts: [{ bonus: 2 }, { bonus: null }], entries: [] });
+  assert.deepEqual([unread.bonusUnread, unread.bonusRead, unread.penaltyUnread, unread.modifier], [true, false, false, 2], "one facility's bonus unread is unread, and counts as nothing in the modifier for display only");
+  assert.equal(M.finishState({ kind: "item" }, { complete: true }, unread).why, "bonus");
+  assert.equal(M.finishState({ kind: "item" }, { complete: true }, plain).why, "penalty");
+  const f = finRig();
+  assert.equal((await f.ops.finish(f.loc, "nope")).reason, "noProject");
+});
+
+await ta("a facility below its minimum blocks a Player's Finish and only warns a Judge's", async () => {
+  const low = { library: 100 };
+  const player = finRig({ judge: false, facilities: low, subject: null });
+  assert.deepEqual([(await player.ops.finish(player.loc, "f1")).reason, player.calls], ["facility", []]);
+  const judge = finRig({ facilities: low, subject: null });
+  const r = await judge.ops.finish(judge.loc, "f1");
+  assert.deepEqual([r.ok, r.warn], [true, "facility"]);
+});
+
+await ta("a Player's Finish is held to what they own: a component or an item to identify they do not own is refused, unrolled", async () => {
+  const mine = finRig({ judge: false, bucket: [part("Item.mine")], owned: ["A.hero", "Item.mine"], subject: null });
+  assert.equal((await mine.ops.finish(mine.loc, "f1")).ok, true, "their own component is spent");
+  const theirs = finRig({ judge: false, bucket: [part("Item.theirs")], subject: null });
+  assert.deepEqual([(await theirs.ops.finish(theirs.loc, "f1")).reason, theirs.calls], ["bucketOwner", []]);
+  const power = finRig({ judge: false, bucket: [makeEntry({ uuid: "power:divine", kind: "power", name: "Power", qty: 1 })], subject: null });
+  assert.equal((await power.ops.finish(power.loc, "f1")).ok, true, "a power row is the researcher's own ledger's");
+  const id = finRig({ judge: false, project: { kind: "identify", subject: { uuid: "Item.world", name: "Ring" } }, subject: { type: "item" } });
+  assert.deepEqual([(await id.ops.finish(id.loc, "f1")).reason, id.calls], ["subjectOwner", []]);
+  const other = finRig({ judge: false, project: { researcher: "A.pell" }, subject: null });
+  assert.equal((await other.ops.finish(other.loc, "f1")).reason, "owner", "and a project of a character they do not own is not theirs to finish");
+});
+
+await ta("a seat that may not write everything asks the GM's client with the id alone, and no GM answering is not written", async () => {
+  const asked = [];
+  const remote = finRig({ here: false, relay: async (req) => (asked.push(req), { ok: true, outcome: "success" }) });
+  assert.deepEqual(await remote.ops.finish(remote.loc, "f1"), { ok: true, outcome: "success" });
+  assert.deepEqual(asked, [{ locationUuid: "L.f", op: "finish", args: { id: "f1" } }]);
+  assert.deepEqual(remote.calls, [], "nothing is rolled or written on the seat that asked");
+  const none = finRig({ here: false });
+  assert.deepEqual(await none.ops.finish(none.loc, "f1"), { ok: false, reason: "noGm" });
+  const partial = finRig({ here: false, canWrite: true, relay: async () => ({ ok: true, outcome: "failure" }) });
+  assert.deepEqual(await partial.ops.finish(partial.loc, "f1"), { ok: true, outcome: "failure" }, "a seat that may write the place but not everything else a Finish touches asks the GM");
+  assert.deepEqual(partial.calls, [], "and writes nothing itself");
+});
+
+await ta("a writer that throws is reported and stops nothing: the bucket is settled and the card posted", async () => {
+  const f = finRig({ die: 9, subject: { type: "spell" }, failing: ["addSpell"], bucket: [part("Item.a")] });
+  const r = await f.ops.finish(f.loc, "f1");
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.failed.map((x) => [x.what, x.error]), [["spell", "addSpell failed"]]);
+  assert.deepEqual(f.calls.slice(-3), ["formula", "settle", "card"]);
+  const s = finRig({ die: 9, subject: { type: "spell" }, failing: ["settle"] });
+  const rs = await s.ops.finish(s.loc, "f1");
+  assert.deepEqual([rs.failed.map((x) => x.what), s.calls.at(-1)], [["settle"], "card"]);
+  assert.equal(s.now().status, "closed");
+});
+
+await ta("a second Finish finds the project closed and throws nothing", async () => {
+  const f = finRig({ die: 9, subject: { type: "spell" } });
+  await f.ops.finish(f.loc, "f1");
+  f.calls.length = 0;
+  assert.deepEqual([(await f.ops.finish(f.loc, "f1")).reason, f.calls], ["noProject", []]);
+});
+
+await ta("the next project for the same subject reads the recorded formula, and a substitute among its components turns it off", async () => {
+  const known = [{ kind: "spell", key: "lantern", name: "Lantern", day: 1 }];
+  const on = finRig({ die: 9, formulas: known, subject: null, bucket: [part("Item.m")] });
+  const r = await on.ops.finish(on.loc, "f1");
+  assert.deepEqual(r.formula, { known: true, used: true });
+  const off = finRig({ die: 9, formulas: known, subject: null, bucket: [part("Item.s", { fit: "substitute", value: { gp: 50, source: "cost" } })] });
+  const o = await off.ops.finish(off.loc, "f1");
+  assert.deepEqual([o.formula, o.modifier], [{ known: true, used: false }, -1], "the formula is off and the pro-rated penalty is taken");
+  const stranger = finRig({ die: 9, formulas: [{ kind: "spell", key: "other", name: "Other" }], subject: null });
+  assert.equal((await stranger.ops.finish(stranger.loc, "f1")).formula.known, false);
+  assert.equal(M.cleanProject({ ...on.now(), outcome: { result: "maybe" } }).outcome, null, "an outcome that is not read is none");
+  assert.equal(M.cleanProject({ id: "x", kind: "spell", status: "open", outcome: { result: "success" } }).outcome, null, "and an open project holds none");
+});
+
+/* ---- the live half: the die, the permission to write everything, the flag on the researcher ---- */
+
+await ta("the live outcome rolls the pinned die, records the formula under the module's flag, and a seat writes all or asks the GM", async () => {
+  state.actors.clear();
+  const made = [];
+  globalThis.Roll = class {
+    constructor(formula) {
+      made.push(formula);
+    }
+    async evaluate() {
+      this.total = 7;
+      return this;
+    }
+  };
+  const hero = actor("A.hero", "character", { flags: { "acks-extras": { magic: { formulas: [{ kind: "spell", key: "old", name: "Old" }] } } }, update: async function (patch) { this.patch = patch; } });
+  state.actors.set("A.hero", hero);
+  const live = L.liveDeps();
+  const thrown = await live.outcome.roll(THROW_DIE);
+  assert.equal(thrown.die, 7);
+  assert.deepEqual(made, ["1d20"], "the formula the live seat throws is the die the suite pins");
+  assert.deepEqual(L.formulasOf("A.hero").map((x) => x.key), ["old"]);
+  const project = M.cleanProject({ id: "f1", kind: "spell", researcher: "A.hero", subject: { name: "New One" } });
+  await live.outcome.recordFormula(project, { key: "newone", day: 4 });
+  assert.deepEqual(Object.keys(hero.patch), ["flags.acks-extras.magic.formulas"]);
+  assert.deepEqual(hero.patch["flags.acks-extras.magic.formulas"].map((x) => x.key), ["old", "newone"], "the new formula joins the old ones");
+  assert.deepEqual([hero.patch["flags.acks-extras.magic.formulas"][1].project, hero.patch["flags.acks-extras.magic.formulas"][1].kind], ["f1", "spell"], "and names the project and the kind it came from");
+  // Who may write what.
+  state.isGM = false;
+  const rec = { id: "f1", kind: "item", researcher: "A.hero", subject: { uuid: "Item.sub", name: "Lamp" }, bucket: [{ uuid: "Item.c1", qty: 1 }, { uuid: "power:divine", qty: 1 }] };
+  const loc = place("Actor.Lf", [], { projects: [rec] });
+  const doc = (uuid, may) => ({ uuid, documentName: "Item", type: "item", canUserModify: () => may });
+  state.actors.set("Item.sub", doc("Item.sub", false));
+  state.actors.set("Item.c1", doc("Item.c1", true));
+  hero.canUserModify = () => true;
+  state.canModify = true;
+  assert.equal(L.liveDeps().canFinish(loc, "f1"), true, "a seat Foundry lets write the place, the researcher and every component writes the finish itself");
+  state.actors.set("Item.c1", doc("Item.c1", false));
+  assert.equal(L.liveDeps().canFinish(loc, "f1"), false, "one component it may not spend, and the GM's client is asked");
+  state.actors.set("Item.c1", doc("Item.c1", true));
+  state.actors.delete("Item.sub");
+  assert.equal(L.liveDeps().canFinish(loc, "f1"), false, "a subject no document answers to is made on a Judge's client");
+  assert.equal(L.liveDeps().canFinish(loc, "none"), false);
+  state.isGM = true;
+  assert.equal(L.liveDeps().canFinish(loc, "f1"), true, "a Judge writes it all");
+  assert.equal(L.researchApi.THROW_DIE, "1d20");
+  assert.equal(typeof L.researchApi.finish, "function");
+  delete globalThis.Roll;
+  state.actors.clear();
+});
+
+await ta("the live writers: a held spell is not added twice, an identification marks full and lifts the mask, a blank document fills from the project and opens for a Judge only, and the card carries the roll", async () => {
+  state.actors.clear();
+  state.isGM = true;
+  const hooks = [];
+  const was = globalThis.Hooks;
+  globalThis.Hooks = { ...was, callAll: (...a) => hooks.push(a) };
+  const created = [];
+  const opened = [];
+  globalThis.Item = { create: async (data) => { created.push(data); return { uuid: "Item.blank", name: data.name, sheet: { render: (o) => opened.push(o) } }; } };
+  const posted = [];
+  globalThis.ChatMessage = { create: async (data) => { posted.push(data); return data; }, getSpeaker: ({ actor: a }) => ({ actor: a.uuid }) };
+  globalThis.fromUuid = async (uuid) => state.actors.get(uuid) ?? null;
+  const flagged = [];
+  const spell = { uuid: "Item.sp", documentName: "Item", type: "spell", name: "Invented Glow", toObject: () => ({ _id: "x", name: "Invented Glow", type: "spell", system: { lvl: 2 } }) };
+  const relic = { uuid: "Item.rel", documentName: "Item", type: "item", name: "Invented Relic", flags: {}, getFlag: () => ({ cursed: true }), setFlag: async (...a) => flagged.push(a) };
+  const embedded = [];
+  const hero = actor("A.hero", "character", { items: [], createEmbeddedDocuments: async (kind, rows) => { embedded.push(...rows); return rows.map((r, i) => ({ id: `n${i}` })); } });
+  state.actors.set("A.hero", hero);
+  state.actors.set("Item.sp", spell);
+  state.actors.set("Item.rel", relic);
+  const out = L.liveDeps().outcome;
+  const project = (extra) => M.cleanProject({ id: "w1", kind: "spell", researcher: "A.hero", subject: { uuid: "Item.sp", name: "Invented Glow" }, ...extra });
+  const first = await out.addSpell(project());
+  assert.deepEqual([first.held, embedded.length, embedded[0]._id], [undefined, 1, undefined], "an uncarried spell is added, minus its id");
+  hero.items = [{ type: "spell", name: "invented  GLOW" }];
+  const held = await out.addSpell(project());
+  assert.deepEqual([held.held, embedded.length], [true, 1], "one the researcher carries is reported held and nothing is added");
+  await out.identify(project({ kind: "identify", subject: { uuid: "Item.rel", name: "Invented Relic" } }));
+  assert.equal(flagged[0][2].identified, "full", "an identification marks the item fully identified");
+  assert.equal(flagged[0][2].curseKnown, true, "and a full one lets the curse be known (lib's mark)");
+  assert.deepEqual([hooks[0]?.[1]?.method, hooks[0]?.[1]?.depth, hooks[0]?.[1]?.item === relic], ["research", "full", true], "the markets' identified hook is called so its mask lifts");
+  const blank = await out.blank(project({ subject: { name: "Invented Thing", img: "icons/x.svg" }, level: 3 }));
+  assert.deepEqual(created[0], { name: "Invented Thing", type: "spell", img: "icons/x.svg", system: { lvl: 3 } }, "a spell's blank carries the name, picture and level");
+  await out.blank(project({ kind: "item", subject: { name: "Invented Gear" } }));
+  assert.deepEqual([created[1].type, created[1].system, created[1].img], ["item", undefined, undefined], "an item's blank is an item with no level and no picture");
+  assert.deepEqual([blank.uuid, opened.length], ["Item.blank", 2], "a Judge's client opens each blank document's sheet");
+  state.isGM = false;
+  await out.blank(project({ kind: "item", subject: { name: "Invented Gear" } }));
+  assert.equal(opened.length, 2, "a seat that is not a Judge's opens nothing");
+  state.isGM = true;
+  const plan = M.throwPlan(project({ costs: { component: 10 } }), { tables: FIN, levelOf: () => 5, verdicts: [], entries: [], known: false });
+  const result = M.throwResult(plan, FIN.prose, 14);
+  await out.card({ project: project(), plan, result, rolled: { die: 14, roll: { total: 14 } }, written: [{ what: "spell", name: "Invented Glow", actor: "hero" }], failed: [], settled: { spent: 0, marked: 0, power: [] }, made: null });
+  assert.equal(posted.length, 1);
+  assert.deepEqual(posted[0].rolls, [{ total: 14 }], "the card carries the dice that were thrown");
+  assert.match(posted[0].content, /is-success/, "a success is marked as one");
+  assert.match(posted[0].content, /throwTip(?!Hand)/, "the target says it came from the ladder");
+  const lost = M.throwResult(plan, FIN.prose, 1);
+  await out.card({ project: project(), plan, result: lost, rolled: { die: 1, roll: { total: 1 } }, written: [], failed: [], settled: null, made: null });
+  assert.match(posted[1].content, /is-failure/, "a failure is marked as one");
+  // A seat that may write the place and the researcher but not the identified item asks the GM.
+  state.isGM = false;
+  hero.canUserModify = () => true;
+  const rec = { id: "w1", kind: "identify", researcher: "A.hero", subject: { uuid: "Item.rel", name: "Invented Relic" }, bucket: [] };
+  const loc = place("Actor.Lw", [], { projects: [rec] });
+  loc.canUserModify = () => true;
+  relic.canUserModify = () => false;
+  assert.equal(L.liveDeps().canFinish(loc, "w1"), false, "an item to identify the seat may not modify is the GM's to write");
+  relic.canUserModify = () => true;
+  assert.equal(L.liveDeps().canFinish(loc, "w1"), true);
+  loc.canUserModify = () => false;
+  assert.equal(L.liveDeps().canFinish(loc, "w1"), false, "a place the seat may not write is the GM's too");
+  state.isGM = true;
+  globalThis.Hooks = was;
+  delete globalThis.Item;
+  delete globalThis.ChatMessage;
+  delete globalThis.fromUuid;
+  state.actors.clear();
+});
+
+t("the panel draws Finish live only where the viewer may act and the project allows it, names the throw's parts, and shows the formula and the fits", () => {
+  const credited = { id: "a", kind: "spell", level: 2, subject: { name: "Lantern" }, researcher: "A.hero", costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }], bucket: [{ uuid: "Item.m", qty: 1, fit: "" }] };
+  const base = { tables: FIN, levelOf: (u) => LEVELS[u] ?? null, owns: (u) => u === "A.hero" };
+  const owner = panel({ facilities: { library: 12000 }, projects: [credited] }, base).projects[0];
+  assert.deepEqual([owner.finish.live, owner.finish.why], [true, ""]);
+  assert.match(owner.finish.tip, /finishTip/);
+  assert.match(owner.throw.tip, /throwTip.*throwPartBonus\{"n":2\}/, "the throw's tooltip names where the target came from and the facility bonus");
+  assert.equal(owner.formula, null, "no formula held, no chip");
+  const stranger = panel({ projects: [{ ...credited, researcher: "A.pell" }] }, { ...base, owns: () => false }).projects[0];
+  assert.deepEqual([stranger.finish.live, stranger.finish.why], [false, ""], "allowed, but not this viewer's to press");
+  const waiting = panel({ projects: [{ ...credited, credited: [] }] }, base).projects[0];
+  assert.deepEqual([waiting.finish.live, waiting.finish.why], [false, "finishWhy.credited"]);
+  const ritual = panel({ projects: [{ ...credited, kind: "ritual", level: 5 }] }, base).projects[0];
+  assert.equal(ritual.finish.why, "finishWhy.ritual");
+  const unread = panel({ projects: [credited] }, { ...base, tables: { ...FIN, ladder: NOTHING.ladder } }).projects[0];
+  assert.equal(unread.finish.why, "finishWhy.throw");
+  const noBonus = panel({ projects: [credited] }, { ...base, tables: { ...FIN, facilities: { ...FIN.facilities, library: { ...FIN.facilities.library, minimum: null, minimums: null, cite: "Invented p. 7" } } } }).projects[0];
+  assert.deepEqual([noBonus.finish.live, noBonus.finish.why], [false, "finishWhy.bonus"], "a facility's bonus not read holds Finish with the reason named");
+  assert.match(noBonus.finish.tip, /throwPartBonusUnread.*Invented p\. 7/, "and the tooltip names the page of the facility passage");
+  const noPenalty = panel({ projects: [credited] }, { ...base, tables: { ...FIN, prose: { ...FIN.prose, penalty: null } }, entries: { a: [part("Item.s", { fit: "substitute", value: { gp: 50, source: "cost" } })] } }).projects[0];
+  assert.deepEqual([noPenalty.finish.live, noPenalty.finish.why], [false, "finishWhy.penalty"], "a substitute held with its penalty unread holds Finish");
+  assert.match(noPenalty.finish.tip, /throwPartPenaltyUnread/);
+  const matchedOnly = panel({ projects: [credited] }, { ...base, tables: { ...FIN, prose: { ...FIN.prose, penalty: null } }, entries: { a: [part("Item.m")] } }).projects[0];
+  assert.equal(matchedOnly.finish.live, true, "the same penalty unread holds nothing with no substitute");
+  const known = panel({ projects: [credited] }, { ...base, formulasOf: () => [{ kind: "spell", key: "lantern", name: "Lantern" }] }).projects[0];
+  assert.deepEqual([known.formula.tone, known.formula.text], ["ok", "formulaKnown"]);
+  assert.match(known.throw.tip, /throwPartFormula/);
+  const subst = panel({ projects: [credited] }, { ...base, formulasOf: () => [{ kind: "spell", key: "lantern", name: "Lantern" }], entries: { a: [part("Item.s", { fit: "substitute", value: { gp: 50, source: "cost" } })] } }).projects[0];
+  assert.equal(subst.formula.tone, "", "a substitute turns it off");
+  assert.match(subst.throw.tip, /throwPartPenalty.*throwPartFormulaOff/);
+  const rows = panel({ projects: [credited] }, { ...base, entries: { a: [part("Item.m")] } }).projects[0].bucket.rows;
+  assert.deepEqual([rows[0].fit.label, rows[0].fit.changeable], ["fit.matched", true], "a component row carries its fit chip, which the seat may change");
+  const html = render(panel({ facilities: { library: 12000 }, projects: [credited] }, base));
+  assert.match(html, /data-action="finishResearchProject" data-research-control data-tooltip-text="finishTip/, "Finish carries the control mark where it is live");
+  assert.doesNotMatch(html, /fa-scroll/, "no formula, no chip");
+  const chip = render(panel({ projects: [credited] }, { ...base, formulasOf: () => [{ kind: "spell", key: "lantern", name: "Lantern" }] }));
+  assert.match(chip, /fa-scroll[^>]*><\/i> formulaKnown/);
+});
+
+t("the posted list and the prompt's pills read the names the board draws, and the radios keep their own lowercase words", () => {
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  const G = "ACKS-MAGIC.research.";
+  assert.deepEqual(M.PACES.map((p) => lang[`${G}paceName.${p}`]), ["Dedicated", "Ancillary", "Both"]);
+  assert.deepEqual(M.PACES.map((p) => lang[`${G}pace.${p}`]), ["dedicated", "ancillary", "both (overtime)"]);
+  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
+  assert.match(tab, /loc\(`paceName\.\$\{value\}`\)/, "the prompt's pills");
+  assert.doesNotMatch(tab, /loc\(`pace\.\$\{value\}`\)/);
+});
+
+t("the sheet wires Finish and the fit chip, and writes no result itself", () => {
+  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
+  assert.match(tab, /finishResearchProject: onFinishProject/);
+  assert.match(tab, /\[BUCKET_ACTIONS\.fit\]: onBucketFit/);
+  assert.match(tab, /researchApi\.finish\(this\.actor, id\)/, "the press asks the API, which is the one place a Finish is made");
+  assert.doesNotMatch(tab, /deliverDrop|markIdentified|createEmbeddedDocuments/, "no writer of the result is in the sheet's file");
 });
 
 console.log(`research-project: ${n} cases passed`);

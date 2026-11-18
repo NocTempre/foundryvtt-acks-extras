@@ -9,8 +9,9 @@
       never submitted with the sheet, and their group name carries the window's
       own part id. A control carries `data-research-control` only where the
       sheet's lock may lift for a viewer (`VIEWER_CONTROLS`): a radio of a
-      project the viewer cannot act on and a Post already used today do not. No id is written: a label wraps its control or names it by
-      `aria-label`. Finish is drawn disabled, with its reason beside it. --}}
+      project the viewer cannot act on, a Post already used today and a Finish the project does not allow
+      yet do not. No id is written: a label wraps its control or names it by
+      `aria-label`. Finish carries its reason beside it while it is disabled. --}}
 <div class="acks-extras-research">
   <section class="acks-extras-research__band">
     <h3 class="acks-extras-research__legend">{{localize "ACKS-MAGIC.research.facilities"}}</h3>
@@ -54,6 +55,7 @@
           <span class="acks-extras-research__cap">{{caption}}</span>
         </span>
         {{#if day.text}}<span class="acks-tag acks-nums is-{{day.tone}}" tabindex="0" aria-label="{{day.aria}}" data-tooltip-text="{{day.tip}}">{{day.text}}</span>{{/if}}
+        {{#if formula}}<span class="acks-tag is-{{formula.tone}}" tabindex="0" data-tooltip-text="{{formula.tip}}"><i class="fa-solid fa-scroll" inert></i> {{formula.text}}</span>{{/if}}
         {{#each verdicts}}
         <span class="acks-tag{{#if tone}} is-{{tone}}{{/if}}" tabindex="0" aria-label="{{aria}}" data-tooltip-text="{{tip}}"><i class="fa-solid {{glyph}}" inert></i>{{#if text}} {{text}}{{/if}}</span>
         {{/each}}
@@ -142,7 +144,7 @@
         </span>
         <span class="acks-extras-research__acts">
           {{#if post.can}}<button type="button" class="acks-btn acks-btn--secondary" data-action="{{#if post.range}}postResearchDays{{else}}postResearchDay{{/if}}"{{#unless post.disabled}} data-research-control{{/unless}}{{#if post.disabled}} disabled{{/if}} data-tooltip-text="{{post.tip}}">{{post.label}}</button>{{/if}}
-          <button type="button" class="acks-btn acks-btn--roll" disabled>{{finish.label}}</button>
+          <button type="button" class="acks-btn acks-btn--roll" data-action="finishResearchProject"{{#if finish.live}} data-research-control{{else}} disabled{{/if}} data-tooltip-text="{{finish.tip}}">{{finish.label}}</button>
         </span>
         <span class="acks-extras-research__verdict">{{finish.why}}</span>
       </footer>

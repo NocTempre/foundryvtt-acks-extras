@@ -11,9 +11,13 @@
  * the record and the day the clock stands in, and it never credits a (day, participant)
  * twice (`creditDue`), so a second run, a clock dragged back and forward again, or a request
  * from another seat only ever finds nothing due.
+ *
+ * A project is finished by `finish` (`research-outcome-live.mjs` writes the result): where this seat may
+ * write everything it touches it runs here, otherwise the GM's client runs it for the sender.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC, PROJECT_HANDLER } from "./constants.mjs";
-import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText } from "./research-project.mjs";
+import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, THROW_DIE, COMPONENT_FIT, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText, throwPlan, subjectRef, knowsFormula } from "./research-project.mjs";
+import { outcomeDeps, canFinish, projectEntries, formulasOf, cookbookOf, subjectTypeOf } from "./research-outcome-live.mjs";
 import { readResearchTables } from "./research-tables.mjs";
 import { dayOfWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
@@ -77,7 +81,11 @@ export const liveDeps = () => ({
   intBonusOf,
   tables: () => readResearchTables(),
   newId: () => foundry.utils.randomID(),
+  canFinish,
+  outcome: outcomeDeps(),
 });
+
+export { projectEntries, formulasOf, cookbookOf, subjectTypeOf };
 
 const ops = () => projectOps(liveDeps());
 
@@ -232,6 +240,31 @@ export const researchApi = {
   dueDay: (location, id) => researchApi.progress(location, id)?.dueDay ?? null,
   /** A facility's value in gold, null to blank it (the Judge's). */
   setFacility: (location, key, gp) => ops().setFacility(location, key, gp),
+  /**
+   * A project finished: `finish(location, id)` throws the research throw (a natural `THROW_DIE` and the throw's modifiers
+   * against the target), closes the project with the outcome stamped, and on success writes the result by kind: a known item
+   * delivered to the researcher, a known spell added to their repertoire, an item marked fully identified, or a blank
+   * document made and opened for the Judge where the subject names none; a spell or an item's formula is recorded on the
+   * researcher. The components bucket is settled on every outcome and the result is one chat card. It is refused (`notComplete`,
+   * `throwUnread`, `bonusUnread`, `penaltyUnread`, `ritual`, `subject`, `bucketOwner`, `subjectOwner`) before anything is rolled or written, and a Player's
+   * request keeps a Player's rules where the GM's client runs it. Answers `{ok, id, outcome, die, total, target, auto, modifier,
+   * formula, written, failed, settled}`.
+   */
+  finish: (location, id) => ops().finish(location, id),
+  /** The throw as the project stands, `{target, by, bonus, bonusRead, share, substituted, penalty, modifier, formula: {known, used}}`; null for a project that is not on the location. */
+  async plan(location, id) {
+    const record = recordOf(location);
+    const project = record.projects.find((p) => p.id === id);
+    if (!project) return null;
+    const tables = liveDeps().tables();
+    const known = knowsFormula(formulasOf(project.researcher), project.kind, subjectRef(project.subject, cookbookOf(project.subject.uuid)));
+    const verdicts = facilityVerdicts(project, { facilities: record.facilities, projects: record.projects, tables });
+    return throwPlan(project, { tables, levelOf, verdicts, entries: await projectEntries(project), known });
+  },
+  /** The formulas an actor has researched, `[{kind, key, name, uuid, cookbookId, day, project}]`. */
+  formulas: (actor) => formulasOf(actor?.uuid),
+  THROW_DIE,
+  COMPONENT_FIT,
   /** The projects an actor is on, across the world's locations, as its sheet links to them. Nothing is written on the actor. */
   projectsOf: (actor) => linksFor(worldEntries(), actor?.uuid),
 };

@@ -18,6 +18,13 @@
  * posted day (a waiting day's dashed cell and tag, a Player's own project, a Player refused on
  * another's, a credited day with no X).
  *
+ * Section 13 walks Finish (M-q3, ruling 223) with the die rigged on the GM seat (restored in the finally): a
+ * known item delivered, an identification marked, a spell added and not added twice, a novel subject opening a
+ * blank world item for the Judge, a failure and the automatic-failure band (the card posts, the project closes,
+ * the bucket is spent), the formula recorded, read by the next throw and turned off by a substitute, Finish
+ * disabled while the cost is not credited, for a ritual and with no throw read, and a Player's own Finish
+ * (relayed) and the two they are refused. Every document it makes is tracked by uuid and swept by that list.
+ *
  * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
  * Player's seat at the pace its radios chose, the day strip and chip, a past day
  * posted by the Judge and held while its rate is unread (nothing credited or
@@ -31,7 +38,7 @@
  * that credits on a clock step is not walked here.
  *
  * The figures are the registry's `libraryProse`, `researchLadder`,
- * `researchLadderNote`, `researchProse` and `assistantProse` through the override
+ * `researchLadderNote`, `researchProse`, `assistantProse` and (section 13) `workshopProse` through the override
  * layer (invented), so the walk needs no import and sets nothing a Judge did not;
  * a table another hand already overrode blocks the walk. The hero's and Pell's
  * class levels are set from section 5 on and put back at the end of section 10. Prints counts and
@@ -43,7 +50,8 @@
  * Player owns, on the place's roster), `magic/research-pell` (a character on the
  * roster the Player does not own), `magic/research-lena` (a character the Player
  * owns who is NOT on the roster) and `magic/research-part` (an item to drop as a
- * component). The place's research record and roster are set at the start and the
+ * component), plus for section 13 `magic/research-spell`, `magic/research-gear`, `magic/research-gear2` and
+ * `magic/research-relic` (a spell, two items and an item to identify). The place's research record and roster are set at the start and the
  * end; the run's overrides are cleared in the finally. Nothing else is made.
  */
 import { connect } from "./_driver.mjs";
@@ -61,8 +69,11 @@ const section = (t) => console.log(`\n== ${t} ==`);
 let gm;
 let player;
 let overrode = false;
+let rigged = false;
+/** The uuid of every document this run made (items, cards, delivered items), swept in the finally by id and nothing else. */
+const tracked = [];
 
-const TABLE_IDS = ["libraryProse", "researchLadder", "researchLadderNote", "researchProse", "assistantProse"];
+const TABLE_IDS = ["libraryProse", "workshopProse", "researchLadder", "researchLadderNote", "researchProse", "assistantProse"];
 
 /** The page helpers every step shares, for the place at `uuid`. */
 const kit = (uuid, ids = {}) => `
@@ -615,6 +626,244 @@ try {
     await sleep(600);
     return true;`, ids);
 
+  section("13. Finish (ruling 223): the throw, the result by kind, the formula, the bucket and the card");
+  // The die is rigged on the GM seat, where every Finish of a Player's is applied too (the place is theirs to observe only).
+  // `CONFIG.Dice.randomUniform` reads from the top: 1 - (die - 0.5) / 20 throws that natural die on core 14. Restored in the finally.
+  const spellFx = await gm.fixture("magic/research-spell", "Item", { name: "QA Research Spell", type: "spell", system: { lvl: 2 } });
+  const gearFx = await gm.fixture("magic/research-gear", "Item", { name: "QA Research Gear", type: "item", system: { cost: 5, quantity: { value: 1 } } });
+  const gear2Fx = await gm.fixture("magic/research-gear2", "Item", { name: "QA Research Gear Two", type: "item", system: { cost: 5, quantity: { value: 1 } } });
+  const relicFx = await gm.fixture("magic/research-relic", "Item", { name: "QA Research Relic", type: "item", system: { cost: 5, quantity: { value: 1 } } });
+  const ids13 = { ...ids, spell: spellFx.uuid, gear: gearFx.uuid, gear2: gear2Fx.uuid, relic: relicFx.uuid };
+  const mkPart = async (name) => {
+    const made = await gm.create("Item", { name, type: "item", system: { cost: 40, quantity: { value: 1 } } });
+    tracked.push(made.uuid);
+    return made.uuid;
+  };
+  const rig13 = (die) => {
+    rigged = true;
+    return gm.eval(`(() => { globalThis.__rpDice ??= CONFIG.Dice.randomUniform; CONFIG.Dice.randomUniform = () => 1 - (${die} - 0.5) / 20; return true; })()`);
+  };
+  // A step that needs a known shape asserts it at its start: the ladder read, the hero at level 5, no formula, the relic unidentified.
+  const f0 = await run(gm, U, `
+    ${tablesKit}
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await STORE.setOverride(D, "researchProse", { ancillaryFraction: "1/4", autoFailBand: [1, 2], penalty: -3, penaltyMinimum: -2 }, { sourceName: "qa-research-project" });
+    // The workshop's passage is read too (an item project reads it; an identification reads its own bonus from it), with invented figures:
+    // a Finish is held while any facility bonus it needs is unread, so every kind this section finishes needs its table.
+    await STORE.setOverride(D, "workshopProse", { minimum: 3500, step: 1700, bonusStep: 6000, bonusSize: 1, bonusCap: 4, identifyResearch: 800, identifyBonusStep: 8000, identifyBonusSize: 1, identifyBonusCap: 2 }, { sourceName: "qa-research-project" });
+    await research().setFacility(place(), "library", 90000);
+    await research().setFacility(place(), "workshop", 90000);
+    const hero = fromUuidSync(ID.hero);
+    await hero.update({ "system.details.level": 5, "flags.acks-extras.magic.-=formulas": null });
+    await fromUuidSync(ID.relic).update({ "flags.acks-extras.markets.-=identified": null });
+    await sleep(500);
+    return { level: Number(hero.system.details.level), carries: [...hero.items].filter((i) => /^QA Research (Spell|Gear)/.test(i.name)).length, formulas: research().formulas(hero).length };`, ids13);
+  if (f0.carries) blocked("the hero already carries one of the walk's spell or gear items: a leaving of a run that did not sweep");
+  check("the step starts from a known shape: the hero at level 5 and no formula researched", f0.level === 5 && f0.formulas === 0, f0);
+  // A project made ready to finish: one past day posted at the dedicated pace and credited at the ladder's rate for level 5, so the research cost is met.
+  const makeReady = (spec, bucket = []) => run(gm, U, `
+    const r = await research().create(place(), { researcher: ID.hero, level: 2, costs: { research: 90, component: 40 }, ...${JSON.stringify(spec)} });
+    await research().post(place(), r.id, { day: ${today - 3}, pace: "dedicated" });
+    await sleep(700);
+    const c = await research().credit(place(), r.id);
+    await sleep(900);
+    ${bucket.length ? `await research().update(place(), r.id, { bucket: ${JSON.stringify(bucket)} }); await sleep(700);` : ""}
+    return { id: r.id, ok: r.ok, credited: c.credited, complete: research().progress(place(), r.id)?.complete };`, ids13);
+  // The page's view of what a Finish wrote: the hero's items and the hero's roll cards that were not there before.
+  const snap = `
+    const hero = fromUuidSync(ID.hero);
+    const heldIds = () => [...hero.items].map((i) => i.id);
+    const before = { items: heldIds(), msgs: [...game.messages].map((m) => m.id) };
+    const proj = (id) => projects().find((p) => p.id === id);
+    const newItems = () => [...hero.items].filter((i) => !before.items.includes(i.id));
+    const newCards = () => [...game.messages].filter((m) => !before.msgs.includes(m.id) && m.speaker?.actor === hero.id && String(m.content).includes("acks-extras-roll-card"));`;
+
+  // A. a known item, by the button.
+  const partA = await mkPart("QA Research Component A");
+  const fa = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partA, qty: 1, fit: "matched" }]);
+  await rig13(20);
+  const k1 = await run(gm, U, `
+    ${snap}
+    await open();
+    const btn = card(${JSON.stringify(fa.id)}).querySelector('[data-action="finishResearchProject"]');
+    const out = { enabled: !!btn && !btn.disabled, controlMark: !!btn?.hasAttribute("data-research-control") };
+    btn.click();
+    await until(() => proj(${JSON.stringify(fa.id)})?.status === "closed", 80);
+    await sleep(2000);
+    const p = proj(${JSON.stringify(fa.id)});
+    out.status = p.status;
+    out.outcome = p.outcome;
+    out.newItems = newItems().map((i) => ({ name: i.name, uuid: i.uuid }));
+    out.formulas = research().formulas(hero).map((f) => [f.kind, f.name]);
+    out.cards = newCards().map((m) => ({ id: m.uuid, target: /11/.test(String(m.content)), success: /is-success/.test(String(m.content)), rolls: m.rolls?.length ?? 0 }));
+    out.cardGone = !card(${JSON.stringify(fa.id)});
+    return out;`, ids13);
+  for (const n of k1.newItems) { tracked.push(n.uuid); gm.track(n.uuid, "Item"); }
+  for (const c of k1.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
+  check("a project credited in full has a live Finish (the control mark); pressing it throws the rigged 20 on the Judge's seat, closes the project and stamps the outcome", fa.credited === 1 && fa.complete === true && k1.enabled && k1.controlMark && k1.status === "closed" && k1.outcome?.result === "success" && k1.outcome?.die === 20, { fa, k1: { enabled: k1.enabled, controlMark: k1.controlMark, outcome: k1.outcome, cardGone: k1.cardGone } });
+  check("on success the known item reaches the researcher as one new item and the formula for the subject is recorded on the researcher", k1.newItems.length === 1 && k1.newItems[0].name === "QA Research Gear" && k1.formulas.some(([kind, name]) => kind === "item" && name === "QA Research Gear"), { newItems: k1.newItems, formulas: k1.formulas });
+  check("the outcome is one card through the shared roll card, spoken as the researcher, carrying the die, the ladder's target and a success mark", k1.cards.length === 1 && k1.cards[0].target && k1.cards[0].success && k1.cards[0].rolls === 1, k1.cards);
+  check("the component bucket was settled: the component item no longer exists", (await gm.eval(`fromUuidSync(${JSON.stringify(partA)}) === null`)) === true);
+
+  // B. an identification.
+  const fb = await makeReady({ kind: "identify", subject: { uuid: ids13.relic, name: "QA Research Relic" } });
+  await rig13(20);
+  const k2 = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fb.id)});
+    await sleep(1500);
+    return { r: { ok: r.ok, outcome: r.outcome, written: r.written?.map((w) => w.what), failed: r.failed }, identified: fromUuidSync(ID.relic).getFlag("acks-extras", "markets")?.identified, newItems: newItems().length, formulas: research().formulas(hero).length, cards: newCards().map((m) => m.uuid) };`, ids13);
+  for (const c of k2.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
+  check("an identification marks the item fully identified, adds nothing to the researcher and records no formula", fb.complete === true && k2.r.ok && k2.r.outcome === "success" && k2.r.written.join() === "identify" && k2.identified === "full" && k2.newItems === 0 && k2.formulas === 1 && k2.r.failed.length === 0 && k2.cards.length === 1, k2);
+
+  // C. a known spell; then the same subject again, where the formula is read and a substitute turns it off.
+  const fc1 = await makeReady({ kind: "spell", subject: { uuid: ids13.spell, name: "QA Research Spell" } });
+  await rig13(20);
+  const k3 = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fc1.id)});
+    await sleep(1500);
+    return { r: { ok: r.ok, written: r.written?.map((w) => w.what) }, spells: [...hero.items].filter((i) => i.type === "spell" && i.name === "QA Research Spell").map((i) => i.uuid), formulas: research().formulas(hero).map((f) => [f.kind, f.name]), cards: newCards().map((m) => m.uuid) };`, ids13);
+  for (const u of k3.spells) { tracked.push(u); gm.track(u, "Item"); }
+  for (const c of k3.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
+  check("a known spell joins the researcher's spells (one copy) and its formula is recorded", fc1.complete === true && k3.r.ok && k3.r.written.join() === "spell,formula" && k3.spells.length === 1 && k3.formulas.some(([kind, name]) => kind === "spell" && name === "QA Research Spell"), k3);
+  const partC = await mkPart("QA Research Component C");
+  const fc2 = await makeReady({ kind: "spell", subject: { uuid: ids13.spell, name: "QA Research Spell" } }, [{ uuid: partC, qty: 1, fit: "substitute" }]);
+  const pl1 = await run(gm, U, `
+    const sub = await research().plan(place(), ${JSON.stringify(fc2.id)});
+    await research().update(place(), ${JSON.stringify(fc2.id)}, { bucket: [{ uuid: ${JSON.stringify(partC)}, qty: 1, fit: "matched" }] });
+    await sleep(700);
+    const matched = await research().plan(place(), ${JSON.stringify(fc2.id)});
+    return { sub, matched };`, ids13);
+  check("the next throw for the same subject reads the researcher's formula: with a matched component it is applied; with a substitute it is not, and the substitute takes the penalty at the invented figures (3 a level, level 2, the whole cost: 6) against the ladder's target of 11", pl1.matched.formula.known && pl1.matched.formula.used && pl1.matched.penalty === 0 && pl1.sub.formula.known && !pl1.sub.formula.used && pl1.sub.penalty === -6 && pl1.sub.modifier === pl1.sub.bonus - 6 && pl1.sub.target === 11 && pl1.sub.by === "ladder", { sub: pl1.sub, matched: pl1.matched });
+  await rig13(20);
+  const k3b = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fc2.id)});
+    await sleep(1500);
+    return { r: { ok: r.ok, written: r.written?.map((w) => [w.what, w.held === true]) }, spells: [...hero.items].filter((i) => i.type === "spell" && i.name === "QA Research Spell").length, cards: newCards().map((m) => m.uuid) };`, ids13);
+  for (const c of k3b.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
+  check("a spell the researcher already carries is not added twice: the writer reports it held and the spell count stays one", k3b.r.ok && k3b.r.written.some(([w, held]) => w === "spell" && held) && k3b.spells === 1, k3b);
+
+  // D. a novel subject: a blank document for the Judge.
+  const fd = await makeReady({ kind: "item", subject: { name: "QA Novel Thing" } });
+  await rig13(20);
+  const k4 = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fd.id)});
+    await sleep(1800);
+    const made = r.written?.find((w) => w.what === "blank");
+    const item = made ? fromUuidSync(made.uuid) : null;
+    return { r: { ok: r.ok, written: r.written?.map((w) => w.what) }, blank: item ? { uuid: item.uuid, name: item.name, type: item.type, world: !item.parent, open: item.sheet?.rendered === true } : null, formula: research().formulas(hero).find((f) => f.name === "QA Novel Thing") ?? null, cards: newCards().map((m) => m.uuid) };`, ids13);
+  if (k4.blank) { tracked.push(k4.blank.uuid); gm.track(k4.blank.uuid, "Item"); }
+  for (const c of k4.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
+  check("a subject no document answers to becomes a blank world item carrying the project's name, its sheet opened on the Judge's seat, and the formula keeps the new document's uuid", k4.r.ok && k4.r.written.join() === "blank,formula" && k4.blank?.name === "QA Novel Thing" && k4.blank?.type === "item" && k4.blank?.world === true && k4.blank?.open === true && k4.formula?.uuid === k4.blank?.uuid, k4);
+  await gm.eval(`(async () => { await fromUuidSync(${JSON.stringify(k4.blank?.uuid ?? "")})?.sheet?.close({ animate: false }); return true; })()`);
+
+  // E. a failure and the automatic-failure band: nothing is written, but the project closes, the bucket is spent and the card posts.
+  const partE = await mkPart("QA Research Component E");
+  const fe = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" }, throw: { target: 18 } }, [{ uuid: partE, qty: 1, fit: "matched" }]);
+  await rig13(3);
+  const k5 = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fe.id)});
+    await sleep(1500);
+    return { r: { ok: r.ok, outcome: r.outcome, auto: r.auto, written: r.written?.length }, newItems: newItems().length, status: proj(${JSON.stringify(fe.id)})?.status, result: proj(${JSON.stringify(fe.id)})?.outcome?.result, cards: newCards().map((m) => ({ id: m.uuid, failure: /is-failure/.test(String(m.content)) })) };`, ids13);
+  for (const c of k5.cards) { tracked.push(c.id); gm.track(c.id, "ChatMessage"); }
+  check("a plain failure (die 3 against a Judge's 18) writes nothing, closes the project as a failure, spends the component and posts a failure card", fe.complete === true && k5.r.ok && k5.r.outcome === "failure" && k5.r.auto === false && k5.r.written === 0 && k5.newItems === 0 && k5.status === "closed" && k5.result === "failure" && k5.cards.length === 1 && k5.cards[0].failure && (await gm.eval(`fromUuidSync(${JSON.stringify(partE)}) === null`)) === true, k5);
+  const fg = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" }, throw: { target: 1 } });
+  await rig13(2);
+  const k6 = await run(gm, U, `
+    ${snap}
+    const r = await research().finish(place(), ${JSON.stringify(fg.id)});
+    await sleep(1500);
+    return { r: { ok: r.ok, outcome: r.outcome, auto: r.auto, total: r.total, target: r.target }, newItems: newItems().length, cards: newCards().map((m) => m.uuid) };`, ids13);
+  for (const c of k6.cards) { tracked.push(c); gm.track(c, "ChatMessage"); }
+  check("a die inside the imported automatic-failure band (2) fails although the total meets a target of 1, and delivers nothing", k6.r.ok && k6.r.outcome === "failure" && k6.r.auto === true && k6.r.total >= k6.r.target && k6.newItems === 0, k6);
+
+  // F. Finish is disabled, with its reason beside it, until it can be made.
+  const fh = await run(gm, U, `
+    ${tablesKit}
+    const mk = (spec) => research().create(place(), { researcher: ID.hero, level: 2, ...spec });
+    const waiting = await mk({ kind: "item", costs: { research: 90 } });
+    const rit = await mk({ kind: "ritual", level: 5, costs: { research: 90 } });
+    const blind = await mk({ kind: "item", costs: { research: 90 } });
+    const unlevelled = await mk({ kind: "item", level: null, costs: { research: 90 } });
+    for (const x of [blind, unlevelled]) {
+      await research().post(place(), x.id, { day: ${today - 3}, pace: "dedicated" });
+      await sleep(700);
+      await research().credit(place(), x.id);
+      await sleep(900);
+    }
+    await STORE.setOverride(D, "researchLadder", { r0: { label: 5, rate: "90gp", marked: false } }, { sourceName: "qa-research-project" });
+    await poll(() => research().progress(place(), blind.id)?.daily === 90);
+    await open();
+    const read = (id) => { const c = card(id); const b = c?.querySelector('[data-action="finishResearchProject"]'); return { disabled: b?.disabled === true, mark: !!b?.hasAttribute("data-research-control"), why: c?.querySelector(".acks-extras-research__verdict")?.textContent.trim() ?? "" }; };
+    const out = { waiting: read(waiting.id), ritual: read(rit.id), blind: read(blind.id), complete: research().progress(place(), blind.id)?.complete };
+    out.target = (await research().plan(place(), blind.id))?.target;
+    // A project with no level entered cannot read its facility's bonus: Finish is held, naming it, the page in the tooltip.
+    const held = card(unlevelled.id)?.querySelector('[data-action="finishResearchProject"]');
+    out.unlevelled = { ...read(unlevelled.id), tip: held?.dataset.tooltipText ?? "", plan: (await research().plan(place(), unlevelled.id))?.bonusUnread, refused: (await research().finish(place(), unlevelled.id)).reason };
+    await research().update(place(), unlevelled.id, { level: 2 });
+    await sleep(900);
+    await open();
+    out.levelled = read(unlevelled.id);
+    out.refused = [(await research().finish(place(), waiting.id)).reason, (await research().finish(place(), rit.id)).reason, (await research().finish(place(), blind.id)).reason];
+    for (const x of [waiting, rit, blind, unlevelled]) await research().close(place(), x.id);
+    await STORE.setOverride(D, "researchLadder", ${LADDER_OK}, { sourceName: "qa-research-project" });
+    await sleep(600);
+    return out;`, ids13);
+  check("with the research cost not credited, and for a ritual (its result is kept out of this slice), Finish is disabled with no control mark and its reason beside it; the API refuses both before anything is rolled", [fh.waiting, fh.ritual].every((s) => s.disabled && !s.mark && s.why.length > 0) && fh.refused[0] === "notComplete" && fh.refused[1] === "ritual", fh);
+  check("a credited project whose ladder prints no throw reads no target and is disabled with its reason; the API refuses it as throwUnread (the throw is not made up)", fh.complete === true && fh.target === null && fh.blind.disabled && !fh.blind.mark && fh.blind.why.length > 0 && fh.refused[2] === "throwUnread", fh);
+
+  check("a credited project whose facility bonus cannot be read (no level entered) is held, not thrown with the bonus missing: Finish is disabled with its reason and the page in its tooltip, the plan says the bonus is unread, the API refuses it as bonusUnread, and entering the level frees it", fh.unlevelled.disabled && !fh.unlevelled.mark && fh.unlevelled.why.length > 0 && /RR/.test(fh.unlevelled.tip) && fh.unlevelled.plan === true && fh.unlevelled.refused === "bonusUnread" && fh.levelled.disabled === false && fh.levelled.mark === true, { unlevelled: fh.unlevelled, levelled: fh.levelled });
+
+  // G. a Player's own Finish, and what is refused them.
+  const partG = await mkPart("QA Research Component G");
+  const own = await run(player, U, `
+    const r = await research().create(place(), { kind: "item", researcher: ID.hero, level: 2, subject: { uuid: ID.gear2, name: "QA Research Gear Two" } });
+    await sleep(900);
+    return { ok: r.ok, id: r.id, reason: r.reason };`, ids13);
+  const gp = await run(gm, U, `
+    await research().update(place(), ${JSON.stringify(own.id)}, { costs: { research: 90 } });
+    await research().post(place(), ${JSON.stringify(own.id)}, { day: ${today - 3}, pace: "dedicated" });
+    await sleep(700);
+    await research().credit(place(), ${JSON.stringify(own.id)});
+    await sleep(900);
+    return { complete: research().progress(place(), ${JSON.stringify(own.id)})?.complete };`, ids13);
+  const fp = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partG, qty: 1, fit: "matched" }]);
+  await rig13(20);
+  const q1 = await run(player, U, `
+    ${snap}
+    await open();
+    const btn = card(${JSON.stringify(own.id)})?.querySelector('[data-action="finishResearchProject"]');
+    const out = { live: !!btn && !btn.disabled && btn.hasAttribute("data-research-control") };
+    btn?.click();
+    await until(() => proj(${JSON.stringify(own.id)})?.status === "closed", 100);
+    await sleep(2500);
+    out.status = proj(${JSON.stringify(own.id)})?.status;
+    out.outcome = proj(${JSON.stringify(own.id)})?.outcome?.result;
+    out.newItems = newItems().map((i) => i.uuid);
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of q1.newItems ?? []) { tracked.push(u); gm.track(u, "Item"); }
+  for (const u of q1.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("a Player's own credited project has a live Finish on their seat; pressing it is relayed, the GM's client throws the rigged die, and the item reaches their character", own.ok === true && gp.complete === true && q1.live && q1.status === "closed" && q1.outcome === "success" && q1.newItems.length === 1 && q1.cards.length === 1, { own, gp, q1 });
+  const q2 = await run(player, U, `
+    const component = await research().finish(place(), ${JSON.stringify(fp.id)});
+    const owner = await research().finish(place(), ${JSON.stringify(IDA)});
+    await sleep(600);
+    return { component: component.reason, owner: owner.reason, stillOpen: projects().find((p) => p.id === ${JSON.stringify(fp.id)})?.status, other: projects().find((p) => p.id === ${JSON.stringify(IDA)})?.status };`, ids13);
+  check("a Player's Finish whose bucket holds a component they do not own is refused as bucketOwner before anything is thrown, and a project of a character they do not own is refused as the owner's; both stay open", q2.component === "bucketOwner" && q2.owner === "owner" && q2.stillOpen === "open" && q2.other === "open", q2);
+  await run(gm, U, `
+    await research().close(place(), ${JSON.stringify(fp.id)});
+    await research().setFacility(place(), "library", 9000);
+    await research().setFacility(place(), "workshop", null);
+    await fromUuidSync(ID.hero).update({ "flags.acks-extras.magic.-=formulas": null });
+    await fromUuidSync(ID.relic).update({ "flags.acks-extras.markets.-=identified": null });
+    await sleep(600);
+    return true;`, ids13);
+
   section("Days teardown");
   await run(gm, U, `
     await research().close(place(), ${JSON.stringify(IDD)});
@@ -633,7 +882,7 @@ try {
     return true;`, ids);
   overrode = false;
   await gm.eval(`Hooks.off("updateActor", __rp.hookA); delete globalThis.__rp;`);
-  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part");
+  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part, magic/research-spell, magic/research-gear, magic/research-gear2, magic/research-relic");
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);
@@ -641,6 +890,12 @@ try {
   try {
     if (gm && overrode) console.log(`overrides cleared: ${await gm.eval(`(async () => { const S = await import("/modules/acks-extras/scripts/location/table-store.mjs"); for (const id of ${JSON.stringify(TABLE_IDS)}) await S.clearOverride("magicResearch", id); return ${JSON.stringify(TABLE_IDS)}.every((id) => !S.hasOverride("magicResearch", id)); })()`)}`);
   } catch {}
+  try {
+    if (gm && rigged) await gm.eval(`(() => { if (globalThis.__rpDice) { CONFIG.Dice.randomUniform = globalThis.__rpDice; delete globalThis.__rpDice; } return true; })()`);
+  } catch {}
+  try {
+    if (gm && tracked.length) console.log("swept:", JSON.stringify(await gm.sweepTracked({ only: tracked })));
+  } catch (e) { console.log("sweep:", e?.message ?? e); }
   const failed = checks.filter(([, ok]) => !ok).length;
   console.log(`${checks.length - failed} passed, ${failed} failed`);
   try { player?.close?.(); } catch {}

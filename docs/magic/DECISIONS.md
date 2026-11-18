@@ -1049,7 +1049,7 @@ fact held in source.
   are imported again; a Judge's override of the ladder must carry `marked` on its rows for the same
   reason. No migration is written (owner, 2026-11-11: none for previous-version data).
 
-## 2026-11-18 — Research days: the Judge's due, Post days… and withdrawing (owner, board 16)
+## 2026-11-18 — Research days: the Judge's due, Post days… and withdrawing (owner, board 16) — SUPERSEDED IN PART 2026-11-18
 
 Supersedes in part the M-q2 entry ("Research days are posted and credited once passed"): its bullet
 "The tab's Post button posts today at the chosen pace; there is no count prompt" and its closing
@@ -1128,3 +1128,77 @@ Judgment calls, each with the default proceeded on and the counter:
 - **The waiting tag's tooltip and the due box's tooltip take the page through the ladder's
   `{cite}`.** The board prints "RR p.388"; lang holds the page reference once, as `cite.ladder`, and
   no figure sits in a string.
+
+## 2026-11-18 — Research Finish writes the result (M-q3, ruling 223)
+
+Builds plan ruling 223: a project's Finish throws, writes what the subject's kind yields, records the
+researcher's formula, settles the components bucket and posts a card. Supersedes in part the board 16 entry
+("Research days: the Judge's due, Post days… and withdrawing") on one point only, its "Two small departures"
+bullet: the pills and the posted list now read capitalised pace names ("Dedicated", "Ancillary", "Both"), as
+board 16 draws them. New evidence: the board's drawing was checked against the strings, and capitalising the
+radio strings by CSS reads "Both (Overtime)" in the radio group, which the board does not show, so the pills
+and the list take their own `paceName.*` strings and the radios keep `pace.*`. *Counter (low):* a second
+set of pace strings for one prompt and one list.
+
+Each call below stands unless the owner says otherwise; the open ones are listed at the end.
+
+- **The throw is a natural d20 plus the facility bonus plus the substitute penalty, against the Judge's
+  stored target or the ladder's rung for the researcher's class level.** Nothing imported says which die, so
+  `THROW_DIE` is the die the ladder's printed throws are written for. *Counter (medium):* a prose-read die
+  would remove the constant; no import carries one, and the rung's form ("11+") is a d20 target.
+- **An unread figure the throw needs holds Finish; the throw is never made with one missing.** A facility's
+  bonus that cannot be read (its table, its figures or the project's level) disables Finish
+  (`bonusUnread`), as an unread target does (`throwUnread`). A substitute's penalty holds it only while a
+  substitute is in the bucket and the penalty's size, or the share it is taken on, is unread
+  (`penaltyUnread`); with no substitute held an unread penalty holds nothing. The button shows the reason as
+  text and its tooltip names what is unread with the page reference, never a figure. Ground: the
+  ip-doctrine sentence that without an imported value "nothing throws and no wrong figure is written" (a throw
+  rolled with a bonus or penalty left out can write a wrong outcome, and one that stands in a zero is a figure
+  the page does not print), and the owner's 2026-11-14 ruling that missing imports stay blank. This replaces
+  the first draft of this entry, which let an unread bonus or penalty count as nothing (coordinator, same
+  day: it is the research-days doctrine applied here). *Counter (medium):* a Judge with the tables not yet
+  imported cannot Finish at all, where counting the figure as nothing would let them play on; the Judge's
+  stored target and an import both free it, and a Judge who wants the throw regardless can roll by hand.
+- **A die in the imported automatic-failure band is a failure, not a botch.** No imported procedure defines
+  a botch, so none is produced. *Counter (medium):* a botch costs something the book may print; it is not
+  in the import, and inventing a cost is a house rule (owner, 2026-11-11: none ship).
+- **The formula is recorded on a spell's or an item's success, and read by the next throw, and is worth
+  nothing yet.** It is `known`, and `used` only where no substitute is held; the tab's chip and the throw's
+  tooltip say so. No imported table prints a benefit for it, so adding one would be a printed value written
+  in source. *Counter (high):* a formula that changes nothing is a record with no effect, and a Judge may
+  read it as a bug; the chip and tooltip name it as applied or off so the Judge can apply the benefit by
+  hand.
+- **An identification records no formula.** It identifies an item and learns no way to make one.
+  *Counter (low):* a Judge may rule a repeated identification easier.
+- **A ritual's Finish is refused (`ritual`, disabled with its reason).** Its result is stored as a charge,
+  which is M-r's. Throwing and closing it here would spend its research and leave the result unwritten.
+  *Counter (medium):* a Judge could still want the throw and the card now and the charge later.
+- **Every outcome consumes the bucket by the one settle map.** A success and a failure both spend the rows
+  (a creature is marked, never deleted; a power row is spent from the ledger). *Counter (medium):* a failure
+  might return some components; no imported figure says so.
+- **One write closes the project and stamps `outcome` before any result is written.** A second press, or a
+  relayed twin, finds it closed and throws nothing. The cost: a writer that then fails leaves the project
+  closed with the result in `failed` and on the card, and the Judge writes it by hand. *Counter (medium):*
+  closing last would let a double press throw twice; at-most-once was the safer failure.
+- **A Player's Finish is held to what they own, at the attested sender.** Every component in the bucket
+  (`bucketOwner`) and an item to identify (`subjectOwner`) must be theirs; a Judge's is not held. The
+  control is live by the researcher's ownership (the rule every project write uses) and the refusal comes
+  from the GM's client, never from an `isOwner` gate on the button (a GM seat passes it by definition).
+  *Counter (low):* a party's shared component would need the owner's own press; this stays the rule of the
+  other writes.
+- **A seat writes directly only where `canFinish` holds; any other is relayed.** A Judge always; else the
+  seat must be able to modify the location and researcher and delete every component. *Counter (low):* the
+  check duplicates Foundry's own permission test, but a relay on a refused direct write loses the reason.
+- **A novel subject becomes a blank world item (a spell takes its level), opened on a Judge's client.** The
+  project's name and picture fill it and nothing else; the Judge finishes it. The formula keeps its uuid.
+  *Counter (low):* a created document no Judge opens (a Player's project finished with the Judge away)
+  stays blank until someone looks; it is on the card.
+- **An identification marks the item `identified: "full"` on the `markets` flag and calls the markets'
+  identified hook.** The listener lifts the mask. *Counter (low):* the hook's method name ("research") is a
+  new value in markets' vocabulary.
+- **A short bucket does not hold Finish.** A project whose rows are fewer than the component cost still
+  throws; the fit chip and the substitute penalty are the only consequence. *Counter (medium):* the book
+  may expect the full cost; the due is shown beside the bucket, and a Judge refuses by hand. Open question.
+
+Not built, by design: a ritual's result (M-r); any control or window that adds a power row to the research
+bucket (none is drawn); a Finish-result presentation beyond the one roll card.

@@ -13,13 +13,14 @@
  * A control writes by its own listener and stops the event there, so the sheet's
  * submit-on-change never sees it: no control writes through the form, and the facility
  * inputs exist only on a Judge's render. The pace radios write nothing: the choice is held
- * per window (`paceMemory`) and read by the Post control. Finish is not here.
+ * per window (`paceMemory`) and read by the Post control. Finish throws the project's research and writes
+ * its result through the API; the result is a chat card, so the tab draws nothing for it.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce } from "./research-project-live.mjs";
-import { PROJECT_KINDS, COMPONENT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, panelModel } from "./research-project.mjs";
+import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce, projectEntries, formulasOf, cookbookOf, subjectTypeOf } from "./research-project-live.mjs";
+import { PROJECT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, panelModel, componentPolicy } from "./research-project.mjs";
 import { elementOf } from "../lib/util.mjs";
-import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop } from "../lib/bucket.mjs";
+import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop, nextFit } from "../lib/bucket.mjs";
 
 /** The partials the tab draws, loaded at `init` with the module's templates. */
 export const RESEARCH_TAB_TEMPLATE = `modules/${MODULE_ID}/templates/magic/research-tab.hbs`;
@@ -50,7 +51,7 @@ export async function prepareResearchTab(sheet, context) {
   const location = sheet.actor;
   const record = recordOf(location);
   const entries = {};
-  for (const project of record.projects.filter((p) => p.status === "open")) entries[project.id] = (await entriesFromAnswer(project.bucket, resolveDoc, { policy: { accepts: { kinds: COMPONENT_KINDS } } })).entries;
+  for (const project of record.projects.filter((p) => p.status === "open")) entries[project.id] = await projectEntries(project);
   const deps = liveDeps();
   context.research = panelModel({
     record,
@@ -65,6 +66,9 @@ export async function prepareResearchTab(sheet, context) {
     levelOf,
     intBonusOf,
     paceOf: (id) => paceOf(sheet, id),
+    formulasOf,
+    cookbookOf,
+    subjectTypeOf,
   });
   context.researchOpen = context.research.openCount;
 }
@@ -117,7 +121,7 @@ async function onNewProject() {
  */
 async function promptDays(project, today, pace) {
   const esc = foundry.utils.escapeHTML;
-  const pills = PACES.map((value) => `<button type="button" class="acks-extras-research-prompt__pill" data-pace="${esc(value)}" aria-pressed="${value === pace}">${esc(loc(`pace.${value}`))}</button>`).join("");
+  const pills = PACES.map((value) => `<button type="button" class="acks-extras-research-prompt__pill" data-pace="${esc(value)}" aria-pressed="${value === pace}">${esc(loc(`paceName.${value}`))}</button>`).join("");
   const content = `<div class="acks-extras-research-prompt">
     <label class="acks-extras-research-prompt__row"><span>${esc(loc("promptDays"))}</span> <input type="number" class="acks-input acks-input--num" name="days" min="1" max="${RANGE_MAX}" step="1" value="1"></label>
     <label class="acks-extras-research-prompt__row"><span>${esc(loc("promptFrom"))}</span> <input type="number" class="acks-input acks-input--num" name="from" step="1" value="${esc(String(today))}"></label>
@@ -192,6 +196,26 @@ async function onCloseProject(_event, target) {
   this.render();
 }
 
+/** Press of Finish: the project throws and writes its result, where the viewer may; the result is told on the card. */
+async function onFinishProject(_event, target) {
+  const id = projectIdOf(target);
+  if (id) announce(await researchApi.finish(this.actor, id));
+  this.render();
+}
+
+/** The fit chip of a component row: the next fit the project's policy offers, written to the stored row. */
+async function onBucketFit(_event, target) {
+  const id = target.closest("[data-bucket]")?.dataset?.bucket ?? "";
+  const project = recordOf(this.actor).projects.find((p) => p.id === id);
+  if (!project) return;
+  const entry = (await projectEntries(project)).find((e) => e.uuid === target.dataset.uuid);
+  if (!entry) return;
+  const fit = nextFit(entry, componentPolicy(project).fit);
+  const bucket = project.bucket.some((row) => row.uuid === entry.uuid) ? project.bucket.map((row) => (row.uuid === entry.uuid ? { ...row, fit } : row)) : project.bucket;
+  announce(await researchApi.update(this.actor, id, { bucket }));
+  this.render();
+}
+
 /** Press of an assistant's remove control. */
 async function onRemoveAssistant(_event, target) {
   const id = projectIdOf(target);
@@ -217,8 +241,10 @@ export const RESEARCH_TAB_ACTIONS = {
   postResearchDays: onPostDays,
   withdrawResearchDay: onWithdrawDay,
   closeResearchProject: onCloseProject,
+  finishResearchProject: onFinishProject,
   removeResearchAssistant: onRemoveAssistant,
   [BUCKET_ACTIONS.remove]: onBucketRemove,
+  [BUCKET_ACTIONS.fit]: onBucketFit,
 };
 
 /** The data a drag event carries, read through core's editor. */
@@ -292,7 +318,7 @@ export function bindResearchTab(sheet) {
       const project = recordOf(location).projects.find((p) => p.id === id);
       if (!project) return;
       const held = (await entriesFromAnswer(project.bucket, resolveDoc)).entries;
-      const made = await entryFromDrop(data, resolveDoc, { policy: { accepts: { kinds: COMPONENT_KINDS } }, present: held });
+      const made = await entryFromDrop(data, resolveDoc, { policy: componentPolicy(project), present: held });
       if (made.refused) {
         ui.notifications?.warn(loc(`refused.drop.${made.refused}`, { name: made.name ?? "" }));
         return;

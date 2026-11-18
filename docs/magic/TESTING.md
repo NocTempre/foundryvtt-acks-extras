@@ -1556,7 +1556,7 @@ sheet, through the same `castingStripElement`.
 Both ledgers are unset, the update counter hook is removed, both sheets are closed, and the override
 is cleared (also in the walk's `finally`). The fixtures stay.
 
-## Research projects (M-q1, M-q2)
+## Research projects (M-q1, M-q2, M-q3)
 
 A location's facility values, the research projects held there and the days posted and credited
 on them, on the location sheet's Research tab. Offline: `tools/test-research-project.mjs`. Live: `tools/live/magic-research-project.mjs`,
@@ -1569,12 +1569,14 @@ Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/r
 open it and cannot write it, which makes every Player write a relayed one), `magic/research-hero`
 (a character the Player seat owns), `magic/research-pell` (a character the Player only observes),
 `magic/research-lena` (a character the Player owns who is never put on the roster) and
-`magic/research-part` (an item dropped as a component). Each step that needs a known shape starts
+`magic/research-part` (an item dropped as a component), and for step 13 `magic/research-spell` (a spell),
+`magic/research-gear` and `magic/research-gear2` (items a Finish delivers) and `magic/research-relic` (an
+item to identify). Each step that needs a known shape starts
 it: the place's research flag is unset and its roster is rewritten to the hero and Pell
 (`lib/place.mjs` `addOccupant`) at the start and the end, since a kept fixture carries what the last
 walk left. A counter on `updateActor` for the place and the hero, on the GM seat, is what "written"
 is read from. The run's table overrides are the registry's own layer, cleared in its `finally`. The
-walk makes no document of its own: the projects are flag records. Step 5 sets the hero's and
+walk makes no document of its own before step 13: the projects are flag records. Step 5 sets the hero's and
 Pell's class level (`system.details.level`) and step 10 puts them back; the overrides added for
 the days are `researchProse` and `assistantProse` (set in step 5, in the same blocking and clearing
 list as the others).
@@ -1664,6 +1666,31 @@ list as the others).
    Player's own project the Player clicks the X of a future day: it goes, relayed, and its row with it. The
    Judge clicks the X of the waiting day: it goes, with its dashed cell; `withdraw` of a day not posted is
    `notPosted`, and the Judge's of a day on Pell's project is written. The clock is not moved.
+13. **Finish (M-q3).** The die is rigged on the GM seat (`CONFIG.Dice.randomUniform`, restored in the
+   walk's `finally`) and the throw's prose is overridden with an automatic-failure band of 1 to 2, a
+   penalty and a minimum that differ from the real ones. A project is made ready by posting a past day
+   at the ladder's rate for level 5 and crediting it. *Known item:* the GM presses Finish on the tab with a
+   die of 20: the project closes with `outcome.result` success and `die` 20, one new item reaches the
+   hero, the matched component is deleted, the gear's formula is on the hero's `formulas` flag, and one
+   roll card spoken as the hero carries the die, the target and a success mark. *Identify:* the relic's
+   `markets.identified` reads `full`, nothing is added to the hero and no formula is recorded. *Spell:* one
+   spell joins the hero's items and its formula is recorded; `research.plan` for the same subject reads the
+   formula known and applied with a matched component, and not applied with a substitute, whose penalty
+   is the invented size times the level times the whole share; finishing that project again adds no
+   second spell (the writer reports it held). *Novel:* a subject with no uuid finishes into a blank world
+   item carrying the project's name, its sheet rendered on the GM seat, and the formula holds its uuid.
+   *Failure:* a die of 3 against a Judge's 18 writes nothing, closes the project as a failure, deletes the
+   component and posts a failure card; a die of 2 against a Judge's 1 is a failure (`auto` true) although
+   the total meets the target. *Disabled:* with the research cost uncredited, for a ritual, and with a
+   ladder that prints no throw, or with no level entered (the facility's bonus cannot be read), the button is
+   disabled with no control mark and its reason beside it, and `finish` answers `notComplete`, `ritual`,
+   `throwUnread` and `bonusUnread` without rolling; entering the level frees the held one. The step also
+   overrides `workshopProse` (an item project reads its workshop, an identification its own bonus from it)
+   and sets the workshop's value, since a Finish is held while any bonus it needs is unread. *Player:* the Player makes
+   a project for the hero, the Judge sets its cost and credits a day, and the Player's own seat shows
+   Finish live; pressing it is relayed, the GM's client throws the rigged die, and one item reaches the
+   hero. A second credited project whose bucket holds a component the Player does not own is refused to
+   the Player as `bucketOwner` and stays open; a Player's `finish` of Pell's project is `owner`.
 
 ### Drive mechanics
 
@@ -1679,10 +1706,22 @@ fields are named `days` and `from`, the dialog's own button is `button[data-acti
 read by wrapping `ui.notifications.info` for the click. A withdraw X is `[data-action="withdrawResearchDay"][data-day]`
 and the due text and box are `[data-research-due]` and `[data-research-field="dueDays"]`. Not walked: the researcher's own
 sheet (no link is drawn on it), a second Player seat for the project of someone else's character, the
-sweep that credits on a real clock step and at `ready` (it needs the world clock to move), and Finish
-(drawn disabled).
+sweep that credits on a real clock step and at `ready` (it needs the world clock to move), a
+ritual's Finish result (M-r's), and a power row in the research bucket (no control adds one). Finish is a
+button, `[data-action="finishResearchProject"]`, live when it carries `data-research-control` and
+disabled otherwise; click it without awaiting the relayed answer and poll the project's `status` for
+`closed`. The natural die is rigged on the GM seat only, since every Finish of a Player's is rolled on the
+GM's client: `CONFIG.Dice.randomUniform = () => 1 - (die - 0.5) / 20` throws that die. A Finish's own
+documents are tracked by uuid as the walk reads them back (the delivered items from the hero's items
+before and after, the cards from the messages spoken as the hero, the blank item from the answer's
+`written` list) and swept by that list in the `finally`. A delivered item that matches one the hero
+already holds stacks into it instead of being created, so each Finish that delivers uses a subject of its
+own.
 
 ### Teardown
 
 Both sheets are closed, the counter hook is removed, the place's research flag and roster are cleared and
-the run's overrides are cleared (also in the walk's `finally`). The fixtures stay.
+the run's overrides are cleared (also in the walk's `finally`). The fixtures stay. Step 13 also restores the
+dice, resets the hero's `formulas` flag and the relic's `markets.identified`, and sweeps by the tracked list
+every document it made: the component items, the delivered items, the added spell, the blank item and the
+cards.

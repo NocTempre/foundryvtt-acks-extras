@@ -3858,6 +3858,8 @@ other session on the server:
 - ba2679a2: a day whose rate is unread stays posted, and the footnote's marks
   and project list are read from the page. magic-research-project 42/0 on the
   first run.
+- 164eedfe: board 16 (the Judge's due box, Post days… and withdrawing a
+  posted day). magic-research-project 57/0 on the first run.
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built

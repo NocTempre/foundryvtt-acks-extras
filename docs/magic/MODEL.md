@@ -1146,7 +1146,8 @@ researcher and assistants, uuids of the characters on the place's roster (stored
 scene tokens); the material paid at the start with its day; the days posted and not yet credited as
 `[{day, pace}]`; the research credited so far as `[{day, amount, by}]`, which only crediting writes;
 the Judge's `dueDays`; the components bucket as lib stores an answer, `[{uuid, qty, fit}]`; and
-`throw: {target}` where one is written.
+`throw: {target}` where one is written. A finished project also holds `outcome`, `{result, die, total, target,
+day}`, written in the same write that closes it (Finish, below); an open project has none.
 
 A kind reads one or two facilities (`KIND_FACILITIES`): the library, the workshop, or for a ritual
 both, each against its own imported passage (`readFacility`). The minimum is `facilityMinimum` by
@@ -1169,8 +1170,8 @@ every place whether or not it has a market. It draws the facility values (inputs
 text for anyone else, with how many open projects use each), then per open project its
 researchers, level, costs, material paid, credited against due, the throw, one chip per facility
 verdict and the components bucket (lib's bucket, with a drop zone for those who may change it).
-A strip of day cells, a day chip and a rate on each participant's chip show the days (below). Finish is
-drawn disabled with its reason beside it.
+A strip of day cells, a day chip and a rate on each participant's chip show the days (below). Finish
+throws and writes the result (below); where it cannot be made it is drawn disabled with its reason beside it.
 
 ### Research days
 
@@ -1242,4 +1243,65 @@ radio group per project, held per window and never written. A Player's Post post
 Judge's Post reads "Post days…" and opens a prompt, in the module's dialog classes, for the days, the first
 day (today) and the pace (pills, `aria-pressed`, starting on this window's pace), then calls `postRange`;
 it is never disabled by today's post, and its result is told as a notification naming the days posted and
-skipped. A radio belongs to no form, so the sheet's own submit never carries it.
+skipped. A radio belongs to no form, so the sheet's own submit never carries it. The pace is worded for
+the pills and the posted list by `paceName.*` ("Dedicated", "Ancillary", "Both") and for the radios by the
+lowercase `pace.*`; one string cannot serve both, since capitalising the radio's would read "Both (Overtime)".
+
+### Finish
+
+`finish(location, id)` (`projectOps`, on `acksExtras.magic.research`) throws the research throw and writes its
+result. The pure model decides the order and holds no document; the world's half is `research-outcome-live.mjs`
+(`outcomeDeps`, injected as `deps.outcome`). The order is fixed so a refusal costs nothing:
+
+1. the facility and assistant gates (a Player is blocked, a Judge warned, as for a post);
+2. the state (`finishState`): refused as `ritual`, `notComplete` (the research cost is not credited),
+   `throwUnread` (no target is read), `bonusUnread` (a facility's bonus is not read), `penaltyUnread` (a
+   substitute is held and the penalty's size is not read) or `subject` (an identification with no item, or a
+   subject whose document does not suit the kind). A ritual is refused outright: its result is stored as a charge by the
+   ritual slice, not here;
+3. a Player's request is held to what the sender owns: every component in the bucket (`bucketOwner`) and an
+   identified item (`subjectOwner`). A Judge's is not. This is the rule of the attested sender, never an
+   `isOwner` gate on the control;
+4. the natural die (`THROW_DIE`, a d20, rolled where the request runs) and `throwResult`;
+5. one write closes the project and stamps `outcome`, so a second press finds it closed and throws nothing;
+6. the result is written (below), then the bucket is settled, then the card is posted. A writer that throws
+   is listed in `failed` and stops nothing after it.
+
+The throw (`throwPlan`) is the natural die plus a modifier against a target. The target is the Judge's stored
+`throw.target`, else the ladder's rung for the researcher's class level, null where unread (then Finish is
+disabled and the API refuses). The modifier is the sum of the facility verdicts' bonuses plus the penalty a
+substituted share takes (`substitutionPenalty` over `substitutedShare`: the value of the rows fitted as
+substitutes over the component cost). The throw is never made with a figure missing: a facility's bonus
+that cannot be read (its table, its figures or the project's level) holds Finish (`plan.bonusUnread`), and so
+does a substitute in the bucket whose penalty's size, or share, cannot be read (`plan.penaltyUnread`; an
+unread penalty holds nothing while no substitute is held). The held button shows the reason as text and
+its tooltip names what is unread with the page of the facility passage or of the research prose. A die in the imported automatic-failure band fails whatever the total. The
+penalty's size, the minimum and the band all come from the imported research prose (`researchProse`), and
+nothing here holds them. Botch is not produced: no imported procedure defines one.
+
+A bucket row's fit is lib's: `matched` where its own names or the names its effects answer to are the
+subject's (`preselectFit`, the subject's name), else `substitute`; the tab's fit chip steps a stored row
+between them (`nextFit`) and a power row is a substitute unless its stored row says otherwise.
+
+On success, by kind: a known spell is added to the researcher's repertoire (`spellPayload`; skipped, and
+reported held, where they already carry it), a known item is delivered (lib `deliverDrop`), an identification
+marks the item fully identified (`markIdentified`, on the `markets` flag, and the markets' identified hook is
+called so its mask lifts), and a subject no document answers to becomes a blank world item (the project's name
+and picture, a spell's level), its sheet opened on a Judge's client. A failure writes nothing.
+
+The formula is `flags["acks-extras"].magic.formulas` on the researcher, `[{kind, key, name, uuid, cookbookId,
+day, project}]` (`cleanFormulas`), recorded on a spell's or an item's success and not an identification's. A
+subject is the same by cookbook id, else uuid, else folded name (`sameSubject`). The next throw for it reads the
+formula as known; it is applied only where no substitute is held (`throwPlan`'s `formula.used`), and the tab's
+chip and the throw's tooltip say which. What a known formula is worth is not set: no imported row prints a
+figure for it, so it adds nothing to the throw.
+
+The bucket is settled on every outcome with the one settle map (`COMPONENT_SETTLE`: rows are spent; a creature
+is marked, never deleted; a power row is spent from the researcher's ledger through `powerApi.settle`). The
+card is lib's `renderRollCard`: the die and its modifier in the total's tooltip, the target and where it came
+from, the throw's parts, what was written and what failed.
+
+A seat writes everything directly only where `canFinish` holds (a Judge; else Foundry lets it modify the
+location, the researcher, the identified item and delete every component, and a spell or item subject
+resolves); any other seat's Finish is relayed under `magicProject` and applied on the GM's client with the
+sender's rule.
