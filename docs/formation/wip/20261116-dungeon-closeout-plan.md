@@ -1587,6 +1587,29 @@ test-swimming 15, test-crossing-surface 65; `npm test` 268 suites before a
 comment-only edit); the full gate was held while the machine served the
 minor's walks and has not run on the tip.
 
+S13, the swim rows on the section, in five commits: `244dc7b8` (the logic,
+`crossing-driver.mjs` on the primary GM's `combatTurnChange` with the
+`thrownAt`, `drownedAt`, `breathOut` and `promptedAt` guards, the prompt
+card, drowning held as a crossing status), `f2c2949d` (the view, template,
+CSS, the `rescue` relay step and the haul), `eaf7417b` (MODEL, DECISIONS,
+TESTING "Swim rows" S0 to S14, ROADMAP, fragment), `30d8a9c3` (review
+fixes) and `d5e10365` (a Judge picking a down, detached or busy rescuer is
+warned and the link written; a Player is refused, per the owner's "Players
+get blocks, judges get warnings"). Single suites: test-crossing 58,
+test-crossing-surface 96, test-swimming 16, test-formation-flows all
+scenarios; fourteen mutations, each caught. Not walked; no full gate.
+`apiVersion` stays 32. S13's owner questions:
+- A monster with no swim figure of its own has no target, so its row is
+  refused for every seat and the board's "Throw anyway" on a monster is not
+  built. What would a Judge throw against?
+- The SwimPlayer board draws no Rescuer, Sinks or Vulnerable on a Player's
+  drowning row; the build shows all three, since a Player names a rescuer.
+  Keep or hide?
+- A Player cannot replace or clear a rescuer another seat owns (the
+  implementer's call, in DECISIONS).
+- A Judge's Rescuer select lists down, detached and busy members with no
+  marker beside them; a marker is a UI change and waits on a design.
+
 **Published names.** Formation's `apiVersion` is 31 on `main`: S11 took 30
 and removes `waterModifier` and `WATER.calm`, a removal the module's own
 comment calls a major; S19 took 31 when the sync met it. S12 takes 32 on the
