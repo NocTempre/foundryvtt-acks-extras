@@ -232,8 +232,10 @@ its two flags, and a table set per tradition kind.
    reads; null means no lockout, only a note. Item:
    `flags["acks-extras"].ceremony = {implementLevel, damage}`, offered on the
    imported row (`def.equip.gnosticImplements`) and on any item carrying the
-   flag; effective level is level less damage; the throw takes the highest
-   set high enough and names it on the card. Rejected: stigma in
+   flag; effective level is level less damage; the invoker picks the set
+   used from those whose effective level reaches the invocation level, the
+   card names it, and a botch damages that set (the owner, 2026-11-18,
+   superseding "the throw takes the highest set high enough"). Rejected: stigma in
    `classes.pools` (`restPools` clears the whole flag, so a rest would
    purify); a spent `RESOURCE_KINDS.stigma` pool; implements on 4a's
    `magicItem` flag (gear, not magic items); one item per implement level.
@@ -462,3 +464,17 @@ level 1 matrix, LOCAL-ONLY.
   again." The rule is the template's `ip-doctrine.md`, "Art: imported or
   attributed, never generated" (template `93c8fce1`); it reaches this repo at
   the next toolchain sync.
+- **Owner on Q1 and Q2, 2026-11-18:** "BTA implements should follow raw with
+  values and tiered effects. You get the effect you use the supply for..."
+  Read against BTA p. 120: a set of implements is rated in levels, with a
+  cost per level and one encumbrance whatever the level; the invoker chooses
+  the invocation level at cast, and the set used must reach it. Q1: one
+  bucket of levelled sets, so ruling 5's item shape stands. Q2: the invoker
+  picks the set used. Example: an invoker holding sets at effective levels 3
+  and 4 performs at level 3 with either and gets the level 3 effect; a botch
+  damages the set picked, so choosing the level 3 set puts it at risk and
+  spares the other. A set at effective level 2 cannot be picked for level 3.
+  The pick is a cast-dialog input to C6. C3's `bestSet`, which chose the
+  highest set, gives way on topic/bta to a list of the sets high enough,
+  lowest first, which the dialog offers. The canvas (version 1794982312-362a) draws D1 as a radio group of
+  the sets held, opening on the lowest set high enough, a display choice.
