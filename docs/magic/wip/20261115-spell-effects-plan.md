@@ -2970,6 +2970,43 @@ Progress, 2026-11-18:
   - The opposed reaction roll reads no records.
   - A Climbing granted by a spell is not a best-skill candidate.
 
+**Owner on the /design canvas, 2026-11-18, verbatim, relayed by the
+managing session.** The canvas is
+https://claude.ai/artifact/TLySpQpYAvevMuGcfhH3GS, boards 1 to 6.
+
+- "It's good enough. I'd look at the attack card or even the diplomacy
+  menu for more cohesive design."
+- "Targets should be an inventory bucket that can be added/subtracted from
+  with X as well as drag and drop. Borrow the color and symbol language
+  from the character sheet for effects, not just text. Spell granted rolls
+  show up in the character sheet, pale when not cast, gold when active.
+  Coax Kindred needs some advisor help. Rolls in chat should match the
+  group roll format, just maybe with 1 line if that's applicable."
+- "Pale when not cast and can cast on self. Gold when cast on self even if
+  by another."
+- "That includes from scrolls in inventory FYI, they should share an
+  awareness register."
+- "Inferred correctly, can't cast does not show as can but uncast".
+
+Ruled from these:
+- A granted roll shows on the sheet:
+  - **pale** where the character can cast the spell on itself, from its
+    repertoire or a carried scroll, and no record of it is on the
+    character;
+  - **gold** while a record of the spell is on the character, whoever
+    cast it;
+  - **no row** where the character can do neither.
+- Every source of "this character can cast X" reads one shared register.
+  An architect is checking for an existing reader to extend; the
+  register's design and owner will be recorded here.
+- The managing session's earlier hold on fa35839d's visible parts (the
+  granted rows, the auto display, the chat line) is lifted. They go ahead
+  under this approval, styled the same way.
+- The canvas is being revised (targets bucket, the sheet's effect colours
+  and symbols, gold and pale rows, chat rolls in the party roll format)
+  after an architect's redesign of board 1. Parts the feedback leaves
+  unchanged may be built now.
+
 ### Results, 1c
 
 ### Results, 1d
