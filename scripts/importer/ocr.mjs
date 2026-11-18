@@ -5,6 +5,7 @@
  * every seat. Runs in the Foundry client and in Node.
  */
 import { getDocument, OPS } from "../../vendor/pdfjs/pdf.mjs";
+import { pageObject } from "./extract.mjs";
 
 /** The vendored engine's folder, beside the module's `scripts/`. */
 const VENDOR = new URL("../../vendor/tesseract/", import.meta.url);
@@ -49,7 +50,7 @@ export async function openPinned(data, { wasmUrl = null } = {}) {
  */
 export async function pictureSamples(page, name) {
   await page.getOperatorList();
-  const img = await objectNamed(page, name);
+  const img = await pageObject(page, name, OBJECT_WAIT_MS);
   if (!img) return null;
   if (!img.data) throw new Error(`picture ${name} has no raw samples; open the document with openPinned`);
   return img;
@@ -66,7 +67,7 @@ export async function pagePictures(page) {
   for (let i = 0; i < ops.fnArray.length; i++) if (ops.fnArray[i] === OPS.paintImageXObject) names.add(ops.argsArray[i][0]);
   const out = [];
   for (const name of names) {
-    const img = await objectNamed(page, name);
+    const img = await pageObject(page, name, OBJECT_WAIT_MS);
     if (img) out.push({ name, width: img.width, height: img.height, kind: img.kind });
   }
   return out.sort((a, b) => b.width * b.height - a.width * a.height);
@@ -85,28 +86,6 @@ export async function pictureBySize(page, { w, h }) {
   const samples = await pictureSamples(page, held[0].name);
   if (!samples) throw new Error(`the ${w}x${h} picture never arrived`);
   return samples;
-}
-
-/**
- * A page's object by name, null when it does not arrive in time. A picture
- * painted on more than one page is named `g_…` and delivered to the document's
- * `commonObjs`, every other to the page's `objs` (pdf.js's own rule). A `get`
- * with a callback waits for its name and never throws, so asking the wrong
- * store spends the whole wait and answers null.
- */
-function objectNamed(page, name) {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(null), OBJECT_WAIT_MS);
-    const done = (value) => {
-      clearTimeout(timer);
-      resolve(value ?? null);
-    };
-    try {
-      (name.startsWith("g_") ? page.commonObjs : page.objs).get(name, done);
-    } catch {
-      done(null);
-    }
-  });
 }
 
 /**

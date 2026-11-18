@@ -641,7 +641,41 @@ export function extractSpoils({ items, height }) {
 /*  Page artwork                                */
 /* -------------------------------------------- */
 
-/** Image XObjects painted on a page: [{ name, width, height, kind, bitmap }]. */
+/**
+ * A page's object by name, or null when it does not arrive within `waitMs`.
+ * An object pdf.js caches for the whole document (an image an earlier page
+ * painted, a font, a Type3 glyph) is named `g_…` and delivered to the
+ * document's `commonObjs`, every other to the page's `objs` (pdf.js's own
+ * rule). A `get` with a callback waits for its name and never throws, so
+ * asking the wrong store spends the whole wait and answers null.
+ *
+ * @param {object} page a pdf.js page whose operator list has been read
+ * @param {string} name an object name from that operator list
+ * @param {number} waitMs
+ */
+export function pageObject(page, name, waitMs) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), waitMs);
+    const done = (value) => {
+      clearTimeout(timer);
+      resolve(value ?? null);
+    };
+    try {
+      (name.startsWith("g_") ? page.commonObjs : page.objs).get(name, done);
+    } catch {
+      done(null);
+    }
+  });
+}
+
+/**
+ * How long one page image may take to arrive before it is reported
+ * unavailable, in milliseconds. An image pdf.js cannot decode arrives as null
+ * at once, so the wait is spent only on one still decoding.
+ */
+const ART_WAIT_MS = 10000;
+
+/** Image XObjects painted on a page: [{ name, width, height, kind, img }]. An image that never arrives is left out. */
 export async function pageArtInfo(doc, pageNo) {
   const page = await doc.getPage(pageNo);
   const ops = await page.getOperatorList();
@@ -651,27 +685,7 @@ export async function pageArtInfo(doc, pageNo) {
   }
   const out = [];
   for (const name of names) {
-    // Timeout-guarded: Node's fake pdf.js worker can stall object delivery after
-    // the first page; an unresolved image is reported as unavailable.
-    const img = await new Promise((resolve) => {
-      let done = false;
-      const finish = (value) => {
-        if (!done) {
-          done = true;
-          resolve(value ?? null);
-        }
-      };
-      try {
-        page.objs.get(name, finish);
-      } catch {
-        try {
-          page.commonObjs.get(name, finish);
-        } catch {
-          finish(null);
-        }
-      }
-      setTimeout(() => finish(null), 3000);
-    });
+    const img = await pageObject(page, name, ART_WAIT_MS);
     if (img) out.push({ name, width: img.width, height: img.height, kind: img.kind, img });
   }
   return out;
@@ -679,8 +693,7 @@ export async function pageArtInfo(doc, pageNo) {
 
 /**
  * Placed image rectangles from the page's operator list: a pure operator walk
- * with no object delivery, so it cannot stall under Node's fake worker. Top-origin
- * y like `pageItems`. The offline compiler uses placement to associate an entry
+ * that waits on no object. Top-origin y like `pageItems`. The offline compiler uses placement to associate an entry
  * with the illustration printed inside its claimed region.
  */
 export async function pageArtPlacements(doc, pageNo) {
@@ -736,8 +749,8 @@ export function pickArt(infos) {
 
 /**
  * Extract a region of the rendered page as a PNG blob (browser only). Used
- * when the cookbook ships a placement box: rendering sidesteps XObject
- * delivery, which never registers images painted inside Form XObjects.
+ * when the cookbook ships a placement box: a render paints the box as printed
+ * and needs no image object to arrive by name.
  */
 export async function extractPageArtRegion(doc, pageNo, box) {
   if (typeof document === "undefined") return null;
