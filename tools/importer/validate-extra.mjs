@@ -40,7 +40,8 @@
  *                       Needs the PDFs and skips without them.
  *
  * Cheapest and most universal first: a register that fails its lint should say
- * so in a second, not after a 40s recompile.
+ * so in a second, not after a full recompile (about 280 s; the drift check
+ * skips in about a second while nothing it reads differs from the base).
  */
 import { execFileSync } from "node:child_process";
 import { sideBySide } from "../side-by-side.mjs";

@@ -1,6 +1,8 @@
 /**
  * The cookbook drift check's skip: which paths the compile reads, which
  * commit a tree is measured against, and when the recompile may be skipped.
+ * The prose-stops check shares the base and the variable, over its own entry
+ * module and a narrower path rule.
  *
  * PDF-free and book-free: throwaway git repositories under the system temp
  * directory hold an invented compiler, modules, register files and cookbook
@@ -14,7 +16,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { COMPILER_ENTRY, FORCE_ENV, baseOf, changedSince, compileInputsMoved, decide, isCompileInput, specifiersOf, walkImports } from "./cookbook-inputs.mjs";
+import { COMPILER_ENTRY, FORCE_ENV, PROSE_STOPS_ENTRY, PROSE_STOPS_READS, baseOf, changedSince, compileInputsMoved, decide, isCompileInput, pathRule, proseStopsInputsMoved, specifiersOf, walkImports } from "./cookbook-inputs.mjs";
 
 let pass = 0;
 const check = (label, cond) => {
@@ -194,15 +196,89 @@ try {
   git(main, "merge", "-q", "--ff-only", "topic/x");
   check("a commit already on main is its own base", baseOf(main) === topicTip && moved(main).skip === true);
 
+  // --- the prose-stops check: its own entry, a narrower path rule, the same base and variable ---
+  check("the prose-stops rule counts its walk", PROSE_STOPS_READS("scripts/mod/x.mjs", new Set(["scripts/mod/x.mjs"])));
+  for (const rel of ["cookbook/rr.json", "tools/importer/prose-stops.json", "vendor/pdfjs/pdf.worker.mjs", "package-lock.json"]) {
+    check(`${rel} is read by prose stops`, PROSE_STOPS_READS(rel, new Set()));
+  }
+  for (const rel of ["register/book/entry.json", "register/_kinds/k.json", "docs/notes.md", "package.json", "cookbook/notes/x.json", "scripts/unrelated.mjs"]) {
+    check(`${rel} is not read by prose stops`, !PROSE_STOPS_READS(rel, new Set()));
+  }
+  check("a custom rule takes files, dirs and patterns", (() => {
+    const rule = pathRule({ files: ["a.txt"], dirs: ["d"], patterns: [/^p-\d+\.json$/] });
+    return rule("a.txt", new Set()) && rule("d/x/y", new Set()) && rule("p-7.json", new Set()) && !rule("dd/x", new Set()) && !rule("p-x.json", new Set());
+  })());
+  check("a noun names what differs and the skip line follows it", (() => {
+    const hit = decide({ base: B, hits: ["x"], env, noun: "input" });
+    const none = decide({ base: B, hits: [], env, noun: "input" });
+    return hit.why.startsWith("1 input(s) differ") && none.skip && none.why === "no input differs from aaaaaaaa";
+  })());
+
+  const prose = path.join(tmp, "prose");
+  fs.mkdirSync(prose);
+  git(prose, "init", "-q", "-b", "main");
+  put(prose, COMPILER_ENTRY, "export const compile = 1;\n");
+  put(prose, PROSE_STOPS_ENTRY, 'import { f } from "./reading.mjs";\nimport { g } from "../../scripts/mod/g.mjs";\nimport { compileInputsMoved } from "./cookbook-inputs.mjs";\n');
+  put(prose, "tools/importer/reading.mjs", "export const f = 1;\n");
+  put(prose, "scripts/mod/g.mjs", "export const g = 2;\n");
+  put(prose, "tools/importer/cookbook-inputs.mjs", "export const compileInputsMoved = 0;\n");
+  put(prose, "tools/importer/prose-stops.json", '{"known":{},"waived":{}}\n');
+  put(prose, "vendor/pdfjs/pdf.worker.mjs", "// worker\n");
+  put(prose, "package-lock.json", "{}\n");
+  put(prose, "cookbook/rr.json", '{"entries":{}}\n');
+  put(prose, "register/book/entry.json", '{"id":"one"}\n');
+  put(prose, "docs/notes.md", "notes\n");
+  git(prose, "add", "-A");
+  git(prose, "commit", "-q", "-m", "base");
+  const proseTip = git(prose, "rev-parse", "HEAD");
+  const proseMoved = (e = env) => proseStopsInputsMoved(prose, e);
+
+  check("prose stops' walk is its own, not the compiler's", walkImports(prose, PROSE_STOPS_ENTRY).files.join() === [PROSE_STOPS_ENTRY, "tools/importer/reading.mjs", "scripts/mod/g.mjs", "tools/importer/cookbook-inputs.mjs"].sort().join());
+  check("an untouched tree skips prose stops", proseMoved().skip === true && proseMoved().base === proseTip);
+  const proseCases = {
+    "an edited docs file": [() => put(prose, "docs/notes.md", "more\n"), false],
+    "a register edit, which only the compile reads": [() => put(prose, "register/book/entry.json", '{"id":"two"}\n'), false],
+    "an edit to the compiler, which prose stops does not walk": [() => put(prose, COMPILER_ENTRY, "export const compile = 2;\n"), false],
+    "an edit to its own module": [() => put(prose, PROSE_STOPS_ENTRY, "// edited\n"), true],
+    "an edit to a module it imports": [() => put(prose, "scripts/mod/g.mjs", "export const g = 3;\n"), true],
+    "an edit to the cookbook": [() => put(prose, "cookbook/rr.json", '{"entries":{"a":1}}\n'), true],
+    "an untracked cookbook file": [() => put(prose, "cookbook/new.json", "{}\n"), true],
+    "an edit to the ledger": [() => put(prose, "tools/importer/prose-stops.json", '{"known":{"a":1},"waived":{}}\n'), true],
+    "an edit to the vendored pdf.js": [() => put(prose, "vendor/pdfjs/pdf.worker.mjs", "// worker 2\n"), true],
+    "an edit to the lockfile": [() => put(prose, "package-lock.json", '{"v":2}\n'), true],
+    "a removed module it imported": [() => fs.rmSync(path.join(prose, "tools/importer/reading.mjs")), true],
+  };
+  for (const [label, [change, runs]] of Object.entries(proseCases)) {
+    git(prose, "reset", "-q", "--hard", proseTip);
+    git(prose, "clean", "-q", "-fdx");
+    change();
+    check(`prose stops: ${label} ${runs ? "runs in full" : "skips"}`, proseMoved().skip === !runs);
+  }
+  git(prose, "reset", "-q", "--hard", proseTip);
+  git(prose, "clean", "-q", "-fdx");
+  check("prose stops: the same register edit still moves the compile", (() => {
+    put(prose, "register/book/entry.json", '{"id":"two"}\n');
+    const d = compileInputsMoved(prose, env);
+    git(prose, "reset", "-q", "--hard", proseTip);
+    return d.skip === false;
+  })());
+  check("prose stops: the force variable runs it in full", proseMoved({ [FORCE_ENV]: "1" }).skip === false);
+  check("prose stops: a force variable of 0 does not force", proseMoved({ [FORCE_ENV]: "0" }).skip === true);
+
   // --- no main to measure against ---
   const trunk = path.join(tmp, "trunk");
   fs.mkdirSync(trunk);
   git(trunk, "init", "-q", "-b", "trunk");
   put(trunk, COMPILER_ENTRY, "export const x = 1;\n");
+  put(trunk, PROSE_STOPS_ENTRY, "export const y = 1;\n");
   git(trunk, "add", "-A");
   git(trunk, "commit", "-q", "-m", "trunk");
   check("a repository with no main has no base", baseOf(trunk) === null);
   check("with no base the full check runs", moved(trunk).skip === false);
+  check("with no base prose stops runs in full and says so", (() => {
+    const d = proseStopsInputsMoved(trunk, env);
+    return d.skip === false && d.base === null && d.why.includes("no main branch");
+  })());
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });
 }

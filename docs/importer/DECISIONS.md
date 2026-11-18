@@ -2630,3 +2630,25 @@ arrives through the importer (`.claude/rules/ip-doctrine.md`).
 *Rejected:* authoring the option rows with literal condition keys, which ships
 the book's list as ours. *Cost (plan counter, medium):* a reordered printing
 re-keys the rows, and a Judge's edit to a re-keyed row is held as a missing one.
+
+## 2026-11-18 — The prose-stops check skips on the drift check's base rule
+
+`check-prose-stops.mjs` re-read the reference PDFs against `cookbook/` on every
+validate, about 46 s of CPU. The owner was asked: "Give check-prose-stops the
+same skip as the drift check (only run when what it reads changed)?" and
+answered: "Add the skip (Recommended)". Asked in the same exchange whether the
+cookbook drift check should keep its own skip as ruled above, the owner
+answered: "Keep it (Recommended)"; `check-cookbook-drift.mjs` is unchanged.
+
+- **The base and the variable are the drift check's.** `merge-base HEAD main`,
+  no base or any git failure runs the full check, `ACKS_COOKBOOK_DRIFT_FULL=1`
+  forces it. Only the set of paths differs: the check's own import walk,
+  `cookbook/*.json`, `tools/importer/prose-stops.json`, `vendor/pdfjs/` and
+  `package-lock.json`. A register edit, which the compile reads and this check
+  does not, skips it. `cookbook-inputs.mjs` takes an entry module and a path
+  rule (`inputsMoved`, `pathRule`), and the drift check's own set is unchanged.
+
+*Cost:* the trust named under the drift check's Cost applies here too: a
+commit that reached `main` without the full check is not re-read until a later
+change touches what this check reads. A PDF replaced under its committed name
+is not a diff, as it is not for the drift check.

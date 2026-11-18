@@ -31,7 +31,9 @@
  * coordinates, which is what an author needs and carries no book text.
  *
  * Requires the LOCAL reference PDFs, so it SKIPS (exit 0) wherever they are
- * absent — CI included.
+ * absent — CI included. It also skips, with one line, when nothing it reads
+ * differs from the commit the work is built on, as the cookbook drift check
+ * does; `ACKS_COOKBOOK_DRIFT_FULL=1` forces the full run.
  *
  * Usage: node tools/importer/check-prose-stops.mjs   (also runs via `npm run validate`)
  */
@@ -39,6 +41,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { FILES, COMMUNITY_FILES, referenceComplete } from "./reference-lib.mjs";
+import { proseStopsInputsMoved } from "./cookbook-inputs.mjs";
 import { openBook, pageItems, detectColumns, colOf } from "../../scripts/importer/extract.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -55,6 +58,15 @@ if (!fs.existsSync(COOKBOOK)) {
   console.log("prose stops: SKIPPED — no cookbook/ to read.");
   process.exit(0);
 }
+
+// The PDF re-read runs only when something it reads differs from the commit the
+// work is built on (cookbook-inputs.mjs says what counts and how the base is found).
+const decision = proseStopsInputsMoved(ROOT);
+if (decision.skip) {
+  console.log(`prose stops: skipped: nothing it reads differs from ${decision.base.slice(0, 8)}`);
+  process.exit(0);
+}
+console.log(`prose stops: full run (${decision.why}).`);
 
 const ledger = fs.existsSync(LEDGER) ? JSON.parse(fs.readFileSync(LEDGER, "utf8")) : { known: {}, waived: {} };
 

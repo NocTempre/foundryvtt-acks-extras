@@ -34,6 +34,11 @@
  * module reads by a path built at run time, a reference PDF replaced under its
  * committed name, and a package installed at a version the lockfile does not
  * pin. `ACKS_COOKBOOK_DRIFT_FULL=1` covers them.
+ *
+ * `check-prose-stops.mjs` takes the same base and the same variable over a
+ * narrower set: its own import walk, `cookbook/*.json`,
+ * `tools/importer/prose-stops.json`, `vendor/pdfjs/` and `package-lock.json`
+ * (`proseStopsInputsMoved`); `inputsMoved` takes any entry and path rule.
  */
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -194,20 +199,58 @@ export function changedSince(root, base) {
 const sample = (list) => list.slice(0, 5).join(", ") + (list.length > 5 ? `, … (${list.length - 5} more)` : "");
 
 /**
+ * A path rule for a check that reads less than the compile: a path counts when
+ * the check's own import walk holds it, it is one of `files`, it lies under one
+ * of `dirs`, or it matches one of `patterns`.
+ *
+ * @param {object} o
+ * @param {string[]} [o.files] repo-relative posix paths
+ * @param {string[]} [o.dirs] repo-relative posix directories, read whole
+ * @param {RegExp[]} [o.patterns] tested against the repo-relative posix path
+ * @returns {(rel: string, walked: Set<string>) => boolean}
+ */
+export function pathRule({ files = [], dirs = [], patterns = [] }) {
+  const fileSet = new Set(files);
+  return (rel, walked) => walked.has(rel) || fileSet.has(rel) || dirs.some((d) => rel.startsWith(`${d}/`)) || patterns.some((re) => re.test(rel));
+}
+
+/**
  * Whether the recompile can be skipped.
  *
  * @param {object} o
  * @param {string|null} o.base the commit measured against, from `baseOf`
- * @param {string[]|null} o.hits the changed paths the compile reads, or null when they could not be listed
+ * @param {string[]|null} o.hits the changed paths the check reads, or null when they could not be listed
  * @param {Record<string, string|undefined>} [o.env] the environment, `process.env` by default
+ * @param {string} [o.noun] what a differing path is called in the reason, for a check reading less than the compile
  * @returns {{skip: boolean, why: string}}
  */
-export function decide({ base, hits, env = process.env }) {
+export function decide({ base, hits, env = process.env, noun = "compile input" }) {
   if (env[FORCE_ENV] && env[FORCE_ENV] !== "0") return { skip: false, why: `${FORCE_ENV} is set` };
   if (!base) return { skip: false, why: "no main branch to measure against" };
   if (!hits) return { skip: false, why: "git could not list what differs from the base" };
-  if (hits.length) return { skip: false, why: `${hits.length} compile input(s) differ from ${base.slice(0, 8)}: ${sample(hits)}` };
-  return { skip: true, why: `no compile input or cookbook file differs from ${base.slice(0, 8)}` };
+  if (hits.length) return { skip: false, why: `${hits.length} ${noun}(s) differ from ${base.slice(0, 8)}: ${sample(hits)}` };
+  return { skip: true, why: noun === "compile input" ? `no compile input or cookbook file differs from ${base.slice(0, 8)}` : `no ${noun} differs from ${base.slice(0, 8)}` };
+}
+
+/**
+ * Whether anything a check reads differs from the base, for the tree at `root`.
+ * A removed `.mjs` or `.js` file counts whatever the rule says, since a
+ * resolver may have reached it.
+ *
+ * @param {object} o
+ * @param {string} [o.root]
+ * @param {Record<string, string|undefined>} [o.env]
+ * @param {string} [o.entry] the check's own module, where its import walk starts, relative to `root`
+ * @param {(rel: string, walked: Set<string>) => boolean} [o.reads] the path rule, `isCompileInput` by default
+ * @param {string} [o.noun] see `decide`
+ * @returns {{skip: boolean, why: string, base: string|null, hits: string[]|null}}
+ */
+export function inputsMoved({ root = REPO_ROOT, env = process.env, entry = COMPILER_ENTRY, reads = isCompileInput, noun } = {}) {
+  const base = baseOf(root);
+  const changed = base ? changedSince(root, base) : null;
+  const walked = new Set(walkImports(root, entry).files);
+  const hits = changed?.filter((rel) => reads(rel, walked) || (/\.m?js$/.test(rel) && !fs.existsSync(path.join(root, rel)))) ?? null;
+  return { ...decide({ base, hits, env, ...(noun ? { noun } : {}) }), base, hits };
 }
 
 /**
@@ -218,11 +261,28 @@ export function decide({ base, hits, env = process.env }) {
  * @returns {{skip: boolean, why: string, base: string|null, hits: string[]|null}}
  */
 export function compileInputsMoved(root = REPO_ROOT, env = process.env) {
-  const base = baseOf(root);
-  const changed = base ? changedSince(root, base) : null;
-  const walked = new Set(walkImports(root, COMPILER_ENTRY).files);
-  const hits = changed?.filter((rel) => isCompileInput(rel, walked) || (/\.m?js$/.test(rel) && !fs.existsSync(path.join(root, rel)))) ?? null;
-  return { ...decide({ base, hits, env }), base, hits };
+  return inputsMoved({ root, env });
+}
+
+/**
+ * What the prose-stops check reads: its own import walk, the cookbook it
+ * compares against, its ledger, the vendored pdf.js and the lockfile.
+ */
+export const PROSE_STOPS_ENTRY = "tools/importer/check-prose-stops.mjs";
+
+/** The path rule for `PROSE_STOPS_ENTRY`; see `pathRule`. */
+export const PROSE_STOPS_READS = pathRule({ files: ["package-lock.json", "tools/importer/prose-stops.json"], dirs: INPUT_DIRS, patterns: [/^cookbook\/[^/]+\.json$/] });
+
+/**
+ * The prose-stops check's decision for the tree at `root`: the same base and
+ * the same force variable as the drift check, over the paths it reads.
+ *
+ * @param {string} [root]
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {{skip: boolean, why: string, base: string|null, hits: string[]|null}}
+ */
+export function proseStopsInputsMoved(root = REPO_ROOT, env = process.env) {
+  return inputsMoved({ root, env, entry: PROSE_STOPS_ENTRY, reads: PROSE_STOPS_READS, noun: "input" });
 }
 
 // Run directly: report the input set, its blind spots and the decision.
