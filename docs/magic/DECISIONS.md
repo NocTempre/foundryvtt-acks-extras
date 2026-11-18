@@ -1129,7 +1129,7 @@ Judgment calls, each with the default proceeded on and the counter:
   `{cite}`.** The board prints "RR p.388"; lang holds the page reference once, as `cite.ladder`, and
   no figure sits in a string.
 
-## 2026-11-18 — Research Finish writes the result (M-q3, ruling 223)
+## 2026-11-18 — Research Finish writes the result (M-q3, ruling 223) — SUPERSEDED IN PART 2026-11-18
 
 Builds plan ruling 223: a project's Finish throws, writes what the subject's kind yields, records the
 researcher's formula, settles the components bucket and posts a card. Supersedes in part the board 16 entry
@@ -1202,3 +1202,45 @@ Each call below stands unless the owner says otherwise; the open ones are listed
 
 Not built, by design: a ritual's result (M-r); any control or window that adds a power row to the research
 bucket (none is drawn); a Finish-result presentation beyond the one roll card.
+
+## 2026-11-18 — Research Finish follows the page (RR ch. 8, "Magic Research")
+
+The M-q3 entry's open questions were looked up in RR ch. 8, §VIII.8 ("Magic Research", "Component Cost",
+"Researching Spells", "Creating Magic Items", "Identifying Magic Items"). The coordinator ruled, under the
+owner's standing rulings, that these are lookups and not owner questions. New evidence, which supersedes
+the M-q3 entry (same day) in part: the page itself. That entry was written from the import, and the import
+carries no row for these points; the page prints them as procedure, with no figure, so they ship as code.
+
+Stands, now cited:
+- **A failure is a failure; there is no botch.** The page prints no botch outcome for the research throw,
+  and a failed throw loses everything spent on the research, the components included. A failure writes no
+  result and settles the bucket as spent, as built. Experimentation, which the page treats separately,
+  stays in ROADMAP phase 5. *Counter (low):* a Judge's table may want a disaster on a bad roll; that is
+  experimentation's, not this throw's.
+- **Components are always consumed.** The page says so for every kind of component, so nothing returns on
+  either outcome, as built.
+- **An identification records no formula.** The page's identification discovers the item's properties and
+  command words, and names no formula. *Counter (low):* as before.
+
+Supersedes the M-q3 entry's bullets (to be built in M-r's first commit, one gate and one walk):
+- **A short bucket holds Finish.** The throw is made after the component cost, the material cost and the
+  research cost are paid, so Finish waits while the bucket's counted value is below the component cost
+  (a new hold reason beside the others; a kind whose component cost is none is not held). Replaces "A short
+  bucket does not hold Finish". *Counter (medium):* a Judge who accepts a short payment must now enter the
+  cost the bucket meets; the due is editable, which is the page's own lever.
+- **A known formula means no throw for an item.** The page's formula lets the researcher complete the item
+  without a research throw, unless experimenting. An item project whose formula is known and applied (no
+  substitute held) succeeds without a roll. Replaces "worth nothing yet". The changed button and card go on
+  the canvas before they are built. *Counter (medium):* the M-q3 entry declined a benefit no import
+  carried; this one is procedure and carries no figure.
+- **Power is not a substitute.** The page's penalty and the loss of the formula fall on inappropriate and
+  miscellaneous components only. Arcane or divine power, and an identified item whose formula the caster
+  holds, pay the component cost without either. A power row counts as matched unless the Judge marks it
+  otherwise. *Counter (low):* a Judge marking power by hand keeps the choice.
+
+Findings against the throw, registered for the same commit: the page adds the researcher's Intellect bonus
+to the die, raises the target by the level of the spell or effect (a new spell, an item, an
+identification), and requires no throw to gain the formula of a common spell, which is the Judge's call.
+Ruling 223 names none of them, and a Finish without them writes wrong outcomes. They are procedure and the
+actor's or the subject's own numbers, and ship. A sample's bonus and a proficiency's bonus are printed
+figures, so they are ROADMAP rows, read from the import when they are built, never constants.

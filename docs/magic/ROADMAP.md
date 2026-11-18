@@ -97,3 +97,8 @@ questions, ruled"): 2 and 4a before 1b.
   spell per level, the item-creation cost table by effect type, and the ritual
   repertoire table are not imported. M-i read only the rows those two rulings
   name, and nothing reads these three yet.
+- **Research throw bonuses the page prints as figures.** A sample studied
+  while the item is made, and a research proficiency's rank (RR ch. 8,
+  "Creating Magic Items" and "Proficiencies and Powers"), each add to the
+  research throw by a printed size. Neither is imported or read; when built,
+  the size is a register row and the throw names it as a part.
