@@ -21,6 +21,7 @@ const {
   resolveStacking,
   stackingPart,
   capabilitiesOf,
+  saveKeyOf,
 } = await import("../scripts/lib/typed-modifiers.mjs");
 
 let pass = 0;
@@ -320,6 +321,36 @@ check("a monster's row with no roll gate stays unsupported", () => {
   assert.equal(modifierDisposition(mod({ target: "attackThrow" }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
   assert.equal(modifierDisposition(mod({ target: "attackThrow", gate: { kind: "status", status: "invented" } }), { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
 });
+check("saveKeyOf reads a save's name as the system's key, the plural included, and nothing else", () => {
+  assert.deepEqual(["Death", "paralysis", "Blasts", "implements", "spells"].map(saveKeyOf), ["death", "paralysis", "blast", "implements", "spell"]);
+  assert.deepEqual([saveKeyOf(""), saveKeyOf("charm"), saveKeyOf(undefined)], [null, null, null]);
+});
+check("a declared attackKinds is atRoll narrowed for either reader, on a character and with bearer on a monster", () => {
+  const narrowed = mod({ target: "ac", attackKinds: ["missile"] });
+  assert.deepEqual([modifierDisposition(narrowed).kind, modifierDisposition(narrowed).reason], [DISPOSITION.AT_ROLL, "narrowed"]);
+  assert.deepEqual(modifierDisposition(narrowed, { actorType: "monster", bearer: true }).reason, "narrowed");
+  assert.equal(modifierDisposition(narrowed, { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED, "without bearer a monster is refused first");
+  assert.equal(modifierDisposition(mod({ target: "ac", attackKinds: [] })).kind, DISPOSITION.STANDING, "an empty list narrows nothing");
+});
+check("with bearer, a set on ac is atRoll set; without it the mode is unsupported as before", () => {
+  const set = mod({ target: "ac", mode: "set", appliesTo: "target", attackKinds: ["missile", "thrown"] });
+  for (const actorType of ["character", "monster"]) {
+    const d = modifierDisposition(set, { actorType, bearer: true });
+    assert.deepEqual([d.kind, d.reason], [DISPOSITION.AT_ROLL, "set"], actorType);
+  }
+  assert.deepEqual(modifierDisposition(set, { bearer: false }).reason, "mode");
+  assert.deepEqual(modifierDisposition(mod({ target: "ac", mode: "set", appliesTo: "ally" }), { bearer: true }).reason, "mode", "a foreign subject is not the bearer's");
+  assert.deepEqual(modifierDisposition(mod({ target: "save", mode: "set" }), { bearer: true }).reason, "mode", "only armour class takes a set");
+  assert.deepEqual(modifierDisposition(mod({ target: "ac", mode: "auto" }), { bearer: true }).reason, "mode");
+});
+check("with bearer, a status-gated row is atRoll gate (tested at the roll); without it the row stays gated", () => {
+  const gated = mod({ target: "save", forWhat: "death", gate: { kind: "status", status: "wasted", occasion: true } });
+  const d = modifierDisposition(gated, { bearer: true });
+  assert.deepEqual([d.kind, d.reason, d.gate.status], [DISPOSITION.AT_ROLL, "gate", "wasted"]);
+  assert.equal(modifierDisposition(gated, { actorType: "monster", bearer: true }).kind, DISPOSITION.AT_ROLL);
+  assert.equal(modifierDisposition(gated).kind, DISPOSITION.GATED, "the ability reader's answer is unchanged");
+  assert.equal(modifierDisposition(gated, { actorType: "monster" }).kind, DISPOSITION.UNSUPPORTED);
+});
 check("standingModifiers writes nothing for a light-gated row, even standing in daylight, and lists it at the roll", () => {
   const a = asActor([ability("Sun Shy", [lightRow()])]);
   const r = standingModifiers(a, { ctx: { token: tokenIn({ day: true }) } });
@@ -610,6 +641,16 @@ await (async () => {
         assert.ok(row[key] instanceof Bool, key);
         assert.equal(row[key].a.initial, false, key);
       }
+    });
+    check("effectField carries attackKinds as a set of attack kinds and the booleans and size key a record row needs", () => {
+      assert.deepEqual(Object.keys(row.attackKinds.a.a.choices), ["melee", "missile", "thrown"]);
+      for (const key of ["ownSave", "pickKind"]) {
+        assert.ok(row[key] instanceof Bool, key);
+        assert.equal(row[key].a.initial, false, key);
+      }
+      assert.ok(row.gate.fields.occasion instanceof Bool);
+      assert.equal(row.gate.fields.occasion.a.initial, false);
+      assert.equal(row.exemptSizeOver.a.initial, "");
     });
     check("effectField keeps the ability row's existing spell fields", () => {
       for (const key of ["school", "spell", "spellRef", "casterLevelDelta"]) assert.ok(key in row, key);

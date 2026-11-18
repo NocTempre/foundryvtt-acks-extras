@@ -47,6 +47,7 @@ import {
   EFFECT_RECUR_TARGETS,
 } from "./vocab.mjs";
 import { LIGHT_LEVELS } from "./light.mjs";
+import { ATTACK_KINDS } from "./conditions.mjs";
 import { OCCUPANT_KIND } from "./place-logic.mjs";
 
 const F = () => foundry.data.fields;
@@ -389,6 +390,17 @@ export function effectField() {
     recurTarget: choice(EFFECT_RECUR_TARGETS),
     rounds: str(),
     exemptSizeFrom: str(),
+    // `exemptSizeOver` is the size key a target must be strictly above to be
+    // exempt (`exemptSizeFrom` is at or above); the importer locates it too.
+    exemptSizeOver: str(),
+    // `attackKinds` narrows a row to the kinds of attack made against the
+    // bearer (`conditions.mjs` `ATTACK_KINDS`); blank is every kind.
+    attackKinds: choiceSet(Object.fromEntries(ATTACK_KINDS.map((kind) => [kind, kind]))),
+    // `ownSave` marks a modifier on the saving throw made against the spell
+    // itself, tested per saver at that throw (`roll-mods.mjs` `ownSaveParts`).
+    ownSave: bool(),
+    // `pickKind` marks a row whose creature kind the caster picks at the cast.
+    pickKind: bool(),
     // `endsOn` lists what the record this row writes ends on (`ends-on.mjs`
     // `ENDS_ON_CAUSES`: damage, attack); `untimed` lists the condition keys the
     // row writes with no clock of their own.
@@ -471,6 +483,10 @@ export function effectField() {
       loadMax: num(), // in stone
       style: str(), // a fighting-style key
       status: str(), // a status id
+      // A status gate on a record's part that belongs to one occasion (the daily
+      // save an enervated creature makes) holds only where the roller names
+      // that occasion; `partHolds` leaves it pending otherwise.
+      occasion: bool(),
     }),
     // shared
     condition: str(), // free-text situational qualifier (when no structured form fits)

@@ -15,6 +15,13 @@
  * (`resolveStacking` reads its capabilities and throws on a bare one, and the
  * attack seam drops a contributor that throws without a word).
  *
+ * Every other roll reads a record through `recordParts`: `throw`, `reaction`,
+ * `grant` and `immune` parts, and the saving throw's `save` parts. It narrows by
+ * `ref`, `rollKey`, `saves` and `attackKinds` first, tests `partHolds` (a gate,
+ * `ifHas`, an `occasion`), then resolves what applies, so a larger part for
+ * another roll never takes a smaller one's place. A part may also carry `mode`
+ * (`add`, `set` or `auto`) and the narrowing fields above.
+ *
  * The attack seam's contributor puts the attacker's parts on its weapon's
  * attack and damage and the target's `ac` parts on the attack against it. A
  * weapon's own bonus is already among core's rows, so the parts are resolved
@@ -27,16 +34,24 @@
 import { MODULE_ID, LANG_PREFIX, FLAG_ROLL_MODS } from "./constants.mjs";
 import { addAttackContributor } from "./patches/attack-throw.mjs";
 import { gateVerdict, registerGate, resolveStacking, stackingPart } from "./typed-modifiers.mjs";
-import { hasScope, scopeApplies } from "./vocab.mjs";
+import { capabilityForId, hasScope, satisfies, scopeApplies } from "./vocab.mjs";
 import { vocabLabel } from "./magic-vocab.mjs";
 import { saveSpec } from "./saves.mjs";
+import { saveKindOf } from "./actor-compat.mjs";
+import { acMath, subjectOf } from "./conditions.mjs";
+import { hasCapability } from "./capabilities.mjs";
 import { actorAlignment, areEnemies, creatureKinds } from "./actor-read.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { isMagical } from "./item-model.mjs";
 import { signed } from "./frame-model.mjs";
 
-/** The rolls a part is read on. */
-export const ROLL_MODS_ON = Object.freeze(["attack", "damage", "ac", "save", "ward"]);
+/**
+ * The rolls a part is read on. The attack and the saving throw read the first
+ * five; `throw` (a proficiency's throw), `reaction`, `grant` (a proficiency the
+ * bearer counts as holding) and `immune` (what the bearer cannot be affected by)
+ * are read by `recordParts` and its siblings.
+ */
+export const ROLL_MODS_ON = Object.freeze(["attack", "damage", "ac", "save", "ward", "throw", "reaction", "grant", "immune"]);
 
 /** Where a part came from, as `resolveItemParts` marks it: the weapon's own bonus or a record's. */
 const FROM_ITEM = "item";
@@ -216,6 +231,247 @@ function note(entry, lang, level, data, extra = "") {
 const gateHolds = (actor, part, ctx) => !part.gate?.kind || gateVerdict(actor, part.gate, ctx) === true;
 
 /* -------------------------------------------- */
+/*  Reading parts at a roll                      */
+/* -------------------------------------------- */
+
+/** A part's figure as a finite, nonzero number, else null: a part with no figure never reaches stacking. */
+const figureOf = (part) => {
+  if (part?.value == null || part.value === "") return null;
+  const n = Number(part.value);
+  return Number.isFinite(n) && n !== 0 ? n : null;
+};
+
+/** The tokens a part's `ref` (or `refs`) names. */
+const refsOf = (part) => [].concat(part?.ref ?? [], part?.refs ?? []).filter((r) => typeof r === "string" && r);
+
+/** A part's list field as an array of non-blank strings. */
+const listOf = (value) => (Array.isArray(value) ? value : []).map(String).filter(Boolean);
+
+/**
+ * Whether a part's narrowing fields admit the roll, read BEFORE any stacking so
+ * that a part which does not reach this roll never takes another's place: true
+ * (every field it declares matches), false (one misses), or null (one is
+ * declared and the caller named nothing to test it against). The fields are
+ * `ref` and `refs` (matched through `satisfies` against `subject`, `{id,
+ * provides}`; skipped with `byRef: false`), `rollKey`, `saves` (compared as
+ * `saveKindOf` reads them), and `attackKinds` (against `kind`).
+ */
+function narrow(part, { subject = null, rollKey, save, kind, byRef = true } = {}) {
+  const checks = [];
+  const refs = byRef ? refsOf(part) : [];
+  if (refs.length) checks.push(subject ? refs.some((r) => satisfies([subject], r)) : null);
+  if (part?.rollKey) checks.push(rollKey == null ? null : part.rollKey === rollKey);
+  const saves = listOf(part?.saves);
+  if (saves.length) checks.push(save == null ? null : saves.map(saveKindOf).includes(saveKindOf(save)));
+  const kinds = listOf(part?.attackKinds);
+  if (kinds.length) checks.push(kind == null ? null : kinds.includes(kind));
+  if (checks.includes(false)) return false;
+  return checks.includes(null) ? null : true;
+}
+
+/**
+ * Whether a record's part (or a spell's row, before any record exists) holds
+ * for `actor` now: true, false, or null where it cannot be told. A gate is
+ * tested through `gateVerdict` (an item gate answers null unless `ctx.item` is
+ * held, a roll gate unless `ctx.token` is), and a gate marked `occasion` that
+ * holds answers null unless `ctx.occasion` names its status, since the roll
+ * that gate belongs to is the caller's to name. Each `ifHas` token is tested
+ * through `hasCapability`. A false answer wins over a null one.
+ *
+ * @param {object} actor  the bearer, or the saver a row is tested against
+ * @param {{gate?: object, ifHas?: string[]}} part
+ * @param {{item?: object, token?: object, occasion?: string}} [ctx]
+ * @returns {boolean|null}
+ */
+export function partHolds(actor, part, ctx = {}) {
+  const answers = [];
+  const gate = part?.gate?.kind ? part.gate : null;
+  if (gate) {
+    let verdict = gateVerdict(actor, gate, ctx);
+    if (verdict === true && gate.occasion) verdict = ctx?.occasion && ctx.occasion === gate.status ? true : null;
+    answers.push(verdict);
+  }
+  for (const token of listOf(part?.ifHas)) answers.push(hasCapability(actor, token));
+  if (answers.includes(false)) return false;
+  return answers.includes(null) ? null : true;
+}
+
+/**
+ * Resolve one group of parts on one field: those with a figure go through
+ * `resolveStacking` (larger first), then the ones with none (a grant or an
+ * `auto` throw, which carry `value: null`) yield to what was kept, or the first
+ * is kept where nothing has a figure. `lowerBetter` orients a target number,
+ * where the smaller figure is the better throw.
+ */
+function resolveGroup(parts, lowerBetter) {
+  const figured = parts.filter((p) => p.value !== null);
+  const bare = parts.filter((p) => p.value === null);
+  const oriented = figured.map((p) => ({ ...p, value: lowerBetter ? -p.value : p.value, orig: p }));
+  const { kept, dropped } = resolveStacking(oriented);
+  const keptParts = kept.map((p) => p.orig);
+  const droppedParts = dropped.map((p) => ({ ...p.orig, yieldsTo: p.yieldsTo }));
+  if (!keptParts.length && bare.length) keptParts.push(bare.shift());
+  for (const p of bare) droppedParts.push({ ...p, yieldsTo: keptParts[0].label });
+  return { kept: keptParts, dropped: droppedParts };
+}
+
+/**
+ * The parts one kind of roll takes from a bearer's records: the one reader
+ * every feature calls. The order is fixed. A part is narrowed first (`ref`
+ * through `subject`, `rollKey`, `saves`, `attackKinds`, so a part that does not
+ * reach this roll never takes another's place), then `partHolds` tests its
+ * gate and `ifHas`, then the parts that apply are resolved among themselves, so
+ * two records of one kind give one figure, the larger, and a part is gone the
+ * moment its record ends. A part with no figure never reaches the stacking
+ * (except a `grant`, and a `throw` of mode `auto`, which have none by nature
+ * and carry `value: null`). A `grant` applies only while no ability of the
+ * bearer provides the capability of its `ref`.
+ *
+ * A part that declares a field the caller named nothing to test goes to
+ * `pending`, never to the roll. Stacking is per group: a grant's by `ref`, a
+ * throw's by mode (`add` among adds, `set` among sets, one `auto`).
+ *
+ * @param {object} actor  the bearer
+ * @param {string} on  a `ROLL_MODS_ON` value
+ * @param {object} [options]
+ * @param {{id?: string, provides?: string[]}} [options.subject]  what the roll is of (a proficiency's reference), tested against `ref`
+ * @param {string} [options.rollKey]  which of the subject's throws is rolled
+ * @param {string} [options.save]  the saving throw rolled, a system save key
+ * @param {string} [options.kind]  the attack's kind, one of `ATTACK_KINDS`
+ * @param {{item?: object, token?: object, occasion?: string}} [options.ctx]  what `partHolds` reads
+ * @param {"above"|"below"|string} [options.rollType]  how the throw is read: a `set` figure is a target, lower the better throw unless `below`
+ * @returns {{kept: object[], dropped: object[], pending: object[]}}
+ *   a part is a `stackingPart` labelled `{spell} ({cite})`, carrying `spell`, `refTo` (its first `ref`), `effect` and every field of the part; `dropped` carry `yieldsTo`; `pending` is `{label, value, why: "narrow"|"gate", effect, part}`
+ */
+export function recordParts(actor, on, { subject = null, rollKey, save, kind, ctx = {}, rollType = "above" } = {}) {
+  const pending = [];
+  const groups = new Map();
+  const byRef = on !== "grant" && on !== "immune";
+  for (const entry of rollModsOf(actor)) {
+    const { part } = entry;
+    if (part.on !== on) continue;
+    const fit = narrow(part, { subject, rollKey, save, kind, byRef });
+    if (fit === false) continue;
+    if (on === "grant" && refsOf(part).some((r) => hasCapability(actor, capabilityForId(r)))) continue;
+    const holds = partHolds(actor, part, ctx);
+    const label = withCite({ label: entry.label, cite: entry.cite });
+    if (holds === false) continue;
+    if (fit === null || holds === null) {
+      pending.push({ label, value: part.value ?? null, why: fit === null ? "narrow" : "gate", effect: entry.effect, part });
+      continue;
+    }
+    const mode = part.mode ?? "add";
+    const bare = figureOf(part) === null;
+    if (bare && on !== "grant" && on !== "immune" && mode !== "auto") continue;
+    const built = spellStackingPart({ ...entry, label, part: bare ? { ...part, value: 1 } : part });
+    if (bare) built.value = null;
+    built.spell = entry.label;
+    built.refTo = refsOf(part)[0] ?? null;
+    const group =
+      on === "grant" ? `grant|${built.refTo}` : on === "throw" ? `throw|${mode === "set" || mode === "auto" ? mode : "add"}` : on === "immune" ? `immune|${groups.size}` : on;
+    if (!groups.has(group)) groups.set(group, []);
+    groups.get(group).push(built);
+  }
+  const kept = [];
+  const dropped = [];
+  for (const [group, parts] of groups) {
+    const lowerBetter = rollType !== "below" && (group.startsWith("grant|") || group === "throw|set");
+    const resolved = resolveGroup(parts, lowerBetter);
+    kept.push(...resolved.kept);
+    dropped.push(...resolved.dropped);
+  }
+  return { kept, dropped, pending };
+}
+
+/**
+ * What a bearer's records do to a proficiency's throw, from its `throw` parts
+ * (`recordParts`): `add` (the bonuses that apply, resolved among themselves) with
+ * their `total`, `set` (the one target a part sets, or null), and `auto` (a part
+ * that makes the throw automatic, or null). `outcome` is `auto` where one does,
+ * else `throw`: the shape `resolveLevelOutcome` answers, so a roller that reads
+ * a rung's outcome reads this the same way. The caller's own bonuses are its
+ * own: these join them, and a set target replaces the stored one only when the
+ * caller chooses. Takes `recordParts`'s options.
+ *
+ * @returns {{outcome: "auto"|"throw", add: object[], total: number, set: object|null, auto: object|null, dropped: object[], pending: object[]}}
+ */
+export function throwResolution(actor, options = {}) {
+  const { kept, dropped, pending } = recordParts(actor, "throw", options);
+  const add = kept.filter((p) => !p.mode || p.mode === "add");
+  const auto = kept.find((p) => p.mode === "auto") ?? null;
+  return {
+    outcome: auto ? "auto" : "throw",
+    add,
+    total: add.reduce((sum, p) => sum + p.value, 0),
+    set: kept.find((p) => p.mode === "set") ?? null,
+    auto,
+    dropped,
+    pending,
+  };
+}
+
+/**
+ * What a bearer's records make it immune to, from their `immune` parts
+ * (`{on: "immune", spells, conditions}`): the spell asked about (`spell`,
+ * `{id, provides}`, matched against each part's `spells` through `satisfies`)
+ * and which of `conditions` (keys) a part lists, each with the label of the
+ * record that grants it. A part is tested through `partHolds`; one that cannot
+ * be told is in `pending`. Reads only: marking a cast's entry exempt is the
+ * cast's.
+ *
+ * @returns {{spell: {label: string, spell: string, effect: object}|null, conditions: Record<string, {label: string, spell: string, effect: object}>, pending: {label: string}[]}}
+ */
+export function recordImmunity(actor, { spell = null, conditions = [], ctx = {} } = {}) {
+  const out = { spell: null, conditions: {}, pending: [] };
+  for (const entry of rollModsOf(actor)) {
+    const { part } = entry;
+    if (part.on !== "immune") continue;
+    const holds = partHolds(actor, part, ctx);
+    if (holds === false) continue;
+    const label = withCite({ label: entry.label, cite: entry.cite });
+    if (holds === null) {
+      out.pending.push({ label });
+      continue;
+    }
+    const granted = { label, spell: entry.label, effect: entry.effect };
+    if (!out.spell && spell && listOf(part.spells).some((token) => satisfies([spell], token))) out.spell = granted;
+    const keys = listOf(part.conditions);
+    for (const key of conditions) if (keys.includes(key) && !out.conditions[key]) out.conditions[key] = granted;
+  }
+  return out;
+}
+
+/**
+ * The target parts a saver takes from the rows of the spell's own save (rows
+ * marked `ownSave`), each tested for THIS saver through `partHolds`: a row that
+ * holds is a target part, one that cannot be told is `pending`, and one that
+ * does not hold adds nothing. A row with no figure, or one whose `saves` miss
+ * `save`, adds nothing. A positive figure lowers the number to roll. Rows of
+ * one cast are not stacked: the cast's own rows add.
+ *
+ * @param {object} saver
+ * @param {{label: string, cite?: string, value: number, gate?: object, ifHas?: string[], saves?: string[], key?: string}[]} rows
+ * @param {{save?: string, ctx?: object}} [options]  `ctx` is `partHolds`'s (name `occasion` there)
+ * @returns {{parts: {key: string, label: string, value: number, side: "target"}[], pending: {label: string, value: number, when: "gate"|"save"}[]}}
+ */
+export function ownSaveParts(saver, rows, { save, ctx = {} } = {}) {
+  const parts = [];
+  const pending = [];
+  for (const row of rows ?? []) {
+    const value = figureOf(row);
+    if (value === null) continue;
+    const fit = narrow(row, { save, byRef: false });
+    if (fit === false) continue;
+    const label = withCite({ label: String(row.label ?? ""), cite: String(row.cite ?? "") });
+    const holds = partHolds(saver, row, ctx);
+    if (holds === false) continue;
+    if (fit === null || holds === null) pending.push({ label, value, when: fit === null ? "save" : "gate" });
+    else parts.push({ key: row.key ?? "ownSave", label, value, side: "target" });
+  }
+  return { parts, pending };
+}
+
+/* -------------------------------------------- */
 /*  The attack seam                              */
 /* -------------------------------------------- */
 
@@ -262,27 +518,88 @@ function wardSaveTarget(attacker, part) {
   return { save: vocabLabel("saveCategory", part.save), number: target };
 }
 
-/** The target's `ac` parts, as the minus terms they are on an attack against it, and its `ward` parts, told. */
-function defenderSide(ctx, rows, told) {
+/**
+ * The armour class a `set` part adds to an attack of one kind, as the lift
+ * above what the target already has: `max(0, figure − (ac.value − dexMod +
+ * conditions))`. Armour, shield, powers (all in `ac.value`) and the target's
+ * conditions compete with the set and never add to it; a character's Dexterity
+ * modifier, which `ac.value` carries, is read out of that comparison and
+ * stays on top, and a monster has none. Null where the target's armour class
+ * is not a number.
+ */
+function armourLift(targetActor, figure, kind) {
+  const base = Number(targetActor?.system?.ac?.value);
+  if (!Number.isFinite(base)) return null;
+  const dex = targetActor.type === "character" ? Number(targetActor.system?.scores?.dex?.mod) || 0 : 0;
+  const subject = subjectOf(targetActor);
+  const conditions = subject?.statuses && [...subject.statuses].length ? acMath(subject, undefined, { kind }).total : 0;
+  return Math.max(0, figure - (base - dex + conditions));
+}
+
+/**
+ * The target's `ac` parts, as the minus terms they are on an attack against it,
+ * and its `ward` parts, told. A part is narrowed by the attack's `kind` and
+ * tested through `partHolds` first, then the parts that apply are resolved
+ * together: a `set` part is its lift (`armourLift`), so a set and an add meet in
+ * one resolution and the larger stands. A set whose lift is 0 is told as
+ * yielding to the target's own armour class and never reaches it.
+ */
+function defenderSide(ctx, rows, told, kind) {
   const { actor, token, target, targetActor } = ctx;
   const theirs = rollModsOf(targetActor).filter((e) => e.part.on === "ac" || e.part.on === "ward");
   if (!theirs.length) return;
   const enemy = areEnemies(token, target);
   const applying = [];
   for (const entry of theirs) {
-    const verdict = settle(entry, actor, enemy);
+    const { part } = entry;
     const data = { spell: entry.label, target: ctx.targetName ?? "", attacker: actor?.name ?? "" };
-    if (entry.part.on === "ward") {
+    if (part.on === "ward") {
+      const verdict = settle(entry, actor, enemy);
       if (verdict.applies || verdict.undetermined) {
-        const throwTarget = wardSaveTarget(actor, entry.part);
+        const throwTarget = wardSaveTarget(actor, part);
         if (throwTarget === null) told.push(note(entry, "notice.ward", "warn", data, actor?.uuid));
         else told.push(note(entry, "notice.wardSave", "warn", { ...data, ...throwTarget }, actor?.uuid));
       }
-    } else if (verdict.undetermined) told.push(note(entry, "notice.undetermined", "warn", data, actor?.uuid));
-    else if (verdict.applies) applying.push(spellStackingPart(entry, verdict.sign));
+      continue;
+    }
+    const fit = narrow(part, { kind, byRef: false });
+    if (fit === false) continue;
+    const holds = partHolds(targetActor, part, { item: ctx.item, token: target });
+    if (holds === false) continue;
+    if (fit === null || holds === null) {
+      told.push(note(entry, "notice.undetermined", "warn", data, actor?.uuid));
+      continue;
+    }
+    const verdict = settle(entry, actor, enemy);
+    if (verdict.undetermined) {
+      told.push(note(entry, "notice.undetermined", "warn", data, actor?.uuid));
+      continue;
+    }
+    if (!verdict.applies) continue;
+    if (part.mode === "set") {
+      const figure = figureOf(part);
+      const lift = figure === null ? null : armourLift(targetActor, figure, kind);
+      if (lift === null) continue;
+      if (lift === 0) {
+        told.push({
+          key: `notice.yielded|${entry.effect?.id ?? entry.id}|${part.key ?? ""}|ac`,
+          level: "info",
+          lang: "notice.yielded",
+          data: { spell: entry.label, item: ctx.targetName ?? "", to: loc("ownAc", { target: ctx.targetName ?? "" }) },
+        });
+        continue;
+      }
+      applying.push({ ...spellStackingPart({ ...entry, part: { ...part, value: lift } }), setTo: figure, kind });
+      continue;
+    }
+    applying.push(spellStackingPart(entry, verdict.sign));
   }
   const { kept, dropped } = resolveStacking(applying.filter(usable));
-  for (const p of kept) rows.push({ label: loc("onTarget", { name: withCite(p), target: ctx.targetName ?? "" }), value: -p.value });
+  for (const p of kept) {
+    const name = withCite(p);
+    const label = p.mode === "set" ? loc("onTargetKind", { name, target: ctx.targetName ?? "", kind: loc(`kind.${p.kind}`) }) : loc("onTarget", { name, target: ctx.targetName ?? "" });
+    rows.push({ label, value: -p.value });
+  }
   for (const p of dropped) {
     told.push({
       key: `notice.yielded|${p.effect?.id ?? p.ref?.id}|${p.key ?? ""}|ac`,
@@ -312,7 +629,7 @@ export function rollModRows(ctx, attackType, question) {
   const rows = [];
   const told = [];
   attackerSide(ctx, question, rows, told);
-  if (question === "attack" && ctx.targetActor) defenderSide(ctx, rows, told);
+  if (question === "attack" && ctx.targetActor) defenderSide(ctx, rows, told, attackType);
   return (cache[key] = { rows, told });
 }
 
@@ -373,17 +690,30 @@ function targetParts(applying) {
  * apply, and the applying ones are resolved among themselves, so two records of
  * one kind give one figure. Pure.
  *
+ * A part is narrowed by the save rolled (`save`, against the part's `saves`)
+ * and tested through `partHolds` before anything is resolved: one whose gate is
+ * off adds nothing, and one whose `saves` the caller named nothing to test, or
+ * whose gate cannot be told (an `occasion` gate the roll does not name), is
+ * `pending` as `{label, value, when: "save"|"gate"}`.
+ *
  * @param {object} saver
- * @param {{against?: {actor: object, token?: object}|null, bearerToken?: object|null}} [options]
- *   `bearerToken` is the saver's token, read for `vsEnemy` against `against.token`
- * @returns {{parts: {key: string, label: string, value: number, side: "target"}[], pending: {label: string, value: number, when: "source"}[]}}
+ * @param {{against?: {actor: object, token?: object}|null, bearerToken?: object|null, save?: string, occasion?: string}} [options]
+ *   `bearerToken` is the saver's token, read for `vsEnemy` against `against.token`; `save` is the system's key for the throw; `occasion` names the occasion the roll is (`partHolds`)
+ * @returns {{parts: {key: string, label: string, value: number, side: "target"}[], pending: {label: string, value: number, when: "source"|"save"|"gate"}[]}}
  */
-export function saveModParts(saver, { against = null, bearerToken = null } = {}) {
+export function saveModParts(saver, { against = null, bearerToken = null, save, occasion } = {}) {
   const applying = [];
   const pending = [];
   for (const entry of rollModsOf(saver).filter((e) => e.part.on === "save")) {
     const { part } = entry;
-    if (part.gate?.kind) continue;
+    const fit = narrow(part, { save, byRef: false });
+    if (fit === false) continue;
+    const holds = partHolds(saver, part, { token: bearerToken, occasion });
+    if (holds === false) continue;
+    if (fit === null || holds === null) {
+      pending.push({ label: entry.label, value: Number(part.value), when: fit === null ? "save" : "gate" });
+      continue;
+    }
     if (!hasScope(part)) {
       applying.push(spellStackingPart(entry));
       continue;
@@ -401,17 +731,30 @@ export function saveModParts(saver, { against = null, bearerToken = null } = {})
 
 /**
  * What a saving throw rolled from the sheet takes from the saver's `save` parts,
- * which know nothing of what is resisted: the unscoped, ungated ones, resolved
- * among themselves, lower the number to roll by `total`; each scoped one is
- * left out and told. `told` is a list of notices for `tellRollMods`.
+ * which know nothing of what is resisted: the ones that hold (narrowed by the
+ * `save` rolled and tested through `partHolds`), resolved among themselves,
+ * lower the number to roll by `total`; each scoped one is left out and told,
+ * as is one whose gate or `saves` cannot be told (`pending`). `told` is a
+ * list of notices for `tellRollMods`.
  *
- * @returns {{total: number, parts: {key: string, label: string, value: number}[], told: {level: string, lang: string, data: object}[]}}
+ * @param {object} actor
+ * @param {{save?: string, occasion?: string}} [options]  `save` is the system's key for the throw rolled; `occasion` is `partHolds`'s
+ * @returns {{total: number, parts: {key: string, label: string, value: number}[], pending: {label: string, value: number, when: "save"|"gate"}[], told: {level: string, lang: string, data: object}[]}}
  */
-export function sheetSaveShift(actor) {
+export function sheetSaveShift(actor, { save, occasion } = {}) {
   const applying = [];
+  const pending = [];
   const told = [];
   for (const entry of rollModsOf(actor).filter((e) => e.part.on === "save")) {
-    if (entry.part.gate?.kind) continue;
+    const fit = narrow(entry.part, { save, byRef: false });
+    if (fit === false) continue;
+    const holds = partHolds(actor, entry.part, { occasion });
+    if (holds === false) continue;
+    if (fit === null || holds === null) {
+      pending.push({ label: entry.label, value: Number(entry.part.value), when: fit === null ? "save" : "gate" });
+      told.push({ level: "info", lang: "notice.savePending", data: { name: actor?.name ?? "", spell: entry.label, value: signed(Number(entry.part.value)) } });
+      continue;
+    }
     if (hasScope(entry.part)) told.push({ level: "info", lang: "notice.saveScoped", data: { name: actor?.name ?? "", spell: entry.label } });
     else applying.push(spellStackingPart(entry));
   }
@@ -421,7 +764,7 @@ export function sheetSaveShift(actor) {
     const rows = parts.map((p) => `${p.label} ${signed(p.value)}`).join(", ");
     told.push({ level: "info", lang: "notice.saveApplied", data: { name: actor?.name ?? "", rows } });
   }
-  return { total, parts, told };
+  return { total, parts, pending, told };
 }
 
 /** Say notices `sheetSaveShift` returned, through the notification bar. */

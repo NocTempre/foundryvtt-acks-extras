@@ -343,7 +343,7 @@ flag.
 own base for `magic`, since it never reaches the wrapper that asks for the delivery
 kind; no spell is cast by one yet.
 
-## 2026-11-16 — A record's buff reaches its roll through a lib flag, resolved beside the weapon's own bonus
+## 2026-11-16 — A record's buff reaches its roll through a lib flag, resolved beside the weapon's own bonus — SUPERSEDED IN PART 2026-11-17
 
 **Ruled.** The owner: "1 stops, 2 spells track separate, effects don't stack but
 can overlap, 3 on cast if target. Don't forget to track interaction with spells per
@@ -581,3 +581,54 @@ hooks fire for a turn the Judge passes over by hand in an unrolled round, since
 lib already lifts there, and the conditions still lift on a step back where the
 hooks and records do not count. Magic's own turn-end detection is unchanged
 until the ROADMAP row moves it onto the hook.
+
+## 2026-11-17 — One reader for a record's parts: narrow, test, then resolve
+
+**Ruled.** The owner: "a second spell record of the same kind leaves one figure,
+the larger, which stays until the last record ends" (owner ruling 2), and
+"automation with transparency is the design principle". Example: two records
+each give a bonus to one proficiency's throw, +3 and +2; the throw takes +3, the
++2 is told as yielding, and when the +3 record ends the +2 stands. Governed by
+the spell-effects plan's rulings 75 to 82 and 130 to 140 (S5a, the lib half).
+
+- **`recordParts` is the one reader** of a record's parts for every roll the
+  attack seam does not make, `ROLL_MODS_ON` gaining `throw`, `reaction`, `grant`
+  and `immune`. It narrows by `ref`, `rollKey`, `saves` and `attackKinds` BEFORE
+  `resolveStacking` (ruling 130, which amends 76 and 80): every spell part provides
+  `kw:spellrecord`, so a larger part for another roll would otherwise take a
+  smaller part's place. A part with no figure never reaches the stacking, apart
+  from a `grant` and a `throw` of mode `auto`. *Counter (low):* an ordering
+  contract a later edit could break; the suites pin it with a larger part that
+  misses the roll.
+- **A narrowing the caller named nothing to test is `pending`**, never applied:
+  a part with `saves` read by a roll that names no save, or a `ref` with no
+  `subject`. *Rejected:* treating an unnamed narrowing as no narrowing, which
+  adds a Death-only figure to every save. *Counter (medium):* a caller that
+  forgets an argument gets silence plus a pending row.
+- **A `set` figure is oriented by the throw's type**, which lib does not know:
+  `rollType` `below` makes the higher target better, any other the lower.
+- **`EFFECT_MODES.auto`** (ruling 131) is a part with no figure whose bearer's
+  throws of that ref resolve `auto`, answered as `outcome: "auto"` (the word a
+  rung's outcome already uses). *Counter (medium):* "unimpeded" may mean speed
+  only (owner question 1c.20).
+- **An armour class set by the kind of attack** (rulings 80, 133) is a lift on the
+  attack against the bearer: `max(0, figure - (ac.value - dexMod + conditions))`,
+  the DEX read out only for a character. It joins the add parts in one
+  resolution. *Rejected:* writing `system.ac.value`. *Counter (medium):* a shield
+  counts as armour (1c.23), and a set below the target's own armour class is a
+  told yield, never a floor.
+- **A saving-throw part under a gate** (ruling 81, 134) is tested through
+  `partHolds`, and a row of the spell's own save (`ownSave`) is tested per
+  saver. This supersedes, for gated save parts, 2026-11-16's "only the unscoped,
+  ungated parts". New evidence: this is the first save part to carry a gate (the
+  enervated daily save), and a plain status gate would add the figure to an
+  enervated creature's Death save against poison, so the gate is marked
+  `occasion` and waits for a roller to name it. *Counter (medium):* no module
+  roller names the occasion yet, so the figure only ever shows as pending.
+- **An immunity a record grants** (ruling 135) is an `immune` part read by
+  `recordImmunity`; `actorDefenses` is not widened. *Counter (low):* a second
+  immunity source.
+
+*Cost:* lib `apiVersion` is 58. Every reader tests a part against the live
+effects at its roll, so a part is gone when its record ends. The editor controls
+for the new row fields wait for the approved design.

@@ -2,6 +2,15 @@
 
 Re-issued 2026-11-14.
 
+## A record's parts, not yet read
+
+- **Perception's hiding test reads grants.** `hasCapability` reads ability items
+  only, so a bearer a record grants a proficiency to is not found by
+  `perception.mjs`; `recordParts(actor, "grant")` is the reader to call.
+- **Attack damage reads only the base damage's `extraordinary` mark** (`attack-apply`),
+  so a rider row's quality does not reach a weapon's defenses check (inferred
+  from a read of the file, not walked).
+
 ## Behavioral dedups awaiting a hygiene sweep
 
 What remains changes behavior or needs design, so it ships through a

@@ -154,7 +154,7 @@ t("relational effect vocabulary is present", () => {
   for (const k of ["requires", "grants", "modifies", "limitation", "proficiencyGrant"]) {
     assert.ok(vocab.EFFECT_TYPES[k], `EFFECT_TYPES.${k}`);
   }
-  assert.deepEqual(Object.keys(vocab.EFFECT_MODES), ["add", "replace", "set"]);
+  assert.deepEqual(Object.keys(vocab.EFFECT_MODES), ["add", "replace", "set", "auto"]);
   assert.deepEqual(Object.keys(vocab.PROFICIENCY_BREADTH), ["unrestricted", "broad", "narrow", "restricted"]);
 });
 

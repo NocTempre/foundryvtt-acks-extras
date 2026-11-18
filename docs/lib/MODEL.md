@@ -2203,7 +2203,8 @@ record resolves the figures, and lib owns the reading and the stacking.
 provides}` plus the scope fields `scopeApplies` reads. `on` is `attack` or
 `damage` (the bearer's own weapon), `ac` (an attack made against the bearer),
 `save` (a saving throw) or `ward`, a protection with no figure that is told and
-never added. `rollModsOf(actor)` returns one entry per part of every applicable
+never added. `throw`, `reaction`, `grant` and `immune` are read by `recordParts`
+and its siblings ("Reading a record's parts at a roll" below). `rollModsOf(actor)` returns one entry per part of every applicable
 effect that is active; a disabled effect adds none.
 
 **Only `stackingPart` builds a part.** `resolveStacking` reads a part's
@@ -2265,6 +2266,65 @@ or item-gated row answers `atRoll`. Without `bearer` every answer is the ability
 reader's, unchanged. Rulings: DECISIONS, "A record's buff reaches its roll
 through a lib flag, resolved beside the weapon's own bonus".
 
+## Reading a record's parts at a roll
+
+`recordParts(actor, on, {subject, rollKey, save, kind, ctx, rollType})` is the one
+reader of a record's parts for a roll the attack seam does not make: a
+proficiency's throw, a reaction, a granted proficiency, a saving throw, the
+bearer's immunities. The order is fixed because it decides who wins. A part is
+narrowed first (`ref` or `refs` through `satisfies` against `subject`, `rollKey`,
+`saves` through `saveKindOf`, `attackKinds` against `kind`), so a part that does not
+reach this roll cannot take another's place in the stacking: every spell part
+provides `kw:spellrecord`, so two of them conflict, and resolving first would let a
+larger part for another roll drop the smaller one that applies. Then
+`partHolds` tests it; then the parts that apply go through `resolveStacking`,
+larger first, so a second record of one kind leaves one figure, which stays until
+the last record ends because every reader reads the live effects at the roll. A
+part that declares a narrowing the caller named nothing to test goes to
+`pending`, never to the roll: a figure on the wrong roll is worse than a figure
+told and left out.
+
+A part with no figure never reaches the stacking. The two kinds that have none by
+nature are a `grant` (a proficiency the bearer counts as holding while none of its
+abilities provides `capabilityForId(ref)`; with `mode: "set"` its `value` is the
+throw's target, with no mode the throw is the definition's own) and a `throw` of
+mode `auto`. They are grouped apart (a grant's by `ref`, a throw's by mode) and
+carry `value: null`; a figured part of its group displaces a blank one. A `set`
+figure is a target number, so which of two is better depends on the throw: lower
+for `rollType` `above` (the default), higher for `below`; the caller that knows
+the definition's roll type passes it.
+
+`throwResolution` reads the `throw` parts as a roller needs them: the bonuses that
+apply (`add`, resolved among themselves, with their `total`), the one set target,
+and `auto`, whose `outcome` is the same word `resolveLevelOutcome` answers for a
+rung with no throw. The roller's own bonuses are its own. `recordImmunity` reads
+`immune` parts, `{spells, conditions}`: whether a spell (`{id, provides}`) or a
+condition key is granted immunity by a record, with the record's label; marking a
+cast's entry exempt is the cast's. `partHolds` takes a part or a spell's row, so
+`ownSaveParts` can test the rows of the spell's own saving throw (marked
+`ownSave`) for each saver before any record exists.
+
+**An armour class set by the kind of attack** is a term on the attack. The
+target's `ac` parts are narrowed by the attack's kind and tested through
+`partHolds` (the attacker's weapon as `ctx.item`, the target's token as
+`ctx.token`); a `set` part becomes its lift, `max(0, figure - (ac.value - dexMod +
+conditions))`, where `ac.value` carries armour, shield, powers and a character's
+Dexterity modifier, `dexMod` is read out of the comparison for a character (and is
+0 for a monster, whose figure is its stat line's) and `conditions` is
+`acMath(…, {kind}).total`. Armour, shield, powers and conditions therefore compete
+with the set and never add to it, and Dexterity stays on top. The lift joins the
+add parts in one resolution, so a set and an add give the larger and two sets
+the larger lift. The term is minus the lift, labelled with the spell and the
+kind; a lift of 0 is told as yielding to the target's own armour class.
+
+**A saving throw under a condition.** `saveModParts` and `sheetSaveShift` take the
+save rolled and an `occasion`: a part's `saves` are read against it, a gate that
+is off adds nothing, and a gate that cannot be told (an `occasion` gate the roll
+does not name, an item gate with no weapon) is `pending`, as is a part narrowed to
+saves when the roll names none. Core's own `rollSave` (`onRollSave`) passes the
+save key and no occasion, so an enervated creature's figure shows only as a
+told, unapplied one until a roller names the occasion.
+
 ## Saving throws as parts
 
 `saves.mjs` composes a saving throw as named parts and makes it. `saveSpec(actor,
@@ -2280,11 +2340,13 @@ applies against `against` (`{actor, token}`, what the throw is made against, wit
 `bearerToken` the saver's own token) is a target part labelled as its record; one
 that cannot be settled, or any scoped one with no `against`, comes back in
 `pending` as `{label, value, when: "source"}` beside the conditions' own rows. An
-unscoped part always applies, and the applying parts are resolved among
-themselves. `rollMods` defaults to `conditions`, so the party's save is
+unscoped part that holds applies, and the applying parts are resolved among
+themselves. `ownRows` adds the rows of the spell's own saving throw, each tested
+for this saver (`ownSaveParts`); a row that holds is a target part, one that cannot
+be told is `pending`. `rollMods` defaults to `conditions`, so the party's save is
 unchanged. A save rolled from a sheet goes through `onRollSave`
 (`status-effects.mjs`, the method's one owner), which has no `against`: its
-unscoped parts join the shift and each scoped one is told and left out. Numbers on the roll
+unscoped parts that hold join the shift and each scoped one is told and left out. Numbers on the roll
 sum into one signed term (`1d20 + 3`), a part that is not a number is appended,
 a zero part is not listed. Rows bound to a circumstance come back `pending` and
 a figure nobody imported `unpriced`, and neither moves the target. Given

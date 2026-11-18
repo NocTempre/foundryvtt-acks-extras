@@ -200,7 +200,7 @@ export function specKey(spec) {
 const gateOf = (spec) => (spec?.gate?.kind ? spec.gate : null);
 
 /** The save a `forWhat` names, as the system's key, or null. */
-function saveKeyOf(forWhat) {
+export function saveKeyOf(forWhat) {
   const s = String(forWhat ?? "").toLowerCase().replace(/[^a-z]/g, "");
   if (!s) return null;
   return RELEASED_SAVE_KEYS.find((k) => s === k || s === `${k}s` || s === `${k}es`) ?? null;
@@ -250,6 +250,13 @@ function hasRollScope(spec) {
  * item-gated row answers AT_ROLL. Without `bearer` every answer is the
  * ability reader's: those three subjects are unsupported and a monster is
  * refused first.
+ *
+ * A spec that declares `attackKinds` is AT_ROLL with reason `narrowed` for
+ * either reader: the standing write has no attack kind to narrow by. With
+ * `bearer`, a `set` on `ac` is AT_ROLL with reason `set` (the attack reads it
+ * as a lift, `roll-mods.mjs`), and a spec under any other gate is AT_ROLL with
+ * reason `gate`, since a record's part is tested at the roll (`partHolds`) and
+ * never written.
  */
 export function modifierDisposition(spec, { actorType = "character", bearer = false } = {}) {
   if (spec?.type !== "modifier") return null;
@@ -257,20 +264,27 @@ export function modifierDisposition(spec, { actorType = "character", bearer = fa
   const out = (kind, extra = {}) => ({ kind, paths, ...extra });
   const rollGate = gateOf(spec) && isRollGate(gateOf(spec).kind) ? gateOf(spec) : null;
   const itemGate = gateOf(spec) && isItemGate(gateOf(spec).kind) ? gateOf(spec) : null;
-  if (!MODIFIER_PATHS[actorType] && !rollGate && !(bearer && (itemGate || hasRollScope(spec)))) {
+  const narrowedKinds = Array.isArray(spec.attackKinds) && spec.attackKinds.length > 0;
+  const recordSet = bearer && spec.mode === "set" && spec.target === "ac";
+  const recordGate = bearer && gateOf(spec) && !rollGate && !itemGate ? gateOf(spec) : null;
+  if (!MODIFIER_PATHS[actorType] && !rollGate && !(bearer && (itemGate || hasRollScope(spec) || narrowedKinds || recordSet || recordGate))) {
     return out(DISPOSITION.UNSUPPORTED, { reason: "actorType" });
   }
   const consumer = CONSUMED_TARGETS[spec.target];
   if (consumer) return out(DISPOSITION.CONSUMED, { consumer });
   if (spec.appliesToRoll) return out(DISPOSITION.CONSUMED, { consumer: "abilities" });
-  if (spec.mode && spec.mode !== "add") return out(DISPOSITION.UNSUPPORTED, { reason: "mode" });
   const own = spec.appliesTo === "self" || spec.appliesTo === "opponent" || (bearer && BEARER_SUBJECTS.includes(spec.appliesTo));
+  // A set on armour class is the one non-additive mode a record's attack reads.
+  if (recordSet && (!spec.appliesTo || own)) return out(DISPOSITION.AT_ROLL, { reason: "set" });
+  if (spec.mode && spec.mode !== "add") return out(DISPOSITION.UNSUPPORTED, { reason: "mode" });
   if (spec.appliesTo && !own) return out(DISPOSITION.UNSUPPORTED, { reason: "subject" });
   // A roll gate waits for the roll on any actor: the loadout never writes it.
   if (rollGate) return out(DISPOSITION.AT_ROLL, { reason: "gate", gate: rollGate });
   // An item gate waits for the weapon of the roll, which only a roll holds.
   if (itemGate) return out(DISPOSITION.AT_ROLL, { reason: "item", gate: itemGate });
+  if (recordGate) return out(DISPOSITION.AT_ROLL, { reason: "gate", gate: recordGate });
   if (hasRollScope(spec)) return out(DISPOSITION.AT_ROLL, { reason: "scope" });
+  if (narrowedKinds) return out(DISPOSITION.AT_ROLL, { reason: "narrowed" });
   paths.push(...modifierPaths(spec, actorType));
   if (!paths.length) {
     // A target the actor has a field for, narrowed past it, waits on the roll;

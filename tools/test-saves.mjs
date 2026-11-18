@@ -205,6 +205,40 @@ await ok("two records' save parts give one figure, and a monster bearer's record
   assert.equal(saveSpec(character(), "blast", { against: source() }).target, 14, "a creature with no records adds nothing");
 });
 
+await ok("saveSpec names the save to the records: a part for another save adds nothing, and a larger one for it never displaces a smaller one for this save", () => {
+  const saver = bearing([savePart(5, { saves: ["death"] }), savePart(2, { key: "blastOnly", saves: ["blast"] })]);
+  const blast = saveSpec(saver, "blast", { values: VALUES });
+  assert.equal(blast.target, 12, "14 - 2: the death-only 5 was narrowed out before the two could compete");
+  assert.deepEqual(blast.parts.map((p) => [p.key, p.value]), [["blastOnly", 2]]);
+  assert.equal(saveSpec(saver, "death", { values: VALUES }).baseTarget, null, "a creature with no stored target has none to lower");
+});
+
+await ok("a gated save part under an occasion is pending until the roll names it; once named and held it lowers the target", () => {
+  const gate = { kind: "status", status: "wasted", occasion: true };
+  const saver = bearing([savePart(3, { saves: ["death"], gate })], { statuses: ["wasted"] });
+  saver.system.saves.death = { value: 12 };
+  const waiting = saveSpec(saver, "death", { values: VALUES });
+  assert.equal(waiting.target, 12);
+  assert.deepEqual(waiting.pending, [{ label: "Test Ward", value: 3, when: "gate" }]);
+  const named = saveSpec(saver, "death", { values: VALUES, occasion: "wasted" });
+  assert.equal(named.target, 9);
+  assert.deepEqual(named.pending, []);
+  const other = saveSpec(saver, "blast", { values: VALUES, occasion: "wasted" });
+  assert.deepEqual([other.target, other.pending], [14, []], "another save is not this part's");
+  const well = bearing([savePart(3, { saves: ["death"], gate })]);
+  well.system.saves.death = { value: 12 };
+  assert.equal(saveSpec(well, "death", { values: VALUES, occasion: "wasted" }).target, 12, "no status, so the gate is off and adds nothing");
+});
+
+await ok("ownRows join the target per saver: a row that holds lowers it, an undecided one is pending, and rollMods: false does not switch them off", () => {
+  const rows = [{ label: "Own", cite: "Test cite", value: 2, key: "own" }, { label: "Unknown", value: 1, gate: { kind: "nothingRegistered" } }, { label: "Penalty", value: -1, key: "pen" }];
+  const spec = saveSpec(character(), "blast", { values: VALUES, ownRows: rows, rollMods: false });
+  assert.equal(spec.target, 13, "14 - 2 + 1");
+  assert.deepEqual(spec.parts.map((p) => [p.key, p.label, p.value, p.side]), [["own", "Own (Test cite)", 2, "target"], ["pen", "Penalty", -1, "target"]]);
+  assert.deepEqual(spec.pending, [{ label: "Unknown", value: 1, when: "gate" }]);
+  assert.equal(saveSpec(character(), "blast", { values: VALUES, ownRows: [] }).target, 14);
+});
+
 /** A stored defense band; invented figures throughout. */
 const defBand = (b = {}) => ({ damage: [], effects: [], conditions: [], mundane: false, extraordinary: false, silverFlaw: false, note: "", ...b });
 const bearsDefenses = (name, bands, base = monster()) => ({

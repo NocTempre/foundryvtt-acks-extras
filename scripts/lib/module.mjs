@@ -120,7 +120,7 @@ import {
   STATUS_PALETTE_SETTING, installConditionRolls, lift, loseRecords, loseStates, lossInFlight, onStatusPaletteChange, readStatusPalette, registerStatusEffects,
 } from "./status-effects.mjs";
 import { installRollGates } from "./roll-gates.mjs";
-import { installRollMods, registerItemBonusSource, rollModsOf } from "./roll-mods.mjs";
+import { installRollMods, ownSaveParts, partHolds, recordImmunity, recordParts, registerItemBonusSource, rollModsOf, throwResolution } from "./roll-mods.mjs";
 import { StatusPaletteMenu, openStatusPalette, refreshStatusPalette } from "./apps/status-palette-app.mjs";
 import {
   SETTING_MANAGE_VISION,
@@ -158,7 +158,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 57,
+  apiVersion: 58,
   vocab,
   fields,
   /**
@@ -418,7 +418,9 @@ const localImpl = Object.freeze({
    * formula, the target and the parts a throw is made from, with no roll;
    * `saveThrow` rolls it. Neither takes a state off the creature; a failed
    * save's loss is `loseStates`. `saveSpec` also reads the saver's records'
-   * `save` parts, scoped against its `against` option.
+   * `save` parts, scoped against its `against` option and narrowed by the
+   * save it rolls, and tests the rows of a spell's own save per saver
+   * (`ownRows`).
    */
   saves: { saveSpec: saves.saveSpec, saveThrow: saves.saveThrow },
   /**
@@ -428,9 +430,23 @@ const localImpl = Object.freeze({
    * bearer, resolved against the weapon's own bonus. `rollModsOf(actor)`
    * reads them; `registerItemBonusSource(source)` reports a weapon's own bonus
    * parts so a record's part can stack with or yield to them, and returns
-   * the function that unregisters it.
+   * the function that unregisters it. `recordParts(actor, on, options)` reads
+   * one kind of part (`throw`, `reaction`, `grant`, `save`, `ac`) narrowed,
+   * tested and resolved; `throwResolution` is its throw reading (bonuses, a
+   * set target, `auto`); `recordImmunity` reads `immune` parts;
+   * `partHolds` tests one part or row for an actor; `ownSaveParts` tests the
+   * rows of a spell's own save for one saver.
    */
-  rollMods: { registerItemBonusSource, rollModsOf, FLAG: FLAG_ROLL_MODS },
+  rollMods: {
+    registerItemBonusSource,
+    rollModsOf,
+    recordParts,
+    throwResolution,
+    recordImmunity,
+    partHolds,
+    ownSaveParts,
+    FLAG: FLAG_ROLL_MODS,
+  },
   /**
    * Take off an actor the states a `cause` (`damage`, `save`, `moved`)
    * costs it; `STATES_LOST_HOOK` fires with `(actor, ids, cause)` when any

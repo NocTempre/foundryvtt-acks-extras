@@ -24,6 +24,11 @@ const said = [];
 const TEXT = {
   "ACKS-LIB.rollMods.yields": "{name}, yielding to {to}",
   "ACKS-LIB.rollMods.onTarget": "{name} on {target}",
+  "ACKS-LIB.rollMods.onTargetKind": "{name} on {target}, {kind} attack",
+  "ACKS-LIB.rollMods.kind.melee": "melee",
+  "ACKS-LIB.rollMods.kind.missile": "missile",
+  "ACKS-LIB.rollMods.kind.thrown": "thrown",
+  "ACKS-LIB.rollMods.ownAc": "{target}'s own armour class",
 };
 const format = (key, data = {}) => (TEXT[key] ?? `${key} ${JSON.stringify(data)}`).replace(/\{(\w+)\}/g, (_, n) => data[n] ?? "");
 globalThis.game = {
@@ -64,12 +69,14 @@ globalThis.CONFIG = {
 };
 
 const seam = await import("../scripts/lib/patches/attack-throw.mjs");
+const { registerTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { CONDITIONS_DOC, CONDITIONS_TABLE } = await import("../scripts/lib/conditions.mjs");
 const mods = await import("../scripts/lib/roll-mods.mjs");
 const { stackingPart, isItemGate, gateVerdict } = await import("../scripts/lib/typed-modifiers.mjs");
 const { MAGIC_ATTACK_TYPE, installAttackThrowPatch, spellCarrier } = seam;
 const {
   rollModsOf, registerItemBonusSource, itemBonusParts, spellStackingPart, resolveItemParts, scopeCtxFor, rollModRows, saveModParts,
-  sheetSaveShift, installRollMods, ROLL_MODS_ON,
+  sheetSaveShift, installRollMods, ROLL_MODS_ON, partHolds, recordParts, throwResolution, recordImmunity, ownSaveParts,
 } = mods;
 installAttackThrowPatch();
 installRollMods();
@@ -134,7 +141,7 @@ await ok("rollModsOf reads each part of each active effect, and skips a disabled
   assert.deepEqual(entries.map((e) => [e.part.on, e.part.value]), [["attack", 2], ["ac", 1]]);
   assert.deepEqual([entries[0].id, entries[0].label, entries[0].cite, entries[0].sourceAlignment, entries[0].effect], ["def.spell.testEdge", "Test Edge", "Test cite", "lawful", live]);
   assert.deepEqual(rollModsOf(null), []);
-  assert.deepEqual(ROLL_MODS_ON, ["attack", "damage", "ac", "save", "ward"]);
+  assert.deepEqual(ROLL_MODS_ON, ["attack", "damage", "ac", "save", "ward", "throw", "reaction", "grant", "immune"]);
 });
 
 await ok("the weapon gates are item gates: they read the weapon alone and answer null with none", () => {
@@ -435,7 +442,7 @@ await ok("outside an attack the system's own answer stands: a sheet drawing its 
 
 /* --- A saving throw from the sheet ------------------------------------------- */
 
-await ok("the sheet's save reads unscoped, ungated save parts as one figure and tells each scoped one", () => {
+await ok("the sheet's save reads unscoped save parts as one figure, tells each scoped one, and tells a gate it cannot decide", () => {
   const saver = actorOf("Saver", {
     effects: [
       effectOf([part("save", 2, { key: "free" }), part("save", 1, { key: "scoped", vsKinds: ["undead"], provides: ["kw:o1"] })]),
@@ -445,8 +452,9 @@ await ok("the sheet's save reads unscoped, ungated save parts as one figure and 
   const shift = sheetSaveShift(saver);
   assert.equal(shift.total, 2);
   assert.deepEqual(shift.parts.map((p) => [p.label, p.value]), [["Test Edge", 2]]);
-  assert.deepEqual(shift.told.map((t) => t.lang), ["notice.saveScoped", "notice.saveApplied"]);
-  assert.deepEqual(sheetSaveShift(actorOf("Plain")), { total: 0, parts: [], told: [] });
+  assert.deepEqual(shift.told.map((t) => t.lang), ["notice.saveScoped", "notice.savePending", "notice.saveApplied"]);
+  assert.deepEqual(shift.pending.map((p) => [p.label, p.value, p.when]), [["Test Edge", 1, "gate"]], "an item gate with no weapon cannot be told: pending, not applied");
+  assert.deepEqual(sheetSaveShift(actorOf("Plain")), { total: 0, parts: [], pending: [], told: [] });
   const two = sheetSaveShift(actorOf("Twice", { effects: [effectOf([part("save", 1)]), effectOf([part("save", 4)])] }));
   assert.equal(two.total, 4, "two records of one kind give the larger figure");
 });
@@ -455,6 +463,269 @@ await ok("saveModParts settles a scoped save part against what is resisted", () 
   const saver = actorOf("Saver", { effects: [effectOf([part("save", 2, { vsKinds: ["undead"] })])] });
   assert.deepEqual(saveModParts(saver, { against: { actor: FOE() } }).parts.map((p) => [p.key, p.label, p.value, p.side]), [["save2", "Test Edge", 2, "target"]]);
   assert.equal(saveModParts(saver, { against: { actor: actorOf("Plain", { type: "monster", types: ["beast"] }) } }).parts.length, 0);
+});
+/* --- A record's parts read at a roll: recordParts and its siblings ------------- */
+
+/** An ability item that provides capabilities and is stamped with a definition id. */
+const ability = (id, provides = []) => ({
+  type: "ability",
+  name: id,
+  flags: { "acks-extras": { cookbook: { id } } },
+  getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { provides } : undefined),
+});
+/** A bearer of the records `effects`, holding `items` and carrying `statuses`. */
+const bearer = (effects, { items = [], statuses = [], type = "character" } = {}) => {
+  const actor = actorOf("Bearer", { effects, type });
+  actor.items = items;
+  actor.statuses = new Set(statuses);
+  return actor;
+};
+/** A record by short id: the spell is "def.spell.<id>", labelled with the capitalised id. */
+const rec = (id, parts) => effectOf(parts, { id: `def.spell.${id}`, label: id[0].toUpperCase() + id.slice(1) });
+const spokenFor = (list) => list.map((p) => [p.spell, p.value]);
+const SUBJECT = { id: "def.prof.tumbling", provides: [] };
+
+await ok("partHolds answers true, false or null for a gate, an ifHas and an occasion gate, and a false beats a null", () => {
+  const holder = bearer([], { items: [ability("def.prof.tumbling")], statuses: ["wasted"] });
+  assert.equal(partHolds(holder, {}), true, "no gate and no ifHas holds");
+  assert.equal(partHolds(holder, { gate: { kind: "status", status: "wasted" } }), true);
+  assert.equal(partHolds(holder, { gate: { kind: "status", status: "other" } }), false);
+  assert.equal(partHolds(holder, { gate: { kind: "nothingRegistered" } }), null, "a gate kind nothing evaluates cannot be told");
+  assert.equal(partHolds(holder, { gate: { kind: "weaponMundane" } }, {}), null, "an item gate with no weapon cannot be told");
+  assert.equal(partHolds(holder, { ifHas: ["kw:tumbling"] }), true);
+  assert.equal(partHolds(holder, { ifHas: ["kw:tumbling", "kw:absent"] }), false);
+  const occasion = { kind: "status", status: "wasted", occasion: true };
+  assert.equal(partHolds(holder, { gate: occasion }), null, "an occasion gate that holds waits for the roll to name its occasion");
+  assert.equal(partHolds(holder, { gate: occasion }, { occasion: "wasted" }), true);
+  assert.equal(partHolds(holder, { gate: occasion }, { occasion: "other" }), null);
+  assert.equal(partHolds(bearer([]), { gate: occasion }, { occasion: "wasted" }), false, "a gate that is off adds nothing, whatever the occasion");
+  assert.equal(partHolds(holder, { gate: { kind: "nothingRegistered" }, ifHas: ["kw:absent"] }), false, "false wins over null");
+});
+
+await ok("ruling 130: ref, rollKey, saves and attackKinds narrow BEFORE stacking, so a larger part that misses this roll never displaces a smaller one that reaches it", () => {
+  const cases = [
+    ["ref", "throw", { ref: "kw:other" }, { ref: "kw:tumbling" }, { subject: SUBJECT }],
+    ["refs", "throw", { refs: ["kw:other"] }, { refs: ["kw:other", "kw:tumbling"] }, { subject: SUBJECT }],
+    ["rollKey", "throw", { rollKey: "first" }, { rollKey: "second" }, { rollKey: "second" }],
+    ["saves", "save", { saves: ["death"] }, { saves: ["blast"] }, { save: "blast" }],
+    ["attackKinds", "ac", { attackKinds: ["melee"] }, { attackKinds: ["missile"] }, { kind: "missile" }],
+  ];
+  for (const [what, on, bigger, smaller, ask] of cases) {
+    const holder = bearer([rec("alpha", [part(on, 5, bigger)]), rec("beta", [part(on, 2, smaller)])]);
+    const { kept, dropped } = recordParts(holder, on, ask);
+    assert.deepEqual([spokenFor(kept), dropped], [[["Beta", 2]], []], what);
+  }
+});
+
+await ok("a part that declares a narrowing the caller named nothing to test goes to pending, never to the roll", () => {
+  const holder = bearer([rec("alpha", [part("throw", 5, { rollKey: "first" })]), rec("beta", [part("throw", 2)]), rec("gamma", [part("throw", 4, { ref: "kw:tumbling" })])]);
+  const r = recordParts(holder, "throw", {});
+  assert.deepEqual(spokenFor(r.kept), [["Beta", 2]]);
+  assert.deepEqual(r.pending.map((p) => [p.label, p.why]), [["Alpha (Test cite)", "narrow"], ["Gamma (Test cite)", "narrow"]]);
+});
+
+await ok("owner ruling 2: a second record of one kind leaves one figure, the larger, which stays until the last record ends", () => {
+  const big = rec("alpha", [part("throw", 4)]);
+  const small = rec("beta", [part("throw", 2)]);
+  const holder = bearer([big, small]);
+  const read = () => recordParts(holder, "throw", {});
+  assert.deepEqual(spokenFor(read().kept), [["Alpha", 4]]);
+  assert.equal(read().kept[0].label, "Alpha (Test cite)", "labelled with the spell and its page reference");
+  assert.deepEqual(read().dropped.map((p) => [p.spell, p.yieldsTo]), [["Beta", "Alpha (Test cite)"]]);
+  holder.appliedEffects = [small];
+  assert.deepEqual(spokenFor(read().kept), [["Beta", 2]], "the larger's record ends and the smaller stands");
+  holder.appliedEffects = [];
+  assert.deepEqual(read().kept, [], "the last record ends and nothing applies");
+});
+
+await ok("a gate that is off drops a part, one that cannot be told is pending, and ifHas is tested through hasCapability", () => {
+  const holder = bearer(
+    [
+      rec("alpha", [part("throw", 5, { gate: { kind: "status", status: "other" } })]),
+      rec("beta", [part("throw", 4, { gate: { kind: "nothingRegistered" } })]),
+      rec("gamma", [part("throw", 3, { ifHas: ["kw:absent"] })]),
+      rec("delta", [part("throw", 2, { ifHas: ["kw:tumbling"] })]),
+    ],
+    { items: [ability("def.prof.tumbling")] },
+  );
+  const r = recordParts(holder, "throw", {});
+  assert.deepEqual(spokenFor(r.kept), [["Delta", 2]]);
+  assert.deepEqual(r.pending.map((p) => [p.label, p.why]), [["Beta (Test cite)", "gate"]]);
+});
+
+await ok("a part with no figure never reaches stacking, even where it is the only one of its group", () => {
+  const holder = bearer([rec("alpha", [part("throw", 0), part("throw", null, { key: "blank" })]), rec("beta", [part("reaction", null, { key: "blank" })])]);
+  assert.deepEqual([recordParts(holder, "throw", {}).kept, recordParts(holder, "reaction", {}).kept], [[], []]);
+});
+
+await ok("a part with no figure never reaches stacking; a grant and an auto throw carry none by nature", () => {
+  const holder = bearer([
+    rec("alpha", [part("throw", 0), part("throw", null, { key: "blank" }), part("throw", 3, { key: "real" })]),
+    rec("beta", [part("throw", null, { key: "auto", mode: "auto", ref: "kw:tumbling" })]),
+  ]);
+  const r = recordParts(holder, "throw", { subject: SUBJECT });
+  assert.deepEqual(r.kept.map((p) => [p.spell, p.value, p.mode ?? "add"]), [["Alpha", 3, "add"], ["Beta", null, "auto"]]);
+});
+
+const grant = (ref, value, over = {}) => ({ key: `g-${ref}-${value}`, on: "grant", ref, value, ...(value == null ? {} : { mode: "set" }), provides: [SHARED], ...over });
+
+await ok("a grant applies only while no ability of the bearer provides its ref's capability, and two grants of one ref leave the better target", () => {
+  const holder = bearer([rec("alpha", [grant("def.prof.tumbling", 14)]), rec("beta", [grant("def.prof.tumbling", 11)]), rec("gamma", [grant("def.prof.hiding", 16)])]);
+  const lowest = recordParts(holder, "grant", {});
+  assert.deepEqual(lowest.kept.map((p) => [p.spell, p.value, p.refTo]), [["Beta", 11, "def.prof.tumbling"], ["Gamma", 16, "def.prof.hiding"]], "a target to roll over: the lower; two refs do not compete");
+  assert.deepEqual(lowest.dropped.map((p) => [p.spell, p.yieldsTo]), [["Alpha", "Beta (Test cite)"]]);
+  assert.deepEqual(spokenFor(recordParts(holder, "grant", { rollType: "below" }).kept.filter((p) => p.refTo === "def.prof.tumbling")), [["Alpha", 14]], "a roll-under throw: the higher");
+  holder.items = [ability("def.prof.tumbling")];
+  assert.deepEqual(recordParts(holder, "grant", {}).kept.map((p) => p.refTo), ["def.prof.hiding"], "a bearer who holds it needs no grant");
+});
+
+await ok("a grant with a blank figure is still a grant with value null; a figured grant of its ref takes its place", () => {
+  const blank = bearer([rec("alpha", [grant("def.prof.tumbling", null)])]);
+  assert.deepEqual(recordParts(blank, "grant", {}).kept.map((p) => [p.spell, p.value, p.refTo]), [["Alpha", null, "def.prof.tumbling"]]);
+  const both = bearer([rec("alpha", [grant("def.prof.tumbling", null)]), rec("beta", [grant("def.prof.tumbling", 12)])]);
+  const r = recordParts(both, "grant", {});
+  assert.deepEqual([spokenFor(r.kept), r.dropped.map((p) => p.spell)], [[["Beta", 12]], ["Alpha"]]);
+});
+
+await ok("throwResolution gives the added bonuses (resolved among themselves), a set target and an automatic throw, per ref", () => {
+  const holder = bearer([
+    rec("alpha", [part("throw", 2, { ref: "kw:tumbling" })]),
+    rec("beta", [part("throw", 3, { ref: "kw:tumbling" }), part("throw", 12, { ref: "kw:tumbling", mode: "set", key: "set12" })]),
+    rec("gamma", [part("throw", 10, { ref: "kw:tumbling", mode: "set", key: "set10" })]),
+    rec("delta", [part("throw", 9, { ref: "kw:hiding" })]),
+  ]);
+  const r = throwResolution(holder, { subject: SUBJECT });
+  assert.deepEqual([r.outcome, r.total, spokenFor(r.add), r.set?.spell, r.set?.value, r.auto], ["throw", 3, [["Beta", 3]], "Gamma", 10, null]);
+  const auto = bearer([rec("alpha", [part("throw", null, { ref: "kw:tumbling", mode: "auto", key: "auto" }), part("throw", 1, { ref: "kw:tumbling" })])]);
+  const a = throwResolution(auto, { subject: SUBJECT });
+  assert.deepEqual([a.outcome, a.auto?.spell, a.total], ["auto", "Alpha", 1]);
+  assert.deepEqual(throwResolution(auto, { subject: { id: "def.prof.hiding" } }).outcome, "throw", "another ref's throw is not automatic");
+});
+
+await ok("recordImmunity reads the spells and conditions a record's immune parts name, through partHolds", () => {
+  const parts = (over) => ({ key: "i", on: "immune", provides: [SHARED], ...over });
+  const holder = bearer([
+    rec("alpha", [parts({ spells: ["kw:dread"], conditions: ["frozen"] })]),
+    rec("beta", [parts({ conditions: ["frozen", "dazed"], gate: { kind: "status", status: "wasted" } })]),
+    rec("gamma", [parts({ conditions: ["blinded"], gate: { kind: "nothingRegistered" } })]),
+  ]);
+  const ask = { spell: { id: "def.spell.dread" }, conditions: ["frozen", "dazed", "blinded", "other"] };
+  const r = recordImmunity(holder, ask);
+  assert.deepEqual([r.spell?.label, Object.keys(r.conditions), r.conditions.frozen.label, r.pending.map((p) => p.label)], ["Alpha (Test cite)", ["frozen"], "Alpha (Test cite)", ["Gamma (Test cite)"]]);
+  holder.statuses = new Set(["wasted"]);
+  assert.deepEqual(Object.keys(recordImmunity(holder, ask).conditions).sort(), ["dazed", "frozen"]);
+  assert.equal(recordImmunity(holder, { spell: { id: "def.spell.other" } }).spell, null);
+  assert.deepEqual(recordImmunity(bearer([]), ask), { spell: null, conditions: {}, pending: [] });
+});
+
+/* --- An armour class set by the kind of attack --------------------------------- */
+
+const armoured = (parts, { ac = 12, dex = 2, type = "character", effects } = {}) => {
+  const actor = actorOf("Ally", { type, effects: effects ?? [effectOf(parts)], disposition: 1 });
+  actor.system.ac = { value: ac };
+  actor.system.scores = { dex: { mod: dex } };
+  return actor;
+};
+const setAc = (value, over = {}) => part("ac", value, { mode: "set", attackKinds: ["missile", "thrown"], ...over });
+const against = (ally, kind = "missile") => rollModRows(attackCtx(striker(), ally), kind, "attack");
+
+await ok("a set armour class is a term of its lift over the target's own, named with the spell and the kind", () => {
+  const r = against(armoured([setAc(14)]));
+  assert.deepEqual(labelsOf(r.rows), ["Test Edge (Test cite) on Ally, missile attack|-4"], "14 - (12 - 2 dex)");
+  assert.deepEqual(labelsOf(against(armoured([setAc(14)]), "thrown").rows), ["Test Edge (Test cite) on Ally, thrown attack|-4"]);
+  assert.deepEqual(against(armoured([setAc(14)]), "melee").rows, [], "narrowed by the attack's kind");
+});
+
+await ok("a set whose lift is 0 is told as yielding to the target's own armour class and adds no row", () => {
+  const r = against(armoured([setAc(10)], { ac: 12, dex: 2 }));
+  assert.deepEqual(r.rows, []);
+  assert.deepEqual(r.told.map((t) => [t.lang, t.data]), [["notice.yielded", { spell: "Test Edge", item: "Ally", to: "Ally's own armour class" }]]);
+  assert.deepEqual(against(armoured([setAc(14)], { ac: 16, dex: 2 })).rows, [], "armour, shield and powers (all in ac.value) compete with the set and never add to it");
+});
+
+await ok("a character's lift reads its Dexterity modifier out of the comparison; a monster has none", () => {
+  assert.deepEqual(labelsOf(against(armoured([setAc(14)], { ac: 12, dex: 0 })).rows), ["Test Edge (Test cite) on Ally, missile attack|-2"]);
+  assert.deepEqual(labelsOf(against(armoured([setAc(13)], { ac: 10, dex: 3, type: "monster" })).rows), ["Test Edge (Test cite) on Ally, missile attack|-3"], "a monster's figure is its stat line's: no Dexterity is read out");
+});
+
+await ok("the target's conditions compete with the set: a condition on its own armour class raises the lift", () => {
+  registerTable({ id: CONDITIONS_DOC, source: "invented", tables: { [CONDITIONS_TABLE]: { disordered: { ac: -3 } } } }, { priority: PRIORITY.WORLD, source: "test" });
+  const ally = armoured([setAc(14)], { ac: 12, dex: 2 });
+  ally.statuses = new Set(["disordered"]);
+  assert.deepEqual(labelsOf(against(ally).rows), ["Test Edge (Test cite) on Ally, missile attack|-7"], "14 - (12 - 2 - 3)");
+});
+
+await ok("two sets give the larger lift, and a set and an add resolve together so the larger stands", () => {
+  const two = armoured(null, { effects: [rec("alpha", [setAc(14)]), rec("beta", [setAc(16)])] });
+  const r = against(two);
+  assert.deepEqual(labelsOf(r.rows), ["Beta (Test cite) on Ally, missile attack|-6"]);
+  assert.deepEqual(r.told.map((t) => [t.lang, t.data.spell, t.data.to]), [["notice.yielded", "Alpha", "Beta"]]);
+  const setWins = armoured(null, { effects: [rec("alpha", [setAc(14)]), rec("beta", [part("ac", 3)])] });
+  assert.deepEqual(labelsOf(against(setWins).rows), ["Alpha (Test cite) on Ally, missile attack|-4"]);
+  const addWins = armoured(null, { effects: [rec("alpha", [setAc(14)]), rec("beta", [part("ac", 5)])] });
+  assert.deepEqual(labelsOf(against(addWins).rows), ["Beta (Test cite) on Ally|-5"]);
+});
+
+await ok("ruling 130 on the target's side: a larger set that misses the attack's kind never displaces a smaller part that reaches it", () => {
+  const ally = armoured(null, { effects: [rec("alpha", [setAc(30, { attackKinds: ["melee"] })]), rec("beta", [part("ac", 2)])] });
+  assert.deepEqual(labelsOf(against(ally).rows), ["Beta (Test cite) on Ally|-2"]);
+  assert.deepEqual(labelsOf(against(ally, "melee").rows), ["Alpha (Test cite) on Ally, melee attack|-20"], "asked as melee, the larger set is the one that reaches it: 30 - 10");
+});
+
+await ok("a set with no figure never reaches stacking, and a gated AC part is tested through partHolds", () => {
+  assert.deepEqual(against(armoured([part("ac", null, { mode: "set", attackKinds: ["missile"] })])).rows, []);
+  const gated = (gate) => against(armoured([part("ac", 2, { gate })]));
+  assert.deepEqual(gated({ kind: "status", status: "other" }).rows, [], "a gate that is off adds nothing");
+  const unknown = gated({ kind: "nothingRegistered" });
+  assert.deepEqual([unknown.rows, unknown.told.map((t) => t.lang)], [[], ["notice.undetermined"]]);
+  const heldAlly = armoured([part("ac", 2, { gate: { kind: "status", status: "wasted" } })]);
+  heldAlly.statuses = new Set(["wasted"]);
+  assert.equal(against(heldAlly).rows.length, 1);
+});
+
+/* --- A saving throw under a condition ------------------------------------------ */
+
+const occasioned = (over = {}) => part("save", 2, { saves: ["death"], gate: { kind: "status", status: "wasted", occasion: true }, ...over });
+
+await ok("a gated save part is tested through partHolds: off adds nothing, an occasion the roll does not name is pending, and one it names applies", () => {
+  const saver = bearer([rec("alpha", [occasioned()])], { statuses: ["wasted"] });
+  const pendingOnly = saveModParts(saver, { save: "death" });
+  assert.deepEqual([pendingOnly.parts, pendingOnly.pending], [[], [{ label: "Alpha", value: 2, when: "gate" }]]);
+  assert.deepEqual(saveModParts(saver, { save: "death", occasion: "wasted" }).parts.map((p) => [p.label, p.value]), [["Alpha", 2]]);
+  assert.deepEqual(saveModParts(saver, { save: "blast", occasion: "wasted" }), { parts: [], pending: [] }, "another save is not this part's");
+  assert.deepEqual(saveModParts(saver, { occasion: "wasted" }).pending, [{ label: "Alpha", value: 2, when: "save" }], "a roll that names no save cannot tell");
+  const well = bearer([rec("alpha", [occasioned()])]);
+  assert.deepEqual(saveModParts(well, { save: "death", occasion: "wasted" }), { parts: [], pending: [] }, "a creature without the status adds nothing");
+});
+
+await ok("ruling 130 on a save: a larger part for another save never displaces a smaller one for this save", () => {
+  const saver = bearer([rec("alpha", [part("save", 5, { saves: ["death"] })]), rec("beta", [part("save", 2, { saves: ["blast"] })])]);
+  assert.deepEqual(saveModParts(saver, { save: "blast" }).parts.map((p) => [p.label, p.value]), [["Beta", 2]]);
+  assert.equal(sheetSaveShift(saver, { save: "blast" }).total, 2);
+});
+
+await ok("the sheet's throw takes the save and the occasion: a held occasion applies, an unnamed one is pending and told", () => {
+  const saver = bearer([rec("alpha", [occasioned()])], { statuses: ["wasted"] });
+  assert.equal(sheetSaveShift(saver, { save: "death", occasion: "wasted" }).total, 2);
+  const waiting = sheetSaveShift(saver, { save: "death" });
+  assert.deepEqual([waiting.total, waiting.pending.length, waiting.told.map((t) => t.lang)], [0, 1, ["notice.savePending"]]);
+});
+
+await ok("ownSaveParts tests each row per saver: a holding row is a target part, an undecided one is pending, the rest add nothing", () => {
+  const rows = [
+    { label: "Test Edge", cite: "Test cite", value: 2, ifHas: ["kw:tumbling"], key: "mine" },
+    { label: "Other", value: 3, gate: { kind: "status", status: "wasted" } },
+    { label: "Blank", value: 0 },
+    { label: "Unknown", value: 1, gate: { kind: "nothingRegistered" } },
+    { label: "Narrowed", value: 4, saves: ["death"] },
+  ];
+  const saver = bearer([], { items: [ability("def.prof.tumbling")] });
+  const r = ownSaveParts(saver, rows, { save: "blast" });
+  assert.deepEqual(r.parts, [{ key: "mine", label: "Test Edge (Test cite)", value: 2, side: "target" }]);
+  assert.deepEqual(r.pending, [{ label: "Unknown", value: 1, when: "gate" }]);
+  assert.deepEqual(ownSaveParts(saver, rows, {}).pending.map((p) => [p.label, p.when]), [["Unknown", "gate"], ["Narrowed", "save"]], "a roll that names no save cannot tell a narrowed row");
+  assert.deepEqual(ownSaveParts(bearer([]), rows, { save: "blast" }).parts, [], "a saver without the capability takes nothing");
+  assert.deepEqual(ownSaveParts(saver, null), { parts: [], pending: [] });
 });
 
 console.log(`\n${passed} roll-mods checks passed.`);

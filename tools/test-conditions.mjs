@@ -636,6 +636,21 @@ await (async () => {
     passed++;
     console.log("ok   a failed saving throw costs a spell and a readied action, and a made one does not");
 
+    // A record's save part narrowed to one save (`saves`) reaches that throw alone: the wrapper names the save it rolls.
+    const warded = new SystemActor([]);
+    const wardPart = (over) => ({ key: "ward", on: "save", value: 2, provides: ["kw:spellrecord"], ...over });
+    warded.appliedEffects = [{ id: "fxWard", disabled: false, flags: { "acks-extras": { rollMods: { id: "def.spell.testWard", label: "Test Ward", cite: "Test cite", parts: [wardPart({ saves: ["death"] })] } } } }];
+    assert.equal(warded.rollSave("death"), 12, "a bonus to the Death save lowers the number: 14 - 2");
+    assert.equal(warded.rollSave("breath"), 15, "another save is not the part's");
+    const gatedRecord = new SystemActor([]);
+    gatedRecord.appliedEffects = [{ id: "fxGate", disabled: false, flags: { "acks-extras": { rollMods: { id: "def.spell.testGate", label: "Test Gate", cite: "Test cite", parts: [wardPart({ saves: ["death"], gate: { kind: "status", status: "wasted", occasion: true } })] } } } }];
+    gatedRecord.statuses.add("wasted");
+    said.length = 0;
+    assert.equal(gatedRecord.rollSave("death"), 14, "an occasion gate the sheet's roll does not name adds nothing");
+    assert.ok(said.some((line) => line.includes("notice.savePending")), "and the figure left out is told");
+    passed++;
+    console.log("ok   a record's save part is read against the save the sheet rolls, and an unnamed occasion is told and not applied");
+
     // The loss path is exported: it answers what it took off and tells a listener, and only when something was lost.
     const told = [];
     globalThis.Hooks.on(STATES_LOST_HOOK, (...args) => told.push(args));

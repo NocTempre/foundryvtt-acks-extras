@@ -22,7 +22,7 @@ import { LANG_PREFIX } from "./constants.mjs";
 import { rollMath, subjectOf } from "./conditions.mjs";
 import { saveKindOf } from "./actor-compat.mjs";
 import { actorDefenses, defenseFigures, defenseSaveParts } from "./defenses.mjs";
-import { saveModParts } from "./roll-mods.mjs";
+import { ownSaveParts, saveModParts } from "./roll-mods.mjs";
 import { locOr } from "./util.mjs";
 import { ACTOR_TYPE } from "./vocab.mjs";
 
@@ -64,12 +64,14 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
  * @param {object} [options.values]  the conditions' registered figures, in place of the world's
  * @param {{actor: object, token?: object}|null} [options.against]  what the throw is made against: the saver's scoped `save` parts (`roll-mods.mjs`) are settled against it
  * @param {object|null} [options.bearerToken]  the saver's token, read for an enemy test against `against.token`
- * @param {boolean} [options.rollMods=conditions]  the saver's records' `save` parts join the target; off with the conditions, so a caller that opts out of the one opts out of the other
+ * @param {boolean} [options.rollMods=conditions]  the saver's records' `save` parts join the target; off with the conditions, so a caller that opts out of the one opts out of the other. A part narrowed to some saves (`saves`) is read against `save`, and one under a gate is tested through `partHolds`
+ * @param {string} [options.occasion]  the occasion this throw is (a gate marked `occasion` holds only where the throw names its status)
+ * @param {object[]} [options.ownRows]  the rows of the spell's own save (rows marked `ownSave`: `{label, cite, value, gate, ifHas, saves}`), each tested for this saver (`ownSaveParts`): one that holds lowers the target, one that cannot be told is `pending`. Independent of `rollMods`
  * @param {{types?: Iterable<string>, extraordinary?: boolean|null, silver?: boolean}|null} [options.damage]  the damage the throw resists (`extraordinary` null or absent is a quality not stated, which a band waiting on it sends to `pending`): the saver's defenses (`defenses.mjs`) then join the throw, and the spec carries `auto`. Absent, the spec has no defense part and no `auto` key
  * @param {{sources?: object[], figures?: object}} [options.defenses]  the defenses read and the resistance's figures, in place of the saver's own (`actorDefenses`) and the world's (`defenseFigures`)
  * @returns {{save: string, kind: string, formula: string, baseTarget: number|null,
  *   target: number|null, parts: Array<{key: string, label: string, value: number|string, side: "roll"|"target"}>,
- *   pending: Array<{condition: string, value: number, when: string}|{label: string, value: number, when: "source"}|{label: string, value: null, when: "defense", why?: string}>, unpriced: string[],
+ *   pending: Array<{condition: string, value: number, when: string}|{label: string, value: number, when: "source"|"save"|"gate"}|{label: string, value: null, when: "defense", why?: string}>, unpriced: string[],
  *   auto?: {label: string, source: string, types: string[]}|null}}
  *   a condition's pending row names its `condition`; a record's names its `label`; a defense's has no figure
  *   (blank, or the Judge's case) and says so by `when: "defense"`. `auto` (only with `damage`) is a success with
@@ -78,7 +80,7 @@ const word = (key, fallback) => locOr(`${LANG_PREFIX}.saves.part.${key}`, fallba
 export function saveSpec(
   actor,
   save,
-  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions, damage = null, defenses = null } = {},
+  { magical = true, conditions = true, situational = null, parts = [], values, against = null, bearerToken = null, rollMods = conditions, damage = null, defenses = null, occasion, ownRows = null } = {},
 ) {
   const kind = saveKindOf(save);
   const stored = actor?.system?.saves?.[save]?.value;
@@ -118,12 +120,20 @@ export function saveSpec(
     }
   }
   if (rollMods) {
-    const mods = saveModParts(actor, { against, bearerToken });
+    const mods = saveModParts(actor, { against, bearerToken, save: kind, occasion });
     for (const p of mods.parts) {
       targetParts.push(p);
       shift += p.value;
     }
     pending = [...pending, ...mods.pending];
+  }
+  if (ownRows?.length) {
+    const own = ownSaveParts(actor, ownRows, { save: kind, ctx: { token: bearerToken, occasion } });
+    for (const p of own.parts) {
+      targetParts.push(p);
+      shift += p.value;
+    }
+    pending = [...pending, ...own.pending];
   }
   let auto;
   if (damage) {

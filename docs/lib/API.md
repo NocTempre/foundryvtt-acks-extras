@@ -1,4 +1,4 @@
-# lib API (apiVersion 57)
+# lib API (apiVersion 58)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 57,
+  apiVersion: 58,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1071,9 +1071,10 @@ acksExtras.lib.attack = {
 acksExtras.lib.saves = {
   saveSpec(actor, save, {magical = true, conditions = true, situational, parts, values,
                          against = null, bearerToken = null, rollMods = conditions,
-                         damage = null, defenses = null})   // damage: {types, extraordinary, silver}
+                         damage = null, defenses = null,    // damage: {types, extraordinary, silver}
+                         occasion, ownRows})                // 58: occasion names the roll's occasion; ownRows are the spell's own-save rows
     → {save, kind, formula, baseTarget, target, parts: [{key, label, value, side}],
-       pending: [{condition, value, when} | {label, value, when: "source"}
+       pending: [{condition, value, when} | {label, value, when: "source" | "save" | "gate"}
                  | {label, value: null, when: "defense", why}], unpriced,
        auto?: {label, source, types} | null},   // `auto` only with `damage`: an immunity, a success with no roll
   saveThrow(actor, save, {…saveSpec options, roll}) → Promise<{…spec, roll, total, success}>
@@ -1082,6 +1083,15 @@ acksExtras.lib.rollMods = {
   FLAG: "rollMods",                         // flags["acks-extras"].rollMods on an Active Effect
   rollModsOf(actor) → [{effect, id, label, cite, sourceAlignment, part}],   // active effects only
   registerItemBonusSource(source) → unregister,   // source(item, on) → [{key, label, value, provides, cite}]
+  // 58: one reader of a record's parts for every other roll
+  recordParts(actor, on, {subject, rollKey, save, kind, ctx, rollType = "above"})
+    → {kept, dropped, pending},             // on: throw | reaction | grant | save | ac | immune
+  throwResolution(actor, recordParts options)
+    → {outcome: "throw" | "auto", add, total, set, auto, dropped, pending},
+  recordImmunity(actor, {spell: {id, provides}, conditions: [key], ctx})
+    → {spell, conditions: {key: {label, spell, effect}}, pending},
+  partHolds(actor, partOrRow, {item, token, occasion}) → true | false | null,
+  ownSaveParts(saver, rows, {save, ctx}) → {parts, pending},
 }
 acksExtras.lib.loseStates(actor, cause) → Promise<string[]>   // cause: "damage" | "save" | "moved"
 acksExtras.lib.lossInFlight(actor) → {cause, ids} | null       // held while loseStates lifts, on that client
@@ -1111,6 +1121,38 @@ the lift fires on the same client. A `ward` part that names a `save` (a system
 save key) has its notice carry the attacker's target number for that throw
 (`saveSpec`), and the notice stays the plain one when the part names none or the
 attacker has no target stored; a ward is told and never refused.
+
+**A record's parts at any roll** (apiVersion 58). `ROLL_MODS_ON` gains `throw`,
+`reaction`, `grant` and `immune`. A part may carry `mode` (`add`, `set`, `auto`),
+`ref` or `refs`, `rollKey`, `saves`, `attackKinds`, `ifHas`, a `gate`
+(`gate.occasion` marks a status gate that belongs to one occasion) and `spells` /
+`conditions` (an `immune` part). `recordParts` reads them in a fixed order:
+narrow by `ref` (matched through `satisfies` against `subject`, `{id, provides}`),
+`rollKey`, `saves` and `attackKinds`; test `partHolds`; then resolve the parts that
+apply among themselves. Two records of one kind give one figure, the larger, and a
+part is gone with its record. A part that declares a narrowing the caller named
+nothing to test is in `pending` (`why: "narrow"`), as is one whose gate cannot be
+told (`why: "gate"`); neither reaches the roll. A part with no figure never
+reaches the stacking, except a `grant` and a `throw` of mode `auto`, which carry
+`value: null`. A `grant` applies only while no ability of the bearer provides
+`capabilityForId(ref)`. A `set` figure is a target: `rollType` `"below"` makes the
+higher one the better, any other the lower. Stacking is per group (a grant's by
+`ref`, a throw's by mode), so a bonus on one proficiency never displaces another's.
+`partHolds` answers true, false or null: a gate through `gateVerdict` (an item
+gate waits for `ctx.item`, a roll gate for `ctx.token`; one marked `occasion` that
+holds waits for `ctx.occasion` to name its status), each `ifHas` through
+`hasCapability`; false beats null. It takes a row as well as a part, so a row of a
+spell's own save is tested per saver before any record exists (`ownSaveParts`,
+`saveSpec`'s `ownRows`: a positive figure lowers the number to roll). `saveModParts`
+and `sheetSaveShift` take `{save, occasion}`. The attack against a bearer reads
+its `ac` parts narrowed by the attack's kind; a `set` part is the lift
+`max(0, figure - (ac.value - dexMod + conditions))` (DEX is read only for a
+character), resolved with the add parts so the larger stands. `modifierDisposition`
+with `bearer` answers `atRoll` for a `set` on `ac` (reason `set`) and for a gated row
+(`gate`); a declared `attackKinds` answers `atRoll` / `narrowed` on both paths.
+`EFFECT_MODES.auto` is a success with no roll; `throwResolution` answers it as
+`outcome: "auto"`. `effectField` gains `attackKinds`, `ownSave`, `pickKind`,
+`exemptSizeOver` and `gate.occasion`; `typed-modifiers.mjs` exports `saveKeyOf`.
 
 **The `endsOn` flag** (apiVersion 57) is a list of causes on an Active Effect,
 `flags["acks-extras"].endsOn`: `damage` and `attack`. The loss hooks delete such

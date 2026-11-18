@@ -414,12 +414,13 @@ function ownRoll(actor, on, options = {}) {
 
 /**
  * The figure a roll's records (`roll-mods.mjs`) take off a saving throw's
- * number: the saver's unscoped save parts. A scoped part depends on what is
- * resisted, which this roll does not name, so it is told and left out.
+ * number: the saver's save parts that hold for this throw (`save`, the system's
+ * key). A scoped part depends on what is resisted, which this roll does not
+ * name, so it is told and left out.
  */
-function recordSaveShift(actor) {
+function recordSaveShift(actor, save) {
   try {
-    const mods = sheetSaveShift(actor);
+    const mods = sheetSaveShift(actor, { save });
     tellRollMods(mods.told);
     return mods.total;
   } catch (err) {
@@ -443,7 +444,7 @@ function onRollSave(wrapped, save, ...rest) {
     console.error(`${MODULE_ID} | conditions could not read a saving throw; it rolls without them`, err);
   }
   const cell = this.system?.saves?.[save];
-  const shift = -((math?.total ?? 0) + recordSaveShift(this));
+  const shift = -((math?.total ?? 0) + recordSaveShift(this, save));
   const target = numOrNull(cell?.value) == null ? null : Number(cell.value) + shift;
   const rolled = withShift(cell, "value", shift, () => wrapped(save, ...rest));
   if (target != null && lostTo(this.statuses, "save").length) void loseOnFailedSave(this, rolled, target);

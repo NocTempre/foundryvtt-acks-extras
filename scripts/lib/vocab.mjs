@@ -837,11 +837,17 @@ export const RESOURCE_KINDS = {
   hp: { label: "Hit Points" },
 };
 
-/** How an effect combines with what it targets: added to it, replacing it, or setting it. */
+/**
+ * How an effect combines with what it targets: added to it, replacing it,
+ * setting it, or (on a throw) making it automatic, a success with no roll.
+ * `auto` reads as the `auto` rung outcome (`RUNG_OUTCOMES`) of the throw it
+ * names, and a throw part that carries it has no figure.
+ */
 export const EFFECT_MODES = {
   add: { label: "Add" },
   replace: { label: "Replace" },
   set: { label: "Set" },
+  auto: { label: "Automatic" },
 };
 
 /**
