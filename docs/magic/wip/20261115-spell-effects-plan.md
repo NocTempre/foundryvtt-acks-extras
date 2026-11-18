@@ -3097,6 +3097,481 @@ it, with this direction:
 - build boards 4 and 6 as the owner's own spec;
 - the walk's shots show boards 4 and 6, so the owner can object.
 
+**By This Axe R1–R5 join this line (2026-11-18).** The owner chose,
+verbatim: "(b) spell effects adds it". The orchestrator relayed it. BtA's
+requests R1–R5 are listed in the shared notes file
+`20261116-bta-requests-to-spell-effects.md`:
+- R1, the invocation-level scale;
+- R2, the row gate;
+- R3, the level choice in the cast dialog;
+- R4, no declaration for a long cast;
+- R5, the procedure seam between spend() and the rows in castSpellClaims.
+
+They are a slice for the minor, after 1c lands, beside or before 1d-B.
+Rulings run from 200, from an architect.
+
+### R rulings (architect, 2026-11-18)
+
+- **200 R1 scale.** lib `VALUE_SCALES.invocationLevel` (`domain:
+  "spell"`); `abilities/roll-editor.mjs` leaves spell-domain scales out.
+  The importer is unchanged: a paired ladder already builds a conditional
+  on any key.
+  - magic resolves the scale once. `rowsOfMode`, `rowsForMode` and
+    `pickGroups` (cast-rows.mjs) take `at = {invocationLevel}` and return
+    copies with the scale's conditionals flattened by `resolveLevelValue`.
+    Below the first rung, or with no level set, the figure is null.
+  - `castFiguresOf` and `castGateExtrasOf` flatten likewise.
+  - Limits: `range`, `duration` and `castingTime` values are `num()`, so
+    they do not follow the level. A grant's atLevel (78) is unaffected.
+  - Rejected: threading `scales` through about ten `modifierFigure` callers.
+  - Tested: no flattened copy is ever written.
+- **201 R2 gate is a range.** `effectField` gains `invocationFrom` and
+  `invocationTo` (nullable ints; a blank side is open).
+  - `rowsOfMode` drops a row outside the range. With no level set, every
+    gated row drops.
+  - The editor offers both on every spell kind, and the lint refuses
+    `from > to`.
+  - Evidence: B5's matrix has rows that a higher level replaces.
+  - Rejected: a lower bound only.
+- **202 R3 level choice.**
+  - **When offered:** the tradition has a cap, or a kept row or figure
+    reads the scale.
+  - **Cap:** owned by classes. `traditionCapAt` (topic/bta C3, fba9f898) is
+    injected into `castReading` as `capAt`, through a namespace import, so
+    main loads before C3 lands. The range is 1..cap.
+  - **Resolution:** new `cast-level.mjs` `invocationLevel()` returns
+    `{value, source: chosen|hand|null, cap}`.
+  - **Verdicts:** `overCap` and `invocationUnset` (a Player is blocked, a
+    Judge warned).
+  - **Where the level rides:** `card.invocationLevel`,
+    `spellEffect.invocationLevel`, `pending.invocationLevel` (restored by
+    `storedFits`), and `castAt(card)` at each card-to-rows site: the
+    cast-apply relay, cast-recur (×2) and `rowOfCard`.
+  - **The register:** `makeSelfReach` reads gated rows at the cap.
+  - Rejected: a `gnosis` kind test, `poolState`'s cap text, and a
+    casterLevel fallback.
+- **203 Ruling 6 stands.** This line accepts BtA B2 (a93a5177): a gnostic
+  caster's level is the class level, and its cap is `levelCap`, read only
+  by R3. No fallback either way. B2 may land.
+- **204 R4 long casts.**
+  - `castMoment` takes `castingTime`. In a begun fight, a time longer than
+    a round gives `MOMENT.long`: no declaration, and the verdict `longCast`
+    (a Player is blocked, a Judge warned; a Judge's cast resolves at
+    confirm and the card names the time).
+  - "Longer than a round" is judged by unit, with no conversion figure:
+    `timed` with more than one round, or any other `TIME_UNITS` unit.
+  - The time is the procedure's `castingTime(ctx, answer)`, else the
+    spell's.
+  - It is recalculated in the dialog's refresh and in `castSpellRun` from
+    the final answer.
+  - Supersedes ruling 15 IN PART ("shown and tracked only"). Ruling 15 is
+    under 7 days old; the new evidence is that BtA prints paces and a
+    long-cast rule (3c rulings 7–8).
+- **205 R5 registry.** New `magic/cast-procedure.mjs`:
+  - `registerCastProcedure(kind, p)` returns `off`, with one procedure per
+    kind; `procedureFor()` looks up by `traditionFor`'s kind.
+  - Optional members: `fields`, `verdicts`, `castingTime`, `perform`,
+    `lost`, `revert(ctx, undo)`.
+  - `undo` is data on `card.procedure`, and a Judge-only card action calls
+    `revert`.
+  - Nothing is added to lib.
+- **206 R5 wiring.**
+  - **(a) Claims.** `castSpellClaims` also claims a flagged spell whose
+    tradition has a procedure, rows or not; `classFor` is injected, so the
+    claim stays synchronous.
+    - Supersedes ruling 5 IN PART. New evidence: owner ruling B and 3c
+      ruling 11a.
+    - Interim: the summon claimant declines a spell with a procedure, and
+      `castSpellClaims` ignores `summoning()` for it until 208.
+  - **(b) Fields and verdicts.** `fields` render in a Procedure band.
+    `verdicts` return `{key, notice}`, and `castVerdicts` assigns the
+    severity.
+  - **(d) perform.** It runs after `castId` is minted, before the first
+    row loop, at the free and resolve moments only.
+    - Declare stores `pending.procedure`.
+    - `endHeld` has already run.
+    - `proceed: false`, or a throw, posts only the section.
+  - **(e) lost.** It runs from `onLost` on the client that fired the hook,
+    idempotent by castId.
+  - A ctx source other than spell skips the procedure.
+- **207** The casting time that one level prints stays the Judge's call
+  (ROADMAP row). `castingTime` receives `invocationLevel`.
+- **208 1d-B takes the summon half.** `castSummonSpell` asks, places, then
+  spends. 1d-B's rewrite becomes fields and verdicts, then spend, then
+  perform, then place only when it proceeds.
+
+**R-a landed on the topic as 00aa25cd** (apiVersion 60). The lint's
+literal-figure rule still refuses `invocationFrom: 3` in a recipe. An
+invocation level is a printed value, so R-b adds both keys to the
+executor's `LOCATABLE_FIELDS` (integer), and `from > to` is judged at
+materialization (ip-doctrine; not an owner question). The same commit
+also restored `lang/en.json`, which 61f38f24 had committed truncated
+while a peer agent was writing it.
+
+**Order:** R goes BEFORE 1d-B, one after the other. The two share lib
+fields, the editor, vocab, cast-spell, cast-apply, cast-plan, cast-card and
+cast-declare.
+
+**Slices**, all on topic/spell-effects after 1c lands, each an implementer:
+- **R-a lib:** 200 and 201, the editor fields, the lint, the roll-editor
+  filter, apiVersion.
+- **R-b magic level:** 200 to 202.
+- **R-p magic seam:** 204 to 206.
+- **R-c dialog:** after /design approval. The level control and the
+  Procedure band are drawn on v6 as board 7, and BtA's D1–D8 stay on BtA's
+  canvas, as agreed with BtA.
+- **Walk:** the typed path. The capped path waits for topic/bta (B2, C3).
+
+**1d-B's start prompt changes:** start once R lands, and add 208 plus the
+summon count read through `castAt`.
+
+**UI (202):** "Invocation level" is the first line of the Spell band, a
+segmented radio group from 1 to the cap, with the count taken from the
+ladder rung.
+- A Player sees segments above the cap disabled, with a visible "Cap n".
+- A Judge sees them in the warn tone, and choosing one adds `overCap` to
+  the footer.
+- With no cap, a number box, marked as set by hand.
+- The card's level note gains "Invocation n".
+
+Owner questions, defaults proceeded on:
+- **R.1** The dialog preselects the cap. Counter (medium): an unattended
+  cast takes the hardest throw.
+- **R.2** A Judge's over-cap or long cast in a fight resolves at confirm.
+  Counter (medium): it acts outside initiative order.
+- **R.3** D1/D2 stay on BtA's canvas; the R-c control is v6 board 7.
+  Counter (medium): one window, two canvases. The architect preferred a
+  single canvas, but this line had already agreed BtA's placement.
+- **R.4** No ladder-rung editor this minor: a Judge writes per-level
+  figures as R2-gated flat rows. Counter (STRONG): "A release ships the
+  JUDGE TOOLS for what it adds", and an imported invocation ladder cannot
+  be corrected by a Judge. — **OVERRULED.**
+
+**Owner on board 7 (2026-11-18):** "Invocation should be one menu, not a
+series of them." This revises 202's UI:
+- the level is ONE select over the ladder's rungs, not segmented buttons;
+- it sits in a single Invocation band (between Spell and Saves) together
+  with the procedure's fields (pace, situational, throw parts), not split
+  between the Spell band and a Procedure band;
+- for a Player, options above the cap are disabled; for a Judge they can
+  be chosen, with the `overCap` footer warning;
+- with no cap read, every rung is offered.
+
+**Owner approval of boards 6–8 (2026-11-18, in this session):** "The
+multi-check isn't a match for current group rolls. But otherwise close
+enough, start building it."
+- Board 6's drawn party table is NOT the format. The build posts through
+  `renderRollCard`, the current group roll card, and the walk's chat
+  shots (magic-cast-buffs e/f) show the real card for the owner to
+  check.
+- Boards 7 (one Invocation band) and 8 (the rung editor) are approved to
+  build: R-c and R-e, after R-a, R-b and R-p.
+
+**Owner on the canvas, 2026-11-18, in this session:**
+- "Wait, where are the implements on the invocations?" Answer: board 7's
+  Invocation band gains an Implements line. It shows the set the throw
+  will use (BtA 3c ruling: the highest set whose level less damage reaches
+  the invocation level), with a footer verdict when no set reaches it.
+- "And all of these need a bucket for material components to enhance
+  (including sacrifices for evil characters)" … "The different magics have
+  different ways of doing that, but the frameworks should be shared".
+  This is a new design item, ruled by an architect as rulings 209 onward:
+  a shared component and sacrifice bucket in the cast dialog, with each
+  tradition's procedure supplying what the components do.
+
+- "Inventory, not a check box": implements and components are inventory
+  buckets (drag from the inventory, X to remove), like Targets. Board 7
+  is redrawn that way.
+- "BTW, in combat, they should get this popup when they declare casting,
+  so when it gets to their turn it's ready to resolve." The dialog already
+  opens at the declaration and resolves from the stored answer. The gaps:
+  the declared TARGETS and the throw split (`allocation`) are not stored,
+  so the turn reads whatever the user targets then. Slice **S-R** stores
+  them, and later the invocation level, implements and components (R-p
+  and R-m add their own pending fields). At the turn it resolves without a
+  dialog; it reopens prefilled only when a declared target or a picked
+  item is gone.
+
+- "Not just invocations have components/sacrifices. In fact they wouldn't
+  usually. It's based on the caster type. Do a RAW check on spell
+  components". The RAW check (structure only):
+  - RR ch. 5: no material components on an ordinary cast;
+  - RR §VIII.8 "Component Cost" and "Casting Ritual Spells": special
+    components, substitutes with a pro-rated penalty, always consumed;
+    rituals take monster parts only;
+  - RR §VIII.9 "Blood Sacrifice": chaotic divine casters gain divine power,
+    with a throw and imported victim multipliers;
+  - RR ch. 2, the demonologist's "Power of Sacrifice": arcane power;
+  - BtA: implements only.
+
+  So rulings 209+ key the framework by caster type, for research, ritual
+  casting and the sacrifice activity. It is not a per-cast bucket, and
+  board 7 drops it.
+- "I thought monster parts often help cast spells stronger, check there
+  too." The check, MM ch. 3 "Monster Parts (Special)": special components
+  serve item creation and ritual casting through magic research. Each is
+  associated with spell effects, with default effects by monster type. It
+  never strengthens an ordinary cast. The Eldritch Magic supplements and
+  AXIOMS were not checked; they are optional.
+- "In any case, follow RAW, and prompt for each per their kind." The
+  framework is RAW only. Each kind gets its own prompt (research, ritual,
+  sacrifice, invocation implements) over one shared inventory bucket.
+- Scope, relayed by the orchestrator: "Scope is all three, part of the
+  next minor." The framework ships in the coming minor, after R-e.
+
+### K rulings: components, sacrifice, implements (architect, 2026-11-18)
+
+- **209 What RAW feeds** (structure only):
+  - an ordinary cast takes nothing (`SpellExtras.components` is an
+    unfilled tag list), so it gets no bucket;
+  - research (RR §VIII.8 "Component Cost"): matched components or
+    substitutes, at a penalty pro-rated by share and with no formula
+    benefit; spent on every outcome;
+  - rituals (§VIII.8 "Casting Ritual Spells"): monster parts only, spent;
+  - blood sacrifice (§VIII.9): a victim yields its component value as
+    divine power (chaotic divine) or arcane power (the demonologist's
+    power, RR ch. 2), then a research throw adds bonuses from an imported
+    trait table;
+  - implements (BtA ch. 5): held; a botch damages them;
+  - trinkets (BtA "Trinkets", HFH): spent on success, kept on failure,
+    destroyed on a botch. This is 4a, not this minor. It is the evidence
+    that settlement differs per outcome and per kind.
+- **210 One shared bucket in lib:** `scripts/lib/bucket.mjs`
+  (Foundry-free), with `templates/lib/bucket.hbs` and `bucket-row.hbs`.
+  - Entry: `{uuid, kind: item|actor|token|power, name, img, qty,
+    value:{gp, source, cite}, fit}`.
+  - Drops: an Item, Actor or Token.
+  - The head shows the total against the amount due. Each row has art, a
+    fit chip and X.
+  - The targets bucket shares only the row partial.
+- **211 Valuation never uses a constant:**
+  - an item is `system.cost` × the stack count;
+  - a monster part is the imported spoil's cost plus its
+    `researchEffects`;
+  - a creature is the sum of its component-flagged items, else its XP
+    award (Judge-editable);
+  - a character victim is blank, with the page in the tooltip.
+  - Fit is pre-selected by a `foldName` match, and the seat can change it.
+- **212 Settlement is data per kind:** `settle: {success, failure, botch}
+  → consume|keep|destroy|mark`, through `divideStack` or a delete. A victim
+  gets core's dead status and is never deleted.
+- **213 Gates go through `castVerdicts`** (a Player is blocked, a Judge
+  warned):
+  - the caster type: tradition kind, `actorAlignment`, a class power by
+    cookbookId;
+  - the victim: alignment and intelligence; a character counts as sapient;
+  - willing/helpless and the site are Judge toggles;
+  - an unwilling chaotic victim yields nothing, without a block.
+- **214 R5 gains `buckets(ctx) → [{key, policy, initial}]`.**
+  - The policy is `{accepts, value?, fit, due, parts, settle, verdicts}`.
+  - The answer carries `buckets: {key: [{uuid, qty, fit}]}`, stored in
+    `pending.procedure`.
+  - At resolve each uuid is re-read, and a missing one adds
+    `bucketChanged`.
+  - No member means no band, for every tradition by default.
+- **215 Rituals go through R5.** `SpellExtras.ritual` is set at bind and
+  no cast reads it. `procedureFor` returns the ritual procedure ahead of
+  the tradition kind. Until it lands, a ritual cast blocks a Player and
+  warns a Judge. 205 is qualified IN PART (new evidence: the owner's "per
+  their kind").
+- **216 Implements use the same bucket, held.** It opens with 3c's
+  auto-pick; the seat can drop another set or X one out; the
+  `noSetReaches` verdict re-reads the bucket. BtA 3c ruling 5 is
+  superseded IN PART (evidence: "Inventory, not a check box").
+- **217 Power ledger:** `flags["acks-extras"].power = {divine, arcane}`,
+  owned by magic.
+  - Not `classes.pools`, which a rest clears.
+  - The lifetime is imported; with none imported, nothing expires.
+  - A Judge adjusts it with ± on the casting strip.
+  - A bucket takes a power row capped by the balance.
+- **218 Owners:**
+  - lib: the bucket, its valuation and settlement (it never imports
+    magic);
+  - magic: the policies, the ritual procedure, the research and sacrifice
+    windows, the ledger;
+  - monsters: keeps the component and `researchEffects` flags;
+  - classes: hosts the ledger chip.
+- **219 Imported as new TABLE_RECIPES rows:** the research ladder, the
+  auto-fail band, the penalty's size and minimum, ritual costs and the
+  throw increase, facility minimums and steps, the sacrifice trait table,
+  the divine lifetime, the class power's multiplier. What ships is the
+  gates, the pro-rating and rounding procedure, the settlement maps and
+  the step order.
+
+**Order:**
+- R-p takes 214 and 215.
+- K-b (the lib bucket) lands before R-c, since board 7's Implements needs
+  it; R-c walks it with an invented procedure.
+- After R-e, each slice an implementer: M-i imports (`table-recipes.mjs`
+  is shared, so coordinate with the Treasure Tome session), M-l ledger,
+  M-r ritual, M-s sacrifice, M-q research, then the walk.
+
+**Boards:** 7 revised (the Implements bucket), 9 ritual cast, 10 research
+prompt, 11 sacrifice window, 12 ledger chip.
+
+Owner questions, defaults proceeded on:
+- **K.1** Research is a pay-and-throw prompt, with no clock and a
+  facility toggle. Counter (STRONG): it skips RAW's daily rate and
+  qualifies the owner's 2026-09-25 rulings ("live at locations").
+- **K.2** A victim gets the dead status at resolution. Counter (medium).
+- **K.3** A lawful or neutral animal sacrifice gives a Judge warning
+  only, with no setting. Counter (medium): RAW makes it setting-dependent.
+- **K.4** A creature's value falls back to its XP. Counter (medium):
+  that over-credits some creatures.
+- **K.5** A research outcome is a card, and the Judge makes the item.
+  Counter (STRONG): the Judge-tools rule.
+
+### K revision: research is a project at a location (2026-11-18)
+
+Rulings 209–219 are under 7 days old, so each change below names its new
+evidence. **Evidence A** is the in-force owner ruling of 2026-09-25,
+missed when 209–219 were written:
+
+> "Follow RAW, Research projects live at locations with the proper
+> facilities, which should be linked to characters"
+
+It is in docs/magic/DECISIONS-through-v11.14.5.md, "The order, and the
+scoping's eleven questions, ruled", item 4. Its row stands in the live
+DECISIONS's In force table. **Evidence B** is RR §VIII.8, re-read this
+session for structure only: "Magic Research" (three costs; the research
+cost paid at a daily rate per participant; an ancillary fraction;
+dedicated and ancillary together are overtime), "Component Cost",
+"Research Assistants", the library and workshop paragraphs under
+"Researching Spells" and "Creating Magic Items", and "Casting Ritual
+Spells".
+
+- **220 A research project is a record on the LOCATION actor**
+  (supersedes K.1 and the pay-and-throw shape of 209's research bullet;
+  evidence A and B).
+  - It lives at `flags["acks-extras"].magic.projects[]` on the `location`
+    actor. Each record holds:
+    - its kind and its subject (a spell, an item, or a blank);
+    - the three costs as due;
+    - the researcher and assistants, picked from the characters linked
+      to the location;
+    - the material paid at the start;
+    - the research credited so far, with its day stamps;
+    - the components bucket (210), settled at the end;
+    - then the throw, where the kind has one.
+  - The researcher's sheet links to the project and does not own it. No
+    project Item sub-type is made.
+- **221 The facility is a value per kind on the location**
+  (evidence A: "with the proper facilities"; evidence B: the library and
+  the workshop).
+  - It is a Judge-writable gp value for each of library and workshop.
+  - The project reads it against the kind's imported minimum. Below the
+    minimum, a Player is blocked and a Judge is warned.
+  - The step above the minimum gives the throw bonus, with its size, step
+    and cap imported.
+  - Researchers sharing a facility for different projects divide its
+    value by their number. The count comes from the location's open
+    projects.
+- **222 Research days are posted and credited once passed** (evidence B:
+  "the research rate is paid over the course of the project").
+  - Each participant's rate is read from the imported ladder by class
+    level. The ancillary fraction is an imported row.
+  - A day is credited only once world time has passed it (lib
+    `world-time`, `dayOfWorldTime`). The shape follows the markets
+    ventures (`scripts/markets/apps/venture-dialog.mjs`): it is posted,
+    then credited when its day passes.
+  - The due date is computed from the rates while the ladder is
+    imported, and is Judge-entered until it is.
+  - Assistants count only where the imported threshold is met. A Player
+    below it is blocked and a Judge is warned.
+- **223 The outcome writes the result** (supersedes K.5; evidence: the
+  owner's "Yes, build it" spirit on Judge tools, and CLAUDE.md's
+  JUDGE TOOLS rule).
+  - On success, the project writes:
+    - a known item through `deliverItems` (`lib/bundles.mjs`) to the
+      researcher;
+    - an identification through `markIdentified` (`lib/item-model.mjs`);
+    - a spell into the researcher's repertoire;
+    - a novel item or spell as a pre-filled blank document, opened for
+      the Judge to finish.
+  - The formula is recorded on the researcher. The next throw for the
+    same subject reads it, and 209's substitute rule turns it off.
+  - A failure or botch posts the card and settles the bucket by 212.
+    Research XP and experimentation stay in ROADMAP phase 5.
+- **224 A ritual is a project** (revises 215 and qualifies 205 IN PART;
+  evidence B, "Casting Ritual Spells": the three costs, the research
+  rate, a workshop, the throw, and the result stored as a charge).
+  - The cast dialog does not perform a ritual. It opens the ritual's
+    project at the caster's linked location.
+  - On success, the result is either immediate (the cast resolves) or
+    stored as a charge on a scroll or charged item, through 223's
+    writers.
+  - Until M-r lands, a ritual cast still blocks a Player and warns a
+    Judge (215 stands for that interim).
+- **225 Ritual components: only miscellaneous ones are barred**
+  (corrects 209's ritual bullet; evidence B: the page bars miscellaneous
+  components only, and its substitute list includes power).
+  - Monster parts are valued by the XP of the monsters they came from.
+  - Power from the ledger (217) is accepted.
+  - Parts of another effect take 209's pro-rated penalty.
+- **226 A character victim is valued by XP** (corrects 211's last
+  bullet; evidence: RR §VIII.9 values a sapient victim the same way as
+  other creatures, by XP, and the blank was this line's own caution, not
+  the page's).
+  - The value is the XP award for its level, from the imported table,
+    and a Judge can edit it.
+- **227 More imported rows** (extends 219; evidence B). The new
+  TABLE_RECIPES rows are:
+  - the research rate per class level;
+  - the ancillary fraction;
+  - the share of research spend added to a library;
+  - the assistant level thresholds and counts;
+  - the facility bonus step, size and cap;
+  - the identification and sample rows that "Identifying Magic Items"
+    prints.
+- **K.4 stands, with exclusion gates.** The XP fallback is gated: no
+  ordinary animal, no summoned creature (`SUMMON_FLAG`), and no young.
+  The multiplier is imported. K.2 and K.3 stand.
+
+**Order, revised:** M-q becomes three slices, each one implementer:
+- **M-q1:** the project record (220) and the facility value (221) on the
+  location sheet;
+- **M-q2:** day posting and credit (222);
+- **M-q3:** the outcome writers and the formula record (223).
+
+M-r (224, 225) goes after M-q3, because a ritual is a project. The
+sequence after R-e is M-i, M-l, M-q1, M-q2, M-q3, M-r, M-s, then the
+walk.
+
+**Board 10 is redrawn** as a project panel on the location sheet: the
+facility values, the open projects with their progress against the
+due, the linked researchers, and the components bucket that is settled
+at the end.
+
+**From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
+- **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
+  context, for a band that field-spec cannot express (glyph segments, a
+  bucket). It extends 3c ruling 11(b) and 205's member list. R-p takes
+  it. Evidence: BtA's D1 needs segments and the implements bucket.
+- Two findings, fixed on the topic in the next slice that touches the
+  dialog's CSS:
+  - `.acks-extras-cast-pill` uses a 999px radius. The family uses no
+    radius.
+  - `.acks-extras-cast-trow.is-off` dims its reason text. Dim the row's
+    controls, and leave the reason at full strength.
+- Board 7's Implements bucket and BtA's implements bucket on the Magic
+  tab are one design. R-c checks BtA's revision before it is built.
+- **New standing owner rule** (template ip-doctrine 93c8fce1, reaching
+  extras at the next sync): "Find open art to attribute or better yet
+  art/texture imported from the book. Standing rule for repo no generated
+  art." Nothing shipped uses generated or procedural textures. The
+  canvas's gradient art squares are mockup placeholders only. In the
+  build, a row's art is the document's own `img`, which is imported or
+  attributed.
+
+**Owner ruling on R.4 (2026-11-18).** Asked "Ship a Judge editor for
+imported invocation level tables in this minor?", the owner answered "Yes,
+build it". The orchestrator relayed it. R.1–R.3 stand on their defaults.
+- **R-e, the rung editor:** a Judge edits an imported invocation-level
+  LevelValue (its rungs: level → figure) in the effect-row editor and the
+  spell overview.
+- Board 8 on v6 comes first, and waits for the owner's feedback (ui-layout).
+- It goes after R-c.
+
 **S5e and S-A on topic/spell-effects (2026-11-18), offline green.**
 
 - **e807d99a S5e:**
