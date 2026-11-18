@@ -92,3 +92,7 @@ questions, ruled"): 2 and 4a before 1b.
   the `spend()` that runs core's `_useSpell` (docs/lib/API.md, the cast seam), and
   the cast card. Both show on every cast, so a Judge sees the spell twice;
   folding the module's card into the system's, or suppressing one, is not built.
+- **Research tables outside rulings 219 and 227.** The cost of researching a
+  spell per level, the item-creation cost table by effect type, and the ritual
+  repertoire table are not imported. M-i read only the rows those two rulings
+  name, and nothing reads these three yet.

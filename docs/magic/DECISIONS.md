@@ -525,7 +525,7 @@ The level and the procedure's answer (buckets and the pick) were already fields 
 stored answer (`ANSWER_FIELDS`); R-c is what writes them, so a declaration made in the
 dialog now resolves at its turn from the level and the pick it stored, with no dialog.
 
-## 2026-11-18 — The research, ritual and sacrifice figures are imported rows (M-i, rulings 219, 227)
+## 2026-11-18 — The research, ritual and sacrifice figures are imported rows (M-i, rulings 219, 227) — SUPERSEDED IN PART 2026-11-18
 
 Every figure the research, ritual, sacrifice and power-ledger slices read is printed,
 so it arrives through the importer into one registry document, `magicResearch`, and
@@ -583,3 +583,16 @@ The recipes' shape and each reader's parse of every field are held against the r
 book by `test-recipe-content` (no figure asserted); the figures themselves are checked
 against the fan wiki's capture in a local-only rules test (ladder, sacrifice, ritual
 lists and scalars, as counts).
+
+## 2026-11-18 — The substitution penalty rounds away from zero (owner)
+
+This entry supersedes in part "The research, ritual and sacrifice figures are imported
+rows (M-i, rulings 219, 227)": its bullet "The substitution penalty rounds toward zero".
+The new evidence is the owner's answer. Asked "When the share is uneven (e.g. a -2.5
+penalty), which way should it round?", the owner chose "Bigger penalty (-3)".
+
+- `substitutionPenalty` rounds the pro-rated size up as a magnitude, so an uneven share
+  takes the larger penalty, and the minimum still holds for any substitution. With an
+  invented figure of 2 per level, a third-level spell with 0.4 substituted gives 2.4,
+  which is -3, not -2.
+- *Cost:* one point more on every uneven share than the reading this replaces.

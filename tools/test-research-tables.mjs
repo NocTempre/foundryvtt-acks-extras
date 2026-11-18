@@ -207,13 +207,15 @@ t("the prose figures read, with the ancillary share as a fraction", () => {
   assert.equal(R.ancillaryRate(p, NaN), null);
 });
 
-t("the substitution penalty scales by share and level, rounds toward zero, and never falls under the minimum", () => {
+t("the substitution penalty scales by share and level, rounds away from zero, and never falls under the minimum", () => {
   resetTables();
   register();
   const p = R.readResearchProse();
   assert.equal(R.substitutionPenalty(p, { level: 3, share: 1 }), -6);
   assert.equal(R.substitutionPenalty(p, { level: 3, share: 2 / 3 }), -4);
-  assert.equal(R.substitutionPenalty(p, { level: 3, share: 0.4 }), -2);
+  // An uneven share takes the larger penalty: 2.4 is 3, and 2.5 is 3.
+  assert.equal(R.substitutionPenalty(p, { level: 3, share: 0.4 }), -3);
+  assert.equal(R.substitutionPenalty(p, { level: 5, share: 0.25 }), -3);
   assert.equal(R.substitutionPenalty(p, { level: 1, share: 0.1 }), -1);
   assert.equal(R.substitutionPenalty(p, { level: 3, share: 0 }), 0);
   assert.equal(R.substitutionPenalty(p, { level: 3, share: 1.5 }), null);

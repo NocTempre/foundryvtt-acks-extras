@@ -190,7 +190,7 @@ export function readResearchProse(lookup) {
 /**
  * The penalty a throw takes for a share of substituted components: the
  * per-level penalty times the spell's level times the substituted share,
- * rounded up (toward zero, as a negative number rounds up), and never less than
+ * rounded away from zero (a larger penalty), and never less than
  * the minimum for any substitution at all. `share` is 0 to 1; zero substituted is no penalty. Null while a figure
  * it needs is unread. The result is a negative number, as the page prints it.
  */
@@ -198,7 +198,7 @@ export function substitutionPenalty(prose, { level, share }) {
   if (!prose || prose.penalty === null || prose.penaltyMinimum === null) return null;
   if (!Number.isFinite(level) || !Number.isFinite(share) || share < 0 || share > 1) return null;
   if (share === 0) return 0;
-  const size = Math.floor(Math.abs(prose.penalty) * level * share + 1e-9);
+  const size = Math.ceil(Math.abs(prose.penalty) * level * share - 1e-9);
   return -Math.max(size, Math.abs(prose.penaltyMinimum));
 }
 

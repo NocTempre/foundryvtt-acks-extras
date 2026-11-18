@@ -3666,6 +3666,11 @@ not-the-format (the build posts through `renderRollCard`).
 - **236 The overview edits inline the same way: "Inline, same choice
   (Recommended)".** The spell overview's rungs are edited inline in the
   sheet body, with the same draft and the same Save/Cancel behaviour.
+- **237 The substitution penalty rounds away from zero: "Bigger penalty
+  (-3)".** The owner was asked "When the share is uneven (e.g. a -2.5
+  penalty), which way should it round?" An uneven share takes the larger
+  penalty, and the -1 minimum stays. This supersedes M-i's interim reading,
+  which rounded toward zero.
 
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
