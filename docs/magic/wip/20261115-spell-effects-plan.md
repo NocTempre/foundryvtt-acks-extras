@@ -1530,6 +1530,14 @@ turn lifting, ruling 16's per-kind editor list.
      a mundane-only band made a creature immune to every imported spell.
      *Counter (medium):* more judge entries until the mark is read.
 
+## Session 1c rulings
+
+Numbered 102 to 149.
+
+## Session 1d rulings
+
+Numbered 150 to 199.
+
 **Findings:** F1 a pick option's label renders an object (S3p); F2 a Throw
 press throws at the presser's targets (ruling 89); F4 `resisting` counts line
 rows, so a spell whose other rows all throw rolls saves for nothing (S3p).
@@ -2539,3 +2547,15 @@ departures each slice made, also at defaults and open to the owner:
 > offline only and not checked. Then write 1d-B's start prompt, and commit
 > both on `main` with `acks-commit`. You start no session. The close comes
 > after 1c's walks and 1d-B.
+
+### Progress after handover (run from 1b)
+
+The managing session could not start sessions while the owner was on Remote
+Control. Session 1b runs 1c and 1d-A from its own session, per their start
+prompts, with one change: every walk runs on lane A, one at a time, without
+`FIXTURE_OWN`. 1c works in `topic/spell-effects` and 1d-A in
+`topic/spell-effects-1d` (opened at 6e1999dd).
+
+### Results, 1c
+
+### Results, 1d
