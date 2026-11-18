@@ -378,7 +378,10 @@ Replace bucket):
 6. **A shortfall (Judge seat, staging).** Drop only `treasure/seed-replace-big`
    in the Replace bucket. Observables: its row reads "No lots cover it (<n> gp
    short); takes none", and no tile is struck; open: `replaced` holds
-   `shortGp` and an empty `struck`, and the pot keeps every lot.
+   `shortGp` and an empty `struck`, and the pot keeps every lot. Press Open on
+   the Judge seat: one warning notification reads "<seed> took no lot, so the
+   pot holds <worth> gp more than the table rolled", the pot opens, and the
+   Player seat's notifications hold no such line.
 7. **No magic first.** Add a magical lot (disguised as a 150 gp item) and turn
    No magic on. Observable: the plan ignores it and its tile says "Removed when
    the pot opens", not "Replaced by".

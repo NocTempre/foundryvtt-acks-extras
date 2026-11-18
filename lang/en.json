@@ -9734,6 +9734,7 @@
   "ACKS-TREASURE.audit.replaceTook": "{seed} took {lots} ({over} gp over)",
   "ACKS-TREASURE.audit.replaceNone": "{seed} took no lot",
   "ACKS-TREASURE.audit.replaceShort": "{seed} took no lot ({short} gp short)",
+  "ACKS-TREASURE.audit.warnShort": "{seeds} took no lot, so the pot holds {worth} gp more than the table rolled",
   "ACKS-TREASURE.toggle.title": "Deal toggles",
   "ACKS-TREASURE.toggle.note": "Toggles apply when the pot opens. What one changed is listed in a whisper to the Judges.",
   "ACKS-TREASURE.toggle.noMagic": "No magic",

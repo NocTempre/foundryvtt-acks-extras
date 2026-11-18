@@ -356,7 +356,10 @@ found, or the heaviest lots that cover, so a very large pot still plans.
 
 - A seed worth nothing takes nothing. A seed the free lots cannot cover is a
   typed `shortfall` (`{worthGp, availableGp, shortGp}`) and takes **none**: no
-  partial strike.
+  partial strike. `replaceWarning` gathers the shortfalls (`dealOf().warning`,
+  passed on by `planOpen`), and `openPot` raises a warning on the opening
+  Judge's client naming those seeds and the worth they add beyond the roll; the
+  open proceeds.
 - A struck lot is in `dealOf().struck`, never in `removed`, so its Card is kept.
   Bands are ranked over what the pot will hold, struck lots out.
 - Staging shows the plan: a struck lot's tile reads "Replaced by <seed>", the

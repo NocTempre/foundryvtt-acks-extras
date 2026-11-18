@@ -467,3 +467,14 @@ bracketed note, words between the count and the kind, an alternative clause).
   deal leaves the brilliant as it was, and breaking it stays the table's choice
   after the deal. **Counter (moderate):** the deal never offers the break, so a
   table that wants it splits the card by hand.
+
+## 2026-11-17 — An uncovered replace seed warns the Judge at open
+
+The owner, answering question 11a: "Take recommendations", so a seed the free
+lots cannot cover still takes none, and the Judge who opens the pot is warned
+that it holds more than the table rolled. The warning names each such seed and
+the sum of their worth, not of their shortfalls, since each seed's shortfall is
+measured against every free lot on its own and the shortfalls do not add. It is
+a notification on the opening Judge's client; nothing is refused and no player
+sees it. **Counter (moderate):** striking every free lot (11a's option b) keeps
+the pot's total near the roll; the warning only tells the Judge it was not.

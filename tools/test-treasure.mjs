@@ -9,7 +9,7 @@ import { BUCKET, PHASE, POOL, REFUSAL } from "../scripts/treasure/constants.mjs"
 import {
   AURA_BACK_ICON, DEAL_TOGGLE, apparentName, backIconOf, bandsOf, buildCard, cardInPot, cardView, claimCoinCredits, claimItemData, dealOf, faceLook, flipUpdate, haulOf,
   normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, setToggle, shownPool, stage,
-  turnedOf, unstage, withBands, worthOf,
+  replaceWarning, turnedOf, unstage, withBands, worthOf,
 } from "../scripts/treasure/pot-logic.mjs";
 import { planReplace } from "../scripts/treasure/replace-logic.mjs";
 
@@ -571,6 +571,16 @@ const planOf = (seeds, lots) => planReplace({ seeds: seeds.map((w, i) => ({ id: 
   eq(short.flag.order, ["s", "a"], "a shortfall strikes nothing, and the seed lands at a drawn position");
   eq(short.flag.replaced, [{ seedId: "s", struck: [], shortGp: 350 }]);
   eq(short.struck, []);
+  eq(short.warning, { seeds: ["s"], worthGp: 400, shortGp: 350 }, "a seed no lot covers is warned of by its true name, its worth and its short gp");
+  eq(planOpen(v, { audience: [], rng: () => 0 }).warning, null, "a covered seed raises no warning");
+  eq(planOpen(stagingView([lot("a", 100), lot("b", 100)], { order: ["a", "b"] }), { audience: [], rng: () => 0 }).warning, null, "a pot with no replace seed raises none");
+  eq(replaceWarning([{ seedId: "x", ok: true, struck: ["a"], worthGp: 5, takenGp: 5, overGp: 0 }]), null, "a plan whose seeds all took lots raises none");
+  eq(replaceWarning([]), null);
+  eq(replaceWarning(undefined), null);
+  const two2 = planOpen(hold([lot("a", 30), seed("s1", 100), seed("s2", 50.25)], ["a"], ["s1", "s2"]), { audience: [], rng: () => 0 });
+  eq(two2.warning, { seeds: ["s1", "s2"], worthGp: 150.25, shortGp: 90.25 }, "two seeds the lots cannot cover are named together, their worths summed");
+  const mixed = planOpen(hold([lot("a", 100), seed("s1", 80), seed("s2", 80)], ["a"], ["s1", "s2"]), { audience: [], rng: () => 0 });
+  eq(mixed.warning, { seeds: ["s2"], worthGp: 80, shortGp: 80 }, "only the seed that found the lots gone is named");
 
   const adds = hold([lot("a", 100), lot("b", 100), seed("s", 80), cardOf("x", truth({ valueGp: 1, label: "x", bucket: BUCKET.add }))], ["a", "b"], ["s"], { buckets: { add: ["x"], replace: ["s"] } });
   eq(planOpen(adds, { audience: [], rng: () => 0.999 }).flag.order, ["s", "b", "x"], "an add card still lands at a drawn position beside a replacing seed");

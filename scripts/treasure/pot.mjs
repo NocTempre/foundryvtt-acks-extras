@@ -191,6 +191,7 @@ export async function openPot(pile) {
   for (const id of audience) ownership[id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
   await pile.update({ [potPath]: plan.flag, ownership });
   if (plan.audit.length) await postDealAudit(pile, plan.audit);
+  if (plan.warning) ui.notifications?.warn(loc("audit.warnShort", { seeds: plan.warning.seeds.join(", "), worth: gpText(plan.warning.worthGp) }));
   return { ok: true };
 }
 

@@ -415,6 +415,24 @@ export function setToggle(pot, key, on) {
 }
 
 /**
+ * The Judge's warning for a replace plan: the seeds the free lots could not
+ * cover. Such a seed takes no lot and still lands, so the pot holds the seeds'
+ * worth more than the table rolled. Null when every seed was covered, or there
+ * were none.
+ * @param {object[]} plans  `planReplace`'s `plans`
+ * @param {function(string): string} label  a seed id's true name
+ * @returns {{seeds: string[], worthGp: number, shortGp: number}|null} the names
+ *   of the seeds that took no lots, their worth together, and the gp the lots
+ *   fell short of it together
+ */
+export function replaceWarning(plans, label = (id) => id) {
+  const short = (plans ?? []).filter((p) => !p.ok);
+  if (!short.length) return null;
+  const sum = (key) => Math.round(short.reduce((s, p) => s + p[key] * 100, 0)) / 100;
+  return { seeds: short.map((p) => label(p.seedId)), worthGp: sum("worthGp"), shortGp: sum("shortGp") };
+}
+
+/**
  * What opening the pot does to its cards, before anything is written: the
  * toggles applied to every card the pot will hold (`order` and both buckets),
  * then each survivor's band ranked within the survivors.
@@ -433,7 +451,8 @@ export function setToggle(pot, key, on) {
  * kept), and bands are ranked over `held`: what the pot will hold, struck lots
  * out. `replace` is the plan's entries; `audit` ends with a `replace` row of
  * `{seed, lots, overGp, shortGp}` lines (true names) when a replace seed stands.
- * @returns {{removed: string[], kept: string[], held: string[], struck: string[], replace: object[], bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[], lines?: object[]}>}}
+ * `warning` is `replaceWarning` over the plan.
+ * @returns {{removed: string[], kept: string[], held: string[], struck: string[], replace: object[], warning: object|null, bands: Object<string, number>, forced: Array<{id: string, flags: object}>, audit: Array<{toggle: string, names: string[], lines?: object[]}>}}
  */
 export function dealOf(view) {
   const { pot } = view;
@@ -475,7 +494,7 @@ export function dealOf(view) {
       lines: plans.map((p) => ({ seed: label(p.seedId), lots: p.struck.map(label), overGp: p.ok ? p.overGp : null, shortGp: p.ok ? null : p.shortGp })),
     });
   }
-  return { removed, kept, held, struck, replace: plans, bands, forced, audit };
+  return { removed, kept, held, struck, replace: plans, warning: replaceWarning(plans, label), bands, forced, audit };
 }
 
 /**
@@ -497,7 +516,8 @@ export function withBands(view) {
  * no slot and every add seed land at random positions, and both buckets empty.
  * The plan is kept on the flag as `replaced`. Bands are ranked here and never
  * again. `audience` is who gets LIMITED sight.
- * @returns {{ok: true, flag: object, bands: object, removed: string[], struck: string[], forced: object[], audit: object[]}|{ok: false, reason: string}}
+ * `warning` is `dealOf`'s Judge warning for a seed no lot covered.
+ * @returns {{ok: true, flag: object, bands: object, removed: string[], struck: string[], forced: object[], audit: object[], warning: object|null}|{ok: false, reason: string}}
  */
 export function planOpen(view, { audience, rng }) {
   if (!view) return refuse(REFUSAL.noPot);
@@ -523,7 +543,7 @@ export function planOpen(view, { audience, rng }) {
   next.order = placeAdds(base, loose, rng);
   next.buckets = { add: [], replace: [] };
   next.replaced = deal.replace.map((p) => ({ seedId: p.seedId, struck: p.struck, shortGp: p.ok ? null : p.shortGp }));
-  return { ok: true, flag: next, bands: deal.bands, removed: deal.removed, struck: deal.struck, forced: deal.forced, audit: deal.audit };
+  return { ok: true, flag: next, bands: deal.bands, removed: deal.removed, struck: deal.struck, forced: deal.forced, audit: deal.audit, warning: deal.warning };
 }
 
 /**
