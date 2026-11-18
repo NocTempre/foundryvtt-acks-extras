@@ -1702,6 +1702,77 @@ then their figures stay on the card.
 
 Numbered 150 to 199.
 
+### 1d-A (1d-A's architect, 2026-11-17)
+
+Rests on (6e1999dd, by symbol):
+- A caster record is written only for a held cast, or a timed one with a
+  kept row that lasts `duration` or recurs on the caster's turn.
+- `RECORD_KINDS = ["ignite"]`.
+- `summoning()` declines any spell with a summon row.
+- `rowNeedsThrow` holds for damage rows only.
+- `cast-card` treats any `delivery` row as a throw row.
+- `readEffect`'s default arm prints no kind.
+- `castVerdicts` measures every targeted token.
+- `cast-summon` spends core's count only and passes no caster level.
+- The three built summons have no `effects` or `values`.
+
+150. **A tracked row is a card line plus a caster record** (ruling 14), with
+     `lasts: "duration"` wherever it lasts. *Rejected:* `noteFrom` clause
+     lines, which would put page prose on every card. *Counter (medium):*
+     until 1d-B the footnote reads only the row's subject.
+151. **Three spells wait for 1d-B with new kinds**: delayDisease,
+     purifyFoodAndWater and sealPortal. sealPortal is a third kind beyond
+     the prompt's two. *Rejected:* `structural` or `ward` for sealPortal.
+     *Counter (low):* one kind more than named.
+152. **The built summons get rows**: callOfTheWolf (a calling) and
+     summonManes (a summoning), each with its ref, and conjureCacodemonSpawn
+     (a conjuration with HD located, no ref, because its creature imports as
+     a template actor). `control` is read from the page, and counts are
+     located with `articles`. `ROW_KEYS` gains `summonFormat` and `control`.
+     *Counter (medium):* the spawn can only be cast by the Judge.
+153. **faithfulCompanion and unlivingPuppet carry summon rows**, with HD
+     coming from the remains. *Rejected:* a control or transform line
+     through `castSpell`, which reaches no map and has no Dismiss.
+     *Counter (medium):* the page files these under death spells, and
+     neither path checks the remains.
+154. **On a summon row, `max` is the count's ceiling at the caster level**,
+     carried unresolved by `summonOptionsOf` until 1d-B resolves it.
+155. **1d-A changes `cast-summon` only where no level or tradition is read**:
+     a concentration shape writes the held caster record, and a new cast
+     ends the caster's existing concentration with a warning first. Both
+     are additive, behind optional deps. *Counter (medium):* a held summons'
+     end posts no Dismiss.
+156. **To 1d-B:**
+     - caster level for summon count and duration (qualifies the 2026-11-11
+       summon entry);
+     - the capacity verdict and the tradition's pool spend (finding: a
+       summon spends core's count only);
+     - placement range, abilities, and declaration in a fight;
+     - Dismiss on a held summons' end;
+     - a row `name`;
+     - a summon describe arm reading `max`;
+     - the default arm naming its kind;
+     - the three kinds of 151;
+     - finding: stale targets range-block a Player's detect cast, so a cast
+       whose rows open no entry should measure no target.
+     1d-B also follows ruling 129's dispatch.
+
+Owner questions, with the defaults proceeded on:
+- **1d.1** Animation spells are placed through the summoning cast.
+- **1d.2** callOfTheWolf's token is placed at the cast; the arrival delay is
+  the Judge's.
+- **1d.3** predictWeather lasts `instant`.
+- **1d.4** The sizes of illusoryFigment, wallOfSmoke and iceFloe stay blank.
+- **1d.5** A summons in a begun fight resolves at once, until 1d-B.
+- **1d.6** A held summons' end leaves its creatures with no prompt, until
+  1d-B.
+
+Slices, on `topic/spell-effects-1d`:
+- T: the thirteen tracked entries;
+- R: the five summon entries and `ROW_KEYS`, after T;
+- H: ruling 155 in `cast-summon`;
+- W: the walk `magic-cast-tracked`, TESTING, DECISIONS and ROADMAP.
+
 **Findings:** F1 a pick option's label renders an object (S3p); F2 a Throw
 press throws at the presser's targets (ruling 89); F4 `resisting` counts line
 rows, so a spell whose other rows all throw rolls saves for nothing (S3p).
