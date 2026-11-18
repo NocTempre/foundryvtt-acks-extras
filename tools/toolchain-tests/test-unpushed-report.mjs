@@ -88,15 +88,6 @@ for (let i = 0; i < 12; i++) commit(`bulk${i}`);
 r = stop("a");
 check("a long listing is cut to a count", /and 3 more/.test(r.out?.systemMessage ?? ""), JSON.stringify(r));
 
-const template = path.join(scratch, "family", "acks-module-template");
-execFileSync("git", ["clone", "-q", remote, template], { stdio: "ignore" });
-fs.writeFileSync(path.join(template, "canon"), "canon");
-git(template, "add", "canon");
-git(template, "-c", "user.name=t", "-c", "user.email=t@example.invalid", "commit", "-q", "-m", "adds canon");
-const canon = git(template, "rev-parse", "--short", "HEAD");
-r = stop("a");
-check("the template beside the project is read too", r.out?.systemMessage?.includes(canon) && r.out.systemMessage.includes("acks-module-template: 1 commit(s)") && r.out.systemMessage.includes("module: 13 commit(s)"), JSON.stringify(r));
-
 const bare = path.join(scratch, "not-a-repo");
 fs.mkdirSync(bare);
 r = stop("c", JSON.stringify({ session_id: `${tag}-c`, cwd: bare }));

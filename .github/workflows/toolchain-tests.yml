@@ -1,0 +1,153 @@
+name: Toolchain tests
+
+# Runs the suites in tools/toolchain-tests/: they test the commit tool, the
+# hooks, the validator, the IP scan and quarantine, the release preflight, the
+# logs tool and the capture driver, in throwaway repositories. They are not part
+# of `npm test`, so this workflow is where they run, and only when a file they
+# cover changes.
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".claude/**"
+      - ".githooks/**"
+      - "tools/toolchain-tests/**"
+      - "tools/validate.mjs"
+      - "tools/ip-scan.mjs"
+      - "tools/ip-quarantine.mjs"
+      - "tools/logs.mjs"
+      - "tools/release-preflight.mjs"
+      - "tools/walk-results.mjs"
+      - "tools/live/_capture.mjs"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/toolchain-tests.yml"
+  workflow_dispatch:
+
+jobs:
+  suites:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # test-validate borrows this install's handlebars.
+      - name: Install dev dependencies
+        run: npm ci
+
+      # The quarantine is the one gate that runs before history exists, and
+      # most of its paths are taken only by a commit nobody makes on purpose:
+      # a flagged file edited after it was staged, a name that breaks an error
+      # line in two, a file HEAD already holds, a checkout whose .git is a
+      # file. Throwaway repositories commit through the hook and check what
+      # each commit holds and what the ignore list then says. Git on Windows
+      # holds no index entry for some of the names, so this run is the one that
+      # stages them.
+      - name: Quarantine judges what a commit would hold, and takes out or stops what it flags
+        run: node tools/toolchain-tests/test-ip-quarantine.mjs
+
+      # The scan's long-literal warning tokenizes source, and a tokenizer that
+      # misreads fails quietly in both directions: a comment read as a literal
+      # is a warning for nothing, and a literal read as a comment is a paste
+      # nobody is told about. Invented sources pin both. The same suite pins
+      # what the scan reads: a path in any letter case, and the text git holds
+      # for it where the hook or the commit tool asks.
+      - name: IP scan measures literals, and reads what git holds for a path
+        run: node tools/toolchain-tests/test-ip-scan.mjs
+
+      # The release preflight's refusals fire only on a release being
+      # prepared: a bumped version, its changelog section, shots that were or
+      # were not taken. Throwaway repositories tagged one version back stage
+      # each and check what the preflight lets through and what it names.
+      - name: Release preflight holds a major or minor's changelog entries to their shots
+        run: node tools/toolchain-tests/test-release-preflight.mjs
+
+      # Compile and roll rewrite the logs, and a wrong rewrite shows only
+      # when a release is cut: a fragment compiled out of order, an archive that
+      # differs from the tag's blob, an index row whose anchor points nowhere.
+      # Throwaway repositories tagged one version back run each command and
+      # compare what it wrote with what the tag holds.
+      - name: Logs tool compiles fragments and rolls the archives
+        run: node tools/toolchain-tests/test-logs.mjs
+
+      # The live-walk result file is what the release preflight trusts about a
+      # walk: a walk ends in a named state, and its result is bound to the
+      # runtime tree it ran on. Throwaway repositories hold the tree id still
+      # under a changelog edit or a line-ending flip, and move it under any
+      # runtime byte; the zip list is read back out of the release workflow.
+      - name: Walk results reduce, bind to the runtime tree and refuse stale ones
+        run: node tools/toolchain-tests/test-walk-results.mjs
+
+      # The capture driver's guards run only when a live page stops answering
+      # or a toast lands late, which no run can be made to do on demand. A
+      # scripted page pins the sequence they depend on: front the page, hide
+      # the tray, bound the capture, try once more.
+      - name: Capture driver fronts its page and bounds its captures
+        run: node tools/toolchain-tests/test-foundry-capture.mjs
+
+      # The commit tool is the one piece of tooling that writes to a branch, and
+      # its guards fire only when another session's commit, hunk or staging
+      # arrives at the wrong moment. Throwaway repositories stage each of
+      # those moments and check what the commit then holds.
+      - name: Commit tool commits the gated tree and no peer's hunk
+        run: |
+          node --check .claude/skills/acks-commit/commit-own-hunks.mjs
+          node --check .claude/skills/acks-commit/ledger.mjs
+          node --check .claude/skills/acks-commit/lease.mjs
+          node tools/toolchain-tests/test-commit-own-hunks.mjs
+
+      # One run of the commit tool gates and commits at a time. A lease that two
+      # runs can hold, or one taken from a run that is still at work, loses a
+      # gate or commits under one, and neither shows until two sessions land
+      # in the same minute. Runs started side by side check it.
+      - name: Landing lease is held by one run at a time
+        run: node tools/toolchain-tests/test-landing-lease.mjs
+
+      # The ledger says whose a line is and the guard says which commands go
+      # around the commit tool. Both are wrong silently: a line credited to
+      # the wrong session is committed by it, and a command let through
+      # commits another session's staging. Payloads shaped as the tools
+      # report them, and command lines as sessions write them, check both.
+      - name: Edit ledger credits a line to its writer, and the guard refuses a hand-run commit
+        run: |
+          for f in .claude/hooks/*.mjs; do node --check "$f"; done
+          node tools/toolchain-tests/test-shared-tree-hooks.mjs
+
+      # The Stop hook runs at the end of every turn, so the one
+      # thing it must never do is hold a turn open or speak twice for one
+      # listing.
+      - name: Unpushed commits are named once, by sha, and the hook asks for nothing
+        run: node tools/toolchain-tests/test-unpushed-report.mjs
+
+      # A topic branch lands only as a fast-forward of the gated tip, and
+      # closing its worktree must never reach through the node_modules link
+      # into the main checkout. Throwaway repositories under the temp
+      # directory drive every mode and every refusal.
+      - name: Topic branches open, land by rebase and fast-forward, park and close without touching main's node_modules
+        run: node tools/toolchain-tests/test-branch.mjs
+
+      # The branch guard fires on every git command: it must
+      # refuse a hand-made branch or worktree, a hand worktree removal and a
+      # switch of main's tree, and pass everything else, a linked worktree's
+      # switch included.
+      - name: The branch guard refuses hand-made branches, worktree removal and switching main's tree
+        run: node tools/toolchain-tests/test-branch-guard.mjs
+
+      # The full-gate guard fires on every Bash and PowerShell command:
+      # it must refuse a hand-run `npm test`, `npm run validate`
+      # or their `node tools/...` spellings wherever they sit in a command,
+      # and pass a single suite, a pack build, text that only mentions a
+      # gate, and a command carrying the escape with a reason.
+      - name: The full-gate guard refuses a hand-run full gate and passes single suites
+        run: node tools/toolchain-tests/test-full-gate-guard.mjs
+
+      # Feeds the validator invented modules it must fail, borrowing this
+      # repo's handlebars install.
+      - name: Validator gates fail what they exist to catch
+        run: node tools/toolchain-tests/test-validate.mjs

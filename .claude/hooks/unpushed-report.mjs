@@ -2,11 +2,9 @@
  * Claude Code Stop hook naming, by sha, the commits a checkout holds that its
  * upstream does not.
  *
- * It reads two checkouts: the session's project, and the template beside it
- * where one stands at `../acks-module-template`, since a canon edit is
- * committed there and reaches no module until it is pushed. Each is compared
- * with the upstream ref as it stands locally; nothing is fetched, so a commit
- * a peer pushed since the last fetch still counts as local.
+ * It reads one checkout, the session's project, and compares it with the
+ * upstream ref as it stands locally; nothing is fetched, so a commit a peer
+ * pushed since the last fetch still counts as local.
  *
  * The listing is the checkout's, not the session's: every session commits to
  * the one branch, and the message says so. A session standing in a topic
@@ -132,16 +130,8 @@ try {
 }
 
 const project = payload.cwd || process.env.CLAUDE_PROJECT_DIR || process.cwd();
-const template = path.resolve(project, "..", "acks-module-template");
-const seen = new Set();
-const ahead = [];
-for (const dir of [project, template]) {
-  if (!fs.existsSync(dir)) continue;
-  const found = survey(dir);
-  if (!found || seen.has(found.top)) continue;
-  seen.add(found.top);
-  ahead.push(found);
-}
+const found = fs.existsSync(project) ? survey(project) : null;
+const ahead = found ? [found] : [];
 
 const lines = [];
 for (const { top, upstream, commits, branches } of ahead) {

@@ -1,12 +1,9 @@
 name: Release
 
-# Thin caller — the actual release procedure lives in acks-module-template
-# (.github/workflows/release-module.yml) and propagates here automatically
-# via the @main reference. Synced from acks-module-template; do not hand-edit.
-#
-# Runs when a version tag is pushed; the tag must be v<module.json version>.
-# The acks-release skill says how that tag is made and pushed.
-# Manual "Run workflow" performs a dry run: full build + validation, no publish.
+# The release procedure. It runs when a version tag is pushed; the tag must be
+# v<module.json version>. The acks-release skill says how that tag is made and
+# pushed. A manual "Run workflow" is a dry run: full build + validation, no tag
+# check, no publish.
 
 on:
   push:
@@ -18,7 +15,219 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    uses: NocTempre/acks-module-template/.github/workflows/release-module.yml@main
-    with:
-      dry_run: ${{ github.event_name == 'workflow_dispatch' }}
+  build-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Verify tag matches module.json version
+        if: ${{ github.event_name != 'workflow_dispatch' }}
+        run: |
+          MANIFEST_VERSION=$(node -p "require('./module.json').version")
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          echo "manifest=$MANIFEST_VERSION  tag=$TAG_VERSION"
+          if [ "$MANIFEST_VERSION" != "$TAG_VERSION" ]; then
+            echo "::error::module.json version ($MANIFEST_VERSION) does not match tag ($TAG_VERSION)"
+            exit 1
+          fi
+
+      # The release page's body is the version's own CHANGELOG section, so the
+      # notes a user finds on GitHub are the ones the release wrote. Relative
+      # links are pointed at the tag, since a release page resolves nothing
+      # relative, and hard-wrapped lines are joined, since a release page
+      # renders every newline as a break. A version with no section still
+      # publishes (its tag is already pushed and cannot be retaken), with a body
+      # pointing at CHANGELOG.md and a warning on the run. A dry run writes the
+      # same notes to its summary.
+      - name: Release notes from CHANGELOG
+        id: notes
+        env:
+          NOTES: ${{ runner.temp }}/release-notes.md
+          REF: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.ref_name }}
+        run: |
+          node -e '
+            const fs = require("fs");
+            const version = require("./module.json").version;
+            const base = `https://github.com/${process.env.GITHUB_REPOSITORY}`;
+            const at = (p) => `${base}/${fs.statSync(p).isDirectory() ? "tree" : "blob"}/${process.env.REF}/${p}`;
+            const esc = version.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
+            const heading = new RegExp(`^##\\s+(?:Release\\s+)?\\[?v?${esc}\\]?(?:\\s|$)`);
+            const fenceLine = /^(```|~~~)/;
+            const opensBlock = /^(#{1,6}\s|[-*+]\s|\||>|!\[|```|~~~|-{3,}$|_{3,}$|\*{3,}$)/;
+            const ordered = /^\d+[.)]\s/;
+            // As in CommonMark, a number opens a list item after a text line
+            // only when it is 1 or the list is already open, so a wrapped line
+            // that happens to begin "15. " stays in its sentence.
+            const unwrap = (text) => {
+              const out = [];
+              let fenced = false;
+              let inOrdered = false;
+              for (const line of text.split("\n")) {
+                const t = line.trim();
+                const prev = out.length ? out[out.length - 1].trim() : "";
+                if (fenceLine.test(t)) fenced = !fenced;
+                const opens = opensBlock.test(t) || (ordered.test(t) && (/^1[.)]\s/.test(t) || inOrdered));
+                const joins = !fenced && t && prev && !opens && !/^(#{1,6}\s|\||```|~~~)/.test(prev);
+                if (joins) { out[out.length - 1] = `${out[out.length - 1].trimEnd()} ${t}`; continue; }
+                out.push(line);
+                if (t) inOrdered = ordered.test(t) && (!prev || opens);
+              }
+              return out.join("\n");
+            };
+            const lines = fs.existsSync("CHANGELOG.md") ? fs.readFileSync("CHANGELOG.md", "utf8").split(/\r?\n/) : [];
+            const start = lines.findIndex((l) => heading.test(l));
+            // The release page is titled by the heading text of the section, so
+            // a label the heading carries reaches the page; with no section the
+            // title is the tag.
+            const title = start < 0 ? `v${version}` : lines[start].replace(/^##\s+/, "").trim();
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, `title=${title}\n`);
+            let body;
+            if (start < 0) {
+              console.log(`::warning::CHANGELOG.md has no section for ${version}; the release page points at the file instead.`);
+              body = fs.existsSync("CHANGELOG.md") ? `See [CHANGELOG.md](${at("CHANGELOG.md")}).` : "";
+            } else {
+              let end = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+              if (end < 0) end = lines.length;
+              body = unwrap(lines.slice(start + 1, end).join("\n").trim())
+                .replace(/\]\((?![a-z][a-z0-9+.-]*:|#|\/)(?:\.\/)?([^)\s#]+)(#[^)\s]*)?\)/gi,
+                  (m, p, hash = "") => fs.existsSync(p) ? `](${at(p)}${hash})` : m);
+            }
+            const footer = [["docs/GALLERY.md", "Screenshots"], ["docs/guides", "Guides"], ["CHANGELOG.md", "Full changelog"]]
+              .filter(([p]) => fs.existsSync(p)).map(([p, t]) => `[${t}](${at(p)})`);
+            if (footer.length) body += `\n\n---\n${footer.join(" · ")}`;
+            fs.writeFileSync(process.env.NOTES, body + "\n");
+          '
+          cat "$NOTES" >> "$GITHUB_STEP_SUMMARY"
+          echo "release notes: $(wc -c < "$NOTES") bytes"
+
+      - name: Install dev dependencies
+        run: npm ci
+
+      - name: Build compendium packs
+        run: npm run build:packs --if-present
+
+      # IP gate, part 1 of 2 — scans the working tree. The scan's EXIT CODE is a
+      # three-way verdict (0 clean / 1 leak / 2 tooling error); we capture it and
+      # publish it as `result` rather than relying on continue-on-error+outcome,
+      # which collapses "found book text" and "the scanner crashed" into one
+      # `failure` and would quarantine the repo for a benign Node quirk.
+      - name: IP leak scan (tree)
+        id: ipscan_tree
+        run: |
+          node tools/ip-scan.mjs && code=0 || code=$?
+          case "$code" in
+            0) echo "result=clean" >> "$GITHUB_OUTPUT" ;;
+            1) echo "result=leak"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "result=error" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "ip-scan (tree): exit=$code"
+
+      - name: Validate scripts, templates, JSON, and packs
+        if: ${{ steps.ipscan_tree.outputs.result == 'clean' }}
+        env:
+          ACKS_IP_SCAN_VERDICT: ${{ steps.ipscan_tree.outputs.result }}
+        run: npm run validate --if-present
+
+      - name: Run logic tests
+        run: npm run test --if-present
+
+      - name: Verify every declared pack exists
+        run: |
+          node -e '
+            const fs = require("fs");
+            const m = require("./module.json");
+            let missing = false;
+            for (const p of m.packs ?? []) {
+              if (!fs.existsSync(p.path + "/CURRENT")) {
+                console.error(`::error::declared pack "${p.name}" is missing its compiled LevelDB at ${p.path}`);
+                missing = true;
+              }
+            }
+            if (missing) process.exit(1);
+          '
+
+      - name: Create module.zip
+        run: |
+          # The zip carries the FOUNDRY RUNTIME plus the root README/LICENSE that
+          # the package listing consumes — nothing else. Runtime is scripts/,
+          # styles/, templates/, lang/, vendor/, ruledata/, the compiled packs/
+          # and module.json; Foundry never reads a markdown file out of the
+          # module directory, so docs/ in its entirety is repo-only and is read
+          # on GitHub. That also keeps the release-snapshot gallery
+          # (docs/releases/, docs/guides/, docs/GALLERY.md — TOOLCHAIN §4b) and
+          # its megabytes of PNG out of every user's download. The changelog's
+          # fragments and its archives are repo-only for the same reason.
+          zip -r module.zip . \
+            -x '.git/*' '.githooks/*' '.github/*' '.claude/*' 'node_modules/*' \
+               'packs/_source/*' 'tools/*' 'register/*' 'docs/*' \
+               'changelog.d/*' 'CHANGELOG-through-*.md' \
+               'package.json' 'package-lock.json' \
+               '.gitignore' '.gitattributes' 'CLAUDE.md' 'module.zip'
+
+      # IP gate, part 2 of 2 — scans what is actually about to be published,
+      # not just what is in the tree. Catches anything the zip step sweeps in.
+      # Same three-way verdict as the tree scan (unzip failures still fail this
+      # step loudly, which is correct — a broken artifact is not a leak).
+      - name: IP leak scan (release artifact)
+        id: ipscan_zip
+        run: |
+          rm -rf /tmp/ipscan && mkdir -p /tmp/ipscan
+          unzip -q module.zip -d /tmp/ipscan
+          node tools/ip-scan.mjs /tmp/ipscan && code=0 || code=$?
+          case "$code" in
+            0) echo "result=clean" >> "$GITHUB_OUTPUT" ;;
+            1) echo "result=leak"  >> "$GITHUB_OUTPUT" ;;
+            *) echo "result=error" >> "$GITHUB_OUTPUT" ;;
+          esac
+          echo "ip-scan (artifact): exit=$code"
+
+      # Quarantine, not blockade: the push already landed and the work is safe
+      # on the remote. What we withhold is *exposure* — the repo drops to
+      # private and no release assets are published until the leak is cleared.
+      # This fires ONLY on a real leak verdict (exit 1). A scanner crash (exit 2)
+      # is handled by the step below and must never take the repo private.
+      - name: Quarantine repository on leak
+        if: ${{ steps.ipscan_tree.outputs.result == 'leak' || steps.ipscan_zip.outputs.result == 'leak' }}
+        env:
+          GH_TOKEN: ${{ secrets.IP_GATE_TOKEN }}
+        run: |
+          echo "::error::IP leak detected — withholding release and taking $GITHUB_REPOSITORY private."
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Secret IP_GATE_TOKEN is not set, so visibility cannot be changed automatically."
+            echo "::error::ACT NOW — take $GITHUB_REPOSITORY private by hand, then clear the leak."
+            echo "::error::Add a PAT with admin:repo as secret IP_GATE_TOKEN to automate this."
+            exit 1
+          fi
+          gh repo edit "$GITHUB_REPOSITORY" --visibility private --accept-visibility-change-consequences
+          echo "::warning::$GITHUB_REPOSITORY is now PRIVATE. Clear the leak, then restore visibility deliberately."
+          exit 1
+
+      # Fail loud, do NOT quarantine: the scanner errored (exit 2) rather than
+      # finding a leak. The release is still withheld (this step fails the job),
+      # but visibility is left untouched — a tooling failure is not evidence of
+      # exposure, and flipping a public repo private on a Node hiccup is the
+      # footgun this split exists to prevent. Skipped when a real leak already
+      # fired quarantine above.
+      - name: Fail release on scan tooling error
+        if: ${{ (steps.ipscan_tree.outputs.result == 'error' || steps.ipscan_zip.outputs.result == 'error') && steps.ipscan_tree.outputs.result != 'leak' && steps.ipscan_zip.outputs.result != 'leak' }}
+        run: |
+          echo "::error::ip-scan crashed (exit 2) — the release is withheld, but visibility is unchanged."
+          echo "::error::tree=${{ steps.ipscan_tree.outputs.result }} artifact=${{ steps.ipscan_zip.outputs.result }}"
+          echo "::error::Fix the scanner (tools/ip-scan.mjs) and re-run; this is NOT a leak verdict."
+          exit 1
+
+      - name: Publish release
+        if: ${{ github.event_name != 'workflow_dispatch' && steps.ipscan_tree.outputs.result == 'clean' && steps.ipscan_zip.outputs.result == 'clean' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.notes.outputs.title || github.ref_name }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          files: |
+            module.json
+            module.zip

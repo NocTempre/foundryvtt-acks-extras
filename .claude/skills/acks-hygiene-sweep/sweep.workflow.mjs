@@ -556,8 +556,8 @@ Return EXACTLY one row per input finding, in the same order, with file/line/cate
 ${DOCTRINE_CONTEXT}
 
 Read these two canon documents in full before judging:
-- C:/Proj/acks-module-template/docs/TOOLCHAIN.md
-- C:/Proj/acks-module-template/docs/DECISIONS.md
+- C:/Proj/foundryvtt-acks-extras/docs/TOOLCHAIN.md
+- C:/Proj/foundryvtt-acks-extras/docs/DECISIONS.md
 
 FINDINGS FROM THE SWEEP (JSON):
 ${JSON.stringify(deduped, null, 2)}

@@ -57,7 +57,7 @@ unrestricted lens correctly widens back to all clusters.
    happens here.
 
    ```bash
-   node "C:\Proj\acks-module-template\.claude\skills\acks-hygiene-sweep\plan-sweep.mjs"
+   node "C:\Proj\foundryvtt-acks-extras\.claude\skills\acks-hygiene-sweep\plan-sweep.mjs"
    ```
 
    Flags: `--lens <name>` (repeatable — see Lenses), `--list-lenses`,
@@ -107,7 +107,7 @@ unrestricted lens correctly widens back to all clusters.
    and checks the invariants a broken edit would violate:
 
    ```bash
-   node "C:\Proj\acks-module-template\.claude\skills\acks-hygiene-sweep\dryrun.mjs" "C:/Proj/acks-rules/hygiene-audit/run/sweep.run.mjs"
+   node "C:\Proj\foundryvtt-acks-extras\.claude\skills\acks-hygiene-sweep\dryrun.mjs" "C:/Proj/acks-rules/hygiene-audit/run/sweep.run.mjs"
    ```
 
    It reports the agent count per phase, the return-value shape, and fails if a
@@ -120,7 +120,7 @@ unrestricted lens correctly widens back to all clusters.
    `.json`, then:
 
    ```bash
-   node "C:\Proj\acks-module-template\.claude\skills\acks-hygiene-sweep\write-report.mjs" <result.json>
+   node "C:\Proj\foundryvtt-acks-extras\.claude\skills\acks-hygiene-sweep\write-report.mjs" <result.json>
    ```
 
    It merges into the existing CSV (never clobbers it), round-trip-verifies its

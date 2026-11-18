@@ -3,10 +3,6 @@ name: Docs site
 # Builds docs/site/ (Astro + Starlight) and publishes it to GitHub Pages at
 # https://noctempre.github.io/foundryvtt-acks-extras/
 #
-# MODULE-OWNED, not synced from acks-module-template — this repo is the only one
-# in the family with a site. If a second one grows one, promote this to the
-# template rather than copying it.
-#
 # The site derives its content from docs/, README.md, lang/en.json, scripts/ and
 # tools/pack-data.mjs, so there is deliberately no `paths:` filter: almost any
 # change to the module can change a published page, and a filter that is subtly
