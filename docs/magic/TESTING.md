@@ -550,6 +550,12 @@ slots at zero.
     says one declared target is no longer there, and nothing is spent. Cancelling leaves the
     pending record and the flag, as a cancelled cast does.
 
+    Drive: step 17 ended the caster's turn through core's `nextRound`, which cleared every
+    initiative, and a caster with no initiative is never at its turn (the cast declares
+    instead). The step sets the initiatives again after moving to its round, before it
+    declares. At its end the step sweeps its fight by uuid (the steps after it open their own,
+    and a caster held by two begun fights answers to the first).
+
 ### The lost-item steps
 
 Walked after the declaration steps, in `tools/live/magic-cast-spell.mjs`
@@ -1374,7 +1380,12 @@ on each seat for the run (`acksExtras.magic.registerCastProcedure`, `buckets` re
 A native `<option>` takes no tone reliably, so the warn tone is read on the select; the
 disabled state is read on the option. The bucket's rows are found by their `.acks-extras-bucket__name`;
 a radio is clicked, not set, so the window's action fires. A drop is a dispatched
-`DragEvent("drop")` on `[data-bucket-drop]`, not a click.
+`DragEvent("drop")` on `[data-bucket-drop]`, not a click. Every helper closes the
+dialog it opened on every return path, a refusal and a cast that was to resolve with no dialog
+included, and `invBand` reads the dialog that was not on the page before its own `use` and
+reports the dialogs it found standing (`stale`, expected 0): a window left open is read by the
+next call in place of its own, which shows the previous call's rows. Step 6 sets the fight's
+initiatives after opening it (the caster is at its turn only with its initiative rolled).
 
 ### Teardown
 

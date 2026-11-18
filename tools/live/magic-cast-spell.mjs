@@ -740,7 +740,18 @@ const P = {
     item.use({ skipDialog: true });
     const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 80, every: 250 });
     await H.sleep(500);
-    return { card: !!message, messageId: message?.id ?? null, dialog: !!document.querySelector(".application.acks-extras-cast") };
+    const open = document.querySelector(".application.acks-extras-cast");
+    const seen = {
+      card: !!message,
+      messageId: message?.id ?? null,
+      dialog: !!open,
+      button: open?.querySelector('button[data-action="cast"]')?.textContent.trim() ?? null,
+      verdicts: [...(open?.querySelectorAll(".acks-extras-cast-verdicts li") ?? [])].map((li) => li.textContent.trim()),
+    };
+    // A dialog that opened is answered by Cancel, so it cannot stand open under the next step's reads.
+    open?.querySelector('button[data-action="cancel"]')?.click();
+    if (open) await H.sleep(600);
+    return seen;
   },
   /**
    * The invention the Invocation-band steps use: the class fixture's casting row names an invented cap ladder (`levelCap`) and the caster
@@ -787,20 +798,28 @@ const P = {
     const H = globalThis.__mcs;
     const item = game.actors.get(casterId).items.get(spellId);
     const before = new Set([...game.messages].map((m) => m.id));
+    // The dialog this call opens is the one not already on the page; one left open by an earlier call is counted as `stale` and never read.
+    const standing = new Set(document.querySelectorAll(".application.acks-extras-cast"));
     item.use({ skipDialog: true });
-    const first = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
-    if (!first) return { dialog: false };
-    const live = () => document.querySelector(".application.acks-extras-cast") ?? first;
+    const first = await H.poll(() => [...document.querySelectorAll(".application.acks-extras-cast")].find((d) => !standing.has(d)) ?? null, { tries: 80, every: 150 });
+    if (!first) return { dialog: false, stale: standing.size };
+    const live = () => first;
+    const closeIt = async () => { first.querySelector('button[data-action="cancel"]')?.click(); await H.sleep(500); };
     const rowOf = (name) => [...live().querySelectorAll(".acks-extras-bucket__row")].find((r) => r.querySelector(".acks-extras-bucket__name")?.textContent.trim().startsWith(name));
     if (level != null) {
       const sel = live().querySelector('select[name="invocationLevel"]');
       const opt = sel?.querySelector(`option[value="${level}"]`);
-      if (!sel || !opt || opt.disabled) return { dialog: true, refused: true };
+      if (!sel || !opt || opt.disabled) {
+        await closeIt();
+        return { dialog: true, refused: true, hasSelect: !!sel, hasOption: !!opt, stale: standing.size };
+      }
       sel.value = String(level);
       sel.dispatchEvent(new Event("change", { bubbles: true }));
       await H.sleep(500);
     }
+    let rowsBeforeDrop = null;
     if (drop) {
+      rowsBeforeDrop = live().querySelectorAll(".acks-extras-bucket__row").length;
       const dt = new DataTransfer();
       dt.setData("text/plain", JSON.stringify({ type: "Item", uuid: drop }));
       live().querySelector("[data-bucket-drop]")?.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
@@ -828,6 +847,8 @@ const P = {
       verdicts: [...el.querySelectorAll(".acks-extras-cast-verdicts li")].map((li) => ({ tone: li.classList.contains("is-warn") ? "warn" : "block", text: li.textContent.trim() })),
       castDisabled: !!el.querySelector('button[data-action="cast"]')?.disabled,
       button: el.querySelector('button[data-action="cast"]')?.textContent.trim() ?? "",
+      stale: standing.size,
+      rowsBeforeDrop,
     };
     if (!cast) {
       el.querySelector('button[data-action="cancel"]')?.click();
@@ -1413,6 +1434,8 @@ async function walkDeclare(K) {
 
   section("declare 18. a declaration resolves on its declared targets, and the band's level and pick");
   await move({ round: 4, turn: 0 });
+  // Core's `nextRound` (step 17's last move) cleared every initiative, and a caster whose initiative is not rolled is never at its turn.
+  await run(gm, P.combatSet, { combatId: fight.id, initiatives: { [cbFoe]: 15, [cbCaster]: 10 } });
   await run(player, P.target, { sceneId, tokenIds: [tFoe.id] });
   const d18 = await run(player, P.declare, { casterId, spellId: damageId });
   check("declare 18: the declaration is made at the Foe", d18.dialog && d18.pending === 1, { pending: d18.pending });
@@ -1423,8 +1446,11 @@ async function walkDeclare(K) {
   const turn18 = await move({ turn: 1 });
   const r18 = await run(player, P.castResolve, { casterId, spellId: damageId });
   await trackCard(r18.messageId);
-  check("declare 18: on the caster's turn the cast resolved with no dialog and the card posted", turn18.current === cbCaster && r18.card && r18.dialog === false, { dialog: r18.dialog, card: r18.card });
+  check("declare 18: on the caster's turn the cast resolved with no dialog and the card posted", turn18.current === cbCaster && r18.card && r18.dialog === false, { dialog: r18.dialog, card: r18.card, button: r18.button, verdicts: r18.verdicts, current: turn18.current === cbCaster });
   await spent();
+  // The fight ends here: a caster held by two begun fights answers to the first of them, and the next steps begin their own.
+  note("declare fight sweep", await sweepStep([fight.uuid]));
+  runCombatUuid = null;
 }
 
 /**
@@ -1455,11 +1481,12 @@ async function walkInvocation(K) {
 
     section("band 1. a Player's menu: the cap preselected, levels above it disabled");
     const p1 = await run(player, P.invBand, { casterId, spellId: damageId });
-    check("band 1: one select over the ladder's levels, the cap preselected", p1.dialog && p1.options.length === 5 && p1.options.find((o) => o.selected)?.value === "3", p1.options);
+    check("band 1: one select over the ladder's levels, the cap preselected", p1.dialog && p1.stale === 0 && p1.options.length === 5 && p1.options.find((o) => o.selected)?.value === "3", { stale: p1.stale, options: p1.options });
     check("band 1: the levels above the cap are disabled and say so, the cap is shown with its tooltip", p1.options.filter((o) => o.disabled).map((o) => o.value).join() === "4,5" && /3/.test(p1.cap ?? "") && /QA cap ladder/.test(p1.capTip ?? ""), { cap: p1.cap, tip: p1.capTip });
     check("band 1: the band is headed by the tradition", p1.heading === "Arcane", p1.heading);
     const refused = await run(player, P.invBand, { casterId, spellId: damageId, level: 5 });
-    check("band 1: a Player cannot choose a level above the cap", refused.refused === true);
+    // Refused means the select is there and the option is disabled; a dialog with no select refuses nothing.
+    check("band 1: a Player cannot choose a level above the cap", refused.refused === true && refused.hasSelect === true && refused.hasOption === true, { select: refused.hasSelect, option: refused.hasOption });
 
     section("band 2. a Judge's menu: a level above the cap is chosen in the warn tone and warns in the footer");
     const j2 = await run(gm, P.invBand, { casterId, spellId: damageId, level: 5 });
@@ -1483,7 +1510,7 @@ async function walkInvocation(K) {
     mine.push(extra.uuid);
     await run(gm, P.invSet, { uuid: extra.uuid, level: 3, damage: 0 });
     const dropped = await run(player, P.invBand, { casterId, spellId: damageId, remove: "QA Set spare", drop: extra.uuid });
-    check("band 3: a set dragged from the inventory becomes a row", dropped.rows.some((r) => r.name.startsWith("QA Set dropped")), dropped.rows.map((r) => r.name));
+    check("band 3: a set dragged from the inventory becomes a row", dropped.rows.some((r) => r.name.startsWith("QA Set dropped")), { rows: dropped.rows.map((r) => r.name), rowsBeforeDrop: dropped.rowsBeforeDrop });
 
     section("band 4. no set reaches the level: a Player is blocked, a Judge is warned");
     await run(gm, P.invSet, { uuid: high, level: 2, damage: 0 });
@@ -1491,7 +1518,7 @@ async function walkInvocation(K) {
     await run(gm, P.invSet, { uuid: spare, level: 2, damage: 0 });
     await run(gm, P.invSet, { uuid: extra.uuid, level: 2, damage: 0 });
     const b4 = await run(player, P.invBand, { casterId, spellId: damageId });
-    check("band 4: the Player's footer carries the finding as a block and Cast is off", b4.verdicts.some((v) => v.tone === "block") && b4.castDisabled, b4.verdicts);
+    check("band 4: the Player's footer carries the finding as a block and Cast is off", b4.verdicts.some((v) => v.tone === "block") && b4.castDisabled && b4.stale === 0, { verdicts: b4.verdicts, disabled: b4.castDisabled, stale: b4.stale });
     const j4 = await run(gm, P.invBand, { casterId, spellId: damageId });
     check("band 4: the Judge's footer warns and Cast is on", j4.verdicts.some((v) => v.tone === "warn") && !j4.castDisabled, j4.verdicts);
     await run(gm, P.invSet, { uuid: high, level: 4, damage: 0 });
@@ -1508,8 +1535,10 @@ async function walkInvocation(K) {
     const cb = fight.combatants.find((c) => c.tokenId === tCaster.id)?.id;
     const at = (opts) => run(gm, P.combatMove, { combatId: fight.id, ...opts });
     await at({ update: { round: 2, turn: 0 } });
-    const d6 = await run(player, P.invBand, { casterId, spellId: damageId, pick: "QA Set high", cast: true });
-    check("band 6: the Player's button declares", d6.dialog && /declare/i.test(d6.button ?? ""), d6.button);
+    // The caster is at its turn only with its initiative rolled, so the fight's initiatives are set.
+    await run(gm, P.combatSet, { combatId: fight.id, initiatives: { [fight.combatants.find((c) => c.tokenId === tFoe.id)?.id]: 15, [cb]: 10 } });
+    const d6 =await run(player, P.invBand, { casterId, spellId: damageId, pick: "QA Set high", cast: true });
+    check("band 6: the Player's button declares", d6.dialog && d6.stale === 0 && /declare/i.test(d6.button ?? ""), { button: d6.button, stale: d6.stale, verdicts: d6.verdicts });
     const stored = await run(gm, P.invPending, { casterId });
     check("band 6: the declaration stores the level and the pick", stored?.invocationLevel === 3 && stored.picked?.implements === high, stored);
     const turn = await at({ update: { turn: 1 } });
