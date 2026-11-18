@@ -20,18 +20,28 @@
  * - `perform(ctx, answer)`: `{proceed, section, rolls, undo}`.
  * - `lost(ctx, declaration)` and `revert(ctx, undo)`.
  * - `buckets(ctx)`: `[{key, policy, initial}]`, the inventory buckets the cast
- *   asks for; the answer carries them as `buckets`.
+ *   asks for; the answer carries them as `buckets`. `initial` is the list a bucket
+ *   opens holding (`[{uuid, qty?, fit?}]`) until the seat changes it. A `policy`
+ *   is lib's (`lib/bucket.mjs`), with these members of the cast's own, each over
+ *   the held rows `[{uuid, qty, fit, doc}]` (`doc` the document the uuid names,
+ *   read synchronously through `ctx.resolve`): `pick: "one"` makes the rows radios
+ *   and the pick rides the answer as `picked[key]`; `opens(rows, ctx)` is the uuid
+ *   the pick opens on; `usable(row, ctx)` says whether a row may be the pick;
+ *   `rowView(entry, row)` is a row's caption, diamonds, dimming and reason;
+ *   `verdicts(rows, picked, ctx)` are `[{key, notice}]` findings the plan ranks;
+ *   `legend`, `icon`, `dropText` and `emptyText` word the bucket, already localized.
  * - `label`: a lang key, owned by the tradition, that names the band's heading
  *   ("Invocation" and its kin); a string, not a function. Without one the
  *   heading is the tradition's own label (`procedureHeading`).
  *
  * The procedure's answer is one plain object: the field values and the band's
  * controls by key, with the reserved key `buckets` holding `{bucketKey: [{uuid,
- * qty, fit}]}`. A bucket's entry exists only by a drag of a real document
+ * qty, fit}]}` and the reserved key `picked` holding `{bucketKey: uuid}` for each
+ * `pick: "one"` bucket. A bucket's entry exists only by a drag of a real document
  * (lib's `bucket.entryFromDrop`): no control and no field writes `buckets`, so
  * a typed or free-text entry has no path in. A `ctx` is `{actor, spell,
  * tradition, classItem, invocationLevel, casterLevel, isGM, moment, combat,
- * source, roll, now}`; a ctx whose `source` is not `spell` is never given a
+ * source, roll, now, resolve}` (`resolve(uuid)` reads a document synchronously); a ctx whose `source` is not `spell` is never given a
  * procedure.
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
@@ -43,6 +53,9 @@ export const PROCEDURE_MEMBERS = Object.freeze(["fields", "band", "verdicts", "c
 
 /** The answer's reserved key for the inventory buckets; no field spec and no control named `procedure.<key>` may take it. */
 export const BUCKETS_KEY = "buckets";
+
+/** The answer's reserved key for the pick of each `pick: "one"` bucket, `{bucketKey: uuid}`; it too is no field's and no control's. */
+export const PICKED_KEY = "picked";
 
 /** The prefix of a bucket entry's uuid that names a ledger power, not a document; such an entry is never read as a missing item. */
 const POWER_PREFIX = "power:";
@@ -195,6 +208,49 @@ export async function withoutMissing(answer, holds) {
 }
 
 /**
+ * The buckets a procedure asks for, read against an answer: each with the rows it
+ * holds (the stored list, else its `initial`; a uuid the world cannot resolve is
+ * left out), the pick it stands on and the findings its policy makes. The pick is
+ * the seat's where that row is still held and usable, else the policy's `opens`.
+ * A member of the policy that throws is logged and left out.
+ *
+ * @param {object|null} procedure
+ * @param {object} ctx  carries `resolve(uuid)`; with none, every listed uuid is taken as held
+ * @param {object} [held]  the answer as the seat holds it
+ * @returns {Array<{key: string, policy: object, rows: object[], list: object[], picked: string|null, findings: Array<{key: string, notice: string}>}>}
+ */
+export function bucketStates(procedure, ctx, held = {}) {
+  if (!procedure?.buckets) return [];
+  const asked = guard("buckets", () => procedure.buckets(ctx), []);
+  const stored = normalizeBuckets(held?.[BUCKETS_KEY]);
+  const pickedBy = held?.[PICKED_KEY] && typeof held[PICKED_KEY] === "object" ? held[PICKED_KEY] : {};
+  const reads = typeof ctx?.resolve === "function";
+  const out = [];
+  for (const spec of Array.isArray(asked) ? asked : []) {
+    if (!spec || typeof spec.key !== "string" || !spec.key || !spec.policy || typeof spec.policy !== "object") continue;
+    const { key, policy } = spec;
+    const list = key in stored ? stored[key] : (normalizeBuckets({ [key]: spec.initial })[key] ?? []);
+    const rows = [];
+    for (const entry of list) {
+      const power = entry.uuid.startsWith(POWER_PREFIX);
+      const doc = reads && !power ? guard("resolve", () => ctx.resolve(entry.uuid), null) : null;
+      if (reads && !power && !doc) continue;
+      rows.push({ ...entry, doc: doc ?? null });
+    }
+    let picked = null;
+    if (policy.pick === "one") {
+      const row = rows.find((r) => r.uuid === pickedBy[key]);
+      const stands = row && guard("usable", () => policy.usable?.(row, ctx) !== false, true);
+      picked = stands ? row.uuid : (guard("opens", () => policy.opens?.(rows, ctx), null) ?? null);
+    }
+    const found = guard("verdicts", () => policy.verdicts?.(rows, picked, ctx), []);
+    const findings = (Array.isArray(found) ? found : []).filter((v) => v && typeof v.key === "string" && v.key).map((v) => ({ key: v.key, notice: String(v.notice ?? "") }));
+    out.push({ key, policy, rows, list: rows.map(({ uuid, qty, fit }) => ({ uuid, qty, fit })), picked, findings });
+  }
+  return out;
+}
+
+/**
  * The heading of the procedure's band. A procedure's own `label` (a lang key the
  * tradition owns) names it; with none, or one the language has no string for,
  * the heading is the tradition's own label, and `fallback` where it has none.
@@ -234,18 +290,24 @@ export function storedProcedure(v) {
  * @param {object|null} procedure
  * @param {object} ctx
  * @param {object} [raw]  the answer as the seat holds it
- * @returns {{specs: object[], answer: object, band: {template: string, context: object}|null}|null} null where there is no procedure
+ * @returns {{specs: object[], answer: object, band: {template: string, context: object}|null, buckets: ReturnType<typeof bucketStates>, findings: Array<{key: string, notice: string}>}|null} null where there is no procedure; `findings` are the buckets' own verdicts
  */
 export function procedureView(procedure, ctx, raw = {}) {
   if (!procedure) return null;
   const held = raw && typeof raw === "object" ? raw : {};
   // A field spec cannot take the buckets' key: the buckets are filled by a drag alone.
-  const specs = procedure.fields ? usableSpecs(guard("fields", () => procedure.fields(ctx, held), [])).fields.filter((s) => s.key !== BUCKETS_KEY) : [];
+  const specs = procedure.fields ? usableSpecs(guard("fields", () => procedure.fields(ctx, held), [])).fields.filter((s) => s.key !== BUCKETS_KEY && s.key !== PICKED_KEY) : [];
   const answer = coerceData(specs, held);
   if (BUCKETS_KEY in answer) answer[BUCKETS_KEY] = normalizeBuckets(answer[BUCKETS_KEY]);
+  // The buckets answer for themselves: the list each holds (its opening list included) and the pick it stands on, so a seat that never touches one still answers what the cast reads.
+  const buckets = bucketStates(procedure, ctx, answer);
+  if (buckets.length) {
+    answer[BUCKETS_KEY] = { ...normalizeBuckets(answer[BUCKETS_KEY]), ...Object.fromEntries(buckets.map((b) => [b.key, b.list])) };
+    answer[PICKED_KEY] = Object.fromEntries(buckets.filter((b) => b.picked).map((b) => [b.key, b.picked]));
+  }
   const made = procedure.band ? guard("band", () => procedure.band(ctx, answer), null) : null;
   const band = made && typeof made.template === "string" && made.template ? { template: made.template, context: made.context ?? {} } : null;
-  return { specs, answer, band };
+  return { specs, answer, band, buckets, findings: buckets.flatMap((b) => b.findings) };
 }
 
 /**

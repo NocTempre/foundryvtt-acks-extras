@@ -226,7 +226,7 @@ export function castReach({ figures, level, tokens, gaps = {} }) {
  * @param {{classItem?: object|null, pools?: object[], capAt?: ((classItem: object|null, tradition: object|null, level: number) => number|null)|null}} [from]  `classForActor(actor)` and `poolState(actor)`, and the classes feature's `traditionCapAt` where it has one; with none the tradition has no cap
  * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, capacity: ReturnType<typeof castCapacity>, cap: number|null, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
  */
-export function castReading(actor, spell, { classItem = null, pools = [], capAt = null } = {}) {
+export function castReading(actor, spell, { classItem = null, pools = [], capAt = null, ladderOf = null } = {}) {
   const extras = flagOf(spell);
   const found = traditionFor(classItem?.system?.casting, { extras, lvl: spell.system?.lvl, class: spell.system?.class });
   const spellLevel = found?.spellLevel ?? levelUnder(extras, spell.system?.lvl, new Set());
@@ -241,6 +241,8 @@ export function castReading(actor, spell, { classItem = null, pools = [], capAt 
     spellLevel,
     capacity,
     cap,
+    // The ladder the tradition's cap is read from, `{key, label, top}`, which bounds the invocation-level menu; null where it names none.
+    ladder: found && typeof ladderOf === "function" ? (ladderOf(classItem, found.tradition) ?? null) : null,
     level: {
       matched: Boolean(found),
       classLevel: actor.system?.details?.level,
@@ -257,7 +259,7 @@ async function readWorld(spell) {
   // A namespace, so the cap reads where the classes feature has one and is null where it has not.
   const casting = await import("../classes/casting.mjs");
   const classItem = classForActor(actor);
-  const { found, capacity, level, cap } = castReading(actor, spell, { classItem, pools: casting.poolState(actor), capAt: casting.traditionCapAt });
+  const { found, capacity, level, cap, ladder } = castReading(actor, spell, { classItem, pools: casting.poolState(actor), capAt: casting.traditionCapAt, ladderOf: casting.traditionCapLadder });
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
   const casterToken = actorToken(actor);
@@ -272,6 +274,7 @@ async function readWorld(spell) {
     statuses: [...(actor.statuses ?? [])],
     capacity,
     cap,
+    ladder,
     level,
     // The class and the tradition that cast the spell: the tradition's kind is what finds its procedure.
     classItem: classItem ?? null,
@@ -566,7 +569,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The invocation level a form of the spell is cast at (`cast-level.mjs`). It is asked where the tradition has a cap or a row or figure reads the scale, judged on the raw rows of the form: with no level set a gate drops the rows that bound it and a flatten blanks the figures, so the kept ones show no sign of it. `inv` is the level the seat holds, a number or what a field of it types.
   const levelFor = (mode, inv) => {
     const ctx = { cap: world.cap ?? null, reads: castReadsInvocation(spell, deps.lookups, all.filter((row) => Boolean(row.reversed) === (mode === CAST_MODES.reversed))) };
-    return { ...invocationLevel(ctx, { invocationLevel: inv }), reads: ctx.reads, offered: invocationOffered(ctx) };
+    return { ...invocationLevel(ctx, { invocationLevel: inv }), reads: ctx.reads, offered: invocationOffered(ctx), ladder: world.ladder ?? null, classLevel: world.level?.classLevel ?? null };
   };
   const atFor = (mode, inv) => ({ invocationLevel: levelFor(mode, inv).value });
   const groupsFor = (mode, inv) => pickGroups(all, mode, atFor(mode, inv));
@@ -601,6 +604,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     source: "spell",
     roll: deps.roll,
     now: deps.now,
+    // A bucket's rows are read from the documents its stored uuids name, synchronously (a stored declaration is judged at its turn with no dialog).
+    resolve: (uuid) => deps.lookups?.fromUuidSync?.(uuid) ?? null,
   });
   // The procedure's answer as the dialog holds it (`raw`), coerced to its fields. A cast with no procedure has none.
   const procViewAt = (mode, inv, levelValue, praw, at = turnMoment) => procedureView(procedure, procCtx(levelFor(mode, inv).value, levelValue, at), praw);
@@ -646,15 +651,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       count: reach.count,
       instances: instancesFor(mode, picks, levelValue, typed, inv),
       invocation: { value, cap, reads },
-      procedure: view ? procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer) : [],
+      procedure: view ? [...procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer), ...view.findings] : [],
       ritual: extras.ritual === true,
     });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
-  const splitsFor = (mode) =>
+  const splitsFor = (mode, inv = startInv) =>
     seat.tokens.length < 2
       ? []
-      : rowsOfMode(all, mode, atFor(mode, startInv)).flatMap(({ row, key }) => {
+      : rowsOfMode(all, mode, atFor(mode, inv)).flatMap(({ row, key }) => {
           if (!rowNeedsThrow(row)) return [];
           const count = instanceCount(row, known.value);
           return count.value > 1 ? [{ key, row, count, pick: String(row.pick ?? "").trim(), option: optionTokenOf(row, key), split: allocate(count.value, seat.tokens.map((t) => t.uuid)) }] : [];
@@ -682,12 +687,20 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     caster,
     moment,
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
-    momentAt: (mode, levelValue, praw) => momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
-    // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far; null where the tradition has none.
-    procedure: procedure ? { kind: procedureKind, label: procedure.label ?? null, traditionLabel: world.tradition?.label ?? "", at: (mode, praw, levelValue) => procViewAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}, momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {})) } : null,
+    momentAt: (mode, levelValue, praw, inv = startInv) => momentAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
+    // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far (and the invocation level it holds); null where the tradition has none.
+    procedure: procedure ? { kind: procedureKind, label: procedure.label ?? null, traditionLabel: world.tradition?.label ?? "", at: (mode, praw, levelValue, inv = startInv) => procViewAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}, momentAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {})) } : null,
+    // The band's heading where the tradition has no procedure of its own to name it.
+    traditionLabel: world.tradition?.label ?? "",
     modes: modeKeys,
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m, startInv)])),
+    // The same at the invocation level the seat holds.
+    groupsAt: (mode, inv = startInv) => groupsFor(mode ?? modeKeys[0], inv),
+    instancesAt: (mode, inv = startInv) => splitsFor(mode ?? modeKeys[0], inv),
+    // The invocation level as a figure the seat holds reads (`levelFor`): its value, source, cap, ladder and whether it is offered.
+    invocationAt: (mode, inv) => levelFor(mode ?? modeKeys[0], inv),
+    resolve: (uuid) => deps.lookups?.fromUuidSync?.(uuid) ?? null,
     level: known,
     // The invocation level, per form: the cap the tradition gives, whether a row or figure reads the scale, whether it is asked, and the level it stands at (a declaration's, else none).
     invocation: Object.fromEntries(modeKeys.map((m) => [m, levelFor(m, startInv)])),

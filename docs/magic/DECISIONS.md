@@ -484,3 +484,43 @@ than printing the key.
 The strip reads every actor's effects at each delete of an item, and each update
 that leaves a stack empty. *Counter (low):* a world with thousands of effects pays
 a scan per such write; only a pending record that names the uuid costs a write.
+
+## 2026-11-18 — The Invocation band: one menu, an inventory bucket, and the pick on the answer (R-c, rulings 202, 228, 229, 231, 232)
+
+Builds board 7 as approved ("Approve as drawn"; the owner on the band: "Invocation
+should be one menu, not a series of them"; on the line: "Inventory, not a check box";
+for BtA's implements: "BTA implements should follow raw with values and tiered
+effects. You get the effect you use the supply for..."; the heading: "Name per
+tradition"). Calls the rulings left open:
+
+The level's options are the whole levels from 1 to the top of the cap ladder (or the
+cap, if higher), not the distinct rung values. A ladder of 1, 2 and 4 would otherwise
+offer no 3 under a cap of 4, and 202 says the range is 1 to the cap. *Counter
+(medium):* "options come from the ladder's rungs" read strictly lists rung values.
+With no cap read every level of the ladder is offered; with no ladder at all there is
+nothing to list, so the level stays 202's number box, marked as set by hand.
+
+The pick of a `pick: "one"` bucket rides the procedure's answer as `picked[bucketKey]`,
+a reserved key beside `buckets`. BtA's branch names no key (`usableSets` has no caller
+yet), so this is the contract its procedure reads. The window stores only the seat's own
+pick; the pick the cast opened on is read again, so it follows the invocation level and
+the rows. *Counter (low):* a seat that picks, then raises the level past that set,
+loses the pick silently and the lowest reaching set stands.
+
+The bucket's findings and opening pick are read synchronously from the stored uuids
+(`ctx.resolve`, the cast's `fromUuidSync`), not from the window's async entries, so a
+declared cast is judged again at its turn with no dialog, and a pick lost before the
+turn (ruling 231) opens on the lowest set that still reaches. Lib's `entriesFromAnswer`
+and `entryFromDrop` serve the window's drawing and drops. *Counter (medium):* a
+compendium uuid resolves to an index entry synchronously, so only world and actor items
+are judged; implements are carried items.
+
+The cap's tooltip names the ladder and the class level and carries no page: the class
+ladder holds none, so the page reference is a ui-tooltips finding, not borrowed from the
+spell. An implement row's page is its procedure's `cite`.
+
+## 2026-11-18 — A declared cast keeps its level and its pick (S-R, finding 1c.35)
+
+The level and the procedure's answer (buckets and the pick) were already fields of the
+stored answer (`ANSWER_FIELDS`); R-c is what writes them, so a declaration made in the
+dialog now resolves at its turn from the level and the pick it stored, with no dialog.

@@ -49,6 +49,20 @@ export function traditionCapAt(classItem, tradition, level) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
+/**
+ * The ladder a tradition's `levelCap` names, as the cast dialog's invocation-level
+ * menu reads it: `{key, label, top}` where `top` is the highest whole level any
+ * rung gives. Null where the row names no ladder, the class has none by that key,
+ * or no rung is a whole number from one up. `tradition` is the casting row or its key.
+ */
+export function traditionCapLadder(classItem, tradition) {
+  const row = typeof tradition === "string" ? (classItem?.system?.casting ?? []).find((t) => t.key === tradition) : tradition;
+  if (!row?.levelCap) return null;
+  const ladder = (classItem?.system?.ladders ?? []).find((l) => l.key === row.levelCap);
+  const rungs = (ladder?.values ?? []).map((v) => Number(v.value)).filter((n) => Number.isInteger(n) && n >= 1);
+  return rungs.length ? { key: ladder.key, label: String(ladder.label || ladder.key), top: Math.max(...rungs) } : null;
+}
+
 /** Spent state for one actor: `{ [traditionKey]: {s1..s6 | points} }`. */
 const spentFor = (actor) => actor.getFlag(MODULE_ID, FLAG_CLASSES)?.pools ?? {};
 

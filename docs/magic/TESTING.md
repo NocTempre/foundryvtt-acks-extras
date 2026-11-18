@@ -1324,3 +1324,59 @@ assertion: a spell the character cannot cast has no row to show.
 As the saves walk's: tokens and cards by uuid as they are made, the records the run's
 casts and the walk's own casters left on its fixtures and the cards speaking as them
 listed by id and swept. The fixtures stay.
+
+## The Invocation band (R-c)
+
+The cast dialog's one band between the spell and the saves: the invocation level as one
+menu, the procedure's implement-set bucket, and a declared cast that keeps both. Offline:
+`tools/test-cast-invocation-band.mjs`. Live: the steps below run in `magic-cast-spell`
+(the lost-item steps' caster), after them.
+
+### Fixtures
+
+The walk's own: the class fixture `magic/cast-class` and the caster `magic/cast-caster`
+(both kept; the walk rewrites the class's casting row to name an invented cap ladder,
+`qacap` with rungs at class levels 1, 3 and 5, and sets the caster's class level to 4,
+then puts the row, the ladder and the level back), and four invented implement sets made
+on the caster with `gm.create` and tracked, which carry `flags["acks-extras"].ceremony`
+`{implementLevel, damage}`. A procedure for the tradition's kind (`vancian`) is registered
+on each seat for the run (`acksExtras.magic.registerCastProcedure`, `buckets` returning
+`implementsBucket`) and taken off after.
+
+### Steps
+
+1. **A Player's menu.** The Player opens the dialog on the damage spell. *Observable:* one
+   select named `invocationLevel` with five levels, the cap (3) preselected, the levels
+   above it disabled with their reason in their words, "Cap 3" beside it with a tooltip
+   naming the ladder and the class level, and the band headed "Arcane". Choosing level 5 is
+   refused.
+2. **A Judge's menu.** The GM chooses level 5. *Observable:* every option enabled, the
+   select in the warn tone, a warning in the footer, Cast enabled.
+3. **The bucket.** *Observable:* the four sets are rows with their pictures; the pick is the
+   lowest set reaching the cap, tagged Used; a set too low has its radio disabled and its
+   reason shown; a worn set's caption reads "Level N · effective M" with hollow diamonds for
+   the levels lost; a radio changes the pick; X removes a set and the pick opens again;
+   dropping an item from the inventory (a real `drop` event carrying a `DataTransfer` of the
+   item's JSON) adds a row.
+4. **No set reaches.** Every set is worn below the cap. *Observable:* the Player's footer
+   carries the finding as a block and Cast is off; the GM's warns and Cast is on.
+5. **The level reaches the card.** The GM casts at level 3. *Observable:* the card's
+   `invocationLevel` is 3 and its source `chosen`, and the level note reads Invocation 3.
+6. **A declared cast** (finding 1c.35, step 18 of the cast steps). In a begun fight the
+   Player declares with the Foe targeted, then targets the caster instead and the tracker
+   reaches the turn. *Observable:* the pending record stores the declared target; the cast
+   resolves with no dialog and the card posts on the declared target; with the band, the
+   record stores `invocationLevel` and `procedure.picked`, and the cast resolves with no
+   dialog carrying that level.
+
+### Drive mechanics
+
+A native `<option>` takes no tone reliably, so the warn tone is read on the select; the
+disabled state is read on the option. The bucket's rows are found by their `.acks-extras-bucket__name`;
+a radio is clicked, not set, so the window's action fires. A drop is a dispatched
+`DragEvent("drop")` on `[data-bucket-drop]`, not a click.
+
+### Teardown
+
+The sets and cards by id as they are made, the fight deleted by its uuid, the class row, the
+ladder and the level restored, and the procedure taken off on each seat.

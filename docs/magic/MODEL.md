@@ -912,6 +912,57 @@ section and a line saying the step did not complete. A Judge's Revert button
 (`magicCastRevert`, shown to a Judge for a card with `undo` not yet reverted) calls
 `revert(ctx, undo)` with that data and marks `card.procedure.reverted`.
 
+**The Invocation band** (`apps/cast-dialog-model.mjs`, `apps/cast-dialog.mjs`,
+`templates/magic/cast-dialog.hbs`). One band between the spell and the saves, headed
+by the tradition (`procedureHeading`; a tradition with no procedure still has its
+own label, `ctx.traditionLabel`). It holds, in this order: the invocation level, the
+procedure's buckets, its fields, then its band partial. The level is ONE select named
+`invocationLevel`, offered where the tradition has a cap or a kept row or figure reads
+the scale (`invocationOffered`). Its options are every whole level from 1 to the top
+of the cap ladder (`traditionCapLadder`: the ladder the casting row's `levelCap`
+names, its highest whole rung) or the cap if that is higher. A Player's options above
+the cap are disabled and say so on their own face, with the cap named beside the
+select and its tooltip naming the ladder and the class level; a Judge's can be chosen,
+the select and the cap take the warn tone, and `overCap` joins the footer. With no
+cap read every level is offered; with no ladder at all the level is a number box
+marked as set by hand. The dialog opens on the cap (R.1), never on a default the cast
+invented: `initialState` holds it, `answerOf` answers it as a whole number or null,
+and a declaration stores and reopens on it. Every question the dialog asks of the cast
+is asked at the level the seat holds: the verdicts, the reach, the gates, the pending
+own-saves, the moment, the procedure's view and the pick groups and splits, through
+`ctx.invocationAt`, `groupsAt`, `instancesAt` and the trailing level argument of
+`verdictsAt`, `reachAt`, `gatesAt`, `pendingAt`, `momentAt` and `procedure.at`.
+
+A procedure's `buckets(ctx)` are drawn as lib's inventory buckets (`bucketView`,
+`templates/lib/bucket.hbs`) in the same band. `bucketStates` (cast-procedure) reads
+each against the answer: its rows are the stored list, else its `initial`, each uuid
+read synchronously through `ctx.resolve`, and a uuid the world cannot resolve is left
+out; the answer carries the list (`buckets[key]`) and, for a `pick: "one"` bucket,
+the pick (`picked[key]`, a reserved key like `buckets`), so a seat that never touches a
+bucket still answers what the cast reads, and a declaration stores both. The pick is
+the seat's while that row is still held and usable, else the policy's `opens`. The
+window holds a drop zone on `[data-bucket-drop]` (lib's `entryFromDrop`: a real
+document, once, of a kind the policy takes; no typed entry exists), and the three
+`BUCKET_ACTIONS`: X removes a row, the chip cycles a fit, a radio picks. It holds only
+the seat's own picks on the answer, so a pick the cast opened on follows the level and
+the rows. A bucket's findings (`policy.verdicts`) join `castVerdicts` through the
+procedure's own list, so a Player is blocked and a Judge warned, at the dialog and at a
+declared cast's turn alike.
+
+The implement-set bucket (`cast-implements.mjs`, exported on the magic api as
+`implementsBucket` and `IMPLEMENTS_KEY`) is the first user. It opens holding the sets the
+caster carries (items with an implement level, `ceremony-state`), takes a dragged set,
+and picks the set used: the pick opens on the LOWEST set whose effective level (level
+less damage) reaches the chosen level (`usableSets`). A row is drawn from its entry
+alone, as "Level N · effective M" with diamonds (filled for the effective level, hollow
+for the levels lost), tagged Used when picked; a set too low is listed, its picture and
+name dimmed and its reason in full ink, its radio disabled. With no set reaching the
+level the finding is `noSetReaches`. A procedure that wants the line returns
+`implementsBucket(ctx, {cite})` from `buckets` and reads the pick from
+`answer.picked.implements`; the page its figures answer to is the procedure's `cite`.
+A pick whose set was lost before a declared cast's turn is dropped with the entry
+(`withoutMissing`), and the pick opens on the lowest set that still reaches the level.
+
 **Concentration's end** (`cast-held.mjs`, registered at `init`). However the
 caster's held record goes (damage or a failed save through lib's loss path, the
 status's own toggle, a hand delete, another cast, the cap running out) the client

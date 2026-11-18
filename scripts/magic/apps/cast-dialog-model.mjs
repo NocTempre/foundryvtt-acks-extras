@@ -18,6 +18,9 @@ import { levelTip } from "../cast-ability-tips.mjs";
 import { gateTip } from "../cast-gates.mjs";
 import { needsBearer, kindChoices, saveModifierOf } from "../cast-mods.mjs";
 import { FIELD_KIND } from "../../lib/field-spec.mjs";
+import { bucketView, BUCKET_LANG_PREFIX } from "../../lib/bucket.mjs";
+import { makeLoc } from "../../lib/util.mjs";
+import { invocationFigure } from "../cast-level.mjs";
 import { procedureHeading } from "../cast-procedure.mjs";
 
 /** The visibility modes the dialog offers, as lib's roll dialog offers them. */
@@ -111,7 +114,10 @@ const firstPicks = (ctx) =>
  * @param {{visibility?: string}} [o]
  */
 export function initialState(ctx, { visibility = "public" } = {}) {
-  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", situational: "", saveMod: false, procedure: {}, visibility };
+  // The invocation level opens on the tradition's cap where there is one and the level is asked (R.1); with none it opens blank, never defaulted.
+  const first = ctx.invocation?.[ctx.modes?.[0] ?? "normal"];
+  const preset = first?.offered && invocationFigure(first.cap) !== null ? String(first.cap) : "";
+  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", invocationLevel: preset, situational: "", saveMod: false, procedure: {}, visibility };
   const from = ctx.initial;
   if (!from) return base;
   const given = Object.fromEntries(Object.keys(base).filter((key) => from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
@@ -126,8 +132,27 @@ export function initialState(ctx, { visibility = "public" } = {}) {
   };
 }
 
-/** The picks that stand for a mode: the state's, else each group's first option. */
-const picksOf = (ctx, state) => ({ ...firstPicks(ctx), ...(state.picks ?? {}) });
+/** The invocation level as the seat holds it, read by the cast (`ctx.invocationAt`): `{value, source, cap, reads, offered, ladder, classLevel}`; a context that reads none offers none. */
+function invocationOf(ctx, state, mode) {
+  if (ctx.invocationAt) return ctx.invocationAt(mode, state.invocationLevel) ?? {};
+  // A context that reads the level only as it opened holds the level it stands at, and none where it is not asked.
+  const held = ctx.invocation?.[mode] ?? {};
+  return { ...held, value: held.offered === true ? (held.value ?? null) : null };
+}
+
+/** The pick groups of a mode at an invocation level: the cast's own reading at that level, else the groups it opened with. */
+const groupsOf = (ctx, mode, inv) => (ctx.groupsAt ? ctx.groupsAt(mode, inv) : (ctx.groups?.[mode] ?? []));
+
+/** The picks that stand for a mode: the state's, else each group's first option; a pick the level's groups no longer offer starts on the group's first again. */
+function picksOf(ctx, state, mode = null, inv = null) {
+  const held = { ...firstPicks(ctx), ...(state.picks ?? {}) };
+  if (!ctx.groupsAt || !mode) return held;
+  for (const group of groupsOf(ctx, mode, inv)) {
+    const tokens = (group.options ?? group.rows.map((e) => ({ token: e.key }))).map((o) => o.token);
+    if (!tokens.includes(held[group.id])) held[group.id] = tokens[0] ?? "";
+  }
+  return held;
+}
 
 /** The weapon this holder's pick stands on: the seat's pick where the holder still carries it, else the holder's default. */
 const weaponOf = (holder, state) => {
@@ -152,36 +177,45 @@ const kindOf = (kept, state) => {
  */
 export function answerOf(ctx, state) {
   const mode = (ctx.modes ?? []).includes(state.mode) ? state.mode : (ctx.modes?.[0] ?? "normal");
-  const picks = picksOf(ctx, state);
-  const kept = rowsForMode(ctx.rows ?? [], mode, picks);
+  const inv = invocationOf(ctx, state, mode).value ?? null;
+  const picks = picksOf(ctx, state, mode, inv);
+  const kept = rowsForMode(ctx.rows ?? [], mode, picks, { invocationLevel: inv });
   const items = {};
   for (const holder of weaponHolders(ctx, kept)) if (holder.weapons.length) items[holder.uuid] = weaponOf(holder, state);
   const allocation = {};
-  for (const item of ctx.instances?.[mode] ?? []) {
+  for (const item of ctx.instancesAt ? ctx.instancesAt(mode, inv) : (ctx.instances?.[mode] ?? [])) {
     if (item.pick && picks[item.pick] !== item.option) continue;
     allocation[item.key] = Object.fromEntries((ctx.targets ?? []).map((t) => [t.uuid, String(state.allocation?.[item.key]?.[t.uuid] ?? item.split?.[t.uuid] ?? 0)]));
   }
   const kind = kindOf(kept, state);
   return {
     mode,
-    picks: Object.fromEntries((ctx.groups?.[mode] ?? []).map((g) => [g.id, picks[g.id]])),
+    picks: Object.fromEntries(groupsOf(ctx, mode, inv).map((g) => [g.id, picks[g.id]])),
     pickKind: kind.options.length ? kind.value : null,
     items,
     allocation,
     casterLevel: String(state.casterLevel ?? ""),
+    // The whole level the seat holds where the cast asks for one, else null: the cast reads it (`castSpellRun`) and a declaration stores it.
+    invocationLevel: inv,
     situational: String(state.situational ?? ""),
     saveMod: state.saveMod === true,
-    // The tradition's procedure answers its fields, its band's controls and its buckets; a cast whose tradition has none answers nothing.
-    procedure: procedureOf(ctx, state, mode)?.answer ?? {},
+    // The tradition's procedure answers its fields, its band's controls, its buckets and the pick of each; a cast whose tradition has none answers nothing.
+    procedure: procedureOf(ctx, state, mode, inv)?.answer ?? {},
     visibility: state.visibility || "public",
   };
 }
 
 /** The tradition's procedure read against the seat's answer: its fields, the answer they coerce to (the band's controls and the buckets kept), and its band. Null where the tradition has none. */
-function procedureOf(ctx, state, mode) {
+export function procedureOf(ctx, state, mode, inv = null) {
   if (!ctx.procedure) return null;
   const level = ctx.levelAt ? ctx.levelAt(state.casterLevel) : ctx.level;
-  return ctx.procedure.at(mode, state.procedure ?? {}, level?.value ?? null);
+  return ctx.procedure.at(mode, state.procedure ?? {}, level?.value ?? null, inv);
+}
+
+/** The buckets the tradition's procedure asks for at the seat's answer: each with the rows it holds, the list that answers for it and the pick it stands on (`bucketStates`). Empty where the tradition has none. */
+export function bucketsOf(ctx, state) {
+  const mode = (ctx.modes ?? []).includes(state.mode) ? state.mode : (ctx.modes?.[0] ?? "normal");
+  return procedureOf(ctx, state, mode, invocationOf(ctx, state, mode).value ?? null)?.buckets ?? [];
 }
 
 /** One procedure field as the template draws it: the input's name, its kind as a flag, and the value it stands on. */
@@ -275,6 +309,60 @@ export function untarget(targets, uuid) {
 }
 
 /* -------------------------------------------- */
+/*  The invocation level and the buckets        */
+/* -------------------------------------------- */
+
+/**
+ * The invocation-level control: one select over the levels 1 up to the top of the
+ * tradition's cap ladder (or the cap, if higher), or a number box where the cast
+ * offers the level and has no ladder to list. A level above the cap is disabled
+ * for a Player and chosen, in the warn tone, by a Judge; with no cap read every
+ * level is offered. Hidden where the cast asks for no level.
+ *
+ * @param {object} ctx
+ * @param {object} st  the seat's state
+ * @param {object} read  `ctx.invocationAt`'s answer for the mode
+ */
+export function levelView(ctx, st, read) {
+  if (read?.offered !== true) return { show: false };
+  const cap = invocationFigure(read.cap);
+  const value = read.value ?? null;
+  const top = Math.max(Number(read.ladder?.top) || 0, cap ?? 0);
+  const judge = ctx.isGM === true;
+  const over = value !== null && cap !== null && value > cap;
+  const base = { show: true, label: loc("dialog.invocationLevel"), tone: over && judge ? "warn" : "", cap: cap === null ? "" : loc("dialog.invocationCap", { cap }) };
+  if (top < 1) return { ...base, isSelect: false, value: st.invocationLevel ?? "", tip: loc("tip.invocation.hand", { value: value ?? "" }), hand: loc("dialog.invocationHand") };
+  const options = Array.from({ length: top }, (_, i) => {
+    const n = i + 1;
+    const above = cap !== null && n > cap;
+    return { value: n, selected: n === value, disabled: above && !judge, over: above, label: above ? loc(judge ? "dialog.invocationOver" : "dialog.invocationAbove", { n }) : cap === n ? loc("dialog.invocationAtCap", { n }) : loc("dialog.invocationOption", { n }) };
+  });
+  if (value === null) options.unshift({ value: "", selected: true, disabled: false, over: false, label: loc("dialog.invocationNone") });
+  const tip = cap === null ? [read.ladder?.label, loc("tip.invocation.uncapped")].filter(Boolean).join(" · ") : loc("tip.invocation.cap", { cap, ladder: read.ladder?.label ?? "", level: read.classLevel ?? "" });
+  return { ...base, isSelect: true, options, tip };
+}
+
+/**
+ * Each bucket a procedure asks for, as lib's `bucketView` draws it: the entries
+ * the window resolved (`entries[key]`, from `entriesFromAnswer`), the pick the
+ * cast reads, and each row's caption, diamonds, dimming and reason from the
+ * policy's `rowView`. The policy supplies its own heading, icon and wording,
+ * already localized.
+ *
+ * @param {{buckets?: object[]}|null} proc  `procedureOf`'s view
+ * @param {Record<string, object[]>} entries
+ * @param {object} ctx
+ */
+export function bucketViews(proc, entries, ctx = {}) {
+  const bucketLoc = makeLoc(BUCKET_LANG_PREFIX);
+  return (proc?.buckets ?? []).map((s) => {
+    const held = entries?.[s.key] ?? [];
+    const rows = Object.fromEntries(held.map((entry) => [entry.uuid, s.policy.rowView?.(entry, s.rows.find((r) => r.uuid === entry.uuid) ?? null, ctx) ?? {}]));
+    return bucketView(s.policy, held, { key: s.key, loc: bucketLoc, legend: s.policy.legend ?? s.key, icon: s.policy.icon ?? "", picked: s.picked, rows, dropText: s.policy.dropText ?? "", emptyText: s.policy.emptyText ?? "" });
+  });
+}
+
+/* -------------------------------------------- */
 /*  The view                                    */
 /* -------------------------------------------- */
 
@@ -285,17 +373,20 @@ export function untarget(targets, uuid) {
  * @param {object} [state]  the seat's answer so far; what it leaves out starts as `initialState` has it
  * @param {{modeLabel?: (key: string) => string, visibilityLabel?: (key: string) => string, statusImg?: (id: string) => string|null, visibility?: string}} [labels]
  */
-export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilityLabel = (k) => k, statusImg = () => null, visibility = "public" } = {}) {
+export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilityLabel = (k) => k, statusImg = () => null, visibility = "public", entries = {} } = {}) {
   const st = { ...initialState(ctx, { visibility }), ...state };
   const mode = (ctx.modes ?? []).includes(st.mode) ? st.mode : (ctx.modes?.[0] ?? "normal");
-  const picks = picksOf(ctx, st);
-  const kept = rowsForMode(ctx.rows ?? [], mode, picks);
+  // The invocation level the seat holds: every question below is asked at it.
+  const read = invocationOf(ctx, st, mode);
+  const inv = read.value ?? null;
+  const picks = picksOf(ctx, st, mode, inv);
+  const kept = rowsForMode(ctx.rows ?? [], mode, picks, { invocationLevel: inv });
   const level = ctx.levelAt ? ctx.levelAt(st.casterLevel) : (ctx.level ?? {});
   const resolved = level?.value ?? null;
   const cite = ctx.cite ?? "";
 
   // The spell: each group's options as effect rows, the level field, the creature kind.
-  const groups = (ctx.groups?.[mode] ?? []).map((group) => ({
+  const groups = groupsOf(ctx, mode, inv).map((group) => ({
     id: group.id,
     legend: loc("dialog.pickLegend"),
     label: loc("dialog.pick"),
@@ -309,9 +400,9 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   const kind = kindOf(kept, st);
   const stand = (ctx.level ?? {});
   // The tradition's procedure, and where the cast falls once the seat's answer to it is in (its casting time can make the cast `long`).
-  const proc = procedureOf(ctx, st, mode);
-  const moment = ctx.momentAt ? ctx.momentAt(mode, resolved, st.procedure) : ctx.moment;
-  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, undefined, st.procedure) : (ctx.verdicts?.[mode] ?? []);
+  const proc = procedureOf(ctx, st, mode, inv);
+  const moment = ctx.momentAt ? ctx.momentAt(mode, resolved, st.procedure, inv) : ctx.moment;
+  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, inv, st.procedure) : (ctx.verdicts?.[mode] ?? []);
   const blocks = verdicts.some((v) => v.severity === "block");
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.
@@ -326,13 +417,13 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   ];
 
   // The bucket: one row per token, with what the seat answers for it folded in.
-  const reach = ctx.reachAt ? ctx.reachAt(resolved) : null;
-  const gates = ctx.gatesAt ? ctx.gatesAt(resolved) : {};
-  const pending = ctx.pendingAt ? ctx.pendingAt(mode, picks, resolved) : {};
+  const reach = ctx.reachAt ? ctx.reachAt(resolved, inv, mode) : null;
+  const gates = ctx.gatesAt ? ctx.gatesAt(resolved, inv) : {};
+  const pending = ctx.pendingAt ? ctx.pendingAt(mode, picks, resolved, inv) : {};
   const holders = new Map((ctx.holders ?? []).map((h) => [h.uuid, h]));
   const pickHolders = new Set(weaponHolders(ctx, kept).map((h) => h.uuid));
   const destroying = kept.some(({ row }) => row.type === "destroyItem");
-  const shownSplits = (ctx.instances?.[mode] ?? []).filter((item) => !item.pick || picks[item.pick] === item.option);
+  const shownSplits = (ctx.instancesAt ? ctx.instancesAt(mode, inv) : (ctx.instances?.[mode] ?? [])).filter((item) => !item.pick || picks[item.pick] === item.option);
   const rows = (ctx.targets ?? []).map((t) => {
     const gap = ctx.gaps?.[t.uuid];
     const gate = gates[t.uuid];
@@ -391,12 +482,18 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       kind: { show: kind.options.length > 0, options: kind.options.map((key) => ({ key, selected: key === kind.value })), rows: kept.filter(({ row }) => row.pickKind === true).map(({ row }) => effectRow(row, statusImg)) },
     },
     // One band, between the spell and the saves: the procedure's fields, then its band. Its heading is the tradition's: the procedure's own label, else the tradition's name.
-    invocation: {
-      show: Boolean(proc && (proc.specs.length || proc.band)),
-      title: procedureHeading(ctx.procedure, { localize: (key) => game.i18n.localize(key), fallback: loc("dialog.invocation") }),
-      fields: (proc?.specs ?? []).map((spec) => fieldView(spec, proc.answer)),
-      band: proc?.band ?? null,
-    },
+    invocation: (() => {
+      const lvl = levelView(ctx, st, read);
+      const buckets = bucketViews(proc, entries, ctx);
+      return {
+        show: lvl.show || Boolean(proc && (proc.specs.length || proc.band || buckets.length)),
+        title: procedureHeading({ label: ctx.procedure?.label, traditionLabel: ctx.procedure?.traditionLabel ?? ctx.traditionLabel }, { localize: (key) => game.i18n.localize(key), fallback: loc("dialog.invocation") }),
+        level: lvl,
+        buckets,
+        fields: (proc?.specs ?? []).map((spec) => fieldView(spec, proc.answer)),
+        band: proc?.band ?? null,
+      };
+    })(),
     saves: {
       show: Boolean(ctx.saves),
       situational: st.situational,

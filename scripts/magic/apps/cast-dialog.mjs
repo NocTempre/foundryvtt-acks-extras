@@ -15,13 +15,18 @@
  * token" targets the caster's, and the window re-renders on `targetToken` for
  * this user (debounced, unhooked on close), so a T pressed on the canvas while
  * it is open shows too. `game.user.targets` is per user, so a Player's window
- * reads and writes its own. What the seat typed lives on the instance and
- * survives every re-render. All the questions the window asks of the cast are
+ * reads and writes its own. The tradition's buckets (an implement set held for the
+ * cast, say) are lib's inventory buckets in the tradition's band: a drop on a
+ * bucket's zone adds an entry, X removes one, a radio picks the one used and a chip
+ * changes a fit, each held on the answer (`procedure.buckets`, `procedure.picked`)
+ * so a re-render and a declaration keep them. What the seat typed lives on the
+ * instance and survives every re-render. All the questions the window asks of the cast are
  * answered by `cast-dialog-model.mjs`.
  */
 import { MODULE_ID } from "../constants.mjs";
-import { BUCKETS_KEY } from "../cast-procedure.mjs";
-import { dialogContext, initialState, answerOf, resolveDrop, resolveActor, addTarget, untarget } from "./cast-dialog-model.mjs";
+import { BUCKETS_KEY, PICKED_KEY } from "../cast-procedure.mjs";
+import { entriesFromAnswer, entryFromDrop, nextFit, BUCKET_ACTIONS, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE } from "../../lib/bucket.mjs";
+import { dialogContext, initialState, answerOf, bucketsOf, resolveDrop, resolveActor, addTarget, untarget } from "./cast-dialog-model.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -66,9 +71,18 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     window: { icon: "fa-solid fa-wand-sparkles", resizable: true },
     position: { width: 580, height: "auto" },
     form: { handler: CastDialog.#onForm, submitOnChange: true, closeOnSubmit: false },
-    actions: { cast: CastDialog.#onCast, cancel: CastDialog.#onCancel, untarget: CastDialog.#onUntarget, pickWeapon: CastDialog.#onPickWeapon, addMine: CastDialog.#onAddMine },
-    // An Actor or a Token dropped anywhere on the bucket is targeted.
-    dragDrop: [{ dropSelector: ".acks-extras-cast-targets" }],
+    actions: {
+      cast: CastDialog.#onCast,
+      cancel: CastDialog.#onCancel,
+      untarget: CastDialog.#onUntarget,
+      pickWeapon: CastDialog.#onPickWeapon,
+      addMine: CastDialog.#onAddMine,
+      [BUCKET_ACTIONS.remove]: CastDialog.#onBucketRemove,
+      [BUCKET_ACTIONS.fit]: CastDialog.#onBucketFit,
+      [BUCKET_ACTIONS.pick]: CastDialog.#onBucketPick,
+    },
+    // An Actor or a Token dropped anywhere on the targets is targeted; an item dropped on a tradition bucket's zone is held there.
+    dragDrop: [{ dropSelector: ".acks-extras-cast-targets" }, { dropSelector: "[data-bucket-drop]" }],
   };
 
   static PARTS = {
@@ -99,7 +113,18 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const modeLabel = (key) => loc(`dialog.mode.${key}`);
     const visibilityLabel = (key) => game.i18n.localize(CONFIG.ChatMessage.modes?.[key]?.label ?? key);
     const statusImg = (id) => CONFIG.statusEffects?.find?.((s) => s.id === id)?.img ?? null;
-    const view = dialogContext(this.#ctx, this.#answer, { modeLabel, visibilityLabel, statusImg });
+    // The rows each bucket holds, read from the documents their stored uuids name (lib's `entriesFromAnswer`).
+    const states = bucketsOf(this.#ctx, this.#answer);
+    const entries = {};
+    for (const s of states) entries[s.key] = (await entriesFromAnswer(s.list, fromUuid, { policy: s.policy })).entries;
+    if (states.length) {
+      try {
+        await foundry.applications.handlebars.loadTemplates([BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE]);
+      } catch (err) {
+        console.error(`${MODULE_ID} | the bucket partials could not be loaded`, err);
+      }
+    }
+    const view = dialogContext(this.#ctx, this.#answer, { modeLabel, visibilityLabel, statusImg, entries });
     // A band partial that cannot be loaded is left out, so the dialog still opens and the cast is not lost with it.
     if (view.invocation.band) {
       try {
@@ -167,14 +192,14 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
     const mode = form.querySelector('input[name="mode"]:checked');
     if (mode) a.mode = mode.value;
     for (const radio of form.querySelectorAll("input[data-pick]:checked")) a.picks[radio.dataset.pick] = radio.value;
-    for (const name of ["pickKind", "casterLevel", "situational", "visibility"]) {
+    for (const name of ["pickKind", "casterLevel", "invocationLevel", "situational", "visibility"]) {
       const el = field(name);
       if (el) a[name] = el.value;
     }
     // The tradition's controls, by the name `procedure.<key>`: a field of its band, or a control of its own band partial. The buckets' key is no control's: an entry comes by a drag alone.
     for (const el of form.querySelectorAll('[name^="procedure."]')) {
       const key = el.name.slice("procedure.".length);
-      if (!key || key === BUCKETS_KEY) continue;
+      if (!key || key === BUCKETS_KEY || key === PICKED_KEY) continue;
       if (el.type === "radio") {
         if (el.checked) a.procedure[key] = el.value;
       } else a.procedure[key] = el.type === "checkbox" ? el.checked : el.value;
@@ -213,7 +238,39 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
   async #onDrop(event) {
     event.currentTarget?.classList?.remove("drop-hover");
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
+    const bucket = event.currentTarget?.dataset?.bucketDrop;
+    if (bucket) return this.#dropOnBucket(bucket, data);
     this.#take(await resolveDrop(data, { fromUuid }));
+  }
+
+  /* -------------------------------------------- */
+  /*  The tradition's buckets                     */
+  /* -------------------------------------------- */
+
+  /** Hold one bucket's list on the answer, with every other bucket's list as it stands (an opening list is held once the seat has changed any), and draw. */
+  #holdBucket(key, change) {
+    const states = bucketsOf(this.#ctx, this.#answer);
+    const lists = Object.fromEntries(states.map((s) => [s.key, s.list.map((e) => ({ ...e }))]));
+    // Only the seat's own picks are held: a pick the cast opened on is read again each time, so it follows the level and the rows.
+    const picked = { ...(this.#answer.procedure?.[PICKED_KEY] ?? {}) };
+    const mine = states.find((s) => s.key === key);
+    if (!mine) return;
+    change({ list: lists[key], lists, picked, policy: mine.policy });
+    this.#answer.procedure = { ...this.#answer.procedure, [BUCKETS_KEY]: lists, [PICKED_KEY]: picked };
+    this.render();
+  }
+
+  /** An item dropped on a bucket's zone: a real document, once, of a kind the policy takes (lib's `entryFromDrop`); anything else says why it was refused. */
+  async #dropOnBucket(key, data) {
+    this.#capture();
+    const mine = bucketsOf(this.#ctx, this.#answer).find((s) => s.key === key);
+    if (!mine) return;
+    const made = await entryFromDrop(data, fromUuid, { policy: mine.policy, present: mine.list });
+    if (!made.entry) {
+      if (made.refused !== "noDrop") ui.notifications?.warn(loc(`notice.bucket.${made.refused}`, { name: made.name ?? "" }));
+      return;
+    }
+    this.#holdBucket(key, ({ list }) => list.push({ uuid: made.entry.uuid, qty: made.entry.qty, fit: made.entry.fit }));
   }
 
   /* -------------------------------------------- */
@@ -251,5 +308,40 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
 
   static #onAddMine() {
     this.#take(resolveActor(this.#ctx.caster));
+  }
+
+  /** The bucket a bucket control sits in, by its section's `data-bucket`. */
+  static #bucketOf(target) {
+    return target?.closest?.("[data-bucket]")?.dataset?.bucket ?? "";
+  }
+
+  /** X on a bucket row: the entry leaves the bucket, and a pick that named it is dropped so the pick opens again. */
+  static #onBucketRemove(_event, target) {
+    this.#capture();
+    const key = CastDialog.#bucketOf(target);
+    this.#holdBucket(key, (held) => {
+      const at = held.list.findIndex((e) => e.uuid === target.dataset.uuid);
+      if (at >= 0) held.list.splice(at, 1);
+      if (held.picked[key] === target.dataset.uuid) delete held.picked[key];
+    });
+  }
+
+  /** The fit chip of a row: the next fit the policy offers. */
+  static #onBucketFit(_event, target) {
+    this.#capture();
+    const key = CastDialog.#bucketOf(target);
+    this.#holdBucket(key, (held) => {
+      const entry = held.list.find((e) => e.uuid === target.dataset.uuid);
+      if (entry) entry.fit = nextFit(entry, held.policy.fit);
+    });
+  }
+
+  /** The radio of a pick-one bucket: the picked row is the one the cast uses. */
+  static #onBucketPick(_event, target) {
+    this.#capture();
+    const key = CastDialog.#bucketOf(target);
+    this.#holdBucket(key, (held) => {
+      held.picked[key] = target.dataset.uuid;
+    });
   }
 }

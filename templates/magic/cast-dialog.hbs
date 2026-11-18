@@ -1,6 +1,6 @@
 {{!-- The cast dialog's scrolling body: the header, the spell, the tradition's band
-      (its procedure: its fields, then its own partial), the saves and the
-      targets bucket. The seat's answer is read back from the named controls and
+      (the invocation level as one menu, the procedure's buckets, its fields, then
+      its own partial), the saves and the targets bucket. The seat's answer is read back from the named controls and
       the data-* hooks below (`apps/cast-dialog.mjs`). An effect row is the
       character sheet's cell in its tone beside the row read as the card reads it. --}}
 {{#*inline "castFx"}}
@@ -73,6 +73,25 @@
     <header class="acks-extras-cast-targets__head">
       <h3>{{invocation.title}}</h3>
     </header>
+    {{#with invocation.level as |lvl|}}
+    {{#if lvl.show}}
+    <div class="acks-extras-cast-field acks-extras-cast-invlevel">
+      <label{{#if lvl.tip}} data-tooltip-text="{{lvl.tip}}"{{/if}}>
+        <span>{{lvl.label}}</span>
+        {{#if lvl.isSelect}}
+        <select name="invocationLevel"{{#if lvl.tone}} class="is-{{lvl.tone}}"{{/if}}>
+          {{#each lvl.options}}<option value="{{value}}"{{#if selected}} selected{{/if}}{{#if disabled}} disabled{{/if}}{{#if over}} data-over="true"{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        {{else}}
+        <input type="number" name="invocationLevel" min="1" step="1" value="{{lvl.value}}">
+        {{/if}}
+      </label>
+      {{#if lvl.cap}}<span class="acks-extras-cast-cap acks-nums{{#if lvl.tone}} is-{{lvl.tone}}{{/if}}"{{#if lvl.tip}} data-tooltip-text="{{lvl.tip}}"{{/if}}>{{lvl.cap}}</span>{{/if}}
+      {{#if lvl.hand}}<span class="acks-extras-cast-cap" data-tooltip-text="{{lvl.tip}}">{{lvl.hand}}</span>{{/if}}
+    </div>
+    {{/if}}
+    {{/with}}
+    {{#each invocation.buckets}}{{> "modules/acks-extras/templates/lib/bucket.hbs" this}}{{/each}}
     {{#each invocation.fields}}
     <div class="acks-extras-cast-field">
       {{#if isCheck}}

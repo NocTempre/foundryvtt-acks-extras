@@ -464,6 +464,31 @@
   color: var(--acks-danger-ink);
 }
 
+/* The invocation level: one select, with the cap beside it. A Judge's level over the cap takes the warn tone on the select and the cap; a native option takes none reliably, so the choice is also in its words. */
+.acks-extras-cast-invlevel {
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-invlevel > label {
+  flex: 1 1 auto;
+}
+
+.acks-extras-cast-cap {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-cap.is-warn,
+.acks-extras-cast-invlevel select.is-warn {
+  color: var(--acks-warning-ink);
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+}
+
 .acks-extras-cast-rows {
   display: flex;
   flex-direction: column;

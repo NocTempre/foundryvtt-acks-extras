@@ -63,7 +63,14 @@
  * dialog and no second spend; and an unresolved one lapses with the caster's
  * turn. Then the lost-item steps: an item deleted, or left with an empty stack,
  * leaves the pending answers that name it, a record a Player cannot write by the
- * GM's client, and the cast dialog's band is headed by the tradition. All assert relations between records, cards and counters and print
+ * GM's client, and the cast dialog's band is headed by the tradition. Then the
+ * Invocation band steps: the class fixture reads an invented cap ladder, an invented
+ * procedure on its kind asks for the implement-set bucket, and the walk checks the
+ * level select (a Player's levels above the cap disabled, a Judge's chosen in the
+ * warn tone), the bucket (carried sets, the lowest reaching set picked, a set too
+ * low dimmed with its reason, a drop, X, a radio), the no-set-reaches verdict on
+ * both seats, the level on the card, and a declared cast keeping the level and the
+ * pick; declare 18 walks a declaration resolving on its declared targets. All assert relations between records, cards and counters and print
  * booleans and counts.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
@@ -735,6 +742,109 @@ const P = {
     await H.sleep(500);
     return { card: !!message, messageId: message?.id ?? null, dialog: !!document.querySelector(".application.acks-extras-cast") };
   },
+  /**
+   * The invention the Invocation-band steps use: the class fixture's casting row names an invented cap ladder (`levelCap`) and the caster
+   * stands at a class level the ladder reads a cap at; `off` puts the row, the ladder and the level back as they were.
+   */
+  invWorld: async ({ classUuid, casterId, level, off, was }) => {
+    const cls = await fromUuid(classUuid);
+    const actor = game.actors.get(casterId);
+    if (off) {
+      await cls.update({ "system.casting": was.casting, "system.ladders": was.ladders });
+      await actor.update({ "system.details.level": was.level });
+      return true;
+    }
+    const prior = { casting: foundry.utils.deepClone(cls.system.casting), ladders: foundry.utils.deepClone(cls.system.ladders), level: actor.system.details.level };
+    const row = { ...foundry.utils.deepClone(cls.system.casting[0]), levelCap: "qacap" };
+    await cls.update({ "system.casting": [row], "system.ladders": [{ key: "qacap", label: "QA cap ladder", values: [{ atLevel: 1, value: 1 }, { atLevel: 3, value: 3 }, { atLevel: 5, value: 5 }] }] });
+    await actor.update({ "system.details.level": level });
+    return prior;
+  },
+  /** Register the invented procedure (an implement-set bucket) for a tradition kind on this seat; `invProcOff` takes it off. */
+  invProc: async ({ kind, cite }) => {
+    const H = globalThis.__mcs;
+    H.invOff?.();
+    H.invOff = acksExtras.magic.registerCastProcedure(kind, { buckets: (ctx) => [acksExtras.magic.implementsBucket(ctx, { cite })] });
+    return true;
+  },
+  invProcOff: async () => {
+    const H = globalThis.__mcs;
+    H.invOff?.();
+    H.invOff = null;
+    return true;
+  },
+  /** An item the walk makes carries an implement level and damage, the flag the bucket reads. */
+  invSet: async ({ uuid, level, damage }) => {
+    await (await fromUuid(uuid)).update({ "flags.acks-extras.ceremony": { implementLevel: level, damage } });
+    return true;
+  },
+  /**
+   * Open the cast dialog and read its Invocation band, after each control the call names: `level` chosen in the select, `pick` a bucket row's radio
+   * clicked, `remove` a row's X clicked, `drop` an item dropped on the bucket's zone as a real drop event. `cast` presses Cast (or Declare) where it is
+   * enabled. Answers the band as it stands.
+   */
+  invBand: async ({ casterId, spellId, level, pick, remove, drop, cast }) => {
+    const H = globalThis.__mcs;
+    const item = game.actors.get(casterId).items.get(spellId);
+    const before = new Set([...game.messages].map((m) => m.id));
+    item.use({ skipDialog: true });
+    const first = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+    if (!first) return { dialog: false };
+    const live = () => document.querySelector(".application.acks-extras-cast") ?? first;
+    const rowOf = (name) => [...live().querySelectorAll(".acks-extras-bucket__row")].find((r) => r.querySelector(".acks-extras-bucket__name")?.textContent.trim().startsWith(name));
+    if (level != null) {
+      const sel = live().querySelector('select[name="invocationLevel"]');
+      const opt = sel?.querySelector(`option[value="${level}"]`);
+      if (!sel || !opt || opt.disabled) return { dialog: true, refused: true };
+      sel.value = String(level);
+      sel.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(500);
+    }
+    if (drop) {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: "Item", uuid: drop }));
+      live().querySelector("[data-bucket-drop]")?.dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+      await H.sleep(700);
+    }
+    if (pick) { rowOf(pick)?.querySelector('input[type="radio"]')?.click(); await H.sleep(500); }
+    if (remove) { rowOf(remove)?.querySelector('button[data-action="bucketRemove"]')?.click(); await H.sleep(500); }
+    const el = live();
+    const sel = el.querySelector('select[name="invocationLevel"]');
+    const shown = {
+      dialog: true,
+      heading: sel?.closest(".acks-extras-cast-band")?.querySelector("h3")?.textContent.trim() ?? null,
+      options: [...(sel?.options ?? [])].map((o) => ({ value: o.value, disabled: o.disabled, selected: o.selected, text: o.textContent.trim() })),
+      selectTone: sel?.className ?? "",
+      cap: el.querySelector(".acks-extras-cast-cap")?.textContent.trim() ?? null,
+      capTip: el.querySelector(".acks-extras-cast-invlevel label")?.dataset.tooltipText ?? null,
+      rows: [...el.querySelectorAll(".acks-extras-bucket__row")].map((r) => ({
+        name: r.querySelector(".acks-extras-bucket__name")?.textContent.trim() ?? "",
+        used: r.classList.contains("is-used") && !!r.querySelector(".acks-extras-bucket__tag"),
+        disabled: !!r.querySelector('input[type="radio"]')?.disabled,
+        caption: r.querySelector(".acks-extras-bucket__line")?.textContent.replace(/\s+/g, " ").trim() ?? "",
+        reason: r.querySelector(".acks-extras-bucket__reason")?.textContent.trim() ?? "",
+        hollow: (r.querySelector(".acks-extras-bucket__diamonds")?.textContent.match(/\u25C7/g) ?? []).length,
+      })),
+      verdicts: [...el.querySelectorAll(".acks-extras-cast-verdicts li")].map((li) => ({ tone: li.classList.contains("is-warn") ? "warn" : "block", text: li.textContent.trim() })),
+      castDisabled: !!el.querySelector('button[data-action="cast"]')?.disabled,
+      button: el.querySelector('button[data-action="cast"]')?.textContent.trim() ?? "",
+    };
+    if (!cast) {
+      el.querySelector('button[data-action="cancel"]')?.click();
+      await H.sleep(500);
+      return shown;
+    }
+    if (shown.castDisabled) { el.querySelector('button[data-action="cancel"]')?.click(); await H.sleep(500); return { ...shown, card: false }; }
+    el.querySelector('button[data-action="cast"]').click();
+    const message = await H.poll(() => [...game.messages].find((m) => !before.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries: 60, every: 250 });
+    await H.sleep(500);
+    return { ...shown, card: !!message, messageId: message?.id ?? null, model: message?.flags?.["acks-extras"]?.castCard ?? null };
+  },
+  /** What a caster's pending declaration stores of the band: the level and the procedure's answer. */
+  invPending: async ({ casterId }) => {
+    const rec = [...game.actors.get(casterId).effects].map((e) => e.flags?.["acks-extras"]?.spellEffect?.pending).find(Boolean);
+    return rec ? { invocationLevel: rec.invocationLevel ?? null, picked: rec.procedure?.picked ?? null, kept: (rec.procedure?.buckets?.implements ?? []).map((e) => e.uuid), targets: rec.targets ?? null } : null;
+  },
   restore: async () => {
     const H = globalThis.__mcs;
     if (!H?.patched) return "never installed";
@@ -826,7 +936,7 @@ const labelWithCite = (rec) => (rec.cite ? `${rec.label} (${rec.cite})` : rec.la
  * counts records. A figure the import left blank fails its step as an import
  * finding, and nothing here fills one in.
  */
-async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload, damageId }) {
+async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload, damageId, classUuid }) {
   const fmt = (key, data) => run(gm, P.format, { key, data });
   const modsOf = (tokenId) => run(gm, P.mods, { sceneId, tokenId });
   const gmId = await run(gm, async () => game.user.id);
@@ -1096,6 +1206,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
 
   await walkDeclare({ sceneId, casterId, tCaster, tFoe, ids, damageId, fmt, spent, trackCard });
   await walkLostItem({ casterId, casterUuid: caster.uuid, damageId });
+  await walkInvocation({ casterId, casterUuid: caster.uuid, damageId, classUuid, sceneId, tCaster, tFoe, spent, trackCard, fmt });
 }
 
 /** Cards of concentration's end the run made since `since`, tracked for the sweep. */
@@ -1288,6 +1399,118 @@ async function walkDeclare(K) {
   check("declare 17: the caster's turn ended with no cast: the pending record is deleted and the flag is clear", lapsed.pending.length === 0 && (await prepared(false)).prepareSpell === false, { pending: lapsed.pending.length });
   check("declare 17: the spend stands", stale.cast === declared17.cast && stale.spent === declared17.spent, { cast: stale.cast - before17.cast });
   await spent();
+
+  section("declare 18. a declaration resolves on its declared targets, and the band's level and pick");
+  await move({ round: 4, turn: 0 });
+  await run(player, P.target, { sceneId, tokenIds: [tFoe.id] });
+  const d18 = await run(player, P.declare, { casterId, spellId: damageId });
+  check("declare 18: the declaration is made at the Foe", d18.dialog && d18.pending === 1, { pending: d18.pending });
+  const stored18 = await run(gm, P.invPending, { casterId });
+  check("declare 18: the pending record stores the declared target and no band answer where the tradition has no procedure", stored18 && stored18.targets?.length === 1 && stored18.picked === null, stored18);
+  await run(player, P.target, { sceneId, tokenIds: [tCaster.id] });
+  await hp(9);
+  const turn18 = await move({ turn: 1 });
+  const r18 = await run(player, P.castResolve, { casterId, spellId: damageId });
+  await trackCard(r18.messageId);
+  check("declare 18: on the caster's turn the cast resolved with no dialog and the card posted", turn18.current === cbCaster && r18.card && r18.dialog === false, { dialog: r18.dialog, card: r18.card });
+  await spent();
+}
+
+/**
+ * The Invocation band steps (docs/magic/TESTING.md, "The Invocation band"): the class fixture reads an invented cap ladder and the caster stands at
+ * a class level that reads a cap of three; an invented procedure on the tradition's kind asks for the implement-set bucket. Four invented
+ * sets are made on the caster, tracked and swept by id; the class row, the ladder and the level are put back.
+ */
+async function walkInvocation(K) {
+  const { casterId, casterUuid, damageId, classUuid, sceneId, tCaster, tFoe, spent, trackCard, fmt } = K;
+  const kind = "vancian";
+  const prior = await run(gm, P.invWorld, { classUuid, casterId, level: 4 });
+  const mine = [];
+  const made = async (name, level, damage) => {
+    const doc = await gm.create("Item", { name, type: "item", system: { quantity: { value: 1, max: 0 } } }, { parent: casterUuid });
+    await track(doc.uuid, "Item");
+    mine.push(doc.uuid);
+    await run(gm, P.invSet, { uuid: doc.uuid, level, damage });
+    return doc.uuid;
+  };
+  try {
+    await run(player, P.invProc, { kind, cite: "QA p. 1" });
+    await run(gm, P.invProc, { kind, cite: "QA p. 1" });
+    const low = await made("QA Set low", 2, 0);
+    const worn = await made("QA Set worn", 4, 3);
+    const high = await made("QA Set high", 4, 0);
+    const spare = await made("QA Set spare", 3, 0);
+    await spent();
+
+    section("band 1. a Player's menu: the cap preselected, levels above it disabled");
+    const p1 = await run(player, P.invBand, { casterId, spellId: damageId });
+    check("band 1: one select over the ladder's levels, the cap preselected", p1.dialog && p1.options.length === 5 && p1.options.find((o) => o.selected)?.value === "3", p1.options);
+    check("band 1: the levels above the cap are disabled and say so, the cap is shown with its tooltip", p1.options.filter((o) => o.disabled).map((o) => o.value).join() === "4,5" && /3/.test(p1.cap ?? "") && /QA cap ladder/.test(p1.capTip ?? ""), { cap: p1.cap, tip: p1.capTip });
+    check("band 1: the band is headed by the tradition", p1.heading === "Arcane", p1.heading);
+    const refused = await run(player, P.invBand, { casterId, spellId: damageId, level: 5 });
+    check("band 1: a Player cannot choose a level above the cap", refused.refused === true);
+
+    section("band 2. a Judge's menu: a level above the cap is chosen in the warn tone and warns in the footer");
+    const j2 = await run(gm, P.invBand, { casterId, spellId: damageId, level: 5 });
+    check("band 2: the Judge's levels above the cap are enabled and the select takes the warn tone", j2.options.every((o) => !o.disabled) && /is-warn/.test(j2.selectTone), { tone: j2.selectTone });
+    check("band 2: the footer warns of the level over the cap and Cast stays enabled", j2.verdicts.some((v) => v.tone === "warn") && !j2.castDisabled, j2.verdicts);
+
+    section("band 3. the implements bucket: carried sets, the pick, a set too low, a drop and X");
+    const b3 = await run(player, P.invBand, { casterId, spellId: damageId });
+    const names = b3.rows.map((r) => r.name);
+    check("band 3: the bucket opens holding the carried sets with their own pictures' rows", ["QA Set low", "QA Set worn", "QA Set high", "QA Set spare"].every((n) => names.some((x) => x.startsWith(n))), names);
+    check("band 3: at the cap the pick is the lowest set that reaches it, tagged Used", b3.rows.filter((r) => r.used).map((r) => r.name).join() === "QA Set spare", b3.rows.map((r) => [r.name, r.used]));
+    const lowRow = b3.rows.find((r) => r.name.startsWith("QA Set low"));
+    check("band 3: a set too low is disabled and its reason is shown", lowRow?.disabled === true && lowRow.reason.length > 0, lowRow);
+    check("band 3: the caption reads level and effective, and a worn set shows hollow diamonds", /\d/.test(lowRow?.caption ?? "") && b3.rows.find((r) => r.name.startsWith("QA Set worn"))?.hollow === 3, b3.rows.map((r) => [r.name, r.caption, r.hollow]));
+    const picked = await run(player, P.invBand, { casterId, spellId: damageId, pick: "QA Set high" });
+    check("band 3: a radio picks the set used", picked.rows.filter((r) => r.used).map((r) => r.name).join() === "QA Set high");
+    const removed = await run(player, P.invBand, { casterId, spellId: damageId, remove: "QA Set spare" });
+    check("band 3: X removes a set and the pick opens on the lowest that still reaches", !removed.rows.some((r) => r.name.startsWith("QA Set spare")) && removed.rows.filter((r) => r.used).map((r) => r.name).join() === "QA Set high");
+    const extra = await gm.create("Item", { name: "QA Set dropped", type: "item", system: { quantity: { value: 1, max: 0 } } }, { parent: casterUuid });
+    await track(extra.uuid, "Item");
+    mine.push(extra.uuid);
+    await run(gm, P.invSet, { uuid: extra.uuid, level: 3, damage: 0 });
+    const dropped = await run(player, P.invBand, { casterId, spellId: damageId, remove: "QA Set spare", drop: extra.uuid });
+    check("band 3: a set dragged from the inventory becomes a row", dropped.rows.some((r) => r.name.startsWith("QA Set dropped")), dropped.rows.map((r) => r.name));
+
+    section("band 4. no set reaches the level: a Player is blocked, a Judge is warned");
+    await run(gm, P.invSet, { uuid: high, level: 2, damage: 0 });
+    await run(gm, P.invSet, { uuid: worn, level: 2, damage: 0 });
+    await run(gm, P.invSet, { uuid: spare, level: 2, damage: 0 });
+    await run(gm, P.invSet, { uuid: extra.uuid, level: 2, damage: 0 });
+    const b4 = await run(player, P.invBand, { casterId, spellId: damageId });
+    check("band 4: the Player's footer carries the finding as a block and Cast is off", b4.verdicts.some((v) => v.tone === "block") && b4.castDisabled, b4.verdicts);
+    const j4 = await run(gm, P.invBand, { casterId, spellId: damageId });
+    check("band 4: the Judge's footer warns and Cast is on", j4.verdicts.some((v) => v.tone === "warn") && !j4.castDisabled, j4.verdicts);
+    await run(gm, P.invSet, { uuid: high, level: 4, damage: 0 });
+
+    section("band 5. the level reaches the card");
+    const c5 = await run(gm, P.invBand, { casterId, spellId: damageId, level: 3, cast: true });
+    await trackCard(c5.messageId);
+    check("band 5: the card carries the chosen level and its source", c5.card && c5.model?.invocationLevel === 3 && c5.model?.invocation?.source === "chosen", { level: c5.model?.invocationLevel });
+
+    section("band 6. a declared cast keeps the level and the pick and resolves with no dialog");
+    const fight = await run(gm, P.combatNew, { sceneId, tokenIds: [tCaster.id, tFoe.id] });
+    runCombatUuid = fight.uuid;
+    const cb = fight.combatants.find((c) => c.tokenId === tCaster.id)?.id;
+    const at = (opts) => run(gm, P.combatMove, { combatId: fight.id, ...opts });
+    await at({ update: { round: 2, turn: 0 } });
+    const d6 = await run(player, P.invBand, { casterId, spellId: damageId, pick: "QA Set high", cast: true });
+    check("band 6: the Player's button declares", d6.dialog && /declare/i.test(d6.button ?? ""), d6.button);
+    const stored = await run(gm, P.invPending, { casterId });
+    check("band 6: the declaration stores the level and the pick", stored?.invocationLevel === 3 && stored.picked?.implements === high, stored);
+    const turn = await at({ update: { turn: 1 } });
+    const r6 = await run(player, P.castResolve, { casterId, spellId: damageId });
+    await trackCard(r6.messageId);
+    check("band 6: at the turn the cast resolved with no dialog and the card carries the declared level", turn.current === cb && r6.card && r6.dialog === false, { dialog: r6.dialog });
+    await spent();
+  } finally {
+    await run(player, P.invProcOff);
+    await run(gm, P.invProcOff);
+    await run(gm, P.invWorld, { classUuid, casterId, off: true, was: prior });
+    note("band sweep", await gm.sweepTracked({ only: mine }));
+  }
 }
 
 /**
@@ -1599,7 +1822,7 @@ try {
 
   // The buff steps run apart, so a throw in one still reaches the console check below.
   try {
-    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage, damageId: spellId.damage });
+    await walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayload: lib.payload.damage, damageId: spellId.damage, classUuid: cls.uuid });
   } catch (err) {
     console.error("WALK ERROR (buff steps):", err?.stack ?? err);
     checks.push(["the buff steps ran to the end", false]);
