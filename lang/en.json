@@ -7870,7 +7870,6 @@
   "ACKS-FORMATION.crossing.squeeze.part.strength": "Strength (modifier {mod}, RR ch. 1)",
   "ACKS-FORMATION.crossing.squeeze.part.figure": "{source}, base {figure}+",
   "ACKS-FORMATION.crossing.squeeze.part.save": "{save}, base {base}+",
-  "ACKS-FORMATION.crossing.squeeze.part.contortionSave": "Contortionism: through the save's own effect",
   "ACKS-FORMATION.crossing.squeeze.card.squeeze": "Squeezing",
   "ACKS-FORMATION.crossing.squeeze.card.wiggle": "Wiggle back",
   "ACKS-FORMATION.crossing.squeeze.card.push": "Push forward",

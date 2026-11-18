@@ -2479,6 +2479,8 @@ await ok("Contortionism is counted once on each throw, read through the real row
   assert.deepEqual([plain.row.target - held.row.target, plain.row.escape.push.target - held.row.escape.push.target], [3, 3]);
   assert.equal(held.row.escape.wiggle.target, plain.row.escape.wiggle.target);
   assert.equal(held.row.escape.push.parts.filter((p) => p.key === "contortionism").length, 1);
+  assert.equal(crossing.escapeTargetTip(held, "wiggle").toLowerCase().includes("contortionism"), false, "a figure's tooltip lists only the parts it contains: no seat applies the ability to the save");
+  assert.equal(crossing.escapeTargetTip(held, "push").includes("Contortionism −3"), true);
 });
 
 await ok("the push takes the member's Strength, named in its tooltip with the modifier and the page, while the squeezing throw and the wiggle do not", async () => {

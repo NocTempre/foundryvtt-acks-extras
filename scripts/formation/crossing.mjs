@@ -1904,8 +1904,7 @@ export function escapeTargetTip(entry, name) {
   const head = name === "push"
     ? loc("crossing.squeeze.part.figure", { figure: entry.pushFigure?.target, source: entry.pushFigure?.source ?? "" })
     : loc("crossing.squeeze.part.save", { save: saveName({ save: WIGGLE_SAVE }), base: entry.save.base });
-  const tail = name === "wiggle" && entry.holds ? [loc("crossing.squeeze.part.contortionSave")] : [];
-  return [head, ...squeezeParts(way.parts), ...tail, cite].join(" · ");
+  return [head, ...squeezeParts(way.parts), cite].join(" · ");
 }
 
 /**

@@ -3128,8 +3128,9 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   until a success clears it. A step not imported refuses the next attempt; no
   failed push, no step owed.
 - **Contortionism is counted once per throw**: in the squeezing throw and the
-  push by the imported figure, and in the wiggle not at all, since the ability's
-  own effect reaches a saving throw by the save's own route. The Dungeonbashing
+  push by the imported figure, and in the wiggle not at all: the ability's
+  effect is a situational modifier no seat applies to the save today (DECISIONS;
+  ROADMAP). The Dungeonbashing
   figure carries none of it (the ability's effect targets a save).
 - **Once for each round.** In a fight a member who has thrown or escaped has
   nothing left until the round changes (`thrownAt`). The driver
