@@ -115,7 +115,7 @@ function world() {
 }
 const caster = { uuid: "Actor.c", name: "Testcaster" };
 const spell = { uuid: "Actor.c.Item.s", name: "Testbolt", img: "i.png" };
-const answer = { mode: "normal", picks: { g: "k" }, casterLevel: "3", situational: 2, visibility: "gm", pickKind: "beast", items: { "Scene.s.Token.k1": "w1" }, saveMod: true, targets: ["Scene.s.Token.k1", "Scene.s.Token.k2"], allocation: { bolt: { "Scene.s.Token.k1": "2", "Scene.s.Token.k2": "1" } } };
+const answer = { mode: "normal", picks: { g: "k" }, casterLevel: "3", invocationLevel: 4, situational: 2, visibility: "gm", pickKind: "beast", items: { "Scene.s.Token.k1": "w1" }, saveMod: true, targets: ["Scene.s.Token.k1", "Scene.s.Token.k2"], allocation: { bolt: { "Scene.s.Token.k1": "2", "Scene.s.Token.k2": "1" } } };
 const combat = (over = {}) => ({ id: "k1", round: 2, turn: 0, turns: [{ id: "cb2" }, { id: "cb1" }], ...over });
 
 await ta("a declaration writes a status-only casting record and a status-free pending record naming the answers and the lapse round, then sets the flag, and posts nothing", async () => {
@@ -129,6 +129,7 @@ await ta("a declaration writes a status-only casting record and a status-free pe
   const read = spellEffectOf(pending);
   assert.deepEqual([read.castId, read.role, read.pending.spellUuid, read.pending.combatId, read.pending.at, read.pending.round], ["d1", "caster", spell.uuid, "k1", 77, 2]);
   assert.deepEqual([read.pending.mode, read.pending.picks, read.pending.casterLevel, read.pending.situational, read.pending.visibility, read.pending.pickKind, read.pending.items, read.pending.saveMod], ["normal", { g: "k" }, "3", 2, "gm", "beast", { "Scene.s.Token.k1": "w1" }, true]);
+  assert.equal(read.pending.invocationLevel, 4, "the invocation level is stored in the pending record");
   assert.deepEqual(read.pending.targets, ["Scene.s.Token.k1", "Scene.s.Token.k2"], "the seat's targets at the answer are stored by token uuid");
   assert.deepEqual(read.pending.allocation, answer.allocation, "and so is the throw split");
   assert.deepEqual(w.log.map((l) => l[0]), ["create", "flag", "notify"]);
@@ -137,11 +138,14 @@ await ta("a declaration writes a status-only casting record and a status-free pe
 
 t("the stored shape is one table: a declaration stores exactly ANSWER_FIELDS' keys, and reads back as the answer, with a record from before targets were stored read as having none recorded", () => {
   assert.deepEqual(Object.keys(answerStored(answer)), Object.keys(ANSWER_FIELDS));
-  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "items", "mode", "pickKind", "picks", "saveMod", "situational", "targets", "visibility"]);
+  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "invocationLevel", "items", "mode", "pickKind", "picks", "saveMod", "situational", "targets", "visibility"]);
   const blank = answerStored({ mode: "normal" });
+  assert.equal(blank.invocationLevel, null, "no invocation level answered is stored as none");
   assert.deepEqual([blank.targets, blank.allocation, blank.items, blank.visibility, blank.saveMod, blank.casterLevel], [[], {}, {}, "public", false, null]);
   const back = answerFromPending({ ...answerStored(answer), combatId: "k1", round: 2 });
   assert.deepEqual([back.targets, back.allocation, back.casterLevel, back.situational, back.pickKind, back.visibility], [answer.targets, answer.allocation, "3", 2, "beast", "gm"]);
+  assert.equal(back.invocationLevel, 4, "the stored invocation level reads back as the answer");
+  assert.deepEqual([answerStored({ invocationLevel: "3" }).invocationLevel, answerStored({ invocationLevel: 0 }).invocationLevel, answerStored({ invocationLevel: 2.5 }).invocationLevel, answerStored({ invocationLevel: "x" }).invocationLevel], [3, null, null, null], "it is a whole number from one up, digits read as one, and nothing else");
   const old = answerFromPending({ spellUuid: "S", mode: "normal", picks: {}, casterLevel: null, situational: null, pickKind: null, combatId: "k1" });
   assert.deepEqual([old.targets, old.casterLevel, old.situational, old.pickKind, old.visibility], [null, "", "", null, "public"], "no targets recorded reads as null, which resolves on the seat as it stands");
   assert.deepEqual(answerFromPending({ ...answerStored({ mode: "normal" }), targets: [] }).targets, [], "a declaration of no target is an empty seat, not an unrecorded one");

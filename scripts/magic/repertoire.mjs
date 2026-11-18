@@ -247,10 +247,15 @@ function canCastNow(reading, coreOn) {
  * classes feature's `classForActor` and `poolState`, and `lookups(call)` the
  * lazy twin lookups of `cast-reach.mjs`.
  *
- * @param {{castReading: Function, classFor: Function, poolsOf: Function, lookups?: Function}} deps
+ * `capAt` is the classes feature's `traditionCapAt`, passed on to `castReading`
+ * where the feature has one. The cap it reads is on each entry as `cap` and on
+ * the call's `caps` by spell, which is where the register's reach finds it, since
+ * the register hands the reach a rebuilt entry (`cast-reach.mjs`).
+ *
+ * @param {{castReading: Function, classFor: Function, poolsOf: Function, lookups?: Function, capAt?: Function|null}} deps
  * @returns {(actor: object, options?: {viewer?: object|null, call?: object}) => object[]}
  */
-export function makeRepertoireSource({ castReading, classFor, poolsOf, lookups = null }) {
+export function makeRepertoireSource({ castReading, classFor, poolsOf, lookups = null, capAt = null }) {
   return (actor, { call = {} } = {}) => {
     const spells = [...(actor?.items ?? [])].filter((i) => i.type === ITEM_TYPE.spell && Object.keys(spellFlagOf(i) ?? {}).length > 0);
     if (!spells.length) return [];
@@ -259,9 +264,11 @@ export function makeRepertoireSource({ castReading, classFor, poolsOf, lookups =
     const coreOn = actor.system?.spells?.enabled === true;
     const out = [];
     for (const spell of spells) {
-      const reading = castReading(actor, spell, { classItem, pools });
+      const reading = castReading(actor, spell, { classItem, pools, capAt });
       if (!canCastNow(reading, coreOn)) continue;
       const level = casterLevel(reading.level);
+      // The register rebuilds each entry before it asks the reach, so the cap rides the call's scratch, by the spell (`cast-reach.mjs`).
+      (call.caps ??= new Map()).set(spell, reading.cap ?? null);
       // The twin is read only where the copy holds no stamp or no page reference.
       const own = spellFlagOf(spell) ?? {};
       const twin = lookups && (!cookbookId(spell) || !own.cite) ? libraryTwin(spell, lookups(call)) : null;
@@ -270,6 +277,7 @@ export function makeRepertoireSource({ castReading, classFor, poolsOf, lookups =
         itemId: spell.id ?? null,
         casterLevel: level.value ? level : null,
         capacity: reading.capacity.verdict,
+        cap: reading.cap ?? null,
         cite: String(own.cite || spellFlagOf(twin)?.cite || ""),
         twin,
       });

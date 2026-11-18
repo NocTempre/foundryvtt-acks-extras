@@ -376,3 +376,28 @@ before; a token on another scene is in the seat but cannot be targeted on the
 canvas. *Counter (medium):* a Judge who retargets at the turn expecting it to
 count finds the cast on the declared seat; the seat changes only where a declared
 token is gone (the dialog reopens) or by declaring again.
+
+## 2026-11-18 — The invocation level's edges (R-b, rulings 200 to 202)
+
+Three calls the rulings left open, made while building the magic half of the
+level.
+
+An invocation bound that is missing or runs backwards drops its row at the
+import, `onMiss: "blank"` or not. A blank figure is only an unread one, but a
+row with no bound stands at every level, which is a wrong effect. Example: a
+row whose upper bound reads as nothing would apply at every level above the
+one the page prints. The per-option `conditions` miss is the precedent for a
+blank that is not allowed to leave the row.
+
+`invocationUnset` is drawn only where a raw row or figure reads the scale. A
+tradition whose cap offers the level but whose rows read nothing misses
+nothing, so a Player is not blocked on a control the cast never reads. The
+alternative, blocking whenever the level is offered, would stop every capped
+cast until the dialog's control exists. *Counter (medium):* a procedure that
+reads the level from the card (rulings 205 to 207) gets no value from a cast
+that left it unset, so it must ask for the level itself or add its own verdict.
+
+`flattenAt` copies only the branches that change and hands back every other
+row as the very object it was. Ruling 200 says "copies"; a row with nothing on
+the scale needs none, and nothing in `scripts/magic` compares rows by identity.
+A flattened row is a new object and the spell's own is never written.

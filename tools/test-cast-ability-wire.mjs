@@ -517,4 +517,40 @@ await ta("a spell the abilities do not narrow to, a caster with none, and a weap
   assert.deepEqual(abilityDamageContributor.carriers, ["damage"], "and only a spell carrier's damage is asked");
 });
 
+/* ------------------------------------------------------------------ */
+/*  The invocation level on a card                                    */
+/* ------------------------------------------------------------------ */
+
+const rungs = (...pairs) => ({ kind: "conditional", on: "invocationLevel", breakpoints: pairs.map(([atLevel, value]) => ({ atLevel, value })) });
+
+await ta("the relay reads the card's spell at the card's invocation level: the rows inside the range stand, and a figure keyed on the level reads at it", async () => {
+  const caster = casterOf([]);
+  const spell = spellOn(caster, [burn({ key: "low", invocationTo: 2 }), burn({ key: "high", invocationFrom: 3 }), burn({ key: "sure" })], { target: { model: "creature", count: rungs([3, 4]) } });
+  const token = tokenOf();
+  const req = { requestUserId: "p1", targetKey: "t1" };
+  const message = { id: "m1", author: { id: "p1" } };
+  const at3 = await worldFor(req, message, { card: cardFor(caster, spell, token, { invocationLevel: 3 }) });
+  assert.deepEqual(at3.rows.map((r) => r.key), ["high", "sure"]);
+  assert.equal(at3.inputs.itemCap, 4, "the target count reads at the card's level");
+  const at1 = await worldFor(req, message, { card: cardFor(caster, spell, token, { invocationLevel: 1 }) });
+  assert.deepEqual(at1.rows.map((r) => r.key), ["low", "sure"]);
+  assert.equal(at1.inputs.itemCap, null, "below the first rung");
+  const none = await worldFor(req, message, { card: cardFor(caster, spell, token) });
+  assert.deepEqual(none.rows.map((r) => r.key), ["sure"], "a card with no level keeps only the rows no bound governs");
+});
+
+await ta("a recurring press reads the card's spell at its invocation level: the row bounded by it is found at the level and is no row without it", async () => {
+  const caster = casterOf([]);
+  const choke = { key: "choke", type: "conditionGrant", conditions: ["afraid"], recur: "eachRound", recurAt: "casterTurn", recurSave: "cast", saveEffect: "negates", lasts: "duration", invocationFrom: 3 };
+  const spell = spellOn(caster, [choke], { duration: { shape: "fixed", value: 1, unit: "minutes" } });
+  const token = tokenOf();
+  const press = (over) => pressRecurSave({ id: "m4", flags: { "acks-extras": { castCard: cardFor(caster, spell, token, { entries: { t1_choke: { state: "pending" } }, ...over }) } } }, { target: "t1", row: "choke" });
+  emitted.length = 0;
+  await press({ invocationLevel: 3 });
+  assert.equal(emitted.length, 1, "at its level the row is the press's");
+  emitted.length = 0;
+  await press({});
+  assert.equal(emitted.length, 0, "with no level on the card the row stands at none and nothing is sent");
+});
+
 console.log(`\n${n} cast ability wiring tests passed`);

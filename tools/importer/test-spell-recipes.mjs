@@ -761,4 +761,37 @@ t("the recipe rules know the invocation-level keys and refuse a range that runs 
   lacks(problems({}), "invocation");
 });
 
-console.log(`\n${n} tests passed`);
+t("a recipe locates a row's invocation range from the page, refuses a literal one, and the lint knows both keys as locatable", () => {
+  const prose = paras("At invocation levels two through five the bolt deals 1d6 force damage.");
+  const lower = { into: "invocationFrom", pattern: "levels\\s*(\\w+)\\s*through" };
+  const upper = { into: "invocationTo", pattern: "through\\s*(\\w+)\\s*the bolt" };
+  const spec = (from, over = {}) => ({ key: "bolt", type: "damage", appliesTo: "target", saveEffect: "half", delivery: "none", lasts: "instant", from, ...over });
+  const roll = { into: "roll", pattern: `deals\\s*(${DICE})` };
+  const [row] = materializeEffects([spec([roll, lower, upper])], prose);
+  assert.equal(row.invocationFrom, 2, "a word numeral reads as its figure");
+  assert.equal(row.invocationTo, 5);
+  assert.equal(row.unread, undefined);
+  const [low] = materializeEffects([spec([roll, lower])], prose);
+  assert.equal(low.invocationFrom, 2, "a lower bound alone is a half-open row");
+  assert.equal(low.invocationTo, undefined);
+  assert.deepEqual(spellRecipeProblems({ effects: [spec([roll, lower, upper])] }), [], "locating both keys is well formed");
+  assert.ok(spellRecipeProblems({ effects: [spec([roll], { invocationTo: 4 })] }).some((p) => p.includes("invocationTo is located from the page")), "a literal bound is a printed value");
+});
+
+t("a row whose invocation range runs backwards, or whose bound the page does not print, is dropped even under onMiss blank", () => {
+  const base = { key: "bolt", type: "damage", appliesTo: "target", saveEffect: "half", delivery: "none", lasts: "instant" };
+  const roll = { into: "roll", pattern: `deals\\s*(${DICE})` };
+  const lower = { into: "invocationFrom", pattern: "levels\\s*(\\w+)\\s*through" };
+  const upper = { into: "invocationTo", pattern: "through\\s*(\\w+)\\s*the bolt" };
+  const backwards = paras("At invocation levels five through two the bolt deals 1d6 force damage.");
+  assert.deepEqual(materializeEffects([{ ...base, from: [roll, lower, upper] }], backwards), [], "from above to is dropped");
+  assert.deepEqual(materializeEffects([{ ...base, from: [roll, lower, upper], onMiss: "blank" }], backwards), [], "and under blank");
+  const forwards = paras("At invocation levels two through five the bolt deals 1d6 force damage.");
+  const unreadBound = { into: "invocationTo", pattern: "up to\\s*(\\w+)\\s*tier" };
+  assert.deepEqual(materializeEffects([{ ...base, from: [roll, lower, unreadBound], onMiss: "blank" }], forwards), [], "an unread bound is no blank");
+  const [blankRoll] = materializeEffects([{ ...base, from: [{ into: "roll", pattern: "deals\\s*(\\d+d\\d+)x" }, lower], onMiss: "blank" }], forwards);
+  assert.deepEqual(blankRoll.unread, ["roll"], "any other miss still blanks");
+  assert.equal(blankRoll.invocationFrom, 2);
+});
+
+

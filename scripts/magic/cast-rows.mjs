@@ -11,6 +11,7 @@
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { libraryTwin } from "./summon-spell.mjs";
+import { resolveLevelValue, rowInInvocationRange } from "../lib/vocab.mjs";
 
 /** The effect-row types a cast resolves on the card. Every other type is a record and a line (`describe.mjs`). */
 export const ROLLED_KINDS = Object.freeze(["damage", "heal"]);
@@ -50,8 +51,82 @@ export const rowKeyOf = (row, i) => row?.key || `#${i}`;
 /** Every row with its key and position, in the spell's order. */
 export const keyedRows = (rows) => (rows ?? []).map((row, index) => ({ row, key: rowKeyOf(row, index), index }));
 
-/** The rows of one form: a reversed row belongs to the reverse form alone, every other row to the plain one. */
-export const rowsOfMode = (rows, mode) => keyedRows(rows).filter(({ row }) => Boolean(row.reversed) === (mode === CAST_MODES.reversed));
+/** The scale a spell's figures and rows key on to read the invocation level (`VALUE_SCALES`). */
+const INVOCATION_SCALE = "invocationLevel";
+
+/**
+ * The invocation level a cast reads its rows at, as `at` carries it: the whole
+ * number `at.invocationLevel` holds, else null (none set). Nothing coerces, so
+ * a stored "3" is no level.
+ * @param {{invocationLevel?: number|null}|null} [at]
+ */
+const levelAt = (at) => (Number.isInteger(at?.invocationLevel) ? at.invocationLevel : null);
+
+/** Is this a LevelValue keyed on the invocation scale? */
+const onScale = (node) => node?.kind === "conditional" && node.on === INVOCATION_SCALE;
+
+/**
+ * The invocation level a card was cast at, as `at` for the rows, figures and
+ * gates read off its spell again: `{invocationLevel}`, null where the card
+ * carries none. Every place that turns a card back into rows reads it here.
+ * @param {{invocationLevel?: number|null}|null} card
+ */
+export const castAt = (card) => ({ invocationLevel: levelAt(card) });
+
+/**
+ * A copy of `node` with each conditional LevelValue on the invocation scale
+ * replaced by the number it resolves to at `at`: null below the scale's first
+ * rung, and null with no level set. Everything else is carried as it stands, and
+ * a branch that holds no such conditional is the very object it was, so a row
+ * with none comes back unchanged and nothing is ever written through `node`.
+ * @param {*} node  a row, a figure object, or any value inside one
+ * @param {{invocationLevel?: number|null}|null} [at]
+ */
+export function flattenAt(node, at = null) {
+  if (!node || typeof node !== "object") return node;
+  if (onScale(node)) return resolveLevelValue(node, 1, { [INVOCATION_SCALE]: levelAt(at) });
+  if (Array.isArray(node)) {
+    const mapped = node.map((v) => flattenAt(v, at));
+    return mapped.some((v, i) => v !== node[i]) ? mapped : node;
+  }
+  let copy = null;
+  for (const [key, value] of Object.entries(node)) {
+    const flat = flattenAt(value, at);
+    if (flat === value) continue;
+    copy ??= { ...node };
+    copy[key] = flat;
+  }
+  return copy ?? node;
+}
+
+/**
+ * Does any of this read the invocation level: a row bounded by it, or a
+ * LevelValue keyed on it, anywhere inside? Asked of the RAW rows and figures,
+ * before a gate drops a row or a flatten replaces a figure, since with no level
+ * set neither leaves a sign.
+ * @param {*} node  rows, a row, or a figure object
+ */
+export function readsInvocation(node) {
+  if (!node || typeof node !== "object") return false;
+  if (onScale(node) || Number.isInteger(node.invocationFrom) || Number.isInteger(node.invocationTo)) return true;
+  return Object.values(node).some(readsInvocation);
+}
+
+/**
+ * The rows of one form: a reversed row belongs to the reverse form alone, every
+ * other row to the plain one. A row bounded by the invocation level stands only
+ * inside its range, and with no level set in `at` every bounded row is out; the
+ * rows that stand come back with the scale's conditionals flattened at the level
+ * (`flattenAt`). A row keeps the key and position it has in the whole spell,
+ * whichever of its neighbours the level drops.
+ * @param {object[]} rows
+ * @param {string} mode  a `CAST_MODES` key
+ * @param {{invocationLevel?: number|null}|null} [at]
+ */
+export const rowsOfMode = (rows, mode, at = null) =>
+  keyedRows(rows)
+    .filter(({ row }) => Boolean(row.reversed) === (mode === CAST_MODES.reversed) && rowInInvocationRange(row, levelAt(at)))
+    .map((keyed) => ({ ...keyed, row: flattenAt(keyed.row, at) }));
 
 /**
  * The option a row belongs to in its choice group: its own `pickOption` token,
@@ -67,11 +142,13 @@ export const optionTokenOf = (row, key = row?.key) => String(row?.pickOption ?? 
  * option may be several rows; a group holding a single option offers no choice
  * and is left out. `rows` is every row of the group, `options` its options in
  * the spell's order.
+ * The groups are read over the rows that stand at `at` (`rowsOfMode`).
+ * @param {{invocationLevel?: number|null}|null} [at]
  * @returns {Array<{id: string, rows: Array<{row: object, key: string, index: number}>, options: Array<{token: string, rows: Array<{row: object, key: string, index: number}>}>}>}
  */
-export function pickGroups(rows, mode) {
+export function pickGroups(rows, mode, at = null) {
   const groups = new Map();
-  for (const entry of rowsOfMode(rows, mode)) {
+  for (const entry of rowsOfMode(rows, mode, at)) {
     const id = String(entry.row.pick ?? "").trim();
     if (!id) continue;
     if (!groups.has(id)) groups.set(id, new Map());
@@ -94,11 +171,12 @@ export function pickGroups(rows, mode) {
  * @param {object[]} rows
  * @param {string} mode  a `CAST_MODES` key
  * @param {Record<string, string>} [picks]  group id to option token
+ * @param {{invocationLevel?: number|null}|null} [at]  the invocation level the rows are read at (`rowsOfMode`)
  */
-export function rowsForMode(rows, mode, picks = {}) {
-  const kept = rowsOfMode(rows, mode);
+export function rowsForMode(rows, mode, picks = {}, at = null) {
+  const kept = rowsOfMode(rows, mode, at);
   const chosen = new Map();
-  for (const group of pickGroups(rows, mode)) {
+  for (const group of pickGroups(rows, mode, at)) {
     const named = picks?.[group.id];
     const option = group.options.find((o) => o.token === named) ?? group.options.find((o) => o.rows.some((r) => r.key === named)) ?? group.options[0];
     chosen.set(group.id, option.token);

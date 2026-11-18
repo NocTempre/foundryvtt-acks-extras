@@ -526,6 +526,10 @@ export const LOCATABLE_FIELDS = Object.freeze({
   // written as the `atLevelNum` / `atLevelDen` pair (nothing at a whole level).
   atLevel: "levelFraction",
   max: "levelValue",
+  // The invocation levels a spell row applies at, both inclusive
+  // (`rowInInvocationRange`); a level a page prints is a printed value.
+  invocationFrom: "integer",
+  invocationTo: "integer",
   // The dice a `rounds` lasting counts, and the size word at or above which a
   // target is exempt from the row (`sizeKey`: a word onto a monsters `SIZES` key).
   rounds: "dice",
@@ -834,7 +838,9 @@ function eachMatches(each, text) {
  * null when it is dropped. A miss drops the row unless `blank`, which lists the
  * field in `unread` instead; `perOption` marks a row expanded from `each`, whose
  * condition list that names no condition is dropped even then, since an option
- * with nothing to grant has nothing to apply.
+ * with nothing to grant has nothing to apply. A row whose invocation bound is
+ * unread, or whose range runs backwards, is dropped even then: unbounded it would
+ * stand at every level.
  */
 function materializeRow(base, locators, clauses, blank, text, perOption) {
   const effect = { ...base };
@@ -852,7 +858,8 @@ function materializeRow(base, locators, clauses, blank, text, perOption) {
     const got = m ? locateField(loc, kind, m) : MISS;
     if (got === MISS) {
       // All or nothing unless the spec asks for blanks: a half-matched effect is dropped whole.
-      if (!blank || (perOption && kind === "conditions")) return null;
+      // An unread invocation bound drops the row even then: unbounded, it would stand at every level.
+      if (!blank || (perOption && kind === "conditions") || INVOCATION_BOUNDS.includes(into)) return null;
       unread.push(into);
       continue;
     }
@@ -863,6 +870,8 @@ function materializeRow(base, locators, clauses, blank, text, perOption) {
       setLocated(effect, into, got);
     }
   }
+  // A range that runs backwards is dropped whole, blank or not.
+  if (Number.isInteger(effect.invocationFrom) && Number.isInteger(effect.invocationTo) && effect.invocationFrom > effect.invocationTo) return null;
   for (const [field, loc] of clauses) {
     const read = locateCondition(loc, text);
     if (read) effect[field] = read;
@@ -870,6 +879,9 @@ function materializeRow(base, locators, clauses, blank, text, perOption) {
   if (unread.length) effect.unread = [...new Set(unread)];
   return effect;
 }
+
+/** The two located fields that bound a spell row's invocation levels. */
+const INVOCATION_BOUNDS = Object.freeze(["invocationFrom", "invocationTo"]);
 
 /**
  * Materialize an ability's ROLLS from authored specs — the per-entry recipe

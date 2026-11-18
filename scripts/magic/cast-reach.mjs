@@ -18,6 +18,7 @@ import { rowsOf, rowsOfMode, aimedAtSelf, hasReversedRows, CAST_MODES } from "./
 import { modParts } from "./cast-mods.mjs";
 import { targetGate } from "./cast-gates.mjs";
 import { castGateExtrasOf } from "./cast-spell.mjs";
+import { invocationFigure } from "./cast-level.mjs";
 import { MODULE_ID } from "./constants.mjs";
 import { libraryDocs, cookbookId } from "../lib/library.mjs";
 
@@ -69,7 +70,10 @@ export function twinLookups(call) {
  * `selfParts` are the parts those rows build.
  *
  * @param {{lookups?: (call: object) => object}} [deps]
- * @returns {(actor: object, entry: {spell: object, casterLevel: object|null}, call?: object) => {onSelf: boolean|null, selfParts: object[]}}
+ * The cap the rows are read at is the entry's `cap`, else the one the repertoire
+ * source put on `call.caps` for the entry's spell.
+ *
+ * @returns {(actor: object, entry: {spell: object, casterLevel: object|null, cap?: number|null}, call?: object) => {onSelf: boolean|null, selfParts: object[]}}
  */
 export function makeSelfReach({ lookups = twinLookups } = {}) {
   return (actor, entry, call = {}) => {
@@ -77,13 +81,15 @@ export function makeSelfReach({ lookups = twinLookups } = {}) {
     const look = lookups(call);
     const rows = rowsOf(spell, look).rows;
     if (!rows.length) return { onSelf: false, selfParts: [] };
-    const extras = castGateExtrasOf(spell, look);
+    // A row bounded by the invocation level, or a figure keyed on it, is read at the tradition's cap; with no cap none stands. The register's entry carries no cap, so it is read from the call the repertoire source left it on.
+    const at = { invocationLevel: invocationFigure(entry.cap ?? call.caps?.get(spell)) };
+    const extras = castGateExtrasOf(spell, look, at);
     const model = String(extras.target?.model ?? "");
     const level = Number.isFinite(entry.casterLevel?.value) ? entry.casterLevel.value : null;
     const kept = [];
     let undecided = false;
     for (const mode of hasReversedRows(rows) ? [CAST_MODES.normal, CAST_MODES.reversed] : [CAST_MODES.normal]) {
-      for (const keyed of rowsOfMode(rows, mode)) {
+      for (const keyed of rowsOfMode(rows, mode, at)) {
         const { row } = keyed;
         if (aimedAtSelf(row)) kept.push(keyed);
         else if (!AIMED.includes(row.appliesTo) || NOT_A_CREATURE.includes(model)) continue;

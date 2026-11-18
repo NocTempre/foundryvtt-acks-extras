@@ -538,6 +538,39 @@ cancel at any point before the spend costs nothing:
    ladder is blank), else a monster's spellcasting level; never defaulted. It is
    asked for only where the duration, the range, the target count, the area's
    size or a row (its `value` or `max`) scales with it.
+
+   *The invocation level* (`cast-level.mjs` `invocationLevel(ctx, answer)`) is a
+   second figure, apart from the caster level and never defaulted from it. A
+   spell reads it two ways: a row bounded by `invocationFrom` and `invocationTo`
+   (both counted in, a blank side open), and a LevelValue keyed on the
+   `invocationLevel` scale. It is offered where the tradition has a cap
+   (`traditionCapAt`, the classes feature's, read through `castReading`'s `capAt`
+   and left on the register call's `caps` by spell; with none every level is
+   open) or where a raw row or figure reads the scale (`readsInvocation`, judged
+   before a gate drops a row, since with no level set the kept rows show no sign
+   of it). The answer is `invocationLevel`, a whole number from one up; the
+   result is `{value, source, cap}`, `source` being `chosen` under a cap and
+   `hand` without one. `overCap` (above the cap) and `invocationUnset` (a row or
+   figure reads the scale and none is set) are verdicts: a Player is blocked, a
+   Judge warned. A cap that no row reads never makes the level missing.
+
+   `rowsOfMode`, `rowsForMode` and `pickGroups` take `at = {invocationLevel}`.
+   They drop a bounded row outside its range, and every bounded row when no level
+   is set, and return the standing rows with the scale's conditionals flattened
+   (`flattenAt`: a rung's value, null below the first rung or with no level).
+   `castFiguresOf` and `castGateExtrasOf` flatten the target and save figures the
+   same way. A row keeps the key and position it has in the whole spell, so a
+   `#<index>` key does not move with the level. Only conditionals on this scale
+   flatten: a figure on any other scale comes back as written. A range, a duration
+   and a casting time are `num()`, so they do not follow the level. A flattened row
+   is a copy and is never written back to the spell. The level rides
+   `card.invocationLevel` (with `card.invocation {source, cap}`, which the note's
+   "Invocation n" and its tooltip read), each record's `invocationLevel` and
+   `pending.invocationLevel`, and every place that turns a card back into rows
+   reads it as `castAt(card)`: the relay, the recurring prompts' rows and presses,
+   the card's Apply and Throw presses. The register's `makeSelfReach` reads gated
+   rows at the spell's cap, found on that call, since lib hands the reach a
+   rebuilt entry that carries none.
 5. *The rows*: the mode's rows less the rows of each choice group's unpicked options.
    A damage row with no throw and a heal row are rolled once for the cast; a
    damage row is asked through lib's `magicDamageSpec`, so the caster's
@@ -762,7 +795,7 @@ button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
 status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
 round, at}`), and posts no card. The answer's fields are one table,
-`ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, situational,
+`ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, invocationLevel, situational,
 visibility, pickKind, items, saveMod, the uuids of the seat's `targets` at the
 answer, and the throw `allocation` by row key and token uuid. A later field is
 added to that table and nowhere else. `round`

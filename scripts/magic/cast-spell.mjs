@@ -19,7 +19,8 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, awaitsFail, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, awaitsFail, isRecurring, castersTurnRecurs, recurringRows, castAt, flattenAt, readsInvocation, CAST_MODES } from "./cast-rows.mjs";
+import { casterLevel, levelNeeded, invocationLevel, invocationFigure, invocationOffered } from "./cast-level.mjs";
 import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
@@ -118,11 +119,8 @@ export async function rowSpecOf(caster, spell, card, keyed) {
 /** The begun fight that holds this actor, with the actor's combatant in it; null where there is none. */
 const castFight = (actor) => fightHolding([game.combat, ...(game.combats ?? [])], { actor });
 
-/**
- * The spell's range and target figures: the copy's own, else its library
- * twin's where the copy prints none (the twin is read as the duration's is).
- */
-export function castFiguresOf(spell, lookups) {
+/** The figures of `castFiguresOf` as the spell prints them, before the invocation scale is read. */
+function rawFiguresOf(spell, lookups) {
   const own = flagOf(spell);
   const id = spell?.flags?.[MODULE_ID]?.cookbook?.id;
   const twin = (!own.range?.shape || !own.target?.model) && id ? flagOf(lookups?.byCookbookId?.("Item", id)) : {};
@@ -135,17 +133,47 @@ export function castFiguresOf(spell, lookups) {
 }
 
 /**
+ * The spell's range and target figures: the copy's own, else its library
+ * twin's where the copy prints none (the twin is read as the duration's is).
+ * A figure keyed on the invocation level is read at `at` (`flattenAt`): null
+ * below its first rung and with no level set. A range is a distance and never
+ * follows the level.
+ *
+ * @param {{invocationLevel?: number|null}|null} [at]
+ */
+export function castFiguresOf(spell, lookups, at = null) {
+  const { range, target, cite } = rawFiguresOf(spell, lookups);
+  return { ...flattenAt({ range, target }, at), cite };
+}
+
+/**
  * The figures the target gates read (`cast-gates.mjs`): the Hit Dice cap from the
  * target figures (the copy's own, else its twin's, as `castFiguresOf` reads
  * them) and the Hit Dice below which no save is made from the copy's own save.
  * The cast, the card's presses and the relay's GM client all read them here, so
  * a gate is the same on each. `spell` is the spell as a record's immunity names
  * it (`{id}`, the definition id the record stacks as), null for a spell with none.
+ * The figures are read at `at`, the invocation level (`castFiguresOf`).
+ *
+ * @param {{invocationLevel?: number|null}|null} [at]
  */
-export function castGateExtrasOf(spell, lookups) {
+export function castGateExtrasOf(spell, lookups, at = null) {
   const id = cookbookId(spell) || null;
-  return { target: castFiguresOf(spell, lookups).target, save: flagOf(spell).save ?? null, spell: id ? { id, provides: [] } : null };
+  return { target: castFiguresOf(spell, lookups, at).target, save: flattenAt(flagOf(spell).save ?? null, at), spell: id ? { id, provides: [] } : null };
 }
+
+/**
+ * Does a cast of this spell read the invocation level: a row bounded by it or
+ * keyed on it among the spell's `rows`, or a range, target or save figure
+ * keyed on it? Read off the raw rows and figures, which a gate and a flatten
+ * leave no sign in with no level set.
+ *
+ * @param {object[]} rows  the spell's rows (`rowsOf`), the cast's mode's or all of them
+ */
+export const castReadsInvocation = (spell, lookups, rows) => {
+  const { range, target } = rawFiguresOf(spell, lookups);
+  return readsInvocation([rows, range, target, flagOf(spell).save]);
+};
 
 /**
  * What the spell's range and target count say of the targeted tokens at a caster
@@ -180,10 +208,10 @@ export function castReach({ figures, level, tokens, gaps = {} }) {
  *
  * @param {Actor} actor  the caster
  * @param {Item} spell
- * @param {{classItem?: object|null, pools?: object[]}} [from]  `classForActor(actor)` and `poolState(actor)`
- * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, capacity: ReturnType<typeof castCapacity>, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
+ * @param {{classItem?: object|null, pools?: object[], capAt?: ((classItem: object|null, tradition: object|null, level: number) => number|null)|null}} [from]  `classForActor(actor)` and `poolState(actor)`, and the classes feature's `traditionCapAt` where it has one; with none the tradition has no cap
+ * @returns {{found: {tradition: object, spellLevel: number|null}|null, spellLevel: number|null, capacity: ReturnType<typeof castCapacity>, cap: number|null, level: {matched: boolean, classLevel: number, ladder: object|null, monsterLevel: number}}}
  */
-export function castReading(actor, spell, { classItem = null, pools = [] } = {}) {
+export function castReading(actor, spell, { classItem = null, pools = [], capAt = null } = {}) {
   const extras = flagOf(spell);
   const found = traditionFor(classItem?.system?.casting, { extras, lvl: spell.system?.lvl, class: spell.system?.class });
   const spellLevel = found?.spellLevel ?? levelUnder(extras, spell.system?.lvl, new Set());
@@ -191,10 +219,13 @@ export function castReading(actor, spell, { classItem = null, pools = [] } = {})
   const capacity = castCapacity({ pools, coreSpells: actor.system?.spells, castsAtLevel, tradition: found?.tradition?.key ?? null, spellLevel });
   const ladderKey = found?.tradition?.casterLevel;
   const ladder = ladderKey ? ((classItem?.system?.ladders ?? []).find((l) => l.key === ladderKey) ?? { values: [] }) : null;
+  // The tradition's invocation-level cap at the class level, where the classes feature reads one.
+  const cap = found && typeof capAt === "function" ? invocationFigure(capAt(classItem, found.tradition, actor.system?.details?.level)) : null;
   return {
     found,
     spellLevel,
     capacity,
+    cap,
     level: {
       matched: Boolean(found),
       classLevel: actor.system?.details?.level,
@@ -208,8 +239,9 @@ export function castReading(actor, spell, { classItem = null, pools = [] } = {})
 async function readWorld(spell) {
   const actor = spell.parent;
   const { classForActor } = await import("../classes/registry.mjs");
-  const { poolState } = await import("../classes/casting.mjs");
-  const { capacity, level } = castReading(actor, spell, { classItem: classForActor(actor), pools: poolState(actor) });
+  // A namespace, so the cap reads where the classes feature has one and is null where it has not.
+  const casting = await import("../classes/casting.mjs");
+  const { capacity, level, cap } = castReading(actor, spell, { classItem: classForActor(actor), pools: casting.poolState(actor), capAt: casting.traditionCapAt });
   const records = [...(actor.effects ?? [])].map((e) => spellEffectOf(e)).filter(Boolean);
   const fight = castFight(actor);
   const casterToken = actorToken(actor);
@@ -223,6 +255,7 @@ async function readWorld(spell) {
     prepareSpell: fight?.combatant?.flags?.acks?.prepareSpell === true,
     statuses: [...(actor.statuses ?? [])],
     capacity,
+    cap,
     level,
   };
 }
@@ -506,24 +539,34 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const readSeat = () => deps.targets?.(world) ?? { tokens: world.tokens ?? [], gaps: world.gaps ?? {} };
   let seat = readSeat();
   const isGM = deps.isGM();
-  const groupsFor = (mode) => pickGroups(all, mode);
   const modeKeys = hasReversedRows(all) ? [CAST_MODES.normal, CAST_MODES.reversed] : [CAST_MODES.normal];
+  // The invocation level a form of the spell is cast at (`cast-level.mjs`). It is asked where the tradition has a cap or a row or figure reads the scale, judged on the raw rows of the form: with no level set a gate drops the rows that bound it and a flatten blanks the figures, so the kept ones show no sign of it. `inv` is the level the seat holds, a number or what a field of it types.
+  const levelFor = (mode, inv) => {
+    const ctx = { cap: world.cap ?? null, reads: castReadsInvocation(spell, deps.lookups, all.filter((row) => Boolean(row.reversed) === (mode === CAST_MODES.reversed))) };
+    return { ...invocationLevel(ctx, { invocationLevel: inv }), reads: ctx.reads, offered: invocationOffered(ctx) };
+  };
+  const atFor = (mode, inv) => ({ invocationLevel: levelFor(mode, inv).value });
+  const groupsFor = (mode, inv) => pickGroups(all, mode, atFor(mode, inv));
   // Where the cast falls in a fight, and the declaration it resolves.
   const moment = castMoment({ combat: world.combat, combatant: world.combatant });
   const declaration = declarationOf(world.declarations ?? [], { spellUuid: spell.uuid, combatId: world.combat?.id ?? null, prepareSpell: world.prepareSpell === true });
   const resolving = moment === MOMENT.resolve && Boolean(declaration.valid);
-  const figures = castFiguresOf(spell, deps.lookups);
+  // A declaration being resolved answers for itself (below), invocation level included, and the context starts from it.
+  const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
+  const startInv = declared?.invocationLevel;
+  const figuresAt = (mode, inv) => castFiguresOf(spell, deps.lookups, atFor(mode, inv));
+  const figures = figuresAt(modeKeys[0], startInv);
   // The caster's abilities that apply to this spell: they add to the caster level, the targets' saves and the damage, never to the slots or the uses.
   const abilities = castAbilitiesOf(caster, spell, deps.lookups);
   const known = castAbilityLevel(casterLevel(world.level), abilities.casterLevel);
   // What the range and the target count say of the targeted tokens at a caster level.
-  const reachAt = (levelValue) => castReach({ figures, level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
+  const reachAt = (levelValue, inv = startInv, mode = modeKeys[0]) => castReach({ figures: figuresAt(mode, inv), level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
   // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count). A split is typed by token uuid.
-  const instancesFor = (mode, picks, levelValue, typed = null) => {
+  const instancesFor = (mode, picks, levelValue, typed = null, inv = startInv) => {
     const counts = {};
     const assigned = {};
     const here = new Set(seat.tokens.map((t) => t.uuid));
-    for (const { row, key } of rowsForMode(all, mode, picks)) {
+    for (const { row, key } of rowsForMode(all, mode, picks, atFor(mode, inv))) {
       if (!rowNeedsThrow(row)) continue;
       counts[key] = instanceCount(row, levelValue).value;
       const split = counts[key] > 1 && typed?.[key] ? wholeSplit(typed[key]) : null;
@@ -532,15 +575,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     }
     return { counts, assigned };
   };
-  const verdictsFor = (mode, picks, levelValue, typed = null) => {
-    const reach = reachAt(levelValue);
-    return castVerdicts({ capacity: world.capacity, targets: seat.tokens, rows: rowsForMode(all, mode, picks), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed) });
+  const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv) => {
+    const reach = reachAt(levelValue, inv, mode);
+    const { value, cap, reads } = levelFor(mode, inv);
+    return castVerdicts({ capacity: world.capacity, targets: seat.tokens, rows: rowsForMode(all, mode, picks, atFor(mode, inv)), statuses: world.statuses, isGM, held: world.held === true, moment, declaration, range: reach.range, count: reach.count, instances: instancesFor(mode, picks, levelValue, typed, inv), invocation: { value, cap, reads } });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
   const splitsFor = (mode) =>
     seat.tokens.length < 2
       ? []
-      : rowsOfMode(all, mode).flatMap(({ row, key }) => {
+      : rowsOfMode(all, mode, atFor(mode, startInv)).flatMap(({ row, key }) => {
           if (!rowNeedsThrow(row)) return [];
           const count = instanceCount(row, known.value);
           return count.value > 1 ? [{ key, row, count, pick: String(row.pick ?? "").trim(), option: optionTokenOf(row, key), split: allocate(count.value, seat.tokens.map((t) => t.uuid)) }] : [];
@@ -548,7 +592,6 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // One targeted token can bear a weapon buff.
   const bearerOf = () => (seat.tokens.length === 1 ? seat.tokens[0] : null);
   // A declaration being resolved answers for itself, on the targets it declared: they are found again by uuid, are the seat's targets from here on (the canvas shows them) and are not read from the user's targets again unless the dialog opens. A record written before targets were stored reads the seat's targets as they stand.
-  const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
   let gone = [];
   if (declared?.targets) {
     const found = deps.declaredTargets ? await deps.declaredTargets(declared.targets, world) : { tokens: (world.tokens ?? []).filter((t) => declared.targets.includes(t.uuid)), gaps: world.gaps ?? {}, gone: declared.targets.filter((u) => !(world.tokens ?? []).some((t) => t.uuid === u)) };
@@ -557,23 +600,25 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     await deps.retarget?.(seat.tokens);
   }
   // The dialog opens only where a declared target is gone or its stored weapon is not one of the one target's.
-  const itemsFit = !declared || !needsBearer(rowsForMode(all, declared?.mode, declared?.picks ?? {})) || bearerOf()?.actor?.items?.get?.(declared?.items?.[bearerOf().uuid])?.type === "weapon";
+  const itemsFit = !declared || !needsBearer(rowsForMode(all, declared?.mode, declared?.picks ?? {}, atFor(declared?.mode, declared?.invocationLevel))) || bearerOf()?.actor?.items?.get?.(declared?.items?.[bearerOf().uuid])?.type === "weapon";
   const storedFits = Boolean(declared) && !gone.length && itemsFit;
   if (declared && !storedFits) deps.notify(gone.length ? "warn" : "info", gone.length ? "resolveGone" : "resolveItem", { name: caster.name, n: gone.length });
-  const gateExtras = castGateExtrasOf(spell, deps.lookups);
+  const gateExtras = (inv = startInv) => castGateExtrasOf(spell, deps.lookups, atFor(modeKeys[0], inv));
   const askContext = () => ({
     spell,
     caster,
     moment,
     modes: modeKeys,
     rows: all,
-    groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m)])),
+    groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m, startInv)])),
     level: known,
+    // The invocation level, per form: the cap the tradition gives, whether a row or figure reads the scale, whether it is asked, and the level it stands at (a declaration's, else none).
+    invocation: Object.fromEntries(modeKeys.map((m) => [m, levelFor(m, startInv)])),
     // `levelNeeded` reads the rows themselves, not the keyed pairs.
-    levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m).map(({ row }) => row))),
+    levelNeeded: [CAST_MODES.normal, CAST_MODES.reversed].some((m) => levelNeeded({ ...extras, ...figures }, rowsForMode(all, m, {}, atFor(m, startInv)).map(({ row }) => row))),
     // Each targeted holder's weapons, and the one a pick starts on (the equipped weapon, else the first).
     holders: seat.tokens.map((t) => ({ uuid: t.uuid, weapons: weaponsOf(t.actor), pick: pickWeapon(t.actor)?.id ?? "" })),
-    needsWeapon: Object.fromEntries(modeKeys.map((m) => [m, needsBearer(rowsForMode(all, m, {}))])),
+    needsWeapon: Object.fromEntries(modeKeys.map((m) => [m, needsBearer(rowsForMode(all, m, {}, atFor(m, startInv)))])),
     targets: seat.tokens.map(bucketOf),
     gaps: seat.gaps,
     saves: spellSaves(extras.save),
@@ -591,10 +636,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     levelAt: (typed) => castAbilityLevel(casterLevel({ ...world.level, override: typed }), abilities.casterLevel),
     verdictsAt: verdictsFor,
     reachAt,
-    gatesAt: (levelValue) => Object.fromEntries(seat.tokens.map((t) => [t.uuid, targetGate({ actor: t.actor, extras: gateExtras, level: levelValue })])),
+    gatesAt: (levelValue, inv = startInv) => Object.fromEntries(seat.tokens.map((t) => [t.uuid, targetGate({ actor: t.actor, extras: gateExtras(inv), level: levelValue })])),
     // The spell's own save rows a target's throw cannot yet decide, by token uuid (`saveSpec`'s pending).
-    pendingAt: (mode, picks, levelValue) => {
-      const ownRows = ownSaveRows(rowsForMode(all, mode, picks), { level: levelValue, label: spell.name, cite: extras.cite ?? "" });
+    pendingAt: (mode, picks, levelValue, inv = startInv) => {
+      const ownRows = ownSaveRows(rowsForMode(all, mode, picks, atFor(mode, inv)), { level: levelValue, label: spell.name, cite: extras.cite ?? "" });
       if (!ownRows.length || !extras.save?.category) return {};
       return Object.fromEntries(seat.tokens.map((t) => [t.uuid, (saveSpec(t.actor, extras.save.category, { ownRows, bearerToken: t, against: caster ? { actor: caster, token: world.casterToken ?? null } : null }).pending ?? []).filter((q) => q.when !== "defense").map((q) => q.label)]));
     },
@@ -612,11 +657,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   if (!storedFits) seat = readSeat();
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
-  const kept = rowsForMode(all, mode, answer.picks);
+  // The rows are kept at the invocation level the answer holds, and the figures the gates read are taken at it.
+  const invocation = levelFor(mode, answer.invocationLevel);
+  const at = { invocationLevel: invocation.value };
+  const kept = rowsForMode(all, mode, answer.picks, at);
   const level = castAbilityLevel(casterLevel({ ...world.level, override: answer.casterLevel }), abilities.casterLevel);
   // The save modifier counts only where a save is made and the import read a figure for it at this level.
   const saveMod = answer.saveMod === true && spellSaves(extras.save) && saveModifierOf(extras.save, level.value) != null;
-  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation);
+  // The level the answer resolved to, never the declaration's default: a null stays null, so the verdicts and the kept rows read one level.
+  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
   if (blocked(verdicts)) {
@@ -651,6 +700,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     picks: answer.picks ?? {},
     // The level with the abilities' deltas on it, and the parts that made it: the relay trusts this value.
     casterLevel: { value: level.value, source: level.source, base: level.base, parts: level.parts, listed: level.listed },
+    // The invocation level the rows were read at, and where it came from (a figure chosen under the tradition's cap, or set by hand); the relay and every press read the card's spell again at it (`castAt`).
+    ...(invocation.value !== null ? { invocationLevel: invocation.value, invocation: { source: invocation.source, cap: invocation.cap } } : {}),
     ...(abilities.save.length || abilities.damage.length ? { abilities: { save: abilities.save, damage: abilities.damage } } : {}),
     save: { category: extras.save?.category ?? "", effect: extras.save?.effect ?? "", kind: extras.save?.kind ?? "" },
     situational: Number.isFinite(Number(answer.situational)) && answer.situational !== "" ? Number(answer.situational) : null,
@@ -723,7 +774,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     situational: card.situational,
     caster,
     casterToken: world.casterToken ?? null,
-    extras: castGateExtrasOf(spell, deps.lookups),
+    extras: castGateExtrasOf(spell, deps.lookups, at),
     saveParts: [...castSaveParts(abilities), ...spellSaveParts(extras.save, { level: level.value, applied: saveMod, label: spell.name })],
     items: answer.items ?? {},
   });
@@ -767,7 +818,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const untimedRecord = !held && !timed && recurringRows(kept, "casterTurn").some(({ row }) => row.recurSave === "cast");
   card.recurs = kept.some(({ row }) => isRecurring(row));
   if (held || timed || untimedRecord) {
-    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster" };
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}) };
     const data = held
       ? spellEffectData({ ...mark, startTime: deps.now(), statuses: [heldStatusOf(held)], held, tail: card.duration.tail, duration: card.duration.cap })
       : spellEffectData(untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
@@ -835,11 +886,12 @@ export function castSpellClaimant(deps) {
 /*  The card's buttons                           */
 /* -------------------------------------------- */
 
-/** The spell of a card and the keyed row it names, from the caster's own spell. */
+/** The spell of a card and the keyed row it names, from the caster's own spell, read at the card's invocation level (`castAt`). */
 function rowOfCard(card, rowKey) {
   const spell = fromUuidSync(card.spellUuid);
   const caster = fromUuidSync(card.casterUuid);
-  const keyed = spell ? keyedRows(rowsOf(spell, worldLookups()).rows).find((r) => r.key === rowKey) : null;
+  const found = spell ? keyedRows(rowsOf(spell, worldLookups()).rows).find((r) => r.key === rowKey) : null;
+  const keyed = found ? { ...found, row: flattenAt(found.row, castAt(card)) } : null;
   return { spell, caster, keyed };
 }
 
@@ -867,8 +919,8 @@ async function pressApplyTargets(message) {
   }
   const { spell, caster } = rowOfCard(card, "");
   if (!spell || !caster) return;
-  const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks);
-  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups()), saveParts: [...castSaveParts(castAbilitiesOf(caster, spell, worldLookups())), ...spellSaveParts(flagOf(spell).save, { level: card.casterLevel?.value ?? null, applied: card.saveMod === true, label: card.spellName })] });
+  const kept = rowsForMode(rowsOf(spell, worldLookups()).rows, card.mode, card.picks, castAt(card));
+  const built = await buildTargets({ tokens, card, rows: kept, save: card.save, situational: card.situational, caster, casterToken: actorToken(caster), extras: castGateExtrasOf(spell, worldLookups(), castAt(card)), saveParts: [...castSaveParts(castAbilitiesOf(caster, spell, worldLookups())), ...spellSaveParts(flagOf(spell).save, { level: card.casterLevel?.value ?? null, applied: card.saveMod === true, label: card.spellName })] });
   await addTargets(message, built.targets, built.entries);
   const fresh = cardOf(message);
   for (const targetKey of Object.keys(built.targets)) {
@@ -892,7 +944,7 @@ async function pressThrow(message, { target, row }) {
     return;
   }
   // With no target on the card the row's gate is read here, before a throw is spent on a creature the spell does not reach.
-  if (!target && !targetGate({ actor: token.actor, extras: castGateExtrasOf(spell, worldLookups()), row: keyed.row, level: card.casterLevel?.value ?? null }).affected) {
+  if (!target && !targetGate({ actor: token.actor, extras: castGateExtrasOf(spell, worldLookups(), castAt(card)), row: keyed.row, level: card.casterLevel?.value ?? null }).affected) {
     ui.notifications?.warn(loc("notice.exempt", { name: token.name ?? token.actor.name }));
     return;
   }

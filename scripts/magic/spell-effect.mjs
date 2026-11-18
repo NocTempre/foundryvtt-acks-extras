@@ -67,6 +67,7 @@ export function newCastId({ randomID } = {}) {
  * @param {string} [cast.rowKey]  The spell row this record came from.
  * @param {object} [cast.resist]  `{kind, category, total, target, success}` of the recipient's saving throw.
  * @param {string} [cast.sourceAlignment]  The caster's alignment key, read by a row scoped to it.
+ * @param {number} [cast.invocationLevel]  The whole invocation level the cast was made at; not written where it is no whole number from one up.
  * @param {number} [cast.startTime]  World time the record began; makes it flag-timed.
  * @param {{id: string, name: string}} [cast.item]  The weapon a buff names.
  * @param {"mobile"|"stationary"} [cast.held]  Marks the caster's record of a concentration spell, naming the kind held.
@@ -93,6 +94,7 @@ export function spellEffectData({
   rowKey,
   resist,
   sourceAlignment,
+  invocationLevel,
   startTime,
   item,
   rollMods,
@@ -114,6 +116,7 @@ export function spellEffectData({
   if (rowKey) mark.rowKey = String(rowKey);
   if (resist) mark.resist = resist;
   if (sourceAlignment) mark.sourceAlignment = String(sourceAlignment);
+  if (Number.isInteger(invocationLevel) && invocationLevel >= 1) mark.invocationLevel = invocationLevel;
   if (item?.id) mark.item = { id: String(item.id), name: String(item.name ?? "") };
   const data = {
     name: name ?? spell.name,
@@ -140,7 +143,7 @@ export function spellEffectData({
 
 /**
  * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }` and
- * whichever of `rowKey`, `resist`, `sourceAlignment`, `item`, `held`, `tail`, `pending` (with its `lost` stamp where the declaration was lost), `startTime` and `duration` it was written with,
+ * whichever of `rowKey`, `resist`, `sourceAlignment`, `invocationLevel`, `item`, `held`, `tail`, `pending` (with its `lost` stamp where the declaration was lost), `startTime` and `duration` it was written with,
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
  * was stamped at (`cast-expiry.mjs`). A buff record's `rollMods` is read back
@@ -162,6 +165,7 @@ export function spellEffectOf(effect) {
   if (raw.rowKey) record.rowKey = String(raw.rowKey);
   if (raw.resist && typeof raw.resist === "object") record.resist = raw.resist;
   if (raw.sourceAlignment) record.sourceAlignment = String(raw.sourceAlignment);
+  if (Number.isInteger(raw.invocationLevel) && raw.invocationLevel >= 1) record.invocationLevel = raw.invocationLevel;
   if (raw.item && typeof raw.item === "object" && raw.item.id) record.item = { id: String(raw.item.id), name: String(raw.item.name ?? "") };
   if (raw.held) record.held = raw.held === "stationary" ? "stationary" : "mobile";
   if (raw.tail && typeof raw.tail === "object") record.tail = raw.tail;

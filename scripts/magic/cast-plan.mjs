@@ -10,6 +10,7 @@ import { CAPACITY } from "./cast-capacity.mjs";
 import { rowNeedsThrow } from "./cast-rows.mjs";
 import { needsBearer } from "./cast-mods.mjs";
 import { MOMENT } from "./cast-moment.mjs";
+import { invocationFindings } from "./cast-level.mjs";
 
 /** The verdict ids. */
 export const VERDICT = Object.freeze({
@@ -24,6 +25,8 @@ export const VERDICT = Object.freeze({
   outOfRange: "outOfRange",
   tooManyTargets: "tooManyTargets",
   tooManyInstances: "tooManyInstances",
+  overCap: "overCap",
+  invocationUnset: "invocationUnset",
 });
 
 /**
@@ -50,9 +53,10 @@ export const VERDICT = Object.freeze({
  * @param {{limit: number|null, parts: object[], out: object[]}|null} [from.range]  `rangeVerdicts`' answer; any target out of range is one verdict, carrying the targets, the limit and the range's parts
  * @param {number|null} [from.count]  the target count the import read, a cap; null where it was left blank
  * @param {{counts: Record<string, number|null>, assigned?: Record<string, number>}|null} [from.instances]  by row key, each thrown row's instance count (`cast-instances.mjs`) and how many throws the seat's split assigns; a thrown row with no count here counts as one
+ * @param {{value: number|null, cap: number|null, reads?: boolean}|null} [from.invocation]  `invocationLevel`'s answer with `reads`: a level above the tradition's cap and a level a row or figure reads and nothing sets are each a verdict (`invocationFindings`)
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -74,6 +78,7 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
     const cap = Number(count);
     if (count != null && count !== "" && Number.isFinite(cap) && cap > 0 && targets.length > cap) out.push({ key: VERDICT.tooManyTargets, severity, max: cap, over: targets.length - cap });
   }
+  for (const finding of invocationFindings(invocation)) out.push({ ...finding, severity });
   if (needsBearer(rows) && bearers !== 1) out.push({ key: VERDICT.oneBearer, severity });
   const stopped = forbiddenBy(conditionSet(statuses), "cast");
   if (stopped.length) out.push({ key: VERDICT.forbidden, severity, conditions: stopped });

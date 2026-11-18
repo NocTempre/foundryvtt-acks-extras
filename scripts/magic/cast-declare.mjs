@@ -24,6 +24,7 @@
  */
 import { MODULE_ID, FLAG_SPELL_EFFECT, DECLARE_FLAG_HANDLER } from "./constants.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
+import { invocationFigure } from "./cast-level.mjs";
 import { STATES_LOST_HOOK } from "../lib/constants.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
 
@@ -36,12 +37,14 @@ const CASTING = "casting";
  * `answerStored` writes it into the pending record and `answerFromPending` reads
  * it back as the dialog's answer. `targets` are the token uuids the seat had
  * targeted at its answer, `allocation` the throw split by row key and token uuid,
- * `items` the weapon of each holder by token uuid.
+ * `items` the weapon of each holder by token uuid, `invocationLevel` the whole
+ * invocation level chosen (null where none was).
  */
 export const ANSWER_FIELDS = Object.freeze({
   mode: (v) => v,
   picks: (v) => v ?? {},
   casterLevel: (v) => v ?? null,
+  invocationLevel: invocationFigure,
   situational: (v) => v ?? null,
   visibility: (v) => v ?? "public",
   pickKind: (v) => v ?? null,

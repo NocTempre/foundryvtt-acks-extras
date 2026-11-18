@@ -315,6 +315,7 @@ export function modRecordData(card, parts, { spell, startTime, item = null, sour
     caster: { uuid: card.casterUuid },
     castId: card.castId,
     role: "recipient",
+    invocationLevel: card.invocationLevel,
     item: item ?? undefined,
     resist,
     sourceAlignment: sourceAlignment || undefined,

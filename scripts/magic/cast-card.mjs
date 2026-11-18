@@ -167,11 +167,18 @@ function partTip(row, card, targetKey, loc) {
   return loc(item ? "tip.part" : "tip.partNoItem", { spell: card.spellName, item, cite: card.cite });
 }
 
-/** The caster level's tooltip: where the figure came from (or that a hand set it) and the abilities' parts on it, then the parts on the saves and the damage. */
+/** The invocation level's tooltip: chosen up to the tradition's cap, or set by hand where it has none. Empty where the cast read no level. */
+function invocationTip(card, loc) {
+  if (!card.invocationLevel) return "";
+  const cap = card.invocation?.cap;
+  return cap != null && card.invocation?.source === "chosen" ? loc("tip.invocation.chosen", { value: card.invocationLevel, cap }) : loc("tip.invocation.hand", { value: card.invocationLevel });
+}
+
+/** The caster level's tooltip: where the figure came from (or that a hand set it) and the abilities' parts on it, then the parts on the saves and the damage, and where the invocation level came from. */
 function noteTip(card, loc) {
   const level = levelTip(card.casterLevel, loc);
   const others = abilityTips([...(card.abilities?.save ?? []), ...(card.abilities?.damage ?? [])], loc);
-  return [level, ...others].filter(Boolean).join(" · ");
+  return [level, ...others, invocationTip(card, loc)].filter(Boolean).join(" · ");
 }
 
 /** The section title of a row: its kind and the types it carries. */
@@ -342,7 +349,7 @@ export function castCardView(card, seat, loc) {
     subtitle: card.casterName ?? "",
     note: card.recur
       ? [loc(`recur.moment.${card.recur.moment}`), loc("recur.round", { round: card.recur.round })].join(" · ")
-      : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : ""].filter(Boolean).join(" · "),
+      : [card.mode === "reversed" ? loc("note.reversed") : "", card.casterLevel?.value ? loc("note.level", { value: card.casterLevel.value }) : "", card.invocationLevel ? loc("note.invocation", { value: card.invocationLevel }) : ""].filter(Boolean).join(" · "),
     noteTooltip: noteTip(card, loc),
     sections,
     bare: true,

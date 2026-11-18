@@ -31,7 +31,7 @@ import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { registerCastSpell, castReading } from "./cast-spell.mjs";
 import { selfReach, twinLookups } from "./cast-reach.mjs";
 import { classForActor } from "../classes/registry.mjs";
-import { poolState } from "../classes/casting.mjs";
+import * as casting from "../classes/casting.mjs";
 import { registerSpellSource, registerSpellReach } from "../lib/spell-sources.mjs";
 import { registerCastRecur } from "./cast-recur.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
@@ -130,7 +130,8 @@ Hooks.once("init", () => {
   }
   // What a character can cast is one register in lib: the repertoire is a source, and magic decides what a cast would write on its caster.
   try {
-    registerSpellSource("repertoire", makeRepertoireSource({ castReading, classFor: classForActor, poolsOf: poolState, lookups: twinLookups }));
+    // A namespace, so the tradition's cap is read where the classes feature has `traditionCapAt` and is none where it has not.
+    registerSpellSource("repertoire", makeRepertoireSource({ castReading, classFor: classForActor, poolsOf: casting.poolState, lookups: twinLookups, capAt: casting.traditionCapAt }));
     registerSpellReach(selfReach);
   } catch (err) {
     console.error(`${MODULE_ID} | the castable-spell register could not be filled`, err);

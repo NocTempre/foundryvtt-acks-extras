@@ -27,7 +27,7 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { TURN_BEGAN_HOOK, TURN_ENDED_HOOK } from "../lib/constants.mjs";
-import { isRecurring, recurringRows, rowsOf, rowsForMode, saveFractionOf, saveGoverns, resistedDamage } from "./cast-rows.mjs";
+import { isRecurring, recurringRows, rowsOf, rowsForMode, castAt, saveFractionOf, saveGoverns, resistedDamage } from "./cast-rows.mjs";
 import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { spellEffectOf } from "./spell-effect.mjs";
 import { newTargetKey, cardOf, cardLoc, castCardContent, postCastCard, updateEntry, addTargets, registerCastCardHooks, CARD_ACTIONS } from "./cast-card.mjs";
@@ -224,6 +224,8 @@ export function promptModel({ source, due, rows, round, combatId, bearer = "", r
     mode: source.mode,
     picks: source.picks ?? {},
     casterLevel: source.casterLevel,
+    // The level the original cast read its rows at, which a press on this card reads the spell at again (`castAt`).
+    ...(source.invocationLevel != null ? { invocationLevel: source.invocationLevel, invocation: source.invocation } : {}),
     save: source.save,
     situational: source.situational ?? null,
     cite: source.cite ?? "",
@@ -401,7 +403,7 @@ async function castOf(castId) {
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   if (!card || !spell || !caster) return null;
-  const rows = rowsForMode(rowsOf(spell, await worldLookups()).rows, card.mode, card.picks);
+  const rows = rowsForMode(rowsOf(spell, await worldLookups()).rows, card.mode, card.picks, castAt(card));
   if (!rows.some(({ row }) => isRecurring(row))) return null;
   const { worldActors } = await import("../lib/repair.mjs");
   const failKeys = new Set(rows.filter(({ row }) => row.recurSave === "fail").map(({ key }) => key));
@@ -549,7 +551,7 @@ async function pressed(message, rowKey) {
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   const lookups = await worldLookups();
-  const kept = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks) : [];
+  const kept = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks, castAt(card)) : [];
   const keyed = kept.find((k) => k.key === rowKey) ?? null;
   return { card, spell, caster, keyed, kept, lookups };
 }
@@ -580,7 +582,7 @@ export async function pressRecurSave(message, { target, row }) {
   const { ownSaveRows } = await import("./cast-mods.mjs");
   const { actorToken } = await import("../lib/patches/attack-throw.mjs");
   const level = card.casterLevel?.value ?? null;
-  const gate = targetGate({ actor, extras: castGateExtrasOf(spell, lookups), row: keyed.row, level });
+  const gate = targetGate({ actor, extras: castGateExtrasOf(spell, lookups, castAt(card)), row: keyed.row, level });
   if (!gate.affected) return void notify("warn", "exempt", { name: doc.name ?? actor.name });
   const casterToken = card.casterTokenUuid ? fromUuidSync(card.casterTokenUuid) : actorToken(caster);
   // A row no save governs (`saveEffect: none`) rolls no save and sends none: the relay holds it to the stored resist, which is blank too.
@@ -594,7 +596,7 @@ export async function pressRecurSave(message, { target, row }) {
         parts: castSaveParts(castAbilitiesOf(caster, spell, lookups)),
         // The spell's own save rows join this throw as they joined the cast's, for this bearer.
         ownRows: ownSaveRows(kept, { level, label: card.spellName, cite: card.cite }),
-        gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups), level }),
+        gate: targetGate({ actor, extras: castGateExtrasOf(spell, lookups, castAt(card)), level }),
       });
   if (!made.resist && saveGoverns(keyed.row, card.save)) return void notify("warn", "noTargets");
   const entry = { rowKey: row };
@@ -621,7 +623,7 @@ export async function pressRecurRoll(message, { target, row }) {
     const { tokenGapFeet } = await import("../lib/distance-units.mjs");
     const { actorToken } = await import("../lib/patches/attack-throw.mjs");
     const [token] = tokens;
-    const figures = castFiguresOf(spell, lookups);
+    const figures = castFiguresOf(spell, lookups, castAt(card));
     const reach = pickRange({ range: figures.range, model: figures.target?.model, level: card.casterLevel?.value ?? null, token, gap: tokenGapFeet(actorToken(caster), token) });
     if (reach.out.length) {
       const names = reach.out.map((t) => t.name).join(", ");

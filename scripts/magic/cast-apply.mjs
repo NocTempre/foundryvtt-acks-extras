@@ -52,7 +52,7 @@
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { amountAfter, HP_MODE } from "../lib/hp-logic.mjs";
 import { actorDefenses, defenseFigures, defenseStage } from "../lib/defenses.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail } from "./cast-rows.mjs";
+import { rowsOf, rowsForMode, castAt, rowNeedsThrow, saveFractionOf, damageOfRow, resistedDamage, awaitsFail } from "./cast-rows.mjs";
 import { spellEffectData, spellEffectOf } from "./spell-effect.mjs";
 import { isModRow, modParts, modRecordData, modifierFigure } from "./cast-mods.mjs";
 import { liftPlan, isDestroyed, chosenWeapon } from "./cast-kinds.mjs";
@@ -146,6 +146,7 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       caster: { uuid: card.casterUuid },
       castId: card.castId,
       role: "recipient",
+      invocationLevel: card.invocationLevel,
       statuses: status ? [status] : [],
       rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
@@ -789,10 +790,10 @@ async function castInputs(card, targetDoc, { recompute = false } = {}) {
   const caster = card ? fromUuidSync(card.casterUuid) : null;
   const spell = card ? fromUuidSync(card.spellUuid) : null;
   const lookups = { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) };
-  const rows = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks) : [];
+  const rows = spell ? rowsForMode(rowsOf(spell, lookups).rows, card.mode, card.picks, castAt(card)) : [];
   const pick = card?.item?.id ? actorOfTarget(targetDoc)?.items?.get?.(card.item.id) : null;
   // The gates read the spell's figures as they stand now and the card's caster level.
-  const extras = spell ? castGateExtrasOf(spell, lookups) : null;
+  const extras = spell ? castGateExtrasOf(spell, lookups, castAt(card)) : null;
   return {
     caster,
     spell,
