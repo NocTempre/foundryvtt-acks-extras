@@ -70,6 +70,8 @@ const halfEven = (x) => {
 const entriesOf = (model, rowKey) => Object.entries(model?.entries ?? {}).filter(([id]) => id.endsWith(`_${rowKey}`)).map(([id, e]) => ({ id, ...e }));
 const keyOf = (model, uuid) => Object.entries(model?.targets ?? {}).find(([, t]) => t.uuid === uuid)?.[0];
 const firstDamageKey = (model) => (model?.order ?? []).find((k) => model.rows?.[k]?.type === "damage") ?? model?.order?.[0];
+/** An entry's defense: a priced one is a `defense` step of its band, one the module does not price is the Judge's `entry.defense`. */
+const hasDefense = (e, band) => (e?.steps ?? []).some((s) => s.key === "defense" && s.band === band) || (!!e?.defense && (!e.defense.band || e.defense.band === band));
 const idOf = (doc) => doc.id ?? String(doc.uuid).split(".").pop();
 
 /* ------------------------------------------------------------------ */
@@ -99,7 +101,7 @@ const P = {
     };
     H.attackCards = (before) => [...game.messages].filter((m) => !before.has(m.id) && String(m.content).includes("attack-throw-card")).map((m) => {
       const doc = new DOMParser().parseFromString(String(m.content), "text/html");
-      return { id: m.id, target: doc.querySelector(".attack-throw-card__target")?.textContent?.trim() ?? "", applyButton: String(m.content).includes('data-action="applyDamage"') };
+      return { id: m.id, target: (doc.querySelector('.attack-throw-card__target [data-acks-visibility="target-ac-shown"]') ?? doc.querySelector(".attack-throw-card__target"))?.textContent?.trim().replace(/\s+/g, " ") ?? "", applyButton: String(m.content).includes('data-action="applyDamage"') };
     });
     if (!H.patched) {
       H.patched = true;
@@ -169,6 +171,7 @@ const P = {
       kinds: rows.map((r) => r.type),
       unread: rows.reduce((n, r) => n + (r.unread?.length ?? 0), 0),
       targetModel: !!read.target?.model,
+      exemptBelowHd: !!read.save?.exemptBelowHd,
       range: read.range ?? null,
       exemptRows: rows.filter((r) => r.type && r.exemptSizeFrom).length,
       exemptKey: rows.find((r) => r.exemptSizeFrom)?.exemptSizeFrom ?? "",
@@ -196,6 +199,16 @@ const P = {
     return { hp: a.system.hp.value, size: a.getFlag("acks-extras", "extras")?.size ?? null, bands: Object.keys(a.getFlag("acks-extras", "extras")?.defenses ?? {}) };
   },
   sizeKeys: async () => Object.keys(acksExtras.monsters?.config?.SIZES ?? {}),
+  /** Start the importer's read of the `defenses` table from the open book (the answer is polled by `importJob`). */
+  importDefenses: async () => {
+    const H = globalThis.__mcw;
+    H.defImport = { done: false };
+    acksExtras.importer.cookbookImportTables(["defenses"])
+      .then((r) => { H.defImport = { done: true, ok: !!r }; })
+      .catch((e) => { H.defImport = { done: true, ok: false, error: String(e?.message ?? e).slice(0, 200) }; });
+    return { started: true };
+  },
+  importJob: async () => globalThis.__mcw.defImport ?? { done: false },
   /** The imported figure of the resistance fraction, as lib reads it from the world's `defenses` document. */
   defenseFigures: async () => {
     const D = await import("/modules/acks-extras/scripts/lib/defenses.mjs");
@@ -257,20 +270,28 @@ const P = {
   },
   /**
    * Cast as a user does: `item.use()`, then the dialog. With `stop` the dialog is read and cancelled. `picks` is read (option texts),
-   * `coreDialogs` answers core's attack dialogs in order ("roll" or "cancel"). Answers what the dialog showed and the card it left.
+   * `coreDialogs` answers core's attack dialogs in order ("roll" or "cancel") and leaves core's own dialogs open to answer (no skipDialog),
+   * `picks` is `{group: optionValue}` chosen in the dialog before it is cast. Answers what the dialog showed and the card it left.
    */
-  cast: async ({ casterId, spellId, mode, stop, wait, coreDialogs }) => {
+  cast: async ({ casterId, spellId, mode, stop, wait, coreDialogs, picks: chosen }) => {
     const H = globalThis.__mcw;
     const actor = game.actors.get(casterId);
     const item = actor.items.get(spellId);
     const before = new Set([...game.messages].map((m) => m.id));
     const targetsBefore = [...game.user.targets].map((t) => t.id);
-    item.use({ skipDialog: true });
+    item.use(coreDialogs ? {} : { skipDialog: true });
     const dialog = await H.poll(() => document.querySelector(".acks-extras-cast-dialog")?.closest("form") ?? null, { tries: 80, every: 150 });
     if (!dialog) return { dialog: false };
     const root = dialog.closest(".application");
     const select = dialog.querySelector("[data-cast-mode]");
     if (mode && select) { select.value = mode; select.dispatchEvent(new Event("change", { bubbles: true })); await H.sleep(200); }
+    for (const [group, value] of Object.entries(chosen ?? {})) {
+      const pick = dialog.querySelector(`select[data-pick="${group}"]`);
+      if (!pick) continue;
+      pick.value = value;
+      pick.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(200);
+    }
     const lis = [...dialog.querySelectorAll(".acks-extras-cast-verdicts:not([hidden]) li")];
     const castButton = root.querySelector('button[data-action="cast"]');
     const shown = {
@@ -317,7 +338,8 @@ const P = {
     await H.sleep(500);
     const el = document.querySelector(`[data-message-id="${messageId}"]`);
     const cells = [...(el?.querySelectorAll(".acks-extras-roll-card td.acks-nums") ?? [])].map((td) => ({ text: td.textContent.trim(), tip: td.dataset.tooltipText ?? td.dataset.tooltip ?? "" }));
-    return { found: !!el, actions: [...(el?.querySelectorAll("[data-action^='magicCast'], [data-action^='libAttack']") ?? [])].map((b) => b.dataset.action), cells, text: el?.textContent ?? "" };
+    const titles = [...(el?.querySelectorAll("h4.acks-extras-roll-section") ?? [])].map((h) => ({ text: h.textContent.trim(), tip: h.dataset.tooltipText ?? h.dataset.tooltip ?? "" }));
+    return { found: !!el, titles, actions: [...(el?.querySelectorAll("[data-action^='magicCast'], [data-action^='libAttack']") ?? [])].map((b) => b.dataset.action), cells, text: el?.textContent ?? "" };
   },
   /** The spell records on an actor: the mark, the turn life and the statuses. */
   records: async ({ actorId }) => {
@@ -579,7 +601,13 @@ async function stageDefenses() {
   const types = damage.damageTypes;
   if (!types.length) { gap("D: the imported damage row lists no type; no band can cover it"); return; }
   const band = (extra) => ({ damage: types, effects: [], conditions: [], mundane: false, extraordinary: false, silverFlaw: false, note: "", ...extra });
+  // The defenses table is imported from the seat's own book, so the resistant path is the priced one; the import is world registry state, not a fixture.
+  await run(gm, P.importDefenses);
+  let job = { done: false };
+  for (let n = 0; n < 240 && !job.done; n++) { await sleep(500); job = await run(gm, P.importJob); }
+  note("D: the defenses import finished", { done: job.done, ok: job.ok ?? false, error: job.error ?? null });
   const figures = await run(gm, P.defenseFigures);
+  check("D: the defenses table is present after the import (the resistance fraction reads as a number)", job.ok === true && figures.fraction !== null, { ok: job.ok ?? false, fraction: figures.fraction !== null });
   const key0 = async (seat, tok) => { await aim(seat, [tok]); const c = await castAs(seat, { spellId: W.spell.desiccate }); return c; };
   const setBands = (actor, defenses) => run(gm, P.shapeMonster, { actorId: W.actor[actor], hp: 20, hd: 2, size: null, defenses });
 
@@ -591,7 +619,7 @@ async function stageDefenses() {
   let key = firstDamageKey(c.model);
   let e = entriesOf(c.model, key)[0];
   const seen = await run(gm, P.seen, { messageId: c.messageId });
-  check("D immune: the damage applies 0 with a defense step on the entry", c.card && e?.state === "applied" && e.applied === 0 && !!e.defense, { state: e?.state, applied: e?.applied });
+  check("D immune: the damage applies 0 with a defense step on the entry", c.card && e?.state === "applied" && e.applied === 0 && hasDefense(e, "immunities"), { state: e?.state, applied: e?.applied, steps: (e?.steps ?? []).map((s) => s.key) });
   check("D immune: the save passes with no roll (the card reads Auto)", e?.saved === true && seen.text.includes(await ev(gm, `globalThis.__mcw.loc("save.auto")`)), { saved: e?.saved });
   check("D immune: the hit points are untouched", (await hpOf(W.actor.immune))[0] === 20);
 
@@ -602,9 +630,11 @@ async function stageDefenses() {
   await run(gm, P.rig, {});
   key = firstDamageKey(c.model);
   e = entriesOf(c.model, key)[0];
-  if (figures.fraction === null) gap("D resistant: the world's defenses document holds no fraction; the entry is the Judge's", { state: e?.state });
-  else check("D resistant: applied is the rolled amount through the imported fraction, rounded half to even", e?.state === "applied" && e.applied === halfEven(e.rolled * figures.fraction), { rolled: e?.rolled, applied: e?.applied });
-  check("D resistant: the entry carries a defense step", !!e?.defense);
+  if (figures.fraction === null) check("D resistant: the import read a fraction, so the entry is priced (the fallback, the Judge's entry, is a FAIL)", false, { state: e?.state, judge: !!e?.defense });
+  else {
+    check("D resistant: the entry is applied with a defense step of the resistance band", e?.state === "applied" && (e.steps ?? []).some((s) => s.key === "defense" && s.band === "resistances"), { state: e?.state, steps: (e?.steps ?? []).map((s) => `${s.key}:${s.band ?? ""}`) });
+    check("D resistant: applied is the rolled amount through the imported fraction, rounded half to even, and below the rolled one", e?.state === "applied" && e.applied === halfEven(e.rolled * figures.fraction) && e.applied < e.rolled, { rolled: e?.rolled, applied: e?.applied });
+  }
 
   // Susceptible: the walk's own factor multiplies the amount.
   const factor = 2;
@@ -618,7 +648,8 @@ async function stageDefenses() {
 
   // Weapon side: the walk's blade on the cast monster, typed from the imported row, at each fixture.
   await ev(gm, `game.actors.get(${JSON.stringify(W.monster)}).items.get(${JSON.stringify(W.weapon)}).update({ "system.damage.base.types": ${JSON.stringify(types)} })`);
-  const kept = await ev(gm, `game.actors.get(${JSON.stringify(W.monster)}).items.get(${JSON.stringify(W.weapon)}).system.damage?.base?.types ?? []`);
+  // The field is a SetField, which a JSON answer reads as {}; it is listed in the page.
+  const kept = await ev(gm, `Array.from(game.actors.get(${JSON.stringify(W.monster)}).items.get(${JSON.stringify(W.weapon)}).system.damage?.base?.types ?? [])`);
   if (types.some((t) => !kept.includes(t))) gap("D weapon: the blade did not keep the imported type", { kept: kept.length });
   for (const [name, defenses] of [["immune", { immunities: band({}) }], ["resistant", { resistances: band({}) }], ["susceptible", { susceptibilities: band({ factor, save: 0 }) }]]) {
     await setBands(name, defenses);
@@ -631,6 +662,11 @@ async function stageDefenses() {
     check(`D weapon ${name}: the card posts with no core apply button and the module's stamp`, a.card && a.coreApply === false && !!a.stamp, { card: a.card });
     if (!a.card) continue;
     const view = await run(gm, P.seen, { messageId: a.id });
+    if (name === "resistant" && figures.fraction === null) {
+      // The fallback: with no fraction the defense is the Judge's, and the card offers no Apply (lib/attack-apply.mjs).
+      check("D weapon resistant: no fraction was imported, so the card offers no Apply (a FAIL on the import above)", !view.actions.includes("libAttackApply"), view.actions);
+      continue;
+    }
     check(`D weapon ${name}: the GM's card offers the module's Apply`, view.actions.includes("libAttackApply"), view.actions);
     const pressed = await press(gm, { messageId: a.id, action: "libAttackApply" });
     const stamp = await run(gm, P.stamp, { messageId: a.id, state: "applied" });
@@ -664,7 +700,9 @@ async function stageInstances() {
   const b = c.model?.entries?.[`${keyB}_${key}`];
   check("E: the Player's cast split the count round-robin, A two instances and B one", c.card && a?.instances?.length === 2 && b?.instances?.length === 1, { a: a?.instances?.length, b: b?.instances?.length });
   check("E: one core attack card per thrown instance, each naming its own target", c.attackCards.length === 2 && c.attackCards.some((x) => x.target.includes(W.t.a.name)) && c.attackCards.some((x) => x.target.includes(W.t.b.name)) && c.attackCards.every((x) => !x.applyButton), c.attackCards.map((x) => x.target));
-  check("E: the seat's own targets are back as they were", JSON.stringify(c.targetsAfter) === JSON.stringify(c.targetsBefore), { before: c.targetsBefore.length, after: c.targetsAfter.length });
+  note("E: core's dialogs answered, in order", c.dialogs);
+  // Core keeps already-targeted tokens in place and appends the others, so the order is not the seat's: the ids are compared sorted.
+  check("E: the seat's own targets are back as they were", JSON.stringify([...(c.targetsAfter ?? [])].sort()) === JSON.stringify([...(c.targetsBefore ?? [])].sort()), { before: c.targetsBefore?.length, after: c.targetsAfter?.length });
   check("E: the cancelled instance waits at Throw", a?.instances?.some((i) => i.state === "throw") && a?.state === "throw", { state: a?.state });
   // The Throw press aims at its own card target even when the seat holds another.
   await aim(player, [W.t.b]);
@@ -691,8 +729,15 @@ async function stageInstances() {
   const f = await castAs(gm, { spellId: W.spell["earths-excrescence"] });
   await run(gm, P.rig, {});
   const view = await run(gm, P.seen, { messageId: f.messageId });
-  const cell = view.cells.find((x) => x.text.includes("4d4"));
-  check("E: the formula carries the scaled count, with the tooltip naming where it came from", f.card && !!cell && cell.tip.length > 0, { cell: !!cell });
+  // The formula lives in the section heading's tooltip and on the card's row, never in a td.acks-nums cell (those hold applied amounts).
+  const fKey = firstDamageKey(f.model);
+  const fRow = f.model?.rows?.[fKey];
+  const count = fRow?.count?.value ?? null;
+  const expected = count != null ? `${count}d4` : null;
+  const heading = view.titles.find((x) => expected && x.tip.includes(expected));
+  check("E: the row's formula carries the scaled count (the count rolled with the level, a die of the walk's own)", f.card && count > 1 && fRow?.formula === expected, { count, formula: fRow?.formula });
+  check("E: the count's parts are kept on the row", Array.isArray(fRow?.count?.parts) && fRow.count.parts.length > 0, { parts: fRow?.count?.parts?.length });
+  check("E: the section heading's tooltip is non-empty and carries the formula", view.titles.some((x) => x.tip.length > 0) && !!heading, { titles: view.titles.map((x) => x.tip.length), expected });
 }
 
 /* ------------------------------ F. gates ----------------------------- */
@@ -743,14 +788,20 @@ async function stageGates() {
   const gatedB = entriesOf(g.model, firstDamageKey(g.model)).find((x) => x.id.startsWith(`${keyOf(g.model, W.t.b.uuid)}_`));
   check("F cap: the gated entry is marked and its state is not applied", !!gatedB && gatedB.state !== "applied" && !!gatedB.gate, { state: gatedB?.state });
   const s2 = await shape("slicing-blow", { unlimited: true, rows, target: { hdCap: null }, save: { category: "spell", effect: "half", exemptBelowHd: hd } });
-  check("F below: the copy carries the walk's exemptBelowHd", s2.targetModel);
+  check("F below: the copy carries the walk's exemptBelowHd", s2.exemptBelowHd);
   hp = await hpOf(W.actor["target-a"], W.actor["target-b"]);
   await run(gm, P.rig, { seq: FAIL_SAVE });
   g = await castAs(gm, { spellId: W.spell["slicing-blow"] });
   await run(gm, P.rig, {});
   const ea = entriesOf(g.model, firstDamageKey(g.model)).find((x) => x.id.startsWith(`${keyOf(g.model, W.t.a.uuid)}_`));
   const eb = entriesOf(g.model, firstDamageKey(g.model)).find((x) => x.id.startsWith(`${keyOf(g.model, W.t.b.uuid)}_`));
-  check("F below: a target under the threshold makes no save and the other does", !!ea && !!eb && !!ea.gate && !eb.gate, { a: !!ea?.gate, b: !!eb?.gate });
+  const noSaveOf = (key) => g.model?.targets?.[key]?.resist?.noSave ?? null;
+  const keyA2 = keyOf(g.model, W.t.a.uuid);
+  const keyB2 = keyOf(g.model, W.t.b.uuid);
+  check("F below: a target under the threshold makes no save and the other does", !!ea && !!eb && !!noSaveOf(keyA2) && !noSaveOf(keyB2), { a: !!noSaveOf(keyA2), b: !!noSaveOf(keyB2) });
+  // The no-save target takes the whole amount: the half the save would have given is not taken.
+  const wholeOf = (e) => (Array.isArray(e?.instances) && e.instances.length ? e.instances.reduce((n, i) => n + (i.rolled ?? 0), 0) : e?.rolled);
+  check("F below: the no-save target's entry applied the whole rolled amount", ea?.state === "applied" && ea.applied === wholeOf(ea), { state: ea?.state, applied: ea?.applied, rolled: wholeOf(ea) });
 }
 
 /* ---------------------------- G. record lives ------------------------- */
@@ -792,7 +843,8 @@ async function stageLives() {
   const rec2 = (await run(gm, P.records, { actorId: W.actor.huge })).filter((r) => r.castId === c2.model?.castId);
   check("G clock: no fight holds the bearer, so the record has no turn life and keeps a clock", rec2.length > 0 && rec2.every((r) => !r.turnLife && (r.hasDuration || r.startTime !== null)), { records: rec2.length });
   const view = await run(gm, P.seen, { messageId: c2.messageId });
-  const endsClock = (await ev(gm, `globalThis.__mcw.loc("tip.endsClock")`)).split("{")[0].trim();
+  // The lang string carries a {count} slot; format() with no data prints it as "undefined", so the fixed lead before the slot is read raw.
+  const endsClock = (await ev(gm, `game.i18n.localize("ACKS-MAGIC.cast.tip.endsClock")`)).split("{")[0].trim();
   check("G clock: the entry's tooltip says the clock ends it", endsClock.length > 3 && view.cells.some((x) => x.tip.includes(endsClock)));
   await run(gm, P.time, { advance: round - 1 });
   check("G clock: a second short of the round, the record stands", (await run(gm, P.waitGone, { actorId: W.actor.huge, castId: c2.model?.castId, tries: 2 })) > 0);
@@ -868,7 +920,7 @@ async function stageRecurring() {
     }
   } finally { await run(gm, P.rig, {}); await run(gm, P.combatDrop, { combatId: fight.id }); }
 
-  // chokingGrip: a failed save applies damage; a passed one ends the held record with an end card.
+  // chokingGrip: a failed save applies damage; a passed one ends the cast.
   await reset();
   await shape("choking-grip", { unlimited: true, save: { category: "spell", effect: "negates" } });
   await aim(gm, [bearer]);
@@ -881,7 +933,9 @@ async function stageRecurring() {
     const hp0 = (await hpOf(bearerId))[0];
     let prompts = await untilPrompt(fight.id, c.model?.castId, seen);
     seen.push(...prompts.map((p) => p.id));
-    if (!prompts.length) check("H chokingGrip: a prompt is posted", false);
+    const casterRecords = (await run(gm, P.records, { actorId: W.caster })).filter((r) => r.castId === c.model?.castId);
+    note("H chokingGrip: diagnostics (presence only)", { held: Boolean(c.model?.duration?.held), none: c.model?.duration?.none ?? null, casterRecord: casterRecords.length > 0, casterRecordHeld: casterRecords.some((r) => r.held != null) });
+    if (!prompts.length) check("H chokingGrip: a prompt is posted", false, { held: Boolean(c.model?.duration?.held), none: c.model?.duration?.none ?? null, casterRecord: casterRecords.length > 0 });
     else {
       await run(gm, P.rig, { seq: FAIL_SAVE });
       await press(gm, { messageId: prompts[0].id, action: S3R.actions.save });
@@ -897,14 +951,19 @@ async function stageRecurring() {
         await sleep(2500);
         const ends = await run(gm, P.endCards, { since: startedAt, castId: c.model?.castId });
         for (const e of ends) await track(e.uuid, "ChatMessage");
-        check("H chokingGrip: a passed Save ends the held record with an end card", ends.length === 1 && ends[0].cause === "saved", ends.map((e) => e.cause));
+        // A held cast ends with a `saved` end card (ruling 97); an untimed one (ruling 96a) has its caster record removed by endCast.
+        const heldCast = casterRecords.some((r) => r.held != null);
+        const casterLeft = (await run(gm, P.records, { actorId: W.caster })).filter((r) => r.castId === c.model?.castId).length;
+        if (heldCast) check("H chokingGrip: a passed Save ends the held record with an end card", ends.length === 1 && ends[0].cause === "saved", ends.map((e) => e.cause));
+        else check("H chokingGrip: a passed Save ends the untimed cast, its caster record gone", casterLeft === 0, { casterLeft, ends: ends.map((e) => e.cause) });
       }
     }
   } finally { await run(gm, P.rig, {}); await run(gm, P.combatDrop, { combatId: fight.id }); }
 
   // mageMissile: the Roll prompt fires at the Player's one target and refuses the far token.
   await reset();
-  await shape("mage-missile", { unlimited: true, rows: [{ type: "damage", first: true, set: { roll: "6", delivery: "none" } }] });
+  // The copy carries a measured range of the walk's own (20 feet, invented): the bearer stands one cell off the caster, the far token eight.
+  await shape("mage-missile", { rows: [{ type: "damage", first: true, set: { roll: "6", delivery: "none" } }], set: { range: { shape: "distance", value: 20, unit: "feet" }, "target.count": null, "target.model": "creature" } });
   await aim(player, [bearer]);
   c = await castAs(player, { spellId: W.spell["mage-missile"] });
   fight = await fightOf([bearer]);
@@ -932,7 +991,8 @@ async function stageRecurring() {
   await shape("kindle-flame", { unlimited: true, save: { category: "spell", effect: "negates" } });
   await aim(gm, [bearer]);
   await run(gm, P.rig, { seq: FAIL_SAVE });
-  c = await castAs(gm, { spellId: W.spell["kindle-flame"] });
+  // The burn row sits in pick group `use`, option `creature`; nothing picked means the first option, so the pick is set.
+  c = await castAs(gm, { spellId: W.spell["kindle-flame"], picks: { use: "creature" } });
   await run(gm, P.rig, {});
   fight = await fightOf([bearer]);
   try {
@@ -958,10 +1018,11 @@ async function stageRecurring() {
   const view = await run(gm, P.seen, { messageId: c.messageId });
   check("H next round: the cast's card offers Next round while no fight holds it", view.actions.includes(S3R.actions.nextRound), view.actions);
   if (view.actions.includes(S3R.actions.nextRound)) {
-    await press(gm, { messageId: c.messageId, action: S3R.actions.nextRound });
+    const next = await press(gm, { messageId: c.messageId, action: S3R.actions.nextRound });
     const prompts = await promptFor(c.model?.castId, [], { seconds: 8 });
     for (const p of prompts) await track(p.uuid, "ChatMessage");
-    check("H next round: pressing it posts the prompt of the next round", prompts.length > 0, { prompts: prompts.length });
+    const casterRecords = (await run(gm, P.records, { actorId: W.caster })).filter((r) => r.castId === c.model?.castId);
+    check("H next round: pressing it posts the prompt of the next round", prompts.length > 0, { prompts: prompts.length, warns: next.warns, held: Boolean(c.model?.duration?.held), none: c.model?.duration?.none ?? null, casterRecord: casterRecords.length > 0 });
   }
 }
 

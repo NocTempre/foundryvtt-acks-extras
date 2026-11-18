@@ -19,7 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
@@ -609,14 +609,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
 
   // A concentration leaves a caster record whatever the rows are: the status held, the tail it outlasts by, flag-timed by its cap where it has one.
   const held = card.duration?.held;
-  // A row that recurs on the caster's turn recurs while the caster's record stands (`cast-recur.mjs`), so it counts as lasting; the record is still written only for a timed cast, since an untimed one would never end.
+  // A row that recurs on the caster's turn recurs while the caster's record stands (`cast-recur.mjs`), so it counts as lasting. An untimed cast writes the record only where such a row asks a cast-wide save: that save's pass ends it (`endCast` in `cast-recur.mjs`), so the record needs no clock and carries no start and no duration. Any other untimed record would never end.
   const timed = card.duration && !card.duration.none && (castersTurnRecurs(kept) || kept.some(({ row }) => row.lasts === "duration"));
+  const untimedRecord = !held && !timed && recurringRows(kept, "casterTurn").some(({ row }) => row.recurSave === "cast");
   card.recurs = kept.some(({ row }) => isRecurring(row));
-  if (held || timed) {
-    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", startTime: deps.now() };
+  if (held || timed || untimedRecord) {
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster" };
     const data = held
-      ? spellEffectData({ ...mark, statuses: [heldStatusOf(held)], held, tail: card.duration.tail, duration: card.duration.cap })
-      : spellEffectData({ ...mark, duration: card.duration });
+      ? spellEffectData({ ...mark, startTime: deps.now(), statuses: [heldStatusOf(held)], held, tail: card.duration.tail, duration: card.duration.cap })
+      : spellEffectData(untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
     try {
       await deps.record(caster, data);
     } catch (err) {

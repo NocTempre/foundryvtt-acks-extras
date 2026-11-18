@@ -1094,6 +1094,55 @@ await ta("a cast rolls each row once, posts one card with no targets, writes no 
   assert.deepEqual(spellEffectOf(r.calls.records[0]).duration, { value: 1, units: "minutes" });
 });
 
+await ta("an untimed cast writes a clockless caster record when a row recurs on the caster's turn, which then prompts and is ended by the passed cast-wide save; with no such row it writes none", async () => {
+  const { duePrompts, resolveRecurEntry } = await import("../scripts/magic/cast-recur.mjs");
+  const special = { shape: "special" };
+  const choke = { key: "choke", type: "conditionGrant", conditions: ["afraid"], recur: "eachRound", recurAt: "casterTurn", recurSave: "cast", saveEffect: "negates", lasts: "duration" };
+  const run = async (rows) => {
+    const r = runDeps({ answer: { mode: "normal", picks: {} } });
+    await castSpellRun(spell(rows, { duration: special }), () => {}, r.deps);
+    return r;
+  };
+  assert.deepEqual(castDuration(special), { none: NONE.untimed }, "the figure is untimed");
+
+  const r = await run([choke]);
+  assert.equal(r.calls.records.length, 1, "the caster-turn row writes the record");
+  const record = spellEffectOf(r.calls.records[0]);
+  assert.equal(record.role, "caster");
+  assert.deepEqual([record.startTime, record.duration, record.held], [undefined, undefined, undefined], "and it carries no clock");
+  assert.equal(castRecordEnd(r.calls.records[0], () => 60), null, "so no end time can be read off it");
+
+  const rows = rowsForMode(rowsOf(spell([choke], { duration: special }), NO_TWIN).rows, "normal", {});
+  const cast = (casterRecord) => ({ castId: "castX", casterUuid: "Actor.c1", rows, casterRecord, bearers: [{ uuid: "Actor.b1", records: ["choke"] }] });
+  const due = duePrompts({ edge: "start", actorUuid: "Actor.c1", casts: [cast(r.calls.records.some((d) => spellEffectOf(d)?.role === "caster"))] });
+  assert.deepEqual(due.map((d) => [d.moment, d.rowKeys]), [["casterTurn", ["choke"]]], "the caster's turn prompts");
+  assert.deepEqual(duePrompts({ edge: "start", actorUuid: "Actor.c1", casts: [cast(false)] }), [], "without the record it would not");
+
+  const standing = [...r.calls.records];
+  const ends = [];
+  const deps = {
+    by: "u1",
+    apply: async () => [],
+    writeEntry: async () => {},
+    endRow: async () => 0,
+    endCast: async (card) => {
+      const gone = standing.splice(0).filter((d) => spellEffectOf(d)?.castId === card.castId).length;
+      ends.push(card.castId);
+      return gone;
+    },
+  };
+  const card = { castId: "castX", targets: { t1: { resist: { success: true } } } };
+  const done = await resolveRecurEntry({ card, targetKey: "t1", request: { rowKey: "choke" }, keyed: rows[0], found: { actor: { name: "Bearer" } }, deps });
+  assert.deepEqual([done.ended, ends, standing.length], [1, ["castX"], 0], "a pass ends the untimed record through endCast");
+
+  const plain = await run([{ key: "mend", type: "heal", roll: "1d6", lasts: "duration" }]);
+  assert.equal(plain.calls.records.length, 0, "an untimed cast with no caster-turn row writes none");
+  const unsaved = await run([{ ...choke, recurSave: "", recurTarget: "pick" }]);
+  assert.equal(unsaved.calls.records.length, 0, "a caster-turn row that asks no cast-wide save has nothing to end the record");
+  const bearerRow = await run([{ ...choke, recurAt: "bearerStart" }]);
+  assert.equal(bearerRow.calls.records.length, 0, "nor does a row that recurs on the bearer's turn");
+});
+
 await ta("the reversed form casts only its own rows, and a thrown row with no target waits for its Throw", async () => {
   const rows = [dmg(), { key: "touch", type: "damage", roll: "1d4", delivery: "melee", reversed: true, damage: ["fire"] }];
   const r = runDeps({ answer: { mode: "reversed", picks: {} } });

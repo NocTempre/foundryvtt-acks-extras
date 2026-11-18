@@ -1323,7 +1323,10 @@ try {
   if (c3.messageId) await track(`ChatMessage.${c3.messageId}`, "ChatMessage");
   for (const m of c3.newMessages ?? []) await track(`ChatMessage.${m.id}`, "ChatMessage");
   const thrown = c3.model ? entriesOf(c3.model, c3.model.order[0]) : [];
-  check("3: the throw's entry applied the amount the system's damage roll made, through the amount path", thrown.length === 1 && thrown[0].state === "applied" && thrown[0].applied === thrown[0].rolled && thrown[0].throw?.hit === true, thrown.map((e) => e.state));
+  // A thrown entry keeps each throw on `instances[]`, its roll and hit there; one throw is one instance.
+  const hits3 = (thrown[0]?.instances ?? []).filter((i) => i.throw?.hit === true);
+  const rolled3 = hits3.reduce((sum, i) => sum + (i.rolled ?? 0), 0);
+  check("3: the throw's entry applied the amount the system's damage roll made, through the amount path", thrown.length === 1 && thrown[0].state === "applied" && hits3.length === 1 && thrown[0].applied === rolled3, thrown.map((e) => ({ state: e.state, applied: e.applied, instances: (e.instances ?? []).map((i) => i.state) })));
   const hp6 = await run(gm, P.hp, { sceneId, tokenIds: [tokenIds[0]] });
   check("3: the hit points fell by that amount", thrown[0] && hp5[0] - hp6[0] === thrown[0].applied, { drop: hp5[0] - hp6[0] });
   await run(gm, P.setHp, { sceneId, tokenId: tokenIds[0], value: 20 });

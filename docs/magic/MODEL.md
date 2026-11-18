@@ -342,8 +342,10 @@ that bearer's records of the row; `cast`: a pass ends the cast), `recurTarget`
 whom it meets (blank, its bearers; `pick`, a target the caster picks). A row
 recurs while its anchor stands: a caster-turn row on the caster's record of the
 cast, which `castSpellRun` writes for a timed cast (its `timed` test counts
-`castersTurnRecurs` beside a row that lasts the duration; flag-timed; an untimed
-cast writes none, since the record would never end); a bearer row on a
+`castersTurnRecurs` beside a row that lasts the duration; flag-timed). An untimed
+cast writes the record only where a caster-turn row asks `recurSave: cast`, whose
+passed save ends it (`endCast`); that record carries no start and no duration, and
+an untimed cast with no such row writes none, since the record would never end. A bearer row on a
 recipient record of the cast the bearer holds. Where the cast writes the bearer no
 such record, `anchorsNeeded` names the row and `applyOnTarget` writes a status-free
 recipient record carrying `rowKey`, `startTime` and the row's life (its `lasts`,
