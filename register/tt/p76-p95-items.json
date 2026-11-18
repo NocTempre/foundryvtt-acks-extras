@@ -1,0 +1,1948 @@
+[
+  {
+    "id": "tt.item107",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Band of Beguilement",
+    "anchor": {
+      "display": "Band of Beguilement"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      76
+    ],
+    "meta": {
+      "category": "rings"
+    },
+    "assists": {
+      "skips": [
+        {
+          "page": 76,
+          "box": {
+            "x0": 0,
+            "x1": 305,
+            "y0": 50,
+            "y1": 229
+          },
+          "reason": "section-intro"
+        }
+      ]
+    }
+  },
+  {
+    "id": "tt.item108",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Bezoar Ring",
+    "anchor": {
+      "display": "Bezoar Ring"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      76
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item109",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dragon Seal of the Sorcerer-King",
+    "anchor": {
+      "display": "Dragon Seal of the Sorcerer-King"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      76
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item110",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Legionary’s Ring",
+    "anchor": {
+      "display": "Legionary’s Ring"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      76,
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item111",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring Against the Wolf",
+    "anchor": {
+      "display": "Ring Against the Wolf"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item112",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Absence",
+    "anchor": {
+      "display": "Ring of Absence"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item113",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Anti-Magic",
+    "anchor": {
+      "display": "Ring of Anti-Magic"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item114",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Arcane Abjuration",
+    "anchor": {
+      "display": "Ring of Arcane Abjuration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item115",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Arcane Adversary",
+    "anchor": {
+      "display": "Ring of Arcane Adversary"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      77
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item116",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Arcane Alignment",
+    "anchor": {
+      "display": "Ring of Arcane Alignment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item117",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Attuned Protection",
+    "anchor": {
+      "display": "Ring of Attuned Protection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item118",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Beast Control",
+    "anchor": {
+      "display": "Ring of Beast Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item119",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Bestial Form",
+    "anchor": {
+      "display": "Ring of Bestial Form"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item120",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Blessing",
+    "anchor": {
+      "display": "Ring of Blessing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item121",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Calamity",
+    "anchor": {
+      "display": "Ring of Calamity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      78
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item122",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Callousness",
+    "anchor": {
+      "display": "Ring of Callousness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item123",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Cold Repose",
+    "anchor": {
+      "display": "Ring of Cold Repose"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item124",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Dark Potence",
+    "anchor": {
+      "display": "Ring of Dark Potence"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item125",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Death",
+    "anchor": {
+      "display": "Ring of Death"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item126",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Decline",
+    "anchor": {
+      "display": "Ring of Decline"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item127",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Degeneration",
+    "anchor": {
+      "display": "Ring of Degeneration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      79,
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item128",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Disillusionment",
+    "anchor": {
+      "display": "Ring of Disillusionment"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item129",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Elasticity",
+    "anchor": {
+      "display": "Ring of Elasticity"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item130",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Elemental Mastery",
+    "anchor": {
+      "display": "Ring of Elemental Mastery"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item131",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Elemental Servants",
+    "anchor": {
+      "display": "Ring of Elemental Servants"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item132",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Enslavement",
+    "anchor": {
+      "display": "Ring of Enslavement"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item133",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Eternal Atrophy",
+    "anchor": {
+      "display": "Ring of Eternal Atrophy"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      80,
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item134",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Fast Talk",
+    "anchor": {
+      "display": "Ring of Fast Talk"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item135",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Feebleness",
+    "anchor": {
+      "display": "Ring of Feebleness"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item136",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Fickle Flame",
+    "anchor": {
+      "display": "Ring of Fickle Flame"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item137",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Fiend Conjuring",
+    "anchor": {
+      "display": "Ring of Fiend Conjuring"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item138",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Fire Protection",
+    "anchor": {
+      "display": "Ring of Fire Protection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item139",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Fire Walking",
+    "anchor": {
+      "display": "Ring of Fire Walking"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item140",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Flame’s Favor",
+    "anchor": {
+      "display": "Ring of Flame’s Favor"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      81
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item141",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Flesh",
+    "anchor": {
+      "display": "Ring of Flesh"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item142",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Forcewalls",
+    "anchor": {
+      "display": "Ring of Forcewalls"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item143",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Forewarning",
+    "anchor": {
+      "display": "Ring of Forewarning"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item144",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Frailty",
+    "anchor": {
+      "display": "Ring of Frailty"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item145",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Generous Invisibility",
+    "anchor": {
+      "display": "Ring of Generous Invisibility"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item146",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Genie Summoning",
+    "anchor": {
+      "display": "Ring of Genie Summoning"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item147",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Growth",
+    "anchor": {
+      "display": "Ring of Growth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      82,
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item148",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Hallucination",
+    "anchor": {
+      "display": "Ring of Hallucination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item149",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Horrific Death",
+    "anchor": {
+      "display": "Ring of Horrific Death"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item150",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Humanoid Control",
+    "anchor": {
+      "display": "Ring of Humanoid Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item151",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Immunity to Certain Doom",
+    "anchor": {
+      "display": "Ring of Immunity to Certain Doom"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item152",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Imp Conjuring",
+    "anchor": {
+      "display": "Ring of Imp Conjuring"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item153",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Inscrutability",
+    "anchor": {
+      "display": "Ring of Inscrutability"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item154",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Invisibility",
+    "anchor": {
+      "display": "Ring of Invisibility"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      83
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item155",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Last Breaths",
+    "anchor": {
+      "display": "Ring of Last Breaths"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item156",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Life Protection",
+    "anchor": {
+      "display": "Ring of Life Protection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item157",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Lightless Vision",
+    "anchor": {
+      "display": "Ring of Lightless Vision"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item158",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Luck",
+    "anchor": {
+      "display": "Ring of Luck"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item159",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Many Faces",
+    "anchor": {
+      "display": "Ring of Many Faces"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item160",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Merchant’s Fortune",
+    "anchor": {
+      "display": "Ring of Merchant’s Fortune"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item161",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Messages",
+    "anchor": {
+      "display": "Ring of Messages"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item162",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Molting",
+    "anchor": {
+      "display": "Ring of Molting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      84,
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item163",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Near Sighting",
+    "anchor": {
+      "display": "Ring of Near Sighting"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item164",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Penumbral Perception",
+    "anchor": {
+      "display": "Ring of Penumbral Perception"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item165",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Plant Control",
+    "anchor": {
+      "display": "Ring of Plant Control"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item166",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Protection",
+    "anchor": {
+      "display": "Ring of Protection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item167",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Radiance",
+    "anchor": {
+      "display": "Ring of Radiance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item168",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Razor Ramparts",
+    "anchor": {
+      "display": "Ring of Razor Ramparts"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item169",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Reflection",
+    "anchor": {
+      "display": "Ring of Reflection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      85
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item170",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Regeneration",
+    "anchor": {
+      "display": "Ring of Regeneration"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item171",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Remission",
+    "anchor": {
+      "display": "Ring of Remission"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item172",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Replacement",
+    "anchor": {
+      "display": "Ring of Replacement"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item173",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Restriction",
+    "anchor": {
+      "display": "Ring of Restriction"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item174",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Return",
+    "anchor": {
+      "display": "Ring of Return"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item175",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Revelation",
+    "anchor": {
+      "display": "Ring of Revelation"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item176",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Ruination",
+    "anchor": {
+      "display": "Ring of Ruination"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      86
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item177",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Rust",
+    "anchor": {
+      "display": "Ring of Rust"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item178",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Sealing, Greater",
+    "anchor": {
+      "display": "Ring of Sealing, Greater"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item179",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Sealing, Lesser",
+    "anchor": {
+      "display": "Ring of Sealing, Lesser"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item180",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Selfless Protection",
+    "anchor": {
+      "display": "Ring of Selfless Protection"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item181",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Serpents’ Counsel",
+    "anchor": {
+      "display": "Ring of Serpents’ Counsel"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item182",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 182",
+    "anchor": {
+      "hash": "h0zqgg",
+      "as": "display"
+    },
+    "pages": [
+      87
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item183",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 183",
+    "anchor": {
+      "hash": "1nkbnp8",
+      "as": "display"
+    },
+    "pages": [
+      88
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item184",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Shadows",
+    "anchor": {
+      "display": "Ring of Shadows"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      88
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item185",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Shrinking",
+    "anchor": {
+      "display": "Ring of Shrinking"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      88
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item186",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Sparks",
+    "anchor": {
+      "display": "Ring of Sparks"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      88
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item187",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Stable Stance",
+    "anchor": {
+      "display": "Ring of Stable Stance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      88
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item188",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Stable Substance",
+    "anchor": {
+      "display": "Ring of Stable Substance"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      89
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item189",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Sun and Shadow",
+    "anchor": {
+      "display": "Ring of Sun and Shadow"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      89
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item190",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Sylvankind",
+    "anchor": {
+      "display": "Ring of Sylvankind"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      89
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item191",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Telekinetic Force",
+    "anchor": {
+      "display": "Ring of Telekinetic Force"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      89
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item192",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Black Gate",
+    "anchor": {
+      "display": "Ring of the Black Gate"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      89
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item193",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Blessed Life",
+    "anchor": {
+      "display": "Ring of the Blessed Life"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      90
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item194",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Boundless Prison",
+    "anchor": {
+      "display": "Ring of the Boundless Prison"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      90
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item195",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Cornered Beast",
+    "anchor": {
+      "display": "Ring of the Cornered Beast"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      90
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item196",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Crypt Keeper",
+    "anchor": {
+      "display": "Ring of the Crypt Keeper"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      90
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item197",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Earth",
+    "anchor": {
+      "display": "Ring of the Earth"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      90,
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item198",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Eye",
+    "anchor": {
+      "display": "Ring of the Eye"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item199",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Frost Tyrant",
+    "anchor": {
+      "display": "Ring of the Frost Tyrant"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item200",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Golden Serpent",
+    "anchor": {
+      "display": "Ring of the Golden Serpent"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item201",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Jackal",
+    "anchor": {
+      "display": "Ring of the Jackal"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item202",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Leviathan",
+    "anchor": {
+      "display": "Ring of the Leviathan"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      91
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item203",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Lucky Scoundrel",
+    "anchor": {
+      "display": "Ring of the Lucky Scoundrel"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      92
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item204",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Master Conjurer",
+    "anchor": {
+      "display": "Ring of the Master Conjurer"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      92
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item205",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Mountain Goat",
+    "anchor": {
+      "display": "Ring of the Mountain Goat"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      92
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item206",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Open Sky",
+    "anchor": {
+      "display": "Ring of the Open Sky"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      92
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item207",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Plaguelord",
+    "anchor": {
+      "display": "Ring of the Plaguelord"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      92,
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item208",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Queen’s Heart",
+    "anchor": {
+      "display": "Ring of the Queen’s Heart"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item209",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Scribe",
+    "anchor": {
+      "display": "Ring of the Scribe"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item210",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Seasons",
+    "anchor": {
+      "display": "Ring of the Seasons"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item211",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Sewer Spider",
+    "anchor": {
+      "display": "Ring of the Sewer Spider"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item212",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Sky",
+    "anchor": {
+      "display": "Ring of the Sky"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      93
+    ],
+    "meta": {
+      "category": "rings"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item213",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Slavedriver",
+    "anchor": {
+      "display": "Ring of the Slavedriver"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item214",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Tower",
+    "anchor": {
+      "display": "Ring of the Tower"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item215",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Umbral Mastiff",
+    "anchor": {
+      "display": "Ring of the Umbral Mastiff"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item216",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of the Warmage",
+    "anchor": {
+      "display": "Ring of the Warmage"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item217",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Unseen Focus",
+    "anchor": {
+      "display": "Ring of Unseen Focus"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item218",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Venery",
+    "anchor": {
+      "display": "Ring of Venery"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item219",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Vengeful Spirits",
+    "anchor": {
+      "display": "Ring of Vengeful Spirits"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      94,
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item220",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Virtue’s Shield",
+    "anchor": {
+      "display": "Ring of Virtue’s Shield"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item221",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Vitality",
+    "anchor": {
+      "display": "Ring of Vitality"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item222",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Wailing",
+    "anchor": {
+      "display": "Ring of Wailing"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item223",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Water Walking",
+    "anchor": {
+      "display": "Ring of Water Walking"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item224",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of Wishes",
+    "anchor": {
+      "display": "Ring of Wishes"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item225",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ring of X-Ray Vision",
+    "anchor": {
+      "display": "Ring of X-Ray Vision"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  },
+  {
+    "id": "tt.item226",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Seal of Chaos",
+    "anchor": {
+      "display": "Seal of Chaos"
+    },
+    "named": "2026-11-17",
+    "pages": [
+      95
+    ],
+    "meta": {
+      "category": "rings"
+    }
+  }
+]
