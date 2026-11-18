@@ -530,6 +530,7 @@ export const LOCATABLE_FIELDS = Object.freeze({
   // target is exempt from the row (`sizeKey`: a word onto a monsters `SIZES` key).
   rounds: "dice",
   exemptSizeFrom: "sizeKey",
+  exemptSizeOver: "sizeKey",
   // A spell's own SpellExtras fields.
   "save.category": "saveCategory",
   "save.modifier": "levelValue",
@@ -768,7 +769,7 @@ function locateField(loc, kind, m) {
  * `extraordinary` is true where its pattern matches; `save.category` reads a
  * word onto a save category; `target.filters` reads target words onto the
  * filter keys it knows; `rounds` reads a dice formula like `roll`, and
- * `exemptSizeFrom` a size word onto a monsters size key. A locator for a count
+ * `exemptSizeFrom` and `exemptSizeOver` a size word onto a monsters size key. A locator for a count
  * the page writes with "a" or "an" sets `articles: true`, which reads an
  * article as one inside that locator only; a count that grows by increments sets
  * `accumulate` (see `ladderFrom`). A word no vocabulary member answers to is a miss.

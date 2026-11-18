@@ -41,7 +41,33 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "aura",
+        "type": "grants",
+        "appliesTo": "recipient",
+        "ref": "def.prof.mysticAura",
+        "lasts": "duration"
+      },
+      {
+        "key": "bonus",
+        "type": "modifier",
+        "target": "reaction",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "ifHas": [
+          "kw:mysticaura"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "further\\s*\\+\\s*(\\d+)\\s*bonus\\s*to\\s*reaction"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.angelicChoir",
@@ -144,7 +170,54 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "missile",
+        "type": "modifier",
+        "target": "ac",
+        "mode": "set",
+        "appliesTo": "recipient",
+        "attackKinds": [
+          "missile",
+          "thrown"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "AC\\s*(\\d+)\\s*against\\s*missile"
+          }
+        ]
+      },
+      {
+        "key": "melee",
+        "type": "modifier",
+        "target": "ac",
+        "mode": "set",
+        "appliesTo": "recipient",
+        "attackKinds": [
+          "melee"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "AC\\s*(\\d+)\\s*against\\s*melee"
+          }
+        ]
+      },
+      {
+        "key": "mageMissile",
+        "type": "immunity",
+        "appliesTo": "recipient",
+        "refs": [
+          "def.spell.mageMissile"
+        ],
+        "saveEffect": "none",
+        "lasts": "duration"
+      }
+    ]
   },
   {
     "id": "def.spell.angelicAura",
@@ -347,7 +420,144 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "attackMundane",
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMundane"
+        },
+        "pickKind": true,
+        "vsKinds": [
+          "animal",
+          "beastman",
+          "construct",
+          "enchanted",
+          "giant",
+          "humanoid",
+          "incarnation",
+          "monstrosity",
+          "ooze",
+          "plant",
+          "undead",
+          "vermin"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "magic\\s*weapon\\s*\\+\\s*(\\d+)\\s*against"
+          }
+        ]
+      },
+      {
+        "key": "damageMundane",
+        "type": "modifier",
+        "target": "damage",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMundane"
+        },
+        "pickKind": true,
+        "vsKinds": [
+          "animal",
+          "beastman",
+          "construct",
+          "enchanted",
+          "giant",
+          "humanoid",
+          "incarnation",
+          "monstrosity",
+          "ooze",
+          "plant",
+          "undead",
+          "vermin"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "magic\\s*weapon\\s*\\+\\s*(\\d+)\\s*against"
+          }
+        ]
+      },
+      {
+        "key": "attackMagical",
+        "type": "modifier",
+        "target": "attackThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMagical"
+        },
+        "pickKind": true,
+        "vsKinds": [
+          "animal",
+          "beastman",
+          "construct",
+          "enchanted",
+          "giant",
+          "humanoid",
+          "incarnation",
+          "monstrosity",
+          "ooze",
+          "plant",
+          "undead",
+          "vermin"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "already\\s*magic\\s*gain\\s*an\\s*additional\\s*\\+\\s*(\\d+)"
+          }
+        ]
+      },
+      {
+        "key": "damageMagical",
+        "type": "modifier",
+        "target": "damage",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "lasts": "duration",
+        "gate": {
+          "kind": "weaponMagical"
+        },
+        "pickKind": true,
+        "vsKinds": [
+          "animal",
+          "beastman",
+          "construct",
+          "enchanted",
+          "giant",
+          "humanoid",
+          "incarnation",
+          "monstrosity",
+          "ooze",
+          "plant",
+          "undead",
+          "vermin"
+        ],
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "already\\s*magic\\s*gain\\s*an\\s*additional\\s*\\+\\s*(\\d+)"
+          }
+        ]
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "object"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.bannerOfInvincibility",
@@ -1068,7 +1278,51 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "bonus",
+        "type": "modifies",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "refs": [
+          "kw:hiding"
+        ],
+        "ifHas": [
+          "kw:hiding"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "gains\\s*a\\s*\\+\\s*(\\d+)\\s*bonus\\s*to\\s*its\\s*Hiding"
+          },
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      },
+      {
+        "key": "grant",
+        "type": "grants",
+        "mode": "set",
+        "appliesTo": "recipient",
+        "ref": "def.skill.hiding",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "Hiding\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\s*\\+"
+          },
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.chimericalFigment",
@@ -5048,7 +5302,39 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "bonus",
+        "type": "modifies",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "refs": [
+          "kw:acrobatics"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*Acrobatics"
+          },
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      },
+      {
+        "key": "distances",
+        "type": "limitation",
+        "appliesTo": "recipient",
+        "saveEffect": "none",
+        "noteFrom": {
+          "pattern": "(The\\s*recipient\\s*can\\s*leap[^.]*)"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.levelWater",
@@ -5632,7 +5918,23 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "grant",
+        "type": "grants",
+        "appliesTo": "recipient",
+        "ref": "def.prof.passingWithoutTrace",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.perpetualFigment",
@@ -6653,7 +6955,51 @@
         45,
         302
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "bonus",
+        "type": "modifies",
+        "target": "proficiencyThrow",
+        "mode": "add",
+        "appliesTo": "recipient",
+        "refs": [
+          "kw:sneaking"
+        ],
+        "ifHas": [
+          "kw:sneaking"
+        ],
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "gains\\s*a\\s*\\+\\s*(\\d+)\\s*bonus\\s*to\\s*its\\s*Sneaking"
+          },
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      },
+      {
+        "key": "grant",
+        "type": "grants",
+        "mode": "set",
+        "appliesTo": "recipient",
+        "ref": "def.skill.sneaking",
+        "lasts": "duration",
+        "onMiss": "blank",
+        "from": [
+          {
+            "pattern": "Sneaking\\s*proficiency\\s*throw\\s*of\\s*(\\d+)\\s*\\+"
+          },
+          {
+            "into": "exemptSizeOver",
+            "pattern": "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.skinchange",
@@ -6757,7 +7103,97 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "objects",
+        "type": "limitation",
+        "appliesTo": "target",
+        "saveEffect": "none",
+        "pick": "use",
+        "pickOption": "objects",
+        "noteFrom": {
+          "pattern": "(the\\s*affected\\s*objects\\s*become[^.]*)"
+        }
+      },
+      {
+        "key": "floor",
+        "type": "conditionGrant",
+        "appliesTo": "area",
+        "conditions": [
+          "prone"
+        ],
+        "untimed": [
+          "prone"
+        ],
+        "saveEffect": "negates",
+        "lasts": "duration",
+        "recur": "laterRounds",
+        "recurAt": "bearerStart",
+        "recurSave": "fail",
+        "pick": "use",
+        "pickOption": "floor"
+      },
+      {
+        "key": "footing",
+        "type": "limitation",
+        "appliesTo": "area",
+        "saveEffect": "none",
+        "pick": "use",
+        "pickOption": "floor",
+        "noteFrom": {
+          "pattern": "(If\\s*the\\s*creature\\s*is\\s*eligible\\s*to\\s*use\\s*Acrobatics[^.]*)"
+        }
+      },
+      {
+        "key": "armour",
+        "type": "limitation",
+        "appliesTo": "area",
+        "saveEffect": "none",
+        "pick": "use",
+        "pickOption": "floor",
+        "noteFrom": {
+          "pattern": "(If\\s*not,\\s*the\\s*creature\\s*suffers[^.]*)"
+        }
+      },
+      {
+        "key": "willing",
+        "type": "immunity",
+        "appliesTo": "recipient",
+        "conditions": [
+          "grabbed",
+          "restrained",
+          "stuck",
+          "wrestled"
+        ],
+        "saveEffect": "none",
+        "lasts": "duration",
+        "pick": "use",
+        "pickOption": "creature"
+      }
+    ],
+    "values": [
+      {
+        "target": {
+          "model": "area",
+          "area": {
+            "shape": "cube"
+          }
+        },
+        "save": {
+          "effect": "negates",
+          "kind": "save",
+          "perTarget": true
+        },
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "save.category",
+            "pattern": "must\\s*make\\s*an?\\s*(\\w+)\\s*saving"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "def.spell.slingStone",
@@ -7240,7 +7676,39 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "grant",
+        "type": "grants",
+        "appliesTo": "recipient",
+        "ref": "def.prof.climbing",
+        "lasts": "duration"
+      },
+      {
+        "key": "auto",
+        "type": "modifies",
+        "target": "proficiencyThrow",
+        "mode": "auto",
+        "appliesTo": "recipient",
+        "refs": [
+          "kw:climbing"
+        ],
+        "ifHas": [
+          "kw:climbing"
+        ],
+        "lasts": "duration"
+      },
+      {
+        "key": "unimpeded",
+        "type": "limitation",
+        "appliesTo": "recipient",
+        "saveEffect": "none",
+        "noteFrom": {
+          "pattern": "(gains\\s*the\\s*ability\\s*to\\s*climb[^.]*)"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.spiritOfHealing",

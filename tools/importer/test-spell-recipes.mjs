@@ -721,4 +721,25 @@ t("the spellcastingMod lint holds rule 104's guards, the word lists, literal fig
   has(spellcastingModProblems([{ type: "progressionAs", as: "priest", atLevelNum: 1, atLevelDen: 2 }]), "atLevelNum is a literal fraction");
 });
 
+t("the recipe rules know the record rows' narrowing keys: tokens, attack kinds, a mode, and the two switches", () => {
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  const row = (over) => ({ key: "r", type: "modifies", target: "proficiencyThrow", mode: "add", refs: ["kw:climbing"], ifHas: ["kw:climbing"], ...over });
+  assert.deepEqual(spellRecipeProblems({ effects: [row({ appliesToRoll: "climbing" })] }), []);
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "g", type: "grants", mode: "set", ref: "def.prof.invented", onMiss: "blank", from: [{ pattern: "(\\d+)" }] }] }), []);
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "a", type: "modifier", target: "ac", mode: "set", attackKinds: ["missile", "thrown"], onMiss: "blank", from: [{ pattern: "(\\d+)" }] }] }), []);
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "p", type: "modifier", target: "attackThrow", pickKind: true, vsKinds: ["undead"], onMiss: "blank", from: [{ pattern: "(\\d+)" }] }] }), []);
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "o", type: "modifier", target: "save", ownSave: true, forWhat: "paralysis", onMiss: "blank", from: [{ pattern: "(\\d+)" }] }] }), []);
+  has(spellRecipeProblems({ effects: [row({ mode: "double" })] }), 'mode "double" is not a combination mode');
+  has(spellRecipeProblems({ effects: [row({ refs: [] })] }), "refs is a non-empty list of tokens");
+  has(spellRecipeProblems({ effects: [row({ ifHas: "kw:climbing" })] }), "ifHas is a non-empty list of tokens");
+  has(spellRecipeProblems({ effects: [row({ ref: 4 })] }), "ref is a token");
+  has(spellRecipeProblems({ effects: [row({ attackKinds: ["spell"] })] }), "attackKinds is a non-empty list of melee, missile, thrown");
+  has(spellRecipeProblems({ effects: [row({ attackKinds: [] })] }), "attackKinds is a non-empty list");
+  has(spellRecipeProblems({ effects: [row({ appliesToRoll: 3 })] }), "appliesToRoll is a string");
+  has(spellRecipeProblems({ effects: [row({ ownSave: false })] }), "ownSave is true or absent");
+  has(spellRecipeProblems({ effects: [row({ ownSave: true })] }), "ownSave marks a modifier on a save");
+  has(spellRecipeProblems({ effects: [row({ pickKind: true })] }), "pickKind offers the row's vsKinds");
+  has(spellRecipeProblems({ effects: [row({ exemptSizeOver: "man" })] }), "effects[0].exemptSizeOver is located from the page");
+});
+
 console.log(`\n${n} tests passed`);

@@ -20,10 +20,11 @@
 import { LOCATABLE_FIELDS } from "../../scripts/importer/executor.mjs";
 import {
   AREA_SHAPES, CONDITION_KEYS, EFFECT_DELIVERIES, EFFECT_LASTS, EFFECT_RECURRENCES, EFFECT_RECUR_MOMENTS, EFFECT_RECUR_SAVES, EFFECT_RECUR_TARGETS,
-  EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
+  EFFECT_MODES, EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
   SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope, isCapabilityToken,
 } from "../../scripts/lib/vocab.mjs";
 import { ENDS_ON_CAUSES } from "../../scripts/lib/ends-on.mjs";
+import { ATTACK_KINDS } from "../../scripts/lib/conditions.mjs";
 import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGORIES, SPELL_TYPES, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
@@ -32,6 +33,7 @@ const ROW_KEYS = new Set([
   "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate", "each", "endsOn", "untimed",
+  "ifHas", "appliesToRoll", "attackKinds", "ownSave", "pickKind",
 ]);
 
 /**
@@ -209,7 +211,17 @@ export function spellRecipeProblems({ effects, values } = {}) {
       if (!Array.isArray(spec.untimed) || !spec.untimed.length) out.push(`${label}.untimed is a non-empty list of condition keys`);
       else for (const key of spec.untimed) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.untimed names "${key}", which is no condition key`);
     }
-    for (const key of ["pick", "pickOption"]) if (spec[key] !== undefined && typeof spec[key] !== "string") out.push(`${label}.${key} is a string`);
+    for (const key of ["pick", "pickOption", "appliesToRoll"]) if (spec[key] !== undefined && typeof spec[key] !== "string") out.push(`${label}.${key} is a string`);
+    // What a part of a record narrows on, in words of lib's own tables: a definition id or a kw: capability, an attack kind, a switch.
+    if (!inTable(EFFECT_MODES, spec.mode)) out.push(`${label}.mode "${spec.mode}" is not a combination mode`);
+    for (const key of ["ref", "refs", "ifHas"]) {
+      const named = key === "ref" ? (spec.ref === undefined ? undefined : [spec.ref]) : spec[key];
+      if (named !== undefined && !(Array.isArray(named) && named.length && named.every((t) => typeof t === "string" && t))) out.push(`${label}.${key} is ${key === "ref" ? "a token" : "a non-empty list of tokens"} (a definition id or a kw: capability)`);
+    }
+    if (spec.attackKinds !== undefined && !(Array.isArray(spec.attackKinds) && spec.attackKinds.length && spec.attackKinds.every((k) => ATTACK_KINDS.includes(k)))) out.push(`${label}.attackKinds is a non-empty list of ${ATTACK_KINDS.join(", ")}`);
+    for (const key of ["ownSave", "pickKind"]) if (spec[key] !== undefined && spec[key] !== true) out.push(`${label}.${key} is true or absent`);
+    if (spec.ownSave === true && !(spec.type === "modifier" && spec.target === "save")) out.push(`${label}.ownSave marks a modifier on a save and the row is not one`);
+    if (spec.pickKind === true && !(Array.isArray(spec.vsKinds) && spec.vsKinds.length)) out.push(`${label}.pickKind offers the row's vsKinds and the row names none`);
     if (each !== undefined) eachProblems(spec, each, label, out);
     if (spec.pickOption !== undefined && !spec.pick) out.push(`${label}.pickOption names an option of a pick group and the row names no pick`);
     if (!inTable(EFFECT_RECUR_MOMENTS, spec.recurAt)) out.push(`${label}.recurAt "${spec.recurAt}" is not a recurrence moment`);

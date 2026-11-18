@@ -322,6 +322,14 @@ t("a size word reads onto a size key, and a word no size answers to is a miss", 
   assert.deepEqual(miss.unread, ["exemptSizeFrom"]);
 });
 
+t("a size word at or below which a target is exempt reads onto a size key like the floor does", () => {
+  const spec = { type: "grants", onMiss: "blank", from: { into: "exemptSizeOver", pattern: "must\\s*be\\s*([\\w-]+)\\s*or\\s*smaller" } };
+  assert.equal(materializeEffects([spec], paras("The recipient must be man-sized or smaller."))[0].exemptSizeOver, "man");
+  const [miss] = materializeEffects([spec], paras("The recipient must be vast or smaller."));
+  assert.equal(miss.exemptSizeOver, undefined);
+  assert.deepEqual(miss.unread, ["exemptSizeOver"]);
+});
+
 t("a rounds formula is read like a roll, and left unset with its path listed when the page prints none", () => {
   const spec = { type: "conditionGrant", lasts: "rounds", onMiss: "blank", from: { into: "rounds", pattern: "fades\\s*after\\s*(\\d*d\\d+(?:\\s*[+-]\\s*\\d+)?)\\s*rounds" } };
   assert.equal(materializeEffects([spec], paras("The glow fades after 2d4 + 1 rounds."))[0].rounds, "2d4+1");
