@@ -158,14 +158,13 @@ try {
     await sleep(900);
     const c = r.ok ? card(r.id) : null;
     const chip = c?.querySelector(".acks-extras-research__ph .acks-tag:not(.is-pow)");
-    return { r: { ok: r.ok, warn: r.warn }, id: r.id, n: projects().length, p: projects()[0], card: !!c, chipTone: chip?.className, chipText: chip?.textContent.trim(), chipTip: chip?.getAttribute("data-tooltip-text") ?? "", finish: c?.querySelector(".acks-extras-research__foot button")?.disabled, why: c?.querySelector(".acks-extras-research__verdict")?.textContent.trim(), header: !!root().querySelector(".market-class-line .fa-flask") };`, ids);
+    return { r: { ok: r.ok, warn: r.warn }, id: r.id, n: projects().length, p: projects()[0], card: !!c, chipTone: chip?.className, chipText: chip?.textContent.trim(), chipTip: chip?.getAttribute("data-tooltip-text") ?? "", finish: c?.querySelector(".acks-extras-research__foot .acks-btn--roll")?.disabled, why: c?.querySelector(".acks-extras-research__verdict")?.textContent.trim(), header: !!root().querySelector(".market-class-line .fa-flask") };`, ids);
   check("the Judge's create answered ok with no warning and the record holds one open project, stamped with the day", p1.r.ok && !p1.r.warn && p1.n === 1 && p1.p.status === "open" && Number.isInteger(p1.p.opened) && p1.p.researcher === ids.pell && p1.p.costs.research === 40, p1);
   check("the project's card is drawn, its facility chip is unread (no words, a tooltip with the page) and Finish is disabled with its reason as text", p1.card && !/is-(ok|warn)/.test(p1.chipTone) && p1.chipText === "" && /\bRR\b/.test(p1.chipTip) && p1.finish === true && p1.why.length > 0, { chipTone: p1.chipTone, chipText: p1.chipText, chipTip: p1.chipTip, finish: p1.finish, why: p1.why });
   check("the header counts the open project", p1.header === true);
   const IDA = p1.id;
 
   section("4. a Player starts a project through the relay, and is refused what is not theirs");
-  const hw0 = await gm.eval(`__rp.hero`);
   const r1 = await run(player, U, `
     const a = place();
     const own = await research().create(a, { kind: "spell", subject: { name: "QA Scroll" }, researcher: ID.hero });
@@ -216,6 +215,8 @@ try {
     await sleep(600);
     return { ok: warned.ok, warn: warned.warn, written, gate, open: projects().filter((p) => p.status === "open").length };`, ids);
   check("the same project from the Judge's seat is written with a warning, and the gate says so for a Judge", j2.ok === true && j2.warn === "facility" && j2.written === 3 && j2.gate.ok === true && j2.gate.warn === "facility", j2);
+  // Step 5 pins the hero's class level, which is the walk's own write; the count starts after it.
+  const hw0 = await gm.eval(`__rp.hero`);
   section("6. the controls: the Judge's fields, a Player's assistant and close");
   const c1 = await run(gm, U, `
     const c = card(${JSON.stringify(IDA)});
