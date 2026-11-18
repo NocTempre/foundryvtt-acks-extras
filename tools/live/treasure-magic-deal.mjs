@@ -41,7 +41,8 @@ const P = {
   /**
    * The registries, and a census of every treasure type in both styles under a
    * floor die: each magic placeholder's match (`startFor`) counted by outcome,
-   * and the first type per style with a placeholder that names a list.
+   * and the first type per style with a placeholder that names a list by its
+   * noun (a type-list placeholder's type only where none does).
    */
   probe: async ({ mod }) => {
     const T = await import(`${mod}/lib/tables.mjs`);
@@ -52,6 +53,7 @@ const P = {
     const lists = { classic: starts?.classic?.length ?? 0, heroic: starts?.heroic?.length ?? 0 };
     const census = { classic: { placeholders: 0, matched: 0, reasons: {} }, heroic: { placeholders: 0, matched: 0, reasons: {} } };
     const letter = { classic: null, heroic: null };
+    const fallback = { classic: null, heroic: null };
     if (!T.hasDoc(B.TREASURE_DOC_ID)) return { treasure: false, lists, census, letter, tried: 0 };
     const keys = Object.keys(T.getDoc(B.TREASURE_DOC_ID).tables?.typeClassic ?? {});
     const orig = CONFIG.Dice.randomUniform;
@@ -64,10 +66,11 @@ const P = {
             if (x.pool !== "magic" || !("tableRef" in x)) continue;
             const c = census[style];
             c.placeholders++;
-            const m = Mg.startFor(x.tableRef, style, starts);
+            const m = Mg.startFor(x.tableRef, style, starts, { typeList: x.typeList === true });
             if (m.ok) {
               c.matched++;
-              letter[style] ??= key;
+              if (!x.typeList) letter[style] ??= key;
+              else fallback[style] ??= key;
             } else c.reasons[m.reason] = (c.reasons[m.reason] ?? 0) + 1;
           }
         }
@@ -75,7 +78,7 @@ const P = {
     } finally {
       CONFIG.Dice.randomUniform = orig;
     }
-    return { treasure: true, lists, census, letter, tried: keys.length };
+    return { treasure: true, lists, census, letter: { classic: letter.classic ?? fallback.classic, heroic: letter.heroic ?? fallback.heroic }, tried: keys.length };
   },
   /** Deal one letter into a fresh pot staged By hand, the die at its floor; read back what the pot holds. */
   deal: async ({ mod, letter, style, noMagic }) => {
