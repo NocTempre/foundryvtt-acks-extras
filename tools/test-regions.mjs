@@ -5,7 +5,7 @@
  * no world.
  */
 import assert from "node:assert/strict";
-import { regionArea, regionRings, regionsAt, regionsUnder } from "../scripts/lib/regions.mjs";
+import { behaviorsUnder, regionArea, regionRings, regionsAt, regionsUnder } from "../scripts/lib/regions.mjs";
 import { containmentPoints, mockRegion, rect, standOnRegions } from "./region-fixture.mjs";
 
 let passed = 0;
@@ -128,6 +128,23 @@ test("regionsUnder keeps only enabled behaviors of the type", () => {
   const token = { parent: scene, regions: new Set([trap, off, on]) };
   assert.deepEqual(ids(regionsUnder(token, ZONE)), ["on"]);
   assert.deepEqual(ids(regionsUnder(token, OTHER)), ["trap"]);
+});
+
+test("behaviorsUnder answers every enabled behavior of the type, in region then behavior order", () => {
+  const twice = mockRegion({ id: "twice", rings: [rect(0, 0, 10, 10)], behaviors: [behavior(OTHER), behavior(ZONE, true), behavior(OTHER), behavior(ZONE)] });
+  const once = mockRegion({ id: "once", rings: [rect(0, 0, 10, 10)], behaviors: [behavior(OTHER)] });
+  const off = mockRegion({ id: "off", rings: [rect(0, 0, 10, 10)], behaviors: [behavior(OTHER, true)] });
+  const away = mockRegion({ id: "away", rings: [rect(500, 0, 10, 10)], behaviors: [behavior(OTHER)] });
+  const scene = sceneOf(twice, once, off, away);
+  const token = { parent: scene, regions: new Set([once, off, twice]) };
+  const found = behaviorsUnder(token, OTHER);
+  assert.deepEqual(ids(found), ["twice", "twice", "once"], "a Region carrying two answers twice; a disabled one and one not stood in answer none");
+  assert.equal(found[0].behavior, twice.behaviors[0]);
+  assert.equal(found[1].behavior, twice.behaviors[2], "the Region's own behavior order");
+  assert.equal(found[2].behavior, once.behaviors[0]);
+  assert.deepEqual(ids(regionsUnder(token, OTHER)), ["twice", "once"], "regionsUnder keeps its once-per-Region answer");
+  assert.deepEqual(behaviorsUnder({ parent: scene, regions: new Set() }, OTHER), []);
+  assert.deepEqual(behaviorsUnder(null, OTHER), []);
 });
 
 test("regionsUnder does not read the geometry: membership is whatever core recorded", () => {

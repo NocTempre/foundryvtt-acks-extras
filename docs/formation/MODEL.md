@@ -961,6 +961,22 @@ The **sequence** is the sequence of play's, not §7's own order:
    can be a part of a rank), with its own secret die.
 3. **The party walks in**, rank by rank, each with its own secret die.
 
+**Traps stack.** One move can meet any number of armed traps. `livePlacements`
+lists them in the order the party meets them: every armed trap wall the path
+crosses, nearest first, then every armed trap-zone behavior under the token
+(`behaviorsUnder`, one per behavior, so one region carrying two trap behaviors
+counts twice), in the scene's region order. The sweep runs once, against every
+trap in reach and every trap in the list. Then each trap resolves in turn with
+its own card, its own search rows and its own pole-and-ranks probe from the
+front. A wall that halts the party (found by the sweep, or sprung) ends the
+walk there, since the party is pulled back short of its line and reaches
+nothing beyond it. A zone halts nothing, so every zone under the party
+resolves even after one springs. `trapStack`, `stackStops` and
+`walkTrapStack` (`trap-rules.mjs`) hold the order and the stop rule;
+`runTrapCheck` answers `{outcome, results}`, its `outcome` the first trap's. A
+trap in the list the walk never reached that the sweep found is reported on a
+sweep card of its own.
+
 **The figures are imported and each says what happens without it.** They are
 keys of the `formation` document, read through `trapFigures` and `pitFigures`
 (`trap-rules.mjs`): `searchReachFeet` and `poleSearchReachFeet` (a window each

@@ -9,7 +9,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { centreOffset, tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { findZone } from "./zones.mjs";
-import { regionDistance } from "../lib/regions.mjs";
+import { behaviorsUnder, regionDistance } from "../lib/regions.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import {
   CRUDE,
@@ -26,8 +26,10 @@ import {
   repeatLocked,
   searcherReachFeet,
   trapFigures,
+  trapStack,
   triggerFires,
   victimsOf,
+  walkTrapStack,
 } from "./trap-rules.mjs";
 
 /**
@@ -184,26 +186,45 @@ export async function trapFor(placement) {
 }
 
 /**
- * The placement the party is standing in or has just crossed, whichever is
- * live; a crossed wall wins over a region, as the line was met first.
+ * Every armed trap the party meets on a move, in the order it meets them: each
+ * trapped wall crossed along the path, by distance from `from`, then each armed
+ * Trap Zone behavior on every region the party stands in (a region carrying
+ * two trap behaviors answers twice), in the scene's region order. Traps stack:
+ * one placement does not hide another (`trapStack` has the order).
+ *
+ * @returns {Promise<Array<{placement: Placement, haltAt: object|null, approach: object|null}>>}
+ *   `haltAt` is where a wall's line was met and `approach` where the party
+ *   came from, both in centre coordinates, so a halt pulls up on the near side
+ *   of the line; a zone has neither
  */
-export async function livePlacement(formation, { from = null, to = null } = {}) {
+export async function livePlacements(formation, { from = null, to = null } = {}) {
   const token = getPartyToken(formation);
+  const walls = [];
   if (token && from && to) {
     // `from`/`to` arrive as the token's top-left corner; what meets a tripwire
     // is its centre, so the path is shifted onto it before anything is
     // intersected, and `haltParty` shifts the crossing back.
     const path = [from, to].map((p) => tokenCentre(token, token.parent, p));
-    const crossed = trapWallsCrossed(token.parent, path[0], path[1]).find((h) => h.trap.state === STATES.armed);
-    // `approach` is where the party came from, in centre coordinates, so the
-    // halt pulls up on the near side of the line.
-    if (crossed) return { placement: wallPlacement(crossed.wall), haltAt: crossed.at, approach: path[0] };
+    for (const hit of trapWallsCrossed(token.parent, path[0], path[1])) {
+      if (hit.trap.state !== STATES.armed) continue;
+      walls.push({ placement: wallPlacement(hit.wall), haltAt: hit.at, approach: path[0], t: hit.at.t });
+    }
   }
-  const zone = findTrapZone(formation);
-  if (zone && zone.behavior.system.state === STATES.armed) {
-    return { placement: zonePlacement(zone), haltAt: null, approach: null };
-  }
-  return { placement: null, haltAt: null, approach: null };
+  const zones = token
+    ? behaviorsUnder(token, TRAP_ZONE_TYPE)
+        .filter(({ behavior }) => behavior.system.state === STATES.armed)
+        .map(zonePlacement)
+    : [];
+  return trapStack({ walls, zones });
+}
+
+/**
+ * The first live placement the party meets, the earliest crossed wall before
+ * any region, or none; `livePlacements` has the rest.
+ */
+export async function livePlacement(formation, opts = {}) {
+  const [first] = await livePlacements(formation, opts);
+  return first ?? { placement: null, haltAt: null, approach: null };
 }
 
 /* -------------------------------------------- */
@@ -350,15 +371,20 @@ const memberOf = (formation, actorId) => formation?.members?.find((m) => m?.acto
  * @param {object} [opts.from] the move's start, token top-left
  * @param {object} [opts.to] the move's end
  * @param {boolean} [opts.hurried] combat speed — no automatic searching
- * @param {Placement} [opts.include] a placement to sweep whatever the distance
- *   says: the wall the party crossed is met however far the step carried them
- *   past it.
+ * @param {Placement|Placement[]} [opts.include] the placements to sweep whatever
+ *   the distance says: every wall the party crossed is met however far the step
+ *   carried them past it, and every zone it stands in.
  * @returns {Promise<{found: Set<string>, rows: object[], rolls: Roll[],
- *   reachImported: boolean}>} `reachImported` is false when searchers stood in
- *   the party and no search reach is imported
+ *   rowsBy: Map<string, object[]>, rollsBy: Map<string, Roll[]>,
+ *   reachImported: boolean}>} `rows` and `rolls` are everything thrown;
+ *   `rowsBy` and `rollsBy` split them by the placement's uuid, so a card
+ *   shows only its own trap's throws. `reachImported` is false when searchers
+ *   stood in the party and no search reach is imported
  */
 export async function sweepForTraps(formation, { from = null, to = null, hurried = false, include = null } = {}) {
-  const empty = { found: new Set(), rows: [], rolls: [], reachImported: true };
+  const empty = { found: new Set(), rows: [], rolls: [], rowsBy: new Map(), rollsBy: new Map(), reachImported: true };
+  const included = [include ?? []].flat();
+  const includedUuids = new Set(included.map((p) => p.uuid));
   if (hurried) return empty;
 
   const { order, rankFeet } = await laidOrder(formation);
@@ -379,26 +405,34 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   const candidates = allPlacements(path.scene)
     .map((p) => ({ ...p, distanceFeet: placementDistanceFeet(p, path) }))
     .filter((p) => p.state === STATES.armed && !p.known && p.distanceFeet <= reach);
-  if (include && include.state === STATES.armed && !include.known && !candidates.some((p) => p.uuid === include.uuid)) {
-    candidates.push({ ...include, distanceFeet: 0 });
+  for (const own of included) {
+    if (own.state === STATES.armed && !own.known && !candidates.some((p) => p.uuid === own.uuid)) {
+      candidates.push({ ...own, distanceFeet: 0 });
+    }
   }
   if (!candidates.length) return { ...empty, reachImported };
 
   const found = new Set();
   const rows = [];
   const rolls = [];
+  const rowsBy = new Map();
+  const rollsBy = new Map();
 
   for (const placement of candidates) {
     const trap = await trapFor(placement);
     const crude = !!trap?.system?.crude;
     let lock = placement.searchLock;
     let spotted = false;
+    const ownRows = [];
+    const ownRolls = [];
+    rowsBy.set(placement.uuid, ownRows);
+    rollsBy.set(placement.uuid, ownRolls);
 
     for (const row of searchers) {
       if (spotted) break;
-      // A null reach is the not-imported case: the crossed placement alone.
+      // A null reach is the not-imported case: the crossed placements alone.
       const own = reachOf(row);
-      if (own === null ? placement.uuid !== include?.uuid : placement.distanceFeet > own) continue;
+      if (own === null ? !includedUuids.has(placement.uuid) : placement.distanceFeet > own) continue;
       const actor = memberActorById(formation, row.actorId);
       const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
       if (!check) continue; // no Searching skill: no automatic search to make
@@ -409,20 +443,23 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
       const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
       const roll = await new Roll(formula).evaluate();
       rolls.push(roll);
+      ownRolls.push(roll);
       const success = roll.total >= check.target;
       if (success) spotted = true;
       else lock = lockAfterFailure(lock, actor.id, level);
 
       const breakdown = (check.parts ?? []).map(partText);
       if (crude) breakdown.push(`+${CRUDE.find} ${loc("partCrude")}`);
-      rows.push({
+      const thrown = {
         name: actor.name,
         total: roll.total,
         target: check.target,
         detail: breakdown.length ? `${check.source}; ${breakdown.join(", ")}` : check.source,
         outcome: game.i18n.localize(`${LANG_PREFIX}.${success ? "spotted" : "sawNothing"}`),
         emphasis: success ? "success" : "failure",
-      });
+      };
+      rows.push(thrown);
+      ownRows.push(thrown);
     }
 
     if (spotted) {
@@ -433,43 +470,93 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
     }
   }
 
-  return { found, rows, rolls, reachImported };
+  return { found, rows, rolls, rowsBy, rollsBy, reachImported };
 }
 
 /**
- * The party crosses a trap zone: search, then probe, then walk into it.
+ * The party crosses its traps: search, then each trap in the order it is met,
+ * probe and walk into it.
  *
- * Called when the party token has moved. Answers null when there is nothing to
- * resolve: no zone, or a zone whose trap is already spotted, disarmed or spent.
+ * Called when the party token has moved. Traps stack: every armed wall crossed
+ * and every armed Trap Zone behavior the party stands in resolves, each with
+ * its own card and its own probe sequence (`livePlacements`, `walkTrapStack`).
+ * The search sweeps once for all of them, and a trap found off the line of
+ * march is reported on one card of its own. A wall the party found or sprang
+ * halts it, and nothing beyond that wall is reached; a zone halts nothing.
  *
- * @returns {Promise<{outcome: string, victims?: object[]}|null>}
+ * @returns {Promise<{outcome: string|null, results: Array<{outcome: string,
+ *   victims?: object[]}>}>} `outcome` is the first trap's, or "found" when only
+ *   a trap off the line turned up, or null with nothing to resolve
  */
 export async function runTrapCheck(formation, { from = null, to = null } = {}) {
-  const { placement, haltAt, approach } = await livePlacement(formation, { from, to });
+  const stack = await livePlacements(formation, { from, to });
+  const nothing = { outcome: null, results: [] };
 
   const { order, rankFeet } = await laidOrder(formation);
-  if (!order.length) return null;
+  if (!order.length) return nothing;
 
   // At combat speed the party loses its pole and its hasty searching (RR p. 263).
   const hurried = isHurried(formation);
-  const rolls = [];
   // The figures are the imported ones (RR ch. 6, Searching and Traps and
   // Trapbreaking; JJ ch. 8 for spikes); a card adds no line for one that is absent.
   const figures = trapFigures();
 
   /* (a) Anyone searching the ground throws first, against every hidden trap in reach. */
-  const search = await sweepForTraps(formation, { from, to, hurried, include: placement });
-  rolls.push(...search.rolls);
-  const crossedFound = !!placement && search.found.has(placement.uuid);
+  const search = await sweepForTraps(formation, { from, to, hurried, include: stack.map((entry) => entry.placement) });
 
-  if (crossedFound) {
+  // Traps the sweep found that the march does not meet are reported on one card of their own.
+  const report = async (uuids) => {
+    const found = uuids.filter((uuid) => search.found.has(uuid));
+    if (!found.length) return 0;
+    await whisper(
+      renderRollCard({
+        title: loc("sweepTitle"),
+        subtitle: formation.name,
+        note: loc("sweepNote", { count: found.length }),
+        sections: [{ rows: uuids.flatMap((uuid) => search.rowsBy.get(uuid) ?? []) }],
+      }),
+      formation,
+      uuids.flatMap((uuid) => search.rollsBy.get(uuid) ?? []),
+    );
+    return found.length;
+  };
+  const stacked = new Set(stack.map((entry) => entry.placement.uuid));
+  const offLine = await report([...search.rowsBy.keys()].filter((uuid) => !stacked.has(uuid)));
+
+  /* (b) Each trap in the order the party meets it. */
+  const reached = new Set();
+  const results = await walkTrapStack(stack, (entry) => {
+    reached.add(entry.placement.uuid);
+    return resolveStacked(formation, entry, {
+      rows: search.rowsBy.get(entry.placement.uuid) ?? [],
+      rolls: [...(search.rollsBy.get(entry.placement.uuid) ?? [])],
+      found: search.found.has(entry.placement.uuid),
+      hurried,
+      figures,
+      order,
+      rankFeet,
+    });
+  });
+
+  // A trap the sweep found beyond a wall that stopped the party was never walked to: reported as off the line.
+  const unreached = await report([...stacked].filter((uuid) => !reached.has(uuid)));
+  return { outcome: results[0]?.outcome ?? (offLine || unreached ? "found" : null), results };
+}
+
+/**
+ * One trap of the stack, resolved: found by the sweep, or crossed, or sprung.
+ * Posts its own card. Answers null for a placement whose trap document is
+ * gone.
+ */
+async function resolveStacked(formation, { placement, haltAt, approach }, { rows, rolls, found, hurried, figures, order, rankFeet }) {
+  if (found) {
     await haltParty(formation, haltAt, approach);
     await whisper(
       renderRollCard({
         title: loc("foundTitle"),
         subtitle: formation.name,
         note: loc("foundNote"),
-        sections: [{ rows: search.rows }],
+        sections: [{ rows }],
       }),
       formation,
       rolls,
@@ -477,21 +564,6 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
     return { outcome: "found" };
   }
 
-  // A trap off the line of march turned up: reported alone, and nothing further resolves.
-  if (search.found.size) {
-    await whisper(
-      renderRollCard({
-        title: loc("sweepTitle"),
-        subtitle: formation.name,
-        note: loc("sweepNote", { count: search.found.size }),
-        sections: [{ rows: search.rows }],
-      }),
-      formation,
-      rolls,
-    );
-  }
-
-  if (!placement) return search.found.size ? { outcome: "found" } : null;
   const trap = await trapFor(placement);
   if (!trap) return null;
   const cfg = trap.system;
@@ -505,7 +577,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       renderRollCard({
         title: loc("crossedTitle"),
         subtitle: formation.name,
-        sections: search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : [],
+        sections: rows.length ? [{ title: loc("searchSection"), rows }] : [],
       }),
       formation,
       rolls,
@@ -546,7 +618,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
         subtitle: formation.name,
         note: hurried ? loc("hurriedNote") : loc("crossedNote"),
         sections: [
-          ...(search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : []),
+          ...(rows.length ? [{ title: loc("searchSection"), rows }] : []),
           { title: loc("probeSection"), rows: probeRows },
         ],
       }),
@@ -561,7 +633,7 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
   await haltParty(formation, haltAt, approach);
   return fireTrap(formation, placement, trap, caught, {
     preface: [
-      ...(search.rows.length ? [{ title: loc("searchSection"), rows: search.rows }] : []),
+      ...(rows.length ? [{ title: loc("searchSection"), rows }] : []),
       { title: loc("probeSection"), rows: probeRows },
     ],
     rolls,

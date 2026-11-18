@@ -4,11 +4,12 @@
  * The core Region owns shape, levels, elevation, membership and area; this
  * file only asks it. A module behavior type (a district, an encounter zone, a
  * trap zone) is configuration on a Region, so every question a feature asks
- * about "the zone here" is one of the five below, and none of them computes
+ * about "the zone here" is one of the six below, and none of them computes
  * a Region's geometry that core keeps:
  *
  * - `regionsUnder` — the Regions a token stands in, as core keeps them
  *   (`TokenDocument#regions`, a footprint test that honours levels).
+ * - `behaviorsUnder` — the same Regions' behaviors of a type, every one.
  * - `regionsAt` — the Regions over a point, for a place no token stands on.
  * - `regionRings` — the solid outline of a Region.
  * - `regionDistance` — how far a path lies from a Region, for the trap sweep.
@@ -18,10 +19,11 @@
  * offsets its `grid` shapes claim, read as data, for a feature that keeps one
  * value per cell (the country brush) and enumerates them.
  *
- * Both finders answer `{region, behavior}` pairs in the scene's own region
+ * The finders answer `{region, behavior}` pairs in the scene's own region
  * order, so a caller that takes the first keeps the same "first zone" answer
- * wherever it asks from. A Region carrying two enabled behaviors of the type
- * answers once, with the first.
+ * wherever it asks from. `regionsUnder` and `regionsAt` answer a Region
+ * carrying two enabled behaviors of the type once, with the first;
+ * `behaviorsUnder` answers each.
  *
  * Foundry-free: every call goes through a document passed in.
  */
@@ -53,6 +55,30 @@ export function regionsUnder(token, type) {
     if (!standing.has(region)) continue;
     const behavior = behaviorOf(region, type);
     if (behavior) out.push({ region, behavior });
+  }
+  return out;
+}
+
+/**
+ * Every enabled behavior of `type` on the Regions a token stands in, one pair
+ * per behavior: `regionsUnder` without its once-per-Region rule, for a feature
+ * whose behaviors stack (each trap in a Region is its own). Ordered by the
+ * scene's Regions and then by each Region's own behaviors; membership is
+ * `regionsUnder`'s.
+ *
+ * @param {TokenDocument} token a token placed on a scene
+ * @param {string} type the region behavior sub-type to look for
+ * @returns {Array<{region: RegionDocument, behavior: RegionBehavior}>}
+ */
+export function behaviorsUnder(token, type) {
+  const standing = token?.regions;
+  if (!standing?.size) return [];
+  const out = [];
+  for (const region of token.parent?.regions ?? []) {
+    if (!standing.has(region)) continue;
+    for (const behavior of region.behaviors ?? []) {
+      if (behavior.type === type && !behavior.disabled) out.push({ region, behavior });
+    }
   }
   return out;
 }

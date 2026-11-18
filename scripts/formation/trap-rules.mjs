@@ -341,6 +341,64 @@ export function triggerFires(die, triggerOn) {
 }
 
 /* -------------------------------------------- */
+/*  Many at once                                */
+/* -------------------------------------------- */
+
+/**
+ * The traps one move meets, in the order the party meets them. Walls, traps
+ * crossed on the way, come first and in the order of distance along the path
+ * (`t`, the crossing's fraction of the step, ties keeping the scene's order);
+ * then the zones the party ends in, in the order given (the scene's region
+ * order, then each region's behaviors). A wall carries the point it halts the
+ * party at and the point they came from; a zone halts nothing.
+ *
+ * @param {object} o
+ * @param {Array<{placement: object, haltAt: object, approach: object, t: number}>} [o.walls]
+ * @param {object[]} [o.zones] zone placements
+ * @returns {Array<{placement: object, haltAt: object|null, approach: object|null}>}
+ */
+export function trapStack({ walls = [], zones = [] } = {}) {
+  const crossed = walls
+    .map((wall, index) => ({ wall, index }))
+    .sort((a, b) => (a.wall.t ?? 0) - (b.wall.t ?? 0) || a.index - b.index)
+    .map(({ wall }) => ({ placement: wall.placement, haltAt: wall.haltAt ?? null, approach: wall.approach ?? null }));
+  return [...crossed, ...zones.map((placement) => ({ placement, haltAt: null, approach: null }))];
+}
+
+/**
+ * Does the party stop at this trap? A wall stops it when the trap was found
+ * (the party never crosses the line) or sprang (the halt pulls the party back
+ * short of it); a wall crossed unsprung, or left to the Judge's hand, lets it
+ * walk on. A zone never stops it: every zone under the party resolves.
+ *
+ * @param {{outcome?: string}|null} result what the trap's resolution answered
+ * @param {{kind: string}} placement
+ */
+export function stackStops(result, placement) {
+  return placement?.kind === "wall" && (result?.outcome === "found" || result?.outcome === "sprung");
+}
+
+/**
+ * Resolve a stack front to back. Each entry is handed to `resolveOne`, whose
+ * answer joins the results unless it is null (a trap that names nothing to
+ * resolve); the walk ends at the first entry `stackStops` says stops the
+ * party, and what lies beyond it is never reached.
+ *
+ * @param {Array<{placement: object}>} stack `trapStack`'s answer
+ * @param {(entry: object) => Promise<{outcome: string}|null>} resolveOne
+ * @returns {Promise<object[]>} the answers, in the order the party met them
+ */
+export async function walkTrapStack(stack, resolveOne) {
+  const results = [];
+  for (const entry of stack) {
+    const result = await resolveOne(entry);
+    if (result) results.push(result);
+    if (stackStops(result, entry.placement)) break;
+  }
+  return results;
+}
+
+/* -------------------------------------------- */
 /*  Disabling it                                */
 /* -------------------------------------------- */
 
