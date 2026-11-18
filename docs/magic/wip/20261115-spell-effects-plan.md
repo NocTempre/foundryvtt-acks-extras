@@ -1373,6 +1373,183 @@ rest before any reader can be walked.
 5. Are granted throws shown on the module's character sheet only? Default:
    yes.
 
+## S3 rulings (session 1b's architect, 2026-11-17)
+
+Ruled against `topic/spell-effects` at `7a3329ad`, with S3d's lib part in
+flight. Each keeps its rejected alternative and counter. Tests use invented
+spells only. Already built and not rebuilt: picks (`cast-rows.mjs`
+`pickGroups`), the schema's `target.count`, `target.hdCap`,
+`save.exemptBelowHd`, a row's `value`, `max` and `roll`, `recur` in the
+vocabulary and editor (read by nothing), range data and `areaExtent`, lib's
+turn lifting, ruling 16's per-kind editor list.
+
+83. **Range is measured per target, centre to centre** (extends ruling 7).
+    Pure `cast-range.mjs` `rangeFeet(range, level)` → `{value, parts}`
+    (distance and touchOrDistance read `value`; distancePerLevel times the
+    caster level; self, touch, unlimited, special and blank → null, no
+    verdict); lib `distance-units.mjs` `tokenGapFeet(a, b)` through core's
+    `grid.measurePath` and `feetPerUnit`. A creature target must be within
+    range; an area target within range plus `areaExtent`'s reach; a blank
+    extent, no caster token or another scene gives no verdict and a dialog
+    note. `VERDICT.outOfRange` blocks a Player and warns a Judge, its tooltip
+    naming targets, distances and the range's parts. The relay does not
+    re-measure. *Rejected:* a pairwise spread check on an area (templates are
+    later); measuring on the relay. *Counter (medium):* centre to centre
+    overstates the gap to a large token (owner question C).
+84. **A target count read from the import is a cap**: `VERDICT.tooManyTargets`;
+    a blank count, none. *Rejected:* trimming. *Counter (low):* the verdict
+    says how many are over.
+85. **A spell's throw takes no range band** (ruling 37's counter): the spell
+    prints one range; core's bands are a weapon's. *Rejected:* bands invented
+    from one figure. *Counter (medium-strong):* one spell beyond the ten
+    states its throw takes no range adjustment, which can be read as implying
+    others do (owner question A).
+86. **A throw's delivery is authored from the page; a page naming no kind
+    gives missile.** *Rejected:* melee (RR ch. 5's melee throw is touch's).
+    *Counter (medium):* owner question B.
+87. **A pick option is one or more rows.** `effectField` `pickOption`; rows
+    sharing `(pick, pickOption)` are one option; a row with `pick` and no
+    `pickOption` is its own option keyed by its row key (existing groups keep
+    working). The label joins `describeSpellEffect(row).text`; the legend is a
+    lang string; `pick` is offered on every kind. *Rejected:* one row per
+    option. *Counter (low):* a mistyped token splits an option.
+88. **Instances.** `value` is a damage or heal row's instance count, capped by
+    `max`; never authored means one; `unread` means blank (no roll, the page
+    reference). Pure `cast-instances.mjs` `instanceCount(row, level)` →
+    `{value, parts}`, `scaledRoll(formula, count)` (one NdM term multiplies
+    its dice, any other formula repeats), `allocate(count, targetKeys)`. A
+    no-throw row hands lib a derived `{...row, roll}` (one roll per cast,
+    ruling 28). A throw row's count is a number of throws split among targets
+    in the dialog, round-robin by default, as `card.allocation[rowKey][tKey]`;
+    over-allocation is `tooManyInstances`; `severalTargets` fires only for a
+    count of one or blank. One entry per target and row with `instances:
+    [{throw, rolled, critical, state}]`; `amountOf` runs `amountAfter` per hit
+    and sums; one `adjustHp`, one Undo. The relay recomputes the count and
+    checks each instance against the row's bounds. *Supersedes ruling 41 in
+    part* (2026-11-16) on new evidence: two of S3's rows print several throws
+    per cast split among targets, and no S2a row did. *Rejected:* an entry id
+    per instance; one throw per target. *Counter (medium):* a page splitting
+    by creature needs another default; the split is editable.
+89. **The cast owns the seat's targets around each core throw**:
+    `setTargets([id], {mode: "replace"})` before each `makeAttackThrow`, the
+    prior targets restored in `finally`; a token off the viewed scene leaves
+    the entry at Throw with a notice; `pressThrow` narrows the same way
+    (finding F2). *Rejected:* core's `buildAttackThrow` (skips its dialog and
+    card); patching core. *Counter (medium):* other seats see targets flicker.
+90. **A count per breakpoint is read from the page, increments included**:
+    `ladderFrom` `accumulate`; a locator may set `articles: true`, reading an
+    article as one inside that locator alone. *Rejected:* articles in
+    `WORD_NUMERALS` globally; a literal step in a locator. *Counter (medium):*
+    the article reading is the module's grammar, shipped as language.
+91. **Gates.** Pure `cast-gates.mjs` `targetGate({actor, extras, row, level})`
+    → `{affected, noSave, why: {key, parts}}`: over `hdCap` (HD from
+    `hitDiceOrLevel`) unaffected on every row; below `exemptBelowHd` no save,
+    applied as a failure; row field `exemptSizeFrom` (locatable `sizeKey` to a
+    monsters `SIZES` key) exempts at or above that size from that row only;
+    `sizeRank` moves to lib `actor-read.mjs`. State `exempt` with a tooltip
+    naming the figure, threshold and page; a blank threshold gates nothing;
+    the relay recomputes and refuses an exempt entry. *Rejected:* dropping
+    exempt targets from the card. *Counter (low):* the comparator is read per
+    page (owner questions D, H).
+92. **The rest of the row editor.** `TYPE_FIELDS`: `max` on damage and heal;
+    `pick`, `pickOption` on every line kind; `recurAt`, `recurSave`,
+    `recurTarget`, `exemptSizeFrom` on damage and conditionGrant; `rounds` on
+    conditionGrant; `stacksWith`, `provides` on modifier; all in
+    `SPELL_ONLY_FIELDS` and `TIPPED_FIELDS`. Overview edits `hdCap` and
+    `exemptBelowHd` (blank: the page reference alone). The Mechanics list
+    marks origin and lists blank fields with the page reference (finding F5).
+    *Rejected:* leaving them to 1d. *Counter (low):* a wider editor.
+93. **Setting things alight is a new spell kind `ignite`** (lib `vocab.mjs`
+    `EFFECT_TYPES`), a ruling-14 line. *Rejected:* `structural`, a note,
+    `light` (formation would act on it). *Counter (medium):* a new kind;
+    later levels' need is inferred.
+94. **Turn handling stays lib's.** `status-effects.mjs` fires
+    `acksExtras.turnBegan(combat, combatantId)` and `acksExtras.turnEnded`
+    (not on a re-sort), on the primary GM, with its handling of rounds opened
+    before initiative. Lib lifts a record carrying flag `turnLife {combatId,
+    combatantId, edge, count, seen}` by id at its edge once `seen` reaches
+    `count`. *Qualifies the cost line* of magic DECISIONS 2026-11-11 (the
+    clock math) on new evidence: S3's rows last a next turn or a few rounds
+    inside one fight, which the clock never reaches. *Rejected:* magic on
+    `combatTurnChange` (a second owner). *Counter (medium):* a write per turn.
+95. **`lasts` gains `nextTurn` and `rounds`** (a locatable dice `rounds`). In
+    a started fight with the bearer a combatant, `nextTurn` writes `turnLife
+    {edge: "end", count: 1}` and `rounds` `{edge: "start", count: rolled}`;
+    each also carries `startTime` and the flag clock, and the first end
+    deletes it. A blank formula leaves it untimed with its page reference.
+    *Rejected:* counting the combat's rounds (initiative is rerolled each
+    round). *Counter (medium):* the end edge is not printed (owner question F).
+96. **Recurring rows.** `recur` gains `laterRounds`; `eachRound` resolves at
+    the cast, then recurs. Fields `recurAt` (casterTurn, bearerStart,
+    bearerEnd), `recurSave` (blank, `row`: a pass ends that bearer's record of
+    the row, `cast`: a pass ends the cast), `recurTarget` (blank, `pick`). A
+    casterTurn row recurs while the caster's record stands, so `cast-spell`'s
+    `timed` test counts it; a bearer row while the bearer holds a record of
+    the cast, the row writing a status-free anchor where none is written.
+    *Rejected:* an instant twin plus a recurring row. *Counter (medium):*
+    `recurSave` row against cast is a page reading.
+    **96a (session 1b, from the widen walk).** A casterTurn row with
+    `recurSave: cast` writes the caster's record even on an untimed cast. The
+    walk found the `timed` test did not count it: a cast whose duration parses
+    `special` wrote no record, so its caster-turn rows never prompted and Next
+    round posted nothing. The untimed record has no clock, and the passed
+    cast-wide save (`endCast`) is what ends it. *Rejected:* every casterTurn
+    row (a row with no cast-wide save would leave a record nothing ends);
+    reading the duration as held. *Counter (medium):* an untimed casterTurn
+    row with no cast-wide save still never prompts.
+97. **The recurring prompt is a cast card.** At the hook the primary GM posts
+    a `castCard`-model card through `renderRollCard` with `recurOf {cardId,
+    castId, round, combatId, moment}`, nothing rolled (ruling 11). Presses:
+    Save (`magicCastSave`, the bearer's owners and GMs; a pass ends the row's
+    record, or the held record with a new `HELD_CAUSES` member `saved`; a fail
+    on a damage row rolls and applies in the press), Roll (`magicCastRoll`,
+    the caster's owners and GMs), a pick row through `magicCastApplyTargets`
+    range-checked by ruling 83. The relay requires a GM-authored prompt card
+    and the requester owning the bearer (Save) or caster (Roll), reads level,
+    mode and picks from the cast card. Outside a fight, a Next round press
+    posts the round's prompts; with no GM connected none is posted.
+    *Rejected:* entries on the cast card by round; auto-rolled NPC saves.
+    *Counter (medium):* a card per moment (owner questions E, G).
+98. **The points pool's spend stays deferred** (a ROADMAP row). *Supersedes in
+    part* ruling 25's placement (2026-11-15) on new evidence: no register
+    authors a points tradition, so no printed cost is reachable. *Rejected:* a
+    Judge-typed cost. *Counter (low):* a Judge's points class is spent by hand.
+99. **Caster abilities move to session 1c's opening as slice S3c** (scout,
+    architect, implementer). *Supersedes in part* ruling 26's placement on new
+    evidence: ruling 74 added S3d's three parts to 1b after ruling 26, and
+    ruling 18's scout inventory has not run. *Rejected:* the last slice of 1b.
+    *Counter (medium-strong):* owner word 6 names the abilities; the Judge
+    applies them by hand for one session.
+100. **Every figure S3 adds is `{value, parts}`** (range, count, gates,
+     rounds), so S3c adds an ability as a part. *Counter (low):* unused parts.
+101. **(session 1b) An unread extraordinary mark is undetermined.** Every
+     imported spell damage row reads `extraordinary` null with it `unread`.
+     Quality is three-valued; a band whose coverage depends on quality meets
+     undetermined damage as the judge stage, and as `pending` on the save
+     side. Qualifies ruling 70's quality line, which read null as mundane, so
+     a mundane-only band made a creature immune to every imported spell.
+     *Counter (medium):* more judge entries until the mark is read.
+
+**Findings:** F1 a pick option's label renders an object (S3p); F2 a Throw
+press throws at the presser's targets (ruling 89); F4 `resisting` counts line
+rows, so a spell whose other rows all throw rolls saves for nothing (S3p).
+
+**Owner questions**, with the defaults proceeded on: A no range band on a
+spell's throw; B a throw naming no kind is missile; C range centre to centre;
+D a monster's HD bonus ignored in the gates; E a recurring save is rolled by
+the bearer's owners or a GM, never auto-rolled; F a `rounds` record ends after
+its count of the bearer's turn starts; G a Next round press outside a fight;
+H an HD cap is inclusive.
+
+**Slices**, one `implementer` each, in this order: S3d-1 (lib, ruling 74);
+S3d-2 (importer, monsters) beside S3p (picks and range: 83, 84, 87, F1, F4);
+S3d-3 (magic's amount path) beside S3v (vocabulary, editor, importer,
+register rows for the ten: 90, 92, 93); S3i (instances: 88, 89) beside S3t
+(lib turn hooks: 94); S3g (gates: 91); S3l (record lives: 95); S3r (recurring
+prompts: 96, 97). The walk is `tools/live/magic-cast-widen.mjs` (markers
+`magic/widen-far`, `magic/widen-huge`, `magic/widen-spell-<id>`; its fight is
+created and swept per run).
+
 ## Data shapes
 
 Effect row (`lib/fields.mjs` `effectField`), new keys: `saveEffect`
@@ -2126,3 +2303,239 @@ seated, world relaunched after the pause):
 > "Early rulings for S5"). Commit that on `main` with `acks-commit`, and
 > report. You start no session; the managing session starts the next one
 > from your prompt.
+
+### Results, 1b (2026-11-17)
+
+**Rests on.** Every line of the "Early rulings for session 1b" list held at
+the session's tip but one. Ruling 70 read a null `extraordinary` as mundane,
+and every imported spell damage row reads it null and `unread`. Ruling 101
+qualifies that line: an unread mark is undetermined. The S3 architect's
+rulings 83 to 101 and 96a are under "S3 rulings" above.
+
+**Landed** on `main` from `topic/spell-effects` (rebased, gate green,
+fast-forward to 777e9e13, not pushed). The topic stays open for 1c.
+
+- 87deee21 S3d-1, lib: `lib/defenses.mjs`, `amountAfter`'s defense stage,
+  the judge stage, `saveSpec` `damage` with its `auto` pass, and the weapon
+  Apply in `lib/attack-apply.mjs`.
+- 77980786 S3p: pick options, `cast-range.mjs`, lib `tokenGapFeet`, and the
+  verdicts `outOfRange` and `tooManyTargets` (F1, F4).
+- 3b37b59d S3t: lib's turn hooks and `turnLife`.
+- 87b9ad15 S3d-3: magic's amount path meets the defenses, and a save
+  meets them too.
+- 6cac2c8a S3d-2: resistance's two figures import into the defenses
+  document; the monster scan reads the silver flaw and the susceptibility
+  figures, and the monster sheet edits them.
+- a38fccf2 S3i: instances, throws split among targets, and the cast sets
+  the seat's targets around each throw (F2).
+- 55d8441b S3v: row fields, the vocabulary, the `ignite` kind, the editor,
+  and the ten spells' register rows (cookbook 337 entries).
+- f602c9fc S3g: HD cap, the no-save threshold and size exemption.
+- 981fb457 S3l: `nextTurn` and `rounds` lives.
+- 46e18ce1 S3r: recurring prompts, and the ignite recipient record.
+- 777e9e13 the walk `tools/live/magic-cast-widen.mjs`.
+
+**Fixed on `main` from the walk:**
+- 6163110e: the cast card shows Auto and None in its save column, via lib
+  roll-card `targetText`.
+- d579f9a5: an untimed cast with a caster-turn row that carries a cast-wide
+  save writes its caster record (ruling 96a).
+- d579f9a5: the walks' own defects (thirteen in widen, one in
+  `magic-cast-spell`). The widen setup now imports the defenses table from
+  the seat's book, so the resistant path runs instead of the Judge fallback.
+
+**Exercised live**, on lane A without `FIXTURE_OWN`, on the working tree that
+holds the fixes above:
+- `magic-cast-widen` passed 73 of 73: range verdicts (Player blocked, Judge
+  warned), pick labels, damage against immune, resistant (imported fraction)
+  and susceptible targets with the weapon Apply, instances split and thrown
+  through core's dialogs at their own targets, the Throw press at the
+  card's target, the scaled formula and its tooltip, the size, cap and
+  no-save gates, record lives in a fight and on the clock, and the
+  recurring prompts. The prompts covered were thunderclap's bearer save,
+  chokingGrip's caster-turn save ending an untimed cast, mageMissile's
+  range-checked Roll, kindleFlame's burning, and Next round outside a
+  fight. Neither seat recorded a console error since the seat was
+  installed.
+- `magic-cast-spell` passed 124 of 124. Its first two reruns stopped before
+  any check with "devtools endpoint never came up", which is the driver's
+  browser start under load, not a world result.
+- `magic-spell-recipes` passed 36 of 36.
+
+**Offline only:**
+- The untimed record's end through the real `endCast`: the test fakes
+  `endCast`, and the walk saw the caster record gone.
+- `migrateDefenseBands`, which is dead code and left in place.
+- Every suite named in the slice commits.
+
+**Not checked:**
+- A Player seat's recurring Save on a bearer it owns. The walk proves a
+  Player is refused on a bearer it does not own.
+- Two lanes up at once.
+- The release shots and guide, which belong to the close.
+
+**Defaults proceeded on.** Owner questions 1 to 4 under ruling 74 are at
+their defaults. The S3 owner questions A to H are under "S3 rulings". The
+departures each slice made, also at defaults and open to the owner:
+- **S3d:**
+  - Silver is read from `system.special.silver`.
+  - An untyped damage meets no band.
+  - An immunity-only Judge line falls back to the citation of RR ch. 6,
+    Damage Type Immunity and Resistance.
+  - The union of damage types covers unread rows.
+  - An unpriceable save effect goes to the Judge before the defenses.
+- **S3p:**
+  - No api bump for `distance-units`.
+  - No range verdict on a declaration.
+  - A twin's range is used.
+- **S3t:** `turnEnded` fires when an unrolled round opens.
+- **S3i:**
+  - A blank count makes no throw.
+  - A Judge's over-allocation throws.
+- **S3v:**
+  - The area sizes of blindingFlash, thunderclap and fanOfFlames stay blank;
+    the lint needs the measure word.
+  - kindleFlame is modelled as an area.
+  - `provides` is not in `effectField`.
+  - earthsExcrescence's count locator holds for a single die only.
+- **S3g:**
+  - The gate tooltip's HD is shown to every seat.
+  - A blank character size reads man-sized.
+- **S3l:** a `rounds` life has a floor of one round, which is not printed.
+- **S3r:**
+  - `RECORD_KINDS` is `ignite` only.
+  - Prompts post public.
+  - kindleFlame's flames row lasts `duration`, so its burning is untimed
+    where the page burns until extinguished.
+- **96a:** an untimed caster-turn row with no cast-wide save never prompts.
+
+**Findings for later sessions:**
+- A general susceptibility multiple may be printed in MM's overview chapter
+  (a counter to ruling 67), to check against the page.
+- Ruling 98's points pool and ruling 99's caster abilities (S3c) move to 1c.
+- BtA's groundwork B2 sets the gnosis casterLevel ladder to "" (class level)
+  and adds a `levelCap` key, which fits ruling 6; 1c's S3c reads it.
+
+### Start prompt, session 1c
+
+> Run session 1c of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`: S3c (caster abilities, ruling 99), then
+> S4 and S5 as "Session 1c: saves, conditions and buffs" lists them. Read
+> the plan whole first: owner rulings 1 to 4, rulings 17 to 101 and 96a,
+> "Early rulings for S5", and every Results section, 1b's last. Number new
+> rulings from 102 to 149 under `## Session 1c rulings`; owner questions are
+> 1c.1, 1c.2 and so on.
+>
+> - **S3c** (`scout` inventories ruling 18's list, then an `architect` rules,
+>   then an `implementer`): the caster's own abilities as `{value, parts}`
+>   parts on the figures S3 added (ruling 100). BtA's groundwork has set the
+>   gnosis casterLevel ladder to "" (class level) and added a `levelCap`
+>   key; read it, do not reshape it.
+> - **S4 and S5** per the plan. S5 opens with the `architect` ruling "Early
+>   rulings for S5" calls for. Of S5's spells only `sharpness` has register
+>   rows; `salvingRest` is in S4's list.
+> - Ruling 98's points-pool spend stays a ROADMAP row; do not build it.
+>
+> You are the orchestrator. One slice, one agent, each brief quoting the
+> owner's words from the plan and each report restating them with one
+> example. Review every change against the IP doctrine yourself: imported
+> figures only, and committed tests on invented spells. Before an agent
+> writes under `scripts/lib/`, list the running sessions and `main`'s dirty
+> paths.
+>
+> **A second session, 1d-A, runs beside you** on `topic/spell-effects-1d`.
+> Yours is `topic/spell-effects`, in the worktree
+> `C:\Proj\foundryvtt-acks-extras.spell-effects`. You own:
+> - all of `scripts/lib/`;
+> - `scripts/magic/cast-*.mjs` except `cast-summon.mjs`;
+> - `spell-effect.mjs`, `describe.mjs`, `spell-sheet.mjs`, `templates/magic/`
+>   and `styles/magic.css`;
+> - `scripts/importer/`, abilities, influence, classes and the character
+>   sheet;
+> - S4 and S5's register entries;
+> - `docs/lib`, `docs/importer` and `docs/magic/MODEL.md`;
+> - the existing magic walks and tests.
+>
+> When collisions come:
+> - The cookbook is generated: take `--ours`, recompile, and check the entry
+>   count holds.
+> - `lang/en.json`: keep both.
+> - DECISIONS and ROADMAP appends: keep both, `main`'s first.
+> - Your TESTING steps go inside "Casting a spell", before "Drive
+>   mechanics".
+> - ROW_KEYS is the union.
+>
+> When your last code slice lands, write `1c code complete: <sha>` under
+> `### Results, 1c`. That line releases 1d-B.
+>
+> Run `node .claude/skills/acks-branch/branch.mjs sync spell-effects` there
+> first. Commit by hand, and land with `branch.mjs land spell-effects`. Walk
+> on `main` yourself through `tools/live`, never the `live-tester` agent, on
+> lane B (its seats and ports are in `TEST_ENVIRONMENT.md`) with
+> `FIXTURE_OWN=1c`. Reload clients after any landing. A failure seen with
+> two lanes up is rerun on lane A alone before it is called a bug. Check who
+> is seated before a world relaunch. Rerun `magic-cast-widen`,
+> `magic-cast-spell` and `magic-spell-recipes` after your last landing. Push
+> nothing.
+>
+> Finish with `### Results, 1c`, by sha, sorted exercised live, offline only
+> and not checked, with the defaults you proceeded on. Commit it on `main`
+> with `acks-commit`, and report. You start no session.
+
+### Start prompt, session 1d-A
+
+> Run session 1d-A of `docs/magic/wip/20261115-spell-effects-plan.md` in
+> `C:\Proj\foundryvtt-acks-extras`, beside session 1c: the register entries
+> of S6 and S7 as "Session 1d: tracked kinds and the close" lists them,
+> except `locateAnimalOrPlant`, which is 1d-B's. Also a check of the three
+> built summons' rows, and the summons ruling. Read the plan whole first:
+> owner rulings 1 to 4, rulings 17 to 101 and 96a, and every Results
+> section. Number new rulings from 150 to 199 under `## Session 1d rulings`;
+> owner questions are 1d.1, 1d.2 and so on.
+>
+> Open `topic/spell-effects-1d` with
+> `node .claude/skills/acks-branch/branch.mjs open spell-effects-1d`
+> (worktree `C:\Proj\foundryvtt-acks-extras.spell-effects-1d`). Commit by
+> hand, and land with `branch.mjs land spell-effects-1d`. Session 1c is
+> writing `topic/spell-effects` at the same time. You own only:
+> - the S6 and S7 register entries and the three built summons' entries;
+> - `scripts/magic/cast-summon.mjs` and `summon-spell.mjs`;
+> - new tests, and a new walk `tools/live/magic-cast-tracked.mjs` with
+>   markers `magic/tracked-*`;
+> - changelog fragments slugged `spell-effects-tracked` and
+>   `spell-effects-l1-summons`;
+> - a new `##` section at the end of magic TESTING;
+> - DECISIONS and ROADMAP appends, and lang keys;
+> - one line in `spell-recipe-rules.mjs` ROW_KEYS.
+>
+> Anything else is 1c's. If a slice needs one of 1c's files, the work waits
+> for 1d-B, which starts once `### Results, 1c` reads
+> `1c code complete: <sha>`. That covers:
+> - recipient records for tracked kinds: the six `ignite` sites in
+>   `cast-spell` and `cast-apply`, and `RECORD_KINDS`;
+> - the row editor's `lasts` on tracked kinds;
+> - new kinds, condition keys and describe arms (delayDisease,
+>   purifyFoodAndWater);
+> - the summon-claimant work under S3c's rules.
+>
+> A tracked row that lasts must carry `lasts: "duration"`, or no caster
+> record is written.
+>
+> When collisions come:
+> - The cookbook is generated: take `--ours`, recompile, and check the entry
+>   count holds.
+> - `lang/en.json`: keep both.
+> - DECISIONS and ROADMAP appends: keep both, `main`'s first.
+> - ROW_KEYS is the union.
+>
+> You are the orchestrator: one slice, one agent, each brief quoting the
+> owner's words from the plan. Review every change against the IP doctrine:
+> register rows read from the Judge's page, never shipped figures, and tests
+> on invented spells. Walk on `main` through `tools/live` on lane C with
+> `FIXTURE_OWN=1d`. Reload clients after any landing. A failure seen with two
+> lanes up is rerun on lane A alone before it is called a bug. Push nothing.
+>
+> Finish with `### Results, 1d` (1d-A's part), by sha, sorted exercised live,
+> offline only and not checked. Then write 1d-B's start prompt, and commit
+> both on `main` with `acks-commit`. You start no session. The close comes
+> after 1c's walks and 1d-B.
