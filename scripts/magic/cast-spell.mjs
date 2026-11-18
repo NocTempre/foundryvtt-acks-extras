@@ -30,7 +30,7 @@ import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { castDuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
-import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, bucketUuids } from "./cast-procedure.mjs";
+import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
 import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
@@ -576,6 +576,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const resolving = turnMoment === MOMENT.resolve && Boolean(declaration.valid);
   // A declaration being resolved answers for itself (below), invocation level included, and the context starts from it.
   const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
+  // A stored bucket entry whose document the world no longer holds is dropped without a word: the strip on a lost item (`cast-declare.mjs`) takes most, and what it missed is dropped here. The bucket's own verdicts judge what is left.
+  if (declared && BUCKETS_KEY in declared.procedure) declared.procedure = { ...declared.procedure, [BUCKETS_KEY]: await withoutMissing(declared.procedure, deps.holds) };
   const startInv = declared?.invocationLevel;
   const figuresAt = (mode, inv) => castFiguresOf(spell, deps.lookups, atFor(mode, inv));
   const figures = figuresAt(modeKeys[0], startInv);
@@ -610,13 +612,6 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // Where the cast falls, given how long it takes: a stored declaration resolves as it was declared, and any other cast over a round is `long`.
   const momentAt = (mode, inv, levelValue, praw) => (resolving ? MOMENT.resolve : castMoment({ combat: world.combat, combatant: world.combatant, castingTime: timeAt(mode, inv, levelValue, praw) }));
   let moment = momentAt(modeKeys[0], startInv, known.value, declared?.procedure);
-  // The documents a stored answer's buckets name that the world no longer holds, read where the cast resolves.
-  let bucketsGone = [];
-  const goneIn = async (buckets) => {
-    const out = [];
-    for (const uuid of bucketUuids({ buckets })) if (!((await deps.holds?.(uuid)) ?? true)) out.push(uuid);
-    return out;
-  };
   // What the range and the target count say of the targeted tokens at a caster level.
   const reachAt = (levelValue, inv = startInv, mode = modeKeys[0]) => castReach({ figures: figuresAt(mode, inv), level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
   // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count). A split is typed by token uuid.
@@ -653,7 +648,6 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       invocation: { value, cap, reads },
       procedure: view ? procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer) : [],
       ritual: extras.ritual === true,
-      bucketsGone,
     });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
@@ -677,12 +671,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   // The dialog opens only where a declared target is gone or its stored weapon is not one of the one target's.
   const itemsFit = !declared || !needsBearer(rowsForMode(all, declared?.mode, declared?.picks ?? {}, atFor(declared?.mode, declared?.invocationLevel))) || bearerOf()?.actor?.items?.get?.(declared?.items?.[bearerOf().uuid])?.type === "weapon";
-  // A stored answer's bucket entry the world no longer holds reopens the dialog on what was declared, as a gone target does.
-  if (resolving) bucketsGone = await goneIn(declared?.procedure?.buckets);
-  const storedFits = Boolean(declared) && !gone.length && !bucketsGone.length && itemsFit;
+  const storedFits = Boolean(declared) && !gone.length && itemsFit;
   if (declared && !storedFits) {
-    const why = gone.length ? "resolveGone" : bucketsGone.length ? "resolveBucket" : "resolveItem";
-    deps.notify(gone.length || bucketsGone.length ? "warn" : "info", why, { name: caster.name, n: gone.length || bucketsGone.length });
+    const why = gone.length ? "resolveGone" : "resolveItem";
+    deps.notify(gone.length ? "warn" : "info", why, { name: caster.name, n: gone.length });
   }
   const gateExtras = (inv = startInv) => castGateExtrasOf(spell, deps.lookups, atFor(modeKeys[0], inv));
   const askContext = () => ({
@@ -692,7 +684,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
     momentAt: (mode, levelValue, praw) => momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
     // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far; null where the tradition has none.
-    procedure: procedure ? { kind: procedureKind, at: (mode, praw, levelValue) => procViewAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}, momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {})) } : null,
+    procedure: procedure ? { kind: procedureKind, label: procedure.label ?? null, traditionLabel: world.tradition?.label ?? "", at: (mode, praw, levelValue) => procViewAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}, momentAt(mode ?? modeKeys[0], startInv, levelValue ?? known.value, praw ?? declared?.procedure ?? {})) } : null,
     modes: modeKeys,
     rows: all,
     groups: Object.fromEntries(modeKeys.map((m) => [m, groupsFor(m, startInv)])),
@@ -736,8 +728,10 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     // A declaration that no longer fits reopens on what the seat declared, less what is gone.
     ...(declared ? { initial: declared } : {}),
   });
-  const answer = storedFits ? declared : await deps.ask(askContext());
+  let answer = storedFits ? declared : await deps.ask(askContext());
   if (!answer) return { ok: false, reason: "cancelled" };
+  // What the seat's answer names is held to the world as the stored one is: a missing document is dropped.
+  if (answer.procedure && BUCKETS_KEY in answer.procedure) answer = { ...answer, procedure: { ...answer.procedure, [BUCKETS_KEY]: await withoutMissing(answer.procedure, deps.holds) } };
   // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now. A declaration that fits keeps the seat it declared.
   if (!storedFits) seat = readSeat();
 
@@ -750,9 +744,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The save modifier counts only where a save is made and the import read a figure for it at this level.
   const saveMod = answer.saveMod === true && spellSaves(extras.save) && saveModifierOf(extras.save, level.value) != null;
   // The level the answer resolved to, never the declaration's default: a null stays null, so the verdicts and the kept rows read one level.
-  // Where the cast falls given the final answer: the procedure's casting time is read from it, and a stored bucket entry that is gone by the turn is a verdict.
+  // Where the cast falls given the final answer: the procedure's casting time is read from it.
   moment = momentAt(mode, invocation.value, level.value, answer.procedure);
-  if (moment === MOMENT.resolve) bucketsGone = await goneIn(answer.procedure?.buckets);
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure);
   const stop = verdicts.find((v) => v.severity === "block");

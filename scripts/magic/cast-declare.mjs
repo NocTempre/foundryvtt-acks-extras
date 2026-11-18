@@ -19,15 +19,21 @@
  * hook, so a record that waited longer could no longer be lost and would resolve
  * unspent.
  *
+ * An item the answer's buckets name that leaves its holder before the cast uses
+ * it (deleted, or its stack emptied) is struck from every pending record's
+ * answer (`stripLostItem`), on the client that made the change; a record that
+ * client cannot write is struck by the GM's client, which checks the item is gone.
+ *
  * See docs/magic/DECISIONS.md, "A declaration spends at its confirm and lapses
  * with the caster's next turn".
  */
-import { MODULE_ID, FLAG_SPELL, FLAG_SPELL_EFFECT, DECLARE_FLAG_HANDLER } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL, FLAG_SPELL_EFFECT, DECLARE_FLAG_HANDLER, LOST_ITEM_HANDLER } from "./constants.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { invocationFigure } from "./cast-level.mjs";
-import { storedProcedure, runLost } from "./cast-procedure.mjs";
+import { storedProcedure, runLost, withoutUuid } from "./cast-procedure.mjs";
 import { traditionFor } from "./cast-capacity.mjs";
 import { STATES_LOST_HOOK } from "../lib/constants.mjs";
+import { hasStock } from "../lib/item-model.mjs";
 import { isPrimaryGM } from "../lib/util.mjs";
 
 /** The status the declaration puts on the caster. */
@@ -227,6 +233,72 @@ export async function onStatesLost(actor, ids, cause, deps) {
 }
 
 /* -------------------------------------------- */
+/*  A lost item leaves the answers that name it  */
+/* -------------------------------------------- */
+
+/**
+ * The stored answers a lost item is struck from: of the records given, each
+ * whose pending answer's buckets name the uuid, with its buckets as they stand
+ * without it. Pure.
+ *
+ * @param {string} uuid  the item that left its holder's inventory
+ * @param {Array<{id: string, record: {pending?: {procedure?: object}}}>} records  the declarations' records, as `spellEffectOf` reads them, each with the id (and whatever else the caller keeps) of its document
+ * @returns {Array<{id: string, record: object, buckets: Record<string, object[]>}>}
+ */
+export function lostItemPlan(uuid, records) {
+  const plan = [];
+  for (const entry of records ?? []) {
+    const found = withoutUuid(entry.record?.pending?.procedure, uuid);
+    if (found.changed) plan.push({ ...entry, buckets: found.buckets });
+  }
+  return plan;
+}
+
+/**
+ * Is a relayed strip good? The GM's client acts on the fact the item left its
+ * holder, never on who asks. Pure.
+ *
+ * @param {{itemUuid?: string}} req
+ * @param {{gone: boolean}} world  whether the item no longer stands in an inventory
+ * @returns {{ok: true}|{refused: "noItem"|"present"}}
+ */
+export function checkLostItemRequest(req, world) {
+  if (!req?.itemUuid) return { refused: "noItem" };
+  if (!world?.gone) return { refused: "present" };
+  return { ok: true };
+}
+
+/**
+ * Strike a lost item from every declaration's stored answer that names it, on
+ * this client. A record this client may write is written; the rest are asked of
+ * the GM's client once, which re-reads the world and writes them. Idempotent: a
+ * uuid no answer names writes nothing, and a second run finds nothing to do.
+ *
+ * @param {string} uuid
+ * @param {object} deps  `records()` (`[{id, record, ...}]`), `canWrite(step)`, `write(step)` and `relay({itemUuid})` (answers null with no GM to ask)
+ * @returns {Promise<{written: string[], relayed: string[], failed: string[]}>} the record ids
+ */
+export async function stripLostItem(uuid, deps) {
+  const done = { written: [], relayed: [], failed: [] };
+  const asked = [];
+  for (const step of lostItemPlan(uuid, await deps.records())) {
+    if (!deps.canWrite(step)) {
+      asked.push(step.id);
+      continue;
+    }
+    try {
+      await deps.write(step);
+      done.written.push(step.id);
+    } catch (err) {
+      console.error(`${MODULE_ID} | a lost item could not be struck from a declared answer`, err);
+      done.failed.push(step.id);
+    }
+  }
+  if (asked.length && deps.relay && (await deps.relay({ itemUuid: uuid }))) done.relayed = asked;
+  return done;
+}
+
+/* -------------------------------------------- */
 /*  Foundry                                      */
 /* -------------------------------------------- */
 
@@ -347,6 +419,48 @@ async function onDeleteCombat(combat) {
   }
 }
 
+/** Every declaration record of the world, with its document: the world's actors, and each unlinked token's. */
+async function liveDeclarations() {
+  const { worldActors } = await import("../lib/repair.mjs");
+  return worldActors().flatMap((actor) => liveEntries(actor).filter(({ record }) => record.pending).map(({ id, record }) => ({ id, record, effect: actor.effects.get(id) })));
+}
+
+/** The dependencies of a strip run from this client: a record is written where Foundry lets this user write it, and asked of the GM's client where not. */
+const liveStripDeps = () => ({
+  records: liveDeclarations,
+  canWrite: ({ effect }) => effect?.canUserModify?.(game.user, "update") === true,
+  write: ({ effect, buckets }) => effect.update({ [`flags.${MODULE_ID}.${FLAG_SPELL_EFFECT}.pending.procedure.buckets`]: buckets }),
+  relay: async (request) => {
+    if (game.user.isGM || !game.users.activeGM) return null;
+    const { executeAsGM } = await import("../lib/sockets.mjs");
+    return executeAsGM(LOST_ITEM_HANDLER, request);
+  },
+});
+
+/** Does the world no longer hold this item in an inventory: gone, or a stack with nothing left? */
+function itemGone(uuid) {
+  let item = null;
+  try {
+    item = fromUuidSync(uuid);
+  } catch {
+    item = null;
+  }
+  return !item || !hasStock(item);
+}
+
+/** The GM's client strips a lost item from the answers a seat could not write, after it checks the item is gone. */
+async function lostItemHandler(payload = {}) {
+  const verdict = checkLostItemRequest(payload, { gone: itemGone(payload.itemUuid) });
+  if (verdict.refused) return { ok: false, reason: verdict.refused };
+  return { ok: true, ...(await stripLostItem(payload.itemUuid, { ...liveStripDeps(), canWrite: () => true, relay: null })) };
+}
+
+/** An item left its holder's inventory on this client's own write: it leaves the cast. */
+function onItemLeft(item, userId) {
+  if (userId !== game.user?.id || !item?.uuid) return;
+  stripLostItem(item.uuid, liveStripDeps()).catch((err) => console.error(`${MODULE_ID} | a lost item could not leave the declared answers`, err));
+}
+
 let registered = false;
 
 /** Register the declaration's hooks and its flag handler. Once, at `init`. */
@@ -356,7 +470,15 @@ export function registerCastDeclare() {
   Hooks.on(STATES_LOST_HOOK, onLost);
   Hooks.on("combatTurnChange", (combat, prior, current) => onTurnChange(combat, prior, current).catch((err) => console.error(`${MODULE_ID} | a declaration's turn could not be settled`, err)));
   Hooks.on("deleteCombat", (combat) => onDeleteCombat(combat).catch((err) => console.error(`${MODULE_ID} | a deleted fight's declarations could not be ended`, err)));
-  void import("../lib/sockets.mjs").then(({ registerHandler }) => registerHandler(DECLARE_FLAG_HANDLER, declareFlagHandler));
+  // An item deleted, or a stack emptied (an item's holder is fixed by its uuid, so moving it to another is a delete here), leaves the answers that name it.
+  Hooks.on("deleteItem", (item, options, userId) => onItemLeft(item, userId));
+  Hooks.on("updateItem", (item, changes, options, userId) => {
+    if (!hasStock(item)) onItemLeft(item, userId);
+  });
+  void import("../lib/sockets.mjs").then(({ registerHandler }) => {
+    registerHandler(DECLARE_FLAG_HANDLER, declareFlagHandler);
+    registerHandler(LOST_ITEM_HANDLER, lostItemHandler);
+  });
 }
 
 /** The dependencies a cast resolves or declares through, as the live world gives them. */

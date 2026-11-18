@@ -18,3 +18,5 @@ export const CAST_HELD_END_FLAG = "castHeldEnd";
 export const HELD_END_HANDLER = "magicHeldEnd";
 /** The handler on lib's sockets through which a seat has the GM's client set or clear a combatant's declared-spell flag. */
 export const DECLARE_FLAG_HANDLER = "magicDeclareFlag";
+/** The handler on lib's sockets through which a seat has the GM's client strip a lost item from the declared answers it could not write. */
+export const LOST_ITEM_HANDLER = "magicLostItem";

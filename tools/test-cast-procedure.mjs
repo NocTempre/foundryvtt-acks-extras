@@ -31,9 +31,9 @@ globalThis.ui = { notifications: { warn() {}, info() {} } };
 globalThis.fromUuidSync = () => null;
 globalThis.fromUuid = async () => null;
 
-const { registerCastProcedure, procedureFor, procedureOfKind, spellProcedureKind, runPerform, runRevert, runLost, procedureView, storedProcedure, normalizeBuckets, bucketUuids } = await import("../scripts/magic/cast-procedure.mjs");
+const { registerCastProcedure, procedureFor, procedureOfKind, spellProcedureKind, runPerform, runRevert, runLost, procedureView, storedProcedure, normalizeBuckets, bucketUuids, withoutUuid, withoutMissing, procedureHeading, BUCKETS_KEY } = await import("../scripts/magic/cast-procedure.mjs");
 const { castMoment, longerThanRound, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
-const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
+const { castVerdicts, blocked, VERDICT } = await import("../scripts/magic/cast-plan.mjs");
 const { castSpellRun, castSpellClaims, castSpellClaimant, castTimeOf } = await import("../scripts/magic/cast-spell.mjs");
 const { castSummonClaimant } = await import("../scripts/magic/cast-summon.mjs");
 const { answerStored, answerFromPending, ANSWER_FIELDS } = await import("../scripts/magic/cast-declare.mjs");
@@ -240,7 +240,7 @@ t("the casting time of a spell is its own flag's, else its library twin's", () =
 /*  Verdicts                                                          */
 /* ------------------------------------------------------------------ */
 
-t("a procedure's findings, a long cast, a ritual and a gone bucket entry take their severity from the plan: a Player is blocked and a Judge warned", () => {
+t("a procedure's findings, a long cast and a ritual take their severity from the plan: a Player is blocked and a Judge warned", () => {
   const base = { capacity: { verdict: "ok" } };
   const found = [{ key: "tooHasty", notice: "Too hasty here." }];
   assert.deepEqual(keysOf(castVerdicts({ ...base, procedure: found })), [["tooHasty", "block"]]);
@@ -250,8 +250,8 @@ t("a procedure's findings, a long cast, a ritual and a gone bucket entry take th
   assert.deepEqual(keysOf(castVerdicts({ ...base, moment: MOMENT.long, isGM: true })), [["longCast", "warn"]]);
   assert.deepEqual(keysOf(castVerdicts({ ...base, ritual: true })), [["ritualPending", "block"]]);
   assert.deepEqual(keysOf(castVerdicts({ ...base, ritual: true, isGM: true })), [["ritualPending", "warn"]]);
-  assert.deepEqual(keysOf(castVerdicts({ ...base, bucketsGone: ["Item.gone"] })), [["bucketChanged", "block"]]);
-  assert.deepEqual(keysOf(castVerdicts({ ...base, bucketsGone: ["Item.gone"], isGM: true })), [["bucketChanged", "warn"]]);
+  assert.deepEqual(keysOf(castVerdicts({ ...base, bucketsGone: ["Item.gone"] })), [], "a gone bucket entry is no verdict: it is dropped, and what is left is judged by the procedure's own findings");
+  assert.equal("bucketChanged" in VERDICT, false);
   assert.deepEqual(castVerdicts(base), [], "none given, none drawn");
   assert.equal(blocked(castVerdicts({ ...base, procedure: found })), true);
   assert.equal(blocked(castVerdicts({ ...base, procedure: found, isGM: true })), false);
@@ -599,40 +599,122 @@ await ta("the procedure's casting time stands over the spell's, is read from the
   off();
 });
 
+t("an answer's buckets without a lost document: its entry leaves every bucket that holds it, each bucket keeps its key, and a repeat or an absent uuid changes nothing", () => {
+  const answer = { buckets: { kit: [{ uuid: "Item.k1", qty: 2, fit: "a" }, { uuid: "Item.k2", qty: 1, fit: "" }], spare: [{ uuid: "Item.k1", qty: 1, fit: "" }] } };
+  const gone = withoutUuid(answer, "Item.k1");
+  assert.deepEqual([gone.changed, gone.keys], [true, ["kit", "spare"]]);
+  assert.deepEqual(gone.buckets, { kit: [{ uuid: "Item.k2", qty: 1, fit: "" }], spare: [] }, "the emptied bucket stays as an empty list");
+  assert.deepEqual(answer.buckets.kit.map((e) => e.uuid), ["Item.k1", "Item.k2"], "the answer given is never written through");
+  const again = withoutUuid({ buckets: gone.buckets }, "Item.k1");
+  assert.deepEqual([again.changed, again.keys, again.buckets], [false, [], gone.buckets], "a second strip changes nothing");
+  assert.equal(withoutUuid(answer, "Item.absent").changed, false);
+  assert.equal(withoutUuid(answer, "").changed, false);
+  assert.equal(withoutUuid(answer, null).changed, false);
+  assert.deepEqual(withoutUuid(null, "Item.k1"), { changed: false, buckets: {}, keys: [] }, "an answer with no buckets has nothing to strike");
+});
+
+await ta("an answer's buckets without the entries the world no longer holds: each uuid is asked once, a ledger power names no document and stays, and with no `holds` every entry stands", async () => {
+  const answer = { buckets: { kit: [{ uuid: "Item.k1" }, { uuid: "Item.k2" }], spare: [{ uuid: "Item.k2" }, { uuid: "power:fuel", qty: 3 }] } };
+  const asked = [];
+  const kept = await withoutMissing(answer, async (uuid) => (asked.push(uuid), uuid !== "Item.k2"));
+  assert.deepEqual(asked, ["Item.k1", "Item.k2"], "once each, and never the power");
+  assert.deepEqual(Object.fromEntries(Object.entries(kept).map(([key, list]) => [key, list.map((e) => e.uuid)])), { kit: ["Item.k1"], spare: ["power:fuel"] });
+  assert.deepEqual(await withoutMissing(answer, null), normalizeBuckets(answer.buckets));
+  assert.deepEqual(await withoutMissing(null, async () => false), {});
+});
+
+t("a procedure's band is headed by its tradition: the procedure's own label (a lang key), else the tradition's own label, else the generic heading", () => {
+  const localize = (key) => ({ "TEST.rite": "Rite" })[key] ?? key;
+  assert.equal(procedureHeading({ label: "TEST.rite", traditionLabel: "Wisp" }, { localize, fallback: "Generic" }), "Rite", "the procedure's label names it");
+  assert.equal(procedureHeading({ traditionLabel: "Wisp" }, { localize, fallback: "Generic" }), "Wisp", "with none supplied, the tradition's own label");
+  assert.equal(procedureHeading({ label: "TEST.unknown", traditionLabel: "Wisp" }, { localize, fallback: "Generic" }), "Wisp", "a key the language has no string for falls back too");
+  assert.equal(procedureHeading({ label: "  ", traditionLabel: " Wisp " }, { localize, fallback: "Generic" }), "Wisp");
+  assert.equal(procedureHeading({ traditionLabel: "" }, { localize, fallback: "Generic" }), "Generic", "a tradition with no label of its own keeps the generic heading");
+  assert.equal(procedureHeading(null, { localize, fallback: "Generic" }), "Generic");
+  assert.throws(() => registerCastProcedure("badlabel", { label: 4 }), /label must be a lang key/);
+  assert.throws(() => registerCastProcedure("badlabel", { label: " " }), /label must be a lang key/);
+  assert.doesNotThrow(() => registerCastProcedure("goodlabel", { label: "TEST.rite" })());
+});
+
+t("the dialog's band heading reads the tradition: a procedure's label localized, else the tradition's name, else Invocation; the cast hands the dialog both", () => {
+  const localize = game.i18n.localize;
+  game.i18n.localize = (key) => (key === "TEST.rite" ? "Rite" : key);
+  try {
+    const { procedure } = logging();
+    const titled = (named) => dialogContext(dialogCtx(procedure, { procedure: { kind: KIND, at: (mode, raw) => procedureView(procedure, { kind: KIND }, raw), ...named } }), {}).invocation.title;
+    assert.equal(titled({ label: "TEST.rite", traditionLabel: "Wisp" }), "Rite");
+    assert.equal(titled({ traditionLabel: "Wisp" }), "Wisp");
+    assert.equal(titled({}), "ACKS-MAGIC.cast.dialog.invocation|{}");
+  } finally {
+    game.i18n.localize = localize;
+  }
+});
+
+t("a bucket entry has no typed path in: no field spec can take the buckets' key, a value in its place is read as no entries, and the answer a dialog reads keeps the buckets a drag made", () => {
+  const sneaky = { fields: () => [...FIELDS, { key: BUCKETS_KEY, kind: "text", label: "Typed", initial: "Item.fake" }] };
+  const view = procedureView(sneaky, {}, { buckets: { kit: [{ uuid: "Item.k1" }] } });
+  assert.deepEqual(view.specs.map((s) => s.key), ["pace", "bonus"], "the spec is left out");
+  assert.deepEqual(view.answer.buckets, { kit: [{ uuid: "Item.k1", qty: 1, fit: "" }] }, "and the drag's entry is kept, normalized");
+  assert.deepEqual(procedureView(sneaky, {}, { buckets: "Item.fake" }).answer.buckets, {}, "a typed string is no entry");
+  const ctx = dialogCtx(sneaky);
+  assert.deepEqual(answerOf(ctx, { procedure: { buckets: "Item.fake" } }).procedure.buckets, {}, "a control that wrote a string in the key reads as none");
+});
+
+await ta("a cast's context carries the procedure's label and the tradition's own label for the band's heading", async () => {
+  const { procedure } = logging({ label: "TEST.rite" });
+  const off = registerCastProcedure(KIND, procedure);
+  const r = runDeps({ answer: { mode: "normal", picks: {} } });
+  await cast(spell([heal()]), r.deps);
+  assert.deepEqual([r.calls.asked.procedure.label, r.calls.asked.procedure.traditionLabel], ["TEST.rite", "Wisp"]);
+  off();
+  const plain = logging();
+  const offPlain = registerCastProcedure(KIND, plain.procedure);
+  const p = runDeps({ answer: { mode: "normal", picks: {} } });
+  await cast(spell([heal()]), p.deps);
+  assert.deepEqual([p.calls.asked.procedure.label, p.calls.asked.procedure.traditionLabel], [null, "Wisp"], "none supplied: the heading falls back to the tradition's label");
+  offPlain();
+});
+
 /* ------------------------------------------------------------------ */
 /*  Buckets                                                           */
 /* ------------------------------------------------------------------ */
 
-await ta("at the turn each stored bucket entry is read again: one the world lacks reopens the dialog on what was declared, and keeping it is bucketChanged (a Player blocked, a Judge warned); with none gone nothing is asked", async () => {
-  const { procedure, log } = logging();
+await ta("at the turn a stored bucket entry the world lacks is dropped without a word: no dialog, no notice, no verdict of its own; what is left is judged by the procedure's findings (a Player blocked, a Judge warned) and a ledger power is never read as missing", async () => {
+  const { procedure, log } = logging({ verdicts: (ctx, answer) => ((answer.buckets?.kit?.length ?? 0) < 2 ? [{ key: "kitShort", notice: "Kit is short." }] : []) });
   const off = registerCastProcedure(KIND, procedure);
-  const procAnswer = { pace: "calm", bonus: 0, buckets: { kit: [{ uuid: "Item.k1", qty: 1, fit: "" }, { uuid: "Item.k2", qty: 1, fit: "" }] } };
+  const procAnswer = { pace: "calm", bonus: 0, buckets: { kit: [{ uuid: "Item.k1", qty: 1, fit: "" }, { uuid: "Item.k2", qty: 1, fit: "" }], ledger: [{ uuid: "power:fuel", qty: 1, fit: "" }] } };
   const pending = { spellUuid: "Actor.c1.Item.s1", ...answerStored({ mode: "normal", procedure: procAnswer, targets: [] }), combatId: "k1", round: 1, at: 3 };
   const declared = { ...fight("cb1"), declarations: [{ castId: "d1", role: "caster", pending }] };
   const asked = [];
   const holds = async (uuid) => (asked.push(uuid), uuid !== "Item.k2");
-  let r = runDeps({ answer: { mode: "normal", picks: {}, procedure: procAnswer }, declared, holds });
-  r.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: [] });
-  const refused = await cast(spell([heal()]), r.deps);
-  assert.deepEqual(asked.slice(0, 2), ["Item.k1", "Item.k2"], "each stored uuid is read again");
-  assert.deepEqual([refused.ok, refused.reason], [false, "bucketChanged"]);
-  assert.deepEqual(r.calls.asked.initial.procedure.buckets.kit.map((e) => e.uuid), ["Item.k1", "Item.k2"], "the dialog reopened prefilled with what was declared");
-  assert.ok(r.calls.notices.some(([lvl, key]) => lvl === "warn" && key === "resolveBucket"));
-  assert.deepEqual(r.calls.asked.verdicts.normal.map((v) => v.key), ["bucketChanged"]);
-  r = runDeps({ isGM: true, answer: { mode: "normal", picks: {}, procedure: procAnswer }, declared, holds });
-  r.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: [] });
+  const run = (over = {}) => {
+    const r = runDeps({ answer: null, declared, holds, ...over });
+    r.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: [] });
+    return r;
+  };
+  let r = run({ isGM: true });
   assert.equal((await cast(spell([heal()]), r.deps)).ok, true, "a Judge is warned and casts");
-  assert.ok(r.calls.notices.some(([lvl, key]) => lvl === "warn" && key === "verdict.bucketChanged"));
-  // A seat that drops the missing entry casts, and nothing gone means nothing is asked.
-  const fixed = { ...procAnswer, buckets: { kit: [procAnswer.buckets.kit[0]] } };
-  r = runDeps({ answer: { mode: "normal", picks: {}, procedure: fixed }, declared, holds });
-  r.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: [] });
-  assert.equal((await cast(spell([heal()]), r.deps)).ok, true);
-  const present = runDeps({ answer: null, declared, holds: async () => true });
-  present.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: [] });
-  assert.equal((await cast(spell([heal()]), present.deps)).ok, true);
-  assert.equal(present.calls.asked, null, "every entry still there: the stored answer resolves with no dialog");
+  assert.deepEqual(asked.slice(0, 2), ["Item.k1", "Item.k2"], "each stored uuid is read again, a power never");
+  assert.equal(r.calls.asked, null, "no dialog reopens for a missing item");
+  assert.deepEqual(r.calls.notices.map(([, key]) => key).filter((key) => /Bucket|bucketChanged/.test(key)), [], "and no notice names it");
+  assert.deepEqual(r.calls.texts, [["warn", "Kit is short."]], "the procedure's own verdict is the Judge's warning");
+  assert.deepEqual(log.performs.at(-1).answer.buckets, { kit: [{ uuid: "Item.k1", qty: 1, fit: "" }], ledger: [{ uuid: "power:fuel", qty: 1, fit: "" }] }, "the step runs on what is left");
+  r = run();
+  const refused = await cast(spell([heal()]), r.deps);
+  assert.deepEqual([refused.ok, refused.reason, r.calls.asked], [false, "kitShort", null], "a Player is blocked by the same verdict, with no dialog");
+  r = run({ holds: async () => true });
+  assert.equal((await cast(spell([heal()]), r.deps)).ok, true, "every entry still there: the stored answer resolves");
   assert.equal(log.performs.at(-1).answer.buckets.kit.length, 2);
+  // A declaration the dialog reopens on (a declared target is gone) prefills what is declared less the missing entry, and the dialog's verdicts read that.
+  r = run({ isGM: true, answer: { mode: "normal", picks: {}, procedure: procAnswer } });
+  r.deps.declaredTargets = async () => ({ tokens: [], gaps: {}, gone: ["Scene.s.Token.t9"] });
+  await cast(spell([heal()]), r.deps);
+  assert.deepEqual(r.calls.asked.initial.procedure.buckets.kit.map((e) => e.uuid), ["Item.k1"], "the reopened dialog is prefilled without the missing entry");
+  assert.deepEqual(r.calls.asked.verdicts.normal.map((v) => v.key), ["kitShort"], "and its verdicts read what is left");
+  // An answer a dialog gave, at a cast with no declaration, is held to the world the same way.
+  const fresh = runDeps({ isGM: true, answer: { mode: "normal", picks: {}, procedure: procAnswer }, holds });
+  assert.equal((await cast(spell([heal()]), fresh.deps)).ok, true);
+  assert.deepEqual(log.performs.at(-1).answer.buckets.kit.map((e) => e.uuid), ["Item.k1"]);
   off();
 });
 

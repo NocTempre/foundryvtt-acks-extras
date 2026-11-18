@@ -21,12 +21,18 @@
  * - `lost(ctx, declaration)` and `revert(ctx, undo)`.
  * - `buckets(ctx)`: `[{key, policy, initial}]`, the inventory buckets the cast
  *   asks for; the answer carries them as `buckets`.
+ * - `label`: a lang key, owned by the tradition, that names the band's heading
+ *   ("Invocation" and its kin); a string, not a function. Without one the
+ *   heading is the tradition's own label (`procedureHeading`).
  *
  * The procedure's answer is one plain object: the field values and the band's
  * controls by key, with the reserved key `buckets` holding `{bucketKey: [{uuid,
- * qty, fit}]}`. A `ctx` is `{actor, spell, tradition, classItem, invocationLevel,
- * casterLevel, isGM, moment, combat, source, roll, now}`; a ctx whose `source` is
- * not `spell` is never given a procedure.
+ * qty, fit}]}`. A bucket's entry exists only by a drag of a real document
+ * (lib's `bucket.entryFromDrop`): no control and no field writes `buckets`, so
+ * a typed or free-text entry has no path in. A `ctx` is `{actor, spell,
+ * tradition, classItem, invocationLevel, casterLevel, isGM, moment, combat,
+ * source, roll, now}`; a ctx whose `source` is not `spell` is never given a
+ * procedure.
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { traditionFor } from "./cast-capacity.mjs";
@@ -34,6 +40,12 @@ import { usableSpecs, coerceData } from "../lib/field-spec.mjs";
 
 /** The members a procedure may carry. */
 export const PROCEDURE_MEMBERS = Object.freeze(["fields", "band", "verdicts", "castingTime", "perform", "lost", "revert", "buckets"]);
+
+/** The answer's reserved key for the inventory buckets; no field spec and no control named `procedure.<key>` may take it. */
+export const BUCKETS_KEY = "buckets";
+
+/** The prefix of a bucket entry's uuid that names a ledger power, not a document; such an entry is never read as a missing item. */
+const POWER_PREFIX = "power:";
 
 /** The source a ctx has where it names none. */
 const SPELL_SOURCE = "spell";
@@ -70,6 +82,7 @@ export function registerCastProcedure(kind, procedure) {
   for (const member of PROCEDURE_MEMBERS) {
     if (procedure[member] !== undefined && typeof procedure[member] !== "function") throw new TypeError(`registerCastProcedure(${key}): ${member} must be a function`);
   }
+  if (procedure.label !== undefined && (typeof procedure.label !== "string" || !procedure.label.trim())) throw new TypeError(`registerCastProcedure(${key}): label must be a lang key`);
   const own = Object.freeze({ ...procedure });
   registry.set(key, own);
   return () => {
@@ -132,6 +145,75 @@ export function normalizeBuckets(raw) {
 export const bucketUuids = (answer) => [...new Set(Object.values(normalizeBuckets(answer?.buckets)).flat().map((e) => e.uuid))];
 
 /**
+ * An answer's buckets without one document: its entry leaves every bucket that
+ * holds it and each bucket keeps its key, possibly empty, so a stored write that
+ * merges objects still lands. Idempotent: a uuid the answer does not name changes
+ * nothing.
+ *
+ * @param {{buckets?: object}|null} answer
+ * @param {string} uuid  the document that left its holder
+ * @returns {{changed: boolean, buckets: Record<string, object[]>, keys: string[]}} the normalized buckets without the entry, and the keys of the buckets that lost it
+ */
+export function withoutUuid(answer, uuid) {
+  const buckets = normalizeBuckets(answer?.buckets);
+  const keys = [];
+  if (typeof uuid === "string" && uuid) {
+    for (const [key, list] of Object.entries(buckets)) {
+      const kept = list.filter((e) => e.uuid !== uuid);
+      if (kept.length === list.length) continue;
+      buckets[key] = kept;
+      keys.push(key);
+    }
+  }
+  return { changed: keys.length > 0, buckets, keys };
+}
+
+/**
+ * An answer's buckets without the entries whose document the world no longer
+ * holds. A ledger power names no document and stays. With no `holds` every entry
+ * is taken as present.
+ *
+ * @param {{buckets?: object}|null} answer
+ * @param {((uuid: string) => Promise<boolean>|boolean)|null} holds
+ * @returns {Promise<Record<string, object[]>>}
+ */
+export async function withoutMissing(answer, holds) {
+  const buckets = normalizeBuckets(answer?.buckets);
+  if (typeof holds !== "function") return buckets;
+  const seen = new Map();
+  const present = async (uuid) => {
+    if (uuid.startsWith(POWER_PREFIX)) return true;
+    if (!seen.has(uuid)) seen.set(uuid, (await holds(uuid)) !== false);
+    return seen.get(uuid);
+  };
+  for (const [key, list] of Object.entries(buckets)) {
+    const kept = [];
+    for (const entry of list) if (await present(entry.uuid)) kept.push(entry);
+    buckets[key] = kept;
+  }
+  return buckets;
+}
+
+/**
+ * The heading of the procedure's band. A procedure's own `label` (a lang key the
+ * tradition owns) names it; with none, or one the language has no string for,
+ * the heading is the tradition's own label, and `fallback` where it has none.
+ *
+ * @param {{label?: string, traditionLabel?: string}|null} named  `label` as the procedure supplied it, `traditionLabel` the cast's tradition's label
+ * @param {{localize: (key: string) => string, fallback?: string}} o
+ * @returns {string}
+ */
+export function procedureHeading(named, { localize, fallback = "" } = {}) {
+  const key = typeof named?.label === "string" ? named.label.trim() : "";
+  if (key && typeof localize === "function") {
+    const text = localize(key);
+    if (typeof text === "string" && text && text !== key) return text;
+  }
+  const own = String(named?.traditionLabel ?? "").trim();
+  return own || fallback;
+}
+
+/**
  * A procedure answer as a declaration stores it: plain data, with the buckets
  * normalized; null where there is none.
  * @param {*} v
@@ -157,8 +239,10 @@ export function storedProcedure(v) {
 export function procedureView(procedure, ctx, raw = {}) {
   if (!procedure) return null;
   const held = raw && typeof raw === "object" ? raw : {};
-  const specs = procedure.fields ? usableSpecs(guard("fields", () => procedure.fields(ctx, held), [])).fields : [];
+  // A field spec cannot take the buckets' key: the buckets are filled by a drag alone.
+  const specs = procedure.fields ? usableSpecs(guard("fields", () => procedure.fields(ctx, held), [])).fields.filter((s) => s.key !== BUCKETS_KEY) : [];
   const answer = coerceData(specs, held);
+  if (BUCKETS_KEY in answer) answer[BUCKETS_KEY] = normalizeBuckets(answer[BUCKETS_KEY]);
   const made = procedure.band ? guard("band", () => procedure.band(ctx, answer), null) : null;
   const band = made && typeof made.template === "string" && made.template ? { template: made.template, context: made.context ?? {} } : null;
   return { specs, answer, band };

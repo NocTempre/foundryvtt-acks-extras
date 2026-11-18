@@ -61,7 +61,9 @@
  * status, a pending record and the combatant's flag, no card; damage loses it and
  * the turn reports it lost; a resolved declaration casts at the turn with no
  * dialog and no second spend; and an unresolved one lapses with the caster's
- * turn. All assert relations between records, cards and counters and print
+ * turn. Then the lost-item steps: an item deleted, or left with an empty stack,
+ * leaves the pending answers that name it, a record a Player cannot write by the
+ * GM's client, and the cast dialog's band is headed by the tradition. All assert relations between records, cards and counters and print
  * booleans and counts.
  *
  * Fixtures, kept and found by marker (the GM seat builds them):
@@ -583,6 +585,48 @@ const P = {
     });
     return { records, statuses: [...actor.statuses] };
   },
+  /** A pending record naming items in its `kit` bucket, written on an actor with the fields a declaration's answer holds (no fight, so no turn ever reaches it); answers its uuid. */
+  lostRecord: async ({ actorId, tag, uuids }) => {
+    const actor = game.actors.get(actorId);
+    const mark = { spellUuid: "", castId: `qa-lost-${tag}`, casterUuid: actor.uuid, role: "caster", pending: { spellUuid: "", procedure: { buckets: { kit: uuids.map((uuid) => ({ uuid, qty: 1, fit: "" })) } }, combatId: "qa-lost", round: 99, at: 0 } };
+    const [made] = await actor.createEmbeddedDocuments("ActiveEffect", [{ name: `QA lost ${tag}`, img: "icons/svg/aura.svg", flags: { "acks-extras": { spellEffect: mark } } }]);
+    return made.uuid;
+  },
+  /** The uuids a record's kit bucket names now; with `gone`, wait for that uuid to leave it first. */
+  lostKit: async ({ effectUuid, gone }) => {
+    const H = globalThis.__mcs;
+    const read = async () => (await fromUuid(effectUuid))?.flags?.["acks-extras"]?.spellEffect?.pending?.procedure?.buckets?.kit ?? null;
+    if (gone) await H.poll(async () => !((await read()) ?? []).some((e) => e.uuid === gone), { tries: 40, every: 250 });
+    return { kit: (await read())?.map((e) => e.uuid) ?? null };
+  },
+  /** Whether each uuid still resolves. */
+  lostHeld: async ({ uuids }) => Promise.all(uuids.map(async (uuid) => !!(await fromUuid(uuid)))),
+  /** Whether this seat's user may update each document. */
+  lostCanWrite: async ({ uuids }) => Promise.all(uuids.map(async (uuid) => (await fromUuid(uuid)).canUserModify(game.user, "update"))),
+  /** Delete one document by uuid, or empty an item's stack, as this seat's user does. */
+  lostLeave: async ({ uuid, empty }) => {
+    const doc = await fromUuid(uuid);
+    if (empty) await doc.update({ "system.quantity.value": 0 });
+    else await doc.delete();
+    return true;
+  },
+  /** Open the cast dialog with a procedure registered for a tradition kind (with `label`, a lang key it supplies), read its band's heading, cancel, and take the procedure off. */
+  bandHeading: async ({ casterId, spellId, kind, label }) => {
+    const H = globalThis.__mcs;
+    const off = acksExtras.magic.registerCastProcedure(kind, { fields: () => [{ key: "qa", kind: "number", label: "QA", initial: 0 }], ...(label ? { label } : {}) });
+    try {
+      game.actors.get(casterId).items.get(spellId).use({ skipDialog: true });
+      const dialog = await H.poll(() => document.querySelector(".application.acks-extras-cast") ?? null, { tries: 80, every: 150 });
+      if (!dialog) return { dialog: false };
+      // The band the procedure's own field sits in; the Targets band has a heading of its own.
+      const heading = dialog.querySelector('[name="procedure.qa"]')?.closest(".acks-extras-cast-band")?.querySelector("h3")?.textContent.trim() ?? null;
+      dialog.querySelector('button[data-action="cancel"]')?.click();
+      await H.sleep(600);
+      return { dialog: true, heading, supplied: label ? game.i18n.localize(label) : null, generic: game.i18n.localize("ACKS-MAGIC.cast.dialog.invocation") };
+    } finally {
+      off();
+    }
+  },
   /** The caster's pending declarations and whether it stands under `casting`; with `until`, wait for that many, with `lost`, wait for one stamped lost. */
   pendingOf: async ({ casterId, until, lost }) => {
     const H = globalThis.__mcs;
@@ -1051,6 +1095,7 @@ async function walkBuffs({ sceneId, caster, casterId, idOf, playerId, damagePayl
   await spent();
 
   await walkDeclare({ sceneId, casterId, tCaster, tFoe, ids, damageId, fmt, spent, trackCard });
+  await walkLostItem({ casterId, casterUuid: caster.uuid, damageId });
 }
 
 /** Cards of concentration's end the run made since `since`, tracked for the sweep. */
@@ -1243,6 +1288,65 @@ async function walkDeclare(K) {
   check("declare 17: the caster's turn ended with no cast: the pending record is deleted and the flag is clear", lapsed.pending.length === 0 && (await prepared(false)).prepareSpell === false, { pending: lapsed.pending.length });
   check("declare 17: the spend stands", stale.cast === declared17.cast && stale.spent === declared17.spent, { cast: stale.cast - before17.cast });
   await spent();
+}
+
+/**
+ * The lost-item steps (docs/magic/TESTING.md, "The lost-item steps"): pending
+ * records written by hand on the caster and on an actor the Player does not own
+ * name items in a `kit` bucket, and each item is left by the seat's own hand.
+ * Every item and the second actor come from `gm.create` and are tracked for the
+ * run's sweep; the records are tracked too.
+ */
+async function walkLostItem(K) {
+  const { casterId, casterUuid, damageId } = K;
+  section("lost 1. an item that leaves its holder leaves the declared answers that name it");
+  // What this step builds, swept at its end so no later step reads a pending record or an item of it on the kept caster.
+  const mine = [];
+  const made = async (kind, data, parent) => {
+    const doc = await gm.create(kind, data, parent ? { parent } : {});
+    await track(doc.uuid, kind);
+    mine.push(doc.uuid);
+    return doc.uuid;
+  };
+  const item = (name) => made("Item", { name, type: "item", system: { quantity: { value: 2, max: 0 } } }, casterUuid);
+  const [a, b, c, d, z] = [await item("QA Lost a"), await item("QA Lost b"), await item("QA Lost c"), await item("QA Lost d"), await item("QA Lost z")];
+  const stranger = await made("Actor", { name: "QA Lost Holder", type: "monster", ownership: { default: 0 } });
+  const strangerId = String(stranger).split(".").pop();
+  const record = async (actorId, tag, uuids) => {
+    const uuid = await run(gm, P.lostRecord, { actorId, tag, uuids });
+    await track(uuid, "ActiveEffect");
+    mine.push(uuid);
+    return uuid;
+  };
+  const kitOf = async (seat, effectUuid, gone) => (await run(seat, P.lostKit, { effectUuid, gone })).kit;
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+
+  const r1 = await record(casterId, "gm", [a, b, d]);
+  check("lost 1: the record names the three items before anything leaves", same(await kitOf(gm, r1), [a, b, d]));
+  await run(gm, P.lostLeave, { uuid: a });
+  check("lost 1: the GM deletes an item: it leaves the answer that named it and the others stay", same(await kitOf(gm, r1, a), [b, d]));
+  await run(gm, P.lostLeave, { uuid: z });
+  check("lost 1: an item no answer names, deleted, changes no answer", same(await kitOf(gm, r1), [b, d]));
+  await run(gm, P.lostLeave, { uuid: d, empty: true });
+  check("lost 1: an item whose stack is emptied leaves the answer, and the item itself stays", same(await kitOf(gm, r1, d), [b]) && (await run(gm, P.lostHeld, { uuids: [d] })).every(Boolean));
+  await run(gm, P.lostLeave, { uuid: b });
+  const emptied = await kitOf(gm, r1, b);
+  check("lost 1: the last entry leaves and the bucket stays a list", Array.isArray(emptied) && emptied.length === 0, emptied);
+
+  const rOwn = await record(casterId, "own", [c]);
+  const rOther = await record(strangerId, "other", [c]);
+  check("lost 1: the Player's seat can write the first record and not the second", same(await run(player, P.lostCanWrite, { uuids: [rOwn, rOther] }), [true, false]));
+  await run(player, P.lostLeave, { uuid: c });
+  check("lost 1: the Player deletes an item: it leaves the record the Player writes, and the one only the GM's client writes", same(await kitOf(gm, rOwn, c), []) && same(await kitOf(gm, rOther, c), []));
+
+  section("lost 2. the band's heading names the tradition");
+  const kind = "vancian";
+  const supplied = await run(player, P.bandHeading, { casterId, spellId: damageId, kind, label: "ACKS-MAGIC.cast.dialog.targets" });
+  check("lost 2: a procedure that supplies a label heads its band with it", supplied.dialog && Boolean(supplied.supplied) && supplied.heading === supplied.supplied && supplied.heading !== supplied.generic, supplied.heading);
+  const fallback = await run(player, P.bandHeading, { casterId, spellId: damageId, kind });
+  // "Arcane" is the label the class fixture gives its tradition (the fixtures section).
+  check("lost 2: with none supplied the band is headed by the tradition's own label, not Invocation", fallback.dialog && fallback.heading === "Arcane" && fallback.heading !== fallback.generic, fallback.heading);
+  note("lost-item sweep", await gm.sweepTracked({ only: mine }));
 }
 
 try {

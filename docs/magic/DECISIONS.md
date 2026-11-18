@@ -402,7 +402,7 @@ row as the very object it was. Ruling 200 says "copies"; a row with nothing on
 the scale needs none, and nothing in `scripts/magic` compares rows by identity.
 A flattened row is a new object and the spell's own is never written.
 
-## 2026-11-18 — The procedure seam's edges (R-p, rulings 204 to 206, 214, 215, 228)
+## 2026-11-18 — The procedure seam's edges (R-p, rulings 204 to 206, 214, 215, 228) — SUPERSEDED IN PART 2026-11-18
 
 Calls the rulings left open, made while building the seam.
 
@@ -448,3 +448,39 @@ A rowless ritual spell whose tradition has no procedure is not claimed, since
 the claim needs rows or a procedure, so `ritualPending` is never drawn for it and
 the system casts it as before. Ruling 224 stands for the spells the claimant
 takes.
+
+## 2026-11-18 — A lost item leaves the cast, and the band is headed by its tradition (R-p2, rulings 231 and 232)
+
+Supersedes, in the entry above, the paragraph that reopens the dialog on a stored
+bucket entry the world no longer holds and the `bucketChanged` verdict it paired
+with. The entry is under 7 days old; the new evidence is the owner's answer to
+R-p's question, ruling 231: "They have to drag a valid component to the spell. Edge
+case of item is lost before use removes it from attached cards too." The interim
+block R-p offered is the default the owner did not take.
+
+An entry exists only by a drag of a real document, so no typed path stands and the
+procedure's answer keeps the buckets' key out of reach of a field and a control.
+An item that leaves its holder before the cast uses it is struck from the stored
+answers at the moment it leaves, by the client that made the change, so a Player
+never meets the loss as a refusal. `deleteItem` carries a delete. The update half
+reads a stack left empty, because an item's uuid names its holder and a move to
+another holder is a delete and a create under another uuid; Foundry has no update
+that changes an item's holder. At the cast an entry still missing (the strip
+could not reach it: no GM to ask, a write refused) is dropped without a word, and
+the bucket's own verdicts judge what is left. A seat that cannot write a record
+asks the GM's client, which authorizes on the fact that the item is gone, never on
+the asker's ownership. *Counter (medium):* a Judge or Player who drops a component
+in the dialog and then deletes it sees the entry vanish from a declaration with no
+notice; the cast card's coverage verdict is where the shortfall shows. A strip is
+not an undo: a restored item is dragged in again.
+
+Ruling 232, "Name per tradition": the band's heading is the tradition's. A
+procedure supplies a `label` (a lang key its tradition owns); without one the
+heading is the tradition's own label, and a tradition with neither keeps the
+generic Invocation string. The one menu stays. *Counter (low):* a procedure whose
+label has no string in the language falls back to the tradition's label rather
+than printing the key.
+
+The strip reads every actor's effects at each delete of an item, and each update
+that leaves a stack empty. *Counter (low):* a world with thousands of effects pays
+a scan per such write; only a pending record that names the uuid costs a write.

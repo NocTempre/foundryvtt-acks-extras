@@ -13,7 +13,8 @@ import assert from "node:assert/strict";
 globalThis.foundry = { utils: { escapeHTML: (s) => String(s) } };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { lapseRound, turnEnded, staleDeclarations, checkDeclareFlagRequest, declareCast, endDeclaration, onStatesLost, ANSWER_FIELDS, answerStored, answerFromPending } = await import("../scripts/magic/cast-declare.mjs");
+const { lapseRound, turnEnded, staleDeclarations, checkDeclareFlagRequest, declareCast, endDeclaration, onStatesLost, ANSWER_FIELDS, answerStored, answerFromPending, lostItemPlan, checkLostItemRequest, stripLostItem, registerCastDeclare } = await import("../scripts/magic/cast-declare.mjs");
+const { LOST_ITEM_HANDLER } = await import("../scripts/magic/constants.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 
@@ -203,6 +204,148 @@ await ta("losing the states casting stands for stamps each standing declaration 
   assert.deepEqual(w.log, [["flag", false]]);
   assert.equal(spellEffectOf(w.records[1].data).pending.lost.cause, "damage");
   assert.deepEqual(await onStatesLost(caster, ["casting"], "save", deps), [], "already lost");
+});
+
+/* ------------------------------------------------------------------ */
+/*  A lost item leaves the answers that name it                       */
+/* ------------------------------------------------------------------ */
+
+const kit = (...uuids) => ({ kit: uuids.map((uuid) => ({ uuid, qty: 1, fit: "" })) });
+const uuidsOf = (buckets) => Object.fromEntries(Object.entries(buckets).map(([key, list]) => [key, list.map((e) => e.uuid)]));
+const recordOf = (id, buckets, extra = {}) => ({ id, record: { castId: id, role: "caster", pending: { spellUuid: "S", procedure: { buckets }, ...extra } } });
+
+t("the strip's plan lists each pending answer that names the item, with its buckets as they stand without it, every bucket keeping its key; a record that names it nowhere, or holds no procedure, is left out", () => {
+  const plan = lostItemPlan("Actor.a.Item.1", [
+    recordOf("e1", { ...kit("Actor.a.Item.1", "Actor.a.Item.2"), other: [{ uuid: "Actor.a.Item.1", qty: 1, fit: "" }] }),
+    recordOf("e2", kit("Actor.a.Item.2")),
+    { id: "e3", record: { castId: "e3", role: "caster", pending: { spellUuid: "S" } } },
+    { id: "e4", record: { castId: "e4", role: "caster" } },
+  ]);
+  assert.deepEqual(plan.map((step) => step.id), ["e1"]);
+  assert.deepEqual(uuidsOf(plan[0].buckets), { kit: ["Actor.a.Item.2"], other: [] }, "the emptied bucket keeps its key, so a write that merges objects still lands");
+  assert.deepEqual(lostItemPlan("Actor.a.Item.9", [recordOf("e1", kit("Actor.a.Item.1"))]), [], "an item no answer names plans nothing");
+  assert.deepEqual(lostItemPlan("", [recordOf("e1", kit("Actor.a.Item.1"))]), []);
+});
+
+t("a relayed strip is checked on the fact, not on who asks: no item is refused, and so is one that still stands", () => {
+  assert.deepEqual(checkLostItemRequest({}, { gone: true }), { refused: "noItem" });
+  assert.deepEqual(checkLostItemRequest({ itemUuid: "I.1" }, { gone: false }), { refused: "present" });
+  assert.deepEqual(checkLostItemRequest({ itemUuid: "I.1", requestUserId: "u9" }, { gone: true }), { ok: true });
+});
+
+await ta("a strip writes the records this client may write and asks the GM's client, once, for the rest; with no GM to ask the rest stay and the cast's own resolve drops them", async () => {
+  const records = [recordOf("w", kit("I.1")), recordOf("r1", kit("I.1")), recordOf("r2", kit("I.1", "I.2")), recordOf("n", kit("I.2"))];
+  const wrote = [];
+  const asked = [];
+  const deps = (over = {}) => ({
+    records: async () => records,
+    canWrite: (step) => step.id === "w",
+    write: async (step) => void wrote.push([step.id, uuidsOf(step.buckets)]),
+    relay: async (req) => (asked.push(req), { ok: true }),
+    ...over,
+  });
+  const done = await stripLostItem("I.1", deps());
+  assert.deepEqual(wrote, [["w", { kit: [] }]]);
+  assert.deepEqual(asked, [{ itemUuid: "I.1" }], "one request for every record this client could not write");
+  assert.deepEqual([done.written, done.relayed, done.failed], [["w"], ["r1", "r2"], []]);
+  const alone = await stripLostItem("I.1", deps({ relay: async () => null }));
+  assert.deepEqual([alone.written, alone.relayed], [["w"], []], "no GM answered: nothing is relayed");
+  wrote.length = 0;
+  asked.length = 0;
+  const none = await stripLostItem("I.9", deps());
+  assert.deepEqual([none.written, none.relayed, wrote.length, asked.length], [[], [], 0, 0], "an item no answer names writes and asks nothing");
+  const logged = console.error;
+  console.error = () => {};
+  const failing = await stripLostItem("I.1", deps({ write: async () => { throw new Error("refused"); } }));
+  console.error = logged;
+  assert.deepEqual(failing.failed, ["w"], "a write that throws is logged and reported, and the rest go on");
+});
+
+/** One pending record as an effect document the live hooks read and write. */
+function effectDoc(id, buckets, writable = true) {
+  const e = {
+    id,
+    flags: { "acks-extras": { spellEffect: { castId: id, role: "caster", spellUuid: "S", pending: { spellUuid: "S", procedure: { buckets } } } } },
+    writes: 0,
+    canUserModify: () => writable,
+    update: async (patch) => {
+      for (const [path, value] of Object.entries(patch)) {
+        const keys = path.split(".");
+        const last = keys.pop();
+        keys.reduce((o, k) => o[k], e)[last] = value;
+        e.writes++;
+      }
+    },
+  };
+  return e;
+}
+const bucketsOf = (e) => uuidsOf(e.flags["acks-extras"].spellEffect.pending.procedure.buckets);
+
+await ta("the live hooks strike a deleted item, and an emptied stack, from every pending answer on the client that made the change, idempotently and with no ownership gate; a move to another holder is a delete, and the new uuid stays", async () => {
+  const hooks = {};
+  const emitted = [];
+  const mine = effectDoc("mine", kit("Actor.a.Item.1", "Actor.b.Item.1"));
+  const other = effectDoc("other", kit("Actor.a.Item.1"), false);
+  const bystander = effectDoc("bystander", kit("Actor.a.Item.2"));
+  const actorOf = (...effects) => ({ effects: { get: (id) => effects.find((e) => e.id === id), [Symbol.iterator]: () => effects[Symbol.iterator]() } });
+  Object.assign(globalThis.game, { user: { id: "u1", isGM: false }, users: { activeGM: { id: "gm" } }, actors: [actorOf(mine, bystander), actorOf(other)], scenes: [], socket: { emit: (channel, msg) => emitted.push(msg) } });
+  globalThis.Hooks = { on: (name, fn) => (hooks[name] = fn), once() {}, callAll() {} };
+  let held = null;
+  globalThis.fromUuidSync = () => held;
+  registerCastDeclare();
+  const settle = () => new Promise((r) => setTimeout(r, 30));
+  const item = (uuid, quantity) => ({ uuid, system: quantity === undefined ? {} : { quantity } });
+
+  hooks.deleteItem(item("Actor.a.Item.1"), {}, "u2");
+  await settle();
+  assert.deepEqual([bucketsOf(mine), mine.writes], [{ kit: ["Actor.a.Item.1", "Actor.b.Item.1"] }, 0], "another user's delete is that client's to strip");
+  hooks.deleteItem(item("Actor.a.Item.1"), {}, "u1");
+  await settle();
+  assert.deepEqual(bucketsOf(mine), { kit: ["Actor.b.Item.1"] }, "a seat that is no GM writes the record it may write");
+  assert.deepEqual(bucketsOf(other), { kit: ["Actor.a.Item.1"] }, "and cannot write the other");
+  assert.deepEqual(emitted.map((m) => [m.action, m.payload]), [[LOST_ITEM_HANDLER, { itemUuid: "Actor.a.Item.1" }]], "which it asks the GM's client for, once");
+  assert.deepEqual(bucketsOf(bystander), { kit: ["Actor.a.Item.2"] }, "a record that never named it is untouched");
+  const writes = mine.writes;
+  hooks.deleteItem(item("Actor.a.Item.1"), {}, "u1");
+  await settle();
+  assert.equal(mine.writes, writes, "a second strip of the same uuid writes nothing");
+  hooks.deleteItem(item("Actor.z.Item.9"), {}, "u1");
+  await settle();
+  assert.equal(mine.writes, writes, "a uuid no answer names writes nothing");
+
+  // A stack with something left leaves nothing; an emptied one is off the holder, and what a holder is given in its place is another uuid.
+  hooks.updateItem(item("Actor.b.Item.1", 2), { system: { quantity: 2 } }, {}, "u1");
+  await settle();
+  assert.deepEqual(bucketsOf(mine), { kit: ["Actor.b.Item.1"] }, "a stack with stock left stays in the answer");
+  hooks.updateItem(item("Actor.b.Item.1", 0), { system: { quantity: 0 } }, {}, "u1");
+  await settle();
+  assert.deepEqual(bucketsOf(mine), { kit: [] }, "an emptied stack leaves it");
+  hooks.updateItem(item("Actor.a.Item.2", 0), { system: { quantity: 0 } }, {}, "u2");
+  await settle();
+  assert.deepEqual(bucketsOf(bystander), { kit: ["Actor.a.Item.2"] }, "an emptied stack on another client's write is that client's");
+  const moved = effectDoc("moved", kit("Actor.a.Item.5", "Actor.b.Item.5"));
+  globalThis.game.actors.push(actorOf(moved));
+  hooks.deleteItem(item("Actor.a.Item.5"), {}, "u1");
+  await settle();
+  assert.deepEqual(bucketsOf(moved), { kit: ["Actor.b.Item.5"] }, "the item a move made on its new holder is a different uuid and stays");
+
+  // The GM's client re-reads the world and strikes the records the seat could not write, only for an item that has gone.
+  const { executeAsGM } = await import("../scripts/lib/sockets.mjs");
+  globalThis.game.user.isGM = true;
+  held = { uuid: "Actor.a.Item.1", system: { quantity: 3 } };
+  assert.deepEqual(await executeAsGM(LOST_ITEM_HANDLER, { itemUuid: "Actor.a.Item.1" }), { ok: false, reason: "present" });
+  assert.deepEqual(bucketsOf(other), { kit: ["Actor.a.Item.1"] }, "an item that still stands is not struck");
+  assert.deepEqual(await executeAsGM(LOST_ITEM_HANDLER, { itemUuid: "" }), { ok: false, reason: "noItem" });
+  held = { uuid: "Actor.a.Item.1", system: { quantity: 0 } };
+  const result = await executeAsGM(LOST_ITEM_HANDLER, { itemUuid: "Actor.a.Item.1" });
+  assert.equal(result.ok, true, "a stack left empty is off the holder");
+  assert.deepEqual(bucketsOf(other), { kit: [] }, "the GM's client writes the record the seat could not");
+  assert.deepEqual((await executeAsGM(LOST_ITEM_HANDLER, { itemUuid: "Actor.a.Item.1" })).written, [], "and a repeat finds nothing");
+  const other2 = effectDoc("other2", kit("Actor.a.Item.7"), false);
+  globalThis.game.actors.push(actorOf(other2));
+  held = null;
+  assert.equal((await executeAsGM(LOST_ITEM_HANDLER, { itemUuid: "Actor.a.Item.7" })).ok, true, "an item that is no longer there is struck too");
+  assert.deepEqual(bucketsOf(other2), { kit: [] });
 });
 
 console.log(`\n${n} cast-declare tests passed`);

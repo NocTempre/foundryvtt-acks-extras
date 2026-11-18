@@ -18,6 +18,7 @@ import { levelTip } from "../cast-ability-tips.mjs";
 import { gateTip } from "../cast-gates.mjs";
 import { needsBearer, kindChoices, saveModifierOf } from "../cast-mods.mjs";
 import { FIELD_KIND } from "../../lib/field-spec.mjs";
+import { procedureHeading } from "../cast-procedure.mjs";
 
 /** The visibility modes the dialog offers, as lib's roll dialog offers them. */
 export const VISIBILITY_MODES = ["public", "gm", "blind", "self"];
@@ -389,10 +390,10 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       level: { show: Boolean(ctx.levelNeeded && !stand.value), value: st.casterLevel, tip: [loc("tip.level.hand", { value: "" }), levelTip(level, loc)].filter(Boolean).join(" · ") },
       kind: { show: kind.options.length > 0, options: kind.options.map((key) => ({ key, selected: key === kind.value })), rows: kept.filter(({ row }) => row.pickKind === true).map(({ row }) => effectRow(row, statusImg)) },
     },
-    // One Invocation band, between the spell and the saves: the procedure's fields, then its band.
+    // One band, between the spell and the saves: the procedure's fields, then its band. Its heading is the tradition's: the procedure's own label, else the tradition's name.
     invocation: {
       show: Boolean(proc && (proc.specs.length || proc.band)),
-      title: loc("dialog.invocation"),
+      title: procedureHeading(ctx.procedure, { localize: (key) => game.i18n.localize(key), fallback: loc("dialog.invocation") }),
       fields: (proc?.specs ?? []).map((spec) => fieldView(spec, proc.answer)),
       band: proc?.band ?? null,
     },

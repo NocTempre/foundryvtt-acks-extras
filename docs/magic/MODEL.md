@@ -857,7 +857,9 @@ and the first's handle then does nothing. Every member is optional: `fields(ctx,
 answer)` (field specs, `lib/field-spec.mjs`), `band(ctx, answer)` (`{template,
 context}`, a partial for what a field cannot say), `verdicts(ctx, answer)`
 (`[{key, notice}]`), `castingTime(ctx, answer)`, `perform(ctx, answer)`,
-`lost(ctx, declaration)`, `revert(ctx, undo)` and `buckets(ctx)`. The `ctx` is
+`lost(ctx, declaration)`, `revert(ctx, undo)` and `buckets(ctx)`, and a `label`, a
+lang key the tradition owns that names the band's heading (a string, never a
+function; the registration refuses any other). The `ctx` is
 `{actor, spell, tradition, classItem, invocationLevel, casterLevel, isGM, moment,
 combat, source, roll, now}` (`castId` too for `perform`); a ctx whose `source` is
 not `spell` is given no procedure. The procedure is found by the kind of the
@@ -869,16 +871,37 @@ the summoning's claimant declines a spell with a procedure and
 object, `answer.procedure`: the field values coerced to the specs, the controls of
 its band (named `procedure.<key>`), and the reserved key `buckets`,
 `{bucketKey: [{uuid, qty, fit}]}`. A member that throws is logged and left out.
+The buckets' key belongs to no field and no control: a field spec keyed `buckets`
+is left out, the dialog's read of `procedure.<key>` skips it, and a value in its
+place that is not a list per bucket reads as no entries. An entry exists only by
+a drag of a real document (lib's `bucket.entryFromDrop`); nothing typed makes one.
 
-The dialog draws the fields and then the band in one band headed Invocation,
-between the spell and the saves, and loads the band's partial before it renders;
-a partial that cannot load is left out. The cast's verdicts add the procedure's
+The dialog draws the fields and then the band in one band between the spell and
+the saves, and loads the band's partial before it renders; a partial that cannot
+load is left out. The band's heading names the tradition (`procedureHeading`): the
+procedure's `label` localized, else the tradition's own label, else the generic
+Invocation heading for a tradition with neither. The cast hands the dialog both in
+`ctx.procedure` (`label`, `traditionLabel`). The cast's verdicts add the procedure's
 findings, each taking the plan's severity (a Player blocked, a Judge warned) and
 reading in its own words (`notice`), and add `ritualPending` for a spell whose
-`ritual` flag is set (no ritual is cast from the dialog yet) and `bucketChanged`.
-At the turn each uuid in a stored answer's buckets is read again: one the world no
-longer holds reopens the dialog on what was declared, and keeping it is
-`bucketChanged`. `perform` runs after the cast has its id and the caster's
+`ritual` flag is set (no ritual is cast from the dialog yet).
+
+An item a stored answer's buckets name that leaves its holder before the cast uses
+it is struck from every pending record's answer (`stripLostItem`,
+`cast-declare.mjs`). The `deleteItem` hook, and `updateItem` where the item's stack
+is left empty (`hasStock`), run it on the client that made the change. An item's
+uuid names its holder, so a move to another holder is a delete and the new uuid is
+another entry. The records are every actor's and each unlinked token's; one this
+client may write (`canUserModify`) is written, every bucket keeping its key so a
+write that merges objects lands, and the rest are asked of the GM's client once
+(`magicLostItem`), which re-reads the world and writes them only for an item that is
+gone. Nothing is gated on ownership, a repeat writes nothing, and with no GM
+connected the records stay. At the cast, declared or run fresh, each uuid still in
+the answer is read again and an entry the world no longer holds is dropped without a
+word (`withoutMissing`; a `power:` entry names no document and stays). The dialog
+does not reopen, no notice names it and the plan has no verdict of its own for it.
+What remains is judged by the verdicts of the bucket the procedure supplies: a
+Player is blocked and a Judge warned. `perform` runs after the cast has its id and the caster's
 concentration has ended, before the first row, at every moment but `declare`; a
 declaration stores the answer and the kind and the turn performs on them.
 `perform` returns `{proceed, section, rolls, undo}`: the card draws `section`

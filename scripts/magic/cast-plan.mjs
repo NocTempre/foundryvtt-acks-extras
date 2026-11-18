@@ -29,7 +29,6 @@ export const VERDICT = Object.freeze({
   invocationUnset: "invocationUnset",
   longCast: "longCast",
   ritualPending: "ritualPending",
-  bucketChanged: "bucketChanged",
 });
 
 /**
@@ -59,10 +58,9 @@ export const VERDICT = Object.freeze({
  * @param {{value: number|null, cap: number|null, reads?: boolean}|null} [from.invocation]  `invocationLevel`'s answer with `reads`: a level above the tradition's cap and a level a row or figure reads and nothing sets are each a verdict (`invocationFindings`)
  * @param {Array<{key: string, notice: string}>} [from.procedure]  the findings the tradition's procedure adds (`cast-procedure.mjs`); each takes this plan's severity and carries its own text
  * @param {boolean} [from.ritual]  the spell is a ritual, which no cast performs yet
- * @param {string[]} [from.bucketsGone]  the documents a stored answer's buckets name that the world no longer holds
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number, notice?: string}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [], ritual = false, bucketsGone = [] } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [], ritual = false } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -88,7 +86,6 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
   // A time longer than a round is cast outside the initiative order: a Player is stopped and a Judge's cast resolves at its confirm.
   if (moment === MOMENT.long) out.push({ key: VERDICT.longCast, severity });
   if (ritual === true) out.push({ key: VERDICT.ritualPending, severity });
-  if (bucketsGone?.length) out.push({ key: VERDICT.bucketChanged, severity });
   for (const found of procedure ?? []) out.push({ key: found.key, severity, notice: found.notice ?? "" });
   if (needsBearer(rows) && bearers !== 1) out.push({ key: VERDICT.oneBearer, severity });
   const stopped = forbiddenBy(conditionSet(statuses), "cast");

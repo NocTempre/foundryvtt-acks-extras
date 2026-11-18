@@ -4,8 +4,8 @@
  * ApplicationV2 over a scrolling body and a pinned footer (the shape of the
  * influence window). The body holds the header (caster, spell, level, and the
  * form of a reversible spell), the spell's choices drawn as effect rows in the
- * character sheet's tones, the Invocation band (the fields and the band of the
- * tradition's procedure, `cast-procedure.mjs`), the saves, and the targets bucket; the footer holds
+ * character sheet's tones, the tradition's band (the fields and the band of its
+ * procedure, `cast-procedure.mjs`, headed by the tradition's name), the saves, and the targets bucket; the footer holds
  * what stands in the way, the visibility, Cancel and Cast (or Declare). A
  * verdict that blocks a Player disables the button, and a Judge reads it as a
  * warning. Cancel and a closed window both answer null, so nothing is spent.
@@ -20,6 +20,7 @@
  * answered by `cast-dialog-model.mjs`.
  */
 import { MODULE_ID } from "../constants.mjs";
+import { BUCKETS_KEY } from "../cast-procedure.mjs";
 import { dialogContext, initialState, answerOf, resolveDrop, resolveActor, addTarget, untarget } from "./cast-dialog-model.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -170,10 +171,10 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
       const el = field(name);
       if (el) a[name] = el.value;
     }
-    // The tradition's controls, by the name `procedure.<key>`: a field of its Invocation band, or a control of its own band partial.
+    // The tradition's controls, by the name `procedure.<key>`: a field of its band, or a control of its own band partial. The buckets' key is no control's: an entry comes by a drag alone.
     for (const el of form.querySelectorAll('[name^="procedure."]')) {
       const key = el.name.slice("procedure.".length);
-      if (!key) continue;
+      if (!key || key === BUCKETS_KEY) continue;
       if (el.type === "radio") {
         if (el.checked) a.procedure[key] = el.value;
       } else a.procedure[key] = el.type === "checkbox" ? el.checked : el.value;

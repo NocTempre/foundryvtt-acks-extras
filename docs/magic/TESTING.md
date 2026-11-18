@@ -550,6 +550,50 @@ slots at zero.
     says one declared target is no longer there, and nothing is spent. Cancelling leaves the
     pending record and the flag, as a cancelled cast does.
 
+### The lost-item steps
+
+Walked after the declaration steps, in `tools/live/magic-cast-spell.mjs`
+(`walkLostItem`). Nothing here needs a tradition procedure with a bucket of its
+own: the strip reads the stored answer, so the walk writes the pending record
+itself. Every document the steps make comes from `api.create` and is tracked by
+its uuid for the run's sweep (a setup the run builds, not a kept fixture): five
+`item` copies on the caster (`api.create("Item", …, {parent})`, each with a stack
+of two), one monster actor the Player has no ownership of, and three pending
+records written as the declaration's own flag shape
+(`flags.acks-extras.spellEffect`, role `caster`, a `pending.procedure.buckets.kit`
+naming the items, a `combatId` no fight carries so no turn ever reaches it).
+The step sweeps its own uuids (`api.sweepTracked({only})`) when it ends, so no
+later step finds a pending record or one of these items on the kept caster.
+
+1. **A lost item leaves the declared answers.** The first record, on the caster,
+    names three items. *Observable:* the GM deletes one and, within a few
+    seconds, the record's `kit` holds the other two and no more; an item named by
+    no record, deleted, leaves the record as it was; a stack emptied with
+    `system.quantity.value` set to 0 takes its item out of the record and the
+    item itself stays; the last deletion leaves `kit` an empty list, not
+    absent. A second record on the caster and a third on the monster actor each
+    name one item; the Player seat reads `canUserModify` as true for the first
+    and false for the second. The Player deletes that item. *Observable:* both
+    records lose it, the third by the GM's client (the Player's client asked for
+    it through `magicLostItem`).
+    The strip runs on the client that made the change, so a delete by the
+    Player's seat and one by the GM's seat are the two cases; a delete by a
+    peer client is that client's to strip.
+2. **The band's heading names the tradition.** The page registers a procedure
+    for the class fixture's tradition kind with one number field, so the band
+    draws, and takes it off in a `finally`. With a `label` key it supplies
+    (an existing lang key, so it localizes), the dialog's band heading reads that
+    key's text; with none, it reads the tradition's own label from the class
+    fixture, and neither is the generic Invocation string. The heading read is
+    that of the band holding the procedure's own field, since the Targets band
+    has a heading of its own. Both read from the Player's seat by opening the
+    damage spell's dialog and cancelling it, which spends nothing.
+
+*Drive mechanics.* A procedure registered for the class's tradition kind claims
+every spell of that tradition while it stands, so the page takes it off before
+any other cast is driven. The record carries no `held` and no `tail`, so no
+other hook reads it.
+
 ### The defense steps
 
 Damage against a target's immunities, resistances and susceptibilities, for a

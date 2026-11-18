@@ -486,10 +486,18 @@
   background: var(--acks-warning-tint);
 }
 
-/* A target a gate leaves unaffected stays listed, quiet; its tooltip says why. */
+/* A target a gate leaves unaffected stays listed with a dashed edge, its picture, name and controls quiet; its distance line keeps full strength. */
 .acks-extras-cast-trow.is-off {
-  opacity: 0.6;
   border-style: dashed;
+}
+
+.acks-extras-cast-trow.is-off .acks-extras-frame__gear-img,
+.acks-extras-cast-trow.is-off .acks-extras-cast-trow__name,
+.acks-extras-cast-trow.is-off .acks-extras-cast-ctl,
+.acks-extras-cast-trow.is-off .acks-extras-cast-pills,
+.acks-extras-cast-trow.is-off .acks-extras-cast-split,
+.acks-extras-cast-trow.is-off .acks-extras-cast-note {
+  opacity: 0.6;
 }
 
 .acks-extras-cast-trow__main {
@@ -564,7 +572,6 @@
   margin: 0;
   padding: var(--acks-sp-1) var(--acks-sp-4);
   border: var(--acks-rule-hair) solid var(--acks-ink-faint);
-  border-radius: 999px;
   background: var(--acks-paper-pure);
   color: var(--acks-ink);
   font-size: var(--acks-fs-label);
