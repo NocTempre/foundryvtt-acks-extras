@@ -65,7 +65,7 @@ export const OBSTACLES = Object.freeze({
  * override with no words reads as not imported. `advances` is present only
  * where the table says it with a boolean; absent, `obstacleStep` reads the
  * outcome as one that does not advance. `rounds`, the duration the outcome
- * costs, is present only as a positive integer.
+ * costs, is present only as a positive integer; a Judge's override typed as text is read as a number, as `botchBand` and `progressRate` read theirs.
  *
  * @param {string} kind a key of OBSTACLES
  * @param {"fail"|"botch"} which
@@ -77,7 +77,8 @@ export function obstacleOutcome(kind, which) {
   if (!text) return null;
   const out = { text, falls: cell.falls === true };
   if (typeof cell.advances === "boolean") out.advances = cell.advances;
-  if (Number.isInteger(cell.rounds) && cell.rounds > 0) out.rounds = cell.rounds;
+  const rounds = typeof cell.rounds === "string" && cell.rounds.trim() !== "" ? Number(cell.rounds) : cell.rounds;
+  if (Number.isInteger(rounds) && rounds > 0) out.rounds = rounds;
   return out;
 }
 

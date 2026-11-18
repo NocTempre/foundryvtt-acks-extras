@@ -152,6 +152,13 @@
   {{/if}}
   {{/if}}
 
+  {{#if crossing.rounds}}
+  <div class="acks-extras-crossing-spent" data-tooltip-text="{{crossing.rounds.tip}}">
+    <span>{{localize "ACKS-FORMATION.crossing.rounds.label"}}</span>
+    <span class="acks-nums acks-extras-crossing-spent-figure">{{crossing.rounds.text}}</span>
+  </div>
+  {{/if}}
+
   {{#if crossing.rows.length}}
   <ul class="acks-extras-crossing-rows">
     {{#if crossing.swim}}

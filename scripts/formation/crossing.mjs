@@ -33,22 +33,27 @@
  * holder names this crossing and the status. A throw writes them after its record
  * lands, on the member's body (`carriersOf`), and they come off when the member is
  * across or fell, when the crossing ends, when the party drops the member, and as
- * strays when a crossing begins; a jump, the climb up included, holds none. A crossing spends no time on the clock and posts
- * no damage: the card reports a fall's distance and dice and touches no hit
- * points. A player's client never writes or rolls: its press is relayed
+ * strays when a crossing begins; a jump, the climb up included, holds none. A throw
+ * on an obstacle spends rounds (`pressRounds`): each member's record keeps the
+ * rounds it has taken (`elapsed`) and the working of each press (`timed`), and
+ * `billCrossing` puts the slowest member's time, rounded up, on the party's clock
+ * once, writing the whole rounds paid as the crossing's `rounds`. A jump, a swim,
+ * a squeeze and the climb up spend none, and nothing is spent or billed while the
+ * party is in a fight or its clock is paused. A crossing posts no damage: the card
+ * reports a fall's distance and dice and touches no hit points. A player's client never writes or rolls: its press is relayed
  * (`player-requests.mjs`, kind `crossing`) and the GM client answers it with
  * `throwFor` read for a player's seat.
  */
 import { MODULE_ID, FORMATION_DOC } from "./constants.mjs";
 import { hasCapability } from "./ability-bridge.mjs";
 import {
-  carriedLoad, encumbranceOf, getFormations, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
+  carriedLoad, encumbranceOf, getFormation, getFormations, getMemberActor, getPartyActor, hasAbility, isCasualty, isStackMember, realMembers,
 } from "./formation-model.mjs";
 import { carriersOf } from "./mapper-kit.mjs";
 import { standsAs } from "./deployment.mjs";
 import { WATER, holdsSwimming, ownSwimSpeed, rescueStone, waterPenaltySteps } from "./swimming.mjs";
 import { chokepointFeet, escapeFeet, holdsContortionism, squeezeBotched } from "./squeezing.mjs";
-import { paceTableOf } from "./climb-pace.mjs";
+import { PACE_RATE_TABLE, paceTableOf } from "./climb-pace.mjs";
 import { settlePrompts } from "./crossing-prompt.mjs";
 import { PARTY_CHECKS, citedSource, partText, resolveCheck } from "./party-rolls.mjs";
 import { OBSTACLES, adventuringTarget, outcomeProvenance, readThrow, stretchFeet } from "./obstacles.mjs";
@@ -56,7 +61,7 @@ import { NO_ACROBATICS, fallFigures, jumpAt, jumpDistance, jumpFaces, shortfallD
 import {
   CLIMB_CHECK, CROSSING_STATUSES, DROWNING, ESCAPES, FOOTINGS, FOOTING_STATE, HANGING, LANDING, SETTLED, STALLED, STUCK, SWIMMING, WIGGLE_SAVE, climbUpRow, crossingHeld, crossingOfHolder,
   fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
-  swimThrowStep, withFooting, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, paceStep,
+  swimThrowStep, withFooting, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, paceStep, crossingElapsed, pressRate, pressRounds, roundsDue, timedStep,
 } from "./crossing-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
@@ -452,13 +457,29 @@ export function crossingTurn(formation, member) {
   return null;
 }
 
-/** A member's own speeds in feet per round: core's derived figures, or, bearing a body, the system's calculation for that load. */
-function swimSpeeds(actor, stone, lifted) {
+/**
+ * A member's own speeds: exploration in feet per turn, combat and run in feet per
+ * round. Core's derived figures, or, bearing a stone (a body lifted, a load a
+ * carrier shares), the system's calculation for that load; `lifted` takes the
+ * calculation alone. A speed neither gives is null, and a `stone` left out reads
+ * the actor's own figures only.
+ */
+function memberSpeeds(actor, stone, lifted = false) {
   const own = actor.system?.movementacks ?? {};
   const max = capacityStone(actor);
-  const bearing = max == null ? null : movementBearing({ stone, max, mod: actor.system?.movement?.mod });
-  if (lifted) return { combat: bearing?.combat ?? null, run: bearing?.running ?? null };
-  return { combat: Number.isFinite(own.combat) ? own.combat : bearing?.combat ?? null, run: Number.isFinite(own.chargerun) ? own.chargerun : bearing?.running ?? null };
+  const bearing = max == null || !Number.isFinite(stone) ? null : movementBearing({ stone, max, mod: actor.system?.movement?.mod });
+  if (lifted) return { exploration: bearing?.exploration ?? null, combat: bearing?.combat ?? null, run: bearing?.running ?? null };
+  return {
+    exploration: Number.isFinite(own.exploration) ? own.exploration : bearing?.exploration ?? null,
+    combat: Number.isFinite(own.combat) ? own.combat : bearing?.combat ?? null,
+    run: Number.isFinite(own.chargerun) ? own.chargerun : bearing?.running ?? null,
+  };
+}
+
+/** The speeds a swimmer's row reads: combat and run, from `memberSpeeds`. */
+function swimSpeeds(actor, stone, lifted) {
+  const { combat, run } = memberSpeeds(actor, stone, lifted);
+  return { combat, run };
 }
 
 /** One member's swim row for a seat, with what the view and the throw read beside it. */
@@ -687,6 +708,47 @@ function heldChips(crossing, entry, settled) {
       const label = game.i18n.localize(conditionNameKey(statusId));
       return { statusId, label, tip: [loc("crossing.tip.held", { condition: label }), citeFor("spelunking") ?? spelunkingRef()].join(" · ") };
     });
+}
+
+/** A rounds figure as a tooltip prints it: at most two decimals, and the unit. */
+const roundsText = (rounds) => loc("crossing.rounds.unit", { rounds: Math.round(rounds * 100) / 100 });
+
+/** One member's time as a tooltip line: what each press used, as it was recorded, and the total. */
+function roundsLine(name, record) {
+  const moves = new Map();
+  const misses = new Map();
+  for (const part of record.timed) {
+    if (part.miss) misses.set(part.rounds, (misses.get(part.rounds) ?? 0) + 1);
+    else {
+      const key = `${part.share}|${part.speed}`;
+      const sum = moves.get(key) ?? { share: part.share, speed: part.speed, feet: 0, rounds: 0 };
+      moves.set(key, { ...sum, feet: sum.feet + part.feet, rounds: sum.rounds + part.rounds });
+    }
+  }
+  const parts = [
+    ...[...moves.values()].map((m) => loc("crossing.rounds.move", { feet: Math.round(m.feet * 100) / 100, share: m.share, speed: loc(`crossing.rounds.speed.${m.speed}`), rounds: roundsText(m.rounds) })),
+    ...[...misses].map(([rounds, count]) => loc("crossing.rounds.miss", { count, rounds: roundsText(rounds) })),
+  ];
+  return loc("crossing.rounds.member", { name, parts: parts.join(" + "), rounds: roundsText(record.elapsed ?? 0) });
+}
+
+/**
+ * The header line of the rounds an obstacle crossing has put on the party's
+ * clock: the whole rounds billed, with a tooltip listing each member's time from
+ * what its presses recorded, the longest counted once, and the pages. Blank,
+ * with the Spelunking page reference alone, while no member has a press timed
+ * and no rate is imported for any of them.
+ */
+function roundsView(crossing, entries) {
+  const timed = entries.filter((entry) => crossing.members?.[entry.member.actorId]?.timed?.length);
+  const rated = entries.some((entry) => pressRate({
+    kind: entry.row.effective ?? crossing.kind, pace: entry.row.pace?.pick ?? null, advance: "success", speeds: memberSpeeds(entry.actor),
+  }) !== null);
+  if (!timed.length && !rated) return { text: "", tip: spelunkingRef() };
+  const cites = [...new Set([citeFor("spelunking"), citeFor(PACE_RATE_TABLE[crossing.kind])].filter(Boolean))];
+  const lines = timed.map((entry) => roundsLine(entry.actor.name, crossing.members[entry.member.actorId]));
+  lines.push(loc("crossing.rounds.longest", { rounds: roundsText(crossingElapsed(crossing.members)) }));
+  return { text: String(Math.max(0, Math.floor(Number(crossing.rounds) || 0))), tip: [...lines, ...(cites.length ? cites : [spelunkingRef()])].join(" · ") };
 }
 
 /** One obstacle row for the template. */
@@ -1013,6 +1075,7 @@ export function buildCrossingView(formation) {
     return view;
   }
   view.rows = entries.map((entry) => (jump ? jumpRowView(crossing, entry) : obstacleRowView(crossing, entry)));
+  if (!jump) view.rounds = roundsView(crossing, entries);
   view.canThrowAll = isGM && !jump && entries.some((entry) => entry.row.can && !entry.row.warn && !SETTLED.includes(entry.row.state));
   return view;
 }
@@ -1082,11 +1145,12 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
  * @param {Function|null} [o.beforeRoll] awaited after the checks, before the die
  * @param {"wiggle"|"push"|null} [o.step] on a squeeze crossing, the way out a stuck member takes; null is the squeezing throw
  * @param {Event|null} [o.event] the press, so the system's skip-dialog key reads from it on a wiggle back's save
+ * @param {boolean} [o.bill] bill the rounds the throw spent once it has landed; `throwAll` passes false and bills once itself
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string}>}
  *   `refused` names why nothing was thrown: `notGM`, `closed`, `member`, `jump`,
  *   `busy`, `stale`, `stuck`, `notStuck`, `cancelled` or the row's refusal reason; a refusal that went ahead is no refusal
  */
-export async function throwFor(formation, actorId, { player = false, crossingId = null, beforeRoll = null, step = null, event = null } = {}) {
+export async function throwFor(formation, actorId, { player = false, crossingId = null, beforeRoll = null, step = null, event = null, bill = true } = {}) {
   if (!game.user.isGM) return { ok: false, refused: "notGM" };
   const crossing = readCrossing(formation);
   if (!crossing) return { ok: false, refused: "closed" };
@@ -1109,18 +1173,21 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
     ui.notifications.warn(refusalText(asked.press.refusal, seen.actor) || loc("crossing.card.overRefusalBare"));
   }
   inFlight.add(key);
+  let result;
   try {
     await beforeRoll?.();
     if (squeeze) return await rollSqueeze(formation, crossing, seen, step, { event: saveEvent(event, player) });
     if (crossing.kind === SWIM_KIND) return await rollSwim(formation, crossing, seen);
     const record = crossing.members?.[actorId] ?? null;
-    return await rollStretch(formation, crossing, seen, {
+    result = await rollStretch(formation, crossing, seen, {
       record,
       fallOf: () => fallFromClimb({ kind: row.effective, covered: record?.covered ?? 0, feet: positive(crossing.length), depth: crossing.depth }),
     });
   } finally {
     inFlight.delete(key);
   }
+  if (bill && result.ok) await billCrossing(formation.id, crossing.id);
+  return result;
 }
 
 /**
@@ -1139,16 +1206,18 @@ export async function throwFor(formation, actorId, { player = false, crossingId 
  * @param {object} [o.row] the row thrown; the entry's own by default
  * @param {string} [o.title] the card's title, in place of the obstacle's
  * @param {boolean} [o.hold] hold the grid's conditions on a member still on the obstacle; false touches none
+ * @param {boolean} [o.spend] write the rounds the throw spends with the step; false (the climb up) spends none
  * @returns {Promise<{ok: boolean, refused?: string, message?: object, step?: string, fall?: object|null}>}
  */
-async function rollStretch(formation, crossing, seen, { record, fallOf, row = seen.row, title = "", hold = true }) {
+async function rollStretch(formation, crossing, seen, { record, fallOf, row = seen.row, title = "", hold = true, spend = true }) {
   const actorId = seen.member.actorId;
   const roll = await new Roll("1d20").evaluate();
   const natural = roll.dice?.[0]?.results?.[0]?.result ?? roll.dice?.[0]?.total ?? roll.total;
   const read = readThrow({ plan: row.plan, natural, total: roll.total });
   const stepped = stepMember({ member: record, stretches: row.stretches, read, natural, total: roll.total });
   const fall = stepped.state === "fell" ? fallOf() : null;
-  if (!(await writeMemberStep(formation, crossing.id, actorId, stepped))) return { ok: false, refused: "stale" };
+  const timed = spend ? pressTiming(formation, crossing, seen, { record, row, read, stepped }) : null;
+  if (!(await writeMemberStep(formation, crossing.id, actorId, timed ? { ...stepped, ...timed } : stepped))) return { ok: false, refused: "stale" };
   if (hold) {
     const wanted = heldAfter({ state: stepped.state, vulnerable: read.vulnerable });
     const bodies = carriersOf(seen.member);
@@ -1165,9 +1234,90 @@ async function rollStretch(formation, crossing, seen, { record, fallOf, row = se
 }
 
 /**
+ * Whether the party's clock takes a crossing's time now: read from the stored
+ * formation, since the one a sheet holds may be older than a fight that began
+ * or a pause. A party in a fight is billed by its combat rounds, and a paused
+ * clock is billed for nothing. A formation with no clock has none to bill.
+ */
+function clockOpen(formationId, fallback) {
+  const live = getFormation(formationId) ?? fallback;
+  return !!live?.clock && !live.combat?.active && !live.clock.paused;
+}
+
+/**
+ * What a press adds to the member's record: `elapsed` and `timed` (`timedStep`),
+ * or null where the press spends nothing: the clock is not open, a figure it
+ * rests on is not imported, the throw was a fall.
+ */
+function pressTiming(formation, crossing, seen, { record, row, read, stepped }) {
+  if (!clockOpen(formation.id, formation)) return null;
+  const spent = pressRounds({
+    kind: row.effective ?? crossing.kind,
+    pace: row.pace?.pick ?? null,
+    speeds: memberSpeeds(seen.actor),
+    length: crossing.length,
+    before: record?.covered ?? 0,
+    stepped,
+    read,
+  });
+  return timedStep(record, spent);
+}
+
+/** The billers in the turn, keyed by formation: two presses landing together are billed one after the other. */
+const billQueues = new Map();
+
+/**
+ * Put the rounds a crossing has taken and not yet paid on the party's clock.
+ * The crossing's time is the slowest member's (`crossingElapsed`), rounded up
+ * (`roundsDue`); the whole rounds paid are written as the crossing's `rounds`
+ * by their own path, then the clock advances by what was owed, as a drag of the
+ * party token bills a move: the turn counts as moved and the turn plan's open
+ * entries are cancelled. Billers of one formation run one after another and read
+ * the formation fresh inside the turn, so two presses landing together pay once.
+ * A GM client's work; nothing is billed for a crossing that is no longer the one
+ * open, in a fight, or on a paused clock.
+ *
+ * @param {string} formationId
+ * @param {string} crossingId the crossing the caller worked on
+ * @returns {Promise<number>} the whole rounds put on the clock
+ */
+export function billCrossing(formationId, crossingId) {
+  const prior = billQueues.get(formationId) ?? Promise.resolve();
+  const next = prior.then(() => payCrossing(formationId, crossingId));
+  const settled = next.then(() => undefined, () => undefined);
+  billQueues.set(formationId, settled);
+  settled.then(() => {
+    if (billQueues.get(formationId) === settled) billQueues.delete(formationId);
+  });
+  return next;
+}
+
+/** One turn of the biller: read, check, write the rounds paid, advance the clock. */
+async function payCrossing(formationId, crossingId) {
+  if (!game.user.isGM || !clockOpen(formationId, null)) return 0;
+  const formation = getFormation(formationId);
+  const actor = formation && getPartyActor(formation);
+  const crossing = actor && readCrossing(formation);
+  if (!crossing || crossing.id !== crossingId) return 0;
+  const { due, billed } = roundsDue(crossingElapsed(crossing.members), crossing.rounds);
+  if (due <= 0) return 0;
+  await actor.update({ [setupPath("rounds")]: billed });
+  formation.clock.movedThisTurn = true;
+  try {
+    const { cancelPlanForMove } = await import("./turn-plan.mjs");
+    await cancelPlanForMove(formation);
+  } catch (err) {
+    console.error(`${MODULE_ID} | turn plan: cancelling for the crossing failed`, err);
+  }
+  const { advanceRounds } = await import("./turn-engine.mjs");
+  await advanceRounds(formation, due, { reason: "crossing" });
+  return due;
+}
+
+/**
  * Throw a stretch for every member whose row allows it with no warning, one
- * after another. A member who is across, fell, stalled, refused or warned is
- * left for the Judge to press.
+ * after another, and bill the rounds they spent once, after the last. A member
+ * who is across, fell, stalled, refused or warned is left for the Judge to press.
  * @returns {Promise<{thrown: number, left: number, messages: object[]}>}
  */
 export async function throwAll(formation) {
@@ -1181,12 +1331,13 @@ export async function throwAll(formation) {
       out.left++;
       continue;
     }
-    const result = await throwFor(formation, entry.member.actorId);
+    const result = await throwFor(formation, entry.member.actorId, { bill: false });
     if (result.ok) {
       out.thrown++;
       out.messages.push(result.message);
     } else out.left++;
   }
+  if (out.thrown) await billCrossing(formation.id, crossing.id);
   return out;
 }
 
@@ -1826,6 +1977,7 @@ export async function jumpFor(formation, actorId, { step = "attempt", player = f
         title: loc("crossing.card.climbUp"),
         fallOf: () => fallFromDepth(crossing.depth),
         hold: false,
+        spend: false,
       });
     }
     return await attemptJump(formation, crossing, seen, { event: saveEvent(event, player), over });

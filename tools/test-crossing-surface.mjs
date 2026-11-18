@@ -81,7 +81,14 @@ globalThis.game = {
   user: GM,
   users,
   i18n: { localize: (k) => (typeof lookup(k) === "string" ? lookup(k) : k), format, has: (k) => typeof lookup(k) === "string" },
-  settings: { get: (_scope, key) => (key === "formations" ? formations : key === "skip-dialog-key" ? "shiftKey" : {}) },
+  settings: {
+    get: (_scope, key) => (key === "formations" ? formations : key === "skip-dialog-key" ? "shiftKey" : key === "advanceWorldTime" ? false : {}),
+    set: async (_scope, key, value) => {
+      if (key !== "formations") return;
+      for (const id of Object.keys(formations)) delete formations[id];
+      Object.assign(formations, clone(value));
+    },
+  },
   actors: Object.assign(new Map(), { [Symbol.iterator]() { return this.values(); } }), // iterates its documents, as core's collection does
   scenes: new Map(),
   items: [],
@@ -2882,6 +2889,232 @@ await ok("the partial draws the pace pick for a holder only, with no literal id,
   const sheet = fs.readFileSync(new URL("../scripts/formation/party-actor.mjs", import.meta.url), "utf8");
   assert.ok(/export function bindCrossingPace\(/.test(actions) && /select\[data-pace-for\]/.test(actions), "the select has a handler");
   assert.ok(/\["pace", \(\) => bindCrossingPace\(this\)\]/.test(sheet), "and the sheet binds it on every render");
+});
+
+/* --- the rounds a crossing spends -------------------------------------------- */
+const { totalRounds } = await import("../scripts/formation/turn-engine.mjs");
+const { billCrossing } = crossing;
+
+/** The rates of each pace, invented: exploration is per turn, so nine feet a round at the speeds below. */
+const PACE_RATES = {
+  climbPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.2, speed: "combat" }, fastest: { share: 0.7, speed: "combat" } },
+  crawlPaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.3, speed: "run" }, fastest: { share: 1, speed: "run" } },
+  balancePaceRates: { normal: { share: 1, speed: "exploration" }, faster: { share: 0.4, speed: "run" }, fastest: { share: 0.9, speed: "run" } },
+};
+const TIMED_OUTCOMES = {
+  sheerClimb: { fail: { text: "Holds on", falls: false, advances: false, rounds: 3 }, botch: { text: "Plummets", falls: true, rounds: 6 } },
+  easyClimb: { fail: { text: "Inch along", falls: false, advances: true } },
+};
+/** A member's own speeds, as core derives them, and the effects list the clock's turn bookkeeping reads: exploration 90 a turn is nine feet a round, combat 30 and run 60 a round. */
+const withSpeeds = (actor) => {
+  actor.system.movementacks = { exploration: 90, combat: 30, chargerun: 60 };
+  actor.effects ??= [];
+  return actor;
+};
+const clockOf = () => formations.f1.clock;
+const roundsOnClock = () => totalRounds(clockOf());
+/** The party actor's writes of the billed count, one per bill that owed something. */
+const billWrites = () => seen.updates.filter(([who, data]) => who === "party" && Object.keys(data).some((k) => k.endsWith("crossing.rounds"))).length;
+
+/** An obstacle crossing over a formation whose clock runs, its members holding Climbing, each with a speed of its own. */
+const timeWorld = async (members, { kind = "easyClimb", length = "100", tables = {}, rates = PACE_RATES } = {}) => {
+  reset();
+  load({ pace: { ...PACE, ...rates }, outcomes: TIMED_OUTCOMES, ...tables });
+  const actors = members.map(([name, extra]) => withSpeeds(person(name, { items: [CLIMBING()], ...extra })));
+  const made = world(actors);
+  Object.assign(formations[made.formation.id], {
+    lights: [], spells: [],
+    clock: { turnsTotal: 0, turnsSinceRest: 0, encounterCounter: 0, carryFeet: 0, winded: false, paused: false, roundsPartial: 0 },
+  });
+  await beginCrossing(made.formation, kind);
+  if (length) await applyCrossingForm(made.formation, { length });
+  return made;
+};
+const press = async (formation, name = "Alder", natural = 15) => {
+  naturals.push(natural);
+  return throwFor(formation, name);
+};
+
+await ok("a made stretch spends its feet over the exploration rate, the whole total is rounded up once, and the clock advances by what is owed", async () => {
+  const { formation } = await timeWorld([["Alder", {}]]);
+  assert.equal(roundsOnClock(), 0);
+  assert.equal((await press(formation)).ok, true);
+  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 9) < 1e-6, "forty feet at nine a round");
+  assert.equal(readCrossing(formation).rounds, 5);
+  assert.equal(roundsOnClock(), 5, "4.44 rounds is five on the clock");
+  assert.equal(clockOf().movedThisTurn, true, "the turn counts as moved, as a drag of the party token makes it");
+  await press(formation);
+  assert.equal(roundsOnClock(), 9, "8.89 rounds owes four more, not five");
+  await press(formation);
+  assert.ok(Math.abs(recordOf(formation).elapsed - 100 / 9) < 1e-5, "the last stretch is the twenty feet left");
+  assert.deepEqual([readCrossing(formation).rounds, roundsOnClock(), recordOf(formation).state], [12, 12, "across"], "11.1 rounds is twelve; rounding each stretch up would be thirteen");
+  assert.equal(recordOf(formation).timed.length, 3);
+  assert.deepEqual(recordOf(formation).timed[2], { rounds: 2.222222, feet: 20, share: 1, speed: "exploration" });
+});
+
+await ok("a faster pace crosses at its own share of the member's combat speed", async () => {
+  const { formation } = await timeWorld([["Alder", {}]]);
+  await setPace(formation, "Alder", "fastest");
+  await press(formation, "Alder", 20); // the pace raises the target by its imported size
+  assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 21) < 1e-6, "seven tenths of thirty is twenty-one a round");
+  assert.equal(roundsOnClock(), 2);
+  assert.deepEqual([recordOf(formation).timed[0].share, recordOf(formation).timed[0].speed], [0.7, "combat"]);
+});
+
+await ok("several members cross together: the slowest member's time is counted once, not added", async () => {
+  const { formation } = await timeWorld([["Alder", {}], ["Brin", {}]]);
+  await setPace(formation, "Brin", "faster");
+  await press(formation, "Alder");
+  assert.equal(roundsOnClock(), 5);
+  await press(formation, "Brin");
+  assert.ok(Math.abs(recordOf(formation, "Brin").elapsed - 40 / 6) < 1e-6, "twenty percent of thirty is six a round");
+  assert.equal(roundsOnClock(), 7, "6.67 rounds is the crossing's time, where the sum, 11.1, would be twelve");
+  assert.equal(readCrossing(formation).rounds, 7);
+});
+
+await ok("a miss that covers no ground spends the outcome's imported duration; a fall spends none; with no duration imported nothing is spent", async () => {
+  const stalled = await timeWorld([["Alder", {}]], { kind: "sheerClimb" });
+  await press(stalled.formation, "Alder", 5);
+  assert.equal(recordOf(stalled.formation).state, "stalled");
+  assert.deepEqual([recordOf(stalled.formation).elapsed, roundsOnClock()], [3, 3]);
+  assert.deepEqual(recordOf(stalled.formation).timed, [{ rounds: 3, miss: true }]);
+  const fell = await timeWorld([["Alder", {}]], { kind: "sheerClimb" });
+  await press(fell.formation, "Alder", 1);
+  assert.equal(recordOf(fell.formation).state, "fell");
+  assert.deepEqual([recordOf(fell.formation).elapsed, roundsOnClock()], [undefined, 0], "the botch's own duration is not spent by a fall");
+  const unsaid = await timeWorld([["Alder", {}]], { kind: "sheerClimb", tables: { outcomes: { sheerClimb: { fail: { text: "Holds on", falls: false, advances: false } } } } });
+  await press(unsaid.formation, "Alder", 5);
+  assert.equal(recordOf(unsaid.formation).state, "stalled");
+  assert.deepEqual([recordOf(unsaid.formation).elapsed, roundsOnClock()], [undefined, 0]);
+});
+
+await ok("a rope's descent spends at the grid's rate, and a blank length or an unimported rate spends nothing and breaks nothing", async () => {
+  const grid = { ...SPELUNKING, progress: { rappel: { success: { share: 0.6, speed: "combat" } } } };
+  const rope = await timeWorld([["Alder", {}]], { kind: "rappel", tables: { spelunking: grid } });
+  await press(rope.formation);
+  assert.ok(Math.abs(recordOf(rope.formation).elapsed - 40 / 18) < 1e-6, "six tenths of thirty is eighteen a round");
+  assert.equal(roundsOnClock(), 3);
+  const blank = await timeWorld([["Alder", {}]], { length: "" });
+  assert.equal((await press(blank.formation)).ok, true, "the throw is made");
+  assert.deepEqual([recordOf(blank.formation).elapsed, roundsOnClock(), readCrossing(blank.formation).rounds], [undefined, 0, undefined]);
+  const none = await timeWorld([["Alder", {}]], { rates: {} });
+  assert.equal((await press(none.formation)).ok, true);
+  assert.deepEqual([recordOf(none.formation).elapsed, roundsOnClock()], [undefined, 0], "no pace rate imported, no time");
+});
+
+await ok("nothing is spent or billed while the party is in a fight or its clock is paused, and what the fight skipped is not charged afterward", async () => {
+  for (const [what, set, clear] of [
+    ["a fight", () => { formations.f1.combat = { active: true }; }, () => { formations.f1.combat = { active: false }; }],
+    ["a paused clock", () => { formations.f1.clock.paused = true; }, () => { formations.f1.clock.paused = false; }],
+  ]) {
+    const { formation } = await timeWorld([["Alder", {}]]);
+    set();
+    assert.equal((await press(formation)).ok, true, what);
+    assert.deepEqual([recordOf(formation).elapsed, roundsOnClock(), readCrossing(formation).rounds], [undefined, 0, undefined], what);
+    assert.equal(recordOf(formation).covered, 1, "the stretch itself is covered");
+    assert.equal(await billCrossing("f1", readCrossing(formation).id), 0, "and a bill asked for in it pays nothing");
+    clear();
+    await press(formation);
+    assert.ok(Math.abs(recordOf(formation).elapsed - 40 / 9) < 1e-6, `${what}: only the press made after it is timed`);
+    assert.equal(roundsOnClock(), 5);
+  }
+});
+
+await ok("the climb up, a jump and a billing asked for a crossing that is no longer open spend nothing", async () => {
+  const { formation } = await gapWorld({ landing: { precarious: true } });
+  // Rates and a speed are in place, so a climb up that did spend would find a rate to spend at.
+  load({ jumping: J3, pace: { ...PACE, ...PACE_RATES } });
+  withSpeeds(game.actors.get("Alder"));
+  Object.assign(formations.f1, { lights: [], spells: [], clock: { turnsTotal: 0, turnsSinceRest: 0, encounterCounter: 0, carryFeet: 0, winded: false, paused: false, roundsPartial: 0 } });
+  await applyCrossingForm(formation, { length: "100" });
+  saveResult = { total: 11 };
+  naturals.push(6, 3);
+  await jumpFor(formation, "Alder");
+  assert.equal(recordOf(formation).state, "hanging");
+  assert.deepEqual([recordOf(formation).elapsed, roundsOnClock()], [undefined, 0], "the jump spends none");
+  naturals.push(14);
+  assert.equal((await jumpFor(formation, "Alder", { step: "climbUp" })).step, "across");
+  assert.deepEqual([recordOf(formation).elapsed, roundsOnClock(), readCrossing(formation).rounds], [undefined, 0, undefined], "the climb up spends none");
+  const owing = await timeWorld([["Alder", {}]]);
+  naturals.push(15);
+  assert.equal((await throwFor(owing.formation, "Alder", { bill: false })).ok, true);
+  const id = readCrossing(owing.formation).id;
+  assert.equal(await billCrossing("f1", "not-this-one"), 0, "a crossing id that is not the open one owes nothing");
+  assert.equal(roundsOnClock(), 0);
+  await endCrossing(owing.formation);
+  assert.equal(await billCrossing("f1", id), 0, "a crossing that has ended");
+  assert.equal(roundsOnClock(), 0);
+  const live = await timeWorld([["Alder", {}]]);
+  naturals.push(15);
+  await throwFor(live.formation, "Alder", { bill: false });
+  assert.equal(await billCrossing("f1", readCrossing(live.formation).id), 5, "the open crossing's own id is paid");
+  assert.equal(roundsOnClock(), 5);
+});
+
+await ok("throw for all bills once after its loop, and two presses landing together are billed once between them", async () => {
+  const all = await timeWorld([["Alder", {}], ["Brin", {}]]);
+  await setPace(all.formation, "Brin", "faster");
+  naturals.push(15, 15);
+  seen.updates.length = 0;
+  const out = await throwAll(all.formation);
+  assert.equal(out.thrown, 2);
+  assert.equal(billWrites(), 1, "one bill for both throws");
+  assert.deepEqual([readCrossing(all.formation).rounds, roundsOnClock()], [7, 7]);
+
+  const together = await timeWorld([["Alder", {}], ["Brin", {}]]);
+  await setPace(together.formation, "Brin", "faster");
+  naturals.push(15, 15);
+  rollDelay = 1;
+  try {
+    const both = await Promise.all([throwFor(together.formation, "Alder"), throwFor(together.formation, "Brin")]);
+    assert.deepEqual(both.map((r) => r.ok), [true, true]);
+  } finally {
+    rollDelay = 0;
+  }
+  assert.deepEqual([readCrossing(together.formation).rounds, roundsOnClock()], [7, 7], "the clock is charged the crossing's time once, whichever press landed first");
+
+  const owed = await timeWorld([["Alder", {}], ["Brin", {}]]);
+  await setPace(owed.formation, "Brin", "faster");
+  naturals.push(15, 15);
+  for (const name of ["Alder", "Brin"]) await throwFor(owed.formation, name, { bill: false });
+  assert.equal(roundsOnClock(), 0, "nothing is billed yet");
+  seen.updates.length = 0;
+  const id = readCrossing(owed.formation).id;
+  const paid = await Promise.all([billCrossing("f1", id), billCrossing("f1", id), billCrossing("f1", id)]);
+  assert.deepEqual([paid.reduce((a, b) => a + b, 0), roundsOnClock(), billWrites()], [7, 7, 1], "three billers asked at once pay the crossing once");
+});
+
+await ok("the header line carries the rounds billed, each member's working in its tooltip, the longest counted once, and the page; blank with the page alone while nothing is imported", async () => {
+  const { formation } = await timeWorld([["Alder", { owner: PLAYER.id }], ["Brin", {}]]);
+  const idle = buildCrossingView(formation).rounds;
+  assert.equal(idle.text, "0", "a rate is imported and nothing has been thrown");
+  await setPace(formation, "Brin", "faster");
+  await press(formation, "Alder");
+  await press(formation, "Brin");
+  const view = buildCrossingView(formation).rounds;
+  assert.equal(view.text, "7");
+  assert.ok(view.tip.includes("Alder: 40 ft at 1 × exploration speed (4.44 rd) = 4.44 rd"), view.tip);
+  assert.ok(view.tip.includes("Brin: 40 ft at 0.2 × combat speed (6.67 rd) = 6.67 rd"), view.tip);
+  assert.ok(view.tip.includes("Slowest member's time, counted once: 6.67 rd") && view.tip.endsWith("XX p.1"), view.tip);
+  const html = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
+  assert.ok(html.includes("acks-extras-crossing-spent") && html.includes("ACKS-FORMATION.crossing.rounds.label"), "every seat draws it");
+  assert.ok(/acks-extras-crossing-spent-figure">7</.test(html));
+  const missed = await timeWorld([["Alder", {}]], { kind: "sheerClimb" });
+  await press(missed.formation, "Alder", 5);
+  assert.ok(buildCrossingView(missed.formation).rounds.tip.includes("Alder: 1 misses × 3 rd = 3 rd"), "misses and their duration");
+
+  reset();
+  load();
+  const plain = world([withSpeeds(person("Alder", { items: [CLIMBING()] }))]);
+  await beginCrossing(plain.formation, "easyClimb");
+  const blank = buildCrossingView(plain.formation).rounds;
+  assert.deepEqual([blank.text, blank.tip], ["", "RR ch. 6, Spelunking"], "no rate imported, so nothing to show but where to look");
+  assert.ok(render({ crossing: buildCrossingView(plain.formation) }).includes("acks-extras-crossing-spent"));
+  for (const kind of ["jump", "swim", "squeeze"]) {
+    await endCrossing(plain.formation);
+    await beginCrossing(plain.formation, kind);
+    assert.equal("rounds" in buildCrossingView(plain.formation), false, `${kind} has no rounds line`);
+  }
 });
 
 console.log(`\n${passed} passed`);

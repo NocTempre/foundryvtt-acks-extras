@@ -291,16 +291,19 @@ ok("`advances` is read only as a boolean, and left off otherwise", () => {
   resetTables();
 });
 
-ok("`rounds` is passed only as a positive integer, and left off otherwise", () => {
+ok("`rounds` is passed only as a positive whole number, typed text included, and left off otherwise", () => {
   load(SPELUNKING, {
     easyClimb: { fail: { text: "Wait", rounds: 3 }, botch: { text: "Wait", advances: false, rounds: 1 } },
     sheerClimb: { fail: { text: "Wait", rounds: "3" }, botch: { text: "Wait", rounds: 2.5 } },
     rappel: { fail: { text: "Wait", rounds: 0 }, botch: { text: "Wait", rounds: -2 } },
     crawl: { fail: { text: "Wait", rounds: null }, botch: { text: "Wait", rounds: true } },
+    narrowLedge: { fail: { text: "Wait", rounds: "" }, botch: { text: "Wait", rounds: "2.5" } },
+    precariousLedge: { fail: { text: "Wait", rounds: "soon" }, botch: { text: "Wait", rounds: "0" } },
   });
   assert.deepEqual(obstacleOutcome("easyClimb", "fail"), { text: "Wait", falls: false, rounds: 3 });
   assert.deepEqual(obstacleOutcome("easyClimb", "botch"), { text: "Wait", falls: false, advances: false, rounds: 1 });
-  for (const [kind, which] of [["sheerClimb", "fail"], ["sheerClimb", "botch"], ["rappel", "fail"], ["rappel", "botch"], ["crawl", "fail"], ["crawl", "botch"]]) {
+  assert.equal(obstacleOutcome("sheerClimb", "fail").rounds, 3, "a number typed as text is the number");
+  for (const [kind, which] of [["sheerClimb", "botch"], ["rappel", "fail"], ["rappel", "botch"], ["crawl", "fail"], ["crawl", "botch"], ["narrowLedge", "fail"], ["narrowLedge", "botch"], ["precariousLedge", "fail"], ["precariousLedge", "botch"]]) {
     assert.equal("rounds" in obstacleOutcome(kind, which), false, `${kind} ${which}`);
   }
   resetTables();

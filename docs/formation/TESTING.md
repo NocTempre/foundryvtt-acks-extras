@@ -4674,8 +4674,8 @@ miss and a natural 1.
 
 The `formation` document's `spelunking.progress` table (RR p. 268) holds per
 obstacle `{success, fail}`, each `{share, speed}`: a ratio of the member's
-`combat` or `run` speed. `fail` is present for one obstacle only. Nothing
-reads it yet (ROADMAP, "Rounds a crossing spends"), so this is a read of the
+`combat` or `run` speed. `fail` is present for one obstacle only. The crossing
+reads it only through "Rounds a crossing spends" below, so this section is a read of the
 import and of the reader `acksExtras.formation.obstacles.progressRate`, and no
 card or row changes. Compare with
 `s = acksExtras.lib.tables.getDoc("formation").tables.spelunking`; no cell's
@@ -4715,8 +4715,8 @@ The same Rules tables run also reads three more keys of the `formation`
 document, `climbPaceRates`, `crawlPaceRates` and `balancePaceRates` (RR pp.
 269-270), each `{normal, faster, fastest}` of `{share, speed}` with `speed` one
 of `exploration`, `combat`, `run`; and a `rounds` count on the outcome cells of
-`spelunkingOutcomes` that print one. Nothing in the crossing reads either yet, so
-this is a read of the import and of the readers `paceRates` (`climb-pace.mjs`) and
+`spelunkingOutcomes` that print one. The crossing reads both only through "Rounds a crossing spends" below, so
+this section is a read of the import and of the readers `paceRates` (`climb-pace.mjs`) and
 `acksExtras.formation.obstacles.obstacleOutcome(kind, which).rounds`. `paceRates`
 is not on the api: reach it from the page with
 `const { paceRates } = await import("/modules/acks-extras/scripts/formation/climb-pace.mjs")`,
@@ -5205,3 +5205,36 @@ Before the first step the Rules tables must be imported: the walk reads `climbPa
 | P10 | A second party sheet, a detached window, the type size on a fresh window | The select and its label reflow and nothing clips; the player's select stays live after a render |
 
 Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; restore the removed pair.
+
+### Rounds a crossing spends (added with S17 of the dungeon close-out)
+
+Built for the crossing's obstacle kinds (Actors sidebar → the party sheet → Dungeon tab → The crossing → Rounds spent). A mock cannot prove that the real clock advances by what is owed, that the turn counts as moved, that a fight's own billing is left alone, or that the figure and its tooltip reach every seat. The rate arithmetic and the billing order are pinned offline (`tools/test-crossing.mjs`, `tools/test-crossing-surface.mjs`); this walk is the clock.
+
+Before the first step the Rules tables must be imported again: the walk reads `climbPaceRates`, `crawlPaceRates`, `balancePaceRates`, `spelunking.progress` and the `rounds` of an outcome cell, and a standing import from before them holds none. With them absent the section's header is blank and no throw spends anything, which is step R1.
+
+**Fixtures** (kept; found by `flags.world.fixture` with `api.fixture`; `own: <tag>` and `@<tag>` markers where a peer is on this surface).
+- `formation/crossing-party`, `formation/crossing-climber` and `formation/crossing-adventurer`, as "The crossing" builds them: the party, a holder and a member with no Climbing.
+- `formation/pace-climber`, as "The climber's pace" builds it: a second holder, a member of the party, whose pick is moved to a faster pace by the walk.
+- `formation/crossing-party` has a token on a scene at a dungeon scale; the clock is read from the party's formation record, not from a sheet.
+
+**Drive mechanics.**
+- The clock is read from the formation record, `game.settings.get("acks-extras", "formations")[<formation id>].clock`: `totalRounds` is `turnsTotal * 10 + roundsPartial`. Read it before and after each press and report both.
+- A press is the row's `[data-action="crossingThrow"]` or the header's `[data-action="crossingThrowAll"]`; rig the die with `CONFIG.Dice.randomUniform` (0.975 a 20, 0.025 a 1). The pace raises a target, so a faster pace needs a rig that clears it.
+- The party's `crossing.rounds` is the whole rounds paid and each member's `elapsed` the time kept; read both from the flag, `game.actors.get(partyId).getFlag("acks-extras", "crossing")`.
+- A fight is a combat the party's members are deployed into; pause is the clock's pause control on the party sheet. Restore both in a `finally`.
+
+| Step | Do | Observable |
+|---|---|---|
+| R1 | With the rate tables not imported, begin a Sheer climb, length set, and press a holder | The header reads "Rounds spent" with a blank figure whose tooltip is the Spelunking page alone; `totalRounds` is unchanged; no `elapsed` on the record |
+| R2 | Import the Rules tables; reopen the section | The figure reads 0, its tooltip the longest-time line and the pages |
+| R3 | Press the holder once, base pace, `totalRounds` read before and after | `crossing.rounds` equals the rounds the stretch owes, rounded up, and `totalRounds` moved by the same; `elapsed` is the stretch's feet over the rate; the Player's seat reads the same figure; the turn is marked moved |
+| R4 | Press the same member again until across | Each press adds only what the whole total newly owes, so the sum on the clock is the total rounded up once, never each stretch's |
+| R5 | Begin again; pick Faster for the second holder; press both | The clock moved by the slower member's time, once; the tooltip lists each member's feet, share, speed and rounds and ends with the longest and the pages |
+| R6 | Throw for all | One bill: `totalRounds` moves once for the loop |
+| R7 | Rig a miss that covers no ground, on a way of crossing whose miss has an imported duration | `elapsed` is that duration, the tooltip says "misses ×" the duration; a fall spends none |
+| R8 | Start a fight with the party's members deployed, press, end the fight | No `elapsed` and no `totalRounds` change from the press made in the fight; the first press after it is timed alone |
+| R9 | Pause the clock, press, unpause, press | As R8 for the pause |
+| R10 | Begin a jump; attempt, and climb up from the edge | `totalRounds` and `crossing.rounds` do not move; a swim and a squeeze header have no "Rounds spent" line |
+| R11 | A second party sheet, a detached window, the type size on a fresh window | The line wraps and keeps its tooltip; its size follows the knob |
+
+Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; restore the clock only by the walk's own readings (never roll it back by a write).

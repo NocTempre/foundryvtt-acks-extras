@@ -328,7 +328,7 @@ append-only, keep them; they are marked superseded in part.
 
 **Cost.** A world must re-run the Rules tables import before the crossing offers a size. Removing `waterModifier` and `WATER.calm` breaks any caller of the published names. The throw prices whatever size it is passed; the crossing's picker (slice S13) is where "an imported size or larger" is held.
 
-## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time — SUPERSEDED IN PART 2026-11-17 (a jump is attempted: the die is rolled and recorded)
+## 2026-11-16 — The crossing is a section of the Dungeon tab, thrown a stretch at a time — SUPERSEDED IN PART 2026-11-17 (a jump is attempted: the die is rolled and recorded) and 2026-11-17 (the crossing spends rounds: the row "No clock until a later slice")
 
 **Asked.** The dungeon close-out's audit found no surface for the Spelunking obstacles beyond a card that rolled a whole climb for a party in one press, and no surface at all for a jump. The surface was designed read-only on 2026-11-16 and its first slice (S7) built.
 
@@ -532,7 +532,7 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 - A faster pace does not yet change how much ground a made throw covers. The progress row (S17) gives the base rate only; each pace's own speed is printed in the pace paragraphs and is not imported, so this waits on that import (the 2026-11-17 entry on the grid's rates of progress, open question 6).
 - The pick is a Climbing holder's by `holdsClimbing`, which is Climbing alone. Whether Mountaineering counts is OQ4's answer, put to S24.
 
-## 2026-11-17 — The grid's rates of progress are imported as shares of the member's own speeds, and the crossing does not yet spend rounds — SUPERSEDED IN PART 2026-11-17 (open questions 4 and 6: the miss's duration and each pace's speed are imported)
+## 2026-11-17 — The grid's rates of progress are imported as shares of the member's own speeds, and the crossing does not yet spend rounds — SUPERSEDED IN PART 2026-11-17 (open questions 4 and 6: the miss's duration and each pace's speed are imported) and 2026-11-17 (the crossing spends rounds: "Not built" and open questions 1, 2, 3, 5 and 7)
 
 **Ruled.** (Dungeon close-out plan §4 row B7, §6 item 2 in part, slice S17, to the approved board "ClimbPace".)
 - `spelunking.progress.<kind>` is `{success, fail}`, each `{share, speed}`: a ratio of one of the member's own speeds, `combat` or `run`, the module's names for the movement figures core derives in feet per round. It is read through the existing `spelunkingGrid` and `spelunkingOutcomeGrid` bindings: `spelunkingGrid` gains a success row per grid, claimed in page order between the adventuring row and the botched-throw row, and the one failed-throw cell that still moves the climber is read by the same parser from the outcome grid, whose cells wrap. `PRODUCES.spelunking` therefore names both raw tables, as `jumping` names its two, so the Ruledata Browser's citation covers either.
@@ -571,3 +571,26 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 **Rejected.** Widening `PROGRESS_SPEED_WORDS` to carry the exploration speed: the progress grid has no such cell and the published list would name a speed `progressRate` refuses. Reading the exploration branch from the `pace` window: the sentence that prints it is the paragraph's first, the window begins after it, and a wider one would run the base and the paces together and fail the pair's exactly-two rule. A fallback share where a phrase prints none: no house rules ship. A key for the round-tracked branch: the grid's success row already imports that rate.
 
 **Cost.** A world must re-run the Rules tables import for the rates and the durations; until then `paceRates` answers null for each pace and `obstacleOutcome` carries no `rounds`. Nothing in the crossing reads either yet (commit B wires them), so no card or row changes.
+
+## 2026-11-17 — A crossing spends rounds: the slowest member's time, once, outside a fight
+
+**Supersedes** (in part) *The grid's rates of progress are imported as shares of the member's own speeds, and the crossing does not yet spend rounds* (2026-11-17), its "Not built" paragraph and open questions 1, 2, 3, 5 and 7, and *The crossing is a section of the Dungeon tab, thrown a stretch at a time* (2026-11-16), its row "No clock until a later slice" and its bullet that the crossing spends no time. Also closes the open item in *A climber's pace is a pick on the member's record* (a faster pace moves no ground). **Evidence:** the success bullets of the Spelunking grid (RR ch. 6, Caving and Spelunking), which print a rate for a made throw and a pace paragraph for each way of crossing, now imported (commit A); RR ch. 6, Turns and Rounds, which sets the clock a crossing outside a fight is counted on; the owner's 2026-11-14 ruling "printed or structure is not an owner question: import"; `turn-engine.mjs` `onPartyTokenMoved`, whose fight and pause gates show how the module already bills movement, and `combat-bridge.mjs` `onCombatRoundChange`, which already bills each combat round; the approved board "ClimbPace" (Rounds spent, once, in the section's header).
+
+**Ruled.** (Dungeon close-out slice S17, commit B, from the architect's pass of 2026-11-17.)
+- A made throw still covers one stretch, and the rate sets time only: a press spends the stretch's feet (`stretchFeetAt`) over the rate's feet per round (`pressRate`, `pressRounds`). A stretch is the imported one, or what is left of the length for the last. A blank length spends nothing, and so does a fall; a miss that covers ground spends the grid's failed-throw row, and a miss that covers none the outcome's imported duration. A figure not imported spends nothing: no stand-in.
+- Outside a fight the base pace is billed at the member's exploration speed over `ROUNDS_PER_TURN`, as a drag of the party token is. A faster pace is its printed share of the speed it names. A rappel has no pace paragraph, so its rate is the grid's success row. Without the base pace's exploration cell imported, the grid's row does not stand in for it.
+- Time is summed as a fraction across the stretches of a crossing; the clock is billed up to `ceil(total - 1e-6)` (`roundsDue`), the record's elapsed time is rounded to a millionth, and the billed count only grows.
+- Members cross together: the crossing's time is the slowest member's, once (`crossingElapsed`, one function so a different ruling changes one line).
+- Each member's record keeps `elapsed` and `timed`, the working of each press as it was made, so a tooltip shows what was used and not what is imported now. The crossing keeps `rounds`, the whole rounds paid.
+- `billCrossing(formationId, crossingId)` runs one at a time for a formation and reads the formation fresh inside its turn, so two presses landing together pay once. It writes `crossing.rounds` by its own path, marks the turn moved, cancels the turn plan's open entries and calls `advanceRounds` with reason `crossing`, as a drag does. `throwFor` bills after its throw, and `throwAll` once after its loop.
+- No time accrues and none is billed while `formation.combat?.active` or the clock is paused, as `onPartyTokenMoved` does; a stretch thrown in a fight is never timed afterwards. A jump, a swim, a squeeze and the climb up from an edge spend nothing.
+- The header line "Rounds spent" is drawn for obstacle kinds only, for every seat; blank with the Spelunking page reference alone while no rate is imported. `obstacleOutcome` reads a numeric string for `rounds`, as `botchBand` and `progressRate` read theirs.
+- `crossing.mjs` is not published, so `apiVersion` stays 34.
+
+**Rejected.** A second clock beside `advanceRounds`. Rounding each stretch up (a long climb is overcharged). Adding the members' times (they climb at once). The grid's rate standing in for an unimported pace rate: that is the owner's B-b ruling below, not the module's. Billing in a fight: the combat bridge already bills each round of it.
+
+**Cost.** A world must re-run the Rules tables import for the rates and durations; until then a crossing spends nothing and the header is blank. A fight begun mid-climb leaves the rest of that climb untimed. The turn card a crossing's advance posts carries no "by crossing" mark.
+
+**Open for the owner.**
+- S17-3, several members on one clock: built as (a), together. Alternatives: (c) a Judge's setup pick between together and in turn, which needs a design first; (d) a fixed rope starts a later member's time where the crossing stood.
+- B-b: built as ruled, the exploration branch outside a fight. The alternative bills the grid's rate everywhere.

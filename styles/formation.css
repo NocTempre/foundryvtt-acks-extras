@@ -2257,7 +2257,7 @@
   padding: 0;
 }
 
-.acks-extras.party-sheet :is(.acks-extras-crossing-inforce, .acks-extras-crossing-round) {
+.acks-extras.party-sheet :is(.acks-extras-crossing-inforce, .acks-extras-crossing-round, .acks-extras-crossing-spent) {
   display: flex;
   flex-wrap: wrap;
   gap: 2px var(--acks-sp-2);
@@ -2276,7 +2276,7 @@
 }
 
 /* A figure left blank still has a box to hover, as the target cell has. */
-.acks-extras.party-sheet :is(.acks-extras-crossing-pace, .acks-extras-crossing-breath, .acks-extras-crossing-sinks) {
+.acks-extras.party-sheet :is(.acks-extras-crossing-pace, .acks-extras-crossing-breath, .acks-extras-crossing-sinks, .acks-extras-crossing-spent-figure) {
   min-width: 2em;
 }
 

@@ -5,8 +5,9 @@
  * flag, the roll and the card; this file answers what a row may do, what a
  * landing asks for and costs, where a throw leaves a member, how far a fall is,
  * and where a rolled jump leaves a jumper (`jumpResult`) and what a jumper
- * hanging at the edge climbs (`climbUpRow`), and what the water asks of a
- * swimmer each round (`swimRow`) and a squeezer (`squeezeRow`).
+ * hanging at the edge climbs (`climbUpRow`), what the water asks of a
+ * swimmer each round (`swimRow`) and a squeezer (`squeezeRow`), and the rounds
+ * a climb's presses spend on the clock (`pressRounds`, `crossingElapsed`, `roundsDue`).
  *
  * Every figure comes from the readers `obstacles.mjs`, `jumping.mjs` and
  * `swimming.mjs` hold,
@@ -30,11 +31,11 @@
  *
  * When more than one applies the row reports the first of that order.
  */
-import { OBSTACLES, obstaclePlan, obstacleStep, stretchFeet, throwsFor } from "./obstacles.mjs";
+import { OBSTACLES, obstaclePlan, obstacleStep, progressRate, stretchFeet, throwsFor } from "./obstacles.mjs";
 import { canClear, fallFigures, landingFailure, landingSave } from "./jumping.mjs";
 import { pitDamage } from "./trap-rules.mjs";
-import { carriedBody } from "./constants.mjs";
-import { PACES, pacePrices, paceOfPick } from "./climb-pace.mjs";
+import { ROUNDS_PER_TURN, carriedBody } from "./constants.mjs";
+import { PACES, PACE_SPEEDS, pacePrices, paceOfPick, paceRates } from "./climb-pace.mjs";
 import {
   breathRounds, drowning, rescueStone, sinkFeetPerStone, swimSpeed as paceOf, swimSpeedShare, swimmingThrow, waterPenaltyAllowed,
 } from "./swimming.mjs";
@@ -398,6 +399,164 @@ export function fallFromDepth(depth = null) {
   const out = landingOutcome({ footing: "empty", depth });
   const drop = Number(depth) > 0 ? Number(depth) : null;
   return { feet: out.feet, damage: out.damage, unknown: out.unknown.filter((key) => key !== "shortfallDie"), parts: drop ? [{ key: "depth", value: drop }] : [] };
+}
+
+/* -------------------------------------------- */
+/*  The rounds a crossing spends                */
+/* -------------------------------------------- */
+
+/** What a stored or billed figure is rounded to, and the slack under a whole round that is not owed. */
+const ROUND_STEP = 1e-6;
+
+/** A rounds figure at the precision the record keeps. */
+const settle6 = (n) => Math.round(n * 1e6) / 1e6;
+
+/**
+ * The feet one more throw crosses: the imported stretch, or what is left of the
+ * length where the last stretch is short. Null while the length is blank or not
+ * a positive number, or the stretch is not imported: the throw is then made and
+ * spends nothing, since no distance stands behind a time.
+ *
+ * @param {object} o
+ * @param {number|string|null} o.length the obstacle's length in feet
+ * @param {number} [o.covered] stretches made before this throw
+ * @returns {number|null}
+ */
+export function stretchFeetAt({ length = null, covered = 0 } = {}) {
+  const stretch = stretchFeet();
+  const whole = typeof length === "string" && length.trim() === "" ? NaN : Number(length);
+  if (stretch === null || !(whole > 0)) return null;
+  const left = whole - Math.max(0, Number(covered) || 0) * stretch;
+  return Math.max(0, Math.min(stretch, left));
+}
+
+/** A named speed as feet per round: exploration is a figure per turn, the others per round. Null for a name no pace reads or a speed that is no positive number. */
+function feetPerRound(speeds, name) {
+  if (!PACE_SPEEDS.includes(name)) return null;
+  const speed = Number(speeds?.[name]);
+  if (!Number.isFinite(speed) || speed <= 0) return null;
+  return name === "exploration" ? speed / ROUNDS_PER_TURN : speed;
+}
+
+/** A rate cell `{share, speed}` against a member's speeds: `{share, speed, perRound}`, or null where the speed is not known. */
+function rateAt(cell, speeds) {
+  const per = cell ? feetPerRound(speeds, cell.speed) : null;
+  return per === null ? null : { share: cell.share, speed: cell.speed, perRound: cell.share * per };
+}
+
+/**
+ * What a press costs in time, as a rate or a duration, from the imported
+ * figures alone; null wherever the one it needs is not imported, so the press
+ * spends nothing and never a stand-in.
+ *
+ *  - `advance: "success"`, an obstacle that prices paces: the member's pace
+ *    cell of `paceRates`, the base pace's being the exploration-speed branch
+ *    that a party outside a fight moves at. No fallback to the grid's row for
+ *    a pace nobody imported.
+ *  - `advance: "success"`, an obstacle with no pace paragraph (the rappel): the
+ *    grid's success row.
+ *  - `advance: "fail"`, a miss that still covers ground: the grid's failed-throw row.
+ *  - `advance: "miss"`, a miss that covers none: the outcome's own duration.
+ *
+ * @param {object} o
+ * @param {string} o.kind the obstacle as planned
+ * @param {string|null} [o.pace] the member's pick, null for the base pace
+ * @param {"success"|"fail"|"miss"} [o.advance]
+ * @param {{exploration?: number, combat?: number, run?: number}} [o.speeds] the member's speeds: exploration per turn, the others per round
+ * @param {{rounds?: number}|null} [o.outcome] the imported outcome of a miss
+ * @returns {{share: number, speed: string, perRound: number}|{rounds: number}|null}
+ */
+export function pressRate({ kind, pace = null, advance = "success", speeds = {}, outcome = null } = {}) {
+  if (advance === "miss") {
+    const rounds = Number(outcome?.rounds);
+    return Number.isFinite(rounds) && rounds > 0 ? { rounds } : null;
+  }
+  if (advance === "fail") return rateAt(progressRate(kind, "fail"), speeds);
+  const rates = paceRates(kind);
+  if (!rates) return rateAt(progressRate(kind, "success"), speeds);
+  return rateAt(rates[paceOfPick(pace) ?? "normal"], speeds);
+}
+
+/**
+ * The rounds one throw spends, where `stepMember` left the member: a fall
+ * spends none, a miss that covered no ground its outcome's own duration, a
+ * stretch covered its feet over the rate of the press. `rounds` is null where a
+ * figure is missing; `part` is the working, kept on the record so a tooltip
+ * shows what was used and not what is imported now.
+ *
+ * @param {object} o
+ * @param {string} o.kind the obstacle as planned
+ * @param {string|null} [o.pace]
+ * @param {object} [o.speeds] as `pressRate`
+ * @param {number|string|null} [o.length] the obstacle's length in feet
+ * @param {number} [o.before] stretches covered before the throw
+ * @param {{state: string, covered: number}} o.stepped `stepMember`'s answer
+ * @param {{success?: boolean, outcome?: object|null}} o.read `readThrow`'s answer
+ * @returns {{rounds: number|null, part: {rounds: number, feet?: number, share?: number, speed?: string, miss?: boolean}|null}}
+ */
+export function pressRounds({ kind, pace = null, speeds = {}, length = null, before = 0, stepped = null, read = null } = {}) {
+  if (!stepped || stepped.state === "fell") return { rounds: 0, part: null };
+  const advanced = (Number(stepped.covered) || 0) > Math.max(0, Number(before) || 0);
+  if (!advanced) {
+    const miss = pressRate({ kind, advance: "miss", outcome: read?.outcome });
+    return miss ? { rounds: miss.rounds, part: { rounds: miss.rounds, miss: true } } : { rounds: null, part: null };
+  }
+  const feet = stretchFeetAt({ length, covered: before });
+  const rate = pressRate({ kind, pace, advance: read?.success ? "success" : "fail", speeds });
+  if (feet === null || rate === null) return { rounds: null, part: null };
+  const rounds = feet / rate.perRound;
+  return { rounds, part: { rounds, feet, share: rate.share, speed: rate.speed } };
+}
+
+/**
+ * What a member's record takes from a press: the elapsed rounds grown by the
+ * press, rounded to the precision the record keeps, and the press's working
+ * appended. Null where the press spent nothing.
+ *
+ * @param {{elapsed?: number, timed?: object[]}|null} member the record before the press
+ * @param {{rounds: number|null, part: object|null}} spent a `pressRounds` answer
+ * @returns {{elapsed: number, timed: object[]}|null}
+ */
+export function timedStep(member, spent) {
+  if (!spent?.part || !Number.isFinite(spent.rounds)) return null;
+  const timed = Array.isArray(member?.timed) ? member.timed : [];
+  return {
+    elapsed: settle6((Number(member?.elapsed) || 0) + spent.rounds),
+    timed: [...timed, { ...spent.part, rounds: settle6(spent.part.rounds) }],
+  };
+}
+
+/**
+ * The time the crossing as a whole has taken, in rounds: the slowest member's,
+ * counted once. Members cross together, so their times overlap and are not
+ * added. One place, so a ruling that sequences them differently changes one line.
+ *
+ * @param {object|object[]|null} records the members' crossing records, by actor id or as a list
+ * @returns {number}
+ */
+export function crossingElapsed(records) {
+  const list = Array.isArray(records) ? records : Object.values(records ?? {});
+  return list.reduce((most, record) => {
+    const n = Number(record?.elapsed);
+    return Number.isFinite(n) && n > most ? n : most;
+  }, 0);
+}
+
+/**
+ * The whole rounds the clock is owed: the elapsed time, rounded up, less what has
+ * been billed. The elapsed time arrives as the records keep it, to a millionth, and
+ * a figure within a millionth over a whole round is not owed the next one, and the billed count only grows, whatever the elapsed time does
+ * after a member leaves.
+ *
+ * @param {number} elapsed the crossing's elapsed rounds (`crossingElapsed`)
+ * @param {number} [billed] whole rounds already billed
+ * @returns {{due: number, billed: number}} `billed` is the count after paying `due`
+ */
+export function roundsDue(elapsed, billed = 0) {
+  const owed = Math.max(0, Math.ceil((Number(elapsed) || 0) - ROUND_STEP));
+  const paid = Math.max(0, Math.floor(Number(billed) || 0));
+  const now = Math.max(paid, owed);
+  return { due: now - paid, billed: now };
 }
 
 /**
