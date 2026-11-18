@@ -2573,6 +2573,8 @@ The ruling:
   on, and traced back by hand.
 - **Rejected: keeping the stamp beside the base rule.** It keeps the
   contended file and its commit chore, for no skip that the base rule misses.
+- **Rejected: forcing the full recompile in the nightly run as a backstop**
+  for the trust named under Cost. Asked, the owner answered: "Leave it".
 
 *Cost:*
 
