@@ -169,7 +169,7 @@ default: Quick grab takes everything, at the fastest pace that carries it.
 - **Rejected:** a pace enumerated from member speeds. A speed is a figure, and
   steps found by probing `paceWith` follow whatever its provider says.
 
-## 2026-11-17 — Bands rank within the pot; four is a design constant
+## 2026-11-17 — Bands rank within the pot; four is a design constant — SUPERSEDED IN PART 2026-11-18
 
 The owner, 2026-11-17: "Definitely should use icons on the backs before
 flipping and color for value bands (with card face color for special status
@@ -400,7 +400,7 @@ documents. The choices, each of which the engine's contracts left open:
 - **A column the type row leaves empty is not reported when skipped.** A legend
   gap names a skipped column only where the dealt cell has something in it.
 
-## 2026-11-17 — The replace planner takes the fewest whole lots, and the seed stands in their slot
+## 2026-11-17 — The replace planner takes the fewest whole lots, and the seed stands in their slot — SUPERSEDED IN PART 2026-11-18
 
 Supersedes, in part, "Seed buckets are Cards in the pile", whose last sentence
 had replace cards join the pot as they are until a planner existed. **New
@@ -526,3 +526,39 @@ replaces it.
   entry's thing id, a check and letters or ready truths; the module chooses no
   hiding place. Counter (weak): a Judge who wants the haul scattered at random
   deals one source per thing from a list the caller shuffles.
+
+## 2026-11-18 — An undetected magic item ranks at its apparent value
+
+The owner, 2026-11-18, answering the T6 question (an undetected rolled magic
+find with no disguise of its own ranked at worth 0): "Apparently value is based
+on the non-magical version of the item, although almost all magic items are
+masterwork quality at a glance unless disguised intentionally".
+
+- **New evidence.** This supersedes in part "Bands rank within the pot" and
+  "The replace planner takes the fewest whole lots" (both 2026-11-17, under
+  seven days old). Both ranked an undetected item with no mask cost at nothing.
+  The owner's answer, above, is what they did not have.
+- **The ruling.** An undetected magic item ranks by its intentional disguise's
+  cost where it carries one, else by its non-magical worth at a glance, else at
+  nothing. The bands and the replace planner both read it through `rankWorth`.
+- **The figure is the book's own.** The importer already reads each magic
+  item's printed apparent value (JJ ch.4) into
+  `markets.apparentValueGp`, which markets prices on. The book defines it as
+  what the item would be worth non-magical, typically a masterwork's worth (RR
+  ch.6), so the module reads it and computes nothing. On the 2026-11-18 world,
+  757 of 801 imported magic-item documents carry it.
+- **What it cannot reach yet.** The sword, weapon and armor lists link no
+  document, so those finds are named placeholders with no figure, and they are
+  the class the book prices as masterwork plus the base item's cost. That
+  needs a link from the rolled row to its base item, with the imported
+  masterwork tier cost (treasure plan, slice T6c). Until then they rank at
+  nothing, and no figure is written: the pot shows a band, never an item's
+  worth.
+- **Rejected:** computing every find's worth from a base item and the
+  masterwork tier cost. The printed figure exists for most items and is what
+  the book means, and a computed figure would disagree with it wherever the
+  entry prints its own.
+- **Counter (moderate):** a seed hidden by Replace now takes lots up to its
+  apparent value instead of standing alone, which changes what a replaced pot
+  looks like. That is the ruling's intent: a seed weighs what a seat would
+  believe it is worth.

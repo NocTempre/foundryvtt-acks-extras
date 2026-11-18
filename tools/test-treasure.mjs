@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { BUCKET, PHASE, POOL, REFUSAL } from "../scripts/treasure/constants.mjs";
 import {
   AURA_BACK_ICON, DEAL_TOGGLE, apparentImg, apparentName, backIconOf, bandsOf, buildCard, cardInPot, cardView, claimCoinCredits, claimItemData, dealOf, faceLook, flipUpdate, haulOf,
-  normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, setToggle, shownPool, stage,
+  normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, apparentWorth, setToggle, shownPool, stage,
   replaceWarning, turnedOf, unstage, withBands, worthOf,
 } from "../scripts/treasure/pot-logic.mjs";
 import { backArt, backDress, faceArt } from "../scripts/treasure/card-art.mjs";
@@ -284,6 +284,16 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq(rankWorth(magicItem("M", 9000, { detected: false, mask: { name: "Plain", cost: 5 } })), 5, "undetected magic ranks by its mask");
   eq(rankWorth(magicItem("M", 9000, { detected: false })), 0, "undetected magic with no mask cost never ranks by its own cost");
   eq(rankWorth(magicItem("M", 9000, { detected: true })), 9000, "detected magic ranks by what it is");
+  const seeming = (apparentValueGp, over = {}) =>
+    truth({ pool: POOL.magic, label: "M", magical: true, detected: false, source: { uuid: "Item.M", data: snap(9000, { magic: true, apparentValueGp }) }, ...over });
+  eq(rankWorth(seeming(66)), 66, "undetected magic with no mask cost ranks by the apparent value its snapshot carries");
+  eq(rankWorth(seeming(66, { mask: { name: "Plain", cost: 5 } })), 5, "an intentional disguise's cost outranks the apparent value");
+  eq(rankWorth(seeming(66, { mask: { name: "Plain", cost: 0 } })), 0, "a disguise that says zero is zero, whatever the apparent value");
+  eq(rankWorth(seeming(66, { mask: { name: "Plain" } })), 66, "a mask that gives only a name ranks by the apparent value");
+  eq([rankWorth(seeming(0)), rankWorth(seeming(-3)), rankWorth(seeming("lots")), rankWorth(seeming(""))], [0, 0, 0, 0], "no positive figure ranks as nothing");
+  eq(rankWorth(seeming(66, { detected: true })), 9000, "detected magic still ranks by what it is, not by the apparent value");
+  eq(rankWorth(truth({ pool: POOL.magic, label: "M", magical: true, detected: false })), 0, "a placeholder with no snapshot ranks as nothing");
+  eq([apparentWorth(seeming("66")), apparentWorth(truth()), apparentWorth(null)], [66, null, null], "apparentWorth reads a numeric string and answers null where nothing is carried");
 }
 
 /* --- bands frozen at open; an undetected magic item takes its mask's band --- */

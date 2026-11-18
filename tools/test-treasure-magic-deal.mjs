@@ -141,7 +141,12 @@ const knownTruth = () => normalizeTruth({ source: { uuid: "Item.d", data: knownI
   const ph = placeholder("widgets");
   const t = unknownTruth(knownTruth(), ph);
   eq([t.mask, apparentName(t)], [{ name: "widgets" }, "widgets"], "a rolled find with no disguise wears its placeholder's name, never its own");
-  eq(rankWorth(t), 0, "and, with no cost to pass for, ranks as the placeholder did");
+  eq(rankWorth(t), 0, "and, with no cost to pass for and no apparent value carried, ranks as the placeholder did");
+  const valued = normalizeTruth({ ...knownTruth(), source: { uuid: "Item.d", data: { ...knownItemData(), flags: { [MODULE_ID]: { markets: { ...knownItemData().flags?.[MODULE_ID]?.markets, apparentValueGp: 31 } } } } } });
+  const v = unknownTruth(valued, ph);
+  eq([apparentName(v), rankWorth(v)], ["widgets", 31], "a rolled find whose snapshot carries an apparent value ranks by it, still wearing its placeholder's name");
+  const vd = unknownTruth(normalizeTruth({ ...valued, mask: { name: "Gamma thing", cost: 7 } }), ph);
+  eq(rankWorth(vd), 7, "a document's own disguise keeps its cost over the apparent value");
   const claimed = claimItemData(t, (d, m) => ({ ...d, name: m.name }));
   eq(claimed.name, "widgets", "a claim delivers the item wearing what it passed for");
   const disguised = normalizeTruth({ ...knownTruth(), mask: { name: "Gamma thing", cost: 7 } });

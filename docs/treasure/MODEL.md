@@ -293,9 +293,14 @@ Source: `pot-logic.mjs` (`rankWorth`, `bandsOf`, `dealOf`, `faceLook`,
 **Bands rank a card within its pot.** A card's rank worth (`rankWorth`) is its
 stated worth where it has one (coin by count and the coin row's rate, or a
 value card), else its mask's cost, else the snapshot's `system.cost`, else
-nothing. A magic item nobody has detected is ranked only by its mask's cost,
-and as nothing where the mask gives none: its own cost would give the seed away.
-Its band is therefore the band of the item it passes for. `bandsOf` gives each
+nothing. A magic item nobody has detected never ranks by its own cost, which
+would give the seed away: it ranks by its mask's cost (an intentional
+disguise), else by the apparent value its snapshot carries (`apparentWorth`:
+`markets.apparentValueGp`, the item's non-magical worth, which the importer
+reads off its entry in the Judge's own copy, JJ ch.4), else as nothing. Its
+band is therefore the band of the item it passes for. A find with no snapshot
+(a named placeholder) or with no figure ranks as nothing, and no figure is
+written anywhere: the pot shows an item's band, never its worth. `bandsOf` gives each
 worth `floor(BAND_COUNT × the number of strictly lower worths ÷ n)`: equal worths
 share a band, a pot of one or of equals is band 0, and no band is out of range.
 `BAND_COUNT` is four, a design constant and no printed figure. Bands are
@@ -393,7 +398,7 @@ Source: `replace-logic.mjs` (`planReplace`, pure, import-free) and `pot-logic.mj
 two cannot differ. A lot is a card in `order`; a seed is a card in the replace
 bucket. Worth is `rankWorth`, the apparent worth the bands rank by: a masked
 undetected magic lot counts as its mask's cost, and an undetected magic seed
-with no mask is worth nothing.
+with no mask cost as its snapshot's apparent value, or nothing without one.
 
 The plan runs after the deal toggles, over the lots and seeds they leave. Each
 seed in bucket order takes the **fewest** free lots whose worths cover its own;
@@ -556,8 +561,9 @@ captions or list ids: everything it matches arrives from the import.
 - **A find wears what it passes for** (`passesFor`), as every undetected magic
   card is ranked and drawn: the document's own disguise where it carries one,
   else the placeholder it replaced, by name. The table never reads the rolled
-  name. A cost to rank by comes only from a disguise; without one the find
-  ranks as the placeholder did, at nothing (`rankWorth`). Force cursed and No magic
+  name. It ranks by its disguise's cost, else by the apparent value its
+  snapshot carries, else at nothing, as a named placeholder always does
+  (`rankWorth`). Force cursed and No magic
   read the card like any other magic card: No magic strikes it, Force cursed
   marks it where it holds a snapshot.
 - **A refusal keeps the placeholder.** The roll's own refusal (`not-imported`,

@@ -122,6 +122,8 @@ const P = {
       judgeHidden: rolled.every((t) => L.apparentName(t) !== t.label),
       claimKnowsNothing: claim ? cm?.identified === "none" && cm?.detected === false && cm?.curseKnown === undefined && cm?.magic === true && claim.name !== linked[0].label : null,
       rolledIds: cards.filter((c) => isRolled(c.truth)).map((c) => c.id),
+      apparentCarried: linked.filter((t) => L.apparentWorth(t) != null).length,
+      apparentRanked: linked.filter((t) => L.apparentWorth(t) != null && !(t.mask?.cost != null && t.mask.cost !== "") && L.rankWorth(t) === L.apparentWorth(t)).length,
     };
   },
   /** Open a staged pot to the table; the doorway message id comes back for the sweep. */
@@ -130,8 +132,13 @@ const P = {
     const pile = game.cards.get(potId);
     const r = await Pm.openPot(pile);
     const door = game.messages.filter((m) => m.flags?.["acks-extras"]?.treasure?.uuid === pile.uuid).map((m) => m.id);
+    const L = await import(`${mod}/treasure/pot-logic.mjs`);
     const view = Pm.viewOf(pile);
-    return { ok: !!r?.ok, reason: r?.reason ?? null, door, left: view.cards.length, magicLeft: view.cards.filter((c) => c.truth.pool === "magic").length, phase: view.pot.phase };
+    const byId = new Map(view.cards.map((c) => [c.id, c]));
+    const placed = view.pot.order.map((id) => byId.get(id)).filter(Boolean);
+    const expected = L.bandsOf(placed.map((c) => L.rankWorth(c.truth)));
+    const bandsMatch = placed.length > 0 && placed.every((c, i) => c.value === expected[i]);
+    return { ok: !!r?.ok, reason: r?.reason ?? null, door, left: view.cards.length, magicLeft: view.cards.filter((c) => c.truth.pool === "magic").length, phase: view.pot.phase, bandsMatch, placed: placed.length };
   },
   /** The Player seat's turned faces of the given cards, read as its window prints them: whether any names its item. */
   playerFaces: async ({ mod, potId, ids }) => {
@@ -180,6 +187,8 @@ try {
   const o = await run(gm, P.openIt, { mod: MOD, potId: c.potId });
   for (const id of o.door) made.push(gm.track(id, "ChatMessage"));
   check("the pot opens to the table", o.ok && o.phase === "open", { phase: o.phase, reason: o.reason });
+  check("a rolled card linked to a document carries the apparent value its entry prints, and ranks by it, not at nothing", c.apparentCarried > 0 && c.apparentRanked === c.apparentCarried, { linked: c.linked, carried: c.apparentCarried, ranked: c.apparentRanked });
+  check("every card's band in the opened pot is the band of its rank worth among the pot's cards", o.bandsMatch, { placed: o.placed });
   for (const cardId of c.rolledIds) await run(player, K.relay, { potId: c.potId, op: "flip", cardId });
   const f = await run(player, P.playerFaces, { mod: MOD, potId: c.potId, ids: c.rolledIds });
   check("the Player seat turned every rolled card, and no turned face names its item or shows an aura", f.cards > 0 && f.cards === c.rolledIds.length && f.turned === f.cards && f.named === 0 && f.aura === 0, f);

@@ -224,16 +224,31 @@ export function worthOf(truth) {
  * The worth a card is RANKED by: what a seat would take it to be worth. A card
  * that states a worth (coin by count and rate, a value card) ranks by it; an
  * item by its mask's cost, else the snapshot's `system.cost`. A magic item
- * nobody has detected is only ever ranked by its mask, since its own cost
- * would give the seed away; with no mask cost it ranks as worth nothing.
+ * nobody has detected never ranks by its own cost, which would give the seed
+ * away: it ranks by its mask's cost (an intentional disguise), else by the
+ * apparent value its snapshot carries (`apparentWorth`, the non-magical worth
+ * the import reads from the Judge's own copy), else as worth nothing.
  */
 export function rankWorth(truth) {
   const stated = worthOf(truth);
   if (stated != null) return stated;
   const maskCost = truth.mask?.cost;
   if (maskCost != null && maskCost !== "" && Number.isFinite(Number(maskCost))) return Number(maskCost);
-  if (truth.magical && !truth.detected) return 0;
+  if (truth.magical && !truth.detected) return apparentWorth(truth) ?? 0;
   return num(truth.source?.data?.system?.cost, 0);
+}
+
+/**
+ * The apparent value an item's snapshot carries in gp
+ * (`flags.<module>.markets.apparentValueGp`, which the importer reads off the
+ * item's entry, JJ ch.4), or null where it carries none: no snapshot, no
+ * figure, a figure that is not a positive number.
+ */
+export function apparentWorth(truth) {
+  const raw = truth?.source?.data?.flags?.[MODULE_ID]?.markets?.apparentValueGp;
+  if (raw == null || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**
