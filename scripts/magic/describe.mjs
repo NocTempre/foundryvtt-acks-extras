@@ -36,12 +36,13 @@ const qualifier = (e, extra = []) => {
  * What a spell row says about when it lasts, where it repeats and who is
  * exempt, as short phrases from the vocabulary's own labels: a lasting that is
  * not the plain once or the whole duration, a repeat with its moment, throw and
- * target, and a size exemption. The figure of a `rounds` lasting is the row's
- * formula as it was read, shown beside the lasting.
+ * target, a size exemption, a row no saving throw governs, what ends its record
+ * and the conditions it writes with no clock. The figure of a `rounds` lasting is
+ * the row's formula as it was read, shown beside the lasting.
  */
 function castParts(e) {
   const out = [];
-  if (e.lasts === "nextTurn") out.push(vocabLabel("effectLasts", e.lasts));
+  if (e.lasts === "nextTurn" || e.lasts === "followingTurn") out.push(vocabLabel("effectLasts", e.lasts));
   else if (e.lasts === "rounds") out.push([vocabLabel("effectLasts", e.lasts), e.rounds].filter(Boolean).join(" "));
   if (e.recur && e.recur !== "none") {
     out.push(
@@ -50,6 +51,9 @@ function castParts(e) {
         .join(", "),
     );
   }
+  if (e.saveEffect === "none") out.push(vocabLabel("saveEffect", e.saveEffect));
+  if (e.endsOn?.length) out.push(`ends on: ${list(e.endsOn)}`);
+  if (e.untimed?.length) out.push(`no clock: ${[...e.untimed].map((c) => label(V.CONDITION_KEYS, c)).join(", ")}`);
   if (e.exemptSizeFrom) out.push(`exempt from size: ${label(globalThis.acksExtras?.monsters?.config?.SIZES, e.exemptSizeFrom)}`);
   return out;
 }

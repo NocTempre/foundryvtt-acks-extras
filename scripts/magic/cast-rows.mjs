@@ -144,7 +144,9 @@ export const hasReversedRows = (rows) => (rows ?? []).some((row) => row?.reverse
  * wins over the spell's `save.effect`. Negation leaves nothing and halving half
  * of the amount; any other effect on a passed save has no figure the module
  * can compute, so the fraction is null and the entry is the Judge's. A failed
- * save, and a spell with no save to make, leave the whole amount.
+ * save, and a spell with no save to make, leave the whole amount. A row no
+ * saving throw governs (`saveEffect: none`) takes the whole amount whatever the
+ * target rolled, and the entry is not marked saved.
  *
  * @param {object} row
  * @param {{category?: string, effect?: string}} spellSave  the spell's `save`
@@ -154,11 +156,15 @@ export const hasReversedRows = (rows) => (rows ?? []).some((row) => row?.reverse
 export function saveFractionOf(row, spellSave, resist) {
   const effect = String(row?.saveEffect || spellSave?.effect || "");
   const success = resist?.success;
+  if (effect === "none") return { fraction: 1, effect, saved: null };
   if (success !== true) return { fraction: 1, effect, saved: success === false ? false : null };
   if (effect === "negates") return { fraction: 0, effect, saved: true };
   if (effect === "half") return { fraction: 0.5, effect, saved: true };
   return { fraction: null, effect, saved: true };
 }
+
+/** Does a saving throw govern this row? Not where its effect, its own or the spell's, is `none`. */
+export const saveGoverns = (row, spellSave) => String(row?.saveEffect || spellSave?.effect || "") !== "none";
 
 /** Does the spell call for a saving throw by the target? A category of none, or a blank one, calls for none. */
 export const spellSaves = (save) => Boolean(save?.category) && save.category !== "none" && (save.kind || "save") === "save";

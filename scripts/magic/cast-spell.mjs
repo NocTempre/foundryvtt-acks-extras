@@ -19,7 +19,7 @@
  * applied by the cast, never by the system's Apply button.
  */
 import { MODULE_ID, FLAG_SPELL, SPELL_TYPE } from "./constants.mjs";
-import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
+import { rowsOf, rowsForMode, rowNeedsThrow, hasReversedRows, spellSaves, saveGoverns, keyedRows, effectRowsOf, pickGroups, aimedAtSelf, resistedDamage, rowsOfMode, optionTokenOf, resolvesAtCast, isRecurring, castersTurnRecurs, recurringRows, CAST_MODES } from "./cast-rows.mjs";import { casterLevel, levelNeeded } from "./cast-level.mjs";
 import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
@@ -79,15 +79,21 @@ export function castSpellClaims(item, lookups = worldLookups()) {
   return rowsOf(item, lookups).rows.length > 0;
 }
 
-/** The duration of a cast: the spell's own duration object, else its twin's, with the resolved level. */
-export function castDurationOf(spell, lookups, level, roll) {
-  const own = flagOf(spell).duration;
-  let duration = own;
-  if (!own?.shape) {
-    const id = spell.flags?.[MODULE_ID]?.cookbook?.id;
-    const twin = id ? lookups.byCookbookId("Item", id) : null;
-    duration = flagOf(twin).duration ?? own;
+/**
+ * The duration of a cast: the spell's own duration object, else its twin's, with the
+ * resolved level. In the reversed mode the reverse's own duration (`reversedDuration`,
+ * the copy's else its twin's) stands where it prints a shape, and the plain duration
+ * where it does not.
+ */
+export function castDurationOf(spell, lookups, level, roll, mode = CAST_MODES.normal) {
+  const own = flagOf(spell);
+  const id = spell.flags?.[MODULE_ID]?.cookbook?.id;
+  const twin = id ? lookups?.byCookbookId?.("Item", id) : null;
+  if (mode === CAST_MODES.reversed) {
+    const reverse = own.reversedDuration?.shape ? own.reversedDuration : flagOf(twin).reversedDuration;
+    if (reverse?.shape) return castDuration(reverse, { casterLevel: level, roll });
   }
+  const duration = own.duration?.shape ? own.duration : (flagOf(twin).duration ?? own.duration);
   return castDuration(duration, { casterLevel: level, roll });
 }
 
@@ -211,7 +217,7 @@ const targetOf = (token) => ({ uuid: token.uuid, name: token.name || token.actor
 export const RECORD_KINDS = Object.freeze(["ignite"]);
 
 /** Does this row write a record on the recipient, as a card row with an entry per target? */
-export const writesRecipientRecord = (row) => RECORD_KINDS.includes(row?.type) && !aimedAtSelf(row) && ["duration", "rounds", "nextTurn"].includes(row.lasts);
+export const writesRecipientRecord = (row) => RECORD_KINDS.includes(row?.type) && !aimedAtSelf(row) && ["duration", "rounds", "nextTurn", "followingTurn"].includes(row.lasts);
 
 /** The Roll of one non-thrown row, with the figures the card shows. */
 export async function rollRow(caster, spell, card, keyed) {
@@ -317,13 +323,13 @@ export async function buildTargets({ tokens, card, rows, save, situational, cast
     }
   };
   // A save is rolled only where it governs an entry this cast opens on the target: a damage, heal or condition row that the target takes, no
-  // throw decides and no gate exempts. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
+  // throw decides, no gate exempts and no `none` effect frees from it. A buff, the caster's own row, a thrown row and a row that is only a card line (its type opens no entry, or its figure was left unread) call for none.
   const saves = spellSaves(save);
   // What the save resists is read from the spell's rows for the mode and picks, as the relay reads it, so a defense joins the throw the same way on both clients.
   const damage = resistedDamage(rows);
   for (const token of tokens) {
     const gates = Object.fromEntries(entered.map(({ key, row }) => [key, targetGate({ actor: token.actor, extras, row, level })]));
-    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && row.type !== "ignite" && !aimedAtSelf(row) && !rowNeedsThrow(row) && gates[key].affected);
+    const resisting = saves && open.some(({ row, key }) => !isModRow(row) && row.type !== "ignite" && !aimedAtSelf(row) && !rowNeedsThrow(row) && saveGoverns(row, save) && gates[key].affected);
     const made = resisting
       ? await rollResist(token.actor, save, situational, { against: caster ? { actor: caster, token: casterToken } : null, bearerToken: token, damage, parts: saveParts, gate: targetGate({ actor: token.actor, extras, level }) })
       : { resist: null, roll: null };
@@ -530,7 +536,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     save: { category: extras.save?.category ?? "", effect: extras.save?.effect ?? "", kind: extras.save?.kind ?? "" },
     situational: Number.isFinite(Number(answer.situational)) && answer.situational !== "" ? Number(answer.situational) : null,
     cite: extras.cite ?? "",
-    duration: castDurationOf(spell, deps.lookups, level.value, deps.roll),
+    duration: castDurationOf(spell, deps.lookups, level.value, deps.roll, mode),
     casterTokenUuid: world.casterToken?.uuid ?? null,
     rows: {},
     order: [],
@@ -543,7 +549,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The weapon the seat named, kept only where exactly one token is targeted and the weapon is one of its own.
   const picked = bearerToken && answer.item ? bearerToken.actor?.items?.get?.(answer.item) : null;
   const weapon = picked?.type === "weapon" ? picked : null;
-  const made = modParts(kept, { level: level.value, itemId: weapon?.id ?? null });
+  const made = modParts(kept, { level: level.value, itemId: weapon?.id ?? null, save: card.save });
   const rolls = [];
   for (const keyed of kept) {
     const { row } = keyed;

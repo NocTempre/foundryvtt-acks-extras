@@ -1688,4 +1688,149 @@ t("the card's entry names the life: the roll, the end it was written with, and t
   assert.equal(blank.detail, "", "no figure and no words saying it is missing");
 });
 
+/* ------------------------------------------------------------------ */
+/*  S4c: the following turn, clockless conditions, what ends a record, */
+/*  a row no save governs, the reverse's duration (invented spells)    */
+/* ------------------------------------------------------------------ */
+
+const { endedBy } = await import("../scripts/lib/ends-on.mjs");
+const { castDurationOf } = await import("../scripts/magic/cast-spell.mjs");
+
+await ta("a following-turn record starts counting at the bearer's turn starts and lasts two: in a fight a turn end, outside one the two-round clock", async () => {
+  const c = lifeCard({ lasts: "followingTurn" });
+  const { deps, log } = fakeDeps({ fight: BEARER_FIGHT });
+  const out = await applyOnTarget(c, "t1", [{ rowKey: "dread" }], deps);
+  assert.deepEqual(turnLifeOf(log.made[0]), { combatId: "c1", combatantId: "k1", edge: "start", count: 2, seen: 0 });
+  assert.deepEqual([spellEffectOf(log.made[0]).duration, spellEffectOf(log.made[0]).startTime], [{ value: 2, units: "rounds" }, 500]);
+  assert.deepEqual(out[0].entry.life, { kind: "followingTurn", count: 2, formula: "", turn: true });
+  for (const fight of [undefined, async () => null]) {
+    const next = fakeDeps({ fight });
+    const done = await applyOnTarget(lifeCard({ lasts: "followingTurn" }), "t1", [{ rowKey: "dread" }], next.deps);
+    assert.equal(next.log.made[0].flags["acks-extras"].turnLife, undefined, "no turn flag");
+    assert.deepEqual(spellEffectOf(next.log.made[0]).duration, { value: 2, units: "rounds" });
+    assert.equal(done[0].entry.life.turn, false);
+  }
+  assert.deepEqual(lifeOf({ lasts: "followingTurn" }, { fight: { combatId: "c", combatantId: "k" } }).turnLife, { combatId: "c", combatantId: "k", edge: "start", count: 2, seen: 0 });
+});
+
+t("a following-turn entry reads on the card as its own life, in the tooltip and the line", () => {
+  const view = (life) => castCardView({ ...lifeCard({ lasts: "followingTurn" }, { state: "applied", recordIds: ["r1"], life }), cite: "p. 9" }, { isGM: true, canPress: false }, realLoc).sections[0].rows[0];
+  const turn = view({ kind: "followingTurn", count: 2, formula: "", turn: true });
+  assert.match(turn.tooltipText, /^Lasts until the start of the bearer's following turn\./);
+  assert.match(turn.tooltipText, /makes 2 turns begun since the cast, or when the world clock passes 2 rounds/);
+  assert.match(turn.detail, /following turn/);
+  assert.match(view({ kind: "followingTurn", count: 2, formula: "", turn: false }).tooltipText, /only the world clock ends it, after 2 rounds/);
+});
+
+await ta("a condition the row lists as untimed is written with no clock and no turn end, while its sibling keeps the row's life", async () => {
+  const c = lifeCard({ lasts: "followingTurn", conditions: ["afraid", "prone"], untimed: ["prone"] });
+  const { deps, log } = fakeDeps({ fight: BEARER_FIGHT });
+  await applyOnTarget(c, "t1", [{ rowKey: "dread" }], deps);
+  const [timed, free] = ["afraid", "prone"].map((s) => log.made.find((d) => d.statuses[0] === s));
+  assert.deepEqual(spellEffectOf(timed).duration, { value: 2, units: "rounds" });
+  assert.ok(turnLifeOf(timed));
+  assert.equal(spellEffectOf(free).duration, undefined, "no clock");
+  assert.equal(spellEffectOf(free).startTime, undefined);
+  assert.equal(turnLifeOf(free), undefined, "no turn end");
+  const whole = lifeCard({ lasts: "duration", conditions: ["afraid", "prone"], untimed: ["afraid", "prone"] });
+  const next = fakeDeps();
+  await applyOnTarget(whole, "t1", [{ rowKey: "dread" }], next.deps);
+  assert.deepEqual(next.log.made.map((d) => spellEffectOf(d).duration), [undefined, undefined], "a duration row's listed conditions have none either");
+  const plain = fakeDeps();
+  await applyOnTarget(lifeCard({ lasts: "duration", conditions: ["afraid"] }), "t1", [{ rowKey: "dread" }], plain.deps);
+  assert.deepEqual(spellEffectOf(plain.log.made[0]).duration, { value: 60, units: "seconds" }, "an unlisted condition keeps the cast's clock");
+});
+
+await ta("a condition row's endsOn rides on each record it writes, where lib's loss finds it by id, and a cause no one knows is not written", async () => {
+  const c = lifeCard({ lasts: "duration", conditions: ["afraid", "prone"], endsOn: ["damage", "bogus", "damage"] });
+  const { deps, log } = fakeDeps();
+  await applyOnTarget(c, "t1", [{ rowKey: "dread" }], deps);
+  assert.equal(log.made.length, 2);
+  for (const data of log.made) assert.deepEqual(data.flags["acks-extras"].endsOn, ["damage"]);
+  const effects = log.made.map((data, i) => ({ id: `e${i}`, flags: data.flags }));
+  assert.deepEqual(endedBy(effects, "damage"), ["e0", "e1"]);
+  assert.deepEqual(endedBy(effects, "attack"), []);
+  const plain = fakeDeps();
+  await applyOnTarget(lifeCard({ lasts: "duration", conditions: ["afraid"] }), "t1", [{ rowKey: "dread" }], plain.deps);
+  assert.equal("endsOn" in plain.log.made[0].flags["acks-extras"], false, "a row that names none writes no flag");
+  assert.equal(spellEffectData({ spell: { uuid: "s", name: "S" }, caster: { uuid: "c" }, castId: "x", role: "recipient", endsOn: "damage" }).flags["acks-extras"].endsOn, undefined, "a flag that is no list ends nothing");
+});
+
+t("a row no saving throw governs takes the whole amount on a passed save, beside a row the same save negates", () => {
+  const passed = { success: true };
+  const spellSave = { category: "spell", effect: "negates" };
+  assert.deepEqual(saveFractionOf({ saveEffect: "none" }, spellSave, passed), { fraction: 1, effect: "none", saved: null });
+  assert.deepEqual(saveFractionOf({}, spellSave, passed), { fraction: 0, effect: "negates", saved: true }, "the sibling row is negated");
+  assert.equal(saveFractionOf({}, { effect: "none" }, passed).fraction, 1, "the spell's own none");
+  assert.equal(saveFractionOf({ saveEffect: "none" }, spellSave, { success: false }).fraction, 1);
+  assert.equal(saveFractionOf({ saveEffect: "none" }, spellSave, null).fraction, 1);
+  const free = amountOf({ type: "damage", key: "a", saveEffect: "none" }, { save: spellSave }, passed, 6);
+  const governed = amountOf({ type: "damage", key: "b" }, { save: spellSave }, passed, 6);
+  assert.deepEqual([free.judge, free.applied, free.fraction], [false, 6, 1]);
+  assert.deepEqual([governed.judge, governed.applied, governed.fraction], [false, 0, 0]);
+});
+
+await ta("a condition row no save governs is written whole when the target passed the spell's save, and the governed one is not", async () => {
+  const c = card({
+    save: { category: "spell", effect: "negates" },
+    rows: {
+      dread: { type: "conditionGrant", key: "dread", conditions: ["afraid"], saveEffect: "none", lasts: "duration" },
+      numb: { type: "conditionGrant", key: "numb", conditions: ["prone"], lasts: "duration" },
+    },
+    order: ["dread", "numb"],
+    targets: { t1: { uuid: "Scene.s.Token.k1", name: "T", resist: { kind: "save", category: "spell", formula: "1d20", total: 15, target: 13, success: true, parts: [] } } },
+    entries: { t1_dread: { state: "pending" }, t1_numb: { state: "pending" } },
+  });
+  const { deps, log } = fakeDeps();
+  const out = await applyOnTarget(c, "t1", [{ rowKey: "dread" }, { rowKey: "numb" }], deps);
+  assert.deepEqual(log.made.map((d) => d.statuses[0]), ["afraid"], "only the row no save governs wrote its condition");
+  assert.equal(out.find((o) => o.id === "t1_numb").entry.saved, true);
+});
+
+await ta("a reversed cast reads the reverse's own duration where the spell prints one, else the plain one; the twin's reverse stands for a copy that prints none", async () => {
+  const flag = (duration, reversedDuration) => ({ flags: { "acks-extras": { cookbook: { id: "def.spell.testTwin" }, spell: { duration, ...(reversedDuration ? { reversedDuration } : {}) } } } });
+  const plain = { shape: "fixed", value: 3, unit: "turns" };
+  const reverse = { shape: "perLevel", value: 2, unit: "rounds" };
+  const none = { byCookbookId: () => null };
+  const spell = flag(plain, reverse);
+  assert.deepEqual(castDurationOf(spell, none, 4, undefined, "normal"), { value: 1800, units: "seconds" });
+  assert.deepEqual(castDurationOf(spell, none, 4, undefined, "reversed"), { value: 8, units: "rounds" }, "the reverse's own, at the caster level");
+  assert.deepEqual(castDurationOf(spell, none, 4), { value: 1800, units: "seconds" }, "no mode reads the plain duration");
+  assert.deepEqual(castDurationOf(flag(plain), none, 4, undefined, "reversed"), { value: 1800, units: "seconds" }, "a spell printing no reverse duration keeps the plain one");
+  assert.deepEqual(castDurationOf(flag(plain, { shape: "", value: 9 }), none, 4, undefined, "reversed"), { value: 1800, units: "seconds" }, "a reverse with no shape is none");
+  const twin = flag(plain, reverse);
+  const bare = flag(null);
+  assert.deepEqual(castDurationOf(bare, { byCookbookId: () => twin }, 4, undefined, "reversed"), { value: 8, units: "rounds" }, "the twin's reverse");
+  assert.deepEqual(castDurationOf(bare, { byCookbookId: () => twin }, 4, undefined, "normal"), { value: 1800, units: "seconds" }, "the twin's plain duration, as before");
+});
+
+t("a row's reading names a following turn, a row no save governs, what ends its record and the conditions it writes with no clock", () => {
+  const text = describeSpellEffect({ type: "conditionGrant", appliesTo: "target", conditions: ["afraid", "prone"], lasts: "followingTurn", saveEffect: "none", endsOn: ["damage", "attack"], untimed: ["prone"] }).text;
+  assert.match(text, /Until the bearer's following turn begins/);
+  assert.match(text, /No saving throw governs it/);
+  assert.match(text, /ends on: damage, attack/);
+  assert.match(text, /no clock: /);
+  assert.doesNotMatch(describeSpellEffect({ type: "conditionGrant", conditions: ["afraid"], lasts: "duration" }).text, /ends on|no clock|governs/);
+});
+
+await ta("a ward applied to a target is one record whose part names the spell's save and whose flag ends it on the attack", async () => {
+  const c = card({
+    save: { category: "spell", effect: "negates" },
+    rows: { shield: { type: "ward", key: "shield", appliesTo: "target", lasts: "duration", endsOn: ["attack"] } },
+    order: ["shield"],
+    targets: { t1: { uuid: "Scene.s.Token.k1", name: "T", resist: null } },
+    entries: { t1_shield: { state: "pending" } },
+  });
+  const { deps, log } = fakeDeps();
+  await applyOnTarget(c, "t1", [{ rowKey: "shield" }], deps);
+  assert.equal(log.made.length, 1);
+  const flags = log.made[0].flags["acks-extras"];
+  assert.deepEqual([flags.rollMods.parts[0].on, flags.rollMods.parts[0].save], ["ward", "spell"]);
+  assert.deepEqual(flags.endsOn, ["attack"]);
+  assert.deepEqual(endedBy([{ id: "w1", flags: log.made[0].flags }], "attack"), ["w1"]);
+  const free = fakeDeps();
+  await applyOnTarget({ ...c, rows: { shield: { ...c.rows.shield, saveEffect: "none" } } }, "t1", [{ rowKey: "shield" }], free.deps);
+  assert.equal(free.log.made[0].flags["acks-extras"].rollMods.parts[0].save, undefined, "a ward no save governs names no save");
+});
+
 console.log(`\n${n} magic cast tests passed`);

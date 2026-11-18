@@ -1550,6 +1550,7 @@ t("a normalized effect row keeps a nested scope: the schema holds exactly the br
     const row = schemaProbe.effects.element.fields;
     assert.ok("endsOn" in row && "untimed" in row, "a row names what ends its record and what it writes untimed");
     assert.ok("hdBelow" in schemaProbe.target.fields && "hdCap" in schemaProbe.target.fields, "a strict bound beside the inclusive cap");
+    assert.deepEqual(Object.keys(schemaProbe.reversedDuration.fields), Object.keys(schemaProbe.duration.fields), "the reverse form's duration has the plain duration's shape");
   });
 
   t("only a modifier row edits a light level", () => {

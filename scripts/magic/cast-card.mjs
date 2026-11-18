@@ -131,14 +131,15 @@ function lifeTip(life, card, loc) {
   const count = life.kind === "nextTurn" ? 1 : life.count;
   // A count of one reads in the singular: its own keys, as the importer's counted strings do (`...One`).
   const one = count === 1 ? "One" : "";
-  const lasts = life.kind === "nextTurn" ? loc("tip.lastsNextTurn") : loc(`tip.lastsRounds${one}`, { count, formula: life.formula, detail: life.detail || count });
+  const lasts = life.kind === "nextTurn" ? loc("tip.lastsNextTurn") : life.kind === "followingTurn" ? loc("tip.lastsFollowingTurn") : loc(`tip.lastsRounds${one}`, { count, formula: life.formula, detail: life.detail || count });
   const ends = life.turn === undefined ? "" : life.turn ? loc(life.kind === "nextTurn" ? "tip.endsTurnEnd" : `tip.endsTurnStart${one}`, { count }) : loc(`tip.endsClock${one}`, { count });
   return [lasts, ends, cite].filter(Boolean).join(" ");
 }
 
-/** What a condition entry's line says of its life: how many rounds, or until the bearer's next turn ends; nothing where the record is untimed. */
+/** What a condition entry's line says of its life: how many rounds, or until the bearer's next turn ends or following turn begins; nothing where the record is untimed. */
 function lifeDetail(life, loc) {
   if (life?.kind === "nextTurn") return loc("detail.lastsNextTurn");
+  if (life?.kind === "followingTurn") return loc("detail.lastsFollowingTurn");
   return life?.kind === "rounds" && life.count != null ? loc(life.count === 1 ? "detail.lastsRoundsOne" : "detail.lastsRounds", { count: life.count }) : "";
 }
 

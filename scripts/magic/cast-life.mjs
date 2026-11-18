@@ -1,6 +1,6 @@
 /**
- * How long a condition record lasts when its row's `lasts` is `nextTurn` or
- * `rounds`: the pure half of the record that lives. FOUNDRY-FREE: the rolled
+ * How long a condition record lasts when its row's `lasts` is `nextTurn`,
+ * `followingTurn` or `rounds`: the pure half of the record that lives. FOUNDRY-FREE: the rolled
  * count, the formula's extremes and the bearer's fight are read by the caller
  * and passed in.
  *
@@ -8,15 +8,20 @@
  * turn end is lib's `turnLife` flag (`lib/turn-life.mjs`), written only where the
  * bearer is a combatant of a begun fight: `nextTurn` ends at the end of the
  * bearer's next turn, `rounds` at the start of the bearer's turn that reaches the
- * rolled count. The clock end is the record's own `duration` and `startTime`
- * (`cast-expiry.mjs`), one round for `nextTurn` and the rolled rounds for
- * `rounds`, which is the only end outside a fight. A `rounds` row whose formula
+ * rolled count, and `followingTurn` at the start of the second of the bearer's
+ * turns to begin after the record was written. The clock end is the record's own
+ * `duration` and `startTime` (`cast-expiry.mjs`), one round for `nextTurn`, two for
+ * `followingTurn` and the rolled rounds for `rounds`, which is the only end outside
+ * a fight. A `rounds` row whose formula
  * the import left blank, or whose count is no whole number of one or more, leaves
  * the record untimed.
  */
 
 /** The `lasts` values this file times. */
-export const LIFE_KINDS = Object.freeze(["nextTurn", "rounds"]);
+export const LIFE_KINDS = Object.freeze(["nextTurn", "followingTurn", "rounds"]);
+
+/** Does this row's life read the bearer's fight? A turn end is written for a next or following turn, and for a `rounds` row that has a count to roll. */
+export const readsFight = (row) => row?.lasts === "nextTurn" || row?.lasts === "followingTurn" || Boolean(roundsFormulaOf(row));
 
 /** Does this row's `lasts` ask for a life of its own? */
 export const hasLife = (row) => LIFE_KINDS.includes(row?.lasts);
@@ -67,13 +72,14 @@ export function roundsBounds(formula, boundsOf) {
  * @param {object} [o]
  * @param {number|null} [o.count]  the rolled count of a `rounds` row, as the casting client rolled it
  * @param {{combatId: string, combatantId: string}|null} [o.fight]  the begun fight the bearer is a combatant of
- * @returns {{kind: "nextTurn"|"rounds", rounds: number|null, turnLife: object|null, formula: string}|null}
+ * @returns {{kind: "nextTurn"|"followingTurn"|"rounds", rounds: number|null, turnLife: object|null, formula: string}|null}
  */
 export function lifeOf(row, { count = null, fight = null } = {}) {
   if (!hasLife(row)) return null;
   const formula = roundsFormulaOf(row);
   const turn = (edge, n) => (fight?.combatId && fight?.combatantId ? { combatId: fight.combatId, combatantId: fight.combatantId, edge, count: n, seen: 0 } : null);
   if (row.lasts === "nextTurn") return { kind: "nextTurn", rounds: 1, turnLife: turn("end", 1), formula };
+  if (row.lasts === "followingTurn") return { kind: "followingTurn", rounds: 2, turnLife: turn("start", 2), formula };
   const n = formula && wholeCount(Number(count)) ? Number(count) : null;
   return { kind: "rounds", rounds: n, turnLife: n ? turn("start", n) : null, formula };
 }

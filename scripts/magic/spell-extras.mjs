@@ -45,6 +45,17 @@ export default class SpellExtras extends foundry.abstract.DataModel {
   static defineSchema() {
     const { SchemaField, ArrayField } = foundry.data.fields;
     const strList = () => new ArrayField(str());
+    const durationField = () =>
+      new SchemaField({
+        shape: choice(DURATION_SHAPES),
+        value: num(),
+        unit: choice(TIME_UNITS),
+        dice: str(), // the `dice` shape: "1d6"
+        plus: new SchemaField({ value: num(), unit: choice(TIME_UNITS) }), // basePlusPerLevel / concentrationPlus
+        concentration: choice(CONCENTRATION_KINDS),
+        maxPerLevel: bool(), // concentrationMax: the maximum is per caster level
+        note: str(),
+      });
     return {
       // Which lists the spell prints on, at which level, for which classes. A
       // spell may print on several at different levels; the first row is
@@ -66,16 +77,9 @@ export default class SpellExtras extends foundry.abstract.DataModel {
         unit: choice(DISTANCE_UNITS, { initial: "feet" }),
         note: str(),
       }),
-      duration: new SchemaField({
-        shape: choice(DURATION_SHAPES),
-        value: num(),
-        unit: choice(TIME_UNITS),
-        dice: str(), // the `dice` shape: "1d6"
-        plus: new SchemaField({ value: num(), unit: choice(TIME_UNITS) }), // basePlusPerLevel / concentrationPlus
-        concentration: choice(CONCENTRATION_KINDS),
-        maxPerLevel: bool(), // concentrationMax: the maximum is per caster level
-        note: str(),
-      }),
+      duration: durationField(),
+      // The reverse form's own duration, read where the printed line gives one in its parenthetical; the cast reads it in the reversed mode.
+      reversedDuration: durationField(),
       castingTime: new SchemaField({
         shape: choice(CASTING_TIME_SHAPES),
         value: num(),

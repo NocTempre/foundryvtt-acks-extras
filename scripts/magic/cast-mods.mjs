@@ -16,6 +16,7 @@
  */
 import { SPELL_RECORD_CAP } from "./constants.mjs";
 import { spellEffectData } from "./spell-effect.mjs";
+import { saveGoverns, spellSaves } from "./cast-rows.mjs";
 import { modifierDisposition, DISPOSITION, isItemGate, gateVerdict } from "../lib/typed-modifiers.mjs";
 import { resolveLevelValue, SCOPE_BRANCH_FIELDS } from "../lib/vocab.mjs";
 import { rollModsOf, spellStackingPart, resolveItemParts, itemBonusParts } from "../lib/roll-mods.mjs";
@@ -92,17 +93,27 @@ const refsOf = (list) => plain(Array.from(list ?? []));
  * rows that stay a card line (a standing figure, a target no part sits on, a
  * subject that is not the bearer's, an item-gated row with no weapon named);
  * `blank` are the keys of rows whose figure the import left blank; `lasting` is
- * whether any row in `parts` lasts for the cast's duration.
+ * whether any row in `parts` lasts for the cast's duration; `endsOn` is what the
+ * parts' rows end on, each cause once (the buff is one record, so it ends on the
+ * first cause any of its rows names).
+ *
+ * A ward part carries `save`, the spell's save category, where a saving throw
+ * governs its row (`saveGoverns`): lib's ward notice names the attacker's target
+ * for it.
  *
  * @param {Array<{row: object, key: string}>} rows  the cast's kept rows
  * @param {object} o
  * @param {number|null} [o.level]  the caster level, null when unknown
  * @param {string} [o.actorType]  the bearer's actor type
  * @param {string|null} [o.itemId]  the weapon named for this bearer
- * @returns {{parts: object[], lines: Array<{row: object, key: string}>, blank: string[], lasting: boolean}}
+ * @param {{category?: string, effect?: string}|null} [o.save]  the spell's `save`
+ * @returns {{parts: object[], lines: Array<{row: object, key: string}>, blank: string[], lasting: boolean, endsOn: string[]}}
  */
-export function modParts(rows, { level = null, actorType = "character", itemId = null } = {}) {
-  const out = { parts: [], lines: [], blank: [], lasting: false };
+export function modParts(rows, { level = null, actorType = "character", itemId = null, save = null } = {}) {
+  const out = { parts: [], lines: [], blank: [], lasting: false, endsOn: [] };
+  const ends = (row) => {
+    for (const cause of Array.from(row.endsOn ?? [])) if (!out.endsOn.includes(cause)) out.endsOn.push(cause);
+  };
   for (const keyed of rows ?? []) {
     const { row, key } = keyed;
     if (!isModRow(row)) continue;
@@ -112,7 +123,10 @@ export function modParts(rows, { level = null, actorType = "character", itemId =
         out.lines.push(keyed);
         continue;
       }
-      out.parts.push({ key, on: "ward", provides, stacksWith: refsOf(row.stacksWith), notStacksWith: refsOf(row.notStacksWith), ...scopeOf(row) });
+      const part = { key, on: "ward", provides, stacksWith: refsOf(row.stacksWith), notStacksWith: refsOf(row.notStacksWith), ...scopeOf(row) };
+      if (spellSaves(save) && saveGoverns(row, save)) part.save = save.category;
+      out.parts.push(part);
+      ends(row);
       if (row.lasts === "duration") out.lasting = true;
       continue;
     }
@@ -136,6 +150,7 @@ export function modParts(rows, { level = null, actorType = "character", itemId =
     if (itemGated) part.itemId = String(itemId);
     if (row.gate?.kind) part.gate = plain(row.gate);
     out.parts.push(part);
+    ends(row);
     if (row.lasts === "duration") out.lasting = true;
   }
   return out;
@@ -156,8 +171,9 @@ export function modParts(rows, { level = null, actorType = "character", itemId =
  * @param {object} [o.resist]  the recipient's saving throw
  * @param {{value: number, units: string}|{none: string}} [o.duration]
  * @param {boolean} [o.lasting]  `modParts`' answer
+ * @param {string[]} [o.endsOn]  `modParts`' answer: what the record ends on
  */
-export function modRecordData(card, parts, { spell, startTime, item = null, sourceAlignment = null, resist, duration, lasting = false } = {}) {
+export function modRecordData(card, parts, { spell, startTime, item = null, sourceAlignment = null, resist, duration, lasting = false, endsOn = [] } = {}) {
   if (!parts?.length) return null;
   const timed = lasting && duration && !duration.none;
   return spellEffectData({
@@ -170,6 +186,7 @@ export function modRecordData(card, parts, { spell, startTime, item = null, sour
     sourceAlignment: sourceAlignment || undefined,
     startTime,
     duration: timed ? duration : undefined,
+    endsOn,
     rollMods: { id: spell.id ?? null, label: spell.name, cite: spell.cite ?? "", sourceAlignment: sourceAlignment || null, parts },
   });
 }

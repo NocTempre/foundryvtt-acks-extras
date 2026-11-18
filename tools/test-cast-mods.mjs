@@ -151,4 +151,33 @@ t("a cast that names a weapon needs exactly one bearer: a Player is blocked and 
   assert.deepEqual(castVerdicts({ capacity: { verdict: "ok" }, rows: [keyed(ward())], targets: [], isGM: false }), [], "a row with no weapon needs no bearer");
 });
 
+t("a ward part carries the spell's save category where a saving throw governs its row, and none where it does not", () => {
+  const spellSave = { category: "spell", effect: "negates" };
+  const partOf = (row, save) => modParts([keyed(row)], { level: 2, save }).parts[0];
+  assert.equal(partOf(ward(), spellSave).save, "spell", "the attacker's save is named");
+  assert.equal(partOf(ward({ saveEffect: "none" }), spellSave).save, undefined, "a row no save governs names none");
+  assert.equal(partOf(ward({ saveEffect: "half" }), { category: "spell", effect: "none" }).save, "spell", "the row's own effect wins over the spell's");
+  assert.equal(partOf(ward(), { category: "spell", effect: "none" }).save, undefined, "the spell's own none governs nothing");
+  assert.equal(partOf(ward(), { category: "none", effect: "negates" }).save, undefined, "a category of none");
+  assert.equal(partOf(ward(), { category: "spell", effect: "negates", kind: "attack" }).save, undefined, "an attack-kind save is no saving throw");
+  assert.equal(partOf(ward(), null).save, undefined, "no spell save");
+  assert.equal(modParts([keyed(mod({ key: "scoped", target: "ac", vsKinds: ["undead"] }))], { level: 2, save: spellSave }).parts[0].save, undefined, "only a ward part carries it");
+});
+
+const { endedBy } = await import("../scripts/lib/ends-on.mjs");
+
+t("the buff record carries the causes its rows end on, once each, at lib's flag where lib finds them by id", () => {
+  const rows = [keyed(ward({ endsOn: ["attack"] })), keyed(mod({ key: "scoped", target: "ac", vsKinds: ["undead"], endsOn: ["damage"] })), keyed(ward({ key: "plain" }))];
+  const made = modParts(rows, { level: 2 });
+  assert.deepEqual(made.endsOn, ["attack", "damage"]);
+  const card = { castId: "cast1", casterUuid: "Actor.c1" };
+  const spell = { uuid: "Actor.c1.Item.s1", name: "Testward", img: "i.png" };
+  const data = modRecordData(card, made.parts, { spell, startTime: 100, endsOn: made.endsOn });
+  assert.deepEqual(data.flags["acks-extras"].endsOn, ["attack", "damage"]);
+  const effect = { id: "e1", flags: data.flags };
+  assert.deepEqual([endedBy([effect], "attack"), endedBy([effect], "damage"), endedBy([effect], "moved")], [["e1"], ["e1"], []]);
+  const none = modRecordData(card, modParts([keyed(ward())], {}).parts, { spell, startTime: 100, endsOn: modParts([keyed(ward())], {}).endsOn });
+  assert.equal("endsOn" in none.flags["acks-extras"], false, "a row that ends on nothing writes no flag");
+});
+
 console.log(`\n${n} cast-mods tests passed`);

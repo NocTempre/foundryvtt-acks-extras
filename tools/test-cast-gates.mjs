@@ -34,6 +34,8 @@ globalThis.CONFIG = { Item: { documentClass: FakeItem } };
 globalThis.acksExtras = { monsters: { config: { SIZES: { sml: { label: "Sml" }, man: { label: "Man" }, big: { label: "Big" }, vast: { label: "Vast" } } } } };
 
 const { targetGate, noSaveResist, gateTip } = await import("../scripts/magic/cast-gates.mjs");
+const { saveGoverns } = await import("../scripts/magic/cast-rows.mjs");
+const { writesRecipientRecord } = await import("../scripts/magic/cast-spell.mjs");
 const { levelNeeded } = await import("../scripts/magic/cast-level.mjs");
 const { sizeRank, sizeKeyOf, rankOfSize } = await import("../scripts/lib/actor-read.mjs");
 const { rollResist, buildTargets, castSpellRun, castGateExtrasOf } = await import("../scripts/magic/cast-spell.mjs");
@@ -479,6 +481,122 @@ await ta("an exempt entry writes nothing: no hit points, no record, no loss, no 
   const under = fakeDeps(light, extras);
   await applyOnTarget(halfCard(null), "t1", [{ rowKey: "burn", rolled: 5 }], under.deps);
   assert.deepEqual(under.log.hp, [{ mode: "damage", amount: 5 }], "a target under the cap is written as it was");
+});
+
+/* ------------------------------------------------------------------ */
+/*  The strict bound, the kinds and a row no save governs (S4c)        */
+/* ------------------------------------------------------------------ */
+
+const belowBound = (hdBelow) => ({ target: { hdBelow } });
+/** An invented monster of the given types (its kinds are read off its flag). */
+const typed = (types, hd = "3") => ({ ...creature(hd), getFlag: (scope, key) => (scope === "acks-extras" && key === "extras" ? { size: "man", types } : undefined) });
+const filtered = (...filters) => ({ target: { filters } });
+
+t("a strict bound exempts a target at it and spares one a die under, while the inclusive cap spares one at it", () => {
+  const at = targetGate({ actor: creature("4"), extras: belowBound(flat(4)) });
+  assert.equal(at.affected, false, "at the bound is exempt");
+  assert.deepEqual(at.why, { key: "hd", parts: [{ key: "hd", value: 4 }, { key: "bound", value: 4 }] });
+  assert.equal(targetGate({ actor: creature("5"), extras: belowBound(flat(4)) }).affected, false, "over it");
+  assert.equal(targetGate({ actor: creature("3"), extras: belowBound(flat(4)) }).affected, true, "one under it");
+  assert.equal(targetGate({ actor: creature("4"), extras: capOf(flat(4)) }).affected, true, "the cap stays inclusive");
+  assert.equal(targetGate({ actor: creature("4"), extras: { target: { hdCap: flat(4), hdBelow: flat(4) } } }).affected, false, "both read");
+  const scaledBound = targetGate({ actor: creature("6"), extras: belowBound(perLevel(2, 2)), level: 3 });
+  assert.deepEqual(scaledBound.why.parts, [{ key: "hd", value: 6 }, { key: "bound", value: 6 }, { key: "level", value: 3 }]);
+  assert.equal(targetGate({ actor: creature("6"), extras: belowBound(perLevel(2, 2)) }).affected, true, "a scaled bound with no level gates nothing");
+  assert.equal(targetGate({ actor: creature("", "man"), extras: belowBound(flat(1)) }).affected, true, "a blank rating is unread");
+  assert.equal(levelNeeded({ target: { hdBelow: perLevel(1, 1) } }, []), true);
+  assert.equal(levelNeeded({ target: { hdBelow: flat(4) } }, []), false);
+  assert.equal(levelNeeded({ reversedDuration: { shape: "perLevel" } }, []), true, "a per-level reverse duration needs a level");
+  assert.match(gateTip(at.why, (key) => key, { name: "Thing" }), /tip\.gateHd/);
+});
+
+t("filters gate through the creature's kinds: a missing kind is exempt with the key kind, a character is humanoid and living, and living fails only on undead", () => {
+  const miss = targetGate({ actor: typed(["animal"]), extras: filtered("humanoid") });
+  assert.equal(miss.affected, false);
+  assert.deepEqual(miss.why, { key: "kind", parts: [{ key: "filter", value: "humanoid" }, { key: "kinds", value: "animal" }] });
+  assert.equal(targetGate({ actor: typed(["humanoid"]), extras: filtered("humanoid") }).affected, true);
+  assert.equal(targetGate({ actor: person(3), extras: filtered("humanoid") }).affected, true, "a character is humanoid");
+  assert.equal(targetGate({ actor: typed(["beastman"]), extras: filtered("humanoid") }).affected, true, "a beastman is a humanoid by the defined term");
+  assert.equal(targetGate({ actor: typed(["monstrosity"]), extras: filtered("humanoid") }).affected, false);
+  assert.equal(targetGate({ actor: person(3), extras: filtered("living") }).affected, true, "and living");
+  assert.equal(targetGate({ actor: person(3), extras: filtered("undead") }).affected, false, "and not undead");
+  assert.equal(targetGate({ actor: typed(["undead"]), extras: filtered("living") }).affected, false, "undead is not living");
+  for (const type of ["construct", "plant", "animal", "humanoid"]) assert.equal(targetGate({ actor: typed([type]), extras: filtered("living") }).affected, true, `${type} is living`);
+  assert.equal(targetGate({ actor: typed(["undead"]), extras: filtered("undead") }).affected, true);
+  assert.equal(targetGate({ actor: typed(["construct"]), extras: filtered("enchanted") }).affected, true, "a construct is enchanted by definition");
+  assert.equal(targetGate({ actor: typed(["plant"]), extras: filtered("animal", "plant") }).affected, true, "type words are alternatives");
+  assert.equal(targetGate({ actor: typed(["undead"]), extras: filtered("living", "humanoid") }).affected, false, "living is a condition of its own");
+  assert.equal(targetGate({ actor: typed(["animal"]), extras: filtered("living", "humanoid") }).affected, false, "and the type must still match");
+  assert.equal(targetGate({ actor: typed(["humanoid"]), extras: filtered("living", "humanoid") }).affected, true);
+});
+
+t("an empty kind set, an empty filter list and a filter no kind decides gate nothing", () => {
+  assert.equal(targetGate({ actor: creature("3"), extras: filtered("humanoid") }).affected, true, "an untyped monster is not gated");
+  assert.equal(targetGate({ actor: typed(["animal"]), extras: filtered() }).affected, true);
+  assert.equal(targetGate({ actor: typed(["animal"]), extras: { target: {} } }).affected, true);
+  for (const word of ["ally", "enemy", "object", "structure", "sapient", "dead"]) assert.equal(targetGate({ actor: typed(["animal"]), extras: filtered(word) }).affected, true, `${word} is shown, not enforced`);
+  assert.equal(targetGate({ actor: typed(["animal"]), extras: filtered("humanoid", "ally") }).affected, true, "an alternative no kind decides keeps the target in");
+  assert.equal(targetGate({ actor: typed(["undead"]), extras: filtered("living", "ally") }).affected, false, "a condition still gates");
+  assert.equal(targetGate({ actor: typed(["animal"]), extras: { target: { filters: new Set(["humanoid"]) } } }).affected, false, "a set reads as a list");
+  assert.equal(targetGate({ actor: null, extras: filtered("humanoid") }).affected, true);
+});
+
+t("the kind gate's tooltip names the filters and what the target is, the cap wins before the kinds, and the kinds before the size", () => {
+  const why = targetGate({ actor: typed(["animal"]), extras: filtered("humanoid", "plant") }).why;
+  const tip = gateTip(why, (key, data) => (data ? `${key}:${data.value ?? ""}:${data.parts ?? ""}` : key), { name: "Thing", cite: "p. 1" });
+  assert.match(tip, /^tip\.gateKind:/);
+  assert.match(tip, /tip\.gatePart\.filter:/);
+  assert.match(tip, /tip\.gatePart\.kinds:/);
+  const capped = targetGate({ actor: typed(["animal"], "9"), extras: { target: { hdCap: flat(4), filters: ["humanoid"] } } });
+  assert.equal(capped.why.key, "hd");
+  const sized = targetGate({ actor: typed(["animal"]), extras: filtered("humanoid"), row: { exemptSizeFrom: "man" } });
+  assert.equal(sized.why.key, "kind");
+});
+
+await ta("a kind the filters leave out has an exempt entry on every row and no save, as a target over the cap does", async () => {
+  const extras = filtered("humanoid");
+  const out = await build([tokenOf(typed(["animal"], "2"), 1), tokenOf(typed(["humanoid"], "2"), 2)], [SCORCH, MEND], extras);
+  const [beast, folk] = Object.keys(out.targets);
+  assert.equal(out.targets[beast].resist, null, "no save for a target the spell does not reach");
+  assert.equal(out.targets[folk].resist.category, "spell");
+  for (const row of ["burn", "mend"]) {
+    assert.equal(out.entries[`${beast}_${row}`].state, "exempt");
+    assert.equal(out.entries[`${beast}_${row}`].gate.key, "kind");
+    assert.equal(out.entries[`${folk}_${row}`].state, "pending");
+  }
+  const sheet = castGateExtrasOf({ flags: { "acks-extras": { spell: { target: { model: "creature", filters: ["humanoid"], hdBelow: flat(4) } } } } }, { byCookbookId: () => null });
+  assert.deepEqual([sheet.target.filters, sheet.target.hdBelow], [["humanoid"], flat(4)], "the cast reads the bound and the filters from the spell");
+});
+
+await ta("a row no saving throw governs rolls no save and takes the whole amount; a spell with such a row beside a governed one still rolls for the governed", async () => {
+  const FREE = { ...SCORCH, key: "freeburn", saveEffect: "none" };
+  const freeCard = { type: "damage", key: "freeburn", total: 6, delivery: "" };
+  const only = await build([tokenOf(creature("3"))], [FREE], null, { card: { rows: { freeburn: freeCard }, casterLevel: { value: 3 } } });
+  const [key] = Object.keys(only.targets);
+  assert.equal(only.targets[key].resist, null, "no save is rolled");
+  assert.equal(only.rolls.length, 0);
+  assert.deepEqual(only.entries[`${key}_freeburn`], { state: "pending" });
+  const mixed = await build([tokenOf(creature("3"))], [FREE, SCORCH], null, { card: { rows: { ...cardRows, freeburn: freeCard }, casterLevel: { value: 3 } } });
+  assert.equal(Object.values(mixed.targets)[0].resist.category, "spell", "the governed row still has its save");
+  const spellWide = await build([tokenOf(creature("3"))], [SCORCH], null, { save: { category: "spell", effect: "none" } });
+  assert.equal(Object.values(spellWide.targets)[0].resist, null, "a spell whose own effect is none rolls no save either");
+  assert.deepEqual([saveGoverns(FREE, save), saveGoverns(SCORCH, save), saveGoverns({}, { effect: "none" }), saveGoverns({ saveEffect: "half" }, { effect: "none" })], [false, true, false, true]);
+});
+
+await ta("the cast's card takes the reverse's own duration in the reversed mode and the plain one in the normal mode, and a following-turn row writes a record to the recipient", async () => {
+  const durations = { duration: { shape: "fixed", value: 3, unit: "turns" }, reversedDuration: { shape: "fixed", value: 2, unit: "rounds" } };
+  const rows = [SCORCH, { ...MEND, reversed: true }];
+  const folk = tokenOf(creature("2"), 1);
+  const cardOf = async (mode) => {
+    const r = runDeps([folk], { mode, picks: {} });
+    const out = await castSpellRun(spell(rows, durations), () => {}, r.deps);
+    assert.equal(out.ok, true);
+    return r.calls.posts[0];
+  };
+  assert.deepEqual((await cardOf("normal")).duration, { value: 1800, units: "seconds" });
+  assert.deepEqual((await cardOf("reversed")).duration, { value: 2, units: "rounds" });
+  assert.equal(writesRecipientRecord({ type: "ignite", lasts: "followingTurn", appliesTo: "target" }), true);
+  assert.equal(writesRecipientRecord({ type: "ignite", lasts: "instant", appliesTo: "target" }), false);
 });
 
 console.log(`${n} checks passed`);

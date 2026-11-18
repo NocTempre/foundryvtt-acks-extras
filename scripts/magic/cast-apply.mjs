@@ -53,7 +53,7 @@ import { isModRow, modParts, modRecordData } from "./cast-mods.mjs";
 import { actorAlignment } from "../lib/actor-read.mjs";
 import { instanceCount, assignedOf } from "./cast-instances.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
-import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife } from "./cast-life.mjs";
+import { lifeOf, lifeEntry, roundsBounds, roundsFormulaOf, hasLife, readsFight } from "./cast-life.mjs";
 import { fightHolding } from "./cast-moment.mjs";
 import { anchorsNeeded } from "./cast-recur.mjs";
 
@@ -121,7 +121,9 @@ const defenseOf = ({ label, band, types, source, cite, why }) => ({ label, band,
  * A row that lasts a next turn or a number of rounds takes its `life`
  * (`cast-life.mjs` `lifeOf`) instead: the clock of one round or the rolled
  * rounds, and lib's turn flag where the bearer holds a turn in a begun fight; a
- * life with no count leaves the record untimed.
+ * life with no count leaves the record untimed. A condition the row lists in
+ * `untimed` is written with no clock and no turn end, and the row's `endsOn` rides
+ * on every record it writes, where lib's loss hooks read it.
  */
 export function conditionRecords(row, card, { resist, startTime, spell, spellImg, key, duration = card.duration, life = null, anchor = false }) {
   const lived = Boolean(life?.rounds);
@@ -129,8 +131,11 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
   const clock = lived ? { value: life.rounds, units: "rounds" } : duration;
   // A row that names no condition (an ignite row, a recurring row's anchor) leaves one status-free record.
   const statuses = row.type === "conditionGrant" ? Array.from(row.conditions ?? []) : [undefined];
-  return statuses.map((status) =>
-    spellEffectData({
+  const free = new Set(Array.from(row.untimed ?? []));
+  const endsOn = Array.from(row.endsOn ?? []);
+  return statuses.map((status) => {
+    const clocked = timed && !free.has(status);
+    return spellEffectData({
       spell: { uuid: card.spellUuid, name: card.spellName, img: spell?.img ?? spellImg },
       caster: { uuid: card.casterUuid },
       castId: card.castId,
@@ -138,11 +143,12 @@ export function conditionRecords(row, card, { resist, startTime, spell, spellImg
       statuses: status ? [status] : [],
       rowKey: key ?? row.key,
       resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
-      duration: timed ? clock : undefined,
-      startTime: timed ? startTime : undefined,
-      turnLife: lived ? (life.turnLife ?? undefined) : undefined,
-    }),
-  );
+      duration: clocked ? clock : undefined,
+      startTime: clocked ? startTime : undefined,
+      turnLife: lived && clocked ? (life.turnLife ?? undefined) : undefined,
+      endsOn,
+    });
+  });
 }
 
 /** Is this entry's state one an apply may start from? */
@@ -390,7 +396,7 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
   const level = Number(card.casterLevel?.value);
   const made = modParts(
     group.map((g) => g.keyed),
-    { level: Number.isFinite(level) ? level : null, actorType: found.actor.type, itemId: named?.id ?? null },
+    { level: Number.isFinite(level) ? level : null, actorType: found.actor.type, itemId: named?.id ?? null, save: card.save ?? null },
   );
   const data = deps.spell
     ? modRecordData(card, made.parts, {
@@ -401,6 +407,7 @@ async function applyGroup({ card, targetKey, group, resist, found, deps, out }) 
         resist: resist ? { kind: resist.kind, category: resist.category, total: resist.total, target: resist.target, success: resist.success } : undefined,
         duration: deps.duration,
         lasting: made.lasting,
+        endsOn: made.endsOn,
       })
     : null;
   const recordIds = data ? await deps.createRecords(found.actor, [data]) : [];
@@ -423,7 +430,7 @@ async function anchorRecurring({ card, targetKey, resist, found, deps, out, requ
   for (const keyed of anchorsNeeded({ rows: deps.rows ?? [], applied })) {
     const entry = applied.find((a) => a.rowKey === keyed.key).entry;
     const asked = requests.find((r) => r.rowKey === keyed.key);
-    const life = hasLife(keyed.row) ? lifeOf(keyed.row, { count: asked?.rounds ?? null, fight: keyed.row.lasts === "nextTurn" || roundsFormulaOf(keyed.row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const life = hasLife(keyed.row) ? lifeOf(keyed.row, { count: asked?.rounds ?? null, fight: readsFight(keyed.row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
     const records = conditionRecords(keyed.row, card, { resist, startTime: deps.now(), key: keyed.key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life, anchor: true });
     const ids = await deps.createRecords(found.actor, records);
     const next = { ...entry, recordIds: [...(entry.recordIds ?? []), ...ids] };
@@ -441,7 +448,7 @@ async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps,
   const base = { rolled, by, ...(existing.throw ? { throw: existing.throw } : {}) };
   // An ignite row names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
   if (row.type === "ignite") {
-    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: row.lasts === "nextTurn" || roundsFormulaOf(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: readsFight(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
     const records = conditionRecords(row, card, { resist: null, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
     const ids = await deps.createRecords(found.actor, records);
     return { ...base, state: "applied", saved: null, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
@@ -451,7 +458,7 @@ async function applyRow({ card, keyed, rolled, hits = null, resist, found, deps,
     if (made.fraction === null || (made.fraction !== 1 && made.fraction !== 0)) return { ...base, state: "judge", saved: made.saved };
     if (made.fraction === 0) return { ...base, state: "applied", applied: 0, saved: true, recordIds: [] };
     // A next turn or a number of rounds is timed from the spell's own row: the rolled count is the casting client's, the fight is this client's reading of the bearer.
-    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: row.lasts === "nextTurn" || roundsFormulaOf(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
+    const life = hasLife(row) ? lifeOf(row, { count: rounds ?? null, fight: readsFight(row) ? ((await deps.fight?.(found)) ?? null) : null }) : null;
     const records = conditionRecords(row, card, { resist, startTime: deps.now(), key, duration: deps.duration ?? { none: "noDuration" }, spell: deps.spell, life });
     const ids = await deps.createRecords(found.actor, records);
     return { ...base, state: "applied", saved: made.saved, recordIds: ids, ...(life ? { life: lifeEntry(life, existing.life?.detail) } : {}) };
@@ -610,10 +617,10 @@ async function recomputeDuration(spell, card) {
   const { byCookbookId } = await import("../lib/library.mjs");
   const lookups = { byCookbookId, fromUuidSync: (u) => fromUuidSync(u) };
   const level = card.casterLevel?.value;
-  const exact = castDurationOf(spell, lookups, level);
+  const exact = castDurationOf(spell, lookups, level, undefined, card.mode);
   if (exact?.none !== "noRoll") return exact;
-  const low = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).min);
-  const high = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).max);
+  const low = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).min, card.mode);
+  const high = castDurationOf(spell, lookups, level, (f) => foundryBounds(f).max, card.mode);
   const asked = card.duration;
   const fits = asked && !asked.none && !low.none && !high.none && asked.units === low.units && asked.units === high.units && asked.value >= low.value && asked.value <= high.value;
   return fits ? { value: asked.value, units: asked.units } : low;
