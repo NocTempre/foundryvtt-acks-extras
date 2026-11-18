@@ -495,3 +495,34 @@ base actor, so unlinked tokens of one actor are one row. **Counter (moderate):**
 two bands of one monster from two lairs then deal one hoard where the table
 means two; the Judge deals the second by hand. The UI, its lang and its walk
 come with T5's approved design.
+
+## 2026-11-18 — A lot carries a found mark; the scene deals its pot open, with no doorway
+
+The owner, answering scene search's Q1: "rolled by judge before interaction,
+visible as found", and Q9: "B, there is no "stage a pot" as a thing". So a
+scene's haul is rolled when the scene opens, every lot's band is set then, and
+a lot is shown to the table only once a check has found it. The pot is dealt
+and opened in one call (`dealSceneHaul`); the Judge never holds a staged scene
+pot. The fight-over card's Stage a pot stays until scene search's own slice
+replaces it.
+
+- **The mark is in the card's truth** (`found`, with `lot`, the key its entry
+  lists), and a truth with no mark reads as found, so no pot made before this
+  loses a card. Rejected: a list of found ids on the pot flag, which every
+  later rewrite of the flag would have to carry.
+- **Every reader honours it, not the window alone** (`seatCards`): the
+  doorway, Quick grab, the record, and the relay's flip and claim. A player can
+  send a flip for any card id, so the relay refuses an unfound one as it
+  refuses a card not in the pot. Hiding is display-level, as it is for a
+  face-down card.
+- **The session's call, owner may overrule: no doorway card at a scene's open.**
+  `openPot(pile, {doorway: false})` skips the chat card, since a pot whose lots
+  are unfound has nothing to announce and the scene's tray is its way in. The
+  default is unchanged.
+- **The session's call, owner may overrule: an unfound lot is neither filed
+  nor recorded at close.** The table never saw it, so the record does not list
+  it and no place is stocked with it.
+- **The caller says which entry hides what.** The deal takes sources, each an
+  entry's thing id, a check and letters or ready truths; the module chooses no
+  hiding place. Counter (weak): a Judge who wants the haul scattered at random
+  deals one source per thing from a list the caller shuffles.

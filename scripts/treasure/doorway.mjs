@@ -9,6 +9,7 @@
  */
 import { makeLoc } from "../lib/util.mjs";
 import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
+import { seatCards } from "./pot-logic.mjs";
 import { findPot, progressOf } from "./pot.mjs";
 
 const loc = makeLoc(LANG);
@@ -33,10 +34,10 @@ function fill(el) {
   el.querySelector('[data-field="haul"]').textContent = loc("door.gp", { gp: Math.round(haul.totalGp * 100) / 100 });
   const pips = el.querySelector('[data-field="pips"]');
   pips.replaceChildren(
-    ...view.pot.order.map((id) => {
+    ...seatCards(view).map((card) => {
       const span = pips.ownerDocument.createElement("span");
       span.className = "acks-extras-treasure-door__pip";
-      if (view.cards.find((c) => c.id === id)?.face != null) span.classList.add("is-up");
+      if (card.face != null) span.classList.add("is-up");
       return span;
     }),
   );

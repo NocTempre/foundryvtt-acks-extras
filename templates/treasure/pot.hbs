@@ -97,7 +97,7 @@
       <ol class="acks-extras-treasure__grid" {{#if staging}}data-accept-drop="pot"{{/if}}>
         {{#each cards}}
           {{#if ../isGM}}
-            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge acks-extras-treasure-flare is-band-{{band}} is-look-{{look}} {{face.className}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
+            <li class="acks-extras-treasure-card acks-extras-treasure-card--judge acks-extras-treasure-flare is-band-{{band}} is-look-{{look}} {{face.className}}{{#if aura}} is-aura{{/if}}{{#if claimed}} is-claimed{{/if}}{{#if struck}} is-struck{{/if}}{{#unless found}} is-unfound{{/unless}}" data-card-id="{{id}}" data-tooltip-text="{{tip}}"{{#if canTake}} draggable="true" data-drag-uuid="{{dragUuid}}"{{/if}}>
               {{#if face.art.full}}<img class="acks-extras-treasure-art" src="{{face.art.src}}" alt="" aria-hidden="true">{{/if}}
               {{#if face.vignetteTex}}<span class="acks-extras-treasure-layer acks-extras-treasure-vignette" style="background-image: {{face.vignetteTex}}" aria-hidden="true"></span>{{/if}}
               <span class="acks-extras-treasure-layer acks-extras-treasure-frame" aria-hidden="true"></span>
@@ -114,6 +114,7 @@
               <div class="acks-extras-treasure-card__body">
                 <span class="acks-extras-treasure-card__name">{{name}}</span>
                 {{#if struck}}<span class="acks-extras-treasure-card__warn">{{struckText}}</span>{{/if}}
+                {{#unless found}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.unfound"}}</span>{{/unless}}
                 {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
                 {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{#if leaksPicture}}{{localize "ACKS-TREASURE.card.leaksPicture"}}{{else}}{{localize "ACKS-TREASURE.card.leaks"}}{{/if}}</span>{{/if}}
                 <span class="acks-extras-treasure-card__note">{{worthText}}</span>

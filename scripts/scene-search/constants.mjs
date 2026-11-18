@@ -9,6 +9,9 @@ import { THING_KINDS } from "../lib/place-things-logic.mjs";
 /** The prefix of every code and refusal this feature answers in. */
 export const SCENE = "scene:";
 
+/** The `kind` of a pot's `origin` when a scene dealt it (treasure's own origin is `combat`). */
+export const ORIGIN = Object.freeze({ SCENE: "scene" });
+
 /** The two checks every inspectable has: a round, and a turn. */
 export const LAYER = Object.freeze({ HASTY: "hasty", METHODICAL: "methodical" });
 

@@ -689,6 +689,11 @@
   text-decoration: line-through;
 }
 
+/* A lot no check has found yet: shown to the Judge alone, dashed. */
+.acks-extras-treasure .acks-extras-treasure-card.is-unfound {
+  border-style: dashed;
+}
+
 .acks-extras-treasure .acks-extras-treasure-card.is-claimed {
   opacity: 0.6;
 }

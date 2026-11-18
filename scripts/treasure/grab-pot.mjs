@@ -5,7 +5,7 @@
  * planner itself is `grab-logic.mjs`; the relay (`pot-relay.mjs`) runs both.
  */
 import { REFUSAL, PHASE } from "./constants.mjs";
-import { normalizeTruth, potCards } from "./pot-logic.mjs";
+import { isFound, normalizeTruth, potCards } from "./pot-logic.mjs";
 
 /**
  * The party a pot answers to: the one its flag names while the roster still
@@ -21,7 +21,7 @@ export function resolveParty(pot, parties) {
   return listed.length === 1 ? listed[0] : null;
 }
 
-const offered = (view) => potCards(view).filter((c) => c.face !== null && c.face !== undefined && !c.truth.claimedBy);
+const offered = (view) => potCards(view).filter((c) => isFound(c) && c.face !== null && c.face !== undefined && !c.truth.claimedBy);
 
 /** A value card: worth only, delivered as minted coin (`deliverTruth`), not a coin stack and no goods. */
 const isValueCard = (truth) => !truth.coin && truth.valueGp != null;

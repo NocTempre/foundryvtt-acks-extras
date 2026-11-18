@@ -10151,6 +10151,8 @@
   "ACKS-TREASURE.bar.found": "You found {n} items",
   "ACKS-TREASURE.bar.foundOne": "You found 1 item",
   "ACKS-TREASURE.bar.staged": "In the pot: {n}",
+  "ACKS-TREASURE.bar.unfound": "{n} not found yet",
+  "ACKS-TREASURE.card.unfound": "Not found yet. Judge only.",
   "ACKS-TREASURE.tip.pool": "{pool} ({cite})",
   "ACKS-TREASURE.tip.haulParts": "{parts} ({cite})",
   "ACKS-TREASURE.tip.haulPart": "{pool} {gp} gp",

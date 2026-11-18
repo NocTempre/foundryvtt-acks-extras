@@ -21,7 +21,7 @@ import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
 import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle,
+  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planFound, planOpen, seatCards, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle,
   stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
 import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot.mjs";
@@ -197,10 +197,14 @@ export async function setDealOption(pile, key, value) {
 
 /**
  * Open a staged pot to the table: the buckets fold into `order`, every seat
- * but the Judge's gets LIMITED sight, and the doorway card is posted.
+ * but the Judge's gets LIMITED sight, and the doorway card is posted unless
+ * `doorway` is false (a scene's pot is reached from its own tray, and a pot
+ * whose lots are not yet found has nothing to announce).
+ * @param {Cards} pile
+ * @param {{doorway?: boolean}} [opts]
  * @returns {Promise<{ok: boolean, reason?: string}>}
  */
-export async function openPot(pile) {
+export async function openPot(pile, { doorway = true } = {}) {
   if (!game.user.isGM) return { ok: false, reason: REFUSAL.notAllowed };
   const audience = game.users.filter((u) => !u.isGM).map((u) => u.id);
   const plan = planOpen(viewOf(pile), { audience, rng: () => foundry.dice.MersenneTwister.random() });
@@ -215,7 +219,7 @@ export async function openPot(pile) {
   if (updates.length) await pile.updateEmbeddedDocuments("Card", updates);
   const gone = plan.removed.filter((id) => pile.cards.get(id));
   if (gone.length) await pile.deleteEmbeddedDocuments("Card", gone);
-  const message = await postDoorway(pile);
+  const message = doorway ? await postDoorway(pile) : null;
   plan.flag.messageId = message?.id ?? null;
   const ownership = { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE };
   for (const id of audience) ownership[id] = CONST.DOCUMENT_OWNERSHIP_LEVELS.LIMITED;
@@ -302,10 +306,10 @@ export async function closePot(pile, { placeUuid = null } = {}) {
     }
   }
   const fresh = viewOf(pile);
-  const views = potCards(fresh).map((c) => cardView(c, { isGM: false }));
+  const views = seatCards(fresh).map((c) => cardView(c, { isGM: false }));
   const haul = haulOf(views);
   const rows = views.map(recordRow);
-  const message = game.messages.get(plan.flag.messageId);
+  const message = plan.flag.messageId ? game.messages.get(plan.flag.messageId) : null;
   if (message) {
     const esc = foundry.utils.escapeHTML;
     await message.update({
@@ -472,6 +476,21 @@ export function createPotRelay() {
 export function progressOf(pile) {
   const view = viewOf(pile);
   const { turned, count } = turnedOf(view);
-  const haul = haulOf(potCards(view).map((c) => cardView(c, { isGM: false })));
+  const haul = haulOf(seatCards(view).map((c) => cardView(c, { isGM: false })));
   return { turned, count, haul, view };
+}
+
+/**
+ * Mark the lots carrying these keys found on a pot (`planFound`), in one write
+ * of the cards' own flags. Judge-only: a scene's check runs on a Judge's client.
+ * @param {Cards} pile
+ * @param {string[]} keys lot keys
+ * @returns {Promise<{ok: boolean, reason?: string, ids?: string[], already?: string[], missing?: string[]}>}
+ */
+export async function markLotsFound(pile, keys) {
+  if (!game.user.isGM) return { ok: false, reason: REFUSAL.notAllowed };
+  const plan = planFound(viewOf(pile), keys);
+  if (!plan.ok) return plan;
+  if (plan.ids.length) await pile.updateEmbeddedDocuments("Card", plan.ids.map((id) => ({ _id: id, [`${cardPath}.found`]: true })));
+  return { ok: true, ids: plan.ids, already: plan.already, missing: plan.missing };
 }

@@ -17,7 +17,7 @@ import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
 import { writeOnChange } from "../lib/press-safe-change.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
-import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
+import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, seatCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
 import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
 import { dealLines, dealMessages, lairWarning } from "./deal-logic.mjs";
@@ -125,14 +125,16 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const { pot } = view;
     const staging = pot.phase === PHASE.staging;
     const open = pot.phase === PHASE.open;
-    const seat = potCards(view).map((c) => cardView(c, { isGM }));
-    const table = potCards(view).map((c) => cardView(c, { isGM: false }));
+    // A player is shown found lots only; the Judge's tiles carry them all, an unfound one marked (`found`). Display-level: every seat can read every Card's flag.
+    const seat = seatCards(view, { isGM }).map((c) => cardView(c, { isGM }));
+    const table = seatCards(view).map((c) => cardView(c, { isGM: false }));
     const deal = staging ? dealOf(view) : null;
     const struck = new Set(deal ? [...deal.removed, ...deal.struck] : []);
     const seeds = [BUCKET.add, BUCKET.replace].flatMap((key) => bucketCards(view, key)).map((c) => cardView(c, { isGM: true }));
     const total = staging ? haulOf([...seat.filter((v) => !struck.has(v.id)), ...seeds.filter((v) => !deal.removed.includes(v.id))], { all: true }) : haulOf(table);
     const cite = loc("cite.haul");
     const { turned, count } = turnedOf(view);
+    const held = potCards(view).length;
 
     context.isGM = isGM;
     context.staging = staging;
@@ -141,8 +143,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     context.totalTip = total.parts.length
       ? loc("tip.haulParts", { parts: total.parts.map((p) => loc("tip.haulPart", { pool: loc(`pool.${p.poolKey}`), gp: gpText(p.gp) })).join(" · "), cite })
       : loc("tip.haulNone", { cite });
-    context.foundText = staging ? loc("bar.staged", { n: count }) : loc(count === 1 ? "bar.foundOne" : "bar.found", { n: count });
-    context.foundTip = loc("bar.turned", { turned, count });
+    context.foundText = staging ? loc("bar.staged", { n: held }) : loc(count === 1 ? "bar.foundOne" : "bar.found", { n: count });
+    context.foundTip = loc("bar.turned", { turned, count }) + (isGM && !staging && held > count ? ` · ${loc("bar.unfound", { n: held - count })}` : "");
     context.bands = Array.from({ length: BAND_COUNT }, (_, rank) => ({ rank, name: loc(`band.${rank}`) }));
     const takenBy = new Map();
     for (const p of deal?.replace ?? []) for (const id of p.struck) takenBy.set(id, bucketNameOf(view, p.seedId));
@@ -302,7 +304,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       worthText: this.#worthText(v),
       weightText: v.weight6 ? stoneText(v.weight6) : loc("card.weightless"),
       stateText: loc(v.up ? "card.stateUp" : "card.stateDown"),
-      canFlip: open && v.down && !v.claimed,
+      canFlip: open && v.down && !v.claimed && v.found,
       canTake: open && v.up && !v.claimed,
       dragUuid: open && v.up && !v.claimed ? (this.document.cards.get(v.id)?.uuid ?? "") : "",
       staging,

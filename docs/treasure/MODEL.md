@@ -566,3 +566,34 @@ captions or list ids: everything it matches arrives from the import.
   `cite`) with `magic: true`, `start`, `list`, `caption`, `inner` for a tail
   roll, and the item's name on the last row. Nothing posts these rows as a chat
   card; the open-time whisper is the toggles' (`planOpen`).
+
+## The scene's haul: lots with a found mark
+
+A scene (`scripts/scene-search/`) deals its haul into a pot when it opens, and
+each lot carries two keys in its truth (`normalizeTruth`): `lot`, the key the
+entry that hides it lists under a layer's `yields.lots` (`<thing>/<n>`), and
+`found`, which a deal from a scene writes `false`. **A truth that states no
+mark is found**, so a pot made any other way shows everything it holds.
+
+- `dealSceneHaul` (`scene-search/haul.mjs`) makes a pot, deals each source's
+  letters through `runLetterDeal` and the hoard generator, stages every lot
+  unfound in one call, and opens the pot with no doorway card. Bands are
+  ranked once, at that opening, over every lot, so they are set before anyone
+  acts and finding a lot never moves another's band. A refusal, a declined
+  lair warning, a deal that makes nothing or an opening that strikes every
+  lot deletes the pot it made. The lair warning is asked once for the whole
+  haul. The pot's `origin` is `{kind: "scene", sceneId, placeUuid}`.
+- `planFound(view, keys)` / `markLotsFound(pile, keys)` mark the lots carrying
+  those keys; `markSceneFound(pile, outcome)` takes a `scene:found` answer's
+  lots and nothing from any other answer. Judge client only.
+- **What a seat is shown** is `seatCards(view, {isGM})`: the Judge's every
+  card, a player's the found ones. The window's cards, header count ("You found
+  {n} items"), the haul's total, the doorway's count and pips, Quick grab's
+  offer and the closing record all read it, and `planFlip` and `planClaim`
+  refuse an unfound lot (`notInPot`, whoever asks). The Judge's tile for an
+  unfound lot is dashed and says it is the Judge's alone, and its header
+  tooltip adds how many are not found yet.
+- This is a projection. Foundry gates no read: every seat can read every
+  Card's flag, so the mark governs what the table is shown and may act on,
+  never what the data holds.
+- A lot never found is neither filed nor recorded when the pot closes.

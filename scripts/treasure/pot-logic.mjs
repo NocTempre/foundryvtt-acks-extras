@@ -129,7 +129,13 @@ export function normalizePot(flag) {
   };
 }
 
-/** A Card's truth flag with every key present. */
+/**
+ * A Card's truth flag with every key present. `found` is the scene-search mark:
+ * a lot dealt behind an entry starts `false` and turns true when that entry's
+ * check finds it, and a truth that states none reads as found, so a pot dealt
+ * any other way shows everything it holds. `lot` is the key a scene's entry
+ * lists the lot under (`yields.lots`), or null for a lot no entry holds.
+ */
 export function normalizeTruth(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
   const coin = f.coin && typeof f.coin === "object"
@@ -149,6 +155,8 @@ export function normalizeTruth(flag) {
     identified: f.identified === "partial" || f.identified === "full" ? f.identified : "none",
     bucket: f.bucket === BUCKET.add || f.bucket === BUCKET.replace ? f.bucket : null,
     claimedBy: f.claimedBy && typeof f.claimedBy === "object" ? { ...f.claimedBy } : null,
+    found: f.found !== false,
+    lot: typeof f.lot === "string" && f.lot ? f.lot : null,
   };
 }
 
@@ -163,6 +171,20 @@ export function cardInPot(view, cardId) {
 /** The pot's cards in `order`, skipping an id no Card answers. */
 export function potCards(view) {
   return (view?.pot.order ?? []).map((id) => view.cards.find((c) => c.id === id)).filter(Boolean);
+}
+
+/** Whether a card carries no unfound mark (`normalizeTruth`'s `found`); a card with no mark is found. */
+export const isFound = (card) => card?.truth?.found !== false;
+
+/**
+ * The pot's cards a seat is shown: a Judge's every card, a player's only the
+ * found ones. This is a projection and not a secret: every seat can read every
+ * Card's flag, so what is withheld is what the window, the doorway, the record
+ * and the relay present or act on, never the data.
+ */
+export function seatCards(view, { isGM = false } = {}) {
+  const cards = potCards(view);
+  return isGM ? cards : cards.filter(isFound);
 }
 
 /** The cards of one bucket, in the order the Judge dropped them, skipping an id no Card answers. */
@@ -345,6 +367,7 @@ export function cardView(card, { isGM = false } = {}) {
     leaks: isGM && truth.magical && !truth.detected && !(truth.mask?.name && truth.mask?.img),
     leaksPicture: isGM && truth.magical && !truth.detected && !!truth.mask?.name && !truth.mask?.img,
     claimed: !!truth.claimedBy,
+    found: isFound(card),
     claimedByName: truth.claimedBy?.actorName ?? truth.claimedBy?.placeName ?? "",
   };
 }
@@ -366,9 +389,9 @@ export function haulOf(views, { all = false } = {}) {
   return { totalGp: parts.reduce((s, p) => s + p.gp, 0), parts };
 }
 
-/** How many of the pot's cards are turned, and how many there are. */
+/** How many of the pot's found cards are turned, and how many are found (a card dealt with no mark is found). */
 export function turnedOf(view) {
-  const cards = potCards(view);
+  const cards = seatCards(view);
   return { turned: cards.filter(isUp).length, count: cards.length };
 }
 
@@ -391,7 +414,7 @@ export function planFlip(view, cardId, { sender }) {
   if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
   if (!sender.isGM && pot.flippers && !pot.flippers.includes(sender.id)) return refuse(REFUSAL.notAllowed);
   const card = cardInPot(view, cardId);
-  if (!card) return refuse(REFUSAL.notInPot);
+  if (!card || !isFound(card)) return refuse(REFUSAL.notInPot);
   if (isUp(card)) return refuse(REFUSAL.alreadyUp);
   return { ok: true, card, update: flipUpdate(card.id, card.truth) };
 }
@@ -412,7 +435,7 @@ export function planClaim(view, cardId, { sender, hasTarget, owns, ownedByTable 
   if (pot.phase !== PHASE.open) return refuse(REFUSAL.phase);
   if (!seated(pot, sender)) return refuse(REFUSAL.notAllowed);
   const card = cardInPot(view, cardId);
-  if (!card) return refuse(REFUSAL.notInPot);
+  if (!card || !isFound(card)) return refuse(REFUSAL.notInPot);
   if (!isUp(card)) return refuse(REFUSAL.faceDown);
   if (card.truth.claimedBy) return refuse(REFUSAL.claimed);
   if (!hasTarget) return refuse(REFUSAL.noTarget);
@@ -423,6 +446,36 @@ export function planClaim(view, cardId, { sender, hasTarget, owns, ownedByTable 
 /* -------------------------------------------- */
 /*  Acts the Judge makes                         */
 /* -------------------------------------------- */
+
+/**
+ * Mark the lots carrying these keys found: a NEW view, the input untouched. A
+ * key names a lot by its truth's `lot`, and only a card in `order` counts. `ids`
+ * are the cards that turned from unfound to found, `already` the keys whose card
+ * was found before, `missing` the keys no card in the pot carries. Refused on a
+ * closed pot. Bands are not touched: they were ranked over every lot when the
+ * pot opened.
+ * @param {object} view a `PotView`
+ * @param {string[]} keys lot keys, as a layer's `yields.lots` lists them
+ * @returns {{ok: true, view: object, ids: string[], already: string[], missing: string[]}|{ok: false, reason: string}}
+ */
+export function planFound(view, keys) {
+  if (!view) return refuse(REFUSAL.noPot);
+  if (view.pot.phase === PHASE.closed) return refuse(REFUSAL.phase);
+  const wanted = [...new Set((Array.isArray(keys) ? keys : []).filter((k) => typeof k === "string" && k))];
+  const inPot = potCards(view);
+  const ids = [];
+  const already = [];
+  const missing = [];
+  for (const key of wanted) {
+    const card = inPot.find((c) => c.truth.lot === key);
+    if (!card) missing.push(key);
+    else if (isFound(card)) already.push(key);
+    else ids.push(card.id);
+  }
+  const turned = new Set(ids);
+  const cards = view.cards.map((c) => (turned.has(c.id) ? { ...c, truth: { ...c.truth, found: true } } : c));
+  return { ok: true, view: { ...view, cards }, ids, already, missing };
+}
 
 /** The pot with a card put in it (`order`) or in a bucket, during staging only. Returns the new pot, or null. */
 export function stage(pot, id, { bucket = null } = {}) {
@@ -654,13 +707,14 @@ export function planOpen(view, { audience, rng }) {
 
 /**
  * Close a pot: what is still unclaimed in `order` is the leftovers, and the
- * record lists every card the pot held and where it went.
+ * record lists every card the pot held and where it went. A lot never found
+ * is neither left to file nor listed: the table never saw it.
  * @returns {{ok: true, flag: object, left: object[], record: object[]}|{ok: false, reason: string}}
  */
 export function planClose(view) {
   if (!view) return refuse(REFUSAL.noPot);
   if (view.pot.phase === PHASE.closed) return refuse(REFUSAL.phase);
-  const cards = potCards(view);
+  const cards = seatCards(view);
   const next = normalizePot(view.pot);
   next.phase = PHASE.closed;
   return {
