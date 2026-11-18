@@ -184,3 +184,14 @@ and its attack row stops showing the mark. Applying stats again replaces its
 minted weapons with core-typed ones. Where such a weapon holds a type flag and
 no core type, the attack row still names the flag's type through lib's
 fallback while the roll carries none; that fallback is lib's to settle.
+
+## 2026-11-18 — The Apply Stats fix tells users to apply stats again
+
+**Ruled (owner).** The entry above leaves a monster that Apply Stats filled in
+v2026.11.14 with its type and mark in flags no reader uses for the roll. Asked
+"Should the Apply Stats changelog tell users to re-apply stats?", the owner
+answered **"Yes, add it"**. The public beta wrote that data itself, so the
+2026-11-14 ruling of one start-fresh line for alpha worlds does not cover it.
+The fix's changelog bullet says to apply stats again, which replaces the
+monster's natural attacks with typed ones. A line is all it gets: no check, no
+warning and no repair tool.
