@@ -86,6 +86,31 @@ rewritten away, the reference is **moved** into the comment beside the key's
 consumer — not dropped. A pointer costs nothing to keep and is unrecoverable
 once gone.
 
+## Art: imported or attributed, never generated
+
+The owner, 2026-11-18: "Find open art to attribute or better yet art/texture
+imported from the book. Standing rule for repo no generated art." Every
+picture, texture, ornament or glyph a surface draws comes from one of these,
+in this order of preference:
+
+1. **The Judge's own copy, through the importer**, like every other piece of
+   content. The importer already cuts page regions to images (a scene's
+   `crop`). A texture or ornament taken from the book ships as a register row
+   that names the page and the box, never as the image.
+2. **Openly licensed art, with its attribution intact.** Foundry core's
+   `icons/svg` (CC BY, attributed by Foundry itself) and an optional module's
+   files (such as `game-icons-net`) are referenced by path, never copied. A
+   file copied into a repo ships a licence file beside it naming the author,
+   the source, the licence and any change, per file.
+3. **Never art the module makes**: no procedural texture (an SVG noise
+   filter, a generated crack or grain), no AI image, no hand-drawn stand-in
+   for a book's picture. A design canvas marks a missing image as a labelled
+   placeholder; a render made to show a look is a placeholder too and is
+   never shipped.
+
+The textures in `acks-design`'s `textures.css` predate this rule. They are
+not extended, and a surface that needs a new texture takes it from 1 or 2.
+
 ## Enforcement
 
 `ip-scan.mjs` hard-FAILS on a tracked `ruledata/` directory, on a LOCAL-ONLY
