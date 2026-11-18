@@ -23,7 +23,10 @@ repo's own voice (`acks-hotfix`, "Voice", for a fix), and `change.json`:
 - A file a script wrote (a generator, a formatter, a sync) has no record and
   is named `{ "whole": true }`; a new one goes under `added`, a deleted one
   (removed with `rm`) under `removed`, an executable under `mode`. The header
-  has the rest: `own`, `adopt`, `expect`, `link`.
+  has the rest: `own`, `adopt`, `expect`, `link`. An unknown key is refused.
+- **Naming paths switches the ledger off.** The change is refused while a
+  file with this session's recorded lines is neither named nor under
+  `"leave": ["<path>"]` (left for a later commit); `"mine": true` takes them.
 - **A change that touches no gated file takes `"gate": []`**: docs, `.claude/`
   text, `CHANGELOG.md`. Nothing offline reads them and the default gate is
   minutes. Where `package.json` names no gate, `gate` lists the commands.

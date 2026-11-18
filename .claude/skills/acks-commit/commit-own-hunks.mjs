@@ -42,8 +42,8 @@
  * this tool is about to move. A run that finds it held waits `--wait` minutes,
  * 20 where none is given, and 0 asks once.
  *
- * change.json:
- *   files    { "<path>": {} | { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
+ * change.json (a key not listed here is refused, never ignored):
+ *   files   { "<path>": {} | { "own": "<regex>", "count": <n> } | { "whole": true, "own"?: "<regex>" } }
  *            `{}` takes the hunks the ledger gives this session. Of a hunk two sessions
  *            wrote it takes this session's lines, where every line has a writer and no
  *            other session removed one. It leaves a hunk where another session's line
@@ -64,6 +64,9 @@
  *   mine     true: beside the paths named, every file this session's records name, read as
  *            `{}` reads it, and a new file where every line is this session's. A change.json
  *            that names no path is read this way
+ *   leave    paths this session's recorded lines stand in, left for a later commit. A change that
+ *            names paths (`files`, `added`, `removed`, `mode`) and does not set `mine` is refused
+ *            while such a file is neither named nor listed here
  *   adopt    session ids, or the first eight characters of one, whose records count as this
  *            session's: the session before a `/clear`, or one whose work this one finishes
  *   gate     stages run in the clone, in order; a stage is one command line or a list of
@@ -88,6 +91,8 @@ import { blame, writersOf, soleWriter, readRecords, prune, keyOf, ORIGIN, NOBODY
 import { acquire, holds } from "./lease.mjs";
 
 const EXIT = { refused: 1, usage: 2, movedBase: 3, peerStaging: 4, leaseHeld: 5 };
+/** The keys change.json accepts; any other is refused, since a key the tool ignores commits less than the change says. */
+const CHANGE_KEYS = ["files", "added", "removed", "mode", "mine", "leave", "adopt", "gate", "carry", "expect", "link", "tooling", "timeoutMinutes"];
 /** Minutes a run waits for the landing lease where `--wait` gives none. */
 const WAIT_MINUTES = 20;
 const LOCK_TRIES = 8;
@@ -168,6 +173,13 @@ const inTree = (file) => fs.existsSync(path.join(REPO, file));
 function readChange({ resolved = true } = {}) {
   if (!fs.existsSync(at("change.json"))) refuse(`no change.json in ${DIR}`, EXIT.usage);
   const raw = JSON.parse(fs.readFileSync(at("change.json"), "utf8"));
+  const unknown = Object.keys(raw).filter((k) => !CHANGE_KEYS.includes(k));
+  if (unknown.length) {
+    const hint = unknown.includes("whole") ? '; a whole file is `"files": {"<path>": {"whole": true}}`' : "";
+    refuse(`change.json has unknown key(s) ${unknown.map((k) => JSON.stringify(k)).join(", ")}, which would be ignored; the keys are ${CHANGE_KEYS.join(", ")}${hint}`, EXIT.usage);
+  }
+  const leave = raw.leave ?? [];
+  if (!Array.isArray(leave) || leave.some((f) => typeof f !== "string")) refuse('"leave" is a list of repository-relative paths', EXIT.usage);
   let files = raw.files ?? {};
   let added = raw.added ?? [];
   const removed = raw.removed ?? [];
@@ -186,7 +198,8 @@ function readChange({ resolved = true } = {}) {
     if (mine) refuse(`"mine" is set, and ${how}`, EXIT.usage);
   }
   if (new Set(named).size !== named.length) refuse("change.json lists a path twice", EXIT.usage);
-  if ([...named, ...Object.keys(modes)].some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
+  if (leave.some((f) => named.includes(f))) refuse('"leave" lists a path the change also names', EXIT.usage);
+  if ([...named, ...leave, ...Object.keys(modes)].some((f) => f.includes("\\") || path.isAbsolute(f))) refuse("paths are repository-relative, with forward slashes", EXIT.usage);
   for (const [file, given] of Object.entries(modes)) {
     if (given !== "100644" && given !== "100755") refuse(`"mode" gives ${file} ${JSON.stringify(given)}; a file is "100644", or "100755" where it is executable`, EXIT.usage);
     if (removed.includes(file)) refuse(`"mode" names ${file}, and "removed" lists it`, EXIT.usage);
@@ -204,6 +217,7 @@ function readChange({ resolved = true } = {}) {
     modes,
     modeOnly,
     all,
+    leave,
     mine,
     adopt,
     gate: raw.gate ?? null,
@@ -359,11 +373,14 @@ const tagOf = (v) => (v ? ` [${[(v.mine || v.tied) && "me", ...v.peers.map((s) =
  * The files this change's sessions wrote that change.json does not name: a
  * tracked file that differs from HEAD, read as `{}` reads it, and a new file
  * where every line is theirs. A file the working tree no longer holds is not
- * among them; a removal is named.
+ * among them; a removal is named. A path under "leave" is not discovered.
+ *
+ * @param {boolean} [lenient] Answer a new file with other writers' lines in it
+ *   as found, in place of refusing: it is read to say what a change leaves.
  */
-function discover(change, ledger) {
+function discover(change, ledger, lenient = false) {
   const out = { files: {}, added: [] };
-  const named = new Set([...Object.keys(change.files), ...change.added, ...change.removed].map(keyOf));
+  const named = new Set([...Object.keys(change.files), ...change.added, ...change.removed, ...change.leave].map(keyOf));
   const paths = new Map(git(["ls-files", "-z", "--cached", "--others", "--exclude-standard"]).split("\0").filter(Boolean).map((f) => [keyOf(f), f]));
   for (const [key, list] of ledger.records) {
     if (named.has(key) || !list.some((r) => ledger.mine.has(r.session))) continue;
@@ -375,10 +392,40 @@ function discover(change, ledger) {
     }
     const { owners } = blame(ledger.gitDir, file, workingText(file), ledger.records);
     const others = owners.filter((who) => !ledger.mine.has(who)).length;
-    if (others && others < owners.length) refuse(`${file}: new, and ${others} of its ${owners.length} line(s) are not this session's by the ledger; list it under "added" to take it whole`);
-    if (!others) out.added.push(file);
+    if (others && others < owners.length) {
+      if (!lenient) refuse(`${file}: new, and ${others} of its ${owners.length} line(s) are not this session's by the ledger; list it under "added" to take it whole`);
+      out.added.push(file);
+    } else if (!others) out.added.push(file);
   }
   return { files: Object.fromEntries(Object.entries(out.files).sort(([a], [b]) => (a < b ? -1 : 1))), added: out.added.sort() };
+}
+
+/**
+ * The files this session wrote lines in that a change which names paths does
+ * not name, and does not list under "leave": what it would silently leave
+ * uncommitted. A modified file counts where one of its hunks is this
+ * session's, wholly or in part; a file whose differences from HEAD are other
+ * sessions' alone does not.
+ */
+function leftBehind(change, ledger) {
+  if (!ledger.mine.size) return [];
+  const found = discover(change, ledger, true);
+  const left = [...found.added];
+  for (const file of Object.keys(found.files)) {
+    try {
+      if (isBinary(file)) {
+        left.push(file);
+        continue;
+      }
+      const all = hunksOf(file);
+      const blamed = blame(ledger.gitDir, file, workingText(file), ledger.records);
+      const sole = blamed !== null && soleWriter(blamed, ledger.mine) && committed(file, blamed.origin);
+      if (sole ? all.length : all.some((h) => ["mine", "mixed"].includes(verdictOf(ledger, blamed, h, all)?.whose))) left.push(file);
+    } catch {
+      left.push(file); // a file the ledger cannot read is left for its writer to say
+    }
+  }
+  return left.sort();
 }
 
 /**
@@ -403,6 +450,8 @@ function record({ pin = null } = {}) {
   const change = readChange({ resolved: false });
   const ledger = readLedger(change);
   const found = change.mine ? discover(change, ledger) : { files: {}, added: [] };
+  const left = change.mine ? [] : leftBehind(change, ledger);
+  if (left.length) refuse(`change.json names paths, and this session's recorded lines stand in ${left.length} file(s) it does not name: ${left.join(", ")}. Name them under "files" or "added", set "mine": true to take every file the ledger gives this session, or list them under "leave" to commit them later`);
   const rec = { hunks: {}, whole: {}, added: {}, modes: {}, claimed: [], paths: { files: {}, added: [] }, settled: !change.adopt.length && !change.removed.length };
   const claim = (file) => {
     rec.claimed.push(file);
