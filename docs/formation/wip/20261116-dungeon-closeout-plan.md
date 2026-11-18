@@ -1180,6 +1180,78 @@ the "Phase 2 and later" prompt; it also reads these before its first agent:
 - The CPU is shared with release walks: no full gate in the worktree while
   the managing session says a walk holds the machine.
 
+### The next start, from the landed close-out and obstacle regions (2026-11-18)
+
+This start supersedes "Phases 3–4 (door figures to importer)" in the
+managing session's queue. That label was shorthand: by §9, Phase 3 is U1,
+U2, U3, S26, S20, S24 and S25, and the door import is §7 rows 3–4, inside
+Phase 4. No slice below has a build commit on `main` yet.
+
+- **When it starts.** It takes batch 1 of the table below, after obstacle
+  regions frees the formation lane. Batch 1 shares no file with an
+  obstacle-regions slice except `module.mjs`, so the managing session may
+  start it earlier as a lane of its own.
+- **Later batches.** Batch 2 waits until H0 and P3 have landed, and batch 3
+  until H3 and H4 have. Rows 5–6, 3b and the rest of 3c go to later
+  sessions.
+- **Scene search.** Its S2 waits on R-DC1 to R-DC3, so this batch unblocks
+  it.
+- **Setup.** Run `acks-branch sync dungeon-closeout` first; the build-ahead
+  hold is lifted ("Minor release is after all are merged.").
+- **Landing.** A group lands on the managing session's "your turn" and is
+  walked on `main`. U1, U3 and row 2 each ride a group of several commits,
+  walked once (`shared-tree.md` allows it on a topic). U2 and W stay in
+  `main`'s tree and are written inside an integration turn.
+- **Before each fan-out**, read `topic/obstacle-regions`' commits and dirty
+  files. Before D1, also read the importer-books worktree's.
+- **Design.** Draw every board below in one `/design` round
+  (`ui-layout.md`). A slice waits for the owner's feedback on its own board.
+- **Checks.** Agents run targeted suites; `land` runs the full gate
+  (`full-gate-guard.mjs`).
+- **Debts from the `4d32132a` walk:**
+  - W, below.
+  - Recheck the turn-0 prompt that never posted, and the party left in
+    combat after its combat was deleted. Do it alone on one lane, with the
+    walker as primary GM.
+  - Rerun step 5, 11j and 11k with the dice rigged.
+  - Work through the walk's "Not checked" list.
+  - Shoot S10 from a crossing a user sets up.
+
+| Batch | Id | Scope | Agent | Board | Walk (TESTING) | Waits on |
+|---|---|---|---|---|---|---|
+| 1 | W | Crossing wording: "1 stretches" and "1 misses"; "not yours to throw for". The no-steps penalty tooltip becomes the page reference alone. Q6's base label is checked against `resolveCheck`. | implementer | no | Squeeze rows Q6; Rounds spent | `crossing.mjs` free of H3 and H4 |
+| 1 | R-DC1 | `doors.mjs` `revealSecretDoor(wall)` | implementer | no | One reveal, both seats | none |
+| 1 | R-DC3, R-DC6 | `turn-plan.mjs` `optionLabel`, `reasonText`, `resolvePlanRound`. DECISIONS supersedes 2026-11-11 in part (scene search Q2 "B"). | implementer ×2 | no | The turn plan | `topic/spell-effects`' diff |
+| 1 | A0 | Rulings, read-only (below) | architect | none | none | none |
+| 1 | D1 | Door and Strength windows in `importer/books/rr/table-recipes.mjs`; `formation-binding.mjs` `PRODUCES`; `expectTables`; `test-formation-binding` and `test-recipe-content`; an `upgrading` fragment | implementer | no | "The delve's figures, imported" | A0 |
+| 1 | D2, U3, U1d | `doors.mjs` loses its printed names and inline magnitudes. `door-app.mjs`, `door.hbs`, `party-rolls.mjs` and `squeezing.mjs` change, and `test-formation-flows`, `test-crossing`, `test-skill-audit-roll` and `live/formation-steps.mjs` move onto invented figures. Also: `apiVersion`; ROADMAP §6; U3's basher and partners; U1's door half. | implementer ×3 | door window | Steps 13, imported and blanked; party bash; Q6; §10's door look | D1 |
+| 1 | U2 | Strip, player actions, one Trapbreaking opener; `planLock` warns the Judge | implementer | Dungeon tab | The turn plan, player seat | none |
+| 2 | R-DC2, U1t, R2 | `trap-zone.mjs`, `trapbreak-app.mjs`, `player-requests.mjs`, `lib/sockets.mjs` | implementer ×3 | Trapbreaking (U1t) | Steps 8 and 11, real player seat | H0 and P3 landed |
+| 3 | S26→S25, S20→S24 | As §9, with an architect first for S26 | per §9 | S20, S24, S25 | The crossing | H3 and H4 landed; OQ11 |
+
+**Files shared with obstacle regions.**
+- `trap-zone.mjs`: R-DC2 goes inside H0's `sweepForTraps` hunks, and U1t and R2 edit `attemptDisarm` and `askDischarge`.
+- `module.mjs`: D1 edits `expectTables`, and D2 moves `apiVersion`.
+- `docs/formation/MODEL.md`: keep both sides on rebase.
+
+Inferred from the plan rows, not from code:
+- P3 collides with U1t, because it reaches `trapbreak-app.mjs` through a new placement kind.
+- H3 and H4 edit `crossing.mjs`, which S20, S24, S25 and S26 also edit.
+- B3's `district-tools.mjs` is U18's file.
+
+**A0 rules on these, read-only:**
+- **The bash target's owner:** `resolveCheck` Dungeonbashing, as `equipment/locks.mjs` `bashOpen` does, or a window on RR ch. 6.
+- **The Strength factor:** RR ch. 1 lies outside the formation document's `source.pages`. While the factor is unread, every Dungeonbashing throw refuses: the door, the party check and the squeeze push.
+- **A shared reader for the general automatic-failure band**, which U1t and the door both need.
+- **The door grid:** imported rows, with no default kind.
+- **The refusal:** the 2026-08-30 clause that bash and batter "say so" is superseded in part by the 2026-11-14 blank rule.
+- **R2's question to the thrower's seat:** it needs a per-user call, since `lib/sockets.mjs` exports only `executeAsGM`.
+
+**Owner-facing questions**, after a rules lookup has failed to answer each:
+- **OQ11:** whose level an assisted member throws at.
+- **BQ1:** who handles a door's lock: formation registers key and pick, equipment extends `locks.mjs`, or the row is deleted.
+- **OQ6:** what happens to archived entries that state figures.
+
 ### Phase 3's questions, put for one pass
 
 Phase 2 read RR ch. 3 and ch. 6 against §5's OQ2 to OQ5 (an `architect`,
