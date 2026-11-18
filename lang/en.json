@@ -7959,7 +7959,6 @@
   "ACKS-FORMATION.crossing.pace.option": "{pace} (−{size})",
   "ACKS-FORMATION.crossing.pace.size": "{pace} −{size}",
   "ACKS-FORMATION.crossing.pace.part": "{pace} pace",
-  "ACKS-FORMATION.crossing.pace.card": "{pace} pace",
   "ACKS-FORMATION.crossing.refusal.notClimb": "No obstacle crossing is open.",
   "ACKS-FORMATION.crossing.relay.paceNone": "{name} has no pace to pick here.",
   "ACKS-FORMATION.crossing.relay.paceOption": "That is not a pace.",

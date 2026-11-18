@@ -5112,7 +5112,7 @@ Before the first step the Rules tables must be imported: the walk reads `climbPa
 | P1 | With the pace pairs not imported, begin a Sheer climb, length set | The holder's row has a Pace select reading Normal alone, disabled, its tooltip the page reference; no other row has a select; no throw is affected |
 | P2 | Import the Rules tables; reopen the section | The holder's select lists Normal and each imported pace with its size; the tooltip lists the sizes and the page; the member with no Climbing has no select on any seat |
 | P3 | Pick Faster on the Judge's pane | `members.<id>.pace` is `faster`; the row's target rises by the size and its tooltip lists the pace as a part with its page; the same on the Player's seat |
-| P4 | Rig a throw that clears the base target and misses the new one | A miss, one card to the Judges whose foot names the pace; the pick still stands and the next throw is penalised too |
+| P4 | Rig a throw that clears the base target and misses the new one | A miss, one card to the Judges whose target's tooltip lists the pace; the pick still stands and the next throw is penalised too |
 | P5 | Pick Normal | The key is gone from the record and the target returns |
 | P6 | On the Player's pane pick Fastest on the owned climber, then on a member the seat does not own | The owned pick is written and declared publicly; the other is refused in words with nothing written |
 | P7 | On the Player's pane pick for the fallen member | Refused in words, nothing written; the same pick on the Judge's pane is written and a warning names the member |

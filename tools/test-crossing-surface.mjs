@@ -2684,7 +2684,7 @@ await ok("each way of crossing offers its own pair; a rappel offers none", async
   assert.equal(await sizes("rappel"), null);
 });
 
-await ok("a pick moves the throw's target, its tooltip lists the parts that sum to it, the card says the pace, and the pick stands through the throws and clears back to the base", async () => {
+await ok("a pick moves the throw's target, its tooltip lists the parts that sum to it, the card's target carries the pace, and the pick stands through the throws and clears back to the base", async () => {
   const { formation } = await paceWorld([["Alder", {}]]);
   assert.deepEqual(await setPace(formation, "Alder", "faster"), { ok: true });
   assert.equal(recordOf(formation, "Alder").pace, "faster", "the pick is on the member's record");
@@ -2696,7 +2696,7 @@ await ok("a pick moves the throw's target, its tooltip lists the parts that sum 
   const miss = await throwFor(formation, "Alder");
   assert.equal(miss.ok, true);
   const card = seen.created.at(-1).content;
-  assert.ok(card.includes("Faster pace"), "the card says the pace it was thrown at");
+  assert.equal(card.split("Faster pace").length - 1, 1, "the pace is named once, in the target's tooltip, and the card gains no line of its own");
   assert.ok(card.includes("−3 Faster pace (XX p.6)"), "and its target's tooltip carries the pace");
   assert.equal(readCrossing(formation).members.Alder.last.success, false, "14 clears the base target and misses the pace's");
   assert.equal(recordOf(formation, "Alder").pace, "faster", "the throw's write leaves the pick");

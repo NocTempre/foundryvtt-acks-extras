@@ -991,7 +991,6 @@ function throwCard({ crossing, entry, plan, read, roll, natural, stepped, fall, 
   if (plan.overRefusal) {
     foot.push(loc("crossing.card.overRefusal", { reason: refusalText(row.refusal, actor) || loc("crossing.card.overRefusalBare") }));
   }
-  if (row.pace?.pick && row.pace.penalty > 0) foot.push(loc("crossing.pace.card", { pace: paceName(row.pace.pick) }));
   if (row.stretches !== null && row.stretches > 1 && stepped.state !== "across") {
     foot.push(loc("crossing.card.covered", { covered: stepped.covered, stretches: row.stretches }));
   }
