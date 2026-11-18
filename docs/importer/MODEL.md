@@ -1059,6 +1059,23 @@ mark a scan's applied rows unverified (`docs/abilities/MODEL.md`). The scan
 splits a phrase naming two fields at its conjunctions ("surprise and
 initiative" is two rows), one target per conjunct.
 
+**An ability that buffs spells** authors `spellcastingMod` rows (what they
+change and how they stack: `docs/magic/MODEL.md`). The row states its `target`
+(`casterLevel`, `save`, `damage`), the spells it concerns (`schools`,
+`elements`, `saveCategories`, `bySelection`) and the abilities it holds with or
+yields to (`ifHas`, `notStacksWith`, as `kw:` capabilities); only its size is
+located (`onMiss: "blank"` keeps the row, its figure unread, so a Judge can
+fill it with the page named). A penalty to the target is a negative figure,
+and its locator captures the page's sign (`(-\d+)`), so a missing sign is a
+miss and never a bonus. The recipe replaces the scan whole, so it also
+re-authors what the scan gave the entry: a `progressionAs` row reads its
+fraction through `{into: "atLevel"}` (the captured proportion becomes
+`atLevelNum` and `atLevelDen`). `spellcastingModProblems`
+(`tools/importer/spell-recipe-rules.mjs`) holds each row to those shapes: a
+target, a narrowing field, `schools` words that are spell types or in
+`SPELL_NARROWING_WORDS`, save categories, no literal figure, and tokens that
+name something the register defines.
+
 **Conditions.** A recipe row's `condition` is one of the neutral labels in
 `condition-labels.mjs` (what kind of condition: "while leading", "by method"),
 or a scope's own word or two; the compiler appends the entry's page reference

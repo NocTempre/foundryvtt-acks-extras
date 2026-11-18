@@ -521,6 +521,9 @@ export const LOCATABLE_FIELDS = Object.freeze({
   extraordinary: "flag",
   // The condition words a row's page prints, onto the lib catalogue's keys.
   conditions: "conditions",
+  // A `progressionAs` row's fraction of class level: the captured proportion is
+  // written as the `atLevelNum` / `atLevelDen` pair (nothing at a whole level).
+  atLevel: "levelFraction",
   max: "levelValue",
   // The dice a `rounds` lasting counts, and the size word at or above which a
   // target is exempt from the row (`sizeKey`: a word onto a monsters `SIZES` key).
@@ -685,6 +688,9 @@ function locateField(loc, kind, m) {
     return key ? [key] : MISS;
   }
   if (kind === "saveCategory") return memberOf(SAVE_CATEGORIES, raw, ["none"]) ?? MISS;
+  // A proportion of class level, as the scan reads one: a word or a figure the
+  // pair `levelFraction` states exactly; anything else is a miss.
+  if (kind === "levelFraction") return levelFraction(readNumber(raw, true)) ?? MISS;
   if (kind === "conditions") {
     const keys = conditionKeysIn(raw);
     return keys.length ? keys : MISS;
@@ -742,6 +748,9 @@ function locateField(loc, kind, m) {
  *   { "into": "gate.armourMax", "pattern": "wearing\\s*(.*?)\\s*and carrying" }
  *        -> a gate's armour rung: the capture is the clause naming what may be
  *          worn, and the heaviest ladder word in it is the rung (`ceilingOf`).
+ *   { "into": "atLevel", "pattern": "as a crusader of (one half) his class level" }
+ *        -> a `progressionAs` row's fraction: the captured word or figure is
+ *          written as `atLevelNum` and `atLevelDen`, and as neither at a whole level.
  *   { "on": "level", "pairs": true, "pattern": "…(\\d+)…(\\d+)…(\\d+)…(\\d+)…" }
  *        -> a breakpoint ladder. `on:"level"` gives a plain `breakpoints`
  *          LevelValue; any other VALUE_SCALES scale gives a `conditional` one.
@@ -845,7 +854,12 @@ function materializeRow(base, locators, clauses, blank, text, perOption) {
       unread.push(into);
       continue;
     }
-    setLocated(effect, into, got);
+    if (kind === "levelFraction") {
+      // The pair a LevelValue stores; a whole level stores neither.
+      if (got.num !== got.den) Object.assign(effect, { atLevelNum: got.num, atLevelDen: got.den });
+    } else {
+      setLocated(effect, into, got);
+    }
   }
   for (const [field, loc] of clauses) {
     const read = locateCondition(loc, text);

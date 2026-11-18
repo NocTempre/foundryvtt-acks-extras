@@ -2660,6 +2660,50 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "progressionAs",
+              "as": "crusader",
+              "from": {
+                "into": "atLevel",
+                "pattern": "crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (RR p.108)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "protection"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "saveCategories": [
+                "paralysis"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(-\\d+)\\s*penalty\\s*on\\s*the\\s*save"
+              }
+            }
+          ]
         }
       }
     },
@@ -3966,6 +4010,30 @@
                   9,
                   10
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "spellcastingMod",
+              "target": "damage",
+              "bySelection": true,
+              "perDie": true,
+              "onMiss": "blank",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*damage\\s*per\\s*die"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "bySelection": true,
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(-\\d+)\\s*saving\\s*throw\\s*penalty"
               }
             }
           ]
@@ -6342,6 +6410,51 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (RR p.115)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "summoning"
+              ],
+              "notStacksWith": [
+                "kw:conjuredarkpowers"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "summoning"
+              ],
+              "ifHas": [
+                "kw:conjuredarkpowers"
+              ],
+              "notStacksWith": [
+                "kw:conjuredarkpowers"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            }
+          ]
         }
       }
     },
@@ -6396,6 +6509,44 @@
                   10,
                   11
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (RR p.115)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
               }
             }
           ]
@@ -9046,6 +9197,62 @@
                   15,
                   16
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (RR p.120)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "transmogrification"
+              ],
+              "notStacksWith": [
+                "kw:grotesqueartsoftransformation"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "transmogrification"
+              ],
+              "ifHas": [
+                "kw:grotesqueartsoftransformation"
+              ],
+              "notStacksWith": [
+                "kw:grotesqueartsoftransformation"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "transmogrification"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
               }
             }
           ]

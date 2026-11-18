@@ -742,7 +742,79 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "progressionAs",
+        "as": "crusader",
+        "from": {
+          "into": "atLevel",
+          "pattern": "crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "progressionAs",
+        "as": "crusader",
+        "ifHas": [
+          "kw:brightloreofaura"
+        ],
+        "from": {
+          "into": "atLevel",
+          "pattern": "crusader\\s*of\\s*(two-thirds)\\s*his\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "protection"
+        ],
+        "notStacksWith": [
+          "kw:brightloreofaura"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "protection"
+        ],
+        "ifHas": [
+          "kw:brightloreofaura"
+        ],
+        "notStacksWith": [
+          "kw:brightloreofaura"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "saveCategories": [
+          "paralysis"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "(-\\d+)\\s*penalty\\s*on\\s*the\\s*save"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.broadSpectrumInoculations",
@@ -1122,7 +1194,49 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "summoning"
+        ],
+        "notStacksWith": [
+          "kw:masteryofconjurationsummoning"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "summoning"
+        ],
+        "ifHas": [
+          "kw:masteryofconjurationsummoning"
+        ],
+        "notStacksWith": [
+          "kw:masteryofconjurationsummoning"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.consumeSouls",
@@ -2390,7 +2504,50 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "progressionAs",
+        "as": "crusader",
+        "from": {
+          "into": "atLevel",
+          "pattern": "crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "saveCategories": [
+          "death",
+          "paralysis"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "counts\\s*as\\s*(one|two)\\s*class\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "saveCategories": [
+          "death",
+          "paralysis"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "suffers\\s*a\\s*(-\\d+)\\s*penalty"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.grotesqueArtsOfTransformation",
@@ -2406,7 +2563,60 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "transmogrification"
+        ],
+        "notStacksWith": [
+          "kw:transmogrification"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "transmogrification"
+        ],
+        "ifHas": [
+          "kw:transmogrification"
+        ],
+        "notStacksWith": [
+          "kw:transmogrification"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "transmogrification"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.guardianSpirit",
@@ -2662,7 +2872,40 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "illusion"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "illusion"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.innovativeResearcher",
@@ -3341,7 +3584,84 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "enchantment",
+          "illusion"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "enchantment",
+          "illusion"
+        ],
+        "ifHas": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "same\\s*name[^.]*?(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "enchantment",
+          "illusion"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "enchantment",
+          "illusion"
+        ],
+        "ifHas": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "same\\s*name[^.]*?suffer\\s*a\\s*(-\\d+)\\s*penalty"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.masteryofdominationanddeception",
@@ -4060,7 +4380,48 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "progressionAs",
+        "as": "crusader",
+        "from": {
+          "into": "atLevel",
+          "pattern": "chaotic\\s*crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+        }
+      },
+      {
+        "type": "modifier",
+        "target": "research",
+        "mode": "add",
+        "condition": "situational",
+        "from": {
+          "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "casterLevel",
+        "schools": [
+          "necromancy"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "death"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "death\\s*spells,\\s*his\\s*targets\\s*suffer\\s*a\\s*(-\\d+)\\s*penalty"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.secretsOfLifeAndDeath",
@@ -4428,7 +4789,40 @@
     ],
     "meta": {
       "category": "classPower"
-    }
+    },
+    "effects": [
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "enchantment"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "targets\\s*of\\s*his\\s*enchantment\\s*spells\\s*suffer\\s*a\\s*(-\\d+)\\s*penalty"
+        }
+      },
+      {
+        "type": "spellcastingMod",
+        "target": "save",
+        "schools": [
+          "enchantment"
+        ],
+        "ifHas": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "notStacksWith": [
+          "kw:masteryofenchantmentsillusions"
+        ],
+        "onMiss": "blank",
+        "from": {
+          "pattern": "or\\s*a\\s*(-\\d+)\\s*penalty\\s*if\\s*he\\s*also"
+        }
+      }
+    ]
   },
   {
     "id": "def.power.summoninfernalpowers",

@@ -14,7 +14,7 @@ import { materializeEffects } from "../../scripts/importer/executor.mjs";
 import { bindSpell } from "../../scripts/importer/cookbook/variations.mjs";
 import { REPAIR, decidedPolicy, mergeRowsByOrigin, refreshPlan } from "../../scripts/importer/refresh.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
-import { spellRecipeProblems } from "./spell-recipe-rules.mjs";
+import { SPELL_NARROWING_WORDS, spellRecipeProblems, spellcastingModProblems } from "./spell-recipe-rules.mjs";
 
 let n = 0;
 const t = (name, fn) => {
@@ -660,6 +660,65 @@ t("the recipe rules hold an each row to a pick and a key, refuse its pickOption,
   assert.deepEqual(spellRecipeProblems({ effects: [{ ...EACH_ROW, each: { pattern: "x", group: 2 } }] }), [], "a group number is not a printed figure");
   assert.deepEqual(spellRecipeProblems({ effects: [{ key: "k", type: "conditionGrant", conditions: ["berserk"] }] }), [], "a row may still author its condition keys");
   has(spellRecipeProblems({ effects: [{ key: "k", type: "conditionGrant", conditions: ["berserk"], from: EACH_ROW.from }] }), "conditions is located from the page and also written");
+});
+
+
+// Invented ability prose for the spellcastingMod recipes: every word and figure is made up.
+const ABILITY = paras(
+  "The bearer is a master of frost magic. When casting rime spells, the spell effects are calculated as if he were two class levels higher. Targets of his rime spells suffer a -3 penalty on their saves. He rebukes ghosts as a priest of one half his class level.",
+);
+const CL = { type: "spellcastingMod", target: "casterLevel", schools: ["protection"], onMiss: "blank", from: { pattern: "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?" } };
+const SV = { type: "spellcastingMod", target: "save", saveCategories: ["paralysis"], onMiss: "blank", from: { pattern: "suffer\\s*a\\s*(-\\d+)\\s*penalty" } };
+
+t("a spellcastingMod recipe locates its figure with the sign the page prints, and the narrowing words ride unchanged", () => {
+  const [cl, sv] = materializeEffects([CL, SV], ABILITY);
+  assert.deepEqual(cl.value, { kind: "flat", flat: 2 });
+  assert.deepEqual(cl.schools, ["protection"]);
+  assert.equal(cl.casterLevelDelta, undefined);
+  assert.deepEqual(sv.value, { kind: "flat", flat: -3 });
+  assert.deepEqual(sv.saveCategories, ["paralysis"]);
+});
+
+t("a spellcastingMod row whose figure the page does not print stays, blank and listed, with its narrowing", () => {
+  const [row] = materializeEffects([CL], paras("Nothing here."));
+  assert.equal(row.value, undefined);
+  assert.deepEqual(row.unread, ["value"]);
+  assert.deepEqual(row.schools, ["protection"]);
+  assert.deepEqual(materializeEffects([{ ...CL, onMiss: undefined }], paras("Nothing here.")), [], "without onMiss a miss drops the row");
+});
+
+t("an atLevel locator writes a progressionAs row's fraction pair, and nothing at a whole level", () => {
+  const spec = (word) => ({ type: "progressionAs", as: "priest", from: { into: "atLevel", pattern: `priest\\s*of\\s*(${word})\\s*his\\s*class\\s*level` } });
+  const [half] = materializeEffects([spec("one\\s*half")], ABILITY);
+  assert.deepEqual([half.as, half.atLevelNum, half.atLevelDen], ["priest", 1, 2]);
+  const [third] = materializeEffects([spec("two-thirds")], paras("as a priest of two-thirds his class level"));
+  assert.deepEqual([third.atLevelNum, third.atLevelDen], [2, 3]);
+  const [whole] = materializeEffects([spec("one")], paras("as a priest of one his class level"));
+  assert.equal(whole.atLevelNum, undefined);
+  assert.deepEqual(materializeEffects([spec("zzz")], ABILITY), [], "a word that is no proportion drops the row");
+});
+
+t("the spellcastingMod lint holds rule 104's guards, the word lists, literal figures and stacking tokens", () => {
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  assert.deepEqual(spellcastingModProblems([CL, SV, { type: "modifier", target: "research" }]), [], "well-formed rows, and a row of another type is not this lint's");
+  has(spellcastingModProblems([{ ...CL, target: "range" }]), "is not one of casterLevel, save, damage");
+  has(spellcastingModProblems([{ ...CL, schools: undefined }]), "narrows on no spell");
+  has(spellcastingModProblems([{ ...CL, schools: ["glitter"] }]), 'names "glitter"');
+  has(spellcastingModProblems([{ ...CL, schools: [] }]), "non-empty list of words");
+  assert.deepEqual(spellcastingModProblems([{ ...CL, schools: [...SPELL_NARROWING_WORDS] }]), [], "an allowlisted word passes");
+  has(spellcastingModProblems([{ ...SV, saveCategories: ["none"] }]), "no save category");
+  has(spellcastingModProblems([{ ...CL, value: { kind: "flat", flat: 2 } }]), "value is a literal figure");
+  has(spellcastingModProblems([{ ...CL, casterLevelDelta: 2 }]), "casterLevelDelta is a literal figure");
+  has(spellcastingModProblems([{ ...CL, from: undefined }]), "locates no value");
+  has(spellcastingModProblems([{ ...CL, from: { into: "roll", pattern: "x" } }]), "locates no value");
+  has(spellcastingModProblems([{ ...CL, perDie: true }]), "perDie is true on a damage row");
+  assert.deepEqual(spellcastingModProblems([{ ...CL, target: "damage", perDie: true, bySelection: true, schools: undefined }]), []);
+  has(spellcastingModProblems([{ ...CL, bySelection: "yes" }]), "bySelection is true or absent");
+  const known = (token) => ["kw:alpha", "def.prof.alpha"].includes(token);
+  assert.deepEqual(spellcastingModProblems([{ ...CL, ifHas: ["kw:alpha"], notStacksWith: ["def.prof.alpha"] }], { tokenKnown: known }), []);
+  has(spellcastingModProblems([{ ...CL, ifHas: ["kw:alpah"] }], { tokenKnown: known }), 'names "kw:alpah"');
+  has(spellcastingModProblems([{ ...CL, notStacksWith: ["def.prof.me"] }], { selfId: "def.prof.me" }), "names the ability the row is on");
+  has(spellcastingModProblems([{ type: "progressionAs", as: "priest", atLevelNum: 1, atLevelDen: 2 }]), "atLevelNum is a literal fraction");
 });
 
 console.log(`\n${n} tests passed`);

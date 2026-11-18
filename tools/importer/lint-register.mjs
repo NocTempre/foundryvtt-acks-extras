@@ -16,9 +16,9 @@ import {
 } from "../../scripts/importer/scene-binding.mjs";
 import { regionGroupOf } from "../../scripts/importer/poi-binding.mjs";
 import { wallsProblems, wallsWarnings } from "../../scripts/importer/wall-trace.mjs";
-import { ABILITY_CATEGORIES, TRAVEL_MODES } from "../../scripts/lib/vocab.mjs";
+import { ABILITY_CATEGORIES, TRAVEL_MODES, capabilityForId } from "../../scripts/lib/vocab.mjs";
 import { scenarioProblems, rosterProblems } from "./scenario-rules.mjs";
-import { spellRecipeProblems } from "./spell-recipe-rules.mjs";
+import { spellRecipeProblems, spellcastingModProblems } from "./spell-recipe-rules.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
 import { MAGIC_CATEGORIES } from "../../scripts/importer/cookbook/magic-items.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
@@ -831,6 +831,20 @@ for (const { id, scene, table } of zoneRows) {
   else if (table !== undefined && !rowShapes.has(table)) err(`${id}: zone.table names "${table}", which no row defines`);
 }
 
+/* --- an ability's spellcastingMod rows: shape, words, and tokens that name a row or capability the register defines --- */
+{
+  const tokens = new Set();
+  for (const [id, row] of allRows) {
+    tokens.add(id);
+    tokens.add(capabilityForId(id));
+    for (const p of row.meta?.provides ?? []) tokens.add(String(p).toLowerCase());
+    if (row.assists?.aliasOf) tokens.add(capabilityForId(row.assists.aliasOf));
+  }
+  for (const [id, row] of allRows) {
+    for (const problem of spellcastingModProblems(row.effects, { selfId: id, tokenKnown: (t) => tokens.has(String(t).toLowerCase()) })) err(`${id}: ${problem}`);
+  }
+}
+
 /* --- between rows: key spaces and parents, pairs across books, scene links, a book's region map --- */
 for (const problem of spaceProblems(allRows)) err(problem);
 for (const problem of lairOfProblems(allRows)) err(problem);
@@ -938,6 +952,7 @@ if (fs.existsSync(COOKBOOK)) {
     for (const [id, e] of Object.entries(cb.entries ?? {})) {
       for (const problem of specConditionProblems([...(e.fields?.effects?.specs ?? []), ...(e.fields?.rolls?.specs ?? [])])) err(`${label}: ${id} ${problem}`);
       if (e.kind === "kind.spell") for (const problem of spellRecipeProblems({ effects: e.fields?.effects?.specs, values: e.fields?.values?.specs })) err(`${label}: ${id} ${problem}`);
+      for (const problem of spellcastingModProblems(e.fields?.effects?.specs, { selfId: id })) err(`${label}: ${id} ${problem}`);
       for (const [field, instr] of Object.entries(e.fields ?? {})) {
         for (const problem of instrProblems(instr)) err(`${label}: ${id}.${field} ${problem}`);
         if (instr.op === "ocr") for (const problem of ocrProblems(instr, pictureRecipes)) err(`${label}: ${id}.${field} ${problem}`);

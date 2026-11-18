@@ -6254,6 +6254,81 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "progressionAs",
+              "as": "crusader",
+              "from": {
+                "into": "atLevel",
+                "pattern": "crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+              }
+            },
+            {
+              "type": "progressionAs",
+              "as": "crusader",
+              "ifHas": [
+                "kw:brightloreofaura"
+              ],
+              "from": {
+                "into": "atLevel",
+                "pattern": "crusader\\s*of\\s*(two-thirds)\\s*his\\s*class\\s*level"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.311)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "protection"
+              ],
+              "notStacksWith": [
+                "kw:brightloreofaura"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "protection"
+              ],
+              "ifHas": [
+                "kw:brightloreofaura"
+              ],
+              "notStacksWith": [
+                "kw:brightloreofaura"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "saveCategories": [
+                "paralysis"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(-\\d+)\\s*penalty\\s*on\\s*the\\s*save"
+              }
+            }
+          ]
         }
       }
     },
@@ -7645,6 +7720,51 @@
                   1,
                   2
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.312)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "summoning"
+              ],
+              "notStacksWith": [
+                "kw:masteryofconjurationsummoning"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "summoning"
+              ],
+              "ifHas": [
+                "kw:masteryofconjurationsummoning"
+              ],
+              "notStacksWith": [
+                "kw:masteryofconjurationsummoning"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
               }
             }
           ]
@@ -12247,6 +12367,52 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "progressionAs",
+              "as": "crusader",
+              "from": {
+                "into": "atLevel",
+                "pattern": "crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.317)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "saveCategories": [
+                "death",
+                "paralysis"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "counts\\s*as\\s*(one|two)\\s*class\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "saveCategories": [
+                "death",
+                "paralysis"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffers\\s*a\\s*(-\\d+)\\s*penalty"
+              }
+            }
+          ]
         }
       }
     },
@@ -12307,6 +12473,62 @@
                   1,
                   2
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.317)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "transmogrification"
+              ],
+              "notStacksWith": [
+                "kw:transmogrification"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "transmogrification"
+              ],
+              "ifHas": [
+                "kw:transmogrification"
+              ],
+              "notStacksWith": [
+                "kw:transmogrification"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "transmogrification"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
               }
             }
           ]
@@ -13298,6 +13520,42 @@
                 "drop": [
                   0
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.319)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "illusion"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "illusion"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
               }
             }
           ]
@@ -15763,6 +16021,86 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.321)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "ifHas": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "same\\s*name[^.]*?(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "ifHas": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "same\\s*name[^.]*?suffer\\s*a\\s*(-\\d+)\\s*penalty"
+              }
+            }
+          ]
         }
       }
     },
@@ -15846,6 +16184,86 @@
                   11,
                   12
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.321)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "ifHas": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "same\\s*name[^.]*?(\\w+)\\s*\\(rather\\s*than\\s*two\\)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "suffer\\s*a\\s*(-\\d+)\\s*penalty\\s*to\\s*their\\s*saving"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment",
+                "illusion"
+              ],
+              "ifHas": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "same\\s*name[^.]*?suffer\\s*a\\s*(-\\d+)\\s*penalty"
               }
             }
           ]
@@ -18526,6 +18944,50 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "progressionAs",
+              "as": "crusader",
+              "from": {
+                "into": "atLevel",
+                "pattern": "chaotic\\s*crusader\\s*of\\s*(one\\s*half)\\s*his\\s*class\\s*level"
+              }
+            },
+            {
+              "type": "modifier",
+              "target": "research",
+              "mode": "add",
+              "condition": "situational (JJ p.324)",
+              "from": {
+                "pattern": "\\+\\s*(\\d+)\\s*bonus\\s*on\\s*magic\\s*research"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "casterLevel",
+              "schools": [
+                "necromancy"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "calculated\\s*as\\s*if\\s*he\\s*were\\s*(\\w+)\\s*(?:class|caster)\\s*levels?\\s*higher"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "death"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "death\\s*spells,\\s*his\\s*targets\\s*suffer\\s*a\\s*(-\\d+)\\s*penalty"
+              }
+            }
+          ]
         }
       }
     },
@@ -19836,6 +20298,42 @@
                   0,
                   1
                 ]
+              }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "targets\\s*of\\s*his\\s*enchantment\\s*spells\\s*suffer\\s*a\\s*(-\\d+)\\s*penalty"
+              }
+            },
+            {
+              "type": "spellcastingMod",
+              "target": "save",
+              "schools": [
+                "enchantment"
+              ],
+              "ifHas": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "notStacksWith": [
+                "kw:masteryofenchantmentsillusions"
+              ],
+              "onMiss": "blank",
+              "from": {
+                "pattern": "or\\s*a\\s*(-\\d+)\\s*penalty\\s*if\\s*he\\s*also"
               }
             }
           ]

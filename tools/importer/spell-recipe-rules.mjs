@@ -21,9 +21,9 @@ import { LOCATABLE_FIELDS } from "../../scripts/importer/executor.mjs";
 import {
   AREA_SHAPES, CONDITION_KEYS, EFFECT_DELIVERIES, EFFECT_LASTS, EFFECT_RECURRENCES, EFFECT_RECUR_MOMENTS, EFFECT_RECUR_SAVES, EFFECT_RECUR_TARGETS,
   EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
-  SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope,
+  SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope, isCapabilityToken,
 } from "../../scripts/lib/vocab.mjs";
-import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
+import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGORIES, SPELL_TYPES, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
@@ -41,6 +41,15 @@ const ROW_KEYS = new Set([
  * is already magic; their evaluators are lib's (slice S2b).
  */
 export const SPELL_GATE_KINDS = Object.freeze(["weaponMundane", "weaponMagical"]);
+
+/**
+ * The type words beside `SPELL_TYPES` a `spellcastingMod` row may narrow on.
+ * A spell's `schools` keeps every word its stat line printed, and a word the
+ * book prints as a type for some spells without the module naming it a type is
+ * listed here, folded and lowercase. A word outside both lists never matches
+ * a spell the importer wrote, so the lint refuses it.
+ */
+export const SPELL_NARROWING_WORDS = Object.freeze(["necromancy"]);
 /** The keys a `values` spec may carry. */
 const VALUE_KEYS = new Set(["save", "target", "from", "onMiss", "note", "reversedDurationFromNote"]);
 /** The loc keys that hold a literal figure; a spell locator never carries one. */
@@ -244,6 +253,77 @@ export function spellRecipeProblems({ effects, values } = {}) {
     if (spec.reversedDurationFromNote !== undefined && spec.reversedDurationFromNote !== true) out.push(`${label}.reversedDurationFromNote is true or absent`);
     figureProblems(structure, label, out);
     locatorProblems(from, (into) => into.startsWith("save.") || into.startsWith("target."), label, out);
+  }
+  return out;
+}
+
+/** The three things a `spellcastingMod` row changes; the cast matcher reads no other target. */
+const SPELLCASTING_TARGETS = Object.freeze(["casterLevel", "save", "damage"]);
+
+/** The narrowing keys that carry a list of words, each one a folded, lowercase word. */
+const WORD_LISTS = ["schools", "elements", "saveCategories"];
+
+/** A list of non-empty strings, or false. */
+const isWordList = (v) => Array.isArray(v) && v.length > 0 && v.every((w) => typeof w === "string" && w.trim() !== "");
+
+/**
+ * The problems in the `spellcastingMod` rows of an ability's `effects` recipe,
+ * and in its `progressionAs` rows' fractions, whatever the kind of entry: a
+ * proficiency or a power buffs spells as a spell's own rows do.
+ *
+ * A row is structure and one located figure. It names what it changes (`target`),
+ * what spells it concerns (at least one narrowing field, or the matcher reads it
+ * as narrowing on nothing and applies nothing), and what it stacks with; its size
+ * rides in `from`, never as a literal `value`. `schools` and `elements` hold
+ * `SPELL_TYPES` keys or `SPELL_NARROWING_WORDS`, and `saveCategories` hold
+ * save-category keys. A stacking or holding token is a definition id or a `kw:`
+ * capability that the register defines, when `tokenKnown` is given.
+ *
+ * @param {object[]} effects an entry's `effects` specs
+ * @param {{selfId?: string, tokenKnown?: (token: string) => boolean}} [options] `selfId` bars a row naming its own ability
+ */
+export function spellcastingModProblems(effects, { selfId, tokenKnown } = {}) {
+  const out = [];
+  for (const [i, spec] of (effects ?? []).entries()) {
+    const label = `effects[${i}]`;
+    if (spec?.type === "progressionAs") {
+      for (const key of ["atLevelNum", "atLevelDen"]) if (spec[key] !== undefined) out.push(`${label}.${key} is a literal fraction; read it from the page (\`from.into\` "atLevel")`);
+      continue;
+    }
+    if (spec?.type !== "spellcastingMod") continue;
+    if (!SPELLCASTING_TARGETS.includes(spec.target)) out.push(`${label}.target "${spec.target}" is not one of ${SPELLCASTING_TARGETS.join(", ")}`);
+    for (const key of ["value", "casterLevelDelta"]) if (spec[key] !== undefined) out.push(`${label}.${key} is a literal figure; a spellcasting row's size is located from the page`);
+    const { from, ...structure } = spec;
+    figureProblems(structure, label, out);
+    const locators = Array.isArray(from) ? from : from === undefined ? [] : [from];
+    if (!locators.some((loc) => (loc?.into ?? "value") === "value")) out.push(`${label} locates no value; a row with no figure to read applies nothing`);
+    locatorProblems(from, (into) => into === "value", label, out);
+    if (spec.onMiss !== undefined && spec.onMiss !== "blank") out.push(`${label}.onMiss is "blank" or absent`);
+    for (const key of WORD_LISTS) if (spec[key] !== undefined && !isWordList(spec[key])) out.push(`${label}.${key} is a non-empty list of words`);
+    for (const word of isWordList(spec.schools) ? spec.schools : []) {
+      if (!Object.hasOwn(SPELL_TYPES, word) && !SPELL_NARROWING_WORDS.includes(word)) out.push(`${label}.schools names "${word}", which is no spell type and not an allowed narrowing word`);
+    }
+    for (const word of isWordList(spec.elements) ? spec.elements : []) {
+      if (!SPELL_NARROWING_WORDS.includes(word)) out.push(`${label}.elements names "${word}", which is not an allowed narrowing word`);
+    }
+    for (const word of isWordList(spec.saveCategories) ? spec.saveCategories : []) {
+      if (word === "none" || !Object.hasOwn(SAVE_CATEGORIES, word)) out.push(`${label}.saveCategories names "${word}", which is no save category`);
+    }
+    if (spec.bySelection !== undefined && spec.bySelection !== true) out.push(`${label}.bySelection is true or absent`);
+    if (spec.perDie !== undefined && (spec.perDie !== true || spec.target !== "damage")) out.push(`${label}.perDie is true on a damage row, and absent elsewhere`);
+    const named = isWordList(spec.schools) || isWordList(spec.elements) || isWordList(spec.saveCategories) || spec.bySelection === true || Boolean(spec.spellRef) || Boolean(spec.spell);
+    if (!named) out.push(`${label} narrows on no spell (schools, elements, saveCategories, bySelection or a named spell); an unnarrowed row matches nothing`);
+    for (const key of ["ifHas", "stacksWith", "notStacksWith"]) {
+      if (spec[key] === undefined) continue;
+      if (!isWordList(spec[key])) {
+        out.push(`${label}.${key} is a non-empty list of ability tokens`);
+        continue;
+      }
+      for (const token of spec[key]) {
+        if (token === selfId) out.push(`${label}.${key} names the ability the row is on`);
+        else if (tokenKnown && !tokenKnown(token)) out.push(`${label}.${key} names "${token}", which no register row defines${isCapabilityToken(token) ? " or provides" : ""}`);
+      }
+    }
   }
   return out;
 }
