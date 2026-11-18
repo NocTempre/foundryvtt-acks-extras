@@ -3627,6 +3627,33 @@ not-the-format (the build posts through `renderRollCard`).
   never reaches it. It goes to M-r, where a ritual becomes a project
   (224).
 
+**Owner on R-e's departures from board 8 (relayed verbatim, 2026-11-18):**
+- **233 "Rework to the board".** R-e, the rung editor, was built with two
+  departures: the kind switch kept the existing select with one added
+  option, and the rungs opened in a separate window holding a draft. The
+  owner rejected both. The rework builds:
+  - the kind switch as the button group drawn on board 8;
+  - the rungs inline in the effect-row editor, as drawn.
+
+  If inline drafting cannot fit the row editor's apply-at-once model,
+  that is a design question for the owner, brought through the
+  orchestrator and not decided by the slice.
+  - R-e does not land with R-p and K-b. Its built work, which is
+    offline green (test-rung-editor 35, 5 of 5 mutations killed), is
+    kept as a patch at `aia-tmp/20261118-r-e-rung-editor.patch` (ignored,
+    local) for the rework slice to start from. Its model
+    (`scripts/lib/rung-ladder.mjs`), validation, tooltips, Player
+    read-only gate and tests carry over unchanged.
+  - The rework is **R-e2**, an implementer, in the serial queue.
+- **234 Restore does not bring back a removed rung: "Accept
+  (Recommended)".** No snapshot of the imported ladder is stored on a
+  level value. Restore puts back edited rungs and drops added ones.
+- Carried into R-e2, defaults proceeded on:
+  - a rung's figure stays numeric (`num()`); the board's dice figure was
+    illustrative;
+  - the rung schema gains `hand`, `was` and `wasAt`, and its lib
+    apiVersion bump rides R-e2's landing.
+
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
   context, for a band that field-spec cannot express (glyph segments, a
