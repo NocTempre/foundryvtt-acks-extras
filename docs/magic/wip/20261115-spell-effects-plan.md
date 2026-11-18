@@ -3837,6 +3837,41 @@ Findings registered and not worked, each with the default it proceeded on:
   breakpoints, a progression or a conditional on another scale shows the
   existing hint and is left as stored.
 
+### Results, M (2026-11-18)
+
+Landed on main from topic/spell-effects, each walked live on lane A with no
+other session on the server:
+- a01ce952: M-i, the research tables. Walk 40136910: importer-research-tables
+  20/0.
+- 17c38323: ruling 237 (the substitution penalty rounds away from zero), on
+  main and offline only.
+- 240a0916: M-l, the power ledger and its chip. The walk fix 75749c2b counts
+  only ids not seeded from the window. magic-power-ledger 27/0. The weekday
+  list (`calendar.days.values`) was checked live.
+- 7089a452: M-q1, the research project record and the location's Research
+  tab. magic-research-project 25/0 on the first run.
+
+Owner design steps: board 14 (the hand plus fades or stays) was approved as
+B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built
+beyond board 10 (the New project prompt, the Judge's level, cost and paid
+boxes, the subject drop, the closed list) for review. A change there is a fix
+on main.
+
+Findings registered and not worked, each with the default it proceeded on:
+- **M-l.1** lib's `powerEntry` holds a quantity to its cap only from a cap of
+  one up, so a row over a balance of nothing counts one. Default: magic's
+  `powerRow` returns no row below one.
+- **M-q1.1** No spell-research or item-creation cost table is imported (the
+  ROADMAP row), so the three costs are Judge-entered and blank. Their
+  tooltip cites the chapter.
+- **M-q1.2** `levelTip` cites the library's page for every kind, including a
+  workshop project.
+- **M-q1.3** An unread chip under a by-hand table renders its label with an
+  empty citation.
+- **M-q1.4** Material paid is recorded and charges no coin.
+- **M-q1.5** The researcher's sheet draws no link to the project. The link
+  is derived (`projectsOf`) and not drawn.
+
 ### Results, 1d
 
 **1d-A (2026-11-17), run from 1b.** topic/spell-effects-1d was landed at
