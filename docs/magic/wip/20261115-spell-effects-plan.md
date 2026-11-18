@@ -3584,6 +3584,8 @@ not-the-format (the build posts through `renderRollCard`).
     replaces 216's "highest".
   - The pick is the answer of R5's `band(ctx, answer)` (228), and C6
     damages that set on a botch.
+  - **Owner, relayed 2026-11-18: "Approve as drawn"** (board 7 v21).
+    229 stands, and R-c builds to it.
   - Published as canvas v21 (board 7). The owner's v19 approval covered the
     bucket. This revision adds the pick inside it, so it is flagged to
     the owner.
