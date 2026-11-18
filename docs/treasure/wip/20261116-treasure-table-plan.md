@@ -561,3 +561,47 @@ want of a blue token.
 - 2026-11-18: T6 landed on `main` (2f8c27cd, 424bbeaf). Its first step 8 walk passed 9 checks and failed 4: no real hoard noun matched a real list. A local-only probe of the real import showed five noun shapes. (1) A noun that is a list's own word already matched. (2) A rarity noun printed without the trailing word every rarity caption carries matched nothing; it now also meets the list's own import key (fix on `main`). (3) A generic noun meaning a roll on the type list has no imported marker, so it stays refused as `no-match` with the Judge notice; this is an orchestrator question, and an importer marker is the candidate. (4) A choice among lists and (5) one of each of a parenthesized list are both refused as `compound` before matching; how either is thrown is printed procedure and belongs in `hoard-map`'s noun split, so it is registered, not built. The walk's "pot stays staging" failure was the walk reading the wrong flag key; the open works. The walk now takes a census of every treasure type in both styles, and every later check needs a real roll. Still registered: deal audit rows are never posted (needs a card, so /design first); `mask.cost` has no source but a disguise (on the owner list); the T3 "Replace seeds at open" walk is still owed.
 - 2026-11-18: The walk-found fix landed on `main` as 0eee3387. Step 8 then walked on lane C with FIXTURE_OWN: treasure-magic-deal passed 17, failed 0, and the sweep of the run's own ids removed 6, could not find 0 and was refused 0. Census of every treasure type under a floor die: classic 55 placeholders, 16 named a list and rolled, 33 refused as `no-match` (the generic cell, T6b), 6 refused as `compound`; heroic 93 of 93 named a rarity list. The walk's two later failures were the walk's own (rolled cards found by object identity; No magic set before the deal, which leaves the magic column out), and both are fixed in the walk. TESTING step 8 now describes what the walk proves. The feature is walked except T6b and the compound shapes, which stay registered.
 - 2026-11-18: T6b landed on `main` as 6255349b, built by one `implementer` agent: a noun-first clause rolls from the imported type list. Step 8 walked on lane C with FIXTURE_OWN: treasure-magic-deal passed 17, failed 0; the classic deal's audit began at both a category list and the type list, and a rolled card linked to a document claimed as it. Census: classic 55 placeholders, 49 roll, 6 refused as `compound`; heroic 93 of 93 roll. The walk's census now passes each placeholder's marker to `startFor`, and it picks a type whose placeholder names its list by its noun, so the claim half stays reached. The compound shapes (a choice among lists; one of each of a list) stay registered for `hoard-map`'s noun split.
+- 2026-11-18: T6c (an undetected magic arm ranks at its base's cost plus masterwork) designed by an architect; the design follows. T6c-1 and T6c-2 queue for a writer lane on `topic/treasure`; T6c-3 (the setting-column control) waits on the owner's answer and a /design board.
+
+### T6c design (architect, 2026-11-18)
+Owner: "Apparently value is based on the non-magical version of the item, although almost all magic
+items are masterwork quality at a glance unless disguised intentionally". So an undetected "sword
++1" ranks at a masterwork's cost plus its rolled sword type's cost.
+- **Rows.** A row qualifies when its words after the noun are bonuses only: each comma part opens
+on a signed figure (JJ ch.4 "Types of Arms and Armor"; TT p. 51). Other rows print their own figure
+(JJ ch.4 "Arms and Armor") and stay blank. To register: no named arm links yet (a TT register gap).
+- **Link at import** (`magic-item-binding.mjs`). `settingGrid` keeps its header labels in
+`captions.<gridId>`. A qualifying row gets `arms: {grid}` where its noun leads exactly one caption,
+the last word singular or plural. A weapons-list noun (`classic.weapons`, `subtables.weapons<N>`)
+that leads none gets `arms: {kind}`: the Tome's weapon-kind d20 (TT p. 51), a new recipe, same
+rule. Otherwise `arms: {name}`, if all eight captions read. `table-docs.mjs` adds `arms` to `keep`.
+- **Type at roll.** `rollMagicItem({armsSetting})` rolls the kind table and grid column, returning
+`item.armsType`. None without a setting or on a bad die. Contract `magic-item-roll` v2.
+- **Base at deal** (a seam in `deal.mjs`). It is found by import stamp, never by name (equipment
+DECISIONS 2026-09-07). A weapon goes through `keyForName` over `nameKeys` forms to its `mint`
+document; armour goes by its `def.armor.*` stamp, without barding or helmets. A miss falls back to
+a new `lib/vocab.mjs` leading-words rule (period abbreviations allowed; it needs exactly one hit).
+JJ census: 32 of 44 today, 41 of 41 with the fallback (ammunition excluded). Unchecked: the Tome's
+grids, which `check-magic-item-tables.mjs` runs on real pages.
+- **Masterwork:** `masterworkFigure(tier)?.costAdd`. The base's type picks the tier: a weapon takes
+`weaponBoth`, armour or a shield takes `armorAC`, the tier a +1 stands in for (RR ch.4 §IV.6).
+- **Stored** at deal time, since bands freeze at open, as `apparent {baseUuid, baseGp,
+masterworkGp}` in the truth (`normalizeTruth`). `rankWorth` for undetected magic: the mask's cost,
+then the snapshot's `apparentValueGp`, then base + masterwork, then 0. Rejected: the sum in a
+snapshot, since it makes the card claimable and feeds markets a computed figure.
+- **Missing** (no setting, roll, base, positive cost or tier document): the card ranks 0, nothing
+is written and nothing throws. `armsAmmo` is refused by key, since it has its own per-projectile
+sentence (ROADMAP). An older world re-imports its tables.
+- **Planner and bands** read `rankWorth`: no change. A replacing seed can now take an arms lot.
+- **Tests** (all invented). Binding: "Tine Kind" links "Tine +1" and "Tine +1, +2 versus X", but
+not "Tine +1, Shiny"; a plural header links; "Weapon +2" links to `kind`. Treasure: 19 + 403 ranks
+422; either half null ranks 0; a mask cost wins; a 300 seed takes the arms lot. Live step 8:
+re-import, set the setting by API, rig the dice, check parts against base cost and `costAdd`.
+- **Slices**: `implementer`, topic branch (an API field and a control). **T6c-1**: the importer
+recipe and binding, `table-docs.mjs`, `magic-items/{chain-logic,roll-service}.mjs`, tests, API.md.
+**T6c-2**: `lib/vocab.mjs`, `treasure/{magic-deal-logic,deal,pot-logic}.mjs`, tests, the live walk,
+docs, ROADMAP (ammunition; claim builds the base). **T6c-3**: the setting control, after the owner
+and `/design`. Release waits on it.
+- **Owner question:** where does the Judge pick the setting column? Default: per pot, in the deal
+panel, remembered; blank rolls no type. Counter (moderate): a world setting is simpler, but the
+page ties the column to the treasure's source. Everything else above follows the printed procedure.
