@@ -1532,7 +1532,171 @@ turn lifting, ruling 16's per-kind editor list.
 
 ## Session 1c rulings
 
-Numbered 102 to 149.
+Numbered 102 to 149: S3c 102 to 114, S4 115 to 129, S5 130 to 149. Owner
+questions 1c.1 to 1c.9 are S3c's, from 1c.10 S4's, from 1c.20 S5's.
+
+### S3c (S3c's architect, 2026-11-17)
+
+102. **The row is `spellcastingMod`, and its `target` names what it changes**:
+     `casterLevel`, `save` or `damage`, all existing MODIFIER_TARGETS. Its
+     `value` is a located LevelValue. Every modifier reader filters on
+     `type === "modifier"`, so none of them sees these rows; `casterLevelDelta`
+     is display only. *Rejected:* narrowed `modifier` rows, which would enter
+     `standingModifiers`. *Counter (low):* two row shapes now mean a modifier.
+103. **Narrowing fields on `effectField`**: `schools`, `elements`,
+     `bySelection` (the ability copies' pooled `selections` against the
+     spell's elements and schools), `saveCategories`, plus the existing
+     `spellRef`/`spell`. Fields AND, members within one OR, words folded as
+     `memberOf`, and the spell's facts come from the copy or else its twin.
+     The words are authored structure; only the sizes are located.
+     *Rejected:* locating the words at import. *Counter (medium):* this
+     treats as structure what ruling 1 treated as content.
+104. **Guards.** A row applies only when it has a known target, at least one
+     narrowing field and a holding `ifHas`. An unnarrowed row matches
+     nothing, because the prose scan writes unnarrowed deltas. A blank value
+     applies nothing, and its tooltip carries the page reference.
+     *Counter (medium):* a Judge's unnarrowed row does nothing; the editor's
+     hint says so.
+105. **Gathering is lib's, matching is magic's.** Lib `typed-modifiers.mjs`
+     `spellcastingRows(actor)` gathers, counting copies once. The new
+     `scripts/magic/cast-abilities.mjs` matches, as a pure function.
+106. **Stacking** goes through `stackingPart` and `resolveStacking`. Two
+     abilities add unless a row names the pair. A printed partial stack is a
+     combined row (`ifHas` the other, `notStacksWith` both ways), and the
+     largest wins. *Rejected:* owner ruling 2 for abilities. *Counter
+     (medium-strong):* the reading of "partially stacks" is inferred.
+107. **Caster level.** `castAbilityLevel(level, parts)` builds on
+     `casterLevel()`. Every level-scaled figure reads the new value, the
+     card stores the parts, and the relay trusts the card's value (owner
+     question 1c.1). *Counter (medium):* the ability is one hop away in the
+     range and duration tooltips.
+108. **Save.** `castSaveParts` feeds `saveSpec`'s `parts` at all three sites:
+     `rollResist`, the recurring Save and `worldFor`. Missing one makes the
+     relay refuse the resist. *Counter (medium):* the relay refuses when the
+     caster's abilities change between the cast and the press.
+109. **Damage.** A cast-spell attack contributor (`carriers: ["damage"]`)
+     adds the part; a `perDie` row is multiplied by the dice in the scaled
+     formula. Core's card and `magicDamageSpec` both ask it.
+110. **Range, duration and capacity change only through caster level.** A
+     wiki grep found no ability that changes them directly. Each gets a
+     ROADMAP row.
+111. **Deferred, as ROADMAP rows:**
+     - a caster level that counts only for dispelling or against magic
+       resistance;
+     - `spellLike` as a source of casts;
+     - a summoned creature's HP (1d-B);
+     - a selection-tied damage type;
+     - the attack-progression swap;
+     - a concentration save;
+     - buffs from places and from items.
+112. **Producers are register recipes** in `register/rr/p107-p123.json` and
+     `register/jj/p310-p330.json`, confirmed by a scout first. The prose scan
+     is unchanged. A recipe replaces the scan for its whole entry, so a lore
+     must re-author its `progressionAs`. Lint: every narrowing word must be a
+     SPELL_TYPES key or an allowlisted word.
+113. **BtA.** `levelCap` exists only on `topic/bta`. S3c stays out of
+     `classes/casting.mjs` and `class-data.mjs`. *Supersedes in part* the 1c
+     prompt's "read it", on new evidence: B2 is not on `main`.
+114. **Tooltips.** An ability part reads "{ability} {±value} ({cite})", and a
+     part that yields reads "yields to {other}". The cast dialog and the card
+     share one tip helper.
+
+Owner questions, with the defaults proceeded on:
+- **1c.1** A level typed by hand takes no ability deltas; they are listed,
+  not added.
+- **1c.2** Ability levels reach the HD cap and the no-save threshold.
+- **1c.3** A target's save penalty applies to recurring saves too.
+
+Slices: S3c-1 lib, S3c-2 the matcher, S3c-3 the wiring, S3c-4 register
+(after a scout), S3c-5 the editor (after `/design`).
+
+### S4 (S4's architect, 2026-11-17)
+
+Corrections to the inventory, checked in code:
+- The catalogue holds `infuriated`.
+- A condition key is the status id; `LEGACY_STATUS_IDS` maps fear,
+  paralysis and sleep.
+- Nothing reads `save.modifier` at cast.
+- conditionRemove has no apply path.
+- Equipment already has `setDestroyed`.
+
+115. **A strict HD bound is its own field, `target.hdBelow`** (a locatable
+     LevelValue, exempt at or above). `hdCap` stays inclusive (owner
+     question H). *Rejected:* storing the figure less one. *Counter (low):*
+     two fields for one idea.
+116. **Filters gate through `creatureKinds` where the kinds are known**
+     (*supersedes in part* ruling 7; new evidence: ruling 33 built
+     `creatureKinds` after it). A missing kind is `exempt`, gate key `kind`.
+     `living` fails only on undead. An empty kind set is not gated.
+     *Counter (medium):* an untyped monster passes every filter.
+117. **`SAVE_EFFECTS.none` marks a row no save governs**: no resist, and the
+     fraction is 1. *Counter (low):* another enum member.
+118. **A reverse's duration is the parenthetical.** `bindSpell` parses
+     `duration.note` into `reversedDuration` under a values spec
+     `reversedDurationFromNote`, and duration reads the card's mode.
+     *Counter (medium):* one page, so the convention is inferred.
+119. **conditionRemove applies on the writing client** through lib's `lift`,
+     exported. It stores the deleted effects, and Undo recreates them with
+     `keepId`. A two-status or managed effect is listed, not lifted.
+     *Counter (medium):* it ends other casts' records, as the page intends.
+120. **`lasts: followingTurn`** writes `turnLife {edge: start, count: 2}`, or
+     runs a two-round clock outside a fight. `untimed: [key]` writes those
+     statuses with no clock. *Counter (medium):* the clock is the module's
+     reading.
+121. **A printed option list is imported**: a template row's `each` expands
+     once per match into `<key><n>` and `pickOption <n>`, and the new
+     locatable kind `conditions` maps words through `memberOf`.
+     *Supersedes in part* ruling 1, and qualifies ruling 35, for a printed
+     option list only; new evidence: the first entry whose rows are a
+     printed table. *Counter (medium):* a reordered printing re-keys the
+     rows.
+122. **One loss mechanism**: a row's `endsOn` (`damage`, `attack`) and lib's
+     `loseRecords(actor, cause)`, run from the damage hook and from
+     `POST_ATTACK_HOOK`. `slumbering` gains `lost: ["damage", "moved"]`.
+     Being attacked without damage is the Judge's (a ROADMAP row).
+     *Counter (low):* a missed attack leaves a slumberer asleep.
+123. **New kind `slay`**: HP to 0 with no defense stage, plus a record
+     holding `STATUS_DEAD`; Undo restores. *Counter (medium):* the kind
+     gate admits undead only.
+124. **New kind `destroyItem`**: one weapon per holder, capped by
+     `target.count`. A failed save calls equipment's `setDestroyed` and Undo
+     clears it; the relay refuses with `badItem`. A magic weapon's bonus on
+     the save is a ROADMAP row. *Counter (medium):* core still lets a
+     destroyed weapon attack.
+125. **sanctuary's ward is told, with the attacker's save target** (ruling 53
+     stands). *Counter (strong):* the page withholds the attack, and players
+     get blocks.
+126. **An imported `save.modifier` becomes a cast-dialog toggle** whose
+     tooltip carries the figure and the page; blank when nothing is
+     imported.
+127. **salvingRest's rows are authored in S4.** Its save part waits on S5's
+     reader. Its `eachRest` heal is a card line with a ROADMAP row.
+128. **Card lines for the Judge:** infuriate's and beguile's extra saves,
+     destroyDead's remains, sanctuary's exceptions, and unheld weapons.
+129. **New apply kinds go through one dispatch** (`rowOpens`, `applyKind`),
+     replacing the inline `ignite` and `conditionGrant` tests. 1d-B's prompt
+     follows this.
+
+Owner questions, with the defaults proceeded on:
+- **1c.10** A character counts as humanoid and living.
+- **1c.11** The spell's end overrides berserk's until-combat-ends.
+- **1c.12** `followingTurn` outside a fight is two rounds.
+- **1c.13** sanctuary is told only; the Judge rolls the attacker's save.
+- **1c.14** shatterBlade marks the weapon destroyed and does not delete it.
+- **1c.15** A condition held by another feature is listed, not lifted.
+
+Slices:
+- S4a lib;
+- S4b importer (`each`, `conditions`, `hdBelow`, `reversedDuration`, lint);
+- S4c magic: gates, `none`, the lives, `untimed`, the reverse's duration
+  and describe;
+- S4d magic: the dispatch, conditionRemove, `slay` and `destroyItem`;
+- S4e register, the ten entries;
+- the walk `tools/live/magic-cast-saves.mjs`, markers `magic/saves-*`.
+
+The cast-dialog toggle (126) and the per-holder weapon pick (124) are UI
+and wait for `/design` and the owner's feedback (`ui-layout.md`). Until
+then their figures stay on the card.
 
 ## Session 1d rulings
 
