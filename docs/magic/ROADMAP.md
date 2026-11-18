@@ -55,7 +55,7 @@ questions, ruled"): 2 and 4a before 1b.
   location whose facilities gate it and linked to the researching
   character, its sheet and the Judge's ledger; every RR ch. 8 project
   kind; experimentation; components and compounds; rituals learned and
-  cast; XP; power ledgers; the spellcasting-services bridge.
+  cast; XP; the spellcasting-services bridge.
   Congregation-scale divine power waits for the domains feature's realm
   model.
 - **6 — Optional rules.** Overcasting, places of power, spell damage

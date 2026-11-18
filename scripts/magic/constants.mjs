@@ -20,3 +20,7 @@ export const HELD_END_HANDLER = "magicHeldEnd";
 export const DECLARE_FLAG_HANDLER = "magicDeclareFlag";
 /** The handler on lib's sockets through which a seat has the GM's client strip a lost item from the declared answers it could not write. */
 export const LOST_ITEM_HANDLER = "magicLostItem";
+/** Flag key under flags["acks-extras"] on an actor holding its power ledger (`power-ledger.mjs`). */
+export const FLAG_POWER = "power";
+/** The handler on lib's sockets through which a seat has the GM's client write a power ledger it cannot. */
+export const POWER_HANDLER = "magicPower";

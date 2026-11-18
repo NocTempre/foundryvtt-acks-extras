@@ -4,12 +4,14 @@
  * pools, rendered as a per-tradition strip on the character sheet. The class
  * document is authoritative for capacity; the actor stores only what is
  * SPENT, under `flags["acks-extras"].classes.pools[traditionKey]`. See
- * docs/classes/MODEL.md, "Casting".
+ * docs/classes/MODEL.md, "Casting". The strip also hosts magic's power-ledger
+ * chip (`power-chip.mjs`), which a rest does not clear.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_CLASSES } from "./constants.mjs";
 import { classForActor } from "./registry.mjs";
 import { elementOf, ownsSheet, unset } from "../lib/util.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { powerSectionHtml, wirePowerChip } from "./power-chip.mjs";
 
 /** The vancian slot row for `level`: exact rung, else the highest below it. */
 export function slotRowAt(tradition, level) {
@@ -121,10 +123,11 @@ export async function restPools(actor) {
   await actor.update({ [`flags.${MODULE_ID}.${FLAG_CLASSES}.pools`]: unset() });
 }
 
-/** Render the strip markup for one actor (empty string when nothing casts). */
+/** Render the strip markup for one actor (empty string when nothing casts and no power is held). */
 function stripHtml(actor) {
   const state = poolState(actor);
-  if (!state.length) return "";
+  const power = powerSectionHtml(actor, state.length > 0);
+  if (!state.length && !power) return "";
   const parts = state.map((t) => {
     if (t.slots) {
       const cells = t.slots
@@ -149,7 +152,7 @@ function stripHtml(actor) {
     // Capacity-only (the gnostic invocation level): shown, never spent.
     return `<div class="acks-extras-classes-tradition"><label>${foundry.utils.escapeHTML(t.label)}</label><span class="acks-extras-classes-slotgroup">${foundry.utils.escapeHTML(t.capacity ?? "")}</span></div>`;
   });
-  return `<div class="acks-extras-classes-strip">${parts.join("")}<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a></div>`;
+  return `<div class="acks-extras-classes-strip">${parts.join("")}<a class="acks-extras-classes-rest" data-tooltip="${game.i18n.localize(`${LANG_PREFIX}.casting.restTip`)}"><i class="fa-solid fa-bed"></i></a>${power}</div>`;
 }
 
 /**
@@ -164,6 +167,7 @@ export function castingStripElement(actor) {
   const holder = document.createElement("div");
   holder.innerHTML = html;
   const strip = holder.firstElementChild;
+  wirePowerChip(strip, actor);
   strip.addEventListener("click", (event) => {
     const pip = event.target.closest(".acks-extras-classes-pip");
     if (pip) {

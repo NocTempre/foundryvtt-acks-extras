@@ -596,3 +596,64 @@ penalty), which way should it round?", the owner chose "Bigger penalty (-3)".
   invented figure of 2 per level, a third-level spell with 0.4 substituted gives 2.4,
   which is -3, not -2.
 - *Cost:* one point more on every uneven share than the reading this replaces.
+
+## 2026-11-18 — The power ledger and its chip (M-l, ruling 217)
+
+Built to board 12, which the owner approved with the v19 canvas: "Approve spell cast
+design". The art rule stands: "Find open art to attribute or better yet art/texture
+imported from the book. Standing rule for repo no generated art." So an entry leads with
+its source document's own `img`, else a Font Awesome glyph the strip already uses; the
+board's gradient squares are placeholders and ship nowhere.
+
+Ruling 217 and 218 as built: the ledger is `flags["acks-extras"].power`, magic's, not
+`classes.pools` (which a rest clears); classes hosts the chip. Rulings made in building
+it, each with the default proceeded on and the counter:
+
+- **Expiry is computed at read, and nothing is written as time moves.** The balance is a
+  function of `(entries, today, span)`. *Counter (medium):* a sweep on `updateWorldTime`
+  could prune expired lots and keep the flag small; it would also make a dragged-back
+  clock lose power for good and give every client a write to race.
+- **Spent power takes from the oldest lot that still stands on the spend's day.** The
+  page's "spent within" has to be applied to something once a gain is partly spent.
+  *Counter (medium):* newest-first or a pooled balance with the earliest expiry would
+  differ whenever lots of two days are held; the oldest-first order never lets power
+  fade unspent while newer power is spent.
+- **A lot expires once a whole span of days has passed since its day** (the day it is
+  gained is day zero of it), so a lot gained on day 10 under a 30-day span stands on day
+  39 and is gone on day 40. *Counter (low):* the last day inclusive would add a day; the
+  page's words give no more than "within".
+- **The span is whole calendar days, from the calendar the world runs.** A month is the
+  calendar's year over its months rounded up, as core converts an effect's month in
+  `cast-expiry.mjs`; a week is the calendar's own weekday list. A unit the calendar
+  cannot say is no span. *Counter (medium):* the market's `daysPerMonth` setting is a
+  second month in the family, but it carries a 28-day default, which is a figure.
+- **A Judge's plus is a gain written by hand, and it fades like any other.** The minus
+  is a spend by hand. *Counter (medium):* a hand adjustment could be a permanent offset
+  that never expires; that would hide power from the lifetime the Judge imported.
+- **The plus and minus are one pair on each tag, with no amount box; the board draws
+  one pair for two tags.** One pair cannot name its kind without a selected-tag state the
+  board does not draw. Each press moves one. *Counter (low):* a single pair acting on the
+  pressed tag is closer to the drawing, at the cost of state a re-render drops.
+- **The arcane count is a number box beside the arcane tag, for a Judge only, blank until
+  set,** with the page reference in its tooltip. The brief orders the field and the board
+  does not draw it. *Counter (low):* it could live on a window of its own, which would
+  add a window for one number.
+- **Undo is a Judge's, on a spend only.** The board draws it on a spend and not on a
+  gain; a gain is taken back by the minus. *Counter (low):* a Player who made a mistaken
+  spend could be allowed to undo their own; the board leaves it to the Judge.
+- **A Player's spend beyond the balance is refused, a Judge's takes what is held and
+  warns** (the 213 shape: a Player is blocked, a Judge is warned), so the ledger never
+  goes below nothing. *Counter (low):* a Judge's overspend could write a negative balance
+  for the Judge to settle later.
+- **A relayed request is authorized on its sender**, as the declaration's flag handler
+  is: a gain or spend is an owner's, and the hand adjustment, the undo and the count are
+  the Judge's. Direct or relayed is decided by `canUserModify`, never by ownership.
+- **The ledger is not stripped by the uninstall tool.** It is data the Judge may want
+  after the module is gone, and the tool's contract is the spell primitive. *Counter
+  (low).*
+
+Findings, not changed here: lib's `powerEntry` holds a quantity to its cap only from a cap
+of one up, so a row built over a balance of nothing counts one (`count` in `bucket.mjs`);
+magic's `powerRow` returns no row below one. A week the calendar cannot list is null, which
+cannot be checked offline: `calendar.days.values` is read as the weekday list on the live
+walk only.

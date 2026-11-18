@@ -443,6 +443,112 @@ legend > .acks-extras-classes-ctl {
 .acks-extras-classes-ptbtn:hover {
   opacity: 1;
 }
+
+/* The power ledger's chip on the strip (magic owns the ledger; this hosts it).
+   Type rides the ramp; the list is its own scroller, so a long ledger never
+   grows the strip past the sheet. */
+.acks-extras-classes-power {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-inline-size: 0;
+  border-block-start: var(--acks-border-soft);
+  padding-block-start: var(--acks-sp-3);
+}
+.acks-extras-classes-powerchips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+}
+.acks-extras-classes-powertag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-1) var(--acks-sp-4);
+  font-size: var(--acks-fs-label);
+  border: var(--acks-rule-hair) solid color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
+  background: color-mix(in srgb, var(--acks-burgundy) 12%, var(--acks-paper-pure));
+  color: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
+  cursor: help;
+}
+.acks-extras-classes-powerbtn {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 1.8em;
+  block-size: 1.8em;
+  padding: 0;
+  font-size: var(--acks-fs-label);
+  cursor: pointer;
+}
+.acks-extras-classes-powercount {
+  inline-size: 6ch;
+  min-block-size: 1.8em;
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-classes-powerlist {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-block-size: 12em;
+  min-block-size: 0;
+  overflow-y: auto;
+  border: var(--acks-border-soft);
+}
+.acks-extras-classes-powerrow {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-3);
+  border-block-end: var(--acks-border-soft);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-classes-powerrow.is-off > :not(button) {
+  opacity: 0.55;
+}
+.acks-extras-classes-powerart {
+  display: inline-grid;
+  place-items: center;
+  inline-size: 2em;
+  block-size: 2em;
+  overflow: hidden;
+  border: var(--acks-border-soft);
+}
+.acks-extras-classes-powerart img {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+.acks-extras-classes-powertext {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+.acks-extras-classes-powername {
+  font-weight: var(--acks-weight-medium);
+}
+.acks-extras-classes-powerline {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+.acks-extras-classes-powerfig {
+  padding: var(--acks-sp-1) var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid color-mix(in srgb, var(--acks-burgundy) 45%, var(--acks-ink) 55%);
+  cursor: help;
+}
+.acks-extras-classes-powerfig.is-spent {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+.acks-extras-classes-powerempty {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
 .acks-extras-classes-cattabs {
   display: flex;
   flex-wrap: wrap;

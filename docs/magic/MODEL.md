@@ -1042,5 +1042,52 @@ minimum by level and the bonus its surplus buys, divided among the researchers
 sharing it (`facilityMinimum`, `facilityBonus`), a library's share of a
 research's spend, ritual costs by level and the sacrifice bonus. Each helper
 answers null when a figure it needs is unread, and nothing here falls back to
-a default. No window reads these yet; the research, ritual and sacrifice slices
-consume them.
+a default. No window reads these yet except the power ledger below; the research,
+ritual and sacrifice slices consume the rest.
+
+## The power ledger
+
+An actor's divine and arcane power is `flags["acks-extras"].power`, `{divine: {entries},
+arcane: {entries, count}}`, magic's own and not the classes' pools (`classes.pools`),
+which a rest clears. The pure model is `scripts/magic/power-ledger.mjs`; its live half
+(the flag, the calendar, the imported lifetimes, the write and the relay, and the API on
+`acksExtras.magic.power`) is `power-ledger-live.mjs`; the chip is the classes feature's
+(`scripts/classes/power-chip.mjs`), drawn on the casting strip.
+
+An entry is `{id, amount, day, name, img, ref, by}`: a positive amount is power gained, a
+negative one spent, `day` the calendar day it was written (lib `world-time`
+`dayOfWorldTime`), `name` and `img` the source's (a victim, a ritual), `ref` the cast
+that caused it and `by: "judge"` a figure a Judge set by hand. Entries only append.
+
+The balance and the expiry are a pure function of `(entries, today, span)` and nothing
+is written when time moves. Spent power takes from the oldest lot that still stands on
+the spend's own day; a lot expires once `span` whole days have passed since its day. The
+span is the imported lifetime (`readDivineLifetime`, `readArcaneLifetime`) converted to
+days by the calendar the world runs: a day is one, a year the calendar's days per year, a
+month that over its months (rounded up, as core converts an effect's month) and a week
+the calendar's list of weekdays. A lifetime that is not imported, a unit the calendar
+cannot say, or an arcane count left blank is no span, and nothing expires; no figure
+stands in. Arcane power's page names the unit and no count, so the count is
+`arcane.count`, a Judge-written field on the chip, blank until set.
+
+The API (`acksExtras.magic.power`) answers `{ok, ...}`. `balance` and `expiry` read;
+`gain({amount, name, img, ref})` and `spend(...)` write; `undo(id)` takes back a spend and
+`setCount(n)` writes the arcane count, both the Judge's; `row(actor, kind, {amount})` is
+the bucket's power row, lib's `powerEntry` capped by the whole power held and absent where
+none is held (lib's `powerEntry` counts one under a cap of nothing); `settle(actor, step)`
+spends what `applySettlement` handed back for a power row. A Player's spend beyond the
+balance is refused (`short`) and a Judge's takes what is held and answers `warn: "short"`.
+
+A write is made where Foundry lets the seat write the actor (`canUserModify`, never
+ownership) and otherwise asked of the GM's client under the handler `magicPower`. The
+handler authorizes on the sender Foundry attested (`runRelayed`): a gain or spend is an
+owner's, and a hand adjustment, an undo and the count are the Judge's. No GM connected
+means not written (`reason: "noGm"`).
+
+The chip sits on the casting strip, on the character sheet's Magic tab and on the system's
+sheet alike (`castingStripElement`). A tag for each power carries the balance on its face
+and the entries, the next to fade and the page in its tooltip; the entries are rows below
+it, newest first, each led by its source's picture (else a glyph), with Undo on a spend
+for a Judge. A Judge also has a plus and a minus on each tag (one each, no amount box) and
+the arcane count; a Player's strip draws none of them and shows only a power with entries.
+An actor that casts nothing and holds no power draws no ledger. A rest does not touch it.

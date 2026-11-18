@@ -1458,3 +1458,68 @@ would. After an add or a remove the part redraws, so the boxes are looked up aga
 
 The windows are closed on both seats, the counter hook is removed, and the spell is deleted by
 its uuid from the run's own ledger.
+
+## The power ledger (M-l)
+
+A character's divine and arcane power on the casting strip, with the API the ritual and
+sacrifice slices call. Offline: `tools/test-power-ledger.mjs`. Live:
+`tools/live/magic-power-ledger.mjs`, the GM seat and a Player seat together (`SEAT_GM`,
+`SEAT_PLAYER`).
+
+### Fixtures
+
+Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/power-class` (an
+`acks-extras.class` with one vancian casting row, so the strip has a pool), `magic/power-hero`
+(a linked character bound to that class by `flags["acks-extras"].classes.uuid`, owned by the
+Player seat's user) and `magic/power-stranger` (a character whose default ownership is Observer,
+which the Player cannot write). Each step that needs a known shape starts it: both characters'
+ledgers are unset at the start and the end (`flags.acks-extras.-=power`), since a kept fixture
+carries what the last walk left. A counter on `updateActor` for the two characters, on the GM seat,
+is what "written" is read from. The walk makes no document of its own.
+
+### Steps
+
+1. **A gain.** The GM seat calls `acksExtras.magic.power.gain`. *Observable:* `{ok, balance}`, one
+   entry whose `day` is `dayOfWorldTime(game.time.worldTime)`.
+2. **The chip.** Open the hero's sheet, Magic tab. *Observable:* a tag for divine power with the
+   balance, one for arcane power at nothing, a plus and a minus on each, one count box, one row for
+   the entry (its name, a picture or a glyph), the tooltip listing the entry with its sign and the
+   page, and no element with an `id`.
+3. **Plus, minus, Undo.** Press them. *Observable:* a plus adds one entry marked `by: "judge"`; a
+   minus adds a spend; Undo on a spend removes it and the face and `balance` agree; each press is one
+   write; a minus on a power with none held writes nothing.
+4. **The count.** Type a count into the box beside the arcane tag and change it. *Observable:* the box
+   starts blank with the page in its tooltip, writes `arcane.count` and leaves the entries, and a blank
+   writes null.
+5. **A Player's seat.** Open the same sheet as the Player, who owns the character. *Observable:* the
+   divine tag, its rows and tooltip, no arcane tag, no plus, minus, Undo or count; a spend past the
+   balance answers `short`; a hand's gain, an undo and the count answer `judge`; the GM seat's counter
+   has not moved; a spend within the balance writes once, from the Player's seat.
+6. **The relay.** The Player calls `gain` on the stranger. *Observable:* `canUserModify` is false, the
+   answer is `{ok: false, reason: "owner"}` (it came from the GM's client, which a missing GM would not
+   give: that is `noGm`), nothing is written.
+7. **Expiry.** Override the registry's `divineLifetime` through the Ruledata Browser's store
+   (`table-store.mjs` `setOverride`; a table another hand overrode blocks the walk) with an invented
+   three days, write three lots with days of today minus three, minus two and today, and open the
+   sheet. *Observable:* the oldest lot is out of the balance and its row is dimmed, the next to fade is
+   the middle lot one day away, a spend takes from the lots that stand. Override it with a blank unit:
+   nothing expires, `expiry` is null. Clear the override: the registry serves its own read again.
+8. **The bucket row.** `power.row(actor, "divine", {amount: 50})` after a gain of five.
+   *Observable:* `power:divine`, quantity and cap five; a smaller ask stands; a power with none held
+   gives no row; `power.settle` of a handed row spends it.
+
+### Drive mechanics
+
+The plus and minus sit beside their tag as siblings, so each is found as
+`[data-power="<kind>"] ~ [data-power-adjust="1|-1"]` and the first match is that kind's. A press
+re-renders the sheet, so the strip is looked up again after each. The clock is shared by every seat
+and the walk never moves it: a lot's day is written in the past (`actor.update` of the kind's
+`entries`), which is what a gain a lifetime ago is, and the balance reads the clock as it stands.
+A real advance of the clock, and the calendar's own weekday list for a lifetime counted in weeks
+(`calendar.days.values`), are not walked. The sheet's chip is also on the system's own character
+sheet, through the same `castingStripElement`.
+
+### Teardown
+
+Both ledgers are unset, the update counter hook is removed, both sheets are closed, and the override
+is cleared (also in the walk's `finally`). The fixtures stay.

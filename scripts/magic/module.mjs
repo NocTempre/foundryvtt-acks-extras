@@ -31,6 +31,7 @@ import { registerCastSummon, castSummon } from "./cast-summon.mjs";
 import { registerCastSpell, castReading } from "./cast-spell.mjs";
 import { registerCastProcedure, procedureOfKind } from "./cast-procedure.mjs";
 import { implementsBucket, IMPLEMENTS_KEY } from "./cast-implements.mjs";
+import { powerApi, registerPower } from "./power-ledger-live.mjs";
 import { selfReach, twinLookups } from "./cast-reach.mjs";
 import { classForActor } from "../classes/registry.mjs";
 import * as casting from "../classes/casting.mjs";
@@ -95,6 +96,8 @@ Hooks.once("init", () => {
     /** The implement-set bucket a procedure returns from `buckets(ctx)`, and the key its pick has in `answer.picked` (cast-implements.mjs). */
     implementsBucket,
     IMPLEMENTS_KEY,
+    /** The power ledger: the balance, its expiry, the gain and the spend, and the bucket's power row (power-ledger-live.mjs). */
+    power: powerApi,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
@@ -167,6 +170,12 @@ Hooks.once("init", () => {
     registerCastExpiry();
   } catch (err) {
     console.error(`${MODULE_ID} | the cast-end watch could not register`, err);
+  }
+  // A seat that cannot write an actor's power ledger asks the GM's client to.
+  try {
+    registerPower();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the power ledger could not register`, err);
   }
   console.log(`${MODULE_ID} | initialised (spell primitive ready)`);
 });
