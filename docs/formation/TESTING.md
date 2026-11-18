@@ -4988,7 +4988,7 @@ Before the first step the Rules tables must be imported in the test world: the w
 | S9 | The Player's pane picks its own second character as the rescuer, then the stranger's by a hand-made request, then clears | A public declaration for the first; the select on that pane lists only the members that seat owns, so the stranger's is not offered; the hand-made request for it is refused with a whisper to that seat; clearing writes nothing but the links |
 | S10 | The rescuer's throw rigged to miss | The rescuer drowns too and the body is let go: both links gone, the card's line saying the body is released |
 | S11 | The Judge presses Haul to the surface on the drowning member | Afloat again, no rounds counted, links gone, the held drowning effect removed; the button is absent on the Player's pane |
-| S12 | End | Every held effect off every member; the prompt cards stay |
+| S12 | End, once with a member drowning and once with none | Every held effect off every member; the prompt cards stay; with a member drowning a warning names them "still drowning", with none no warning |
 | S13 | A second party sheet, a detached window, the type size on a fresh window | Rows reflow and nothing clips; focus returns to the pressed row or its button; the rescuer select keeps what was stored across a render |
 | S14 | Teardown | End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; the fight ended |
 
@@ -5029,7 +5029,7 @@ Before the first step the Rules tables must be imported (re-run it after an upgr
 | Q10 | `combat.nextTurn()` onto the owner's token, then a stuck member's | One prompt card per round, to the owner and the Judges, with the squeezing target; the stuck member's has two buttons and no target; a second turn change in the round posts none |
 | Q11 | Press a button on the prompt card | The buttons go and the card keeps "total vs target — outcome"; a second press the same round is refused |
 | Q12 | Remove the escape distance import | Neither escape is offered, labels blank with the page alone, nothing rolls |
-| Q13 | Press End | Every held Stuck off every member |
+| Q13 | Press End with a member still stuck | Every held Stuck off every member, and a warning to the Judge names those who were still stuck |
 | Q14 | A second party sheet, a detached window, the type size on a fresh window | Rows reflow and nothing clips; focus returns to the pressed row |
 
 Teardown: End; the tracked cards swept by the run's own ids, the result quoted; fixtures kept; the fight ended; restore any figure removed.

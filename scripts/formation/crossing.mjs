@@ -186,15 +186,23 @@ export async function beginCrossing(formation, kind) {
 
 /**
  * Close the crossing: what it holds is released from every member its record
- * names, then the flag is unset, members and all.
+ * names, then the flag is unset, members and all. The Judge is warned, naming
+ * them, of every member still stuck or drowning, since ending is adjudication
+ * and releases them where they are.
  * @returns {Promise<boolean>} whether a crossing was closed
  */
 export async function endCrossing(formation) {
   const actor = getPartyActor(formation);
   const crossing = readCrossing(formation);
   if (!actor || !game.user.isGM || !crossing) return false;
+  const named = (state) => crossingMembers(formation).filter((e) => crossing.members?.[e.member.actorId]?.state === state).map((e) => e.actor.name);
+  const stillHeld = [[STUCK, "crossing.end.stuck"], [DROWNING, "crossing.end.drowning"]]
+    .map(([state, key]) => [named(state), key])
+    .filter(([names]) => names.length)
+    .map(([names, key]) => loc(key, { names: names.join(", ") }));
   await syncHeld(bodiesOfRecord(formation, Object.keys(crossing.members ?? {})), crossing.id, []);
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: unset() });
+  if (stillHeld.length) ui.notifications.warn(stillHeld.join(" "));
   return true;
 }
 

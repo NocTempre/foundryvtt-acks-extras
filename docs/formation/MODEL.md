@@ -3108,6 +3108,8 @@ pushes), `last`, and the stamps `thrownAt` and `promptedAt` the driver reads.
   `formationValue` like the other figures, null until set, and then nothing
   botches) leaves the member stuck with no escape tried,
   whatever the total reached.
+- **End** releases every held condition, and the Judge is warned, naming them,
+  of each member still stuck or drowning (`endCrossing`).
 - **Stuck** is a held condition of the crossing (`CROSSING_STATUSES` gains
   `stuck` last, since the slot is in the effect's id); the catalogue's own
   closure adds Vulnerable, which the row draws as an implied chip. It comes off

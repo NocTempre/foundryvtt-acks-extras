@@ -483,6 +483,7 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 - A wiggle retreats by the imported escape distance and a push advances by it, one figure for both as S14 reads it. A retreat never passes the start, and a member who retreats to nothing is still squeezing in the crossing.
 - One throw or one escape for each round of a fight (`thrownAt`), for every seat. The driver prompts once for each round (`promptedAt`), with no target on the escape card, as the board draws.
 - An absence refuses every seat, a Judge included, with no words, as every printed figure does: no stone, no bonus a holder needs, no length on a squeeze, no escape distance, no step owed, no Dungeonbashing figure, no save cell. Nothing rolls.
+- Ending the crossing warns the Judge, naming every member still stuck or drowning (`endCrossing`), since End is adjudication and releases them where they are, as a drowning member is released in S13. No new control carries a member out.
 - No name is published on `api.formation`, so `apiVersion` stays.
 
 **Rejected.** `lib/saves.mjs` `saveThrow` for the wiggle: it posts no system card, opens no dialog and so loses the ability's situational bonus for everyone, where the shifted `rollSave` keeps core's dialog and card. Reading `contortionismBonus` in the wiggle: S14's ruling. A Judge-typed advance field on the setup: not on the approved board. A literal 1 for the botch. Prompting a stuck member's escape with a target: the board draws none.

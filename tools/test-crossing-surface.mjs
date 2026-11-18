@@ -2509,6 +2509,23 @@ await ok("a monster squeezes against the load it carries, named as its source in
   assert.equal(stuck.row.escape.push.parts.some((p) => p.key === "strength"), false, "a monster has no Strength term");
 });
 
+await ok("ending a crossing warns the Judge, naming the members still stuck or drowning, and says nothing when none is", async () => {
+  const squeeze = await squeezeWorld([["Alder", { stone: 5 }], ["Birch", { stone: 5 }], ["Cedar", { stone: 5 }]]);
+  await stuckAt(squeeze.formation, "Alder");
+  await stuckAt(squeeze.formation, "Cedar");
+  assert.equal(await endCrossing(squeeze.formation), true);
+  assert.deepEqual(seen.warned, ["Crossing ended with Alder, Cedar still stuck; they are released where they are."]);
+  const swim = await swimWorld([["Dane", { stone: 5 }], ["Elm", { stone: 5 }]]);
+  await writeMemberStep(swim.formation, readCrossing(swim.formation).id, "Dane", { state: "drowning" });
+  seen.warned.length = 0;
+  await endCrossing(swim.formation);
+  assert.deepEqual(seen.warned, ["Crossing ended with Dane still drowning; they are released where they are."]);
+  const calm = await squeezeWorld([["Alder", { stone: 5 }]]);
+  seen.warned.length = 0;
+  await endCrossing(calm.formation);
+  assert.deepEqual(seen.warned, [], "nobody stuck or drowning, nothing said");
+});
+
 await ok("a squeeze with no length set has no throw, for a Judge too", async () => {
   const { formation } = await squeezeWorld([["Alder", { stone: 2 }]], { form: { shape: "squeeze" } });
   const out = await throwFor(formation, "Alder");
