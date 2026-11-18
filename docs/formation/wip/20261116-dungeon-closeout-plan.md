@@ -1796,3 +1796,25 @@ test` and `validate` on each landing's gate; the topic's tip before the land
 Player 2), `formation/crossing-climber`, `formation/crossing-acrobat`,
 `formation/crossing-beast`, all reused; nothing built. The crossing is
 ended.
+
+## 17. Formation work taken from scene search
+
+These requests come from the scene-search plan, sent 2026-11-18 by the
+treasure session and the scene-search orchestrator. They touch files this
+topic changes, so they are built after `topic/dungeon-closeout` lands on
+`main`. The shape of the things a place carries is signed in lib's DECISIONS,
+"A place carries its things, one list in one shape for every feature"
+(`topic/scene-search` d8efe23b).
+
+| Row | What | Notes |
+|---|---|---|
+| R-DC1 | `doors.mjs` `revealSecretDoor(wall)` | with Phase 4's door import |
+| R-DC2 | The trap hasty-search ledger, exported for reading and writing | |
+| R-DC3 | `optionLabel` reads a registrant's `option.label`; `reasonText` maps a registrant's `<prefix>:` to its own lang root | |
+| R-DC5 | `skillCandidates` guards a missing pattern | done on `main`, f6dcc299 |
+| R-DC6 | A Round resolver: `resolvePlanRound(formation)`, returning `resolvePlanTurn`'s outcome shape, called from the manual Round press only. An activity opts in with `length: "round"`. A Turn or Rest press first resolves round entries still due. A DECISIONS entry supersedes 2026-11-11's "only Turn and Rest resolve it" in part, with the owner's scene-search Q2 "B" as the new evidence | scene search's S2 stubs against this signature |
+| P3 | trap-zone's third `Placement` source: a trap thing on a place, read with its fields and kept nowhere else | |
+
+R-DC4, the Turn plan's "Search here" button, is built on scene search's own
+topic, together with `acksExtras.sceneSearch.open`. Formation reviews its diff
+before it lands.
