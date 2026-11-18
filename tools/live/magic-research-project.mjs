@@ -788,7 +788,8 @@ try {
     const waiting = await mk({ kind: "item", costs: { research: 90 } });
     const rit = await mk({ kind: "ritual", level: 5, costs: { research: 90 } });
     const blind = await mk({ kind: "item", costs: { research: 90 } });
-    const unlevelled = await mk({ kind: "item", level: null, costs: { research: 90 } });
+    // A Judge's target, so the ladder this block blanks cannot hold it first: only the unread bonus may.
+    const unlevelled = await mk({ kind: "item", level: null, costs: { research: 90 }, throw: { target: 12 } });
     for (const x of [blind, unlevelled]) {
       await research().post(place(), x.id, { day: ${today - 3}, pace: "dedicated" });
       await sleep(700);
