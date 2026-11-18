@@ -1053,9 +1053,10 @@ const SHARED_TABLE_RECIPES = {
       },
       // The Spelunking tables (RR 268): two stacked grids of three obstacles
       // each, claimed by their row labels in reading order, so the specs sit in
-      // page order. Four rows per grid carry a figure: the stretch one throw
+      // page order. Five rows per grid carry a figure: the stretch one throw
       // covers, the target an adventurer with no climbing proficiency throws
-      // against (or the words that say none may try), the botched-throw row,
+      // against (or the words that say none may try), the rate a made throw
+      // moves at, the botched-throw row,
       // read for its label alone (the bracketed note names the botch band and
       // its cells are the outcome grid's), and whether the climber is helpless.
       // `yMin`/`yMax` bound the grids on the page; formation-binding assigns
@@ -1071,10 +1072,12 @@ const SHARED_TABLE_RECIPES = {
         rows: [
           { key: "stretchFirst", labelRe: "^throw\\s*required" },
           { key: "adventuringFirst", labelRe: "^using\\s*adventuring" },
+          { key: "progressFirst", labelRe: "^success" },
           { key: "botchFirst", labelRe: "^botched\\s*throw", labelPattern: "parenthetical" },
           { key: "vulnerableFirst", labelRe: "^vulnerable" },
           { key: "stretchSecond", labelRe: "^throw\\s*required" },
           { key: "adventuringSecond", labelRe: "^using\\s*adventuring" },
+          { key: "progressSecond", labelRe: "^success" },
           { key: "botchSecond", labelRe: "^botched\\s*throw", labelPattern: "parenthetical" },
           { key: "vulnerableSecond", labelRe: "^vulnerable" },
         ],

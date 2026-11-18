@@ -69,7 +69,7 @@ export const PRODUCES = Object.freeze({
     breathRounds: "swimmingProse",
     jumping: ["jumpingProse", "jumpingLandingProse"],
     fall: "jumpingLandingProse",
-    spelunking: "spelunkingGrid",
+    spelunking: ["spelunkingGrid", "spelunkingOutcomeGrid"],
     spelunkingOutcomes: "spelunkingOutcomeGrid",
     marchFrontageFeet: "frontageProse",
     wideFrontageFeet: "frontageProse",
@@ -350,6 +350,41 @@ export function parseVulnerableCell(cell) {
 }
 
 /**
+ * The speeds a progress cell can name, each by the word the grid prints for it,
+ * keyed by the module's own names for them (`obstacles.mjs` `PROGRESS_SPEEDS`).
+ * The edges are letter tests, since extraction welds a figure onto the word
+ * after it and a symbol onto the word before it.
+ */
+export const PROGRESS_SPEED_WORDS = Object.freeze({
+  combat: /(?<![a-z])combat(?![a-z])/,
+  run: /(?<![a-z])run(?:ning)?(?![a-z])/,
+});
+
+/**
+ * The rate one cell of the grid's success row, or a failed-throw cell that
+ * still moves the climber, says the climber moves at: `{share, speed}`, the
+ * share of the named speed as a ratio (no fraction printed is the whole speed)
+ * and the speed's own name, a key of `PROGRESS_SPEED_WORDS`. A cell that names
+ * no speed, names two, or prints a figure other than one fraction (a bare
+ * number, a share in words) decides nothing and answers null, so it is left
+ * out and never read as another rate.
+ *
+ * @returns {{share: number, speed: string}|null}
+ */
+export function parseProgressCell(cell) {
+  const t = cellText(cell);
+  if (!/speed/.test(t)) return null;
+  const named = Object.keys(PROGRESS_SPEED_WORDS).filter((key) => PROGRESS_SPEED_WORDS[key].test(t));
+  if (named.length !== 1) return null;
+  const fraction = /(\d+)\s*\/\s*(\d+)/.exec(t);
+  const rest = fraction ? t.replace(fraction[0], " ") : t;
+  if (/\d|half|third|quarter|fifth|full|twice|double/.test(rest)) return null;
+  if (!fraction) return { share: 1, speed: named[0] };
+  const share = Number(fraction[1]) / Number(fraction[2]);
+  return Number.isFinite(share) && share > 0 ? { share, speed: named[0] } : null;
+}
+
+/**
  * The natural results a botched-throw row's label names, as `{min, max}`: the
  * label's bracketed note read as one whole number or a pair of them, and null
  * for a note that is neither. Seams are `\s*`; a pair's first end may not
@@ -416,19 +451,24 @@ export function assembleFall(window) {
  * Two more rows are read per obstacle: `vulnerable`, whether the climber is
  * helpless on it (`parseVulnerableCell`), and `botchBand`, the natural results
  * that are a botch, which the botched-throw row's label prints and every
- * column of its grid shares (`parseBotchRange`). Each leaves out what did not
- * read.
+ * column of its grid shares (`parseBotchRange`), and `progress`, the rate a
+ * climber moves at, `{success, fail}` with each present only where its cell
+ * read (`parseProgressCell`): the success from the grid's own row, the fail
+ * from the failed-throw row of `outcomes` (the `spelunkingOutcomeGrid` read,
+ * where those cells wrap), which names a rate only for the one outcome that
+ * still moves the climber. Each leaves out what did not read.
  */
-export function assembleSpelunking(grid = {}) {
+export function assembleSpelunking(grid = {}, outcomes = {}) {
   const out = {};
   const rows = [
-    { stretch: grid.stretchFirst, throws: grid.adventuringFirst, botch: grid.botchFirst, helpless: grid.vulnerableFirst, kinds: SPELUNKING_COLUMNS[0] },
-    { stretch: grid.stretchSecond, throws: grid.adventuringSecond, botch: grid.botchSecond, helpless: grid.vulnerableSecond, kinds: SPELUNKING_COLUMNS[1] },
+    { stretch: grid.stretchFirst, throws: grid.adventuringFirst, moves: grid.progressFirst, slower: outcomes.failFirst, botch: grid.botchFirst, helpless: grid.vulnerableFirst, kinds: SPELUNKING_COLUMNS[0] },
+    { stretch: grid.stretchSecond, throws: grid.adventuringSecond, moves: grid.progressSecond, slower: outcomes.failSecond, botch: grid.botchSecond, helpless: grid.vulnerableSecond, kinds: SPELUNKING_COLUMNS[1] },
   ];
   const adventuring = {};
   const vulnerable = {};
   const botchBand = {};
-  for (const { stretch, throws, botch, helpless, kinds } of rows) {
+  const progress = {};
+  for (const { stretch, throws, moves, slower, botch, helpless, kinds } of rows) {
     const band = botch?.__missing ? null : parseBotchRange(botch?.note);
     for (const [i, kind] of kinds.entries()) {
       const column = ["first", "second", "third"][i];
@@ -439,11 +479,15 @@ export function assembleSpelunking(grid = {}) {
       const helplessNow = helpless?.__missing ? undefined : parseVulnerableCell(helpless?.[column]);
       if (helplessNow !== undefined) vulnerable[kind] = helplessNow;
       if (band) botchBand[kind] = { ...band };
+      const success = moves?.__missing ? null : parseProgressCell(moves?.[column]);
+      const fail = slower?.__missing ? null : parseProgressCell(slower?.[column]);
+      if (success || fail) progress[kind] = { ...(success ? { success } : {}), ...(fail ? { fail } : {}) };
     }
   }
   if (Object.keys(adventuring).length) out.adventuring = adventuring;
   if (Object.keys(vulnerable).length) out.vulnerable = vulnerable;
   if (Object.keys(botchBand).length) out.botchBand = botchBand;
+  if (Object.keys(progress).length) out.progress = progress;
   return out;
 }
 
@@ -636,7 +680,7 @@ export function assembleFormationTables(raw = {}) {
   if (Object.keys(jumping).length) out.jumping = jumping;
   const fall = assembleFall(raw.jumpingLandingProse?.fall);
   if (Object.keys(fall).length) out.fall = fall;
-  const spelunking = assembleSpelunking(raw.spelunkingGrid);
+  const spelunking = assembleSpelunking(raw.spelunkingGrid, raw.spelunkingOutcomeGrid);
   if (Object.keys(spelunking).length) out.spelunking = spelunking;
   const outcomes = assembleSpelunkingOutcomes(raw.spelunkingOutcomeGrid);
   if (Object.keys(outcomes).length) out.spelunkingOutcomes = outcomes;

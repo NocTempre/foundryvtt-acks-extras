@@ -529,5 +529,29 @@ Slice S13 of the dungeon close-out (finding B13), on the owner's answer to OQ9: 
 - A seat that cannot set the pick sees it disabled. The board shows only the Judge's holder row; hiding it from a bystander is the other reading.
 - A rappel prices no pace, so a holder's rappel has no pick; whether it should is the owner's call.
 - A hanging jumper's climb up (`climbUpRow`) takes no pick. It is a climb, and a pace there would need the jump row to carry the record's key.
-- A faster pace does not yet change how much ground a made throw covers; that is S17's reading of the progress row.
+- A faster pace does not yet change how much ground a made throw covers. The progress row (S17) gives the base rate only; each pace's own speed is printed in the pace paragraphs and is not imported, so this waits on that import (the 2026-11-17 entry on the grid's rates of progress, open question 6).
 - The pick is a Climbing holder's by `holdsClimbing`, which is Climbing alone. Whether Mountaineering counts is OQ4's answer, put to S24.
+
+## 2026-11-17 — The grid's rates of progress are imported as shares of the member's own speeds, and the crossing does not yet spend rounds
+
+**Ruled.** (Dungeon close-out plan §4 row B7, §6 item 2 in part, slice S17, to the approved board "ClimbPace".)
+- `spelunking.progress.<kind>` is `{success, fail}`, each `{share, speed}`: a ratio of one of the member's own speeds, `combat` or `run`, the module's names for the movement figures core derives in feet per round. It is read through the existing `spelunkingGrid` and `spelunkingOutcomeGrid` bindings: `spelunkingGrid` gains a success row per grid, claimed in page order between the adventuring row and the botched-throw row, and the one failed-throw cell that still moves the climber is read by the same parser from the outcome grid, whose cells wrap. `PRODUCES.spelunking` therefore names both raw tables, as `jumping` names its two, so the Ruledata Browser's citation covers either.
+- The share is the cell's printed fraction; a cell that names a speed and no fraction is the whole speed. A cell that names no speed, two, or any figure other than one fraction (a bare number, a share written in words) decides nothing and is left out, so no other rate is ever read in its place. The two speed names are the speeds' own words with letter edges, since extraction welds a figure onto them.
+- `progressRate(kind, which)` (`obstacles.mjs`) answers `{share, speed}` or null, and a Judge's override counts only as a share above zero of a named speed, as `adventuringTarget` and `botchBand` validate theirs. With nothing imported the answer is null.
+- Core derives `system.movementacks.climb` for a character, but that figure carries the system's own fraction of the combat speed, not the page's; the imported share is what a later reader multiplies a member's speed by, so a Judge's override of the share is honoured and core's constant is not relied on.
+- No name is published on `api.formation`, so `apiVersion` stays.
+
+**Not built, and why.** The crossing reads no rate yet and spends no rounds: the page prints a rate and a throw per stretch and says nothing about how those become rounds on a clock, so the build waits on the questions below. The first half of the slice (the import and its reader) is the part no ruling can change.
+
+**Rejected.** Writing the rounds anyway at a default for each open question: whichever default is built becomes a rule nobody printed, and a second round advance beside `turn-engine.mjs` `advanceRounds` would be a second clock. A progress key per speed instead of a share: the page prints one share of one named speed per cell. Reading the fail from a row of `spelunkingGrid` itself: its fail cells wrap over several lines, which only the outcome grid's wrapped-row reading joins.
+
+**Cost.** A world must re-run the Rules tables import for the rates; until then `progressRate` answers null and nothing reads it. A reader of the fail for an obstacle that prints none finds none.
+
+**Open for the owner** (each with the default a slice would build).
+1. What a made throw covers. The board and the record keep one throw per stretch (`covered` in stretches), with the rate setting the time. Default: unchanged, the rate sets time and not the count.
+2. Rounds are whole numbers (`advanceRounds` floors and clamps to one). Round each stretch up, or add the fractional time across a member's stretches and bill the whole rounds? Default: add across stretches, so a long climb is not overcharged by rounding.
+3. Several members, one clock. A party climbing at once spends the time of its slowest member once, or each member's time in turn. Default: the slowest member's, since the members climb together.
+4. A miss that moves no one covers nothing and costs a printed duration in the failed-throw row; that duration is a printed value outside this import, so it would be read first and never written as a literal.
+5. A fight already advances the formation's clock by each combat round (`combat-bridge.mjs` `onCombatRoundChange`), so the crossing spends rounds only outside a fight. Default: so, to avoid billing a round twice.
+6. A faster pace: the page prints each pace's speed as a share in the pace paragraphs, which the pace import (S16) deliberately does not read. Wiring a faster pace to the ground a throw covers needs that share imported as a new key, so S16's ROADMAP row stays until it is.
+7. The board draws "Rounds spent" once in the section's header and not on each row; the slice builds the board.

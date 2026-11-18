@@ -3,7 +3,7 @@
  * Obstacles the party has to get past one member at a time (RR ch. 6, the
  * Spelunking tables): a wall to climb, a rope to rappel, a ledge to edge along.
  *
- * Each obstacle answers four independent questions:
+ * Each obstacle answers five independent questions:
  *
  *  - **may an ordinary adventurer try at all, and against what target?** Read
  *    from the `spelunking` registered table (`adventuringTarget`);
@@ -15,7 +15,9 @@
  *    is not covered and nothing here throws it again (`obstacleStep`). Which
  *    natural results are a botch is the grid's own row (`botchBand`);
  *  - **is the climber helpless while doing it?** The grid's own row
- *    (`obstacleVulnerable`).
+ *    (`obstacleVulnerable`);
+ *  - **what rate does the climber move at?** The grid's success row, and the one
+ *    failed-throw cell that still moves the climber (`progressRate`).
  *
  * One throw per stretch of the obstacle, the stretch being the imported figure
  * (`stretchFeet`). Nothing here knows a distance, a target, a band, a
@@ -138,6 +140,32 @@ export function botchBand(kind) {
   const min = whole(cell?.min);
   const max = whole(cell?.max);
   return min !== null && max !== null && min >= 1 && max >= min ? { min, max } : null;
+}
+
+/**
+ * The speeds a rate is a share of, the module's names for the speeds a grid cell
+ * can name (`importer/formation-binding.mjs` `PROGRESS_SPEED_WORDS`): a
+ * member's combat speed and running speed in feet per round.
+ */
+export const PROGRESS_SPEEDS = Object.freeze(["combat", "run"]);
+
+/**
+ * The rate a climber moves at on this obstacle, from the grid: `{share, speed}`,
+ * a share of one of the member's own speeds (`PROGRESS_SPEEDS`), or null until
+ * the table holds it. `which` is `"success"` for a made throw or `"fail"` for
+ * the failed-throw cell that still moves the climber, which the grid prints for
+ * one obstacle only; every other obstacle answers null for it. A Judge's
+ * override is free text, so only a share above zero and a named speed count.
+ *
+ * @param {string} kind a key of OBSTACLES
+ * @param {"success"|"fail"} [which]
+ * @returns {{share: number, speed: string}|null}
+ */
+export function progressRate(kind, which = "success") {
+  const cell = formationValue("spelunking")?.progress?.[kind]?.[which];
+  const share = typeof cell?.share === "string" && cell.share.trim() !== "" ? Number(cell.share) : cell?.share;
+  if (!Number.isFinite(share) || share <= 0 || !PROGRESS_SPEEDS.includes(cell?.speed)) return null;
+  return { share, speed: cell.speed };
 }
 
 /** The feet one throw covers, or null until the table is imported. */

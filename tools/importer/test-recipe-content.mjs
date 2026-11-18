@@ -740,8 +740,8 @@ VERIFY["formation.jumpingLandingProse"] = (out, recipe, fail) => {
   missingFigures(assembleFall(out?.fall), ["die", "feetPerDie"], fail);
 };
 // The Spelunking grids: every row read, and the binding takes a stretch, a
-// target or a refusal, a helplessness and a botch band for each of the six
-// obstacles.
+// target or a refusal, a helplessness, a botch band and a success rate for
+// each of the six obstacles.
 VERIFY["formation.spelunkingGrid"] = (out, recipe, fail) => {
   for (const spec of recipe.rows) if (!out?.[spec.key] || isMissingRow(out[spec.key])) fail(`${spec.key}: row not read`);
   const table = assembleSpelunking(out);
@@ -750,16 +750,20 @@ VERIFY["formation.spelunkingGrid"] = (out, recipe, fail) => {
     if (table.adventuring?.[kind] === undefined) fail(`${kind}: the binding reads no target or refusal`);
     if (typeof table.vulnerable?.[kind] !== "boolean") fail(`${kind}: the binding reads no helplessness`);
     if (!table.botchBand?.[kind]) fail(`${kind}: the binding reads no botch band`);
+    if (!table.progress?.[kind]?.success) fail(`${kind}: the binding reads no success rate`);
   }
 };
 // The same grids' failed- and botched-throw rows: every row read, and the
-// binding takes both outcomes for each of the six obstacles.
+// binding takes both outcomes for each of the six obstacles, and a slower
+// failed-throw rate for at least one (the grid prints it for one).
 VERIFY["formation.spelunkingOutcomeGrid"] = (out, recipe, fail) => {
   for (const spec of recipe.rows) if (!out?.[spec.key] || isMissingRow(out[spec.key])) fail(`${spec.key}: row not read`);
   const table = assembleSpelunkingOutcomes(out);
   for (const kind of SPELUNKING_COLUMNS.flat()) {
     for (const which of ["fail", "botch"]) if (!table[kind]?.[which]) fail(`${kind}.${which}: the binding reads no outcome`);
   }
+  const rates = assembleSpelunking({}, out).progress ?? {};
+  if (!Object.values(rates).some((rate) => rate.fail)) fail("progress: no failed-throw cell reads a rate");
 };
 // The street's two dice: each window must name a die the binding rebuilds.
 VERIFY["cityTravel.streetDieProse"] = (out, recipe, fail) => {

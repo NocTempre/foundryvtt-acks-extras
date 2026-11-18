@@ -4670,6 +4670,45 @@ miss and a natural 1.
 5. **Teardown.** Clear every override; `api.track` each card's id as it posts
    and `api.sweepTracked()` them; the fixture stays.
 
+## The grid's rates of progress, imported (dungeon close-out S17, first half)
+
+The `formation` document's `spelunking.progress` table (RR p. 268) holds per
+obstacle `{success, fail}`, each `{share, speed}`: a ratio of the member's
+`combat` or `run` speed. `fail` is present for one obstacle only. Nothing
+reads it yet (ROADMAP, "Rounds a crossing spends"), so this is a read of the
+import and of the reader `acksExtras.formation.obstacles.progressRate`, and no
+card or row changes. Compare with
+`s = acksExtras.lib.tables.getDoc("formation").tables.spelunking`; no cell's
+words or fraction enter the report, only counts.
+
+Fixtures: none beyond the world's own import; an override is set and cleared
+by the walk.
+
+1. **The import reads them.** Run Rules tables with the Revised Rulebook open.
+   *Observable:* `s.progress` holds six obstacles, each with a `success`
+   carrying a `share` above zero and a `speed` of `combat` or `run`; exactly
+   one obstacle carries a `fail`, of the same shape; the Ruledata Browser
+   lists the raw `spelunkingGrid` (its success rows beside the others) and
+   `spelunkingOutcomeGrid`; `citeOf("formation", "spelunking")` names the page.
+   Count the cells agreeing with the page, book open, and report the count.
+2. **The reader answers the table.** Call `progressRate(kind)` for each of the
+   six kinds and `progressRate(kind, "fail")` for each.
+   *Observable:* the first six equal `s.progress[kind].success`; the second six
+   are null except the one obstacle that carries a `fail`, which equals it.
+3. **Not imported.** In the Ruledata Browser give `formation` an override that
+   blanks `spelunking`, and repeat step 2.
+   *Observable:* all twelve answers are null. Clear the override.
+4. **An override wins and must be valid.** Override one kind's
+   `spelunking.progress.<kind>.success` with a share of the Judge's own and a
+   named speed, then with a share of zero, then with a speed other than
+   `combat` or `run`.
+   *Observable:* the first answers the Judge's pair, the other two answer null.
+   Clear the override: the imported pair returns.
+5. **Teardown.** Clear every override.
+
+Pinned offline: `tools/test-formation-binding.mjs`, `tools/test-obstacles.mjs`,
+and `tools/importer/test-recipe-content.mjs` against the local book.
+
 ## Billing at the dark rate
 
 The clock bills a party token's wall-constrained displacement, and a party

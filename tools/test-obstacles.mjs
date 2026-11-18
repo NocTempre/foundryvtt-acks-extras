@@ -6,10 +6,11 @@
 import assert from "node:assert/strict";
 import { registerTable, resetTables, PRIORITY } from "../scripts/lib/tables.mjs";
 import { FORMATION_DOC } from "../scripts/formation/constants.mjs";
-import { SPELUNKING_COLUMNS } from "../scripts/importer/formation-binding.mjs";
+import { PROGRESS_SPEED_WORDS, SPELUNKING_COLUMNS } from "../scripts/importer/formation-binding.mjs";
 import {
   OBSTACLES, OBSTACLE_KEYS, OUTCOMES_TABLE, adventuringTarget, stretchFeet, throwsFor, obstaclePlan, readThrow,
   obstacleStep, attemptObstacle, obstacleOutcome, outcomeProvenance, obstacleVulnerable, botchBand,
+  PROGRESS_SPEEDS, progressRate,
 } from "../scripts/formation/obstacles.mjs";
 
 let passed = 0;
@@ -28,6 +29,10 @@ const SPELUNKING = {
     crawl: false, narrowLedge: true, precariousLedge: false,
   },
   botchBand: { easyClimb: { min: 1, max: 1 }, sheerClimb: { min: 1, max: 1 } },
+  progress: {
+    easyClimb: { success: { share: 0.25, speed: "combat" } },
+    rappel: { success: { share: 1, speed: "run" }, fail: { share: 0.5, speed: "combat" } },
+  },
 };
 
 /**
@@ -205,6 +210,44 @@ ok("a band is a pair of whole numbers from 1 up, or it is not imported", () => {
   assert.deepEqual(band({ min: "2", max: "2" }), { min: 2, max: 2 });
   for (const bad of [{ min: 4, max: 2 }, { min: 0, max: 2 }, { min: 1.5, max: 2 }, { min: "a", max: 2 }, { min: 1 }, 3, "1-3", null]) {
     assert.equal(band(bad), null, JSON.stringify(bad));
+  }
+});
+
+// ---- the rate a climber moves at ---------------------------------------------
+ok("the speeds a rate is a share of are the names the binding reads", () => {
+  assert.deepEqual([...PROGRESS_SPEEDS].sort(), Object.keys(PROGRESS_SPEED_WORDS).sort());
+});
+
+ok("with nothing imported no rate is known, made throw or failed", () => {
+  resetTables();
+  for (const kind of OBSTACLE_KEYS) for (const which of ["success", "fail"]) assert.equal(progressRate(kind, which), null, `${kind} ${which}`);
+  load({ ...SPELUNKING, progress: undefined });
+  assert.equal(progressRate("easyClimb"), null);
+  resetTables();
+});
+
+ok("a rate is the imported share of a named speed, for the success and the one slower fail", () => {
+  load();
+  assert.deepEqual(progressRate("easyClimb"), { share: 0.25, speed: "combat" });
+  assert.deepEqual(progressRate("easyClimb", "success"), { share: 0.25, speed: "combat" });
+  assert.deepEqual(progressRate("rappel", "success"), { share: 1, speed: "run" });
+  assert.deepEqual(progressRate("rappel", "fail"), { share: 0.5, speed: "combat" });
+  assert.equal(progressRate("easyClimb", "fail"), null, "an obstacle whose failed throw moves nothing has no slower rate");
+  assert.equal(progressRate("crawl"), null, "an obstacle whose cell did not read has none");
+  resetTables();
+});
+
+ok("a Judge's override counts only as a share above zero of a named speed", () => {
+  const rate = (cell) => {
+    load({ ...SPELUNKING, progress: { crawl: { success: cell } } });
+    const got = progressRate("crawl");
+    resetTables();
+    return got;
+  };
+  assert.deepEqual(rate({ share: "0.4", speed: "run" }), { share: 0.4, speed: "run" });
+  for (const bad of [{ share: 0, speed: "run" }, { share: -1, speed: "run" }, { share: "", speed: "run" }, { share: "x", speed: "run" },
+    { share: 0.5, speed: "walk" }, { share: 0.5 }, { speed: "run" }, 0.5, "run", null]) {
+    assert.equal(rate(bad), null, JSON.stringify(bad));
   }
 });
 

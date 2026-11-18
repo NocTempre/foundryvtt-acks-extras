@@ -26,7 +26,7 @@ import {
   assembleJumping, assembleSpelunking, assembleSqueezing, assemblePacePenalties, parsePacePenalties, applyFormationImport, firstCount, firstSentence, parseAdventuringCell,
   parseCarriedBody, parseDie, parseFeet, parseLeap, parseRestInterval, parseShareOf, parseStandingShare,
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
-  parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap,
+  parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap, parseProgressCell, PROGRESS_SPEED_WORDS,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, formationValue, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -189,11 +189,13 @@ eq("a botched row with no bracketed note leaves the band off",
   const items = [
     ...line(500, "Throw Required", ["per 50'", "per 50'", "per 50'"]),
     ...line(512, "Using Adventuring", ["6+", "Not permitted", "Not permitted"]),
+    ...line(518, "Successful Throw", ["Scale @ 2/5combat Speed", "Scale @ 2/5combat Speed", "Drop @run Speed"]),
     ...line(524, "Failed Throw", ["w", "w", "w"]),
     ...line(536, "Botched Throw (2-3)", ["w", "w", "w"]),
     ...line(548, "Vulnerable in Combat", ["Yes", "No", "No"]),
     ...line(580, "Throw Required", ["per 50'", "per 50'", "per 50'"]),
     ...line(592, "Using Adventuring", ["6+", "6+", "Not permitted"]),
+    ...line(598, "Successful Throw", ["Edge @ 3/4combat Speed", "Edge @ 3/4combat Speed", "Edge @ 3/4combat Speed"]),
     ...line(604, "Failed Throw", ["w", "w", "w"]),
     ...line(616, "Botched Throw(4)", ["w", "w", "w"]),
     ...line(628, "Vulnerable in Combat", ["No", "Yes", "Yes"]),
@@ -203,6 +205,9 @@ eq("a botched row with no bracketed note leaves the band off",
     [read.vulnerable, read.botchBand.easyClimb, read.botchBand.crawl],
     [{ easyClimb: true, sheerClimb: false, rappel: false, crawl: false, narrowLedge: true, precariousLedge: true },
       { min: 2, max: 3 }, { min: 4, max: 4 }]);
+  eq("the success row is claimed between the adventuring row and the botched row, in both grids",
+    [read.progress.easyClimb, read.progress.rappel, read.progress.precariousLedge],
+    [{ success: { share: 0.4, speed: "combat" } }, { success: { share: 1, speed: "run" } }, { success: { share: 0.75, speed: "combat" } }]);
 }
 
 /* --- what a missed throw costs: invented words, kept whole ----------------- */
@@ -248,6 +253,48 @@ eq("a row that did not read costs only its own outcomes",
 eq("the assembled document carries the outcomes from their own raw table",
   !!assembleFormationTables({ spelunkingOutcomeGrid: OUTCOME_GRID }).spelunkingOutcomes, true);
 eq("the outcomes are produced from that raw table", PRODUCES[FORMATION_DOC_ID].spelunkingOutcomes, "spelunkingOutcomeGrid");
+
+/* --- the rate a climber moves at: the success row and the one slower fail ---- */
+eq("a cell is an optional fraction and a speed's name, seams welded or spaced",
+  ["Scale @ 2/5 Combat Speed", "scale @2/5combat speed", "Drop @run Speed", "  Glide  @ 7 / 8  Run   Speed "].map(parseProgressCell),
+  [{ share: 0.4, speed: "combat" }, { share: 0.4, speed: "combat" }, { share: 1, speed: "run" }, { share: 0.875, speed: "run" }]);
+eq("a cell with no figure is the whole speed", parseProgressCell("Drop @ Combat Speed"), { share: 1, speed: "combat" });
+eq("a cell that names no speed, two, or a word that merely holds one decides nothing",
+  ["no progress for a round", "Scale @ 2/5 Speed", "Scale @ 2/5 Combat or Run Speed", "a runner's speed", "combatant speed", "", null].map(parseProgressCell),
+  [null, null, null, null, null, null, null]);
+eq("a figure that is not one fraction decides nothing, never another rate",
+  ["Scale @ 3 Combat Speed", "Scale @ half Combat Speed", "Scale @ three-fifths Combat Speed", "Scale @ 0/4 Combat Speed",
+    "Scale @ 1/0 Combat Speed", "Scale @ 2/5 and 1/5 Combat Speed", "Scale @ full Combat Speed"].map(parseProgressCell),
+  [null, null, null, null, null, null, null]);
+eq("the speeds a cell can name are two", Object.keys(PROGRESS_SPEED_WORDS), ["combat", "run"]);
+const PROGRESS_GRID = {
+  ...GRID,
+  progressFirst: { first: "Scale @ 2/5 Combat Speed", second: "Scale @ 2/5 Combat Speed", third: "Drop @ Run Speed" },
+  progressSecond: { first: "Edge @ 3/4 Combat Speed", second: "see text", third: "" },
+};
+const PROGRESS_FAILS = {
+  failFirst: { first: "no progress", second: "wait", third: "Drop @ Combat Speed" },
+  failSecond: { first: "wait", second: "wait", third: "wait" },
+};
+eq("each obstacle takes its column's success, and a fail only where that cell names a rate",
+  assembleSpelunking(PROGRESS_GRID, PROGRESS_FAILS).progress, {
+    easyClimb: { success: { share: 0.4, speed: "combat" } },
+    sheerClimb: { success: { share: 0.4, speed: "combat" } },
+    rappel: { success: { share: 1, speed: "run" }, fail: { share: 1, speed: "combat" } },
+    crawl: { success: { share: 0.75, speed: "combat" } },
+  });
+eq("a fail's rate reads without a success beside it, and the grid's alone reads without the outcomes",
+  [assembleSpelunking(GRID, PROGRESS_FAILS).progress, assembleSpelunking(PROGRESS_GRID).progress.rappel],
+  [{ rappel: { fail: { share: 1, speed: "combat" } } }, { success: { share: 1, speed: "run" } }]);
+eq("a row that did not read costs only its own columns",
+  assembleSpelunking({ ...PROGRESS_GRID, progressSecond: { __missing: true } }, { ...PROGRESS_FAILS, failFirst: { __missing: true } }).progress,
+  { easyClimb: { success: { share: 0.4, speed: "combat" } }, sheerClimb: { success: { share: 0.4, speed: "combat" } }, rappel: { success: { share: 1, speed: "run" } } });
+eq("no rate read leaves the key off", "progress" in assembleSpelunking(GRID, { failFirst: { first: "wait", second: "wait", third: "wait" } }), false);
+eq("the spelunking table is produced from both grids, so a rate has its citation from either",
+  PRODUCES[FORMATION_DOC_ID].spelunking, ["spelunkingGrid", "spelunkingOutcomeGrid"]);
+eq("the assembled document carries the rates from the two raw tables",
+  assembleFormationTables({ spelunkingGrid: PROGRESS_GRID, spelunkingOutcomeGrid: PROGRESS_FAILS }).spelunking.progress.rappel,
+  { success: { share: 1, speed: "run" }, fail: { share: 1, speed: "combat" } });
 
 const assembled = assembleFormationTables({ jumpingProse: JUMP_PROSE, jumpingLandingProse: LANDING_PROSE, spelunkingGrid: GRID });
 eq("the document carries the three new tables beside the others", [!!assembled.jumping, !!assembled.fall, !!assembled.spelunking], [true, true, true]);
