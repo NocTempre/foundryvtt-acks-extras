@@ -478,3 +478,20 @@ measured against every free lot on its own and the shortfalls do not add. It is
 a notification on the opening Judge's client; nothing is refused and no player
 sees it. **Counter (moderate):** striking every free lot (11a's option b) keeps
 the pot's total near the roll; the warning only tells the Judge it was not.
+
+## 2026-11-17 — "Met in their lair" is the Judge's toggle, and a kind of monster deals one hoard
+
+The owner: "These are GM tools, there doesn't need to be a logic, just an input
+toggle". So the pot's staging state carries `deal.metInLair`, the Judge sets
+it, and the lair warning reads it alone: with it off, dealing a letter waits on
+the Judge confirming the warning, and with it on nothing is asked. Rejected:
+detecting a lair from the scene, a token or the sheet. Core's monster data holds
+only `treasure.{type,table}`, so there was nothing to detect from, and the
+"Carried only" option that leaned on such a field is dropped.
+
+Selected tokens deal one hoard per kind of monster, not per token: a treasure
+type is the lair's hoard, and four ogres from one lair share it. A kind is the
+base actor, so unlinked tokens of one actor are one row. **Counter (moderate):**
+two bands of one monster from two lairs then deal one hoard where the table
+means two; the Judge deals the second by hand. The UI, its lang and its walk
+come with T5's approved design.

@@ -21,7 +21,7 @@ import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
 import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
-  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setToggle,
+  buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planOpen, potCards, setMetInLair, setToggle,
   stage, turnedOf, unstage, cardView,
 } from "./pot-logic.mjs";
 import { mayStartGrab, ownsAnyMember, resolveParty, splitCoin } from "./grab-pot.mjs";
@@ -159,6 +159,13 @@ export async function setDealToggle(pile, key, on) {
   const pot = setToggle(potOf(pile), key, on);
   if (!game.user.isGM || !pot) return null;
   return pile.update({ [`${potPath}.deal.toggles`]: pot.deal.toggles });
+}
+
+/** Set the Judge's "Met in their lair" state on a staged pot. Stored only; the lair warning reads it. Judge-only. */
+export async function setDealMetInLair(pile, on) {
+  const pot = setMetInLair(potOf(pile), on);
+  if (!game.user.isGM || !pot) return null;
+  return pile.update({ [`${potPath}.deal.metInLair`]: pot.deal.metInLair });
 }
 
 /* -------------------------------------------- */

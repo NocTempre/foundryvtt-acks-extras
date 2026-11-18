@@ -84,7 +84,7 @@ export function normalizePot(flag) {
     partyId: typeof f.partyId === "string" ? f.partyId : null,
     origin: f.origin ?? null,
     grab: normalizeGrab(f.grab),
-    deal: { toggles: normalizeToggles(f.deal?.toggles) },
+    deal: { toggles: normalizeToggles(f.deal?.toggles), metInLair: f.deal?.metInLair === true },
     order: ids(f.order),
     buckets: { add: ids(f.buckets?.add), replace: ids(f.buckets?.replace) },
     replaced: normalizeReplaced(f.replaced),
@@ -411,6 +411,18 @@ export function setToggle(pot, key, on) {
   if (pot.phase !== PHASE.staging || !Object.values(DEAL_TOGGLE).includes(key)) return null;
   const next = normalizePot(pot);
   next.deal.toggles[key] = !!on;
+  return next;
+}
+
+/**
+ * The pot with the Judge's "Met in their lair" state set, during staging only.
+ * Nothing infers it; the lair warning (`deal-logic.mjs`) reads this alone.
+ * Returns the new pot, or null.
+ */
+export function setMetInLair(pot, on) {
+  if (pot.phase !== PHASE.staging) return null;
+  const next = normalizePot(pot);
+  next.deal.metInLair = !!on;
   return next;
 }
 

@@ -375,7 +375,8 @@ found, or the heaviest lots that cover, so a very large pot still plans.
 Source: `hoard-logic.mjs` (the engine), `hoard-map.mjs` (pure mapping),
 `hoard.mjs` (the Foundry side). `dealHoard({letter, style, toggles, special,
 roll})` returns `{truths, errors, cite, toggles, audit}` for one treasure type
-in `classic`, `heroic` or `gritty`. Nothing calls it yet. It reads the
+in `classic`, `heroic` or `gritty`. Its one caller is the letter deal ("Dealing
+letters", below). It reads the
 imported `treasure` registry document through `lib/tables.mjs` and holds no
 figure: with the document, the style's type table or the letter missing, it
 returns no truths and one typed error (`not-imported`, `unknown-type`,
@@ -413,3 +414,30 @@ band's type as the label. A magic card is a placeholder: pool `magic`, magical,
 undetected, no mask, with a `tableRef` that is not part of a stored truth and
 that the magic-item roll resolves. Dice are `CONFIG.Dice.randomUniform` through
 `rollerFrom`, or a roller the caller passes.
+
+## Dealing letters
+
+Source: `deal-logic.mjs` (pure), `deal.mjs` (the Foundry side). No control calls
+either yet; the staging window's Deal is the caller to come.
+
+`dealLettersIntoPot(pile, {letters, style, special, confirmLair})` deals each
+letter once, in order, through `dealHoard` with the pot's deal toggles, and
+stages every truth in one `addTruths` call. It refuses a player
+(`notAllowed`), an open pot (`phase`) and a list with no letter (`empty`).
+
+**The lair warning reads one stored toggle.** `pot.deal.metInLair` is the
+Judge's "Met in their lair" state, set in staging with `setDealMetInLair`
+(Judge-only, staging-only, default false). With it off, `lairWarning` names the
+distinct letters being dealt and the deal awaits `confirmLair(warning)`: only
+`true` deals, anything else refuses `lairDeclined`, and a caller that supplies
+no `confirmLair` refuses `lairUnconfirmed`, so no letter is dealt unwarned.
+With it on, nothing is asked. Nothing infers the state from the scene or the
+sheet.
+
+**Selected tokens group by kind.** `selectedMonsterGroups()` reads
+`canvas.tokens.controlled`; a kind is the token's base actor
+(`TokenDocument#actorId`), so linked and unlinked tokens of one actor make one
+row `{actorId, name, count, letter}`. The letter is read from the token's own
+actor (`system.details.treasure.type`), the first one a group carries; a kind
+with none is listed with `letter: null`. A row deals one hoard of its letter,
+whatever its `count`; two kinds with one letter deal it twice.
