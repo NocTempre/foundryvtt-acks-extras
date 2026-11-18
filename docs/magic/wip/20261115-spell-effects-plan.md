@@ -3653,6 +3653,19 @@ not-the-format (the build posts through `renderRollCard`).
     illustrative;
   - the rung schema gains `hand`, `was` and `wasAt`, and its lib
     apiVersion bump rides R-e2's landing.
+- **R-e2 stopped on 233's stop condition** (2026-11-18). Board 8 draws a
+  pinned footer with a verdict, Cancel and "Save row", but the row editor
+  writes on every change and has no Save. A rung that has just been added
+  is invalid until it is filled in, so drafted rungs cannot be written one
+  change at a time without either storing an invalid ladder or keeping a
+  hidden draft. The question went to the owner.
+- **235 Save/Cancel on ladder rows only: "Save/Cancel on ladder rows
+  (Recommended)".** Only a row whose figure is a ladder carries the drawn
+  footer (the verdict, Cancel, "Save row"), and its rungs stay drafted
+  until Save. Every other row keeps writing on change.
+- **236 The overview edits inline the same way: "Inline, same choice
+  (Recommended)".** The spell overview's rungs are edited inline in the
+  sheet body, with the same draft and the same Save/Cancel behaviour.
 
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
