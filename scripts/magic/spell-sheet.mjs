@@ -14,7 +14,7 @@
  * filled from the flag. A string a Judge typed by hand stays until the flag
  * beneath it changes (`docs/magic/DECISIONS.md`, "Core's strings are derived").
  */
-import { MODULE_ID, FLAG_SPELL, LANG_PREFIX, SPELL_TYPE } from "./constants.mjs";
+import { MODULE_ID, FLAG_SPELL, LANG_PREFIX } from "./constants.mjs";
 import SpellExtras from "./spell-extras.mjs";
 import { effectRowView } from "./describe.mjs";
 import { displayRange, displayDuration, coreFieldsFrom, retiredWith } from "./spell-logic.mjs";
@@ -170,7 +170,7 @@ function reverseDocument(ref) {
       /* a uuid nothing answers falls through to the id */
     }
   }
-  return ref.cookbookId ? byCookbookId(SPELL_TYPE, ref.cookbookId) : null;
+  return ref.cookbookId ? byCookbookId("Item", ref.cookbookId) : null;
 }
 
 /** The magic-type keys the world's classes cast under — the datalist behind a list's source. */

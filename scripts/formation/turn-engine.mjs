@@ -28,6 +28,7 @@ import { roadDistance } from "../battlemap/roads.mjs";
 import { feetPerUnit, isExpeditionScale, sceneFeetPerCell, sceneMilesPerCell } from "../lib/distance-units.mjs";
 import { lightFigures, prepareToLight } from "../lib/light.mjs";
 import { citeOf } from "../lib/tables.mjs";
+import { tokenCentre } from "../lib/token-centre.mjs";
 import { equipForLight } from "./judge-override.mjs";
 
 /**
@@ -647,16 +648,8 @@ export function storedPosition(tokenDoc) {
   return { x: source.x, y: source.y };
 }
 
-/**
- * A token's centre with its corner at `at`.
- *
- * The corner-to-centre offset is read off the token and moved to `at`, so both
- * ends of a move are measured from the same part of the token.
- */
-function centreOf(tokenDoc, at) {
-  const centre = tokenDoc.getCenterPoint?.() ?? { x: tokenDoc.x, y: tokenDoc.y };
-  return { x: at.x + (centre.x - tokenDoc.x), y: at.y + (centre.y - tokenDoc.y) };
-}
+/** A token's centre with its corner at `at`, so both ends of a move are measured from the same part of the token. */
+const centreOf = (tokenDoc, at) => tokenCentre(tokenDoc, tokenDoc.parent, at);
 
 /**
  * Process a party-token position change on the turn clock: convert the

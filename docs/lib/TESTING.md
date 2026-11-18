@@ -178,6 +178,12 @@ report the same symptom.
    press the row away from its controls, then its die. *Observable:* two
    chat throws of that attack; the pencil opens `.acks-lib-follower-card__attack-editor`
    under the row (`is-editing`) and nothing is written until a field changes.
+   Commit keeps what it did not bake: on a sword row set Throw 8 and a
+   damage bonus, and a label and attack bonus, then press **Commit**.
+   *Observable:* the item carries the new name and bonus, and the row's
+   label and bonus overrides are gone from `flags.acks-extras.fcOverrides.attacks`,
+   while `target: 8` and `damageBonus` remain there and the row still shows
+   Throw 8.
    The card as a RETAINER's own sheet is reached without the context menu:
    `actor.setFlag("core","sheetClass","acks-extras.FollowerCardSheet")` with
    `actor._sheet = null` on either side of the write, since `ClientDocument#sheet`

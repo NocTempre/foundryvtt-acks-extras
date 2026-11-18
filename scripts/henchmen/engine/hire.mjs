@@ -3,8 +3,8 @@
  * Candidate rolling and the hire pipeline. Rolled results are RECORDED here;
  * generating the people is not this feature's job (docs/ROADMAP.md § Henchmen).
  */
-import { MODULE_ID, HOOKS, FLAG_RECORD } from "../constants.mjs";
-import { henchmanWage, hiredMorale, officerTitle } from "../rules/wages.mjs";
+import { MODULE_ID, HOOKS, FLAG_RECORD, SECONDS_PER_DAY } from "../constants.mjs";
+import { henchmanWage, hiredMorale, monthlyWage, officerTitle } from "../rules/wages.mjs";
 import { optTable } from "../rules/tables.mjs";
 
 /** Normalized package key: lowercase alphanumerics (matches the harvest). */
@@ -32,7 +32,7 @@ import { hiredClassName, isJudgePick, rollAttributes } from "../rules/candidates
 import { sumEffectModifiers, hasEffectFlag, unvaluedPowers } from "../effects.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import HenchmanRecord from "../data/henchman-record.mjs";
-import { now } from "../time.mjs";
+import { now, secondsPerMonth } from "../time.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { appendMarketLog } from "../../location/data/market-log.mjs";
 import { gpText } from "../../lib/money-logic.mjs";
@@ -450,6 +450,10 @@ export async function hire(location, candidateId, employer, opts = {}) {
 
   const category = opts.category ?? (candidate.kind === "mercenary" ? "mercenary" : candidate.kind === "specialist" ? "specialist" : "henchman");
 
+  // Payroll bills a month at a time: a wage the row states per another unit is
+  // stated monthly here, and one that cannot be converted is left blank.
+  const wageGp = monthlyWage(candidate.wageGp, candidate.wageUnit, secondsPerMonth() / SECONDS_PER_DAY);
+
   // Limit enforcement (setting-gated) — only true henchmen consume slots.
   if (category === "henchman" && !opts.skipLimit && !admitsHenchman(employer)) return { error: "limit" };
 
@@ -473,7 +477,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       retainer: {
         enabled: true,
         loyalty: null,
-        wage: String(candidate.wageGp ?? ""),
+        wage: String(wageGp ?? ""),
         managerid: employer.id,
         category,
         quantity: candidate.quantity ?? 1,
@@ -582,7 +586,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
       doubleD100: candidate.doubleD100 ?? [],
     },
     terms: {
-      wageGp: candidate.wageGp ?? null,
+      wageGp: wageGp ?? null,
       wageBasis: category === "mercenary" ? "mercenary" : category === "specialist" ? "specialist" : "level",
       signingBonusGp: opts.signingBonusGp ?? null,
       claimedEmployerLevel: claimedLevelFor(location, candidate, employer),
@@ -617,7 +621,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
   // 5. Market ledger (rollback record): who signed with whom, and when.
   try {
     const log = (location.system.marketLog ?? []).map((l) => l.toObject?.() ?? l);
-    const entry = { time: now(), type: "hire", note: `${actor.name} → ${employer.name} (${candidate.wageGp ?? "?"}gp)`, actorUuid: employer.uuid };
+    const entry = { time: now(), type: "hire", note: `${actor.name} → ${employer.name} (${wageGp ?? "?"}gp)`, actorUuid: employer.uuid };
     await location.update({ "system.market.marketLog": appendMarketLog(log, entry) });
   } catch {
     /* ledger is best-effort */
@@ -637,7 +641,7 @@ export async function hire(location, candidateId, employer, opts = {}) {
     content: game.i18n.format("ACKS-HENCHMEN.hire.hiredChat", {
       name: actor.name,
       employer: employer.name,
-      wage: candidate.wageGp ?? "?",
+      wage: wageGp ?? "?",
     }),
     speaker: ChatMessage.getSpeaker({ actor: employer }),
   });

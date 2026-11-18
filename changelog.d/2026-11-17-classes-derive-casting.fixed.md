@@ -1,0 +1,1 @@
+- **Classes:** **Class sheet → Derive** no longer overwrites a class's casting with an empty list when the imported tables cannot answer for one of its magic values; the casting is left as it was and the gap is reported. A class with no magic value is still written none.

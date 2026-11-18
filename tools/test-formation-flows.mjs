@@ -280,6 +280,10 @@ class ItemMock {
     Hooks.call("updateItem", this, changes, {}, "GM1");
     return this;
   }
+  async delete() {
+    this.parent.items.delete(this.id);
+    uuidMap.delete(this.uuid);
+  }
 }
 
 class ActorMock {
@@ -727,6 +731,7 @@ const { installRecreatedHitPoints } = await import("../scripts/lib/hp.mjs");
 const { KEEP_HIT_POINTS_OPTION } = await import("../scripts/lib/constants.mjs");
 installRecreatedHitPoints();
 const model = await import("../scripts/formation/formation-model.mjs");
+const { heldByCombat } = await import("../scripts/formation/map-items.mjs");
 const engine = await import("../scripts/formation/turn-engine.mjs");
 const requests = await import("../scripts/formation/player-requests.mjs");
 const membership = await import("../scripts/formation/membership.mjs");
@@ -967,6 +972,58 @@ await scenario("a second combat deploys again (regroup round-trip)", async () =>
   await combat.delete();
   await drain();
   assert.equal(onlyFormation().combat, null, "second reform succeeded");
+});
+
+await scenario("New Map resets the scene's fog, and is refused while a combat holds the party", async () => {
+  const mapItems = await import("../scripts/formation/map-items.mjs");
+  const mapperActor = model.getMapperActor(onlyFormation());
+  assert.ok(mapperActor, "the party has a mapper");
+  const resets = [];
+  canvas.scene = scene;
+  canvas.fog = { reset: async () => { resets.push(scene.id); } };
+  const socket = getSocket();
+  const savedEveryone = socket?.executeForEveryone;
+  if (socket) socket.executeForEveryone = async () => {};
+  const mapItemsOf = () => mapperActor.items.filter((i) => i.flags?.["acks-extras"]?.map?.active);
+  try {
+    notices.length = 0;
+    const baseline = mapItemsOf().length;
+    const oldItem = onlyFormation().mapSession?.itemUuid;
+    await mapItems.startMapSession(onlyFormation());
+    assert.deepEqual(resets, [scene.id], "core's fog reset runs once, before the new session opens");
+    assert.notEqual(onlyFormation().mapSession?.itemUuid, oldItem, "a new working map");
+    assert.equal(mapItemsOf().length, baseline, "the old map closed as the new one opened");
+
+    // A copy older than the session: the patch declines and no stray active item is left.
+    const stale = foundry.utils.deepClone(onlyFormation());
+    stale.mapSession = null;
+    const heldBefore = mapItemsOf().length;
+    await mapItems.startMapSession(stale);
+    assert.equal(mapItemsOf().length, heldBefore, "a declined session leaves no extra active Map item");
+
+    // A combat holds the party: refused before anything closes or resets.
+    const combat = new CombatMock();
+    game.combats.set(combat.id, combat);
+    const stored = onlyFormation();
+    await combat.createEmbeddedDocuments("Combatant", [
+      { tokenId: stored.tokenId, sceneId: scene.id, actorId: stored.actorId, hidden: false },
+    ]);
+    await drain();
+    assert.ok(heldByCombat(onlyFormation()));
+    const before = onlyFormation().mapSession;
+    const resetsBefore = resets.length;
+    notices.length = 0;
+    await mapItems.startMapSession(onlyFormation());
+    assert.equal(resets.length, resetsBefore, "no reset in combat");
+    assert.equal(notices.filter(([k]) => k === "warn").length, 1, "the refusal is a warning");
+    assert.deepEqual(onlyFormation().mapSession, before, "the old session is untouched");
+    await combat.delete();
+    await drain();
+  } finally {
+    canvas.scene = null;
+    delete canvas.fog;
+    if (socket) socket.executeForEveryone = savedEveryone;
+  }
 });
 
 /** Deploy the party into a fresh combat and gather it, asserting each member goes out and comes back as their own actor. */

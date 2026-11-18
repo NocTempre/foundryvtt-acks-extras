@@ -101,7 +101,7 @@ export const ROAD_KINDS = Object.freeze(["none", "earth", "gravel", "paved"]);
  *
  * @param {object} o
  * @param {string} o.terrain a key of TERRAIN
- * @param {string} o.road a ROAD_KINDS key
+ * @param {string|boolean} o.road a ROAD_KINDS key; `true` reads as earth
  * @param {boolean} o.driverProficient the reins are held by someone with Driving
  * @param {boolean} o.raining / @param {boolean} o.snowing the manual
  *   flags; a road row naming them in `ineffectiveIf` is nulled by them
@@ -132,12 +132,15 @@ export function travelMultiplier({ terrain = "grassland", road = "none", driverP
   if (snowing || active.has("snowy")) active.add("snowing");
 
   let pavedHolds = false;
-  if (road && road !== "none" && ROAD_KINDS.includes(road)) {
-    const row = readTable(TRAVEL_DOC, "roads")?.[road];
+  // A bare "on a road" flag (the sheet's checkbox) reads as the plainest kind,
+  // the same reading `canEnter` gives it.
+  const roadKind = road === true ? "earth" : road;
+  if (roadKind && roadKind !== "none" && ROAD_KINDS.includes(roadKind)) {
+    const row = readTable(TRAVEL_DOC, "roads")?.[roadKind];
     if (row) {
       const nulledBy = row.ineffectiveIf ?? [];
       const washedOut = nulledBy.some((k) => active.has(k));
-      pavedHolds = road === "paved" && !washedOut;
+      pavedHolds = roadKind === "paved" && !washedOut;
       const factor = washedOut ? 1 : Number(driverProficient ? (row.drivingMultiplier ?? row.multiplier) : row.multiplier) || 1;
       multiplier *= factor;
       // A washed-out road contributes ×1 but must still SAY so — `note`

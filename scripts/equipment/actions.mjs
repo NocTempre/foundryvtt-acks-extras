@@ -6,7 +6,7 @@
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { FLAG_GEAR } from "../lib/constants.mjs";
-import { setWorn, declaresSlots, isEquippable, gearOf } from "../lib/item-model.mjs";
+import { setWorn, declaresSlots, isEquippable, gearOf, bundleSizeOf } from "../lib/item-model.mjs";
 import { LIGHT_SOURCES } from "../lib/light.mjs";
 import { ITEM_TYPE, isWearSlot } from "../lib/vocab.mjs";
 import { SHIELD_VARIANTS } from "./config.mjs";
@@ -52,6 +52,10 @@ export function readiedWeaponData(item) {
   const klass = own ?? (stackIsTorch ? equipmentClass("torch") : null);
   if (klass?.prepareAs !== "weapon") return null;
   const torchLabel = LIGHT_SOURCES.torch.label;
+  // A stack's stated weight covers a whole bundle (`gear.per` units), and the
+  // stack keeps weighing its remainder by the bundle; the one drawn carries
+  // its own share, or the bundle would be weighed again in hand.
+  const per = bundleSizeOf(item);
   return {
     name: stackIsTorch ? (game.i18n?.has?.(torchLabel) ? game.i18n.localize(torchLabel) : "Torch") : item.name,
     type: "weapon",
@@ -63,8 +67,8 @@ export function readiedWeaponData(item) {
       bonus: { attack: 0, damage: 0 },
       equipped: false,
       cost: Number(item.system?.cost ?? 0),
-      weight: Number(item.system?.weight ?? 0),
-      weight6: Number(item.system?.weight6 ?? 0),
+      weight: Number(item.system?.weight ?? 0) / per,
+      weight6: Number(item.system?.weight6 ?? 0) / per,
     },
     flags: {
       [MODULE_ID]: { light: true, ...(klass.damageType ? { [ITEM_FLAGS.DAMAGE_TYPE]: klass.damageType } : {}), readied: true },

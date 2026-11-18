@@ -17,12 +17,13 @@ import { buildApi } from "./api.mjs";
 import VariationData from "./data/variation-data.mjs";
 import { registerVariationSheet } from "./variation-sheet.mjs";
 import { onPreUpdateItem, onUpdateItem, refreshLoadout, primaryResponder, managesLoadout } from "./enforce.mjs";
-import { unstowOnUse } from "./containers.mjs";
+import { unstowOnUse, releaseContents } from "./containers.mjs";
 import { registerClothingDeclaration } from "./clothing-declaration.mjs";
 import { registerEncumbranceWrap, registerRollWrap } from "./roll-wrap.mjs";
+import { registerDamagePrompt } from "./damage-prompt.mjs";
 import { registerSheet } from "./sheet.mjs";
 import { registerItemSheet, ITEM_SHEET_TEMPLATES } from "./item-sheet/sheet.mjs";
-import { advanceWieldedOnLevelUp } from "./overlays/named.mjs";
+import { advanceWieldedOnLevelUp, levelsGained } from "./overlays/named.mjs";
 import { registerMountedOverlay } from "./overlays/mounted.mjs";
 import { isWearable, registerWearInference } from "../lib/item-model.mjs";
 import { inferGear } from "./profiles.mjs";
@@ -149,6 +150,12 @@ Hooks.once("setup", () => {
   } catch (err) {
     console.error(`${MODULE_ID} | failed to register the encumbrance wrapper; core's load stands`, err);
   }
+  // A blank damage formula is asked for whatever the roll setting says.
+  try {
+    registerDamagePrompt();
+  } catch (err) {
+    console.error(`${MODULE_ID} | failed to register the damage-formula prompt`, err);
+  }
   if (!game.settings.get(MODULE_ID, SETTINGS.ROLL_AUTOMATION)) return;
   try {
     registerRollWrap();
@@ -259,11 +266,29 @@ function onLoadoutItemChange(item) {
 Hooks.on("createItem", onLoadoutItemChange);
 Hooks.on("deleteItem", onLoadoutItemChange);
 
+/* A deleted container hands its contents to its own holder; only the deleting
+ * client writes. */
+Hooks.on("deleteItem", (item, _options, userId) => {
+  if (userId !== game.user?.id) return;
+  releaseContents(item).catch((err) => console.error(`${MODULE_ID} | releasing container contents failed`, err));
+});
+
+/* A level change carries the level it left, as an operation option, for the
+ * named-item advancement: the earlier value exists only before the update, and
+ * only on the client making it. */
+const LEVEL_FROM = "namedLevelFrom";
+Hooks.on("preUpdateActor", (actor, changes, options) => {
+  const next = foundry.utils.getProperty(changes, "system.details.level");
+  const prior = actor?.system?.details?.level;
+  if (next === undefined || prior === undefined) return;
+  options[MODULE_ID] = { ...options[MODULE_ID], [LEVEL_FROM]: Number(prior) };
+});
+
 /* Proficiency/style config lives in actor flags — rebuild when it changes.
  * A level-up also advances any named item the actor is wielding: RAW counts
- * levels of experience EARNED while wielding, so it keys off the change itself
- * rather than the actor's absolute level. */
-Hooks.on("updateActor", (actor, changes) => {
+ * levels of experience EARNED while wielding, so it keys off the levels the
+ * change itself gained rather than the actor's absolute level. */
+Hooks.on("updateActor", (actor, changes, options) => {
   if (!primaryResponder(actor)) return;
   // A level change moves every level-scaled typed modifier the loadout writes.
   const levelled = foundry.utils.hasProperty(changes, "system.details.level");
@@ -271,14 +296,17 @@ Hooks.on("updateActor", (actor, changes) => {
     refreshLoadout(actor).catch((err) => console.error(`${MODULE_ID} | actor loadout sync failed`, err));
   }
   if (levelled) {
-    advanceNamedOnLevelUp(actor).catch((err) => console.error(`${MODULE_ID} | named-item advancement failed`, err));
+    const gained = levelsGained(options?.[MODULE_ID]?.[LEVEL_FROM], foundry.utils.getProperty(changes, "system.details.level"));
+    if (gained > 0) {
+      advanceNamedOnLevelUp(actor, gained).catch((err) => console.error(`${MODULE_ID} | named-item advancement failed`, err));
+    }
   }
 });
 
-/** Unlock one further rung on each wielded named item (JJ p. 399). */
-async function advanceNamedOnLevelUp(actor) {
+/** Unlock one further rung per level gained on each wielded named item (JJ p. 399). */
+async function advanceNamedOnLevelUp(actor, levels) {
   if (!game.settings.get(MODULE_ID, SETTINGS.OVERLAY_NAMED)) return;
-  const advances = advanceWieldedOnLevelUp(actor);
+  const advances = advanceWieldedOnLevelUp(actor, levels);
   for (const { item, updates } of advances) {
     await item.update(updates);
     ui.notifications?.info(

@@ -12,6 +12,7 @@
 
 import { fitGrid } from "./calibrate-logic.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
+import { buildPointerCatcher } from "./pointer-catcher.mjs";
 
 const COLOR_SQUARE = 0xff3333;
 const COLOR_CORNER = 0x3399ff;
@@ -214,24 +215,13 @@ export class CaptureOverlay {
     container.eventMode = "passive";
     container.zIndex = 10000;
 
-    // Screen-space pointer catcher: invisible, but swallows every canvas
-    // pointer event while a mode is armed regardless of pan and zoom.
-    const catcher = (this.catcher = container.addChild(new PIXI.Sprite(PIXI.Texture.WHITE)));
-    catcher.alpha = 0;
-    catcher.eventMode = "static";
-    catcher.hitArea = canvas.app.screen;
-    catcher.updateTransform = function () {
-      const screen = canvas.app.screen;
-      this.width = screen.width;
-      this.height = screen.height;
-      this._boundsID++;
-      this.transform.updateTransform(PIXI.Transform.IDENTITY);
-      this.worldAlpha = this.alpha;
-    };
-    catcher.on("pointerdown", (ev) => this.onPointerDown(ev));
-    catcher.on("pointermove", (ev) => this.onPointerMove(ev));
-    catcher.on("pointerup", (ev) => this.onPointerUp(ev));
-    catcher.on("pointerupoutside", (ev) => this.onPointerUp(ev));
+    // The shared screen-space catcher: swallows every canvas pointer event
+    // while a mode is armed, and hands a press or move over the board alone.
+    this.catcher = buildPointerCatcher(container, {
+      down: (ev) => this.onPointerDown(ev),
+      move: (ev) => this.onPointerMove(ev),
+      up: (ev, over) => this.onPointerUp(ev, over),
+    });
 
     this.previewMesh = container.addChild(new foundry.canvas.containers.GridMesh().initialize({ color: COLOR_PREVIEW }));
     this.previewMesh.visible = false;
@@ -287,11 +277,12 @@ export class CaptureOverlay {
     this.drawTemp();
   }
 
-  onPointerUp() {
+  /** A release off the board (over a window) abandons the drag instead of committing it. */
+  onPointerUp(_ev, over = true) {
     const drag = this.drag;
     this.drag = null;
     this.temp?.clear();
-    if (!drag) return;
+    if (!drag || !over) return;
     const { start, current } = drag;
     if (Math.hypot(current.x - start.x, current.y - start.y) < MIN_DRAG) return;
     if (this.mode === "square") {

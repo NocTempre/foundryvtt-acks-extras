@@ -1,0 +1,1 @@
+- **Settings tab → Game Settings → ACKS II — Extras → Manage imports → Books tab → Reconnect all:** the closing message counts each reconnected book once; a book opened from the remembered folder was counted twice.

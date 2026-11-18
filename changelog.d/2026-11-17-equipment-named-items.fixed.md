@@ -1,0 +1,1 @@
+- **Item sheet → Effects tab → The Name:** a named weapon or armour restates its attack bonus, damage, armour class and weight from the captured base on every change, so lowering the unlocked count or reordering the ladder takes the earlier bonuses off instead of leaving them on. A wielder's level-up unlocks one rung for each level gained, and lowering the level unlocks none.

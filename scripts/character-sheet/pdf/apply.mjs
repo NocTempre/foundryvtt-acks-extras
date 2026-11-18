@@ -20,6 +20,7 @@ import { makeLoc } from "../../lib/util.mjs";
 import { ACTOR_TYPE, ALIGNMENTS, ITEM_TYPE, SLOT, slug } from "../../lib/vocab.mjs";
 import { savesUpdateData } from "../../lib/actor-compat.mjs";
 import { wearableSlots } from "../../equipment/profiles.mjs";
+import { damageFormulaOf } from "../../equipment/properties.mjs";
 import { whenReady } from "../../lib/library.mjs";
 import { goodsForRow } from "../../lib/bundles-logic.mjs";
 import { deliverItems } from "../../lib/bundles.mjs";
@@ -236,15 +237,16 @@ async function landWeapons(actor, weapons, report) {
       const { data, resolution } = await buildGearData({ name: row.name, qty: 1 });
       // A weapon nothing in the library answers for takes its numbers from the sheet.
       if (resolution !== "base" && data.type === ITEM_TYPE.weapon) {
-        if (row.damage) foundry.utils.setProperty(data, "system.damage", row.damage);
+        if (row.damage) foundry.utils.setProperty(data, "system.damage.base.formula", row.damage);
         for (const band of ["short", "medium", "long"]) if (finite(row.range[band])) foundry.utils.setProperty(data, `system.range.${band}`, row.range[band]);
       }
       const { created } = await deliverItems(actor, goodsForRow(data, 1));
       item = created[0] ?? null;
       if (item) report.granted.push(item.name);
     }
-    if (item?.type === ITEM_TYPE.weapon && row.damage && item.system?.damage && !same(diceText(item.system.damage), row.damage)) {
-      report.checks.push({ label: loc("pdf.field.weaponDamage", { name: item.name }), sheet: row.damageText, inForce: item.system.damage });
+    const formula = item?.type === ITEM_TYPE.weapon ? damageFormulaOf(item) : "";
+    if (formula && row.damage && !same(diceText(formula), row.damage)) {
+      report.checks.push({ label: loc("pdf.field.weaponDamage", { name: item.name }), sheet: row.damageText, inForce: formula });
     }
   }
 }

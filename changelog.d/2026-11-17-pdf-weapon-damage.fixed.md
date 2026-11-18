@@ -1,0 +1,1 @@
+- **Character sheet → Export to PDF:** a weapon's Damage box on the official sheet now holds the weapon's damage formula; it read "[object Object]" for weapons that store damage as a base and alternate formula.

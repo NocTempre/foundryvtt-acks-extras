@@ -96,7 +96,7 @@ import {
 import { ENCOUNTER_TERRAINS, encounterTerrainFor } from "./encounters.mjs";
 import { expeditionFrom, expeditionTip } from "../lib/movement-scales.mjs";
 import { fractionLabel } from "../lib/util.mjs";
-import { collectMapItems } from "./map-items.mjs";
+import { collectMapItems, heldByCombat } from "./map-items.mjs";
 import { PARTY_CHECKS, resolveCheck } from "./party-rolls.mjs";
 import { planView } from "./turn-plan.mjs";
 import { buildCrossingView, canCross } from "./crossing.mjs";
@@ -463,7 +463,7 @@ function buildMapsView(formation) {
     viewing,
     hasMapper: !!mapper,
     mapperName: mapper?.name ?? null,
-    canStart: viewing && !!mapper,
+    canStart: viewing && !!mapper && !heldByCombat(formation),
     state: mapperMembers(formation).length ? mapStateView(mappingOf(formation)) : null,
   };
   if (gm) mapping.proficient = mapperIsProficient(formation);

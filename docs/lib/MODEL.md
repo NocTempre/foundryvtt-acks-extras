@@ -2006,6 +2006,11 @@ read something that loads after `ready` also declares `ready()`: the wrapper on
 `makeAttackThrow` awaits every contributor's before it builds the throw, and a
 `ready()` that rejects is logged and stops holding the attack (equipment's is
 the weapon rows' wait, [equipment MODEL](../equipment/MODEL.md), "Weapon rows").
+A contributor may also declare `prepare(ctx)`, asked once per attack after the
+waits and before the throw is built; the first that resolves `false` cancels
+the attack, which answers null and rolls nothing, and one that throws is logged
+and does not hold it (equipment's asks for a missing damage formula,
+[equipment MODEL](../equipment/MODEL.md), "Design rules").
 That wrapper is registered `MIXED`, because it also refuses: an attacker whose
 `system.attack.throw` is no number rolls nothing, warns
 (`ACKS-LIB.attack.noThrow`) and answers null, the system's own answer for a

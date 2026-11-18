@@ -159,6 +159,7 @@ export async function runSearchHour(formation, {
   await whisperSearch({
     spec, attempts, found, subject, throws, formationId: formation.id,
     choices: candidates.length > 1 ? candidates : [],
+    sceneId: here?.scene?.id ?? "", hexKey: here?.key ?? "",
   });
 
   // Land Surveying rides the hour when the order has the proficiency, the hex
@@ -185,10 +186,13 @@ export async function runSearchHour(formation, {
 /**
  * The hour as one Judge-side card. `choices` are the several unfound points a
  * find could be: each carries a button the chat-card binding
- * (`installHexStockCardActions`) turns into "this one was found".
+ * (`installHexStockCardActions`) turns into "this one was found". Each button
+ * names the searched hex (`sceneId`, `hexKey`) so a click after the party has
+ * moved marks that hex's point.
  */
 async function whisperSearch({
   spec, attempts = [], found = false, subject = "", throws = 1, formationId = "", choices = [],
+  sceneId = "", hexKey = "",
 }) {
   const lines = [];
   lines.push(loc("searchRun.looking", {
@@ -214,7 +218,8 @@ async function whisperSearch({
   const candidates = choices.length
     ? `<div class="candidates"><p>${esc(loc("searchRun.candidates"))}</p><ul>`
       + choices.map((c) => `<li><span>${esc(c.name)}</span> `
-        + `<button type="button" class="acks-extras-hex-found" data-formation-id="${esc(formationId)}" data-point-id="${esc(c.id)}">`
+        + `<button type="button" class="acks-extras-hex-found" data-formation-id="${esc(formationId)}" data-point-id="${esc(c.id)}"`
+        + ` data-scene-id="${esc(sceneId)}" data-hex-key="${esc(hexKey)}">`
         + `${esc(loc("searchRun.markFound"))}</button></li>`).join("")
       + "</ul></div>"
     : "";

@@ -114,4 +114,42 @@ test("a star toggles on and off and the flag has a name", () => {
   assert.equal(STAR_FLAG, "fcStarred");
 });
 
+console.log("follower card: Commit on attack rows");
+
+// The sheet module subclasses core's sheet classes at load; nothing here constructs one.
+class ForcedDeletion {}
+globalThis.acksExtras = {};
+globalThis.game = { i18n: { localize: (k) => k, format: (k) => k } };
+globalThis.Hooks = { once() {}, on() {}, callAll() {}, call() {} };
+globalThis.foundry = {
+  abstract: { DataModel: class {}, TypeDataModel: class {} },
+  data: { fields: {}, operators: { ForcedDeletion } },
+  utils: {},
+  applications: { api: { HandlebarsApplicationMixin: (B) => B, ApplicationV2: class {}, DialogV2: class {} }, sheets: { ActorSheetV2: class {}, ItemSheetV2: class {} } },
+};
+const { planAttackCommit } = await import("../scripts/lib/apps/follower-card-sheet.mjs");
+const has = (...ids) => (id) => ids.includes(id);
+
+test("a baked field is cleared by its own key and a throw override stands", () => {
+  const { itemUpdates, cleared } = planAttackCommit({ "w1:0": { label: "Blade", damage: "1d8", bonus: 2, target: 8 } }, has("w1"));
+  assert.deepEqual(itemUpdates, [{ _id: "w1", name: "Blade", "system.damage.base.formula": "1d8", "system.bonus.attack": 2 }]);
+  assert.deepEqual(Object.keys(cleared).sort(), ["attacks.w1:0.bonus", "attacks.w1:0.damage", "attacks.w1:0.label"]);
+  assert.ok(Object.values(cleared).every((v) => v instanceof ForcedDeletion));
+});
+
+test("a damage-bonus override stands beside a baked damage formula", () => {
+  const { cleared } = planAttackCommit({ "w1:0": { damage: "1d6", damageBonus: 3 } }, has("w1"));
+  assert.deepEqual(Object.keys(cleared), ["attacks.w1:0.damage"]);
+});
+
+test("a row with nothing left standing is removed whole", () => {
+  const { cleared } = planAttackCommit({ "w1:0": { label: "Blade", bonus: 1 } }, has("w1"));
+  assert.deepEqual(Object.keys(cleared), ["attacks.w1:0"]);
+});
+
+test("a row with only an unbakeable field, or no item, writes and clears nothing", () => {
+  assert.deepEqual(planAttackCommit({ "w1:0": { target: 8 }, "gone:0": { label: "X" } }, has("w1")), { itemUpdates: [], cleared: {} });
+  assert.deepEqual(planAttackCommit(undefined, has()), { itemUpdates: [], cleared: {} });
+});
+
 console.log(`follower card: ${passed} passed`);

@@ -18,7 +18,7 @@ import { MODULE_ID } from "../lib/constants.mjs";
 import { VEHICLE_TYPE } from "./constants.mjs";
 import VehicleData, { VEHICLE_KINDS, DRAFT_KINDS, CARRIAGE } from "./vehicle-data.mjs";
 import { seaSpeeds, landSpeed, draftEquivalent, masterMarinerRank, WIND, TERRAIN } from "./vehicle-speed.mjs";
-import { isSinking, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
+import { isSinking, hullValue, speedFactor, repairPlan, sinkFormula } from "./vessel-damage.mjs";
 import { SINKING_FLAG, openHazardDialog, openNavigationDialog, startSinkingClock, tickSinkingClock } from "./sea-throws.mjs";
 import { voyageDay } from "./voyage.mjs";
 import { complementMeans, COMPLEMENT_MEANS } from "./berths.mjs";
@@ -623,16 +623,15 @@ export default class VehicleSheet extends HandlebarsApplicationMixin(ActorSheetV
   }
 
   /**
-   * Load the party for the best pace. The candidates are the members of any
-   * formation this vehicle's passengers already belong to, falling back to
-   * every player character — a Judge with no formation set up still gets the
-   * one-click load.
+   * Load the party for the best pace. The candidates are the members of the
+   * formation this vehicle travels with, falling back to every player
+   * character — a Judge with no formation set up still gets the one-click
+   * load.
    */
   static async #boardBest() {
     const api = game.modules.get(MODULE_ID)?.api?.formation;
-    const raw = api?.getFormations?.() ?? [];
-    const forms = Array.isArray(raw) ? raw : Object.values(raw ?? {});
-    const members = forms.flatMap((f) => (f.members ?? []).map((m) => getMemberActor(m)).filter(Boolean));
+    const carrying = api?.formationCarrying?.(this.actor);
+    const members = (carrying ? [carrying] : []).flatMap((f) => (f.members ?? []).map((m) => getMemberActor(m)).filter(Boolean));
     const candidates = members.length ? members : game.actors.filter((a) => a.type === "character" && a.hasPlayerOwner);
     await boardForBestPace(this.actor, candidates, { ground: this.#ground, speedOf: explorationSpeedOf });
     this.render();
@@ -666,9 +665,10 @@ const round2 = (n) => Math.round(n * 100) / 100;
  * before a dock.
  */
 function hullState(sys, roles) {
-  const value = Number(sys?.shp?.value) || 0;
+  const value = hullValue(sys);
   const max = Number(sys?.shp?.max) || 0;
-  if (max <= 0) return null;
+  // No maximum, or no current value typed yet: nothing to measure a hull by.
+  if (max <= 0 || value === null) return null;
   const { factor, worst, crew, hull } = speedFactor(sys, { roles });
   const aboard = (roles ?? sys?.crew?.roles ?? []).reduce((sum, r) => sum + (Number(r.heads ?? r.aboard) || 0), 0);
   const plan = repairPlan(max - value, aboard, { atSea: true });

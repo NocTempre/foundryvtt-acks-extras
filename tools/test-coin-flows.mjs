@@ -526,6 +526,14 @@ await test("a market's till mints what it is short, and makes any change", async
   assert.equal((await transferCoin({ from: buyer, to: market, gp: 0.3, gate: false })).ok, true);
   assert.equal(cp(buyer), 70, "a market changes a gold piece where a stranger could not");
 });
+await test("a market that pays never overpays a seller it cannot make change for", async () => {
+  const market = makeActor({ id: "till", type: LOCATION, items: [gold(3)] });
+  market.system = { hasMarket: true };
+  const seller = makeActor({ id: "seller2" });
+  assert.equal((await transferCoin({ from: market, to: seller, gp: 2.5, gate: false, allowMint: true })).ok, true);
+  assert.equal(cp(seller), 250, "the seller is richer by exactly what was owed");
+  assert.equal(cp(market), 100, "the till is down only the gold it paid; no change is minted into it");
+});
 
 await test("an employer's coin reaches the unit it pays, and no other", async () => {
   const boss = makeActor({ id: "boss", items: [gold(9)] });

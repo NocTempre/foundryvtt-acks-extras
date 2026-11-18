@@ -845,21 +845,21 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
   // The party caught up: every scout ahead of it may range a fresh round.
   reanchorDetached(formationId).catch((err) => console.error(`${MODULE_ID} | re-anchor failed`, err));
 
-  // Where the party came from, read before `onPartyTokenMoved` overwrites
-  // `clock.lastPosition`: a trap wall is met by crossing it, so the check needs
-  // the path. Where it went to is the stored position, read once for the clock
-  // and the trap check alike, since `tokenDoc.x`/`y` on a client drawing the
-  // token are the move's animation.
-  const before = record.clock?.lastPosition;
-  const from = before ? { x: before.x, y: before.y } : null;
+  // Where the party went to is the stored position, read once for the clock and
+  // the trap check alike, since `tokenDoc.x`/`y` on a client drawing the token
+  // are the move's animation. A trap wall is met by crossing it, so the check
+  // also needs where the party came from: `afterMove` runs in the move's own
+  // turn on the formation's queue, handed the baseline the move began from, so
+  // a move queued behind another never re-crosses a wall the one before it did.
   const to = storedPosition(tokenDoc);
 
-  onPartyTokenMoved(tokenDoc, formationId, to)
-    .then(() => {
+  onPartyTokenMoved(tokenDoc, formationId, to, {
+    afterMove: async ({ from }) => {
       const formation = getFormation(formationId);
       if (!formation) return null;
       return runTrapCheck(formation, { from, to });
-    })
+    },
+  })
     // Once the day's march is walked off, or the party marches on after dusk,
     // the Judge is asked whether the day is over. Wired here, not in the
     // tracker, since ending a day spends provisions and the calendar.
@@ -1001,7 +1001,9 @@ Hooks.on("updateActor", (actor, changes) => {
   }
   if (dataChanged) {
     for (const formation of formations) {
-      syncPartyActorSpeed(formation).then(() => PartySheet.refreshAll());
+      syncPartyActorSpeed(formation)
+        .then(() => PartySheet.refreshAll())
+        .catch((err) => console.error(`${MODULE_ID} | party speed sync failed`, err));
     }
   }
 });
@@ -1014,7 +1016,9 @@ for (const hook of ["createItem", "updateItem", "deleteItem"]) {
     if (!actor?.id) return;
     const formations = Object.values(getFormations()).filter((f) => f.members.some((m) => m.actorId === actor.id));
     for (const formation of formations) {
-      syncPartyActorSpeed(formation).then(() => PartySheet.refreshAll());
+      syncPartyActorSpeed(formation)
+        .then(() => PartySheet.refreshAll())
+        .catch((err) => console.error(`${MODULE_ID} | party speed sync failed`, err));
     }
   });
 }

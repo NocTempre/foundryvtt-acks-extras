@@ -19,6 +19,7 @@ import { blockSums, editedInBlocks, stripBookText } from "./prose.mjs";
 import { keepUnrenderedFields } from "../lib/sheet-rows.mjs";
 import { coversFigure, decides, heldEdit, readPath, sameValue } from "./held-edits.mjs";
 import { describeSpellEffect } from "../magic/describe.mjs";
+import { setPath } from "../lib/dotted-path.mjs";
 
 /** The value at a dotted path, or undefined. */
 const getPath = (node, path) =>
@@ -36,17 +37,6 @@ function dropPath(node, keys) {
   }
   if (!rest.length) delete node[head];
   else dropPath(node[head], rest);
-}
-
-/** Write `value` at a dotted path, creating the objects along it. */
-function setPath(node, keys, value) {
-  const [head, ...rest] = keys;
-  if (!rest.length) {
-    node[head] = value;
-    return;
-  }
-  if (node[head] === null || typeof node[head] !== "object") node[head] = {};
-  setPath(node[head], rest, value);
 }
 
 /**

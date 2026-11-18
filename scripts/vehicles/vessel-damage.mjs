@@ -72,8 +72,22 @@ export function damageToVessel(amount, source = "personal", { areaSquareFeet = 0
   return { dealt, share: scale, ignored: share === 0, missing: false };
 }
 
-/** A hull at or below zero cannot move under its own power, and sinks. */
-export const isSinking = (vehicle) => (Number(vehicle?.shp?.value) || 0) <= 0 && (Number(vehicle?.shp?.max) || 0) > 0;
+/**
+ * The hull points a vessel has left, or null while the field is blank: a hand
+ * -made vessel that never had a current value typed is unknown, not wrecked.
+ */
+export function hullValue(vehicle) {
+  const raw = vehicle?.shp?.value;
+  if (raw === null || raw === undefined || raw === "") return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** A hull at or below zero cannot move under its own power, and sinks. A blank value is not zero. */
+export const isSinking = (vehicle) => {
+  const value = hullValue(vehicle);
+  return value !== null && value <= 0 && (Number(vehicle?.shp?.max) || 0) > 0;
+};
 
 /** The imported formula for how long she stays up; null until imported. */
 export const sinkFormula = () => readTable(VOYAGES_DOC, "damageShares")?.sinkDice ?? null;
@@ -95,7 +109,8 @@ export const sinkFormula = () => readTable(VOYAGES_DOC, "damageShares")?.sinkDic
 export function speedFactor(vehicle, { roles = null } = {}) {
   const crew = crewFraction(roles ?? vehicle?.crew?.roles ?? []);
   const max = Number(vehicle?.shp?.max) || 0;
-  const hull = max > 0 ? Math.max(0, Math.min(1, (Number(vehicle?.shp?.value) || 0) / max)) : 1;
+  const value = hullValue(vehicle);
+  const hull = max > 0 && value !== null ? Math.max(0, Math.min(1, value / max)) : 1;
   const factor = Math.min(crew, hull);
   return { factor, worst: hull < crew ? "hull" : "crew", crew, hull };
 }

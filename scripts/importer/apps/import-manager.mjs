@@ -254,11 +254,16 @@ export class ImportManagerApp extends HandlebarsApplicationMixin(ApplicationV2) 
   }
 }
 
-/** The settings-menu entry: Foundry builds its own instance, which hands off to the open one. */
+/**
+ * The settings-menu entry: Foundry builds its own instance, which hands off to
+ * the open one. A window counts as open from the moment its first render
+ * starts, not only once it has rendered.
+ */
 export class ImportManagerMenu extends ImportManagerApp {
   async render(...args) {
-    if (instance && instance !== this && instance.rendered) {
-      instance.bringToFront();
+    const closed = ApplicationV2.RENDER_STATES?.CLOSED ?? 0;
+    if (instance && instance !== this && instance.state > closed) {
+      if (instance.rendered) instance.bringToFront();
       return this;
     }
     instance = this;

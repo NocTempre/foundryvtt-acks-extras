@@ -61,12 +61,25 @@ const moveQueues = new Map();
  * (`storedPosition`) and `primary` is whether this window does the move's
  * GM-side half (the navigation throw, the truth's walk); both are read when
  * the move is heard, since a later move overwrites the token's destination
- * and the seat's lead can change while a move waits. Resolves with the
- * engine's own answer; a move that throws rejects without holding the next.
+ * and the seat's lead can change while a move waits. `afterMove`, when given,
+ * runs in the same turn once the move is spent, handed `{from, to}`: `from` is
+ * the clock's baseline read when this move's turn begins, before the engine
+ * overwrites it, so it is the end of the move before and never a stale read
+ * from when the move was heard. Resolves with the engine's own answer; a move
+ * (or its `afterMove`) that throws rejects without holding the next.
+ * @param {object} [options]
+ * @param {boolean} [options.primary]
+ * @param {(span: {from: ?{x: number, y: number}, to: {x: number, y: number}}) => Promise<*>|*} [options.afterMove]
  */
-export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc), { primary = isActiveGMSeat() } = {}) {
+export async function onPartyTokenMoved(tokenDoc, formationId, to = storedPosition(tokenDoc), { primary = isActiveGMSeat(), afterMove = null } = {}) {
   const prior = moveQueues.get(formationId) ?? Promise.resolve();
-  const next = prior.then(() => dispatchPartyTokenMoved(tokenDoc, formationId, to, primary));
+  const next = prior.then(async () => {
+    const before = getFormation(formationId)?.clock?.lastPosition;
+    const from = before ? { x: before.x, y: before.y } : null;
+    const result = await dispatchPartyTokenMoved(tokenDoc, formationId, to, primary);
+    if (afterMove) await afterMove({ from, to });
+    return result;
+  });
   const settled = next.then(() => undefined, () => undefined);
   moveQueues.set(formationId, settled);
   settled.then(() => {
@@ -164,7 +177,7 @@ export async function onJourneyTokenMoved(tokenDoc, formationId, { begin = begin
   const here = { x: to.x, y: to.y };
   const from = formation.clock?.lastPosition ?? here;
   const { miles, spaces } = journeyMeasure(scene, from, here);
-  const point = tokenDoc.getCenterPoint?.(here) ?? tokenCentre({ ...here, width: tokenDoc.width, height: tokenDoc.height }, scene);
+  const point = tokenCentre(tokenDoc, scene, here);
   const map = mapReadingAt(scene, point, { at: game.time?.worldTime ?? null });
   const day = journeyDayKey(travelOf(formation));
 
@@ -244,7 +257,7 @@ export async function walkTheTruth(scene, tokenDoc, formation, { from, to, walk 
   if (!travelOf(formation).lost.phase || !isHexScene(scene)) return 0;
   const shadow = shadowFor(scene, formation.id);
   if (!shadow) return 0;
-  const centre = (corner) => tokenCentre({ x: corner.x, y: corner.y, width: tokenDoc.width, height: tokenDoc.height }, scene);
+  const centre = (corner) => tokenCentre(tokenDoc, scene, corner);
   const pairs = astrayPath(scene, { from: centre(from), to: centre(to), truth: tokenCentre(shadow, scene) });
   if (pairs.length) {
     await walk(formation, pairs.map(({ believed, truth }) => ({ believedOffset: believed, trueOffset: truth })));

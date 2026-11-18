@@ -98,6 +98,10 @@ export const attackInFlight = (actor) => (actor ? (inFlight.get(actor) ?? null) 
  *   carriers: ["attack"|"damage"]           → the questions it answers for a spell
  *                                              carrier's attack; absent, it is
  *                                              never asked for one
+ *   prepare(ctx)                            → a promise asked once per attack, after
+ *                                              `ready` and before the throw is built;
+ *                                              resolving `false` cancels the attack,
+ *                                              which then rolls nothing
  *
  * Each receives the list so far and returns the list to go on with, so a
  * contributor may add rows, drop rows, or reorder. A row is `{label, value}`,
@@ -148,6 +152,24 @@ async function contributorsReady() {
       }
     }),
   );
+}
+
+/**
+ * Asks every contributor that declares `prepare(ctx)`, in registration order,
+ * and stops at the first that resolves `false`: the attack is cancelled. A
+ * contributor whose `prepare` throws is reported and does not hold the attack.
+ * @returns {Promise<boolean>} whether the attack goes ahead
+ */
+async function contributorsPrepare(ctx) {
+  for (const c of contributors) {
+    if (typeof c.prepare !== "function") continue;
+    try {
+      if ((await c.prepare(ctx)) === false) return false;
+    } catch (err) {
+      console.error(`${MODULE_ID} | an attack contributor failed to prepare; the attack goes ahead without it`, err);
+    }
+  }
+  return true;
 }
 
 /** `{label, value}` rows from a hook's term list, dropping what carries no number or formula. */
@@ -529,7 +551,8 @@ export function attackContext(actor, options = {}) {
 /**
  * MIXED wrapper around `AcksActor#makeAttackThrow`: refuses an attacker whose
  * attack throw is no number and rolls nothing; otherwise waits for the
- * contributors, holds the context and fires the hooks.
+ * contributors, lets each prepare the attack (one that declines cancels it,
+ * and nothing is rolled), holds the context and fires the hooks.
  */
 async function onMakeAttackThrow(wrapped, options = {}) {
   const throwValue = this.system?.attack?.throw;
@@ -539,6 +562,7 @@ async function onMakeAttackThrow(wrapped, options = {}) {
   }
   await contributorsReady();
   const ctx = attackContext(this, options);
+  if (!(await contributorsPrepare(ctx))) return null;
   try {
     Hooks.callAll(PRE_ATTACK_HOOK, this, ctx);
   } catch (err) {

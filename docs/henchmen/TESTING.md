@@ -290,6 +290,19 @@ a step it does not name is walked by hand.
    ladder's 1st-level wage. Both specialists and the mercenary offer only "no
    bonus", and on the throw dialog the line says no wage is set. Close each
    page without rolling.
+4c. A wage printed per a unit, and an old mercenary group. (i) Write a
+   `specialist` candidate straight into `system.market.candidates` with a
+   `wageGp` and `wageUnit: "day"`, then `hire` it for a disposable employer;
+   repeat with `"week"`, `"month"` and an unconvertible unit. *Observable:* the
+   record's `terms.wageGp` and the sheet's wage are the day figure times the
+   month's days, the week figure times its weeks, the figure itself, and blank;
+   the hire message says gp/month with the converted figure. (ii) Hire a
+   mercenary group from a market whose `compositeVariant` is `longbow`, then
+   clear `template.wageType` from its stack (`group.update` on `system.stacks`).
+   Open the repair tool: *Mercenary groups billed no wage* lists the group;
+   fix it. *Observable:* the stack holds the longbow wage type and payroll
+   bills the group. Repeat with the group's `unit.locationUuid` set to an id no
+   actor holds: the finding is listed and cannot be ticked.
 5. Wages: `payWagesFor(employer)` with a purse worth less than the wages due,
    then `payWagesFor(employer, {markMissed: true})`, then with enough, then
    with enough in coin that cannot make the wage exactly.

@@ -231,10 +231,10 @@ gear the world does not hold. A disposable character.
    importer stamp; `classes/kit-share-a` and `classes/kit-share-b`, two
    `class` Items each with one template row printing "kitshare flask" and
    "mossy kitshare tunic" (B may print "3 kitshare flasks"). Materializing
-   empties a row's `items` and detaching clears only its `bundle`, so a kept
-   class is not reusable as left: the walk starts by asserting each class's row
-   prints its two entries and its `bundle` is empty, and where it does not,
-   writes `system.templates` back to that shape.
+   empties a row's `items` and detaching writes the bundle's entries back, so
+   a kept class is not reusable as left: the walk starts by asserting each
+   class's row prints its two entries and its `bundle` is empty, and where it
+   does not, writes `system.templates` back to that shape.
    a. `materializeTemplates(A)`, then `materializeTemplates(B)`.
    *Observable:* both bundles' `itemList` carry the flask base's own uuid, with
    the quantity the row printed; exactly one Item carries a `templatePart.key`
@@ -250,6 +250,20 @@ gear the world does not hold. A disposable character.
    d. Apply B's template to a disposable character.
    *Observable:* the tunic and the flask arrive once each (the flask at B's
    quantity) and nothing is reported missing.
+   e. Class sheet → Templates tab → the row's Detach button on B (then the same
+   through `detachTemplatePackages(B)`).
+   *Observable:* B's row `bundle` is empty and `items` prints the flask at B's
+   quantity and the tunic with its `skinName`, with nothing lost; applying the
+   template to a disposable character grants the flask and the tunic once each,
+   as in d.
+   f. Drag B's bundle document from the sidebar (or its shelf) onto B's row.
+   *Observable:* `bundle` is set and the row's `items` is empty (the entries it
+   carries were stripped, not left printed beside it); applying the template
+   grants each once, not twice.
+   g. A spell on an imported shelf: a template row printing the name of a spell
+   held only on a library shelf (no sidebar copy, no uuid on the row), with no
+   bundle; apply it to a disposable character.
+   *Observable:* the spell arrives and is not in `report.unresolved`.
    Teardown: `report.created` holds names, not ids, so each id is read where
    it lives and passed to `api.track` the moment it is read: the class's
    `system.templates[0].bundle`, its `system.templateTable`, and the tunic
@@ -715,6 +729,11 @@ document.
 3. Set the class to a racial build spending the dwarf's value and Derive again.
 4. Clear `Extra hit points per level past the last hit die` on the Dwarf race
    sheet and Derive once more.
+5. On a class that already holds a casting grid, add a magic value whose type
+   the imported tables cannot answer for (clear its fraction, or name a type
+   the tables lack) and Derive; then Derive a class with no magic value.
+   *Observable:* the first leaves the class's `system.casting` as it was and the
+   report names the gap; the second writes an empty list.
 
 **Observable.** The die count rises to the imported last die level and stops;
 the next row carries a flat that grows by the per-level rate on each row

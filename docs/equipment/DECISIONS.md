@@ -116,3 +116,38 @@ reads is now the weapon's `system.damage.base.extraordinary` (lib
 longer the flag (monsters DECISIONS, "2026-11-17 — A monster weapon's damage
 type and extraordinary mark are core's fields"). An old `extraordinary` flag
 answers nothing.
+
+## 2026-11-17 — A weapon with no damage formula stays blank, and its first attack asks
+
+**Ruled** (owner, answering the phase-3 assessment's note that a named weapon
+with no damage formula had a die written for it): "A no default should stay
+blank and prompt (and save response) for damage formula on first roll." An
+example: a named weapon whose formula is blank, with one damage rung unlocked,
+keeps a blank damage field; the first attack with it asks for the formula, a
+`1d8` typed there is saved as the weapon's base, and the field then reads
+`1d8+1`. The next attack asks nothing.
+
+**Decided.** Every invented die for a missing formula is removed: the named
+overlay's captured base and its applied bonuses, a scavenged condition's
+penalty, the property layers' flat delta over a blank snapshot, the Follower
+Card's new attack and a template package's weapon with no stated die. The ask
+is a `prepare(ctx)` a contributor to `lib/patches/attack-throw.mjs` may
+declare, awaited by the one existing `makeAttackThrow` wrapper before the
+throw is built, as `ready()` was (2026-11-13, "The draw and the attack wait for
+the weapon rows"); the equipment feature declares it in `damage-prompt.mjs`.
+The prompt comes before the throw, not at the hit, because the system parses
+the formula inside its own builder through the synchronous `getDamageFormula`,
+which cannot wait for an answer. It answers to no setting.
+
+**Rejected.** A wrapper of `getDamageFormula` that prompts: it is synchronous,
+and the lib's seam already owns it. A second wrapper of `makeAttackThrow`
+from equipment: one owner per wrapped core method. Asking only on a hit: the
+hit is decided inside the system's builder, after the point a prompt can be
+awaited. Keeping a die as a fallback with a warning: the ruling's words.
+
+**What it cost.** An attack with a blank weapon asks before the throw, so a
+miss also asks once. An attack begun from the system's own dialog with no
+weapon named (the Rolls tab's bare melee and missile rows) picks its weapon
+inside the system's builder, past the seam, and a blank weapon chosen there
+still rolls no damage, unasked. A named weapon that took the old die keeps
+it: the stored base cannot be told from a stated one.

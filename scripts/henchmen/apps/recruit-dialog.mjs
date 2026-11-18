@@ -10,17 +10,17 @@
  * refuse-and-slander blocks the party permanently). Mutations (actor
  * creation, location writes) execute on the GM client.
  */
-import { MODULE_ID, HOOKS } from "../constants.mjs";
+import { MODULE_ID, HOOKS, SECONDS_PER_DAY } from "../constants.mjs";
 import { openThrowDialog } from "./throw-dialog.mjs";
 import { collectEffectModifiers, toDialogModifiers, unvaluedDialogModifiers } from "../effects.mjs";
 import { signingBonusCost } from "../rules/wages.mjs";
-import { henchmanWage } from "../rules/wages.mjs";
+import { henchmanWage, monthlyWage } from "../rules/wages.mjs";
 import { hire, updateCandidate, hireExistingActor, updateSpecialHire } from "../engine/hire.mjs";
 import * as adapter from "../acks-adapter.mjs";
 import { executeAsGM, registerHandler, judgeDeclares } from "../../lib/sockets.mjs";
 import { escape as esc } from "../../lib/util.mjs";
 import { hostsModes, openHiringViaInfluence } from "../integrations/influence.mjs";
-import { now } from "../time.mjs";
+import { now, secondsPerMonth } from "../time.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { getThrowDef } from "../rules/tables.mjs";
 import { hiringOffer, hiringOfferComplete } from "../rules/hiring-offer.mjs";
@@ -240,7 +240,7 @@ export async function openRecruitDialog(location, candidateId, preferredEmployer
       name: bulk ? game.i18n.format("ACKS-HENCHMEN.recruit.headsName", { name: candidate.name, n: heads }) : candidate.name,
       // A candidate is a henchman unless it was rolled as a mercenary or a
       // specialist, as `hire` reads the same kind.
-      wage: offerWage(candidate.wageGp, !["mercenary", "specialist"].includes(candidate.kind), () => candidate.level ?? 0),
+      wage: offerWage(monthlyWage(candidate.wageGp, candidate.wageUnit, secondsPerMonth() / SECONDS_PER_DAY), !["mercenary", "specialist"].includes(candidate.kind), () => candidate.level ?? 0),
       refusals: (candidate.refusals ?? []).length,
     },
   });

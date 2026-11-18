@@ -15,6 +15,7 @@
 import { toNum as num } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 import { coinCount, coinKind, coinTotalGC } from "./money-logic.mjs";
+import { setPath } from "./dotted-path.mjs";
 
 // Coin's worth is money-logic's to compute; it is offered through here as
 // well because the storage surface lists every place's coin beside its goods.
@@ -118,13 +119,6 @@ export function expandContainerClosure(plainItems, wholeIds) {
 /* -------------------------------------------- */
 /*  The transfer payload                         */
 /* -------------------------------------------- */
-
-function setPath(obj, path, value) {
-  const parts = path.split(".");
-  let node = obj;
-  for (let i = 0; i < parts.length - 1; i++) node = node[parts[i]] ??= {};
-  node[parts.at(-1)] = value;
-}
 
 /** Normalise `[{id, quantity}]` / `["id"]` into a Map, dropping unknown ids. */
 function readSpec(spec, byId) {
@@ -258,6 +252,9 @@ export function stackSignature(plain, { byOwner = false } = {}) {
   if (isMoney(plain)) return `money|${byOwner ? rowOwnerOf(plain) : ""}|${coinKind(plain)}`;
   const owner = byOwner ? (storageFlagOf(plain)?.ownerUuid ?? "") : "";
   if (plain.effects?.length) return null;
+  // A container keeps its own row: merging two would leave the second's
+  // contents pointing at a container id that is never created.
+  if (plain.flags?.[LIB_ID]?.container) return null;
 
   const wrapper = { system: structuredClone(plain.system ?? {}) };
   setPath(wrapper, quantityOf(plain).path, 0);

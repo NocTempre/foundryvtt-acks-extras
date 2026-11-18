@@ -21,6 +21,7 @@
 import { MODULE_ID } from "./constants.mjs";
 import { findLibraryPack, whenReady } from "../lib/library.mjs";
 import { ensureLibraryPack } from "../lib/library-target.mjs";
+import { slug } from "../lib/vocab.mjs";
 import { whenPublished as classesPublished } from "../classes/registry.mjs";
 
 const FOLDER_NAME = "ACKS Imported Tables";
@@ -183,7 +184,7 @@ const isListSet = (data) =>
   !!data && typeof data === "object" && !Array.isArray(data) && Object.values(data).every((l) => Array.isArray(l) && l.every((x) => typeof x === "string"));
 
 /** Case- and punctuation-blind text, for matching a reader's words to a key. */
-const fold = (s) => String(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+const fold = slug;
 
 /** Every key a keyed grid holds in its field, across all its columns. */
 const keysOf = (table, field) => [...new Set(Object.values(table ?? {}).flat().map((b) => b?.[field]).filter(Boolean))];

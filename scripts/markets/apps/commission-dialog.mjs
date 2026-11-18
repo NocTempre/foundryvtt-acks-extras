@@ -18,9 +18,11 @@ const { HandlebarsApplicationMixin, ApplicationV2 } = foundry.applications.api;
 
 /** The window that commissions a catalog item at a location. */
 export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ location, item, ...options } = {}) {
+  constructor({ location, item, buyer = null, ...options } = {}) {
     super(options);
     this.location = location;
+    /** The acting trader the dialog opens on; null leaves the first listed buyer. */
+    this.buyer = buyer;
     this.item = item; // catalog row {name, img, costGp}
   }
 
@@ -47,7 +49,8 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
     const mayUse = (a) => game.user.isGM || a.testUserPermission(game.user, "OWNER");
     context.buyers = game.actors
       .filter((a) => a.type === ACTOR_TYPE.character && !a.system?.retainer?.enabled && mayUse(a))
-      .map((a) => ({ id: a.uuid, name: a.name }));
+      .map((a) => ({ id: a.uuid, name: a.name, selected: a.uuid === this.buyer?.uuid }));
+    if (!context.buyers.some((b) => b.selected) && context.buyers[0]) context.buyers[0].selected = true;
     const daysPerMonth = Number(henchmenSetting("daysPerMonth")) || 28;
     context.workers = (optTable("construction", "wageAndConstructionRates")?.rows ?? []).filter((r) => !isMissingRow(r)).map((row) => {
       const plan = commissionPlan({ costCp: Math.round(this.item.costGp * 100), rateRow: row, daysPerMonth });
@@ -86,7 +89,7 @@ export class CommissionDialog extends HandlebarsApplicationMixin(ApplicationV2) 
   }
 }
 
-/** Opens a `CommissionDialog` for the catalog row `item` at `location`. */
-export function openCommissionDialog(location, item) {
-  new CommissionDialog({ location, item }).render(true);
+/** Opens a `CommissionDialog` for the catalog row `item` at `location`, with `buyer` (the acting trader, or null) preselected. */
+export function openCommissionDialog(location, item, buyer = null) {
+  new CommissionDialog({ location, item, buyer }).render(true);
 }

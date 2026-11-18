@@ -26,7 +26,7 @@ import { armourOptionsFor, bindDropHighlight, confirmRowDelete, openRef, rejectD
 import { refOf } from "./grants.mjs";
 import { levelCap } from "./level-cap.mjs";
 import { builderTables, raceItems, raceForClass, planFor, applyBuilder, issueLabels } from "./builder.mjs";
-import { materializeTemplates, detachTemplatePackages } from "./template-packages.mjs";
+import { materializeTemplates, detachTemplatePackages, unbindTemplateRow, stripRepresented } from "./template-packages.mjs";
 import { CHOICE_SOURCES, CHOICE_FILTERS } from "../lib/choice-spec.mjs";
 import { keepUnrenderedFields, rowListUpdate } from "../lib/sheet-rows.mjs";
 import { ATTRIBUTES, ITEM_TYPE } from "../lib/vocab.mjs";
@@ -429,13 +429,13 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
     fromUuidSync(target.dataset.uuid ?? "")?.sheet?.render(true);
   }
 
-  /** Detach a row's bundle — the row's own arrays become the package again. */
+  /** Detach a row's bundle — what it carried is written back onto the row, which applies from its own entries again. */
   static async #onTemplateUnbind(event, target) {
     const index = Number(target.dataset.index);
     if (!Number.isInteger(index)) return;
     const templates = foundry.utils.deepClone(this.item.system.toObject().templates ?? []);
     if (!templates[index]) return;
-    templates[index].bundle = "";
+    await unbindTemplateRow(templates[index]);
     await this.item.update({ "system.templates": templates });
   }
 
@@ -582,7 +582,11 @@ export default class ClassSheet extends HandlebarsApplicationMixin(ItemSheetV2) 
       else rows.push(row);
       return rows;
     };
-    if (dropped.type === ITEM_TYPE.bundle) t.bundle = dropped.uuid;
+    if (dropped.type === ITEM_TYPE.bundle) {
+      // Whatever the bundle carries leaves the row, so a grant never hands it over twice.
+      t.bundle = dropped.uuid;
+      stripRepresented(t, dropped);
+    }
     else if (dropped.type === ITEM_TYPE.ability) t.abilities = fill(t.abilities ?? [], "ability", { ref: refOf(dropped), name: dropped.name, rank: 1 });
     else if ([ITEM_TYPE.weapon, ITEM_TYPE.armor, ITEM_TYPE.item].includes(dropped.type)) t.items = fill(t.items ?? [], "item", { ref: refOf(dropped), name: dropped.name, qty: 1 });
     else if (dropped.type === ITEM_TYPE.spell) t.spells = fill(t.spells ?? [], "spell", { uuid: dropped.uuid, name: dropped.name });

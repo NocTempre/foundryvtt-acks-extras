@@ -73,7 +73,7 @@ const writable = (subject) => {
  * @param {Array<{uuid: string, name: string, img: string, tokenSrc: string, randomImg?: boolean, fit?: string, flag?: {src?: string, was?: object}|null}>} subjects
  * @param {ReturnType<typeof indexSource>} index
  * @param {{from?: string|null}} [opts] the source's label, recorded in the flag
- * @returns {{changes: Array<{uuid: string, name: string, src: string, randomImg: boolean, from: string|null, was: object}>,
+ * @returns {{changes: Array<{uuid: string, name: string, src: string, randomImg: boolean, from: string|null, was: object, current: string}>,
  *   counts: {change: number, current: number, kept: number, noArt: number, ambiguous: number, noMatch: number}}}
  */
 export function planApply(subjects, index, { from = null } = {}) {
@@ -101,7 +101,7 @@ export function planApply(subjects, index, { from = null } = {}) {
     }
     // A subject already carrying our write keeps the first token it had: the original is what Restore returns.
     const was = subject.flag?.src && subject.tokenSrc === subject.flag.src && subject.flag.was ? subject.flag.was : tokenOf(subject);
-    changes.push({ uuid: subject.uuid, name: subject.name, src: pick.src, randomImg: pick.randomImg, from: pick.uuid ?? from, was });
+    changes.push({ uuid: subject.uuid, name: subject.name, src: pick.src, randomImg: pick.randomImg, from: pick.uuid ?? from, was, current: subject.tokenSrc ?? "" });
     counts.change++;
   }
   return { changes, counts };

@@ -506,7 +506,7 @@ export function loadsFromText(text) {
   const t = String(text ?? "").toLowerCase().replace(/\s+/g, " ");
   const grab = (re) => {
     const m = re.exec(t);
-    return m ? Number(m[1]) : null;
+    return m ? Number(m[1].replace(/,/g, "")) : null;
   };
   const normal = grab(/normal load of ([\d,]+) stones?/);
   const max = grab(/maximum load of ([\d,]+) stones?/);

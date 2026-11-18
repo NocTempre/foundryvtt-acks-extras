@@ -192,8 +192,18 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`.
       states the chosen hazard's invented dice/holding line.
     - damage her to 0: the hull block offers **Start the clock**; starting
       posts the rolled rounds and shows the counter; **Round passes** ticks
-      it down and the zero round posts the sinking line. Unregister the doc
+      it down and the zero round posts the sinking line; another press at
+      zero posts nothing. Unregister the doc
       first instead and the button is absent (no die to roll).
+    - then raise `shp.value` above 0 on the Details tab: `flags.acks-extras.sinking`
+      is gone, and damaging her to 0 again offers **Start the clock** afresh.
+    - blank `shp.value` (clear the field) with `shp.max` set: no sinking line,
+      no hull block, no speed penalty from the hull.
+    - a crew role labelled `<b>x</b>` shows that text literally in the drop
+      dialog's options.
+    - land vehicle, Travel tab with a `travel` doc whose roads are imported:
+      ticking **Road** changes the Speed Now line (a proficient driver more
+      so); unticking returns it.
     - player seat: the whispers reach the Judge only.
 13. Details: open a vessel's Details tab, then a land vehicle's.
     *Observable:* the vessel shows the six printed speed inputs

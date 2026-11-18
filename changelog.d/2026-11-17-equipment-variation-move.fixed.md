@@ -1,0 +1,1 @@
+- **Item sheet:** dropping an applied variation from one item onto another item's sheet (pencil armed) restates the item it left as well as the one it joined, so the first no longer keeps the variation's bonus after losing it.

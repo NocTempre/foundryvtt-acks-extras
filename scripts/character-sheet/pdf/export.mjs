@@ -23,6 +23,7 @@ import { bestAttackBonus, getLoadout } from "../../equipment/loadout.mjs";
 import { wearLocation } from "../../equipment/wear.mjs";
 import { containedIn, isConcealed, isContainer } from "../../equipment/containers.mjs";
 import { WEAR } from "../../equipment/config.mjs";
+import { damageFormulaOf } from "../../equipment/properties.mjs";
 import { PDF_RECORD_FLAG as RECORD_FLAG } from "../constants.mjs";
 import { saveSystemKey, henchmanIds } from "../snapshot.mjs";
 import { finite, numText, signedText } from "./parse.mjs";
@@ -287,7 +288,7 @@ export function sheetValues(actor) {
     set(`weapon.${i}.name`, item.name);
     set(`weapon.${i}.init`, recordedInit[slug(item.name)]);
     set(`weapon.${i}.attack`, throwOf(weaponThrow(actor, item)));
-    set(`weapon.${i}.damage`, item.system?.damage);
+    set(`weapon.${i}.damage`, damageFormulaOf(item));
     for (const band of ["short", "medium", "long"]) set(`weapon.${i}.${band}`, numText(item.system?.range?.[band]) === "0" ? "" : numText(item.system?.range?.[band]));
   });
 

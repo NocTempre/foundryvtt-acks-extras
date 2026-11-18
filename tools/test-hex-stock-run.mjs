@@ -803,6 +803,33 @@ await t("the card buttons bind for a Judge only and drive the same writers", asy
   assert.equal(tell.disabled, true);
 });
 
+await t("a Found button marks the searched hex after the party has moved, and stays live when nothing was marked", async () => {
+  const { scene, formation } = world();
+  const record = await stocked(formation, 2);
+  const pointId = record.points[0].id;
+  run.installHexStockCardActions();
+  const render = hooks.get("renderChatMessageHTML").at(-1);
+  const button = (dataset) => ({ dataset, disabled: false, listeners: {}, addEventListener(type, fn) { this.listeners[type] = fn; } });
+  const stamped = button({ formationId: "f1", pointId, sceneId: "s1", hexKey: "2:3" });
+  const gone = button({ formationId: "f1", pointId: "nope", sceneId: "s1", hexKey: "2:3" });
+  const elsewhereKey = button({ formationId: "f1", pointId, sceneId: "s1", hexKey: "9:9" });
+  const root = { nodeType: 1, querySelectorAll: (sel) => (sel === ".acks-extras-hex-found" ? [stamped, gone, elsewhereKey] : []) };
+  game.user.isGM = true;
+  render({}, root);
+  // The party has since moved to a hex with no stock: the unstamped route would find nothing.
+  const moved = world({ tokens: [token(650, 450)] });
+  scenes.set("s1", scene);
+  for (const b of [stamped, gone, elsewhereKey]) b.listeners.click({ preventDefault() {} });
+  await new Promise((r) => setTimeout(r, 5));
+  assert.equal(run.readStock(scene, "2:3").points[0].found.f1, 1000, "the searched hex's point is marked");
+  assert.equal(stamped.disabled, true);
+  assert.equal(gone.disabled, false, "a point no longer there leaves the button live");
+  assert.equal(elsewhereKey.disabled, false, "a hex with no stock leaves the button live");
+  assert.ok(moved.formation);
+  assert.equal(await run.markPointFoundAt("s1", "2:3", "f1", "nope"), null);
+  assert.equal(await run.markPointFoundAt("missing", "2:3", "f1", pointId), null);
+});
+
 await t("the panel view is for the Judge, and says so when there is no map hex or no stock", async () => {
   const { formation } = world();
   const empty = run.hexStockView(formation);

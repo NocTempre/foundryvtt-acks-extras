@@ -26,6 +26,7 @@ import { feetToUnits } from "./distance-units.mjs";
 import { appliedEffects } from "./effect-scan.mjs";
 import { canWear, containedIn, findCarried, isPhysical, isWorn, siblingsOf } from "./item-model.mjs";
 import { citeOf, expectTables, getDoc, hasDoc } from "./tables.mjs";
+import { tokenCentre } from "./token-centre.mjs";
 import { locOr, positiveFigure } from "./util.mjs";
 import { ITEM_TYPE } from "./vocab.mjs";
 
@@ -610,12 +611,8 @@ function pixelsPerUnit(scene) {
   return distance > 0 ? size / distance : 0;
 }
 
-/** A placeable's centre in pixels. Tokens occupy a footprint; lights are points. */
-function centreOf(doc, gridSize) {
-  const w = Number(doc.width) || 0;
-  const h = Number(doc.height) || 0;
-  return { x: doc.x + (w * gridSize) / 2, y: doc.y + (h * gridSize) / 2 };
-}
+/** A light's or a loose point's place in pixels: it occupies none, so its centre is itself. */
+const pointOf = (point) => ({ x: point.x, y: point.y });
 
 /** The scene's darkness level, 0 (day) to 1 (night). */
 function darknessOf(scene) {
@@ -660,14 +657,14 @@ function tokenDaylight(scene, token) {
 function strongestReach(scene, me, { strict = false, extra = [], band = "bright" } = {}) {
   const perUnit = pixelsPerUnit(scene);
   if (!perUnit) return 0;
-  const gridSize = Number(scene.grid.size);
   const darkness = darknessOf(scene);
 
   let best = 0;
-  const consider = (source, radius) => {
+  const bodyOf = (token) => tokenCentre(token, scene);
+  const consider = (source, radius, centreOf = pointOf) => {
     const reach = Number(radius) || 0;
     if (reach <= best) return; // cannot win; skip the distance work
-    const at = centreOf(source, gridSize);
+    const at = centreOf(source);
     const feet = Math.hypot(at.x - me.x, at.y - me.y) / perUnit;
     if (feet <= reach) best = reach;
   };
@@ -681,20 +678,20 @@ function strongestReach(scene, me, { strict = false, extra = [], band = "bright"
   for (const other of scene.tokens ?? []) {
     if (other.hidden) continue;
     if (band === "daylight") {
-      consider(other, tokenDaylight(scene, other));
+      consider(other, tokenDaylight(scene, other), bodyOf);
       continue;
     }
     if (strict && !shinesNow(other.light, darkness)) continue;
-    consider(other, other.light?.[band]);
+    consider(other, other.light?.[band], bodyOf);
   }
   // The lights a marching column sheds from its bearers' cells, which no
   // document stores. Asked through the shared namespace, as `bearerLights`
   // asks: each point is a pixel centre with radii in scene units.
   const columnPoints = globalThis.acksExtras?.formation?.carriedLightPoints;
   if (typeof columnPoints === "function") {
-    for (const point of columnPoints(scene) ?? []) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point[band]);
+    for (const point of columnPoints(scene) ?? []) consider(point, point[band]);
   }
-  for (const point of extra) consider({ x: point.x, y: point.y, width: 0, height: 0 }, point[band]);
+  for (const point of extra) consider(point, point[band]);
   return best;
 }
 
@@ -715,7 +712,7 @@ export function brightestLightReaching(tokenDoc) {
   const scene = tokenDoc?.parent;
   const perUnit = pixelsPerUnit(scene);
   if (!perUnit) return 0;
-  return strongestReach(scene, centreOf(tokenDoc, Number(scene.grid.size)));
+  return strongestReach(scene, tokenCentre(tokenDoc, scene));
 }
 
 /**
@@ -821,5 +818,5 @@ export function lightLevelOf(tokenDoc, opts = {}) {
   const scene = tokenDoc?.parent;
   const size = Number(scene?.grid?.size);
   if (!(size > 0)) return null;
-  return lightLevelAt(scene, centreOf(tokenDoc, size), { elevation: Number(tokenDoc.elevation) || 0, ...opts });
+  return lightLevelAt(scene, tokenCentre(tokenDoc, scene), { elevation: Number(tokenDoc.elevation) || 0, ...opts });
 }
