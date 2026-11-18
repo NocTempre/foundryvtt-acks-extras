@@ -4,9 +4,10 @@ Format per docs-doctrine: fixtures → steps → observable → teardown. Server
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. Offline coverage
 is `tools/test-treasure.mjs` (pure rules) and `tools/test-treasure-relay.mjs`
 (the relay's guards). Neither proves a window opens or a Card writes; only this
-walk does. `tools/live/treasure.mjs` drives every section below on both seats
-(`node tools/live/run.mjs treasure`); its header says which gestures are real
-pointer presses and which are scripted, and what it does not reach.
+walk does. `tools/live/treasure.mjs` drives the sections from Fixtures through
+Teardown on both seats (`node tools/live/run.mjs treasure`); each later section
+names its own walk. A walk's header says which gestures are real pointer
+presses and which are scripted, and what it does not reach.
 
 `styles/treasure.css` is a `module.json` `styles` entry, which the server reads
 at world launch: **after the first install of this slice, relaunch the world**,
@@ -272,9 +273,10 @@ the marked fixtures, `treasure/search-table` among them, stay.
 
 ## Bands, backs, faces and deal toggles (both seats)
 
-Not yet walked live: `tools/live/treasure.mjs` does not drive these steps, and
-its fixtures and selectors are unchanged by this slice. Offline coverage is
-`tools/test-treasure.mjs`'s R2 blocks.
+Walked by `tools/live/treasure-faces.mjs` (`node tools/live/run.mjs
+treasure-faces`), which covers steps 1 to 5 and the layer half of step 7 (the
+texture layers by band, the reader wired and put back); its header lists what
+it does not reach. Offline coverage is `tools/test-treasure.mjs`'s R2 blocks.
 
 **Fixtures** (found by marker, built through `api.fixture`):
 
@@ -410,10 +412,13 @@ fixtures stay.
 
 ## Dealing letters (Judge seat)
 
-Not yet walked live. Offline coverage is `tools/test-treasure-deal.mjs` (the
-stored deal state, the rows, the letters a Deal sends, the warning, the fake
-world's deal) and `tools/test-hoard-map.mjs`; nothing offline renders the rail,
-the monster sheet's button or the token control.
+Walked by `tools/live/treasure-deal.mjs` (`node tools/live/run.mjs
+treasure-deal`), one section per step; its header lists the gestures that are
+scripted and what it does not reach. Offline coverage is
+`tools/test-treasure-deal.mjs` (the stored deal state, the rows, the letters a
+Deal sends, the warning, the fake world's deal) and `tools/test-hoard-map.mjs`;
+nothing offline renders the rail, the monster sheet's button or the token
+control.
 
 **Fixtures** (found by marker, built through `api.fixture`):
 

@@ -23,7 +23,13 @@
  * seat not seeing it, a force-cursed item landing cursed with the curse not
  * shown, a force-cursed card identified in full landing with the curse known,
  * both toggles with the second row reading none); the panel's layout
- * wide and narrow.
+ * wide and narrow; step 7's dress (with no texture wired, no grime, foil or
+ * vignette layer in either seat's window; each back's frame, corners and
+ * breaks by band, and the detected back's gold frame; with a reader wired in
+ * the Player page that finds a raster for the texture side, the lowest band's
+ * back carries a grime layer that thins by band, the top band none and a foil,
+ * and the undetected masked back and the plain back carry the same layers;
+ * the reader put back and the layers gone again).
  *
  * Fixtures, kept and found by marker: `treasure/item-plain`,
  * `treasure/item-masked-cheap`, `treasure/item-detected`,
@@ -43,9 +49,18 @@
  * window's resize (setPosition), and the Take of the force-cursed check (the
  * relay called by hand).
  *
+ * Scripted in step 7: the reader (`setArtReader` on the loaded module's own
+ * card-art instance, in the Player page only, with a world raster the page
+ * finds on a document and confirms with a request; it is put back in the step
+ * and again in the teardown).
+ *
  * Not reached: the reduced-motion preference, a Tab walk through the cards,
  * and a Player seat reading its back from the pile's own Card data for a
- * card it was never shown.
+ * card it was never shown. From recipe step 7: a turned card whose item has a
+ * world raster picture (framed slot) against one with a core icon (lozenge),
+ * the disguise with a name and no picture (the Judge tile's leak note, and the
+ * pool icon on the Player seat's face and the Card's `faces[0].img`), and the
+ * header reading "In the pot" and "You found".
  */
 import { connect } from "./_driver.mjs";
 import { walkDone, blocked } from "./_walk.mjs";
@@ -94,6 +109,38 @@ const P = {
     const pc = game.actors.get(playerCharId);
     if ((pc?.ownership?.[playerId] ?? 0) < 3) { await pc.update({ [`ownership.${playerId}`]: 3 }); wrote.push("playerOwnership"); }
     return { ok: true, wrote, playerOwns: !!pc?.testUserPermission(game.users.get(playerId), "OWNER") };
+  },
+  /** Wait until no copy of a doorway card is moving: the chat notification's copy slides in, and a press located on it mid-slide lands beside it. */
+  settleDoor: async () => {
+    const moving = () => [...document.querySelectorAll(".acks-extras-treasure-door")].some((el) => (el.closest(".message") ?? el).getAnimations({ subtree: true }).some((a) => a.playState === "running"));
+    for (let n = 0; n < 40 && moving(); n++) await new Promise((r) => setTimeout(r, 100));
+    return !moving();
+  },
+  /** Record every click that reaches a doorway's Open button, and which copy of the card it was (the chat log's, or the chat notification's). */
+  watchDoorClicks: async () => {
+    globalThis.__doorClicks = [];
+    if (globalThis.__doorWatch) return true;
+    globalThis.__doorWatch = true;
+    document.addEventListener("click", (event) => {
+      const btn = event.target?.closest?.(".acks-extras-treasure-door [data-action='openTable']");
+      if (!btn) return;
+      const copies = document.querySelectorAll(".acks-extras-treasure-door [data-action='openTable']").length;
+      globalThis.__doorClicks.push({ inNotification: !!btn.closest("#chat-notifications"), inLog: !!btn.closest(".chat-log"), copies, connected: btn.isConnected });
+    }, true);
+    return true;
+  },
+  /** Why a seat's doorway press opened no window: the seat's sight of the pile, the sheet's state, the last notifications shown, and the clicks the doorway heard. */
+  doorDiag: async ({ potId }) => {
+    const pile = game.cards.get(potId);
+    return {
+      clicks: globalThis.__doorClicks ?? null,
+      copies: [...document.querySelectorAll(".acks-extras-treasure-door [data-action='openTable']")].map((b) => (b.closest("#chat-notifications") ? "notification" : b.closest(".chat-log") ? "log" : "other")),
+      limited: pile ? pile.testUserPermission(game.user, "LIMITED") : null,
+      own: pile?.ownership?.[game.user.id] ?? null,
+      byDefault: pile?.ownership?.default ?? null,
+      sheet: pile?.sheet ? { rendered: !!pile.sheet.rendered, state: pile.sheet.state ?? null } : null,
+      shown: [...document.querySelectorAll("#notifications li, #notifications .notification")].map((li) => li.textContent.replace(/\s+/g, " ").trim()).slice(-5),
+    };
   },
   setCost: async ({ id, cost }) => { await game.items.get(id).update({ "system.cost": cost }); return game.items.get(id).system.cost; },
   /** The pot window's tiles or slots, for either seat. */
@@ -171,6 +218,69 @@ const P = {
   messageFor: async ({ id }) => {
     const m = game.messages.get(id);
     return { inCollection: !!m, visible: m ? !!m.visible : null, rendered: !!document.querySelector(`[data-message-id='${id}']`) };
+  },
+  /** The texture layers standing in the pot's window. */
+  windowLayers: async ({ potId }) => {
+    const H = globalThis.__tk;
+    const root = H.root(H.sheet(potId));
+    if (!root) return { rendered: false };
+    const n = (sel) => root.querySelectorAll(sel).length;
+    return { rendered: true, grime: n(".acks-extras-treasure-grime"), foil: n(".acks-extras-treasure-foil"), vignette: n(".acks-extras-treasure-vignette"), backs: n(".acks-extras-treasure-back") };
+  },
+  /** Each face-down card's back as dressed: band, frame, corners, breaks, grime step, foil, and its classes and layers as strings. */
+  backLayers: async ({ potId }) => {
+    const H = globalThis.__tk;
+    const root = H.root(H.sheet(potId));
+    if (!root) return { rendered: false, backs: [] };
+    const backs = [...root.querySelectorAll("li[data-card-id]")].map((li) => {
+      const back = li.querySelector(".acks-extras-treasure-back");
+      if (!back) return { id: li.dataset.cardId, down: false };
+      const cls = back.className.toString();
+      const m = (re) => cls.match(re)?.[1] ?? null;
+      const grimeEl = back.querySelector(".acks-extras-treasure-grime");
+      return {
+        id: li.dataset.cardId,
+        down: true,
+        band: Number(m(/is-band-(\d)/)),
+        frame: m(/is-frame-(\w+)/),
+        corners: !!back.querySelector(".acks-extras-treasure-corners"),
+        breaks: !!back.querySelector(".acks-extras-treasure-breaks"),
+        grime: grimeEl ? Number(grimeEl.className.toString().match(/is-grime-(\d)/)?.[1]) : null,
+        foil: !!back.querySelector(".acks-extras-treasure-foil"),
+        cls,
+        layers: [...back.children].map((c) => c.className.toString()).join("|"),
+      };
+    });
+    return { rendered: true, backs };
+  },
+  /** A raster the world holds, confirmed to be served: a document's picture, else nothing. The path stays in the page. */
+  findRaster: async () => {
+    const H = globalThis.__tk;
+    const seen = new Set();
+    for (const coll of [game.items, game.actors]) for (const d of coll) if (typeof d.img === "string") seen.add(d.img);
+    const raster = [...seen].filter((p) => /\.(png|jpe?g|webp|avif|gif)$/i.test(p.split(/[?#]/)[0]) && !/^(data:|https?:|\/\/)/i.test(p));
+    for (const p of raster.slice(0, 40)) {
+      try {
+        const r = await fetch(p.startsWith("/") ? p : "/" + p, { method: "HEAD" });
+        if (r.ok) { H.raster = p; return { found: true, tried: raster.length }; }
+      } catch { /* the next one */ }
+    }
+    return { found: false, tried: raster.length };
+  },
+  /** Wire a reader that finds the raster for the texture side and nothing for any other, on this page's loaded card-art module. */
+  wireArt: async () => {
+    const H = globalThis.__tk;
+    H.CA = await import("/modules/acks-extras/scripts/treasure/card-art.mjs");
+    H.CA.setArtReader(({ side }) => (side === "texture" ? H.raster : null));
+    H.artWired = true;
+    return true;
+  },
+  /** Put the reader back to no art. Safe to call on a page that never wired one. */
+  unwireArt: async () => {
+    const H = globalThis.__tk;
+    if (H?.CA) H.CA.setArtReader(null);
+    if (H) H.artWired = false;
+    return true;
   },
   /** The Player's item sheet of a row, read for any mention of a curse. */
   curseOnSheet: async ({ actorId, itemId }) => {
@@ -265,10 +375,15 @@ try {
   section("Step 3. backs on the Player seat");
   let doorP = await run(player, K.doorFor, { uuid: pot1.uuid });
   for (let n = 0; n < 40 && doorP.rendered < 1; n++) { await sleep(500); doorP = await run(player, K.doorFor, { uuid: pot1.uuid }); }
+  await run(player, P.watchDoorClicks);
+  await run(player, P.settleDoor);
   const openP = await press(player, PORTS.player, { scope: "doc", sel: `[data-message-id='${s2.messageId}'] [data-action='openTable']` }, "the doorway's Open the table");
   const sheetP = await run(player, K.waitSheet, { potId: pot1.potId });
-  check("the Player seat's doorway card opened the pot window", doorP.messages === 1 && openP.found && sheetP.rendered, { door: doorP.messages, ...sheetP });
-  if (!sheetP.rendered) throw new Error("the Player seat has no pot window");
+  check("the Player seat's doorway card opened the pot window", doorP.messages === 1 && openP.found && sheetP.rendered, { door: doorP.messages, doorRendered: doorP.rendered, pressed: openP.found, ...sheetP });
+  if (!sheetP.rendered) {
+    note("step 3, the Player seat after the doorway press", await run(player, P.doorDiag, { potId: pot1.potId }));
+    throw new Error("the Player seat has no pot window");
+  }
   const tp = await run(player, P.tiles, { potId: pot1.potId });
   const slot = (id) => tileOf(tp, id);
   const sp = await run(player, K.stage, { potId: pot1.potId });
@@ -397,6 +512,60 @@ try {
   check("both toggles on then Open: no magic card remains in the pile", open4.found && w4.met && s4.toggles?.noMagic === true && s4.toggles?.forceCursed === true && s4.cards.length === 1 && s4.cards[0].label === LABEL.plain, { cards: s4.cards.length });
   check("the whisper's two rows: the first names the removed cards, the second reads 'none' because nothing was left to curse", audits4.length === 1 && audits4[0].rows === 2 && audits4[0].text.includes(`${tForceRow} ${tNone}`), { whispers: audits4.length, rows: audits4[0]?.rows });
 
+  section("Step 7. dress and pictures");
+  // The identified pair tie at the dearest worth, and a tie shares a rank, so with seven cards neither reaches the top band. One is made dearer until the pot opens (bands freeze there, step 2); the fixture check at the next run's start writes its cost back.
+  await run(gm, P.setCost, { id: idOf(fx.identified), cost: ITEMS.identified.system.cost * 2 });
+  const pot7 = await stock(DROP);
+  const s7pre = await run(gm, P.stage, { potId: pot7.potId });
+  const ids7 = byLabel(s7pre);
+  const open7 = await press(gm, PORTS.gm, { scope: "sheet", potId: pot7.potId, sel: "aside [data-action='openTable']" }, "Open to the table");
+  const w7 = await run(gm, K.waitState, { potId: pot7.potId, until: "phase", phase: "open" });
+  await run(gm, P.setCost, { id: idOf(fx.identified), cost: ITEMS.identified.system.cost });
+  const s7 = await run(gm, K.stage, { potId: pot7.potId });
+  if (s7.messageId) made.push(gm.track(s7.messageId, "ChatMessage"));
+  let door7 = await run(player, K.doorFor, { uuid: pot7.uuid });
+  for (let n = 0; n < 40 && door7.rendered < 1; n++) { await sleep(500); door7 = await run(player, K.doorFor, { uuid: pot7.uuid }); }
+  await run(player, P.settleDoor);
+  const openP7 = await press(player, PORTS.player, { scope: "doc", sel: `[data-message-id='${s7.messageId}'] [data-action='openTable']` }, "the doorway's Open the table");
+  const sheetP7 = await run(player, K.waitSheet, { potId: pot7.potId });
+  check("a fresh pot is open to the table, and the Player seat's doorway card opened its window", open7.found && w7.met && door7.messages === 1 && openP7.found && sheetP7.rendered, { phase: s7.phase, door: door7.messages });
+  if (!sheetP7.rendered) throw new Error("the Player seat has no pot window for the step 7 pot");
+  await run(gm, K.rerender, { potId: pot7.potId });
+  const gmL0 = await run(gm, P.windowLayers, { potId: pot7.potId });
+  const plL0 = await run(player, P.windowLayers, { potId: pot7.potId });
+  check("with no texture wired, neither seat's window carries a grime, foil or vignette layer, and the Player seat's window shows its seven backs", gmL0.rendered && plL0.rendered && gmL0.grime === 0 && gmL0.foil === 0 && gmL0.vignette === 0 && plL0.grime === 0 && plL0.foil === 0 && plL0.vignette === 0 && plL0.backs === 7, { gm: [gmL0.grime, gmL0.foil, gmL0.vignette], player: [plL0.grime, plL0.foil, plL0.vignette], backs: plL0.backs });
+
+  const dress0 = await run(player, P.backLayers, { potId: pot7.potId });
+  const by0 = (id) => dress0.backs.find((b) => b.id === id);
+  const plain0 = by0(ids7.plain);
+  const masked0 = by0(ids7.masked);
+  const bandsPresent = new Set(dress0.backs.map((b) => b.band));
+  check("the pot has a back in the lowest band and one in the top band, so the dress checks below are not vacuous", bandsPresent.has(0) && bandsPresent.has(3), [...bandsPresent].sort());
+  check("each back's ornaments follow its band: lozenge corners from the third band, breaks at the top only, a hairline frame at the lowest band and a double rule above it, and the detected back's frame gold", dress0.backs.every((b) => b.down && b.corners === (b.band >= 2) && b.breaks === (b.band === 3) && (b.id === ids7.detected ? b.frame === "gold" : b.frame === (b.band === 0 ? "hair" : "double"))), dress0.backs.map((b) => [b.band, b.frame, b.corners, b.breaks]));
+  check("the masked card's back and the plain card's back, both band Low, carry the same frame, corners and layers before any texture is wired", !!plain0 && !!masked0 && plain0.band === 0 && masked0.band === 0 && plain0.cls === masked0.cls && plain0.layers === masked0.layers, { band: [plain0?.band, masked0?.band], same: plain0?.cls === masked0?.cls && plain0?.layers === masked0?.layers });
+
+  const raster = await run(player, P.findRaster);
+  check("the Player page finds a world raster picture that is served, to stand in for a texture", raster.found, { tried: raster.tried });
+  if (raster.found) {
+    await run(player, P.wireArt);
+    await run(player, K.rerender, { potId: pot7.potId });
+    const plL1 = await run(player, P.windowLayers, { potId: pot7.potId });
+    const dress1 = await run(player, P.backLayers, { potId: pot7.potId });
+    const by1 = (id) => dress1.backs.find((b) => b.id === id);
+    const low = dress1.backs.filter((b) => b.band === 0);
+    const top = dress1.backs.filter((b) => b.band === 3);
+    check("with the reader wired, every lowest-band back carries the grimiest layer and no foil", low.length > 0 && low.every((b) => b.grime === 3 && !b.foil), low.map((b) => [b.grime, b.foil]));
+    check("every top-band back carries no grime layer and a foil", top.length > 0 && top.every((b) => b.grime === null && b.foil), top.map((b) => [b.grime, b.foil]));
+    check("the grime thins by band across every back: band 0 the grimiest, band 1 and 2 less, band 3 none, and a foil only at the top", dress1.backs.every((b) => b.grime === (b.band < 3 ? 3 - b.band : null) && b.foil === (b.band === 3)), dress1.backs.map((b) => [b.band, b.grime, b.foil]));
+    check("the undetected masked card's back still matches the plain card's, layers included, with the textures drawn", !!by1(ids7.plain) && !!by1(ids7.masked) && by1(ids7.plain).cls === by1(ids7.masked).cls && by1(ids7.plain).layers === by1(ids7.masked).layers && by1(ids7.masked).grime === 3 && by1(ids7.plain).grime === 3, { same: by1(ids7.plain)?.layers === by1(ids7.masked)?.layers });
+    const gmL1 = await run(gm, P.windowLayers, { potId: pot7.potId });
+    check("the wired reader made layers appear in the Player's window, and only there (the Judge's window, with no reader, is unchanged)", plL1.grime > 0 && plL1.foil > 0 && gmL1.grime === 0 && gmL1.foil === 0, { grime: plL1.grime, foil: plL1.foil });
+    await run(player, P.unwireArt);
+    await run(player, K.rerender, { potId: pot7.potId });
+    const plL2 = await run(player, P.windowLayers, { potId: pot7.potId });
+    check("with the reader put back, the layers are gone again", plL2.grime === 0 && plL2.foil === 0 && plL2.vignette === 0 && plL2.backs === 7, { grime: plL2.grime, foil: plL2.foil });
+  }
+
   section("console");
   for (const [key, api] of [["gm", gm], ["player", player]]) {
     const drained = await run(api, K.drain);
@@ -412,6 +581,7 @@ try {
   for (const [key, api] of [["player", player], ["gm", gm]]) {
     if (!api) continue;
     try { await run(api, K.closeAll); } catch {}
+    try { await run(api, P.unwireArt); } catch {}
     try { note(`restored (${key})`, await run(api, K.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   }
   if (gm) {

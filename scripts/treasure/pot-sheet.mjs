@@ -15,6 +15,7 @@ import { makeLoc } from "../lib/util.mjs";
 import { listsGoods } from "../lib/bundles.mjs";
 import { providers } from "../lib/storage.mjs";
 import { executeAsGM } from "../lib/sockets.mjs";
+import { writeOnChange } from "../lib/press-safe-change.mjs";
 import { BAND_COUNT, BUCKET, LANG, MODE, MODULE_ID, PHASE, POOL, POT_HANDLER, REFUSAL } from "./constants.mjs";
 import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView, dealOf, haulOf, normalizeTruth, potCards, turnedOf, withBands } from "./pot-logic.mjs";
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
@@ -347,16 +348,17 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
 
   /**
    * Bound once per window element: the by-hand treasure type is written when its
-   * field changes, since a pot is not a form and nothing else stores it. The
-   * target is told by `matches`, never by `instanceof`.
+   * field changes, since a pot is not a form and nothing else stores it. A change
+   * made by pressing Deal is written after the press (`writeOnChange`), so the
+   * re-render does not swallow Deal's click. The target is told by `matches`,
+   * never by `instanceof`.
    */
   #bindChoices() {
     const root = this.element;
     if (root.dataset.choiceBound) return;
     root.dataset.choiceBound = "1";
-    root.addEventListener("change", (event) => {
-      const field = event.target?.matches?.("[data-deal-letter]") ? event.target : null;
-      if (field && game.user.isGM) setDealOption(this.document, "letter", field.value);
+    writeOnChange(root, (field) => {
+      if (field?.matches?.("[data-deal-letter]") && game.user.isGM) setDealOption(this.document, "letter", field.value);
     });
   }
 

@@ -357,13 +357,11 @@ successor in the orchestrator's family. This file stays the hand-over.
 | R4 + R5 wiring | Landed on `main`, walked with one finding (below) | 653bb8ee |
 | R2, R4/R5, R6 walks | On `main` | the commit that adds this section |
 | T4 engine | Landed on `main` | f281ed1c |
-| T4 adapter | Built on `topic/treasure`, offline green, not landed | 336b6cc3 |
-| T3 | Built on `topic/treasure`, offline green, not landed; no tick control (the mockup draws none) | 5a2ebc23 |
-| T5 | Not started: its entry points are new controls and need `/design` first | |
-| T6 | Not started: waits on tt-importer S6's magic-item documents | |
+| T4 adapter, T3, 11a warning, T5 logic, T5 slices A and B | Landed on `main`; walked on lane C (below, 2026-11-18) | 92ce7364 |
+| T6 | Building on `topic/treasure` (2026-11-18): a dealt magic card is rolled at deal time | |
 
-The topic does not land until the orchestrator says the minor is tagged (the
-owner's cap on unpushed work). It stays open; `sync` it before the next slice.
+The topic stays open for T6; `sync` it before each slice, and land in the
+orchestrator's order.
 
 ### Walks (lane C, FIXTURE_OWN=treasure, partial by design)
 
@@ -384,8 +382,10 @@ owner's cap on unpushed work). It stays open; `sync` it before the next slice.
   passed.
 - Walk-side flakes the walks now absorb: the Player seat's doorway card can
   arrive late; the doorway's Open the table sometimes opened no window on the
-  first press (twice in four runs; the walk presses up to three times). If a
-  real table sees the second, it is a code issue.
+  first press. Diagnosed 2026-11-18: the press was located on the chat
+  notification's copy of the card while it slid in, so the click landed beside
+  it and no click reached any doorway button. Not a code issue; the walks wait
+  for the card to stop moving before pressing.
 - Not walked: search step 4 (a linked RollTable), party step 6 (the Judge's
   grab with a nearly full ally and a down member), a drag onto a sheet the
   seat cannot open, reduced motion, a Tab walk through the cards.
@@ -553,3 +553,6 @@ want of a blue token.
 - 2026-11-18: the owner on spoils: "Spoils should be rolled into this too, with the bodies shown as cards to inspect to see if they find anything with the proper skills and tools". That became T7, drawn as canvas v9 "Spoils". On that board: "It should be assigning people to search the area and the bodies, and based on the rolls they find stuff. This rewards having multiple people working together and honors proper time tracking. Check RAW if you need extra hints." On scope: "Scope is all three, part of the next minor." The MM ch. 3 harvest importer request (registries `harvestPrereq`, `harvestParts`, `componentIdentify`, `valueIdentify` and `componentKeep`, read by `scripts/lib/harvest.mjs` `harvestRules()`) went to Treasure Tome through the orchestrator, queued behind S6.
 - 2026-11-18: the owner widened T7: "Finding the loot is the hasty check of the room, just like a hasty body check will turn out the pockets/inventory carried gear. Some things might be explicitly hidden up to judge's discretion. There also might be a hint that something feels off (secrets yet to be found) following the GUMSHOE principle. This is becoming a whole scene tool and could incorporate things like inspecting statues/art. To clarify, there is an obvious layer (bodies, doors, lights), an obvious with inspection layer (hasty search, pockets, chests, history, theology check, secrets present incl traps), found with methodical search and/or appropriate skill (spoils, secret doors, hidden keys, trap defeats). Everything beyond that is narrative in GM responsibility. Survey RAW and the adventures for examples. I like this tool as an end combat screen." Then: "It could also be used in general when the party declares searching even without combat... add integration on party sheet?" And: "Seeing there is a fresco is obvious and would show up as a card to assign someone to, inspecting for subject is hasty, learning a secret/clue from it is methodical, as an example". Each scene object is one entry carrying its layers: seen, then hasty inspection, then methodical. There are two entries: the end of combat, and the party sheet's Dungeon tab.
 - 2026-11-18: the orchestrator ruled that the scene screen is its own feature, slug `scene-search`, in this minor. It hosts the pot, and the pot stays treasure's. `topic/scene-search` opens only once the architect's plan names its first slice. It lands after `topic/treasure` and before obstacle-regions, unless the two share region or door code. Dungeon close-out owns the turn plan, doors and trap zones. A RAW and adventure survey and an inventory of the module's surfaces per layer were made, LOCAL-ONLY. The Fable visual pass on the scene screen has reported; the architect's plan is pending.
+- 2026-11-18: the owner answered the scene-search questions; their words and the plan are `docs/scene-search/wip/20261118-scene-search-plan.md`, its phase run by its own session.
+- 2026-11-18: `topic/treasure` landed on `main` as 92ce7364. Walked on lane C with FIXTURE_OWN: `treasure-deal` (new; "Dealing letters" steps 1 to 7) 43 pass, 0 fail; `treasure-faces` with a new step 7 (dress and pictures) 51 pass, 0 fail. The deal walk found that Deal pressed straight after typing the by-hand letter dealt nothing: the field's change re-rendered the window and replaced the button before its click. lib `writeOnChange` (`press-safe-change.mjs`) now writes such a change after the press, committed with this note. Not reached: step 7's registry-unimported half (only the API's `unknown-style` route), the picture checks, a Deal with Special treasure on, and a Tab walk through the rail. TESTING.md "Replace seeds at open" (T3) still has no walk; it is owed before the release.
+- 2026-11-18: T6 scoped with the orchestrator. A dealt magic card carries a `tableRef` that nothing consumed, and the truth drops it when normalized, so the roll happens in the deal path: the noun is matched to an imported list caption, `rollMagicItem` is thrown, a resolved item is stored undetected and unidentified, an unresolved one as a named placeholder, and a refusal keeps the placeholder with a row in the Judge's deal notice. Building on the topic.
