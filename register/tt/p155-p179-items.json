@@ -1,0 +1,1916 @@
+[
+  {
+    "id": "tt.item552",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Collar of Beast Growth",
+    "anchor": {
+      "display": "Collar of Beast Growth"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      155
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item553",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Collar of Conversation",
+    "anchor": {
+      "display": "Collar of Conversation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      155
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item554",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Collar of Taming",
+    "anchor": {
+      "display": "Collar of Taming"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      155
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item555",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Comb of Vanity",
+    "anchor": {
+      "display": "Comb of Vanity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      155
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item556",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Conch of Auspicious Purity",
+    "anchor": {
+      "display": "Conch of Auspicious Purity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      155
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item557",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crater’s Crown",
+    "anchor": {
+      "display": "Crater’s Crown"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      156
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item558",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crimson Crucible",
+    "anchor": {
+      "display": "Crimson Crucible"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      156
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item559",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crown of Bones",
+    "anchor": {
+      "display": "Crown of Bones"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      156
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item560",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crown of Occult Visions",
+    "anchor": {
+      "display": "Crown of Occult Visions"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      156
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item561",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crown of the Deep Mountain",
+    "anchor": {
+      "display": "Crown of the Deep Mountain"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      157
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item562",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crown of the High King",
+    "anchor": {
+      "display": "Crown of the High King"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      157
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item563",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 563",
+    "anchor": {
+      "hash": "156atom",
+      "as": "display"
+    },
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item564",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crucible of Conjuring Fire Elementals",
+    "anchor": {
+      "display": "Crucible of Conjuring Fire Elementals"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item565",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crucible of Eager Flame",
+    "anchor": {
+      "display": "Crucible of Eager Flame"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item566",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crucible of Jealous Flame",
+    "anchor": {
+      "display": "Crucible of Jealous Flame"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item567",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crucible of Purgation",
+    "anchor": {
+      "display": "Crucible of Purgation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item568",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball",
+    "anchor": {
+      "display": "Crystal Ball"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      158
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item569",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Clairaudient",
+    "anchor": {
+      "display": "Crystal Ball, Clairaudient"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item570",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Form Falsifying",
+    "anchor": {
+      "display": "Crystal Ball, Form Falsifying"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item571",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Fixating",
+    "anchor": {
+      "display": "Crystal Ball, Fixating"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item572",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Indiscernible",
+    "anchor": {
+      "display": "Crystal Ball, Indiscernible"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item573",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Perilous",
+    "anchor": {
+      "display": "Crystal Ball, Perilous"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item574",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Stalking",
+    "anchor": {
+      "display": "Crystal Ball, Stalking"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item575",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Ball, Telepathic",
+    "anchor": {
+      "display": "Crystal Ball, Telepathic"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      159
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item576",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Slippers",
+    "anchor": {
+      "display": "Crystal Slippers"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item577",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Crystal Songbird",
+    "anchor": {
+      "display": "Crystal Songbird"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item578",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Cube of Cold Immunity",
+    "anchor": {
+      "display": "Cube of Cold Immunity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item579",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dead Eye",
+    "anchor": {
+      "display": "Dead Eye"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item580",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dead Man’s Collar",
+    "anchor": {
+      "display": "Dead Man’s Collar"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item581",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dead Man’s Hand",
+    "anchor": {
+      "display": "Dead Man’s Hand"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      160
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item582",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Death Shroud",
+    "anchor": {
+      "display": "Death Shroud"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      161
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item583",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Deck of Laughter and Misery",
+    "anchor": {
+      "display": "Deck of Laughter and Misery"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      161
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item584",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Deck of Many Spells",
+    "anchor": {
+      "display": "Deck of Many Spells"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      161
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item585",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Desert Rose",
+    "anchor": {
+      "display": "Desert Rose"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      162
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item586",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Diadem of Virtue",
+    "anchor": {
+      "display": "Diadem of Virtue"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      162
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item587",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dial of Displaced Dooms",
+    "anchor": {
+      "display": "Dial of Displaced Dooms"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      162
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item588",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Diptych of Far-Reaching Discourse",
+    "anchor": {
+      "display": "Diptych of Far-Reaching Discourse"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      162,
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item589",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 589",
+    "anchor": {
+      "hash": "1unvjds",
+      "as": "display"
+    },
+    "pages": [
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item590",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dragonfly Cloak",
+    "anchor": {
+      "display": "Dragonfly Cloak"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item591",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Drum of Devastation",
+    "anchor": {
+      "display": "Drum of Devastation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item592",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Drum of Terror",
+    "anchor": {
+      "display": "Drum of Terror"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item593",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Drum of Urgency",
+    "anchor": {
+      "display": "Drum of Urgency"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      163
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item594",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Darkness",
+    "anchor": {
+      "display": "Dust of Darkness"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item595",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Desolation",
+    "anchor": {
+      "display": "Dust of Desolation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item596",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Discontinuity",
+    "anchor": {
+      "display": "Dust of Discontinuity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item597",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Disenchantment",
+    "anchor": {
+      "display": "Dust of Disenchantment"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item598",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 598",
+    "anchor": {
+      "hash": "1yq8esm",
+      "as": "display"
+    },
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item599",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Revelation",
+    "anchor": {
+      "display": "Dust of Revelation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item600",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dust of Vanishing",
+    "anchor": {
+      "display": "Dust of Vanishing"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item601",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dwarven Cord",
+    "anchor": {
+      "display": "Dwarven Cord"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      164,
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item602",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dwarven Jumping Cube",
+    "anchor": {
+      "display": "Dwarven Jumping Cube"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item603",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Dwarven Rhetor Statues",
+    "anchor": {
+      "display": "Dwarven Rhetor Statues"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item604",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Earring of Dark Whispers",
+    "anchor": {
+      "display": "Earring of Dark Whispers"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item605",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Elven Rope",
+    "anchor": {
+      "display": "Elven Rope"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item606",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Emblem of the Eagle",
+    "anchor": {
+      "display": "Emblem of the Eagle"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      165
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item607",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 607",
+    "anchor": {
+      "hash": "1fia4f6",
+      "as": "display"
+    },
+    "pages": [
+      166
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item608",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ever-Burning Coal",
+    "anchor": {
+      "display": "Ever-Burning Coal"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      166
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item609",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Everfrost Reliquary",
+    "anchor": {
+      "display": "Everfrost Reliquary"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      166,
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item610",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Ever-Spinning Top",
+    "anchor": {
+      "display": "Ever-Spinning Top"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item611",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 611",
+    "anchor": {
+      "hash": "3ne2as",
+      "as": "display"
+    },
+    "pages": [
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item612",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Eye of the Storm",
+    "anchor": {
+      "display": "Eye of the Storm"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item613",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Eye of the Tiger",
+    "anchor": {
+      "display": "Eye of the Tiger"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item614",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Faerie Dust",
+    "anchor": {
+      "display": "Faerie Dust"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      167
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item615",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Faerie Seed",
+    "anchor": {
+      "display": "Faerie Seed"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item616",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Faithful Collar",
+    "anchor": {
+      "display": "Faithful Collar"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item617",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "False Campfire",
+    "anchor": {
+      "display": "False Campfire"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item618",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Fan of Flaring Flame",
+    "anchor": {
+      "display": "Fan of Flaring Flame"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item619",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Fan of Foul Vapors",
+    "anchor": {
+      "display": "Fan of Foul Vapors"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item620",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Favor of Faithfulness",
+    "anchor": {
+      "display": "Favor of Faithfulness"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item621",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Feather of Falling",
+    "anchor": {
+      "display": "Feather of Falling"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      168,
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item622",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Figurehead of Flame",
+    "anchor": {
+      "display": "Figurehead of Flame"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item623",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Figurehead of Fog",
+    "anchor": {
+      "display": "Figurehead of Fog"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item624",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Figurehead Oracle",
+    "anchor": {
+      "display": "Figurehead Oracle"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item625",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Firefly Brooch",
+    "anchor": {
+      "display": "Firefly Brooch"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item626",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 626",
+    "anchor": {
+      "hash": "4zt766",
+      "as": "display"
+    },
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item627",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flag of Dread",
+    "anchor": {
+      "display": "Flag of Dread"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      169
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item628",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flag of False Faces",
+    "anchor": {
+      "display": "Flag of False Faces"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      170
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item629",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flash Powder Pellet",
+    "anchor": {
+      "display": "Flash Powder Pellet"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      170
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item630",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flask of Diseases",
+    "anchor": {
+      "display": "Flask of Diseases"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      170
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item631",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flask of Disguises",
+    "anchor": {
+      "display": "Flask of Disguises"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      170,
+      171
+    ],
+    "meta": {
+      "category": "misc"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item632",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flask of Ever-Flowing Fluids",
+    "anchor": {
+      "display": "Flask of Ever-Flowing Fluids"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      171
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item633",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flight Feather",
+    "anchor": {
+      "display": "Flight Feather"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      171
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item634",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flower Crown",
+    "anchor": {
+      "display": "Flower Crown"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      171
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item635",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Flute of the Tempest",
+    "anchor": {
+      "display": "Flute of the Tempest"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      172
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item636",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Folding Paper Staircase",
+    "anchor": {
+      "display": "Folding Paper Staircase"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      172
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item637",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 637",
+    "anchor": {
+      "hash": "1ov7vqz",
+      "as": "display"
+    },
+    "pages": [
+      172
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item638",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Garter of the Naiad",
+    "anchor": {
+      "display": "Garter of the Naiad"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      172
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item639",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gateway to the Spheres",
+    "anchor": {
+      "display": "Gateway to the Spheres"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      172,
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item640",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gauntlets of Ogre Strength",
+    "anchor": {
+      "display": "Gauntlets of Ogre Strength"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item641",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gauntlets of the Storm",
+    "anchor": {
+      "display": "Gauntlets of the Storm"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item642",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Appraisal",
+    "anchor": {
+      "display": "Gem of Appraisal"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item643",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Bodily Discernment",
+    "anchor": {
+      "display": "Gem of Bodily Discernment"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item644",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Conjuring Earth Elementals",
+    "anchor": {
+      "display": "Gem of Conjuring Earth Elementals"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item645",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Force",
+    "anchor": {
+      "display": "Gem of Force"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      173
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item646",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Overwatching Eyes",
+    "anchor": {
+      "display": "Gem of Overwatching Eyes"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item647",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gem of Revelation",
+    "anchor": {
+      "display": "Gem of Revelation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item648",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Genie Bottle",
+    "anchor": {
+      "display": "Genie Bottle"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item649",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Giant Falconer’s Gauntlet",
+    "anchor": {
+      "display": "Giant Falconer’s Gauntlet"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item650",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 650",
+    "anchor": {
+      "hash": "1or4jb8",
+      "as": "display"
+    },
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item651",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Girdle of Enticement",
+    "anchor": {
+      "display": "Girdle of Enticement"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      174
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item652",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Girdle of the Titans",
+    "anchor": {
+      "display": "Girdle of the Titans"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      175
+    ],
+    "meta": {
+      "category": "misc"
+    },
+    "values": []
+  },
+  {
+    "id": "tt.item653",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Glass Casket",
+    "anchor": {
+      "display": "Glass Casket"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      175
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item654",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Glove of Death’s Cries",
+    "anchor": {
+      "display": "Glove of Death’s Cries"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      175
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item655",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gloves of Nimble Fingers",
+    "anchor": {
+      "display": "Gloves of Nimble Fingers"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      175
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item656",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gloves of the Fatal Touch",
+    "anchor": {
+      "display": "Gloves of the Fatal Touch"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      176
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item657",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Golden Spurs",
+    "anchor": {
+      "display": "Golden Spurs"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      176
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item658",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Golden Thread",
+    "anchor": {
+      "display": "Golden Thread"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      176,
+      177
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item659",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Graven Dwarven Guard Dog",
+    "anchor": {
+      "display": "Graven Dwarven Guard Dog"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      177
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item660",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Grinning Demon Mask",
+    "anchor": {
+      "display": "Grinning Demon Mask"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      177
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item661",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Gutter Crown",
+    "anchor": {
+      "display": "Gutter Crown"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      177
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item662",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hag Stone",
+    "anchor": {
+      "display": "Hag Stone"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      177
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item663",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Halfling Firestone",
+    "anchor": {
+      "display": "Halfling Firestone"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item664",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Halfling Hurlstone",
+    "anchor": {
+      "display": "Halfling Hurlstone"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item665",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 665",
+    "anchor": {
+      "hash": "17g4jn2",
+      "as": "display"
+    },
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item666",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hammer of the Master Smith",
+    "anchor": {
+      "display": "Hammer of the Master Smith"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item667",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hand of Calamity",
+    "anchor": {
+      "display": "Hand of Calamity"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item668",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hand of Disarticulation",
+    "anchor": {
+      "display": "Hand of Disarticulation"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item669",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Hand of Gold",
+    "anchor": {
+      "display": "Hand of Gold"
+    },
+    "named": "2026-11-18",
+    "pages": [
+      178,
+      179
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  },
+  {
+    "id": "tt.item670",
+    "kind": "kind.magicItem",
+    "book": "tt",
+    "name": "Item 670",
+    "anchor": {
+      "hash": "1kh7mjv",
+      "as": "display"
+    },
+    "pages": [
+      179
+    ],
+    "meta": {
+      "category": "misc"
+    }
+  }
+]
