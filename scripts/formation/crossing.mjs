@@ -726,7 +726,7 @@ function roundsLine(name, record) {
     }
   }
   const parts = [
-    ...[...moves.values()].map((m) => loc("crossing.rounds.move", { feet: Math.round(m.feet * 100) / 100, share: m.share, speed: loc(`crossing.rounds.speed.${m.speed}`), rounds: roundsText(m.rounds) })),
+    ...[...moves.values()].map((m) => loc("crossing.rounds.move", { feet: Math.round(m.feet * 100) / 100, share: Math.round(m.share * 1000) / 1000, speed: loc(`crossing.rounds.speed.${m.speed}`), rounds: roundsText(m.rounds) })),
     ...[...misses].map(([rounds, count]) => loc("crossing.rounds.miss", { count, rounds: roundsText(rounds) })),
   ];
   return loc("crossing.rounds.member", { name, parts: parts.join(" + "), rounds: roundsText(record.elapsed ?? 0) });

@@ -3094,7 +3094,7 @@ await ok("the header line carries the rounds billed, each member's working in it
   const view = buildCrossingView(formation).rounds;
   assert.equal(view.text, "6");
   assert.ok(view.tip.includes("Alder: 40 ft at 1 × exploration speed (4.44 rd) = 4.44 rd"), view.tip);
-  assert.ok(view.tip.includes(`Brin: 40 ft at ${3 / 13} × combat speed (5.78 rd) = 5.78 rd`), view.tip);
+  assert.ok(view.tip.includes(`Brin: 40 ft at 0.231 × combat speed (5.78 rd) = 5.78 rd`), view.tip);
   assert.ok(view.tip.includes("Slowest member's time, counted once: 5.78 rd · The total bills rounded up to whole rounds · XX p.1") && view.tip.endsWith("XX p.1"), "the header shows whole rounds, so the last working line says the total is rounded up: " + view.tip);
   const html = render({ crossing: as(PLAYER, () => buildCrossingView(formation)) });
   assert.ok(html.includes("acks-extras-crossing-spent") && html.includes("ACKS-FORMATION.crossing.rounds.label"), "every seat draws it");
