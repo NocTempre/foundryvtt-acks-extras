@@ -3492,3 +3492,46 @@
   margin-inline-end: 3px;
   opacity: 0.8;
 }
+
+/* --- Hazard item sheet ----------------------------------------------- */
+
+/* The frame scrolls (`acks-extras-scroll`); the body only sets the type root,
+   so the em sizes below ride --acks-fs-base. */
+.acks-extras-hazard-sheet .acks-extras-hazard-body {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-hazard-sheet .acks-extras-hazard-head {
+  display: flex;
+  gap: 0.75em;
+  align-items: flex-start;
+  margin-bottom: 0.4em;
+}
+
+.acks-extras-hazard-sheet .acks-extras-hazard-img {
+  flex: 0 0 auto;
+  width: 6em;
+  height: 6em;
+  object-fit: cover;
+  border: var(--acks-border);
+  border-radius: var(--acks-radius);
+  cursor: pointer;
+}
+
+.acks-extras-hazard-sheet .acks-extras-hazard-fields {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.acks-extras-hazard-sheet .form-group.stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+/* The field boundary a bare prose-mirror lacks, boxed in ink like the other item sheets. */
+.acks-extras-hazard-sheet .acks-extras-hazard-description {
+  padding: 0.25em;
+  border: var(--acks-border-ink);
+  border-radius: var(--acks-radius);
+}

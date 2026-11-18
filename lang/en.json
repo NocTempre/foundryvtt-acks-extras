@@ -13,7 +13,6 @@
     "RegionBehavior": {
       "acks-extras.encounterZone": "ACKS Encounter Zone",
       "acks-extras.trapZone": "Trap Zone",
-      "acks-extras.crossingObstacle": "Crossing obstacle",
       "acks-extras.district": "ACKS District"
     },
     "Item": {
@@ -21,6 +20,7 @@
       "acks-extras.class": "Class",
       "acks-extras.race": "Race",
       "acks-extras.trap": "Trap",
+      "acks-extras.hazard": "Hazard",
       "acks-extras.variation": "Variation",
       "acks-extras.merchandise": "Merchandise",
       "acks-extras.marketReport": "Market Report"
@@ -3581,66 +3581,24 @@
         }
       }
     },
-    "CROSSING_OBSTACLE": {
-      "FIELDS": {
-        "kind": {
-          "label": "Kind",
-          "hint": "The sort of crossing this region begins. The fields below change with it."
-        },
-        "art": {
-          "label": "Art",
-          "hint": "The picture the crossing's header frame shows. Blank: the kind's glyph stands in."
-        },
-        "obstacle": {
-          "label": "Obstacle",
-          "hint": "Which obstacle the party works its way over."
-        },
-        "length": {
-          "label": "Length (ft)",
-          "hint": "In feet. Blank: the Judge sets it on the sheet."
-        },
-        "depth": {
-          "label": "Depth (ft)",
-          "hint": "In feet. Blank: the Judge sets it on the sheet."
-        },
-        "ropeFixed": {
-          "label": "Rope already fixed",
-          "hint": "Blank: the Judge sets it on the sheet."
-        },
-        "gap": {
-          "label": "Gap (ft)",
-          "hint": "In feet. Blank: the Judge sets it on the sheet."
-        },
-        "runUp": {
-          "label": "Room for a run-up",
-          "hint": "Blank: the Judge sets it on the sheet."
-        },
-        "precarious": {
-          "label": "Precarious landing",
-          "hint": "Blank: the Judge sets it on the sheet."
-        },
-        "charging": {
-          "label": "Jumpers are charging",
-          "hint": "Blank: the Judge sets it on the sheet."
-        },
-        "onEntry": {
-          "label": "When the party enters",
-          "hint": "What happens when the party token moves into this region. A member token alone starts nothing."
-        }
+    "HAZARD": {
+      "sheet": "Hazard",
+      "none": "—",
+      "imageHint": "Change the picture",
+      "noRunUp": "No run-up",
+      "group": {
+        "obstacle": "Obstacles",
+        "condition": "Conditions"
       },
-      "KIND": {
-        "climb": "Climb",
-        "jump": "Jump"
+      "field": {
+        "name": "Name",
+        "kind": "Kind",
+        "description": "Description"
       },
-      "ENTRY": {
-        "offer": "Offer the Judge a crossing card",
-        "start": "Start the crossing at once",
-        "nothing": "Nothing: the Judge starts it from the sheet"
+      "hint": {
+        "kind": "What this hazard adds to a place it is dropped on. Left at “—” it adds nothing."
       },
-      "YES_NO": {
-        "yes": "Yes",
-        "no": "No"
-      }
+      "noFigures": "No figures here: length, gap and depth are typed on each place’s row, so one hazard can be two sizes in two places."
     },
     "traps": {
       "title": "Trap",

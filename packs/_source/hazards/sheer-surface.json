@@ -1,0 +1,23 @@
+{
+  "_id": "acks2146d3720f90",
+  "_key": "!items!acks2146d3720f90",
+  "name": "Sheer surface",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/mountain.svg",
+  "system": {
+    "key": "sheerClimb",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 200000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

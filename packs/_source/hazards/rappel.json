@@ -1,0 +1,23 @@
+{
+  "_id": "acksdc2bf4b27a6c",
+  "_key": "!items!acksdc2bf4b27a6c",
+  "name": "Rappel",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/down.svg",
+  "system": {
+    "key": "rappel",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 300000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

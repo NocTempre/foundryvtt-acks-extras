@@ -1,0 +1,23 @@
+{
+  "_id": "ackse01e8235a88b",
+  "_key": "!items!ackse01e8235a88b",
+  "name": "Precarious",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/hazard.svg",
+  "system": {
+    "key": "precarious",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 1200000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "_id": "acks35b8e9de19c1",
+  "_key": "!items!acks35b8e9de19c1",
+  "name": "Balancing traverse (precarious)",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/falling.svg",
+  "system": {
+    "key": "precariousLedge",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 600000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

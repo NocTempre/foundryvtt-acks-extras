@@ -1,0 +1,23 @@
+{
+  "_id": "acks2532009c474f",
+  "_key": "!items!acks2532009c474f",
+  "name": "Rough water",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/waterfall.svg",
+  "system": {
+    "key": "waterRough",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 1400000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

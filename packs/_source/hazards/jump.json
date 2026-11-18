@@ -1,0 +1,23 @@
+{
+  "_id": "acksb5696bcf3143",
+  "_key": "!items!acksb5696bcf3143",
+  "name": "Jump",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/jump.svg",
+  "system": {
+    "key": "jump",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 700000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

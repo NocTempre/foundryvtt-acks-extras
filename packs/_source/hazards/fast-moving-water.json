@@ -1,0 +1,23 @@
+{
+  "_id": "acksd9a8d8824a9f",
+  "_key": "!items!acksd9a8d8824a9f",
+  "name": "Fast-moving water",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/direction.svg",
+  "system": {
+    "key": "waterFast",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 1500000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

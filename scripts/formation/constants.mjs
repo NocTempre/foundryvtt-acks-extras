@@ -209,8 +209,8 @@ export const TRAP_ITEM_TYPE = `${MODULE_ID}.trap`;
 /** The Trap Zone RegionBehavior sub-type. Named here for the same reason. */
 export const TRAP_ZONE_TYPE = `${MODULE_ID}.trapZone`;
 
-/** The Crossing obstacle RegionBehavior sub-type: a drawn Region that seeds the party's crossing. */
-export const CROSSING_OBSTACLE_TYPE = `${MODULE_ID}.crossingObstacle`;
+/** The Hazard Item sub-type: one obstacle or condition a place can carry, kept in the Hazards compendium. */
+export const HAZARD_ITEM_TYPE = `${MODULE_ID}.hazard`;
 
 /**
  * The implement each role needs before a character can take it up, in the

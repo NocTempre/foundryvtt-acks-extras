@@ -1,0 +1,43 @@
+<section class="standard-form acks-extras-hazard-body">
+
+  <div class="acks-extras-hazard-head">
+    <img class="acks-extras-hazard-img" src="{{item.img}}" alt="{{item.name}}" data-edit="img" data-action="editImage"
+         data-tooltip="" aria-label="{{localize 'ACKS-FORMATION.HAZARD.imageHint'}}" />
+    <div class="acks-extras-hazard-fields">
+      <div class="form-group">
+        <label>{{localize 'ACKS-FORMATION.HAZARD.field.name'}}</label>
+        <input type="text" name="name" value="{{item.name}}" {{#unless editable}}disabled{{/unless}}/>
+      </div>
+      <div class="form-group">
+        <label>{{localize 'ACKS-FORMATION.HAZARD.field.kind'}}</label>
+        <select name="system.key" {{#unless editable}}disabled{{/unless}}>
+          <option value="">{{localize 'ACKS-FORMATION.HAZARD.none'}}</option>
+          {{#each kindGroups}}
+          <optgroup label="{{this.label}}">
+            {{#each this.options}}
+            <option value="{{this.value}}"{{#if this.selected}} selected{{/if}}>{{this.label}}</option>
+            {{/each}}
+          </optgroup>
+          {{/each}}
+        </select>
+        <p class="hint">{{localize 'ACKS-FORMATION.HAZARD.hint.kind'}}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="form-group stacked">
+    <label>{{localize 'ACKS-FORMATION.HAZARD.field.description'}}</label>
+    {{!-- The sheet's ONLY render of system.description: a second control of the
+          same name in one form is last-write-wins, and a prose-mirror has no
+          `disabled`, so read-only falls through to the enriched render. --}}
+    {{#if editable}}
+    <prose-mirror class="acks-extras-hazard-description content-sized" name="system.description" value="{{system.description}}" toggled
+                  data-document-uuid="{{item.uuid}}" style="--min-height: 4em;">{{{descriptionHTML}}}</prose-mirror>
+    {{else}}
+    <div class="acks-extras-hazard-description">{{{descriptionHTML}}}</div>
+    {{/if}}
+  </div>
+
+  <p class="hint acks-extras-hazard-note">{{localize 'ACKS-FORMATION.HAZARD.noFigures'}}</p>
+
+</section>

@@ -93,7 +93,6 @@
       }
     },
     "RegionBehavior": {
-      "crossingObstacle": {},
       "district": {},
       "encounterZone": {},
       "trapZone": {}
@@ -112,6 +111,11 @@
         ]
       },
       "trap": {
+        "htmlFields": [
+          "description"
+        ]
+      },
+      "hazard": {
         "htmlFields": [
           "description"
         ]
@@ -143,6 +147,16 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "hazards",
+      "label": "ACKS Extras Hazards",
+      "path": "packs/hazards",
+      "type": "Item",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
@@ -158,6 +172,14 @@
           "color": "#8a6d13",
           "packs": [
             "macros"
+          ]
+        },
+        {
+          "name": "Hazards",
+          "sorting": "a",
+          "color": "#8a6d13",
+          "packs": [
+            "hazards"
           ]
         }
       ]

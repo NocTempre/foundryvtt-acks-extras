@@ -9,6 +9,7 @@ import {
   DELVE_ENCOUNTER_DOC,
   FLAG_FORMATION_ID,
   FORMATION_DOC,
+  HAZARD_ITEM_TYPE,
   MODULE_ID,
   PARTY_TOKEN_SHAPES,
   ROLES,
@@ -28,7 +29,6 @@ import { registerDistrictZone, findDistrict, DISTRICT_TYPE } from "./district-zo
 import { districtReaction } from "./settlement.mjs";
 import { districtFromSelection, installDistrictControls, installDistrictPlaceRow, markControlledRegions } from "./district-tools.mjs";
 import { installDistrictInfluence } from "./district-influence.mjs";
-import { installCrossingObstacleConfig, registerCrossingObstacle } from "./crossing-region.mjs";
 import {
   HALT_OPTION,
   TRAP_ZONE_TYPE,
@@ -70,6 +70,8 @@ import { openTrapbreakApp } from "./trapbreak-app.mjs";
 import * as trapRules from "./trap-rules.mjs";
 import TrapData from "./data/trap-data.mjs";
 import TrapSheet from "./trap-sheet.mjs";
+import HazardData from "./data/hazard-data.mjs";
+import HazardSheet from "./hazard-sheet.mjs";
 import {
   SETTING_FORMATIONS,
   addMember,
@@ -541,13 +543,19 @@ Hooks.once("init", () => {
     console.error(`${MODULE_ID} | trap registration failed`, err);
   }
 
-  /* --- Crossing obstacle region behavior --- */
+  /* --- Hazard Item sub-type + sheet --- */
   // Its own try: a failure here leaves the trap zone and everything after it registered.
   try {
-    registerCrossingObstacle();
-    installCrossingObstacleConfig();
+    CONFIG.Item ??= {};
+    CONFIG.Item.dataModels ??= {};
+    CONFIG.Item.dataModels[HAZARD_ITEM_TYPE] = HazardData;
+    foundry.documents.collections.Items.registerSheet(MODULE_ID, HazardSheet, {
+      types: [HAZARD_ITEM_TYPE],
+      makeDefault: true,
+      label: "ACKS-FORMATION.HAZARD.sheet",
+    });
   } catch (err) {
-    console.error(`${MODULE_ID} | crossing obstacle registration failed`, err);
+    console.error(`${MODULE_ID} | hazard registration failed`, err);
   }
 
   /* --- Party-roll flag editor on ability item sheets --- */

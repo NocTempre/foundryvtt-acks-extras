@@ -1,0 +1,23 @@
+{
+  "_id": "acks1334773d1637",
+  "_key": "!items!acks1334773d1637",
+  "name": "Squeeze · chokepoint",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/wall-direction.svg",
+  "system": {
+    "key": "squeeze",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 900000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

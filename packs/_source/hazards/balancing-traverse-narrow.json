@@ -1,0 +1,23 @@
+{
+  "_id": "acks864be9438bf1",
+  "_key": "!items!acks864be9438bf1",
+  "name": "Balancing traverse (narrow)",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/stone-path.svg",
+  "system": {
+    "key": "narrowLedge",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 500000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

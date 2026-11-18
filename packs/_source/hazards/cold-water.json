@@ -1,0 +1,23 @@
+{
+  "_id": "acksd5a433c8bae9",
+  "_key": "!items!acksd5a433c8bae9",
+  "name": "Cold water",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/frozen.svg",
+  "system": {
+    "key": "waterCold",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 1300000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

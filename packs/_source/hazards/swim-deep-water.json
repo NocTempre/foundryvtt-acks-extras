@@ -1,0 +1,23 @@
+{
+  "_id": "acks1c47283c20e9",
+  "_key": "!items!acks1c47283c20e9",
+  "name": "Swim · deep water",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/whale.svg",
+  "system": {
+    "key": "swim",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 800000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

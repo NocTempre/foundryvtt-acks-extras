@@ -1,0 +1,23 @@
+{
+  "_id": "acks55d513bbf245",
+  "_key": "!items!acks55d513bbf245",
+  "name": "Easy climb",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/ladder.svg",
+  "system": {
+    "key": "easyClimb",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 100000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

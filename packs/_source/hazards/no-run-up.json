@@ -1,0 +1,23 @@
+{
+  "_id": "acks75e0934efdb8",
+  "_key": "!items!acks75e0934efdb8",
+  "name": "No run-up",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/leg.svg",
+  "system": {
+    "key": "noRunUp",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 1100000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}

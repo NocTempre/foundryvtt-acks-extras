@@ -1,0 +1,23 @@
+{
+  "_id": "acksa196e1cd58bd",
+  "_key": "!items!acksa196e1cd58bd",
+  "name": "Crawling traverse",
+  "type": "acks-extras.hazard",
+  "img": "icons/svg/cave.svg",
+  "system": {
+    "key": "crawl",
+    "description": ""
+  },
+  "effects": [],
+  "folder": null,
+  "sort": 400000,
+  "ownership": {
+    "default": 0
+  },
+  "flags": {},
+  "_stats": {
+    "coreVersion": "13",
+    "createdTime": 1785551134915,
+    "modifiedTime": 1785551134915
+  }
+}
