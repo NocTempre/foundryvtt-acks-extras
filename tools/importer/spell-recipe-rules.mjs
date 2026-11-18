@@ -30,7 +30,7 @@ const ROW_KEYS = new Set([
   "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
   "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
-  "conditionFrom", "noteFrom", "audited", "gate",
+  "conditionFrom", "noteFrom", "audited", "gate", "each",
 ]);
 
 /**
@@ -42,7 +42,7 @@ const ROW_KEYS = new Set([
  */
 export const SPELL_GATE_KINDS = Object.freeze(["weaponMundane", "weaponMagical"]);
 /** The keys a `values` spec may carry. */
-const VALUE_KEYS = new Set(["save", "target", "from", "onMiss", "note"]);
+const VALUE_KEYS = new Set(["save", "target", "from", "onMiss", "note", "reversedDurationFromNote"]);
 /** The loc keys that hold a literal figure; a spell locator never carries one. */
 const FIGURE_LOC_KEYS = ["per", "steps", "flat", "base", "count", "increment", "rungs"];
 
@@ -109,6 +109,31 @@ function locatorProblems(from, allow, label, out) {
 }
 
 /**
+ * The problems in a row's `each` (the template locator that expands it once per
+ * match of a printed option list): a compiling pattern and a capture group that
+ * is a whole number. The row then needs the `pick` group its options share and
+ * the `key` its rows are numbered from, and never a `pickOption`, which `each`
+ * writes itself.
+ */
+function eachProblems(spec, each, label, out) {
+  if (!each || typeof each !== "object" || Array.isArray(each)) {
+    out.push(`${label}.each is a locator object`);
+  } else if (typeof each.pattern !== "string" || !each.pattern) {
+    out.push(`${label}.each needs a pattern`);
+  } else {
+    try {
+      new RegExp(each.pattern, each.flags ?? "i");
+    } catch (e) {
+      out.push(`${label}.each.pattern does not compile (${e.message.split(":").pop().trim()})`);
+    }
+  }
+  if (each?.group !== undefined && !Number.isInteger(each.group)) out.push(`${label}.each.group is a capture group number`);
+  if (!spec.pick) out.push(`${label}.each expands into the options of a pick group and the row names no pick`);
+  if (spec.key === undefined) out.push(`${label}.each numbers its rows from the row's key and the row carries none`);
+  if (spec.pickOption !== undefined) out.push(`${label}.each writes each row's pickOption and the row names one`);
+}
+
+/**
  * The problems in how a `values` spec locates an area: a located size needs the
  * authored measure and a pattern naming that measure's word (so the locator
  * proves the page prints the size as that measure), a length needs a located
@@ -148,7 +173,7 @@ export function spellRecipeProblems({ effects, values } = {}) {
     else if (typeof spec.key !== "string" || !REGISTER_KEY.test(spec.key)) out.push(`${label}.key "${spec.key}" is not a key (a lowercase letter, then letters and digits)`);
     else if (seen.has(spec.key)) out.push(`${label}.key "${spec.key}" repeats effects[${seen.get(spec.key)}]; a reversed twin takes a key of its own`);
     else seen.set(spec.key, i);
-    const { from, conditionFrom, noteFrom, ...structure } = spec;
+    const { from, conditionFrom, noteFrom, each, ...structure } = spec;
     for (const key of Object.keys(spec)) if (!ROW_KEYS.has(key)) out.push(`${label} carries "${key}", which a spell row recipe does not (located fields ride in \`from\`; \`origin\` and \`unread\` are the importer's)`);
     if (spec.onMiss !== undefined && spec.onMiss !== "blank") out.push(`${label}.onMiss is "blank" or absent`);
     if (!Object.hasOwn(EFFECT_TYPES, spec.type)) out.push(`${label}.type "${spec.type}" is not an effect kind`);
@@ -169,6 +194,7 @@ export function spellRecipeProblems({ effects, values } = {}) {
     }
     for (const key of spec.conditions ?? []) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.conditions names "${key}", which is no condition key`);
     for (const key of ["pick", "pickOption"]) if (spec[key] !== undefined && typeof spec[key] !== "string") out.push(`${label}.${key} is a string`);
+    if (each !== undefined) eachProblems(spec, each, label, out);
     if (spec.pickOption !== undefined && !spec.pick) out.push(`${label}.pickOption names an option of a pick group and the row names no pick`);
     if (!inTable(EFFECT_RECUR_MOMENTS, spec.recurAt)) out.push(`${label}.recurAt "${spec.recurAt}" is not a recurrence moment`);
     if (!inTable(EFFECT_RECUR_SAVES, spec.recurSave)) out.push(`${label}.recurSave "${spec.recurSave}" is not a recurrence save`);
@@ -183,8 +209,13 @@ export function spellRecipeProblems({ effects, values } = {}) {
     locatorProblems(from, null, label, out);
     // A located field is never also written as a literal: a spell's printed words
     // and figures arrive from the page or stay blank.
+    // `conditions` is the exception: a row may author its condition keys as structure,
+    // and only one that also locates them states the field twice.
+    const locatesConditions = (Array.isArray(from) ? from : from === undefined ? [] : [from]).some((loc) => loc?.into === "conditions");
+    if (locatesConditions && spec.conditions !== undefined) out.push(`${label}.conditions is located from the page and also written in the recipe`);
     for (const into of Object.keys(LOCATABLE_FIELDS)) {
       const head = into.split(".")[0];
+      if (head === "conditions") continue;
       if (!into.includes(".") && spec[head] !== undefined) out.push(`${label}.${head} is located from the page, never written in the recipe`);
     }
   }
@@ -210,6 +241,7 @@ export function spellRecipeProblems({ effects, values } = {}) {
     if (!inTable(SAVE_KINDS, save.kind)) out.push(`${label}.save.kind "${save.kind}" is not a save kind`);
     if (!inTable(TARGET_MODELS, target.model)) out.push(`${label}.target.model "${target.model}" is not a target model`);
     if (!inTable(AREA_SHAPES, target.area?.shape)) out.push(`${label}.target.area.shape "${target.area?.shape}" is not an area shape`);
+    if (spec.reversedDurationFromNote !== undefined && spec.reversedDurationFromNote !== true) out.push(`${label}.reversedDurationFromNote is true or absent`);
     figureProblems(structure, label, out);
     locatorProblems(from, (into) => into.startsWith("save.") || into.startsWith("target."), label, out);
   }

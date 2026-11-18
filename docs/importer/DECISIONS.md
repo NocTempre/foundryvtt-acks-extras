@@ -2596,3 +2596,35 @@ The ruling:
   under the stamp.
 - **The suite is slow.** It builds real git repositories, about 110 git
   processes: 20 to 30 seconds on this machine.
+
+## 2026-11-17 — A printed option list is a template row; `hdBelow`, `conditions` and a reverse's duration are read from the page
+
+Spell-effects plan rulings 115, 118 and 121
+(`docs/magic/wip/20261115-spell-effects-plan.md`, "S4"); every printed value
+arrives through the importer (`.claude/rules/ip-doctrine.md`).
+
+**Ruled.**
+
+- `target.hdBelow` joins `LOCATABLE_FIELDS` as a level value beside
+  `target.hdCap`, which stays inclusive (ruling 115).
+- A reverse's duration is the parenthetical of the printed duration line: a
+  `values` spec's `reversedDurationFromNote` makes `bindSpell` parse
+  `duration.note` into `reversedDuration` (ruling 118).
+- A printed option list is imported, not authored (ruling 121, superseding in
+  part plan ruling 1 and qualifying ruling 35 for such a list only): a row's
+  `each` expands it once per match into `<key><n>` and `pickOption` `<n>`, with
+  its locators reading inside the match, and the new locatable kind
+  `conditions` maps the words onto the catalogue's keys through the same
+  by-key-or-label folding the damage and size words use, skipping a word none
+  answers to.
+- `<n>` is the match's place over every match, not over the rows that survive,
+  so an option dropped for naming no known condition leaves its number unused
+  and no later option is re-keyed by it. A dropped option stays dropped under
+  `onMiss: "blank"`.
+- The lint refuses an `each` row without `pick` and `key` and with a
+  `pickOption`. `conditions` is the one locatable field a row may also author:
+  authored keys remain structure, and only a row that does both fails.
+
+*Rejected:* authoring the option rows with literal condition keys, which ships
+the book's list as ours. *Cost (plan counter, medium):* a reordered printing
+re-keys the rows, and a Judge's edit to a re-keyed row is held as a missing one.

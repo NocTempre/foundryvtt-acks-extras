@@ -557,4 +557,109 @@ t("the recipe rules check an anyOf branch: its keys, its values, a clause, and n
 });
 
 
+/* -------------------------------------------- */
+/*  a printed option list: each, conditions      */
+/* -------------------------------------------- */
+
+// An invented option list: three numbered options, the middle one naming no condition the catalogue holds.
+const OPTIONS = paras(
+  "The caster picks one mood for the target. First, the target is blinded and zorbed, for the length of the spell. Second, the target turns zorbed or flumped. Third, the target is deafened, Concentrating and Stationary, or berserk.",
+);
+const EACH_ROW = {
+  key: "mood",
+  type: "conditionGrant",
+  appliesTo: "target",
+  pick: "mood",
+  each: { pattern: "(?:First|Second|Third),[^.]*\\." },
+  from: [{ into: "conditions", pattern: "target\\s*(?:is|turns)\\s*([^.]*)" }],
+};
+
+t("a row's each expands once per match in page order into keyed rows and options, and drops an option naming no known word", () => {
+  const rows = materializeEffects([EACH_ROW], OPTIONS);
+  assert.deepEqual(rows.map((r) => r.key), ["mood1", "mood3"], "the second option names no condition; its number is left unused");
+  assert.deepEqual(rows.map((r) => r.pickOption), ["1", "3"], "pickOption is the match's place, as a string");
+  assert.deepEqual(rows[0].conditions, ["blinded"], "a word no catalogue member answers to is skipped inside a list");
+  assert.deepEqual(rows[1].conditions, ["deafened", "concentratingStationary", "berserk"], "a label of several words reads whole, in printed order");
+  assert.ok(rows.every((r) => r.pick === "mood" && !("each" in r) && r.type === "conditionGrant"), "the structure ships, the template locator does not");
+  assert.deepEqual(materializeEffects([{ ...EACH_ROW, onMiss: "blank" }], OPTIONS).map((r) => r.key), ["mood1", "mood3"], "onMiss blank never keeps an option with no condition");
+});
+
+t("each reads its locators inside the match, and a note locator reads inside it too", () => {
+  const prose = paras("Option A: the target is mute. Option B: the target is prone, noting it falls.");
+  const rows = materializeEffects(
+    [{ ...EACH_ROW, key: "opt", each: { pattern: "Option\\s*[AB]:[^.]*\\." }, noteFrom: { pattern: "noting\\s*(it\\s*falls)" } }],
+    prose,
+  );
+  assert.deepEqual(rows.map((r) => [r.key, r.pickOption, r.conditions]), [["opt1", "1", ["mute"]], ["opt2", "2", ["prone"]]]);
+  assert.equal(rows[0].note, undefined, "a clause outside the match is not read");
+  assert.equal(rows[1].note, "it falls");
+  const grouped = materializeEffects([{ ...EACH_ROW, each: { pattern: "(First|Second|Third),\\s*([^.]*)\\.", group: 2 } }], OPTIONS);
+  assert.deepEqual(grouped.map((r) => r.key), ["mood1", "mood3"], "a group narrows what each match reads");
+});
+
+t("each yields no row with no page, no match or a malformed pattern, and never throws", () => {
+  assert.deepEqual(materializeEffects([EACH_ROW], []), []);
+  assert.deepEqual(materializeEffects([EACH_ROW], paras("Nothing is listed here.")), []);
+  assert.deepEqual(materializeEffects([{ ...EACH_ROW, each: { pattern: "(\\d" } }], OPTIONS), []);
+  assert.deepEqual(materializeEffects([{ ...EACH_ROW, each: {} }], OPTIONS), []);
+});
+
+t("the conditions locator maps words onto catalogue keys, singular or plural, and a row with none known is a miss", () => {
+  const one = (body, extra = {}) => materializeEffects([{ type: "conditionGrant", ...extra, from: { into: "conditions", pattern: "(\\w[\\w ,/]*)\\." } }], paras(body));
+  assert.deepEqual(one("Mute, prone, and zorbed.")[0].conditions, ["mute", "prone"]);
+  assert.deepEqual(one("Choking / Vomiting.")[0].conditions, ["choking"], "a label punctuated as printed maps to its key");
+  assert.deepEqual(one("Mute, mute, mute.")[0].conditions, ["mute"], "each key once");
+  assert.deepEqual(one("Zorbed and flumped."), [], "no known word drops the row");
+  assert.deepEqual(one("Zorbed and flumped.", { onMiss: "blank" })[0].unread, ["conditions"], "or lists the field as unread under onMiss blank");
+});
+
+t("target.hdBelow is a locatable level value like hdCap", () => {
+  const prose = paras("Creatures of fewer than 5 Hit Dice are affected, and creatures of 3 Hit Dice or less drop.");
+  const [frag] = materializeEffects(
+    [{ target: { model: "area" }, from: [{ into: "target.hdBelow", pattern: "fewer\\s*than\\s*(\\d+)\\s*Hit" }, { into: "target.hdCap", pattern: "of\\s*(\\d+)\\s*Hit\\s*Dice\\s*or" }] }],
+    prose,
+  );
+  assert.deepEqual(frag.target.hdBelow, { kind: "flat", flat: 5 });
+  assert.deepEqual(frag.target.hdCap, { kind: "flat", flat: 3 });
+  assert.equal(frag.target.model, "area");
+  assert.deepEqual(spellRecipeProblems({ values: [{ target: { model: "area" }, from: { into: "target.hdBelow", pattern: "(\\d+)" } }] }), []);
+});
+
+t("a values spec's reversedDurationFromNote parses duration.note into reversedDuration, same shape as duration", () => {
+  const values = [{ ...VALUES, onMiss: "blank", reversedDurationFromNote: true }];
+  const bind = (duration, specs = values) => {
+    const node = { fields: { ...nodeFor(null, null).fields, stat: `Arcane 3 Type: blast Range: 60’ Duration: ${duration}` } };
+    node.fields.values = materializeEffects(specs, PROSE);
+    return bindSpell(entryFor(null, specs), node, "def.spell.glimmerfrost").flags[MODULE_ID];
+  };
+  const made = bind("3 turns (2 rounds)");
+  const spell = made.spell;
+  assert.equal(spell.duration.shape, "fixed");
+  assert.deepEqual(Object.keys(spell.reversedDuration), Object.keys(spell.duration), "the same shape as duration");
+  assert.equal(spell.reversedDuration.value, 2);
+  assert.equal(spell.reversedDuration.unit, "rounds");
+  assert.ok(!("reversedDurationFromNote" in spell), "the switch never reaches the world");
+  assert.equal(made.cookbook.read.spell["reversedDuration%2Evalue"], 2, "a repair can tell the Judge's edit from the import's");
+  assert.ok(!("reversedDuration" in bind("3 turns (2 rounds)", [{ ...VALUES, onMiss: "blank" }]).spell), "a spec that does not ask writes none");
+  assert.ok(!("reversedDuration" in bind("3 turns").spell), "no parenthetical, no reversed duration");
+  assert.ok(!("reversedDuration" in bind("3 turns (zorbed)").spell), "a note that reads as no duration writes none");
+  assert.deepEqual(spellRecipeProblems({ values: [{ ...VALUES, reversedDurationFromNote: true }] }), []);
+  assert.ok(spellRecipeProblems({ values: [{ ...VALUES, reversedDurationFromNote: "yes" }] }).some((p) => p.includes("reversedDurationFromNote is true or absent")));
+});
+
+t("the recipe rules hold an each row to a pick and a key, refuse its pickOption, and keep authored condition keys structure", () => {
+  const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);
+  assert.deepEqual(spellRecipeProblems({ effects: [EACH_ROW] }), [], "a well-formed template row");
+  const { pick, ...noPick } = EACH_ROW;
+  const { key, ...noKey } = EACH_ROW;
+  has(spellRecipeProblems({ effects: [noPick] }), "each expands into the options of a pick group");
+  has(spellRecipeProblems({ effects: [noKey] }), "each numbers its rows from the row's key");
+  has(spellRecipeProblems({ effects: [{ ...EACH_ROW, pickOption: "a" }] }), "each writes each row's pickOption");
+  has(spellRecipeProblems({ effects: [{ ...EACH_ROW, each: { pattern: "(\\d" } }] }), "each.pattern does not compile");
+  has(spellRecipeProblems({ effects: [{ ...EACH_ROW, each: { pattern: "x", group: "2" } }] }), "each.group is a capture group number");
+  assert.deepEqual(spellRecipeProblems({ effects: [{ ...EACH_ROW, each: { pattern: "x", group: 2 } }] }), [], "a group number is not a printed figure");
+  assert.deepEqual(spellRecipeProblems({ effects: [{ key: "k", type: "conditionGrant", conditions: ["berserk"] }] }), [], "a row may still author its condition keys");
+  has(spellRecipeProblems({ effects: [{ key: "k", type: "conditionGrant", conditions: ["berserk"], from: EACH_ROW.from }] }), "conditions is located from the page and also written");
+});
+
 console.log(`\n${n} tests passed`);

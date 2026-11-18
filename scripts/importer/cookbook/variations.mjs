@@ -18,7 +18,7 @@ import { TRAP_LEVELS } from "../../formation/trap-rules.mjs";
 // model needs `foundry`. The bind writes the plain shape `spellFromStat` returns.
 import { SPELL_TYPE, FLAG_SPELL } from "../../magic/constants.mjs";
 import { REGISTER_ORIGIN } from "../../lib/magic-vocab.mjs";
-import { parseStatBlock, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../../magic/spell-logic.mjs";
+import { parseStatBlock, parseDurationLine, spellFromStat, reversedNameFrom, coreFieldsFrom } from "../../magic/spell-logic.mjs";
 import {
   bookStamp, data, ctx, cookbookEntry, bookOf, merchandiseEntries, SIXTHS_PER_STONE, variationEntries, trapEntries,
   spellEntries,
@@ -373,6 +373,18 @@ function mergeInto(into, from) {
 }
 
 /**
+ * The duration shape a duration's own note states in parentheses, as
+ * `parseDurationLine` reads a printed line (the `duration` shape); null when
+ * the note holds no parenthetical or its text reads as no duration.
+ */
+export function reversedDurationOf(duration) {
+  const inner = /^\s*\(([\s\S]*)\)\s*$/.exec(String(duration?.note ?? ""))?.[1];
+  if (!inner?.trim()) return null;
+  const read = parseDurationLine(inner);
+  return read.shape ? read : null;
+}
+
+/**
  * Build one core `spell` Item from a spell entry and its materialized text.
  * The stat block the seat read is parsed into the primitive (`spell-logic.mjs`
  * `spellFromStat`), core's own strings are written from it, and the prose
@@ -409,8 +421,17 @@ export function bindSpell(entry, node, id) {
   // still as the import wrote it.
   let read = {};
   if (entry.fields?.values?.specs?.length) {
-    const fragments = (node?.fields?.values ?? []).map(({ unread, ...fragment }) => fragment);
+    const fragments = (node?.fields?.values ?? []).map(({ unread, reversedDurationFromNote, ...fragment }) => fragment);
     for (const fragment of fragments) mergeInto(extras, fragment);
+    // A values spec that asks (`reversedDurationFromNote`) has its reverse last for
+    // the duration the printed line's parenthetical gives (`reversedDurationOf`).
+    if (entry.fields.values.specs.some((spec) => spec?.reversedDurationFromNote === true)) {
+      const reversedDuration = reversedDurationOf(extras.duration);
+      if (reversedDuration) {
+        extras.reversedDuration = reversedDuration;
+        fragments.push({ reversedDuration });
+      }
+    }
     read = readLeaves(fragments);
   }
   if (entry.fields?.effects?.specs?.length) {

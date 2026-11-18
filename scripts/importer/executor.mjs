@@ -16,6 +16,7 @@ import { rowsByY, applyCellPattern, slugLabel, takeProse, joinRuns as joinCellRu
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { scenarioRoutines } from "./statline-attacks.mjs";
 import { levelFraction, DAMAGE_TYPES, SAVE_CATEGORIES, TARGET_FILTERS } from "../lib/vocab.mjs";
+import { CONDITIONS } from "../lib/conditions.mjs";
 import { printedFrequencyText } from "../lib/magic-vocab.mjs";
 import { ceilingOf } from "../equipment/armour-limits.mjs";
 import { SIZES } from "../monsters/config.mjs";
@@ -518,6 +519,8 @@ export const LOCATABLE_FIELDS = Object.freeze({
   roll: "dice",
   damage: "damageType",
   extraordinary: "flag",
+  // The condition words a row's page prints, onto the lib catalogue's keys.
+  conditions: "conditions",
   max: "levelValue",
   // The dice a `rounds` lasting counts, and the size word at or above which a
   // target is exempt from the row (`sizeKey`: a word onto a monsters `SIZES` key).
@@ -530,6 +533,7 @@ export const LOCATABLE_FIELDS = Object.freeze({
   "target.filters": "filters",
   "target.count": "levelValue",
   "target.hdCap": "levelValue",
+  "target.hdBelow": "levelValue",
   "target.area.size": "levelValue",
   "target.area.width": "levelValue",
 });
@@ -630,11 +634,37 @@ function memberOf(vocab, word, skip = []) {
   return null;
 }
 
+/** The most words a catalogue label runs to when a capture is read for condition names. */
+const CONDITION_LABEL_WORDS = 5;
+
+/**
+ * The catalogue keys a captured list of condition words names, in the order
+ * printed and once each. At each word the longest run of words that names a
+ * condition wins, so a label of several words reads whole; a word that names
+ * none is skipped.
+ */
+function conditionKeysIn(raw) {
+  const words = String(raw ?? "").split(/[^A-Za-z]+/).filter(Boolean);
+  const keys = [];
+  for (let i = 0; i < words.length; ) {
+    let took = 0;
+    for (let len = Math.min(CONDITION_LABEL_WORDS, words.length - i); len > 0 && !took; len--) {
+      const key = memberOf(CONDITIONS, words.slice(i, i + len).join(""));
+      if (key) {
+        if (!keys.includes(key)) keys.push(key);
+        took = len;
+      }
+    }
+    i += took || 1;
+  }
+  return keys;
+}
+
 /**
  * Read one matched locator into the value its field holds: a number, a
  * LevelValue, a dice string, a one-member damage set, a save category, a list
- * of filter keys, a rung or the mark's `true`. MISS when the match holds
- * nothing that field can use.
+ * of filter keys or condition keys, a rung or the mark's `true`. MISS when the
+ * match holds nothing that field can use.
  */
 function locateField(loc, kind, m) {
   // A ladder reads every capture group at once, before the single-value path.
@@ -655,6 +685,10 @@ function locateField(loc, kind, m) {
     return key ? [key] : MISS;
   }
   if (kind === "saveCategory") return memberOf(SAVE_CATEGORIES, raw, ["none"]) ?? MISS;
+  if (kind === "conditions") {
+    const keys = conditionKeysIn(raw);
+    return keys.length ? keys : MISS;
+  }
   if (kind === "filters") {
     const keys = [...new Set(raw.split(/[^A-Za-z]+/).map((w) => memberOf(TARGET_FILTERS, w)).filter(Boolean))];
     return keys.length ? keys : MISS;
@@ -733,53 +767,92 @@ function locateField(loc, kind, m) {
  * missed leaves its field unset, the row keeps every other field it located,
  * and the fields missed are listed in the row's `unread`. Without it a miss
  * drops the row, as above. `onMiss` never reaches the result.
+ *
+ * A spec's `each` (`{pattern, flags?, group?}`) makes it a template for a
+ * printed option list: one row per match of the pattern, in page order, keyed
+ * `<key><n>` with `pickOption` `<n>` (the match's 1-based place), its `from`
+ * and clause locators read inside that match (`group`, default the whole). The
+ * `conditions` locator reads a list of condition words onto catalogue keys and
+ * skips a word none answers to; an option that names no condition is dropped.
  */
 export function materializeEffects(specs, paras) {
   const text = (paras ?? []).map((p) => (typeof p === "string" ? p : p.text)).join(" ");
   const out = [];
   for (const spec of specs ?? []) {
-    const { from, onMiss, ...effect } = spec ?? {};
+    const { from, onMiss, each, ...effect } = spec ?? {};
     const blank = onMiss === "blank";
     // The clause locators never ride into the world: they are read here or not at all.
     const clauses = CLAUSE_FIELDS.map((field) => [field, effect[`${field}From`]]);
     for (const field of CLAUSE_FIELDS) delete effect[`${field}From`];
     const locators = (Array.isArray(from) ? from : from ? [from] : []).filter((l) => l?.pattern);
-    // All or nothing unless the spec asks for blanks: a half-matched effect is dropped whole.
-    let complete = true;
-    const unread = [];
-    for (const loc of locators) {
-      const into = loc.into ?? "value";
-      const kind = LOCATABLE_FIELDS[into];
-      if (!kind) {
-        complete = false;
-        break;
-      }
-      let m = null;
-      try {
-        m = text ? new RegExp(loc.pattern, loc.flags ?? "i").exec(text) : null;
-      } catch {
-        m = null; // a malformed locator never throws at the table
-      }
-      const got = m ? locateField(loc, kind, m) : MISS;
-      if (got === MISS) {
-        if (!blank) {
-          complete = false;
-          break;
-        }
-        unread.push(into);
-        continue;
-      }
-      setLocated(effect, into, got);
+    if (each === undefined) {
+      const row = materializeRow(effect, locators, clauses, blank, text, false);
+      if (row) out.push(row);
+      continue;
     }
-    if (!complete) continue;
-    for (const [field, loc] of clauses) {
-      const read = locateCondition(loc, text);
-      if (read) effect[field] = read;
+    // A template row expands once per match of `each`, in page order: the n-th
+    // match (counted over every match, so a dropped option leaves its number
+    // unused) makes the row `<key><n>` of option `<n>`, and its locators read
+    // inside that match alone.
+    const group = each?.group ?? 0;
+    let n = 0;
+    for (const m of eachMatches(each, text)) {
+      n++;
+      const within = String(m[group] ?? "");
+      if (!within) continue;
+      const row = materializeRow({ ...effect, key: `${effect.key ?? ""}${n}`, pickOption: String(n) }, locators, clauses, blank, within, true);
+      if (row) out.push(row);
     }
-    if (unread.length) effect.unread = [...new Set(unread)];
-    out.push(effect);
   }
   return out;
+}
+
+/** Every match of an `each` locator in `text`, in page order; none when it names no pattern, is malformed or the page is blank. */
+function eachMatches(each, text) {
+  if (!each?.pattern || !text) return [];
+  const flags = each.flags ?? "i";
+  try {
+    return [...text.matchAll(new RegExp(each.pattern, flags.includes("g") ? flags : `${flags}g`))];
+  } catch {
+    return []; // a malformed locator never throws at the table
+  }
+}
+
+/**
+ * One effect row's locators and clause locators read over `text`: the row, or
+ * null when it is dropped. A miss drops the row unless `blank`, which lists the
+ * field in `unread` instead; `perOption` marks a row expanded from `each`, whose
+ * condition list that names no condition is dropped even then, since an option
+ * with nothing to grant has nothing to apply.
+ */
+function materializeRow(base, locators, clauses, blank, text, perOption) {
+  const effect = { ...base };
+  const unread = [];
+  for (const loc of locators) {
+    const into = loc.into ?? "value";
+    const kind = LOCATABLE_FIELDS[into];
+    if (!kind) return null; // a field that is not locatable drops the row
+    let m = null;
+    try {
+      m = text ? new RegExp(loc.pattern, loc.flags ?? "i").exec(text) : null;
+    } catch {
+      m = null; // a malformed locator never throws at the table
+    }
+    const got = m ? locateField(loc, kind, m) : MISS;
+    if (got === MISS) {
+      // All or nothing unless the spec asks for blanks: a half-matched effect is dropped whole.
+      if (!blank || (perOption && kind === "conditions")) return null;
+      unread.push(into);
+      continue;
+    }
+    setLocated(effect, into, got);
+  }
+  for (const [field, loc] of clauses) {
+    const read = locateCondition(loc, text);
+    if (read) effect[field] = read;
+  }
+  if (unread.length) effect.unread = [...new Set(unread)];
+  return effect;
 }
 
 /**

@@ -1133,8 +1133,12 @@ mapped to a `DAMAGE_TYPES` key by key or label, kept as a one-member set;
 `varies` never maps), `extraordinary` (true where the pattern matches),
 `save.category` (a word onto a `SAVE_CATEGORIES` key) and `target.filters`
 (the words that name a `TARGET_FILTERS` key). An area's `target.area.size` and
-`target.area.width` are located level values. A word no member answers to is a
-miss. The damage mark's colour is not in the text layer (`glyphWords` writes
+`target.area.width` are located level values, as are `target.count`,
+`target.hdCap` (inclusive) and `target.hdBelow` (strict). `conditions` reads a
+list of condition words onto the keys of lib's `CONDITIONS` catalogue: at each
+word the longest run of words that names a condition wins, so a label of several
+words reads whole, and a word none answers to is skipped. A word no member
+answers to is a miss. The damage mark's colour is not in the text layer (`glyphWords` writes
 its word), so the extraordinary mark of a printed damage cannot be read from
 text.
 
@@ -1158,6 +1162,24 @@ literal count in a locator (`per`, `steps`, `flat`, `base`, `count`,
 its `pick` group it belongs to), `recurAt` (`EFFECT_RECUR_MOMENTS`), `recurSave`
 (`EFFECT_RECUR_SAVES`) and `recurTarget` (`EFFECT_RECUR_TARGETS`), each needing a
 `recur` of `eachRound` or `laterRounds`; `lasts` takes `nextTurn` and `rounds`.
+
+A printed option list is a template row. `each` (`{pattern, flags?, group?}`)
+on an `effects` spec expands it once per match of the pattern in page order:
+the n-th match, counted over every match, makes the row `<key><n>` with
+`pickOption` `"<n>"`, and the row's `from` and clause locators read inside that
+match (its `group`, default the whole) and nowhere else. The row carries the
+`pick` its options share and the `key` the rows are numbered from, and never a
+`pickOption`; the lint holds it to all three. An option whose `conditions`
+locator reads no known word is dropped even under `onMiss: "blank"`, and its
+number stays unused, so a later option keeps its key. A page with no match, a
+bookless seat and a malformed pattern yield no rows. A row may still author its
+condition keys as structure; one that also locates them fails the lint.
+
+A `values` spec with `reversedDurationFromNote: true` has `bindSpell` read the
+parenthetical in the spell's `duration.note` through the duration-line parser
+into `reversedDuration`, the same shape as `duration`. A note with no
+parenthetical, or one that reads as no duration, writes nothing. The leaves are
+stamped in `cookbook.read.spell` like any value's.
 
 A spec with `"onMiss": "blank"` keeps its row when a locator misses: the field
 is left unset, its path is listed in the row's `unread`, and the later
