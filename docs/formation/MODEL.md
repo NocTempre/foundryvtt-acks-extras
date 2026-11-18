@@ -2942,6 +2942,14 @@ on any climb. The climb up holds no condition: a jump applies nothing to a
 member's body, so `rollStretch` is told not to hold or release (`hold:
 false`), whatever the grid's Vulnerable row says of the sheer climb.
 
+The row's result line keeps the landing's footing ("An edge": where the jumper
+landed is history) and its outcome follows the climb up once one has settled
+the member: a record that is across or fell on a footing of the edge got there
+through the climb up (a landing or a footing pick on the edge always leaves
+the member hanging), so the outcome reads "Climbed up" or "Fell", a fall shows
+the setup's depth with the imported dice (`fallFromDepth`), and the tooltip
+adds the climb up's throw. A stalled climb up reads "Hanging" still.
+
 **A player's throw.** A player throws for the members they own and no other. The
 press reaches `requestCrossingThrow` (`player-requests.mjs`), which reads the
 row for the seat, says a refusal where it has words and otherwise relays
