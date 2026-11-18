@@ -135,6 +135,17 @@ cross-checked against the treasure plan's scene-search screen.
   - The Hazard item holds no figures. The figures sit in each thing's
     `params`.
   - Boards redrawn: canvas v13.
+- **Owner approval of v13 (2026-11-18), verbatim:** "Approve, build it".
+  - Obstacle regions builds B4 (the Hazard type and `crossingSeed`), B3 (the
+    Region's Place row), B2 (the entry card and seeding), P3 and the trap
+    stacking.
+  - Scene search builds the carrier, location's drop branches and B1 inside
+    "Things here".
+  - S1's behaviour type is dropped on the topic. Its `SETUP_FIELDS` export,
+    reader logic and template-parsing test are kept.
+  - Before H0 or H3, sync onto the PR #5 merge (its sha comes from the
+    orchestrator), and read 1c18168f ("trap check reads its start inside the
+    move queue"). A fix that merge already holds is not built again.
 - **Boards B1–B4** are on the crossing canvas, v12. The build waits for the
   owner's feedback on them.
 
