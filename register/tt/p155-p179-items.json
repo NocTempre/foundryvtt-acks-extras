@@ -1369,11 +1369,11 @@
     "id": "tt.item637",
     "kind": "kind.magicItem",
     "book": "tt",
-    "name": "Item 637",
+    "name": "Galdrtré Seed",
     "anchor": {
-      "hash": "1ov7vqz",
-      "as": "display"
+      "display": "Galdrtré Seed"
     },
+    "named": "2026-11-18",
     "pages": [
       172
     ],
