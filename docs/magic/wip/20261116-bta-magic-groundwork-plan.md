@@ -317,6 +317,9 @@ its two flags, and a table set per tradition kind.
 
 ### 3c owner questions
 
+Answered 2026-11-17, the owner: "Take recommendations". A yes, B yes, C no,
+D yes, E yes.
+
 - **3c-A.** Is every automatic failure p. 120 lists a botch? *Recommended:
   yes;* p. 121 groups being hurt with a natural roll.
 - **3c-B.** A regular or methodical invocation outside a fight: throw at
@@ -407,3 +410,55 @@ level 1 matrix, LOCAL-ONLY.
   an owner question on how B6 and B7 reach the minor. C2 and C3 are built
   ahead on topic/bta. C1 is held under the per-book importer ruling, and C4
   until the spell-effects line agrees to the `spell-extras.mjs` change.
+
+### Results, C2, C3 and the 3c design (2026-11-18)
+
+- **Owner on how B6 and B7 reach the minor:** "(b) spell effects adds it".
+  R1-R5 are ruled 200+ in the spell-effects plan and are built after
+  topic/spell-effects lands with 1c.
+- **C3** `fba9f898` on topic/bta (not landed): `ceremony-state.mjs` and
+  `traditionCapAt`; `poolState` shares a private `capRungAt`, its output
+  unchanged. test-ceremony-state 21, npm test 271 suites, validate green, 6
+  mutation checks.
+- **C2** `c2bf7f7e` and `910c787e` (mishap cells keyed by column number) on
+  topic/bta (not landed): `ceremony-tables.mjs`, `ceremony.mjs`,
+  test-ceremony 45 checks and 9 mutation checks; npm test 272 suites, validate
+  green. A read-only probe on a seat lane ran the topic's readers against the
+  world's imported gnosis tables:
+  - every printed grid cell parses (50 of 50; the 34 misses are levels the
+    grid does not print);
+  - every pace parses its time, modifier, band and shift;
+  - the three degree rows read, and the mishap rows read 10 by 3 with no empty
+    cell and the die read;
+  - all 15 level-and-pace pairs resolve to a degree, or to a lost set where
+    the shift goes below the lowest band.
+
+  Readings to keep: the degree rule shifts the level before the band lookup;
+  a level above the bands blocks with `degreeUnreadable` (never on the
+  imported data); the `gridIncludes` keys `invokerAbilities` and
+  `supplementBonus` are the part keys C6 and 4a must use.
+- **/design for D1-D8:** https://claude.ai/artifact/DyscmRWo2r7x3fpzbSRMZT,
+  sent for the owner's approval. Placement agreed with 1b: a canvas of its
+  own, cast canvas v6 untouched; where R3's level select sits follows ruling
+  200+. The owner on the first revision: "Spend more effort to unify style
+  with the repo design language. BTA ceremony surface is directionally
+  correct. More leveraging game-icons for things like pace, Show the
+  fetish/foci/etc as buckets to fill with attention on them. Stigma should add
+  visual feedback like cracking or smoke effect, idk." Then: "The stigma
+  comment was not an animation request, it was a suggestion for visual
+  feedback of getting darker/more broken as stigma accumulates". Revision 2
+  (version 1794981040-b5ae) is drawn in the family's parts, with glyphs from
+  the game-icons pack by path or core Font Awesome; implements as an
+  equipment-slot bucket; stigma in three static steps on the badge and the
+  portrait, the crack texture a labelled placeholder. Open owner questions on
+  the canvas: Q1, one bucket of levelled sets or one slot per kind of
+  implement; Q2, may an invoker choose a lower set that is still high enough.
+- **R5 gains a `band(ctx, answer)` hook,** extending 3c ruling 11(b): a
+  field spec cannot carry glyph segments or a bucket. Relayed to the
+  spell-effects line.
+- **Owner, 2026-11-18:** "Find open art to attribute or better yet
+  art/texture imported from the book. Standing rule for repo no generated
+  art." and "Make sure that rule gets stored properly to not get missed
+  again." The rule is the template's `ip-doctrine.md`, "Art: imported or
+  attributed, never generated" (template `93c8fce1`); it reaches this repo at
+  the next toolchain sync.
