@@ -510,33 +510,55 @@
   justify-items: center;
 }
 
-/* --- Injected item-sheet flag fieldset (NOT scoped to .acks-monsters) ---
-   This lands on the system's own item sheets, which carry no acks-extras root;
-   the tokens still resolve because they are declared at :root and the dark
-   branch keys off the body theme class. */
+/* --- Injected item-sheet flag group (NOT scoped to .acks-monsters) ---
+   This lands inside the Details tab of the extras item sheet and of the
+   system's own item sheet, which carries no acks-extras root; the tokens
+   still resolve because they are declared at :root and the dark branch keys
+   off the body theme class. Headed like the Details tab's own groups. */
 .acks-monsters-flags {
-  margin: var(--acks-sp-3) 0 var(--acks-sp-1);
-  border: var(--acks-border-soft);
-  border-radius: var(--acks-radius);
-  padding: var(--acks-sp-2) var(--acks-sp-4) var(--acks-sp-4);
-}
-.acks-monsters-flags > legend {
-  font-weight: var(--acks-weight-bold);
-  padding: 0 var(--acks-sp-2);
-}
-.acks-monsters-flags .acksm-flag-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  align-items: center;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin-block: var(--acks-sp-4) var(--acks-sp-2);
 }
-.acks-monsters-flags .acksm-flag-row label {
+.acks-monsters-flags__head {
+  font-family: var(--acks-font-display);
   font-size: var(--acks-fs-label);
+  font-weight: var(--acks-weight-bold);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--acks-spot);
+  padding-block-end: var(--acks-sp-1);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
 }
-.acks-monsters-flags .acksm-flag-row label.checkbox {
-  text-transform: none;
+.acks-monsters-flags__fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  align-items: end;
+}
+.acks-monsters-flags__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  min-width: 0;
+}
+.acks-monsters-flags__field.is-wide,
+.acks-monsters-flags__check {
+  grid-column: 1 / -1;
+}
+.acks-monsters-flags__field > select,
+.acks-monsters-flags__field > input {
+  width: 100%;
+}
+.acks-monsters-flags__label {
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--acks-ink-soft);
+}
+.acks-monsters-flags__check {
   display: inline-flex;
   gap: var(--acks-sp-2);
   align-items: center;

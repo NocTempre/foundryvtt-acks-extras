@@ -267,7 +267,8 @@ import's own result, and the generated creature.
 2. Import an entry whose prose lists spell-like abilities with a frequency per
    group, and one that names a spell "(as the spell X)". *Observable:* one
    `spell` item per named spell, its `flags.acks-extras.usage` the printed
-   frequency's key (the ACKS Monster fieldset's Usage select shows it); the
+   frequency's key (a spell's sheet carries no ACKS Monster group; read the
+   flag); the
    Spells tab is on with every slot at zero unless the prose also casts as
    a class.
 3. Import an entry whose prose prints a repertoire by level ("1st - …; 2nd -
@@ -768,5 +769,54 @@ rewrites the list where it does not.
 4. Read the rail and the band.
    *Observable:* they show core's values for the listed figures (the same
    ROADMAP row).
+
+**Teardown.** The fixture stays.
+
+## The ACKS Monster group on an item sheet
+
+The group injected into the sheet of a monster-owned weapon, ability or
+generic item (MODEL, "Item flag metadata"). Needs nothing imported.
+
+**Fixtures.** A `monster` actor carrying `flags.world.fixture` =
+`monsters/annotated`, holding one weapon, one ability and one generic item.
+Find it by the marker; build it with `api.fixture("monsters/annotated",
+"Actor", {type: "monster", name: "Annotated Monster", items: [{type: "weapon",
+name: "Claw"}, {type: "ability", name: "Gaze"}, {type: "item", name:
+"Hide"}]})`.
+
+**Drive mechanics.**
+
+- A weapon and a generic item open on the extras item sheet; an ability opens
+  on the abilities sheet (`AcksAbilitySheet`: Description, Rolls, Mechanics),
+  so one fixture reaches both placements. The fixture's generic item has
+  nothing else to show, so its sheet takes the no-tab view.
+- The group is `.acks-monsters-flags`; its scroller is the nearest ancestor
+  whose computed `overflow-y` is `auto`: the extras sheet's `body` part, the
+  abilities sheet's `description` part.
+- A re-render puts a hand-set window height back to `auto`, on any item, so
+  read a shortened window's layout before the change that re-renders it.
+- In a hidden browser pane `requestAnimationFrame` never fires; read layout
+  straight after `await app.render({force: true})` instead.
+
+**Steps.** Each step clears the flags it sets before it starts.
+
+1. Open the fixture's weapon on its Details tab.
+   *Observable:* the group is the last child of the Details panel's stack,
+   inside the `body` part; on the Rolls tab it has no box
+   (`getClientRects().length === 0`).
+2. Shorten the window with `app.setPosition({height: 320})`.
+   *Observable:* the body part's `scrollHeight` takes in the group, and
+   scrolling the body to its end brings the group's checkbox into view.
+3. With the body scrolled to its end, pick a Natural Weapon.
+   *Observable:* `flags.acks-extras.naturalWeapon` holds the key, the select
+   shows it, the sheet holds one group, and after the re-render the body is
+   still scrolled to its end with the group in view.
+4. Open the fixture's ability.
+   *Observable:* the group is the last child of the `description` part and
+   has no box on Rolls or Mechanics; a picked Usage lands in
+   `flags.acks-extras.usage`.
+5. Open the fixture's generic item and check Spoil.
+   *Observable:* the group ends the Details panel, or the body in the sheet's
+   no-tab view; `flags.acks-extras.spoil` is true.
 
 **Teardown.** The fixture stays.

@@ -117,3 +117,32 @@ blank").
 **Ruled.** The correction only: nothing in the attack-throw fix is rebuilt on
 it now. That an item sheet's or the Equipment tab's weapon roll is not refused
 while the field is blank stays as that entry's cost, and is a ROADMAP row.
+
+## 2026-11-17 — The ACKS Monster group lives in the Details tab
+
+**Ruled.** The group injected into a monster-owned item's sheet goes inside
+the sheet's scrolling body, last in its Details tab (the extras sheet's body
+when it shows no tabs; the abilities sheet's Description tab, which has no
+Details and holds an ability's properties that are not rolls), headed like
+that tab's own groups. A reporter asked for it to be removed because it blocked
+the sheet; the owner chose: "Move into scroll". The placement was drawn and
+approved before it was built; the drawing put abilities on the system's sheet,
+and the walk found them on the abilities sheet.
+
+The extras item sheet's window content also takes `min-height: 0`: a flex
+column's automatic minimum is its content, so in a window resized shorter the
+scroll region kept its capped height and the window clipped it, the group's
+old place included.
+
+**Rejected.** Removing the group: it is the only editor of eight flags (natural
+weapon, damage type and extraordinary on weapons; category and usage on
+abilities; spoil, component and research effects on items), and the monster
+sheet's hints send users to it. Keeping it under `.window-content`: outside
+every part's scroller it kept its full height on every tab and took that height
+from the body, and at the viewport cap its lower part fell outside the window.
+
+**What it cost.** The group is added after core restores each part's scroll
+offset, so an offset inside it is clamped to the shorter body; the hook reads
+the offset before the render and puts it back. The weapon's damage type and
+extraordinary fields still write flags beside core's own fields, which the
+attack roll reads; that is its own change.

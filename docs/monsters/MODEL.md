@@ -60,7 +60,14 @@ Walking a unit to the bodies it holds is the recipe engine's, not built:
 
 ## Item flag metadata (`flags["acks-extras"]`)
 
-Set via the "ACKS Monster" fieldset injected into monster-owned item sheets.
+Set via the "ACKS Monster" group injected into monster-owned item sheets
+(`scripts/monsters/item-annotations.mjs`): the last group of one tab, inside
+the sheet's scrolling body, so it shows on no other tab. A weapon or item opens
+on the extras item sheet, which takes it in the Details panel (the body's end
+when the sheet shows no tabs); an ability opens on the abilities sheet, which
+takes it in the Description tab, where an ability's properties that are not
+rolls live. The system's own item sheet, picked by hand, takes it in its
+`details` part.
 
 - **weapon**: `damageType` (enum), `extraordinary` (bool), `naturalWeapon` (enum)
 - **ability**: `abilityCategory` (enum), `usage` (lib's `SPELL_LIKE_FREQ`, re-exported as `USAGE`), `xpAsterisks` (optional)

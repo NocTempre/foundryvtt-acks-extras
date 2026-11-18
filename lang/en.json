@@ -6089,7 +6089,7 @@
     },
     "hint": {
       "subtype": "e.g. wild, Demon",
-      "attacks": "Monster attacks are weapon items. Open a weapon to set its damage type & natural weapon in the ACKS Monster section.",
+      "attacks": "Monster attacks are weapon items. Open a weapon to set its damage type & natural weapon in the ACKS Monster section of its Details tab.",
       "abilities": "Proficiencies and special abilities are ability items — drag them from the ACKS Proficiencies / Monster Abilities compendia.",
       "inventory": "Gear the monster carries: generic items, armor, and clothing. Mark an item as a Spoil (in its ACKS Monster section) to move it to the Spoils tab. Armor Class is the value typed on the header and is not changed by anything carried here.",
       "spoils": "Harvestable parts (weight in 1/6-stone, gp cost, component & research-effect flags). Use the + to add a pre-flagged spoil.",

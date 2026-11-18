@@ -107,6 +107,10 @@
 .acks-extras-item-sheet.application .acks-extras-item-sheet__content {
   padding: 0;
   overflow: visible;
+  /* A flex column's automatic minimum is its content: without this the scroll
+     region below keeps its capped height in a window resized shorter, and the
+     window clips it instead of the region scrolling. */
+  min-height: 0;
   /* Re-take the type from core: `.window-content` carries a font-size of its
      own and is what every panel below inherits from, so the size set on the
      frame stops here without this. */
