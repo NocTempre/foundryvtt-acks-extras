@@ -422,7 +422,10 @@ proves the handler, not the race.
 ## The UI preset and its prompt
 
 Fixtures: none beyond a disposable `character`, `monster` and
-`acks-extras.party` actor. State to reset afterwards: the two world settings
+`acks-extras.party` actor for steps 1–5. Step 6's are kept and found by
+marker: `lib/look-character` (a `character` the Player seat owns), its
+embedded weapon `lib/look-weapon`, and `lib/look-monster` (a `monster` the
+Player seat owns). State to reset afterwards: the two world settings
 (`uiPreset` back to `acksExtras`, `uiPresetPrompted` back to `false`) and the
 client `look` back to `world`.
 
@@ -458,6 +461,30 @@ client `look` back to `world`.
 5. **Applying from the prompt.** Reset the flag, reload, choose *ACKS system
    sheets*, *Apply*: a toast names the preset, Foundry's reload-all
    confirmation appears, and `uiPreset` reads `acksCore`.
+6. **System style on one Player seat, surface by surface.** On the Player
+   seat alone, set the client `look` to `core`, then `core.uiConfig`'s
+   `colorScheme` (both halves) to `light` and then `dark`. No world setting
+   changes. Open, in each scheme:
+   - each fixture on its default sheet: this module's character sheet, item
+     sheet and follower card;
+   - the system's character and weapon sheets: the
+     `CONFIG.<Doc>.sheetClasses.<type>` entry whose key starts `acks.`,
+     constructed with `{document}`;
+   - the lib roll dialog, with `rollDetailsDialog` fired and not awaited;
+   - an attack card the seat posts with
+     `actor.makeAttackThrow({item, attackType: "melee", skipDialog: true})`,
+     swept by its id afterwards.
+
+   Observable: `data-acks-look="core"` on `<html>`, no `.application.acks-ui`
+   root, a `body` without `acks-lib-sheet-theme`, every text element in a host
+   face (Signika, or Foundry's own display faces on this module's sheets), and
+   Foundry's own backgrounds in both schemes. The window headers stay
+   burgundy: the `acks` system's stylesheet paints every `.window-header`,
+   core's windows included.
+
+   Mechanic: `core.uiConfig`'s change handler reaches the hotbar, so once
+   `compose()` has closed it, render `ui.hotbar` again before the set, or the
+   set throws in `Hotbar._onResize`.
 
 ## A combatant whose actor was deleted
 
