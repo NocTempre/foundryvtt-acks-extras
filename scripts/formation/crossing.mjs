@@ -196,7 +196,7 @@ export async function endCrossing(formation) {
   const crossing = readCrossing(formation);
   if (!actor || !game.user.isGM || !crossing) return false;
   const named = (state) => crossingMembers(formation).filter((e) => crossing.members?.[e.member.actorId]?.state === state).map((e) => e.actor.name);
-  const stillHeld = [[STUCK, "crossing.end.stuck"], [DROWNING, "crossing.end.drowning"]]
+  const stillHeld = [[STUCK, "crossing.endHeld.stuck"], [DROWNING, "crossing.endHeld.drowning"]]
     .map(([state, key]) => [named(state), key])
     .filter(([names]) => names.length)
     .map(([names, key]) => loc(key, { names: names.join(", ") }));
