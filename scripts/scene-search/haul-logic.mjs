@@ -25,8 +25,7 @@ const isPlain = (value) => value !== null && typeof value === "object" && !Array
 /**
  * The sources of a haul in their clean shape: `{thing, layer, letters, truths}`.
  * `thing` is the id of the place's thing that hides the lots, `layer` the check
- * that finds them (the hasty check unless it names the methodical one: "Finding
- * the loot is the hasty check of the room"), `letters` the treasure letters to
+ * that finds them (the hasty check unless it names the methodical one), `letters` the treasure letters to
  * deal for it and `truths` goods already made into card truths. A source with
  * no thing, or neither letters nor truths, is dropped.
  * @param {Array<{thing: string, layer?: string, letters?: Array<string|{letter: string|null}>, truths?: object[]}>} list
