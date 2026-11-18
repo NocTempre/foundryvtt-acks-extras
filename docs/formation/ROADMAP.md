@@ -43,7 +43,7 @@ Still unbuilt, in likely order:
    client, so a player who declares an attempt has the Judge answer for them.
    Fixing it means a second socket round-trip back to the declaring user, held
    open while the Judge's client waits.
-3. **Obstacles, squeezing, swimming and jumping have no surface** (§1).
+3. **Squeezing has no surface** (§1).
 7. **Wilderness mode: per-kind road refinement.** The road table is read from
    the Rulebook; the Judges Journal's per-kind road refinement does not
    replace it yet. An importer recipe and a binding read are owed.

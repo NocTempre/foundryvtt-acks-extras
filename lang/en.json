@@ -7837,6 +7837,7 @@
   "ACKS-FORMATION.crossing.state.drowning": "Drowning",
   "ACKS-FORMATION.crossing.swim.badge.swimming": "Swimming",
   "ACKS-FORMATION.crossing.swim.badge.ownSpeed": "Swim speed",
+  "ACKS-FORMATION.crossing.swim.yours": "(yours)",
   "ACKS-FORMATION.crossing.swim.noThrow": "No throw",
   "ACKS-FORMATION.crossing.swim.pace": "Swims {feet} ft · {mode}",
   "ACKS-FORMATION.crossing.swim.cannotRun": "Cannot run",

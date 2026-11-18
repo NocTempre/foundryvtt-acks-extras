@@ -2275,6 +2275,18 @@
   color: var(--acks-ink-soft);
 }
 
+/* A figure left blank still has a box to hover, as the target cell has. */
+.acks-extras.party-sheet :is(.acks-extras-crossing-pace, .acks-extras-crossing-breath, .acks-extras-crossing-sinks) {
+  min-width: 2em;
+}
+
+.acks-extras.party-sheet .acks-extras-crossing-yours {
+  font-size: var(--acks-fs-label);
+  font-weight: normal;
+  font-style: italic;
+  color: var(--acks-ink-soft);
+}
+
 .acks-extras.party-sheet .acks-extras-crossing-state.is-drowning {
   padding: 0 var(--acks-sp-2);
   border: 1px solid var(--acks-danger-ink);

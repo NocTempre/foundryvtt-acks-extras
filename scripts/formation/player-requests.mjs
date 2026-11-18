@@ -462,8 +462,8 @@ export async function requestCrossingThrow(formation, actorId, step = null) {
 }
 
 /**
- * A seat's choice of rescuer for a drowning member: the member's owner names
- * one of their own, or clears the one they named. The choice is checked for
+ * A seat's choice of rescuer for a drowning member: the seat names a member it
+ * owns as the rescuer, or clears the rescuer it owns. The choice is checked for
  * this seat first and a refusal said here; the GM client checks it again and is
  * the one that writes. `rescuerId` "" clears.
  * @returns {Promise<{ok: boolean, refused?: string}>}

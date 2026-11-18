@@ -1210,7 +1210,7 @@ function swimSetupView(crossing, entries) {
     larger: { value: crossing.penaltyLarger ?? "", enabled: pick === "larger" },
     conditions: Object.keys(WATER).map((key) => {
       const field = `water${key[0].toUpperCase()}${key.slice(1)}`;
-      return { field, label: game.i18n.localize(WATER[key].label), checked: crossing[field] === true };
+      return { field, label: game.i18n.localize(WATER[key].label), checked: crossing[field] === true, tip: words.tip };
     }),
     penaltyTip: words.tip,
     movement: ["combat", "running"].map((value) => ({ value, label: loc(`crossing.swim.mode.${value}`), selected: movement === value })),
@@ -1299,7 +1299,8 @@ function swimRowView(crossing, entry, entries) {
   const judge = game.user.isGM;
   const sinking = row.state === DROWNING;
   const target = Number.isFinite(row.target) ? row.target : null;
-  const exempt = row.skip !== null && row.skip !== undefined;
+  // No throw is a statement about a known figure: a row whose stone is not known (needed null) stays blank.
+  const exempt = row.needed === false;
   // A drowning member's refusal is a player's to be told; a Judge reads the state and the Haul beside it.
   const said = sinking && judge ? "" : refusalText(row.refusal, actor);
   const last = record?.last ?? null;
@@ -1313,6 +1314,7 @@ function swimRowView(crossing, entry, entries) {
     stateLabel: loc(`crossing.state.${row.state}`),
     stateTip: sinking ? [loc("crossing.swim.tip.drowning", { condition: condition(DROWNING) }), swimmingRef()].join(" · ") : swimmingRef(),
     sinking,
+    yours: !judge && (actor.testUserPermission?.(game.user, "OWNER") ?? false),
     holdsLabel: own ? loc("crossing.swim.badge.ownSpeed") : holdsSwimming(actor) ? loc("crossing.swim.badge.swimming") : "",
     badgeTip: [own ? loc("crossing.swim.tip.ownSpeed") : loc("crossing.swim.tip.holds"), swimmingRef()].join(" · "),
     exempt,

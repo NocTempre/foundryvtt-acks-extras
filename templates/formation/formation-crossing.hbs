@@ -46,7 +46,7 @@
     <fieldset class="acks-extras-crossing-water">
       <legend>{{localize "ACKS-FORMATION.crossing.swim.conditions"}}</legend>
       {{#each crossing.swim.conditions}}
-      <label class="acks-extras-crossing-check" data-tooltip-text="{{@root.crossing.swim.penaltyTip}}">
+      <label class="acks-extras-crossing-check" data-tooltip-text="{{this.tip}}">
         <input type="checkbox" name="crossing.{{this.field}}"{{#if this.checked}} checked{{/if}}>
         <span>{{this.label}}</span>
       </label>
@@ -139,7 +139,7 @@
     {{#if crossing.swim}}
     {{#each crossing.rows}}
     <li class="acks-extras-crossing-row" data-state="{{this.state}}" data-press-home="{{this.actorId}}" tabindex="-1">
-      <span class="acks-extras-crossing-name">{{this.name}}{{#if this.holdsLabel}} <span class="acks-extras-crossing-badge" data-tooltip-text="{{this.badgeTip}}">{{this.holdsLabel}}</span>{{/if}}</span>
+      <span class="acks-extras-crossing-name">{{this.name}}{{#if this.yours}} <span class="acks-extras-crossing-yours">{{localize "ACKS-FORMATION.crossing.swim.yours"}}</span>{{/if}}{{#if this.holdsLabel}} <span class="acks-extras-crossing-badge" data-tooltip-text="{{this.badgeTip}}">{{this.holdsLabel}}</span>{{/if}}</span>
       {{#if this.can}}
       <button type="button" data-action="crossingThrow" data-actor-id="{{this.actorId}}"
               aria-label="{{localize 'ACKS-FORMATION.crossing.throwFor' name=this.name}}" data-tooltip="">

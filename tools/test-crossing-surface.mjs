@@ -2284,4 +2284,29 @@ await ok("the Rescuer select is bound on the party sheet and a change reaches th
   assert.ok(sheet.includes("bindCrossingRescuer(this)"), "the sheet binds it on each render");
 });
 
+await ok("a Swimming holder whose carried load is not known has a blank row, not No throw; the player seat marks its own members", async () => {
+  const { formation } = await swimWorld(
+    [["Alder", { stone: 9, owner: PLAYER.id }], ["Birch", { stone: 5, items: [SWIMMER()], owner: PLAYER.id }], ["Cedar", { stone: 4 }]],
+    { figures: { ...SWIMFIG, carriedBodyStone: undefined } },
+  );
+  assert.equal(rowOf(swimView(formation), "Birch").noThrow, "No throw", "a known figure of nothing or less is No throw");
+  naturals.push(3);
+  await throwFor(formation, "Alder");
+  await setRescuer(formation, "Alder", "Birch");
+  const hauler = rowOf(swimView(formation), "Birch");
+  assert.deepEqual([hauler.noThrow, hauler.target, hauler.can], ["", "", false], "the body's stone is not imported, so nothing is said of the throw");
+  const mine = swimView(formation, PLAYER);
+  assert.deepEqual(["Alder", "Birch", "Cedar"].map((name) => rowOf(mine, name).yours), [true, true, false]);
+  assert.equal(["Alder", "Cedar"].some((name) => rowOf(swimView(formation), name).yours), false, "a Judge owns all, so marks none");
+  assert.ok(swimHtml(formation, PLAYER).includes("acks-extras-crossing-yours"));
+});
+
+await ok("each water condition's tooltip is its own datum in the view, so the partial reads no root", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9 }]]);
+  await applyCrossingForm(formation, { penaltyPick: "3", waterRough: true });
+  const setup = swimView(formation).swim;
+  for (const condition of setup.conditions) assert.equal(condition.tip, setup.penaltyTip);
+  assert.equal(/@root/.test(partial), false, "the partial names no root context");
+});
+
 console.log(`\n${passed} passed`);
