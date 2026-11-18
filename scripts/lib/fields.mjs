@@ -80,6 +80,8 @@ export const choice = (enumObj, opts = {}) =>
 export const choiceSet = (enumObj) => new (F().SetField)(new (F().StringField)({ choices: choicesOf(enumObj) }));
 /** A list of ability refs (def.prof.x / def.power.x). */
 export const refList = () => new (F().ArrayField)(new (F().StringField)({ blank: false }));
+/** A list of authored words (a school, an element, a save category), none blank. */
+export const wordList = () => new (F().ArrayField)(new (F().StringField)({ blank: false }));
 
 /**
  * One occupant — a living thing recorded on a place's roster, or on a
@@ -344,6 +346,17 @@ export function effectField() {
     castingTime: str(),
     school: str(),
     casterLevelDelta: num({ integer: true }),
+    // What a `spellcastingMod` row narrows on, beside `school`, `spell` and
+    // `spellRef`: the spell's schools and elements (authored words, folded
+    // when matched), whether the ability copies' pooled picks name one of the
+    // spell's elements or schools (`bySelection`), the categories of save a
+    // `save` row concerns, and, on a `damage` row, whether its size is per die
+    // of the scaled formula (`perDie`). Fields AND; members of one list OR.
+    schools: wordList(),
+    elements: wordList(),
+    bySelection: bool(),
+    saveCategories: wordList(),
+    perDie: bool(),
     // Spell kinds (`domain: "spell"` in EFFECT_TYPES). `roll` carries the dice
     // a damage or heal effect rolls; `damage` its damage types; `amount` a
     // summon's creature count and `value` its Hit Dice; `ref` the creature.

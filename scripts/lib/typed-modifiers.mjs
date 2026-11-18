@@ -26,7 +26,9 @@
  * total its page prints. A spec gated by a ROLL gate (`registerGate`'s
  * `at: "roll"`, the light gate) is read at the roll on any actor, a monster
  * included, and is never written. Every number comes from the spec; this file
- * ships the procedure and the map from a target to the field it writes.
+ * ships the procedure and the map from a target to the field it writes. A
+ * `spellcastingMod` row is no `modifier` and none of the above reads it:
+ * `spellcastingRows` gathers an actor's, and the cast matches them to a spell.
  * Foundry-free.
  */
 import { resolveLevelValue, scopeApplies, satisfies, abilitySlug, hasScope } from "./vocab.mjs";
@@ -400,6 +402,68 @@ export function rollGatedModifiers(actor, target, { resolve = defaultResolve } =
       const { value } = modifierValue(actor, item, spec, { resolve });
       if (value === null || value === 0) return;
       out.push({ item, spec, index, gate: disposition.gate, value });
+    });
+  }
+  return out;
+}
+
+/**
+ * The picks recorded on one ability copy: the abilities feature's reading
+ * where it is live (it also reads a pick named in the item's name), else the
+ * stored `selections` array. Trimmed, blanks dropped.
+ */
+function picksOf(item) {
+  const api = globalThis.acksExtras?.abilities;
+  if (api?.selectionsOf) {
+    try {
+      return [...api.selectionsOf(item)].map((s) => String(s).trim()).filter(Boolean);
+    } catch {
+      /* fall through */
+    }
+  }
+  const stored = extrasOf(item)?.selections;
+  return Array.isArray(stored) ? stored.map((s) => String(s).trim()).filter(Boolean) : [];
+}
+
+/**
+ * The `spellcastingMod` rows an actor's abilities carry, for the cast to match
+ * against a spell: `[{item, spec, index, value, selections, ref, unverified}]`
+ * in item and row order. Copies of one definition (one cookbook id, else one
+ * name) count once, read from the first copy; `selections` is every copy's
+ * picks pooled, each once, so an ability taken once per element names each
+ * element. `value` is the row's located figure at the actor's level and the
+ * ability's rank, resolved as `modifierValue` resolves it, and is null when
+ * the row carries none (a blank figure applies nothing, and the row is kept so
+ * a surface can name it). `ref` is `{id, provides}`, what `stackingPart`
+ * builds a part from, and `unverified` is true for a row the prose scan wrote.
+ * The row's narrowing fields are on `spec`; nothing is matched to a spell here.
+ * Any actor type.
+ *
+ * @param {object} actor
+ * @param {{resolve?: Function}} [options]
+ */
+export function spellcastingRows(actor, { resolve = defaultResolve } = {}) {
+  const out = [];
+  if (!actor?.items) return out;
+  const groups = new Map();
+  for (const item of actor.items) {
+    if (item?.type !== "ability") continue;
+    const effects = extrasOf(item)?.effects;
+    if (!Array.isArray(effects) || !effects.some((e) => e?.type === "spellcastingMod")) continue;
+    const key = definitionKey(item);
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(item);
+  }
+  for (const copies of groups.values()) {
+    const item = copies[0];
+    const extras = extrasOf(item) ?? {};
+    const selections = [...new Set(copies.flatMap(picksOf))];
+    const ref = { id: cookbookId(item) || null, provides: extras.provides ?? [] };
+    const unverified = isUnverified(item);
+    extras.effects.forEach((spec, index) => {
+      if (spec?.type !== "spellcastingMod") return;
+      const { value } = modifierValue(actor, item, spec, { resolve });
+      out.push({ item, spec, index, value, selections, ref, unverified });
     });
   }
   return out;

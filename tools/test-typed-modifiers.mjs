@@ -496,4 +496,127 @@ check("parts from the builder stack as abilities do: a shared capability keeps t
   assert.throws(() => resolveStacking([{ value: 1, label: "x" }, { value: 2, label: "y" }]), "a part built any other way throws in the resolver");
 });
 
+/* --- spellcastingRows: the caster abilities an actor carries ---------------- */
+
+const { spellcastingRows } = await import("../scripts/lib/typed-modifiers.mjs");
+const caster = (over = {}) => ({ type: "spellcastingMod", target: "casterLevel", value: 1, schools: ["tideweaving"], ...over });
+const picked = (name, effects, selections, opts = {}) => ability(name, effects, { ...opts, extras: { ...(opts.extras ?? {}), selections } });
+
+check("spellcastingRows gathers a spellcastingMod row with its item, index, value and ref", () => {
+  const lore = ability("Tide Lore", [mod(), caster({ value: 2 })], { id: "def.prof.tideLore", provides: ["kw:tides"] });
+  const rows = spellcastingRows(character([lore]));
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].item, lore);
+  assert.equal(rows[0].index, 1, "the index is the row's place among the ability's effects");
+  assert.equal(rows[0].spec.schools[0], "tideweaving", "the narrowing fields ride on the spec");
+  assert.equal(rows[0].value, 2);
+  assert.deepEqual(rows[0].ref, { id: "def.prof.tideLore", provides: ["kw:tides"] });
+  assert.equal(rows[0].unverified, false);
+  assert.deepEqual(rows[0].selections, []);
+});
+check("spellcastingRows leaves out every row that is not a spellcastingMod, and an actor with no abilities", () => {
+  const other = ability("Plain", [mod(), { type: "spellLike", spell: "Glow" }, { type: "throw", target: "x" }], { id: "def.prof.plain" });
+  assert.deepEqual(spellcastingRows(character([other])), []);
+  assert.deepEqual(spellcastingRows(character([])), []);
+  assert.deepEqual(spellcastingRows(null), []);
+  assert.deepEqual(spellcastingRows({ type: "character" }), []);
+});
+check("spellcastingRows counts copies of one definition once and pools their picks, each once", () => {
+  const a = picked("Tide Lore (Brine)", [caster()], ["Brine"], { id: "def.prof.tideLore", itemId: "a" });
+  const b = picked("Tide Lore (Surf)", [caster()], ["Surf", "Brine"], { id: "def.prof.tideLore", itemId: "b" });
+  const c = picked("Tide Lore (Foam)", [caster()], [" Foam "], { id: "def.prof.tideLore", itemId: "c" });
+  const rows = spellcastingRows(character([a, b, c]));
+  assert.equal(rows.length, 1, "three copies are one definition");
+  assert.equal(rows[0].item, a);
+  assert.deepEqual(rows[0].selections, ["Brine", "Surf", "Foam"]);
+});
+check("spellcastingRows keeps two definitions apart, and copies without a cookbook id count by name", () => {
+  const one = picked("Brine Lore", [caster()], ["Brine"], { id: "def.prof.brineLore" });
+  const two = picked("Surf Lore", [caster()], ["Surf"], { id: "def.prof.surfLore" });
+  const rows = spellcastingRows(character([one, two]));
+  assert.deepEqual(rows.map((r) => r.item.name), ["Brine Lore", "Surf Lore"]);
+  assert.deepEqual(rows.map((r) => r.selections), [["Brine"], ["Surf"]]);
+  const x = picked("Reef Gift (Coral)", [caster()], ["Coral"], { itemId: "x" });
+  const y = picked("Reef Gift (Kelp)", [caster()], ["Kelp"], { itemId: "y" });
+  assert.equal(spellcastingRows(character([x, y])).length, 1, "the name without its pick is the definition");
+});
+check("spellcastingRows carries the prose-scan flag, and a recipe's row is verified", () => {
+  const scanned = ability("Scanned", [caster()], { id: "def.prof.scanned", extras: { effectsFrom: "scan" } });
+  const recipe = ability("Recipe", [caster()], { id: "def.prof.recipe", extras: { effectsFrom: "register" } });
+  assert.deepEqual(spellcastingRows(character([scanned, recipe])).map((r) => r.unverified), [true, false]);
+});
+check("spellcastingRows resolves a located value at the actor's level, and keeps a blank one as null", () => {
+  const ladder = { kind: "breakpoints", breakpoints: [{ atLevel: 1, value: 1 }, { atLevel: 5, value: 2 }] };
+  const lore = ability("Laddered", [caster({ value: ladder }), caster({ value: null, elements: ["brine"] }), caster({ value: { kind: "progression", as: "x" } })], { id: "def.prof.laddered" });
+  assert.deepEqual(spellcastingRows(character([lore], { level: 4 })).map((r) => r.value), [1, null, null]);
+  assert.deepEqual(spellcastingRows(character([lore], { level: 5 })).map((r) => r.value)[0], 2);
+  const ranked = ability("Ranked", [caster({ value: { kind: "perLevel", base: 1, per: 1 } })], { id: "def.prof.ranked" });
+  assert.equal(spellcastingRows(character([ranked], { level: 3 }))[0].value, 3);
+  assert.equal(spellcastingRows(character([ranked]), { resolve: () => 9 })[0].value, 9, "the resolver option reaches the value");
+});
+check("spellcastingRows reads the abilities feature's picks where it is live, and an ability with no rows is skipped", () => {
+  const prior = globalThis.acksExtras;
+  globalThis.acksExtras = { abilities: { selectionsOf: (item) => (item.name.includes("(Brine)") ? ["Brine"] : []) } };
+  try {
+    const named = ability("Tide Lore (Brine)", [caster()], { id: "def.prof.tideLore" });
+    const bare = ability("No Rows", [mod()], { id: "def.prof.noRows" });
+    const rows = spellcastingRows(character([bare, named]));
+    assert.equal(rows.length, 1);
+    assert.deepEqual(rows[0].selections, ["Brine"]);
+  } finally {
+    globalThis.acksExtras = prior;
+  }
+});
+check("a spellcastingMod row is not a modifier: no disposition, and standingModifiers never lists it", () => {
+  assert.equal(modifierDisposition(caster()), null);
+  const lore = ability("Tide Lore", [caster()], { id: "def.prof.tideLore" });
+  const actor = character([lore]);
+  assert.deepEqual(standingModifiers(actor), { parts: [], listed: [] });
+});
+
+/* --- The narrowing fields on effectField ------------------------------------ */
+
+await (async () => {
+  const prior = globalThis.foundry;
+  class Field {
+    constructor(a, b) {
+      this.a = a;
+      this.b = b;
+    }
+  }
+  class Schema extends Field {
+    get fields() {
+      return this.a;
+    }
+  }
+  class List extends Field {
+    get element() {
+      return this.a;
+    }
+  }
+  class Bool extends Field {}
+  globalThis.foundry = { data: { fields: { SchemaField: Schema, ArrayField: List, StringField: Field, NumberField: Field, BooleanField: Bool, SetField: Field, HTMLField: Field } } };
+  try {
+    const { effectField } = await import("../scripts/lib/fields.mjs");
+    const row = effectField().fields;
+    check("effectField carries the word lists as arrays of non-blank strings", () => {
+      for (const key of ["schools", "elements", "saveCategories"]) {
+        assert.ok(row[key] instanceof List, key);
+        assert.equal(row[key].element.a.blank, false, `${key} members are never blank`);
+      }
+    });
+    check("effectField carries bySelection and perDie as booleans that start false", () => {
+      for (const key of ["bySelection", "perDie"]) {
+        assert.ok(row[key] instanceof Bool, key);
+        assert.equal(row[key].a.initial, false, key);
+      }
+    });
+    check("effectField keeps the ability row's existing spell fields", () => {
+      for (const key of ["school", "spell", "spellRef", "casterLevelDelta"]) assert.ok(key in row, key);
+    });
+  } finally {
+    globalThis.foundry = prior;
+  }
+})();
+
 console.log(`test-typed-modifiers: ${pass} passed`);

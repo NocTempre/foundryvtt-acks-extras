@@ -1,4 +1,4 @@
-# lib API (apiVersion 55)
+# lib API (apiVersion 56)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 55,
+  apiVersion: 56,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -547,7 +547,12 @@ definition). Leaf helpers `num/str/bool/html/choice/choiceSet`, plus:
   A spell row also carries `pickOption` (its option within a `pick` group),
   `recurAt`, `recurSave`, `recurTarget`, `rounds` (a dice formula for a `rounds`
   lasting) and `exemptSizeFrom` (a monsters size key, a string: lib sits below
-  the monsters feature). `ignite` is a spell kind with no arithmetic.
+  the monsters feature). `ignite` is a spell kind with no arithmetic. A
+  `spellcastingMod` row (a caster ability that buffs certain spells) narrows on
+  `schools`, `elements`, `saveCategories` (word lists), `bySelection` (the
+  ability copies' picks name the spell's element or school), `spell` and
+  `spellRef`; a damage row's `perDie` multiplies its size by the scaled
+  formula's dice. The words are authored structure, the sizes are located.
 
 ### Relational effects — requires / grants / modifies, stacking and chaining
 
@@ -635,6 +640,15 @@ It returns `parts` to write and `listed` rows left out with a `reason`
 `isUnverified(item)` is true for a scan's rows (`extras.effectsFrom`, else
 `unaudited`). The equipment loadout effect is the one writer
 (`docs/equipment/MODEL.md`).
+
+`spellcastingRows(actor, {resolve})` gathers a different kind of row: the
+`spellcastingMod` rows of an actor's abilities, which no reader above sees
+(each filters on `type === "modifier"`). It returns `[{item, spec, index,
+value, selections, ref, unverified}]`: copies of one definition count once,
+`selections` pools every copy's picks, `value` is the located figure at the
+actor's level (null when blank, the row kept), `ref` is what `stackingPart`
+takes, and `unverified` is the scan's flag. It matches nothing to a spell; the
+cast does.
 
 `modifierDisposition(spec, {actorType, bearer = false})` takes one opt-in. With
 `bearer`, a row on a record is read on the actor that carries it: a `target`,
