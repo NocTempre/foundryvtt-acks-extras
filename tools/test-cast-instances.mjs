@@ -455,6 +455,26 @@ await ta("the seat's typed split is read by the token it was typed for; a split 
   assert.equal(r.calls.throws.length, 4, "the Judge's split of four is thrown as typed");
 });
 
+await ta("a declared cast restores its typed split at the turn: thrown as declared on the declared targets with no dialog, whatever the user's targets are", async () => {
+  const [k1, k2, k3] = folk(3);
+  const live = [k3];
+  const r = runDeps({ answer: null, tokens: live });
+  const read = r.deps.read;
+  const turn = { id: "k1", started: true, round: 1, turn: 1, turns: [{ id: "cb2" }, { id: "cb1" }], flags: {}, combatant: { id: "cb1" } };
+  const pending = { spellUuid: "Actor.c1.Item.s1", mode: "normal", picks: {}, items: {}, visibility: "gm", combatId: "k1", round: 1, at: 3, targets: [k1.uuid, k2.uuid], allocation: { bolt: { [k1.uuid]: "1", [k2.uuid]: "2" } } };
+  r.deps.read = async (s) => ({ ...(await read(s)), combat: turn, combatant: { id: "cb1", initiative: 9 }, declarations: [{ castId: "d1", role: "caster", pending }] });
+  r.deps.declaredTargets = async (uuids) => ({ tokens: [k1, k2].filter((t) => uuids.includes(t.uuid)), gaps: {}, gone: [] });
+  r.deps.retarget = (tokens) => live.splice(0, live.length, ...tokens);
+  r.deps.endHeld = async () => {};
+  r.deps.declare = { finish: async () => {} };
+  const out = await castSpellRun(spell([THREE_BOLTS]), () => {}, r.deps);
+  assert.equal(out.ok, true);
+  const card = r.calls.posts[0];
+  const [first, second] = Object.keys(card.targets);
+  assert.deepEqual(card.allocation.bolt, { [first]: 1, [second]: 2 }, "the declared split, not the round-robin one");
+  assert.deepEqual(r.calls.throws, [k1.uuid, k2.uuid, k2.uuid], "thrown at the declared tokens as split");
+});
+
 await ta("a count of one with several targets still blocks a Player and throws once at the first for a Judge; a blank count throws nothing and posts the page reference", async () => {
   let r = runDeps({ answer: { mode: "normal", picks: {} } });
   const refused = await castSpellRun(spell([bolt()]), () => {}, r.deps);

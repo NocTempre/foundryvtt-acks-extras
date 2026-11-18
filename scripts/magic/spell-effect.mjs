@@ -71,7 +71,7 @@ export function newCastId({ randomID } = {}) {
  * @param {{id: string, name: string}} [cast.item]  The weapon a buff names.
  * @param {"mobile"|"stationary"} [cast.held]  Marks the caster's record of a concentration spell, naming the kind held.
  * @param {{value: number, units: string}|{none: string}} [cast.tail]  What the cast's effects outlast the concentration by: a duration, or a `{none}` where the import read none.
- * @param {object} [cast.pending]  A declared spell awaiting the caster's turn: `{spellUuid, mode, picks, casterLevel, situational, visibility, pickKind, items, saveMod, combatId, round, at}`. Such a record holds no status.
+ * @param {object} [cast.pending]  A declared spell awaiting the caster's turn: `{spellUuid, ...the answer's fields (cast-declare.mjs `ANSWER_FIELDS`), combatId, round, at}`. Such a record holds no status.
  * @param {{id: string|null, label: string, cite: string, sourceAlignment: string|null, parts: object[]}} [cast.rollMods]
  *   The buff lib reads at the roll (`lib/roll-mods.mjs`), written at lib's flag. A record that carries it holds no status and no changes.
  * @param {{combatId: string, combatantId: string, edge: "start"|"end", count: number, seen?: number}} [cast.turnLife]

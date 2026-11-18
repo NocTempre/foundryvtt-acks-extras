@@ -99,13 +99,26 @@ const firstPicks = (ctx) =>
 /**
  * The state a fresh dialog starts on: the first form, the first option of each
  * group, the first kind, no weapon yet (a holder's pick starts on its default),
- * no typed split, no typed level, the save toggle off.
+ * no typed split, no typed level, the save toggle off. A context that carries
+ * `initial` (a declaration reopened at the turn) starts on that answer instead,
+ * each field it names: the answer is copied, so the stored record is never
+ * written through.
  *
  * @param {object} ctx
  * @param {{visibility?: string}} [o]
  */
 export function initialState(ctx, { visibility = "public" } = {}) {
-  return { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", situational: "", saveMod: false, visibility };
+  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", situational: "", saveMod: false, visibility };
+  const from = ctx.initial;
+  if (!from) return base;
+  const given = Object.fromEntries(Object.keys(base).filter((key) => from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
+  return {
+    ...base,
+    ...given,
+    picks: { ...base.picks, ...(from.picks ?? {}) },
+    items: { ...(from.items ?? {}) },
+    allocation: Object.fromEntries(Object.entries(from.allocation ?? {}).map(([row, split]) => [row, { ...split }])),
+  };
 }
 
 /** The picks that stand for a mode: the state's, else each group's first option. */

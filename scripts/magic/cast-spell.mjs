@@ -1,4 +1,4 @@
-/* global game, ui, fromUuidSync, Roll */
+/* global game, ui, fromUuid, fromUuidSync, Roll */
 /**
  * Casting a spell that has effect rows. A claimant on the cast seam
  * (`lib/patches/spell-use.mjs`), registered after the summoning's, takes the
@@ -28,7 +28,7 @@ import { castDuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
 import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
-import { liveDeclare } from "./cast-declare.mjs";
+import { liveDeclare, answerFromPending } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
@@ -237,8 +237,44 @@ async function readWorld(spell) {
  * @returns {{tokens: object[], gaps: Record<string, number|null>}}
  */
 export function readTargets(casterToken) {
-  const tokens = [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor);
-  return { tokens, gaps: Object.fromEntries(tokens.map((t) => [t.uuid, tokenGapFeet(casterToken, t)])) };
+  return seatOf(casterToken, [...(game.user.targets ?? [])].map((t) => t.document ?? t).filter((t) => t?.actor));
+}
+
+/** A seat's tokens with the gap in feet from the caster's token to each. */
+const seatOf = (casterToken, tokens) => ({ tokens, gaps: Object.fromEntries(tokens.map((t) => [t.uuid, tokenGapFeet(casterToken, t)])) });
+
+/**
+ * The tokens a declaration named, found again at the caster's turn: the seat they
+ * make, and the uuids of those that are gone (a deleted token, scene or actor).
+ *
+ * @param {string[]} uuids  the declaration's stored targets
+ * @param {object|null} casterToken
+ * @returns {Promise<{tokens: object[], gaps: Record<string, number|null>, gone: string[]}>}
+ */
+export async function declaredSeat(uuids, casterToken) {
+  const tokens = [];
+  const gone = [];
+  for (const uuid of uuids) {
+    const found = await fromUuid(uuid).catch(() => null);
+    if (found?.documentName === "Token" && found.actor) tokens.push(found);
+    else gone.push(uuid);
+  }
+  return { ...seatOf(casterToken, tokens), gone };
+}
+
+/**
+ * Make the given tokens this user's targets and no others, so the canvas shows
+ * the seat the card is made for. A token with no canvas object (another scene)
+ * has nothing to target and stays in the seat only.
+ * @param {object[]} tokens  token documents
+ */
+export function retarget(tokens) {
+  const objects = tokens.map((t) => t.object).filter((o) => o?.setTarget);
+  if (!objects.length) {
+    for (const t of [...(game.user.targets ?? [])]) t.setTarget?.(false, { releaseOthers: false });
+    return;
+  }
+  objects.forEach((object, i) => object.setTarget(true, { releaseOthers: i === 0 }));
 }
 
 /** A target as the card keeps it. */
@@ -386,6 +422,8 @@ const liveDeps = () => ({
   lookups: worldLookups(),
   read: readWorld,
   targets: (world) => readTargets(world.casterToken),
+  declaredTargets: (uuids, world) => declaredSeat(uuids, world.casterToken),
+  retarget,
   ask: async (ctx) => (await import("./apps/cast-dialog.mjs")).CastDialog.wait(ctx),
   notify: (level, key, data) => ui.notifications?.[level]?.(loc(`notice.${key}`, data ?? {})),
   adjustPool: async (actor, tradition, slotKey) => (await import("../classes/casting.mjs")).adjustPool(actor, tradition, slotKey, 1),
@@ -509,10 +547,19 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
         });
   // One targeted token can bear a weapon buff.
   const bearerOf = () => (seat.tokens.length === 1 ? seat.tokens[0] : null);
-  // A declaration being resolved answers for itself; the dialog opens only where its stored weapon is not one of the one target's.
-  const stored = resolving ? declaration.valid.pending : null;
-  const storedFits =
-    stored && (!needsBearer(rowsForMode(all, stored.mode, stored.picks ?? {})) || bearerOf()?.actor?.items?.get?.(stored.items?.[bearerOf().uuid])?.type === "weapon");
+  // A declaration being resolved answers for itself, on the targets it declared: they are found again by uuid, are the seat's targets from here on (the canvas shows them) and are not read from the user's targets again unless the dialog opens. A record written before targets were stored reads the seat's targets as they stand.
+  const declared = resolving ? answerFromPending(declaration.valid.pending) : null;
+  let gone = [];
+  if (declared?.targets) {
+    const found = deps.declaredTargets ? await deps.declaredTargets(declared.targets, world) : { tokens: (world.tokens ?? []).filter((t) => declared.targets.includes(t.uuid)), gaps: world.gaps ?? {}, gone: declared.targets.filter((u) => !(world.tokens ?? []).some((t) => t.uuid === u)) };
+    seat = { tokens: found.tokens, gaps: found.gaps ?? {} };
+    gone = found.gone ?? [];
+    await deps.retarget?.(seat.tokens);
+  }
+  // The dialog opens only where a declared target is gone or its stored weapon is not one of the one target's.
+  const itemsFit = !declared || !needsBearer(rowsForMode(all, declared?.mode, declared?.picks ?? {})) || bearerOf()?.actor?.items?.get?.(declared?.items?.[bearerOf().uuid])?.type === "weapon";
+  const storedFits = Boolean(declared) && !gone.length && itemsFit;
+  if (declared && !storedFits) deps.notify(gone.length ? "warn" : "info", gone.length ? "resolveGone" : "resolveItem", { name: caster.name, n: gone.length });
   const gateExtras = castGateExtrasOf(spell, deps.lookups);
   const askContext = () => ({
     spell,
@@ -556,13 +603,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       seat = readSeat();
       return askContext();
     },
+    // A declaration that no longer fits reopens on what the seat declared, less what is gone.
+    ...(declared ? { initial: declared } : {}),
   });
-  const answer = storedFits
-    ? { mode: stored.mode, picks: stored.picks ?? {}, pickKind: stored.pickKind ?? null, items: stored.items ?? {}, saveMod: stored.saveMod === true, casterLevel: stored.casterLevel ?? "", situational: stored.situational ?? "", visibility: stored.visibility || "public" }
-    : await deps.ask(askContext());
+  const answer = storedFits ? declared : await deps.ask(askContext());
   if (!answer) return { ok: false, reason: "cancelled" };
-  // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now.
-  seat = readSeat();
+  // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now. A declaration that fits keeps the seat it declared.
+  if (!storedFits) seat = readSeat();
 
   const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   const kept = rowsForMode(all, mode, answer.picks);
@@ -589,7 +636,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
   else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
   if (moment === MOMENT.declare) {
-    const made = await deps.declare?.declare({ caster, spell, answer, combat: world.combat, combatant: world.combatant });
+    const made = await deps.declare?.declare({ caster, spell, answer: { ...answer, targets: seat.tokens.map((t) => t.uuid) }, combat: world.combat, combatant: world.combatant });
     return { ok: true, declared: true, castId: made?.castId };
   }
 

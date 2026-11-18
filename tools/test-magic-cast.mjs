@@ -1442,6 +1442,86 @@ await ta("a declaration whose weapon is no longer the one target's opens the dia
   assert.equal(spends, 0);
 });
 
+/** A token of the invented scene. */
+const sceneToken = (n) => ({ uuid: `Scene.s.Token.k${n}`, name: `Folk ${n}`, id: `k${n}`, actor: { name: `Folk ${n}`, type: "character", items: [], effects: [], appliedEffects: [] } });
+const uuidsOf = (tokens) => tokens.map((t) => t.uuid);
+
+/**
+ * A resolve at the caster's turn of a declaration naming `declared`, with the tokens still in `scene` and the user's own targets `live`, which change as the world changes them; `retarget` writes the user's targets as the canvas does.
+ */
+function resolveRun({ scene, live, pending = {}, answer = null }) {
+  const r = fightDeps({ answer, tokens: live, world: { ...ON_TURN(), declarations: [pendingRecord(pending)] } });
+  r.calls.retargeted = [];
+  r.deps.declaredTargets = async (uuids) => ({ tokens: scene.filter((t) => uuids.includes(t.uuid)), gaps: {}, gone: uuids.filter((u) => !scene.some((t) => t.uuid === u)) });
+  r.deps.retarget = (tokens) => {
+    r.calls.retargeted.push(uuidsOf(tokens));
+    live.splice(0, live.length, ...tokens);
+  };
+  return r;
+}
+
+await ta("a declaration resolves on the targets it declared with no dialog, whatever the user's targets are at the turn, and makes them the user's targets", async () => {
+  const [k1, k2, k3] = [1, 2, 3].map(sceneToken);
+  const live = [k3];
+  const r = resolveRun({ scene: [k1, k2, k3], live, pending: { targets: uuidsOf([k1, k2]) } });
+  // The canvas may not have written the user's targets by the time the cast reads: the declared seat is held, not read back.
+  r.deps.retarget = (tokens) => r.calls.retargeted.push(uuidsOf(tokens));
+  let spends = 0;
+  const out = await castSpellRun(spell([heal]), () => { spends++; }, r.deps);
+  assert.equal(out.ok, true);
+  assert.equal(r.calls.asked, null, "no dialog opened");
+  assert.equal(spends, 0);
+  assert.deepEqual(Object.values(r.calls.posts[0].targets).map((tg) => tg.uuid), uuidsOf([k1, k2]), "the card is made for the declared two, not for the third the user has targeted");
+  assert.deepEqual(r.calls.retargeted, [uuidsOf([k1, k2])], "the canvas is told the declared seat");
+  assert.equal(r.calls.notices.some(([, key]) => key.startsWith("resolve")), false, "nothing to tell");
+});
+
+await ta("a declaration of no target resolves on nobody even when the user has targeted a token; a record from before targets were stored reads the user's targets as they stand", async () => {
+  const [k1, k3] = [1, 3].map(sceneToken);
+  let r = resolveRun({ scene: [k1, k3], live: [k3], pending: { targets: [] } });
+  assert.equal((await castSpellRun(spell([heal]), () => {}, r.deps)).ok, true);
+  assert.equal(r.calls.asked, null);
+  assert.deepEqual(r.calls.posts[0].targets, {});
+  r = resolveRun({ scene: [k1, k3], live: [k3] });
+  await castSpellRun(spell([heal]), () => {}, r.deps);
+  assert.deepEqual(Object.values(r.calls.posts[0].targets).map((tg) => tg.uuid), [k3.uuid], "no stored targets: the seat as it stands");
+  assert.deepEqual(r.calls.retargeted, []);
+});
+
+await ta("a declared target that is gone reopens the dialog prefilled with what was declared and the targets that remain, naming the change, and the cast is made for the remaining seat", async () => {
+  const [k1, k2, k3] = [1, 2, 3].map(sceneToken);
+  const stored = { mode: "normal", picks: { g: "p" }, pickKind: "beast", items: { [k1.uuid]: "w1" }, saveMod: true, casterLevel: "5", situational: 2, visibility: "blind", targets: uuidsOf([k1, k2]), allocation: { bolt: { [k1.uuid]: "2", [k2.uuid]: "1" } } };
+  const live = [k3];
+  const r = resolveRun({ scene: [k1, k3], live, pending: stored, answer: { mode: "normal", picks: {}, items: {}, visibility: "gm" } });
+  let spends = 0;
+  const out = await castSpellRun(spell([heal]), () => { spends++; }, r.deps);
+  assert.equal(out.ok, true);
+  assert.equal(r.calls.asked.moment, "resolve");
+  assert.equal(spends, 0, "a resolution was spent at its declaring");
+  const { initial } = r.calls.asked;
+  assert.deepEqual([initial.mode, initial.picks, initial.pickKind, initial.items, initial.saveMod, initial.casterLevel, initial.situational, initial.visibility], ["normal", { g: "p" }, "beast", { [k1.uuid]: "w1" }, true, "5", 2, "blind"]);
+  assert.deepEqual(initial.allocation, stored.allocation, "the split is offered back");
+  assert.deepEqual(uuidsOf(r.calls.asked.targets), [k1.uuid], "the dialog opens on the targets that remain");
+  assert.deepEqual(r.calls.retargeted, [[k1.uuid]], "the user's targets were made the remaining declared ones before it opened");
+  assert.ok(r.calls.notices.some(([level, key]) => level === "warn" && key === "resolveGone"));
+  assert.deepEqual(Object.values(r.calls.posts[0].targets).map((tg) => tg.uuid), [k1.uuid], "the dialog's bucket is read again after the answer");
+});
+
+await ta("a declared weapon that no longer fits reopens the dialog prefilled with the declared answer, naming the change", async () => {
+  const buff = { key: "edge", type: "modifier", target: "attackThrow", appliesTo: "recipient", value: 1, gate: { kind: "weaponMundane" }, lasts: "duration" };
+  const k1 = bearerToken("w1");
+  const answer = { mode: "normal", picks: {}, items: { [k1.uuid]: "w1" } };
+  let r = resolveRun({ scene: [k1], live: [k1], answer, pending: { targets: [k1.uuid], items: { [k1.uuid]: "w1" }, saveMod: true, casterLevel: "4" } });
+  await castSpellRun(spell([buff]), () => {}, r.deps);
+  assert.equal(r.calls.asked, null, "its weapon is still the target's: no dialog");
+  r = resolveRun({ scene: [k1], live: [k1], answer, pending: { targets: [k1.uuid], items: { [k1.uuid]: "gone" }, saveMod: true, casterLevel: "4" } });
+  await castSpellRun(spell([buff]), () => {}, r.deps);
+  assert.equal(r.calls.asked.moment, "resolve");
+  assert.deepEqual([r.calls.asked.initial.items, r.calls.asked.initial.saveMod, r.calls.asked.initial.casterLevel], [{ [k1.uuid]: "gone" }, true, "4"]);
+  assert.deepEqual(uuidsOf(r.calls.asked.targets), [k1.uuid]);
+  assert.ok(r.calls.notices.some(([, key]) => key === "resolveItem"));
+});
+
 await ta("a lost declaration blocks a Player before any spend and warns a Judge, whose cast runs fresh with a spend; with none the same; a second declaration is blocked", async () => {
   const lost = [pendingRecord({ lost: { cause: "damage", at: 4 } })];
   let spends = 0;

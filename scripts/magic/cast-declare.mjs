@@ -31,6 +31,54 @@ import { isPrimaryGM } from "../lib/util.mjs";
 const CASTING = "casting";
 
 /**
+ * What a declaration stores of the seat's answer, one normalizer per field. This
+ * table IS the stored shape: a declared field is added here and nowhere else, and
+ * `answerStored` writes it into the pending record and `answerFromPending` reads
+ * it back as the dialog's answer. `targets` are the token uuids the seat had
+ * targeted at its answer, `allocation` the throw split by row key and token uuid,
+ * `items` the weapon of each holder by token uuid.
+ */
+export const ANSWER_FIELDS = Object.freeze({
+  mode: (v) => v,
+  picks: (v) => v ?? {},
+  casterLevel: (v) => v ?? null,
+  situational: (v) => v ?? null,
+  visibility: (v) => v ?? "public",
+  pickKind: (v) => v ?? null,
+  items: (v) => v ?? {},
+  saveMod: (v) => v === true,
+  targets: (v) => (Array.isArray(v) ? [...v] : []),
+  allocation: (v) => v ?? {},
+});
+
+/**
+ * The fields of a seat's answer a declaration stores. Pure.
+ * @param {object} answer  `ANSWER_FIELDS`' keys, as the dialog answered them, with `targets` the uuids of the seat's tokens
+ * @returns {object}
+ */
+export const answerStored = (answer) => Object.fromEntries(Object.entries(ANSWER_FIELDS).map(([key, normalize]) => [key, normalize(answer?.[key])]));
+
+/**
+ * A stored declaration read back as the answer the cast and the dialog take: the
+ * stored fields, with a blank level and figure as the dialog holds them (empty
+ * strings). A record written before targets were stored has `targets:
+ * null`, and its cast reads the seat's targets as they stand. Pure.
+ *
+ * @param {object} pending  a pending record's `pending`
+ * @returns {object}
+ */
+export function answerFromPending(pending) {
+  const stored = answerStored(pending);
+  return {
+    ...stored,
+    casterLevel: stored.casterLevel ?? "",
+    situational: stored.situational ?? "",
+    visibility: pending?.visibility || "public",
+    targets: Array.isArray(pending?.targets) ? stored.targets : null,
+  };
+}
+
+/**
  * The round whose turn of the caster's ends the declaration. A declaration made
  * before the caster's initiative is rolled, or while the caster's turn is still
  * to come this round, lapses at that turn of this round; one made after it has
@@ -103,7 +151,7 @@ function recordsOf(entries, pendings) {
  * @param {object} from
  * @param {object} from.caster  the actor
  * @param {{uuid: string, name: string, img?: string}} from.spell
- * @param {{mode: string, picks: object, casterLevel: object, situational: number|null, visibility: string, pickKind: string|null, items: Record<string, string>, saveMod: boolean}} from.answer  what the dialog was answered
+ * @param {object} from.answer  what the dialog was answered, with the seat's target uuids as `targets` (the fields `ANSWER_FIELDS` names)
  * @param {{id: string, round: number, turn: number, turns: Array<{id: string}>}} from.combat
  * @param {{id: string, initiative?: number|null}} from.combatant  the caster's
  * @param {object} from.deps  `castId()`, `now()`, `entries(actor)` (`[{id, record}]`), `remove(actor, ids)`, `create(actor, datas)`, `setFlag({combat, combatant, caster, value})`, `notify(level, key, data)`
@@ -118,14 +166,7 @@ export async function declareCast({ caster, spell, answer, combat, combatant, de
   const base = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster" };
   const pending = {
     spellUuid: spell.uuid,
-    mode: answer.mode,
-    picks: answer.picks ?? {},
-    casterLevel: answer.casterLevel ?? null,
-    situational: answer.situational ?? null,
-    visibility: answer.visibility ?? "public",
-    pickKind: answer.pickKind ?? null,
-    items: answer.items ?? {},
-    saveMod: answer.saveMod === true,
+    ...answerStored(answer),
     combatId: combat.id,
     round,
     at: now,

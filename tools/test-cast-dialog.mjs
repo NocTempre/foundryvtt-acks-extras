@@ -303,6 +303,29 @@ const liveCtx = (box, over = {}) => {
   return make();
 };
 
+await ta("a declaration reopened at the turn starts the window on the declared answer, copied, and the bucket re-read keeps it", async () => {
+  CastDialog.instances.length = 0;
+  hooks.clear();
+  const initial = { mode: "normal", picks: {}, pickKind: "", items: { A: "w2" }, allocation: { bolt: { A: "2", B: "1" } }, casterLevel: "5", situational: 2, saveMod: true, visibility: "blind", targets: ["A", "B"] };
+  const start = initialState(baseCtx({ initial }), { visibility: "public" });
+  assert.deepEqual([start.items, start.allocation, start.casterLevel, start.situational, start.saveMod, start.visibility], [{ A: "w2" }, { bolt: { A: "2", B: "1" } }, "5", 2, true, "blind"]);
+  assert.notEqual(start.items, initial.items, "the stored record is copied, never written through");
+  assert.notEqual(start.allocation.bolt, initial.allocation.bolt);
+  assert.equal(initialState(baseCtx(), { visibility: "gm" }).visibility, "gm", "no declaration: the fresh answer");
+  const box = { uuids: ["A"], reads: 0 };
+  const asked = CastDialog.wait(liveCtx(box, { initial }));
+  await settle(5);
+  const [dialog] = CastDialog.instances;
+  assert.deepEqual([dialog.last.saves.situational, dialog.last.saves.toggle.checked, dialog.last.footer.visibility.find((v) => v.selected).key], [2, false, "blind"], "the figure and the visibility come back (the toggle waits on an imported figure)");
+  assert.equal(dialog.last.bucket.rows[0].pills.find((p) => p.on).id, "w2", "the declared weapon is the one picked");
+  box.uuids = ["A", "C"];
+  fire("targetToken", game.user, {}, true);
+  await settle();
+  assert.equal(dialog.last.footer.visibility.find((v) => v.selected).key, "blind", "a re-read of the bucket does not apply the declaration again");
+  await dialog.close();
+  assert.equal(await asked, null);
+});
+
 await ta("the window answers null on close, hooks the seat's own target changes while open, and unhooks on close", async () => {
   CastDialog.instances.length = 0;
   hooks.clear();

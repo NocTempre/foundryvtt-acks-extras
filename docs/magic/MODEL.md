@@ -502,9 +502,9 @@ cancel at any point before the spend costs nothing:
    the weapon and the seat has not targeted exactly one token; in a begun fight,
    `declarationLost`, `noDeclaration` and `declared` ("A declaration", below);
    and `concentrating`, which is always a warning. `outOfRange` and
-   `tooManyTargets` are not judged at a declaring, since the targets are the
-   resolving cast's. They are checked again after the dialog and before
-   anything is spent.
+   `tooManyTargets` are not judged at a declaring, since the gap is measured at
+   the turn, on the declared targets. They are checked after the dialog and
+   before anything is spent.
 
    *Range* (`cast-range.mjs`) is measured per target, centre to centre. The
    spell's `range` gives a figure in feet only for a distance, a touch-or-
@@ -760,8 +760,12 @@ begun fight (`started`, or core's `acks.initDone`) holds the caster's combatant,
 initiative is rolled, `declare` at any other moment. At `declare` the dialog's
 button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
-status-free pending record (`pending {spellUuid, mode, picks, casterLevel,
-situational, visibility, item, combatId, round, at}`), and posts no card. `round`
+status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
+round, at}`), and posts no card. The answer's fields are one table,
+`ANSWER_FIELDS` in `cast-declare.mjs`: mode, picks, casterLevel, situational,
+visibility, pickKind, items, saveMod, the uuids of the seat's `targets` at the
+answer, and the throw `allocation` by row key and token uuid. A later field is
+added to that table and nowhere else. `round`
 is the round whose turn of the caster's takes the declaration back (`lapseRound`:
 this round where the caster's turn is still to come or its initiative unrolled,
 the next once it has passed). The pending record alone is the declaration.
@@ -772,10 +776,22 @@ while a declaration of that actor names the fight); with no GM connected the fla
 is left alone and nothing depends on it. A flag set by hand with no record to
 explain it counts as a declaration for the missing-declaration verdict, and its
 cast runs fresh, asks and spends. At `resolve`, an unlost pending record of this
-spell and fight resolves with its stored answers and the seat's current targets:
-no dialog, no capacity check, no spend, the other verdicts still checked. The
-dialog opens, spending nothing, only where a stored weapon is not a weapon of the
-one target. The flag is cleared and both records deleted at the resolution.
+spell and fight resolves with its stored answers on the targets it declared,
+whatever the user's own targets are at the turn: no dialog, no capacity check, no
+spend, the other verdicts still checked. The cast runs on the client of the user
+who presses it, the caster's owner or a Judge casting for it, and no turn hook
+casts. That client finds each stored token again by uuid (`declaredSeat`; a
+deleted token, scene or actor is gone), makes the found ones its user's targets
+and no others (`retarget`: `setTarget(true, {releaseOthers})`, on a token with a
+canvas object, so one on another scene is in the seat and not on the canvas) and
+holds that seat to the end of the cast without reading the user's targets again.
+A record with no `targets` (written before they were stored) reads the user's
+targets as they stand; one with an empty list resolves on nobody. The dialog
+opens, spending nothing, where a declared target is gone or a stored weapon is not
+a weapon of the one target: it opens prefilled with the stored answer (`ctx.initial`,
+which `initialState` merges, copying it) and the remaining targets, after a notice
+naming what changed, and the cast reads the bucket again at its answer as any
+dialog cast does. The flag is cleared and both records deleted at the resolution.
 Lib's `STATES_LOST_HOOK`, for ids that hold `casting`, stamps the caster's pending
 records `lost {cause, at}` and clears the flag; a stamped record gives
 `declarationLost` at the turn, no record `noDeclaration`, and each blocks a Player

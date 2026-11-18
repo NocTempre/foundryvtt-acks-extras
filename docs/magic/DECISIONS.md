@@ -351,3 +351,28 @@ a field being typed in, so the window captures its named controls before each
 render and a split input's typing waits for its change event. *Counter (medium):*
 a Player's X unsets that Player's own target only, which is correct for the cast
 and surprising beside a shared targeting habit.
+
+## 2026-11-18 — A declared cast resolves on what was declared
+
+The owner: "BTW, in combat, they should get this popup when they declare casting,
+so when it gets to their turn it's ready to resolve." The popup was already the
+declaration's, but the answer it stored was incomplete: the targets and the throw
+split were not kept, so the cast at the turn read whatever `game.user.targets`
+held then, on whichever client pressed it. The pending record now stores the
+seat's target uuids and the split, in one table of answer fields
+(`ANSWER_FIELDS`), and the turn finds the tokens by uuid, makes them the user's
+targets and resolves on them with no dialog. Example: a caster declares at two
+foes, the Judge targets a third while the round runs, and at the caster's turn
+the card is made for the two declared. Where a declared token is gone, or a
+stored weapon no longer fits, the dialog opens prefilled with the stored answer
+and the remaining targets, with a notice.
+
+*Rejected:* reading the user's targets at the turn (what the owner's "ready to
+resolve" excludes); storing token names beside the uuids so a notice can name a
+deleted target (a copy that can only drift; the notice counts them); opening the
+dialog at every turn (the declaration's point is that it need not). *Cost:* a
+record written before this carries no targets and resolves on the user's as
+before; a token on another scene is in the seat but cannot be targeted on the
+canvas. *Counter (medium):* a Judge who retargets at the turn expecting it to
+count finds the cast on the declared seat; the seat changes only where a declared
+token is gone (the dialog reopens) or by declaring again.
