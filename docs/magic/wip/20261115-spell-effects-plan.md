@@ -3565,6 +3565,29 @@ R-c (board 7), R-e (board 8), K-b and the M slices (boards 9–12) build
 to it with no further design step. Board 6's drawn party table stays
 not-the-format (the build posts through `renderRollCard`).
 
+- **229 Implements: one design with BtA** (qualifies 216 IN PART; it is
+  under 7 days old). The new evidence is the owner's word relayed by
+  BtA, "BTA implements should follow raw with values and tiered effects.
+  You get the effect you use the supply for...", read against BTA
+  p. 120, and BtA's D1/D3 (its canvas version 1794982312-362a).
+  - Board 7 keeps the inventory bucket ("Inventory, not a check box"):
+    it opens holding the carried sets, a drop adds one, and X removes
+    one.
+  - Inside it, the rows are BtA's pick rows. Each is a radio with the
+    set's picture and name, "Level N · effective M", and diamonds
+    (filled for the effective level, hollow for levels lost to damage).
+    The pick is tagged Used.
+  - A set too low is disabled, with its picture and name dimmed and its
+    reason in full ink.
+  - The pick opens on the LOWEST set high enough (BtA C3
+    `usableSets(items, needed)`, lowest effective level first). This
+    replaces 216's "highest".
+  - The pick is the answer of R5's `band(ctx, answer)` (228), and C6
+    damages that set on a botch.
+  - Published as canvas v21 (board 7). The owner's v19 approval covered the
+    bucket. This revision adds the pick inside it, so it is flagged to
+    the owner.
+
 **From BtA's visual pass (its canvas rev 2), relayed 2026-11-18:**
 - **228 R5 gains `band(ctx, answer)`.** It returns a partial plus its
   context, for a band that field-spec cannot express (glyph segments, a
