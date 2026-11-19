@@ -16,7 +16,7 @@
 import { PHASE, REFUSAL } from "../treasure/constants.mjs";
 import { DEAL_REFUSAL, lairWarning, runLetterDeal } from "../treasure/deal-logic.mjs";
 import { letterOf } from "../treasure/search-logic.mjs";
-import { potCards } from "../treasure/pot-logic.mjs";
+import { isFound, potCards } from "../treasure/pot-logic.mjs";
 import { LAYER_NAMES } from "../lib/place-things-logic.mjs";
 import { CODE, LAYER } from "./constants.mjs";
 
@@ -149,7 +149,7 @@ export function lotsInPot(lots, view) {
  * itemId}`, from the lots that carry an `owner`. A card is found by the key its
  * truth carries, never by the order the cards were made in, and a lot whose card
  * is not in the pot maps nothing. This is the pot's `origin.carried`, which the
- * take-off reads when the pot opens.
+ * take-off reads as each lot is found.
  * @param {Array<{key: string, owner?: {actorUuid: string, itemId: string}}>} lots `runHaulDeal`'s lots
  * @param {{cards: Array<{id: string, truth: {lot?: string}}>}} view the pot's `PotView`
  * @returns {Record<string, {actorUuid: string, itemId: string}>}
@@ -162,6 +162,32 @@ export function carriedOf(lots, view) {
     if (id && lot.owner) out[id] = { actorUuid: lot.owner.actorUuid, itemId: lot.owner.itemId };
   }
   return out;
+}
+
+/**
+ * The bodies of a reopened search with the layers their pot says were found. A
+ * body's state rode in the session, which ending the search discarded; the
+ * found marks live on the pot's cards, so a layer whose every lot is in the pot
+ * and found reads as found again (`state.layers.<name>.found`). Nothing else of
+ * a body's state comes back: a failed check's lock, and a check that yielded no
+ * lot, left nothing in the pot to read.
+ * @param {object[]} bodies the session's bodies
+ * @param {Array<{key: string, thing: string, layer: string, cardId?: string}>} lots `lotsInPot`'s answer
+ * @param {object|null} view the pot's `PotView`
+ * @returns {object[]} new bodies, the inputs untouched
+ */
+export function bodiesWithFound(bodies, lots, view) {
+  const cards = new Map(potCards(view).map((c) => [c.id, c]));
+  return (Array.isArray(bodies) ? bodies : []).map((body) => {
+    const mine = (Array.isArray(lots) ? lots : []).filter((l) => l.thing === `body:${body.id}`);
+    const layers = {};
+    for (const name of new Set(mine.map((l) => l.layer))) {
+      const of = mine.filter((l) => l.layer === name);
+      if (of.length && of.every((l) => cards.has(l.cardId) && isFound(cards.get(l.cardId)))) layers[name] = { found: true };
+    }
+    if (!Object.keys(layers).length) return body;
+    return { ...body, state: { ...(isPlain(body.state) ? body.state : {}), layers: { ...(isPlain(body.state?.layers) ? body.state.layers : {}), ...layers } } };
+  });
 }
 
 /**

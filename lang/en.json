@@ -10857,7 +10857,7 @@
   "ACKS-TREASURE.record.left": "left behind",
   "ACKS-TREASURE.search.title": "The fight is over",
   "ACKS-TREASURE.search.items": "{n} carried",
-  "ACKS-TREASURE.search.itemsTip": "Items on the body; they leave it when the scene opens (RR, Adventures chapter)",
+  "ACKS-TREASURE.search.itemsTip": "Items on the body; each leaves it when its lot is found (RR, Adventures chapter)",
   "ACKS-TREASURE.search.letter": "Type {letter}",
   "ACKS-TREASURE.search.letterTip": "Treasure type (JJ ch. 4)",
   "ACKS-TREASURE.search.table": "Table",

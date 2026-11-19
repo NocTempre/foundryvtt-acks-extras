@@ -31,8 +31,8 @@ import { revealExit } from "./seams.mjs";
 
 const LANG_ACTIVITY = "ACKS-LOCATION.sceneSearch.activity.";
 
-/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor, citeOf?}` (`citeOf(item)` is the page an imported ability cites),`postRoll(card)` for the Judges' card, `reveal` for `revealSecretDoor`, and `planBy` for who locked a plan entry. */
-const seams = { checks: null, postRoll: null, reveal: null, pot: null, planBy: null };
+/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor, citeOf?}` (`citeOf(item)` is the page an imported ability cites),`postRoll(card)` for the Judges' card, `reveal` for `revealSecretDoor`, `planBy` for who locked a plan entry, and `takeOff` for treasure's take-off of a found lot's goods. */
+const seams = { checks: null, postRoll: null, reveal: null, pot: null, planBy: null, takeOff: null };
 
 /**
  * Supply what resolution needs from outside this feature. Called once at init
@@ -43,13 +43,15 @@ const seams = { checks: null, postRoll: null, reveal: null, pot: null, planBy: n
  * @param {((wall: object) => *)|null} [deps.reveal] `revealSecretDoor`, once it exists
  * @param {((uuid: string) => object|null)|null} [deps.pot] finds a pot pile by uuid (`fromUuidSync` by default)
  * @param {((formation: object, actorId: string) => string|null)|null} [deps.planBy] the id of the user who locked a member's plan entry (the turn plan's `by`)
+ * @param {((pile: object, only: {cardIds: string[]}) => Promise<number>)|null} [deps.takeOff] treasure's `takeOffBodies`: takes the goods of the lots a check found off the bodies that carried them
  */
-export function configureSceneChecks({ checks, postRoll = null, reveal = null, pot = null, planBy = null }) {
+export function configureSceneChecks({ checks, postRoll = null, reveal = null, pot = null, planBy = null, takeOff = null }) {
   seams.checks = checks;
   seams.postRoll = postRoll;
   seams.reveal = reveal;
   seams.pot = pot;
   seams.planBy = planBy;
+  seams.takeOff = takeOff;
 }
 
 /** A party check's resolved target for a member, or null where there is none (or the resolver throws). */
@@ -181,7 +183,7 @@ export async function resolveSceneCheck({ formation, actor, key, layer }) {
   if (applied.lots.length && world.session.potUuid) {
     const pile = (seams.pot ?? defaultPot)(world.session.potUuid);
     if (pile) {
-      const marked = await markSceneFound(pile, outcome);
+      const marked = await markSceneFound(pile, outcome, { takeOff: seams.takeOff });
       lots = marked.ok ? { ids: marked.ids, missing: marked.missing } : null;
     }
   }

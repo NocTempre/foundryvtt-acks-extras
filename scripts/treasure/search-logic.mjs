@@ -1,7 +1,7 @@
 /**
  * "Search the fallen" on plain data, Foundry-free: which combatants of a fight
- * that ended count as fallen, the record built of them, and which goods an
- * opened pot takes off the bodies (JJ ch. 4; RR, Adventures chapter, for the procedure; this file holds
+ * that ended count as fallen, the record built of them, and which goods leave
+ * the bodies once their lots are found (JJ ch. 4; RR, Adventures chapter, for the procedure; this file holds
  * no figure from either).
  *
  * The record is built from facts read off the combatants (`CombatantFacts`)
@@ -18,7 +18,7 @@
  * @property {boolean} dead the creature carries the dead status
  * @property {number|null} hp hit points read through the token, null when it has none
  */
-import { MODULE_ID, PHASE, POT_FLAG } from "./constants.mjs";
+import { MODULE_ID } from "./constants.mjs";
 
 /** Flag key, under the module's scope, of the chat card that carries a fight's record. */
 export const SEARCH_FLAG = "treasureSearch";
@@ -121,7 +121,18 @@ export function recordOf({ combatId, sceneId = null, entries }) {
   return fallen.length ? { combatId, sceneId, fallen, opened: false, drawnText: [] } : null;
 }
 
-/** A record read back from a flag, every key present. `opened` is set once a scene search has been opened from the card, so one card deals once. */
+/** The lots a card remembers of its first opening, `{key, thing, layer}` each; a row with no key or no thing is dropped. */
+const lotsOf = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((l) => l && typeof l === "object" && text(l.key) && text(l.thing))
+    .map((l) => ({ key: text(l.key), thing: text(l.thing), layer: text(l.layer) || null }));
+
+/**
+ * A record read back from a flag, every key present. `opened` is set once a
+ * scene search has been opened from the card, so one card deals once; with it
+ * the card keeps what that first opening made (`potUuid`, `placeUuid`, `lots`),
+ * which a Judge's later press reattaches without dealing again.
+ */
 export function normalizeRecord(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
   return {
@@ -130,6 +141,9 @@ export function normalizeRecord(flag) {
     fallen: Array.isArray(f.fallen) ? f.fallen.filter((e) => e && typeof e === "object") : [],
     opened: f.opened === true,
     drawnText: Array.isArray(f.drawnText) ? f.drawnText.map(String) : [],
+    potUuid: text(f.potUuid) || null,
+    placeUuid: text(f.placeUuid) || null,
+    lots: lotsOf(f.lots),
   };
 }
 
@@ -162,32 +176,43 @@ export function specOfResult(result) {
   return label ? { kind: "text", label } : null;
 }
 
-/** Whether a pot update's diff turned the pot open. */
-export const openedNow = (changes) => changes?.flags?.[MODULE_ID]?.[POT_FLAG]?.phase === PHASE.open;
+/**
+ * Whether an origin still owes goods to the bodies: it asks for the take-off
+ * (`takeOff: true`) and maps a card, among `cardIds` where they are given, that
+ * has not been settled (`taken`). An origin that does not say so owes nothing,
+ * whatever else it carries.
+ * @param {object|null} origin the pot's origin
+ * @param {string[]|null} [cardIds] the cards asked about, or null for every one
+ */
+export function needsTakeOff(origin, cardIds = null) {
+  if (origin?.takeOff !== true || !origin.carried || typeof origin.carried !== "object") return false;
+  const settled = new Set(Array.isArray(origin.taken) ? origin.taken : []);
+  const asked = Array.isArray(cardIds) ? new Set(cardIds) : null;
+  return Object.keys(origin.carried).some((id) => !settled.has(id) && (!asked || asked.has(id)));
+}
 
 /**
- * Whether an origin asks for its carried goods to be taken off the bodies
- * (`takeOff: true`), has not yet and has goods mapped. An origin that does not
- * say so owes nothing, whatever else it carries.
+ * The items to take off the bodies for cards of a pot. Only a goods card still
+ * in the pot's `order` counts (a card the Judge removed leaves its item where it
+ * is), a card already settled is not looked at again, one item is taken once
+ * however many cards it made, and a body that no longer exists is nothing to
+ * take from: its card stays, built from the snapshot. `only` limits the plan to
+ * the cards a find has just turned.
+ * @param {{carried: object, order: string[], exists: (actorUuid: string, itemId: string) => boolean, taken?: string[], only?: string[]|null}} args
+ * @returns {{take: Array<{actorUuid: string, itemId: string}>, gone: string[], settled: string[]}} `gone` are the card ids whose body no longer holds the item; `settled` is every card this plan answers for, to be recorded so none is planned twice
  */
-export const needsTakeOff = (origin) =>
-  origin?.takeOff === true && !origin.takenOff && !!origin.carried && Object.keys(origin.carried).length > 0;
-
-/**
- * The items an opened pot takes off the bodies. Only a goods card still in the
- * pot's `order` counts (a card the Judge removed leaves its item where it is),
- * one item is taken once however many cards it made, and a body that no longer
- * exists is nothing to take from: its card stays, built from the snapshot.
- * @param {{carried: object, order: string[], exists: (actorUuid: string, itemId: string) => boolean}} args
- * @returns {{take: Array<{actorUuid: string, itemId: string}>, gone: string[]}} `gone` are the card ids whose body no longer holds the item
- */
-export function planTakeOff({ carried, order, exists }) {
+export function planTakeOff({ carried, order, exists, taken = [], only = null }) {
   const inPot = new Set(Array.isArray(order) ? order : []);
+  const done = new Set(Array.isArray(taken) ? taken : []);
+  const asked = Array.isArray(only) ? new Set(only) : null;
   const take = [];
   const gone = [];
+  const settled = [];
   const seen = new Set();
   for (const [cardId, own] of Object.entries(carried ?? {})) {
+    if (done.has(cardId) || (asked && !asked.has(cardId))) continue;
     if (!inPot.has(cardId) || !own?.actorUuid || !own?.itemId) continue;
+    settled.push(cardId);
     if (!exists(own.actorUuid, own.itemId)) {
       gone.push(cardId);
       continue;
@@ -197,5 +222,5 @@ export function planTakeOff({ carried, order, exists }) {
     seen.add(key);
     take.push({ actorUuid: own.actorUuid, itemId: own.itemId });
   }
-  return { take, gone };
+  return { take, gone, settled };
 }

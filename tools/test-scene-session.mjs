@@ -132,7 +132,7 @@ const { revealExit } = await import("../scripts/scene-search/seams.mjs");
 const { offeredActivities, lockActivity, resolveDue, turnActivity } = await import("../scripts/lib/turn-activities.mjs");
 const { normalizeTruth } = await import("../scripts/treasure/pot-logic.mjs");
 const { viewOf } = await import("../scripts/treasure/pot.mjs");
-const { POT_FLAG } = await import("../scripts/treasure/constants.mjs");
+const { CARD_FLAG, POT_FLAG } = await import("../scripts/treasure/constants.mjs");
 const tables = await import("../scripts/lib/tables.mjs");
 const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 
@@ -485,6 +485,56 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   const bare2 = await createSceneSearchApi({ plan, request: async () => null }).open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m2", metInLair: true });
   eq(bare2.session.lots.map((l) => l.key), ["body:c2/1", "body:c3/1"], "with no draw supplied the table is left alone");
   await createSceneSearchApi({ plan, request: async () => null }).end("f1");
+
+  // A card that opened a scene once deals nothing again: a reopened search takes the first opening's pot back, and a find takes its good off the body.
+  const { markSceneFound } = await import("../scripts/scene-search/haul.mjs");
+  const flagOf = () => messages.get("m3").flags[MODULE_ID].treasureSearch;
+  messages.set("m3", { flags: { [MODULE_ID]: { treasureSearch: { combatId: "k3", fallen: [{ combatantId: "c4", name: "Orc", actorUuid: "Actor.orc", tableUuid: "RollTable.t2", goods: [{ itemId: "i5", truths: [truth("Axe")] }] }] } } } });
+  const drawn3 = [];
+  const reopenApi = createSceneSearchApi({ plan, request: async () => null, drawTable: async (draw) => (drawn3.push(draw), [truth("Drawn flask")]) });
+  const first = await reopenApi.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m3", metInLair: true });
+  eq([first.ok, drawn3.length, first.session.lots.map((l) => l.key)], [true, 1, ["body:c4/1", "body:c4/2"]], "a fresh card draws its table and deals its goods once");
+  const pile3 = piles.at(-1);
+  const potOpen = (pile) => pile.flags[MODULE_ID][POT_FLAG].origin;
+  eq([potOpen(pile3).takeOff, potOpen(pile3).taken], [true, []], "the pot maps the body's good and has taken nothing");
+  // What ways-in stamps on the card once the scene opens.
+  Object.assign(flagOf(), { opened: true, potUuid: first.potUuid, placeUuid: place.uuid, lots: first.session.lots.map(({ key, thing, layer }) => ({ key, thing, layer })), drawnBy: { c4: [truth("Drawn flask")] } });
+
+  const taken = [];
+  A.configureSceneChecks({ checks: sceneChecks, postRoll: (card) => card.rolled && posted.push(card), reveal: (wall) => revealed.push(wall.id), takeOff: async (pile, only) => (taken.push([pile.uuid, only.cardIds]), 1) });
+  const found3 = await A.resolveSceneCheck({ formation: formation(), actor: members.a2, key: "body:c4", layer: "hasty" });
+  eq([found3.ok, found3.outcome.code, taken.length, taken[0][0] === pile3.uuid, taken[0][1].length], [true, CODE.FOUND, 1, true, 2], "a check that finds the body's lots asks the take-off for the cards it just found, on the scene's pot");
+  const again3 = await A.resolveSceneCheck({ formation: formation(), actor: members.a2, key: "body:c4", layer: "hasty" });
+  eq([again3.ok, again3.reason, taken.length], [false, REFUSAL.ALREADY_FOUND, 1], "and a second check at the found body asks for none");
+  A.configureSceneChecks({ checks: sceneChecks, postRoll: (card) => card.rolled && posted.push(card), reveal: (wall) => revealed.push(wall.id) });
+  await reopenApi.end("f1");
+
+  const potsBefore3 = piles.length;
+  const reopened = await reopenApi.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m3", metInLair: true });
+  eq([reopened.ok, reopened.reopened, reopened.potGone, reopened.potUuid === first.potUuid], [true, true, false, true], "a card that opened once reopens on its pot");
+  eq([drawn3.length, piles.length - potsBefore3], [1, 0], "its table is not drawn again and no pot is dealt");
+  eq(reopened.session.lots.map((l) => [l.key, l.thing, l.layer, l.cardId !== null]), [["body:c4/1", "body:c4", "hasty", true], ["body:c4/2", "body:c4", "hasty", true]], "each lot is attached to its entry again");
+  eq(reopened.session.bodies.map((b) => [b.id, b.state.layers?.hasty?.found]), [["c4", true]], "and the body reads as found, since every lot it held is");
+  const entry3 = api.read("f1").entries.find((e) => e.key === "body:c4");
+  eq(entry3.layers.hasty.yields.lots, ["body:c4/1", "body:c4/2"], "the entry carries its lots");
+  eq([...pile3.cards.values()].map((c) => c.flags[MODULE_ID][CARD_FLAG].found), [true, true], "and their found marks are the pot's");
+  eq(potOpen(pile3).taken.length, 0, "reopening takes nothing (the take-off seam was the only one that wrote `taken`)");
+  await reopenApi.end("f1");
+
+  const withGiven = await reopenApi.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m3", sources: [{ thing: "body:c4", truths: [truth("Bone")] }], metInLair: true });
+  eq([withGiven.ok, withGiven.reopened, piles.length - potsBefore3, drawn3.length], [true, undefined, 1, 1], "a deal the caller names on an opened card is the caller's own and runs as asked, drawing no table");
+  await reopenApi.end("f1");
+
+  piles.splice(piles.indexOf(pile3), 1);
+  const noPot = await reopenApi.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m3", metInLair: true });
+  eq([noPot.ok, noPot.reopened, noPot.potGone, noPot.potUuid, noPot.session.lots, noPot.session.bodies.map((b) => b.id)], [true, true, true, null, [], ["c4"]], "a pot that is gone still reopens the scene with its bodies, no lots and no pot, and says so");
+  eq(drawn3.length, 1, "and draws nothing");
+  await reopenApi.end("f1");
+
+  flagOf().potUuid = null;
+  const noneKept = await reopenApi.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m3", metInLair: true });
+  eq([noneKept.ok, noneKept.potGone], [true, false], "a card whose opening dealt no pot reopens with none and nothing to say");
+  await reopenApi.end("f1");
 }
 
 /* ---------------- S4: the asker, the labels, a locker who cannot see, shown, what a player reads ---------------- */

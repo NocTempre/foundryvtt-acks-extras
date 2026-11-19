@@ -65,8 +65,8 @@ export function normalizeSession(raw) {
  * something one source, keyed to the body's entry (`body:<id>`), dealing its
  * treasure letter and holding its carried goods as the truths already made. A
  * body whose goods the creature carries is turned out by the hasty check, as a
- * pocket is. Each carried truth names the item it was made from, so the deal can
- * take it off the body. A linked table is drawn by the caller, since drawing is
+ * pocket is. Each carried truth names the item it was made from, so the take-off
+ * can remove it from the body once its lot is found. A linked table is drawn by the caller, since drawing is
  * a roll: what it drew, as truths by the fallen's combatant id, joins that
  * body's source after the goods it carries.
  * @param {{fallen?: object[]}} record `treasure/search-logic.mjs` `normalizeRecord`'s answer

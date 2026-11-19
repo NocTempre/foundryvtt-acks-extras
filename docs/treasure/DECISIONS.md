@@ -111,7 +111,8 @@ body carries.
   flag reaches every client the message reaches, and whispering plus a GM-only
   render handler decide who sees the card. A fight whose fallen carried nothing,
   and had no letter or table, posts no card.
-- **Moved at open, not at staging.** Staging only copies snapshots into cards.
+- **Moved at open, not at staging.** *Superseded 2026-11-19: moved when the
+  lot is found.* Staging only copies snapshots into cards.
   The take-off runs when the pot's phase becomes `open` (an `updateCards`
   listener on the client that opened it, so `openPot` and the sheet's Open
   button are untouched). It keys on `origin.carried`, a map from each goods
@@ -587,7 +588,7 @@ masterwork quality at a glance unless disguised intentionally".
   columns. The deal panel reads the imported document through `lib/tables.mjs`,
   as the hoard reads its own.
 
-## 2026-11-19 — The fight-over card opens the scene; the take-off asks by `takeOff`
+## 2026-11-19 — The fight-over card opens the scene; the take-off asks by `takeOff` — SUPERSEDED IN PART 2026-11-19
 
 The owner's Q9 answer (2026-11-18): "B, there is no "stage a pot" as a thing".
 New evidence since the 2026-11-17 entry: scene search's S5 built the card's
@@ -603,8 +604,37 @@ sentence that kept Stage a pot until then.
   treasure name a feature that is not its own.
 - **Cost:** a pot staged from the card before this change and still unopened
   keeps its `kind: "combat"` origin and no longer takes its goods off the
-  bodies when opened. No tool is written for it (the owner: no tools for
+  bodies (the take-off now waits for the find, below). No tool is written for it (the owner: no tools for
   previous-version data).
 - **A body's linked table is drawn at the scene's open**, by treasure's own
   routine (`drawFallenTable`), so the draw stays quiet and its text results
   stay on the card.
+
+## 2026-11-19 — The take-off waits for the find: a good leaves its body when its lot is found
+
+The owner, asked when carried goods leave the bodies: "When found". This
+supersedes in part "2026-11-17 — Search the fallen" (its "Moved at open, not at
+staging", the `updateCards` listener and the pot-wide `takenOff` mark) and the cost
+line of "2026-11-19 — The fight-over card opens the scene"; the new evidence is
+the owner's answer. The scene search's side (the reopening it makes possible) is
+in scene-search DECISIONS, same date.
+
+- **Opening a pot takes nothing.** The `updateCards` listener and `openedNow` are
+  gone. `takeOffBodies(pile, {cardIds})` runs for the cards a scene's check has
+  just turned found, called by the scene search through a seam
+  (`configureSceneChecks`' `takeOff`), so treasure names no scene feature and
+  the scene search no treasure document. Example: two bodies, one carrying a spoon
+  and the other a ladle; the check that finds the first body's lots takes the
+  spoon, and the ladle stays on the second until its own check finds its lots.
+- **One mark per card, not per pot.** `origin.taken` lists the cards settled, and
+  `planTakeOff` skips them and takes only the cards asked for; the pot-wide
+  `takenOff` could not tell which good was owed once goods left one at a time.
+  The cards are recorded before any item is deleted, so a repeated find or a
+  reopened search cannot take twice, and a card whose body is gone is settled and
+  keeps its snapshot.
+- **What the pot's own flows do with an unfound lot still on a body: nothing.**
+  Flipping, claiming, Quick grab, the doorway's count and the close's filing and
+  record all read found lots only (`seatCards`, `isFound`, `planFlip`,
+  `planClaim`), and `markLotsFound` is the only writer of the mark. Closing a pot
+  deletes it with its unfound cards, and their goods are still on the bodies, so
+  nothing is lost; under the old timing the same close would have lost them.

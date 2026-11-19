@@ -5,15 +5,16 @@
  * carried and posts a Judge-only card; its Search the scene button opens the
  * scene search (`acksExtras.sceneSearch.searchHere`) with that record, which
  * turns the fallen into the scene's bodies. The rules are `search-logic.mjs`'s;
- * this file reads and writes documents for them and owns the three hooks
- * (`deleteCombat`, the card's render, and the pot's `updateCards`). Nothing
- * reaches a player until the Judge shows the scene.
+ * this file reads and writes documents for them and owns the two hooks
+ * (`deleteCombat` and the card's render). Nothing reaches a player until the
+ * Judge shows the scene.
  *
  * The record is built synchronously inside `deleteCombat`, before the first
  * await, because the bodies' tokens may be removed the moment after. It is
  * kept on the card's flag, which is display-level storage like every card flag.
- * Carried goods are moved, not copied: the take-off runs when a pot whose origin
- * asks for it opens (`takeOffBodies`) and only from bodies that still exist.
+ * Carried goods are moved, not copied: the scene search calls `takeOffBodies`
+ * for the lots a check has just found, so a good leaves its body when its lot
+ * is found, and only from a body that still exists.
  */
 import { gmIds, isPrimaryGM, makeLoc } from "../lib/util.mjs";
 import { tokenHasStatus, tokenHitPoints } from "../lib/hp-logic.mjs";
@@ -22,9 +23,9 @@ import { drawQuietly } from "../lib/roll-audience.mjs";
 import { STATUS_DEAD } from "../lib/status-effects.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
-import { findPot, potOf, truthsFromItem } from "./pot.mjs";
+import { potOf, truthsFromItem } from "./pot.mjs";
 import {
-  DRAW_REQUEST, SEARCH_FLAG, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult,
+  DRAW_REQUEST, SEARCH_FLAG, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, planTakeOff, recordOf, specOfResult,
 } from "./search-logic.mjs";
 
 const loc = makeLoc(LANG);
@@ -145,9 +146,22 @@ export function recordOfMessage(messageId) {
   return game.messages?.get(messageId)?.flags?.[MODULE_ID]?.[SEARCH_FLAG] ?? null;
 }
 
-/** Mark a card's record as opened, so the card deals once: a second search of the same fight is refused once its scene search has ended. */
-export async function markCardOpened(messageId) {
-  await game.messages?.get(messageId)?.update({ [`flags.${MODULE_ID}.${SEARCH_FLAG}.opened`]: true });
+/**
+ * Mark a card's record as opened, so the card deals once, and keep what the
+ * opening made: the pot, the place it opened at and each dealt lot's key, entry
+ * and layer. A Judge's later press on the card reopens the scene from these
+ * without dealing again; a player's is refused.
+ * @param {string} messageId
+ * @param {{potUuid?: string|null, placeUuid?: string|null, lots?: Array<{key: string, thing: string, layer: string}>}} [made] what the opening made
+ */
+export async function markCardOpened(messageId, { potUuid = null, placeUuid = null, lots = [] } = {}) {
+  const base = `flags.${MODULE_ID}.${SEARCH_FLAG}`;
+  await game.messages?.get(messageId)?.update({
+    [`${base}.opened`]: true,
+    [`${base}.potUuid`]: potUuid,
+    [`${base}.placeUuid`]: placeUuid,
+    [`${base}.lots`]: lots.map(({ key, thing, layer }) => ({ key, thing, layer })),
+  });
 }
 
 /** Open the scene search for a card's record. The scene search says why it refuses. */
@@ -158,22 +172,27 @@ async function searchFromCard(message) {
 }
 
 /* -------------------------------------------- */
-/*  Opening: the take-off                        */
+/*  The take-off                                 */
 /* -------------------------------------------- */
 
 /**
- * Take the goods an opened pot holds off the bodies that still carry them, where
- * its origin asks for it (`takeOff`). The origin is marked first, so a second
- * update event cannot take twice; a body that is gone leaves its card standing
- * on the snapshot.
+ * Take the goods of these cards off the bodies that still carry them, where the
+ * pot's origin asks for it (`takeOff`). The scene search calls it with the cards
+ * a check has just found, so a good leaves its body when its lot is found and
+ * never before. The cards are recorded in the origin's `taken` first, so a
+ * second call for the same card (a reopened search, a repeated find) takes
+ * nothing; a body that is gone leaves its card standing on the snapshot.
+ * @param {Cards} pile the scene's pot
+ * @param {{cardIds?: string[]|null}} [options] `cardIds`: the cards to take for, every mapped card where null
  * @returns {Promise<number>} the items deleted
  */
-export async function takeOffBodies(pile) {
+export async function takeOffBodies(pile, { cardIds = null } = {}) {
   const pot = potOf(pile);
-  if (!needsTakeOff(pot.origin)) return 0;
+  if (!needsTakeOff(pot.origin, cardIds)) return 0;
   const has = (actorUuid, itemId) => !!actorOfUuid(actorUuid)?.items?.get(itemId);
-  const plan = planTakeOff({ carried: pot.origin.carried, order: pot.order, exists: has });
-  await pile.update({ [`${originPath}.takenOff`]: true });
+  const plan = planTakeOff({ carried: pot.origin.carried, order: pot.order, exists: has, taken: pot.origin.taken, only: cardIds });
+  if (!plan.settled.length) return 0;
+  await pile.update({ [`${originPath}.taken`]: [...(Array.isArray(pot.origin.taken) ? pot.origin.taken : []), ...plan.settled] });
   let removed = 0;
   for (const { actorUuid, itemId } of plan.take) {
     try {
@@ -229,10 +248,4 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
       ui.notifications?.error(loc("search.failed"));
     });
   });
-});
-
-// The client that opened the pot takes the goods off; opening is Judge-only.
-Hooks.on("updateCards", (pile, changes, _options, userId) => {
-  if (userId !== game.user?.id || !openedNow(changes) || !findPot(pile.id)) return;
-  takeOffBodies(pile).catch((err) => console.error(`${MODULE_ID} | search the fallen could not take goods off the bodies`, err));
 });

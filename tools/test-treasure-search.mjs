@@ -1,13 +1,13 @@
 /**
  * Pure-logic tests for "Search the fallen" (Foundry-free): which combatants
  * count as fallen, the record built from snapshots that outlives its bodies,
- * and which goods an opened pot takes off the bodies.
+ * and which goods leave the bodies once their lots are found.
  * Every creature, item and table here is this file's own invention.
  */
 import assert from "node:assert/strict";
 import {
   DRAW_REQUEST, cardRows, entryOf, fallenOf, heldDraw, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
-  normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult, uuidOfLink,
+  normalizeRecord, planTakeOff, recordOf, specOfResult, uuidOfLink,
 } from "../scripts/treasure/search-logic.mjs";
 
 let checks = 0;
@@ -138,9 +138,18 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
 /* --- reading a record back --- */
 {
   const r = normalizeRecord({ combatId: 5, fallen: "x", opened: "yes", drawnText: [1, "a"] });
-  eq(r, { combatId: "", sceneId: null, fallen: [], opened: false, drawnText: ["1", "a"] }, "only a real true is opened");
+  eq(r, { combatId: "", sceneId: null, fallen: [], opened: false, drawnText: ["1", "a"], potUuid: null, placeUuid: null, lots: [] }, "only a real true is opened");
   eq(normalizeRecord(null).fallen, []);
   eq(normalizeRecord({ opened: true }).opened, true, "a card whose scene was opened says so");
+  const kept = normalizeRecord({
+    opened: true,
+    potUuid: " Cards.p1 ",
+    placeUuid: "Actor.pl1",
+    lots: [{ key: "body:c1/1", thing: "body:c1", layer: "hasty" }, { key: "", thing: "x" }, { key: "k" }, null, "s", { key: "body:c1/2", thing: "body:c1" }],
+  });
+  eq([kept.potUuid, kept.placeUuid], ["Cards.p1", "Actor.pl1"], "the pot and the place the first opening used are kept");
+  eq(kept.lots, [{ key: "body:c1/1", thing: "body:c1", layer: "hasty" }, { key: "body:c1/2", thing: "body:c1", layer: null }], "each dealt lot is kept by key, entry and layer, and a row with no key or entry is dropped");
+  eq([normalizeRecord({ potUuid: 7, placeUuid: "", lots: "x" }).potUuid, normalizeRecord({ placeUuid: "" }).placeUuid, normalizeRecord({ lots: "x" }).lots], [null, null, []], "anything else reads as nothing kept");
 }
 
 /* --- what the card shows --- */
@@ -178,25 +187,23 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
 
 /* --- who owes a take-off --- */
 {
-  ok(needsTakeOff({ takeOff: true, takenOff: false, carried: { c1: { actorUuid: "A", itemId: "i" } } }));
-  ok(!needsTakeOff({ takeOff: true, takenOff: true, carried: { c1: {} } }), "taken once is taken");
-  ok(!needsTakeOff({ takeOff: true, takenOff: false, carried: {} }), "nothing mapped, nothing owed");
-  ok(!needsTakeOff({ kind: "stash", takenOff: false, carried: { c1: {} } }), "an origin that does not ask owes nothing, whatever kind it is");
-  ok(!needsTakeOff({ takeOff: "yes", takenOff: false, carried: { c1: {} } }), "only a real true asks");
+  const own = { actorUuid: "A", itemId: "i" };
+  ok(needsTakeOff({ takeOff: true, carried: { c1: own } }));
+  ok(needsTakeOff({ takeOff: true, taken: [], carried: { c1: own } }), "nothing settled yet");
+  ok(!needsTakeOff({ takeOff: true, taken: ["c1"], carried: { c1: own } }), "a settled card is owed nothing");
+  ok(needsTakeOff({ takeOff: true, taken: ["c1"], carried: { c1: own, c2: own } }), "one card settled leaves the other owed");
+  ok(needsTakeOff({ takeOff: true, carried: { c1: own, c2: own } }, ["c2"]), "asked of the card that is owed");
+  ok(!needsTakeOff({ takeOff: true, taken: ["c2"], carried: { c1: own, c2: own } }, ["c2"]), "asked of a card that is settled");
+  ok(!needsTakeOff({ takeOff: true, carried: { c1: own } }, ["c9"]), "asked of a card that maps nothing");
+  ok(!needsTakeOff({ takeOff: true, carried: { c1: own } }, []), "asked of no card");
+  ok(!needsTakeOff({ takeOff: true, carried: {} }), "nothing mapped, nothing owed");
+  ok(!needsTakeOff({ kind: "stash", carried: { c1: {} } }), "an origin that does not ask owes nothing, whatever kind it is");
+  ok(!needsTakeOff({ takeOff: "yes", carried: { c1: {} } }), "only a real true asks");
   ok(!needsTakeOff(null));
   ok(!needsTakeOff({ takeOff: true }));
 }
 
-/* --- opening --- */
-{
-  ok(openedNow({ flags: { "acks-extras": { treasure: { phase: "open" } } } }), "a diff that opens the pot");
-  ok(!openedNow({ flags: { "acks-extras": { treasure: { phase: "closed" } } } }), "a diff that closes it");
-  ok(!openedNow({ flags: { "acks-extras": { treasure: { mode: "table" } } } }), "a diff that leaves the phase alone");
-  ok(!openedNow({ flags: { other: { treasure: { phase: "open" } } } }), "another module's flag");
-  ok(!openedNow(null));
-}
-
-/* --- the take-off: moved at open, from bodies that still exist --- */
+/* --- the take-off: moved when the lot is found, from bodies that still exist --- */
 {
   const carried = {
     c1: { actorUuid: "Actor.a1", itemId: "i1" },
@@ -214,23 +221,38 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
     { actorUuid: "Actor.a1", itemId: "i2" },
   ], "every body present: its items come off, a bundle's item once");
   eq(all.gone, []);
+  eq(all.settled, ["c1", "c2", "c3", "c4"], "every card the plan answers for is reported settled, the bundle's second card included");
 
   const noToken = new Set(["Actor.a1|i1", "Actor.a1|i2"]);
   const half = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: present(noToken) });
-  eq(half.take, [{ actorUuid: "Actor.a1", itemId: "i1" }, { actorUuid: "Actor.a1", itemId: "i2" }], "a body deleted before open: nothing to take");
+  eq(half.take, [{ actorUuid: "Actor.a1", itemId: "i1" }, { actorUuid: "Actor.a1", itemId: "i2" }], "a body deleted before its lot was found: nothing to take");
   eq(half.gone, ["c2", "c3"], "its cards are reported; they stay in the pot on their snapshots");
 
   const none = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: () => false });
-  eq(none, { take: [], gone: ["c1", "c2", "c3", "c4"] }, "every body gone");
+  eq(none, { take: [], gone: ["c1", "c2", "c3", "c4"], settled: ["c1", "c2", "c3", "c4"] }, "every body gone");
 
   const removed = planTakeOff({ carried, order: ["c1", "c4"], exists: present(everyone) });
   eq(removed.take.map((t) => t.itemId), ["i1", "i2"], "a card the Judge struck in staging leaves its item on the body");
-  eq(planTakeOff({ carried, order: [], exists: present(everyone) }), { take: [], gone: [] }, "an empty pot takes nothing");
+  eq(removed.settled, ["c1", "c4"], "and is not settled: nothing was owed for it");
+  eq(planTakeOff({ carried, order: [], exists: present(everyone) }), { take: [], gone: [], settled: [] }, "an empty pot takes nothing");
   eq(planTakeOff({ carried: { c9: { actorUuid: "Actor.a1" } }, order: ["c9"], exists: () => true }).take, [], "a malformed entry is skipped");
-  eq(planTakeOff({ carried: null, order: null, exists: () => true }), { take: [], gone: [] });
+  eq(planTakeOff({ carried: null, order: null, exists: () => true }), { take: [], gone: [], settled: [] });
   let asked = 0;
   planTakeOff({ carried, order: ["zz"], exists: () => (asked++, true) });
   eq(asked, 0, "a card not in the pot never asks the world");
+
+  // Per card, as lots are found: only the cards just found are planned, and a settled card is never planned again.
+  const first = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: present(everyone), only: ["c1"] });
+  eq([first.take, first.gone, first.settled], [[{ actorUuid: "Actor.a1", itemId: "i1" }], [], ["c1"]], "a find takes its own card's item and nothing else");
+  const bundle = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: present(everyone), only: ["c2", "c3"] });
+  eq([bundle.take.length, bundle.settled], [1, ["c2", "c3"]], "two cards of one item found together take it once");
+  const later = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: present(everyone), taken: ["c1", "c2"] });
+  eq(later.settled, ["c3", "c4"], "cards already settled are skipped");
+  const again = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: () => true, taken: ["c1"], only: ["c1"] });
+  eq([again.take, again.gone, again.settled], [[], [], []], "a card found again, or a search reopened, takes nothing a second time even where its body still reports the item");
+  const gone = planTakeOff({ carried, order: ["c1", "c2", "c3", "c4"], exists: present(noToken), only: ["c2"] });
+  eq([gone.take, gone.gone, gone.settled], [[], ["c2"], ["c2"]], "a find whose body is gone settles its card and takes nothing");
+  eq(planTakeOff({ carried, order: ["c1"], exists: present(everyone), only: [] }).settled, [], "no cards asked, none planned");
 }
 
 {

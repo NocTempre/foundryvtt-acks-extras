@@ -231,11 +231,14 @@ What this surface adds to that recipe:
   defeated friend and the party's own token are not listed; the Player seat holds
   the message in its collection and neither sees nor renders it. A second Judge
   seat sees it once (not walked: the walk has one Judge seat).
-- **The take-off.** A pot whose origin asks for it takes the carried goods off the
-  bodies when it opens, from the client that opened it. Observables: the pot's
-  `origin.takeOff`, then `origin.takenOff`; each `origin.carried` entry names a
-  goods card, and the item it points at is gone from its body; a body's natural
-  weapon never leaves it and never becomes a card.
+- **The take-off** (changed 2026-11-19, not yet walked). A pot whose origin asks
+  for it takes a good off its body when that good's lot is found, from the Judge's
+  client that resolved the check; opening the pot takes nothing. Observables: the
+  pot's `origin.takeOff` true and `origin.taken` empty after the open; each
+  `origin.carried` entry names a goods card; the card's lot found, its card is in
+  `origin.taken` and the item it points at is gone from its body, while the
+  other goods stay; a body's natural weapon never leaves it and never becomes a
+  card.
 - **A linked table** is drawn quietly, once per card: no chat message of a table
   draw, an item result becomes a lot (its world item stays in the world), a text
   result is listed on the card. A second press reuses the draw.

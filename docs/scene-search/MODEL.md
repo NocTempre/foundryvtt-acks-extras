@@ -43,22 +43,49 @@ Two controls open a session, and both are `acksExtras.sceneSearch.searchHere`
   `declareSearch` request (closed: no payload is read, any-member ownership),
   announces it, and moves nothing. The Judge then presses.
 
-A press does one of four things (`planPress`). A party with a session already
+A press does one of five things (`planPress`). A party with a session already
 open gets its screen and nothing else. A press while the first is still opening
 a session does nothing. A card whose scene was opened once, and has since ended,
-is refused, so one card deals once (`record.opened`, stamped when the open
-succeeds). Otherwise it opens a session at **the place whose area holds the
-party token**: `placesAround`'s first, the closest area first, as a map drop
-picks it. A party with no token, or a token no place holds, is refused with a
-notice. The session is opened through `api.open` with the card's id as
-`recordMessageId`, and the screen opens on success. A deal that rolls nothing
-(a letter the tables deal no card for) does not stop the scene: it opens with
-the bodies and no pot, so a second press cannot roll again.
+reopens for a Judge and is refused for anyone else, so one card deals once
+(`record.opened`, stamped when the open succeeds; see "Reopening a spent card").
+Otherwise it opens a session at **the place whose area holds the party token**:
+`placesAround`'s first, the closest area first, as a map drop picks it. A party
+with no token, or a token no place holds, is refused with a notice. The session
+is opened through `api.open` with the card's id as `recordMessageId`, and the
+screen opens on success. A deal that rolls nothing (a letter the tables deal no
+card for) does not stop the scene: it opens with the bodies and no pot, so a
+second press cannot roll again.
 
 A seat reads through a projection. A Judge reads every entry and the whole log.
 A player's `read` drops hidden entries, empties every unfound layer's yields,
 keeps the public "something more" mark, and returns `playerLog`: only rows at
 entries the seat can see, a miss blanked to who and what, no card id.
+
+## Reopening a spent card
+
+The first opening stamps its card (`markCardOpened`) with `opened` and what it
+made: the pot's uuid, the place it opened at, and each dealt lot's key, entry and
+layer. Ending a session (`api.end`) only unsets the party's session flag: the pot
+stays open, with its cards, their found marks and the goods it maps, so
+everything a reopening needs is on the pot and the card.
+
+A Judge's press on a card whose scene has ended is `planPress`'s `reopen`.
+`api.open` sees a record that is `opened` and never draws a table nor deals:
+the session is made from the record's bodies, at the stamped place (not where the
+party stands now; a card stamped with no place falls back to it), with the pot
+reattached when it still exists and is open (`haul.mjs` `reattachSceneHaul`).
+The stamped lots are put through `lotsInPot` against the pot, so each lot returns
+attached to its entry and layer with its card, and the bodies take back what the
+pot can say of their state: a layer whose every lot is found reads as found
+(`haul-logic.mjs` `bodiesWithFound`). A failed check's lock, and a body's state
+where no lot was dealt, are not recovered. The card is not stamped again.
+
+If the card kept a pot and it is gone (a closed pot is deleted), the scene
+reopens with its bodies and no lots, the Judge reads treasure's "That treasure
+pot is gone.", and the screen's tray says no pot was dealt. A deal the caller
+names with `sources` is the caller's own and runs as asked, on an opened card too.
+A player's press never reaches this: `searchHere` is Judge-only, and `planPress`
+refuses a spent card (`cardSpent`) to a press that is not a Judge's.
 
 ## Time
 
@@ -92,9 +119,12 @@ its linked table drew (`api.mjs` draws it through treasure's own
 `drawFallenTable` before the deal, once the cheap refusals are past, and only
 where the record is the deal). Each carried truth keeps the `{actorUuid,
 itemId}` it was made from through the source and the lot, so `haul.mjs` writes
-the pot's `origin.carried` (card id to that item) before the pot opens, and the
-opening takes the goods off the bodies the way treasure's take-off does (see
-[treasure MODEL](../treasure/MODEL.md), "Search the fallen"). The lair warning a
+the pot's `origin.carried` (card id to that item) before the pot opens. Opening
+takes nothing: a check's resolution marks the lots it found (`markSceneFound`) and
+then takes each found lot's good off its body, through treasure's own take-off
+(`takeOffBodies`, handed in as the `takeOff` seam of `configureSceneChecks`; see
+[treasure MODEL](../treasure/MODEL.md), "Search the fallen"). A lot found again
+takes nothing, and a body that is gone leaves its card on the snapshot. The lair warning a
 body's letter raises is shown to the Judge as a notice and the deal goes on.
 
 ## The screen

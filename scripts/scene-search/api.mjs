@@ -20,7 +20,7 @@ import { SEARCH_FLAG, normalizeRecord } from "../treasure/search-logic.mjs";
 import { getFormation } from "../formation/formation-model.mjs";
 import { ACTIVITY, LAYER, LAYER_OF_ACTIVITY, SCENE, SESSION_REFUSAL } from "./constants.mjs";
 import { sceneOptionsFor } from "./activities.mjs";
-import { dealSceneHaul } from "./haul.mjs";
+import { dealSceneHaul, reattachSceneHaul } from "./haul.mjs";
 import { sceneView, seatView } from "./scene-logic.mjs";
 import { bodiesFromRecord, playerLog, sessionEntries } from "./session-logic.mjs";
 import { readSession, readWorld, writeSession } from "./session.mjs";
@@ -65,30 +65,37 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord, an
     if (readSession(formation)) return refuse(SESSION_REFUSAL.SESSION_OPEN);
 
     const fight = recordMessageId ? normalizeRecord(record(recordMessageId)) : null;
+    // A card that opened a scene once deals nothing again, whoever asks: the session reopens on the record's bodies and takes back the pot its first opening dealt. A deal the caller names (`sources`) is the caller's own and runs as asked.
+    const reopening = !!fight?.opened && !Array.isArray(sources);
     // A linked table is a roll, so it is drawn once the cheap refusals are past and only when the deal is the record's own.
     const drawn = {};
-    if (fight && !Array.isArray(sources) && drawTable) {
+    if (fight && !reopening && !Array.isArray(sources) && drawTable) {
       for (const body of fight.fallen) {
         if (body.combatantId && body.tableUuid) drawn[body.combatantId] = await drawTable({ messageId: recordMessageId, combatantId: body.combatantId, name: String(body.name ?? ""), tableUuid: body.tableUuid });
       }
     }
     const found = fight ? bodiesFromRecord(fight, { drawn }) : { bodies: [], sources: [] };
-    const asked = Array.isArray(sources) ? sources : found.sources;
+    const asked = reopening ? [] : Array.isArray(sources) ? sources : found.sources;
     const keys = new Set(sessionEntries({ things: thingsOf(place), session: { bodies: found.bodies, lots: [] } }).map((e) => e.key));
     const unknown = asked.find((s) => !keys.has(String(s?.thing ?? "").trim()));
     if (unknown) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY, { entry: unknown.thing });
 
     let potUuid = null;
     let lots = [];
-    if (asked.length) {
+    let bodies = found.bodies;
+    if (reopening) {
+      const back = reattachSceneHaul(fight, found.bodies);
+      if (back) ({ potUuid, lots, bodies } = back);
+    } else if (asked.length) {
       const dealt = await dealSceneHaul({ ...deal, sources: asked, scene: { sceneId, placeUuid }, partyId });
       if (!dealt.ok) return refuse(SESSION_REFUSAL.DEAL_FAILED, { detail: dealt.reason });
       potUuid = dealt.potUuid;
       lots = dealt.lots.map(({ key, thing, layer, cardId }) => ({ key, thing, layer, cardId }));
     }
-    const session = { sceneId, placeUuid, recordMessageId, potUuid, shown: false, bodies: found.bodies, lots, log: [] };
+    const session = { sceneId, placeUuid, recordMessageId, potUuid, shown: false, bodies, lots, log: [] };
     await writeSession(formation, session);
-    return { ok: true, session: readSession(formation), potUuid };
+    // `potGone` is true where the card kept a pot and it is no longer there, so a reopened scene has its bodies and nothing to find.
+    return { ok: true, session: readSession(formation), potUuid, ...(reopening ? { reopened: true, potGone: !!fight.potUuid && !potUuid } : {}) };
   }
 
   async function end(partyId) {

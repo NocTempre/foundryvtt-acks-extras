@@ -124,7 +124,7 @@ twice and the plan entry's `by` is still there for the locker check; the
 scene's fallback (unlock, then resolve) and the `lockedBy` it carried are
 removed. The import stays lazy, as the seam entry ruled.
 
-## 2026-11-19 — The ways in: Search the scene replaces Stage a pot, Search here opens a session
+## 2026-11-19 — The ways in: Search the scene replaces Stage a pot, Search here opens a session — SUPERSEDED IN PART 2026-11-19
 
 The owner, answering Q9: "B, there is no "stage a pot" as a thing", and "rolled
 by judge before interaction, visible as found"; and on the party sheet: "It
@@ -145,7 +145,8 @@ S5 itself. Readings the board does not settle:
 - **One card deals once.** The card is stamped when its scene opens, and once
   that scene has ended the same card is refused, since a second deal would
   duplicate goods already taken off the bodies. Open for the owner: whether a
-  Judge who ended the scene by mistake can reopen a card's scene.
+  Judge who ended the scene by mistake can reopen a card's scene. *Superseded
+  2026-11-19: the owner said yes, for a Judge.*
 - **The lair warning is a notice, not a prompt.** A body's treasure letter raises
   treasure's lair warning, which has no control on the board. The Judge pressed
   to search, so the warning is shown with treasure's own words and the deal goes
@@ -162,7 +163,7 @@ S5 itself. Readings the board does not settle:
 - **Goods leave the bodies when the scene opens**, since the pot opens in the
   same call as the deal. Open for the owner: leaving each good on its body until
   a check finds its lot would be truer to the table but needs the found mark to
-  drive the take-off.
+  drive the take-off. *Superseded 2026-11-19: the owner said when found.*
 - **A text result of a body's table is kept on the fight-over card**, as before,
   since no card shape can deliver it; the draw runs again if a refused open is
   pressed again.
@@ -286,3 +287,62 @@ pinned the rest.
   rows qualifies a harvester, with a per-body override) stay in the plan for the
   pass that picks it up. Rejected: building harvest on the partial import, which
   the audit may reshape.
+
+## 2026-11-19 — A Judge reopens a spent card's scene, and a good leaves its body when its lot is found
+
+The owner answered the two questions the "ways in" entry left open. On whether a
+Judge who ended a scene can reopen the card's scene: "Yes, for a Judge". On when
+carried goods leave the bodies: "When found". This supersedes in part "The ways
+in: Search the scene replaces Stage a pot, Search here opens a session" (its
+"One card deals once" and "Goods leave the bodies when the scene opens"
+bullets); the new evidence is the owner's two answers. The take-off's side is in
+treasure DECISIONS, same date.
+
+- **A spent card reopens for a Judge.** `planPress` answers `reopen` for a Judge
+  and keeps `cardSpent` for any press that does not say it is a Judge's. Example:
+  a Judge ends the scene by mistake, presses the card's Open the scene, and the
+  same bodies, the same pot and the lots' found marks are on the screen, with no
+  second deal. A player's press stays refused: `searchHere` is Judge-only, and a
+  player's call answers `scene:notAllowed`.
+- **The deal is guarded where the deal is.** `api.open` treats a record that is
+  `opened` as a reopening whoever calls: no table is drawn, nothing is dealt, and
+  the pot is reattached. Rejected: guarding in `ways-in.mjs` alone, which leaves
+  the api able to deal a card twice. A deal the caller names with `sources` is the
+  caller's own and still runs.
+- **The card keeps what its opening made.** `markCardOpened` stamps `potUuid`,
+  `placeUuid` and `lots` (`{key, thing, layer}`). Rejected: rebuilding the lots
+  from the pot's truths, which carry a lot's key but not its layer, so the layer
+  would be assumed. The stamp costs a few strings on a Judge-only card.
+- **The place is the stamped one**, not wherever the party stands when the card
+  is pressed again, since a reopened search is the fight's. A card stamped with
+  no place falls back to the party's place, and one with no place at all is
+  refused as before.
+- **The pot is reattached, never rebuilt.** `end` only unsets the session flag, so
+  the pot is still open with its cards and found marks. A pot the Judge closed is
+  deleted, and the scene then reopens with its bodies, no lots and no pot; the
+  Judge reads treasure's existing "That treasure pot is gone." and the screen's
+  tray already says no pot was dealt. Nothing is dealt in its place, since a
+  second roll would break "rolled by judge before interaction".
+- **A body's found layers come back from the pot; nothing else does.** A layer
+  whose every lot is in the pot and found reads as found again. A failed check's
+  lock, and a state where no lot was dealt, were in the discarded session and are
+  not recovered. Cost: a locked-out searcher may try a body again after a reopen.
+- **A good leaves its body when its lot is found.** Example: two fallen creatures,
+  one carrying a spoon and the other a ladle; the hasty check at the first finds its
+  lots and the spoon's item is deleted from that body then, while the ladle stays
+  on the second until its own check finds its lots (a body's lots are all on its
+  hasty layer, so one found check turns all of that body's lots). Opening the pot takes nothing, `markSceneFound` hands the cards
+  it just turned to treasure's take-off, and a lot found again, or a search
+  reopened, takes nothing a second time. A body gone by then leaves the card
+  standing on its snapshot, as before.
+- **A good whose lot is never found stays on its body**, and a pot closed with an
+  unfound lot loses nothing: the pot's own flows (turning, claiming, Quick grab,
+  the close's filing and record) act on found lots only.
+- **Cost: cards stamped before this change** carry no pot, place or lots; their
+  reopening shows the bodies and no lots, with no notice since no pot was kept. No
+  tool is written for them (the owner: no tools for previous-version data).
+- **The fight-over card's carried-items tooltip follows the timing.**
+  `ACKS-TREASURE.search.itemsTip` said the items leave the body when the scene
+  opens; it now says each leaves when its lot is found, keeping its page
+  reference. A string that states a timing the code no longer has is a defect,
+  so the rewrite rides this change rather than waiting for a ruling.

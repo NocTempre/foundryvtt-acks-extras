@@ -406,7 +406,7 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   });
   eq([mixed.ok, mixed.lots.map((l) => l.key)], [true, ["z/2"]], "a lot the deal toggles strike when the pot opens is not in the answered map");
 
-  // A fight's goods: the pot's origin maps each card to the body item it stands for before it opens, so the opening takes them off.
+  // A fight's goods: the pot's origin maps each card to the body item it stands for; the goods stay on the bodies until their lots are found (below).
   const spoon = { actorUuid: "Actor.b1", itemId: "i1" };
   const fight = await dealSceneHaul({
     sources: [{ thing: "body:b1", truths: [truth({ label: "Spoon" }), truth({ label: "Ladle" })], owners: [spoon, null] }],
@@ -417,7 +417,7 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   const cardOf = (key) => cardsOf(fightPile).find((c) => c.flags[MODULE_ID][CARD_FLAG].lot === key).id;
   eq(
     potOf(fightPile).origin,
-    { kind: "scene", sceneId: "scene1", placeUuid: "Actor.place1", takeOff: true, carried: { [cardOf("body:b1/1")]: spoon }, takenOff: false },
+    { kind: "scene", sceneId: "scene1", placeUuid: "Actor.place1", takeOff: true, carried: { [cardOf("body:b1/1")]: spoon }, taken: [] },
     "a body's carried item is mapped by its card, and only that one",
   );
   eq(fight.lots.length, 2, "and both lots are dealt");
@@ -425,6 +425,139 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   eq(potOf(piles.at(-1)).origin?.takeOff, true, "goods carried by a body are mapped even where no scene id is given");
   await dealSceneHaul({ sources: [{ thing: "z2", truths: [truth({ label: "Cup" })] }], metInLair: true, scene: { sceneId: "scene1" } });
   eq(potOf(piles.at(-1)).origin, { kind: "scene", sceneId: "scene1", placeUuid: null }, "a pot with no carried goods owes no take-off");
+}
+
+/* --- goods leave the bodies as their lots are found, and a reopened search takes its pot back --- */
+{
+  const { dealSceneHaul, markSceneFound, reattachSceneHaul } = await import("../scripts/scene-search/haul.mjs");
+  const { takeOffBodies } = await import("../scripts/treasure/search.mjs");
+  const { potOf, viewOf } = await import("../scripts/treasure/pot.mjs");
+
+  // Bodies: an actor uuid to its items. A sticky item reports itself after a delete, as a body that cannot lose it would.
+  const bodies = new Map();
+  const deleted = [];
+  const body = (uuid, ids, { sticky = false } = {}) => {
+    const items = new Map(ids.map((id) => [id, { id, delete: async () => (deleted.push(`${uuid}|${id}`), sticky || items.delete(id)) }]));
+    bodies.set(uuid, items);
+    return items;
+  };
+  globalThis.fromUuidSync = (uuid) => {
+    const pile = piles.find((p) => p.uuid === uuid);
+    if (pile) return pile;
+    return bodies.has(uuid) ? { documentName: "Actor", items: { get: (id) => bodies.get(uuid).get(id) } } : null;
+  };
+  const cardsOf = (pile) => pile.cards.contents;
+  const cardOf = (pile, key) => cardsOf(pile).find((c) => c.flags[MODULE_ID][CARD_FLAG].lot === key)?.id;
+  const found = (key) => ({ code: CODE.FOUND, layer: "hasty", lots: [key], clue: null, reveal: [], more: [] });
+  const calls = [];
+  const takeOff = (pile, only) => (calls.push(only.cardIds), takeOffBodies(pile, only));
+  const dealt = async (uuid, over = {}) => {
+    const r = await dealSceneHaul({
+      sources: [{ thing: `body:${over.id ?? "t1"}`, truths: [truth({ label: "Spoon" }), truth({ label: "Ladle" }), truth({ label: "Cup" })], owners: [{ actorUuid: uuid, itemId: "i1" }, { actorUuid: uuid, itemId: "i2" }, null] }],
+      metInLair: true,
+      scene: { sceneId: "scene1", placeUuid: "Actor.place1" },
+    });
+    return { r, pile: piles.at(-1) };
+  };
+
+  // Nothing leaves a body when the pot opens.
+  const t1 = body("Actor.t1", ["i1", "i2"]);
+  const { r, pile } = await dealt("Actor.t1");
+  eq([t1.size, deleted.length, calls.length], [2, 0, 0], "opening the pot takes nothing off the body");
+  eq(potOf(pile).origin.taken, [], "and settles no card");
+
+  // A lot found takes its own good, once.
+  const first = await markSceneFound(pile, found("body:t1/1"), { takeOff });
+  eq([first.ok, first.ids, first.tookOff, [...t1.keys()], potOf(pile).origin.taken], [true, [cardOf(pile, "body:t1/1")], 1, ["i2"], [cardOf(pile, "body:t1/1")]], "finding a lot takes its good off the body and settles its card, and the body's other good stays");
+  const again = await markSceneFound(pile, found("body:t1/1"), { takeOff });
+  eq([again.ids, again.already, again.tookOff, calls.length, deleted], [[], ["body:t1/1"], undefined, 1, ["Actor.t1|i1"]], "a lot found again takes nothing, and the take-off is not even asked");
+  const own = await markSceneFound(pile, found("body:t1/3"), { takeOff });
+  eq([own.tookOff, own.ids.length, [...t1.keys()]], [0, 1, ["i2"]], "a lot no body carried (a table's draw) is found and takes nothing");
+  eq(
+    (await markSceneFound(pile, { code: CODE.FOUND_NOTHING, lots: ["body:t1/2"] }, { takeOff })).ids,
+    [],
+    "a check that found nothing marks nothing",
+  );
+  eq([calls.length, [...t1.keys()]], [2, ["i2"]], "and asks for no take-off");
+  const second = await markSceneFound(pile, found("body:t1/2"), { takeOff });
+  eq([second.tookOff, [...t1.keys()], potOf(pile).origin.taken.length], [1, [], 2], "the second good leaves when its own lot is found");
+
+  // The once-guard: a body that still reports the item is not taken from twice.
+  const t2 = body("Actor.t2", ["i1", "i2"], { sticky: true });
+  const two = await dealt("Actor.t2", { id: "t2" });
+  deleted.length = 0;
+  await markSceneFound(two.pile, found("body:t2/1"), { takeOff });
+  eq([deleted, t2.has("i1")], [["Actor.t2|i1"], true], "the item is deleted once (this body still reports it)");
+  eq([await takeOffBodies(two.pile, { cardIds: [cardOf(two.pile, "body:t2/1")] }), deleted.length], [0, 1], "a card already settled is never taken for again, though its body still reports the item");
+  eq(await takeOffBodies(two.pile), 1, "a take-off for every card settles the one left, once");
+  eq(deleted, ["Actor.t2|i1", "Actor.t2|i2"], "each item was deleted once");
+  eq(await takeOffBodies(two.pile), 0, "and a second one has nothing left");
+
+  // A body that is gone leaves its card standing, found, on the snapshot.
+  bodies.delete("Actor.t2");
+  body("Actor.t3", []);
+  const three = await dealt("Actor.t3", { id: "t3" });
+  deleted.length = 0;
+  const gone3 = await markSceneFound(three.pile, found("body:t3/1"), { takeOff });
+  eq([gone3.ok, gone3.tookOff, deleted, potOf(three.pile).origin.taken.includes(cardOf(three.pile, "body:t3/1")), viewOf(three.pile).cards.find((c) => c.id === cardOf(three.pile, "body:t3/1")).truth.found], [true, 0, [], true, true], "a body already gone takes nothing, the lot is still found and its card keeps the snapshot");
+
+  // A take-off that throws does not lose the mark.
+  const four = await dealt("Actor.t1", { id: "t4" });
+  const errors = console.error;
+  console.error = () => {};
+  const broke = await markSceneFound(four.pile, found("body:t4/1"), { takeOff: async () => { throw new Error("no"); } });
+  console.error = errors;
+  eq([broke.ok, broke.ids.length, broke.tookOff], [true, 1, undefined], "a take-off that throws leaves the lot found");
+  eq((await markSceneFound(four.pile, found("body:t4/2"))).tookOff, undefined, "with no take-off supplied the lot is marked and nothing is taken");
+
+  // A player's client finds nothing and takes nothing.
+  const callsBefore = calls.length;
+  globalThis.game.user.isGM = false;
+  eq([(await markSceneFound(pile, found("body:t1/2"), { takeOff })).reason, calls.length], [REFUSAL.notAllowed, callsBefore], "a player's client takes nothing");
+  globalThis.game.user.isGM = true;
+
+  // Reattaching a pot: its lots and their found marks come back, nothing is dealt or written.
+  const kept = r.lots.map(({ key, thing, layer }) => ({ key, thing, layer }));
+  const before = JSON.stringify(pile.flags) + JSON.stringify(cardsOf(pile));
+  const potsBefore = piles.length;
+  const session = [{ id: "t1", ref: "Actor.t1", state: {}, layers: {} }, { id: "other", state: { layers: { hasty: { done: true } } }, layers: {} }];
+  const back = reattachSceneHaul({ potUuid: pile.uuid, lots: kept }, session);
+  eq(back.potUuid, pile.uuid, "the pot the first opening dealt is taken back");
+  eq(back.lots.map((l) => [l.key, l.thing, l.layer, l.cardId]), kept.map((l) => [l.key, l.thing, l.layer, cardOf(pile, l.key)]), "with each lot attached to its entry, layer and card");
+  eq(back.bodies[0].state, { layers: { hasty: { found: true } } }, "and a body whose lots are all found reads as found again");
+  eq(back.bodies[1], session[1], "a body with no lot is as it was");
+  eq([JSON.stringify(pile.flags) + JSON.stringify(cardsOf(pile)), piles.length, session[0].state], [before, potsBefore, {}], "nothing is dealt or written, and the input is untouched");
+
+  const partial = reattachSceneHaul({ potUuid: two.pile.uuid, lots: [{ key: "body:t2/1", thing: "body:t2", layer: "hasty" }, { key: "body:t2/2", thing: "body:t2", layer: "hasty" }] }, [{ id: "t2", state: {} }]);
+  eq([partial.lots.length, partial.bodies[0].state], [2, {}], "a body with a lot still unfound is not read as found");
+  eq(reattachSceneHaul({ potUuid: pile.uuid, lots: [{ key: "body:t1/1", thing: "body:t1", layer: "nonsense" }, { key: "body:t1/1", thing: "body:t1" }] }, []).lots.map((l) => l.layer), ["hasty", "hasty"], "a stored layer that is no layer reads as the hasty one");
+  eq(reattachSceneHaul({ potUuid: pile.uuid, lots: [{ key: "body:gone/1", thing: "body:gone", layer: "hasty" }] }, []).lots, [], "a lot whose card is not in the pot is not attached");
+  eq([reattachSceneHaul({ potUuid: "Cards.nope", lots: kept }, session), reattachSceneHaul({ potUuid: null, lots: kept }, session), reattachSceneHaul({}, session), reattachSceneHaul(undefined)], [null, null, null, null], "a pot that is gone, or none that was kept, is null");
+  eq(reattachSceneHaul({ potUuid: "Actor.t1", lots: kept }, session), null, "a uuid that names no pot is null");
+  await pile.update({ [`flags.${MODULE_ID}.${POT_FLAG}.phase`]: PHASE.closed });
+  eq(reattachSceneHaul({ potUuid: pile.uuid, lots: kept }, session), null, "a closed pot is not reattached");
+}
+
+/* --- a reopened body reads its layers from the pot --- */
+{
+  const lots = [
+    { key: "body:a/1", thing: "body:a", layer: "hasty", cardId: "c1" },
+    { key: "body:a/2", thing: "body:a", layer: "hasty", cardId: "c2" },
+    { key: "body:b/1", thing: "body:b", layer: "hasty", cardId: "c3" },
+    { key: "body:b/2", thing: "body:b", layer: "methodical", cardId: "c4" },
+    { key: "body:c/1", thing: "body:c", layer: "hasty", cardId: "c9" },
+  ];
+  const pot = view([card("c1", { lot: "body:a/1" }), card("c2", { lot: "body:a/2" }), card("c3", { lot: "body:b/1" }), card("c4", { lot: "body:b/2", found: false })]);
+  const bodies = [{ id: "a", state: { revealed: ["x"] } }, { id: "b", state: {} }, { id: "c" }, { id: "d", state: { layers: { hasty: { done: true } } } }];
+  const out = H.bodiesWithFound(bodies, lots, pot);
+  eq(out[0].state, { revealed: ["x"], layers: { hasty: { found: true } } }, "a body whose lots are all found reads as found, the rest of its state kept");
+  eq(out[1].state, { layers: { hasty: { found: true } } }, "a layer is read apart from its body's other layer: the methodical one is not found");
+  eq(out[2], bodies[2], "a lot whose card is not in the pot makes no layer found");
+  eq(out[3], bodies[3], "a body with no lot is as it was");
+  eq(bodies[1].state, {}, "the input is not changed");
+  const mixed = H.bodiesWithFound([{ id: "a" }], lots.slice(0, 2), view([card("c1", { lot: "body:a/1" }), card("c2", { lot: "body:a/2", found: false })]));
+  eq(mixed[0], { id: "a" }, "one lot of a layer still unfound leaves the layer unfound");
+  eq(H.bodiesWithFound(null, null, null), [], "no bodies, none read");
 }
 
 /* --- an opening that leaves nothing, and the closing record --- */

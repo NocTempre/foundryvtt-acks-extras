@@ -1,7 +1,8 @@
-/* global game */
+/* global game, fromUuidSync */
 /**
  * The scene's haul, the Foundry side of `haul-logic.mjs`: the pot a scene deals
- * when it opens, and the write that marks lots found. The pot is the treasure
+ * when it opens, the write that marks lots found (and takes their goods off the
+ * bodies), and the reattach of that pot to a reopened search. The pot is the treasure
  * feature's own pile (`treasure/pot.mjs`), made, dealt and opened in one call,
  * so the scene exposes no staging step: a Judge never holds a pot between a
  * deal and its opening, and a deal that refuses or deals nothing leaves no pot.
@@ -11,11 +12,12 @@
  * Foundry gates no read, so every seat can read every Card's flag, and the mark
  * is what the table is shown and may act on, not a secret.
  */
-import { MODULE_ID, POT_FLAG, REFUSAL } from "../treasure/constants.mjs";
+import { MODULE_ID, PHASE, POT_FLAG, REFUSAL } from "../treasure/constants.mjs";
 import { dealHoard } from "../treasure/hoard.mjs";
-import { addTruths, markLotsFound, newPot, openPot, potOf, viewOf } from "../treasure/pot.mjs";
-import { ORIGIN } from "./constants.mjs";
-import { carriedOf, foundKeys, lotsInPot, runHaulDeal } from "./haul-logic.mjs";
+import { addTruths, isPot, markLotsFound, newPot, openPot, potOf, viewOf } from "../treasure/pot.mjs";
+import { LAYER_NAMES } from "../lib/place-things-logic.mjs";
+import { LAYER, ORIGIN } from "./constants.mjs";
+import { bodiesWithFound, carriedOf, foundKeys, lotsInPot, runHaulDeal } from "./haul-logic.mjs";
 
 /**
  * Deal a scene's haul: make a pot, deal each source's letters into it unfound,
@@ -57,7 +59,7 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
       await discard();
       return result;
     }
-    // The goods a body carried are written before the pot opens: the pot's opening is what takes them off the bodies.
+    // The goods a body carried are mapped to their cards here; none leaves its body until its lot is found (`markSceneFound`), and `taken` lists the cards already settled.
     const carried = carriedOf(result.lots, viewOf(pile));
     const takesOff = Object.keys(carried).length > 0;
     if (scene?.sceneId || partyId || takesOff) {
@@ -67,7 +69,7 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
           kind: ORIGIN.SCENE,
           sceneId: scene?.sceneId ?? null,
           placeUuid: scene?.placeUuid ?? null,
-          ...(takesOff ? { takeOff: true, carried, takenOff: false } : {}),
+          ...(takesOff ? { takeOff: true, carried, taken: [] } : {}),
         };
       }
       if (partyId) tie[`flags.${MODULE_ID}.${POT_FLAG}.partyId`] = partyId;
@@ -86,12 +88,50 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
 }
 
 /**
- * Mark the lots a check's outcome finds, on the scene's pot. Only a
- * `scene:found` answer marks anything. Judge-only.
+ * Mark the lots a check's outcome finds, on the scene's pot, and take the goods
+ * of the lots it turned found off the bodies that carried them. Only a
+ * `scene:found` answer marks anything. A lot found before is not marked again,
+ * so its good is not taken again either. Judge-only.
  * @param {Cards} pile the scene's pot
  * @param {object} outcome `outcomeOf`'s answer
- * @returns {Promise<{ok: boolean, reason?: string, ids?: string[], already?: string[], missing?: string[]}>}
+ * @param {object} [options]
+ * @param {(pile: Cards, only: {cardIds: string[]}) => Promise<number>} [options.takeOff] treasure's `takeOffBodies`, called with the cards just found
+ * @returns {Promise<{ok: boolean, reason?: string, ids?: string[], already?: string[], missing?: string[], tookOff?: number}>}
  */
-export function markSceneFound(pile, outcome) {
-  return markLotsFound(pile, foundKeys(outcome));
+export async function markSceneFound(pile, outcome, { takeOff = null } = {}) {
+  const marked = await markLotsFound(pile, foundKeys(outcome));
+  if (!marked.ok || !marked.ids?.length || typeof takeOff !== "function") return marked;
+  try {
+    return { ...marked, tookOff: await takeOff(pile, { cardIds: marked.ids }) };
+  } catch (error) {
+    console.error(`${MODULE_ID} | scene search could not take a found lot's goods off its body`, error);
+    return marked;
+  }
+}
+
+/**
+ * Take a scene's pot back for a reopened search: the pot a card's first opening
+ * dealt, if it still exists and is open, and the lots it still holds. Ending a
+ * session never touches its pot, so the cards, their found marks and the
+ * mapped goods are as the last check left them; a pot the Judge closed (which
+ * deletes it) answers null. Nothing is dealt and nothing is written.
+ * @param {{potUuid?: string|null, lots?: Array<{key: string, thing: string, layer: string}>}} made what the card kept of its first opening
+ * @param {object[]} bodies the reopened session's bodies
+ * @returns {{potUuid: string, lots: Array<{key: string, thing: string, layer: string, cardId: string}>, bodies: object[]}|null}
+ */
+export function reattachSceneHaul({ potUuid = null, lots = [] } = {}, bodies = []) {
+  let pile = null;
+  try {
+    pile = potUuid ? fromUuidSync(potUuid, { strict: false }) : null;
+  } catch {
+    pile = null;
+  }
+  if (!pile || !isPot(pile)) return null;
+  const view = viewOf(pile);
+  if (view.pot.phase !== PHASE.open) return null;
+  const held = lotsInPot(
+    (Array.isArray(lots) ? lots : []).map((lot) => ({ ...lot, layer: LAYER_NAMES.includes(lot.layer) ? lot.layer : LAYER.HASTY })),
+    view,
+  );
+  return { potUuid: pile.uuid, lots: held, bodies: bodiesWithFound(bodies, held, view) };
 }

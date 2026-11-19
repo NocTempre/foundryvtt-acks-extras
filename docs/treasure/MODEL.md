@@ -24,7 +24,7 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | `deal.toggles` | `{noMagic, forceCursed}`, both booleans, set while staging and applied at open |
 | `partyId` | the party the aside lists and Quick grab shares among; nothing writes it, so `resolveParty` reads it while the roster lists it, else the only party the roster has (see "The party aside") |
 | `grab` | `{leftover: [{cardId, count, code}]}`, what the last Quick grab left: the card, the coin still unplaced (null for a whole card) and `tooHeavy`, `noRoom` or `failed`; null before any grab |
-| `origin` | `null` on a hand-built pot; on a scene's pot `{kind: "scene", sceneId, placeUuid}`, and with it `{takeOff, carried, takenOff}` where bodies carried goods (see "Search the fallen") |
+| `origin` | `null` on a hand-built pot; on a scene's pot `{kind: "scene", sceneId, placeUuid}`, and with it `{takeOff, carried, taken}` where bodies carried goods: `carried` maps a card to the body item it came from and `taken` lists the cards already settled (see "Search the fallen") |
 
 Core lets any user create a Card in a pile. A Card whose id is not in `order`
 (or a bucket list) is never shown by the window and never acted on by the
@@ -160,12 +160,13 @@ that is the creature's body, and an imported attack row carries no flag.
 
 The record rides on a chat card whispered to the Judges, in
 `flags["acks-extras"].treasureSearch`: `{combatId, sceneId, fallen, opened,
-drawnText}`. A fight whose fallen hold nothing posts no card. The card's
+drawnText}`, and once a scene was opened from the card, what that opening made: `potUuid`, `placeUuid` and `lots` (`{key, thing, layer}`). A fight whose fallen hold nothing posts no card. The card's
 **Search the scene** opens the scene search with the record
 (`acksExtras.sceneSearch.searchHere`, which [scene-search's MODEL](../scene-search/MODEL.md)
 describes): the fallen become the scene's bodies, their carried goods and
 letters its haul, and no pot is staged by hand. `opened` is set once a scene
-was opened from the card, so a card deals once.
+was opened from the card, so a card deals once; what a press on a spent card does
+is in scene-search's MODEL.
 
 - Each linked table is drawn quietly (`drawFallenTable`, over `drawQuietly`);
   item results become cards, text results are listed on the card
@@ -174,13 +175,19 @@ was opened from the card, so a card deals once.
 
 **The take-off** moves the goods: a pot whose `origin` says `takeOff: true` and
 holds a `carried` map (each goods card's id to the `{actorUuid, itemId}` it came
-from) has them taken when it opens. An `updateCards` listener on the opening
-client calls `takeOffBodies`, which deletes, once per item, the goods of cards
-still in `order` from bodies that still exist (`planTakeOff`), and marks
-`origin.takenOff`. A pot whose origin does not ask owes nothing, whatever its
+from) owes each good to its body until its lot is found. Opening the pot takes
+nothing. The scene search calls `takeOffBodies(pile, {cardIds})` with the cards a
+check has just turned found (`scene-search/haul.mjs` `markSceneFound`), which
+deletes, once per item, the goods of those cards that are still in `order` from
+bodies that still exist (`planTakeOff`), and records the cards in
+`origin.taken` first, so a card is settled once however often it is found or the
+search is reopened. A pot whose origin does not ask owes nothing, whatever its
 kind. The scene's deal writes the map before it opens the pot, keyed by the lot
 key each card's truth carries (`scene-search/haul-logic.mjs` `carriedOf`), so
-the order the cards were made in never matters. Nothing is posted to a player
+the order the cards were made in never matters. A good whose lot is never found
+stays on its body, and closing the pot (which deletes it) loses nothing: the
+pot's own flows act on found lots only (turning, claiming, Quick grab and the
+close's filing and record all skip an unfound one). Nothing is posted to a player
 until the Judge shows the scene. Why each choice: [DECISIONS.md](DECISIONS.md).
 
 ## Quick grab
@@ -659,7 +666,8 @@ mark is found**, so a pot made any other way shows everything it holds.
   haul. The pot's `origin` is `{kind: "scene", sceneId, placeUuid}`.
 - `planFound(view, keys)` / `markLotsFound(pile, keys)` mark the lots carrying
   those keys; `markSceneFound(pile, outcome)` takes a `scene:found` answer's
-  lots and nothing from any other answer. Judge client only.
+  lots and nothing from any other answer, then takes the goods of the lots it
+  turned found off their bodies ("Search the fallen"). Judge client only.
 - **What a seat is shown** is `seatCards(view, {isGM})`: the Judge's every
   card, a player's the found ones. The window's cards, header count ("You found
   {n} items"), the haul's total, the doorway's count and pips, Quick grab's
