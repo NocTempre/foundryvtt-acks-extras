@@ -267,3 +267,22 @@ pinned the rest.
   to "No house rules ship". It holds because RR ch. 3, Proficiencies, "Sensing
   Power", prints an activation by concentration and no throw (read against the
   reference snapshot before landing).
+
+## 2026-11-19 — Harvest waits on the monster-import audit; a fallen body opens its own sheet
+
+- **Ruled.** The owner, relayed 2026-11-19: "Defer, the MM imports already
+  partially carry that data, and those need a full audit in general that I will
+  dedicate a full pass to. Put in the entry point that looks at the monster's
+  sheet for now as a cutoff point." S7b (harvest and identify) leaves this minor
+  for the ROADMAP, and Treasure Tome's MM harvest work (H1–H4) is deferred with
+  it.
+- **The cutoff.** A fallen body gets a Judge-only control that opens the
+  monster's own sheet, where the Judge reads whatever parts the import already
+  carries. Nothing is harvested, timed or valued from the scene. The control is
+  a new UI element, so it goes to `/design` before it is built; the boards'
+  harvest row is not built.
+- **Cost.** The scene search ships without a harvest path. The answers already
+  settled for it (round up between printed steps; any of a dual-typed creature's
+  rows qualifies a harvester, with a per-body override) stay in the plan for the
+  pass that picks it up. Rejected: building harvest on the partial import, which
+  the audit may reshape.
