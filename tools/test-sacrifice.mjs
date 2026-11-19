@@ -985,7 +985,7 @@ t("the template and the sheet of styles hold to the layout contract; every strin
   assert.match(win, /if \(!result\.nothing\) await clearRecord/, "a sacrifice that was made ends it too");
   for (const w of ["noSite", "notHelpless", "values"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.wait.${w}`], "string", w);
   for (const r of ["noCaster", "owner", "judgeOnly", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
-  assert.equal(lang[["ACKS-MAGIC.sacrifice", "states"].join(".")], undefined, "the states section is gone");
+  assert.equal(lang[["ACKS-MAGIC", "sacrifice", "states"].join(".")], undefined, "the states section is gone");
   const used = new Set();
   for (const file of [tpl, foot, victimTpl]) for (const m of file.matchAll(/ACKS-MAGIC\.sacrifice\.([\w.]+)/g)) used.add(m[1]);
   const live = ["sacrifice-live.mjs", "sacrifice.mjs", "sacrifice-record.mjs", "sacrifice-record-live.mjs"].map((f) => fs.readFileSync(`scripts/magic/${f}`, "utf8")).join("\n") + win;
