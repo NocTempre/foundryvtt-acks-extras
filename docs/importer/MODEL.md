@@ -2513,16 +2513,18 @@ twice. A form is never parsed.
 
 - **The file.** One JSON per book, uploaded by `FilePicker.upload` to
   `acks-extras-books/parsed/<book>-<stamp>-<attempt>.json`. Header
-  `{book, stamp, src, bytes, numPages, title, fonts, placements}`; per page
+  `{book, stamp, src, bytes, numPages, title, fonts, placements, walls}`; per page
   `[width, height, runs]`; a run `[str, x, y, width, height, font, sp]`, the
   text matrix's translation as pdf.js gave it, at full precision, `font` an index
   into `fonts`, `sp` the word-space boundary `textRuns` keeps. It holds
   `textRuns`' output and nothing after it: the furniture profile, typography and
   `fuseRuns` run in `pageItems` at read, so an edit to `extract.mjs` or to a
-  registry row never invalidates a file. The stamp is `PARSE_SCHEMA` (bumped with
-  the shape, `textRuns` or `placementsOfPage`; 2 added `placements`) over the
-  pdf.js version, so a file of another schema is read by no seat. The body holds no time
-  and no seat, so two seats parsing one PDF write the same bytes.
+  registry row never invalidates the text. The stamp is `PARSE_SCHEMA` (bumped with
+  the shape, `textRuns` or `placementsOfPage`; 2 added `placements`, 3 `walls`) over the
+  pdf.js version, so a file of another schema is read by no seat. The body holds
+  no time and no seat, so two seats parsing one PDF write the same bytes where
+  their canvases render alike; the saved walls are read off a render (Walls,
+  below).
 - **Font ids.** pdf.js names a font by the document that loaded it
   (`g_d3_f1`), a counter that runs on across every open in a page. The saved id
   drops the counter (`g_f1`; `fontId`) and keeps the load order, which a parse
@@ -2572,10 +2574,32 @@ twice. A form is never parsed.
   and the live answer the names too; the two runtime callers
   (`adventure-maps.mjs`, over `placementMatches`) read only the boxes. A
   rebuild whose scene pictures are cached (`uploadSceneMap` answers from the art
-  cache) therefore fetches no PDF. It still does for a map whose recipe has
-  `walls`: `traceSceneWalls` renders the page every time and nothing caches its
-  trace. A refused book (a 404, another size) rejects the placements, and the
-  callers' `.catch` refuses the map.
+  cache) therefore fetches no PDF, and a map whose recipe has `walls` fetches
+  none either while its trace is saved (Walls, below). A refused book (a 404,
+  another size) rejects the placements, and the callers' `.catch` refuses the map.
+- **Walls.** The same file holds each walled scene recipe's traced walls
+  (`cookbookWalledScenes`, read when a parse starts), as `walls: {"<scene id>":
+  {inputs, walls, digest}}`: `traceWalls` or `traceStoreys` output in page
+  points. The parse traces them last, in the open that read the text, by
+  `traceRecipeWalls` (the crop, or each storey's, rendered to gray at
+  `TRACE_PITCH` and read by the tracer, the body `traceSceneWalls` ran before);
+  that is one render per crop on top of the text pass. A trace that fails to
+  render or throws is not saved, and the file keeps the rest. `inputs` is
+  `wallTraceInputs(recipe)`: one canonical string of the tracer's version
+  (`WALL_TRACE_VERSION`), `TRACE_PITCH`, the recipe's `page`, `crop`, `levels`,
+  `grid` and `walls`. `sceneWallTrace`, which `traceSceneWalls` calls from both
+  Adventure paths, asks a handle `savedWalls(id, inputs)` first (verify, then the
+  file's entry when its `inputs` equal the recipe's, as a copy) and renders the
+  page live only when that answers null: a scene the file lacks, a recipe edited
+  since the parse in any of those inputs, a file with no `walls`, or a document
+  that is no handle. The live render does not save back, so a recipe or tracer
+  that moved since the parse is traced live on every rebuild until a GM reads the
+  book again. A saved trace equals the live trace's value after the file's JSON
+  round trip (a `-0` coordinate reads back as `0`). The tracer is not part of the
+  stamp: a change to `wall-trace.mjs` that moves a trace bumps
+  `WALL_TRACE_VERSION`, and `test-wall-trace` pins the tracer's output on its
+  drawn plan to hold it to that. A refused book rejects `savedWalls` as it
+  rejects the placements, and `traceSceneWalls` makes the map without walls.
 - **A re-pointed page.** A pointer names the file it was parsed from, and is
   current only while its `src` is the journal's PDF page now. A handle follows
   the journal (`#follow`, at the head of `verify`, `live` and `getData`): when

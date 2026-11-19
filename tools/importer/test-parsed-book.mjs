@@ -12,15 +12,19 @@
  * and a failed upload never fails a read. The placements of the pages a scene
  * recipe names ride in the same file: a rebuild reads them with no PDF fetch
  * and no open, a page the file lacks is read live, and a re-pointed `src` or
- * another stamp leaves nothing of the old file to answer. Every text in it is
- * invented.
+ * another stamp leaves nothing of the old file to answer. So do the traced
+ * walls of each walled scene recipe: a rebuild reads them with no PDF fetch,
+ * no open and no trace, a scene the file lacks or a recipe edited since the
+ * parse is traced live, and the file is read for one recipe's inputs only. The
+ * tracer is a stub that counts its calls. Every text in it is invented.
  */
 import assert from "node:assert";
 import { createHash } from "node:crypto";
-import { BookHandle } from "../../scripts/importer/book-handle.mjs";
+import { BookHandle, liveDoc } from "../../scripts/importer/book-handle.mjs";
 import { ParsedBooks, PARSE_STAMP, SavedBook, fontId, parseDocument } from "../../scripts/importer/parsed-book.mjs";
 import { OPS } from "../../vendor/pdfjs/pdf.mjs";
-import { pageArtPlacements, pageItems, placementsOfPage } from "../../scripts/importer/extract.mjs";
+import { pageArtPlacements, pageItems, placementsOfPage, sceneWallTrace } from "../../scripts/importer/extract.mjs";
+import { WALL_TRACE_VERSION, wallTraceInputs } from "../../scripts/importer/wall-trace.mjs";
 import { placementMatches } from "../../scripts/importer/scene-binding.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 
@@ -79,6 +83,7 @@ function opsOf(n, docNo) {
 function fakeDoc(numPages, docNo, edition = "A") {
   const doc = {
     numPages,
+    edition,
     destroyed: 0,
     async getPage(n) {
       if (n < 1 || n > numPages) throw new Error("no such page");
@@ -93,6 +98,15 @@ function fakeDoc(numPages, docNo, edition = "A") {
     },
   };
   return doc;
+}
+
+/** Two invented walled scene recipes: a single plan on page 3 and a plan of two storeys on page 5. */
+function walledScenes() {
+  const grid = { family: "square", box: { w: 10, h: 10 }, distance: 5 };
+  return [
+    { id: "rr.mapB", recipe: { page: 5, crop: { x: 30, y: 40, w: 120, h: 80 }, levels: [{ x: 30, y: 300 }], grid, walls: { mode: "stroke", threshold: 150 } } },
+    { id: "rr.mapA", recipe: { page: 3, crop: { x: 20, y: 40, w: 100, h: 60 }, grid, walls: { mode: "grid", threshold: 160, corrections: [{ cell: [1, 1], is: "open" }] } } },
+  ];
 }
 
 /**
@@ -114,6 +128,24 @@ function world({ pages = 7 } = {}) {
     attempt: 0,
     edition: "A",
     scenePages: [3, 5],
+    wallScenes: walledScenes(),
+    traced: 0,
+    liveTraces: 0,
+  };
+  // What a tracer makes of a recipe on an open document: a function of the recipe and of the file's edition, so a stale answer shows.
+  w.traceOf = (doc, recipe) => ({
+    walls: [{ c: [recipe.page + 0.1, -0, recipe.crop.x / 3, 7], door: 0 }, { c: [1, 2, 3, 4], door: 1, terrain: true }],
+    digest: { mode: recipe.walls.mode, walls: 1, doors: 1, edition: doc.edition },
+  });
+  /** The tracer a parse runs over its open document. */
+  w.trace = async (doc, recipe) => {
+    w.traced++;
+    return w.traceOf(doc, recipe);
+  };
+  /** The live tracer a rebuild falls back to: it takes the live document, so a handle opens the PDF for it. */
+  w.liveTrace = async (doc, recipe) => {
+    w.liveTraces++;
+    return w.traceOf(await liveDoc(doc), recipe);
   };
   w.fetchImpl = async (path, init = {}) => {
     const method = init.method ?? "GET";
@@ -136,6 +168,8 @@ function world({ pages = 7 } = {}) {
       isGM: () => isGM,
       srcOf: (id) => w.journals[id]?.src ?? null,
       placementPagesOf: () => w.scenePages,
+      wallScenesOf: () => w.wallScenes,
+      traceWalls: w.trace,
       pointerOf: (id) => w.journals[id]?.pointer ?? null,
       writePointer: async (id, pointer) => {
         w.pointerWrites++;
@@ -653,15 +687,192 @@ const said = async (handle, n) => JSON.stringify(await pageItems(handle, n));
   ok("a parse of the old path's bytes writes neither a file nor a pointer", w.uploads.length === 0 && w.pointerWrites === 0);
 }
 
+/* --- walls ride in the saved file ------------------------------------------------------------- */
+
+const viaJson = (value) => JSON.parse(JSON.stringify(value));
+const [MAP_A, MAP_B] = [walledScenes()[1], walledScenes()[0]];
+const makeTrace = (doc, recipe) => world().traceOf(doc, recipe);
+const parseOf = (o = {}) => parseDocument(fakeDoc(7, 5), { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T", wallScenes: walledScenes(), trace: async (doc, recipe) => makeTrace(doc, recipe), ...o });
+
+{
+  const traced = [];
+  const saved = await parseOf({ trace: async (doc, recipe) => (traced.push(doc), makeTrace(doc, recipe)) });
+  same("walls are keyed by scene id, in order", Object.keys(saved.walls), ["rr.mapA", "rr.mapB"]);
+  ok("each scene's trace was made on the document being parsed", traced.length === 2 && traced.every((d) => d.numPages === 7 && d.edition === "A"));
+  same("an entry holds the inputs, the walls and the digest", Object.keys(saved.walls["rr.mapA"]), ["inputs", "walls", "digest"]);
+  ok("its inputs are the recipe's", saved.walls["rr.mapA"].inputs === wallTraceInputs(MAP_A.recipe));
+  const book = new SavedBook(viaJson(saved), { book: "rr", stamp: PARSE_STAMP, src: PDF, bytes: PDF_BYTES, numPages: 7 });
+  const live = makeTrace(fakeDoc(7, 77), MAP_A.recipe);
+  same("a saved trace is the live trace's value after the file's round trip", book.walls("rr.mapA", wallTraceInputs(MAP_A.recipe)), viaJson(live));
+  ok("a terrain wall keeps its mark and a door its type", book.walls("rr.mapA", wallTraceInputs(MAP_A.recipe)).walls[1].terrain === true && book.walls("rr.mapA", wallTraceInputs(MAP_A.recipe)).walls[1].door === 1);
+  ok("a trace made from other inputs answers nothing", book.walls("rr.mapA", wallTraceInputs({ ...MAP_A.recipe, walls: { ...MAP_A.recipe.walls, threshold: 161 } })) === null);
+  ok("a scene the file does not hold answers nothing", book.walls("rr.mapC", wallTraceInputs(MAP_A.recipe)) === null && book.walls("__proto__", wallTraceInputs(MAP_A.recipe)) === null);
+  ok("one scene's trace never answers for another's inputs", book.walls("rr.mapA", wallTraceInputs(MAP_B.recipe)) === null);
+  book.walls("rr.mapA", wallTraceInputs(MAP_A.recipe)).walls[0].c[0] = 0;
+  ok("a caller's edit never reaches the next read", book.walls("rr.mapA", wallTraceInputs(MAP_A.recipe)).walls[0].c[0] === 3.1);
+  same("the file is the same whichever open wrote it, in whatever order the scenes were listed", JSON.stringify(saved), JSON.stringify(await parseOf({ wallScenes: walledScenes().reverse() })));
+  const bare = await parseDocument(fakeDoc(7, 5), { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T" });
+  same("the text and placements are the same with or without walls", { ...saved, walls: undefined }, { ...bare, walls: undefined });
+  ok("a book with no walled scene saves an empty map", Object.keys(bare.walls).length === 0);
+
+  // A trace that fails or throws is left out, and the rest of the file is kept.
+  const warn = console.warn;
+  console.warn = () => {};
+  let none;
+  let one;
+  try {
+    none = await parseOf({ trace: async (doc, recipe) => (recipe.page === 3 ? null : Promise.reject(new Error("trace"))) });
+    one = await parseOf({ trace: async (doc, recipe) => (recipe.page === 5 ? Promise.reject(new Error("trace")) : makeTrace(doc, recipe)) });
+  } finally {
+    console.warn = warn;
+  }
+  same("a scene whose trace throws is left out and the other kept", Object.keys(one.walls), ["rr.mapA"]);
+  ok("a scene whose render failed, or whose trace threw, is not saved as empty", Object.keys(none.walls).length === 0 && none.pages.length === 7);
+}
+
+/* --- a rebuild reads the saved walls and opens no PDF ----------------------------------------- */
+
+{
+  const w = world();
+  const first = w.seat().handle();
+  await first.verify();
+  ok("the first read made the saved text, tracing both scenes in the parse's one open", w.traced === 2 && w.opens === 1 && w.uploads.length === 1 && w.gets(".pdf") === 1);
+  const got = await sceneWallTrace(first, MAP_A.id, MAP_A.recipe, w.liveTrace);
+  same("its answer is the saved trace, which is the live trace after the round trip", got, { traced: viaJson(w.traceOf(fakeDoc(7, 77), MAP_A.recipe)), saved: true });
+  ok("it made no second trace", w.liveTraces === 0 && w.traced === 2);
+  same("the file holds both scenes' walls", Object.keys(JSON.parse(w.uploads[0].text).walls), ["rr.mapA", "rr.mapB"]);
+  await first.destroy();
+
+  // A reload, and an Adventure rebuild: every walled scene's walls asked, its pictures already cached.
+  w.log.length = 0;
+  w.opens = 0;
+  w.traced = 0;
+  const next = w.seat().handle();
+  const asked = await Promise.all(walledScenes().map(({ id, recipe }) => sceneWallTrace(next, id, recipe, w.liveTrace)));
+  ok("every answer is a saved trace", asked.every((a) => a.saved && a.traced.walls.length === 2));
+  same("and equals the live trace", asked.map((a) => a.traced), walledScenes().map(({ recipe }) => viaJson(w.traceOf(fakeDoc(7, 77), recipe))));
+  ok("the walls of the plan of storeys keep their digest", asked[0].traced.digest.mode === "stroke");
+  ok("no PDF was fetched, none opened, and nothing traced", w.gets(".pdf") === 0 && w.opens === 0 && w.liveTraces === 0 && w.traced === 0 && !next.isLive, w.log.join(" | "));
+  ok("the book was asked one HEAD and its saved file read once", w.heads() === 1 && w.log.filter((l) => l.startsWith("GET books/parsed/")).length === 1, w.log.join(" | "));
+  ok("nothing was saved again", w.uploads.length === 1 && w.pointerWrites === 1);
+
+  // Walls, placements and text come from the one file.
+  ok("placements and text are read from the same file with no PDF", boxes(await pageArtPlacements(next, 3)).length === 2 && JSON.stringify(await pageItems(next, 2)).includes("ed A") && w.gets(".pdf") === 0);
+
+  // Inputs that differ from the saved ones: the PDF is opened and the page traced live.
+  const edited = { ...MAP_A.recipe, walls: { ...MAP_A.recipe.walls, corrections: [{ cell: [2, 2], is: "open" }] } };
+  const live = await sceneWallTrace(next, MAP_A.id, edited, w.liveTrace);
+  ok("a recipe edited since the parse is traced live", live.saved === false && w.liveTraces === 1 && w.opens === 1 && w.gets(".pdf") === 1 && next.isLive);
+  ok("and its answer is a live trace's", live.traced.digest.edition === "A" && live.traced.walls[0].c[0] === 3.1);
+  const grown = await sceneWallTrace(next, MAP_A.id, { ...MAP_A.recipe, crop: { ...MAP_A.recipe.crop, w: 101 } }, w.liveTrace);
+  ok("so is a recipe whose crop moved", grown.saved === false && w.liveTraces === 2);
+  const unsaved = await sceneWallTrace(next, "rr.mapZ", MAP_A.recipe, w.liveTrace);
+  ok("so is a scene the file never traced", unsaved.saved === false && w.liveTraces === 3);
+  await next.destroy();
+
+  // A player seat reads the same file.
+  w.log.length = 0;
+  w.opens = 0;
+  const player = w.seat({ isGM: false }).handle();
+  const read = await sceneWallTrace(player, MAP_B.id, MAP_B.recipe, w.liveTrace);
+  ok("a player seat reads the GM's saved walls without the PDF", read.saved && w.gets(".pdf") === 0 && w.opens === 0 && w.liveTraces === 3);
+  await player.destroy();
+
+  // A document that is no handle is traced live.
+  const direct = await sceneWallTrace(fakeDoc(7, 90), MAP_A.id, MAP_A.recipe, w.liveTrace);
+  ok("a pdf.js document is traced live", direct.saved === false && w.liveTraces === 4);
+}
+
+/* --- walls missing: the PDF answers ---------------------------------------------------------- */
+
+{
+  // The scene was not walled when the text was parsed.
+  const w = world();
+  w.wallScenes = [walledScenes()[1]];
+  await w.seat().handle().verify();
+  w.log.length = 0;
+  w.opens = 0;
+  const handle = w.seat().handle();
+  const a = await sceneWallTrace(handle, MAP_A.id, MAP_A.recipe, w.liveTrace);
+  const b = await sceneWallTrace(handle, MAP_B.id, MAP_B.recipe, w.liveTrace);
+  ok("the scene the parse traced is read, the one it did not is traced live", a.saved && !b.saved && w.liveTraces === 1);
+  ok("the PDF was fetched once and the text not parsed again", w.gets(".pdf") === 1 && w.uploads.length === 1);
+  await handle.destroy();
+
+  // A saved file with no walls at all, under a current stamp.
+  const v = world();
+  await v.seat().handle().verify();
+  const body = JSON.parse(v.files.get(v.journals.rr.pointer.file).text);
+  delete body.walls;
+  v.files.set(v.journals.rr.pointer.file, { text: JSON.stringify(body) });
+  const older = v.seat().handle();
+  ok("a file with no walls answers from the live page", (await sceneWallTrace(older, MAP_A.id, MAP_A.recipe, v.liveTrace)).saved === false && v.liveTraces === 1);
+  ok("its text is still read from the file", JSON.stringify(await pageItems(older, 2)).includes("ed A") && v.uploads.length === 1);
+  await older.destroy();
+
+  // A book that is gone is refused and not opened by another road.
+  const g = world();
+  await g.seat().handle().verify();
+  g.files.delete(PDF);
+  g.log.length = 0;
+  g.opens = 0;
+  const gone = g.seat().handle();
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await assert.rejects(() => sceneWallTrace(gone, MAP_A.id, MAP_A.recipe, g.liveTrace), /404/);
+    pass++;
+  } finally {
+    console.warn = warn;
+  }
+  ok("a gone file's walls are neither opened live nor read from the saved file", g.opens === 0 && g.liveTraces === 0 && g.gets(".json") === 0);
+}
+
+/* --- a re-pointed page: the old file's walls answer nothing ----------------------------------- */
+
+{
+  const w = world();
+  const handle = w.seat().handle();
+  ok("before the re-point the walls are the old edition's", (await sceneWallTrace(handle, MAP_A.id, MAP_A.recipe, w.liveTrace)).traced.digest.edition === "A");
+  const oldPointer = w.journals.rr.pointer;
+  repoint(w);
+  w.log.length = 0;
+  const after = await sceneWallTrace(handle, MAP_A.id, MAP_A.recipe, w.liveTrace);
+  ok("after it they are the new file's, from its own parse", after.saved && after.traced.digest.edition === "B" && w.journals.rr.pointer.file !== oldPointer.file);
+  ok("the old saved file was not read again", !w.log.includes(`GET ${oldPointer.file}`), w.log.join(" | "));
+  await handle.destroy();
+}
+
+/* --- the inputs of a trace --------------------------------------------------------------------- */
+
+{
+  const base = MAP_B.recipe;
+  const key = wallTraceInputs(base);
+  ok("the inputs are a string that names the tracer's version", typeof key === "string" && key.includes(`"tracer":${WALL_TRACE_VERSION}`));
+  const changed = {
+    page: { ...base, page: 6 },
+    crop: { ...base, crop: { ...base.crop, x: 31 } },
+    levels: { ...base, levels: [{ x: 30, y: 301 }] },
+    "dropped levels": { ...base, levels: undefined },
+    grid: { ...base, grid: { ...base.grid, box: { w: 11, h: 10 } } },
+    walls: { ...base, walls: { ...base.walls, threshold: 151 } },
+    "correction": { ...base, walls: { ...base.walls, corrections: [{ cell: [0, 0], is: "open" }] } },
+  };
+  for (const [name, recipe] of Object.entries(changed)) ok(`a changed ${name} changes the inputs`, wallTraceInputs(recipe) !== key);
+  const respelt = { walls: { threshold: 150, mode: "stroke" }, grid: { distance: 5, box: { h: 10, w: 10 }, family: "square" }, levels: base.levels, crop: { h: 80, w: 120, y: 40, x: 30 }, page: 5 };
+  ok("the order a recipe's keys are written in changes nothing", wallTraceInputs(respelt) === key);
+  ok("what the trace does not read changes nothing", wallTraceInputs({ ...base, cite: "x", placement: { x: 1, y: 2, w: 3, h: 4 }, name: "other" }) === key);
+}
+
 /* --- a stamp bump invalidates ----------------------------------------------------------------- */
 
 {
-  ok("the stamp names schema 2, which added placements", PARSE_STAMP.startsWith("p2-"));
+  ok("the stamp names schema 3, which added walls", PARSE_STAMP.startsWith("p3-"));
   const w = world();
   await w.seat().handle().verify();
   const firstFile = w.journals.rr.pointer.file;
-  // The pointer a build before placements wrote.
-  w.journals.rr.pointer = { ...w.journals.rr.pointer, stamp: PARSE_STAMP.replace(/^p\d+/, "p1") };
+  // The pointer a build before walls wrote.
+  w.journals.rr.pointer = { ...w.journals.rr.pointer, stamp: PARSE_STAMP.replace(/^p\d+/, "p2") };
   ok("an older schema's pointer is not current", w.seat().parsed.pointer("rr") === null);
 
   w.log.length = 0;

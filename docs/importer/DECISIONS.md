@@ -2848,7 +2848,7 @@ background backfill (the owner: "On first read").
 - `verify()` on a GM seat with no current pointer now parses, so `verifyBooks`,
   which a repair runs before it asks to delete, can make the first parse.
 
-## 2026-11-19 — Placements ride in the saved text, and a handle follows its journal
+## 2026-11-19 — Placements ride in the saved text, and a handle follows its journal — SUPERSEDED IN PART 2026-11-19
 
 **Ruled.** The owner: "Parse once, read everywhere". Example: AX1 is parsed once
 on a GM seat. A later Adventure rebuild asks each scene's page for its image
@@ -3061,3 +3061,61 @@ among several crops per kind (one per key serves v1; a ROADMAP row).
 imported, so a world with neither the Tome nor the Journal shows none. A
 crop's stem names its page and edges, so moving a crop makes a new file and
 leaves the old one on disk.
+
+## 2026-11-19 — Wall traces ride in the saved text
+
+**Ruled.** The owner: "Yes, add it (Recommended)", to the question whether the
+saved file should keep the traced walls. Example: AX1 is parsed once on a GM
+seat, and the parse traces each of its 15 walled scenes. A later Adventure
+rebuild whose pictures are all cached finds each trace in the saved file, so it
+fetches no PDF. This is S5, and it supersedes in part the entry "Placements ride
+in the saved text", which rejected caching wall traces as "not asked for" and
+priced a walled map as still fetching the PDF. The new evidence: 15 of AX1's 17
+scene recipes are walled, so S3's saved placements made the fetch-free rebuild
+true for the two maps that least needed it, and the owner asked for it.
+
+- **What is saved.** For each scene recipe of the book with a `walls` block
+  (`cookbookWalledScenes`), `{inputs, walls, digest}` under its cookbook id in the
+  file's `walls`: the tracer's output in page points. The parse renders and
+  traces them last (`traceRecipeWalls`), in the open that read the text, so the
+  text pass's font names are unchanged. A render or trace that fails leaves the
+  scene out, never saved empty, and the rebuild traces it live. `PARSE_SCHEMA` is
+  3.
+- **The key is the recipe's inputs, compared whole.** `inputs` is one canonical
+  string of the tracer's version, `TRACE_PITCH`, and the recipe's `page`, `crop`,
+  `levels`, `grid` and `walls`; a saved trace answers a recipe whose string is
+  equal and no other. A hash was rejected: a 32-bit collision would accept a
+  stale trace, and the string costs a few hundred bytes per scene.
+- **The tracer's version is in the key, not the stamp.** A trace is an
+  algorithm's output, unlike the text and the boxes, which `pageItems` interprets
+  at read. `WALL_TRACE_VERSION` is bumped with a change to what the tracer
+  returns, so that change stales walls only and a whole-book re-parse is not
+  paid for tuning the tracer. Nothing but a test can see an unbumped change:
+  `test-wall-trace` pins its output on the plan it draws and names the bump.
+- **The rebuild never saves back.** A recipe or tracer that moved since the
+  parse is traced live on every rebuild until a GM reads the book again from
+  the Books tab.
+- **Parity.** `check-parse-parity.mjs` traces each walled recipe from another
+  open and compares it with the saved walls, with `sceneWallTrace` over a
+  handle-shaped document (which must not ask for the live document), and with an
+  edited recipe (which must). It renders through `@napi-rs/canvas`; the module's
+  tracer runs on a browser canvas, and the two renders are not compared.
+
+*Rejected:* saving the gray renders (megabytes per crop to keep an algorithm's
+input, where the walls are kilobytes); a hash of the inputs; the tracer's version
+in `PARSE_SCHEMA` (a whole-book re-parse per tuning pass).
+
+*Costs.*
+- Every saved file is of another stamp, so each shelved book is parsed again on
+  its next GM read: a whole-book fetch and parse for every book already staged,
+  one render per walled crop on top for books that have walled scenes (AX1: 15
+  scenes). No released build wrote a schema 2 file.
+- A parse is slower by those renders, and the progress bar counts pages, so it
+  sits at the last page while the walls are traced.
+- The saved walls are one rasteriser's output. Two seats on different browsers
+  may write files that differ in their walls, so racing seats write one file
+  only where their canvases agree; either file's walls are the trace of its own
+  seat's render.
+- The pin covers the grid mode on one drawn plan. A change to another mode that
+  leaves that plan's walls as they were is not seen, and the old tracer's saved
+  walls stay in use until the version is bumped and the book is read again.

@@ -12,8 +12,9 @@
  * walks through, and walls that land in the scene a frame away from the
  * picture under them.
  */
+import { createHash } from "node:crypto";
 import {
-  CORRECTION_CEILING, CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, correctionBudget, correctionCap, traceStoreys, traceWalls, wallLattice,
+  CORRECTION_CEILING, CORRECTION_SHARE, TRACE_PITCH, WALL_MODES, WALL_TRACE_VERSION, correctionBudget, correctionCap, traceStoreys, traceWalls, wallLattice,
   wallsProblems, wallsWarnings,
 } from "../../scripts/importer/wall-trace.mjs";
 import { recipeProblems, sceneData, sceneFrame, wallSources } from "../../scripts/importer/scene-binding.mjs";
@@ -191,6 +192,11 @@ check("grid: the rooms join through the corridor; the island stands apart", [d.r
 check("grid: the drawn door is read as a door, the corridor's other cells as open", d.throats, { door: 1, symbol: 0, secret: 0, open: 2 });
 check("grid: one door wall", d.doors, 1);
 ok("grid: wall length is every boundary edge", Math.abs(wallLength(traced.walls) - boundaryEdges(floorMap) * CELL) < 1e-6, `${wallLength(traced.walls)} vs ${boundaryEdges(floorMap) * CELL}`);
+// A trace saved with a book's text is read back in place of this tracer's own, keyed by WALL_TRACE_VERSION.
+// A change that moves the walls of this plan moves a saved trace too: bump the version, then update the pin.
+const PINNED = { version: 1, sha256: "6a192554a05c08701f07c073e3f2531c9eb8ba05a4f55154088d21a54ace148b" };
+check("a saved trace's version is the tracer's", WALL_TRACE_VERSION, PINNED.version);
+check("this tracer's output on the grid plan is the pinned one: bump WALL_TRACE_VERSION with a change to it", createHash("sha256").update(JSON.stringify(traced)).digest("hex"), PINNED.sha256);
 const door = traced.walls.find((s) => s.door);
 check("grid: the door stands across the corridor's middle, in page points", door.c, [crop.x + 8.5 * CELL, crop.y + 4 * CELL, crop.x + 8.5 * CELL, crop.y + 5 * CELL]);
 ok("grid: every plain wall lies on a lattice line", traced.walls.filter((s) => !s.door).every(({ c }) => c.every((v, k) => Number.isInteger(Math.round((v - (k % 2 ? crop.y : crop.x)) / CELL * 1e6) / 1e6))));

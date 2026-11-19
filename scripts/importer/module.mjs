@@ -40,10 +40,9 @@ import { releaseDoc } from "./release-doc.mjs";
 import { ParsedBooks } from "./parsed-book.mjs";
 import { pressRead, refusalKind, rowActions, tally, textState } from "./book-text.mjs";
 import { foldSummaryHtml, shelfRowHtml, shelfRowView } from "./book-rows.mjs";
-import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
+import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageMap, listHeadings, sceneWallTrace, wirePdfjs } from "./extract.mjs";
 import { placedPicture, pictureBlob, cropBox } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
-import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
 import { mapPairs } from "./stats-map.mjs";
 import { naturalWeaponDamageMap, extraordinaryEdges } from "../monsters/natural-weapons.mjs";
@@ -54,7 +53,7 @@ import { assembleReadTables, applyReadTables } from "./tables-phases.mjs";
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
-  cookbookCount, cookbookScenePages, refillMonster, resolveAbilities, proficiencyResolver,
+  cookbookCount, cookbookScenePages, cookbookWalledScenes, refillMonster, resolveAbilities, proficiencyResolver,
   importEquipment, importAllEquipment, cookbookEquipmentIds,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
@@ -627,6 +626,7 @@ const parsedBooks = new ParsedBooks({
   srcOf: (bookId) => (bookIsForm(bookId) ? null : (shelfPage(shelfJournal(bookId))?.src ?? null)),
   // Read when a parse starts: the cookbook loads after this store is built.
   placementPagesOf: (bookId) => cookbookScenePages(bookId),
+  wallScenesOf: (bookId) => cookbookWalledScenes(bookId),
   pointerOf: (bookId) => shelfJournal(bookId)?.getFlag(MODULE_ID, PARSED_FLAG) ?? null,
   writePointer: async (bookId, pointer) => {
     const journal = shelfJournal(bookId);
@@ -2436,25 +2436,20 @@ async function uploadBookPicture(doc, { stem, page, box, size, crop } = {}) {
 }
 
 /**
- * Traces a scene recipe's walls off the Judge's own page: the crop rendered to
- * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`, or on a
- * plan of storeys every storey's crop, read by `traceStoreys`. Returns
- * `{walls, digest}` with the walls in page points, or null when a render failed
- * or the trace threw; the map is then made without walls. Rendered apart from
- * the picture, whose scale and cache differ.
+ * A scene recipe's walls, traced off the Judge's own page or read from the
+ * walls saved with the book's text (`sceneWallTrace`). Returns `{walls,
+ * digest}` with the walls in page points, or null when a render failed or the
+ * trace threw; the map is then made without walls. Rendered apart from the
+ * picture, whose scale and cache differ.
  */
 async function traceSceneWalls(doc, id, recipe) {
-  const scale = TRACE_PITCH / Number(recipe.grid?.box?.w);
   try {
-    const crops = [recipe.crop, ...storeyCrops(recipe)];
-    const images = [];
-    for (const crop of crops) images.push(await extractPageGray(doc, recipe.page, crop, scale));
-    if (images.some((image) => !image)) {
+    const { traced, saved } = await sceneWallTrace(doc, id, recipe);
+    if (!traced) {
       console.warn(`${MODULE_ID} | map ${id}: its walls could not be rendered; the map is made without them.`);
       return null;
     }
-    const traced = crops.length > 1 ? traceStoreys(images, recipe, scale) : traceWalls(images[0], recipe, scale);
-    console.log(`${MODULE_ID} | map ${id}: walls traced`, traced.digest);
+    console.log(`${MODULE_ID} | map ${id}: walls ${saved ? "read from the saved text" : "traced"}`, traced.digest);
     return traced;
   } catch (err) {
     console.warn(`${MODULE_ID} | map ${id}: its walls could not be traced; the map is made without them.`, err);

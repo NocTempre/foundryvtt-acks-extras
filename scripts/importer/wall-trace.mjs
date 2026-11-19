@@ -38,6 +38,34 @@ export const WALL_MODES = Object.freeze(["grid", "contour", "stroke", "hatch"]);
 export const TRACE_PITCH = 50;
 
 /**
+ * Which tracer made a saved trace: bumped with any change to what the tracer
+ * returns for the same render and recipe, or to the gray render it reads
+ * (`extractPageGray`). It rides in `wallTraceInputs`, so a trace saved by
+ * another tracer is not read and its map is traced live.
+ */
+export const WALL_TRACE_VERSION = 1;
+
+/** A value as JSON with every object's keys in sorted order, so two spellings of one value are one string. */
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map((v) => canonical(v ?? null)).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value).filter((k) => value[k] !== undefined).sort().map((k) => `${JSON.stringify(k)}:${canonical(value[k])}`).join(",")}}`;
+  }
+  return JSON.stringify(value) ?? "null";
+}
+
+/**
+ * Everything that decides a recipe's trace besides the page's own pixels, as
+ * one string: the tracer's version and render pitch, the page and crop that are
+ * rendered, the storeys' corners, the lattice and the `walls` block. A trace
+ * saved with one string is read back only for a recipe that yields the same
+ * string, and a recipe edited in any of these is traced again.
+ */
+export function wallTraceInputs(recipe) {
+  return canonical({ tracer: WALL_TRACE_VERSION, pitch: TRACE_PITCH, page: recipe?.page, crop: recipe?.crop, levels: recipe?.levels, grid: recipe?.grid, walls: recipe?.walls });
+}
+
+/**
  * The share of a plan's lattice cells its corrections may weigh before the
  * lint and the compiler warn: a reviewer's budget, not a refusal.
  */

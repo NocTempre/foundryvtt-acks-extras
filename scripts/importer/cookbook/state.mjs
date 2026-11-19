@@ -196,6 +196,19 @@ export const cookbookScenePages = (bookId) => {
 };
 
 /**
+ * The scene recipes of a book that carry a `walls` block, by cookbook id,
+ * ordered by id: the traces a parse saves with the book's text
+ * (`parsed-book.mjs`). Empty until the cookbook has loaded, and for a book
+ * with no walled scene.
+ * @returns {{id: string, recipe: object}[]}
+ */
+export const cookbookWalledScenes = (bookId) =>
+  Object.entries(data.books.get(bookId)?.scenes ?? {})
+    .filter(([, row]) => isSceneRecipe(row) && row.scene.walls)
+    .map(([id, row]) => ({ id, recipe: row.scene }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+/**
  * How many shipped entries this book unlocks, counting both cookbook shapes.
  * A book id the registry (`BOOKS`) does not know is named on the console and
  * answers null; a known book nothing reads yet answers 0.

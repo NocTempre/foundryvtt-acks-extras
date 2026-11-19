@@ -19,8 +19,9 @@
  * text (`parsed-book.mjs`) when its pointer is current and from the live pdf.js
  * document otherwise; a GM seat with no current pointer makes the saved text
  * first (`prepare`), a player seat never does. The saved text also holds
- * the image placements of the pages a scene recipe names (`savedPlacements`),
- * so a rebuild whose pictures are cached opens no PDF. The pixel readers take the live
+ * the image placements of the pages a scene recipe names (`savedPlacements`)
+ * and each walled scene's traced walls (`savedWalls`), so a rebuild whose
+ * pictures are cached opens no PDF. The pixel readers take the live
  * document (`liveDoc`), which opens on the first call, is kept while a hold
  * stands (`holdingLive`), and is released after `IDLE_MS` with no read. A
  * handle with no `src` (a file this seat picked) cannot reopen what it
@@ -469,6 +470,21 @@ export class BookHandle {
     if (!(await this.verify())) throw this.#refusal ?? new Error(`${this.#bookId}: the file could not be verified`);
     const saved = await this.#text();
     return saved?.placements(n) ?? null;
+  }
+
+  /**
+   * The saved wall trace of one scene, or null when none is current, the saved
+   * text holds none for the scene, or the one it holds was made from other
+   * inputs, and the caller then traces from the PDF. Verifies the book first,
+   * as a page read does, and rejects when it cannot be verified.
+   * @param {string} id the scene's cookbook id
+   * @param {string} inputs `wallTraceInputs` of the recipe asking
+   * @returns {Promise<{walls: object[], digest: object}|null>}
+   */
+  async savedWalls(id, inputs) {
+    if (!(await this.verify())) throw this.#refusal ?? new Error(`${this.#bookId}: the file could not be verified`);
+    const saved = await this.#text();
+    return saved?.walls(id, inputs) ?? null;
   }
 
   /** The saved text, read once while the pointer stays the same; null when none is current or it cannot be read. */

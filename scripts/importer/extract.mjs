@@ -10,6 +10,7 @@
 import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mjs";
 import { BOOKS } from "./books.mjs";
 import { liveDoc } from "./book-handle.mjs";
+import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls, wallTraceInputs } from "./wall-trace.mjs";
 
 const HEADING_MIN_H = 12; // display headings are >=14pt; body is 9-10pt
 const FAMILY_BODY_PT = 9.5; // the body size every size test in the engine is calibrated to
@@ -961,6 +962,44 @@ export async function extractPageGray(doc, pageNo, crop, scale) {
   const gray = new Uint8Array(canvas.width * canvas.height);
   for (let i = 0, j = 0; i < gray.length; i++, j += 4) gray[i] = (data[j] * 299 + data[j + 1] * 587 + data[j + 2] * 114 + 500) / 1000;
   return { gray, width: canvas.width, height: canvas.height };
+}
+
+/**
+ * Trace a scene recipe's walls off the page itself (browser only): the crop,
+ * or on a plan of storeys every storey's crop, rendered to gray at
+ * `TRACE_PITCH` pixels to the drawn cell (`extractPageGray`) and read by
+ * `traceWalls` or `traceStoreys`. Returns `{walls, digest}`, or null when a
+ * render failed; throws where the trace does. Takes the live document, so a
+ * shelved book's handle opens the PDF for it.
+ *
+ * @param {object} recipe a compiled scene recipe carrying `walls` and a square `grid`
+ */
+export async function traceRecipeWalls(doc, recipe) {
+  const scale = TRACE_PITCH / Number(recipe.grid?.box?.w);
+  const crops = [recipe.crop, ...storeyCrops(recipe)];
+  const images = [];
+  for (const crop of crops) images.push(await extractPageGray(doc, recipe.page, crop, scale));
+  if (images.some((image) => !image)) return null;
+  return crops.length > 1 ? traceStoreys(images, recipe, scale) : traceWalls(images[0], recipe, scale);
+}
+
+/**
+ * A scene recipe's traced walls: the ones saved with the book's text when its
+ * handle holds a trace for this scene made from the same inputs
+ * (`wallTraceInputs`), and otherwise a live trace of the page. A saved answer
+ * is the live trace's exact value, so the map is the same either way; it needs
+ * no render and no open. Any other document takes the live trace.
+ *
+ * @param {object} doc a session document: a handle, or a pdf.js document
+ * @param {string} id the scene's cookbook id
+ * @param {object} recipe a compiled scene recipe carrying `walls`
+ * @param {typeof traceRecipeWalls} [trace] the live tracer
+ * @returns {Promise<{traced: {walls: object[], digest: object}|null, saved: boolean}>} `traced` is null when a render failed
+ */
+export async function sceneWallTrace(doc, id, recipe, trace = traceRecipeWalls) {
+  const saved = await doc?.savedWalls?.(id, wallTraceInputs(recipe));
+  if (saved) return { traced: saved, saved: true };
+  return { traced: await trace(doc, recipe), saved: false };
 }
 
 /**

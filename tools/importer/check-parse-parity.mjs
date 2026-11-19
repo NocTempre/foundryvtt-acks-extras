@@ -17,6 +17,16 @@
  *     scene recipe of the book names, which is what a parse saves, and, so a
  *     book with no scene recipe still checks something, twelve pages spread
  *     across it. The count of pages compared is printed;
+ *   - the saved wall traces, live against saved: for each walled scene recipe of
+ *     the book (the ones `cookbookWalledScenes` names), the saved walls read
+ *     back through JSON against a trace of the same recipe from another open;
+ *     `sceneWallTrace` over a handle-shaped document, which must answer from
+ *     the saved file with the live document never asked for; and a recipe
+ *     edited in its `walls` block, which must not be answered from the file
+ *     and so reaches the live document. The counts of recipes and walls are
+ *     printed, never a wall. The page renders through `@napi-rs/canvas`, set
+ *     up only around each trace, so this proves the saved walls are the
+ *     tracer's output on a Node render; a browser's render is not compared;
  *   - that a second parse of the same file from another open is the same file
  *     byte for byte (the digest), since racing seats must write one file.
  *
@@ -45,11 +55,13 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
-import { openBook, pageArtPlacements, pageItems, placementsOfPage, useTypography } from "../../scripts/importer/extract.mjs";
+import { openBook, pageArtPlacements, pageItems, placementsOfPage, sceneWallTrace, traceRecipeWalls, useTypography } from "../../scripts/importer/extract.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { isSceneRecipe } from "../../scripts/importer/scene-binding.mjs";
 import { PARSE_STAMP, SavedBook, fontId, parseDocument } from "../../scripts/importer/parsed-book.mjs";
+import { wallTraceInputs } from "../../scripts/importer/wall-trace.mjs";
 import { releaseDoc } from "../../scripts/importer/release-doc.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -117,8 +129,26 @@ function firstDiff(a, b, at = "") {
   return null;
 }
 
-/** A document shaped as a `BookHandle` is: text from the saved book, everything else from the live document. */
-function handleOver(saved, live, bookId) {
+/**
+ * Run `run` with a `document` whose canvases are `@napi-rs/canvas`'s, which is
+ * all `extractPageGray` asks of a browser, and with none before and after: the
+ * text passes never see one.
+ */
+async function withCanvas(run) {
+  const { createCanvas } = createRequire(import.meta.url)("@napi-rs/canvas");
+  globalThis.document = { createElement: () => createCanvas(1, 1) };
+  try {
+    return await run();
+  } finally {
+    delete globalThis.document;
+  }
+}
+
+/** The tracer a parse and the live side share, over the open document. */
+const traceOnNode = (doc, recipe) => withCanvas(() => traceRecipeWalls(doc, recipe));
+
+/** A document shaped as a `BookHandle` is: text from the saved book, everything else from the live document; `calls.live` counts the asks for the live one. */
+function handleOver(saved, live, bookId, calls = { live: 0 }) {
   const doc = {
     isBookHandle: true,
     numPages: saved.numPages,
@@ -126,8 +156,12 @@ function handleOver(saved, live, bookId) {
     verified: true,
     getPage: (n) => saved.getPage(n),
     savedPlacements: async (n) => saved.placements(n),
+    savedWalls: async (id, inputs) => saved.walls(id, inputs),
     verify: async () => true,
-    live: async () => live,
+    live: async () => {
+      calls.live++;
+      return live;
+    },
   };
   return useTypography(doc, bookId);
 }
@@ -159,15 +193,22 @@ for (const bookId of books) {
         .map((row) => Number(row.scene.page)),
     ),
   ].sort((a, b) => a - b);
+  // The scene recipes of this book's own cookbook that carry a walls block: the shipping rule, `cookbookWalledScenes`'s.
+  const wallScenes = cookbooks
+    .filter(({ cb }) => cb.book?.id === bookId)
+    .flatMap(({ cb }) => Object.entries(cb.scenes ?? {}))
+    .filter(([, row]) => isSceneRecipe(row) && row.scene.walls)
+    .map(([id, row]) => ({ id, recipe: row.scene }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   const bytes = fs.readFileSync(file);
   const t0 = Date.now();
   const first = await openBook(bytes, { book: bookId });
   const sampled = Array.from({ length: 12 }, (_, i) => 1 + Math.floor((i * first.numPages) / 12));
   const placementPages = [...new Set([...scenePages, ...sampled])].sort((a, b) => a - b);
-  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title, placementPages }));
+  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title, placementPages, wallScenes, trace: traceOnNode }));
   await releaseDoc(first.doc);
   const secondOpen = await openBook(bytes, { book: bookId });
-  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title, placementPages }));
+  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title, placementPages, wallScenes, trace: traceOnNode }));
   await releaseDoc(secondOpen.doc);
   const digest = createHash("sha256").update(text).digest("hex");
   const deterministic = text === again;
@@ -218,6 +259,40 @@ for (const bookId of books) {
   }
   console.log(`  placements: ${placementPages.length - placeBad}/${placementPages.length} pages equal (${scenePages.length} scene page(s), ${placeImages} image(s) in all)${placeBad ? ` — DIFFER: ${badPlaces.join(", ")}` : ""}`);
   failures += placeBad;
+
+  // Every walled scene's saved trace.
+  const walled = JSON.parse(text).walls;
+  let wallBad = 0;
+  let wallCount = 0;
+  const badWalls = [];
+  const walkCalls = { live: 0 };
+  const walkHandle = handleOver(saved, live, bookId, walkCalls);
+  const walkLive = (doc, recipe) => withCanvas(() => traceRecipeWalls(doc, recipe));
+  for (const { id, recipe } of wallScenes) {
+    const inputs = wallTraceInputs(recipe);
+    const fresh = await traceOnNode(live, recipe);
+    const mine = saved.walls(id, inputs);
+    walkCalls.live = 0;
+    const asked = await sceneWallTrace(walkHandle, id, recipe, walkLive);
+    const askedLive = walkCalls.live;
+    const threshold = recipe.walls.threshold < 254 ? recipe.walls.threshold + 1 : recipe.walls.threshold - 1;
+    const edited = { ...recipe, walls: { ...recipe.walls, threshold } };
+    const reached = await sceneWallTrace(walkHandle, id, edited, walkLive);
+    const d =
+      (!fresh ? "no live trace" : null) ??
+      firstDiff(canon(fresh), canon(mine)) ??
+      (asked.saved ? null : "not answered from the saved file") ??
+      firstDiff(canon(fresh), canon(asked.traced)) ??
+      (askedLive === 0 ? null : "the live document was asked for") ??
+      (!reached.saved && walkCalls.live > 0 ? null : "an edited recipe was answered from the saved file");
+    wallCount += fresh?.walls.length ?? 0;
+    if (d) {
+      wallBad++;
+      if (badWalls.length < 10) badWalls.push(`${id}${d}`);
+    }
+  }
+  console.log(`  walls: ${wallScenes.length - wallBad}/${wallScenes.length} walled recipes equal, live trace vs saved vs handle (${wallCount} wall segment(s) in all, ${Object.keys(walled).length} saved, the live document never asked for on a saved scene, an edited recipe traced live)${wallBad ? ` — DIFFER: ${badWalls.join(", ")}` : ""}`);
+  failures += wallBad + (Object.keys(walled).length === wallScenes.length ? 0 : 1);
 
   // Every entry's node, through the shipping executor.
   const skipOps = ["art", "ocr"];

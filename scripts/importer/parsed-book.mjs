@@ -6,13 +6,16 @@
  * shelf directory, holds what `pageItems` consumes from pdf.js: per page its
  * size and its text runs, after `textRuns` (empty runs and coincident
  * duplicates gone, the word-space boundary kept as `sp`), at full precision,
- * and for the pages a scene recipe names the boxes of their placed images.
- * Furniture, typography and `fuseRuns` still run when the page is read, so a
- * change to `extract.mjs` never invalidates a saved book; only a change to
- * `textRuns`, to this shape (`PARSE_SCHEMA`) or to the pdf.js build (its
- * version rides the stamp) does.
+ * for the pages a scene recipe names the boxes of their placed images, and for
+ * each walled scene recipe its traced walls. Furniture, typography and
+ * `fuseRuns` still run when the page is read, so a change to `extract.mjs`
+ * never invalidates the text; only a change to `textRuns`, to this shape
+ * (`PARSE_SCHEMA`) or to the pdf.js build (its version rides the stamp) does.
+ * A saved trace is a tracer's output, so it is read only for the recipe inputs
+ * and the tracer version it was made from (`wallTraceInputs`); any other is
+ * traced live, and the text is read from the file as before.
  *
- *   header  {book, stamp, src, bytes, numPages, title, fonts, placements}
+ *   header  {book, stamp, src, bytes, numPages, title, fonts, placements, walls}
  *   page    [width, height, runs]
  *   run     [str, x, y, width, height, font, sp]   x, y the text matrix's
  *           translation (pdf.js's own origin), font an index into `fonts`
@@ -20,10 +23,17 @@
  *           `placementsOfPage` gives them without the image's name. A page
  *           absent from the map was not saved and is read live; `[]` is a page
  *           saved with no image on it.
+ *   walls   {"<scene id>": {inputs, walls, digest}}   `traceWalls` or
+ *           `traceStoreys` output in page points, with `inputs` the
+ *           `wallTraceInputs` string of the recipe it was traced from. A scene
+ *           absent from the map was not traced (its render or trace failed, or
+ *           it was not walled then) and is traced live.
  *
  * The file carries no time and no seat, so two seats parsing one PDF write the
- * same bytes under different names. Foundry overwrites no non-media file and
- * deletes none, so every attempt is named uniquely and a stale file stays.
+ * same bytes under different names where their canvases render alike; a trace
+ * is read off a rendered page, so the walls are as alike as the renders.
+ * Foundry overwrites no non-media file and deletes none, so every attempt is
+ * named uniquely and a stale file stays.
  *
  * What makes a file the book's current text is a pointer on the shelf journal
  * (`{stamp, file, src, bytes, numPages, title}`), current while its `src` is
@@ -35,15 +45,17 @@
  * and no PDF engine beyond the version stamp.
  */
 import { version } from "../../vendor/pdfjs/pdf.mjs";
-import { placementsOfPage, textRuns } from "./extract.mjs";
+import { placementsOfPage, textRuns, traceRecipeWalls } from "./extract.mjs";
+import { wallTraceInputs } from "./wall-trace.mjs";
 import { releaseDoc } from "./release-doc.mjs";
 
 /**
  * The shape of a saved book, bumped with the shape or with `textRuns` or
- * `placementsOfPage`; part of the stamp. 2 added `placements`: a file of
- * schema 1 is read by no seat and its book is parsed again on the next GM read.
+ * `placementsOfPage`; part of the stamp. 2 added `placements` and 3 `walls`: a
+ * file of an older schema is read by no seat and its book is parsed again on
+ * the next GM read. The tracer has its own version (`WALL_TRACE_VERSION`).
  */
-export const PARSE_SCHEMA = 2;
+export const PARSE_SCHEMA = 3;
 
 /** What a saved book is stamped with: this schema over this pdf.js build. A file with any other stamp is not read. */
 export const PARSE_STAMP = `p${PARSE_SCHEMA}-${version}`;
@@ -69,11 +81,13 @@ export const fontId = (name) => (typeof name === "string" ? name.replace(/^(g_)?
  * @param {number} o.bytes the file's size in bytes
  * @param {string} o.title the document's own title
  * @param {number[]} [o.placementPages] the 1-based pages whose image placements are saved; a page the document lacks is skipped
+ * @param {{id: string, recipe: object}[]} [o.wallScenes] the walled scene recipes whose walls are traced and saved, in the same open and after the pages' text
+ * @param {typeof traceRecipeWalls} [o.trace] the tracer, given the open document and a recipe
  * @param {string} [o.stamp]
  * @param {(page: number, total: number) => void} [o.onPage] called after each page is read
  * @returns {Promise<object>} the saved book, ready for `JSON.stringify`
  */
-export async function parseDocument(doc, { book, src, bytes, title, placementPages = [], stamp = PARSE_STAMP, onPage = null }) {
+export async function parseDocument(doc, { book, src, bytes, title, placementPages = [], wallScenes = [], trace = traceRecipeWalls, stamp = PARSE_STAMP, onPage = null }) {
   const fonts = [];
   const fontIx = new Map();
   const indexOf = (name) => {
@@ -106,7 +120,19 @@ export async function parseDocument(doc, { book, src, bytes, title, placementPag
       console.warn(`acks-extras | ${book}: the images of page ${n} could not be saved`, err);
     }
   }
-  return { book, stamp, src, bytes, numPages: doc.numPages, title, fonts, pages, placements };
+  // Last: a render loads fonts, and the text pass's font names depend on what loaded before them.
+  const walls = {};
+  for (const { id, recipe } of [...wallScenes].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))) {
+    try {
+      const traced = await trace(doc, recipe);
+      if (traced) walls[id] = { inputs: wallTraceInputs(recipe), walls: traced.walls, digest: traced.digest };
+      else console.warn(`acks-extras | ${book}: the walls of ${id} could not be rendered, so they are not saved`);
+    } catch (err) {
+      // A scene whose trace throws is left out, and a rebuild of it traces live and says why.
+      console.warn(`acks-extras | ${book}: the walls of ${id} could not be saved`, err);
+    }
+  }
+  return { book, stamp, src, bytes, numPages: doc.numPages, title, fonts, pages, placements, walls };
 }
 
 /** One saved page, answering the two calls `pageItems` makes of a pdf.js page. */
@@ -184,6 +210,21 @@ export class SavedBook {
     return Array.isArray(boxes) ? boxes.map((b) => ({ ...b })) : null;
   }
 
+  /**
+   * The saved trace of a scene, or null when this file holds none for it or
+   * holds one made from other inputs. A copy, so a caller's edit never reaches
+   * the next reader.
+   * @param {string} id the scene's cookbook id
+   * @param {string} inputs the `wallTraceInputs` of the recipe asking
+   * @returns {{walls: object[], digest: object}|null}
+   */
+  walls(id, inputs) {
+    const all = this.#json.walls;
+    const entry = all && Object.hasOwn(all, id) ? all[id] : null;
+    if (!entry || entry.inputs !== inputs || !Array.isArray(entry.walls)) return null;
+    return structuredClone({ walls: entry.walls, digest: entry.digest });
+  }
+
   /** @param {number} n 1-based */
   async getPage(n) {
     const entry = this.#json.pages[n - 1];
@@ -202,6 +243,8 @@ export class ParsedBooks {
   #isGM;
   #srcOf;
   #placementPagesOf;
+  #wallScenesOf;
+  #traceWalls;
   #pointerOf;
   #writePointer;
   #upload;
@@ -216,6 +259,8 @@ export class ParsedBooks {
    * @param {() => boolean} o.isGM whether this seat is a GM's
    * @param {(bookId: string) => string|null} o.srcOf the path of the shelf journal's PDF page now; null when the book is not shelved
    * @param {(bookId: string) => number[]} [o.placementPagesOf] the pages whose image placements a parse saves, read when a parse starts (the recipes load after this is built)
+   * @param {(bookId: string) => {id: string, recipe: object}[]} [o.wallScenesOf] the walled scene recipes whose traced walls a parse saves, read when a parse starts
+   * @param {typeof traceRecipeWalls} [o.traceWalls] the tracer a parse runs on each, over the open document
    * @param {(bookId: string) => object|null} o.pointerOf the pointer stored on the shelf journal
    * @param {(bookId: string, pointer: object) => Promise<void>} o.writePointer store a pointer on the shelf journal
    * @param {(name: string, text: string) => Promise<string>} o.upload put a file under the saved-books directory; resolves its path
@@ -225,11 +270,13 @@ export class ParsedBooks {
    * @param {string} [o.stamp]
    * @param {(bookId: string, kind: "state"|"progress") => void} [o.onChange] told when a run starts or ends ("state") and after each page it reads ("progress")
    */
-  constructor({ isGM, srcOf, placementPagesOf = () => [], pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP, onChange = null }) {
+  constructor({ isGM, srcOf, placementPagesOf = () => [], wallScenesOf = () => [], traceWalls = traceRecipeWalls, pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP, onChange = null }) {
     this.#onChange = onChange;
     this.#isGM = isGM;
     this.#srcOf = srcOf;
     this.#placementPagesOf = placementPagesOf;
+    this.#wallScenesOf = wallScenesOf;
+    this.#traceWalls = traceWalls;
     this.#pointerOf = pointerOf;
     this.#writePointer = writePointer;
     this.#upload = upload;
@@ -379,6 +426,8 @@ export class ParsedBooks {
         bytes,
         title,
         placementPages: this.#placementPagesOf(bookId) ?? [],
+        wallScenes: this.#wallScenesOf(bookId) ?? [],
+        trace: this.#traceWalls,
         stamp: this.#stamp,
         onPage: (page, total) => {
           this.#progress.set(bookId, { page, total, src });

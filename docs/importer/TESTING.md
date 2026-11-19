@@ -1626,14 +1626,21 @@ shelf journal's pointer names, so every step counts requests.
 3. **The reference digest.** `node tools/importer/check-parse-parity.mjs --src
    <the PDF page's src> <book>` prints the sha256 of the file a parse of the
    reference PDF writes. The file's header names the PDF's path and size, so it
-   equals the uploaded file's only with the journal's own `src` and where the
-   fixture's PDF is that same printing.
+   equals the uploaded file's only with the journal's own `src`, where the
+   fixture's PDF is that same printing and where the book has no walled scene
+   recipe: a walled scene's saved walls are read off a render, and the gate's is
+   Node's canvas, not the browser's.
 4. **`importer/adventure-cached`** — for step 7: the shelf journal of a Judge's
    book that has scene recipes and none with `walls` (`jj`: 11 recipes, none
    walled; `ax1` has 15 walled of 17), parsed under this build, whose scene
    pictures are cached in `acks-extras-art`. Found by its marker; built by
    running the book's Adventure once (Manage imports → **Adventures** tab →
    **Write Adventure**), which makes the pictures and the saved text.
+5. **`importer/adventure-walled`** — for step 8: as fixture 4, for a book whose
+   scene recipes carry `walls` (`ax1`: 15 walled of 17), parsed under this build
+   (schema 3, so a saved text of an older stamp is not it: re-read the book from
+   the Books tab). Built as fixture 4 is; the first read makes the saved text,
+   which traces every walled scene in the parse's open.
 
 ### Steps
 
@@ -1672,8 +1679,7 @@ shelf journal's pointer names, so every step counts requests.
    path, no read of the saved file) until a GM seat has parsed it; a Player seat's
    read cannot be started live here (below), so that half is `test-parsed-book`'s.
 7. Rebuild an Adventure from a book whose pictures are already cached. Use a
-   book with scene recipes and none with `walls` (the AX1 maps with walls
-   still render the page to trace it, so they open the PDF; count that apart).
+   book with scene recipes and none with `walls` (step 8 is the walled book).
    Run the book's Adventure once so `acks-extras-art` holds every scene's
    picture and the pointer is current (fixture 4), reload the GM seat, and
    rebuild the Adventure (**Settings tab → Game Settings → ACKS II — Extras →
@@ -1683,6 +1689,21 @@ shelf journal's pointer names, so every step counts requests.
    A map whose picture is not yet cached renders its page, so that rebuild
    fetches the PDF once and uploads the picture; a placement check alone never
    does.
+8. Rebuild the walled book's Adventure with its pictures cached (fixture 5).
+   First assert the saved file holds the walls: fetch the pointer's `file` and
+   read its `walls`. *Observable:* one entry per walled scene recipe (15 for
+   `ax1`), each `{inputs, walls, digest}` with a non-empty `walls` list. Then
+   reload the GM seat and rebuild (**Settings tab → Game Settings → ACKS II —
+   Extras → Manage imports → Adventures** tab → **Write Adventure** beside the
+   book). *Observable:* no `.pdf` `GET` for the book, one `HEAD` of its path and
+   one `GET` of the saved file, no `upload`; the console prints `walls read from
+   the saved text` for each walled map and `walls traced` for none; every scene
+   is built with the walls the first build wrote (compare the scene's wall
+   count with the one recorded after the first build). A recipe edited since the
+   parse, which traces live, cannot be made live (the recipes ship in the
+   cookbook), so that half, and the saved walls' equality with a live trace, are
+   `test-parsed-book`'s and `check-parse-parity.mjs`'s; a live walk has the
+   browser's render, which the Node gate does not compare.
 
 A Player seat's half (no parse, no upload, no pointer write, opening the PDF
 while no text is saved, and reading a re-pointed book live) has no read a Player
