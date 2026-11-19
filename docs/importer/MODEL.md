@@ -2603,7 +2603,11 @@ twice. A form is never parsed.
   on it (a read, a repair, a re-read), which is how Refused shows only once a book
   was touched; the next check that passes clears it, and a reload does. A
   refusal carries a `kind`: `gone` (404), `size` (the HEAD's length is not the
-  pointer's `bytes`), `wrong` (the open fingerprints another book) or `other`.
+  pointer's `bytes`), `wrong` (the open fingerprints another book) or `other`,
+  and `refusedSrc`, the path it was recorded against: `textState` drops a refusal
+  whose path is not the journal's PDF page now, so a refusal never lands on a
+  journal that replaced the refused one, and the handle holds none once its
+  journal has moved.
 - **The row.** `shelfRowView` makes the chip, state line, tooltips, controls
   and progress bar of one staged book as data, and `shelfRowHtml` writes it.
   A GM is offered **Read now** on none, **Read again** on prepared or stale and
@@ -2611,10 +2615,14 @@ twice. A form is never parsed.
   read runs. A seat that is not a GM sees the journal's state (never Refused or
   Reading, since it checks no file) and no control, and a book not shared with it
   shows the withheld line and no state. The closed fold's summary adds the stale
-  and refused counts when they are not zero. `booksPanel` draws rows from
+  and refused counts when they are not zero, counting only the rows the seat is
+  shown a state for (`tally`: a withheld book is left out, and a seat that
+  checks no file counts the journal's state). `booksPanel` draws rows from
   `bookTextStatus` and listens to the store (`ParsedBooks`' `onChange`: a run
   starting or ending redraws that row and the fold's counts, a page moves the
-  line and bar in place).
+  line and bar in place) and to the book's handle (its `onChange`: a refusal set,
+  cleared or changed in kind redraws the same way, once it is recorded, which a
+  press's 404 is after the run has ended).
 - **The press.** `BookHandle.reread()` is `ParsedBooks.prepare` with `force`,
   fetching the file afresh and writing a new file and pointer, the old file
   staying put and the pointer moving only once the new one is up. The handle

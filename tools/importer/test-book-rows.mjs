@@ -178,6 +178,20 @@ const html = (view) => shelfRowHtml(view, { esc, L });
   ok("a zero count is left out", !sum({ stale: 0, refused: 1 }).includes("textCountStale") && !sum({ stale: 0, refused: 0 }).includes("textCountRefused"));
   ok("nothing in a summary is a control", !/<(button|a|input|select)\b/.test(full));
   same("the count of a shelf's states", tally([{ state: "stale" }, { state: "refused" }, { state: "prepared" }]), { stale: 1, refused: 1 });
+
+  // The fold counts what the rows say for the seat: a withheld book's state is in no row, and a Player's row shows the base.
+  journals.one.pointer = pointer({ stamp: "p0-other" });
+  const stale = status();
+  const seats = [
+    { shared: true, status: stale },
+    { shared: false, status: stale },
+    { shared: true, status: { ...stale, state: "refused", base: "stale" } },
+  ];
+  for (const isGM of [true, false]) {
+    const rows = seats.map((x) => row({ shared: x.shared, status: x.status, isGM }));
+    const drawn = (state) => rows.filter((r) => r.state === state).length;
+    same(`the fold's counts equal the rows drawn for a ${isGM ? "GM" : "Player"}`, tally(seats.map((x) => ({ ...x.status, shared: x.shared })), { isGM }), { stale: drawn("stale"), refused: drawn("refused") });
+  }
 }
 
 /* --- every key the tab names exists ---------------------------------------------------------- */

@@ -669,9 +669,13 @@ function bookTextStatus(bookId) {
   return { ...status, ...rowActions({ state: status.state, reading: status.reading, isGM: !!game.user?.isGM }) };
 }
 
-/** The counts of stale and refused books among the shelved ones, for a fold's closed summary. */
+/** The counts of stale and refused books among the shelved ones that this seat is shown a state for, for a fold's closed summary. */
 function bookTextTally(bookIds) {
-  return tally(bookIds.map((id) => bookTextStatus(id)));
+  const staged = shelf();
+  return tally(
+    bookIds.map((id) => ({ ...bookTextStatus(id), shared: !!staged[id] && shelfReadable(staged[id]) })),
+    { isGM: !!game.user?.isGM },
+  );
 }
 
 /** A localized Books-tab string. */
@@ -736,6 +740,7 @@ function handleFor(bookId, src) {
     title: row?.label ?? bookId,
     open: (buffer) => openChecked(bookId, buffer),
     parsed: parsedBooks,
+    onChange: (id) => shelfWatcher?.(id, "state"),
   });
   return useTypography(handle, bookId);
 }

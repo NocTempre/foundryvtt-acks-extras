@@ -29,7 +29,7 @@ export const TEXT_STATES = Object.freeze({ NONE: "none", PREPARED: "prepared", S
  * @param {object} o
  * @param {{savable: function(string): boolean, pointer: function(string): object|null, stored: function(string): object|null, reading: function(string): boolean, progress: function(string): object|null, src: function(string): string|null, stamp: string}} o.parsed the saved-text store
  * @param {string} o.bookId
- * @param {Error|null} [o.refusal] the handle's remembered refusal for this book
+ * @param {Error|null} [o.refusal] the handle's remembered refusal for this book; one recorded against another path than the journal's PDF page now (`refusedSrc`) is dropped, since it says nothing of this file
  * @returns {{state: string|null, base: string|null, cause: string|null, reading: boolean, progress: object|null, refusal: Error|null, pointer: object|null, src: string|null, stamp: string|null}}
  *   `state` is null for a book that has no saved text to speak of (not shelved,
  *   or a form); `base` is the state with any refusal left out, which is what a
@@ -45,16 +45,17 @@ export function textState({ parsed, bookId, refusal = null }) {
   const reading = !!parsed.reading(bookId);
   const stored = parsed.stored(bookId);
   const src = parsed.src(bookId);
+  const held = refusal && refusal.refusedSrc !== undefined && refusal.refusedSrc !== src ? null : refusal;
   const base = parsed.pointer(bookId) ? TEXT_STATES.PREPARED : stored ? TEXT_STATES.STALE : TEXT_STATES.NONE;
   const cause =
     base !== TEXT_STATES.STALE ? null : stored.stamp !== parsed.stamp ? "reader" : stored.src !== src ? "file" : "pointer";
   return {
-    state: refusal ? TEXT_STATES.REFUSED : base,
+    state: held ? TEXT_STATES.REFUSED : base,
     base,
     cause,
     reading,
     progress: reading ? (parsed.progress(bookId) ?? null) : null,
-    refusal: refusal ?? null,
+    refusal: held ?? null,
     pointer: stored,
     src,
     stamp: parsed.stamp,
@@ -93,15 +94,21 @@ export function rowActions({ state, reading, isGM }) {
 }
 
 /**
- * The counts a closed fold shows beside its book count.
+ * The counts a closed fold shows beside its book count: the states of the rows
+ * this seat is shown one for. A GM's rows carry `state`; a seat that checks no
+ * file is shown `base`, and a book it may not read is shown none, so neither
+ * is counted past what its rows say.
  *
- * @param {Array<{state: string|null}>} states the rows' states
+ * @param {Array<{state: string|null, base?: string|null, shared?: boolean}>} states the rows' `textState` results; `shared` false marks a withheld book
+ * @param {object} [o]
+ * @param {boolean} [o.isGM] whether this seat is a GM's
  * @returns {{stale: number, refused: number}}
  */
-export function tally(states) {
+export function tally(states, { isGM = true } = {}) {
+  const shown = states.filter((s) => s.shared !== false).map((s) => (isGM ? s.state : (s.base ?? s.state)));
   return {
-    stale: states.filter((s) => s.state === TEXT_STATES.STALE).length,
-    refused: states.filter((s) => s.state === TEXT_STATES.REFUSED).length,
+    stale: shown.filter((state) => state === TEXT_STATES.STALE).length,
+    refused: shown.filter((state) => state === TEXT_STATES.REFUSED).length,
   };
 }
 

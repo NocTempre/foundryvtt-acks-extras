@@ -98,6 +98,7 @@ export class BookHandle {
   #epoch = 0;
   #seen;
   #row;
+  #onChange;
 
   /**
    * @param {object} o
@@ -110,8 +111,10 @@ export class BookHandle {
    * @param {typeof fetch} [o.fetchImpl]
    * @param {number} [o.idleMs] how long the live document outlives its last read
    * @param {import("./parsed-book.mjs").ParsedBooks|null} [o.parsed] the saved-text store; with none every read opens the PDF
+   * @param {((bookId: string) => void)|null} [o.onChange] told, after the handle has recorded it, that the book's refusal was set, cleared or changed in kind
    */
-  constructor({ bookId, src = null, numPages = 0, title = "", open, fetchImpl = (...args) => globalThis.fetch(...args), idleMs = IDLE_MS, parsed = null }) {
+  constructor({ bookId, src = null, numPages = 0, title = "", open, fetchImpl = (...args) => globalThis.fetch(...args), idleMs = IDLE_MS, parsed = null, onChange = null }) {
+    this.#onChange = onChange;
     this.#idleMs = idleMs;
     this.#bookId = bookId;
     this.#src = src;
@@ -198,9 +201,24 @@ export class BookHandle {
    * Why the file could not be verified, as the Error of the last refusal, or
    * null. Only a check made by a read, a repair or a re-read sets it, so a
    * handle nothing has touched answers null; the next check that passes clears it.
+   * The error carries `refusedSrc`, the path it was recorded against, and the
+   * handle follows its journal first, so a journal that moved on holds none.
    */
   get refusal() {
+    this.#follow();
     return this.#refusal;
+  }
+
+  /** Record or clear the refusal, then tell `onChange` where it changed what a row would say. */
+  #setRefusal(next) {
+    const was = this.#refusal;
+    this.#refusal = next;
+    if (!!was === !!next && was?.kind === next?.kind && was?.refusedSrc === next?.refusedSrc) return;
+    try {
+      this.#onChange?.(this.#bookId);
+    } catch (err) {
+      console.warn(`acks-extras | ${this.#bookId}: a refusal listener failed`, err);
+    }
   }
 
   /** Whether a live pdf.js document is held now. */
@@ -221,7 +239,7 @@ export class BookHandle {
     this.#src = src;
     this.#opened = true;
     this.#verified = true;
-    this.#refusal = null;
+    this.#setRefusal(null);
     this.#gone = false;
     this.#arm();
     return this;
@@ -286,7 +304,7 @@ export class BookHandle {
     if (!this.#verifying) {
       const verifying = this.#verify()
         .then((verified) => {
-          if (verified) this.#refusal = null;
+          if (verified) this.#setRefusal(null);
           return verified;
         })
         .finally(() => {
@@ -356,7 +374,7 @@ export class BookHandle {
       });
       // A journal that moved while it ran made the file another book's text; the next read asks the new path.
       if (epoch === this.#epoch) {
-        this.#refusal = null;
+        this.#setRefusal(null);
         this.#noParse = false;
         this.#saved = null;
         this.#vouch();
@@ -368,11 +386,14 @@ export class BookHandle {
     }
   }
 
-  /** Remember why the book was refused, so a read rejects with it; answers false. */
+  /** Remember why the book was refused, and against which path, so a read rejects with it; answers false. */
   #refuse(err) {
     console.warn(`acks-extras | ${this.#bookId} could not be verified`, err);
-    if (err && typeof err === "object") err.kind ??= err.wrongBook ? "wrong" : "other";
-    this.#refusal = err;
+    if (err && typeof err === "object") {
+      err.kind ??= err.wrongBook ? "wrong" : "other";
+      err.refusedSrc = this.#src;
+    }
+    this.#setRefusal(err);
     return false;
   }
 

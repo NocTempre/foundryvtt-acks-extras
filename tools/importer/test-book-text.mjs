@@ -94,8 +94,8 @@ function world({ pages = 4 } = {}) {
       fetchImpl: w.fetchImpl,
       ...(stamp ? { stamp } : {}),
     });
-    const handle = () =>
-      new BookHandle({ bookId: "rr", src: PDF, numPages: 3, title: "Row", open: async () => ({ doc: fakeDoc(pages), numPages: pages, title: "The Real Title" }), fetchImpl: w.fetchImpl, parsed });
+    const handle = (extra = {}) =>
+      new BookHandle({ bookId: "rr", src: PDF, numPages: 3, title: "Row", open: async () => ({ doc: fakeDoc(pages), numPages: pages, title: "The Real Title" }), fetchImpl: w.fetchImpl, parsed, ...extra });
     return { parsed, handle };
   };
   return w;
@@ -276,6 +276,67 @@ const stateOf = (parsed, bookId = "rr", refusal = null) => textState({ parsed, b
   w.journals.rr.src = PDF;
 }
 
+/* --- a refusal redraws the row after it is recorded, and belongs to the path it was found against -- */
+
+{
+  const w = world();
+  const gm = w.seat();
+  const told = [];
+  const handle = gm.handle({
+    onChange: (id) => told.push({ id, state: stateOf(gm.parsed, id, handle.refusal).state, refusal: handle.refusal }),
+  });
+  await gm.handle().reread(); // the text is saved by another handle, so this one holds no vouching
+  told.length = 0;
+
+  // The press: the run's own end has gone by when the 404 is recorded, so the handle tells the redraw itself.
+  w.files.delete(PDF);
+  await assert.rejects(() => handle.reread(), /404/);
+  pass++;
+  same("a refusal found by a press tells the redraw once, with the refusal already recorded", [told.length, told[0]?.id, told[0]?.state], [1, "rr", TEXT_STATES.REFUSED]);
+
+  // A check that refuses again for the same reason does not redraw again.
+  await handle.verify();
+  await handle.verify();
+  same("a repeat of the same refusal tells nothing more", told.length, 1);
+
+  // Clearing it is told too, after the handle holds none.
+  w.files.set(PDF, { bytes: PDF_BYTES });
+  await handle.reread();
+  same("a re-read that clears the refusal tells the redraw, with none held", [told.length, told[1]?.refusal, told[1]?.state], [2, null, TEXT_STATES.PREPARED]);
+
+  // A check made by a read (an import, a repair) is told the same way.
+  const reader = w.seat().handle({ onChange: (id) => told.push({ id, via: "verify", refusal: reader.refusal }) });
+  w.files.delete(PDF);
+  await assert.rejects(() => reader.getPage(1));
+  pass++;
+  ok("a refusal found by a read tells the redraw", told.at(-1)?.via === "verify" && told.at(-1).refusal instanceof Error);
+  w.files.set(PDF, { bytes: PDF_BYTES });
+  await reader.verify();
+  ok("and the check that passes tells it cleared", told.at(-1).refusal === null);
+}
+
+{
+  const w = world();
+  const gm = w.seat();
+  const OTHER = "books/rr-other.pdf";
+  w.files.set(OTHER, { bytes: 2000 });
+  const handle = gm.handle();
+  await handle.getPage(1);
+  w.files.delete(PDF);
+  await assert.rejects(() => handle.reread(), /404/);
+  pass++;
+  ok("a refusal names the path it was recorded against", handle.refusal?.refusedSrc === PDF);
+  same("and it refuses the book while the journal names that path", stateOf(gm.parsed, "rr", handle.refusal).state, TEXT_STATES.REFUSED);
+
+  // The refused journal is removed and the book's other journal now names another file.
+  w.journals.rr.src = OTHER;
+  const carried = Object.assign(new Error("rr: could not read books/rr.pdf (404)"), { kind: "gone", refusedSrc: PDF });
+  const redrawn = stateOf(gm.parsed, "rr", carried);
+  same("a refusal of another path does not refuse the journal's file now", [redrawn.state, redrawn.refusal], [TEXT_STATES.STALE, null]);
+  ok("the handle holds no refusal once its journal moved on", handle.refusal === null);
+  w.journals.rr.src = PDF;
+}
+
 /* --- the controls a row offers --------------------------------------------------------------- */
 
 {
@@ -293,6 +354,16 @@ const stateOf = (parsed, bookId = "rr", refusal = null) => textState({ parsed, b
   }
   same("the fold counts stale and refused", tally([{ state: S.STALE }, { state: S.PREPARED }, { state: S.REFUSED }, { state: S.STALE }, { state: null }, { state: S.NONE }]), { stale: 2, refused: 1 });
   same("an empty fold counts none", tally([]), { stale: 0, refused: 0 });
+
+  // A seat counts only the rows it is shown a state for: a withheld book has none, and a seat that checks no file sees the base.
+  const rows = [
+    { state: S.STALE, base: S.STALE, shared: true },
+    { state: S.STALE, base: S.STALE, shared: false },
+    { state: S.REFUSED, base: S.PREPARED, shared: true },
+    { state: S.REFUSED, base: S.STALE, shared: true },
+  ];
+  same("a GM counts every shared row's state", tally(rows), { stale: 1, refused: 2 });
+  same("a player counts no withheld book and never a refusal", tally(rows, { isGM: false }), { stale: 2, refused: 0 });
 }
 
 /* --- the press ------------------------------------------------------------------------------- */

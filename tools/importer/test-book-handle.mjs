@@ -366,4 +366,18 @@ const quiet = console.warn;
   ok("a document that opens after the handle was destroyed is released through its task", /destroyed while it opened/.test(refused?.message) && late.taskDestroyed === 1);
 }
 
+/* --- a refusal is told once recorded, and names the path it was found against ------------------ */
+
+{
+  const srv = server({});
+  const seen = [];
+  const handle = handleOn(srv, { onChange: (id) => seen.push([id, handle.refusal?.kind ?? null]) });
+  ok("a handle that nothing checked tells nothing", seen.length === 0);
+  ok("a check that finds the file gone refuses the book", (await handle.verify()) === false);
+  ok("the refusal is told after it is recorded, with the path it was found against", seen.length === 1 && seen[0][0] === "zz" && seen[0][1] === "gone" && handle.refusal.refusedSrc === "books/zz.pdf", JSON.stringify(seen));
+  await handle.verify();
+  ok("the same refusal again tells nothing more", seen.length === 1);
+  ok("a listener that throws does not fail the check", (await handleOn(server({}), { onChange: () => { throw new Error("listener"); } }).verify()) === false);
+}
+
 console.log(`test-book-handle: ${pass} checks passed`);
