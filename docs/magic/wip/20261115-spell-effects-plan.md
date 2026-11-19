@@ -4073,6 +4073,20 @@ Owner questions, defaults proceeded on:
 - **1d.8** Does sealPortal lock a picked door wall for its record's life?
   Default: a record and a line, with a ROADMAP row.
 
+**Owner's answers (2026-11-19, relayed by the orchestrator, verbatim):**
+- Boards: "Approve 20, 22, 23 (Recommended)". Their UI slices are built.
+- Board 21, the range ring: "Build it now". It is a slice of this minor,
+  built from board 21 as drawn.
+- 1d.7: "Specific per summon, check RAW". There is no blanket default. Each
+  summoning spell's printed text is looked up in the order rules-lookup.md
+  sets, and the cast does what that spell says about control ending. The
+  procedure ships per spell, with the page cited; no printed words or
+  values go in source. Where a spell says nothing, ownership stays and the
+  card says control is lost. The per-spell result goes in DECISIONS.
+- 1d.8: "Lock the door". Seal Portal sets the picked door's state to
+  locked. Its end unlocks the door only if the door is still in the state
+  the spell left. No ROADMAP row.
+
 ### Start prompt, session 1d-B
 
 > Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
