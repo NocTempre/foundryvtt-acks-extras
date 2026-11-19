@@ -21,7 +21,7 @@ import { droppedGoods } from "../../lib/bundles.mjs";
 import { lairState, rollLair } from "../../lib/lair.mjs";
 import { emptyMarket } from "../data/location-data.mjs";
 import { GATE_ROLE, gateMarketOf } from "../gate.mjs";
-import { isScenePart } from "../scene-link.mjs";
+import { linkScene } from "../scene-link.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE, SCENE_LINK_FLAG, PLACE_ROLES } from "../constants.mjs";
 import { acksExtras } from "../../namespace.mjs";
 import { HOOKS, SECONDS_PER_DAY, SECONDS_PER_WEEK } from "../../henchmen/constants.mjs";
@@ -943,11 +943,10 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     return super._onDropDocument(event, document);
   }
 
-  /** Dropping a SCENE on a place links the map to it (GM only); a part of its place takes the flag alone, as `linkScene` does. */
+  /** Dropping a SCENE on a place links the map to it (GM only), through `linkScene`, which writes both ends and lets the old ones go. */
   async _onDropScene(_event, scene) {
     if (!game.user.isGM || !scene) return;
-    await scene.setFlag(MODULE_ID, SCENE_LINK_FLAG, this.actor.uuid);
-    if (!isScenePart(scene)) await this.actor.update({ "system.sceneUuid": scene.uuid });
+    if (!(await linkScene(scene, this.actor))) return;
     ui.notifications.info(game.i18n.format(`${LANG_PREFIX}.place.sceneLinked`, { name: scene.name }));
     this.render();
   }
