@@ -11,7 +11,7 @@
  */
 import assert from "node:assert/strict";
 import { materializeEffects } from "../../scripts/importer/executor.mjs";
-import { bindSpell } from "../../scripts/importer/cookbook/variations.mjs";
+import { bindSpell, bindSpellNamed, summonNamesOf } from "../../scripts/importer/cookbook/variations.mjs";
 import { REPAIR, decidedPolicy, mergeRowsByOrigin, refreshPlan } from "../../scripts/importer/refresh.mjs";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
 import { SPELL_NARROWING_WORDS, spellRecipeProblems, spellcastingModProblems } from "./spell-recipe-rules.mjs";
@@ -793,5 +793,83 @@ t("a row whose invocation range runs backwards, or whose bound the page does not
   assert.deepEqual(blankRoll.unread, ["roll"], "any other miss still blanks");
   assert.equal(blankRoll.invocationFrom, 2);
 });
+
+/* -------------------------------------------- */
+/*  a summon row's creature name                 */
+/* -------------------------------------------- */
+
+const SUMMON = { key: "call", type: "summon", ref: "def.creature.quillbeast", amount: 2, value: 3 };
+const summonSpell = (rows = [SUMMON]) => {
+  const specs = [{ key: "call", type: "summon" }];
+  return { entry: entryFor(specs, null), node: { fields: { ...nodeFor(specs, null).fields, effects: rows } } };
+};
+// A world holding only what a test puts in it: ref → an invented creature's name.
+const shelf = (held) => async (ref) => (held[ref] ? { documentName: "Actor", name: held[ref] } : null);
+const ID = "def.spell.glimmerfrost";
+
+const named = async (held, rows) => {
+  const { entry, node } = summonSpell(rows);
+  return (await bindSpellNamed(entry, node, ID, { actorOf: shelf(held) })).flags[MODULE_ID].spell.effects;
+};
+
+{
+  const [row] = await named({ "def.creature.quillbeast": "Quillbeast of Teststead" });
+  assert.equal(row.name, "Quillbeast of Teststead", "the referenced creature's materialized name rides on the row");
+  assert.equal(row.ref, SUMMON.ref, "the ref is still the key");
+  assert.equal(row.origin, "register");
+  n++;
+  console.log("ok - bindSpellNamed writes the referenced creature's materialized name onto its summon row");
+}
+
+{
+  const [row] = await named({});
+  assert.ok(!("name" in row), "a creature that is not imported leaves the row unnamed, never a stand-in");
+  const [blank] = await named({ "def.creature.quillbeast": "   " });
+  assert.ok(!("name" in blank), "a nameless document is no name");
+  const [plain] = await named({ "def.creature.quillbeast": "Quillbeast" }, [{ key: "scorch", type: "damage", roll: "1d6", ref: "def.creature.quillbeast" }]);
+  assert.ok(!("name" in plain), "only a summon row is named");
+  const [loose] = await named({ "": "Quillbeast" }, [{ key: "call", type: "summon" }]);
+  assert.ok(!("name" in loose), "a summon row with no ref has no creature");
+  assert.equal(bindSpell(summonSpell().entry, summonSpell().node, ID).flags[MODULE_ID].spell.effects[0].name, undefined, "bindSpell alone names nothing");
+  n++;
+  console.log("ok - a summon row whose creature is not imported carries no name");
+}
+
+{
+  const lookedUp = [];
+  const names = await summonNamesOf([SUMMON, { ...SUMMON, key: "again" }, { type: "damage", ref: "def.creature.other" }], {
+    actorOf: async (ref) => {
+      lookedUp.push(ref);
+      return { name: "Quillbeast" };
+    },
+  });
+  assert.deepEqual(lookedUp, [SUMMON.ref], "one lookup per distinct ref, and none for a row that is not a summon");
+  assert.deepEqual([...names], [[SUMMON.ref, "Quillbeast"]]);
+  const thrown = await summonNamesOf([SUMMON], { actorOf: async () => { throw new Error("shelf down"); } });
+  assert.equal(thrown.size, 0, "a lookup that throws is no answer");
+  n++;
+  console.log("ok - summonNamesOf looks each distinct summon ref up once, and a lookup that fails names nothing");
+}
+
+{
+  const rowOf = (plan) => rowsAfter(plan)[0];
+  const before = await named({});
+  const document = stored(before);
+  const first = refreshPlan(document, freshBuild(before), REPAIR.spell);
+  assert.ok(!("name" in rowOf(first)), "the repair before the creature arrives leaves the row unnamed");
+  const after = await named({ "def.creature.quillbeast": "Quillbeast of Teststead" });
+  const plan = refreshPlan(document, freshBuild(after), REPAIR.spell);
+  assert.equal(rowOf(plan).name, "Quillbeast of Teststead", "a repair after the creature arrives fills the name");
+  assert.equal(rowOf(plan).origin, "register");
+  const renamed = refreshPlan(stored(after), freshBuild(await named({ "def.creature.quillbeast": "Quillbeast, renamed" })), REPAIR.spell);
+  assert.equal(rowOf(renamed).name, "Quillbeast, renamed", "and a later repair refreshes it");
+  const gone = refreshPlan(stored(after), freshBuild(await named({})), REPAIR.spell);
+  assert.ok(!("name" in rowOf(gone)), "a creature since removed blanks it again");
+  const mine = { ...after[0], origin: "", name: "Judge's label" };
+  const kept = refreshPlan(stored([mine]), freshBuild(after), REPAIR.spell);
+  assert.equal(rowOf(kept).name, "Judge's label", "a row a Judge took over keeps its name");
+  n++;
+  console.log("ok - a repair fills a summon row's name once its creature is imported, and refreshes or clears it after");
+}
 
 

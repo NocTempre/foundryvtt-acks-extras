@@ -25,7 +25,8 @@ import {
 } from "./state.mjs";
 import { verifyDoc } from "../book-handle.mjs";
 import { repairFromEntry, readForImport, passedOver } from "./read.mjs";
-import { createDoc, claimImport, importedItem, ensureItemFolder } from "./target.mjs";
+import { createDoc, claimImport, importedItem, importedActor, ensureItemFolder } from "./target.mjs";
+import { normalizeRef } from "../../lib/summons-logic.mjs";
 
 /* -------------------------------------------- */
 /*  Merchandise (kind.merchandise → acks-extras.merchandise) */
@@ -387,6 +388,60 @@ export function reversedDurationOf(duration) {
 }
 
 /**
+ * The Actor a summon row's `ref` names, or null: a uuid first, else a cookbook
+ * id on the importer's shelves (the library's own document before a world
+ * copy). A lookup that throws counts as no answer.
+ */
+async function creatureOf(ref) {
+  const key = normalizeRef(ref);
+  if (!key) return null;
+  let doc = null;
+  try {
+    doc = typeof fromUuid === "function" ? await fromUuid(key) : null;
+  } catch {
+    doc = null;
+  }
+  if (doc && (doc.documentName ?? "Actor") === "Actor") return doc;
+  try {
+    return (await importedActor(key, { copies: false })) ?? (await importedActor(key)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The materialized name of each creature the summon rows reference, as a map
+ * from the row's `ref` (verbatim) to the name of the Actor it resolves to. A
+ * ref that resolves to nothing, or to an Actor with no name, has no entry.
+ * `actorOf` resolves one ref to an Actor (default: a uuid, else the importer's
+ * shelves).
+ *
+ * @param {object[]} rows  materialized effect rows
+ * @param {{actorOf?: (ref: string) => Promise<object|null>}} [lookups]
+ * @returns {Promise<Map<string, string>>}
+ */
+export async function summonNamesOf(rows, { actorOf = creatureOf } = {}) {
+  const names = new Map();
+  for (const row of rows ?? []) {
+    if (row?.type !== "summon" || typeof row.ref !== "string" || !row.ref.trim() || names.has(row.ref)) continue;
+    const doc = await actorOf(row.ref).catch(() => null);
+    const name = String(doc?.name ?? "").trim();
+    if (name) names.set(row.ref, name);
+  }
+  return names;
+}
+
+/**
+ * `bindSpell` with the summon rows' creature names read from the world and the
+ * library first (`summonNamesOf`): the one build an import and a repair share,
+ * so a creature imported after its spell is named by the spell's next repair.
+ */
+export async function bindSpellNamed(entry, node, id, lookups) {
+  const rows = entry.fields?.effects?.specs?.length ? node?.fields?.effects : null;
+  return bindSpell(entry, node, id, await summonNamesOf(rows, lookups));
+}
+
+/**
  * Build one core `spell` Item from a spell entry and its materialized text.
  * The stat block the seat read is parsed into the primitive (`spell-logic.mjs`
  * `spellFromStat`), core's own strings are written from it, and the prose
@@ -404,8 +459,14 @@ export function reversedDurationOf(duration) {
  * leaves they wrote are recorded in `cookbook.read.spell` (`readLeaves`).
  * The test is the entry's recipe, never the node's rows: `executeEntry` runs
  * `effectScan` over every spell's prose, and those guesses never reach a spell.
+ *
+ * `names` maps a summon row's `ref` to its creature's materialized name
+ * (`summonNamesOf`); a row whose ref has no entry carries no `name`, never a
+ * stand-in.
+ *
+ * @param {Map<string, string>} [names]
  */
-export function bindSpell(entry, node, id) {
+export function bindSpell(entry, node, id, names = new Map()) {
   const cite = entry.cite ?? "";
   const heading = node?.fields?.name ?? {};
   const printed = (typeof heading.title === "string" && heading.title) || entry.name || "";
@@ -437,7 +498,10 @@ export function bindSpell(entry, node, id) {
     read = readLeaves(fragments);
   }
   if (entry.fields?.effects?.specs?.length) {
-    extras.effects = (node?.fields?.effects ?? []).map((row) => ({ ...row, origin: REGISTER_ORIGIN }));
+    extras.effects = (node?.fields?.effects ?? []).map((row) => {
+      const name = row.type === "summon" ? names.get(row.ref) : null;
+      return { ...row, ...(name ? { name } : {}), origin: REGISTER_ORIGIN };
+    });
   }
   return {
     name: printed.replace(/\*\s*$/, "").trim(),
@@ -474,14 +538,14 @@ export async function importSpells({ only = null, repair = null } = {}) {
     const have = await importedItem(id);
     if (have) {
       skipped++;
-      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindSpell(entry, node, id), REPAIR.spell, repair));
+      if (repair) countRepair(repair, await repairFromEntry(have, id, (node) => bindSpellNamed(entry, node, id), REPAIR.spell, repair));
       continue;
     }
     const doc = await claimImport(id, async () => {
       const { node, reason } = await readForImport(id);
       if (!node) return passed.count(reason);
       const folder = (await ensureItemFolder(id))?.id ?? null;
-      return createDoc(Item, { ...bindSpell(entry, node, id), folder });
+      return createDoc(Item, { ...(await bindSpellNamed(entry, node, id)), folder });
     });
     if (doc) made.push(doc);
   }
