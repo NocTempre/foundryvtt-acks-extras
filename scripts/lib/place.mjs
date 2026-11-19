@@ -115,6 +115,18 @@ export const isPlace = (doc) => isLocation(doc) || isContainerItem(doc) || isPro
  */
 export const isDeployed = (doc) => isProvider(doc) && !!doc?.getFlag?.(MODULE_ID, PLACE_KEY)?.deployed;
 
+/** The flag key, under `flags.acks-extras`, that marks a location as a ground pile. */
+export const GROUND_FLAG = "ground";
+
+/**
+ * Is this actor a GROUND PILE — the location a character's container and its
+ * contents are set down into (`location/ground.mjs`, the one writer)? A pile is
+ * a place that holds goods and has a token, but it is not a point of interest:
+ * `location/here.mjs` leaves it out of the places a map offers. Read here, on
+ * the `isDeployed` precedent, so lib readers can tell one without the feature.
+ */
+export const isGroundPile = (doc) => isLocation(doc) && !!doc?.getFlag?.(MODULE_ID, GROUND_FLAG);
+
 /** Which of the three a document is, or null when it is not a place at all. */
 export function kindOf(doc) {
   if (isLocation(doc)) return PLACE_KIND.LOCATION;

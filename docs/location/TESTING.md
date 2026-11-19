@@ -14,6 +14,13 @@ by hand.
 
 - A disposable `acks-extras.location` actor.
 - A disposable `character` to store goods and coin in it.
+- **A character wearing a pack, for the ground pile (step 28):** a `character`
+  marked `flags.world.fixture` = `location/ground-hero`, owned by a player
+  seat, with a container worn on Back holding a stack of torches, coin and a
+  weapon, and one loose item beside it; its token on a scene marked
+  `location/ground-scene`. Built by `api.fixture(marker, kind, data)`. A second
+  character, `location/ground-hero-b`, is the one that has no token (a Judge's
+  tokenless case) and the one the Player does not own (the refusal).
 
 ## Core drive mechanics (non-obvious, learned live)
 
@@ -541,6 +548,41 @@ by hand.
     there, and the till still refreshes once families are entered.
     *Teardown:* the fixture by its tracked uuid. Offline:
     `tools/test-market-class-unknown.mjs`.
+
+28. **A pack set down is a pile on the ground.** *Unwalked when written.* Fixtures:
+    `location/ground-hero`, `location/ground-scene` (Fixtures above). Drive it
+    from the console, `acksExtras.location.ground.setDown(actor, item)`, on
+    each seat; a Player seat's call reaches the Judge's seat through the socket.
+    The Judge's seat must be connected, or the call says so and creates nothing.
+    *Player seat, owner of the character, token on the active scene:*
+    the call resolves `{ok: true, pileUuid}`. *Observable:* one new
+    `acks-extras.location` actor with `flags["acks-extras"].ground` set and
+    `building` false, `ownership.default` 2 and no seat named an owner; a
+    linked token for it on the scene, centred on the character's token; the
+    character holds only the loose item, and their Load has dropped; the pile
+    holds the pack and all that was in it, each stamped to the character, and
+    the pack carries `flags["acks-extras"].setDown` with the slot it was worn in.
+    *Player seat, not the owner:* the call resolves `{ok: false, reason:
+    "permission"}`; no actor, token or item changed. *Player seat, character
+    with no token on a map:* `notOnMap`, nothing created.
+    *Judge seat, character with no token:* the call resolves `{ok: true, warn:
+    "noTokenJudge"}` and the Judge sees the one warning; the pile exists with
+    no token and holds the goods.
+    *Rollback:* the handler runs on the Judge's seat whichever seat calls, so
+    the wrap goes on that seat's page: `Actor.implementation.prototype
+    .createEmbeddedDocuments` replaced by a function that throws when `this`
+    carries `flags["acks-extras"].ground` (the pile exists by then) and calls
+    the original otherwise, restored after. The call resolves `{ok: false,
+    reason: "failed"}` and no pile, token or record survives. Run it again with
+    `deleteEmbeddedDocuments` throwing when `this` is the character. The
+    piles of the successful runs are tracked from `pileUuid`; a rolled-back run
+    leaves none.
+    *Removal once empty:* pick everything up (`lib.storage.retrieve`, or the
+    location sheet's Storage tab). *Observable:* the pack is on the character
+    again in its slot with whatever came back, and a moment later the pile and
+    its token are gone; a pile still holding one item stays.
+    *Teardown:* the fixtures by their ledger uuids. Offline:
+    `tools/test-location-ground.mjs`, `tools/test-location-reach.mjs`.
 
 The repair tool's location checks (stale links, banked coin, storage whose
 owner is gone) are walked in docs/lib/TESTING.md, "The repair tool". Coin

@@ -105,7 +105,7 @@ function tokenPass(actor) {
  *
  * @returns {Array<{scene: object, point: {x: number, y: number}, elevation: number}>}
  */
-function standingSpots(actor, scan) {
+export function standingSpots(actor, scan) {
   // A synthetic token actor is a body, not what the roster (keyed on the base id) holds.
   const formation = actor?.isToken ? null : getFormationForActor(actor?.id);
   const member = formation?.members?.find((m) => m?.actorId === actor.id) ?? null;

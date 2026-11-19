@@ -9,7 +9,8 @@
  *  - the `acks-extras.location` actor and the STORAGE experience built on
  *    the lib storage primitives: the location sheet, the character sheet's
  *    Storage tab, the retirement of the system's banked-coin column, the vault
- *    sweep that moves banked balances somewhere real, and the GM storage manager.
+ *    sweep that moves banked balances somewhere real, and the GM storage manager;
+ *  - the ground pile a character's container is set down into (`ground.mjs`).
  */
 import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
@@ -44,6 +45,7 @@ import {
 import { depositReach, reachablePlaces, pinnedPlaces, setPinnedPlace, companionIds } from "./reach.mjs";
 import { placeStandsOn, placeUnderParty, placesOnScene } from "./here.mjs";
 import { registerLocationRepairChecks } from "./repair-checks.mjs";
+import { registerGround, setDown } from "./ground.mjs";
 
 /** The icon a place is made with when its maker names none: core's own house. */
 const PLACE_IMG = "icons/svg/house.svg";
@@ -118,6 +120,9 @@ Hooks.once("init", () => {
   registerSceneContextMenu();
   registerSceneLinkSync();
 
+  // The Judge's handler and the three hooks of a ground pile (ground.mjs).
+  registerGround();
+
   foundry.applications.handlebars
     .loadTemplates(TEMPLATES)
     .catch((err) => console.warn(`${MODULE_ID} | template preload skipped`, err));
@@ -189,6 +194,12 @@ Hooks.once("ready", () => {
      * every place standing on a map, and whether one named place does.
      */
     here: { placeUnderParty, placesOnScene, placeStandsOn },
+    /**
+     * A carried container and its contents set down on the ground at the
+     * character's spot (ground.mjs): `setDown(actor, item)`. The Judge's seat
+     * makes the pile.
+     */
+    ground: { setDown },
   };
 
   if (game.system?.id !== "acks") return;

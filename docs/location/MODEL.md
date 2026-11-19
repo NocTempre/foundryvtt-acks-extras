@@ -270,6 +270,8 @@ place"), so its marker is found, walked to and stood beside like a
 location's, and `sceneOccupants` steps over it as it does a location's. When
 the party stands at both, `placeUnderParty` names the location: the wagon
 circled beside a town is where the goods are, the town is where the party is.
+A ground pile's token is the exception: `standsAsPlace` leaves it out (see
+"On the ground").
 
 **It keeps its place alive.** `pruneEmptyLocations` spares an empty place that
 has a token on any scene, hidden or not — a marker the Judge hid is a point of
@@ -292,6 +294,87 @@ feature's api: pick a place, or make one named after the Region and nested
 inside the scene's own place. A quarter's place is what answers "where is the
 market" when the party stands on no point of interest at all; the ruling is
 [DECISIONS.md](DECISIONS.md) 2026-09-16.
+
+## On the ground
+
+A character can set a container they carry, and everything inside it, down on
+the ground at the spot they stand
+(`acksExtras.location.ground.setDown(actor, item)`, `ground.mjs`). What may be
+set down is any container carried directly, a sack included (RR ch. 4, Sack,
+Large); one inside another container goes with that container and is not set
+down alone. The ruling is [DECISIONS.md](DECISIONS.md) 2026-11-18: the goods
+are on the ground and at risk, which means only that the pile is reachable and
+stays where it is; the module runs no loss or theft check.
+
+**A pile is a location.** An `acks-extras.location` actor that is a storage
+provider and carries `flags["acks-extras"].ground = {ownerUuid, ownerName,
+containerName, building}`. `lib/place.mjs` `isGroundPile` reads the flag, on the
+`isDeployed` precedent, and `ground.mjs` is its one writer (`pileData` is the
+one definition of its shape). The goods move whole through lib storage's
+`stash`, so they are kept at the pile as the character's and weigh nothing on
+them: their Load drops, and the carried-weight readers, the loadout and item
+loss read the character's own items and follow without being told. Coin inside
+the pack becomes coin kept at a place, and a payment draws on it under the
+coin-scope setting like any other place's; the pile's coin store takes no
+arriving coin (`takesCoin: false` in `lib/money.mjs` `placeStores`), so a coin
+order never lands it on the ground.
+
+**Who makes it.** The Judge's seat. A Player lacks the rights to create an
+actor or a token and to delete an actor, so `setDown` hands the request to the
+Judge's seat (socket handler `locationGroundSetDown`; on a Judge's own seat it
+runs where it stands). The handler authorizes on `requestUserId`, the user the
+transport attests, never on the seat it runs on, which is always a Judge's. It
+answers `{ok, reason?, pileUuid?, warn?}` and the seat that asked says it.
+Refusals: `permission` (a Player who does not own the character), `token` (a
+token's own actor, for every seat: the owner stamp on the goods would die with
+the token), `notContainer`, `notOnMap` (a Player with no token on a map),
+`noGm` (the transport's). A Judge with no token is warned and goes ahead with a
+pile that has no token of its own; it is still listed and still picks up.
+
+**Where it lies.** `standingSpots` (`reach.mjs`) is the one reader of where a
+character stands; `pickSpot` takes the spot on the asking seat's scene, else the
+only one. The pile gets a linked token centred on that spot at its elevation,
+and `system.parentUuid` is the place linked to that scene, or empty.
+
+**Reached by its token, never by ownership.** The pile's ownership is explicit
+`{default: OBSERVER}`, overriding the location default of OWNER: every seat can
+open and read it and nobody owns it. Owned, it would take deposits from anywhere
+and from companions (`ownersShare`, `depositReach`); observed, it is reached by
+its own token only. Picking up is not reach-gated: a retrieval takes rows
+stamped to the claimant from wherever they stand (`docs/lib/API.md`, storage).
+
+**Not a point of interest.** `standsAsPlace` leaves a pile out, so
+`placesOnScene` does not offer it as a destination, `placeUnderParty` does not
+name it, and a deployed wagon beside it is not filed under it. Reach to the pile
+itself matches on the token's base actor id and is unaffected. Prune keeps a
+pile (it is a provider); only the hook below removes one.
+
+**Restoring the slot.** Before the move, the container is flagged
+`flags["acks-extras"].setDown = {ownerUuid, worn, slot, fromId}`; the flag rides
+through the transfer on the copy. A transfer mints new ids on both legs and
+resets only `system.equipped`, so a worn mark in the gear flag arrives as it
+left. When a container carrying the record is created on an actor (`createItem`,
+`planArrival`): on its owner, the worn slot is restored (`wearAt`, or
+`system.equipped` for an equippable item that names no slot), a coin order that
+named `fromId` is pointed at the new id, and the record is cleared; on another
+character the record is only cleared; at a place nothing happens and the record
+stays. This covers Pick up, the system sheet's Storage tab and the location
+sheet alike. A pack that lands nested in another container (a Judge deleting a
+pile that still holds goods: `returnGoodsTo` nests it in a wrapper) reads as
+stowed: the slot is not restored and the coin order is left, and the record is
+cleared.
+
+**Removal.** A `deleteItem` hook deletes a pile once it holds no item and is not
+`building`: tokens first, then the actor. `building` is set while the pile is
+made and cleared once the transfer lands, so the transfer's own compensation
+(which deletes what it created on the pile) never takes the pile, and a failed
+set-down deletes the token and the pile exactly once itself. The sweep is delayed
+per pile and reads the pile again before deleting, so a batch delete that fires
+the hook once per item deletes once. A set-down whose two halves both fail
+(`duplicated`) keeps the pile, since deleting it would hand its goods back a
+third time. A `deleteActor` hook removes the tokens of a pile a Judge deletes.
+All three hooks run on one window: the active Judge's lead window, as the
+storage cleanup hook does; no Player seat ever writes or deletes a pile.
 
 ## Organisations here
 

@@ -134,7 +134,7 @@ the place actually being looked at.
 `acksLib.places` — pure rules (Node-importable, unit-tested in `tools/test-lib.mjs`)
 plus the document layer:
 
-- **kinds** — `isPlace`, `isLocation`, `isMarkerActor`, `isContainerItem`, `isDeployed`, `kindOf`
+- **kinds** — `isPlace`, `isLocation`, `isMarkerActor`, `isContainerItem`, `isDeployed`, `isGroundPile` (a location set down to hold what a character put on the ground; `docs/location/MODEL.md`, "On the ground"), `kindOf`
 - **nesting** — `parentUuidOf`, `setParent`, `childPlaces`, `placePath`,
   `ancestorUuids`, `descendantUuids`, `wouldCycle`, `planReparent`
 - **contents** — `contentsOf`, `contentRows`, `coinRollupGC`, `rollup`

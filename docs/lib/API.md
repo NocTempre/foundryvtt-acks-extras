@@ -1,4 +1,4 @@
-# lib API (apiVersion 62)
+# lib API (apiVersion 63)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 62,
+  apiVersion: 63,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -1566,6 +1566,14 @@ for the whole stack.
 `stash`, `retrieve` and `moveStored` cross a place. `handOver(from, to, spec)`
 is actor to actor: nothing is stamped, the goods leave the giver, and the seat
 must own both ends. `moveStored` asks the same.
+
+`stash(source, provider, spec, {quiet, userId} = {})` (apiVersion 63) takes two options, both
+for a caller that makes the move on another seat's behalf and says the result
+itself: `quiet` refuses by result alone (no warning for a refusal, and no
+Judge's reach warning before the move), and `userId` is the user the move is
+made for, reported on the `STASHED` hook in place of the seat's own. Both are
+forwarded to the transfer; a call that passes neither behaves as before. The
+set-down handler (`docs/location/MODEL.md`, "On the ground") is the caller.
 
 A seat that owns the character's end of a `stash` or a `retrieve` and not the
 place's hands the whole move to the GM (the `libMoveGoods` handler), whose seat

@@ -28,7 +28,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-10 — [Materialized tables live on the library's shelves](DECISIONS-through-v11.14.5.md#2026-09-10--materialized-tables-live-on-the-librarys-shelves) — superseded in part by "2026-11-13 — Only what the module and the current system write is served"
 - 2026-09-12 — [Deposit reach asks one question of one subject](DECISIONS-through-v11.14.5.md#2026-09-12--deposit-reach-asks-one-question-of-one-subject)
 - 2026-09-15 — [Reach asks about the character, and about one body at a time](DECISIONS-through-v11.14.5.md#2026-09-15--reach-asks-about-the-character-and-about-one-body-at-a-time) — superseded in part by "2026-10-01 — The Judge's own payment is carried past the reach gate"; "2026-11-13 — A Judge named as an owner is not one"
-- 2026-09-16 — [A point of interest is a place's token, not a note](DECISIONS-through-v11.14.5.md#2026-09-16--a-point-of-interest-is-a-places-token-not-a-note)
+- 2026-09-16 — [A point of interest is a place's token, not a note](DECISIONS-through-v11.14.5.md#2026-09-16--a-point-of-interest-is-a-places-token-not-a-note) — qualified 2026-11-18 by "A pack set down is a pile on the ground, at risk and not lost" (a ground pile's token is not one)
 - 2026-09-16 — [A district's place names its region](DECISIONS-through-v11.14.5.md#2026-09-16--a-districts-place-names-its-region)
 - 2026-09-30 — [A place has a role](DECISIONS-through-v11.14.5.md#2026-09-30--a-place-has-a-role) — superseded in part by "2026-11-14 — A city gate is the point of entry to the market it stands inside"
 - 2026-10-01 — [Banked is not a state coin can be in](DECISIONS-through-v11.14.5.md#2026-10-01--banked-is-not-a-state-coin-can-be-in)
@@ -186,3 +186,50 @@ overwrites the Judge's filing and has no single answer for a place with
 tokens on several maps. *Cost:* a Judge who drags a promoted place into
 another quarter sees the breadcrumb keep the old one until they re-file it by
 a drop on the sheet.
+
+## 2026-11-18 — A pack set down is a pile on the ground, and at risk
+
+**Ruled** (owner, 2026-11-18, intake row T-0653), on load, verbatim: "no, but it
+is on the ground and at risk". On the approved design: "Take recommendations",
+then "Build it now". For example: a character
+wearing a Backpack with torches, 40 gp and a dagger inside sets it down. The
+pack and everything in it leave them for a pile at their token and their Load
+drops; the pile is listed with their goods kept elsewhere as at risk; picking it
+up puts the pack back on their Back with whatever is still in the pile.
+
+**Settled by "Take recommendations"** (the design's recommended option on each
+point):
+
+- The container and everything inside it move whole to a ground pile at the
+  character's spot, through lib storage's `stash` (1B).
+- At risk means only that the pile is reachable and stays where it is. The module
+  runs no loss or theft check (2A).
+- Any carried container may be set down, a sack included (3A; RR ch. 4,
+  Sack, Large).
+- Per character only (4A).
+- Pick up restores the worn slot, with whatever is still in the pile (5A).
+- Pick up is not reach-gated, as every retrieval (6A; 2026-08-06).
+- The pile is a location carrying `flags["acks-extras"].ground`, owned by this
+  feature, which is the sub-type's one owner (2026-07-19). It is made on the
+  Judge's seat and authorized on the user who asked. See MODEL, "On the ground".
+
+**Qualifies 2026-09-16, "A point of interest is a place's token, not a note".**
+That ruling makes every location's token a point of interest. A pile is a
+location with a token, and filing it as one would put a deployed wagon under it
+and offer it as somewhere to walk to. `standsAsPlace` leaves a pile out and
+nothing else about the 2026-09-16 ruling changes.
+
+**Rejected:** a pile owned by the player, or left at the location default of
+OWNER (it would take deposits from anywhere and from companions, since
+`ownersShare` counts a place's default level). **Rejected:** creating the pile
+on a Player's seat (a Player may not create an actor or a token, or delete an
+actor). **Rejected:** removing an empty pile by prune (prune keeps a provider on
+purpose, so removal must be a hook). **Rejected:** relying on `keepId` to keep
+the container's id (both legs of a transfer mint new ids), so the record carries
+the old one. The unchosen options of the six questions were not kept with the
+design, so none are listed here.
+
+*Cost:* the pile's contents are kept at a place, so a payment under the
+`all` coin scope can draw on coin set down in a pack, and a Judge who deletes a
+pile still holding goods gets them back inside a wrapper container with no slot
+to return to. Landing on another character's sheet never restores a slot.

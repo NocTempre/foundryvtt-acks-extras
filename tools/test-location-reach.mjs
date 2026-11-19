@@ -85,8 +85,10 @@ globalThis.acksExtras.lib = {
 };
 
 const { depositReach, reachablePlaces, reachScan, ownersShare, standingAt, listsWhenEmpty, aboard } = await import("../scripts/location/reach.mjs");
-const { placeUnderParty, placeReachesSpot, placeStandsOn, standsAsPlace } = await import("../scripts/location/here.mjs");
+const { placeUnderParty, placeReachesSpot, placeStandsOn, placesOnScene, standsAsPlace } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE, MODULE_ID, SCENE_LINK_FLAG } = await import("../scripts/location/constants.mjs");
+// A ground pile is stood up from the handler's own creation data, so these cases prove the shape it really makes.
+const { pileData } = await import("../scripts/location/ground.mjs");
 // `coinReach`'s actor-to-actor branch asks the same question these fixtures are
 // built to answer — which body is on which map — so it is proved here rather
 // than in `test-money.mjs`, which is deliberately Foundry-free.
@@ -988,6 +990,69 @@ ok("a town's marker outranks a deployed wagon beside it", () => {
 });
 
 /* -------------------------------------------- */
+/*  A ground pile                               */
+/* -------------------------------------------- */
+
+/** A pile as the set-down handler makes it: its creation data, standing in the world. */
+function makePile(name = "Pile") {
+  const data = pileData({ flag: { ownerUuid: "Actor.nobody", ownerName: "Nobody", containerName: name }, parentUuid: "" });
+  const pile = makePlace(name, { ownership: data.ownership, ...flagged(data.flags[MODULE_ID]) });
+  providers.push(pile);
+  return pile;
+}
+
+ok("a pile is not a point of interest, though its token stands on the map", () => {
+  const town = makeScene("Town Square");
+  const hero = makeHero("Balas");
+  const pile = makePile();
+  const market = makePlace("Market Town");
+  drop(town, pile, { x: 500, y: 500, linked: true });
+  const formation = march(town, [hero], { x: 600, y: 600 });
+
+  assert.equal(standsAsPlace(pile), false);
+  assert.equal(placesOnScene(town).length, 0, "no walk is offered to it");
+  assert.equal(placeUnderParty(formation), null, "the party is not under it");
+  assert.equal(placeStandsOn(town, pile), true, "the pile's own token is still found by the pile");
+
+  drop(town, market, { x: 700, y: 500 });
+  assert.deepEqual(placesOnScene(town).map((t) => t.actorId), [market.id], "a place beside it is still offered");
+  assert.equal(placeUnderParty(formation), market);
+
+  const wagon = makeWagon("The Wagon", { place: { deployed: { at: 0 } } });
+  const camp = makeScene("Camp");
+  const campHero = makeHero("Dolf");
+  drop(camp, pile, { x: 500, y: 500, linked: true });
+  drop(camp, wagon, { x: 500, y: 500, linked: true });
+  assert.equal(placeUnderParty(march(camp, [campHero], { x: 600, y: 600 })), wagon, "a deployed wagon is not filed under the pile");
+});
+
+ok("a pile is reached by its own token, never by observing it", () => {
+  const town = makeScene("Town Square");
+  const near = makeHero("Balas", owned());
+  const far = makeHero("Dolf", owned());
+  const pile = makePile();
+  drop(town, pile, { x: 500, y: 500, linked: true });
+  const nearTo = march(town, [near], { x: 600, y: 600 });
+  nearTo.members.push({ actorId: far.id });
+  // The second character is somewhere else on the same map: deploy them on a token of their own.
+  const body = drop(town, far, { x: 3000, y: 3000 });
+  deploy(nearTo, far, body);
+
+  assert.equal(depositReach(near, pile).can, true, "standing at the pile's token");
+  const out = depositReach(far, pile);
+  assert.equal(out.can, false, "an owner of a character is not an owner of the pile");
+  assert.equal(out.reason, "notHere");
+  assert.equal(ownersShare(far, pile), false);
+  assert.deepEqual(reachablePlaces(far), []);
+  assert.deepEqual(reachablePlaces(near), [pile]);
+
+  const elsewhere = makeHero("Gor", owned());
+  march(town, [elsewhere], { x: 5000, y: 5000 });
+  assert.equal(depositReach(elsewhere, pile).can, false, "nor from a character no token of the pile is near");
+  assert.equal(pile.ownership.default, 2, "every seat can read it, which is all that default is for");
+});
+
+/* -------------------------------------------- */
 /*  A gate is the point of entry to its market  */
 /* -------------------------------------------- */
 
@@ -1145,4 +1210,4 @@ ok("reachScan files gates by market, and reachablePlaces offers the market they 
   assert.equal(listsWhenEmpty(hero, market), true, "and the character's list shows it while they stand there");
 });
 
-console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan, aboard, deployed, gates)`);
+console.log(`\ntest-location-reach: OK (${passed} checks — identity, floors, whose token, the linked half, the coin gate, the scan, aboard, deployed, ground piles, gates)`);

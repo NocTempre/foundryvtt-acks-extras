@@ -18,14 +18,17 @@
  */
 import { LOCATION_TYPE } from "./constants.mjs";
 import { partyPoint } from "../formation/zones.mjs";
-import { isDeployed } from "../lib/place.mjs";
+import { isDeployed, isGroundPile } from "../lib/place.mjs";
 
 /**
  * Does this token's actor stand on the map AS a place: a location, or a
  * provider deployed as one (a circled wagon, a moored ship)? The one question
  * points of interest, the place under the party and the walk to a place ask.
+ * A ground pile's token is not one: filed as a place, it would take a deployed
+ * wagon in under it and be offered as somewhere to walk to. Reach to the pile
+ * itself matches on its token's actor id (`placeTokensOn`) and is unaffected.
  */
-export const standsAsPlace = (actor) => actor?.type === LOCATION_TYPE || isDeployed(actor);
+export const standsAsPlace = (actor) => !isGroundPile(actor) && (actor?.type === LOCATION_TYPE || isDeployed(actor));
 
 /**
  * Is this point within reach of this token's footprint? The footprint is

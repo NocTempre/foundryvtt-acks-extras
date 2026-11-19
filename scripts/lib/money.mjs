@@ -37,7 +37,7 @@ import { HOUSE_OWNER, STORAGE_KEY, emptyMoneyDeletes, rowOwnerOf } from "./stora
 import { arrivalOf } from "./bundles-logic.mjs";
 import { STONE, containedIn, isContainer, isShutAway, perStoneOf } from "./item-model.mjs";
 import { coinMayEnter, consolidateMoney, landGoods, providers, resolveActorSync, vaultOwnerUuid } from "./storage.mjs";
-import { isLocation } from "./place.mjs";
+import { isGroundPile, isLocation } from "./place.mjs";
 import { openPacks } from "./library.mjs";
 import { registerHandler, executeAsGM } from "./sockets.mjs";
 
@@ -194,7 +194,8 @@ export const keepsCoinElsewhere = (holder) => !!holder?.uuid && !holder.isToken 
  * The places keeping coin for a holder (`keepsCoinElsewhere`): each provider
  * holding coin stamped as theirs, their vault, and any place their coin order
  * names — the vault first, the rest by name. Coin shut inside a locked
- * container at the place is not among a store's rows.
+ * container at the place is not among a store's rows. A ground pile's store
+ * does not take coin (`takesCoin`).
  * @returns {CoinStore[]}
  */
 function placeStores(holder) {
@@ -213,7 +214,9 @@ function placeStores(holder) {
     if (!rows.length && !vault && !named.includes(place.uuid)) continue;
     stores.push({
       key: placeStoreKey(place.uuid), kind: "place", name: place.name, actor: place, containerId: null,
-      rows, shut: false, takesCoin: true, writable: !!place.isOwner, vault,
+      // A ground pile keeps the coin that was set down inside it and is never
+      // where arriving coin lands, whatever a coin order names.
+      rows, shut: false, takesCoin: !isGroundPile(place), writable: !!place.isOwner, vault,
     });
   }
   return stores.sort((a, b) => Number(b.vault) - Number(a.vault) || String(a.name).localeCompare(String(b.name)));

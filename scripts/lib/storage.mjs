@@ -365,14 +365,19 @@ async function warnJudgeReach(source, provider) {
   ui.notifications?.warn(loc("storage.judgeReach", { why }));
 }
 
-/** Character → place. The goods leave the character entirely. */
-export async function stash(source, provider, spec) {
+/**
+ * Character → place. The goods leave the character entirely.
+ * @param {object} [opts]
+ * @param {boolean} [opts.quiet] refuse by result alone, and skip the Judge's reach warning; the asking seat says why
+ * @param {string|null} [opts.userId] the user the move is made for, where another seat makes it
+ */
+export async function stash(source, provider, spec, { quiet = false, userId = null } = {}) {
   if (!isProvider(provider)) {
-    warn("notProvider");
+    if (!quiet) warn("notProvider");
     return { ok: false, reason: "notProvider" };
   }
-  await warnJudgeReach(source, provider);
-  return transfer(source, provider, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true, relay: "stash" });
+  if (!quiet) await warnJudgeReach(source, provider);
+  return transfer(source, provider, spec, { hook: STORAGE_HOOKS.STASHED, stampOwner: true, relay: "stash", quiet, userId });
 }
 
 /** Place → character. Attribution is dropped; you own what you carry. */
