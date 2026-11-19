@@ -501,7 +501,7 @@ try {
   }
   const refs = await run(gm, P.refFolders, { cats: [...new Set(PAIRS.map((p) => p.cat))], exclude: ALL });
   note("a standing Tome item outside the pairs, by category", Object.fromEntries(Object.entries(refs).map(([c, r]) => [c, r.id])));
-  const catName = Object.fromEntries(await Promise.all(PAIRS.map(async (p) => [p.cat, await run(gm, P.catName, { cat: p.cat })])));
+  const catName = Object.fromEntries(await Promise.all(PAIRS.map(async (p) => [p.cat, await run(gm, P.categoryName, { cat: p.cat })])));
 
   /** A pair's document must file under its category, in the book's folder, in the item's own pack, as the Tome's kind does. */
   const folderOk = (f, pair, book) => !!f?.folder && f.folder.category === catName[pair.cat] && f.folder.parentBook === book;

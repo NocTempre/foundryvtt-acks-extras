@@ -186,7 +186,9 @@ export async function cookbookImportMagicItems({ books = null, only = null, repa
           continue;
         }
         const category = game.i18n.localize(`${LANG_PREFIX}.magicItems.category.${entry.meta?.category}`);
-        const folder = (await targetFolder("Item", bookId, category))?.id ?? null;
+        const laterFolder = await targetFolder("Item", bookId, category);
+        // A folder of another pack is dropped by core, which leaves the item at its pack's root: the item stays filed where it is.
+        const folder = laterFolder && (laterFolder.pack ?? null) === (held.pack ?? null) ? laterFolder.id : null;
         const filedUnder = (await targetFolder("Item", from.split(".")[0], category))?.id ?? null;
         const patch = takeoverPatch(held.toObject(), { id, book: bookId, folder }, { id: from, folder: filedUnder });
         if (Object.keys(patch).length) await held.update(patch);
