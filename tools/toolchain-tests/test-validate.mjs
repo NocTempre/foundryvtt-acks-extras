@@ -610,6 +610,68 @@ export const isSpan = (el) => el instanceof HTMLSpanElement;
     out: [/validate: node tests checked 3 instanceof tests in scripts\/ against the DOM node interfaces; 2 passed on realm-ok$/m],
   },
   {
+    name: "a literal uppercase fails in styles/ and in the vendored design layer, in every spelling, once --acks-caps is declared",
+    files: {
+      "vendor/acks-design/tokens.css": `:root {
+  --acks-caps: uppercase;
+}
+`,
+      "vendor/acks-design/base.css": `.acks-heading {
+  text-transform: uppercase;
+}
+`,
+      "styles/lib.css": `.acks-fixture-a {
+  text-transform: uppercase;
+}
+.acks-fixture-b { text-transform:uppercase!important; }
+.acks-fixture-c {
+  /* caps-ok: two lines clear of the declaration below, so it speaks for nothing */
+  color: inherit;
+  text-transform: uppercase;
+}
+`,
+    },
+    exit: 1,
+    fails: [
+      /^FAIL vendor\/acks-design\/base\.css: line 2: a literal uppercase holds capitals under the System style too.*"\/\* caps-ok: <reason> \*\/"$/,
+      /^FAIL styles\/lib\.css: line 2: a literal uppercase /,
+      /^FAIL styles\/lib\.css: line 4: a literal uppercase /,
+      /^FAIL styles\/lib\.css: line 8: a literal uppercase /,
+    ],
+  },
+  {
+    name: "the token, a caps-ok escape on or just above the line, and uppercase in a comment pass",
+    files: {
+      "vendor/acks-design/tokens.css": `:root {
+  --acks-caps: uppercase;
+}
+`,
+      "styles/lib.css": `/* text-transform: uppercase is what the books' look sets through --acks-caps */
+.acks-fixture-a {
+  text-transform: var(--acks-caps);
+}
+.acks-fixture-b {
+  /* caps-ok: a unit chip that is a capitalised abbreviation in both looks */
+  text-transform: uppercase;
+}
+.acks-fixture-c {
+  text-transform: uppercase; /* caps-ok: same */
+}
+`,
+    },
+    exit: 0,
+  },
+  {
+    name: "a literal uppercase passes where no --acks-caps token is declared, since there is nothing for it to bypass",
+    files: {
+      "styles/lib.css": `.acks-fixture-a {
+  text-transform: uppercase;
+}
+`,
+    },
+    exit: 0,
+  },
+  {
     name: "a legacy update key fails in every spelling that writes one, in .mjs and .js",
     files: {
       "scripts/module.mjs": `const MOD = "acks-fixture";

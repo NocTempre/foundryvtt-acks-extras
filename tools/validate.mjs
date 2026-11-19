@@ -1477,8 +1477,8 @@ if (module_?.id) {
 /* 8. The window contract — every window a module opens stays reachable and
  *    legible on a small display, at the type size its user chose, and behaves
  *    when a second copy of it is open at the same time, or when it is first
- *    rendered in another browser window. Seven failure modes are decidable
- *    from the source, and all seven are invisible to every other check because
+ *    rendered in another browser window. Eight failure modes are decidable
+ *    from the source, and all eight are invisible to every other check because
  *    they need a real viewport, a real setting, a second open window, or a
  *    second browser window:
  *
@@ -1528,10 +1528,17 @@ if (module_?.id) {
  *       its controls. The hook that asked passes the window by or works on
  *       one of its controls, and reports neither. An element is told by
  *       `nodeType === 1` and a control by `matches`.
+ *    h. A literal capital. `text-transform: uppercase` in `styles/` or
+ *       `vendor/acks-design/` holds a label in capitals under the System style
+ *       too, where the `--acks-caps` token is `none` so labels read as written.
+ *       A label reads `var(--acks-caps)`. Opt-in per repo, on a declared
+ *       `--acks-caps`, as c is on the type ramp.
  *
  *    A window that must sit outside the contract says so where it is declared:
  *    `// no-scroll: <reason>` on or just above its `classes:` line; a size that
- *    must not move says `/* px-ok: <reason> *\/` beside itself; d/e/f each carry
+ *    must not move says `/* px-ok: <reason> *\/` beside itself; a capital that
+ *    must stay in both looks says `/* caps-ok: <reason> *\/` on or just above
+ *    the declaration; d/e/f each carry
  *    their own escape, on or just above the offending line:
  *    `{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}`,
  *    `{{!-- id-ok: <reason> --}}`; a node only the window the script runs in
@@ -1689,6 +1696,31 @@ if (module_?.id) {
       fail(
         rel(full),
         `line ${lineNo}: font-size ${m[1]}${m[2]} does not answer to the type knob — ${why}. ${fix}; or state why not with "/* px-ok: <reason> */"`,
+      );
+    }
+  }
+
+  // 8h. no label holds capitals under both looks. The System style sets
+  // `--acks-caps` to `none`; a literal `text-transform: uppercase` ignores it.
+  // Comments are blanked (newlines kept) so a mention in one is no declaration,
+  // and the escape is read from the ORIGINAL lines, since blanking would hide it.
+  // Opt-in on a declared `--acks-caps`: a repo with no such token has nothing
+  // for a literal to bypass.
+  const capsFiles = [...styleFiles];
+  walk(path.join(ROOT, "vendor", "acks-design"), (full) => {
+    if (full.endsWith(".css")) capsFiles.push(full);
+  });
+  const blankComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, " "));
+  const capsTexts = capsFiles.map((full) => ({ full, text: fs.readFileSync(full, "utf8") }));
+  const capsToken = capsTexts.some(({ text }) => /--acks-caps\s*:/.test(blankComments(text)));
+  for (const { full, text } of capsToken ? capsTexts : []) {
+    const lines = text.split("\n");
+    for (const m of blankComments(text).matchAll(/text-transform\s*:\s*uppercase\b/g)) {
+      const lineNo = lineOf(text, m.index);
+      if (lines[lineNo - 1]?.includes("caps-ok:") || lines[lineNo - 2]?.includes("caps-ok:")) continue;
+      fail(
+        rel(full),
+        `line ${lineNo}: a literal uppercase holds capitals under the System style too, where --acks-caps is none. Use text-transform: var(--acks-caps); or state why the capitals must stay with "/* caps-ok: <reason> */"`,
       );
     }
   }
