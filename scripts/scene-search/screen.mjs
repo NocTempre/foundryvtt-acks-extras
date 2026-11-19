@@ -205,7 +205,7 @@ export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationM
     if (!entries.some((e) => e.key === this.#selected)) this.#selected = null;
     const cards = isGM ? (model.cards ?? []).map((card) => ({ ...card, selected: card.key === this.#selected })) : model.cards;
     // The grime reads through the art seam: with nothing imported there is none, and a card is a plain slab.
-    return Object.assign(context, model, { cards, rail: isGM ? railFor(entries, this.#selected) : null, open: true, texture: textureArt(TEXTURE.grime, 1) });
+    return Object.assign(context, model, { cards, rail: isGM ? await railFor(entries, this.#selected) : null, open: true, texture: textureArt(TEXTURE.grime, 1) });
   }
 
   /**

@@ -544,7 +544,7 @@ member.
 
 The walk is `tools/live/scene-search-keying.mjs`. Offline coverage is
 `tools/test-scene-keying.mjs`: lib's `reviseThings` (what an authored write keeps
-and never writes), each rail field's edit, the dealt-lot guard, Behind and its
+and never writes, and its `params` merge), each rail field's edit, the dealt-lot guard, Behind and its
 loop guard, the rail's model and the tab's lists. It draws no window, reads no
 drop and writes no actor, so every observable below needs a live Judge seat; the
 Player seat's part is that it has no tab and no rail.
@@ -826,6 +826,21 @@ unlinked token. The party's scene search opened from that card.
    screen's body cards have no Sheet button. The fight-over card is whispered to
    the Judges, so this seat never sees it; the removal of its buttons for a
    non-Judge is covered offline only.
+
+## The crossing fieldset
+
+**Not yet walked.** Offline coverage is `tools/test-scene-keying.mjs` (which keys each kind offers, the penalty select with and without imported steps, an unlisted pick shown as not set, the larger figure enabled only on larger, a blank removing its key, and every written value read back through `crossingSeed`); no window is drawn offline.
+
+Fixtures: `scene-search/key-place` (S6), with one Hazard item per obstacle kind kept in the world's Items (a climb obstacle, a jump, a squeeze and a swim), each dropped on the place as its own thing. For the penalty select the world imports the water-penalty steps once; a second pass walks with none imported.
+
+1. **Offer by kind.** Location sheet → Things here → open each obstacle's row. *Observable:* the Crossing fieldset lists Length and Depth for the climb, Gap and Depth for the jump, Shape and Length for the squeeze, Penalty and Larger penalty for the swim; a condition or a trap row has none. The scene screen's aside, with the same thing selected, shows the same fieldset.
+2. **Write a figure.** Type a length on the climb. *Observable:* the thing's `params.length` holds the number and nothing else of the thing changed; the party sheet's Begin over this place starts the crossing with it. Clear the field: the key is gone and the crossing's own default stands.
+3. **The penalty select.** Open the swim. *Observable:* with steps imported the options are Not set, None, one Imported step per step, and Larger…; with none imported, Not set, None and Larger…. Pick a step: `params.penaltyPick` holds it and Larger penalty stays disabled. Pick Larger…: the field enables, type a figure, and Begin starts the swim with it. Pick None: the figure is removed from `params`.
+4. **A stale pick.** Write a pick for a step the world does not import into `params` through the API, then reopen the row. *Observable:* the select shows Not set, and the crossing opens on its own default.
+5. **Shape.** Pick Squeeze on the squeeze; Begin opens it in that shape. Pick Not set: the key is gone.
+6. **Tooltips and keyboard.** Hover each field. *Observable:* its caption, what it sets, and the page the kind cites. Tab through the fieldset; each control is reached and named.
+7. **The window.** Make the sheet narrow and raise the type size. *Observable:* the fieldset reflows and scrolls with the rest of the rail.
+8. **Player seat.** Join as the Player seat. *Observable:* the Things here tab and the screen's rail are absent, as for the rest of the rail.
 
 ## What this walk does not reach
 

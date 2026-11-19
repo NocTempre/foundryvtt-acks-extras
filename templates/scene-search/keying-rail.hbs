@@ -83,6 +83,24 @@
   </fieldset>
   {{/each}}
 
+  {{#if crossing}}
+  <fieldset class="acks-extras-keying-set">
+    <legend>{{localize "ACKS-LOCATION.sceneSearch.keying.crossing.legend"}}</legend>
+    {{#each crossing.fields}}
+    <label data-tooltip-text="{{tip}}">
+      <span>{{label}}</span>
+      {{#if number}}
+      <input type="number" min="0" step="any" data-pick="key:{{../id}}:{{key}}" data-key-field="{{key}}" value="{{value}}"{{#if disabled}} disabled{{/if}}>
+      {{else}}
+      <select data-pick="key:{{../id}}:{{key}}" data-key-field="{{key}}">
+        {{#each options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+      {{/if}}
+    </label>
+    {{/each}}
+  </fieldset>
+  {{/if}}
+
   <div class="acks-extras-keying-buttons">
     <button type="button" class="acks-btn acks-btn--sm" data-action="keyShow"{{#unless canShow}} disabled{{/unless}}
             data-tooltip="ACKS-LOCATION.sceneSearch.keying.show.tip">{{localize "ACKS-LOCATION.sceneSearch.keying.show.label"}}</button>

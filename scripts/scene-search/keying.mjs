@@ -4,7 +4,10 @@
  * keying rail (`templates/scene-search/keying-rail.hbs`) for both windows that
  * carry it, the scene screen's Judge seat and the place sheet's Things here
  * tab, and writes what a field says through lib's GM writers
- * (`reviseThingsOn`, `updateThingOn`, `removeThingFrom`). A window hands the
+ * (`reviseThingsOn`, `updateThingOn`, `removeThingFrom`). An obstacle thing's
+ * Crossing fieldset reads and writes through the crossing's own readers
+ * (`keying-crossing-logic.mjs`), with the hazard kind and the imported water-penalty
+ * steps read here. A window hands the
  * rail its place through `keyingPlace()`, and draws again on its own after a
  * write, since the write changes the place the window already watches.
  *
@@ -20,8 +23,13 @@ import { writeOnChange } from "../lib/press-safe-change.mjs";
 import { removeThingFrom, reviseThingsOn, thingsOf, updateThingOn } from "../lib/place-things.mjs";
 import { ITEM_TYPE, capabilityForId } from "../lib/vocab.mjs";
 import { capabilityLabel } from "../abilities/ability-sheet.mjs";
+import { hazardKeyResolver } from "../formation/hazard-entry.mjs";
+import { figureRefKey } from "../formation/hazard-keys.mjs";
+import { PARAM_KEYS, PICK_KEYS, SQUEEZE_SHAPES, penaltyPicksOf, readParam, readPick, setupKeysOf } from "../formation/hazard-logic.mjs";
+import { waterPenaltySteps } from "../formation/swimming.mjs";
 import { dropOnPlace } from "../formation/region-place-row.mjs";
 import { regionOfLocation, sceneOfLocation } from "../location/scene-link.mjs";
+import { crossingEdits, crossingOf } from "./keying-crossing-logic.mjs";
 import { ROOT, editsFor, railOf, tabOf, withoutReveals } from "./keying-logic.mjs";
 import { sceneEntries } from "./scene-logic.mjs";
 import { derivedInputs, plateNamesOf } from "./session.mjs";
@@ -84,17 +92,33 @@ export function proficiencyChoices() {
 /** The scene a place's map is: its linked map, else the scene its Region sits on. */
 const sceneOfPlace = (place) => sceneOfLocation(place) ?? regionOfLocation(place)?.parent ?? null;
 
+/** The crossing's own readers, which the Crossing fieldset reads and writes through. */
+const CROSSING_READERS = Object.freeze({ PARAM_KEYS, PICK_KEYS, SQUEEZE_SHAPES, figureRefKey, penaltyPicksOf, readParam, readPick, setupKeysOf });
+
+/**
+ * What the Crossing fieldset needs of the world for one thing: the hazard key
+ * its `ref` resolves to (read from the document, since a compendium index holds
+ * no key) and the water-penalty steps the world imported.
+ */
+async function crossingInputs(entry) {
+  const keyOf = await hazardKeyResolver([{ uuid: "keying", things: [entry] }]);
+  return { kind: entry.kind === "obstacle" ? keyOf(entry.ref) : null, steps: waterPenaltySteps(), readers: CROSSING_READERS };
+}
+
 /**
  * The rail of one entry of a place, ready to draw, or null where there is no
- * entry of that key.
+ * entry of that key. An obstacle thing's rail carries its Crossing fieldset.
  *
  * @param {object[]} entries every entry of the scene, the Judge's view
  * @param {string|null} key the entry's key
- * @returns {object|null}
+ * @returns {Promise<object|null>}
  */
-export function railFor(entries, key) {
+export async function railFor(entries, key) {
   const entry = key ? entries.find((e) => e.key === key) : null;
-  return entry ? railOf(entry, entries, { names: plateNamesOf(entries), proficiencies: proficiencyChoices(), nameOfRef, t: say }) : null;
+  if (!entry) return null;
+  const rail = railOf(entry, entries, { names: plateNamesOf(entries), proficiencies: proficiencyChoices(), nameOfRef, t: say });
+  if (!rail.keyable || entry.kind !== "obstacle") return rail;
+  return { ...rail, crossing: crossingOf(entry, { ...(await crossingInputs(entry)), t: say }) };
 }
 
 /* -------------------------------------------- */
@@ -120,7 +144,7 @@ export async function prepareKeyingTab(sheet, context) {
   context.keying = {
     ...tab,
     things: tab.things.map((row) => ({ ...row, open: row.key === key })),
-    rail: railFor(entries, key),
+    rail: await railFor(entries, key),
     count: tab.things.length,
   };
 }
@@ -180,13 +204,17 @@ function refused(refusal) {
   ui.notifications?.warn(say(`${ROOT}refusal.${refusal}`));
 }
 
+/** The rail fields that write into the thing's `params`, which the Crossing fieldset owns. */
+const CROSSING_FIELDS = new Set([...PARAM_KEYS, ...PICK_KEYS]);
+
 /** Apply one change to the thing, from the list as the place holds it now; true where it wrote. */
 async function change(app, id, what) {
   const place = placeOf(app);
   if (!place || !id) return false;
   let refusal = null;
+  const crossing = CROSSING_FIELDS.has(what.field) ? await crossingInputs(thingsOf(place).find((thing) => thing.id === id) ?? {}) : null;
   const written = await reviseThingsOn(place, (list) => {
-    const out = editsFor(list, id, what);
+    const out = crossing ? crossingEdits(list, id, what, crossing) : editsFor(list, id, what);
     refusal = out.refusal;
     return out.edits;
   });

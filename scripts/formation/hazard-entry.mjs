@@ -18,7 +18,7 @@
 import { HAZARD_ITEM_TYPE, MODULE_ID } from "./constants.mjs";
 import { beginCrossing, endCrossing, readCrossing } from "./crossing.mjs";
 import { getFormation, getPartyActor, getPartyToken } from "./formation-model.mjs";
-import { hazardLabelKey } from "./hazard-keys.mjs";
+import { figureRefKey, hazardLabelKey } from "./hazard-keys.mjs";
 import { entryModel, moveHalted, newlyEntered, refsOf, seedForThing } from "./hazard-entry-logic.mjs";
 import { penaltyPicksOf } from "./hazard-logic.mjs";
 import { waterPenaltySteps } from "./swimming.mjs";
@@ -37,9 +37,8 @@ export const PLACES_UNDER_FLAG = "placesUnder";
 /** A Begin button's `data-action`. */
 export const BEGIN_ACTION = "hazardEntryBegin";
 
-/** The lang key of the page each crossing kind's setup already cites for its figures. */
-const FIGURE_REFS = Object.freeze({ jump: "jumping", swim: "swimming", squeeze: "squeezing" });
-const refOf = (key) => game.i18n.localize(`ACKS-FORMATION.crossing.ref.${FIGURE_REFS[key] ?? "spelunking"}`);
+/** The words of the page each crossing kind's setup already cites for its figures. */
+const refOf = (key) => game.i18n.localize(`ACKS-FORMATION.crossing.ref.${figureRefKey(key)}`);
 
 /**
  * The places the party token stands in, as `{uuid, name, things}`: the place

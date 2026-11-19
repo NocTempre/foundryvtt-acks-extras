@@ -187,7 +187,7 @@ a row; an Item dropped on the tab goes through the one kind table
 (`region-place-row.mjs` `dropOnPlace`: `kindOfDrop`, `thingOfDrop`,
 `addThingTo`, no `point`), and any other Item is the sheet's own goods drop.
 
-Every field writes a key the thing already has, and none adds one:
+Every field writes a key the thing already has, and none adds one (the Crossing fieldset's figures and picks are `params` keys, below the table):
 
 | Field | Writes |
 |---|---|
@@ -202,6 +202,7 @@ Every field writes a key the thing already has, and none adds one:
 | Turns | the methodical layer's `turns`; blank stores nothing |
 | Show to the table | `state.shown`, which a Reset clears |
 | Remove | lib's remove, then every reveal that named the thing is taken out |
+| Crossing (an obstacle's figures and picks) | the thing's `params`, one key a field, merged key by key (`reviseThings` takes a `params` patch, a `null` removing the key) |
 
 An authored write is lib's `reviseThingsOn`: it reads the list at the moment of
 the write, asks the keying logic for edits against the list AS STORED, and
@@ -212,6 +213,35 @@ or from a fight (a door, an old-style trap zone, a body) has no list row: its
 rail says so and holds no field. A change that cannot be kept (a turn count that
 is no whole number, a clue that would loop) is refused in words and writes
 nothing.
+
+### The Crossing fieldset
+
+An obstacle thing's rail carries a **Crossing** fieldset, below the two checks and
+above Show and Remove, on the Judge's seat like the rest of the rail. It offers the keys
+the thing's hazard kind reads that a place may carry (formation's
+`hazard-logic.mjs`: `setupKeysOf` restricted to `PARAM_KEYS` and `PICK_KEYS`,
+so `movement` and `judgeMod` are never offered): a climb obstacle its length and
+depth, a jump its gap and depth, a squeeze its shape and length, a swim its
+penalty pick and larger penalty. A condition or a trap has no fieldset. The kind
+is the hazard key of the thing's `ref`, read from the document
+(`hazardKeyResolver`), and `keying.mjs` hands `keying-crossing-logic.mjs` the
+seed's own readers, so a field shows and writes what `crossingSeed` accepts.
+
+- **Figures** are number inputs. A blank, or a figure the crossing's reader
+  refuses, removes the key, as the party sheet's own save does, so the panel's
+  default stands.
+- **Shape** and **Penalty** are selects, each with a leading *Not set* row that
+  removes the key. The penalty's rows are built at render from the steps the
+  world imported (`waterPenaltySteps`): None, one *Imported step n* row per step,
+  Larger…; with no step imported, None and Larger… alone. A stored pick that is
+  not listed (a step no longer imported) shows as not set and is never defaulted.
+- **Larger penalty** is enabled only while the pick is Larger…. Leaving Larger…
+  removes the figure in the same write, and a larger figure is refused while the
+  pick is not larger, so the stored params never hold more than the seed reads.
+- A pick that is not listed is refused in words and writes nothing.
+- Each field's tooltip is its own caption and what it sets, then the page the
+  kind's crossing setup cites (`figureRefKey`); no rule sentence and no figure
+  is in it.
 
 ## Lore checks
 

@@ -34,7 +34,7 @@ import { CONDITION_HAZARDS, OBSTACLE_HAZARDS } from "./hazard-keys.mjs";
 export const PARAM_KEYS = Object.freeze(["length", "gap", "depth"]);
 
 /** The squeeze shapes a thing's `params.shape` may name. */
-const SQUEEZE_SHAPES = Object.freeze(["chokepoint", "squeeze"]);
+export const SQUEEZE_SHAPES = Object.freeze(["chokepoint", "squeeze"]);
 
 /** The squeeze shape a thing's `params.shape` names, trimmed, or null while it is blank or no shape. */
 export function squeezeShapeOf(raw) {
@@ -42,7 +42,7 @@ export function squeezeShapeOf(raw) {
 }
 
 /** The picks a thing's `params` may carry beyond the figures; each is a setup key of the crossing. */
-const PICK_KEYS = Object.freeze(["shape", "penaltyPick", "penaltyLarger"]);
+export const PICK_KEYS = Object.freeze(["shape", "penaltyPick", "penaltyLarger"]);
 
 /** The water-penalty picks that are no imported step: no penalty, or a figure the Judge types. */
 const STRUCTURAL_PENALTY_PICKS = Object.freeze(["none", "larger"]);
@@ -102,9 +102,15 @@ export function readParam(key, raw) {
  * The pick a thing's `params` state for one of `PICK_KEYS`, as the crossing
  * stores it, or undefined while it is blank, invalid or not listed. `setup`
  * holds the keys read so far: the larger penalty figure rides only on a pick of
- * `larger`.
+ * `larger`. The seed and the Judge's editor read through this one function, so
+ * what the editor shows and writes is what the seed accepts.
+ *
+ * @param {string} key one of `PICK_KEYS`
+ * @param {*} raw the stored value
+ * @param {Record<string, *>} setup the keys read so far
+ * @param {string[]} penaltyPicks the water-penalty picks valid now (`penaltyPicksOf`)
  */
-function readPick(key, raw, setup, penaltyPicks) {
+export function readPick(key, raw, setup, penaltyPicks) {
   if (raw === null || raw === undefined || raw === "") return undefined;
   if (key === "shape") return squeezeShapeOf(raw) ?? undefined;
   if (key === "penaltyPick") {

@@ -7,7 +7,8 @@
  *
  * Every field writes a key the thing already has (`lib/place-things-logic.mjs`):
  * `hidden`, `hint`, and one layer's `check`, `capability`, `anyone`, `tools`,
- * `turns` and `yields.clue`. "Behind a clue" is not a key of the hidden thing:
+ * `turns` and `yields.clue`; an obstacle's Crossing fieldset writes the thing's
+ * `params` and is `keying-crossing-logic.mjs`. "Behind a clue" is not a key of the hidden thing:
  * it is the other thing's `yields.reveal` naming this one, so a change of it
  * edits that other thing. Edits are computed against the list AS STORED and
  * name only the keys they change, so a view with a session's dealt lots laid

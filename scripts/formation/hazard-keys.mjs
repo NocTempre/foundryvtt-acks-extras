@@ -78,3 +78,10 @@ export function hazardGroupOf(key) {
  * @returns {Record<string, string>}
  */
 export const hazardChoices = (say) => Object.fromEntries(HAZARD_KEYS.map((key) => [key, say(LABEL_KEYS[key])]));
+
+/**
+ * The lang key, under `ACKS-FORMATION.crossing.ref.`, of the page each crossing
+ * kind's setup cites for its figures; a climb obstacle cites the spelunking
+ * page.
+ */
+export const figureRefKey = (key) => ({ jump: "jumping", swim: "swimming", squeeze: "squeezing" })[key] ?? "spelunking";

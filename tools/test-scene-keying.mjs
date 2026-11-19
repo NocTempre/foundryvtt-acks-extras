@@ -2,13 +2,18 @@
  * Scene search's keying, on plain data: the lib op that changes the authored
  * half of a place's things (`reviseThings`), the edits each field of the rail
  * makes (`editsFor`, `withoutReveals`), the rail's model (`railOf`) and the
- * Things here tab's lists (`tabOf`). No globals are set, which is the proof
- * the half is Foundry-free. Every name and every figure here is this file's own
- * invention; no turn count or throw target stands for any printed one.
+ * Things here tab's lists (`tabOf`), and the Crossing fieldset
+ * (`keying-crossing-logic.mjs`). No globals are set while the keying logic
+ * loads, which is the proof that half is Foundry-free; the crossing's own
+ * readers load last, after the stand-ins the formation modules need, and are
+ * handed to the fieldset as arguments exactly as `keying.mjs` hands them. Every
+ * name and every figure here is this file's own invention; no turn count, throw
+ * target, length or penalty stands for any printed one.
  */
 import assert from "node:assert/strict";
 import { normalizeThings, reviseThings } from "../scripts/lib/place-things-logic.mjs";
 import { CHECK } from "../scripts/scene-search/constants.mjs";
+import { crossingEdits, crossingOf, offeredKeys } from "../scripts/scene-search/keying-crossing-logic.mjs";
 import { KEYING_REFUSAL, editsFor, railOf, reachedFrom, tabOf, withoutReveals } from "../scripts/scene-search/keying-logic.mjs";
 import { sceneEntries } from "../scripts/scene-search/scene-logic.mjs";
 import { overlayLots } from "../scripts/scene-search/session-logic.mjs";
@@ -44,8 +49,16 @@ const layerOf = (list, id, name) => normalizeThings(list).find((x) => x.id === i
   eq(next[1], normalizeThings(stored)[1], "another thing is untouched");
   ok(stored[0].layers.hasty.yields.clue === "keep", "the input is not mutated");
 
-  const wide = reviseThings(stored, [{ id: "a", patch: { state: { shown: false }, params: { odd: 2 }, ref: "x", kind: "trap", point: { x: 1, y: 2 }, layers: {} } }]);
-  eq(wide[0], normalizeThings(stored)[0], "state, params, ref, kind and point are never written by this op");
+  const wide = reviseThings(stored, [{ id: "a", patch: { state: { shown: false }, ref: "x", kind: "trap", point: { x: 1, y: 2 }, layers: {} } }]);
+  eq(wide[0], normalizeThings(stored)[0], "state, ref, kind and point are never written by this op");
+  const figured = reviseThings(stored, [{ id: "a", patch: { params: { odd: 2, length: 40 } } }]);
+  eq(figured[0].params, { odd: 2, length: 40 }, "a params patch replaces the keys it names and adds the new ones");
+  const cleared = reviseThings(figured, [{ id: "a", patch: { params: { length: null } } }]);
+  eq(cleared[0].params, { odd: 2 }, "a null removes one params key and the keys the patch does not name stay");
+  ok(!("length" in cleared[0].params), "a removed params key is absent, not undefined");
+  eq(reviseThings(figured, [{ id: "a", patch: { params: { length: undefined } } }])[0].params, { odd: 2, length: 40 }, "an undefined params key is skipped");
+  eq(figured[0].layers, normalizeThings(stored)[0].layers, "a params patch leaves the layers as they were");
+  eq(stored[0].params, { odd: 1 }, "the input is not mutated by a params patch");
   eq(reviseThings(stored, [{ id: "zz", patch: { hint: "x" } }]).map((x) => x.hint), ["old", null], "an id the list does not hold changes nothing");
 
   const drop = reviseThings(stored, [{ id: "a", patch: { layers: { hasty: { check: null, anyone: null, yields: null } } } }]);
@@ -225,4 +238,132 @@ const layerOf = (list, id, name) => normalizeThings(list).find((x) => x.id === i
   ok(named(() => "").includes("oldlore") && named(null).includes("oldlore"), "with no label the token's word stands");
 }
 
-console.log(`test-scene-keying: OK (${checks} checks — the lib op over the authored half, each rail field's write, the dealt-lot guard, behind a clue and its loop guard, the rail's model and the Things here tab's lists)`);
+/* -------------------------------------------- */
+/*  The Crossing fieldset                        */
+/* -------------------------------------------- */
+
+{
+  // The stand-ins the formation modules need to load; the fieldset reads none of them.
+  class Stub {}
+  const field = (kind) => class { constructor(options = {}) { this.kind = kind; this.options = options; } };
+  globalThis.foundry = {
+    abstract: { DataModel: class {}, TypeDataModel: class { static defineSchema() { return {}; } } },
+    data: { regionBehaviors: { RegionBehaviorType: class { static defineSchema() { return {}; } } }, fields: { StringField: field("string"), HTMLField: field("html") }, operators: {} },
+    utils: { deepClone: (v) => JSON.parse(JSON.stringify(v)), randomID: () => "id" },
+    applications: { api: { ApplicationV2: Stub, HandlebarsApplicationMixin: (B) => B, DialogV2: Stub }, sheets: { ItemSheetV2: Stub }, handlebars: {} },
+  };
+  globalThis.CONFIG = { RegionBehavior: { dataModels: {}, typeIcons: {} } };
+  globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
+
+  const hazard = await import("../scripts/formation/hazard-logic.mjs");
+  const { OBSTACLE_HAZARDS, figureRefKey } = await import("../scripts/formation/hazard-keys.mjs");
+  const readers = { PARAM_KEYS: hazard.PARAM_KEYS, PICK_KEYS: hazard.PICK_KEYS, SQUEEZE_SHAPES: hazard.SQUEEZE_SHAPES, figureRefKey, penaltyPicksOf: hazard.penaltyPicksOf, readParam: hazard.readParam, readPick: hazard.readPick, setupKeysOf: hazard.setupKeysOf };
+  const STEPS = [7, 11];
+  const climb = OBSTACLE_HAZARDS.find((key) => !["jump", "swim", "squeeze"].includes(key));
+  const hazardKeyOf = (ref) => (typeof ref === "string" && ref.startsWith("ref:") ? ref.slice(4) || null : null);
+  const obstacle = (id, key, params = {}) => thing({ id, kind: "obstacle", ref: `ref:${key}`, params });
+  const entryOf = (stored, id) => sceneEntries({ things: stored }).find((e) => e.key === `thing:${id}`);
+  const fieldsOf = (stored, id, kind, steps = STEPS) => crossingOf(entryOf(stored, id), { kind, steps, readers, t })?.fields;
+  const byKey = (fields, key) => fields.find((f) => f.key === key);
+  const run = (stored, id, kind, change, steps = STEPS) => {
+    const out = crossingEdits(normalizeThings(stored), id, change, { kind, steps, readers });
+    return { ...out, list: reviseThings(stored, out.edits) };
+  };
+  const seedOf = (list, steps = STEPS) => hazard.crossingSeed(normalizeThings(list), hazardKeyOf, { penaltyPicks: hazard.penaltyPicksOf(steps) })[0]?.setup;
+  const paramsOf = (list, id) => normalizeThings(list).find((x) => x.id === id).params;
+
+  // Which keys each kind offers.
+  eq(offeredKeys(climb, readers), ["length", "depth"], "a climb obstacle offers its length and depth");
+  eq(offeredKeys("jump", readers), ["gap", "depth"], "a jump offers its gap and depth");
+  eq(offeredKeys("squeeze", readers), ["shape", "length"], "a squeeze offers its shape and length");
+  eq(offeredKeys("swim", readers), ["penaltyPick", "penaltyLarger"], "a swim offers the penalty pick and the larger figure, and no depth");
+  eq(offeredKeys("waterCold", readers), [], "a condition offers nothing");
+  eq(offeredKeys(null, readers), [], "a thing whose hazard did not resolve offers nothing");
+  eq(fieldsOf([obstacle("o", "swim")], "o", "swim").map((f) => f.key), ["penaltyPick", "penaltyLarger"], "the fieldset lists the offered keys in the crossing's order");
+  eq(crossingOf(entryOf([thing({ id: "c", kind: "condition", ref: "ref:waterCold" })], "c"), { kind: "waterCold", steps: STEPS, readers, t }), null, "a condition thing has no Crossing fieldset");
+  eq(crossingOf(entryOf([obstacle("o", "swim")], "o"), { kind: null, steps: STEPS, readers, t }), null, "an obstacle whose hazard did not resolve has none");
+  eq(crossingOf(entryOf([thing({ id: "f", kind: "fixture", ref: "ref:swim" })], "f"), { kind: "swim", steps: STEPS, readers, t }), null, "a thing that is no obstacle has none, whatever its ref names");
+
+  // The penalty select, built from the imported steps.
+  const swim = (params, steps) => byKey(fieldsOf([obstacle("o", "swim", params)], "o", "swim", steps), "penaltyPick");
+  const selected = (f) => f.options.filter((o) => o.selected).map((o) => o.value);
+  eq(swim({}).options.map((o) => o.value), ["", "none", "7", "11", "larger"], "the penalty offers not set, none, one row per imported step and larger");
+  const stepRow = swim({}).options[2].label;
+  ok(stepRow.includes("ACKS-FORMATION.crossing.swim.penaltyStep") && stepRow.includes("\"n\":1") && stepRow.includes("\"size\":7"), "a step's row is the crossing panel's own wording, numbered and sized");
+  eq(swim({}, null).options.map((o) => o.value), ["", "none", "larger"], "with no step imported only none and larger are offered");
+  eq(swim({}, []).options.map((o) => o.value), ["", "none", "larger"], "an empty list of steps is none imported too");
+  eq(selected(swim({})), [""], "nothing stored reads as not set");
+  eq(selected(swim({ penaltyPick: "7" })), ["7"], "a stored step is selected");
+  eq(selected(swim({ penaltyPick: 11 })), ["11"], "a stored step held as a number is the same step");
+  eq(selected(swim({ penaltyPick: "none" })), ["none"], "a stored none is selected, and is not the same as not set");
+  eq(selected(swim({ penaltyPick: "9" })), [""], "a stored pick that is no listed step shows as not set, never defaulted");
+  eq(selected(swim({ penaltyPick: "7" }, null)), [""], "a stored step shows as not set once no step is imported");
+  eq(selected(swim({ penaltyPick: "larger" }, null)), ["larger"], "larger is listed whatever is imported");
+
+  // The larger figure rides only on larger.
+  const larger = (params) => byKey(fieldsOf([obstacle("o", "swim", params)], "o", "swim"), "penaltyLarger");
+  ok(larger({}).disabled && larger({ penaltyPick: "none", penaltyLarger: 4 }).disabled && larger({ penaltyPick: "7", penaltyLarger: 4 }).disabled, "the larger figure is disabled while the pick is anything but larger");
+  ok(!larger({ penaltyPick: "larger" }).disabled, "and enabled on larger");
+  eq(larger({ penaltyPick: "larger", penaltyLarger: "4" }).value, 4, "a stored larger figure reads as the crossing reads it");
+  eq(larger({ penaltyPick: "none", penaltyLarger: 4 }).value, "", "a figure stored beside a pick that is not larger is not shown");
+  eq(larger({ penaltyPick: "larger", penaltyLarger: 0 }).value, "", "a figure the crossing refuses shows blank");
+
+  // The shape and the figures.
+  const shape = (params) => byKey(fieldsOf([obstacle("o", "squeeze", params)], "o", "squeeze"), "shape");
+  eq(shape({}).options.map((o) => o.value), ["", "chokepoint", "squeeze"], "the shape offers not set and each shape the seed accepts");
+  eq(selected(shape({ shape: "squeeze" })), ["squeeze"], "a stored shape is selected");
+  eq(selected(shape({ shape: "wide" })), [""], "a stored shape the seed would not take shows as not set");
+  const length = (params) => byKey(fieldsOf([obstacle("o", climb, params)], "o", climb), "length");
+  eq(length({ length: "40" }).value, 40, "a stored figure reads through the crossing's reader");
+  eq([length({}).value, length({ length: 0 }).value, length({ length: "x" }).value, length({ length: -3 }).value], ["", "", "", ""], "a blank or refused figure reads blank, and no figure stands in its place");
+  const tip = length({}).tip;
+  ok(tip.includes("keying.crossing.tip") && tip.includes("ACKS-FORMATION.crossing.length") && tip.includes(`crossing.ref.${figureRefKey(climb)}`), "a field's tooltip names the field and the page the kind cites");
+  ok(swim({}).tip.includes("crossing.ref.swimming"), "each kind cites its own page");
+  eq(swim({}).options[0].label, "ACKS-LOCATION.sceneSearch.keying.crossing.unset", "the not-set row says so");
+
+  // What a change writes, and what the seed then reads.
+  const base = [obstacle("o", climb, { length: 30, odd: 1 })];
+  eq(paramsOf(run(base, "o", climb, { field: "length", value: "45" }).list, "o"), { length: 45, odd: 1 }, "a figure is stored as the reader returns it, and the keys beside it stay");
+  const blanked = paramsOf(run(base, "o", climb, { field: "length", value: "" }).list, "o");
+  ok(!("length" in blanked) && blanked.odd === 1, "a blank figure removes its key (absent, not undefined) and nothing else");
+  ok(!("length" in paramsOf(run(base, "o", climb, { field: "length", value: "0" }).list, "o")), "a figure the crossing refuses removes its key, as the panel's own save does");
+  ok(!("length" in paramsOf(run(base, "o", climb, { field: "length", value: null }).list, "o")), "so does a missing value");
+  eq(run(base, "o", climb, { field: "length", value: "45" }).edits, [{ id: "o", patch: { params: { length: 45 } } }], "the edit names only the key it changes");
+  eq(seedOf(run(base, "o", climb, { field: "length", value: "45" }).list), { length: 45 }, "a written figure round-trips through the seed");
+  eq(seedOf(run(base, "o", climb, { field: "length", value: "" }).list), {}, "a cleared figure seeds nothing, so the panel's default stands");
+
+  const sq = [obstacle("q", "squeeze")];
+  const shaped = run(sq, "q", "squeeze", { field: "shape", value: "squeeze" }).list;
+  eq(seedOf(shaped), { shape: "squeeze" }, "a written shape round-trips through the seed");
+  ok(!("shape" in paramsOf(run(shaped, "q", "squeeze", { field: "shape", value: "" }).list, "q")), "a blank shape removes the key");
+  eq(run(sq, "q", "squeeze", { field: "shape", value: "wide" }).refusal, KEYING_REFUSAL.FIELD, "a shape the seed would not take is refused");
+  eq(run(sq, "q", "squeeze", { field: "shape", value: "wide" }).edits, [], "and writes nothing");
+
+  const sw = [obstacle("w", "swim")];
+  eq(seedOf(run(sw, "w", "swim", { field: "penaltyPick", value: "7" }).list), { penaltyPick: "7" }, "a written step round-trips through the seed");
+  eq(run(sw, "w", "swim", { field: "penaltyPick", value: "9" }).refusal, KEYING_REFUSAL.FIELD, "a pick that is no imported step is refused");
+  eq(run(sw, "w", "swim", { field: "penaltyPick", value: "7" }, null).refusal, KEYING_REFUSAL.FIELD, "a step is refused once no step is imported");
+  eq(run(sw, "w", "swim", { field: "penaltyLarger", value: "4" }).refusal, KEYING_REFUSAL.FIELD, "a larger figure is refused while the pick is not larger");
+  const onLarger = run(sw, "w", "swim", { field: "penaltyPick", value: "larger" }).list;
+  eq(seedOf(onLarger), { penaltyPick: "larger" }, "larger alone seeds the pick and no figure");
+  const sized = run(onLarger, "w", "swim", { field: "penaltyLarger", value: "12" }).list;
+  eq(seedOf(sized), { penaltyPick: "larger", penaltyLarger: 12 }, "a larger figure round-trips through the seed");
+  const left = paramsOf(run(sized, "w", "swim", { field: "penaltyPick", value: "none" }).list, "w");
+  eq(left, { penaltyPick: "none" }, "leaving larger removes the larger figure in the same write");
+  ok(!("penaltyLarger" in left), "and the key is absent");
+  const unset = paramsOf(run(sized, "w", "swim", { field: "penaltyPick", value: "" }).list, "w");
+  ok(!("penaltyPick" in unset) && !("penaltyLarger" in unset), "a blank pick removes the pick and the larger figure, both absent");
+  const noFigure = paramsOf(run(sized, "w", "swim", { field: "penaltyLarger", value: "" }).list, "w");
+  ok(!("penaltyLarger" in noFigure) && noFigure.penaltyPick === "larger", "a blank larger figure removes only itself");
+
+  // Refusals.
+  eq(run(base, "o", climb, { field: "gap", value: "5" }).refusal, KEYING_REFUSAL.FIELD, "a key the kind does not offer is refused");
+  eq(run(sw, "w", "swim", { field: "movement", value: "running" }).refusal, KEYING_REFUSAL.FIELD, "movement is never carried");
+  eq(run(sw, "w", "swim", { field: "judgeMod", value: "2" }).refusal, KEYING_REFUSAL.FIELD, "the Judge's modifier is never carried");
+  eq(run(sw, "w", "swim", { field: "depth", value: "5" }).refusal, KEYING_REFUSAL.FIELD, "a swim has no depth");
+  eq(run(base, "o", null, { field: "length", value: "5" }).refusal, KEYING_REFUSAL.FIELD, "a thing whose hazard did not resolve is refused");
+  eq(run(base, "zz", climb, { field: "length", value: "5" }).refusal, KEYING_REFUSAL.GONE, "a thing the place no longer holds is refused as gone");
+  eq(run([thing({ id: "x", kind: "fixture", ref: `ref:${climb}` })], "x", climb, { field: "length", value: "5" }).refusal, KEYING_REFUSAL.FIELD, "a thing that is no obstacle is refused");
+}
+
+console.log(`test-scene-keying: OK (${checks} checks — the lib op over the authored half and its params merge, each rail field's write, the dealt-lot guard, behind a clue and its loop guard, the rail's model and the Things here tab's lists, the Crossing fieldset's offer, reads and writes)`);

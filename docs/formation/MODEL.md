@@ -1146,8 +1146,8 @@ The `acks-extras.hazard` Item sub-type (`HAZARD_ITEM_TYPE`,
   the labels localize when a sheet renders; it may be blank, a hazard not yet
   chosen, which no kind accepts.
 - **No figures.** Length, gap and depth belong to a place's own thing (its
-  `params`), so one Hazard serves places of different sizes. No window edits
-  `params` yet: the thing is written whole through lib's place-things API.
+  `params`), so one Hazard serves places of different sizes. Scene search's keying rail edits
+  them (`docs/scene-search/MODEL.md`, "The Crossing fieldset").
 - **The keys** are `hazard-keys.mjs`, which holds no Foundry global so the pack
   builder reads it under Node. Nine obstacle keys: the climb obstacles in
   `OBSTACLES` order, then `jump`, `swim` and `squeeze`. Six condition keys:

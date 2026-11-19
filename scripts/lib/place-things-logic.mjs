@@ -215,13 +215,16 @@ function mergeAuthored(base, patch) {
  * (`LAYER_NAMES`), each a patch merged over the stored layer key by key
  * (`null` removes a key, a plain object merges one level down, an array
  * replaces the stored one) or `null` to remove the layer. A layer left with no
- * keys is removed. `state`, `params`, `ref`, `point` and `kind` are never
+ * keys is removed. `patch.params` is merged over the stored `params` the same
+ * way: a key it names is replaced, `null` removes it, and a key it does not
+ * name stays, so one figure is written without the registrant's other keys
+ * being read or rewritten. `state`, `ref`, `point` and `kind` are never
  * written here, and a layer key the patch does not name stays as stored, so a
  * caller holding an overlaid view (a feature's runtime keys laid over the
  * authored layer) writes only the keys it names.
  *
  * @param {object[]} list
- * @param {Array<{id: string, patch: {hidden?: boolean, hint?: string|null, layers?: object}}>} edits
+ * @param {Array<{id: string, patch: {hidden?: boolean, hint?: string|null, layers?: object, params?: object}}>} edits
  * @param {object} [options] see `normalizeThing`
  */
 export function reviseThings(list, edits, options = {}) {
@@ -233,6 +236,7 @@ export function reviseThings(list, edits, options = {}) {
     const next = { ...thing, layers: { ...thing.layers } };
     if (typeof patch.hidden === "boolean") next.hidden = patch.hidden;
     if (patch.hint === null || typeof patch.hint === "string") next.hint = (patch.hint ?? "").trim() || null;
+    if (isPlain(patch.params)) next.params = mergeAuthored(next.params, patch.params);
     for (const name of LAYER_NAMES) {
       if (!isPlain(patch.layers) || !(name in patch.layers) || patch.layers[name] === undefined) continue;
       const merged = patch.layers[name] === null ? null : mergeAuthored(next.layers[name], patch.layers[name]);
