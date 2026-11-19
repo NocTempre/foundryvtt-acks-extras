@@ -271,6 +271,26 @@ Three properties make it safe, and each is load-bearing:
 module dresses surfaces that are not application roots at all, namely core's chat
 cards and every window header in the client.
 
+**`core` hands the capitals back, and every label's case is a token.** Each label
+that sets capitals writes `text-transform: var(--acks-caps)`; `tokens.css` sets the
+token to `uppercase` and the `core` block sets it to `none`, so the label reads as
+its lang string is written. Three seams carry the rest of the lettering, each
+declared only in the `core` block: `--acks-caps-font` (Foundry's body face,
+`--font-sans`), `--acks-caps-weight` (the medium weight) and `--acks-caps-tracking`
+(zero). A capitals rule reads `font-family: var(--acks-caps-font, <its own face>)`,
+and likewise for its weight and for a letter-spacing it hard-codes in `em`. Under
+`book` the seam is undefined, so the fallback, the rule's own value, is the one
+that applies; replacing each seam read with its fallback and the token with
+`uppercase` returns the stylesheet to the text it had before. A rule that sets no
+face, weight or tracking of its own has no seam for that property and inherits as
+it always did, and a rule whose face is already `--acks-font-ui` or
+`--acks-font-body` needs none, since the block re-points those at the same body
+face. These seams are the one place the stylesheets read a token with a fallback,
+because the missing token is what selects `book`. A literal
+`text-transform: uppercase` in `styles/` or `vendor/acks-design/` fails
+`validate` (§ 8h), and `/* caps-ok: <reason> */` declares a capital that must stay
+in both looks.
+
 **`core` is the system's own look, not a neutral Foundry.** The `acks` system
 paints every window header from its own *unscoped* `.window-header` and
 `.application .window-header` rules, and its dialogs hardcode their own

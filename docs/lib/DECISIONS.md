@@ -947,3 +947,44 @@ read a type from the classifier's row. The roll dealt it untyped all along, so
 the figure was never the roll's; the blank is the truth, and the remedy is the
 sheet's Damage Type select or the writer above. A weapon a world already holds
 with only a flag loses its shown type.
+
+## 2026-11-19 — System style hands the capitals back
+
+T-0666. Under System style (the client `look` set to `core`) this module's labels
+drew in capitals, in Foundry's condensed display face, tracked: the colours and
+faces had been handed back and the lettering had not. The owner, on the "System
+style capitals" design board: "A+ (recommended)". Option A+ on that board is the
+caps token plus the label face set to Foundry's body face in System style, as the
+system's own sheets draw their labels. Book style is unchanged by every option.
+
+**Ruled.** Every label's case is a token, `--acks-caps`: `uppercase` in
+`tokens.css`, `none` in the `core` block of `foundry.css`. The text reads as its
+lang string is written ("Saving throws"), in the body face (`--font-sans`) at the
+medium weight. The face, the weight and a hard-coded tracking are seams
+(`--acks-caps-font`, `--acks-caps-weight`, `--acks-caps-tracking`) that only the
+`core` block defines, and each capitals rule reads one with its own value as the
+fallback, so Book style computes what it did before. Checked offline by
+substituting each fallback and the literal back into the 126 converted rules and
+comparing with the stylesheets as they stood: identical. `validate` § 8h holds the
+line (a literal uppercase fails; `/* caps-ok: <reason> */` is the escape).
+
+**Exception to "read bare".** The 2026-08-01 ruling "One token publisher" has
+consumers read tokens bare, so a missing one reveals itself. The three seams are
+read with a fallback on purpose: an undefined seam is how Book style is selected,
+and a bare read would drop the declaration under it.
+
+**Rejected.**
+- **A, casing only, display face kept.** The capitals go and the condensed display
+  face stays: a label in the display face at sentence case is neither the system's
+  look nor the books', and no host sheet draws one.
+- **Per-rule `[data-acks-look="core"]` overrides.** About 126 selectors repeated
+  with a second copy of each rule's specificity, drifting from the rule they
+  override; the seam keeps each label's rule in one place.
+
+**What it cost.** The strongest counter, *moderate*: without the display face a
+label stands out from its values by weight and colour alone, where the capitals
+and the face did the work before. The medium weight and the spot-colour token (the
+host's emphatic text) carry it, and a Judge who wants the distinction back has
+Book style. A rule that sets no face of its own inherits its parent's under both
+looks, so a label whose face comes from another rule can still read in a display
+face until it is walked live.

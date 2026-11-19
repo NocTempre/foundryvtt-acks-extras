@@ -483,7 +483,8 @@ client `look` back to `world`.
 
    Observable: `data-acks-look="core"` on `<html>`, no `.application.acks-ui`
    root, a `body` without `acks-lib-sheet-theme`, every text element in a host
-   face (Signika, or Foundry's own display faces on this module's sheets), and
+   face (Signika, or Foundry's own display faces on the names and figures of this
+   module's sheets; its labels are read in step 7), and
    Foundry's own backgrounds in both schemes. The window headers stay
    burgundy: the `acks` system's stylesheet paints every `.window-header`,
    core's windows included.
@@ -491,6 +492,31 @@ client `look` back to `world`.
    Mechanic: `core.uiConfig`'s change handler reaches the hotbar, so once
    `compose()` has closed it, render `ui.hotbar` again before the set, or the
    set throws in `Hotbar._onResize`.
+7. **System style drops the capitals, and Book style keeps them.** On the Player
+   seat of step 6, with step 6's three fixtures open (this module's character
+   sheet and item sheet, and the follower card), read the computed
+   `text-transform`, `font-family`, `font-weight` and `letter-spacing` of every
+   visible text element in each, first with the client `look` at `core`, then at
+   `book`, with the windows rendered fresh after each change. List the elements
+   by `querySelectorAll` over the window root, keep those that have a text node
+   of their own, and group the readings by selector.
+   **Observable:**
+   - Under `core`, `text-transform` reads `none` on every element, with no
+     exception; the label elements (the sheet's field and section labels, chips,
+     tab captions, the card's key labels) read Foundry's body face, a
+     `font-weight` of 600 and a `letter-spacing` of `normal` or `0px`.
+   - Under `core`, an element whose capitals rule sets no `font-family` (a rule
+     with no `--acks-caps-font` read and a face other than `--acks-font-ui` or
+     `--acks-font-body`) is read for the face it inherits. A label that reads a display or banner face is a finding for the
+     triage ledger: it names a label whose face comes from a second rule.
+   - Under `book`, the same elements read as they did before the change:
+     `uppercase` on the label elements, their display, banner or UI face and
+     their weight, and the tracking each rule writes.
+   - The seams are undefined under `book` and defined under `core`:
+     `getComputedStyle(document.body).getPropertyValue("--acks-caps-font")` is
+     empty, then the body face, and `--acks-caps` reads `uppercase`, then `none`.
+
+   Teardown: the client `look` back to `world`.
 
 ## A combatant whose actor was deleted
 

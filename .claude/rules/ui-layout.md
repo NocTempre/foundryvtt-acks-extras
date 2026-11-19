@@ -42,7 +42,7 @@ contract, which is why the gate holds a dialog to naming its classes.
 
 ## What the gate enforces
 
-`tools/validate.mjs` §8 fails the build on the seven halves that are decidable
+`tools/validate.mjs` §8 fails the build on the eight halves that are decidable
 from source. Read that section for the mechanics; they are not restated here.
 
 - **Scroll-contract membership** — a window whose `classes` array omits
@@ -77,11 +77,17 @@ from source. Read that section for the mechanics; they are not restated here.
   the test passes that window by, or takes a `<form>`'s first control for the
   root, and a listener guarded by it drops every event. An element is told by
   `nodeType === 1` and a control by `matches`.
+- **A literal capital** — `text-transform: uppercase` in `styles/` or
+  `vendor/acks-design/`. System style sets the `--acks-caps` token to `none` so
+  labels read as written in the body face, and a literal holds capitals in both
+  looks. A label reads `var(--acks-caps)`. Opt-in per repo, on a declared
+  `--acks-caps`.
 
 Each escape is declared on the spot, and they are deliberate and cheap: a
 window outside the scroll contract writes `// no-scroll: <reason>` on or just
 above its `classes:` line, a size that must not move writes
-`/* px-ok: <reason> */` beside itself, the three template checks answer to
+`/* px-ok: <reason> */` beside itself, a capital that must stay in both looks
+writes `/* caps-ok: <reason> */` on or just above its declaration, the three template checks answer to
 `{{!-- summary-ok: <reason> --}}`, `{{!-- label-ok: <reason> --}}` and
 `{{!-- id-ok: <reason> --}}` on or just above the offending line, and a node
 only the window the script runs in can have built writes
