@@ -197,10 +197,44 @@ it covers; a section no walk names is walked by hand.
    Raise `rollTarget` above 20 and repeat on a rebuilt trap: **no card at all**
    (the sweep is silent on failure), `searchLock` records the actor at their
    level, and a second pass rolls nothing.
-8. Trapbreaking dialog: `traps.openTrapbreakApp(formationId)`, then click
-   `[data-action="attempt"]` and answer the disarm/discharge dialog.
-   *Observable:* the target list holds only traps within 5' with `known: true`;
-   the whispered card itemises the throw; the placement takes the chosen state.
+8. **Trapbreaking dialog (U1t).** `traps.openTrapbreakApp(formationId, actorId)`
+   (the sheet's Dungeon tab → Trapbreaking opens it for the seat's first
+   character). Fixtures: a party on a scene with a trapped wall and a Region
+   linked to a place that holds a trap thing; a thief (Trapbreaking skill and
+   thieves' tools) and a fighter with no tools, both members; the Player seat
+   owning the fighter. Drive the window as the capture driver's seats do; read
+   what the window shows, then press.
+   - *Judge seat, warned.* Open for the fighter, a trap found. *Observable:* a
+     warning chip names the missing tools and ends "As Judge you may proceed.";
+     Work on it is enabled; pressing it throws and the card posts. Mark the
+     trap disarmed first: the chip becomes a refusal and Work on it is disabled.
+     An unfound trap is listed dashed with "not found" and disables Work on it.
+   - *Player seat, blocked.* Open as the Player for the fighter. *Observable:*
+     the same refusal reads on the window beside a disabled Work on it, with no
+     toast needed; the target list holds only found traps and no Judge modifier
+     field is drawn. Give the fighter tools through the sheet while the window
+     is open: it redraws and Work on it enables with nothing pressed.
+   - *Two windows.* Open for the thief, then for the fighter, then the thief
+     again. *Observable:* two windows, the second opening of the thief fronts
+     the first; each title bar reads "Trapbreaking · <party> · <character>".
+     Pick the fighter in the thief's Character select: that window closes and
+     the fighter's is fronted.
+   - *The redraw.* With a window open, Rebuild it, then Mark spotted, then
+     delete the trap thing from the place. *Observable:* the list and the state
+     follow each write with no press.
+   - *The figures.* Hover Needs, a part, and the Reach. *Observable:* Needs
+     names the character's throw, each part and the page it cites, the Judge
+     modifier, and the die's floor and its page when the throws table is
+     imported; the Reach names its page. Unregister the throws document: the
+     floor term is gone. Delete the character's Adventuring figure and skill:
+     Needs reads "—" and its tooltip is the page alone; with no reach imported
+     the Reach reads "—" with the page.
+   - *The footer.* Shrink the window to about 300 px high. *Observable:* the
+     body scrolls and Re-arm and Work on it stay in view; Re-arm is enabled
+     only on a disarmed trap. Raise the type size: the width follows it.
+   - *Throw and question.* Work on it beats the trap; the question reads "The
+     trap is beaten" with Leave disarmed and Discharge on the thrower's own
+     seat, and closing it leaves the trap disarmed.
 9. The party token's size is walked in "The column and its lights" (steps 1
    and 8), which replaces the face-width check this step held.
 10. Environment sweep under a burst delete: build a party actor, 3 members and
@@ -5491,10 +5525,10 @@ Teardown for H7 and H8: arm a `createItem` hook as an OBSERVER only, `api.track`
 | Step | Do | Observable |
 |---|---|---|
 | P1 | Move the party into the Region while the thing is armed and hidden | The trap goes off on its own card; the party is not pulled back (a thing halts nothing); the entry card still posts; the thing reads discharged and no longer hidden |
-| P2 | Open Trapbreaking as GM | The thing is listed as "A trap area", spent, with its distance |
+| P2 | Open Trapbreaking as GM | The thing is listed as "Trap · <the place's name>", spent, with its distance |
 | P3 | Press Rebuild it on it | The thing is armed and hidden again |
 | P4 | Press Mark found | It is found and no longer hidden |
-| P5 | Give the working member Thieves' tools and rig the die to a made throw; press Work on it | A "Disarm it, or set it off?" dialog opens and the script waits on it: answer it. Disarm writes `disarmed` |
+| P5 | Give the working member Thieves' tools and rig the die to a made throw; press Work on it | A "The trap is beaten" dialog opens on the thrower's seat: answer it (Leave disarmed writes `disarmed`, Discharge writes `discharged`) |
 | P6 | Press rearm with an unskilled member working it | Refused with the skill reason; a skilled member is needed for a rearm to succeed, and a successful rearm needs its own step |
 | P7 | Open Trapbreaking as the Player seat | The known thing is listed |
 | P8 | Call `linkRegion(region2, place)` on the place another Region already names | The first Region resolves to no place; the thing is measured through the second Region |

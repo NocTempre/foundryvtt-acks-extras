@@ -54,7 +54,7 @@ All paths are under `scripts/formation/` unless noted.
 | `trap-zone.mjs` | `acks-extras.trapZone` RegionBehavior subtype, the placement abstraction over regions and walls, the crossing sequence, firing, and the Trapbreaking throws. |
 | `trap-walls.mjs` | The trap layer on a wall, the Walls-layer tools, chaining selected walls into a region outline, path-crossing geometry, and drag-to-assign. |
 | `trap-markers.mjs` | Canvas markers showing each trap's state, staged: a Judge sees every trap, a player only what the party has found. |
-| `trapbreak-app.mjs` | The Trapbreaking dialog — who, which trap, which column — open to Judges and to players whose character can make the throw. |
+| `trapbreak-app.mjs` | The Trapbreaking dialog — one window per party and character; who, which trap, which mode — open to Judges and to players whose character can make the throw. |
 | `data/trap-data.mjs`, `trap-sheet.mjs` | The `acks-extras.trap` Item subtype holding a trap's definition, and its sheet. |
 | `data/hazard-data.mjs`, `hazard-sheet.mjs`, `hazard-keys.mjs`, `hazard-logic.mjs` | The `acks-extras.hazard` Item subtype (§Obstacles and conditions on a place): its data model and sheet, the key list every reader shares, and `crossingSeed`. |
 | `hazard-things.mjs`, `region-place-row.mjs`, `region-place-logic.mjs` | The `trap`, `obstacle` and `condition` kinds registered into lib's place things, and the Place row on core's Region window with the map drop. |
@@ -1145,6 +1145,39 @@ in reach, with a control to mark one spotted for a discovery made some other way
 than a throw. Players open the same dialog from the party sheet whenever one of
 their characters could actually make the throw, and their attempt is declared to
 the Judge's client the way every other player action is.
+
+**The Trapbreaking dialog.** One window stands per party and character
+(`trapbreakWindowId`); a second opening of the pair fronts it, and choosing
+another character in the form hands the choice to that character's window. The
+title bar names the party and the character. The window draws again, debounced,
+on a write to a wall, a region or its behavior, the party token or the party
+record, the place's flags, or the member's record, items and effects, and takes
+those hooks off when it closes. The body scrolls and the footer (Re-arm beside
+Work on it) is a part of its own; the width is the canvas width scaled to the
+type size.
+
+- **Seats.** `disarmGate(placement, actor, mode, {judge})` is the one gate, read
+  by the dialog and enforced by `attemptDisarm`. A player is blocked by the
+  first of `disarmRefusals`, and the window shows the reason. A Judge (`judge`
+  is the declaring user's, `judgeDeclares()` in the dialog, never `game.user.isGM`
+  inside the throw, which a player's relayed request reaches on a GM client) is
+  warned of `SOFT_REFUSALS` (no thieves' tools, hasty without the skill, a failed
+  hasty try at this level) and blocked by the rest. A turn plan entry a GM locked
+  resolves with `judge`; the player's request path never sets it. Ruling:
+  "2026-11-19 — The Trapbreaking dialog is one window per party and character".
+- **The figure.** Needs is the character's throw less the Judge's modifier,
+  never below `dieFloor()` (the general automatic-failure rule, `lib/throws`), and
+  lowered to the automatic-success face for a skilled thrower; with nothing
+  imported the target alone decides. It is blank, its tooltip the page alone,
+  where the throw is unread. Each part keeps the page it cites. The Judge's
+  modifier is shown and used on the Judge's seat only, and a player's request
+  carries none.
+- **The reach and the list.** The reach shows its imported figure with the page
+  it was read from, else blank with the page alone; with none imported a trap
+  lists as touching. A trap thing lists as "Trap · <its place>", a wall as "Wall
+  trap", a zone as "Trap area"; a Judge also sees the unfound ones, marked.
+- **The state line.** The character's own failed hasty try at this trap (the
+  level it failed at), or that there is none; the page is in its tooltip.
 
 ## Obstacles and conditions on a place
 

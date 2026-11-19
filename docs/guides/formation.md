@@ -939,10 +939,16 @@ caught, and what it dealt.*
 
 ### Getting past one
 
-Press **Trapbreaking** at the head of the party sheet's Order tab. It asks three
-questions — who is working on it (**Character**), **Which trap**, and by which
-**Column** — and shows you the throw (what it **Needs**, with each part of the
-figure listed) before anyone spends the time.
+Press **Trapbreaking** at the head of the party sheet's Dungeon tab (party sheet →
+Dungeon tab → Trapbreaking). A window opens for one character of one party; its
+title bar names both. It asks three questions — who is working on it
+(**Character**), **Which trap**, and by which **Mode** — and shows you the throw
+(what it **Needs**, with each part of the figure listed) before anyone spends
+the time. Every figure hovers where it came from, with the page. A second
+character, or a second party, has a window of its own; pressing Trapbreaking
+again for the same character brings that window forward, and picking another
+character in the **Character** select hands the choice to that character's
+window. The window redraws when the trap, the party or the character changes.
 
 ![](../releases/v4.12.0/formation-trapbreaking.png)
 
@@ -960,8 +966,8 @@ dialog whenever one of their characters could actually make the throw, and their
 attempt is declared to you the way every other party action is.
 
 A character with thieves' tools can work on a trap the party is standing at. The
-**Column** select offers two, and the dialog shows each one's time, bonus and
-retry limit before you throw (RR p. 267):
+**Mode** select offers two, and each one's time, bonus and retry limit is on the
+page its tooltip names (RR p. 267):
 
 - **Hasty Trapbreaking** — the Trapbreaking skill only. A low enough unmodified
   roll sets it off, and the module refuses that character another hasty try at
@@ -971,11 +977,22 @@ retry limit before you throw (RR p. 267):
   low an unmodified roll must be to set the trap off, and the size of the
   bonus, are figures imported from your book for each column.
 
-**Work on it** makes the throw. Beat it and you choose: **Disarm it**, which
-leaves it re-armable, or **Discharge it** deliberately, which spends it. The
-choice opens on the thrower's own screen, so a player's attempt asks that
-player, and the trap is already disarmed while the choice is open. A
-disarmed trap can be re-armed later with **Re-arm it**, on a Trapbreaking throw.
+**Work on it** makes the throw. Beat it and the question "The trap is beaten"
+opens: **Leave disarmed**, which leaves it re-armable, or **Discharge**, which
+sets it off and spends it. The choice opens on the thrower's own screen, so a
+player's attempt asks that player; the trap is already disarmed while the
+question is open, and closing it, or the player being away, leaves it so. A
+disarmed trap can be re-armed later with **Re-arm**, beside **Work on it** at
+the foot of the window, on a Trapbreaking throw.
+
+As Judge you are warned where a player is blocked: a character with no thieves'
+tools, or with a failed hasty try recorded at this level, shows a warning and
+**Work on it** stays enabled, and the **Judge's modifier** you type rides your
+throw. A trap nobody found, one already disarmed or spent, and a character with
+no Trapbreaking throw at all leave nothing to roll, so **Work on it** is
+disabled for you too. A player sees the reason beside a disabled **Work on it**,
+and has no modifier to type. A trap on a place lists as "Trap · " and the
+place's name, a trapped wall as "Wall trap" and a trap region as "Trap area".
 
 **Crudely built** on the trap item marks it crude, and the module applies the
 crude adjustments to finding it, removing it, saving against it and its attack
