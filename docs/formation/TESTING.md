@@ -202,7 +202,12 @@ it covers; a section no walk names is walked by hand.
    character). Fixtures: a party on a scene with a trapped wall and a Region
    linked to a place that holds a trap thing; a thief (Trapbreaking skill and
    thieves' tools) and a fighter with no tools, both members; the Player seat
-   owning the fighter. Drive the window as the capture driver's seats do; read
+   owning the fighter. Markers (`flags.world.fixture`, built with
+   `api.fixture` when nothing carries one): `formation/trapbreak-scene`,
+   `formation/trapbreak-party`, `formation/trapbreak-wall`,
+   `formation/trapbreak-place`, `formation/trapbreak-thief`,
+   `formation/trapbreak-fighter`; the trap thing is found through its place.
+   Drive the window as the capture driver's seats do; read
    what the window shows, then press.
    - *Judge seat, warned.* Open for the fighter, a trap found. *Observable:* a
      warning chip names the missing tools and ends "As Judge you may proceed.";

@@ -374,9 +374,9 @@ await ok("the reach is blank with the page alone until imported; imported, it ho
   assert.equal(ctx.targets[0].distance, "ACKS-FORMATION.traps.breakTouching");
   T.registerTable({ id: "formation", source: { pages: "ZZ p. 9" }, tables: { trapbreakReachFeet: 30 } }, { priority: T.PRIORITY.WORLD });
   ({ ctx } = await ctxOf("Alder"));
-  assert.equal(ctx.reachText, "30 ft");
+  assert.equal(ctx.reachText, `ACKS-FORMATION.traps.feet ${JSON.stringify({ feet: 30 })}`);
   assert.match(ctx.reachTip, /tipReach.*ZZ p\. 9/);
-  assert.equal(ctx.targets[0].distance, "0 ft");
+  assert.equal(ctx.targets[0].distance, `ACKS-FORMATION.traps.feet ${JSON.stringify({ feet: 0 })}`);
 });
 
 await ok("a trap thing lists by its place's name, a wall by its kind; an unfound target is marked for the Judge and not listed for a player", async () => {

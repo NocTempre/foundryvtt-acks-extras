@@ -295,7 +295,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
         label: targetLabel(p),
         state: game.i18n.localize(`${LANG_PREFIX}.state.${p.state === STATES.armed && p.known ? STATES.found : p.state}`),
         known: p.known,
-        distance: reachImported ? `${Math.round(p.distanceFeet)} ft` : loc("breakTouching"),
+        distance: reachImported ? loc("feet", { feet: Math.round(p.distanceFeet) }) : loc("breakTouching"),
       })),
       chosen: chosen ? { uuid: chosen.uuid, known: chosen.known, disarmed: chosen.state === STATES.disarmed } : null,
       mode,
@@ -315,7 +315,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       canAttempt: !!actor && !!chosen && !gate.block,
       canRearm: !!actor && chosen?.state === STATES.disarmed,
       showRearm: isGM || chosen?.state === STATES.disarmed,
-      reachText: reachImported ? `${reachFeet} ft` : "—",
+      reachText: reachImported ? loc("feet", { feet: reachFeet }) : "—",
       reachTip: reachImported ? loc("tipReach", { page: citeOf(FORMATION_DOC, "trapbreakReachFeet") ?? page }) : page,
       reachImported,
     };
