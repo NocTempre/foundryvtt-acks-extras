@@ -161,9 +161,9 @@ variation of your own can stand in
 
 | Choice | Means |
 |---|---|
-| *Auto (…)* | read it off the weapon table and the name — a weapon already listed or named as silver is silver, and costs nothing extra |
-| *Silvered* | plate this weapon now, at the silvering's price figure |
-| *Not silvered* | it is not silver whatever it is called |
+| *Auto (…)* | leave the weapon as its Silver quality (Details tab) already has it, and take back any plating charge; the bracket says what that is. A weapon is silver by that quality alone, never by its name |
+| *Silvered* | plate this weapon now, at the silvering's price figure, and mark it silver |
+| *Not silvered* | take the silver mark off and take back any plating charge, whatever the weapon is called |
 
 ![](../releases/v3.3.0/equipment-item-sheet.png)
 

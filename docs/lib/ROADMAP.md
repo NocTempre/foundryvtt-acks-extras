@@ -135,8 +135,9 @@ built:
   Judge's cue.
 - **Effect and condition bands.** A band's `effects` and `conditions` act on
   the grant path, not on damage, and are not read here.
-- **A silvered weapon in Equipment's sense.** Only core's `special.silver`
-  meets a silver flaw; a plating the Equipment feature records is not read.
+- **A silvered stack of ammunition.** Only core's `special.silver` meets a
+  silver flaw, and ammunition has none; the work is in
+  `docs/equipment/ROADMAP.md`, "Silver ammunition reaches the attack stamp".
 
 ## Who carries `acks`, and whether that is deliberate
 

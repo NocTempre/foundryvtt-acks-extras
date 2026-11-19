@@ -189,9 +189,10 @@ damage to a silver-flawed monster, and the sheet would say otherwise.
 silver until Silvered is picked again; it was never silver to lib's stage. The
 owner rules no migration ("no tools for previous-version data"). A weapon
 named for silver is not silver until the field is ticked (the sheet's Silver
-quality chip or the control). A grep of `scripts/` finds no write of
-`system.special.silver`, so an imported Silver Dagger may not be silver either
-until then; that is reported to the owner, not decided here. Not silvered reads back as
+quality chip or the control). The importer lights a system special for every
+word of a weapon row's Special cell that names one (`settleQualities`), so an
+imported weapon whose printed cell says silver carries the field; whether a
+given row's cell does is the Judge's book, not read here. Not silvered reads back as
 Auto, since the flag is unset. A weapon whose chip is cleared while the
 plating flag is still true reads as Silvered in the control while not silver:
 the flag is the price's, and the chip is the field's.
