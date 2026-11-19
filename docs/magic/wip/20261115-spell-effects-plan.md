@@ -4175,6 +4175,17 @@ board 24 A), and R (board 21). Owner question:
   automatically, or keep Q1-c's card with a GM's Dismiss? Default: Q1-c
   stands.
 
+**Owner's answers (2026-11-19, relayed by the orchestrator, verbatim):**
+- Board 24: "Approve (Recommended)". Z and C are built from it.
+- 1d.9: "Remove automatically". At a timed end, a `gone` summons is removed
+  by the module, by the summons' own recorded token ids and never by name
+  or type, and no Dismiss card is posted for that case. `stays` and
+  `hostile` keep their card. This amends ruling 169: `controlEnd` applies
+  at both ends. The 2026-11-11 entry that rejected an automatic delete at
+  expiry is marked SUPERSEDED IN PART in DECISIONS, with the owner's words,
+  in slice C. The delete path gets its own walk step: the tokens are gone
+  and nothing else is touched.
+
 ### Start prompt, session 1d-B
 
 > Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
