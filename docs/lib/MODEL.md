@@ -2099,6 +2099,13 @@ extraordinary, silver}`. A card whose figure or target cannot be read is left
 untouched and keeps the system's button. `attack-apply.mjs` draws the press
 that replaces it ("Damage against defenses").
 
+**Which speaker a card belongs to.** Both matchers take the speaker's uuids in
+order (`speakerActorUuids`): the speaker actor's own uuid, then its base actor's
+when it is an unlinked token's synthetic actor. An attack made from a world
+actor's sheet is held under the world actor. Core names no token on its card,
+so Foundry speaks as one of that actor's tokens on the viewed scene, and the
+card is matched under the base actor.
+
 **The label.** The system has no label for the kind; at ready the seam copies
 `ACKS-LIB.attack.type.magic` into the translations at the system's own key,
 unless the system has one. Ruling: DECISIONS, "A spell's damage is a fourth
