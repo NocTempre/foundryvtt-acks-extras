@@ -198,3 +198,5 @@ S8 status (2026-11-19): the Journal's 158 magic items are registered (`register/
 - The owner ruled that a taken-over item stays in the Judge's pack under its uuid (DECISIONS 2026-11-19). Walk steps 8 and 11 now expect that.
 
 Next: the treasure-art seam (B1-B6 and the texture crops), then the MM harvest (H1-H4).
+
+Art seam status (2026-11-19), on `topic/importer-books`, not landed: B1 96a63118 (lib `treasureArt`, `tools/test-book-art.mjs` 23), B4 ce6d6ac9 (the "Book art" step, chain at 23 steps), B3 66b249b8 (the Tome's 2 backs and 15 faces, the grime and foil crops and the Journal's two, `census-art.mjs` 215 candidates, `check-book-art.mjs` 21 rows sound), B2 03f1e77d (`placedPicture` and `uploadBookPicture`; the Node probe found 23 pictures with one object fetch each, 24 ms to 1.0 s a page). B5 writes the MODEL section, two DECISIONS entries, the TESTING walk and the ROADMAP rows. What remains: B6, the GM walk on lane C (no `tools/live/` walk yet), with first-run and re-run times and the journal projection confirmed; then the treasure card wires its reader to `treasureArt` and walks the Player half.

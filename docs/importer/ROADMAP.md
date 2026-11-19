@@ -1012,3 +1012,40 @@ declarations that carry a book's print facts without one are listed here:
 - The walk of the import on `main` (the "Magic item entries" recipe).
 - A magic item's rarity waits on the markets ruling; the cursed mark and the card
   link wait on their designs.
+
+## A book's pictures as world art: what is not built
+
+The step and lib's read are built (MODEL, "A book's pictures as world art").
+Not built:
+
+- **Pairing the pictures of each later S6 batch.** v1 rows the Tome's faces
+  on PDF 60-95 only. Each later batch pairs its own pages: census ordinals, a
+  reviewer's verdict (`census-art.mjs --verdict`), the `BOOK_ART` rows, a
+  refreshed cookbook stamp and a green `check-book-art.mjs`. PDF 96-128 holds
+  21 candidates, 9 of them soft-masked: the first rows to need alpha in the
+  client, so that batch walks one soft-masked picture on a card and checks
+  its transparent area stays transparent. PDF 129-288 holds 102.
+- **The label extension.** `label: {doc, table, row}` would key a face by a
+  table row's label (gem, jewelry and special results), resolved at import
+  from the stored WORLD document so the label never ships. No v1 picture
+  needs it; special faces wait on it.
+- **Backs per band.** v1's two backs are band null. `treasureArt` already
+  reads the pool at the band first (`backSteps`); only rows are missing.
+- **The picture as the magic item's own `img`.** The registry holds each
+  face's path, so `magicItemData` could write it. It changes every Tome item's
+  picture on sheets and inventories, and `REPAIR.magicItem` would need a
+  held-edit rule for `img`; it waits for the owner (DECISIONS 2026-11-19, "A
+  book picture is selected by its placement and verified by its size; one
+  `bookArt` table per book").
+- **More crops per kind.** v1 keeps one crop per lookup key (`lookupKey`), so
+  the rest of the survey's 10 texture regions stay out. Several per kind needs
+  a variant pick, in lib or on the card.
+- **Vignette from attributed open art.** Neither book prints a transparent
+  dark fade, so `treasureArt` answers null for `vignette`. An openly licensed
+  file referenced by path, its licence on the row (`licence`), is the
+  fallback the ruling names.
+- **`check-book-art.mjs` on `placementAt`.** The gate keeps its own
+  `placementsAt` with `BOX_SLACK`, the same 2 pt edge test as `extract.mjs`
+  `placementAt`, but returning every match so it can tell none from two.
+  Calling the shipped function (or one that shares its test) keeps the gate
+  and the import from drifting apart.

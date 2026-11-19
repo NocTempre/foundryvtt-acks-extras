@@ -1027,7 +1027,7 @@ board, which would widen the register lint for a single row.
 
 **Cost.** One ax1 entry added and one ax3 entry changed. No other book moves.
 
-## 2026-11-13 — A picture recipe names its picture by sample size, not by XObject name
+## 2026-11-13 — A picture recipe names its picture by sample size, not by XObject name — SUPERSEDED IN PART 2026-11-19
 
 Supersedes the first bullet of "A picture's text is read by an `ocr` field op
 over a per-page recipe, once per opened book" (same day) in one respect: what
@@ -2925,3 +2925,139 @@ server (N) · X stale · Y refused".
   the server, since Foundry deletes none.
 - Rejected: time and user on the pointer ("When and by whom"); a HEAD for every
   row when the tab opens.
+
+## 2026-11-19 — A book picture is selected by its placement and verified by its size; one `bookArt` table per book
+
+**Asked.** The treasure feature asked for a registry a card reads for its
+back, its face and its texture, filled from the Judge's own books. Its
+contract was agreed with four amendments, A1-A4 below. The Tome was surveyed
+for it on 2026-11-18: 215 candidate pictures by a page census, read through
+pdf.js on six pages.
+
+**Supersedes in part** "A picture recipe names its picture by sample size, not
+by XObject name" (2026-11-13), for book-art rows only. The `ocr` op keeps
+size-only selection. The entry is under 7 days old. The new evidence:
+
+- **Listing every picture costs the full object wait.** A page's pictures
+  listed through pdf.js took 51 s on each of PDF 41, 45, 106 and 257, and
+  20 s on 102 (measured 2026-11-18). On each slow page some objects never
+  arrived (5 of 9 on 41, 2 of 6 on 102), and each one cost the whole wait.
+  Size-only selection has to list every picture on the page to find the one
+  of its size.
+- **Pages 41, 45 and 46 each paint two candidates of one size.** That is the
+  case the 2026-11-13 entry's cost names, "until a recipe can tell them
+  apart, for example by placement".
+- **Selecting by placement is cheap and tells them apart.** B2's probe, under
+  Node on the live path: all 23 pictures it asked for (the four on PDF 41, the
+  two on 45 and the 17 recipe rows) were found with one object fetch each, and
+  the same-size pairs came back as distinct pictures. Pages took 24 ms to
+  1.0 s.
+
+**Ruled.**
+
+- **A picture row names its picture by placement, and its size verifies it.**
+  `{n, page, box, size, uses}`: `placementAt` keeps the one placement within
+  2 pt of `box` on every edge, `placedPicture` fetches only that object
+  (`pageObject`), and a decoded size other than `size` is refused as another
+  printing. The XObject name is read and used within one page's read and
+  never shipped or returned.
+- **One table per book in one `bookArt` registry document.** `bookArtDoc`
+  replaces the importing book's table and keeps every other book's; a book
+  not open, or a run that resolved nothing, leaves its table untouched. Lib's
+  `treasureArt` reads it synchronously.
+- **A1. Bands are 0-3.** `clampBand` and `bandsOf` (`treasure/pot-logic.mjs`)
+  give 0 to `BAND_COUNT - 1`. Lib matches band by equality and never
+  interprets it, so band 0 is a band and never null (`tools/test-book-art.mjs`
+  pins it), and the binding refuses a band outside `0..bandCount-1`
+  (`bookArtProblems`).
+- **A2. Every step that is not the kind step reads kind-null rows only**
+  (`backSteps`, `faceSteps`, `textureSteps`). Read literally, the contract's
+  last face step, `{pool}`, would answer with a row keyed to another item, and
+  a turned card would show the wrong item's picture.
+- **A3. The cite is on every row and in `cites`.** `bookArtRows` sets each
+  row's cite with `citeFor`, and `bookArtDoc` joins them into
+  `cites[<book>]`, so `citeOf("bookArt", <book>)` answers.
+- **A4. Two consumer obligations.** A back takes `shownPool`, never the true
+  pool, so an undetected magic card's back is its plain twin's (`cardView`).
+  A face takes the apparent identity: a masked face that is not yet public
+  passes no kind, so the item's true cookbook id never reaches the reader,
+  and the face falls back to the pool and band rows (`treasureArt` with a
+  null kind skips the kind step). An item's kind is the cookbook id
+  `magicItemData` stamps.
+- The treasure session accepted A1, A2 and A4 (2026-11-18), with A4 read as
+  above, and guards the same on its side.
+
+*Rejected:*
+
+- Size alone: the listing cost above, and it cannot read PDF 41, 45 or 46.
+- Shipping the XObject name: it moves with evaluation order (2026-11-13).
+- The page-render crop as the main extraction: it carries overlapping text
+  and frames. It stays as the fallback for a picture that does not decode.
+- The picture as the magic item's own `img`: it would change every Tome item
+  on sheets and inventories, and `REPAIR.magicItem` would need a held-edit
+  rule for `img`. It is a ROADMAP row.
+- Art on the register rows, compiled into `fields.art` (the monster path):
+  backs have no entry, every pairing edit becomes a cookbook recompile, and
+  the path ships a name and writes an `img`.
+- One flat row list across books: a re-import of one book would have to
+  filter out the others.
+- A world setting instead of the tables registry: the registry already gives
+  per-client mirroring, `onTablesChanged`, the audit page and the override
+  layer.
+- A subdirectory of the art directory: `artIndex` lists one directory, and the
+  stem's book prefix already groups the files.
+
+*Cost:*
+
+- The client path is unmeasured. The probe ran under Node; the saved-boxes
+  path was only simulated, since no parsed-book file holds Tome placements;
+  first-run and re-run times in a browser wait for the live walk.
+- The same-size pair on PDF 46 is from the page census alone. No recipe row
+  names it, and the probe did not read it.
+- A cache hit skips the box and size check, so a file cut from one printing
+  keeps serving after the Judge opens another.
+- `book-art.mjs` reaches the compiler through `books/index.mjs`, so every
+  recipe edit pays a cookbook drift recompile and a committed stamp.
+- A face is keyed by cookbook id, so an item moved to a new id loses its face
+  until the row follows. `check-book-art.mjs` fails on an id that is gone.
+- Each later Tome batch pairs its own pictures by a reviewer's verdict:
+  placement cannot pair a picture with its entry, since each of the 13
+  picture pages on PDF 60-95 holds 2-8 entries.
+
+## 2026-11-19 — A texture is a crop of the Judge's own page
+
+**Asked.** The treasure card dresses a card with grime, foil and vignette
+layers and draws only a texture the reader finds (`textureArt`,
+`treasure/card-art.mjs`). The owner's standing rule of 2026-11-18 is in
+`.claude/rules/ip-doctrine.md` ("Art: imported or attributed, never
+generated"). On texture crops the owner ruled, 2026-11-18: "You can use any
+part or whole of the images, they are not getting redistributed they are
+getting imported by the book owner".
+
+**Ruled.**
+
+- **A crop ships as a register row naming the page and the box, never as the
+  image.** `{n, page, crop: {x0, y0, x1, y1}, uses}`, numbered from 1001
+  outside the picture census, with texture uses only (`bookArtProblems`).
+  The image arrives at import, rendered through the scene crop machinery
+  (`uploadBookPicture`, `cropBox`).
+- **A crop stays above the purchaser stamp.** `cropProblems` refuses a crop
+  whose bottom edge passes `CROP_LIMITS.stampLine` (y1 ≤ 776), and
+  `check-book-art.mjs` holds the same against the page.
+- **One crop per lookup key in v1.** Of the survey's 10 texture rows, the Tome
+  keeps one grime and one foil, and the Journal one foil at band 3 and one
+  foil-magic; `lookupKey` refuses a second row on a key.
+- **Vignette stays on attributed open art.** Neither book prints a transparent
+  dark fade, so no recipe row is a vignette, and `treasureArt` answers null
+  for it.
+- **No generated art**, as the standing rule says: no procedural texture,
+  nothing drawn by the module.
+
+*Rejected:* shipping the cropped image (the importer ships no picture); a crop
+near the page foot (the purchaser's stamp would come with it); a variant pick
+among several crops per kind (one per key serves v1; a ROADMAP row).
+
+*Cost:* a texture shows only once a book that holds it is open and its art
+imported, so a world with neither the Tome nor the Journal shows none. A
+crop's stem names its page and edges, so moving a crop makes a new file and
+leaves the old one on disk.

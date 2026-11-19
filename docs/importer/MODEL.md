@@ -2859,3 +2859,138 @@ figure null. Layered and edited as any registry document: the Ruledata
 Browser's override layer replaces a whole table. The recipes' shape and the
 readers' parse of every field are held against the real book by
 `tools/importer/test-recipe-content.mjs` (no figure is asserted).
+
+## A book's pictures as world art
+
+The "Book art" step cuts pictures and page regions from the Judge's own copy
+into the world's art directory and writes the rows that name them into the
+`bookArt` registry document, which a treasure card reads through lib's
+`treasureArt` (`scripts/lib/book-art.mjs`). The ruling and what it supersedes:
+DECISIONS 2026-11-19, "A book picture is selected by its placement and
+verified by its size; one `bookArt` table per book"; the texture crops:
+DECISIONS 2026-11-19, "A texture is a crop of the Judge's own page".
+
+**The per-book recipe.** A book with art declares `BOOK_ART` in
+`books/<id>/book-art.mjs`, re-exported as `bookArt` by the folder's
+`index.mjs` and read through the manifest (`booksWithArt`,
+`book-art-binding.mjs`). The Tome's file holds 17 pictures and 2 crops, the
+Journal's 2 crops. A row has one of two shapes:
+
+- **A picture**, `{n, page, box, size, uses}`. `n` is the ordinal in the
+  picture census (`tools/importer/census-art.mjs`, dev only: pages, boxes,
+  sizes and counts, nothing printed), and the picture's id is `<book>.art<n>`.
+  `box` is the placement in top-origin page points as `pageArtPlacements`
+  reports it, and selects the picture; `size` is the decoded samples, and
+  verifies it.
+- **A crop**, `{n, page, crop: {x0, y0, x1, y1}, uses}`: a page region in
+  top-origin page points, rendered at import. It has no size, its ordinal
+  lies outside the census (the books' files number crops from 1001), and its
+  uses are textures only. `cropProblems` holds it inside the page and above
+  the purchaser stamp (`CROP_LIMITS.stampLine`, 776).
+
+`bookArtProblems` is the recipe lint: a row is a picture or a crop, never
+both; an ordinal is used once; a pool is one of the treasure feature's `POOL`
+and a band an integer in `0..BAND_COUNT-1`, both passed in as arguments so the
+engine imports no feature; and no two uses share a lookup key (`lookupKey`:
+side, pool, band, kind).
+
+**Three sides** (`ART_SIDES`), one per use:
+
+- `back`: `{side: "back", pool, band?}`. Kind null; no entry.
+- `face`: `{side: "face", pool, band?, entry}`. `entry` is a cookbook id of
+  the book (a `kind.magicItem`), paired by a reviewer looking at the picture
+  and its page, and becomes the row's `kind`.
+- `texture`: `{side: "texture", kind, band?, licence?}`. No pool and no
+  entry; `kind` is the texture kind (`grime`, `foil`, `foil-magic`).
+
+**The step** is `cookbookImportBookArt` (`cookbook/book-art.mjs`), GM only,
+the chain's `stepBookArt` after `stepMagicItems` (`GM_STEPS`,
+`getting-started.mjs`). For each book with art in `sessionDocs` (a shelved
+book's handle counts, with nothing fetched until a page is read), narrowed by
+`books`, it
+plans one fetch per row however many uses the row has (`planBookArt`) and
+takes each through `ctx.uploadBookPicture` inside a 30 s race (`fetchPicture`).
+A miss carries a reason: `box` (the box selects no placement, or two),
+`size` (the picture decodes at another size: another printing), `decode`,
+`render`, `upload`, `timeout`, `error`, `no-uploader`, `not-found`. Each use of
+a picture that came back becomes a row `{side, pool, band, kind, src, cite}`,
+plus `licence` where the use gives one (`bookArtRows`); a texture's pool is
+null, band 0 stays 0, and the cite is `citeFor(book, page)`. Rows lib's
+`artRowProblems` refuses are dropped and logged (`refusedArtRows`). One
+notification counts pictures written, reused and not found; the console lists
+the ordinals missed with their reasons.
+
+Replace rules:
+
+- a book not in the seat's `sessionDocs` (neither shelved nor connected
+  there) keeps its table untouched;
+- a book none of whose pictures resolved keeps its table untouched, and the
+  Judge is warned (another printing, or no uploader);
+- otherwise this run's rows replace that book's table.
+
+`importDoc` replaces the whole document, so the step reads the WORLD layer and
+`bookArtDoc` rebuilds it with this book's table replaced and every other
+book's table and cite kept. With no rows `bookArtDoc` returns the layer
+unchanged, and nothing is written.
+
+**The `bookArt` document**, one table per book:
+`{id: "bookArt", source: {pages}, cites: {<book>: ...}, tables: {<book>: [rows]}}`.
+`cites[<book>]` joins that book's row cites (`joinCites`), so
+`citeOf("bookArt", <book>)` answers, and `source.pages` joins every row's.
+`PRODUCES` maps each table to its recipe file for `validate-producers`. The
+document shape is lib's: docs/lib/API.md, "`bookArt`".
+
+**Lib's lookup** (`treasureArt({side, pool, band, kind})`, synchronous, owned
+by docs/lib/API.md). Book tables are read in sorted key order, the first
+matching row wins, every step but a kind step reads kind-null rows only, and a
+null band skips a step that names the band.
+
+- Back: the pool at the band; the pool at band null.
+- Face: the kind, case- and accent-folded, at any pool; the pool at the band;
+  the pool at band null; the pool at its lowest band.
+- Texture: the kind at the band; the kind at band null; never another kind.
+
+The index is dropped on every `onTablesChanged` for `bookArt`, so an import,
+a removal or an override answers with no reload.
+
+**Files and stems.** Every file lands flat in `Data/acks-extras-art/`
+(`ART_DIR`, `module.mjs`), the directory monster portraits and maps use, at
+the server's data root, so every world on the server shares it. The stem comes
+from `planBookArt`:
+
+- a picture: `<book>-art<n>-<w>x<h>`;
+- a crop: `<book>-art<n>-p<page>-<x0>-<y0>-<x1>-<y1>` (`stemNum` writes a
+  decimal point as `p` and a minus as `m`).
+
+A recipe that points an ordinal at another picture or region therefore makes
+a new file. `uploadBookPicture` (`module.mjs`, reached through
+`initCookbook`'s context) answers from a cached `<stem>.webp` or `.png`
+(`cachedFile`) with no PDF read. Otherwise:
+
+- a picture is `placedPicture` (`extract.mjs`): `placementAt` selects the box
+  within 2 pt on every edge among `pageArtPlacements` (a handle's saved boxes
+  first), selects it again among the live page's named placements, fetches
+  that one object (`pageObject`) and refuses a wrong decoded size. The name is
+  used within the read and never returned. `pictureBlob` encodes it as WebP
+  0.92 with alpha kept, PNG where WebP fails. A picture that does not decode
+  on the seat is cut from the rendered page at its box
+  (`extractPageArtRegion`); a box or size miss is refused, never rendered;
+- a crop renders through the scene crop machinery (`cropBox`, `sceneFrame`,
+  `extractPageMap`) at 2 pixels to the point, unturned.
+
+**Re-import and repair.** Re-running the step is the repair.
+
+- With every file present, each row answers from `cachedFile` and no PDF is
+  read; the table is rewritten with the same rows.
+- A file deleted, or under 1 KB, fails `cachedFile`'s check and is cut again
+  under the same stem, so its src is unchanged.
+- A cache hit skips the box and size check, so a file cut from one printing
+  keeps serving after the Judge opens another.
+- Nothing deletes a file, as nothing deletes a monster portrait or a map:
+  the files outlive the document.
+
+`BOOK_ART_SOURCE` is the import kind (`ENTRY_SOURCES`, `cookbook/rebuild.mjs`):
+one claim per book with art, `<book>.bookArt`, present when the WORLD layer
+holds that book's table. Its `entries` is empty, so the entry picker offers no
+BookArt row: the picker's typeless path is the rules tables' id refill, and v1
+has no per-picture rebuild.

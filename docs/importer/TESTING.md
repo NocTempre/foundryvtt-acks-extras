@@ -4634,3 +4634,88 @@ workers, or about what that host's file server allows to be read.
 ### Teardown
 
 Stop the rig. Nothing is written to the world.
+
+## A book's pictures as world art
+
+The "Book art" step (`cookbookImportBookArt`, chain step `stepBookArt`) cuts
+each open book's recipe rows (`books/<id>/book-art.mjs`) into
+`Data/acks-extras-art/` and writes the `bookArt` document (MODEL, "A book's
+pictures as world art"). Offline, `tools/test-book-art.mjs` holds lib's
+lookup, `tools/importer/test-book-art-binding.mjs` the binding, and
+`tools/importer/check-book-art.mjs` each box, size and crop against the
+author's copy. This walk proves the client cuts and uploads the pictures,
+writes the table, and answers from the cache on a re-run. No file under
+`tools/live/` walks it yet: it is walked by hand on lane C. The GM part is
+below; the Player part belongs to the treasure card's walk, once the card
+reads the registry (a GM seat cannot see a leak).
+
+### Fixtures
+
+- A GM seat with the Tome connected, and for the texture lookups the Journal
+  too (the foil row at band 3 and the foil-magic row are the Journal's).
+- `t = acksExtras.lib.tables` and
+  `art = await import("/modules/acks-extras/scripts/lib/book-art.mjs")`
+  (`treasureArt` is module-internal, not on the api).
+- Nothing is marked: the files and the document are the import's own product,
+  and setup is the subject of step 1. Note which `tt-art*` and `jj-art*` files
+  already sit in the art directory before step 1 (a second world on the same
+  server reuses them, so step 1 then counts them as reused).
+
+### Steps
+
+1. **Run the step.** Run it alone from the console,
+   `await acksExtras.importer.cookbookImportBookArt()`, then inside Import
+   everything (Settings tab → Game Settings → ACKS II — Extras → Manage
+   imports, the Import tab → Import everything). *Observable:* one progress bar per book; the
+   notice counts 19 pictures for the Tome (21 with the Journal) written or
+   reused and 0 not found; `Data/acks-extras-art/` holds one
+   `tt-art<n>-<w>x<h>.webp` per picture row (17) and the two crop files
+   `tt-art1001-p346-56-58-606-776.webp` and
+   `tt-art1002-p1-48-722-214-774.webp` (each `.png` where WebP fails), plus
+   `jj-art1001-p450-0-54-66-612` and `jj-art1002-p1-60-68-236-94` with the
+   Journal open. `t.getLayer("bookArt", t.PRIORITY.WORLD).tables` has a `tt`
+   key (and `jj`), each row with a src under the art directory and a
+   `"TT p.<folio>"` cite; `t.citeOf("bookArt", "tt")` answers. To confirm:
+   the library journal shows a page for the table (inferred from
+   `materializeAll`; correct MODEL if it does not).
+2. **The backs and faces.** *Observable:*
+   - `art.treasureArt({side: "back", pool: "item"})` and `{side: "back",
+     pool: "special"}` each answer `{src, cite}` with their own src;
+   - `pool: "coins"`, `"gems"`, `"jewelry"` and `"magic"` answer null;
+   - `{side: "back", pool: "item", band: 0}` answers the same src as band null
+     (band 0 is a band, and no row is at it);
+   - `{side: "face", pool: "magic", kind: "tt.item9"}` answers a picture, and
+     `kind: "TT.Item9"` the same one (the kind is folded);
+   - a face by an id with no row (`kind: "tt.item1"`) answers null, never
+     another item's picture.
+3. **The textures**, with both books' tables written. *Observable:*
+   - `treasureArt({side: "texture", kind: "grime"})` answers the Tome's grime
+     crop, and at `band: 2` the same (the band-null fallback);
+   - `{kind: "foil"}` answers the Tome's foil crop; `{kind: "foil", band: 3}`
+     the Journal's; `{kind: "foil", band: 0}` the Tome's again;
+   - `{kind: "foil-magic"}` answers the Journal's crop;
+   - `{kind: "vignette"}` answers null.
+   
+   Open each crop file: it is the region alone, with no part of the
+   purchaser's stamp at the page foot.
+4. **Re-run.** Run the step again and time it. *Observable:* every picture
+   counts as reused, 0 written; no PDF page is read (the network panel shows
+   no fetch of the book's file). Record the first-run and re-run times.
+5. **Repair a file.** Delete one `tt-art<n>-<w>x<h>` file from the art
+   directory, then run the step. *Observable:* 1 written; the file is back
+   under the same name, and `treasureArt` answers the same src.
+6. **An override.** Open `acksExtras.location.openRuledataBrowser()`, find the
+   `bookArt` table `tt` if it is listed, and save it with one row's src
+   changed. *Observable:* `treasureArt` answers the new src with no reload.
+   To confirm: whether the Browser lists the table at all (the override path
+   for this document is untraced). Remove the override afterwards.
+7. **Without the book.** In a world whose shelf lacks the Tome and where it
+   is not connected (so it is not in `sessionDocs`; a shelved book is
+   registered at join and counts as open), run the step. *Observable:* no
+   progress bar and no notice for the Tome, and the WORLD layer's `tt` table
+   is unchanged.
+
+### Teardown
+
+The files stay in `Data/acks-extras-art/`, as portraits and maps do; nothing
+deletes them. Remove the override step 6 saved. The `bookArt` document stays.
