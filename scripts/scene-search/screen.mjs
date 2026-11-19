@@ -163,9 +163,12 @@ export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationM
       .filter((m) => m.owned)
       .map((m) => {
         const options = sceneOptions({ partyId: this.#partyId, actorId: m.actorId }).find((o) => o.key === picking.key);
-        const refusal = options?.layers.find((l) => l.layer === picking.layer)?.refusal ?? null;
+        const layer = options?.layers.find((l) => l.layer === picking.layer);
+        const refusal = layer?.refusal ?? null;
         const unimported = refusal === "scene:notImported";
-        return { actorId: m.actorId, name: m.name, blocked: !!refusal, refusal: refusal ? sceneReasonText(refusal, m.name) : "", tip: unimported && searched ? say(`${ROOT}assign.notImportedTip`) : "" };
+        // A blank figure points at the page it is read from: the search's own, or the proficiency's page its member's ability cites.
+        const tip = !unimported ? "" : searched ? say(`${ROOT}assign.notImportedTip`) : layer?.data?.cite ? say(`${ROOT}assign.notImportedSkillTip`, { cite: layer.data.cite }) : "";
+        return { actorId: m.actorId, name: m.name, blocked: !!refusal, refusal: refusal ? sceneReasonText(refusal, m.name) : "", tip };
       });
     return { ...picking, rows };
   }

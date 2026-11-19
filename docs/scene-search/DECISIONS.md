@@ -224,3 +224,39 @@ conditions can stack arbitrarily". Readings the boards do not settle:
 - **The screen's rail opens by selecting a card**, on the Judge's seat only; with
   none selected the aside says to open one. The boards show a selected entry
   throughout.
+
+## 2026-11-19 — Lore checks: a keyed proficiency rolls its first throw, and a throwless one is made
+
+S7a asked whether the lore proficiencies (Theology, Loremastery, Naturalism,
+Magical Engineering, Sensing Power) work as a thing's check. They did, end to
+end, once the importer read a throw (R-I1): the rail writes `capability`, the
+member's `skillConfig` resolves the ability's throw, and a member without it
+gets the owner's vague hint or a refusal. S7a built the two gaps it found and
+pinned the rest.
+
+- **A keyed check rolls the ability's first throw.** The rail picks a
+  proficiency, not one of its throws, and two of the three recipes carry two
+  (the second is a different use of the same proficiency). `rollKey: null` takes
+  the first in stored order; a rail control naming the throw is a new UI element
+  and goes to `/design` first. Rejected: choosing the lowest figure, which would
+  roll the throw nobody keyed.
+- **A proficiency that prints no throw is made, not rolled** (Sensing Power, RR
+  ch. 3). A holder's check is offered with no target and answers from what the
+  layer yields. The signal is explicit and not inferred from a missing target:
+  a blank figure on a proficiency that does print one is an import gap and stays
+  `scene:notImported`, and an import that dropped a locator leaves the same empty
+  `rolls` a throwless proficiency has. Only a token listed in `AUTOMATIC_SKILLS`,
+  held by the member, with no figure read, is automatic. The structure ships (that
+  this proficiency has no throw); no value does. The owner's "follow RAW" is the
+  basis: the page asks one round of concentration and no throw, and the hasty
+  check is a round. Rejected: leaving the option unassignable, which would make a
+  proficiency the book prints permanently unusable on a check.
+- **A blank skill figure names its page.** The refusal for a held skill with no
+  figure carries the page the member's own ability cites, and the picker's
+  tooltip prints it (`notImportedSkillTip`), as the search's own does (RR ch. 6).
+  The proficiency's page ships in no string: the importer stamps it on the item.
+  A hand-made ability has no stamp and the tooltip is empty.
+- **Not built.** Per-rank and per-level steps in `materializeRolls` stay R-I1b
+  (a second rank reads the first rank's figure); a Judges' card naming which of a
+  proficiency's throws was rolled; a throw chooser on the rail. All are on the
+  ROADMAP.

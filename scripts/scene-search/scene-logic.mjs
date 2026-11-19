@@ -271,14 +271,15 @@ function targetOf(layer, name, ctx) {
  * refusal, …}`. `mode` is `inspect` (no throw), `search` or `skill` (a throw,
  * with its `target` and, for the holder of the searching capability, the
  * `bonus`), or `vague` (a hasty check by a member without the capability: no
- * throw, only the hint that something more is here). A refusal is a `scene:`
- * code with its data.
+ * throw, only the hint that something more is here). A `skill` check by a
+ * holder of a proficiency that prints no throw carries `automatic: true` and no
+ * target. A refusal is a `scene:` code with its data.
  */
 function planLayer(entry, name, member, ctx) {
   const layer = entry.layers[name];
   const state = layerState(entry, name);
   const capabilities = strings(member?.capabilities);
-  const plan = { layer: name, check: layer.check, mode: layer.check, capability: layer.capability, tools: layer.tools, turns: layer.turns, target: null, bonus: null, refusal: null };
+  const plan = { layer: name, check: layer.check, mode: layer.check, capability: layer.capability, tools: layer.tools, turns: layer.turns, target: null, bonus: null, automatic: false, refusal: null };
   const refuse = (code, data = {}) => ({ ...plan, refusal: code, data });
 
   if (layer.check === CHECK.SKILL && !layer.capability) return refuse(REFUSAL.SKILL_UNNAMED);
@@ -300,7 +301,12 @@ function planLayer(entry, name, member, ctx) {
 
   if (layer.check !== CHECK.INSPECT) {
     plan.target = targetOf(layer, name, ctx);
-    if (plan.target === null) return refuse(REFUSAL.NOT_IMPORTED);
+    if (plan.target === null) {
+      // A skill (held, or the member was already answered above) that prints no throw is made, not rolled; any other blank figure cannot be assigned, and names the page it is read from.
+      if (layer.check === CHECK.SKILL && strings(ctx.figures?.skillAutomatic).includes(layer.capability)) return { ...plan, automatic: true };
+      const cite = layer.check === CHECK.SKILL ? ctx.figures?.skillCites?.[layer.capability] : null;
+      return refuse(REFUSAL.NOT_IMPORTED, typeof cite === "string" && cite.trim() ? { cite: cite.trim() } : {});
+    }
     if (holds && needed === CAPABILITY.SEARCHING) plan.bonus = figure(ctx.figures?.searchBonus);
   }
   return plan;
@@ -321,7 +327,7 @@ function planLayer(entry, name, member, ctx) {
  * @param {number|null} [ctx.searchReachFeet] the imported reach
  * @param {{x: number, y: number}|null} [ctx.partyPoint] the party token's position
  * @param {number|null} [ctx.feetPerPixel] the scene's scale
- * @param {object} [ctx.figures] `{hastyTarget, methodicalTarget, searchBonus, skillTargets: {capability: target}}`
+ * @param {object} [ctx.figures] `{hastyTarget, methodicalTarget, searchBonus, skillTargets: {capability: target}, skillCites: {capability: page}, skillAutomatic: [capability]}`; `skillAutomatic` names the held skills that print no throw (`lore-logic.mjs`), `skillCites` the page a blank skill figure's refusal carries as `cite`
  */
 export function layerOptions(entry, member, ctx = {}) {
   return LAYER_NAMES.map((name) => planLayer(entry, name, member, ctx));
@@ -368,9 +374,10 @@ export function outcomeOf(entry, name, member, ctx = {}, roll = null) {
     const present = remainingKinds(entry, entries).length > 0;
     return { code: present ? CODE.VAGUE : CODE.FOUND_NOTHING, layer: name, more: [] };
   }
-  if (plan.mode !== CHECK.INSPECT && typeof roll?.passed !== "boolean") return { code: CODE.NEEDS_ROLL, layer: name };
+  const thrown = plan.mode !== CHECK.INSPECT && !plan.automatic;
+  if (thrown && typeof roll?.passed !== "boolean") return { code: CODE.NEEDS_ROLL, layer: name };
 
-  const passed = plan.mode === CHECK.INSPECT ? true : roll.passed;
+  const passed = thrown ? roll.passed : true;
   const { lots, clue, reveal } = entry.layers[name].yields;
   if (passed && (lots.length || clue || reveal.length)) {
     return { code: CODE.FOUND, layer: name, lots: [...lots], clue, reveal: [...reveal], more: remainingKinds(entry, entries, { skip: [name] }) };

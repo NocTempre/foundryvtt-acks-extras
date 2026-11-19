@@ -17,11 +17,13 @@
  * The party-check functions arrive through `configureSceneChecks`, since they
  * live with the formation's whole roll machinery and a suite supplies its own.
  */
-import { hasCapability } from "../lib/capabilities.mjs";
+import { hasCapability, itemHasCapability } from "../lib/capabilities.mjs";
+import { ITEM_TYPE } from "../lib/vocab.mjs";
 import { registerTurnActivity } from "../lib/turn-activities.mjs";
 import { isHurried } from "../formation/formation-model.mjs";
 import { CAPABILITY, CHECK, CODE, LAYER, LAYER_OF_ACTIVITY, REFUSAL, SESSION_REFUSAL } from "./constants.mjs";
 import { layerOptions, layerRefusal, seatView } from "./scene-logic.mjs";
+import { skillConfig, skillFigures } from "./lore-logic.mjs";
 import { applyCheck, capabilitiesWanted, logRowOf } from "./session-logic.mjs";
 import { logCheck, plateNamesOf, readWorld, reachContext, toolsOf, writeEntryState } from "./session.mjs";
 import { markSceneFound } from "./haul.mjs";
@@ -29,14 +31,14 @@ import { revealExit } from "./seams.mjs";
 
 const LANG_ACTIVITY = "ACKS-LOCATION.sceneSearch.activity.";
 
-/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor}`, `postRoll(card)` for the Judges' card, `reveal` for `revealSecretDoor`, and `planBy` for who locked a plan entry. */
+/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor, citeOf?}` (`citeOf(item)` is the page an imported ability cites),`postRoll(card)` for the Judges' card, `reveal` for `revealSecretDoor`, and `planBy` for who locked a plan entry. */
 const seams = { checks: null, postRoll: null, reveal: null, pot: null, planBy: null };
 
 /**
  * Supply what resolution needs from outside this feature. Called once at init
  * (and by a suite with its own).
  * @param {object} deps
- * @param {{PARTY_CHECKS: object, resolveCheck: Function, rollCheckFor: Function}} deps.checks `formation/party-rolls.mjs`
+ * @param {{PARTY_CHECKS: object, resolveCheck: Function, rollCheckFor: Function, citeOf?: Function}} deps.checks `formation/party-rolls.mjs`, and `abilities/ability-rolls.mjs` `citeOf`
  * @param {(card: {formation: object, actor: object, key: string, layer: string, rolled: object|null, outcome: object}) => *} [deps.postRoll] posts the Judges' card
  * @param {((wall: object) => *)|null} [deps.reveal] `revealSecretDoor`, once it exists
  * @param {((uuid: string) => object|null)|null} [deps.pot] finds a pot pile by uuid (`fromUuidSync` by default)
@@ -49,9 +51,6 @@ export function configureSceneChecks({ checks, postRoll = null, reveal = null, p
   seams.pot = pot;
   seams.planBy = planBy;
 }
-
-/** The ad hoc party-check config for a named capability's skill check: it matches the capability and nothing by name, and allows no Adventuring stand-in. */
-const skillConfig = (capability) => ({ flagKey: capability, capability, advKey: null, pattern: /(?!)/, label: "", rollKey: null });
 
 /** A party check's resolved target for a member, or null where there is none (or the resolver throws). */
 function targetOf(actor, cfg) {
@@ -80,16 +79,21 @@ export function memberOf(actor, entries) {
   return { id: actor.id, level: Number(actor.system?.details?.level) || 1, capabilities, tools: toolsOf(actor) };
 }
 
-/** The member's own throw targets for these entries, from the party-check config; the thief's bonus is already inside a target, so `searchBonus` stays null. */
+/** The page the member's ability for a capability cites, or "" (a hand-made ability, or no checks seam to read it). */
+function citeOfHeld(actor, token) {
+  const held = actor.items?.find?.((item) => item.type === ITEM_TYPE.ability && itemHasCapability(item, token));
+  return held ? String(seams.checks.citeOf?.(held) ?? "") : "";
+}
+
+/** The member's own throw targets for these entries, from the party-check config; the thief's bonus is already inside a target, so `searchBonus` stays null. A skill's figures are `skillFigures`'. */
 function figuresOf(actor, entries) {
   const { PARTY_CHECKS } = seams.checks;
-  const skillTargets = {};
-  for (const token of capabilitiesWanted(entries)) if (token !== CAPABILITY.SEARCHING) skillTargets[token] = targetOf(actor, skillConfig(token));
+  const tokens = capabilitiesWanted(entries).filter((token) => token !== CAPABILITY.SEARCHING);
   return {
     hastyTarget: targetOf(actor, PARTY_CHECKS.searchHasty),
     methodicalTarget: targetOf(actor, PARTY_CHECKS.searchMethodical),
     searchBonus: null,
-    skillTargets,
+    ...skillFigures(tokens, (token) => ({ target: targetOf(actor, skillConfig(token)), cite: citeOfHeld(actor, token) })),
   };
 }
 

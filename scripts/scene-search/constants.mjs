@@ -21,6 +21,15 @@ export const CHECK = Object.freeze({ INSPECT: "inspect", SEARCH: "search", SKILL
 /** The capability whose holder makes the hasty searching throw; formation's `PARTY_CHECKS.searchHasty` names it the same way. */
 export const CAPABILITY = Object.freeze({ SEARCHING: "kw:searching" });
 
+/**
+ * The proficiencies whose page prints no throw: a holder's check on a layer
+ * that names one is made, not rolled (`lore-logic.mjs` `skillFigures`). Only a
+ * token listed here, held by the member, with no throw read off the member's own
+ * ability, is automatic; any other capability with no figure is unimported and
+ * cannot be assigned. RR ch. 3, Sensing Power.
+ */
+export const AUTOMATIC_SKILLS = Object.freeze(["kw:sensingpower"]);
+
 /** What a reveal names: another thing in the list, or a wall (a hidden exit). */
 export const REVEAL_PREFIXES = Object.freeze(["thing:", "wall:"]);
 

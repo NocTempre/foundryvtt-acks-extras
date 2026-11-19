@@ -11,6 +11,7 @@
 import { acksExtras } from "../namespace.mjs";
 import { requestPartyAction } from "../formation/player-requests.mjs";
 import { PARTY_CHECKS, resolveCheck, rollCheckFor } from "../formation/party-rolls.mjs";
+import { citeOf } from "../abilities/ability-rolls.mjs";
 import * as turnPlan from "../formation/turn-plan.mjs";
 import { drawFallenTable, markCardOpened, recordOfMessage } from "../treasure/search.mjs";
 import { configureSceneChecks, registerSceneActivities } from "./activities.mjs";
@@ -34,7 +35,7 @@ import { postRollCard, sceneReasonText } from "./words.mjs";
 
 Hooks.once("init", () => {
   configureSceneChecks({
-    checks: { PARTY_CHECKS, resolveCheck, rollCheckFor },
+    checks: { PARTY_CHECKS, resolveCheck, rollCheckFor, citeOf },
     postRoll: postRollCard,
     planBy: (formation, actorId) => turnPlan.readPlan(formation)?.[actorId]?.by ?? null,
   });

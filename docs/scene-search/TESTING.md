@@ -649,6 +649,74 @@ Not reached: a real pointer drag, a tab-key traversal (names and tabbability are
 read), a drop from a compendium or another actor's sheet, and step 8 (no door or
 old-style trap zone is derived yet).
 
+## S7a — lore checks
+
+**Not yet walked.** Offline coverage is `tools/test-scene-lore.mjs` (the real
+party check joined to the scene search's own `skillConfig`, over ability items
+shaped like the importer's). It draws no window, posts no card and reads no
+import, so every observable below needs a live seat.
+
+Fixtures, found by marker (`api.fixture`):
+
+- `scene-search/lore-place` — a location actor whose `flags.acks-extras.things`
+  holds four fixtures written whole, each with BOTH checks keyed Proficiency, each
+  to one capability: `{id: "theology"}` (the Theology token), `{id: "naturalism"}`,
+  `{id: "loremastery"}` and `{id: "sensing"}`. Each yields a clue line on both
+  layers. The tokens are the ones the rail's picker lists for the imported
+  proficiencies.
+- `scene-search/lore-holder` — a character owned by the Player seat holding the
+  imported Theology, Naturalism, Loremastery and Sensing Power items, each added
+  from the library (so each carries the import stamp). The imported figures are
+  whatever the world's books gave; read them from the sheet's Rolls tab, never
+  from this recipe.
+- `scene-search/lore-outsider` — a character holding none of them, owned by the
+  same seat.
+- `scene-search/lore-party` — a party with both characters as members and the
+  place above as its place.
+
+A step that needs a figure reads it first; a proficiency whose Rolls tab shows
+no throw is the observable for that step's blank case, not a failed fixture.
+
+1. **Open** a scene search at the place (Judge seat, party sheet → Dungeon tab →
+   Search here). Open the Judge's screen. *Observable:* four entry cards.
+2. **Assignable by the holder.** Pick Theology's card, Checked hastily, press
+   `+ Assign`. *Observable:* the picker lists the holder with no refusal and the
+   outsider with no refusal either (a missing skill is the vague hint at the
+   hasty check, never a block); at Checked methodically the outsider is listed
+   with "lacks the capability this check names".
+3. **A thrown check.** Assign the holder to Theology hasty and press Round.
+   *Observable:* one whispered Judges' card from the party, its row naming the
+   ability, the total and the target (the sheet's figure, hover for the page),
+   and the entry's log row reads found or found nothing to match the card; no
+   card reaches the Player seat.
+4. **The vague hint.** Assign the outsider to Naturalism hasty, Round.
+   *Observable:* the log row reads "There might be something more here" on both
+   seats (the Player's log keeps the code), no card is posted, the entry is not
+   found.
+5. **The first throw.** Naturalism's item lists two throws on its Rolls tab.
+   Assign the holder, Round. *Observable:* the card's target equals the FIRST
+   throw's figure on the Rolls tab (not the lowest).
+6. **Loremastery at two levels.** Read the target on the holder, change the
+   holder's level by one, read the picker's card again. *Observable:* the
+   figure moves with the level, as the sheet's does. *Unverified offline:* the
+   import's lifted throw is not reproducible offline, so this step also
+   confirms the lift produced a throw at all; with none, step 7's blank case
+   applies to it.
+7. **A blank figure.** Rebuild the holder's Theology item with its throw emptied
+   (clear the roll on its Rolls tab), assign Theology hasty. *Observable:* the
+   holder is listed blocked with no words; the row's tooltip is the page the
+   item cites, with no figure or other text.
+8. **No throw printed.** Assign the holder to Sensing Power hasty, Round.
+   *Observable:* no card, the log row reads found (the clue line), the holder is
+   not locked at that spot; on a second Sensing Power fixture, assign the outsider: vague.
+9. **Player seat.** On the Player seat, the screen lists each entry the Judge
+   shows; assigning the owned holder follows the Judge's refusals above, and no
+   Judges' card or figure appears there.
+
+Teardown: end the session; `api.sweepTracked()` over the run's own ids. The
+kept fixtures stay; the walk writes the place's list back to its recipe shape at
+its start.
+
 ## What this walk does not reach
 
 The doorway card, the haul total and Quick grab with a mixed pot are covered by

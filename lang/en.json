@@ -11074,6 +11074,7 @@
   "ACKS-LOCATION.sceneSearch.screen.assign.pickerFor": "Who checks {entry}: {check}?",
   "ACKS-LOCATION.sceneSearch.screen.assign.cancel": "Cancel",
   "ACKS-LOCATION.sceneSearch.screen.assign.notImportedTip": "(RR ch. 6, Searching)",
+  "ACKS-LOCATION.sceneSearch.screen.assign.notImportedSkillTip": "({cite})",
   "ACKS-LOCATION.sceneSearch.screen.chip.unassign": "Take {name} off {entry}, {check}",
   "ACKS-LOCATION.sceneSearch.screen.chip.struck": "{name} cannot check this hastily again (RR ch. 6, Searching)",
   "ACKS-LOCATION.sceneSearch.screen.member.free": "Free",

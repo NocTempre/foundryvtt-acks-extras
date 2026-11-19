@@ -174,3 +174,49 @@ or from a fight (a door, an old-style trap zone, a body) has no list row: its
 rail says so and holds no field. A change that cannot be kept (a turn count that
 is no whole number, a clue that would loop) is refused in words and writes
 nothing.
+
+## Lore checks
+
+A layer whose check is Proficiency (`layers.<layer>.check = "skill"`, with a
+`capability` token the rail picked) is thrown by the member's own imported
+ability. The proficiencies the importer reads a throw for are Theology,
+Naturalism and Magical Engineering (a recipe each), and Loremastery (the effect
+scan's lift: one throw that moves with level); Sensing Power prints none. The
+resolution is the one every check shares, and `lore-logic.mjs` (pure) names the
+three facts that are particular to a skill:
+
+- **Who holds it.** A member holds the proficiency when an ability item carries
+  the register stamp that stands for the token, or lists the token in
+  `provides` (`lib/capabilities.mjs` `hasCapability`). A hand-typed item of the
+  same name holds nothing, and gives the check no throw. A second rank is a
+  second item and changes nothing here.
+- **Which throw.** The check is `skillConfig(token)`: the ability's capability,
+  no name pattern, no Adventuring stand-in, and `rollKey: null`, so the party
+  check takes the ability's FIRST non-measure throw in its stored order, at the
+  member's level (`party-rolls.mjs` `resolveCheck`, `abilities/adventuring-throw.mjs`
+  `skillThrow`). Of several holders' items the lowest target is used. The layer
+  names a proficiency and not one of its throws, so a proficiency with two
+  throws is keyed to the first. Per-rank steps are not modelled yet (ROADMAP,
+  R-I1b): a second rank reads the first rank's figure.
+- **What the member gets.** With the throw: the held member rolls
+  `rollCheckFor` for themself, secretly, and the Judges' card names the ability
+  and the figure. Without the proficiency: at the hasty check the vague hint
+  where something is here, at the methodical check the refusal
+  `scene:capabilityMissing`. With the proficiency and no figure read (nothing
+  imported, or an import that dropped its locator): `scene:notImported`, the
+  option cannot be assigned, and the picker's tooltip is the page the member's
+  own ability item cites (`figures.skillCites`, taken from the item's import
+  stamp). A hand-made ability cites none, and the tooltip is empty.
+- **A proficiency that prints no throw.** `constants.mjs` `AUTOMATIC_SKILLS`
+  lists the tokens whose page prints none. A listed token, held by the member,
+  with no throw read off the member's own ability, is made and not rolled: the
+  option is offered (`automatic: true`, no target), the check answers
+  `scene:found` or `scene:foundNothing` from what the layer yields, nothing is
+  rolled and no Judges' card is posted, and the hasty lock cannot apply (it is
+  set by a failed throw). Named tools are still required. A listed token whose
+  ability carries a throw is thrown like any other; a token not listed is never
+  automatic, however empty its figure.
+
+Every figure is the member's own imported one; no target, step or modifier is
+shipped. Offline coverage is `tools/test-scene-lore.mjs`, which joins the real
+party check to `skillConfig` over ability items shaped like the importer's.
