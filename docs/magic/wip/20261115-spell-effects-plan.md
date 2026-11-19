@@ -3871,6 +3871,10 @@ other session on the server:
   179/179.
 - Board 18 (a Judge's "Common spell (no throw)" check) is approved, owner:
   "Approve, build it". It builds next as M-r3, then M-r2b (board 17 C).
+- ae7b1849: M-r3, the common-spell check (board 18). 9b8a9163: M-r2b, where a
+  cast ritual goes (board 17 C: take effect now, a new scroll, a charge in an
+  item). magic-research-project 99/0, magic-cast-spell 179/179, both on the
+  first run. M-r is built; M-s follows.
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built
