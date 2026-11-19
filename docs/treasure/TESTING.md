@@ -125,6 +125,10 @@ swept with `api.sweepTracked()`.
 
 ## Party aside, drag and Quick grab (both seats)
 
+Walked by `tools/live/treasure-party.mjs` (`node tools/live/run.mjs
+treasure-party`), steps 1 to 7: steps 1 to 5 and 7 on the Player seat, step 6
+on the Judge seat.
+
 Fixtures: `treasure/party`, the three members, `treasure/coin`, and
 `treasure/item-masked` (see above). Build a pot with: a coin card whose stack
 weighs about a third of a member's room (set the coin item's count so), two item
@@ -181,12 +185,20 @@ the window's.
    Player seat owns one member and the rest received goods: that is the ruled
    behaviour. Press twice quickly: the second answers "That is already being
    done." or finds nothing left.
-6. **Quick grab (Judge seat).** Same as 5 on a second pot, with `treasure/ally`
-   given a stack of existing load so it is nearly full. Observables: it takes
-   less than the others; a member at zero hit points (set `treasure/ally`'s hit
-   points to 0) takes nothing and the notification names it ("Takes nothing: …
-   (down)"); a member whose actor keeps no goods, if one is in the party, is
-   named with its reason.
+6. **Quick grab (Judge seat).** A party of its own, so the main party stays as
+   steps 1 to 5 left it: `treasure/grab-hand`, `treasure/grab-full`,
+   `treasure/grab-down` (characters) and `treasure/grab-cart` (a vehicle, whose
+   sheet keeps no goods), in a formation record found by name. Assert the start
+   shape first: the hand and the full member standing, the down member at 0 hit
+   points, and the full member's ballast row (an item on it carrying the marker
+   `treasure/grab-ballast`) re-weighed so its room is less than either weight
+   card. On a second pot of the coin, both weights and the small card, all
+   turned by the Judge, press Quick grab in the Judge's own window.
+   Observables: the aside marks the down member "Down: takes no share of a
+   grab" and the cart "Carries no goods"; the full member takes less than the
+   hand and no more than its room; the down member and the cart take nothing,
+   and one notification names both with their reasons ("Takes nothing: …
+   (down), … (no sheet that carries goods)").
 7. **Narrow window.** Shrink the pot's window below about 46em wide. Observables:
    the aside sits below the pot grid, every zone and the button are reachable by
    scrolling the part root, and the window keeps its resize corner.

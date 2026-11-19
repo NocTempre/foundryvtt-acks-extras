@@ -2,7 +2,7 @@
  * Live walk, treasure party: the open pot's party aside, the drag onto a
  * character sheet or a member's zone, and Quick grab, slices R4 and R5. Walks
  * docs/treasure/TESTING.md "Party aside, drag and Quick grab (both seats)",
- * steps 1 to 5 and 7, on the Player seat's own client (every claim travels
+ * steps 1 to 7, steps 1 to 5 and 7 on the Player seat's own client (every claim travels
  * the real relay to the GM seat's client). Every observable is a boolean or a
  * count. Machine values arrive through ./_env.mjs; the shared seat plumbing is
  * ./_treasure-kit.mjs.
@@ -22,14 +22,22 @@
  * turned cards that sum to the stack, the card heavier than any member's room
  * left turned and unclaimed and named as fitting nobody, the face-down card
  * untouched, a second press answered); step 7 (a narrow window: the aside
- * below the grid, the resize corner, the grab button reachable).
+ * below the grid, the resize corner, the grab button reachable); step 6, on
+ * the Judge seat with a party of its own (a hand, a member left a sixth of a
+ * stone's room or two by a ballast row, a member at zero hit points and a
+ * vehicle, whose sheet keeps no goods): the aside marks the down member and
+ * the cart, a real press of Quick grab, the nearly full member takes less than
+ * the hand, and the one "Takes nothing" notice names the down member and the
+ * cart with their reasons.
  *
  * Fixtures, kept and found by marker: `treasure/player-character`,
  * `treasure/judge-character` (the Player seat does not own it),
  * `treasure/ally` (owned by nobody but the Judge), `treasure/coin`, and the
  * items `treasure/weight-a`, `treasure/weight-b`, `treasure/weight-huge`,
- * `treasure/weight-down` (invented weights; the recipe asks for these shapes
- * and names no markers). The party is a formation record, which carries no
+ * `treasure/weight-down` (invented weights), and step 6's `treasure/grab-hand`,
+ * `treasure/grab-full` (its ballast row, an embedded item, carries the
+ * marker `treasure/grab-ballast` and is re-weighed at each start),
+ * `treasure/grab-down` and `treasure/grab-cart` (a vehicle). Each party is a formation record, which carries no
  * marker: it is found by its name and kept, never deleted by name; a second
  * party built only for the no-party line is deleted by the id this run made
  * it under. The pot, its doorway card and every row a claim made are the
@@ -41,8 +49,7 @@
  * the data a drag of a card carries, dispatched at a sheet's content or a
  * zone), the flips (the relay called by hand), the pot's party flag.
  *
- * Not reached: step 6 (a Judge's Quick grab with a nearly full ally, a member
- * at zero hit points and a member that keeps no goods), a prediction of the
+ * Not reached: a prediction of the
  * announced pace worked out apart from the planner (only its invariants are
  * checked), a drag onto an actor sheet the seat cannot open, the coin card's
  * weight tuned to a third of a member's room, and a real drag with pointer
@@ -61,9 +68,18 @@ const MARKS = {
   b: "treasure/weight-b",
   huge: "treasure/weight-huge",
   down: "treasure/weight-down",
+  grabHand: "treasure/grab-hand",
+  grabFull: "treasure/grab-full",
+  grabDown: "treasure/grab-down",
+  grabCart: "treasure/grab-cart",
+  ballast: "treasure/grab-ballast",
 };
 const PARTY_NAME = "QA Treasure Party";
 const PARTY_B_NAME = "QA Treasure Party B";
+const GRAB_PARTY_NAME = "QA Treasure Grab Party";
+/** The nearly full member's room in step 6, in sixths of a stone: less than either weight card, more than the small one. */
+const GRAB_ROOM6 = 12;
+const BALLAST = { name: "QA Grab Ballast", type: "item", img: "icons/svg/item-bag.svg", system: { cost: 1, weight6: 0 } };
 const IMG = "icons/svg/item-bag.svg";
 const COIN = { name: "QA Treasure Coin", type: "money", img: "icons/svg/coins.svg", system: { coppervalue: 100, quantity: 300 } };
 const WEIGHTS = {
@@ -73,6 +89,8 @@ const WEIGHTS = {
   down: { name: "QA Weight Down", type: "item", img: IMG, system: { cost: 10, weight6: 6 } },
 };
 const NAMES = { player: "QA Treasure Player Character", judge: "QA Treasure Judge Character", ally: "QA Treasure Ally" };
+/** Step 6's party, kept apart from NAMES, which steps 1 to 5 read as the main party's whole roster. */
+const GRAB_NAMES = { hand: "QA Grab Hand", full: "QA Grab Nearly Full", down: "QA Grab Down", cart: "QA Grab Cart" };
 
 const P = {
   ...K,
@@ -194,6 +212,29 @@ const P = {
   grabRelay: async ({ potId }) => {
     const H = globalThis.__tk;
     return (await H.race(H.S.executeAsGM("treasurePot", { potId, op: "grab" }), 25000)) ?? null;
+  },
+  /**
+   * Step 6's start shape, asserted rather than assumed: the hand and the
+   * nearly full member standing (hit points 10 of 10), the down member at 0,
+   * and the nearly full member's ballast row (found by its marker) set so its
+   * room is `room6`. Answers each member's hit points and room as read back,
+   * and the ballast row's uuid when this call made it.
+   */
+  shapeGrab: async ({ handId, fullId, downId, room6, marker, ballast }) => {
+    const C = await import("/modules/acks-extras/scripts/lib/capacity.mjs");
+    for (const [id, value] of [[handId, 10], [fullId, 10], [downId, 0]]) await game.actors.get(id).update({ "system.hp.value": value, "system.hp.max": 10 });
+    const full = game.actors.get(fullId);
+    let row = full.items.find((i) => i.getFlag("world", "fixture") === marker);
+    let made = null;
+    if (!row) {
+      [row] = await full.createEmbeddedDocuments("Item", [{ ...ballast, flags: { world: { fixture: marker } } }]);
+      made = row.uuid;
+    }
+    const others = C.load6(full) - (row.system.weight6 ?? 0);
+    await row.update({ "system.weight6": Math.max(0, C.capacity6(full) - others - room6) });
+    await globalThis.__tk.sleep(600);
+    const read = (id) => { const a = game.actors.get(id); return { hp: a.system.hp?.value ?? null, room6: C.capacity6(a) - C.load6(a) }; };
+    return { hand: read(handId), full: read(fullId), down: read(downId), made };
   },
   resize: async ({ potId, width, height }) => {
     const H = globalThis.__tk;
@@ -392,6 +433,66 @@ try {
   const zonesN = aN.members.length;
   check("shrunk below about 46em the aside sits below the pot grid, the resize corner stays, and the grab button is reachable by scrolling", aN.found && aN.aside.top >= aN.grid.bottom - 1 && aN.handle && reach.found && reach.ok && zonesN === 3, { aside: aN.aside, grid: aN.grid, handle: aN.handle, reach: reach.ok, cover: reach.cover, at: [reach.x, reach.y], rect: reach.rect });
   await run(player, P.resize, { potId: pot.potId, width: 940, height: 640 });
+
+  section("Step 6. Quick grab (Judge seat): a nearly full member, a member down, a member that keeps no goods");
+  // A party of its own, so the main party's three stay as steps 1 to 5 found them.
+  const fxHand = await gm.fixture(MARKS.grabHand, "Actor", { name: GRAB_NAMES.hand, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
+  const fxFull = await gm.fixture(MARKS.grabFull, "Actor", { name: GRAB_NAMES.full, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
+  const fxDown = await gm.fixture(MARKS.grabDown, "Actor", { name: GRAB_NAMES.down, type: "character", prototypeToken: { actorLink: true }, ownership: { default: 0 } });
+  const fxCart = await gm.fixture(MARKS.grabCart, "Actor", { name: GRAB_NAMES.cart, type: "acks-extras.vehicle", ownership: { default: 0 } });
+  const gIds = { hand: idOf(fxHand), full: idOf(fxFull), down: idOf(fxDown), cart: idOf(fxCart) };
+  const gParty = await run(gm, P.buildParty, { name: GRAB_PARTY_NAME, actorIds: Object.values(gIds) });
+  check("step 6's party stands: the hand, the nearly full member, the member down and the cart, none refused", sameSet(gParty.members, Object.values(gIds)) && gParty.refused.length === 0, gParty);
+  const shape = await run(gm, P.shapeGrab, { handId: gIds.hand, fullId: gIds.full, downId: gIds.down, room6: GRAB_ROOM6, marker: MARKS.ballast, ballast: BALLAST });
+  if (shape.made) note("the ballast row, built and kept (found by its marker next run)", shape.made);
+  check("the start shape holds: the down member at 0 hit points, the others standing, the nearly full member with a sixth of a stone's room or two, the hand with four times that room or more", shape.down.hp === 0 && shape.hand.hp > 0 && shape.full.hp > 0 && shape.full.room6 === GRAB_ROOM6 && shape.hand.room6 > GRAB_ROOM6 * 4, shape);
+  const pot6 = await run(gm, P.newPot);
+  if (!pot6) throw new Error("no second pot window opened on the GM seat");
+  made.push(gm.track(pot6.uuid, "Cards"));
+  for (const [, fx] of stockKeys.filter(([k]) => k !== "huge")) { const d = await run(gm, P.dropAndWait, { potId: pot6.potId, zone: "pot", uuid: fx.uuid }); if (!d.ok) throw new Error("a drop made no card"); }
+  await run(gm, P.setPartyId, { potId: pot6.potId, partyId: gParty.fid });
+  const open6 = await press(gm, PORTS.gm, { scope: "sheet", potId: pot6.potId, sel: "aside [data-action='openTable']" }, "Open to the table (second pot)");
+  await run(gm, K.waitState, { potId: pot6.potId, until: "phase", phase: "open" });
+  const s6a = await run(gm, K.stage, { potId: pot6.potId });
+  if (s6a.messageId) made.push(gm.track(s6a.messageId, "ChatMessage"));
+  const flipped6 = await run(gm, P.flips, { potId: pot6.potId, cardIds: s6a.cards.map((c) => c.id) });
+  check("the second pot is open with four cards (the coin, both weights, the small one), all turned by the Judge", open6.found && s6a.cards.length === 4 && flipped6.every(Boolean), { cards: s6a.cards.length, flipped6 });
+  await run(gm, K.rerender, { potId: pot6.potId });
+  const a6 = await run(gm, P.aside, { potId: pot6.potId });
+  const zoneNote = async (name) => run(gm, async ({ potId, name }) => {
+    const H = globalThis.__tk;
+    const li = [...(H.root(H.sheet(potId))?.querySelectorAll("li.acks-extras-treasure__member") ?? [])].find((x) => H.text(x.querySelector(".acks-extras-treasure__member-name")) === name);
+    return li ? H.text(li) : null;
+  }, { potId: pot6.potId, name });
+  const tDown = await t(gm, "party.down");
+  const tNoGoods = await t(gm, "party.noGoods");
+  const downZone = await zoneNote(GRAB_NAMES.down);
+  const cartZone = await zoneNote(GRAB_NAMES.cart);
+  check("the Judge's aside lists all four, the member down marked 'Down: takes no share of a grab' and the cart 'Carries no goods'", a6.found && a6.members.length === 4 && !!downZone?.includes(tDown) && !!cartZone?.includes(tNoGoods) && !!a6.button, { members: a6.members.length, down: downZone?.includes(tDown), cart: cartZone?.includes(tNoGoods), button: !!a6.button });
+  const before6 = await run(gm, P.roster, { fid: gParty.fid, actorIds: Object.values(gIds) });
+  const rowsOf6 = async () => Object.fromEntries(await Promise.all(Object.entries(gIds).map(async ([k, id]) => [k, await run(gm, K.actorRows, { actorId: id })])));
+  const rows6 = await rowsOf6();
+  await run(gm, K.takeNotes);
+  const grab6 = await press(gm, PORTS.gm, { scope: "sheet", potId: pot6.potId, sel: "[data-action='grab']" }, "Quick grab (Judge seat)");
+  await sleep(3500);
+  const notes6 = await run(gm, K.takeNotes);
+  const rows6b = await rowsOf6();
+  for (const k of Object.keys(gIds)) for (const r of rows6b[k].filter((x) => !rows6[k].some((b) => b.id === x.id))) made.push(gm.track(r.uuid, "Item"));
+  const after6 = await run(gm, P.roster, { fid: gParty.fid, actorIds: Object.values(gIds) });
+  const took = Object.fromEntries(Object.keys(gIds).map((k) => [k, (after6[gIds[k]].load6 ?? 0) - (before6[gIds[k]].load6 ?? 0)]));
+  const done6 = notes6.infos.some((m) => /^Quick grab: \d+ taken\./.test(m));
+  // The notice's lead, as the lang string renders with nobody named.
+  const tNothing = (await t(gm, "grab.takesNothing", { who: "@@" })).split("@@")[0];
+  note("the grab's notices (Judge seat)", { infos: notes6.infos, warns: notes6.warns });
+  note("weight taken per member, in sixths of a stone", took);
+  check("Quick grab by a real press on the Judge's own window posted 'Quick grab: N taken.'", grab6.found && grab6.real && done6, { press: grab6, infos: notes6.infos.length });
+  check("the nearly full member takes less than the hand, and no more than its room", took.full < took.hand && took.full <= GRAB_ROOM6 && took.hand > 0, took);
+  const whyDown = await t(gm, "grab.excluded", { name: GRAB_NAMES.down, why: await t(gm, "grab.why.casualty") });
+  const whyCart = await t(gm, "grab.excluded", { name: GRAB_NAMES.cart, why: await t(gm, "grab.why.noDocument") });
+  const nothingLine = notes6.warns.find((w) => w.startsWith(tNothing)) ?? "";
+  check("the member down takes nothing and the notice names it 'Takes nothing: … (down)'", took.down === 0 && rows6b.down.length === rows6.down.length && nothingLine.includes(whyDown), { took: took.down, line: nothingLine.includes(whyDown) });
+  check("the cart, whose sheet keeps no goods, takes nothing and the same notice names it with its reason", rows6b.cart.length === rows6.cart.length && nothingLine.includes(whyCart), { line: nothingLine.includes(whyCart) });
+  await run(gm, P.setPartyId, { potId: pot6.potId, partyId: null });
 
   section("console");
   for (const [key, api] of [["gm", gm], ["player", player]]) {
