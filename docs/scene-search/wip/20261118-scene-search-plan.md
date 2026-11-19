@@ -123,7 +123,7 @@ All slices are built on `topic/scene-search` by fresh agents. Each brief quotes 
 | S6 | Keying: the location sheet's Things here (SceneKey), the Judge's keying rail | `implementer` | S2 | | Judge seat |
 | R-I1 | Lore rolls: a `rolls` spec for Theology, Loremastery, Naturalism, Magical Engineering and Sensing Power, in the per-book layout `scripts/importer/books/rr/` (owner: "They should be building separate importer files per book... new work should be building that clean version"); each roll cites its page, no target ships. The Treasure Tome session reviews the recipe shape against `identifyComponents` before the first commit | `implementer`: a scoped importer recipe | S1 | cookbook compiles, silo gate | none |
 | S7a | Lore checks | `implementer` | R-I1 | | yes |
-| S7b | Harvest and identify, multi-turn | `architect` ruling on the imported schema first, then `implementer` | Treasure Tome H1–H4 | | yes |
+| S7b | Harvest and identify, multi-turn. **Deferred out of the minor** (owner, 2026-11-19); now a `ROADMAP.md` row, and a fallen body's Sheet control is the cutoff | `architect` ruling on the imported schema first, then `implementer` | Treasure Tome H1–H4, and the owner's monster-import audit | | yes |
 | S8 | MODEL, DECISIONS, guide, gallery, changelog; shots from data a user produced | session, plus `doc-scribe` | all | | |
 
 Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond them goes back to `/design` first.
@@ -234,3 +234,17 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
   - A seat that owns no member was not tried, since there is one Player seat.
 - Owner answers relayed by the orchestrator: S5 Q1 keeps the lair notice ("players get blocks, judges get warnings"). S6 Q2, Q3 and Q4 are deferred to the ROADMAP ("What S6 left"). Still with the owner: whether a spent card can reopen its scene, the take-off timing, how long Show to the table lasts, and the board deviations (S5 card rows and relabel; S6 tab position, proficiency select, empty-aside prompt).
 - Next: S7a (lore checks) on the topic, after a sync. Then S7b, with the architect first.
+
+### 2026-11-19 — S7a, S5b, the Sheet control and the Crossing fieldset landed and walked; S7b deferred (scene-search orchestrator, lane 5)
+
+- Owner answers relayed by the orchestrator, verbatim:
+  - Harvest: "Defer, the MM imports already partially carry that data, and those need a full audit in general that I will dedicate a full pass to. Put in the entry point that looks at the monster's sheet for now as a cutoff point." S7b moved to `ROADMAP.md` (d5b20d34).
+  - Where the sheet opens: "Both (Recommended)", the fight-over card and the scene screen.
+  - S5b, a spent card reopening its scene: "Yes, for a Judge". Take-off timing: "When found".
+  - Where a place's crossing figures are edited: "Keying rail (Recommended)". The three departures from the board: "Keep all (Recommended)" (95045976).
+- S7a (lore checks) is on main: 8e215b7d, f1f829e9, 18e0f398. Walked by `tools/live/scene-search-lore.mjs`, 33 pass, 1 fail (6a9d7f5b). The fail was the party-check card's target tooltip, which named no page for a skill-thrown check. It is registered as T-0683, and a peer fixed it in 8b285f48. The tooltip is not re-walked here.
+- S5b is on main (09630273). A Judge's press on a spent card reopens its scene, and a body found is taken off. `tools/live/treasure-search.mjs` walked it: 48 pass, 0 fail (6d24e62e).
+- The Sheet control (bdec34b7) and the Crossing fieldset (ebb599f2), built on the topic, were landed together (tip 4545820c, after the land's gate refused a literal `uppercase`). The new `tools/live/scene-search-sheet-crossing.mjs` walked both on lane C: 70 pass, 0 fail, no console error on either seat, recorder attached before `init`. TESTING says per step what was not driven: the crossing's narrow window and type size, keyboard order, Begin over the place, a pass with no imported penalty steps, a container's card, and deleting the world actor.
+- Stylesheet check closed. `styles/scene-search.css` loads natively: a probe of the top-level `document.styleSheets` cannot see it because core 14 nests module sheets under an `@import`. The sheet-crossing walk found it loaded on both seats.
+- Not pushed: everything above except 6d24e62e. The orchestrator pushes.
+- Next: S8 (docs, guide, gallery, shots from user-made data), then `branch.mjs close scene-search` once the feature is walked.

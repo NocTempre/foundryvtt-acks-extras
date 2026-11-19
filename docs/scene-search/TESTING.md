@@ -800,13 +800,30 @@ its start.
 
 ## The open-sheet control
 
-**Not yet walked.** Offline coverage is the view model (`tools/test-scene-screen.mjs`)
+**Walked 2026-11-19** by `tools/live/scene-search-sheet-crossing.mjs` (`node tools/live/run.mjs scene-search-sheet-crossing`), log `aia-tmp/live/scene-search-sheet-crossing-20261119-141705.log`: steps 1 to 5 on both seats with no console error (step 1's "a container's card has none" and step 4's deleting the world actor were not driven; only the token was deleted). Offline coverage is the view model (`tools/test-scene-screen.mjs`)
 and the actor resolution and the per-seat button rule (`tools/test-treasure-search.mjs`);
-no window or card is drawn offline.
+the removal of the card's buttons for a non-Judge stays offline only, since the Player seat never renders the card.
 
 Fixtures: a fight whose defeated hostile combatants carry something, so the
 fight-over card posts (the recipe of "S5 — the ways in"); one of the fallen is an
-unlinked token. The party's scene search opened from that card.
+unlinked token. The party's scene search opened from that card. The walk keeps
+`scene-search/sheet-*` (scene, Region, place, party, owner, mate and two unlinked
+hostiles) and builds the fight, the card and the tokens it deletes as its own.
+
+What driving it taught:
+
+- The fight-over card is drawn twice, in the chat log (`#chat`) and as a transient
+  popup in `#chat-notifications`. A pointer press lands on whichever is on top, and
+  the popup copy moves and expires; press the `#chat` copy.
+- A defeat by hit points writes only the unlinked token's own actor, so the world
+  actor keeps its hit points. That difference is the proof the button never falls
+  back to the world actor.
+- `ui.chat.updateMessage` re-runs the card's render hook; it is how a walk redraws
+  the card after a deletion.
+- Delete a body's token through `api.sweepTracked({ only: [tokenUuid] })` so the
+  deletion stays on the run's own ledger.
+- A monster token's actor opens a sheet of class `FollowerCardSheet`; assert the
+  document uuid, not the class.
 
 1. **Judge, the screen.** Open the scene screen (party sheet → Dungeon tab → Search
    here, or the card's Search the scene). *Observable:* each body's card has a
@@ -829,9 +846,9 @@ unlinked token. The party's scene search opened from that card.
 
 ## The crossing fieldset
 
-**Not yet walked.** Offline coverage is `tools/test-scene-keying.mjs` (which keys each kind offers, the penalty select with and without imported steps, an unlisted pick shown as not set, the larger figure enabled only on larger, a blank removing its key, and every written value read back through `crossingSeed`); no window is drawn offline.
+**Walked 2026-11-19** by `tools/live/scene-search-sheet-crossing.mjs` (`node tools/live/run.mjs scene-search-sheet-crossing`), log `aia-tmp/live/scene-search-sheet-crossing-20261119-141705.log`: steps 1 to 5 and 8, with 2 imported water-penalty steps and a stale pick; step 6 read tooltip text and captions only (keyboard order not asserted); step 7 (narrow window, raised type size) not walked; "Begin over this place starts the crossing" not driven, `crossingSeed` was called in the page instead. Offline coverage is `tools/test-scene-keying.mjs` (which keys each kind offers, the penalty select with and without imported steps, an unlisted pick shown as not set, the larger figure enabled only on larger, a blank removing its key, and every written value read back through `crossingSeed`); no window is drawn offline.
 
-Fixtures: `scene-search/key-place` (S6), with one Hazard item per obstacle kind kept in the world's Items (a climb obstacle, a jump, a squeeze and a swim), each dropped on the place as its own thing. For the penalty select the world imports the water-penalty steps once; a second pass walks with none imported.
+Fixtures: `scene-search/crossing-place`, a place holding one thing per obstacle kind (a climb obstacle, a jump, a squeeze and a swim) and a condition, each dropped on the place from the Hazards pack. For the penalty select the world imports the water-penalty steps once; a second pass walks with none imported.
 
 1. **Offer by kind.** Location sheet → Things here → open each obstacle's row. *Observable:* the Crossing fieldset lists Length and Depth for the climb, Gap and Depth for the jump, Shape and Length for the squeeze, Penalty and Larger penalty for the swim; a condition or a trap row has none. The scene screen's aside, with the same thing selected, shows the same fieldset.
 2. **Write a figure.** Type a length on the climb. *Observable:* the thing's `params.length` holds the number and nothing else of the thing changed; the party sheet's Begin over this place starts the crossing with it. Clear the field: the key is gone and the crossing's own default stands.
@@ -841,6 +858,22 @@ Fixtures: `scene-search/key-place` (S6), with one Hazard item per obstacle kind 
 6. **Tooltips and keyboard.** Hover each field. *Observable:* its caption, what it sets, and the page the kind cites. Tab through the fieldset; each control is reached and named.
 7. **The window.** Make the sheet narrow and raise the type size. *Observable:* the fieldset reflows and scrolls with the rest of the rail.
 8. **Player seat.** Join as the Player seat. *Observable:* the Things here tab and the screen's rail are absent, as for the rest of the rail.
+
+What driving it taught:
+
+- The walk's place is `scene-search/crossing-place`, filled by dropping the Hazards
+  pack's items through `dropOnPlace`. Read the pack with `pack.getDocuments()`: the
+  index carries no `system.key`, so a key lookup on it finds nothing.
+- A drop stores blank keys (`length`, `gap`, `depth` as null) on every obstacle. The
+  editor's blank removes the key, so assert the owned keys as null-or-absent and
+  compare the rest of `params` for change.
+- A select the walk set already holds the value it wrote, so it cannot prove a
+  redraw; wait on a dependent field (Larger penalty enabling) and sleep after each
+  write.
+- `crossingSeed` takes `penaltyPicks: penaltyPicksOf(waterPenaltySteps())`; without
+  it a swim pick is dropped as stale.
+- End a session and close its screen before `open` at another place, or the run
+  throws `scene:sessionOpen`.
 
 ## What this walk does not reach
 
