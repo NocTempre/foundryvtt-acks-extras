@@ -101,7 +101,7 @@ export const ITEM_FLAGS = Object.freeze({
   HELMET: "helmet", // "light" | "heavy"
   MATERIAL: "material", // primary material, for the item-loss materials table
   DESTROYED: "destroyed", // the item is wrecked — struck through, tagged, still carried
-  SILVERED: "silvered", // RR ch.4 Silver quality: true = plated (price layer), false = explicitly not
+  SILVERED: "silvered", // RR ch.4 Silver quality: true = plating bought (price layer); on ammunition false = explicitly not
   // The archer's declaration: fire THIS stack next, ahead of the plain-first
   // rule. Its own flag because `system.equipped` cannot carry it — an
   // ammunition stack is an `item`, and only weapon/armor have that field.

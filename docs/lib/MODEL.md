@@ -2090,7 +2090,7 @@ raw hit points outside the one amount path.
 
 **The card a weapon hit owns.** Every other attack in flight is known by its
 weapon's damage (`attackDamageOf`: the base damage's types and extraordinary
-mark, and core's `system.special.silver`), by the attacker's uuid, restored
+mark, and whether the weapon is silver, `silverOf`: core's `system.special.silver`), by the attacker's uuid, restored
 when the attack resolves or throws. The same listener (`attackApplyMatch`)
 reads `data-damage` and `data-target-uuid` off the card's apply button and,
 in one `updateSource`, strips the button and stamps

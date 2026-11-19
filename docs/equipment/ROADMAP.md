@@ -70,6 +70,11 @@ What is not built. How it behaves now is [MODEL.md](MODEL.md); why is
   A repair check run after the rows publish would list every weapon the
   imported lists leave without a class, so a Judge sees them in one place
   instead of on each sheet.
+- **Silver ammunition reaches the attack stamp.** Core has no silver field on
+  ammunition, and the attack card is stamped (lib `attackDamageOf`) before the
+  post-attack hook picks the stack, so a silver arrow never makes its hit
+  silver to the defence stage. It needs the ammunition chosen before the card
+  is stamped. Architect first.
 - **The scavenged damage floor.** The passage that prints the scavenged grids
   (RR p. 160) also prints a floor on a weapon's damage. No recipe reads it and
   no code applies it: a stacked damage penalty is written as rolled. It wants a

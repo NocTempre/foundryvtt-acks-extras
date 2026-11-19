@@ -88,7 +88,7 @@ truth behind the code enums; local-only, never in the repo).
 | Item flag (weapon) | `flags.acks-extras.category` | Which proficiency CLASS the weapon belongs to (a `WEAPON_CATEGORY` value), read by `classifyWeapon` ahead of the table row's own. Written by the item sheet's Class control; absent = the row's. |
 | Item flag (weapon) | `flags.acks-extras.{size,style}` | Per-item classifier overrides, a Judge's or the sheet's, which outrank the row. Annotate does not stamp them; thrown and handy are read from the item's special properties and the row, never from a flag. |
 | Item flag (armor) | `flags.acks-extras.{shieldVariant,strap,masterwork,helmet}` | Overlay metadata. |
-| Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
+| Item flag (weapon/ammo) | `flags.acks-extras.silvered` | RR ch.4 Silver quality. On a weapon it means "plating bought" and is never read as "is it silver": a weapon is silver when the system's `system.special.silver` says so (lib `silverOf`; the Construction tab's Silver control writes both, see below). On ammunition, which has no such field, it is the answer: `true` plated, `false` explicitly not, absent = the guess in `silver.mjs` (weapon table, then name). Only `true` applies the price layer — the RAW list already charges Silver Dagger and Silver Arrow their silvered price. |
 | Item flag (weapon/shield) | `flags.acks-extras.hand` | `main` \| `off` — which hand the item was drawn into; resolves dual-wield off-hand identity. |
 | Item flag (any physical item) | `flags.acks-extras.gear` | `{slots, wornAt, access, holds, capacity, relief, loaded6}` — where this gear MAY sit, where it sits now, the RAW cost of drawing from it, whether it is a container, how much it holds (the figure its price row states, written at import, or typed on its Details tab) and, on a harness, how much it secures (the item's own figure, read from its text by Annotate or typed on its Construction tab). The model and its read path are the lib subsystem's (`docs/lib/MODEL.md`); this feature infers the values (`profiles.mjs` `inferGear`: slots, access, `holds`, relief, `loaded6`; `access` is the side the imported retrieval list (RR p. 294) gives the carrier's name, blank where it lists none and with nothing imported, and no profile carries one) and stamps them (Annotate Equipment, and the importer on every gear and price row it makes), each key only where the item leaves it blank. `capacity` is never inferred; see "Figures the book prints" below. An item that declares no `slots` is read through `wearableSlots` — its inferred places — by every Wear control this feature draws, and `actions.mjs` `wearItem` declares them in the write that puts it on. |
 | Item flag (container) | `flags.acks-extras.container.{quality,lockMod,keys,accepts,refusal}` | The lock's quality text and pick modifier, the keys that open it (`[{uuid,name}]`), the kinds it will accept (`item-sheet/accept-kinds.mjs`) and the refusal it gives a wrong drop. Beside the `locked/opened/concealed/fragile` fields `containers.mjs` already holds. |
@@ -865,7 +865,18 @@ Net row all read one answer.
   override; the registry's override layer holds tables and these are items. A
   repair rewrites the figures and the stamp together.
 - **The weapon-table tag stays structural.** `SILVER.quality` is the tag the
-  weapon list marks a silvered row with, read by `silver.mjs`.
+  weapon list marks a silvered row with, read by `silver.mjs` for a stack of
+  ammunition only.
+- **Silver, in one place.** A weapon is silver when `system.special.silver` is
+  true (`isSilvered`, lib `silverOf`), which is also what the damage stage in
+  lib reads; its name and its table row say nothing. The item sheet's
+  Construction tab Silver control (`setSilvered`): *Silvered* sets the plating
+  flag and the system's field true; *Not silvered* writes the field false and
+  unsets the flag; *Auto* unsets the flag and leaves the field, and its label
+  reports the field. Ammunition has no system field, so its flag, then its row,
+  then its name answer; `pickAmmo` and the fired-silver notice read that. The
+  flag's readers (the price layer, the price ledger, the variation-family
+  conflict) ask whether plating was bought.
 
 ### Scavenged condition (RR p. 160)
 

@@ -3277,47 +3277,84 @@ check("clearHands disturbs nothing when a hand is already free", noop.released.l
 /*  Silver (RR ch.4) — the one material that changes what a weapon counts as */
 /* ---------------------------------------------------------------------- */
 
-const { isSilvered, canBeSilvered, dealsExtraordinaryDamage } = await import(new URL("silver.mjs", S));
+const { isSilvered, canBeSilvered, setSilvered } = await import(new URL("silver.mjs", S));
 const { layerDeltas } = await import(new URL("properties.mjs", S));
 const { weaponKey } = await import(new URL("profiles.mjs", S));
 const weaponKeyOf = (name) => weaponKey({ name });
 
-/** An item whose silver flag (and any other) is whatever the caller states. */
-const silverItem = (name, type = "weapon", flags = {}) => ({
-  name, type,
-  system: { cost: 10, weight6: 1, damage: "1d4" },
-  getFlag: (_m, k) => flags[k],
-});
+/**
+ * An item whose module flags and system `special.silver` are what the caller
+ * states. It keeps its flags and its writes, so `setSilvered` can be read back.
+ */
+const silverItem = (name, type = "weapon", flags = {}, coreSilver = undefined) => {
+  const item = {
+    name, type,
+    system: { cost: 10, weight6: 1, damage: "1d4", ...(coreSilver === undefined ? {} : { special: { silver: coreSilver } }) },
+    flags,
+    updates: [],
+    getFlag: (_m, k) => flags[k],
+    setFlag: async (_m, k, v) => { flags[k] = v; },
+    unsetFlag: async (_m, k) => { delete flags[k]; },
+    update: async (u) => {
+      item.updates.push(u);
+      if ("system.special.silver" in u) (item.system.special ??= {}).silver = u["system.special.silver"];
+    },
+  };
+  return item;
+};
 
-// The table entry. Silver Dagger is the one RAW weapon carrying the quality.
-check("the RAW Silver Dagger counts as silver", isSilvered(silverItem("Silver Dagger")));
+// A WEAPON is silver when the system's own field says so, and nothing else
+// answers for it: the table entry and the name no longer do.
+check("a weapon the system marks silver counts as silver", isSilvered(silverItem("Dagger", "weapon", {}, true)));
 check("an ordinary dagger does not", !isSilvered(silverItem("Dagger")));
+check("a weapon the system marks not silver is not", !isSilvered(silverItem("Dagger", "weapon", {}, false)));
+check("a weapon named Silver Dagger is not silver by that name", !isSilvered(silverItem("Silver Dagger")));
+check("a name that says silvered does not make a weapon silver", !isSilvered(silverItem("Silvered Sword")));
+check("a name that says silver-coated does not either", !isSilvered(silverItem("Silver-Coated Spear")));
 
-// The name, for the silvered version of any other common weapon RAW allows.
-check("a silvered sword counts as silver", isSilvered(silverItem("Silvered Sword")));
-check("a silver-coated spear counts as silver", isSilvered(silverItem("Silver-Coated Spear")));
-
-// An explicit answer overrules both. `false` is a real answer, not an absence:
-// it is how a reader denies a name that says silver when the item is not.
-check("an explicit yes silvers an ordinary blade", isSilvered(silverItem("Sword", "weapon", { silvered: true })));
-check("an explicit no overrules the name", !isSilvered(silverItem("Silver Dagger", "weapon", { silvered: false })));
+// The plating flag is "plating bought" and never answers for a weapon, either way.
+check("a plating flag alone does not make a weapon silver", !isSilvered(silverItem("Sword", "weapon", { silvered: true })));
+check("a plating flag of no does not unmake the system's silver", isSilvered(silverItem("Sword", "weapon", { silvered: false }, true)));
 
 // Silver is a WEAPON quality. Armour and ordinary gear cannot carry it however
 // they are named, so nothing downstream reads silver off a silver ring.
 check("armour cannot be silvered", !canBeSilvered(silverItem("Silvered Plate", "armor")));
 check("a silver ring is not a silver weapon", !isSilvered(silverItem("Silver Ring", "item")));
-check("ammunition can be silvered", isSilvered(silverItem("Silver Arrow", "item")));
 
-// The three rulings collapse into one question, which the system's own
-// extraordinary field already asks.
-const markedItem = (name, extraordinary, flags = {}) => ({
-  ...silverItem(name, "weapon", flags),
-  system: { cost: 10, weight6: 1, damage: { base: { formula: "1d4", extraordinary } } },
-});
-check("silver deals extraordinary damage", dealsExtraordinaryDamage(silverItem("Silver Dagger")));
-check("an already-extraordinary weapon still does", dealsExtraordinaryDamage(markedItem("Sword", true)));
-check("a stale extraordinary flag alone does not", !dealsExtraordinaryDamage(markedItem("Sword", false, { extraordinary: true })));
-check("an ordinary sword does not", !dealsExtraordinaryDamage(silverItem("Sword")));
+// AMMUNITION has no system field: its flag answers, then its row, then its name.
+check("ammunition can be silvered", isSilvered(silverItem("Silver Arrow", "item")));
+check("an explicit yes silvers an ordinary stack", isSilvered(silverItem("Arrow", "item", { silvered: true })));
+check("an explicit no overrules a stack's name", !isSilvered(silverItem("Silver Arrow", "item", { silvered: false })));
+check("a system field on an ammunition stack is not read", !isSilvered(silverItem("Arrow", "item", {}, true)));
+
+// `setSilvered` on a weapon. The flag it leaves is the price layer's alone.
+const sv = silverItem("Sword");
+await setSilvered(sv, true);
+check("Silvered on a weapon sets the plating flag", sv.flags.silvered === true);
+check("Silvered on a weapon sets the system's silver", sv.system.special.silver === true && isSilvered(sv));
+
+const svOff = silverItem("Sword", "weapon", { silvered: true }, true);
+await setSilvered(svOff, false);
+check("Not silvered on a weapon writes the system's silver false", svOff.system.special.silver === false && !isSilvered(svOff));
+check("Not silvered on a weapon leaves no flag", !("silvered" in svOff.flags));
+
+const svAuto = silverItem("Sword", "weapon", { silvered: true }, true);
+await setSilvered(svAuto, "auto");
+check("Auto on a weapon clears the plating flag", !("silvered" in svAuto.flags));
+check("Auto on a weapon leaves the system's silver as it stands", svAuto.system.special.silver === true && isSilvered(svAuto));
+check("Auto on a weapon writes no silver", svAuto.updates.every((u) => !("system.special.silver" in u)));
+const svAutoOff = silverItem("Sword", "weapon", {}, false);
+await setSilvered(svAutoOff, null);
+check("Auto on a weapon the system calls plain leaves it plain", svAutoOff.system.special.silver === false && !isSilvered(svAutoOff));
+
+// Ammunition keeps its flag as the answer and never touches a system field.
+const svAmmo = silverItem("Arrow", "item");
+await setSilvered(svAmmo, true);
+check("Silvered on ammunition sets only the flag", svAmmo.flags.silvered === true && isSilvered(svAmmo) && !svAmmo.system.special);
+await setSilvered(svAmmo, false);
+check("Not silvered on ammunition stores an explicit no", svAmmo.flags.silvered === false && !isSilvered(svAmmo));
+await setSilvered(svAmmo, "auto");
+check("Auto on ammunition clears the flag", !("silvered" in svAmmo.flags));
 
 // PRICE. Plating scales the weapon's own listed price by the imported
 // document's multiplier; a masterwork surcharge is a flat addition and must

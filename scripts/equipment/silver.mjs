@@ -2,15 +2,18 @@
  * The Silver quality (RR ch.4 Weapon Qualities).
  *
  * Silver changes nothing about the weapon itself (RR ch.4); what matters is
- * what the blade COUNTS AS when it lands: extraordinary damage (RR ch.6,
- * RR p. 159). The system's weapon already asks that question through its
- * `damage.base.extraordinary` field, so silver answers it here through
- * `dealsExtraordinaryDamage` and opens no second question.
+ * what the blade COUNTS AS when it lands, which the defence stage in lib
+ * decides against a monster's silver flaw (RR ch.6, RR p. 159). A weapon is
+ * silver when the system says so (`system.special.silver`, lib `silverOf`),
+ * and nothing else answers for it: not its name, not its table row, not the
+ * plating flag. Ammunition has no such field, so a stack answers from the
+ * module's flag, then its table row, then its name.
  *
  * The module says what the weapon counts as and never decides the outcome:
  * whether a monster's resistance carries the silver flaw is the Judge's
  * reading of its stat block.
- * See docs/equipment/DECISIONS.md, "Silver is a quality, not a material (2026-08-06)".
+ * See docs/equipment/DECISIONS.md, "A weapon is silver when core says so
+ * (2026-11-19)".
  */
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SILVER } from "./config.mjs";
@@ -19,7 +22,7 @@ import { weaponRow } from "../lib/weapons.mjs";
 import { silveredFlagOf, recomputeItemFields } from "./properties.mjs";
 import { isAmmoItem } from "../lib/item-model.mjs";
 import { ITEM_TYPE } from "../lib/vocab.mjs";
-import { extraordinaryOf } from "../lib/damage-type.mjs";
+import { silverOf } from "../lib/damage-type.mjs";
 
 /**
  * Silver is a WEAPON quality, so only a weapon, or a stack of ammunition fired
@@ -30,11 +33,13 @@ export function canBeSilvered(item) {
 }
 
 /**
- * Does this blade count as silver? An explicit answer wins; otherwise the
- * weapon table's row decides, and failing that the name does.
+ * Does this item count as silver? A weapon is silver when the system's own
+ * field says so. A stack of ammunition has no such field: an explicit answer
+ * wins, otherwise the weapon table's row decides, and failing that the name.
  */
 export function isSilvered(item) {
   if (!canBeSilvered(item)) return false;
+  if (item.type === ITEM_TYPE.weapon) return silverOf(item);
   const explicit = silveredFlagOf(item);
   if (explicit !== null) return explicit;
   const key = weaponKey(item);
@@ -43,21 +48,23 @@ export function isSilvered(item) {
 }
 
 /**
- * Does an attack with this weapon deal EXTRAORDINARY damage? True when the
- * weapon's own base damage carries the system's extraordinary mark or when it
- * is silver.
- */
-export function dealsExtraordinaryDamage(item) {
-  return extraordinaryOf(item) || isSilvered(item);
-}
-
-/**
- * Plate an item in silver, or strip the plating (`null` or "auto" clears the
- * flag; `false` stores an explicit no that overrules a name or table entry).
- * Recomputes the item's fields, which applies or unwinds the silvered price.
+ * Plate an item in silver, or strip the plating. Recomputes the item's
+ * fields, which applies or unwinds the silvered price.
+ *
+ * The flag is "plating bought" and is what the price layer reads; it never
+ * says whether a weapon is silver. On a weapon, `true` sets the flag and the
+ * system's `special.silver`, `false` writes the system's field false and
+ * unsets the flag, and `null` or "auto" unsets the flag and leaves the
+ * system's field as it stands. On ammunition the flag is the answer: `false`
+ * is stored, an explicit no that overrules a table row or a name.
  */
 export async function setSilvered(item, silvered) {
-  if (silvered === null || silvered === "auto") {
+  const auto = silvered === null || silvered === "auto";
+  if (item?.type === ITEM_TYPE.weapon) {
+    if (auto || !silvered) await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
+    else await item.setFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED, true);
+    if (!auto) await item.update?.({ "system.special.silver": !!silvered });
+  } else if (auto) {
     await item?.unsetFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
   } else {
     await item?.setFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED, !!silvered);

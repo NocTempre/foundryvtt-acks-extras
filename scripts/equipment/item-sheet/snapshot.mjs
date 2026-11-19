@@ -116,7 +116,8 @@ function tagsOf(item, { gm }) {
   for (const v of variationItemsOf(item)) if (gm || !v.system?.hidden) out.push(v.name);
   const tier = masterworkTierOf(item);
   if (tier && tier !== "none") out.push(game.i18n.localize("ACKS-EQUIPMENT.props.masterwork"));
-  if (isSilvered(item)) out.push(game.i18n.localize("ACKS-EQUIPMENT.props.silverYes"));
+  // A weapon's silver is a system special, tagged by the loop above.
+  if (item.type !== ITEM_TYPE.weapon && isSilvered(item)) out.push(game.i18n.localize("ACKS-EQUIPMENT.props.silverYes"));
   if (named.isNamed(item) && gm) out.push(loc("itemSheet.tag.named"));
   return out;
 }

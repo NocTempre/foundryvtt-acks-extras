@@ -21,7 +21,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - undated — [Named-item rungs advance on level-up, not absolute level](DECISIONS-through-v11.14.5.md#named-item-rungs-advance-on-level-up-not-absolute-level)
 - 2026-08-03 — [Gear declares where it sits; the heuristics are only a fallback (2026-08-03)](DECISIONS-through-v11.14.5.md#gear-declares-where-it-sits-the-heuristics-are-only-a-fallback-2026-08-03)
 - 2026-08-03 — [Retrieval cost is per-container, not per-slot (2026-08-03)](DECISIONS-through-v11.14.5.md#retrieval-cost-is-per-container-not-per-slot-2026-08-03)
-- 2026-08-06 — [Silver is a quality, not a material (2026-08-06)](DECISIONS-through-v11.14.5.md#silver-is-a-quality-not-a-material-2026-08-06) — superseded in part by "2026-11-17 — Silver's answer reads the weapon's own extraordinary mark"
+- 2026-08-06 — [Silver is a quality, not a material (2026-08-06)](DECISIONS-through-v11.14.5.md#silver-is-a-quality-not-a-material-2026-08-06) — superseded in part by "2026-11-17 — Silver's answer reads the weapon's own extraordinary mark" and "2026-11-19 — A weapon is silver when core says so" (its "rides its own flag" and name-denial lines)
 - 2026-08-06 — [The weapon table is searched longest-key-first (2026-08-06)](DECISIONS-through-v11.14.5.md#the-weapon-table-is-searched-longest-key-first-2026-08-06) — superseded in part by "The weapon table is gone: rows come from the import, and only the procedure stays (2026-11-11)" and, for its armour-training paragraph, "Armour Training's step is imported, and its name grants nothing (2026-11-04)"
 - 2026-08-15 — [Base type is a flag on the item, and it refines the document type rather than replacing it (2026-08-15)](DECISIONS-through-v11.14.5.md#base-type-is-a-flag-on-the-item-and-it-refines-the-document-type-rather-than-replacing-it-2026-08-15)
 - 2026-08-23 — [One item sheet, this module's own markup (2026-08-23)](DECISIONS-through-v11.14.5.md#one-item-sheet-this-modules-own-markup-2026-08-23)
@@ -105,7 +105,7 @@ shows the early answers until it redraws.
 **Ruled.** The five categories a named item's points go to (`overlays/named.mjs` `NAMED_CATEGORIES`, JJ p. 399) stay in source: each is a modifier the overlay applies to a field core owns, and the code that applies it is keyed by it, so the set is which modifiers exist and not a table of options read off a page. A label names its field and carries no size; the count beside it is the ladder the Judge set, one point a rung. The building session's call with the owner away. A reversal registers the categories as an imported table and has `toItemUpdates` read which field each one writes.
 **Rejected.** A label that states the size of a point, which is the page's figure in a string.
 
-## 2026-11-17 — Silver's answer reads the weapon's own extraordinary mark
+## 2026-11-17 — Silver's answer reads the weapon's own extraordinary mark — SUPERSEDED IN PART 2026-11-19
 
 Supersedes in part "Silver is a quality, not a material (2026-08-06)": its line
 that the monsters feature asks whether an attack deals extraordinary damage
@@ -151,3 +151,48 @@ weapon named (the Rolls tab's bare melee and missile rows) picks its weapon
 inside the system's builder, past the seam, and a blank weapon chosen there
 still rolls no damage, unasked. A named weapon that took the old die keeps
 it: the stored base cannot be told from a stated one.
+
+## 2026-11-19 — A weapon is silver when core says so
+
+Supersedes in part "Silver is a quality, not a material (2026-08-06)": that a
+weapon's silver "rides its own flag", and that the weapon table's row and the
+item's name decide it when the flag is silent (and the flag's `false` denies a
+name). It also supersedes in part "2026-11-17 — Silver's answer reads the
+weapon's own extraordinary mark": that `dealsExtraordinaryDamage` stands.
+
+New evidence, since the 2026-11-17 entry is under a week old: lib's damage
+stage (lib DECISIONS, "2026-11-16 — Damage against defenses is one lib stage")
+reads core's `system.special.silver`, not the flag, so a weapon could be silver
+to `isSilvered` and not to the stage that decides a hit. And
+`dealsExtraordinaryDamage` has no runtime caller (a grep finds it only in
+`api.mjs` and its own test) and contradicts that stage's rule that silver
+counts as extraordinary only against a band with `silverFlaw`.
+
+**Ruled** (architect, accepted by the owner). For a weapon, core's
+`system.special.silver` is the truth, read through lib `silverOf`.
+`isSilvered(weapon)` is `silverOf` and consults neither the flag, the row nor
+the name. The module's `silvered` flag means "plating bought", which is what
+the price layer reads, and never answers "is it silver" for a weapon. The
+Construction tab's Silver control keeps its three options: *Silvered* sets the
+flag and `system.special.silver` true; *Not silvered* writes the system's field
+false and unsets the flag; *Auto* unsets the flag and leaves the system's field
+alone, so its "Auto (…)" label reports that field. Ammunition has no core
+silver field and its stack is picked in the post-attack hook, so it keeps the
+flag, then the row, then the name. `dealsExtraordinaryDamage` is retired.
+
+**Rejected.** Reading the flag in lib's stage: lib reads core's fields and
+nothing of Equipment's (lib DECISIONS 2026-11-16). Keeping the name fallback
+for weapons: a weapon called silver that core does not mark deals mundane
+damage to a silver-flawed monster, and the sheet would say otherwise.
+
+**What it cost.** A weapon plated before this change keeps its price but is not
+silver until Silvered is picked again; it was never silver to lib's stage. The
+owner rules no migration ("no tools for previous-version data"). A weapon
+named for silver is not silver until the field is ticked (the sheet's Silver
+quality chip or the control). A grep of `scripts/` finds no write of
+`system.special.silver`, so an imported Silver Dagger may not be silver either
+until then; that is reported to the owner, not decided here. Not silvered reads back as
+Auto, since the flag is unset. A weapon whose chip is cleared while the
+plating flag is still true reads as Silvered in the control while not silver:
+the flag is the price's, and the chip is the field's.
+

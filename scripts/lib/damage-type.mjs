@@ -121,6 +121,13 @@ export function weaponBaseDamage(formula, typeKey = null, extraordinary = false)
 export const extraordinaryOf = (item) => item?.system?.damage?.base?.extraordinary === true;
 
 /**
+ * Is the weapon silver? Only the system's `system.special.silver` answers, and
+ * it is the one silver a weapon has for every reader: the defence stage, the
+ * item sheet's tags and the Silver control. Ammunition has no such field.
+ */
+export const silverOf = (item) => item?.system?.special?.silver === true;
+
+/**
  * The item update that types a weapon's base damage: a pick replaces the whole
  * set with the system's key for it, and a blank pick clears the set.
  */

@@ -26,9 +26,11 @@ import { variationItemsOf } from "./variation-items.mjs";
 export const PRISTINE = "pristine";
 
 /**
- * The reader's explicit answer about silver plating: `true` plated, `false`
- * explicitly not, `null` never stated (so `isSilvered` in silver.mjs guesses).
- * The price layer below keys on `true` alone.
+ * The reader's explicit answer about silver plating: `true` plating bought,
+ * `false` explicitly not, `null` never stated. The price layer below keys on
+ * `true` alone, and a weapon's flag never says whether it is silver (that is
+ * the system's field, `isSilvered` in silver.mjs); a stack of ammunition's
+ * flag is its answer.
  */
 export function silveredFlagOf(item) {
   const v = item?.getFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);

@@ -364,9 +364,10 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
   }
 
   // SILVER (RR ch.4) — a weapon quality, so weapons and ammunition only.
-  // "Auto" hands the answer back to the weapon table and the name; picking
-  // Silvered outright is what applies the price layer (see config.mjs
-  // SILVER).
+  // A weapon is silver by the system's own field, and "Auto" reports it;
+  // ammunition answers from its flag, its table row, then its name. Picking
+  // Silvered outright is what sets the plating flag that applies the price
+  // layer (see config.mjs SILVER and `setSilvered`).
   if (canBeSilvered(item)) {
     const flag = silveredFlagOf(item);
     row("ACKS-EQUIPMENT.props.silver", select(

@@ -4319,7 +4319,7 @@ t("areEnemies: friendly against hostile is true, one side false, neutral secret 
 }
 
 {
-  const { coreDamageKey, weaponBaseDamage, extraordinaryOf, damageTypeUpdate, damageTypeOf, ownDamageType } = await import("../scripts/lib/damage-type.mjs");
+  const { coreDamageKey, weaponBaseDamage, extraordinaryOf, silverOf, damageTypeUpdate, damageTypeOf, ownDamageType } = await import("../scripts/lib/damage-type.mjs");
   const MODULE = "acks-extras";
   /** A live-shaped weapon: `types` is a Set, as the system's SetField hydrates it. */
   const weapon = ({ types = [], extraordinary, flags = {} } = {}) => ({
@@ -4384,6 +4384,14 @@ t("areEnemies: friendly against hostile is true, one side false, neutral secret 
     assert.equal(extraordinaryOf(weapon({ extraordinary: false, flags: { extraordinary: true } })), false);
     assert.equal(extraordinaryOf(weapon({ flags: { extraordinary: true } })), false);
     assert.equal(extraordinaryOf(null), false);
+  });
+  t("silverOf: only the system's special.silver is true", () => {
+    assert.equal(silverOf({ system: { special: { silver: true } } }), true);
+    assert.equal(silverOf({ system: { special: { silver: false } } }), false);
+    assert.equal(silverOf({ system: { special: {} } }), false);
+    assert.equal(silverOf({ name: "Silver Sword", system: {}, getFlag: () => true }), false, "neither a name nor a flag");
+    assert.equal(silverOf({ system: { silver: true } }), false, "the field is special.silver");
+    assert.equal(silverOf(null), false);
   });
   t("damageTypeUpdate: a pick replaces the set, a blank clears it, varies maps", () => {
     assert.deepEqual(damageTypeUpdate("cold"), { "system.damage.base.types": ["cold"] });

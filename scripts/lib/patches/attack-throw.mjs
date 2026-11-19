@@ -42,6 +42,7 @@
  */
 import { MODULE_ID } from "../constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "../vocab.mjs";
+import { silverOf } from "../damage-type.mjs";
 
 /** The attack kind a spell's damage is made under. Core has three; this is the fourth, registered by this seam. */
 export const MAGIC_ATTACK_TYPE = "magic";
@@ -435,7 +436,7 @@ const attackDamageInFlight = new Map();
 /**
  * The damage an attack made with `item` deals, as the system's builder reads
  * it: the types and the extraordinary mark of its base damage, and whether the
- * weapon is silver (`system.special.silver`). An attack with no weapon deals
+ * weapon is silver (`silverOf`). An attack with no weapon deals
  * damage with no type.
  *
  * @param {Item|null} item
@@ -446,7 +447,7 @@ export function attackDamageOf(item) {
   return {
     types: Array.from(base?.types ?? []).filter((t) => typeof t === "string" && t),
     extraordinary: base?.extraordinary === true,
-    silver: item?.system?.special?.silver === true,
+    silver: silverOf(item),
   };
 }
 

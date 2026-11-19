@@ -25,7 +25,7 @@ import { armourLimitedAbilities } from "./armour-limits.mjs";
 import { refreshLoadout } from "./enforce.mjs";
 import { planItemLoss, stonesAtRisk, isVulnerable, materialOf, setMaterial, materialVocabulary, itemLossFigures, itemLossMaterials } from "./overlays/item-loss.mjs";
 import { openItemLoss, applyItemLoss } from "./item-loss-flow.mjs";
-import { isSilvered, canBeSilvered, setSilvered, dealsExtraordinaryDamage } from "./silver.mjs";
+import { isSilvered, canBeSilvered, setSilvered } from "./silver.mjs";
 import { maneuverMods, MANEUVERS } from "./overlays/maneuvers.mjs";
 import * as named from "./overlays/named.mjs";
 import { consumeForAttack, recoverThrown, isThrownAway, consumeItem, nockAmmo } from "./ammo.mjs";
@@ -341,7 +341,6 @@ export function buildApi() {
     isSilvered,
     canBeSilvered,
     setSilvered,
-    dealsExtraordinaryDamage,
     isSpellbook,
     spellbookValue,
     pagesUsed,
