@@ -210,7 +210,10 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
   const record = normalizeRecord(flag);
   const button = html.querySelector('[data-action="searchScene"]');
   if (record.opened && button) button.textContent = loc("search.open");
+  // The block is hidden here, never by the template: a chat card's stored content loses its `hidden` attribute.
+  const wrap = html.querySelector('[data-field="textWrap"]');
   const list = html.querySelector('[data-field="text"]');
+  if (wrap) wrap.hidden = !(list && record.drawnText.length);
   if (list && record.drawnText.length) {
     list.replaceChildren(
       ...record.drawnText.map((line) => {
@@ -219,7 +222,6 @@ Hooks.on("renderChatMessageHTML", (message, html) => {
         return li;
       }),
     );
-    html.querySelector('[data-field="textWrap"]').hidden = false;
   }
   button?.addEventListener("click", () => {
     searchFromCard(message).catch((err) => {

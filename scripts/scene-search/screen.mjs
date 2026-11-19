@@ -10,8 +10,15 @@
  * Assigning is a picker on the rail (a member's button, with the reason where
  * the member may not) or a drag of a member tile onto an entry; both end in
  * `assignSceneCheck`, which a player's seat declares to the Judge for their own
- * characters only. The window scrolls at its entries and party columns, not at
- * `.window-content`.
+ * characters only.
+ *
+ * On the Judge's seat a third column, left of the entries, is the keying aside:
+ * pressing an entry's name selects it, and the aside draws the keying rail
+ * (`keying.mjs`, the partial the place sheet's Things here tab shares) for that
+ * entry. A player's seat has no aside and its names are text.
+ *
+ * The window scrolls at its columns; `.window-content` scrolls only where the
+ * window is too short for the board's floor (`styles/scene-search.css`).
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { PicksMixin } from "../lib/picks.mjs";

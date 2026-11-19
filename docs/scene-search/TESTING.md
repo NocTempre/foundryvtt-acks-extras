@@ -5,9 +5,11 @@ driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. Offline coverage
 of the haul is `tools/test-scene-haul.mjs`; of the model, `tools/test-scene-search.mjs`.
 Neither proves a window opens or a Card writes; only this walk does. The session
 API and the activities (S2) are below, walked by
-`tools/live/scene-search-session.mjs`; the screen (S4) is the last section, not
-yet walked; the haul's steps reach the Foundry side by a dynamic import in page
-context.
+`tools/live/scene-search-session.mjs`; the screen (S4) by
+`tools/live/scene-search-screen.mjs`; the ways in (S5) by
+`tools/live/treasure-search.mjs`; keying (S6) by
+`tools/live/scene-search-keying.mjs`. The haul's steps reach the Foundry side by
+a dynamic import in page context.
 
 The walk needs a real Judge seat and a real Player seat joined at once
 (`live-testing.md`): the found-only rule is a projection on the player's client,
@@ -353,33 +355,91 @@ Player seat (the Player seat's character is `searcher-plain`):
 Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept fixtures
 stay.
 
-## S5 — the ways in (not yet walked)
+## S5 — the ways in
 
-Offline coverage is `tools/test-scene-ways.mjs` (which party a record names,
-what a press does, the call over a fake world), the S5 blocks of
-`tools/test-scene-haul.mjs` (the origin's carried map), `tools/test-scene-session.mjs`
-(a body's table drawn at the deal, the source's owners) and
-`tools/test-formation-flows.mjs` (the `declareSearch` relay), and
-`tools/test-treasure-search.mjs`. None draws a card or a button, deletes an item
-or opens a window, so every observable below needs a live Judge seat and, for
-the declaration, a live Player seat. The card and the take-off are also in
-[treasure TESTING](../treasure/TESTING.md), "Search the fallen".
+The walk is `tools/live/treasure-search.mjs` (`node tools/live/run.mjs
+treasure-search`), which also walks the treasure side of the card (the
+[treasure recipe](../treasure/TESTING.md), "Search the fallen"). Offline coverage
+is `tools/test-scene-ways.mjs` (which party a record names, what a press does,
+the call over a fake world), the S5 blocks of `tools/test-scene-haul.mjs` (the
+origin's carried map), `tools/test-scene-session.mjs` (a body's table drawn at the
+deal, the source's owners) and `tools/test-formation-flows.mjs` (the
+`declareSearch` relay), and `tools/test-treasure-search.mjs`. None draws a card or
+a button, deletes an item or opens a window, so every observable below needs a
+live Judge seat and, for the declaration, a live Player seat.
+
+What driving it taught:
+
+- **Create the combat on the walk's scene.** The record names the party from the
+  fight's scene (`partyOfRecord`): one party whose token is on it, else the only
+  party the world has. A combat made with no scene names no party in a world
+  that holds several, and the press answers "No party could be named for this
+  search".
+- **The formation joins its other members to the combat itself.** A combat made
+  with the party token alone holds four combatants once the second member joins:
+  two friendly, and the two bodies. Friends are never fallen, so the card lists
+  the bodies only.
+- **A chat card's stored content loses a `hidden` attribute.** The card's table
+  block is hidden by its render hook, not by the template; check the attribute,
+  the computed display and the block's height before any draw, not the list's
+  text.
+- **The pot is read from the party's session flag.** `flags.acks-extras.sceneSearch`
+  carries `potUuid` (null for a session opened from the Dungeon tab, which deals
+  nothing), `recordMessageId` and the bodies' ids; the card's button returns
+  nothing. Track the pot's uuid the moment the flag shows it. `end` does not
+  delete the pot.
+- **Count pots by uuid before and after a press.** A world holds other sessions'
+  pots, so a count alone is not a measure; compare the set against the uuids
+  known before the press.
+- **Hold the die from the press until the session flag appears**, and restore it
+  after (`CONFIG.Dice.randomUniform`, 0.025). The letter then deals at least one
+  lot, and a linked table with the formula `1d1` and two results sharing the
+  range 1 yields both an item result and a text result from one draw.
+- **A refusal is a notification; compare it to the module's own words**
+  (`acksExtras.sceneSearch.reasonText(code)`, with the code from `WAYS_REFUSAL`)
+  through the kit's `takeNotes`, which records the seat's warnings and infos. The
+  lair notice is among them.
+- **The Dungeon tab is the sheet's `mode` tab.** Open it with the tab control's
+  click, then press `[data-action="searchHere"]` with the real pointer. The
+  button is on the Judge's sheet and on a Player seat that owns the party
+  actor; the walk gives the Player seat OWNER on the party actor and on one
+  member.
+- **The declaration card is made by whichever GM client answers the relay.**
+  Read `game.users.activeGM` on the Player seat in the same call as the
+  press; the walk's GM seat's nonce hook finds the card only when that seat
+  answered.
+- **Begin Combat and End Combat are sometimes covered by another window.** A
+  control that is not the element under its centre is pressed with `click()`
+  and printed; a scripted Begin Combat did not start the combat once, so the
+  walk writes the round instead and End Combat still fires the real hook.
+- **A stylesheet `module.json` gains is read when the world launches.** The
+  screen's `styles/scene-search.css` was not loaded by the world, so the walk
+  injects a copy with a cache-buster on both seats before opening a window (see
+  S4).
 
 ### Fixtures
 
-Found by `flags.world.fixture`, built through `api.fixture`. Reuse S2's place and
-party where the walk is not about a fight.
+Found by `flags.world.fixture`, built through `api.fixture`.
 
-- `scene-search/ways-scene` — a scene with a Region, and the place
-  (`scene-search/ways-place`, a location actor linked to that Region) whose
-  area holds the party's token. The party's token stands inside it.
-- `scene-search/ways-party` — a formation of two characters, one owned by the
-  Player seat, its token on `ways-scene` inside the Region. `scene-search/ways-owner`
-  is the character the Player seat owns.
-- `scene-search/ways-hostile` — a HOSTILE, unlinked `monster` token on the
-  scene whose actor carries one goods item and a treasure letter, so the card
-  lists it with an item count and a letter. A second one carries a linked table
-  (`scene-search/ways-table`: an item result, a text result) and no goods.
+- `scene-search/ways-scene` — a scene (3000 by 1500, grid 100 / 5 ft) holding the
+  Region `scene-search/ways-region`, one rectangle around the party's token, no
+  behavior.
+- `scene-search/ways-place` — a location actor linked to that Region, with one
+  floor (`floor-1`), so the screen has an entry to assign to. The place whose
+  area holds the party token is the walk's place.
+- `scene-search/ways-party` — a party actor the Player seat owns, holding
+  `scene-search/ways-owner` (a character the Player seat owns) and
+  `scene-search/ways-mate` (owned by nobody else), its token on `ways-scene` inside
+  the Region.
+- `scene-search/ways-hostile` — an unlinked `monster` with two goods (an item
+  and a coin row), a natural-weapon row and a treasure letter the imported
+  classic table deals a card for; `scene-search/ways-hostile-2` — an unlinked
+  monster with no goods and a linked table. Each run places its own HOSTILE
+  tokens, so the take-off writes through a token's own copy.
+- `scene-search/ways-table` — a RollTable (formula `1d1`, replacement on) with an
+  item result pointing at `scene-search/ways-table-item` and a text result, both
+  on the range 1, linked on the second hostile through
+  `system.details.treasure.table` as `@UUID[...]`.
 - A combat is not kept: the run makes it, and `api.track`s the card's id and the
   scene's pot (from the session's `potUuid`) as they appear.
 
@@ -387,16 +447,22 @@ party where the walk is not about a fight.
 
 Judge seat:
 
-1. **A real fight ends.** Begin a combat with the party's token and both hostile
-   tokens, knock both to 0 hit points, End Combat. Observables: the Chat sidebar
-   shows a "The fight is over" card (Judges only) with both bodies, and a
-   **Search the scene** button; the card has no Stage a pot control.
+1. **A real fight ends.** Begin a combat on `ways-scene` with the party's token
+   and both hostile tokens, knock both bodies to 0 hit points (the tracker's
+   defeat toggle for one, a hit-point write for the other), End Combat (Combat
+   tracker → End Combat, and its confirm). Observables: the Chat sidebar shows a
+   "The fight is over" card (Judges only) with both bodies (the first with "2
+   carried" and its letter, the second with "0 carried" and a table mark) and a
+   **Search the scene** button; the party's members are not listed; the card has
+   no Stage a pot control and shows no table text; the Player seat holds the
+   message but neither sees nor renders it.
 2. **Search the scene.** Press it. Observables: the scene screen opens at
    `ways-place`'s name with the bar reading "After the battle"; each body is an
    entry; the pot the scene dealt is open, with `origin.kind` `scene`,
-   `origin.takeOff` true and `origin.carried` naming the goods item's card; the
-   goods item is no longer on its body (`origin.takenOff` true); the lot the
-   letter dealt and the one the table drew are unfound tiles; no chat message
+   `origin.takeOff` true and `origin.carried` naming each goods item's card (the
+   natural weapon none); the goods are no longer on their body (`origin.takenOff`
+   true; the natural weapon stays); the lots the letter dealt and the one the
+   table drew are unfound tiles; no chat message
    was posted by the draw, and the table's text result is listed on the card;
    a lair warning notice appeared for the letter's hoard; the card's button now reads "Open the scene".
 3. **Press it again.** Observables: the same screen comes forward and no second
@@ -404,8 +470,11 @@ Judge seat:
    the card once more: a notification says the fight's scene was already opened
    and nothing is dealt.
 4. **No place.** Move the party's token outside the Region and every other
-   area, make a fresh fight, press **Search the scene**. Observable: a
-   notification says the party stands in no place and no session or pot is made.
+   area (`placesAround` for the token answers no place), make a fresh fight,
+   press **Search the scene**. Observables: a notification says the party stands
+   in no place; no session or pot is made, the table is not drawn and the card is
+   not marked opened; with the token back in the Region the same card opens the
+   scene.
 5. **Search here.** On `ways-party`'s sheet open the Dungeon tab (party sheet →
    Dungeon tab → Turn plan) and press **Search here** with the token back in the
    Region. Observables: a session opens at the place with no fight (the bar reads
@@ -418,8 +487,9 @@ Player seat:
 6. **A declaration.** With no session open, open the party's sheet on the Player
    seat (the character from `ways-owner`). Observables: **Search here** is
    shown; pressing it posts one "<user> declares: declares that the party
-   searches here." card to the table, and no session, pot or clock change
-   exists afterwards. A seat that owns no member sees no button.
+   searches here." card to the table, and no session, pot, plan or clock change
+   exists afterwards, and no screen opens on the Player seat. A seat that owns
+   no member sees no button (not walked: the walk has one Player seat).
 7. **The Judge accepts.** The Judge presses Search here: the session opens and
    the Player seat's screen follows once the Judge shows the scene.
 
@@ -429,15 +499,57 @@ fixtures stay.
 
 What this walk could teach and has not: the card's whisper reaching a second
 Judge seat; the button's label after a world reload; the take-off when a body's
-token was deleted between the fight and the press.
+token was deleted between the fight and the press; a Player seat that owns no
+member.
 
-## S6 — keying (not yet walked)
+## S6 — keying
 
-Offline coverage is `tools/test-scene-keying.mjs`: lib's `reviseThings` (what an
-authored write keeps and never writes), each rail field's edit, the dealt-lot
-guard, Behind and its loop guard, the rail's model and the tab's lists. It draws
-no window, reads no drop and writes no actor, so every observable below needs a
-live Judge seat; the Player seat's part is that it has no tab and no rail.
+The walk is `tools/live/scene-search-keying.mjs`. Offline coverage is
+`tools/test-scene-keying.mjs`: lib's `reviseThings` (what an authored write keeps
+and never writes), each rail field's edit, the dealt-lot guard, Behind and its
+loop guard, the rail's model and the tab's lists. It draws no window, reads no
+drop and writes no actor, so every observable below needs a live Judge seat; the
+Player seat's part is that it has no tab and no rail.
+
+What driving it taught:
+
+- **A field is committed by setting its value and dispatching a bubbling
+  `change`.** The rail writes on `change` through `writeOnChange`, and every
+  write draws the rail again, so a node found before a write is gone after it.
+  Re-find the control each time and poll `flags["acks-extras"].things` for the
+  write instead of sleeping.
+- **Seed a sentinel in a thing's `state` and `params`** (an invented key in
+  each). `{}` equal to `{}` after a write proves nothing; the sentinel surviving
+  every write is what shows a field edits its own keys alone. A Reset clears the
+  `state` sentinel by design, so a step that resets writes the list again.
+- **A drop is a synthetic `drop` event** carrying `{type: "Item", uuid}` as
+  text/plain, dispatched on a node inside the Things here section (the tab
+  handler reads `closest(".tab")`) or on the Tools field (which stops the event,
+  so nothing reaches the sheet's goods path). A goods drop stocks an embedded
+  Item on the kept place and, on a later run, may fold into a stack: assert by
+  delta, and track what the run made.
+- **The Hidden tick on a fixture does write `hidden`.** The loop guard is that
+  the Behind select then does not offer the thing the fixture reveals, and that
+  a value forced into it by hand is refused with the cycle notice and writes
+  nothing. The tick is undone afterwards.
+- **The Behind select is disabled until the thing is Hidden**, so a lot is made
+  hidden before it can be put behind a layer.
+- **A card's "something more" line is drawn only for a touched entry** (a check
+  has been resolved there), so a hint written in the aside shows on the card
+  after a Round or a Turn, not before. The card's Hidden mark changes at once,
+  and a write through the aside is read against that.
+- **Two lots dealt on one layer read "2 lots are dealt here"**; the singular
+  wording is for one. The note sits under the layer's own legend, and the stored
+  list holds no `lots` key and no lot key after any write through the aside.
+- **Measure the aside's parts before scrolling to its last control.**
+  `scrollIntoView` on the rail's Remove button moves the window's frame, which
+  carries the header out of view and reads as a header outside the window.
+- **A session needs no Region link to open**: `open` takes the place's uuid and
+  the scene's id, so the walk's party is a formation of one member on a scene.
+  A body on the screen is written by hand into the session's `bodies`, since no
+  fight's record is reachable here.
+- **The stylesheet is read when the world launches**, as in S4: the walk adds
+  `styles/scene-search.css` with a cache-buster where the page does not hold it.
 
 ### Fixtures
 
@@ -448,9 +560,14 @@ and party where the walk is not about keying.
   written whole: a fixture (hasty check: no throw, yielding a clue; methodical
   check: the party's search, revealing the second), a container with
   `hidden: true`, and a lot. It is not the S2 place: the walk edits it.
-- `scene-search/key-party` — a formation of one character on a scene whose
-  Region the place is linked to, so the screen opens at the place. Reuse
-  `scene-search/session-party` where it exists.
+- `scene-search/key-place` has `ownership.default` Observer, so the Player seat
+  may open its sheet (step 10 reads a sheet that opened). Its list is written
+  whole at every start: the fixture and the hidden container, each carrying a
+  sentinel `state` and `params` key, and the lot, whose `ref` is `key-goods`.
+- `scene-search/key-scene`, `scene-search/key-party` and
+  `scene-search/key-char` — a formation of one character (owned by the Player
+  seat) on a scene. The screen opens at the place through the session's own
+  place uuid, so no Region link is needed.
 - `scene-search/key-trap` and `scene-search/key-hazard` — a trap Item and a
   Hazard item whose key is an obstacle's, kept in the world's Items.
 - `scene-search/key-tool` — an Item the tools field takes.
@@ -489,7 +606,8 @@ Judge seat:
    fixture's hasty layer moves the key (the methodical layer no longer names
    it); choosing Nothing removes it. With the container behind the fixture's
    layer, open the fixture and tick Hidden: its Behind select does not offer
-   the container (the fixture reveals it), and no write is made.
+   the container (the fixture reveals it); a value forced into the select by
+   hand is refused with the cycle notice and changes nothing.
 5. **Show to the table.** On the container press **Show to the table**.
    Observables: `state.shown` is true on that thing alone and `hidden` is still
    true; the button is disabled afterwards; a Reset of the place
@@ -523,9 +641,13 @@ Teardown: end the session; `api.sweepTracked()` over the run's own ids. The kept
 fixtures stay, and the walk writes the place's list back to its recipe shape
 at its start, since step 4 to 6 change it.
 
-What this walk could not teach offline: that the partial is registered before
-the first render, that the tools field takes a drop from every source, and what
-the aside's three columns do at the window's narrowest size.
+What this walk could not teach offline, and now reads live: that the partial is
+registered before the first render (the tab and the aside both draw it), that the
+Tools field takes a drop, the type knob on the sheet's rail (14, 18 and 22 px,
+the sheet drawn fresh each time) and the aside at 900 by 640 and at 520 by 420.
+Not reached: a real pointer drag, a tab-key traversal (names and tabbability are
+read), a drop from a compendium or another actor's sheet, and step 8 (no door or
+old-style trap zone is derived yet).
 
 ## What this walk does not reach
 

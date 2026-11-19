@@ -216,52 +216,36 @@ place, the chat card by the message id in the pile flag.
 ## Search the fallen (Judge seat, a real fight)
 
 Offline coverage is `tools/test-treasure-search.mjs` (who is fallen, the record,
-who owes a take-off). The hooks and the card need this walk; what the card's
-button does, and the take-off through a scene's pot, are walked in
-[scene-search TESTING](../scene-search/TESTING.md), "S5 — the ways in".
+who owes a take-off). The hooks and the card are walked by
+`tools/live/treasure-search.mjs` (`node tools/live/run.mjs treasure-search`), which
+runs the whole of scene-search TESTING, "S5 — the ways in": the fight, the card
+and its button, what the button opens, and the take-off through the scene's pot.
+Fixtures, steps and observables are stated there once and are not repeated here.
 
-### Fixtures
+What this surface adds to that recipe:
 
-All invented, found by `flags.world.fixture`; built through `api.fixture`.
-
-- `treasure/search-scene` — a scene with two tokens placed.
-- `treasure/search-hostile` — a `monster` actor with two goods items (an invented
-  item and an invented coin row) and `system.details.treasure.type` set to a
-  letter; its token on the scene has disposition HOSTILE, unlinked.
-- `treasure/search-hostile-2` — a second HOSTILE monster with one goods item, on
-  the scene, the body whose token is deleted in step 5.
-- `treasure/search-friend` — a FRIENDLY `character` with a goods item, on the
-  scene.
-- `treasure/search-table` — a `RollTable` with two results, an invented item
-  result (a document result pointing at an invented world item) and an invented
-  text result, linked on `treasure/search-hostile` through
-  `system.details.treasure.table` as `@UUID[...]` for step 4.
-- `treasure/search-hostile` also carries a natural-weapon row (a weapon item with
-  `flags.acks-extras.naturalWeapon` set): it is never a card and never leaves the
-  body.
-- A combat is not a kept fixture: the run makes it, and it is deleted by step 2.
-
-### Steps
-
-1. **Begin a combat** with the three tokens (Combat tracker → Begin Combat).
-   Knock `treasure/search-hostile` and the friend to 0 hit points (or mark both
-   defeated in the tracker); leave `treasure/search-hostile-2` at 0 too.
-2. **End the combat** (Combat tracker → End Combat). Observables: the **Chat
-   sidebar** shows a "The fight is over" card on the Judge seat, listing both
-   hostile bodies with item counts and the first one's letter, with a **Search
-   the scene** button; the friend is not listed; the Player seat sees no card. A
-   second Judge seat sees it once.
-3. **Search the scene** on the card, then the table's draw and the take-off:
-   the steps are scene-search TESTING, "S5 — the ways in", steps 1 to 3. A
-   linked table is drawn quietly there (no chat message from the draw, the item
-   result a lot whose item stays in the world, the text result listed on the
-   card), and the take-off is read on the scene's pot (`origin.takeOff`,
-   `origin.takenOff`, the bodies no longer carrying the goods that are lots).
+- **The card (hook and render).** A real End Combat on the Combat tracker fires
+  `deleteCombat` on the primary Judge's client, which posts the "The fight is
+  over" card to the Judges. Observables: it lists each defeated hostile body with
+  its carried-item count, its letter and a table mark where one is linked; a
+  defeated friend and the party's own token are not listed; the Player seat holds
+  the message in its collection and neither sees nor renders it. A second Judge
+  seat sees it once (not walked: the walk has one Judge seat).
+- **The take-off.** A pot whose origin asks for it takes the carried goods off the
+  bodies when it opens, from the client that opened it. Observables: the pot's
+  `origin.takeOff`, then `origin.takenOff`; each `origin.carried` entry names a
+  goods card, and the item it points at is gone from its body; a body's natural
+  weapon never leaves it and never becomes a card.
+- **A linked table** is drawn quietly, once per card: no chat message of a table
+  draw, an item result becomes a lot (its world item stays in the world), a text
+  result is listed on the card. A second press reuses the draw.
 
 ### Teardown
 
-`api.sweepTracked()` over the run's own ids (the combat, the pot, the chat card, the scene's session ended through `acksExtras.sceneSearch.end`);
-the marked fixtures, `treasure/search-table` among them, stay.
+`api.sweepTracked({only})` over the run's own ids (the tokens, the combats, the
+chat cards, the pots, the declaration card), the session ended through
+`acksExtras.sceneSearch.end` and the party token put back. The marked
+fixtures stay.
 
 ## Bands, backs, faces and deal toggles (both seats)
 

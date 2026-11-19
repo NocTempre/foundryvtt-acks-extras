@@ -1,5 +1,7 @@
-/* The scene screen (scripts/scene-search/screen.mjs). The window scrolls at its
-   entries and party columns inside the one body part: the window root is capped
+/* The scene screen (scripts/scene-search/screen.mjs) and the keying rail it
+   shares with the place sheet's Things here tab. The window scrolls at its
+   columns (the Judge's keying aside, the entries, the party) inside the one
+   body part: the window root is capped
    to the viewport, and the header, the bar and the tray stay on screen while
    the board keeps its floor height. On a window too short for that floor the
    content box scrolls instead, so the tray is never cut off.

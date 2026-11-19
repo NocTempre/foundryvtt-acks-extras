@@ -1,0 +1,1 @@
+- **Chat sidebar → the fight-over card (Judges only):** the "Table results with no item to deal" block no longer shows over an empty list on every card; it appears only once a fallen creature's linked table has drawn a result with no item.
