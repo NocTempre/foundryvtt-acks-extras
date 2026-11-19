@@ -153,10 +153,11 @@ Each recipe's own; `api.sweepTracked()` once, quoted.
 ## Casting a summoning spell
 
 Built for the Magic tab's Cast on a summoning spell (MODEL, "Casting a summoning
-spell"). A mock cannot prove three things: that a Player seat that may not
-observe the creature still places it, that the cast count is spent only after the relay
-answers, and that core's click-to-place takes the plain preview. No book needs
-to be connected; the spell's row is built by hand.
+spell"), which now runs through the cast dialog. A mock cannot prove four things:
+that a Player seat that may not observe the creature still places it, that the
+cast count is spent only after the clicks are made, that core's click-to-place
+takes the plain preview, and that a timed end removes exactly the cast's own
+creatures. No book needs to be connected; the spell's rows are built by hand.
 
 **Fixtures** (kept; found by marker, built when none carries it):
 - `magic/summon-creature` and `magic/summon-other` are `monster` actors with
@@ -164,13 +165,23 @@ to be connected; the spell's row is built by hand.
   uuid (`fromUuid` returns it) but may not observe it, and observing is what the
   exemption turns on. The walk asserts both at its start.
 - `magic/summon-open` is a `monster` the Player observes, which the spell does
-  not name.
+  not name. It also stands in as the bystander of step 10.
 - `magic/summon-caster` is a `character` the Player owns, spells enabled.
-- `magic/summon-spell` is a `spell` on that character. Each run rewrites its
-  flag to one summon row (`ref` the creature's uuid, `amount` 2) and a fixed
-  two-hour duration, and its `system.cast` to 0.
+- `magic/summon-spell` is a `spell` on that character. Each step rewrites its
+  flag whole (the flag deleted first, then written) to the rows and duration the
+  step needs, and its `system.cast` to 0. The standing shape is one summon row
+  (`ref` the creature's uuid, `amount` 2) and a fixed two hours.
+- `magic/summon-spell-gone` is a second `spell` on the same character, for step 12
+  alone: the clock ends every earlier cast of the caster, so the `gone` row cannot
+  share the standing spell, whose casts must keep their creatures.
 - `magic/summon-scene` is the field both seats view, as in
   docs/character-sheet/TESTING.md "Summons from a Player seat".
+
+What the run makes and sweeps by uuid, never kept: the summoned tokens, the
+caster's token on the field (step 9), the bystander's token and the fight
+(step 10), the decoy token (step 12), the cast cards, the caster records and
+the world copy of the creature where none stood. A token the module removes at
+step 12 shows in the sweep's `could not find`, which is the delete path working.
 
 `tools/live/magic-cast-summon.mjs` walks the steps on the GM and Player seats,
 after a reload of each seat under a boot recorder.
@@ -179,31 +190,43 @@ after a reload of each seat under a boot recorder.
 seat" apply: unpause the world, close every framed window before placing, pan
 the scene's middle to the viewport's before reading click points, real CDP
 clicks. The Cast button is pressed without awaiting it, because `item.use()`
-does not await the cast. The prompt is the answer, and the count is read in
-three states.
+does not await the cast. The dialog is the answer: its Summon band is read from
+`select[name="summonRef"]`, `input[name="summonCount"]` and the footer's
+`.acks-extras-cast-verdicts li[data-severity]`, a caster level is typed into
+`input[name="casterLevel"]`, and every change re-renders the window, so each read
+goes back to the live element. The Cast button is `button[data-action="cast"]`
+(it reads Declare for a declaration) and Cancel is `button[data-action="cancel"]`.
 
 Placing is also a pointer problem. While `TokenLayer#placeTokens` is pending,
 a pointer inside the 50 px edge band edge-pans the canvas until it clamps, and
-the Place button leaves the pointer in that band, so a scan taken then reads a
+the Cast button leaves the pointer in that band, so a scan taken then reads a
 view that keeps moving and finds no bare point. The walk sends a CDP
 `mouseMoved` to the viewport's middle before every pan, scans only points at
-least 60 px from every edge, and on a miss logs the view it scanned (pivot,
-scale, the root pointer event's client point, `document.hidden`). A walk that
-fails with a placement pending right-clicks it away, so the next step does not
-inherit a live preview.
+least 60 px from every edge and chosen apart from every earlier click, and on a
+miss logs the view it scanned (pivot, scale, the root pointer event's client
+point, `document.hidden`). A walk that fails with a placement pending
+right-clicks it away, so the next step does not inherit a live preview. A
+placement beyond the range that a Player's click is refused for stays pending,
+so the step cancels it with a right click.
+
+The world has a Judge seated for the whole run, so "no GM connected" is
+synthetic: the Player seat's `game.users.activeGM` is overridden to read null
+(an own property on the users collection, deleted again afterwards), which is the
+one reading the cast's refusal takes. The relay itself is not exercised.
 
 **Steps, from the Player seat** (the sheet open on the Magic tab):
 1. Press the spell row's Cast (Character sheet → Magic tab → Cast).
-   *Observable:* the creature prompt, titled for the spell, offers the row's one
-   choice, labelled, with the count opening on the row's amount and no free
-   spell field. `system.cast` is unchanged with the prompt up, and again with
-   the previews up.
-2. Place on the map and click twice. *Observable:* two tokens carry `spellId`,
-   `spellName` and one `castId`, and the Player owns each. `system.cast` rose by
-   exactly 1 and exactly one card posted. One caster record carries that
-   `castId`, the spell and the caster, with a 2-hour duration. The GM's client
-   made the one world copy, owned by no player.
-3. Cast again and right-click the preview; cast again and close the prompt.
+   *Observable:* the cast dialog opens, titled for the spell, with a Summon band
+   whose one choice is the spell's one row, labelled although the Player cannot
+   open the creature, the count opening on the row's amount, and no Targets
+   band. `system.cast` is unchanged with the dialog up, and again with the
+   previews up.
+2. Cast and click twice. *Observable:* two tokens carry `spellId`, `spellName`
+   and one `castId`, and the Player owns each. `system.cast` rose by exactly 1
+   and exactly one card posted. One caster record carries that `castId`, the
+   spell and the caster, with a 2-hour duration. The GM's client made the one
+   world copy, owned by no player.
+3. Cast again and right-click at the clicks; cast again and cancel the dialog.
    *Observable:* each leaves the count, posts no card, makes no token and writes
    no record, with no warning or error.
 4. Refusals. *Observable:* a request sent straight to the relay for an unnamed
@@ -212,13 +235,59 @@ inherit a live preview.
    `badCount`; with no spell, `spellRequired`. Nothing is made. The seat's own
    `placeSummons` stops before any click, and the Player's Summon… is refused
    with a warning and no prompt.
-5. From the GM seat, Summon… (`promptSummon`, the cast menu's entry): pick
-   a library creature with no spell and place it. *Observable:* one token whose
-   record carries no spell, and the spell's count unchanged.
+5. From the GM seat, Summon… (`promptSummon`, the cast menu's entry, which keeps
+   its own prompt): pick a library creature with no spell and place it.
+   *Observable:* one token whose record carries no spell, and the spell's count
+   unchanged.
+6. A claimant's `spend` called after its cast returned (last, because the seam
+   logs it on purpose). *Observable:* false, nothing thrown, nothing counted, one
+   logged line and no module-error notice.
+7. The ceiling. The row states no amount and a `max` per caster level of the
+   walk's own (one at the first level, one more per level after); the dialog's
+   caster level is typed as 2. *Observable:* the count's ceiling reads 2 and a
+   count of 2 raises no verdict; a count of 3 is a block verdict in the cast's
+   own words, the ceiling is drawn as a warning and Cast is off; at level 5 the
+   ceiling reads 5 and 3 passes. Closing the dialog while it blocks spends
+   nothing and posts no card. From the GM seat the same count is a warning and
+   Cast stays on.
+8. No GM. The Player seat is made to read no active GM. *Observable:* the footer
+   shows a block in the cast's own words, Cast is off, and nothing was spent.
+9. Range. The caster's token stands in a corner of the field and the spell
+   states a short range, so a click near the field's middle lies beyond it.
+   *Observable:* the band states the range; the Player's click beyond it is
+   refused with the range notice and no creature appears, and cancelling the
+   pending clicks spends nothing and posts no card; the Judge's click beyond it
+   is warned in the same words and the creature is placed, one spend, one card.
+   A row whose `summonFormat` is `calling`: the band says it is called from where
+   it stands, and the Player's click beyond the range places a creature with no
+   range notice.
+10. A declaration. A fight is begun with the bystander first, so the caster is
+    not on turn. *Observable:* the dialog's button reads Declare; confirming
+    leaves one pending record and the casting status, spends once, places
+    nothing and posts no cast card. Moving the tracker to the caster's turn and
+    casting again opens no dialog; the click places the declared creature, the
+    count is the declaration's, one card posts and no pending record is left.
+11. The held end. The row's `controlEnd` is `stays`, then `hostile`, with a
+    stationary concentration. The Player casts one creature and the Judge ends
+    the concentration by the status's toggle. *Observable:* one funnel card; on
+    the Judge's seat it lists the one standing creature with Dismiss and
+    Restore, on the Player's seat the creature with no Dismiss. After `stays` the
+    creature stands, is stamped `lost`, keeps the Player's ownership and its
+    disposition. After `hostile` it stands, is stamped `lost`, the Player's
+    ownership is gone and its disposition is hostile.
+12. The delete path, cast from `magic/summon-spell-gone`, whose row's `controlEnd` is `gone` (duration two hours; the standing spell is first put back to its standing shape).
+    The Player casts two creatures; the Judge places by hand a token of the same
+    creature (the decoy, which carries no summons record) and the world clock
+    is advanced past the two hours. *Observable:* both of the cast's tokens are
+    gone; the decoy and every other token of the field stand and nothing is
+    added; no end card is posted for that cast. The earlier casts of the same
+    caster, whose rows keep their creatures, post their own expiry cards, which
+    the run lists by id and sweeps.
 
 **Teardown.** Delete only what the run tracked: the tokens, the cards, the
-caster records, and the world copies where none stood before. The fixtures
-stay. Quote `gm.sweepTracked({only})`'s result.
+caster records, the fight, the walk's own token and the world copies where none
+stood before. The fixtures stay. Quote `gm.sweepTracked({only})`'s result, and
+note that the tokens the module removed are among its `could not find`.
 
 ## Spell effect rows (the recipe channel)
 
@@ -1043,13 +1112,14 @@ next walk's first step, never deleted by a search for it.
 ## Tracked rows and the built summons
 
 Walk: `node tools/live/run.mjs magic-cast-tracked`, on the GM and Player seats,
-with the GM seat's own RR open (the walk imports its thirteen
+with the GM seat's own RR open (the walk imports its seventeen
 spells by cookbook id and stops `blocked` when the book is not open). It walks
 the tracked kinds (illusion, detect, light, dispel, createObject, wall), a
-reversed twin, the five built summons' rows and a concentration summoning's
-held record (MODEL, "The tracked kinds", "Casting a summoning spell"). Its
-assertions are relations between what the card or the world holds, never a
-printed figure, a card line or a spell name.
+reversed twin, the five built summons' rows, a concentration summoning's held
+record, a summons declared in a fight, the delayed-affliction, purify and seal
+kinds and a locate spell (MODEL, "The tracked kinds", "Casting a summoning spell",
+"Seal Portal"). Its assertions are relations between what the card or the world
+holds, never a printed figure, a card line or a spell name.
 
 ### Fixtures
 
@@ -1060,10 +1130,14 @@ Found by marker with `api.fixture`, built when nothing carries it, and kept.
 | `magic/tracked-scene` | A gridded field, no vision, global light, both seats view it. |
 | `magic/tracked-class` | An `acks-extras.class` item with one vancian tradition, nine first-level slots. |
 | `magic/tracked-caster` | A character the Player owns, bound to the class, level 5, spells enabled. |
-| `magic/tracked-spell-<slug>` | A copy of each of the thirteen imported spells on the caster: eight tracked (one per kind, an instant detect, two reversed twins) and the five summoning spells. Each step rewrites its copy's flag from the library original, with a fixed two-hour duration of the walk's own on the tracked ones and no range. |
+| `magic/tracked-spell-<slug>` | A copy of each of the seventeen imported spells on the caster: nine tracked (one per kind, an instant detect, a locate, two reversed twins), the five summoning spells, and a delayed affliction, a purify spell and a seal spell. Each step rewrites its copy's flag from the library original, with a fixed two-hour duration of the walk's own on the tracked ones and no range (the seal and one detect step state a range of their own). |
 | `magic/tracked-held-a`, `-held-b`, `-timed` | Three hand-built summoning spells on the caster: one summon row naming the creature, a mobile concentration with a tail of the walk's own, a stationary concentration, and a fixed two hours. Each flow rewrites them. |
-| `magic/tracked-creature` | A monster nobody but the GM may observe, which the three hand-built spells name by uuid. |
-| `magic/tracked-target` | A monster with a linked token, for the aimed casts and the fight. |
+| `magic/tracked-creature` | A monster nobody but the GM may observe, which the three hand-built spells name by uuid. Its unlinked token is also the far token of step 10. |
+| `magic/tracked-target` | A monster with a linked token, for the aimed casts, the fight and the delayed affliction's recipient. |
+
+What the run makes and sweeps by uuid, never kept: the tokens, the cards, the
+records, the fight, the far token and the four walls of the seal step (each a
+door on the field).
 
 The first step asserts each imported spell carries the register's row (the kind,
 its `lasts`, a reversed twin where one is authored), and stops `blocked` when the
@@ -1078,6 +1152,8 @@ fails that check; re-import it (the Spells repair).
    and the cast made one cast card beside the system's spell card the spend
    posts, with no roll and no row, target or entry in the card's model. A row that lasts the duration leaves exactly one caster record
    timed by the walk's duration; the instant detect and the dispel leave none.
+   The Player's dialog is not blocked by what stands on the board: a failure to
+   post the card is a failed check, never a fallback to the Judge's seat.
 2. *A reversed twin, cast in each mode.* *Observable:* the dialog offers the
    reverse mode; each form posts one line, the reverse card's note says
    reversed and the normal card's does not, each footnote is its card's own line
@@ -1093,30 +1169,66 @@ fails that check; re-import it (the Spells repair).
    carries it unresolved on the row. The two rows that name a creature resolve
    to one: the walk imports the creature as setup when the Monster Manual is
    open on the GM seat (SKIP only when it is not, naming why). Pressing
-   Cast on those two from the GM seat opens the creature prompt with the row's
-   one choice, labelled, the count open above one; closing it writes no record.
+   Cast on those two from the GM seat opens the cast dialog with a Summon band
+   offering the row's one choice, labelled, with a count and its ceiling at the
+   caster level and no Targets band; cancelling writes no record.
 5. *A concentration summoning, on each seat* (Character sheet → Magic tab →
    Cast; the Player seat, then the GM seat). *Observable:* the first cast places
    one creature, spends one, posts one card and writes the held record: the
    `concentrating` status, the kind held, the tail, a start time, no clock.
-   Cancelling the second summoning's pick keeps the same record with no warning,
-   card, creature or spend. Casting it warns once, naming the caster, the held
-   cast and the new spell, and the warning's log shows the old record still
+   Cancelling the second summoning's dialog keeps the same record with no warning,
+   card, creature or spend. Casting it gives the general concentrating warning
+   once, naming the caster, and the warning's log shows the old record still
    standing and no end card for it yet; then the old record is gone, its end
    posted one card with the cause `cast`, and the new record is the one held, of
    the stationary kind; both creatures stand.
 6. *Ending the held summons, on the Player seat, by the status's toggle.*
-   *Observable:* one funnel card for the cast with the cause `removed`, Restore
-   and no Dismiss; every creature still stands.
-7. *A summons in a begun fight.* *Observable:* with a fight begun and the
-   target first in the order, the Player's summoning places its creature, spends
-   one, posts one card and leaves one record; no `casting` status, no pending
-   record, no declared flag on a combatant and no declared notice.
+   *Observable:* one funnel card for the cast with the cause `removed`, drawn
+   with Restore and Dismiss; rendered on the Judge's seat it lists the cast's one
+   standing creature with Dismiss, on the Player's seat the same list with no
+   Dismiss; every creature still stands, since the hand-built spells state no
+   control end.
+7. *A summons in a begun fight is declared.* *Observable:* with a fight begun and
+   the target first in the order, the Player's dialog button reads Declare;
+   confirming leaves one pending record and the casting status, spends once and
+   places nothing. With the tracker on the caster's turn the cast opens no dialog,
+   the click places the creature with no second spend, and one card and one
+   caster record remain with no pending record or casting status.
+8. *A delayed affliction, aimed at the target token.* *Observable:* the card posts
+   and the target actor holds one recipient record of the cast, timed by the
+   walk's duration; the caster holds none of this cast.
+9. *A purify spell.* *Observable:* the card is lines only: no section, no button,
+   no entry and no row, and the instant row writes no record.
+10. *A detect with a stated range while the Player holds a target far beyond it.*
+    *Observable:* the Player's dialog is not blocked and the cast posts its card:
+    a cast that opens no entry measures no target. A locate spell is one more
+    tracked detect in step 1.
+11. *Seal Portal, from both seats.* Four doors stand on the field: near, beyond
+    the range, near and already locked, and near (a Player seals it and a hand
+    then opens it). The seal spell states a range of the walk's own. The pick
+    is a real click on a door's control (`doorPoint` pans the scene to its middle
+    and converts the wall's centre to a client point), Enter and Escape are
+    dispatched as keydowns, and the banner is `.acks-extras-pick-banner`.
+    *Observable:* (a) the Player's click on the far door is refused on the banner
+    (marked as a refusal) and as a warning, in the cast's own words, and the pick
+    stays armed; Escape then cancels it with no card, no spend and the door
+    untouched. (b) Enter casts with no door: a card, one spend, one record with no
+    wall on it and the near door untouched. (c) The Player's click on the near
+    door posts the card, and read on the Judge's seat the door is locked and its
+    stamp names the cast and the state it was found in (closed); the caster's
+    record names the wall. (d) The Judge's click on the far door is warned in the
+    cast's own words and the door is sealed. (e) The Judge's click on the locked
+    door leaves it locked and the stamp says it was locked. (f) With the Player
+    seat made to read no active GM (synthetic, as in "Casting a summoning
+    spell"), Cast is refused with the cast's own notice, with no banner, card or
+    spend. (g) The world clock is advanced past the two hours: the near and far
+    doors are closed and unstamped, the already locked door is still locked, the
+    hand-opened door is still open, and no wall carries the first cast's id.
 
 ### Drive mechanics (learned live)
 
 - The mechanics of "Casting a summoning spell" apply: unpause the world, close
-  every framed window, real CDP clicks, and `item.use()` unawaited (the prompt is
+  every framed window, real CDP clicks, and `item.use()` unawaited (the dialog is
   the answer). Each seat's page is brought to the front before its clicks, since
   both seats place here, and each click point is chosen apart from the earlier
   ones so a placement never lands on a standing token. The pointer is parked
@@ -1124,10 +1236,10 @@ fails that check; re-import it (the Spells repair).
 - The order of a warning and an end is read from the world and never from
   clocks: the warning patch logs, at the moment it fires, the caster's held
   cast ids and the cast ids with an end card.
-- The tracked casts hold no target and give the spell no range. A stale target
-  range-blocks a Player's cast of a spell that only creates an effect (a
-  roadmap row); where the Player's dialog still blocks, the walk casts from the
-  Judge's seat, with no target either, and prints a GAP.
+- The tracked casts hold no target and give the spell no range, except the two
+  steps that state one. A Player's cast of a spell that only creates an effect
+  is never range-blocked by a stale target, so the walk casts every tracked kind
+  from the Player seat and a blocked dialog is a failed check.
 - A copy's duration is the walk's own so that a record's absence is the row's
   doing; an imported duration may be untimed or held, which writes none or
   another record. The hand-built summoning spells carry the shape they test.
@@ -1136,20 +1248,27 @@ fails that check; re-import it (the Spells repair).
   `.application.acks-extras-cast`, reads the live element again after every
   change, and picks a form with the `input[name="mode"]` radio, which the header
   draws only for a spell with more than one form (the reversed twin's step reads
-  the forms offered from those radios; a spell with one form lists none).
+  the forms offered from those radios; a spell with one form lists none). A cast
+  that asks something after Cast (a door's pick) is driven in two halves,
+  `castBegin` and `castSettle`, so the driver can click between them.
 - A summons' tokens are found by the summoner's flag on the world, never by
   position; a created world copy of the named creature is the run's only where
   none stood before it.
+- A door's control is clicked where the wall's centre stands on screen once the
+  scene is panned to its middle, and its pick is armed only once the banner
+  stands. A door state is read from the wall on the Judge's seat, never from the
+  card.
 
 ### Teardown
 
 Everything the run made is tracked by uuid as it appears: tokens, cards, the
-caster's records by cast id, the funnel's end cards, the world copy of the
-creature where none stood, and the Combat. The caster's held records of the
-run's casts are deleted first, by cast id, so their funnels post their cards
-before the cards of the fixtures since the run began are listed by id; the sweep
-deletes exactly that list and its result is quoted. The fixtures stay, and the
-world is paused again if the run unpaused it.
+caster's records by cast id (and the target's), the funnel's end cards, the
+world copy of the creature where none stood, the walls and the Combat. The
+caster's held records of the run's casts are deleted first, by cast id, so their
+funnels post their cards before the cards of the fixtures since the run began are
+listed by id; the sweep deletes exactly that list and its result is quoted. The
+fixtures stay, the Player seat is given back its active GM, and the world is
+paused again if the run unpaused it.
 
 ## Saves, gates and record lives (S4)
 

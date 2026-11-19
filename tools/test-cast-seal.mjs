@@ -412,6 +412,24 @@ await ta("a sealed cast whose spell is untimed still leaves its record, bare, so
   assert.deepEqual([record.seal, record.startTime, record.duration], [WALL, undefined, undefined]);
 });
 
+await ta("a Player's seal with no GM connected is refused before the pick and the spend; a Judge's seat and an online GM need no relay", async () => {
+  const noted = [];
+  const player = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  player.deps.gmOnline = () => false;
+  player.deps.notify = (level, key) => noted.push([level, key]);
+  const out = await cast(makeSpell(), player);
+  assert.deepEqual([out.ok, out.reason], [false, "noGm"]);
+  assert.deepEqual(player.order, ["ask"], "no pick, no spend");
+  assert.deepEqual([player.calls.spends, player.calls.seals.length, player.calls.records.length, player.calls.posts.length], [0, 0, 0, 0]);
+  assert.deepEqual(noted, [["warn", "sealNoGm"]]);
+  const judge = runDeps({ door: { wallId: "w1", sceneId: "s1" }, isGM: true });
+  judge.deps.gmOnline = () => false;
+  assert.equal((await cast(makeSpell(), judge)).ok, true);
+  const online = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  online.deps.gmOnline = () => true;
+  assert.equal((await cast(makeSpell(), online)).ok, true);
+});
+
 await ta("a spell with no seal row asks for no door", async () => {
   const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
   await cast(makeSpell({ rows: [{ key: "dim", type: "light", lasts: "duration" }] }), r);

@@ -21,7 +21,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-25 — [An "and" can be a title's own word (2026-09-25)](DECISIONS-through-v11.14.5.md#an-and-can-be-a-titles-own-word-2026-09-25)
 - 2026-09-25 — [A creature's repertoire is drawn to its slots (2026-09-25)](DECISIONS-through-v11.14.5.md#a-creatures-repertoire-is-drawn-to-its-slots-2026-09-25)
 - 2026-09-25 — [The order, and the scoping's eleven questions, ruled (2026-09-25)](DECISIONS-through-v11.14.5.md#the-order-and-the-scopings-eleven-questions-ruled-2026-09-25)
-- 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11)
+- 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11) — its cast and its count qualified 2026-11-19 by [Summons join the spell cast](#2026-11-19--summons-join-the-spell-cast-1d-b-rulings-157-to-163)
 - 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11) — its cost line ("a combat's rounds do not age a record") qualified 2026-11-17 by [A condition row can last turns, and lib ends it](#2026-11-17--a-condition-row-can-last-turns-and-lib-ends-it); its rejection of deleting the creatures on expiry SUPERSEDED IN PART 2026-11-19 ("Remove automatically": a `gone` summons is removed at the timed end) by [A summons' control ends as its page says (1d.7)](#2026-11-19--a-summons-control-ends-as-its-page-says-1d7)
 - undated — [Where the lang-key convention is recorded](DECISIONS-through-v11.14.5.md#where-the-lang-key-convention-is-recorded)
 
@@ -1394,3 +1394,92 @@ is what 1d.7 refused. *Cost:* a creature that stays after its control ends is ow
 dismissed by them, so only a Judge removes it; a stashed creature that turns hostile is not written until it is
 deployed, and then stands as it was. *Counter (medium):* an owner may want to dismiss a creature that is theirs;
 the page says no control is left, so the Judge decides.
+
+## 2026-11-19 — Summons join the spell cast (1d-B, rulings 157 to 163)
+
+Session 1d-B's rulings of the spell-effects plan. The owner, on the boards: "Approve 20, 22, 23 (Recommended)"
+(the Summon band, the held-end card, the row editor's `lasts` and effects field). On board 21, first "Build it
+now", then, on splitting the magic batch: "finish what's in dev and spells that use them, no new surfaces. Close out
+what's in flight." The range ring is not built and is in the ROADMAP.
+
+- **A summons is cast by `castSpellRun` (157).** It claims every `isSummonSpell`, a spell with no row too (the
+  shelf pick), and the `castSummonSpell` claimant is retired; the policy and the naming stay. The order is the
+  dialog and its verdicts, the seat's clicks, the spend and the pool, `endHeld`, the cast id, `perform`, the
+  creatures (only when the cast proceeds) and the card. Every refusal `placeSummons` made before the clicks is a
+  verdict before the spend. Supersedes ruling 5 and 206(a) in part, and qualifies the 2026-11-11 entry "A summoning
+  spell's creature resolves on the GM's client" (its cast was the claimant's, with the count at the spell's amount).
+  *Rejected:* a mirrored `castSummonSpell`; clicks after the spend, where a cancel would cost the slot. *Counter
+  (medium):* "place" in ruling 208 could be read as creating the tokens.
+- **The record keeps the summons' end path (158).** A held summons writes `heldRecordData`, the one function every
+  held cast's record comes from. Any other is core-timed with no `startTime`, so `cast-expiry` announces it with
+  Dismiss (Q1-c of 2026-11-11) and the flag-timed silent delete never reaches it. *Counter (medium):* the caster's
+  record has two shapes.
+- **The count goes through `castAt` (159).** `flattenAt(row, castAt)`, then `max` at the caster level (null with
+  none, abilities through S3c's matcher); the ceiling is `max`, else `amount`, and a blank stays blank beside the
+  page reference. Duration comes from `castDurationOf`. The verdict is `summonCount`, blocking a Player and warning
+  a Judge. Lib's policy request gains `cast {castId, casterLevel, invocationLevel}`, `positions` and the scene. The
+  GM trusts the seat's level, as the apply relay does (2026-11-16 "The relay builds every record from the spell's
+  rows"). *Rejected:* the GM recomputing it, since a hand-set level cannot be recomputed. *Counter (medium):* a forged
+  level buys creatures.
+- **Placement range (160)** (JJ ch. 14, Summoning Spell Notes; RR ch. 5, conjurations). A point for a creature beyond
+  `rangeFeet` from the centre of the caster's token is refused to a Player and warned to a Judge as it is clicked.
+  The GM's policy measures the same points again, never the creature's size. A `calling` and a range the spell does
+  not state are exempt. A refusal after the spend is a card line and the spend stands. *Counter (medium):* an
+  animation's range could bound the remains.
+- **A summons is declared (161)** (RR ch. 6). `summon {ref, count}` joins `ANSWER_FIELDS` (2026-11-18, "A declared
+  cast resolves on what was declared"), and a time over a round is a `longCast` (ruling 204). A declared summons
+  clicks at its turn, and a cancel there leaves the declaration standing. **Supersedes 1d.5** of the 2026-11-17 entry
+  ("a summons in a begun fight resolves at once, until 1d-B") and MODEL's "not declared". That ruling is less than
+  seven days old; the new evidence is RR ch. 6, which makes any cast in a begun fight a declaration, ruling 204, and
+  1d.5's own "until 1d-B". *Counter (low).*
+- **A held summons' end lists the creatures (162)** (RR ch. 5, conjurations). The funnel's card lists the cast's
+  standing creatures (`castSummons`) with Dismiss and Dismiss all drawn on a GM seat only (`isGM`, display only), and
+  Restore puts the records back and nothing else. What the end does to the creatures is the entry "A summons' control ends as its
+  page says (1d.7)", which amended this ruling's "the creatures stay" and closed its finding that the sheet's
+  Dismiss admitted owners. *Rejected:* a Dismiss for owners, since as
+  written no control is left. *Counter (medium):* the sheet's lib Dismiss still admitted owners until `controlLost`.
+- **A row's `name` (163).** Lib's `effectField` gains `name`, and the importer's bind writes the referenced
+  creature's materialized name, blank where it is not imported; a repair fills it. *Counter (low):* import order.
+
+*Cost:* two caster-record shapes for a summons, and a Player's level word trusted by the GM.
+
+## 2026-11-19 — The kinds of 1d-A's three waiting spells, and a cast that measures no target (1d-B, rulings 164 to 167)
+
+- **Describe (164).** The summon arm reads `max`, and the default arm leads with its kind. This is wording in existing
+  lines and the kind select, so it had no board. *Counter (medium):* `ui-layout.md` says "anything a user sees".
+- **Three kinds (165).** `afflictionDelay` (`effects` from `EFFECT_KEYS`, on the recipient, for its duration),
+  `purify` (an instant line, the quantity located) and `seal` (the caster's record and a line) are each in
+  `APPLY_KINDS`, `APPLIERS` and lang. 1d-A's ruling 151 had left their three spells waiting; their register entries are
+  `delayDisease`, `purifyFoodAndWater` and `sealPortal`, with `locateAnimalOrPlant` a `detect` row that lasts its
+  duration. A purify row's quantity is read from the page and stays blank on a miss, with a neutral note the page's own
+  words replace through `noteFrom`. *Counter (low).*
+- **Recipient records (166).** `RECORD_KINDS` gains the six tracked kinds and `afflictionDelay`, counted only where
+  `appliesTo` is `recipient`. `ignite` keeps `!aimedAtSelf`. Every tracked row now in the register is an area or a
+  target row, so none writes a recipient record yet. *Counter (medium):* latent.
+- **No entry, no measure (167).** `takesTargets` gates the range and the count, so a cast whose rows open no entry
+  measures no target, and stale targets no longer range-block a Player's cast of a spell that only creates an effect.
+  The summon step is `APPLY_KINDS.summon.step`, run from the cast's dependencies. *Counter (medium):* a step is not an
+  apply.
+
+## 2026-11-19 — Seal Portal locks the picked door (1d.8, rulings 174 to 177)
+
+The owner, on 1d.8: "Lock the door". Seal Portal sets the picked door's state to locked, and its end unlocks the door
+only if the door is still in the state the spell left; no ROADMAP row. On board 24: "Approve (Recommended)".
+
+- **The pick (174)** runs through `APPLY_KINDS.seal`, in the slot a summons clicks in, before the spend. Lib's
+  `door-pick.mjs` takes the screen-covering pointer catcher, promoted from `battlemap/` to lib, so the click never
+  toggles core's door control. Only the door controls the seat sees are offered, and a secret door never to a Player.
+  The range comes from `castAt`, and a blank range is not measured. The pick may be skipped (Enter), since a portal
+  need not be a wall, and a skip keeps the spell's record and line; a cancel costs nothing. A Player with no GM is
+  refused before the pick, as a summons is, with the notice `sealNoGm`.
+- **The write (175)** is `cast-seal.mjs`. A GM seat writes directly and a Player's seat relays through
+  `SEAL_HANDLER`. `checkSealRequest` checks that the requester owns the caster, the spell has a seal row, the wall is a
+  door (a secret one for a GM only), it is on the caster token's scene and it is in range. It writes `ds: LOCKED` and
+  the wall flag `sealedBy {was, casts}`; a second seal appends its cast id.
+- **The record (176).** The caster's mark gains `seal {sceneId, wallId}`; the GM-written stamp is the truth.
+- **The end (177)** is the active GM's: `sealEndPlan` runs on the record's deletion, and a GM `ready` sweep catches
+  orphaned stamps. Once a door's list is empty it goes to CLOSED only if `ds` is still LOCKED and `was` was not.
+  With no GM connected the door waits for the next GM `ready`.
+
+*Rejected:* a record and a line only, the default the plan proceeded on until the owner answered. *Counter
+(medium):* a wall that is no door cannot be sealed, though a portal may be one.

@@ -10506,6 +10506,7 @@
   "ACKS-MAGIC.cast.notice.blocked.summonCount": "{over} more creatures are asked for than the spell states for this caster level ({max}). Ask for fewer.",
   "ACKS-MAGIC.cast.notice.verdict.summonCount": "{over} more creatures are asked for than the spell states for this caster level ({max}). Casting anyway.",
   "ACKS-MAGIC.cast.notice.summonNoGm": "No GM is connected to place the creatures, so nothing was cast.",
+  "ACKS-MAGIC.cast.notice.sealNoGm": "No GM is connected to seal the door, so nothing was cast.",
   "ACKS-MAGIC.cast.dialog.summon": "Summon",
   "ACKS-MAGIC.cast.dialog.summonCreature": "Creature",
   "ACKS-MAGIC.cast.dialog.summonCount": "Count",

@@ -51,6 +51,13 @@ const TRACKED = [
   { slug: "object", id: "def.spell.iceFloe", kind: "createObject", lasts: "duration" },
   { slug: "wall", id: "def.spell.wallOfSmoke", kind: "wall", lasts: "duration" },
   { slug: "detect-twin", id: "def.spell.discernEvil", kind: "detect", lasts: "duration", twin: true },
+  { slug: "locate", id: "def.spell.locateAnimalOrPlant", kind: "detect", lasts: "duration" },
+];
+/** The spells of the three kinds beyond the first tracked ones: a delayed affliction on the recipient, a purify line pair, a seal on a door. */
+const KINDS = [
+  { slug: "delay", id: "def.spell.delayDisease", kind: "afflictionDelay", lasts: "duration" },
+  { slug: "purify", id: "def.spell.purifyFoodAndWater", kind: "purify", lasts: "instant" },
+  { slug: "seal", id: "def.spell.sealPortal", kind: "seal", lasts: "duration" },
 ];
 /** The five summoning and animation spells: which carry a ref, a format and a located count (the register's reading, checked as relations). */
 const SUMMONS = [
@@ -60,7 +67,7 @@ const SUMMONS = [
   { slug: "companion", id: "def.spell.faithfulCompanion", ref: false, format: false, counted: false },
   { slug: "puppet", id: "def.spell.unlivingPuppet", ref: false, format: false, counted: false },
 ];
-const IMPORTS = Object.fromEntries([...TRACKED, ...SUMMONS].map((s) => [s.slug, s.id]));
+const IMPORTS = Object.fromEntries([...TRACKED, ...SUMMONS, ...KINDS].map((s) => [s.slug, s.id]));
 
 const note = (label, value) => console.log(`${label}: ${typeof value === "string" ? value : JSON.stringify(value)}`);
 const section = (title) => console.log(`\n== ${title} ==`);
@@ -84,9 +91,27 @@ const P = {
     H.sleep = (ms) => new Promise((r) => setTimeout(r, ms));
     H.poll = async (fn, { tries = 40, every = 150 } = {}) => { for (let n = 0; n < tries; n++) { const v = await fn(); if (v) return v; await H.sleep(every); } return null; };
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0] ?? null);
-    H.cards = (actorId) => [...game.messages].filter((m) => m.speaker?.actor === actorId).map((m) => ({ id: m.id, kind: m.flags?.["acks-extras"]?.castHeldEnd ? "end" : m.flags?.["acks-extras"]?.castCard ? "cast" : "other" }));
+    H.cards = (actorId) => [...game.messages].filter((m) => m.speaker?.actor === actorId || String(m.flags?.["acks-extras"]?.castCard?.spellUuid ?? "").startsWith(`Actor.${actorId}.`)).map((m) => ({ id: m.id, kind: m.flags?.["acks-extras"]?.castHeldEnd ? "end" : m.flags?.["acks-extras"]?.castCard ? "cast" : "other" }));
     H.seen = new Set();
     H.watch = null;
+    /** The Summon band of an open cast dialog: its choices, its count and ceiling, the footer's verdicts and the Cast button. */
+    H.band = (el) => {
+      if (!el) return { dialog: false };
+      const options = [...(el.querySelector('select[name="summonRef"]')?.options ?? [])];
+      const cast = el.querySelector('button[data-action="cast"]');
+      return {
+        dialog: true,
+        summonBand: !!el.querySelector(".acks-extras-cast-summon"),
+        targetsBand: !!el.querySelector(".acks-extras-cast-targets"),
+        choices: options.length,
+        labelled: options.every((o) => o.textContent.trim().length > 0),
+        count: el.querySelector('input[name="summonCount"]')?.value ?? null,
+        of: el.querySelector(".acks-extras-cast-invlevel .acks-extras-cast-cap")?.textContent.trim() ?? "",
+        verdicts: [...el.querySelectorAll(".acks-extras-cast-verdicts li")].map((li) => li.dataset.severity),
+        castDisabled: !!cast?.disabled,
+        castLabel: cast?.textContent.trim() ?? "",
+      };
+    };
     if (!H.patched) {
       H.patched = true;
       H.errors = [];
@@ -176,12 +201,13 @@ const P = {
     return out;
   },
   /** Bring one copy to a known shape from the library original: the flag deleted first, the lists naming the walk's class, the walk's own duration, no range. */
-  shapeSpell: async ({ casterId, itemId, original, duration, unlimited }) => {
+  shapeSpell: async ({ casterId, itemId, original, duration, unlimited, rangeFeet }) => {
     const item = game.actors.get(casterId).items.get(itemId);
     const flag = foundry.utils.deepClone(original ?? {});
     flag.lists = [{ source: "arcane", level: 1, classes: [], note: "" }];
     flag.target = { ...(flag.target ?? {}) };
     if (unlimited) { flag.range = { shape: "unlimited" }; flag.target.count = null; }
+    else if (rangeFeet) { flag.range = { shape: "distance", value: rangeFeet, unit: "feet" }; flag.target.count = null; }
     if (!flag.target.model) flag.target.model = "creature";
     if (duration) flag.duration = duration;
     await item.update({ "flags.acks-extras.-=spell": null });
@@ -284,7 +310,7 @@ const P = {
     const a = game.actors.get(actorId);
     return [...a.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect).map((e) => {
       const f = e.flags["acks-extras"].spellEffect;
-      return { id: e.id, uuid: e.uuid, name: e.name ?? "", castId: f.castId, role: f.role ?? null, held: f.held ?? null, tail: f.tail ?? null, startTime: f.startTime ?? null, hasDuration: f.duration != null, duration: f.duration ? { value: f.duration.value ?? null, units: f.duration.units ?? null } : e.duration?.value != null ? { value: e.duration.value, units: e.duration.units ?? null } : null, statuses: [...e.statuses], pending: !!f.pending };
+      return { id: e.id, uuid: e.uuid, name: e.name ?? "", castId: f.castId, role: f.role ?? null, held: f.held ?? null, tail: f.tail ?? null, startTime: f.startTime ?? null, hasDuration: f.duration != null, duration: f.duration ? { value: f.duration.value ?? null, units: f.duration.units ?? null } : e.duration?.value != null ? { value: e.duration.value, units: e.duration.units ?? null } : null, statuses: [...e.statuses], pending: !!f.pending, seal: f.seal ?? null };
     });
   },
   /** The funnel's end cards since a time, with what each offers. */
@@ -292,7 +318,7 @@ const P = {
     uuid: m.uuid,
     castId: m.flags["acks-extras"].castHeldEnd.castId,
     cause: m.flags["acks-extras"].castHeldEnd.cause,
-    dismiss: String(m.content).includes("data-acks-extras-cast-dismiss"),
+    dismiss: String(m.content).includes("data-acks-extras-held-dismiss"),
     restore: String(m.content).includes("data-acks-extras-held-restore"),
   })),
   /** The status's own toggle off, as the HUD does it: the real trigger of a concentration's end that needs no cause of its own. */
@@ -336,18 +362,15 @@ const P = {
       refusal,
     };
   },
-  /** Press Cast on a copy as the claimant sees it (the call is not awaited), then read the creature prompt without answering it. */
-  openPrompt: async ({ casterId, itemId }) => {
+  /** Open a copy's cast dialog as `item.use()` does (not awaited) and read the Summon band: its choices, its count, its ceiling and its Cast button. Nothing is answered. */
+  openDialog: async ({ casterId, itemId }) => {
     const H = globalThis.__mct;
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
     const item = game.actors.get(casterId).items.get(itemId);
     item.use({ skipDialog: true });
-    const form = await H.poll(() => [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count), { tries: 60, every: 200 });
-    if (!form) return { prompt: false };
-    const options = [...form.elements.source.options];
-    return { prompt: true, choices: options.length, labelled: options.every((o) => o.textContent.trim().length > 0), count: form.elements.count.value, countMax: Number(form.elements.count.max) };
+    return H.band(await H.poll(() => document.querySelector(".application.acks-extras-cast"), { tries: 60, every: 200 }));
   },
-  /** Close every framed window, open the caster's sheet on its Magic tab and press the spell row's Cast button as a user does. Nothing is awaited: the prompt is the answer. */
+  /** Close every framed window, open the caster's sheet on its Magic tab and press the spell row's Cast button as a user does. Nothing is awaited: the dialog is the answer. */
   press: async ({ casterId, spellId }) => {
     const H = globalThis.__mct;
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
@@ -364,36 +387,160 @@ const P = {
     button.click();
     return { button: true, before };
   },
-  /** The creature prompt, once it is up: its choices, its count, its title. */
-  prompt: async ({ spellName }) => {
+  /** The cast dialog, once it is up, and its Summon band. `spellName` is checked against the window title. */
+  dialog: async ({ spellName }) => {
     const H = globalThis.__mct;
-    const form = await H.poll(() => [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count), { tries: 60, every: 200 });
-    if (!form) return { prompt: false };
-    return { prompt: true, choices: form.elements.source.options.length, count: form.elements.count.value, titled: form.closest(".application")?.querySelector(".window-title")?.textContent.trim() === spellName };
+    const el = await H.poll(() => document.querySelector(".application.acks-extras-cast"), { tries: 60, every: 200 });
+    return { ...H.band(el), titled: !!el && (el.querySelector(".window-title")?.textContent ?? "").includes(spellName) };
   },
-  /** Answer the prompt (the count, then Place on the map), then clear every framed window off the map. */
-  answer: async ({ count }) => {
+  /** Press Cast (or Declare) in the open dialog, then clear every framed window off the map. */
+  confirm: async ({ count }) => {
     const H = globalThis.__mct;
-    const form = [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count);
-    if (!form) return { prompt: false };
-    if (count) form.elements.count.value = String(count);
-    const ok = form.querySelector('button[data-action="ok"]') ?? form.closest(".application")?.querySelector('button[data-action="ok"]');
-    ok?.click();
+    const el = document.querySelector(".application.acks-extras-cast");
+    if (!el) return { dialog: false };
+    const input = el.querySelector('input[name="summonCount"]');
+    if (count && input) {
+      input.value = String(count);
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await H.sleep(600);
+    }
+    const ok = document.querySelector('.application.acks-extras-cast button[data-action="cast"]');
+    if (!ok || ok.disabled) return { dialog: true, pressed: false };
+    ok.click();
     await H.sleep(500);
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
     try { ui.notifications.clear?.(); } catch { /* chrome only */ }
     await H.sleep(500);
-    return { prompt: true, pressed: !!ok };
+    return { dialog: true, pressed: true };
   },
-  /** Close the prompt window itself, as a user dismisses it. */
+  /** Cancel the open dialog, as a user dismisses it. */
   dismissPrompt: async () => {
     const H = globalThis.__mct;
-    const form = [...document.querySelectorAll("form")].find((f) => f.elements?.source && f.elements?.count);
-    const app = form ? foundry.applications.instances.get(form.closest(".application")?.id) : null;
-    if (!app) return false;
-    await app.close({ animate: false });
+    const cancel = document.querySelector('.application.acks-extras-cast button[data-action="cancel"]');
+    if (!cancel) return false;
+    cancel.click();
     await H.sleep(800);
-    return true;
+    return !document.querySelector(".application.acks-extras-cast");
+  },
+  /** Declare a summons as a user does: the dialog, its button's words, Declare, and the pending record the declaration leaves. */
+  declareSummon: async ({ casterId, spellId }) => {
+    const H = globalThis.__mct;
+    const actor = game.actors.get(casterId);
+    const item = actor.items.get(spellId);
+    const cast0 = item.system.cast;
+    H.seen = new Set(H.cards(casterId).map((c) => c.id));
+    item.use({ skipDialog: true });
+    const el = await H.poll(() => document.querySelector(".application.acks-extras-cast"), { tries: 80, every: 150 });
+    if (!el) return { dialog: false };
+    const label = el.querySelector('button[data-action="cast"]')?.textContent.trim() ?? "";
+    el.querySelector('button[data-action="cast"]').click();
+    await H.poll(() => [...actor.effects].some((e) => e.flags?.["acks-extras"]?.spellEffect?.pending), { tries: 60, every: 250 });
+    await H.sleep(800);
+    const pending = [...actor.effects].filter((e) => e.flags?.["acks-extras"]?.spellEffect?.pending);
+    return { dialog: true, label, casting: actor.statuses.has("casting"), pending: pending.length, pendingUuids: pending.map((e) => e.uuid), cast: item.system.cast - cast0 };
+  },
+  /** The caster's turn: the cast is asked as a user asks it, with no dialog expected; the pending record stands for it and the placement waits for its clicks. */
+  resolveSummon: async ({ casterId, spellId }) => {
+    const H = globalThis.__mct;
+    const item = game.actors.get(casterId).items.get(spellId);
+    H.seen = new Set(H.cards(casterId).map((c) => c.id));
+    item.use({ skipDialog: true });
+    await H.sleep(1500);
+    return { dialog: !!document.querySelector(".application.acks-extras-cast") };
+  },
+  /** Move the tracker, then read whose turn it is. */
+  combatMove: async ({ combatId, update }) => {
+    const combat = game.combats.get(combatId);
+    await combat.update(update);
+    await new Promise((r) => setTimeout(r, 1200));
+    return { round: combat.round, onTurn: combat.combatant?.tokenId ?? null };
+  },
+  /** A localized string as this seat reads it (the caller joins the root, so no bare prefix is spelled). */
+  locKey: async ({ key, data }) => game.i18n.format("ACKS-" + key, data ?? {}),
+  /** Make the seat see no active GM, or give it back: the seat's own reading of `game.users.activeGM` alone changes. */
+  noGm: async ({ on }) => {
+    if (on) Object.defineProperty(game.users, "activeGM", { configurable: true, get: () => null });
+    else delete game.users.activeGM;
+    return { seenAs: game.users.activeGM?.id ?? null };
+  },
+  /** Advance the world clock as the Judge's seat does, then give the expiry sweep its time. */
+  advance: async ({ seconds }) => {
+    const H = globalThis.__mct;
+    await game.time.advance(seconds);
+    await H.sleep(2500);
+    return game.time.worldTime;
+  },
+  /** Cast as a user does, up to the press of Cast: the dialog opens and Cast is pressed, and whatever the cast asks next (a door's pick) is the driver's to answer. */
+  castBegin: async ({ casterId, spellId }) => {
+    const H = globalThis.__mct;
+    for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
+    const item = game.actors.get(casterId).items.get(spellId);
+    H.castBefore = new Set([...game.messages].map((m) => m.id));
+    H.castCount = item.system.cast;
+    item.use({ skipDialog: true });
+    const el = await H.poll(() => document.querySelector(".application.acks-extras-cast"), { tries: 80, every: 150 });
+    if (!el) return { dialog: false };
+    const cast = el.querySelector('button[data-action="cast"]');
+    if (!cast || cast.disabled) {
+      el.querySelector('button[data-action="cancel"]')?.click();
+      await H.sleep(600);
+      return { dialog: true, pressed: false };
+    }
+    cast.click();
+    await H.sleep(500);
+    return { dialog: true, pressed: true };
+  },
+  /** After `castBegin`: the cast card if one posts within `tries` polls, the count's change and every message this seat's user made since. */
+  castSettle: async ({ casterId, spellId, tries }) => {
+    const H = globalThis.__mct;
+    const item = game.actors.get(casterId).items.get(spellId);
+    const message = await H.poll(() => [...game.messages].find((m) => !H.castBefore.has(m.id) && m.flags?.["acks-extras"]?.castCard?.spellUuid === item.uuid), { tries, every: 250 });
+    await H.sleep(1200);
+    const fresh = [...game.messages].filter((m) => !H.castBefore.has(m.id) && m.author?.id === game.user.id).map((m) => m.id);
+    return { card: !!message, messageId: message?.id ?? null, model: message ? game.messages.get(message.id).flags["acks-extras"].castCard : null, cast: item.system.cast - H.castCount, freshIds: fresh };
+  },
+  /** Walls from specs (a door is a wall carrying `door`), answered with each wall's id and uuid. */
+  wallsMake: async ({ sceneId, specs }) => {
+    const scene = game.scenes.get(sceneId);
+    const made = await scene.createEmbeddedDocuments("Wall", specs.map((s) => ({ c: s.c, door: CONST.WALL_DOOR_TYPES.DOOR, ds: s.ds ?? CONST.WALL_DOOR_STATES.CLOSED })));
+    return made.map((w) => ({ id: w.id, uuid: w.uuid }));
+  },
+  /** A wall as the world holds it: its door state, its seal stamp (the cast ids and the state the first seal found), or that it is gone. */
+  wallRead: async ({ sceneId, wallId }) => {
+    const w = game.scenes.get(sceneId)?.walls.get(wallId);
+    if (!w) return { exists: false };
+    const stamp = w.flags?.["acks-extras"]?.sealedBy ?? null;
+    return { exists: true, ds: w.ds, stamp: stamp ? { was: stamp.was ?? null, casts: [...(stamp.casts ?? [])] } : null };
+  },
+  /** A hand's change to a wall, as the Judge makes it from the wall's own sheet. */
+  wallSet: async ({ sceneId, wallId, ds }) => { await game.scenes.get(sceneId).walls.get(wallId).update({ ds }); return true; },
+  /** Where a door's control stands on this seat's screen once the scene is panned to its middle: a client point, and whether bare canvas lies under it. */
+  doorPoint: async ({ sceneId, wallId }) => {
+    const H = globalThis.__mct;
+    const r = canvas.dimensions.sceneRect;
+    canvas.pan({ x: r.x + r.width / 2, y: r.y + r.height / 2, scale: 0.5 });
+    await H.sleep(1200);
+    const wall = canvas.walls.get(wallId);
+    const c = wall?.center;
+    if (!c) return { x: 0, y: 0, onCanvas: false };
+    const p = canvas.clientCoordinatesFromCanvas({ x: c.x, y: c.y });
+    const inside = p.x > 40 && p.y > 40 && p.x < window.innerWidth - 40 && p.y < window.innerHeight - 40;
+    return { x: Math.round(p.x), y: Math.round(p.y), onCanvas: inside && document.elementFromPoint(p.x, p.y) === canvas.app.view };
+  },
+  /** The door pick's banner, as the page shows it: open or not, its words and whether it reads as a refusal. */
+  banner: async () => {
+    const tag = document.querySelector(".acks-extras-pick-banner .acks-tag");
+    return { open: !!tag, text: tag?.textContent ?? "", danger: !!tag?.classList.contains("acks-tag--danger") };
+  },
+  /** A key as the pick hears it (Enter answers no door, Escape cancels). */
+  key: async ({ key }) => { document.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true })); await new Promise((r) => setTimeout(r, 600)); return true; },
+  heldCard: async ({ messageId }) => {
+    const H = globalThis.__mct;
+    try { await ui.sidebar?.changeTab?.("chat", "primary"); } catch { /* chrome only */ }
+    const el = await H.poll(() => document.querySelector(`[data-message-id="${messageId}"]`), { tries: 40, every: 200 });
+    if (!el) return { found: false };
+    await H.sleep(600);
+    return { found: true, creatures: el.querySelectorAll(".acks-extras-cast-held .acks-extras-bucket__row").length, dismiss: el.querySelectorAll("[data-acks-extras-held-dismiss]").length, restore: el.querySelectorAll("[data-acks-extras-held-restore]").length };
   },
   clearWindows: async () => {
     for (const app of [...foundry.applications.instances.values()]) if (app.hasFrame && app.rendered) await app.close({ animate: false });
@@ -598,7 +745,7 @@ const aim = async (seat, tokens) => {
   if (!Array.isArray(got) || got.length !== tokens.length) throw new Error(`the seat holds ${JSON.stringify(got)} as targets, not ${tokens.length}`);
 };
 /** A copy of an imported spell on the caster, brought to a shape from the library original's flag. */
-const shape = (slug, duration = DURATION) => run(gm, P.shapeSpell, { casterId: W.caster, itemId: W.spell[slug], original: W.lib.payload[slug]?.flags?.["acks-extras"]?.spell, duration, unlimited: true });
+const shape = (slug, duration = DURATION, rangeFeet = null) => run(gm, P.shapeSpell, { casterId: W.caster, itemId: W.spell[slug], original: W.lib.payload[slug]?.flags?.["acks-extras"]?.spell, duration, unlimited: !rangeFeet, rangeFeet });
 /** A cast on a seat; spends nothing (the pool is zeroed first), and tracks the card, its cast id and the messages the cast made. */
 async function castAs(seat, o) {
   await run(gm, P.setSpent, { casterId: W.caster });
@@ -616,20 +763,29 @@ async function castRecords(castId, want) {
 }
 
 /**
- * Cast a summoning spell as a user does: press its Cast on the Magic tab, read the prompt, place by one real click per creature, and report what changed.
- * The pointer is parked mid-viewport before each pan and a failure after the prompt is answered right-clicks the pending placement away (docs/magic/TESTING.md, "Casting a summoning spell").
+ * Cast a summoning spell as a user does: press its Cast on the Magic tab, read the cast dialog's Summon band, press Cast, place by one real click per creature, and report what changed.
+ * The pointer is parked mid-viewport before each pan and a failure after Cast is pressed right-clicks the pending placement away (docs/magic/TESTING.md, "Casting a summoning spell").
  * @returns {Promise<{pressed: boolean, prompt: object, fresh: object[], castId: string|null, cast: number, cards: object[]}>}
  */
 async function place(label, who, spellId, count = 1) {
   const seat = who === "gm" ? gm : player;
-  const port = who === "gm" ? PORTS.gm : PORTS.player;
   const before = await tokensOf();
   const standing = new Set(before.map((t) => t.uuid));
   const pressed = await run(seat, P.press, { casterId: W.caster, spellId });
   if (!pressed.button) throw new Error(`${label}: no Cast button on the Magic tab`);
-  const prompt = await run(seat, P.prompt, { spellName: W.names[spellId] });
-  if (!prompt.prompt) throw new Error(`${label}: the creature prompt did not open`);
-  await run(seat, P.answer, { count });
+  const prompt = await run(seat, P.dialog, { spellName: W.names[spellId] });
+  if (!prompt.dialog) throw new Error(`${label}: the cast dialog did not open`);
+  await run(seat, P.confirm, { count });
+  return { pressed: pressed.button, before: pressed.before, prompt, ...(await collect(label, who, spellId, count, standing)) };
+}
+
+/**
+ * The clicks and the settle of a placement the seat has already answered: one real click per creature, the creatures that were not standing before, the cast count and the cards.
+ * @returns {Promise<{fresh: object[], castId: string|null, cast: number, cards: object[]}>}
+ */
+async function collect(label, who, spellId, count, standing) {
+  const seat = who === "gm" ? gm : player;
+  const port = who === "gm" ? PORTS.gm : PORTS.player;
   try {
     await frontSeat(port);
     for (let n = 0; n < count; n++) {
@@ -652,7 +808,7 @@ async function place(label, who, spellId, count = 1) {
   for (const c of settled.cards) await track(`ChatMessage.${c.id}`, "ChatMessage");
   const castId = fresh[0]?.castId ?? null;
   if (castId) castIds.push(castId);
-  return { pressed: pressed.button, before: pressed.before, prompt, fresh, castId, cast: settled.cast, cards: settled.cards };
+  return { fresh, castId, cast: settled.cast, cards: settled.cards };
 }
 
 /* ---------------------------- A. setup ------------------------------ */
@@ -671,6 +827,7 @@ async function stageSetup() {
     check(`A ${t.slug}: the import carries a ${t.kind} row that lasts ${t.lasts}${t.twin ? ", and a reversed twin" : ""}`, mine.some((r) => r.lasts === t.lasts && !r.reversed) && (!t.twin || mine.some((r) => r.reversed)), rows);
   }
   for (const s of SUMMONS) check(`A ${s.slug}: the import carries one summon row`, W.lib.rows[s.slug].filter((r) => r.type === "summon").length === 1, W.lib.rows[s.slug]);
+  for (const k of KINDS) check(`A ${k.slug}: the import carries a ${k.kind} row that lasts ${k.lasts}`, W.lib.rows[k.slug].some((r) => r.type === k.kind && r.lasts === k.lasts), W.lib.rows[k.slug]);
   const scene = await gm.fixture("magic/tracked-scene", "Scene", { name: "QA Tracked Field", active: false, navigation: true, width: 1400, height: 900, padding: 0, backgroundColor: "#5a5f6b", grid: { type: 1, size: 100, distance: 5, units: "ft" }, tokenVision: false, environment: { globalLight: { enabled: true } }, ownership: { default: 2 } });
   const cls = await gm.fixture("magic/tracked-class", "Item", { name: "QA Tracked Class", type: "acks-extras.class", system: { key: "qatrackedclass", casting: [{ key: "arcane", label: "Arcane", kind: "vancian", slots: [{ atLevel: 1, s1: 9 }] }] } });
   const caster = await gm.fixture("magic/tracked-caster", "Actor", { name: "QA Tracked Caster", type: "character", prototypeToken: { actorLink: true }, system: { spells: { enabled: true }, hp: { value: 9, max: 9 } }, ownership: { default: 0, [W.playerId]: 3 } });
@@ -681,6 +838,7 @@ async function stageSetup() {
   W.casterUuid = `Actor.${W.caster}`;
   W.creatureUuid = `Actor.${idOf(creature)}`;
   W.target = idOf(target);
+  W.farActor = idOf(creature);
   fixtureActors.push(W.caster, idOf(creature), W.target);
   W.spell = {};
   let n = 0;
@@ -714,19 +872,13 @@ async function stageSetup() {
 }
 
 /* ------------------------ B. tracked kinds ---------------------------- */
-/** One tracked cast from the Player seat with no target held; where the dialog is blocked the Judge's seat casts, with no target either, and a GAP says so. */
+/** One tracked cast from the Player seat with no target held: a cast that opens no entry measures no target, so the Player's dialog is not blocked by what stands on the board. */
 async function castTracked(slug, mode) {
   await shape(slug);
   await aim(player, []);
-  let c = await castAs(player, { spellId: W.spell[slug], mode });
-  let seat = player;
-  if (!c.card && c.castDisabled) {
-    gap(`${slug}: the Player's dialog is blocked with no target held; cast from the Judge's seat, which a verdict warns and never blocks`, c.severities);
-    await aim(gm, []);
-    c = await castAs(gm, { spellId: W.spell[slug], mode });
-    seat = gm;
-  }
-  return { c, seat };
+  const c = await castAs(player, { spellId: W.spell[slug], mode });
+  if (!c.card) check(`${slug}: the Player's dialog is not blocked with no target held`, false, { dialog: c.dialog, disabled: c.castDisabled, severities: c.severities });
+  return { c, seat: player };
 }
 
 async function stageTracked() {
@@ -812,13 +964,13 @@ async function stageSummonRows() {
     } else check(`E ${s.slug}: the row states no amount, so no count is refused as too many`, read.amount === 0 && read.refusal[2] !== "badCount" && read.refusal[5] !== "badCount", { amount: read.amount, refusal: read.refusal });
     if (s.slug === "summoning") check("E summoning: the count's ceiling at the caster level is carried on the row, unresolved, and the cast count is not capped at one", read.hasMax && read.maxKeys > 0 && read.refusal[5] !== "badCount", { hasMax: read.hasMax, maxKeys: read.maxKeys });
   }
-  // The creature prompt as the seat opens it, for the two spells whose row names a creature; each is closed unanswered, so nothing is spent.
+  // The cast dialog's Summon band as the seat opens it, for the two spells whose row names a creature; each is cancelled unanswered, so nothing is spent.
   for (const slug of ["calling", "summoning"]) {
     const before = await run(gm, P.records, { actorId: W.caster });
-    const prompt = await run(gm, P.openPrompt, { casterId: W.caster, itemId: W.spell[slug] });
-    check(`E ${slug}: the creature prompt offers the row's one choice, labelled, with the count open above one`, prompt.prompt && prompt.choices === 1 && prompt.labelled && prompt.countMax > 1, { choices: prompt.choices, countMax: prompt.countMax });
-    if (slug === "summoning") check("E summoning: the count opens on one", prompt.count === "1", { count: prompt.count });
-    check(`E ${slug}: closing the prompt writes no record`, (await run(gm, P.dismissPrompt)) && (await run(gm, P.records, { actorId: W.caster })).length === before.length);
+    const band = await run(gm, P.openDialog, { casterId: W.caster, itemId: W.spell[slug] });
+    check(`E ${slug}: the Summon band offers the row's one choice, labelled, with a count and its ceiling at the caster level, and no Targets band`, band.dialog && band.summonBand && !band.targetsBand && band.choices === 1 && band.labelled && band.of.length > 0, { choices: band.choices, of: band.of.length > 0 });
+    if (slug === "summoning") check("E summoning: the count opens on one", band.count === "1", { count: band.count });
+    check(`E ${slug}: cancelling the dialog writes no record`, (await run(gm, P.dismissPrompt)) && (await run(gm, P.records, { actorId: W.caster })).length === before.length);
     await run(gm, P.clearWindows);
   }
 }
@@ -842,8 +994,8 @@ async function holdFlow(who, { endIt }) {
 
   // Hold A.
   const a = await place(`${L} A`, who, A);
-  check(`${L}: the prompt for a concentration summoning opens, titled for the spell, with its one choice`, a.prompt.prompt && a.prompt.titled && a.prompt.choices === 1, a.prompt);
-  check(`${L}: one creature stands, the cast count rose by one and one card posted`, a.fresh.length === 1 && a.cast === a.before + 1 && a.cards.length === 1, { tokens: a.fresh.length, cast: a.cast, before: a.before, cards: a.cards.length });
+  check(`${L}: the dialog for a concentration summoning opens, titled for the spell, with its one choice`, a.prompt.dialog && a.prompt.titled && a.prompt.choices === 1, { choices: a.prompt.choices, titled: a.prompt.titled });
+  check(`${L}: one creature stands, the cast count rose by one and one cast card posted`, a.fresh.length === 1 && a.cast === a.before + 1 && a.cards.filter((c) => c.kind === "cast").length === 1, { tokens: a.fresh.length, cast: a.cast, before: a.before, castCards: a.cards.filter((c) => c.kind === "cast").length });
   const recA = await castRecords(a.castId, 1);
   const ra = recA[0];
   check(`${L}: the summoning writes the held record a held cast writes: the status, the kind, the tail, a start time, no clock`, recA.length === 1 && ra.role === "caster" && ra.held === "mobile" && ra.statuses.includes("concentrating") && ra.tail?.value === 2 && ra.tail?.units === "hours" && ra.startTime >= worldTime && !ra.hasDuration, { n: recA.length, held: ra?.held, statuses: ra?.statuses, tail: ra?.tail, hasDuration: ra?.hasDuration });
@@ -853,13 +1005,13 @@ async function holdFlow(who, { endIt }) {
   await run(seat, P.mark, { casterId: W.caster });
   const pressed = await run(seat, P.press, { casterId: W.caster, spellId: B });
   check(`${L}: the Cast button of the second summoning is pressed`, pressed.button);
-  check(`${L}: its prompt opens`, (await run(seat, P.prompt, { spellName: W.names[B] })).prompt);
-  check(`${L}: the prompt is closed without placing`, await run(seat, P.dismissPrompt));
+  check(`${L}: its dialog opens`, (await run(seat, P.dialog, { spellName: W.names[B] })).dialog);
+  check(`${L}: the dialog is cancelled before any click`, await run(seat, P.dismissPrompt));
   await sleep(2000);
   const kept = await recordsOf();
   const idle = await run(seat, P.state, { casterId: W.caster, spellId: B });
   const logs = await run(seat, P.logs);
-  check(`${L}: cancelling the pick keeps the concentration: the same record stands, no warning, no card, no creature, no spend`, kept.some((r) => r.id === ra.id && r.held === "mobile") && kept.filter((r) => r.held).length === 1 && logs.warns.length === 0 && idle.cards.length === 0 && idle.cast === 0 && (await tokensOf()).length === standingA.length, { warns: logs.warns.length, cards: idle.cards.length, cast: idle.cast });
+  check(`${L}: cancelling the dialog keeps the concentration: the same record stands, no warning, no card, no creature, no spend`, kept.some((r) => r.id === ra.id && r.held === "mobile") && kept.filter((r) => r.held).length === 1 && logs.warns.length === 0 && idle.cards.length === 0 && idle.cast === 0 && (await tokensOf()).length === standingA.length, { warns: logs.warns.length, cards: idle.cards.length, cast: idle.cast });
   await run(seat, P.clearWindows);
 
   // Cast B while A is held.
@@ -883,16 +1035,22 @@ async function holdFlow(who, { endIt }) {
   check(`${L}: the first summoning's creature still stands beside the second's`, standingB.length === standingA.length + 1 && standingA.every((t) => standingB.some((s) => s.uuid === t.uuid)), { before: standingA.length, after: standingB.length });
 
   if (endIt) {
-    // The end of a held summons by its real trigger (the status's toggle): the funnel's card, no Dismiss, and nothing removed from the map.
+    // The end of a held summons by its real trigger (the status's toggle): the funnel's card listing the standing creatures, Dismiss on the Judge's seat only, and nothing removed from the map.
     await run(seat, P.mark, { casterId: W.caster });
     const since2 = Date.now() - 1000;
     await run(seat, P.endHeld, { casterId: W.caster, status: "concentratingStationary" });
     const cards = await until(() => run(seat, P.endCards, { since: since2 }), (l) => l.some((e) => e.castId === b.castId), { tries: 40, every: 250 });
     const end = cards.filter((e) => e.castId === b.castId);
     for (const e of end) await track(e.uuid, "ChatMessage");
-    check(`${L}: ending the held summons posts the funnel's one card, with Restore and no Dismiss`, end.length === 1 && end[0].cause === "removed" && end[0].restore && !end[0].dismiss, end.map((e) => ({ cause: e.cause, restore: e.restore, dismiss: e.dismiss })));
+    check(`${L}: ending the held summons posts the funnel's one card, drawn with Restore and Dismiss`, end.length === 1 && end[0].cause === "removed" && end[0].restore && end[0].dismiss, end.map((e) => ({ cause: e.cause, restore: e.restore, dismiss: e.dismiss })));
+    if (end[0]) {
+      const messageId = end[0].uuid.split(".").pop();
+      const onGm = await run(gm, P.heldCard, { messageId });
+      const onPlayer = await run(player, P.heldCard, { messageId });
+      check(`${L}: the card lists the cast's one standing creature on both seats, and Dismiss is left on the Judge's seat alone`, onGm.found && onPlayer.found && onGm.creatures === 1 && onPlayer.creatures === 1 && onGm.dismiss >= 1 && onPlayer.dismiss === 0, { gm: onGm, player: onPlayer });
+    }
     const after = await tokensOf();
-    check(`${L}: the creatures are left standing: the end removes no token and writes no prompt`, after.length === standingB.length && standingB.every((t) => after.some((s) => s.uuid === t.uuid)), { before: standingB.length, after: after.length });
+    check(`${L}: the creatures are left standing: a spell whose rows state no control end keeps them`, after.length === standingB.length && standingB.every((t) => after.some((s) => s.uuid === t.uuid)), { before: standingB.length, after: after.length });
     check(`${L}: the held record is gone`, !(await recordsOf()).some((r) => r.castId === b.castId));
   }
   const d = await run(seat, P.drain);
@@ -904,7 +1062,7 @@ async function stageHeld() {
   await holdFlow("gm", { endIt: false });
 }
 
-/* ------------------------ G. a begun fight (1d.5) --------------------- */
+/* ------------------------ G. a begun fight (161) ---------------------- */
 async function stageFight() {
   const T = W.spell.timed;
   await run(gm, P.shapeSummon, { casterId: W.caster, itemId: T, ref: W.creatureUuid, amount: 1, duration: DURATION });
@@ -921,15 +1079,194 @@ async function stageFight() {
     const set = await run(gm, P.combatSet, { combatId: cm.id, initiatives: { [byToken[W.t.target.id]]: 30, [byToken[W.t.caster.id]]: 20 } });
     check("G: a fight is begun with the target's turn first, so the caster is not on turn", set.started && set.turns === 2 && set.onTurn === W.t.target.id, { started: set.started, turns: set.turns, targetOnTurn: set.onTurn === W.t.target.id });
     await run(player, P.mark, { casterId: W.caster });
-    const c = await place("G", "player", T);
-    check("G: a summons cast in a begun fight resolves at once: its creature stands, the count rose by one and one card posted", c.fresh.length === 1 && c.cast === c.before + 1 && c.cards.length === 1, { tokens: c.fresh.length, cast: c.cast, before: c.before, cards: c.cards.length });
+    const before = await tokensOf();
+    const standing = new Set(before.map((t) => t.uuid));
+    const declareWord = await run(player, P.locKey, { key: "MAGIC.cast.dialog.declare" });
+    // A summons declares like any cast (ruling 161): the dialog's button says so, the declaration is one pending record and the casting status, the slot is spent once and no creature is placed.
+    const decl = await run(player, P.declareSummon, { casterId: W.caster, spellId: T });
+    for (const uuid of decl.pendingUuids ?? []) await track(uuid, "ActiveEffect");
+    const declCards = await run(player, P.state, { casterId: W.caster, spellId: T });
+    for (const c of declCards.cards) await track(`ChatMessage.${c.id}`, "ChatMessage");
+    check("G: in a begun fight the Player's summons is declared: the button reads Declare, one pending record and the casting status stand, and the slot is spent once", decl.dialog && decl.label === declareWord && decl.pending === 1 && decl.casting && decl.cast === 1, { label: decl.label === declareWord, pending: decl.pending, casting: decl.casting, cast: decl.cast });
+    check("G: nothing is placed and no cast card posts at the declaring", (await tokensOf()).length === before.length && declCards.cards.filter((c) => c.kind === "cast").length === 0, { tokens: (await tokensOf()).length, cards: declCards.cards.length });
+    // The caster's turn: the cast asks no dialog, the clicks are the one thing asked, and the spend stands as the declaring made it.
+    const moved = await run(gm, P.combatMove, { combatId: cm.id, update: { turn: 1 } });
+    check("G: the tracker stands on the caster's turn", moved.onTurn === W.t.caster.id, { onCaster: moved.onTurn === W.t.caster.id });
+    const resolved = await run(player, P.resolveSummon, { casterId: W.caster, spellId: T });
+    check("G: no dialog opens at the turn", resolved.dialog === false);
+    const c = await collect("G", "player", T, 1, standing);
+    check("G: the clicks at the turn place the declared creature, with no second spend and one cast card", c.fresh.length === 1 && c.cast === 1 && c.cards.filter((x) => x.kind === "cast").length === 1, { tokens: c.fresh.length, cast: c.cast, cards: c.cards.length });
     const recs = await castRecords(c.castId, 1);
     const all = await recordsOf();
-    check("G: it leaves its one caster record and no declaration: no casting status, no pending record, no declared flag, no declared notice", recs.length === 1 && recs[0].role === "caster" && !all.some((r) => r.statuses.includes("casting") || r.pending) && (await run(gm, P.declared, { combatId: cm.id })) === 0 && !(await run(player, P.logs)).infos.some((i) => /declare/iu.test(i)), { records: recs.length, declared: await run(gm, P.declared, { combatId: cm.id }) });
+    check("G: the declaration is spent: it leaves its one caster record and no pending record or casting status", recs.length === 1 && recs[0].role === "caster" && !all.some((r) => r.statuses.includes("casting") || r.pending), { records: recs.length });
   } finally {
     // The Combat is the run's own delete here, so the sweep has nothing of it to find.
     if (await run(gm, P.combatDrop, { combatId: cm.id })) own.splice(own.indexOf(cm.uuid), 1);
   }
+}
+
+/* ------------------------ H. the new kinds (K) ------------------------ */
+/** The record of one cast that a given actor holds, each tracked by its uuid. */
+async function recordsOfCast(actorId, castId, want) {
+  const read = () => run(gm, P.records, { actorId }).then((all) => all.filter((r) => r.castId === castId));
+  const list = want > 0 ? await until(read, (l) => l.length >= want, { tries: 20, every: 250 }) : (await sleep(1500), await read());
+  for (const r of list) await track(r.uuid, "ActiveEffect");
+  return list;
+}
+
+async function stageKinds() {
+  // A delayed affliction: the effect is the recipient's, so the record stands on the target and nowhere else.
+  await shape("delay");
+  await aim(player, [W.t.target]);
+  const delay = await castAs(player, { spellId: W.spell.delay });
+  await aim(player, []);
+  check("H delay: the Player's cast at a held target posts a card", delay.card, { dialog: delay.dialog, disabled: delay.castDisabled });
+  if (delay.card) {
+    const onTarget = await recordsOfCast(W.target, delay.model.castId, 1);
+    const onCaster = await castRecords(delay.model.castId, 0);
+    check("H delay: the target holds one recipient record of the cast, timed by the walk's duration", onTarget.length === 1 && onTarget[0].role === "recipient" && onTarget[0].duration?.value === DURATION.value && onTarget[0].duration?.units === DURATION.unit, onTarget.map((r) => ({ role: r.role, duration: r.duration })));
+    check("H delay: the record is the recipient's alone: the caster holds none of this cast", onCaster.length === 0, { caster: onCaster.length });
+  }
+
+  // A purify spell: a line per row and nothing else (the quantity is located from the page and stays blank on a miss).
+  await shape("purify");
+  await aim(player, []);
+  const purify = await castAs(player, { spellId: W.spell.purify });
+  check("H purify: the cast posts a card", purify.card, { dialog: purify.dialog, disabled: purify.castDisabled });
+  if (purify.card) {
+    const view = await run(player, P.seen, { messageId: purify.messageId });
+    check("H purify: the card is lines only: at least one line, no section, no button, no entry and no row", (purify.model.lines ?? []).length >= 1 && view.sections === 0 && view.buttons === 0 && Object.keys(purify.model.entries ?? {}).length === 0 && Object.keys(purify.model.rows ?? {}).length === 0, { lines: purify.model.lines?.length, sections: view.sections, buttons: view.buttons });
+    const recs = await castRecords(purify.model.castId, 0);
+    check("H purify: an instant row writes no record", recs.length === 0, { records: recs.length });
+  }
+
+  // A detect whose range is stated while the Player holds a target far beyond it: a cast that opens no entry measures no target, so the dialog is not blocked.
+  const far = await run(gm, P.placeTokens, { sceneId: W.scene, specs: [{ actorId: W.farActor, x: 1300, y: 800, name: "Tracked Far", link: false }] });
+  for (const t of far) await track(t.uuid, "Token");
+  await shape("detect", DURATION, 10);
+  await aim(player, far);
+  const stale = await castAs(player, { spellId: W.spell.detect });
+  await aim(player, []);
+  check("H detect: with a target held far beyond a stated range the Player's dialog is not blocked and the cast posts its card", stale.card && !(stale.severities ?? []).includes("block"), { dialog: stale.dialog, disabled: stale.castDisabled, severities: stale.severities });
+  if (stale.card) await castRecords(stale.model.castId, 1);
+}
+
+/* ------------------------ I. Seal Portal (Z) -------------------------- */
+const DOOR_STATE = { closed: 0, open: 1, locked: 2 };
+const SEAL_RANGE = 30;
+
+async function stageSeal() {
+  const S = W.spell.seal;
+  await shape("seal", DURATION, SEAL_RANGE);
+  // The caster's token stands at (100, 300); a range of 30 ft reaches 600 px of the field (a grid cell is 100 px to 5 ft). A is near, B is out of reach, C is near and locked already, D is near and is opened by hand.
+  const made = await run(gm, P.wallsMake, { sceneId: W.scene, specs: [{ c: [250, 300, 250, 400] }, { c: [1250, 100, 1250, 200] }, { c: [250, 500, 250, 600], ds: DOOR_STATE.locked }, { c: [250, 650, 250, 750] }] });
+  for (const w of made) await track(w.uuid, "Wall");
+  const [A, B, C, D] = made.map((w) => w.id);
+  check("I: four doors stand on the field, one already locked", made.length === 4 && (await run(gm, P.wallRead, { sceneId: W.scene, wallId: C })).ds === DOOR_STATE.locked, { doors: made.length });
+  const wall = (id) => run(gm, P.wallRead, { sceneId: W.scene, wallId: id });
+  const refusedWord = await run(player, P.locKey, { key: "MAGIC.castSeal.refused.outOfRange" });
+  const farWord = await run(gm, P.locKey, { key: "MAGIC.castSeal.pick.far" });
+  const noGmWord = await run(player, P.notice, { key: "sealNoGm" });
+  const door = async (who, id) => {
+    const seat = who === "gm" ? gm : player;
+    const port = who === "gm" ? PORTS.gm : PORTS.player;
+    await frontSeat(port);
+    await centerPointer(seat, port);
+    const p = await run(seat, P.doorPoint, { sceneId: W.scene, wallId: id });
+    if (!p.onCanvas) throw new Error(`the door's control is not on bare canvas for a click: ${JSON.stringify(p)}`);
+    await clickAt(port, p);
+  };
+  /** Cast the seal spell on a seat as far as its pick, and wait for the banner. */
+  const begin = async (who) => {
+    const seat = who === "gm" ? gm : player;
+    await run(gm, P.setSpent, { casterId: W.caster });
+    await run(seat, P.mark, { casterId: W.caster });
+    const b = await run(seat, P.castBegin, { casterId: W.caster, spellId: S });
+    const banner = await until(() => run(seat, P.banner), (x) => x.open, { tries: 30, every: 200 });
+    return { seat, b, banner };
+  };
+  /** Finish a cast whose pick was answered: the card, the cast id and the caster's one record, tracked. */
+  const finish = async (seat, tries = 60) => {
+    const c = await run(seat, P.castSettle, { casterId: W.caster, spellId: S, tries });
+    if (c.model?.castId) castIds.push(c.model.castId);
+    for (const id of c.freshIds ?? []) await track(`ChatMessage.${id}`, "ChatMessage");
+    const records = c.card ? await castRecords(c.model.castId, 1) : [];
+    return { ...c, records };
+  };
+
+  // 1. The Player's click on a door beyond the range is refused where it lands; the pick stays armed, and cancelling it spends nothing.
+  let s = await begin("player");
+  check("I 1: the Player's Cast opens the pick: the banner stands over the board", s.b.pressed && s.banner.open && !s.banner.danger, { pressed: s.b.pressed, open: s.banner.open });
+  await door("player", B);
+  const refused = await run(player, P.banner);
+  const refusedLogs = await run(player, P.logs);
+  check("I 1: a click on the door beyond the range is refused in the cast's own words, on the banner and as a warning, and the pick stays armed", refused.open && refused.danger && refused.text === refusedWord && refusedLogs.warns.includes(refusedWord), { open: refused.open, danger: refused.danger, warns: refusedLogs.warns.length });
+  await run(player, P.key, { key: "Escape" });
+  let done = await finish(player, 8);
+  check("I 1: cancelling the pick spends nothing, posts no card and leaves the door as it was", !done.card && done.cast === 0 && !(await run(player, P.banner)).open && (await wall(B)).ds === DOOR_STATE.closed && (await wall(B)).stamp === null, { cast: done.cast });
+
+  // 2. Enter is no door: the cast goes on with the spell's own record and line, and no wall is written.
+  s = await begin("player");
+  await run(player, P.key, { key: "Enter" });
+  done = await finish(player);
+  check("I 2: Enter answers no door: the cast posts its card, spends once and writes the spell's one record with no wall on it", done.card && done.cast === 1 && done.records.length === 1 && !done.records[0].seal, { cast: done.cast, records: done.records.length });
+  check("I 2: no door was written: the near door is still closed and unstamped", (await wall(A)).ds === DOOR_STATE.closed && (await wall(A)).stamp === null);
+
+  // 3. A Player's click on the near door locks it: read back on the Judge's seat, stamped with the cast, with the wall on the record.
+  s = await begin("player");
+  await door("player", A);
+  done = await finish(player);
+  const wa = await wall(A);
+  check("I 3: the Player's click on the near door posts the card, spends once and writes one record", done.card && done.cast === 1 && done.records.length === 1, { cast: done.cast, records: done.records.length });
+  check("I 3: read on the Judge's seat the door is locked and stamped with the cast and the state it was found in", wa.ds === DOOR_STATE.locked && wa.stamp?.casts?.includes(done.model?.castId) && wa.stamp?.was === DOOR_STATE.closed, { ds: wa.ds, was: wa.stamp?.was });
+  check("I 3: the caster's record names the sealed wall", done.records[0]?.seal?.wallId === A && done.records[0]?.seal?.sceneId === W.scene, { seal: !!done.records[0]?.seal });
+  const castA = done.model?.castId;
+
+  // 4. A Judge's click beyond the range is warned and written.
+  s = await begin("gm");
+  await door("gm", B);
+  const gmWarn = await run(gm, P.logs);
+  done = await finish(gm);
+  const wb = await wall(B);
+  check("I 4: the Judge's click on the far door is warned in the cast's own words and the door is sealed", gmWarn.warns.includes(farWord) && done.card && wb.ds === DOOR_STATE.locked && wb.stamp?.casts?.includes(done.model?.castId), { warns: gmWarn.warns.length, ds: wb.ds });
+
+  // 5. A door already locked is sealed over: its stamp says it was locked.
+  s = await begin("gm");
+  await door("gm", C);
+  done = await finish(gm);
+  const wc = await wall(C);
+  check("I 5: a door already locked stays locked and its stamp says it was locked", done.card && wc.ds === DOOR_STATE.locked && wc.stamp?.was === DOOR_STATE.locked && wc.stamp?.casts?.includes(done.model?.castId), { ds: wc.ds, was: wc.stamp?.was });
+
+  // 6. A door a hand opens before the end is left alone at the end.
+  s = await begin("player");
+  await door("player", D);
+  done = await finish(player);
+  check("I 6: the fourth door is sealed", done.card && (await wall(D)).ds === DOOR_STATE.locked, { ds: (await wall(D)).ds });
+  await run(gm, P.wallSet, { sceneId: W.scene, wallId: D, ds: DOOR_STATE.open });
+
+  // 7. No GM connected: a Player is refused before the pick and the spend.
+  note("I 7: the Player seat reads no active GM (synthetic: the Judge's seat stays connected)", await run(player, P.noGm, { on: true }));
+  try {
+    await run(gm, P.setSpent, { casterId: W.caster });
+    await run(player, P.mark, { casterId: W.caster });
+    const b7 = await run(player, P.castBegin, { casterId: W.caster, spellId: S });
+    const refusal = await finish(player, 8);
+    const logs7 = await run(player, P.logs);
+    check("I 7: Cast is refused with the cast's own notice before any pick: no banner, no card, no spend", b7.pressed && !refusal.card && refusal.cast === 0 && !(await run(player, P.banner)).open && logs7.warns.includes(noGmWord), { warns: logs7.warns.length, cast: refusal.cast });
+  } finally {
+    note("I 7: the Player seat reads the active GM again", await run(player, P.noGm, { on: false }));
+  }
+
+  // 8. The clock's end: each cast's seal ends with its record.
+  const t1 = await run(gm, P.worldTime);
+  const t2 = await run(gm, P.advance, { seconds: 2 * 3600 + 60 });
+  check("I 8: the world clock moved past the spell's two hours", t2 >= t1 + 2 * 3600, { moved: t2 - t1 });
+  const ended = await until(() => Promise.all([A, B, C, D].map(wall)), (l) => l.every((w) => w.stamp === null), { tries: 40, every: 300 });
+  check("I 8: the first door goes to closed and loses its stamp", ended[0].ds === DOOR_STATE.closed && ended[0].stamp === null, { ds: ended[0].ds });
+  check("I 8: the far door, sealed by a Judge, goes to closed as well", ended[1].ds === DOOR_STATE.closed && ended[1].stamp === null, { ds: ended[1].ds });
+  check("I 8: the door that was locked before the seal stays locked", ended[2].ds === DOOR_STATE.locked && ended[2].stamp === null, { ds: ended[2].ds });
+  check("I 8: the door a hand opened is left open", ended[3].ds === DOOR_STATE.open && ended[3].stamp === null, { ds: ended[3].ds });
+  check("I 8: the first cast's id is on no wall any longer", castA && (await Promise.all([A, B, C, D].map(wall))).every((w) => !w.stamp?.casts?.includes(castA)));
 }
 
 /* ------------------------------ run ----------------------------------- */
@@ -954,7 +1291,9 @@ try {
     await stage("D. a dispel row is no throw row (T)", stageDispel);
     await stage("E. the summon rows (R)", stageSummonRows);
     await stage("F. a concentration summoning holds its caster (H)", stageHeld);
-    await stage("G. a summons in a begun fight resolves at once (1d.5)", stageFight);
+    await stage("G. a summons in a begun fight is declared and placed at its turn (161)", stageFight);
+    await stage("H. the new kinds: a delayed affliction, a purify line pair, a stale target (K)", stageKinds);
+    await stage("I. Seal Portal locks a picked door and its end puts it back (Z)", stageSeal);
   }
   section("console");
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
@@ -969,6 +1308,7 @@ try {
   }
 } finally {
   section("teardown");
+  try { if (player) await run(player, P.noGm, { on: false }); } catch (err) { console.error("noGm restore:", err?.message ?? err); }
   for (const [label, seat] of [["gm", gm], ["player", player]]) {
     try { if (seat) { await seat.eval(`canvas.tokens?.setTargets([]); 0`); note(`restored (${label})`, await run(seat, P.restore)); } } catch (err) { console.error(`restore ${label}:`, err?.message ?? err); }
   }
@@ -976,7 +1316,7 @@ try {
   try {
     if (gm && W.caster) {
       await gm.eval(`(async () => { const ids = ${JSON.stringify(castIds)}; for (const a of game.actors.filter((x) => ${JSON.stringify(fixtureActors)}.includes(x.id))) { const held = [...a.effects].filter((e) => ids.includes(e.flags?.["acks-extras"]?.spellEffect?.castId) && e.flags["acks-extras"].spellEffect.held).map((e) => e.id); if (held.length) await a.deleteEmbeddedDocuments("ActiveEffect", held); } await new Promise((r) => setTimeout(r, 2500)); return true; })()`);
-      const ledger = JSON.parse(await gm.eval(`(async () => JSON.stringify({ cards: [...game.messages].filter((m) => m.timestamp >= ${startedAt} && (${JSON.stringify(fixtureActors)}.includes(m.speaker?.actor) || ${JSON.stringify(castIds)}.includes(m.flags?.["acks-extras"]?.castHeldEnd?.castId))).map((m) => m.uuid), records: game.actors.filter((a) => ${JSON.stringify(fixtureActors)}.includes(a.id)).flatMap((a) => [...a.effects].filter((e) => ${JSON.stringify(castIds)}.includes(e.flags?.["acks-extras"]?.spellEffect?.castId)).map((e) => e.uuid)), copies: game.actors.filter((a) => a.getFlag("acks-extras", "summonCopy")?.sourceUuid === ${JSON.stringify(W.creatureUuid ?? "")}).map((a) => a.uuid) }))()`));
+      const ledger = JSON.parse(await gm.eval(`(async () => JSON.stringify({ cards: [...game.messages].filter((m) => m.timestamp >= ${startedAt} && (${JSON.stringify(fixtureActors)}.includes(m.speaker?.actor) || ${JSON.stringify(castIds)}.includes(m.flags?.["acks-extras"]?.castHeldEnd?.castId) || ${JSON.stringify(castIds)}.includes(m.flags?.["acks-extras"]?.castEnded?.castId))).map((m) => m.uuid), records: game.actors.filter((a) => ${JSON.stringify(fixtureActors)}.includes(a.id)).flatMap((a) => [...a.effects].filter((e) => ${JSON.stringify(castIds)}.includes(e.flags?.["acks-extras"]?.spellEffect?.castId)).map((e) => e.uuid)), copies: game.actors.filter((a) => a.getFlag("acks-extras", "summonCopy")?.sourceUuid === ${JSON.stringify(W.creatureUuid ?? "")}).map((a) => a.uuid) }))()`));
       for (const uuid of ledger.cards) await track(uuid, "ChatMessage");
       for (const uuid of ledger.records) await track(uuid, "ActiveEffect");
       // A world copy of the named creature is the run's only where none stood before it.
@@ -987,7 +1327,7 @@ try {
   if (gm && wasPaused) {
     try { note("paused again", await run(gm, P.pause, { paused: true })); } catch (err) { console.error("pause restore:", err?.message ?? err); }
   }
-  console.log("fixtures kept: magic/tracked-scene, magic/tracked-class, magic/tracked-caster, magic/tracked-spell-<slug> x13, magic/tracked-held-a, -held-b, -timed, magic/tracked-creature, magic/tracked-target");
+  console.log("fixtures kept: magic/tracked-scene, magic/tracked-class, magic/tracked-caster, magic/tracked-spell-<slug> x17, magic/tracked-held-a, -held-b, -timed, magic/tracked-creature, magic/tracked-target");
   try { if (player) await player.close(); } catch {}
   try { if (gm) await gm.close(); } catch {}
   section("summary");

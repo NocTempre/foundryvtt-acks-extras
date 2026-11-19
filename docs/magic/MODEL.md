@@ -35,7 +35,13 @@ structural, curse, ignite — carry `domain: "spell"`, and `effectTypesFor(domai
 keeps them out of an ability's picker while a spell may carry every kind.
 `ignite`, setting a thing alight, is a record-and-card-line kind like the
 others that have no arithmetic of their own: it is a line on the cast card from
-`describeSpellEffect` and nothing more is computed from it.
+`describeSpellEffect` and nothing more is computed from it. Three more are the
+same shape, each in `APPLY_KINDS` and `APPLIERS`: `afflictionDelay` holds back
+the onset of the effects its row names (`effects`, picked from `EFFECT_KEYS`) on
+its recipient for the row's duration, a line and the recipient's record;
+`purify` takes a located quantity away at once, a line and nothing written to a
+target; `seal` closes a way for as long as the row lasts, a line and the
+caster's record ("Seal Portal", below).
 
 **The tracked kinds** — illusion, detect, light, dispel, createObject, wall —
 are the same record-and-card-line shape, and the register authors a row of one
@@ -271,42 +277,74 @@ strips the flag from every spell item in the world, on world actors and on
 unlinked token actors; core's strings stay, so a spell keeps its stat line.
 The importer's provenance stamp is the importer's to strip.
 
-**Casting a summoning spell** (`cast-summon.mjs`). A claimant on lib's cast
-seam (key `acks-extras.magic.castSummon`, registered at `init`) takes the cast
-of a summoning spell on a `character` this seat owns, whichever door the player
-pressed (the system's sheet button, the Magic tab's Cast, a macro); `claims` is
-synchronous and never answers true for a monster's spell items or a character
-the seat does not own. Its `cast` asks with lib's `pickSummon` (the spell's rows
-as the choices, the first row's amount as the count), has the seat click the
-places and the GM's client make the tokens (`placeSummons`, naming the spell),
-and calls the seam's `spend()` only when the relay answered ok, before `cast`
-returns: a cancel, a closed prompt or a refusal spends nothing. The system's
+**Casting a summoning spell** (`cast-summon.mjs` reads the rows; the cast is
+`castSpellRun`, "Casting a spell", below). The spell cast claims every summoning
+spell on a `character` this seat owns, a spell with no row too, whichever door
+the player pressed (the system's sheet button, the Magic tab's Cast, a macro).
+Its order puts the clicks before the spend, so a closed dialog or a cancelled
+click costs the cast nothing:
+
+1. *The dialog and its verdicts.* The Summon band stands where the Targets band
+   would, which a summons hides. Its creature select offers each row's creature
+   by its imported name, else `Creature n`, and the shelves the seat can open
+   only for a spell with no row. The count opens on the row's amount and shows
+   its ceiling at the caster level: the row's `max` read through `castAt`, else its
+   `amount`, with a provenance tooltip, and a blank ceiling leaves the page
+   reference alone. The placement line says within the spell's range of the
+   caster's token, called from where it stands (a `calling`), or arrives on its
+   own. The footer judges the pick before Cast: `summonCount` blocks a Player and
+   warns a Judge, and a Player with no GM connected is refused
+   (`summonRefused`), since the GM's client makes the tokens.
+2. *The clicks* (lib `pickPlacement`, which makes nothing). A point for a
+   creature beyond the range from the centre of the caster's token is refused to
+   a Player and warned to a Judge as it is clicked; a calling and a range the
+   spell does not state are exempt. The GM's policy measures the same points
+   again.
+3. *The spend and the pool.* A summons is declared like any cast
+   ("A declaration", below): `ANSWER_FIELDS.summon` (`{ref, count}`) joins the answer, a
+   time over a round is a long cast, and a declared summons clicks at its turn,
+   where a cancel leaves the declaration standing.
+4. *`endHeld`, the cast id, `perform`,* and then the creatures, made by the GM's
+   client from the picked positions (`placeSummons`, with the cast id and
+   `cast {castId, casterLevel, invocationLevel}`, whose levels the GM trusts as
+   the apply relay does) only when the cast proceeds. A refusal after the spend is
+   a line on the card, and the spend stands.
+5. *The card:* a line naming the creature, the count and how long it lasts.
+
+A summons held by concentration writes the record every held cast writes
+(`heldRecordData`); a `conjuration` row with a duration that is not a
+concentration is held too, its printed duration the cap. Any other summons is
+core-timed with no `startTime`, so `cast-expiry` ends it. A cast that holds a
+concentration first ends the caster's held one, as any cast does. The system's
 `use()` does not await `_useSpell`, so `castSummon(spell, options)` (also on
 `acksExtras.magic`) awaits the wrapped `_useSpell` for a caller that must wait.
-After the spend the caster gets one cast record (`spellEffectData`, role
-`caster`, `castId` the relay's answer, so it matches the summons' record), whose
-duration is `castDuration` of the spell's imported duration, else its library
-twin's. No caster level is passed, because a class level is not always the
-caster level (a lagging ladder), so a per-level duration reads "none" and the
-record stays until its owner removes it.
 
-A summoning held by concentration writes the held record a held cast writes
-(the `concentrating` or `concentratingStationary` status by the kind, `held`,
-the `tail`, the start time, and a flag-timed cap only where it needs no level),
-and any summoning cast first ends what the caster already holds by concentration:
-a notice (`ACKS-MAGIC.cast.notice.endsConcentration`) names the held cast and the
-new spell, to a Player seat and the Judge alike, and `endCasterHeld` ends it
-before the new record is written, so the end posts the funnel's card with the
-cause `cast`. A summons is not declared: in a begun fight it resolves at the cast
-like any other, with no `casting` status, pending record or declared flag. The
-end of a held summons posts the funnel's card (Restore, no Dismiss) and leaves
-its creatures on the map; Dismiss belongs to the card of a timed cast's end.
+*Control ends as the spell's row says.* A summon row's `controlEnd` is one of
+lib's `CONTROL_ENDS`: `stays`, `gone` or `hostile`, and a blank, an unknown word
+and a summons with no row read as `stays`. The GM's client resolves it from the
+summoner's own spell, found through the creatures' recorded `spellId` (`cast-control.mjs`
+`applyCastControl`), never from a card or a request, and lib's `applyControlEnd`
+carries it out on the creatures the cast's own record names: each is stamped
+`lost`, then `gone` deletes it as a dismissal does, `hostile` empties its
+ownership and turns its disposition hostile, and `stays` leaves it with its
+owners. A creature stamped `lost` is refused to a seat that is no GM
+(`controlLost`). With no GM connected nothing is applied. It runs at both ends of
+a cast. At the *held end* (every `HELD_CAUSES`) the funnel's card
+(`templates/magic/cast-held-card.hbs`) lists the cast's standing creatures
+(`castSummons`) with a Dismiss each and Dismiss all, drawn on a GM seat only
+(`isGM`, display only; the render hook removes the rest), the line of the
+outcome (`controlLostLine`), and Restore, which puts the records back and
+nothing else. At the *timed end* a `gone` summons is removed by the module with
+no card, and `stays` and `hostile` keep their card, whose Dismiss is drawn on a
+GM seat only ("A cast's end", below). Each spell's outcome and its page are
+[DECISIONS.md](DECISIONS.md), "A summons' control ends as its page says (1d.7)".
 
 **The five built summons** carry a `summon` row in the register: a calling and
 a summoning that each name their creature by cookbook id (`ref`), a conjuration
 whose creature is a template actor and so names none, and two animation spells
-that name none. Each row carries `control`, read from its own page, and
-`summonFormat` where the page names the kind; a count and Hit Dice are located
+that name none. Each row carries `control`, read from its own page, `controlEnd`, the
+end the spell's page gives its creatures (DECISIONS, "A summons' control ends as
+its page says (1d.7)"), and `summonFormat` where the page names the kind; a count and Hit Dice are located
 from the page and stay blank on a miss. A count that scales with the caster level
 is carried as `max` (unresolved) with no `amount`, because the policy caps a
 count at `amount` and would otherwise cap it at one.
@@ -324,7 +362,8 @@ sides. The naming (`registerSummonNaming`) says a spell names a creature when
 one of its non-empty rows' refs equals the creature's uuid, its cookbook id or
 its name; only a spell-named creature is exempt from the shelf-readable check.
 The policy (`registerSummonPolicy`) refuses `notNamed` (the rows name creatures
-and this is not one), `badCount` (more than the amount every fitting row states)
+and this is not one), `badCount` (a Player's count over the ceiling every fitting row states at the request's `cast.casterLevel`: the row's `max`, else its
+`amount`; a Judge's count is the cast's warning and is never refused here)
 and `badSpell` (a seat that may not summon bare naming a spell that is no
 summoning spell). A row with no ref is an open pick that fits any creature; a
 row stating no amount sets no limit; a spell with no rows asks nothing. Both
@@ -346,10 +385,14 @@ keeps its own end (`endAction`: announce, delete or nothing). A record past its 
 is stamped `ended` (the world time, in the `spellEffect` flag; `spellEffectOf`
 reads it back) and only then, where its cast still has creatures standing on
 any scene, one card is whispered to every GM and every other owner of the
-caster: the spell, the caster, the count, and a Dismiss button that runs lib's
+caster: the spell, the caster, the count, and a Dismiss button, drawn on a GM seat
+only, that runs lib's
 `promptDismiss` on that cast's tokens and the summons held in a party token
 (`castSummons`, matched by the summons' `castId`); the count the card states
-includes the held. The card tells; the creatures stay until someone presses it. A
+includes the held. Before it is posted the GM's client reads the spell's `controlEnd`
+("Casting a summoning spell", above): a `gone` cast is removed by its recorded
+creatures with no card, and any other keeps its card, which tells while the
+creatures stay until a Judge presses Dismiss. A
 recipient's record is never announced, since it carries the same cast. Combat
 does not move this system's clock, so a combat's rounds age no record by the
 clock; a record anchored to turns is aged by turns instead ("A record that
@@ -388,9 +431,12 @@ times nothing. A condition record lives, and so does the recipient record of an
 
 **A ruling-14 kind with a recipient writes the recipient's record.** A kind with
 no arithmetic is a card line and a record. `writesRecipientRecord(row)`
-(`cast-spell.mjs`, `RECORD_KINDS`) names the rows whose record is the
-recipient's: today `ignite` alone, with a recipient (`appliesTo` not `self`) and a
-`lasts` of `duration`, `rounds` or `nextTurn`. Such a row is a section of the card
+(`cast-kinds.mjs`, `RECORD_KINDS`) names the rows whose record is the
+recipient's: `ignite`, with a recipient (`appliesTo` not `self`), and the six
+tracked kinds and `afflictionDelay`, which count only where `appliesTo` is
+`recipient`, so a row aimed at an area or a target stays a line; `RECORD_KINDS`
+is derived from `APPLY_KINDS`. Each needs a `lasts` of `duration`, `rounds`,
+`nextTurn` or `followingTurn`, the clocked values. Such a row is a section of the card
 with an entry per target, beside its `describeSpellEffect` line, and applies as a
 condition does but with no status: `conditionRecords` leaves one status-free
 recipient record carrying `rowKey` and `startTime`, timed by the row's `lasts`
@@ -399,6 +445,39 @@ rolled count in the request, held to the formula's reach as a condition's is). T
 save is not rolled for it. An `ignite` row that lasts once (`instant`) or is the
 caster's own stays a line. Every other ruling-14 kind stays a line until its own
 row asks for a record.
+
+**Seal Portal** (`cast-seal.mjs` the model, `cast-seal-live.mjs` the world, lib
+`door-pick.mjs` the pick). A spell with a `seal` row asks for a door before the
+spend, at the slot a summons asks for its clicks (`APPLY_KINDS.seal`, the cast's
+`deps.pickDoor`). The pick arms lib's pointer catcher over the board, so no
+click toggles core's door control. Only the door controls the seat sees are
+offered, and a secret door is never offered to a Player. A left click on a door
+answers it; Enter answers no door, since a portal need not be a wall, and the
+cast goes on with the spell's own record and line; a right click or Escape
+cancels, and a cancel costs nothing. The range is the spell's figure at this
+cast, measured from the centre of the caster's token to the nearest point of the
+wall: a Player's click beyond it is refused where it lands, a Judge's is warned
+and written, and a blank range is not measured. A Player with no GM connected
+is refused before the pick, as a summons is.
+
+The write comes after the spend. A GM seat writes the wall directly, and a
+Player's seat relays through `SEAL_HANDLER`; `checkSealRequest` holds the
+request to the world's own facts: the attested sender owns the caster, the spell
+has a seal row, the wall is a door (a secret one for a GM only), it is on the
+caster token's scene, and it is in range. The write sets the door's `ds` to
+LOCKED and stamps the wall `flags["acks-extras"].sealedBy {was, casts}`: `was` is
+the state the first seal found, and `casts` lists the cast ids holding it, a
+second seal appending its own. The caster's record carries `seal {sceneId,
+wallId}`, and the wall's stamp is the truth the end reads. The card gets a line
+that says what was sealed and what its end does. A refused write is a card line
+and a notice, and the spend stands.
+
+The end is the active GM's: when the caster's record is deleted (the clock's end
+among the causes), `sealEndPlan` drops the cast id from the stamp, and once the
+list is empty clears it and sets the door to CLOSED only where `ds` is still
+LOCKED and `was` was not. A door a hand unlocked or opened, and a door locked
+before the seal, are left as they are. A GM `ready` sweep ends the stamps whose
+record is gone, and with no GM connected a door waits for the next GM `ready`.
 
 **Recurring rows** (`cast-recur.mjs`, `cast-rows.mjs` `recurringRows`, registered
 at `init`). A row's `recur` is `eachRound` (resolved at the cast like any row, then
@@ -476,15 +555,14 @@ funnel ends the cast and its card lists what ended (cause "A passed saving
 throw"), and a cast not held ends its own records and the caster's. The entry
 keeps `ended {kind, count}`. Entries and Undo live on the prompt card.
 
-**Casting a spell** (`cast-spell.mjs`, registered at `init` after the
-summoning's). A second claimant (key `acks-extras.magic.castSpell`) takes the
-cast of a flagged spell item on an actor this seat owns when the spell is no
-summoning and has effect rows of its own or of its library twin's
-(`cast-rows.mjs` `rowsOf`, the copy's rows winning), or whose tradition has a
-registered procedure ("A tradition's procedure", below), rows or none and
-summoning or not; it declines a rowless spell with no procedure, an actor the
-seat does not own and any item that is no spell, so a monster's attack item stays
-the system's. The cast runs in this order, and a
+**Casting a spell** (`cast-spell.mjs`, registered at `init`). The claimant
+(key `acks-extras.magic.castSpell`) takes the cast of a flagged spell item on an
+actor this seat owns when the spell has effect rows of its own or of its library
+twin's (`cast-rows.mjs` `rowsOf`, the copy's rows winning) and no summon row, is
+a character's summoning spell (rows or none), or whose tradition has a
+registered procedure ("A tradition's procedure", below), rows or none; it
+declines a rowless spell with no procedure, an actor the seat does not own and
+any item that is no spell, so a monster's attack item stays the system's. The cast runs in this order, and a
 cancel at any point before the spend costs nothing:
 
 1. *The dialog* (`apps/cast-dialog.mjs`, `apps/cast-dialog-model.mjs`,
@@ -834,7 +912,7 @@ where the copy prints none), and it is read again from the dialog's answer in th
 dialog and from the final answer in the cast. A `long` cast is never declared:
 `longCast` blocks a Player and warns a Judge, whose cast resolves at its confirm
 and whose card names the time (`card.castingTime {value, unit, source}`). A
-declaration being resolved stays `resolve`. At `declare` the dialog's
+declaration being resolved stays `resolve`. A summons is declared like any other cast ("Casting a summoning spell", above). At `declare` the dialog's
 button reads Declare and, at its confirm, the cast checks capacity, spends once,
 ends the caster's concentration, writes a status-only `casting` record and a
 status-free pending record (`pending {spellUuid, <the answer's fields>, combatId,
@@ -896,11 +974,9 @@ function; the registration refuses any other). The `ctx` is
 `{actor, spell, tradition, classItem, invocationLevel, casterLevel, isGM, moment,
 combat, source, roll, now}` (`castId` too for `perform`); a ctx whose `source` is
 not `spell` is given no procedure. The procedure is found by the kind of the
-tradition that cast the spell (`world.tradition`), and the claimants find it the
+tradition that cast the spell (`world.tradition`), and the claimant finds it the
 same way, synchronously, through the classes feature's `classForActor` injected at
-registration (`registerCastSpell({classFor})`, `registerCastSummon({classFor})`);
-the summoning's claimant declines a spell with a procedure and
-`castSpellClaims` ignores its summoning. The answer to a procedure is one plain
+registration (`registerCastSpell({classFor})`). The answer to a procedure is one plain
 object, `answer.procedure`: the field values coerced to the specs, the controls of
 its band (named `procedure.<key>`), and the reserved key `buckets`,
 `{bucketKey: [{uuid, qty, fit}]}`. A member that throws is logged and left out.

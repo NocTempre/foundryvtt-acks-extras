@@ -914,6 +914,11 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   let sealPick = null;
   let sealRange = null;
   if (moment !== MOMENT.declare && deps.pickDoor && kept.some(({ row }) => row.type === SEAL_ROW_TYPE)) {
+    // A Player's seal is written by the GM's client, so with none connected it is refused here, before the pick and the spend, as a summons is.
+    if (gmMissing()) {
+      deps.notify("warn", "sealNoGm");
+      return { ok: false, reason: "noGm" };
+    }
     sealRange = rangeFeet(figuresAt(mode, invocation.value).range, level.value)?.value ?? null;
     const door = await deps.pickDoor({ caster, casterToken: world.casterToken ?? null, rangeFeet: sealRange, isGM, cite: extras.cite ?? "" });
     if (door === null) return { ok: false, reason: "cancelled" };
