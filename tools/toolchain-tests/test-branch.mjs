@@ -12,7 +12,7 @@
  *         with `acks-commit/` beside its folder, to confirm a case fails when
  *         the behaviour it guards is broken)
  */
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -448,13 +448,101 @@ seedModules();
 cli(["open", "failrm"]);
 caught = null;
 try {
-  tool.close("failrm", { cwd: main, say: () => {}, remove: () => { throw new tool.Refusal("removal failed"); } });
+  tool.close("failrm", { cwd: main, say: () => {}, sleep: () => {}, remove: () => { throw new tool.Refusal("removal failed"); } });
 } catch (e) {
   caught = e;
 }
-check("a failed removal puts the link back", caught?.message === "removal failed" && tool.linksIn(wt("failrm")).includes("node_modules") && countFiles(modules) === modulesCount, String(caught?.message));
+check("a failed removal of an intact worktree puts the link back and says the folder could not be removed", /^removal failed/.test(caught?.message ?? "") && /could not be removed/.test(caught.message) && /put back/.test(caught.message) && tool.linksIn(wt("failrm")).includes("node_modules") && countFiles(modules) === modulesCount, String(caught?.message));
 r = cli(["close", "failrm"]);
 check("and the next close removes it", r.status === 0 && !fs.existsSync(wt("failrm")) && countFiles(modules) === modulesCount, brief(r));
+
+// a locked folder: retried with the backoff, and a link that is out stays out
+cli(["open", "retry"]);
+const sleeps = [];
+let tries = 0;
+const says = [];
+const linksAtRemove = [];
+caught = null;
+try {
+  tool.close("retry", {
+    cwd: main,
+    say: (line) => says.push(line),
+    backoff: [5, 6, 7],
+    sleep: (ms) => sleeps.push(ms),
+    remove: (root, dir) => {
+      linksAtRemove.push(tool.linksIn(dir).length);
+      if (++tries < 3) throw new tool.Refusal("Permission denied");
+      sh(root, "worktree", "remove", dir);
+    },
+  });
+} catch (e) {
+  caught = e;
+}
+check("the worktree holds no link at any call of the removal", linksAtRemove.length === 3 && linksAtRemove.every((n) => n === 0), linksAtRemove.join());
+check("close retries a locked removal with its backoff until it goes", !caught && tries === 3 && sleeps.join() === "5,6" && !fs.existsSync(wt("retry")) && !hasBranch("topic/retry") && countFiles(modules) === modulesCount, `${tries} tries, sleeps ${sleeps}`);
+
+cli(["open", "locked"]);
+const lockedDir = wt("locked");
+const lockedSleeps = [];
+// git strips the worktree, deregisters it and stops at the folder: what a held-open folder leaves
+const gitStrips = (root, dir) => {
+  sh(root, "worktree", "remove", dir);
+  fs.mkdirSync(dir);
+  fs.writeFileSync(path.join(dir, "held.txt"), "a process holds this\n");
+  throw new tool.Refusal("failed to delete: Permission denied");
+};
+let lockedTries = 0;
+caught = null;
+try {
+  tool.close("locked", { cwd: main, say: () => {}, backoff: [1, 2, 3], sleep: (ms) => lockedSleeps.push(ms), remove: (root, dir) => { lockedTries++; gitStrips(root, dir); } });
+} catch (e) {
+  caught = e;
+}
+check("a removal that failed after git stripped the worktree is not retried through git", lockedTries === 1, `${lockedTries} tries`);
+check("a locked leftover folder is named, with the link already removed and safe to delete", caught instanceof tool.Refusal && caught.message.includes(lockedDir) && /already removed/.test(caught.message) && /safe to delete/.test(caught.message), String(caught?.message));
+check("the locked folder holds no link, main's node_modules is intact, and the branch waits for the re-run", tool.linksIn(lockedDir).length === 0 && countFiles(modules) === modulesCount && hasBranch("topic/locked"), `${tool.linksIn(lockedDir)}`);
+check("the leftover folder was retried with the backoff", lockedSleeps.join() === "1,2,3", `${lockedSleeps}`);
+
+// the re-run over a worktree already gone, as seen twice: the junction is back in the folder
+fs.rmSync(path.join(lockedDir, "held.txt"));
+fs.symlinkSync(modules, path.join(lockedDir, "node_modules"), "junction");
+r = cli(["close", "locked"]);
+check("a re-run over a gone worktree unlinks the leftover junction, removes the folder and deletes the branch", r.status === 0 && !fs.existsSync(lockedDir) && !hasBranch("topic/locked") && /already gone/.test(r.out) && /leftover folder/.test(r.out) && /removed/.test(r.out), brief(r));
+check("and main's node_modules is untouched", countFiles(modules) === modulesCount, `${countFiles(modules)} files, was ${modulesCount}`);
+
+// a re-run whose leftover folder is still locked: reported, link out, branch closed
+cli(["open", "stuck"]);
+try {
+  tool.close("stuck", { cwd: main, say: () => {}, backoff: [], sleep: () => {}, remove: gitStrips });
+} catch {
+  // the first close leaves the folder behind, which is the state under test
+}
+fs.symlinkSync(modules, path.join(wt("stuck"), "node_modules"), "junction");
+r = cli(["close", "stuck"]);
+check("a re-run reports a leftover folder it cannot remove, with its link unlinked", r.status === 0 && fs.existsSync(wt("stuck")) && tool.linksIn(wt("stuck")).length === 0 && /still there/.test(r.out) && /safe to delete/.test(r.out) && !hasBranch("topic/stuck") && countFiles(modules) === modulesCount, brief(r));
+fs.rmSync(wt("stuck"), { recursive: true });
+
+// a folder really held open (Windows refuses to delete a directory that is a process's cwd), real git
+if (process.platform === "win32") {
+  cli(["open", "held"]);
+  const holder = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { cwd: wt("held"), stdio: "ignore" });
+  await new Promise((resolve) => setTimeout(resolve, 500));
+  caught = null;
+  try {
+    tool.close("held", { cwd: main, say: () => {}, backoff: [] });
+  } catch (e) {
+    caught = e;
+  }
+  const heldLinks = fs.existsSync(wt("held")) ? tool.linksIn(wt("held")).length : 0;
+  const heldWhole = fs.existsSync(path.join(wt("held"), ".git"));
+  check("a folder really held open is refused, naming it", caught instanceof tool.Refusal && caught.message.includes(wt("held")), String(caught?.message));
+  check("and main's node_modules is intact, the branch waits, and a stripped folder holds no link", countFiles(modules) === modulesCount && hasBranch("topic/held") && (heldWhole ? heldLinks === 1 : heldLinks === 0), `${countFiles(modules)} files, ${heldLinks} link(s), whole ${heldWhole}`);
+  const exited = new Promise((resolve) => holder.once("exit", resolve));
+  holder.kill();
+  await exited;
+  r = cli(["close", "held"]);
+  check("once the holder is gone, close finishes the folder and the branch", r.status === 0 && !fs.existsSync(wt("held")) && !hasBranch("topic/held") && countFiles(modules) === modulesCount, brief(r));
+}
 
 // --- park
 r = cli(["park", "idea"]);

@@ -24,7 +24,10 @@
  * `main`. `close` unlinks every top-level link in the
  * worktree before `git worktree remove`, because on Windows that command
  * deletes through a junction and empties the folder it points at, then checks
- * `main`'s `node_modules` survived. `park` makes `parked/<slug>`, a branch with
+ * `main`'s `node_modules` survived. A removal that fails on a locked folder is
+ * retried with a backoff; where git had already stripped the worktree the links
+ * stay out and the refusal names the folder, and a `close` run again over a
+ * worktree already gone unlinks and removes what it left. `park` makes `parked/<slug>`, a branch with
  * no worktree that is pushed once, on the owner's go-ahead, and never synced.
  *
  * `--change <dir>` is a `commit-own-hunks.mjs` change directory whose
@@ -440,13 +443,58 @@ async function gate(root, tip, change, say) {
   }
 }
 
+/** Milliseconds `close` waits before each further try at a locked folder: three retries. */
+const LOCK_BACKOFF_MS = [300, 900, 2000];
+
+/** Blocks the thread for `ms`; the tool's steps are synchronous. */
+const sleepSync = (ms) => {
+  if (ms > 0) Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+};
+
+/** Whether git still lists `dir` as a worktree and the folder still holds its `.git` file; a failed removal that deregistered it, or stripped it, leaves neither. */
+const worktreeIntact = (root, dir) => {
+  const fold = (p) => (process.platform === "win32" ? path.normalize(p).toLowerCase() : path.normalize(p));
+  return fs.existsSync(path.join(dir, ".git")) && worktrees(root).some((w) => fold(w.path) === fold(dir));
+};
+
+/**
+ * Takes the links out of a folder that is no longer a worktree and removes the
+ * folder when nothing else is in it, trying again where it is locked. Never
+ * recursive, so nothing a link points at is reached.
+ * @param {string} folder
+ * @param {{sleep: (ms: number) => void, backoff: number[]}} timing
+ * @returns {{links: string[], gone: boolean, error: string|null}} the links unlinked, whether
+ *   the folder is gone, and the last removal error where it is not.
+ */
+function clearLeftover(folder, { sleep, backoff }) {
+  const { removed, remaining } = unlinkTopLevel(folder);
+  if (remaining.length) refuse(`${folder} still holds ${remaining.length} link(s) (${remaining.join(", ")}) after the unlink; do not delete the folder, it would delete through them. Remove each link by hand`);
+  let error = null;
+  for (let attempt = 0; attempt <= backoff.length; attempt++) {
+    if (attempt) sleep(backoff[attempt - 1]);
+    try {
+      fs.rmdirSync(folder);
+      return { links: removed.map((l) => l.name), gone: true, error: null };
+    } catch (e) {
+      if (e.code === "ENOENT") return { links: removed.map((l) => l.name), gone: true, error: null };
+      error = e.code ? `${e.code}: ${e.message}` : String(e.message);
+    }
+  }
+  return { links: removed.map((l) => l.name), gone: false, error };
+}
+
 /**
  * Removes a topic's worktree and its branch, keeping `main`'s `node_modules`.
+ * The worktree's links come out first and stay out once git has started
+ * stripping the folder, so a folder left locked holds no link and a re-run of
+ * `close` finishes it.
  * @param {string} slug
- * @param {{cwd: string, discard?: boolean, say?: Function, remove?: (root: string, dir: string) => void}} options
- *   `remove` is the worktree removal, for a test to replace.
+ * @param {{cwd: string, discard?: boolean, say?: Function, remove?: (root: string, dir: string) => void,
+ *   sleep?: (ms: number) => void, backoff?: number[]}} options
+ *   `remove` is the worktree removal, `sleep` the wait between tries and `backoff`
+ *   the waits themselves, for a test to replace.
  */
-export function close(slug, { cwd, discard = false, say = console.log, remove = (root, dir) => void gitOut(root, ["worktree", "remove", dir]) }) {
+export function close(slug, { cwd, discard = false, say = console.log, remove = (root, dir) => void gitOut(root, ["worktree", "remove", dir]), sleep = sleepSync, backoff = LOCK_BACKOFF_MS }) {
   const { root, branch, dir, exists } = topicOf(cwd, slug);
   requireMain(root);
   if (!exists) refuse(`${branch} does not exist`);
@@ -455,6 +503,7 @@ export function close(slug, { cwd, discard = false, say = console.log, remove = 
   const merged = isAncestor(root, `refs/heads/${branch}`, "main");
   if (!merged && !discard) refuse(`${branch} is not merged into main; landing it is land ${slug}. Dropping it unmerged is --discard-unmerged, which stands for the owner's word and is never a session's own call`);
   const before = nodeModulesState(root);
+  const notes = [];
   if (folder) {
     const { removed, remaining } = unlinkTopLevel(folder);
     const relink = () => {
@@ -464,17 +513,40 @@ export function close(slug, { cwd, discard = false, say = console.log, remove = 
       relink();
       checkNoLinks(folder);
     }
-    try {
-      remove(root, folder);
-    } catch (e) {
-      relink();
-      throw e;
+    let failure = null;
+    for (let attempt = 0; attempt <= backoff.length; attempt++) {
+      if (attempt) sleep(backoff[attempt - 1]);
+      try {
+        remove(root, folder);
+        failure = null;
+        break;
+      } catch (e) {
+        failure = e;
+        if (!worktreeIntact(root, folder)) break;
+      }
+    }
+    if (failure) {
+      if (worktreeIntact(root, folder)) {
+        relink();
+        throw new Refusal(`${failure.message}\n${folder} could not be removed (a locked folder, or git refused); the worktree is still registered and whole, with its node_modules link put back. Free the folder if a session or process has it open, then close ${slug} again`);
+      }
+      // git stripped the worktree and stopped at the folder itself: it is no worktree any more.
+      run(root, ["worktree", "prune"]);
+      const left = fs.existsSync(folder) ? clearLeftover(folder, { sleep, backoff }) : { gone: true, links: [], error: null };
+      if (!left.gone) refuse(`${failure.message}\n${folder} is locked (${left.error}); a session or process has it open. The node_modules link was already removed, so the leftover folder is safe to delete once it is free; close ${slug} again finishes the branch`);
     }
   } else {
     run(root, ["worktree", "prune"]);
+    const leftover = dir ?? worktreePathFor(root, slug);
+    const stat = fs.lstatSync(leftover, { throwIfNoEntry: false });
+    if (stat?.isDirectory()) {
+      const left = clearLeftover(leftover, { sleep, backoff });
+      notes.push(left.gone ? `leftover folder ${leftover} removed${left.links.length ? ` (its ${left.links.join(", ")} link unlinked first)` : ""}` : `leftover folder ${leftover} is still there (${left.error}); it holds no link now, so it is safe to delete once a session or process lets go of it`);
+    }
   }
   gitOut(root, ["branch", discard && !merged ? "-D" : "-d", branch]);
   say(`closed ${branch}: worktree ${folder ?? "(already gone)"} removed, branch deleted`);
+  for (const note of notes) say(`  ${note}`);
   const after = nodeModulesState(root);
   if (before.nonEmpty && !after.nonEmpty) {
     refuse(`main's node_modules is ${after.exists ? "empty" : "gone"} after the worktree was removed; the worktree and branch are closed. Run \`npm install\` in ${root} to restore it`);

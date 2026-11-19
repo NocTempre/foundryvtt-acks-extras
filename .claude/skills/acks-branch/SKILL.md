@@ -51,7 +51,11 @@ the feature is walked. `land` refuses a topic with nothing new.
   remove while one stands, because `git worktree remove` on Windows deletes
   through a junction and empties `main`'s `node_modules`; afterwards it checks
   that folder survived and prints the `npm install` that restores it where not.
-  An unmerged topic is dropped only with the flag, which stands for the owner's
+  A removal that fails on a locked folder is retried with a backoff. Where git
+  had already stripped the worktree, the links stay out and the refusal names
+  the folder as safe to delete once released; `close` run again over the gone
+  worktree unlinks and removes what it left, or reports the folder still
+  locked. An unmerged topic is dropped only with the flag, which stands for the owner's
   word.
 - `park <slug> [--at <rev>] [--push]`: `parked/<slug>`, no worktree. Without
   `--push` it prints the command; `--push` pushes it once, on the owner's
