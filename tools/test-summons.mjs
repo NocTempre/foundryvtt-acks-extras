@@ -35,7 +35,7 @@ const merge = (a, b) => {
 const flagOf = (data) => (scope, key) => data.flags?.[scope]?.[key];
 
 let serial = 0;
-const calls = { actorCreate: [], folderCreate: [], tokenCreate: [], tokenDelete: [] };
+const calls = { actorCreate: [], folderCreate: [], tokenCreate: [], tokenDelete: [], actorUpdate: [], tokenUpdate: [] };
 const registry = new Map();
 
 const user = (id, isGM = false, viewedScene = null) => ({ id, isGM, viewedScene });
@@ -46,7 +46,7 @@ const stranger = user("p3");
 
 const world = {
   users: new Map([gm, p1, p2, stranger].map((u) => [u.id, u])),
-  scenes: new Map(),
+  scenes: new Coll(),
   actors: new Coll(),
   folders: new Coll(),
 };
@@ -62,7 +62,8 @@ globalThis.game = {
   time: { worldTime: 42 },
   i18n: { localize: (k) => k, format: (k) => k },
 };
-globalThis.foundry = { utils: { mergeObject: (a, b) => merge(a, b), randomID: () => `rid${++serial}`, escapeHTML: (s) => String(s) } };
+class ForcedDeletion {}
+globalThis.foundry = { utils: { mergeObject: (a, b) => merge(a, b), randomID: () => `rid${++serial}`, escapeHTML: (s) => String(s) }, data: { operators: { ForcedDeletion } } };
 const hookCalls = [];
 globalThis.Hooks = { on() {}, once() {}, call() {}, callAll: (name, payload) => hookCalls.push({ name, payload }) };
 globalThis.fromUuid = async (uuid) => registry.get(uuid) ?? null;
@@ -169,7 +170,15 @@ function makeScene(id, { active = true, rect = { x: 0, y: 0, width: 1000, height
 /** A scene token whose synthetic actor carries `flags`. */
 function tokenCtx(scene, id, data) {
   const flags = data?.delta?.flags ?? {};
-  return { documentName: "Token", id, uuid: `Scene.${scene.id}.Token.${id}`, parent: scene, actor: { getFlag: (s, k) => flags[s]?.[k] } };
+  return {
+    documentName: "Token",
+    id,
+    uuid: `Scene.${scene.id}.Token.${id}`,
+    parent: scene,
+    delta: { _source: { ownership: data?.delta?.ownership ?? {} } },
+    update: async (patch) => void calls.tokenUpdate.push({ id, patch }),
+    actor: { getFlag: (s, k) => flags[s]?.[k], update: async (patch) => void calls.actorUpdate.push({ id, patch }) },
+  };
 }
 
 const reset = () => {
@@ -1071,6 +1080,7 @@ await t("spellRequired follows the one switch: GM-only as shipped, everyone when
     assert.ok(src.includes(line), "the switch is one line the test can flip");
     await writeFile(join(dir, "summons-logic.mjs"), src.replace(line, "export const bareSummonAllowed = (user) => !!user;"));
     await writeFile(join(dir, "constants.mjs"), await readFile(new URL("../scripts/lib/constants.mjs", import.meta.url), "utf8"));
+    await writeFile(join(dir, "magic-vocab.mjs"), await readFile(new URL("../scripts/lib/magic-vocab.mjs", import.meta.url), "utf8"));
     const flipped = await import(pathToFileURL(join(dir, "summons-logic.mjs")).href);
     assert.equal(flipped.checkPlaceRequest({ user: p1, ...bare }).ok, true, "flipped: a Player seat may summon bare");
     assert.equal(flipped.checkPlaceRequest({ user: stranger, ...bare }).reason, "notOwner", "ownership is still checked first");
@@ -1375,6 +1385,126 @@ await t("a summon row's ref is named by its uuid, else by its importer id, and n
   assert.equal(logic.summonRefName("Item.inv2", lookups), null, "an Item is no creature");
   assert.equal(logic.summonRefName("nodots", lookups), null, "a throwing lookup counts as no answer");
   assert.equal(logic.summonRefName("", lookups), null);
+});
+
+/* -------------------------------------------- */
+/*  The end of a cast's control                 */
+/* -------------------------------------------- */
+
+const { applyControlEnd } = await import("../scripts/lib/summons.mjs");
+
+await t("the plan names a step for every creature, whatever the outcome, and reads an unknown outcome as stays", () => {
+  const tokens = [{ uuid: "T.plain", ownership: { default: 0, p1: 3, p2: 3 } }, { uuid: "T.deployed", ownership: {}, member: { partyId: "pty", actorId: "m1" } }];
+  const held = [{ partyId: "pty", actorId: "h1" }];
+  const stays = logic.controlEndPlan({ outcome: "stays", tokens, held });
+  assert.deepEqual(stays.steps.map((s) => [s.kind, s.op, s.lost]), [["token", "stamp", "stays"], ["token", "stamp", "stays"], ["held", "unapplied", "stays"]]);
+  const gone = logic.controlEndPlan({ outcome: "gone", tokens, held });
+  assert.deepEqual(gone.steps.map((s) => [s.op, s.lost]), [["delete", "gone"], ["release", "gone"], ["release", "gone"]]);
+  assert.deepEqual([gone.steps[1].partyId, gone.steps[1].actorId], ["pty", "m1"], "a deployed member goes through the roster");
+  assert.deepEqual(logic.controlEndPlan({ outcome: "gone", tokens, held, canRelease: false }).steps.map((s) => s.op), ["delete", "release", "unapplied"], "a stash with no release to call is left unapplied");
+  const hostile = logic.controlEndPlan({ outcome: "hostile", tokens, held });
+  assert.deepEqual(hostile.steps.map((s) => s.op), ["hostile", "hostile", "unapplied"]);
+  assert.deepEqual(hostile.steps[0].drop, ["p1", "p2"], "every owner but the map's default is dropped");
+  assert.equal(hostile.steps[0].disposition, logic.HOSTILE_DISPOSITION);
+  assert.deepEqual(hostile.steps[1].drop, []);
+  for (const word of ["vanish", "", undefined, null]) assert.equal(logic.controlEndPlan({ outcome: word, tokens }).outcome, "stays", String(word));
+  assert.deepEqual(logic.controlEndPlan({ outcome: "gone" }), { outcome: "gone", steps: [] });
+  assert.deepEqual(logic.ownershipDrop({ default: 2 }), []);
+  assert.deepEqual(logic.ownershipDrop(undefined), []);
+});
+
+await t("a creature whose control ended is a Judge's to dismiss: a seat that names only such creatures is refused controlLost", async () => {
+  const { summoner, scene } = setup();
+  const lost = summoned(scene, summoner.uuid, { castId: "c1", sourceUuid: "x", at: 1, lost: "stays" });
+  const live = summoned(scene, summoner.uuid, { castId: "c2", sourceUuid: "x", at: 1 });
+  assert.deepEqual(logic.checkDismissRequest({ user: p1, summoner, tokens: [lost] }), { ok: false, reason: "controlLost" });
+  const mixed = logic.checkDismissRequest({ user: p1, summoner, tokens: [lost, live] });
+  assert.deepEqual([mixed.ok, mixed.tokens.map((x) => x.id), mixed.refused], [true, [live.id], 1], "the others go, the lost one is counted refused");
+  const stranded = logic.checkDismissRequest({ user: p1, summoner, tokens: [], held: [{ partyId: "pty", actorId: "h1", summonedBy: summoner.uuid, summon: { castId: "c1", lost: "gone" } }] });
+  assert.deepEqual(stranded, { ok: false, reason: "controlLost" }, "a stashed creature's record is held to the same test");
+  assert.deepEqual(logic.checkDismissRequest({ user: gm, summoner, tokens: [lost] }).tokens.map((x) => x.id), [lost.id], "a GM seat dismisses it");
+  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [lost.uuid] }), { ok: false, reason: "controlLost" }, "the relay refuses it for an owner's request, and deletes nothing");
+  assert.equal(calls.tokenDelete.length, 0);
+  assert.deepEqual(await dismissAs(summoner, { tokenUuids: [lost.uuid], requestUserId: undefined }), { ok: true, deleted: 1, refused: 0 }, "a request from the GM seat removes it");
+});
+
+/** A summons of `summonerUuid` on `scene` whose delta names these owners. */
+const summonedBy = (scene, summonerUuid, record, ownership) => {
+  const id = `tok${++serial}`;
+  const delta = { ownership, flags: { [M]: { [logic.SUMMON_FLAG]: summonerUuid, [logic.SUMMON_RECORD_FLAG]: record } } };
+  const doc = tokenCtx(scene, id, { delta });
+  scene.tokens.set(id, doc);
+  registry.set(doc.uuid, doc);
+  return doc;
+};
+
+await t("applyControlEnd is the GM client's alone: any other seat is refused and changes nothing", async () => {
+  const { summoner, scene } = setup();
+  summoned(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
+  game.user = p1;
+  try {
+    assert.deepEqual(await applyControlEnd(summoner, { castId: "cA", outcome: "gone" }), { ok: false, reason: "notGm" });
+  } finally {
+    game.user = gm;
+  }
+  assert.deepEqual([calls.tokenDelete.length, calls.actorUpdate.length, calls.tokenUpdate.length], [0, 0, 0]);
+  assert.deepEqual(await applyControlEnd(summoner, { castId: "", outcome: "gone" }), { ok: false, reason: "noCast" });
+});
+
+await t("a creature that goes is deleted by the cast's own recorded tokens: a decoy of the same name and creature, of another cast or bound by hand, is untouched", async () => {
+  const { summoner, scene } = setup();
+  const other = makeScene("s2", { active: false });
+  const record = (castId) => ({ castId, sourceUuid: "Compendium.test.Actor.m1", name: "Creature m1", at: 1 });
+  const a1 = summoned(scene, summoner.uuid, record("cA"));
+  const a2 = summoned(other, summoner.uuid, record("cA"));
+  const decoyCast = summoned(scene, summoner.uuid, record("cB"));
+  const decoyHand = summoned(scene, summoner.uuid, null);
+  const decoyOther = summoned(scene, "Actor.other", record("cA"));
+  const dep = member("m1", summoner.uuid, "cA", scene);
+  const stash = member("h1", summoner.uuid, "cA");
+  const stashOther = member("h2", summoner.uuid, "cB");
+  const provider = fakeProvider(new Map([["pty", [dep, stash, stashOther]]]));
+  services.register("party-roster", provider.impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "gone" });
+  assert.deepEqual(out, { ok: true, outcome: "gone", stamped: 0, deleted: 2, released: 2, hostile: 0, unapplied: 0 }, "two plain tokens deleted, and the deployed member and the stash released, each counted by the road that removed it");
+  assert.deepEqual([...calls.tokenDelete].sort(), [a1.id, a2.id, dep.token.id].sort(), "exactly the cast's recorded tokens");
+  for (const survivor of [decoyCast, decoyHand, decoyOther]) assert.equal(survivor.parent.tokens.has(survivor.id), true, "the decoy stands");
+  assert.deepEqual(provider.events.map((e) => [e[0], e[1], e[2]]), [["release", "pty", ["m1", "h1"]]], "the deployed member and the stash by roster ids, and the other cast's stash is not named");
+});
+
+await t("a creature that stays is stamped lost and nothing else is written", async () => {
+  const { summoner, scene } = setup();
+  const a1 = summoned(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 });
+  const decoy = summoned(scene, summoner.uuid, { castId: "cB", sourceUuid: "x", at: 1 });
+  services.register("party-roster", fakeProvider(new Map([["pty", [member("h1", summoner.uuid, "cA")]]])).impl);
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "stays" });
+  assert.deepEqual(out, { ok: true, outcome: "stays", stamped: 1, deleted: 0, released: 0, hostile: 0, unapplied: 1 }, "a stash has no token to stamp and is counted");
+  assert.deepEqual(calls.actorUpdate, [{ id: a1.id, patch: { [`flags.${M}.${logic.SUMMON_RECORD_FLAG}.lost`]: "stays" } }]);
+  assert.equal(calls.tokenUpdate.length + calls.tokenDelete.length, 0);
+  assert.equal(calls.actorUpdate.some((u) => u.id === decoy.id), false);
+});
+
+await t("a creature that turns hostile drops every owner as a forced deletion, turns hostile and is stamped lost", async () => {
+  const { summoner, scene } = setup();
+  const a1 = summonedBy(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 }, { p1: 3, p2: 3 });
+  const decoy = summonedBy(scene, summoner.uuid, { castId: "cB", sourceUuid: "x", at: 1 }, { p1: 3 });
+  const out = await applyControlEnd(summoner, { castId: "cA", outcome: "hostile" });
+  assert.deepEqual(out, { ok: true, outcome: "hostile", stamped: 1, deleted: 0, released: 0, hostile: 1, unapplied: 0 });
+  assert.equal(calls.actorUpdate.length, 1);
+  const patch = calls.actorUpdate[0].patch;
+  assert.equal(patch[`flags.${M}.${logic.SUMMON_RECORD_FLAG}.lost`], "hostile");
+  assert.deepEqual(Object.keys(patch.ownership).sort(), ["p1", "p2"]);
+  assert.ok(Object.values(patch.ownership).every((v) => v instanceof ForcedDeletion), "an update merges objects, so each owner is a forced deletion and never an emptied map");
+  assert.deepEqual(calls.tokenUpdate, [{ id: a1.id, patch: { disposition: logic.HOSTILE_DISPOSITION } }]);
+  assert.equal(calls.actorUpdate.concat(calls.tokenUpdate).some((u) => u.id === decoy.id), false, "another cast's creature is untouched");
+});
+
+await t("with no roster release a stashed creature that should go is left, counted unapplied, and a cast with nothing standing is a no-op", async () => {
+  const { summoner, scene } = setup();
+  services.register("party-roster", fakeProvider(new Map([["pty", [member("h1", summoner.uuid, "cA")]]]), { release: false }).impl);
+  assert.deepEqual(await applyControlEnd(summoner, { castId: "cA", outcome: "gone" }), { ok: true, outcome: "gone", stamped: 0, deleted: 0, released: 0, hostile: 0, unapplied: 1 });
+  assert.deepEqual(await applyControlEnd(summoner, { castId: "cZ", outcome: "gone" }), { ok: true, outcome: "gone", stamped: 0, deleted: 0, released: 0, hostile: 0, unapplied: 0 });
+  assert.equal(scene.tokens.size, 0);
 });
 
 console.log(`\ntest-summons: ${n} tests passed`);

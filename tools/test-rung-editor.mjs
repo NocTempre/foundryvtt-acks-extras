@@ -1062,9 +1062,44 @@ await t("the tracked row renders its Lasts select and the effect checks under th
   assert.ok(!/\b\d+(px|rem)\b/.test(read("templates/lib/effect-row-editor.hbs")), "no px or rem size in the template");
 });
 
+/* ------------------------------------------------------------------ */
+/*  A summon row's "When control ends"                                  */
+/* ------------------------------------------------------------------ */
+
+await t("a spell's summon row edits When control ends as a select of stays, gone and hostile, after Control, with a tooltip; an ability's summon row has none", async () => {
+  asGM(true);
+  const row = { key: "a", type: "summon", control: "obedient", controlEnd: "hostile" };
+  const field = fieldOf(await rowEditor({ current: [row] }).editor._prepareContext({}), "controlEnd");
+  assert.equal(field.kind, "select");
+  assert.deepEqual(Object.keys(field.choices), ["stays", "gone", "hostile"]);
+  assert.equal(field.value, "hostile");
+  assert.match(field.tip, /tip\.controlEnd/);
+  assert.match(field.tip, /Book p\. 9/, "the store's page rides the tooltip");
+  const names = (await rowEditor({ current: [row] }).editor._prepareContext({})).fields.map((f) => f.name);
+  assert.ok(names.indexOf("controlEnd") > names.indexOf("control"), "it follows Control");
+  assert.equal(fieldOf(await rowEditor({ current: [{ ...row }] }, { domain: "ability" }).editor._prepareContext({}), "controlEnd"), undefined, "a spell-only field is not offered on an ability");
+  assert.equal(fieldOf(await rowEditor({ current: [{ key: "b", type: "summon" }] }).editor._prepareContext({}), "controlEnd").value, "", "blank stays blank, which reads as stays");
+  assert.equal(fieldOf(await rowEditor({ current: [{ key: "c", type: "damage" }] }).editor._prepareContext({}), "controlEnd"), undefined, "no other kind has it");
+});
+
+await t("choosing When control ends writes the row's controlEnd and keeps the rest, in the rendered select with its own name", async () => {
+  asGM(true);
+  const rows = { current: [{ key: "a", type: "summon", control: "obedient", controlEnd: "stays", ref: "x.ref" }] };
+  const { editor, writes } = rowEditor(rows);
+  const html = render("lib/effect-row-editor", { ...(await editor._prepareContext({})), partId: "p" });
+  assert.match(html, /<select name="controlEnd" aria-label="ACKS-LIB\.effectEditor\.field\.controlEnd">/);
+  assert.match(html, /<option value="stays" selected>/);
+  assert.match(html, /data-tooltip-text="[^"]*tip\.controlEnd[^"]*"/);
+  editor.element = formOf({ controlEnd: "gone", control: "obedient", ref: "x.ref" });
+  await EffectRowEditor.DEFAULT_OPTIONS.form.handler.call(editor);
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0][0].controlEnd, "gone");
+  assert.deepEqual([writes[0][0].control, writes[0][0].ref], ["obedient", "x.ref"]);
+});
+
 await t("the tracked kinds' words are in the lang file", () => {
   const root = ["ACKS", "LIB"].join("-");
-  for (const key of ["tip.lastsTracked", "tip.effectsDelay", "lastsTracked.duration", "lastsTracked.instant", "field.lasts", "field.effects", "tip.cite"]) assert.ok(`${root}.effectEditor.${key}` in lang, `${key} is missing from the lang file`);
+  for (const key of ["tip.lastsTracked", "tip.effectsDelay", "lastsTracked.duration", "lastsTracked.instant", "field.lasts", "field.effects", "tip.cite", "field.controlEnd", "tip.controlEnd"]) assert.ok(`${root}.effectEditor.${key}` in lang, `${key} is missing from the lang file`);
 });
 
 console.log(`\n${n} passed`);

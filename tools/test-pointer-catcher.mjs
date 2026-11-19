@@ -30,7 +30,7 @@ globalThis.PIXI = {
 globalThis.canvas = { stage: new Node(), app: { screen: {}, view: board } };
 const at = (target, x = 0, y = 0) => ({ nativeEvent: { target }, button: 0, buttons: 1, getLocalPosition: () => ({ x, y }) });
 
-const { buildPointerCatcher, onBoard } = await import("../scripts/battlemap/pointer-catcher.mjs");
+const { buildPointerCatcher, onBoard } = await import("../scripts/lib/pointer-catcher.mjs");
 
 await ok("onBoard is the native target, by identity", () => {
   assert.equal(onBoard(at(board)), true);

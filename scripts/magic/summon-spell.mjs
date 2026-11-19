@@ -9,7 +9,8 @@
  * an `effects` row of type `summon` in the shared vocabulary; its creature is
  * `ref`, its count `amount`, its Hit Dice `value` and the count's ceiling at
  * the caster level `max` (LevelValue objects, passed through unresolved), its
- * `summonFormat` and `control`.
+ * `summonFormat`, `control` and `controlEnd` (what becomes of the creatures when
+ * the control ends).
  */
 import { MODULE_ID, FLAG_SPELL } from "./constants.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
@@ -51,7 +52,7 @@ export function isSummonSpell(item) {
 
 /**
  * The creatures a summon spell offers, one per `summon` row, as `{ ref,
- * name, amount, value, max, summonFormat, control }` (`name` is the creature's
+ * name, amount, value, max, summonFormat, control, controlEnd }` (`name` is the creature's
  * imported name where the row carries one, else empty, and is what a seat that
  * cannot open the creature labels the choice by). The rows come from the spell's own
  * flag; a spell with none of its own (a copy that lost them) reads its
@@ -72,6 +73,7 @@ export function summonOptionsOf(spell, { twin = null } = {}) {
     max: row.max ?? null,
     summonFormat: row.summonFormat ?? "",
     control: row.control ?? "",
+    controlEnd: row.controlEnd ?? "",
   }));
 }
 

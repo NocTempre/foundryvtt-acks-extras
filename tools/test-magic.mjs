@@ -769,7 +769,7 @@ t("a summon spell's options are its rows: none for a type word alone, one per ro
   assert.deepEqual(summonOptionsOf(flagged({ schools: ["summoning"] })), [], "a type word names no creature");
   const named = summonOptionsOf(flagged({ effects: [summonRow({ ref: "Actor.zzz" })] }));
   assert.deepEqual(named, [
-    { ref: "Actor.zzz", name: "", amount: 2, value: { kind: "flat", flat: 3 }, max: null, summonFormat: "conjuration", control: "obedient" },
+    { ref: "Actor.zzz", name: "", amount: 2, value: { kind: "flat", flat: 3 }, max: null, summonFormat: "conjuration", control: "obedient", controlEnd: "" },
   ]);
   assert.equal(summonOptionsOf(flagged({ effects: [summonRow({ ref: "Actor.zzz", name: " Imported Name " })] }))[0].name, "Imported Name", "a row's own name is carried, trimmed");
   const open = summonOptionsOf(flagged({ effects: [summonRow({ ref: "  " })] }));

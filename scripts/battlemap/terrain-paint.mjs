@@ -8,7 +8,7 @@
  * adds or removes a cell with core's grid tool as readily as the brush does.
  * One terrain per hex; painting is GM-only, hex grids only. The PAINT SESSION
  * is armed by the battlemap control group's terrain tool, a screen-space
- * pointer catcher (pointer-catcher.mjs) turning clicks and drags into cell
+ * pointer catcher (lib/pointer-catcher.mjs) turning clicks and drags into cell
  * writes, one queued write per cell.
  *
  * Terrain is one LAYER of a registry (`registerPaintLayer`): territory is
@@ -29,7 +29,7 @@ import { TERRITORY_KEYS } from "../formation/country-keys.mjs";
 import { CLIMATES } from "../formation/weather.mjs";
 import { lighten } from "../lib/color.mjs";
 import { gridCellsOf } from "../lib/regions.mjs";
-import { buildPointerCatcher, onBoard } from "./pointer-catcher.mjs";
+import { buildPointerCatcher, onBoard } from "../lib/pointer-catcher.mjs";
 
 export { onBoard };
 

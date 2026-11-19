@@ -97,6 +97,24 @@ function concentration(duration, level) {
 }
 
 /**
+ * A conjuration's duration as a held cast. A conjured creature serves while its
+ * caster holds the cast, and the spell's printed duration is the longest the
+ * hold lasts, so a timed duration (`{value, units}`) becomes a concentration
+ * answer with that duration as its `cap`: `{none: "untimed", held: "mobile",
+ * cap}`. A duration that is already a concentration, one that is not read, and
+ * a cast that is not a conjuration come back as they were. The kind held is the
+ * blank default, `mobile`.
+ *
+ * @param {{value: number, units: string}|{none: string}} duration  `castDuration`'s answer
+ * @param {boolean} conjuration  whether the cast's creature is conjured (`summonIsConjuration`)
+ * @returns {{value: number, units: string}|{none: string, held?: string, cap?: object, tail?: object}}
+ */
+export function heldByConjuration(duration, conjuration) {
+  if (conjuration !== true || !duration || duration.none || !Number.isFinite(Number(duration.value)) || !duration.units) return duration;
+  return { none: NONE.untimed, held: "mobile", cap: { value: duration.value, units: duration.units } };
+}
+
+/**
  * The effect duration for one cast.
  *
  * `roll(formula)` returns the formula's total synchronously (Foundry's

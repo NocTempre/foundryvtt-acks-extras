@@ -38,7 +38,7 @@
           <span class="acks-extras-bucket__art">{{#if img}}<img src="{{img}}" alt="" inert>{{else}}<i class="fa-solid fa-ghost" inert></i>{{/if}}</span>
           <span class="acks-extras-bucket__text"><span class="acks-extras-bucket__name">{{name}}</span></span>
         </div>
-        <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-acks-extras-held-dismiss{{#if tokenUuid}} data-token-uuid="{{tokenUuid}}"{{/if}}{{#if partyId}} data-party-id="{{partyId}}" data-member-id="{{memberId}}"{{/if}} aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{@root.dismissLabel}}</button>
+        {{#if @root.dismissable}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-acks-extras-held-dismiss{{#if tokenUuid}} data-token-uuid="{{tokenUuid}}"{{/if}}{{#if partyId}} data-party-id="{{partyId}}" data-member-id="{{memberId}}"{{/if}} aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{@root.dismissLabel}}</button>{{/if}}
       </li>
       {{/each}}
     </ul>
@@ -46,6 +46,6 @@
   {{/if}}
   <footer class="acks-extras-cast-held__foot">
     <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-acks-extras-held-restore data-tooltip-text="{{restoreTip}}">{{restoreLabel}}</button>
-    {{#if creatures.length}}<button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-acks-extras-held-dismiss data-all="1" aria-label="{{dismissAllAria}}" data-tooltip-text="{{dismissAllTip}}">{{dismissAllLabel}}</button>{{/if}}
+    {{#if dismissable}}<button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-acks-extras-held-dismiss data-all="1" aria-label="{{dismissAllAria}}" data-tooltip-text="{{dismissAllTip}}">{{dismissAllLabel}}</button>{{/if}}
   </footer>
 </div>

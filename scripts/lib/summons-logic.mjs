@@ -9,6 +9,7 @@
  * testable offline.
  */
 import { MODULE_ID } from "./constants.mjs";
+import { CONTROL_ENDS } from "./magic-vocab.mjs";
 
 /** The actor flag naming the character a creature was summoned by (an actor uuid). */
 export const SUMMON_FLAG = "summonedBy";
@@ -228,6 +229,67 @@ export function summonOwnership(ownership, also = [], isGM = () => false) {
   return out;
 }
 
+/**
+ * The inverse of `summonOwnership`: the user ids a summons' delta stops naming
+ * when its control ends, every entry but the map's `default`. The caller writes
+ * each as a forced deletion, since an update merges objects and an empty map
+ * would remove nothing.
+ * @param {object} ownership  a summons' token delta `ownership` map
+ * @returns {string[]} user ids
+ */
+export const ownershipDrop = (ownership) => Object.keys(ownership ?? {}).filter((id) => id !== "default");
+
+/** The token disposition a summons turns to when it turns hostile (`CONST.TOKEN_DISPOSITIONS.HOSTILE`). */
+export const HOSTILE_DISPOSITION = -1;
+
+/**
+ * The outcome a row's `controlEnd` names: a member of `CONTROL_ENDS`, else
+ * `stays`. A blank key, an unknown word and a summons with no row all read as
+ * the creatures staying.
+ * @param {*} value
+ * @returns {"stays"|"gone"|"hostile"}
+ */
+export const controlEndOf = (value) => (Object.hasOwn(CONTROL_ENDS, value) ? value : "stays");
+
+/**
+ * What ending a cast's control does, creature by creature, as a list of steps
+ * the GM's client carries out. Every step carries `lost`, the outcome every
+ * creature is stamped with (the stamp a non-GM's dismissal is refused on).
+ * The creatures are the ones the caller read off the cast's own records, and
+ * nothing here names a creature by anything else.
+ * - `stays`: each token is stamped (`op: "stamp"`);
+ * - `gone`: a token is deleted (`op: "delete"`), or released through the roster
+ *   where it is a deployed party member (`op: "release"`), and a stashed
+ *   creature is released; with no `release` to call, a stashed creature is
+ *   `unapplied`;
+ * - `hostile`: a token drops its owners (`drop`) and turns to
+ *   `HOSTILE_DISPOSITION` (`op: "hostile"`); a stashed creature has no token to
+ *   write and is `unapplied`.
+ * @param {object} o
+ * @param {string} o.outcome  a `CONTROL_ENDS` key, anything else reads `stays`
+ * @param {{uuid: string, ownership?: object, member?: {partyId: string, actorId: string}|null}[]} [o.tokens]  the cast's scene tokens, `member` set where the roster answers for the token
+ * @param {{partyId: string, actorId: string}[]} [o.held]  the cast's stashed creatures
+ * @param {boolean} [o.canRelease]  whether the roster service has a `release`
+ * @returns {{outcome: string, steps: object[]}}
+ */
+export function controlEndPlan({ outcome, tokens = [], held = [], canRelease = true } = {}) {
+  const end = controlEndOf(outcome);
+  const steps = [];
+  for (const t of tokens) {
+    const step = { kind: "token", uuid: t.uuid, lost: end };
+    if (end === "gone") {
+      if (t.member?.partyId && t.member.actorId) steps.push({ ...step, op: "release", partyId: t.member.partyId, actorId: t.member.actorId });
+      else steps.push({ ...step, op: "delete" });
+    } else if (end === "hostile") steps.push({ ...step, op: "hostile", drop: ownershipDrop(t.ownership), disposition: HOSTILE_DISPOSITION });
+    else steps.push({ ...step, op: "stamp" });
+  }
+  for (const h of held) {
+    const step = { kind: "held", partyId: h.partyId, actorId: h.actorId, lost: end };
+    steps.push({ ...step, op: end === "gone" && canRelease ? "release" : "unapplied" });
+  }
+  return { outcome: end, steps };
+}
+
 /** Is a request's count one the relay will act on? */
 export const validCount = (count) => Number.isInteger(count) && count >= 1 && count <= MAX_SUMMONS;
 
@@ -389,7 +451,11 @@ const madeFor = (summoner, summonedBy, record) => !!summonedBy && summonedBy ===
  * token bound by hand, or summoned by someone else, is refused and left alone.
  * A summon riding in a party token is named by its roster row (`held`:
  * `{partyId, actorId, summonedBy, summon}`, read from the `party-roster`
- * service, never from the request) and is held to the same test.
+ * service, never from the request) and is held to the same test. A creature
+ * whose control has ended (its record carries `lost`, `controlEndPlan`) is a
+ * Judge's to dismiss: a seat that is no GM and names only such creatures is
+ * refused `controlLost`, and one that names others too has those left out and
+ * counted refused.
  * @param {object} req
  * @param {object} req.user
  * @param {object} req.summoner
@@ -404,15 +470,19 @@ export function checkDismissRequest({ user, summoner, tokens, held } = {}) {
   const mine = [];
   const mineHeld = [];
   let refused = 0;
+  let lost = 0;
   for (const t of tokens ?? []) {
-    if (t && madeFor(summoner, summonerOf(t.actor), summonRecordOf(t.actor))) mine.push(t);
-    else refused++;
+    if (!t || !madeFor(summoner, summonerOf(t.actor), summonRecordOf(t.actor))) refused++;
+    else if (summonRecordOf(t.actor).lost && !user.isGM) lost++;
+    else mine.push(t);
   }
   for (const row of held ?? []) {
-    if (row && madeFor(summoner, row.summonedBy, row.summon?.castId ? row.summon : null)) mineHeld.push(row);
-    else refused++;
+    if (!row || !madeFor(summoner, row.summonedBy, row.summon?.castId ? row.summon : null)) refused++;
+    else if (row.summon.lost && !user.isGM) lost++;
+    else mineHeld.push(row);
   }
-  return { ok: true, tokens: mine, held: mineHeld, refused };
+  if (lost && !mine.length && !mineHeld.length) return { ok: false, reason: "controlLost" };
+  return { ok: true, tokens: mine, held: mineHeld, refused: refused + lost };
 }
 
 /**

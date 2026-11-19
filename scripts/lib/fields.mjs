@@ -29,6 +29,7 @@ import {
   HEAL_KINDS,
   SUMMON_FORMATS,
   CONTROL_KINDS,
+  CONTROL_ENDS,
   RESOURCE_KINDS,
   ROLL_TYPES,
   THROW_TYPES,
@@ -435,6 +436,8 @@ export function effectField() {
     unread: new (F().ArrayField)(new (F().StringField)({ blank: false })),
     summonFormat: choice(SUMMON_FORMATS),
     control: choice(CONTROL_KINDS),
+    // What becomes of the creatures when the summoner's control ends (`magic-vocab.mjs` `CONTROL_ENDS`); blank reads as `stays`.
+    controlEnd: choice(CONTROL_ENDS),
     // resource / economic
     resource: choice(RESOURCE_KINDS),
     action: choice({ spend: { label: "Spend" }, gain: { label: "Gain" } }),

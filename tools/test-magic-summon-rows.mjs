@@ -121,8 +121,20 @@ t("a page that prints none of it leaves the figures blank and the row standing, 
 t("the undead pair's rows are the same with or without a page: nothing is located", () => {
   for (const id of REMAINS) {
     assert.deepEqual(materializeEffects(rowsOf(id), ["Any text at all."]), materializeEffects(rowsOf(id), []));
-    assert.deepEqual(materializeEffects(rowsOf(id), []), [{ key: "creature", type: "summon", control: "obedient" }]);
+    assert.deepEqual(materializeEffects(rowsOf(id), []), [{ key: "creature", type: "summon", control: "obedient", controlEnd: "gone" }]);
   }
+});
+
+t("each summon entry states what becomes of its creatures when control ends, as structure the lint accepts", () => {
+  const ends = { [CALLING]: "gone", [SUMMONING]: "gone", [CONJURATION]: "hostile", "def.spell.faithfulCompanion": "gone", "def.spell.unlivingPuppet": "gone" };
+  for (const [id, end] of Object.entries(ends)) {
+    assert.equal(only(id).controlEnd, end, id);
+    assert.equal(cookbook[id].fields.effects.specs[0].controlEnd, end, `${id}: compiled`);
+  }
+  const row = { key: "creature", type: "summon" };
+  assert.deepEqual(spellRecipeProblems({ effects: [{ ...row, controlEnd: "stays" }, { ...row, key: "other", controlEnd: "hostile" }] }), []);
+  assert.deepEqual(spellRecipeProblems({ effects: [row] }), [], "optional: a blank reads as stays");
+  assert.match(spellRecipeProblems({ effects: [{ ...row, controlEnd: "vanish" }] }).join("\n"), /controlEnd "vanish" is not a control end/);
 });
 
 const rowOf = (extra) => ({ type: "summon", ref: "x.ref", amount: 2, value: { kind: "flat", flat: 3 }, summonFormat: "calling", control: "cooperative", ...extra });
@@ -133,6 +145,16 @@ t("summonOptionsOf carries a row's max through unresolved, the same object", () 
   const [option] = summonOptionsOf(withRows([rowOf({ max })]));
   assert.equal(option.max, max, "not resolved, not copied");
   assert.deepEqual([option.amount, option.value, option.summonFormat, option.control], [2, { kind: "flat", flat: 3 }, "calling", "cooperative"]);
+});
+
+t("summonOptionsOf carries a row's controlEnd, blank where it states none", () => {
+  assert.equal(summonOptionsOf(withRows([rowOf({ controlEnd: "hostile" })]))[0].controlEnd, "hostile");
+  assert.equal(summonOptionsOf(withRows([rowOf()]))[0].controlEnd, "");
+});
+
+t("a materialized register row reaches summonOptionsOf with its controlEnd", () => {
+  const [option] = summonOptionsOf(withRows(materializeEffects(rowsOf(CONJURATION), ["This spell opens a portal."])));
+  assert.equal(option.controlEnd, "hostile");
 });
 
 t("summonOptionsOf answers a null max for a row with none, and reads a twin's max", () => {

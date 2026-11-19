@@ -22,10 +22,12 @@
  * GM connected they stay and are listed with End. One card, whispered to the GMs
  * and the caster's owners, says why and what ended, what runs on, what still
  * stands, and carries the Judge's Restore (every record it lists, put back with
- * its own id, the re-timings undone). A held summons' creatures stay when its
- * control ends: the card says so, lists those the cast left standing, one row
- * each with the Judge's Dismiss, and the Judge's Dismiss all; Restore puts back
- * the records only. The card is `templates/magic/cast-held-card.hbs`.
+ * its own id, the re-timings undone). A held summons' control ends with the
+ * concentration, and what becomes of its creatures is the spell's row's word
+ * (`cast-control.mjs`): the GM's client applies it, and the card says which and
+ * lists the creatures the cast left, one row each with the Judge's Dismiss
+ * (not drawn for creatures that went) and the Judge's Dismiss all; Restore puts
+ * back the records only. The card is `templates/magic/cast-held-card.hbs`.
  *
  * The GM's client takes the tail from the spell, never from the request, and
  * accepts the request only from a user who owns the caster once no held record
@@ -40,6 +42,7 @@ import { castEndedRecipients } from "./cast-expiry.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { lossInFlight } from "../lib/status-effects.mjs";
 import { unset } from "../lib/util.mjs";
+import { CONTROL_ENDS } from "../lib/magic-vocab.mjs";
 
 /** The causes a card names. */
 export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
@@ -196,7 +199,7 @@ export async function runHeldPlan(plan, deps) {
  * @param {object} o
  * @param {string} o.cause  a `HELD_CAUSES` value
  * @param {object} o.caster  `{actorUuid, name, data}` of the caster record's actor and the deleted record's data, for Restore
- * @param {object} o.deps  `now()`, `recipients(castId)`, `canWrite(recipient)`, `remove(recipient)`, `retime(recipient)`, `relay(request)` (answers `{ok, ended, retimed, open}` or null with no GM), `post(flag)` and, optional, `standing(record)` (the cast's creatures still standing, `{tokens, held}`, as `castSummons` answers)
+ * @param {object} o.deps  `now()`, `recipients(castId)`, `canWrite(recipient)`, `remove(recipient)`, `retime(recipient)`, `relay(request)` (answers `{ok, ended, retimed, open}` or null with no GM), `post(flag)` and, optional, `standing(record)` (the cast's creatures still standing, `{tokens, held}`, as `castSummons` answers) and `control(request)` (the GM's client ends the creatures' control as the spell's row says: `{ok, outcome}`, or null with no GM)
  * @returns {Promise<object>} the card's flag
  */
 export async function endHeldCast(record, { cause, caster, deps }) {
@@ -211,12 +214,15 @@ export async function endHeldCast(record, { cause, caster, deps }) {
       done.open.push(...answer.open);
     } else done.open.push(...plan.relay.map((r) => ({ actorUuid: r.actorUuid, id: r.id, name: r.name })));
   }
-  // A summons held by concentration loses its control, and its creatures stay: the card lists them with the ids a Dismiss names, and Dismiss is the Judge's.
+  // A summons held by concentration loses its control. The card lists its creatures with the ids a Dismiss names, read before the GM's client applies what the spell's row says becomes of them (`deps.control`); Dismiss is the Judge's, and is not drawn for creatures that went.
   const found = (await deps.standing?.(record)) ?? {};
   const summons = [
     ...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? ""), img: String(t.texture?.src || t.actor?.img || ""), tokenUuid: String(t.uuid ?? "") })),
     ...(found.held ?? []).map((h) => ({ name: String(h.name ?? ""), img: String(h.img ?? ""), held: { partyId: String(h.partyId ?? ""), actorId: String(h.actorId ?? "") } })),
   ];
+  // With no GM connected `control` answers null and nothing is applied: the creatures stand, and the card draws no outcome of its own.
+  const control = summons.length ? await deps.control?.({ casterUuid: record.casterUuid, castId: record.castId, cause }) : null;
+  const outcome = control?.ok ? control.outcome : null;
   const flag = {
     cause,
     castId: record.castId,
@@ -230,6 +236,7 @@ export async function endHeldCast(record, { cause, caster, deps }) {
     retimed: done.retimed,
     open: done.open,
     ...(summons.length ? { summons } : {}),
+    ...(outcome ? { outcome } : {}),
     caster: { actorUuid: caster.actorUuid, data: caster.data },
   };
   await deps.post(flag);
@@ -250,15 +257,16 @@ const CARD_TEMPLATE = `modules/${MODULE_ID}/templates/magic/cast-held-card.hbs`;
 
 /**
  * The line that says what became of the creatures when their control ended,
- * by outcome. `stays` is the only outcome built: the creatures are still on
- * the map, and the control is lost. Any other outcome draws no line.
+ * by outcome (`CONTROL_ENDS`): they are still on the map and the control is
+ * lost, they went, or they turned hostile. An outcome that is none of these
+ * draws no line.
  *
  * @param {string} [outcome="stays"]
  * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
  * @returns {string}
  */
 export function controlLostLine(outcome = "stays", loc) {
-  return outcome === "stays" ? loc("controlLost.stays") : "";
+  return Object.hasOwn(CONTROL_ENDS, outcome) ? loc(`controlLost.${outcome}`) : "";
 }
 
 /**
@@ -282,6 +290,8 @@ export function heldEndView(flag, loc) {
     tip: loc("tip.dismiss", { name: c.name }),
   }));
   const lost = creatures.length ? controlLostLine(flag.outcome ?? "stays", loc) : "";
+  // A creature that went has nothing left to dismiss, so no Dismiss is drawn for it.
+  const dismissable = creatures.length > 0 && flag.outcome !== "gone";
   const sections = [];
   if (flag.ended?.length) sections.push({ legend: loc("ended"), rows: flag.ended.map((i) => ({ name: i.name })) });
   if (flag.retimed?.length) {
@@ -299,7 +309,8 @@ export function heldEndView(flag, loc) {
     controlLost: lost ? `${lost}${cite}` : "",
     sections,
     creatures,
-    creaturesLegend: loc("summons"),
+    dismissable,
+    creaturesLegend: loc(flag.outcome === "gone" ? "summonsGone" : "summons"),
     dismissLabel: loc("button.dismiss"),
     dismissAllLabel: loc("button.dismissAll"),
     dismissAllAria: loc("aria.dismissAll"),
@@ -396,6 +407,13 @@ const liveDeps = () => ({
     return executeAsGM(HELD_END_HANDLER, request);
   },
   post: postCard,
+  // The creatures' control ends on the GM's client: applied here on a GM seat, relayed to the active GM from any other, and not applied with none connected.
+  control: async (request) => {
+    if (game.user.isGM) return (await import("./cast-control.mjs")).applyCastControl(request);
+    if (!game.users.activeGM) return null;
+    const { executeAsGM } = await import("../lib/sockets.mjs");
+    return executeAsGM(HELD_END_HANDLER, { ...request, op: "control" });
+  },
   standing: async (record) => {
     const caster = fromUuidSync(record.casterUuid);
     if (!caster) return { tokens: [], held: [] };
@@ -407,7 +425,9 @@ const liveDeps = () => ({
 /**
  * The GM's client takes the records a seat could not write: checked, then ended
  * by the tail the spell gives, never the request's.
- * @param {object} payload  `{requestUserId, casterUuid, castId, cause}`
+ * The same request with `op: "control"` asks the GM's client to end the cast's
+ * creatures' control instead (`cast-control.mjs`), and answers its outcome.
+ * @param {object} payload  `{requestUserId, casterUuid, castId, cause, op?}`
  * @returns {Promise<{ok: boolean, reason?: string, ended?: object[], retimed?: object[], open?: object[]}>}
  */
 export async function magicHeldEnd(payload = {}) {
@@ -419,6 +439,8 @@ export async function magicHeldEnd(payload = {}) {
   });
   const verdict = checkHeldEndRequest(payload, { caster, ownsCaster: !user || user.isGM || caster?.testUserPermission?.(user, "OWNER") === true, heldRemains });
   if (verdict.refused) return { ok: false, reason: verdict.refused };
+  // The creatures' control: the outcome is the spell's row's, read here from the creatures' own records, and nothing in the request names it.
+  if (payload.op === "control") return (await import("./cast-control.mjs")).applyCastControl({ casterUuid: payload.casterUuid, castId: payload.castId });
   const recipients = liveRecipients(payload.castId, { all: true });
   const spell = recipients[0]?.spellUuid ? fromUuidSync(recipients[0].spellUuid) : null;
   let tail;

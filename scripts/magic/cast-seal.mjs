@@ -25,8 +25,13 @@ export const FLAG_SEALED_BY = "sealedBy";
 /** The row type of a spell that seals a way. */
 export const SEAL_ROW_TYPE = "seal";
 
-/** Why a seal request was refused, the lang key of each under `ACKS-MAGIC.castSeal.refused`. */
+/**
+ * Why a seal request was refused, the lang key of each under
+ * `ACKS-MAGIC.castSeal.refused`. `noGm` is the asking seat's own answer where
+ * no Judge is connected to carry the request out; `checkSealRequest` never gives it.
+ */
 export const SEAL_REFUSED = Object.freeze({
+  noGm: "noGm",
   noSealRow: "noSealRow",
   notOwner: "notOwner",
   noWall: "noWall",
@@ -184,7 +189,8 @@ export function orphanCasts(stamp, liveCastIds) {
  *
  * @param {{sceneId?: string, wallId?: string}} [pick]
  */
-export function sealMark({ sceneId, wallId } = {}) {
+export function sealMark(pick) {
+  const { sceneId, wallId } = pick ?? {};
   return sceneId && wallId ? { sceneId: String(sceneId), wallId: String(wallId) } : null;
 }
 

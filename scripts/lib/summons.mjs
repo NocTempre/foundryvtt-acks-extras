@@ -32,13 +32,15 @@
  * that cannot open its shelf still summons it.
  */
 import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK } from "./constants.mjs";
-import { docOf, makeLoc } from "./util.mjs";
+import { docOf, makeLoc, unset } from "./util.mjs";
 import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
 import {
   SUMMON_COPY_FLAG,
+  SUMMON_RECORD_FLAG,
   MAX_SUMMONS,
+  controlEndPlan,
   summonerOf,
   summonRecordOf,
   summonFlags,
@@ -362,6 +364,58 @@ async function dismissOp({ summonerUuid, tokenUuids, held, user }) {
   for (const [scene, ids] of byScene) deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
   for (const [partyId, ids] of releases) deleted += Number((await service.release(partyId, ids))?.released) || 0;
   return { ok: true, deleted, refused: refusedCount };
+}
+
+/**
+ * End the control of one cast's creatures, the GM's client alone. Which
+ * creatures is the cast's own record and nothing else: the tokens whose actor
+ * names this summoner and carries the cast id, and the party-stashed members
+ * that do (`castSummons`), never a name or a type. `outcome` is the caller's
+ * reading of the spell's row (`controlEndPlan`): it is never taken from a
+ * request, so the caller on the GM's client resolves it first. Every creature
+ * is stamped `lost` in its record, which is what a non-GM's dismissal is
+ * refused on; a `gone` creature is deleted as a dismissal deletes it, a
+ * deployed party member and a stashed one through the roster's `release`; a
+ * `hostile` token drops its owners and turns hostile. A stashed creature that
+ * stays or turns hostile has no token to write and is counted `unapplied`.
+ * @param {Actor} summoner
+ * @param {{castId: string, outcome: string}} o
+ * @returns {Promise<{ok: false, reason: string}|{ok: true, outcome: string, stamped: number, deleted: number, released: number, hostile: number, unapplied: number}>}
+ */
+export async function applyControlEnd(summoner, { castId, outcome } = {}) {
+  if (!game.user?.isGM) return refused("notGm");
+  if (!summoner?.uuid || !castId) return refused("noCast");
+  const { tokens, held } = castSummons(summoner, castId);
+  const service = roster();
+  const canRelease = typeof service?.release === "function";
+  const plan = controlEndPlan({
+    outcome,
+    tokens: tokens.map((t) => ({ uuid: t.uuid, ownership: t.delta?._source?.ownership ?? t.actor?.ownership ?? {}, member: canRelease ? (service.memberOfToken?.(t) ?? null) : null })),
+    held,
+    canRelease,
+  });
+  const byUuid = new Map(tokens.map((t) => [t.uuid, t]));
+  const stampPath = `flags.${MODULE_ID}.${SUMMON_RECORD_FLAG}.lost`;
+  const done = { stamped: 0, deleted: 0, released: 0, hostile: 0, unapplied: 0 };
+  const deletes = new Map();
+  const releases = new Map();
+  for (const step of plan.steps) {
+    const token = step.kind === "token" ? byUuid.get(step.uuid) : null;
+    if (step.op === "delete" && token) deletes.set(token.parent, [...(deletes.get(token.parent) ?? []), token.id]);
+    else if (step.op === "release") releases.set(step.partyId, [...new Set([...(releases.get(step.partyId) ?? []), step.actorId])]);
+    else if (step.op === "stamp" && token?.actor) {
+      await token.actor.update({ [stampPath]: step.lost });
+      done.stamped++;
+    } else if (step.op === "hostile" && token?.actor) {
+      await token.actor.update({ [stampPath]: step.lost, ...(step.drop.length ? { ownership: Object.fromEntries(step.drop.map((id) => [id, unset()])) } : {}) });
+      await token.update({ disposition: step.disposition });
+      done.stamped++;
+      done.hostile++;
+    } else if (step.op === "unapplied") done.unapplied++;
+  }
+  for (const [scene, ids] of deletes) done.deleted += (await scene.deleteEmbeddedDocuments("Token", ids)).length;
+  for (const [partyId, ids] of releases) done.released += Number((await service.release(partyId, ids))?.released) || 0;
+  return { ok: true, outcome: plan.outcome, ...done };
 }
 
 /**

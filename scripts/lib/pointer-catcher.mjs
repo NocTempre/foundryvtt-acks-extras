@@ -1,8 +1,10 @@
 /* global PIXI, canvas */
 /**
- * The screen-covering pointer catcher the battlemap's canvas tools share (the
- * calibration capture and the terrain brush): an invisible sprite that swallows
- * every canvas pointer event while a tool is armed, whatever the pan and zoom.
+ * The screen-covering pointer catcher the canvas tools share (the battlemap's
+ * calibration capture and terrain brush, and a cast's door pick): an invisible
+ * sprite that swallows every canvas pointer event while a tool is armed,
+ * whatever the pan and zoom. A control beneath it, core's door control among
+ * them, never hears a press.
  *
  * PIXI hears `pointermove` and `pointerup` on the whole document and
  * `pointerdown` on the board alone, so the catcher is handed events made over a

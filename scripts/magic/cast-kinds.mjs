@@ -137,8 +137,8 @@ export const APPLY_KINDS = Object.freeze({
   afflictionDelay: recordKind(toRecipient),
   // Takes away a quantity at once: a card line, and nothing is written to a target.
   purify: Object.freeze({ place: () => "line", opens: () => false }),
-  // Closes a way for as long as it lasts: a card line, and the caster's record where the row lasts the duration.
-  seal: Object.freeze({ place: () => "line", opens: () => false }),
+  // Closes a way for as long as it lasts: a card line, and the caster's record where the row lasts the duration. The cast's own pick of a door comes before the spend, and its step writes the seal once the cast proceeds (`deps.seal`).
+  seal: Object.freeze({ place: () => "line", opens: () => false, step: (ctx, deps) => deps.seal(ctx) }),
   // A summoning's placement: no card row and no entry; the cast runs its own step.
   summon: Object.freeze({ place: () => "line", opens: () => false, step: (ctx, deps) => deps.summon(ctx) }),
 });

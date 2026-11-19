@@ -6078,6 +6078,7 @@
               "type": "summon",
               "summonFormat": "calling",
               "control": "cooperative",
+              "controlEnd": "gone",
               "ref": "mm.wolfCommon",
               "onMiss": "blank",
               "from": [
@@ -8483,6 +8484,7 @@
               "type": "summon",
               "summonFormat": "conjuration",
               "control": "obedient",
+              "controlEnd": "hostile",
               "onMiss": "blank",
               "from": [
                 {
@@ -15762,7 +15764,8 @@
             {
               "key": "creature",
               "type": "summon",
-              "control": "obedient"
+              "control": "obedient",
+              "controlEnd": "gone"
             }
           ]
         }
@@ -33945,6 +33948,7 @@
               "type": "summon",
               "summonFormat": "summoning",
               "control": "obedient",
+              "controlEnd": "gone",
               "ref": "mm.manes",
               "onMiss": "blank",
               "from": [
@@ -36626,7 +36630,8 @@
             {
               "key": "creature",
               "type": "summon",
-              "control": "obedient"
+              "control": "obedient",
+              "controlEnd": "gone"
             }
           ]
         }

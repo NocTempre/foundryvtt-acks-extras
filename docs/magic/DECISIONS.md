@@ -22,7 +22,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-25 — [A creature's repertoire is drawn to its slots (2026-09-25)](DECISIONS-through-v11.14.5.md#a-creatures-repertoire-is-drawn-to-its-slots-2026-09-25)
 - 2026-09-25 — [The order, and the scoping's eleven questions, ruled (2026-09-25)](DECISIONS-through-v11.14.5.md#the-order-and-the-scopings-eleven-questions-ruled-2026-09-25)
 - 2026-11-11 — [A summoning spell's creature resolves on the GM's client (2026-11-11)](DECISIONS-through-v11.14.5.md#a-summoning-spells-creature-resolves-on-the-gms-client-2026-11-11)
-- 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11) — its cost line ("a combat's rounds do not age a record") qualified 2026-11-17 by [A condition row can last turns, and lib ends it](#2026-11-17--a-condition-row-can-last-turns-and-lib-ends-it)
+- 2026-11-11 — [A cast's end is told on a card, read from the module's own clock math (2026-11-11)](DECISIONS-through-v11.14.5.md#a-casts-end-is-told-on-a-card-read-from-the-modules-own-clock-math-2026-11-11) — its cost line ("a combat's rounds do not age a record") qualified 2026-11-17 by [A condition row can last turns, and lib ends it](#2026-11-17--a-condition-row-can-last-turns-and-lib-ends-it); its rejection of deleting the creatures on expiry SUPERSEDED IN PART 2026-11-19 ("Remove automatically": a `gone` summons is removed at the timed end) by [A summons' control ends as its page says (1d.7)](#2026-11-19--a-summons-control-ends-as-its-page-says-1d7)
 - undated — [Where the lang-key convention is recorded](DECISIONS-through-v11.14.5.md#where-the-lang-key-convention-is-recorded)
 
 ## 2026-11-16 — A cast's modifiers ride one record per recipient, read at the roll by lib
@@ -188,7 +188,7 @@ save effect the module cannot price (neither negation nor half) is the Judge's
 before its defense stage, so an immune target of such a spell is also the
 Judge's.
 
-## 2026-11-17 — Tracked rows and the built summons (1d-A)
+## 2026-11-17 — Tracked rows and the built summons (1d-A) — SUPERSEDED IN PART 2026-11-19
 
 Session 1d-A's rulings 150 to 156 of the spell-effects plan, with the counter
 each carries.
@@ -1347,3 +1347,50 @@ its "no sheet control opens it yet") could not know. Those two are superseded; t
   would be inert); the class-power check is drawn to a Player only where it is ticked.
 - **lib's bucket row has an `extra` slot** (a loaded partial named by the row, drawn under the caption, never on a
   pick row), so a caller's per-row controls sit in the row; an unused slot renders as the row always did.
+
+## 2026-11-19 — A summons' control ends as its page says (1d.7)
+
+The owner, on 1d.7: "Specific per summon, check RAW". Each summoning spell's printed text was read in the order
+`rules-lookup.md` sets, and the cast does what that spell says about control ending. A spell whose page ends it
+when concentration lapses loses its creature with it, while a spell whose page says nothing keeps ownership and its
+card says control is lost. On board 24: "Approve (Recommended)".
+
+- **One row key, `controlEnd`,** a member of lib's `CONTROL_ENDS`: `stays`, `gone` or `hostile`. It is structure on the
+  register's summon entry, as `control` is, and the row editor's "When control ends" select (a spell's summon row
+  only) lets a Judge change it. A blank, an unknown word and a summons with no row read as `stays`.
+- **The GM's client reads it from the summoner's own spell,** found through the creatures' recorded `spellId`, and
+  never from a card or a request (`cast-control.mjs`). Lib's `applyControlEnd` then acts on the cast's recorded
+  tokens and stashed members (`castSummons`: the summoner's uuid and the cast id on the creature's own record),
+  never on a name or a type. Every creature is stamped `lost`; `gone` deletes as a dismissal does, a deployed or
+  stashed member through the roster's `release`; `hostile` drops the token delta's owners and turns its disposition
+  hostile. A stashed creature that stays or turns hostile has no token to write and is left as it was. With no GM
+  connected nothing is applied: the card is posted as before and claims no outcome.
+- **A creature whose control ended is a Judge's to dismiss.** `checkDismissRequest` refuses a stamped creature to a
+  seat that is no GM (`controlLost`), which closes the finding that the sheet's Dismiss admitted owners. The expiry
+  card's Dismiss is drawn for a GM seat only, as the held card's is.
+- **A conjuration is held.** A `conjuration` row with a duration that is not a concentration casts held, the printed
+  duration its cap and the blank default (mobile) its kind, so the clock ends it as a held cast and `hostile` can
+  fire. `parseDurationLine` is unchanged: it reads a bare time as `fixed`, and the cast makes the conjuration's
+  reading (`heldByConjuration`).
+- **Both ends apply it** (the owner on 1d.9: "Remove automatically"). At a held end the card names the outcome. At a
+  timed end a `gone` summons is removed by the module, by the summons' own recorded token ids and never by name or
+  type, and no Dismiss card is posted for that case; `stays` and `hostile` keep their card.
+
+| Spell key | End | `controlEnd` | Cite |
+|---|---|---|---|
+| callOfTheWolf | timed | gone | RR ch. 5 |
+| summonManes | timed | gone | RR ch. 5 |
+| faithfulCompanion | timed | gone | RR ch. 5 |
+| unlivingPuppet | held | gone | RR ch. 5 |
+| conjureCacodemonSpawn | held (the cap of its printed duration) | hostile | RR ch. 5, Summoning Spells |
+
+Supersedes, with the owner's 1d.7 and 1d.9 answers of 2026-11-19 as the new evidence: 1d.6 ("a held summons' end
+leaves its creatures with no prompt, until 1d-B") and the 1d-B ruling that a held end leaves the creatures standing
+for every spell; and, in part, the 2026-11-11 entry "A cast's end is told on a card", whose Rejected line refused
+deleting the creatures on expiry.
+
+*Rejected:* `free` as a fourth outcome, since no spell's page forces it; a blanket default for every summons, which
+is what 1d.7 refused. *Cost:* a creature that stays after its control ends is owned by its owners and cannot be
+dismissed by them, so only a Judge removes it; a stashed creature that turns hostile is not written until it is
+deployed, and then stands as it was. *Counter (medium):* an owner may want to dismiss a creature that is theirs;
+the page says no control is left, so the Judge decides.

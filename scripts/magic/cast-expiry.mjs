@@ -3,9 +3,12 @@
  * When a summoning's cast runs out. A cast leaves a record on its caster
  * (`spell-effect.mjs`) whose duration is the spell's imported one
  * (`cast-duration.mjs`); once the world clock passes the record's end, the
- * caster's owners and the GMs get one whispered card saying so, with a Dismiss
- * button for the creatures that cast left standing. The creatures stay until
- * someone presses it: the card tells, it does not remove.
+ * caster's owners and the GMs get one whispered card saying so, with a Judge's
+ * Dismiss button for the creatures that cast left standing. What becomes of
+ * the creatures is the spell's row's word (`cast-control.mjs`), applied by the
+ * clock's window: creatures that go are removed by the cast's own recorded
+ * tokens and no card is posted; creatures that stay or turn hostile stay until
+ * a Judge presses Dismiss.
  *
  * The end is this file's own reading of the record, start time plus duration
  * on the world clock, never core's `duration.expired`. A `rounds` record counts
@@ -131,17 +134,22 @@ const announcing = new Set();
 
 /**
  * Announce one record's end: stamp it, then, where its cast still has
- * creatures standing, post the card. Answers what it did.
+ * creatures standing, end their control as the spell's row says (`control`)
+ * and post the card. Creatures that went with it leave nothing to announce, so
+ * no card is posted for them; creatures that stay or turned hostile keep their
+ * card. Answers what it did.
  * @param {object} effect  the caster's record
  * @param {object} deps
  * @param {number} deps.worldTime
  * @param {(effect: object, worldTime: number) => Promise<unknown>} deps.stamp
  * @param {(record: object) => object[]|{tokens: object[], held?: object[]}} deps.standing  what the cast
  *   left standing: its tokens, or its tokens and its held summons (those riding in a party token)
- * @param {(o: {effect: object, record: object, tokens: object[], held: object[]}) => Promise<unknown>} deps.post
- * @returns {Promise<{posted: boolean, reason?: string, n?: number}>}
+ * @param {(o: {effect: object, record: object, tokens: object[], held: object[], outcome: string|null}) => Promise<unknown>} deps.post
+ * @param {(record: object) => Promise<{ok: boolean, outcome?: string}|null>} [deps.control]  the GM's client ends the
+ *   creatures' control as the spell's row says, answering the outcome it applied; null where nothing was applied
+ * @returns {Promise<{posted: boolean, reason?: string, n?: number, outcome?: string}>}
  */
-export async function announceEndedCast(effect, { worldTime, stamp, standing, post }) {
+export async function announceEndedCast(effect, { worldTime, stamp, standing, post, control }) {
   const record = spellEffectOf(effect);
   if (record?.role !== "caster" || record.ended != null) return { posted: false, reason: "closed" };
   const key = effect.uuid ?? effect.id ?? record.castId;
@@ -154,8 +162,12 @@ export async function announceEndedCast(effect, { worldTime, stamp, standing, po
     const held = Array.isArray(found) ? [] : (found?.held ?? []);
     const n = tokens.length + held.length;
     if (!n) return { posted: false, reason: "noneStanding" };
-    await post({ effect, record, tokens, held });
-    return { posted: true, n };
+    const done = await control?.(record);
+    const outcome = done?.ok ? done.outcome : null;
+    // Creatures that went leave nothing to announce, unless some could not be removed (a stash with no roster release): those keep the card.
+    if (outcome === "gone" && !(done.unapplied > 0)) return { posted: false, reason: "gone", n, outcome };
+    await post({ effect, record, tokens, held, outcome });
+    return { posted: true, n, ...(outcome ? { outcome } : {}) };
   } finally {
     announcing.delete(key);
   }
@@ -217,14 +229,15 @@ function calendarSeconds(value, units) {
 /** The record's stamp, written by the GM's own window. */
 const stampEnded = (effect, worldTime) => effect.update({ [`flags.${MODULE_ID}.${FLAG_SPELL_EFFECT}.ended`]: worldTime });
 
-/** The whispered card: the spell, the count still standing, and Dismiss. */
-async function postEnded({ effect, record, tokens, held = [] }) {
+/** The whispered card: the spell, the count still standing, a line where they turned hostile, and Dismiss, which only a GM seat is shown (`bindCard`). */
+async function postEnded({ effect, record, tokens, held = [], outcome = null }) {
   const caster = effect.parent;
   // A spell since deleted reads by the name its record was made with.
   const spellName = docOf(record.spellUuid)?.name ?? effect.name;
   const isGM = (id) => !!game.users.get(id)?.isGM;
   const content =
     `<div class="acks-extras-cast-ended"><p>${esc(loc("text", { spell: spellName, name: caster?.name ?? "", n: tokens.length + held.length }))}</p>` +
+    (outcome === "hostile" ? `<p>${esc(loc("hostile"))}</p>` : "") +
     `<button type="button" ${DISMISS_ATTR}><i class="fa-solid fa-ghost" inert></i> ${esc(loc("dismiss"))}</button></div>`;
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: caster }),
@@ -251,14 +264,19 @@ const liveDeps = (worldTime) => ({
   stamp: stampEnded,
   remove: removeRecord,
   standing: (record) => standingOf(fromUuidSync(record.casterUuid), record.castId),
+  control: async (record) => (await import("./cast-control.mjs")).applyCastControl({ casterUuid: record.casterUuid, castId: record.castId }),
   post: postEnded,
 });
 
-/** Wire a cast-ended card's Dismiss: the cast's creatures on every scene, through the summons dismissal. */
+/** Wire a cast-ended card's Dismiss: the cast's creatures on every scene, through the summons dismissal. It is drawn for a GM seat only, since a creature whose control ended is the Judge's to remove. */
 function bindCard(message, html) {
   const flag = message?.getFlag?.(MODULE_ID, CAST_ENDED_FLAG);
   if (!flag?.castId) return;
   for (const button of html?.querySelectorAll?.(`[${DISMISS_ATTR}]`) ?? []) {
+    if (!game.user?.isGM) {
+      button.remove();
+      continue;
+    }
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       const caster = fromUuidSync(flag.casterUuid);

@@ -389,7 +389,8 @@ to `{ key: label }` for DataModel `choices`.
   `EFFECT_RECURRENCES` (`none`, `eachRound`, `laterRounds`) and the three a
   recurring spell row names: `EFFECT_RECUR_MOMENTS` (`recurAt`),
   `EFFECT_RECUR_SAVES` (`recurSave`: `row`, `cast`, `fail`), `EFFECT_RECUR_TARGETS` (`recurTarget`),
-  `HEAL_KINDS`, `CONTROL_KINDS`, `SUMMON_FORMATS`, `SPELL_LIKE_FREQ` (the
+  `HEAL_KINDS`, `CONTROL_KINDS`, `CONTROL_ENDS` (a summon row's `controlEnd`:
+  `stays`, `gone`, `hostile`), `SUMMON_FORMATS`, `SPELL_LIKE_FREQ` (the
   one frequency table; the monsters feature's `USAGE` is this), the
   `MAGIC_VOCAB` registry keyed by lang id, and `vocabLabel(family, key)` /
   `vocabChoices(family)` — the label from `ACKS-LIB.enum.<family>.<key>`

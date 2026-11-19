@@ -14,6 +14,7 @@ import { MODULE_ID, FLAG_SPELL_EFFECT } from "./constants.mjs";
 import { FLAG_ROLL_MODS, FLAG_TURN_LIFE, FLAG_ENDS_ON } from "../lib/constants.mjs";
 import { readTurnLife } from "../lib/turn-life.mjs";
 import { readEndsOn } from "../lib/ends-on.mjs";
+import { sealMark } from "./cast-seal.mjs";
 
 /** The two sides of a cast a record can sit on. */
 export const SPELL_EFFECT_ROLES = Object.freeze(["caster", "recipient"]);
@@ -77,6 +78,7 @@ export function newCastId({ randomID } = {}) {
  *   The buff lib reads at the roll (`lib/roll-mods.mjs`), written at lib's flag. A record that carries it holds no status and no changes.
  * @param {{combatId: string, combatantId: string, edge: "start"|"end", count: number, seen?: number}} [cast.turnLife]
  *   The turns the record lasts (`lib/turn-life.mjs`), written at lib's flag beside the mark, where lib lifts it at its edge by id. A flag that is not a well-formed record is not written.
+ * @param {{sceneId: string, wallId: string}} [cast.seal]  The door the cast sealed, written into the mark on the caster's record (`sealMark`); a pick missing either id is not written.
  * @param {string[]} [cast.endsOn]
  *   What ends the record (`lib/ends-on.mjs` `ENDS_ON_CAUSES`), written at lib's flag, where lib's loss hooks delete it by id. Words that are no cause are not written, and none writes no flag.
  * @returns {object}
@@ -103,6 +105,7 @@ export function spellEffectData({
   pending,
   turnLife,
   endsOn,
+  seal,
 }) {
   if (!SPELL_EFFECT_ROLES.includes(role)) throw new Error(`spellEffectData: unknown role "${role}"`);
   if (statuses.length > 1) throw new Error("spellEffectData: a record holds at most one status");
@@ -118,6 +121,8 @@ export function spellEffectData({
   if (sourceAlignment) mark.sourceAlignment = String(sourceAlignment);
   if (Number.isInteger(invocationLevel) && invocationLevel >= 1) mark.invocationLevel = invocationLevel;
   if (item?.id) mark.item = { id: String(item.id), name: String(item.name ?? "") };
+  const sealed = role === "caster" ? sealMark(seal) : null;
+  if (sealed) mark.seal = sealed;
   const data = {
     name: name ?? spell.name,
     img: spell.img,
@@ -143,7 +148,7 @@ export function spellEffectData({
 
 /**
  * The record an Active Effect carries, `{ spellUuid, castId, casterUuid, role }` and
- * whichever of `rowKey`, `resist`, `sourceAlignment`, `invocationLevel`, `item`, `held`, `tail`, `pending` (with its `lost` stamp where the declaration was lost), `startTime` and `duration` it was written with,
+ * whichever of `rowKey`, `resist`, `sourceAlignment`, `invocationLevel`, `item`, `held`, `tail`, `pending` (with its `lost` stamp where the declaration was lost), `seal` (a caster's: `{sceneId, wallId}`), `startTime` and `duration` it was written with,
  * or null for an effect no cast made (or one whose mark is incomplete). A
  * record whose end has been announced also carries `ended`, the world time it
  * was stamped at (`cast-expiry.mjs`). A buff record's `rollMods` is read back
@@ -170,6 +175,7 @@ export function spellEffectOf(effect) {
   if (raw.held) record.held = raw.held === "stationary" ? "stationary" : "mobile";
   if (raw.tail && typeof raw.tail === "object") record.tail = raw.tail;
   if (raw.pending && typeof raw.pending === "object") record.pending = raw.pending;
+  if (raw.role === "caster" && sealMark(raw.seal ?? {})) record.seal = sealMark(raw.seal);
   const mods = effect?.flags?.[MODULE_ID]?.[FLAG_ROLL_MODS] ?? effect?.getFlag?.(MODULE_ID, FLAG_ROLL_MODS);
   if (mods && typeof mods === "object" && Array.isArray(mods.parts)) record.rollMods = mods;
   const life = readTurnLife(effect?.flags?.[MODULE_ID]?.[FLAG_TURN_LIFE] ?? effect?.getFlag?.(MODULE_ID, FLAG_TURN_LIFE));

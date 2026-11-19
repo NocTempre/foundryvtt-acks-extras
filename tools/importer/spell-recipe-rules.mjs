@@ -25,12 +25,12 @@ import {
 } from "../../scripts/lib/vocab.mjs";
 import { ENDS_ON_CAUSES } from "../../scripts/lib/ends-on.mjs";
 import { ATTACK_KINDS } from "../../scripts/lib/conditions.mjs";
-import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGORIES, SPELL_TYPES, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
+import { AREA_MEASURES, CONTROL_ENDS, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGORIES, SPELL_TYPES, SUMMON_FORMATS } from "../../scripts/lib/magic-vocab.mjs";
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
   "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "effects", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
-  "pick", "pickOption", "reversed", "summonFormat", "control",
+  "pick", "pickOption", "reversed", "summonFormat", "control", "controlEnd",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate", "each", "endsOn", "untimed",
   "ifHas", "appliesToRoll", "attackKinds", "ownSave", "pickKind", "invocationFrom", "invocationTo",
@@ -200,6 +200,7 @@ export function spellRecipeProblems({ effects, values } = {}) {
     if (!inTable(HEAL_KINDS, spec.healKind)) out.push(`${label}.healKind "${spec.healKind}" is not a heal kind`);
     if (!inTable(SUMMON_FORMATS, spec.summonFormat)) out.push(`${label}.summonFormat "${spec.summonFormat}" is not a summon format`);
     if (!inTable(CONTROL_KINDS, spec.control)) out.push(`${label}.control "${spec.control}" is not a control kind`);
+    if (!inTable(CONTROL_ENDS, spec.controlEnd)) out.push(`${label}.controlEnd "${spec.controlEnd}" is not a control end`);
     if (spec.type === "modifier" && !inTable(MODIFIER_TARGETS, spec.target)) out.push(`${label}.target "${spec.target}" is not a modifier target`);
     scopeProblems(spec, label, out);
     if (spec.anyOf !== undefined) anyOfProblems(spec.anyOf, label, out);

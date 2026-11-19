@@ -90,6 +90,7 @@ const FIELD_SPECS = {
   healKind: { kind: "select", choices: () => vocabChoices("healKind") },
   summonFormat: { kind: "select", choices: () => vocabChoices("summonFormat") },
   control: { kind: "select", choices: () => vocabChoices("controlKind") },
+  controlEnd: { kind: "select", choices: () => vocabChoices("controlEnd") },
   ref: { kind: "text" },
   refs: { kind: "list" },
   amount: { kind: "number" },
@@ -299,7 +300,7 @@ const TYPE_FIELDS = {
   capability: ["frequency", "restriction"],
   damage: ["appliesTo", "roll", "damage", "value", "max", "saveEffect", "delivery", "extraordinary", "recur", "recurAt", "recurSave", "recurTarget", "exemptSizeFrom", "exemptSizeOver", "reversed"],
   heal: ["appliesTo", "healKind", "roll", "value", "max", "saveEffect", "reversed"],
-  summon: ["summonFormat", "ref", "amount", "value", "control"],
+  summon: ["summonFormat", "ref", "amount", "value", "control", "controlEnd"],
   control: ["appliesTo", "control"],
   // Neither kind reads a figure: a save decides whether it lands, and `appliesTo` names who it meets.
   slay: ["appliesTo", "saveEffect", "reversed"],
@@ -327,7 +328,7 @@ const TIPPED_FIELDS = new Set([
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom",
   "exemptSizeOver", "ownSave", "pickKind", "attackKinds", "endsOn", "untimed", "ifHas", "appliesToRoll",
   "schools", "elements", "bySelection", "saveCategories", "perDie", "gate.occasion",
-  "invocationFrom", "invocationTo",
+  "invocationFrom", "invocationTo", "controlEnd",
 ]);
 
 /** The located figures: while one is blank its tooltip carries the page reference of the store's row, when the store names one. */
@@ -337,7 +338,7 @@ const LOCATED_FIELDS = new Set(["rounds", "exemptSizeFrom", "exemptSizeOver"]);
 const SPELL_ONLY_FIELDS = new Set([
   "saveEffect", "delivery", "extraordinary", "lasts", "recur", "pick", "reversed",
   "max", "pickOption", "recurAt", "recurSave", "recurTarget", "rounds", "exemptSizeFrom", "stacksWith",
-  "exemptSizeOver", "ownSave", "pickKind", "endsOn", "untimed", ...INVOCATION_FIELDS,
+  "exemptSizeOver", "ownSave", "pickKind", "endsOn", "untimed", "controlEnd", ...INVOCATION_FIELDS,
 ]);
 
 /** What a spell-only field is still offered on, outside a spell: an ability's spellcasting row stacks by it. */
@@ -563,6 +564,8 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       if (LOCATED_FIELDS.has(name) && cite && !String(field.value ?? "").trim()) field.tip = [field.tip, loc("tip.cite", { cite })].join(" · ");
       // A tracked kind's tooltips name what the field does to its record, and carry the store's page where it names one.
       if (name === "lasts" && isTrackedRow(row)) field.tip = [loc("tip.lastsTracked"), cite && loc("tip.cite", { cite })].filter(Boolean).join(" · ");
+      // The end of a summons' control names the store's page beside the chapter the tooltip cites.
+      if (name === "controlEnd" && cite) field.tip = [field.tip, loc("tip.cite", { cite })].join(" · ");
       if (name === "effects" && row.type === "afflictionDelay") field.tip = [loc("tip.effectsDelay"), cite && loc("tip.cite", { cite })].filter(Boolean).join(" · ");
       if (name === "gate.light") {
         field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;

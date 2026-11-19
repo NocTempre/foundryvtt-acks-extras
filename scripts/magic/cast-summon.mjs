@@ -17,7 +17,7 @@ import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs"
 import { flattenAt } from "./cast-rows.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
 import { byCookbookId, cookbookId } from "../lib/library.mjs";
-import { normalizeRef, offerRows, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
+import { normalizeRef, offerRows, registerSummonPolicy, registerSummonNaming, bareSummonAllowed, controlEndOf } from "../lib/summons-logic.mjs";
 
 /** The world lookups the rows and the twin need, as the live world gives them. */
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
@@ -110,6 +110,37 @@ export function summonCeilingFor(rows, { source = null, sourceRef = "", level = 
 export function summonIsCalling(rows, creature) {
   const fitting = summonFitting(rows, creature);
   return fitting.length > 0 && fitting.every((row) => row.summonFormat === CALLING_FORMAT);
+}
+
+/** The `summonFormat` of a row whose creature is held by its caster's concentration for as long as the printed duration allows (a key of `SUMMON_FORMATS`). */
+export const CONJURATION_FORMAT = "conjuration";
+
+/**
+ * Is this creature conjured? True when every row that fits it names the
+ * conjuration format; false with no fitting row. A conjured creature serves
+ * while its caster holds the cast, so the cast is held (`heldByConjuration`).
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{source: object|null, sourceRef?: string}} creature
+ */
+export function summonIsConjuration(rows, creature) {
+  const fitting = summonFitting(rows, creature);
+  return fitting.length > 0 && fitting.every((row) => row.summonFormat === CONJURATION_FORMAT);
+}
+
+/**
+ * What becomes of a creature when its control ends: the `controlEnd` of the
+ * first row that fits it and states one. A creature no row names (a
+ * rowless spell's, or a ref the rows do not read) takes the one end every row
+ * states when they all agree, else `stays`; so does a blank or unknown key.
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{source: object|null, sourceRef?: string}} creature
+ * @returns {"stays"|"gone"|"hostile"}
+ */
+export function controlEndFor(rows, creature) {
+  const stated = summonFitting(rows, creature).find((row) => row.controlEnd);
+  if (stated) return controlEndOf(stated.controlEnd);
+  const all = new Set(rows.map((row) => controlEndOf(row.controlEnd)));
+  return all.size === 1 ? [...all][0] : "stays";
 }
 
 /**

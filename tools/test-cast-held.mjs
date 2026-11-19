@@ -249,12 +249,52 @@ await ta("a held summons' end lists the cast's standing creatures by name, token
   assert.deepEqual([plan.create.length, plan.undo.length, plan.skipped], [1, 0, 0], "Restore puts the record back and has nothing to say of the creatures");
 });
 
-t("the control-lost line is one function of the outcome: stays is built, any other outcome draws nothing", () => {
+t("the control-lost line is one function of the outcome: each of stays, gone and hostile has its own wording, anything else draws nothing", () => {
   assert.equal(controlLostLine("stays", loc), "controlLost.stays");
   assert.equal(controlLostLine(undefined, loc), "controlLost.stays", "stays is the default");
-  assert.equal(controlLostLine("gone", loc), "");
+  assert.equal(controlLostLine("gone", loc), "controlLost.gone");
+  assert.equal(controlLostLine("hostile", loc), "controlLost.hostile");
+  assert.equal(controlLostLine("vanish", loc), "", "an outcome the vocabulary lacks writes no line");
   assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS() }, loc).controlLost, "controlLost.stays (p. 1)");
-  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "gone" }, loc).controlLost, "", "an unbuilt outcome writes no line");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "gone" }, loc).controlLost, "controlLost.gone (p. 1)");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "hostile" }, loc).controlLost, "controlLost.hostile (p. 1)");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "vanish" }, loc).controlLost, "", "an unknown outcome writes no line");
+});
+
+await ta("the card of creatures that went draws no Dismiss, a row nor the whole cast's; one that turned hostile keeps both", async () => {
+  const gone = await heldEndContent({ ...FLAG(), summons: SUMMONS(), outcome: "gone" }, loc);
+  assert.equal(count(gone, "data-acks-extras-held-dismiss"), 0, "nothing is left to dismiss");
+  assert.ok(gone.includes("controlLost.gone (p. 1)") && gone.includes("summonsGone") && gone.includes("Invented Wisp"), "the line says so and the creatures that went are still named");
+  assert.ok(gone.includes("data-acks-extras-held-restore"), "Restore stays");
+  const hostile = await heldEndContent({ ...FLAG(), summons: SUMMONS(), outcome: "hostile" }, loc);
+  assert.equal(count(hostile, "data-acks-extras-held-dismiss"), 4);
+  assert.ok(hostile.includes("controlLost.hostile (p. 1)"));
+});
+
+await ta("the end asks the GM's client to end the creatures' control, only where creatures stand, and the card's flag carries the outcome it answered", async () => {
+  const asked = [];
+  const standing = async () => ({ tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1" }], held: [] });
+  for (const outcome of ["stays", "gone", "hostile"]) {
+    const r = funnelDeps({ recipients: [] });
+    r.deps.standing = standing;
+    r.deps.control = async (req) => (asked.push(req), { ok: true, outcome });
+    const flag = await endHeldCast(held(), { cause: "damage", caster, deps: r.deps });
+    assert.equal(flag.outcome, outcome);
+    assert.deepEqual(r.calls.removed, [], "the creatures are never removed by this client");
+  }
+  assert.deepEqual(asked[0], { casterUuid: "Actor.c", castId: "x", cause: "damage" }, "the request names the cast and holds no outcome");
+  const noGm = funnelDeps({ recipients: [] });
+  noGm.deps.standing = standing;
+  noGm.deps.control = async () => null;
+  assert.equal("outcome" in (await endHeldCast(held(), { cause: "damage", caster, deps: noGm.deps })), false, "with no GM nothing is applied and no outcome is claimed");
+  const refused = funnelDeps({ recipients: [] });
+  refused.deps.standing = standing;
+  refused.deps.control = async () => ({ ok: false, reason: "noCaster" });
+  assert.equal("outcome" in (await endHeldCast(held(), { cause: "damage", caster, deps: refused.deps })), false, "a refusal claims no outcome");
+  const none = funnelDeps({ recipients: [] });
+  none.deps.standing = async () => ({ tokens: [], held: [] });
+  none.deps.control = async () => assert.fail("no creature stands, so nothing is asked");
+  await endHeldCast(held(), { cause: "damage", caster, deps: none.deps });
 });
 
 await ta("the card lists the standing creatures, a Dismiss on each row and one for all, the page reference once on the control-lost line; every name is escaped", async () => {

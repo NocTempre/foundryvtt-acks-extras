@@ -1637,3 +1637,19 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
 .acks-lib-group-roll-card__stack {
   margin: 0.15rem 0;
 }
+
+/* The banner of a canvas pick (lib/door-pick.mjs): a status line over the board saying what to press. Its words wrap, so a narrow display reads all of them. */
+.acks-extras-pick-banner {
+  position: fixed;
+  inset-block-start: var(--acks-sp-5);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  z-index: 100;
+  max-inline-size: calc(100vw - 2 * var(--acks-sp-5));
+}
+
+.acks-extras-pick-banner .acks-tag {
+  white-space: normal;
+  line-height: var(--acks-lh-snug);
+  box-shadow: var(--acks-lift);
+}

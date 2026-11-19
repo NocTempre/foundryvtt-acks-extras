@@ -303,6 +303,19 @@ export const CONTROL_KINDS = Object.freeze({
   uncontrolled: { label: "Uncontrolled" },
 });
 
+/**
+ * What becomes of a summons when its control ends (RR ch. 5, Summoning
+ * Spells), the row key `controlEnd`: the creatures stay and their summoner
+ * keeps no control, they are removed, or they turn hostile. A blank row, and a
+ * summons with no row, reads as `stays`. Not `CONTROL_KINDS`, which is the
+ * creature's disposition while the control lasts.
+ */
+export const CONTROL_ENDS = Object.freeze({
+  stays: { label: "They stay" },
+  gone: { label: "They go" },
+  hostile: { label: "They turn hostile" },
+});
+
 /** The three summoning formats (RR ch. 5 §V.6) — how a summons resolves its creature. */
 export const SUMMON_FORMATS = Object.freeze({
   calling: { label: "Calling" },
@@ -362,6 +375,7 @@ export const MAGIC_VOCAB = Object.freeze({
   effectRecurTarget: EFFECT_RECUR_TARGETS,
   healKind: HEAL_KINDS,
   controlKind: CONTROL_KINDS,
+  controlEnd: CONTROL_ENDS,
   summonFormat: SUMMON_FORMATS,
   spellLikeFreq: SPELL_LIKE_FREQ,
 });

@@ -28,6 +28,12 @@
  * for a concentration, else a core-timed one with no clock of this module's own,
  * so its end is announced with Dismiss (`cast-expiry.mjs`).
  *
+ * A spell with a seal row has its door picked at the same point, before the
+ * spend (`deps.pickDoor`, `lib/door-pick.mjs`): a cancel spends nothing and
+ * Enter goes on with the spell's own record and line. A picked door is sealed
+ * after the spend (`APPLY_KINDS.seal.step`, `cast-seal-live.mjs`), and the
+ * caster's record carries the wall (`sealMark`) whether or not the spell is timed.
+ *
  * A row with a throw rides the system's own attack pipeline as the `magic`
  * attack type on a carrier (`lib/patches/attack-throw.mjs`); a row with none
  * is rolled through the same modifier question (`magicDamageSpec`). Both are
@@ -40,7 +46,7 @@ import { castAbilityLevel } from "./cast-abilities.mjs";
 import { castAbilitiesOf, castSaveParts, abilityDamageContributor } from "./cast-ability-use.mjs";
 import { castCapacity, traditionFor, spendsFromPool } from "./cast-capacity.mjs";
 import { castVerdicts, blocked } from "./cast-plan.mjs";
-import { castDuration } from "./cast-duration.mjs";
+import { castDuration, heldByConjuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
 import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
@@ -59,7 +65,8 @@ import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon,
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
-import { summonRowsOf, summonOffer, judgeSummon } from "./cast-summon.mjs";
+import { summonRowsOf, summonOffer, judgeSummon, summonIsConjuration } from "./cast-summon.mjs";
+import { SEAL_ROW_TYPE } from "./cast-seal.mjs";
 import { displayDuration } from "./spell-logic.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
@@ -78,6 +85,9 @@ const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync
 
 /** The cast's strings. */
 const loc = (key, data = {}) => game.i18n.format(`ACKS-MAGIC.cast.${key}`, data);
+
+/** The door seal's strings: its pick's words and the reasons a seal is refused. */
+const sealLoc = (key, data = {}) => game.i18n.format(`ACKS-MAGIC.castSeal.${key}`, data);
 
 /** The raw spell flag of an item. */
 const flagOf = (item) => item?.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {};
@@ -539,6 +549,18 @@ const liveDeps = () => ({
     // lib words every refusal but a missing GM; the card says that one itself.
     return result.ok || result.reason === "noGm" ? result : { ...result, notice: lib.refusalText(result.reason) };
   },
+  // A seal's door is picked on the scene in view (`lib/door-pick.mjs`), and the seal is written by this seat or the GM's client (`cast-seal-live.mjs`). The words are the cast's own.
+  pickDoor: async ({ cite, ...o }) =>
+    (await import("../lib/door-pick.mjs")).pickDoor({
+      ...o,
+      text: {
+        banner: sealLoc("pick.banner"),
+        tip: sealLoc(cite ? "pick.tip" : "pick.tipBare", { cite }),
+        far: sealLoc("pick.far"),
+        refused: (reason) => sealLoc(`refused.${reason}`),
+      },
+    }),
+  seal: async (ctx) => (await import("./cast-seal-live.mjs")).writeSeal(ctx.request),
   // One core throw, with the seat's targets narrowed to the token it is for and restored after; a token off the viewed scene is not thrown at.
   throwRow: async (caster, carrier, skipDialog, token = null) => {
     const run = () => caster.makeAttackThrow({ item: carrier, attackType: MAGIC_ATTACK_TYPE, skipDialog });
@@ -849,7 +871,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     let asked = declaring || !deps.summonVerdict ? { ok: true } : await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
     if (asked?.ok !== false && !declaring && gmMissing()) asked = { ok: false, ...noGm() };
     const refused = asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null;
-    return { ...judgeSummon(summonRows, picked, { source, level: casterLvl, at: invAt, refused }), name: String(source?.name ?? offer.creatures.find((c) => c.value === picked.ref)?.name ?? "").trim() };
+    // A conjured creature serves while its caster holds the cast, so the cast is held (`heldByConjuration`).
+    return { ...judgeSummon(summonRows, picked, { source, level: casterLvl, at: invAt, refused }), conjuration: summonIsConjuration(summonRows, { source, sourceRef: picked.ref }), name: String(source?.name ?? offer.creatures.find((c) => c.value === picked.ref)?.name ?? "").trim() };
   };
 
   const mode =modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
@@ -885,6 +908,16 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     const picked = await deps.pickPlacement?.(caster, { sourceUuid: pick.ref, count: pick.count, spellId: spell.id, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null });
     if (!picked?.positions?.length) return { ok: false, reason: "cancelled" };
     positions = picked.positions;
+  }
+
+  // A seal's door is picked at the same point, on the same terms: a cancel spends nothing, a declaring asks nothing, and no pick (Enter, or a seat with no scene to pick on) goes on with the spell's own record and line. An absent `pickDoor` is no pick. The range is the spell's figure at this cast, a number or none.
+  let sealPick = null;
+  let sealRange = null;
+  if (moment !== MOMENT.declare && deps.pickDoor && kept.some(({ row }) => row.type === SEAL_ROW_TYPE)) {
+    sealRange = rangeFeet(figuresAt(mode, invocation.value).range, level.value)?.value ?? null;
+    const door = await deps.pickDoor({ caster, casterToken: world.casterToken ?? null, rangeFeet: sealRange, isGM, cite: extras.cite ?? "" });
+    if (door === null) return { ok: false, reason: "cancelled" };
+    if (door?.wallId && door?.sceneId) sealPick = door;
   }
 
   // A declaration being resolved was spent at its declaring, and a cast from a project at the project.
@@ -929,7 +962,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     // The spell's own save modifier the seat switched on for every target; the figure is read again from the spell at the card's caster level wherever the card is read.
     ...(saveMod ? { saveMod: true } : {}),
     cite: extras.cite ?? "",
-    duration: castDurationOf(spell, deps.lookups, level.value, deps.roll, mode),
+    duration: heldByConjuration(castDurationOf(spell, deps.lookups, level.value, deps.roll, mode), summon?.conjuration === true),
     casterTokenUuid: world.casterToken?.uuid ?? null,
     rows: {},
     order: [],
@@ -974,10 +1007,33 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       if (made < positions.length) card.lines.push(loc("line.summonShort", { n: positions.length - made }));
     } else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
   }
+  // The door is sealed only once the cast proceeds. The write is the seal kind's own step (`cast-kinds.mjs`) and carries this cast's id, which the caster's record keeps; a refusal is a line on the card and a notice to the seat, and the spend stands. A Judge's pick past the range states no range, since the GM's client measures any it is given.
+  let sealed = null;
+  if (sealPick) {
+    const request = { casterUuid: caster.uuid, spellUuid: spell.uuid, castId, sceneId: sealPick.sceneId, wallId: sealPick.wallId, rangeFeet: sealPick.over ? null : sealRange };
+    try {
+      sealed = (await stepOf(SEAL_ROW_TYPE)({ request, caster, spell, castId }, deps)) ?? { ok: false, reason: "noGm" };
+    } catch (err) {
+      console.error(`${MODULE_ID} | the seal was not written`, err);
+      sealed = { ok: false, reason: "failed" };
+    }
+    if (!sealed.ok) {
+      const why = sealLoc(`refused.${sealed.reason}`);
+      card.lines.push(loc("line.sealRefused", { reason: why }));
+      (deps.notifyText ?? ((level, text) => ui.notifications?.[level]?.(text)))("warn", why);
+    }
+  }
+  let sealLined = false;
   for (const keyed of kept) {
     const { row } = keyed;
     if (isModRow(row)) continue;
-    if ((row.type === "damage" || row.type === "heal") && !resolvesAtCast(row)) {
+    if (row.type === SEAL_ROW_TYPE && sealed?.ok && !sealLined) {
+      // The one door this cast sealed, in place of the spell's own line: where it stands and how long it holds, and what its end does to it.
+      sealLined = true;
+      const shape = durationShapeOf(spell, deps.lookups, mode);
+      const lasts = shape?.shape === "instantaneous" ? "" : displayDuration(shape);
+      card.lines.push(loc(lasts ? "line.sealed" : "line.sealedOpen", { duration: lasts }), loc("line.sealEnd"));
+    } else if ((row.type === "damage" || row.type === "heal") && !resolvesAtCast(row)) {
       // A row that recurs from the later rounds waits for its first moment (`cast-recur.mjs`); the card says so in a line.
       card.lines.push(describeSpellEffect(row).text);
     } else if (row.type === "damage" || row.type === "heal") {
@@ -1063,11 +1119,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const untimedRecord = !held && !timed && recurringRows(kept, "casterTurn").some(({ row }) => row.recurSave === "cast");
   card.recurs = kept.some(({ row }) => isRecurring(row));
   // A summoning leaves its record whatever its rows are, carrying the id its creatures carry. Unless held it is core-timed with no `startTime` of this module's own, so its end is announced with Dismiss and never deleted silently (`cast-expiry.mjs`).
-  if (held || summon || timed || untimedRecord) {
-    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: placed?.castId || castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}) };
+  // A door sealed leaves its record too, whatever the rows are, since the wall's stamp is ended by that record's deletion and a stamp with no record is ended at the next GM `ready`. It carries the id the stamp carries and names the wall. With no clock of its own to run on, the seal holds until its owner deletes the record.
+  if (held || summon || timed || untimedRecord || sealed?.ok) {
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: sealed?.ok ? castId : placed?.castId || castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}), ...(sealed?.ok ? { seal: { sceneId: sealPick.sceneId, wallId: sealPick.wallId } } : {}) };
+    const bare = untimedRecord || (sealed?.ok && !timed && !summon);
     const data = held
       ? heldRecordData(mark, { held, now: deps.now(), tail: card.duration.tail, cap: card.duration.cap })
-      : spellEffectData(summon ? { ...mark, duration: card.duration } : untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
+      : spellEffectData(summon ? { ...mark, duration: card.duration } : bare ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
     try {
       await deps.record(caster, data);
     } catch (err) {

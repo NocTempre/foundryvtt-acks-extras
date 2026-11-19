@@ -207,4 +207,216 @@ t("a caster record's seal is read back; a recipient's record and a record with n
   assert.equal(sealOf(null), null);
 });
 
-console.log(`\n${n} tests passed`);
+/* ------------------------------------------------------------------ */
+/*  The record carries the mark                                       */
+/* ------------------------------------------------------------------ */
+
+const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
+const { heldRecordData } = await import("../scripts/magic/cast-held.mjs");
+const { stepOf } = await import("../scripts/magic/cast-kinds.mjs");
+const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
+
+const SPELL = { uuid: "Actor.c1.Item.sp1", name: "Invented Shutting", img: "icons/invented.webp" };
+const CASTER = { uuid: "Actor.c1" };
+const WALL = { sceneId: "s1", wallId: "w1" };
+
+t("a caster's record is written with the wall it sealed, and spellEffectOf and sealOf read it back", () => {
+  const data = spellEffectData({ spell: SPELL, caster: CASTER, castId: "castA", role: "caster", seal: WALL });
+  assert.deepEqual(data.flags["acks-extras"].spellEffect.seal, WALL);
+  assert.deepEqual(sealOf(data), WALL);
+  assert.deepEqual(spellEffectOf(data).seal, WALL);
+});
+
+t("a record with no pick, a pick missing an id and a recipient's record carry no seal", () => {
+  for (const seal of [undefined, null, { sceneId: "s1" }, { wallId: "w1" }]) {
+    const data = spellEffectData({ spell: SPELL, caster: CASTER, castId: "castA", role: "caster", seal });
+    assert.equal("seal" in data.flags["acks-extras"].spellEffect, false, JSON.stringify(seal));
+    assert.equal(spellEffectOf(data).seal, undefined);
+  }
+  const recipient = spellEffectData({ spell: SPELL, caster: CASTER, castId: "castA", role: "recipient", seal: WALL });
+  assert.equal("seal" in recipient.flags["acks-extras"].spellEffect, false);
+});
+
+t("a concentration's record carries the mark too, since the held record spreads the cast's mark", () => {
+  const mark = { spell: SPELL, caster: CASTER, castId: "castA", role: "caster", seal: WALL };
+  const data = heldRecordData(mark, { held: "mobile", now: 5, tail: null, cap: null });
+  assert.deepEqual(sealOf(data), WALL);
+});
+
+t("the seal kind's step is run from the cast's own dependencies", () => {
+  const seen = [];
+  const ctx = { request: { castId: "castA" } };
+  assert.equal(stepOf("seal")(ctx, { seal: (c) => (seen.push(c), { ok: true }) }).ok, true);
+  assert.equal(seen[0], ctx);
+});
+
+/* ------------------------------------------------------------------ */
+/*  The cast's pick and write                                         */
+/* ------------------------------------------------------------------ */
+
+globalThis.foundry = { utils: { escapeHTML: (x) => String(x) } };
+globalThis.game = { i18n: { format: (key, data) => (data && Object.keys(data).length ? `${key}|${JSON.stringify(data)}` : key), localize: (key) => key } };
+globalThis.Roll = class {
+  constructor(formula) {
+    this.formula = formula;
+  }
+  async evaluate() {
+    this.total = 7;
+    return this;
+  }
+};
+globalThis.ui = { notifications: { warn() {}, info() {} } };
+const { castSpellRun } = await import("../scripts/magic/cast-spell.mjs");
+
+let na = 0;
+const ta = async (name, fn) => {
+  await fn();
+  na++;
+  console.log(`ok - ${name}`);
+};
+
+const SEAL_ROW = { key: "shut", type: "seal", lasts: "duration" };
+const CASTER_TOKEN = { id: "tok1", uuid: "Scene.s1.Token.tok1" };
+const makeSpell = ({ rows = [SEAL_ROW], extra = {} } = {}) => {
+  const caster = { id: "c1", type: "character", isOwner: true, uuid: "Actor.c1", name: "Invented Caster", effects: [] };
+  return {
+    id: "sp1",
+    type: "spell",
+    uuid: "Actor.c1.Item.sp1",
+    name: "Invented Shutting",
+    img: "icons/invented.webp",
+    system: { lvl: 1, class: "" },
+    parent: caster,
+    flags: { "acks-extras": { spell: { schools: [], effects: rows, duration: { shape: "fixed", value: 2, unit: "hours" }, range: { shape: "distance", value: 30, unit: "feet" }, ...extra } } },
+  };
+};
+
+/** The seams one run reaches, in order, with what each was handed. `door` and `sealed` are the doubles' answers; an absent `door` leaves `pickDoor` off the deps. */
+function runDeps({ door, sealed = { ok: true }, isGM = false } = {}) {
+  const calls = { picks: [], seals: [], records: [], posts: [], texts: [], spends: 0 };
+  const order = [];
+  const deps = {
+    lookups: { byCookbookId: () => null, fromUuidSync: () => null },
+    read: async () => ({ actor: {}, tokens: [], casterToken: CASTER_TOKEN, gaps: {}, statuses: [], capacity: { verdict: "ok" }, level: { matched: false }, cap: null, tradition: null, classItem: null }),
+    ask: async () => (order.push("ask"), { mode: "normal", picks: {} }),
+    notify: () => {},
+    notifyText: (level, text) => calls.texts.push([level, text]),
+    castId: () => (order.push("castId"), "castX"),
+    roll: () => 1,
+    post: async (card) => (order.push("post"), calls.posts.push(card), { id: "m1", flags: { "acks-extras": { castCard: card } } }),
+    apply: async () => {},
+    record: async (_caster, data) => (order.push("record"), calls.records.push(data)),
+    throwRow: async () => null,
+    now: () => 10,
+    isGM: () => isGM,
+    endHeld: async () => void order.push("endHeld"),
+    declare: { declare: async () => ({ castId: "d1" }), finish: async () => {}, clearHand: async () => {} },
+    declaredTargets: async () => ({ tokens: [], gaps: {}, gone: [] }),
+    seal: async (ctx) => (order.push("seal"), calls.seals.push(ctx.request), typeof sealed === "function" ? sealed(ctx) : sealed),
+  };
+  if (door !== undefined) {
+    deps.pickDoor = async (o) => {
+      order.push("pickDoor");
+      calls.picks.push(o);
+      return typeof door === "function" ? door(o) : door;
+    };
+  }
+  const spend = async () => void (order.push("spend"), calls.spends++);
+  return { deps, calls, order, spend };
+}
+const cast = (spell, r) => castSpellRun(spell, r.spend, r.deps);
+
+await ta("a cancel at the pick spends nothing, writes nothing and posts nothing", async () => {
+  const r = runDeps({ door: null });
+  const out = await cast(makeSpell(), r);
+  assert.deepEqual([out.ok, out.reason], [false, "cancelled"]);
+  assert.deepEqual(r.order, ["ask", "pickDoor"]);
+  assert.deepEqual([r.calls.spends, r.calls.seals.length, r.calls.records.length, r.calls.posts.length], [0, 0, 0, 0]);
+});
+
+await ta("the pick is handed the caster's token, the seat and the spell's range at the cast", async () => {
+  const r = runDeps({ door: { skipped: true }, isGM: true });
+  const spell = makeSpell();
+  await cast(spell, r);
+  assert.deepEqual(r.calls.picks[0], { caster: spell.parent, casterToken: CASTER_TOKEN, rangeFeet: 30, isGM: true, cite: "" });
+});
+
+await ta("a skip goes on with the spell's own record and line, and writes nothing to a wall", async () => {
+  for (const door of [{ skipped: true }, undefined]) {
+    const r = runDeps({ door });
+    const out = await cast(makeSpell(), r);
+    assert.equal(out.ok, true);
+    assert.deepEqual(r.order, door ? ["ask", "pickDoor", "spend", "endHeld", "castId", "record", "post"] : ["ask", "spend", "endHeld", "castId", "record", "post"]);
+    assert.equal(r.calls.seals.length, 0);
+    const mark = spellEffectOf(r.calls.records[0]);
+    assert.equal(mark.seal, undefined, "no wall on the record");
+    assert.equal(mark.startTime, 10, "the record is the spell's own, timed");
+    assert.deepEqual(r.calls.posts[0].lines, [describeSpellEffect(SEAL_ROW).text]);
+  }
+});
+
+await ta("a pick is written after the spend with the cast's id, the record carries the wall, and the card says what was sealed", async () => {
+  const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  const spell = makeSpell();
+  const out = await cast(spell, r);
+  assert.equal(out.ok, true);
+  assert.deepEqual(r.order, ["ask", "pickDoor", "spend", "endHeld", "castId", "seal", "record", "post"]);
+  assert.deepEqual(r.calls.seals[0], { casterUuid: "Actor.c1", spellUuid: spell.uuid, castId: "castX", sceneId: "s1", wallId: "w1", rangeFeet: 30 });
+  const record = r.calls.records[0];
+  assert.deepEqual(sealOf(record), WALL);
+  assert.equal(spellEffectOf(record).castId, "castX", "the record carries the id the stamp carries");
+  assert.equal(spellEffectOf(record).startTime, 10);
+  assert.deepEqual(r.calls.posts[0].lines, ['ACKS-MAGIC.cast.line.sealed|{"duration":"2 hours"}', "ACKS-MAGIC.cast.line.sealEnd"], "in place of the spell's own line");
+  assert.equal(r.calls.texts.length, 0);
+});
+
+await ta("a Judge's pick past the range is asked for with no range, so the GM's client measures none", async () => {
+  const r = runDeps({ door: { wallId: "w1", sceneId: "s1", over: true }, isGM: true });
+  await cast(makeSpell(), r);
+  assert.equal(r.calls.seals[0].rangeFeet, null);
+});
+
+await ta("a spell that states no range sends none", async () => {
+  const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  await cast(makeSpell({ extra: { range: undefined } }), r);
+  assert.equal(r.calls.picks[0].rangeFeet, null);
+  assert.equal(r.calls.seals[0].rangeFeet, null);
+});
+
+await ta("a refused write is a line on the card and a notice to the seat; the spend stands and the record names no wall", async () => {
+  const answers = [
+    ["ACKS-MAGIC.castSeal.refused.outOfRange", async () => ({ ok: false, reason: "outOfRange" })],
+    ["ACKS-MAGIC.castSeal.refused.noGm", async () => undefined],
+    ["ACKS-MAGIC.castSeal.refused.failed", async () => { throw new Error("socket"); }],
+  ];
+  const logged = console.error;
+  console.error = () => {};
+  for (const [why, seal] of answers) {
+    const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+    r.deps.seal = seal;
+    const out = await cast(makeSpell(), r);
+    assert.equal(out.ok, true);
+    assert.equal(r.calls.spends, 1);
+    assert.deepEqual(r.calls.texts, [["warn", why]], why);
+    assert.deepEqual(r.calls.posts[0].lines, ["ACKS-MAGIC.cast.line.sealRefused|" + JSON.stringify({ reason: why }), describeSpellEffect(SEAL_ROW).text]);
+    assert.equal(spellEffectOf(r.calls.records[0]).seal, undefined);
+  }
+  console.error = logged;
+});
+
+await ta("a sealed cast whose spell is untimed still leaves its record, bare, so the stamp has a record to end it", async () => {
+  const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  await cast(makeSpell({ rows: [{ key: "shut", type: "seal" }], extra: { duration: undefined } }), r);
+  assert.equal(r.calls.records.length, 1);
+  const record = spellEffectOf(r.calls.records[0]);
+  assert.deepEqual([record.seal, record.startTime, record.duration], [WALL, undefined, undefined]);
+});
+
+await ta("a spell with no seal row asks for no door", async () => {
+  const r = runDeps({ door: { wallId: "w1", sceneId: "s1" } });
+  await cast(makeSpell({ rows: [{ key: "dim", type: "light", lasts: "duration" }] }), r);
+  assert.equal(r.calls.picks.length, 0);
+  assert.equal(r.calls.seals.length, 0);
+});
+
+console.log(`\n${n + na} tests passed`);

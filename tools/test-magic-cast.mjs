@@ -32,6 +32,7 @@ const { castCapacity, traditionFor, spendsFromPool } = await import("../scripts/
 const { castVerdicts, blocked } = await import("../scripts/magic/cast-plan.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
+const { castControlOutcome, applyCastControl } = await import("../scripts/magic/cast-control.mjs");
 const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
 const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, castReach, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
@@ -277,6 +278,59 @@ await ta("a summoning's end counts what its cast holds in a party token, and pos
   assert.equal(posted[0].tokens.length, 0);
   const none = { ...doc, uuid: "u2" };
   assert.deepEqual(await announceEndedCast(none, { ...deps, standing: () => ({ tokens: [], held: [] }) }), { posted: false, reason: "noneStanding" });
+});
+
+/** A caster of invented creatures: its spell `sp1` carries these summon rows, and `at(token)` is a standing creature whose record names the cast, the spell and the creature by `name`. */
+const ctlCaster = (rows) => ({ uuid: "Actor.c1", items: { get: (id) => (id === "sp1" ? { type: "spell", id: "sp1", flags: { "acks-extras": { spell: { effects: rows } } } } : null) } });
+const ctlRecord = (name, over = {}) => ({ sourceUuid: `Actor.${name}`, name, castId: "cast1", spellId: "sp1", at: 0, ...over });
+const ctlToken = (name, id, over) => ({ uuid: `Scene.s1.Token.${id}`, id, name, actor: { getFlag: (_m, key) => ({ summonedBy: "Actor.c1", summon: ctlRecord(name, over) })[key] ?? null } });
+const ctlLookups = { byCookbookId: () => null, fromUuidSync: () => null };
+
+t("the control end is the spell row's word for the creature the cast made, and stays wherever no row says otherwise", () => {
+  const row = (name, controlEnd) => ({ type: "summon", ref: name, name, amount: 1, controlEnd });
+  const found = (name) => ({ tokens: [ctlToken(name, "t1")], held: [] });
+  const two = ctlCaster([row("Alphamoth", "gone"), row("Betamoth", "hostile")]);
+  assert.equal(castControlOutcome(two, found("Alphamoth"), ctlLookups), "gone");
+  assert.equal(castControlOutcome(two, found("Betamoth"), ctlLookups), "hostile", "the row that names this creature, not the first row");
+  assert.equal(castControlOutcome(ctlCaster([row("Alphamoth", "gone")]), found("Strangemoth"), ctlLookups), "gone", "no row names it, and the rows agree");
+  assert.equal(castControlOutcome(ctlCaster([row("Alphamoth", "gone"), row("Betamoth", "hostile")]), found("Strangemoth"), ctlLookups), "stays", "no row names it and the rows differ");
+  assert.equal(castControlOutcome(ctlCaster([row("Alphamoth", "")]), found("Alphamoth"), ctlLookups), "stays", "a blank key reads as stays");
+  assert.equal(castControlOutcome(ctlCaster([row("Alphamoth", "vanish")]), found("Alphamoth"), ctlLookups), "stays", "an unknown word reads as stays");
+  assert.equal(castControlOutcome(ctlCaster([]), found("Alphamoth"), ctlLookups), "stays", "a spell with no row");
+  assert.equal(castControlOutcome(two, { tokens: [ctlToken("Alphamoth", "t1", { spellId: "gone" })], held: [] }, ctlLookups), "stays", "a spell no longer on the caster");
+  assert.equal(castControlOutcome(two, { tokens: [], held: [{ name: "Betamoth", record: ctlRecord("Betamoth") }] }, ctlLookups), "hostile", "a stashed creature is read by its record");
+  assert.equal(castControlOutcome(two, { tokens: [], held: [] }, ctlLookups), "stays");
+});
+
+await ta("applying a cast's control end resolves the outcome from the spell and hands it, with the cast id alone, to lib; a cast with nothing standing asks nothing", async () => {
+  const caster = ctlCaster([{ type: "summon", ref: "Alphamoth", name: "Alphamoth", amount: 1, controlEnd: "gone" }]);
+  const applied = [];
+  const deps = { caster: () => caster, standing: () => ({ tokens: [ctlToken("Alphamoth", "t1")], held: [] }), lookups: ctlLookups, apply: async (who, o) => (applied.push([who.uuid, o]), { ok: true, outcome: o.outcome }) };
+  assert.deepEqual(await applyCastControl({ casterUuid: "Actor.c1", castId: "cast1", outcome: "hostile" }, deps), { ok: true, outcome: "gone" }, "a request's outcome is never read");
+  assert.deepEqual(applied, [["Actor.c1", { castId: "cast1", outcome: "gone" }]]);
+  const empty = await applyCastControl({ casterUuid: "Actor.c1", castId: "cast1" }, { ...deps, standing: () => ({ tokens: [], held: [] }), apply: async () => assert.fail("nothing stands") });
+  assert.equal(empty.ok, true);
+  assert.equal(empty.outcome, "stays");
+  assert.deepEqual(await applyCastControl({ casterUuid: "Actor.none", castId: "cast1" }, { ...deps, caster: () => null }), { ok: false, reason: "noCaster" });
+});
+
+await ta("at a timed end creatures that go post no card, while creatures that stay or turn hostile keep theirs; the outcome rides to the card, and with nothing applied the card is as it was", async () => {
+  const mark = { spellUuid: "s", castId: "cast1", casterUuid: "Actor.c1", role: "caster" };
+  const doc = (uuid) => ({ uuid, _source: { start: { time: 0 }, duration: { value: 1, units: "minutes" } }, flags: { "acks-extras": { spellEffect: mark } } });
+  const posted = [];
+  const asked = [];
+  const run = async (uuid, control) => announceEndedCast(doc(uuid), { worldTime: 99, stamp: async () => {}, standing: () => ({ tokens: [{ uuid: "T.1" }], held: [] }), post: async (o) => posted.push(o), control: control && (async (record) => (asked.push(record.castId), control)) });
+  assert.deepEqual(await run("g", { ok: true, outcome: "gone" }), { posted: false, reason: "gone", n: 1, outcome: "gone" });
+  assert.equal(posted.length, 0, "no card for creatures that went");
+  assert.deepEqual(asked, ["cast1"], "asked of the record's own cast");
+  assert.deepEqual(await run("u", { ok: true, outcome: "gone", unapplied: 1 }), { posted: true, n: 1, outcome: "gone" }, "creatures that could not be removed keep the card");
+  posted.pop();
+  assert.deepEqual(await run("h", { ok: true, outcome: "hostile" }), { posted: true, n: 1, outcome: "hostile" });
+  assert.deepEqual(await run("s", { ok: true, outcome: "stays" }), { posted: true, n: 1, outcome: "stays" });
+  assert.deepEqual(posted.map((p) => p.outcome), ["hostile", "stays"]);
+  assert.deepEqual(await run("n", null), { posted: true, n: 1 }, "no GM answered: the card is posted and claims no outcome");
+  assert.deepEqual(await run("r", { ok: false, reason: "noCaster" }), { posted: true, n: 1 });
+  assert.equal(posted.at(-1).outcome, null);
 });
 
 /* ------------------------------------------------------------------ */

@@ -504,6 +504,44 @@ await ta("any other summons is core-timed with no startTime of this module's own
   assert.equal(none.duration, undefined);
 });
 
+await ta("a conjuration whose printed duration is no concentration casts held, the printed duration its cap; no other format, and no unreadable duration, does", async () => {
+  const written = async (format, duration, over = {}) => {
+    const r = runDeps({ answer: answerOf() });
+    await cast(makeSpell({ extra: { duration }, rows: [row({ summonFormat: format, ...over })] }), r);
+    return r.calls.records[0];
+  };
+  const printed = { shape: "fixed", value: 2, unit: "hours" };
+  const conj = await written("conjuration", printed);
+  const read = castDuration(printed, {});
+  assert.deepEqual(conj.statuses, ["concentrating"], "the caster holds it");
+  assert.deepEqual([spellEffectOf(conj).held, spellEffectOf(conj).duration, spellEffectOf(conj).startTime], ["mobile", read, 10], "flag-timed by the printed duration, so the clock ends it as a held cast");
+  for (const format of ["summoning", "calling", undefined]) assert.deepEqual((await written(format, printed)).statuses, undefined, `${format} is core-timed as before`);
+  const conc = { shape: "concentrationMax", concentration: "stationary", value: 1, unit: "hours" };
+  assert.deepEqual(spellEffectOf(await written("conjuration", conc)).held, "stationary", "a duration that is already a concentration reads as it was");
+  assert.equal((await written("conjuration", { shape: "special" })).statuses, undefined, "an unreadable duration has no cap to hold by");
+  assert.equal((await written("conjuration", {})).statuses, undefined);
+  assert.equal((await written("conjuration", printed, { ref: "def.invented.other" })).statuses, undefined, "a creature no conjuration row names is not conjured");
+});
+
+await ta("the pure halves: a conjured creature is one every fitting row calls a conjuration, the held reading wraps only a timed duration, and the end is the first fitting row's word", async () => {
+  const { summonIsConjuration, controlEndFor } = await import("../scripts/magic/cast-summon.mjs");
+  const { heldByConjuration } = await import("../scripts/magic/cast-duration.mjs");
+  const mine = { source: GLIMMER, sourceRef: REF };
+  assert.equal(summonIsConjuration([row({ summonFormat: "conjuration" })], mine), true);
+  assert.equal(summonIsConjuration([row({ summonFormat: "conjuration" }), row({ summonFormat: "calling" })], mine), false, "every fitting row must say so");
+  assert.equal(summonIsConjuration([row({ summonFormat: "conjuration", ref: "def.invented.other" })], mine), false);
+  assert.equal(summonIsConjuration([], mine), false);
+  assert.deepEqual(heldByConjuration({ value: 6, units: "seconds" }, true), { none: "untimed", held: "mobile", cap: { value: 6, units: "seconds" } });
+  const timed = { value: 6, units: "seconds" };
+  assert.equal(heldByConjuration(timed, false), timed);
+  assert.deepEqual(heldByConjuration({ none: "untimed", held: "stationary", cap: timed }, true), { none: "untimed", held: "stationary", cap: timed });
+  assert.deepEqual(heldByConjuration({ none: "noShape" }, true), { none: "noShape" });
+  assert.equal(heldByConjuration(undefined, true), undefined);
+  assert.equal(controlEndFor([row({ controlEnd: "hostile" })], mine), "hostile");
+  assert.equal(controlEndFor([row({ controlEnd: "" }), row({ controlEnd: "gone" })], mine), "gone", "the first fitting row that states one");
+  assert.equal(controlEndFor([row()], mine), "stays");
+});
+
 await ta("the timed end still posts Dismiss: the record the cast wrote is announced by the clock, with the cast id its creatures carry, and a flag-timed record is deleted instead", async () => {
   const r = runDeps({ answer: answerOf() });
   await cast(makeSpell({ extra: { duration: { shape: "fixed", value: 2, unit: "hours" } } }), r);

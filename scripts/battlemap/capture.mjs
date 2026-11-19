@@ -12,7 +12,7 @@
 
 import { fitGrid } from "./calibrate-logic.mjs";
 import { backgroundTexture } from "./scene-image.mjs";
-import { buildPointerCatcher } from "./pointer-catcher.mjs";
+import { buildPointerCatcher } from "../lib/pointer-catcher.mjs";
 
 const COLOR_SQUARE = 0xff3333;
 const COLOR_CORNER = 0x3399ff;
