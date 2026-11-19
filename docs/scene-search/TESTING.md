@@ -4,9 +4,9 @@ Format per docs-doctrine: fixtures → steps → observable → teardown. Server
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. Offline coverage
 of the haul is `tools/test-scene-haul.mjs`; of the model, `tools/test-scene-search.mjs`.
 Neither proves a window opens or a Card writes; only this walk does. The screen
-(S4) has no walk here yet. The session API and the activities (S2) are written
-up below and not yet walked; the haul's steps above reach the Foundry side by a
-dynamic import in page context.
+(S4) has no walk here yet. The session API and the activities (S2) are below,
+walked by `tools/live/scene-search-session.mjs`; the haul's steps above reach
+the Foundry side by a dynamic import in page context.
 
 The walk needs a real Judge seat and a real Player seat joined at once
 (`live-testing.md`): the found-only rule is a projection on the player's client,
@@ -111,13 +111,38 @@ const r = await dealSceneHaul({
    treasure recipe's Take step). Observable: the unfound Card is still
    unclaimed and face down.
 
-## S2 — session, activities and drops (NOT YET WALKED)
+## S2 — session, activities and drops
 
 Offline coverage is `tools/test-scene-session.mjs` (the world, the refusals,
 resolution, the Round seam, the api) and `tools/test-scene-drop.mjs`
-(`placesAround` and the map drop). Nothing below has been driven live; the
-offline suites run over a fake world and prove neither a Region's `testPoint`
-nor a real plan relay.
+(`placesAround` and the map drop); they run over a fake world and prove
+neither a Region's `testPoint` nor a real plan relay. The walk is
+`tools/live/scene-search-session.mjs` (`node tools/live/run.mjs
+scene-search-session`). It keeps its own party, `scene-search/session-party`,
+and two Items, `scene-search/drop-trap` and `scene-search/drop-hazard`, beside
+the fixtures below; the place a bare-Region drop makes and the wall it places
+are the run's own, retired by marker at its start and swept by id at its end.
+
+What driving it taught:
+
+- **`partyId` is the formation's id**, not the party actor's
+  (`getFormation(partyId)`), and the Round press takes the formation object.
+- **Advance turn keeps an entry resolved this turn, stamped, until the next
+  advance.** Check that nothing is left unresolved, not that the plan is empty;
+  `unassign` empties it.
+- **Hold the die until the throw lands, not until the clock moves.** The turn
+  is spent before the entry rolls, so release the rig once the thing's
+  `state.layers.methodical.done` is true.
+- **The searchers' throws are the fixtures' own invented figures** (a hand-made
+  ability bound to Search, as the turn-plan walk gives its thief), so
+  `scene:notImported` does not occur; the imported reach is the world's own,
+  and the walk is blocked without it.
+- **The map drop is `Hooks.call("dropCanvasData", canvas, data)`** on the
+  walk's scene, viewed on the GM seat; the Region window's drop is a `drop`
+  event dispatched on its Place row's zone, and the check passes only on that
+  event.
+- **The Player 1 read runs before the Turn press**, since the Turn reveals the
+  hidden container, and End runs before the drops.
 
 Fixtures, found by `flags.world.fixture`:
 
