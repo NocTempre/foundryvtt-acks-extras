@@ -70,3 +70,9 @@ Owner: "Parse once, read everywhere". Tree: `topic/parse-once`.
 - `topic/importer-books` (Treasure Tome) is also in `scripts/importer/`. Sync before each slice.
 
 ## Results
+- 2026-11-18: S4 board drawn: https://claude.ai/artifact/VsjqZLqa1Q8LNqEZJdiNho ("Parse once: Books tab"). The owner answered:
+  - The board: "Approve, build it", taking the designer's recommendations. The closed fold shows stale and refused counts. A Refused row offers Remove only. A press's result shows as a notification. There is no confirm before reading, and Remove is disabled while a read runs. Players see the state lines.
+  - When and by whom: "No, keep it simple". The pointer stays `{stamp, file, src, bytes, numPages, title}`.
+  - Label: "Read now / Read again". "Read now" shows when no text is prepared, "Read again" otherwise.
+  - File check: "Only when touched". Refused shows only after an import, a repair or a press this session.
+  - The board also rewrites `statusNote`, which says the file is never stored and becomes false after S2.
