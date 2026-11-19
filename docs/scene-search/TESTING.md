@@ -158,16 +158,18 @@ Judge seat:
    `ok` is true; the party actor's `flags.acks-extras.sceneSearch` holds the
    place, the pot's uuid and a `lots` row per dealt lot; the place's own
    `things` list holds no lot key; the pot's flag carries the party's id.
-2. **Assign** the skilled searcher to the floor's hasty check, the plain one to
-   the same check, and the plain one to the container's methodical check
-   (`assign({partyId, actorId, layer, entryKey})`). Observables: the party's
-   `turnPlan` holds each entry, `key` `sceneHasty` or `sceneMethodical`, option
-   the entry key; the thing past the reach is refused `scene:outOfReach`.
+2. **Assign** the skilled searcher to the first floor's hasty check and the plain
+   one to a second floor's (`assign({partyId, actorId, layer, entryKey})`). A
+   member has one plan entry, so the next assign replaces it. Observables: the
+   party's `turnPlan` holds each entry, `key` `sceneHasty`, option the entry key;
+   assigning either to the thing past the reach is refused `scene:outOfReach`.
 3. **Round press** (die held at a 20 for the skilled searcher). Observables: the
-   floor's lot card reads `found: true`; the thing's `state.layers.hasty.found`
-   is true; the plain searcher's hasty entry gave no roll and the log row is
-   `scene:vague`; the Judges received one whispered card for the throw, the
-   table none; the hasty entries are gone from the plan.
+   first floor's lot card reads `found: true`; the thing's `state.layers.hasty.found`
+   is true; the plain searcher's entry gave no roll and the log row is
+   `scene:vague` (a second searcher at the floor already found would be refused
+   `scene:alreadyFound` and log nothing); the Judges received one whispered card
+   for the throw, the table none; the hasty entries are gone from the plan.
+   Then assign the plain searcher to the container's methodical check.
 4. **The lock.** Repeat with the die at a 1 on a second floor thing: the thing's
    `state.layers.hasty.failed` holds the character's id and level, and assigning
    them to that check again is refused `scene:hastyLocked`. Raise the character's
@@ -186,7 +188,9 @@ Player seat:
 1. `read(partyId)` hides the hidden container and every unfound yield, and
    shows the "something more" mark on the fixture.
 2. `assign` for the player's own character goes through the party's plan relay
-   and the Judge sees the declaration; for another member it is refused.
+   and the Judge sees the declaration (the answer `ok: true` means declared: the
+   Judge's client may still refuse it); for another member it is refused
+   `scene:notAllowed` on the player's own client.
 3. `open` and `end` answer `scene:notAllowed`.
 
 Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept

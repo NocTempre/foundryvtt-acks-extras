@@ -24,6 +24,8 @@ registry's activity key says which layer rolls and the option id is the entry's
 key. `open` and `end` have no relay that fits (the `plan` relay carries a plan
 entry and nothing else), so a player's call is refused with `scene:notAllowed`;
 the Dungeon tab's Search here (S5) brings its own declaration.
+A player's `ok: true` means declared, since the relay answers a plan request
+nothing; a character the seat does not own is refused on the seat itself.
 Known edge: the relay's registrant calls carry no user, so a hand-made `plan`
 request from a player could name an entry the Judge has not shown. The
 projection hides hidden entries from every screen and from `options`, but the
@@ -57,3 +59,13 @@ with a behavior is a zone, a terrain or a district, another feature's area, and
 is not made a place by a drop. A trap is the wall assignment's first (`installTrapDrop`)
 and falls to the place only where no wall is near; the Region row's own map
 hook takes obstacles and conditions and never a trap.
+
+## 2026-11-18 — An unimported reach never refuses
+
+Built to the model (`scene-logic.mjs`): a thing with a point is out of reach
+only when the reach is imported and the scene has a scale and the party token
+is on the scene; otherwise reach is the Judge's call. The brief's "with nothing
+imported, nothing is in reach by distance" reads the other way, as a refusal
+that would block every point-bearing thing in a world with no import. Open for
+the owner. The gate would go in `activities.mjs` `blockedOf` and
+`resolveSceneCheck`.

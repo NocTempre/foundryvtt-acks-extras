@@ -87,7 +87,8 @@ const members = {
 };
 const scene = { id: "s1", grid: { size: 100, distance: 5, units: "ft" }, tokens: new Map(), walls: new Map([["w9", { id: "w9" }]]) };
 scene.tokens.set("t1", { id: "t1", x: 0, y: 0, width: 1, height: 1, parent: scene });
-const formationRecord = () => ({ id: "f1", name: "Party", actorId: "party1", sceneId: "s1", tokenId: "t1", stance: {}, clock: { turnsTotal: 3 }, members: Object.keys(members).map((actorId) => ({ actorId })) });
+let hurried = false;
+const formationRecord = () => ({ id: "f1", name: "Party", actorId: "party1", sceneId: "s1", tokenId: "t1", stance: { pace: hurried ? "hurried" : "normal" }, clock: { turnsTotal: 3 }, members: Object.keys(members).map((actorId) => ({ actorId })) });
 
 const user = { id: "j1", isGM: true };
 const messages = new Map();
@@ -246,7 +247,7 @@ const FIG = { hastyTarget: 14, methodicalTarget: 16, searchBonus: null, skillTar
 }
 
 /* ---------------- the world: activities, resolution, the seams ---------------- */
-tables.registerTable({ id: FORMATION_DOC, tables: { searchReachFeet: 10 } }, { priority: tables.PRIORITY.WORLD });
+tables.registerTable({ id: FORMATION_DOC, tables: { searchReachFeet: 7 } }, { priority: tables.PRIORITY.WORLD });
 const dice = [];
 const posted = [];
 const revealed = [];
@@ -296,12 +297,17 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   tables.unregisterTable(FORMATION_DOC);
   const unimported = offeredActivities(members.a1, { formation: formation() }).find((r) => r.key === ACTIVITY.HASTY && r.option.id === "thing:thing-6");
   eq(unimported.blocked, null, "with no reach imported nothing is out of reach by distance");
-  tables.registerTable({ id: FORMATION_DOC, tables: { searchReachFeet: 10 } }, { priority: tables.PRIORITY.WORLD });
+  tables.registerTable({ id: FORMATION_DOC, tables: { searchReachFeet: 7 } }, { priority: tables.PRIORITY.WORLD });
   const closer = structuredClone(LIST);
   closer.find((t) => t.id === "thing-6").point = { x: 100, y: 0 };
   await place.update({ [THINGS]: ForcedReplacement.create(closer) });
   eq(offeredActivities(members.a1, { formation: formation() }).find((r) => r.key === ACTIVITY.HASTY && r.option.id === "thing:thing-6").blocked, null, "a thing within the reach is in reach");
   await place.update({ [THINGS]: ForcedReplacement.create(structuredClone(LIST)) });
+
+  hurried = true;
+  const hurriedRows = offeredActivities(members.a1, { formation: formation() });
+  eq([hurriedRows.find((r) => r.key === ACTIVITY.HASTY && r.option.id === "thing:thing-2").blocked?.reason, hurriedRows.find((r) => r.key === ACTIVITY.HASTY && r.option.id === "thing:thing-1").blocked, hurriedRows.find((r) => r.key === ACTIVITY.METHODICAL && r.option.id === "thing:thing-2").blocked], ["hurried", null, null], "a hasty search is refused at combat speed, an inspection and a methodical check are not");
+  hurried = false;
 
   // refusals through the lock
   const lock = (actorKey, actor, key, option) => lockActivity({}, { actorId: actorKey, actor, key, option, ctx: { formation: formation() } });
@@ -417,10 +423,16 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   eq((await api.assign({ partyId: "f1", actorId: "zz", layer: "hasty", entryKey: "thing:thing-1" })).reason, SESSION_REFUSAL.NOT_A_MEMBER, "a stranger is refused");
   eq((await api.assign({ partyId: "f1", actorId: "a1", layer: "bogus", entryKey: "thing:thing-1" })).reason, SESSION_REFUSAL.NOT_OFFERED, "a layer that is not one is refused");
   user.isGM = false;
+  members.a2.testUserPermission = () => true;
+  members.a3.testUserPermission = () => true;
+  members.a1.testUserPermission = () => false;
+  eq([(await api.assign({ partyId: "f1", actorId: "a1", layer: "hasty", entryKey: "thing:thing-1" })).reason, (await api.unassign({ partyId: "f1", actorId: "a1" })).reason], [SESSION_REFUSAL.NOT_ALLOWED, SESSION_REFUSAL.NOT_ALLOWED], "a player assigns and unassigns only a character they own");
+  eq(relayed.length, 0, "and nothing is relayed for anyone else");
   eq((await api.assign({ partyId: "f1", actorId: "a2", layer: "methodical", entryKey: "thing:thing-1" })).ok, true, "a player's assignment goes through the party's plan relay");
   eq(relayed[0], ["f1", "plan", { actorId: "a2", key: ACTIVITY.METHODICAL, option: "thing:thing-1" }], "as that request");
   eq((await api.assign({ partyId: "f1", actorId: "a3", layer: "methodical", entryKey: "thing:thing-1" })).reason, REFUSAL.TOOL_MISSING, "and is refused on the player's own client with the reason");
   eq(relayed.length, 1, "without being relayed");
+  members.a1.testUserPermission = undefined;
   eq([(await api.open({ partyId: "f1", placeUuid: place.uuid })).reason, (await api.end("f1")).reason], [SESSION_REFUSAL.NOT_ALLOWED, SESSION_REFUSAL.NOT_ALLOWED], "a player opens and ends nothing");
   const seen = api.read("f1");
   ok(seen.entries.every((e) => ["hasty", "methodical"].every((n) => SL.layerState(e, n).found || e.layers[n].yields.lots.length === 0)), "a player's read carries no unfound lot key");
@@ -433,6 +445,9 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   eq((await api.open({ partyId: "zz", placeUuid: place.uuid })).reason, SESSION_REFUSAL.NO_PARTY, "an unknown party is refused");
   eq((await api.end("f1")).ok, true, "the Judge ends the session");
   eq([S.readSession(formation()), api.read("f1")], [null, null], "and nothing is left on the party");
+  eq([(await api.assign({ partyId: "f1", actorId: "a1", layer: "hasty", entryKey: "thing:thing-1" })).reason, (await api.unassign({ partyId: "f1", actorId: "a1" })).reason, (await api.end("f1")).reason], [SESSION_REFUSAL.NO_SESSION, SESSION_REFUSAL.NO_SESSION, SESSION_REFUSAL.NO_SESSION], "with no session open there is nothing to assign to, unassign or end");
+  const nothingDealt = await api.open({ partyId: "f1", placeUuid: place.uuid, sources: [{ thing: "thing:thing-1", letters: [] }] });
+  eq([nothingDealt.reason, S.readSession(formation())], [SESSION_REFUSAL.DEAL_FAILED, null], "a haul that deals nothing refuses and opens no session");
   eq((await api.open({ partyId: "f1", placeUuid: "Actor.nowhere" })).reason, SESSION_REFUSAL.NO_PLACE, "a place that is not there is refused");
   eq((await api.open({ partyId: "f1", placeUuid: place.uuid, sources: [{ thing: "thing:nope", truths: [truth("x")] }] })).reason, SESSION_REFUSAL.UNKNOWN_ENTRY, "a source naming an entry the scene lacks is refused before anything is dealt");
   const potsBefore = piles.length;

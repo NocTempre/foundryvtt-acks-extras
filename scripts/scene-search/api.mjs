@@ -5,7 +5,8 @@
  * `scene:` reason, since the one relay that exists (the party's `plan` request)
  * carries a player's plan entry and nothing else. Assigning a member is a plan
  * lock, so a player assigns their own character through that relay and the Judge
- * is told, and a Judge's call locks the plan directly. The read calls answer
+ * is told, and a Judge's call locks the plan directly. For a player `ok: true`
+ * means the request was declared to the Judge, who may still refuse it. The read calls answer
  * every seat, a player's through the projection that strips what is unfound.
  *
  * The turn plan, the party's request relay and the fight's record are reached
@@ -26,6 +27,9 @@ import { readSession, readWorld, writeSession } from "./session.mjs";
 
 const refuse = (reason, extra = {}) => ({ ok: false, reason, ...extra });
 const isGM = () => !!game.user?.isGM;
+
+/** Does this seat own the actor? A player's plan request for anyone else would be dropped by the relay without an answer, so it is refused here. */
+const ownsActor = (actorId) => game.actors?.get(actorId)?.testUserPermission?.(game.user, "OWNER") ?? false;
 
 /** The activity key a layer name is assigned through. */
 const activityOf = (layer) => (layer === LAYER.METHODICAL ? ACTIVITY.METHODICAL : layer === LAYER.HASTY ? ACTIVITY.HASTY : null);
@@ -95,6 +99,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     if (!world) return refuse(SESSION_REFUSAL.NO_SESSION);
     if (!world.entries.some((e) => e.key === entryKey)) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY);
     if (!formation.members?.some((m) => m.actorId === actorId)) return refuse(SESSION_REFUSAL.NOT_A_MEMBER);
+    if (!isGM() && !ownsActor(actorId)) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
     const turnPlan = await planOf();
     const asked = { actorId, key, option: entryKey, by: game.user.id };
     if (isGM()) {
@@ -111,6 +116,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     const formation = getFormation(partyId);
     if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
     if (!readSession(formation)) return refuse(SESSION_REFUSAL.NO_SESSION);
+    if (!isGM() && !ownsActor(actorId)) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
     const turnPlan = await planOf();
     if (isGM()) return { ok: true, unlocked: await turnPlan.unlockPlan(formation, actorId) };
     await request(formation.id, "plan", { actorId, unlock: true });
