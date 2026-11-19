@@ -276,12 +276,31 @@ await ok("modifiedFormula signs each figure, drops a zero and keeps a formula fr
 await ok("carrierCardMatch finds only the attack card of a carrier attack in flight, by the speaker's actor", () => {
   const map = new Map([["Actor.caster", { castId: "c3", rowKey: "scorch", spellUuid: "Item.testScorch" }]]);
   const card = '<section class="acksii chat-card attack-throw-card"></section>';
-  assert.deepEqual(carrierCardMatch({ actorUuid: "Actor.caster", content: card }, map), { castId: "c3", rowKey: "scorch", spellUuid: "Item.testScorch" });
-  assert.equal(carrierCardMatch({ actorUuid: "Actor.other", content: card }, map), null, "another actor's card");
-  assert.equal(carrierCardMatch({ actorUuid: "Actor.caster", content: "<p>hello</p>" }, map), null, "another kind of message");
-  assert.equal(carrierCardMatch({ actorUuid: null, content: card }, map), null, "no actor");
-  assert.equal(carrierCardMatch({ actorUuid: "Actor.caster", content: card }, new Map()), null, "nothing in flight");
+  assert.deepEqual(carrierCardMatch({ actorUuids: ["Actor.caster"], content: card }, map), { castId: "c3", rowKey: "scorch", spellUuid: "Item.testScorch" });
+  assert.equal(carrierCardMatch({ actorUuids: ["Actor.other"], content: card }, map), null, "another actor's card");
+  assert.equal(carrierCardMatch({ actorUuids: ["Actor.caster"], content: "<p>hello</p>" }, map), null, "another kind of message");
+  assert.equal(carrierCardMatch({ actorUuids: [], content: card }, map), null, "no actor");
+  assert.equal(carrierCardMatch({ actorUuids: [null], content: card }, map), null, "a null entry");
+  assert.equal(carrierCardMatch({ actorUuids: ["Actor.caster"], content: card }, new Map()), null, "nothing in flight");
   assert.equal(carrierCardMatch({}, map), null);
+});
+
+await ok("carrierCardMatch finds a cast held under the world actor from its unlinked token's speaker, and the exact uuid wins", () => {
+  const card = '<section class="acksii chat-card attack-throw-card"></section>';
+  const world = { castId: "cW", rowKey: "scorch", spellUuid: "Item.testScorch" };
+  const synthetic = { castId: "cT", rowKey: "scorch", spellUuid: "Item.testScorch" };
+  const speaker = ["Scene.s.Token.t.Actor.a", "Actor.a"];
+  assert.deepEqual(carrierCardMatch({ actorUuids: speaker, content: card }, new Map([["Actor.a", world]])), world, "held under the world actor");
+  assert.deepEqual(carrierCardMatch({ actorUuids: speaker, content: card }, new Map([["Actor.a", world], ["Scene.s.Token.t.Actor.a", synthetic]])), synthetic, "the exact uuid wins");
+  assert.equal(carrierCardMatch({ actorUuids: ["Scene.s.Token.t.Actor.b", "Actor.b"], content: card }, new Map([["Actor.a", world]])), null, "another actor");
+});
+
+await ok("speakerActorUuids lists the speaker's uuid, then its base actor's when it is a token's, without nulls or repeats", () => {
+  assert.deepEqual(seam.speakerActorUuids({ uuid: "Actor.a" }), ["Actor.a"]);
+  assert.deepEqual(seam.speakerActorUuids({ uuid: "Scene.s.Token.t.Actor.a", isToken: true, token: { baseActor: { uuid: "Actor.a" } } }), ["Scene.s.Token.t.Actor.a", "Actor.a"]);
+  assert.deepEqual(seam.speakerActorUuids({ uuid: "Scene.s.Token.t.Actor.a", isToken: true, token: { baseActor: null } }), ["Scene.s.Token.t.Actor.a"], "no base actor");
+  assert.deepEqual(seam.speakerActorUuids({ uuid: "Actor.a", isToken: true, token: { baseActor: { uuid: "Actor.a" } } }), ["Actor.a"], "no repeat");
+  assert.deepEqual(seam.speakerActorUuids(null), []);
 });
 
 await ok("stripApplyDamage removes the apply button and the group it empties, and leaves every other button alone", () => {
@@ -357,20 +376,46 @@ await ok("attackDamageOf reads the weapon's base damage and core's silver field,
 
 await ok("attackApplyMatch reads the figure and the target off the apply button, and nothing it cannot read whole", () => {
   const map = new Map([["Actor.a", { types: ["cold"], extraordinary: true, silver: false }]]);
-  assert.deepEqual(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard() }, map), {
+  assert.deepEqual(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard() }, map), {
     targetUuid: "Scene.s1.Token.t9", rolled: 11, types: ["cold"], extraordinary: true, silver: false,
   });
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "0" }) }, map).rolled, 0, "a floor of 0 is still a hit");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "x" }) }, map), null, "no figure");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "" }) }, map), null, "a blank figure is not zero");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ damage: "-3" }) }, map), null);
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard({ target: "" }) }, map), null, "no target");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: '<section class="attack-throw-card"><button data-action="applyDamage">x</button></section>' }, map), null, "a button with neither attribute");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: '<section class="attack-throw-card">a miss</section>' }, map), null, "a miss has no button");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.b", content: hitCard() }, map), null, "another actor");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: "<p>hello</p>" }, map), null, "another kind of message");
-  assert.equal(seam.attackApplyMatch({ actorUuid: "Actor.a", content: hitCard() }, new Map()), null, "nothing in flight");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard({ damage: "0" }) }, map).rolled, 0, "a floor of 0 is still a hit");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard({ damage: "x" }) }, map), null, "no figure");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard({ damage: "" }) }, map), null, "a blank figure is not zero");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard({ damage: "-3" }) }, map), null);
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard({ target: "" }) }, map), null, "no target");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: '<section class="attack-throw-card"><button data-action="applyDamage">x</button></section>' }, map), null, "a button with neither attribute");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: '<section class="attack-throw-card">a miss</section>' }, map), null, "a miss has no button");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.b"], content: hitCard() }, map), null, "another actor");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: "<p>hello</p>" }, map), null, "another kind of message");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Actor.a"], content: hitCard() }, new Map()), null, "nothing in flight");
   assert.equal(seam.attackApplyMatch({}, map), null);
+});
+
+await ok("attackApplyMatch finds an attack held under the world actor from its unlinked token's speaker, and the exact uuid wins", () => {
+  const world = { types: ["cold"], extraordinary: false, silver: false };
+  const synthetic = { types: ["fire"], extraordinary: false, silver: false };
+  const speaker = ["Scene.s.Token.t.Actor.a", "Actor.a"];
+  assert.deepEqual(seam.attackApplyMatch({ actorUuids: speaker, content: hitCard() }, new Map([["Actor.a", world]])).types, ["cold"], "held under the world actor");
+  assert.deepEqual(seam.attackApplyMatch({ actorUuids: speaker, content: hitCard() }, new Map([["Actor.a", world], ["Scene.s.Token.t.Actor.a", synthetic]])).types, ["fire"], "the exact uuid wins");
+  assert.equal(seam.attackApplyMatch({ actorUuids: ["Scene.s.Token.t.Actor.b", "Actor.b"], content: hitCard() }, new Map([["Actor.a", world]])), null, "another actor");
+});
+
+await ok("a card spoken by a world actor's unlinked token is stamped, for a weapon attack and for a cast, through the hook", async () => {
+  const hook = hooks.preCreateChatMessage.at(-1);
+  const world = makeActor("Actor.sidebar");
+  const tokenActor = { uuid: "Scene.s.Token.t.Actor.sidebar", isToken: true, token: { baseActor: world } };
+  const message = (content = hitCard()) => ({ speaker: { actorRef: tokenActor }, content, updates: [], updateSource(u) { this.updates.push(u); } });
+  const swing = message();
+  await makeAttackThrow.call(world, async () => { hook(swing); return null; }, { item: sword(world, { types: ["slashing"] }) });
+  assert.equal(swing.updates.length, 1, "the weapon card is stamped though the speaker is the token's actor");
+  assert.ok(`flags.acks-extras.${seam.ATTACK_APPLY_FLAG}` in swing.updates[0]);
+  const cast = message();
+  await makeAttackThrow.call(world, async () => { hook(cast); return null; }, { item: spellCarrier(world, SCORCH, { spell, castId: "c9", rowKey: "scorch" }) });
+  assert.ok(`flags.acks-extras.${MAGIC_ATTACK_FLAG}` in cast.updates[0], "the cast card carries the carrier mark");
+  const elsewhere = { speaker: { actorRef: { uuid: "Scene.s.Token.t.Actor.other", isToken: true, token: { baseActor: { uuid: "Actor.other" } } } }, content: hitCard(), updates: [], updateSource(u) { this.updates.push(u); } };
+  await makeAttackThrow.call(world, async () => { hook(elsewhere); return null; }, { item: sword(world) });
+  assert.deepEqual(elsewhere.updates, [], "another actor's token is untouched");
 });
 
 await ok("a weapon attack's card loses its Apply and gains the stamp in one update, only while that attack is in flight", async () => {

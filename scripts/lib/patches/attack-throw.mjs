@@ -381,13 +381,38 @@ const carrierInFlight = new Map();
  * attack in flight: the speaker's actor has one, and the content is the
  * system's attack card. Pure over what it is given.
  *
- * @param {{actorUuid?: string|null, content?: string}} data  the speaker's actor and the message's content
+ * @param {{actorUuids?: string[], content?: string}} data  the uuids the speaker's actor may be held under, most exact first (`speakerActorUuids`), and the message's content
  * @param {Map<string, {castId: string|null, rowKey: string, spellUuid: string|null}>} byUuid
  * @returns {{castId: string|null, rowKey: string, spellUuid: string|null}|null}
  */
-export function carrierCardMatch({ actorUuid = null, content = "" } = {}, byUuid = carrierInFlight) {
-  if (!actorUuid || typeof content !== "string" || !content.includes("attack-throw-card")) return null;
-  return byUuid.get(actorUuid) ?? null;
+export function carrierCardMatch({ actorUuids = [], content = "" } = {}, byUuid = carrierInFlight) {
+  if (typeof content !== "string" || !content.includes("attack-throw-card")) return null;
+  return heldUnder(actorUuids, byUuid);
+}
+
+/**
+ * The uuids an attack by the speaker's actor may be held under, most exact
+ * first. A world actor's sheet makes the attack on the world actor, while
+ * core's card names no token and Foundry then picks an unlinked token of that
+ * actor on the viewed scene as the speaker, so a token actor is also asked
+ * for under its base actor. Nulls and repeats are dropped.
+ *
+ * @param {Actor|null|undefined} actor  the speaker's actor
+ * @returns {string[]}
+ */
+export function speakerActorUuids(actor) {
+  const uuids = [actor?.uuid, actor?.isToken ? actor.token?.baseActor?.uuid : null];
+  return uuids.filter((uuid, at) => typeof uuid === "string" && uuid && uuids.indexOf(uuid) === at);
+}
+
+/** The entry of `byUuid` held under the first of `uuids` it has one for, or null. */
+function heldUnder(uuids, byUuid) {
+  for (const uuid of Array.isArray(uuids) ? uuids : []) {
+    if (!uuid) continue;
+    const held = byUuid.get(uuid);
+    if (held) return held;
+  }
+  return null;
 }
 
 /**
@@ -438,13 +463,13 @@ function applyAttribute(content, name) {
  * target. Pure over what it is given; a card it cannot read whole is null, so
  * nothing is changed on it.
  *
- * @param {{actorUuid?: string|null, content?: string}} data  the speaker's actor and the message's content
+ * @param {{actorUuids?: string[], content?: string}} data  the uuids the speaker's actor may be held under, most exact first (`speakerActorUuids`), and the message's content
  * @param {Map<string, {types: string[], extraordinary: boolean, silver: boolean}>} byUuid
  * @returns {{targetUuid: string, rolled: number, types: string[], extraordinary: boolean, silver: boolean}|null}
  */
-export function attackApplyMatch({ actorUuid = null, content = "" } = {}, byUuid = attackDamageInFlight) {
-  if (!actorUuid || typeof content !== "string" || !content.includes("attack-throw-card")) return null;
-  const damage = byUuid.get(actorUuid);
+export function attackApplyMatch({ actorUuids = [], content = "" } = {}, byUuid = attackDamageInFlight) {
+  if (typeof content !== "string" || !content.includes("attack-throw-card")) return null;
+  const damage = heldUnder(actorUuids, byUuid);
   const targetUuid = applyAttribute(content, "target-uuid");
   const text = applyAttribute(content, "damage");
   const rolled = text === null || text.trim() === "" ? NaN : Number(text);
@@ -461,7 +486,7 @@ export function attackApplyMatch({ actorUuid = null, content = "" } = {}, byUuid
 function onPreCreateMessage(message) {
   try {
     const actor = ChatMessage.getSpeakerActor(message?.speaker);
-    const data = { actorUuid: actor?.uuid ?? null, content: message?.content };
+    const data = { actorUuids: speakerActorUuids(actor), content: message?.content };
     const info = carrierCardMatch(data, carrierInFlight);
     if (info) {
       message.updateSource({
