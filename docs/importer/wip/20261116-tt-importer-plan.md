@@ -181,3 +181,13 @@ the coming minor is tagged (the owner, 2026-11-17: "A lot of changes hanging
 open. Needs to be a cap that now is clearly past."; landing order "Yes, land in
 order"), then walks on `main`. A, C and E are answered. The code already landed
 stays where it is until the owner's cleanup. D was closed by the treasure plan.
+
+S6 status (2026-11-18): every Tome entry heading has a register row. The batches are S6a-S6k, 1220 rows, under `register/tt/p<a>-p<b>-items.json`, each landed from `topic/importer-books` and walked on `main` (`tools/live/importer-magic-items.mjs`, 59 of 59). The S6j+S6k walk first failed step 11 twice. The join's shelf restore reopened the Tome after the walk closed it, because the Tome now sits on the world's shelf. The walk now waits for that restore before it connects books, and the restore skips a book already open (T-0675).
+- **Names.** Headings follow ruling E. A cleared heading ships its common name; a heading with a figure, a printed proper name or an undecided spelled number ships as `Item <n>` with the census key as its anchor hash.
+- **Coined entry names.** The owner ruled on 2026-11-18 that a coined monster or spell entry name ships as the thing's name. Two items the name pass had held in doubt cleared under it.
+- **Variant entries.** An entry that prints two or more header labels is variant-led and carries `values: []` by design. No figure is located for it; the imported description carries the labels. verify-cookbook therefore prints `located=[]` for it. There are 15 such rows.
+- **Coverage anomaly.** The whole-book `census-rows check tt --pages 55-287` lists S6c's ordinals 207-212 (PDF 93) outside the coverage band, at 0.45-0.66 for three and 2.8-3.7 for the other three. A word count over each entry's own column region matches the compiled text for all six, within the heading's words. The census measure splits that page's regions differently from the compiler, and no text is lost. Coverage outside the band is batch evidence, never a defect on its own: count before acting.
+
+Book recipes in shared files: `resistanceProse` and `squeezingProse` (landed from main, 6cac2c8a and 78434f38) moved the `rr` silo baseline from 161 to 163. They are Revised Rulebook recipes and belong under `scripts/importer/books/rr/` at the owner's cleanup.
+
+Next: S8, the Journal's ch. 4 entries under `kind.magicItem` with the Journal-Tome pairs (ruling C). A local census found 158 items, of which 140 pair by heading key and 18 are reprints. The Journal needs its own page bands (`books/jj/`). The seed must learn that the Journal prints its labels at an entry's end. After S8, the treasure-art seam and the MM harvest.

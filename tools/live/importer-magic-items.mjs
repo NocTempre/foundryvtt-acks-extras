@@ -72,6 +72,9 @@ const P = {
     H.TD = await import("/modules/acks-extras/scripts/location/table-docs.mjs");
     H.ST = await import("/modules/acks-extras/scripts/location/table-store.mjs");
     H.SS = await import("/modules/acks-extras/scripts/importer/cookbook/state.mjs");
+    // Every book open on this seat during the walk, with its call stack: names what reopens a book the walk closed.
+    H.opens = H.opens ?? [];
+    if (!H.openHook) H.openHook = Hooks.on("acksExtras.bookOpened", (id) => H.opens.push({ id, t: Date.now(), stack: new Error().stack.split("\n").slice(2, 9).map((l) => l.trim()) }));
     H.table = (id) => H.T.getTable("magicItemTables", id);
     H.tiles = (bands) => {
       if (!Array.isArray(bands) || !bands.length) return false;
@@ -145,6 +148,22 @@ const P = {
       .then(() => { globalThis.__mtBook = { done: true, ok: true }; })
       .catch(() => { globalThis.__mtBook = { done: true, ok: false, error: "threw" }; });
     return { started: true };
+  },
+  /**
+   * Whether the join's shelf restore has settled for the walk's books: each of `ids` that sits on the
+   * world's shelf, readable by this seat, is open. The ready hook opens them one by one from a list taken at join, so a book the walk
+   * closes before that pass reaches it is opened again behind the walk's back.
+   */
+  shelfState: async ({ ids = [] } = {}) => {
+    const pending = [];
+    for (const j of game.journal) {
+      const book = j.getFlag("acks-extras", "shelf")?.book;
+      if (!book || pending.includes(book)) continue;
+      const page = j.pages.find((p) => p.type === "pdf" && p.src);
+      if (page?.testUserPermission(game.user, "OBSERVER") && !acksExtras.importer.bookOpen(book)) pending.push(book);
+    }
+    // Only the walk's own books matter; another shelved book that never reads must not stall the walk.
+    return { pending, done: !pending.some((b) => ids.includes(b)) };
   },
   bookState: async ({ id }) => {
     const open = !!globalThis.__mt.CB.cookbookSessionDoc(id);
@@ -305,6 +324,8 @@ const P = {
     if (map?.has("tt")) H.tomeHeld = null;
     return { held, open: !!acksExtras.importer.bookOpen("tt") };
   },
+  /** Each time a book opened on this seat since the walk installed, for the Tome: when and from where. */
+  tomeOpens: async () => (globalThis.__mt.opens ?? []).filter((o) => o.id === "tt"),
   /** The magicItemTables document as the Tome's tables stand in it, as counts and a digest. */
   tomeState: async () => {
     const H = globalThis.__mt;
@@ -600,6 +621,9 @@ try {
   check("the GM seat is a GM and the served module carries the roll, the item import and the repair tally", true, { role: installed.role, activeGMIsSelf: installed.activeGMIsSelf });
 
   section("books");
+  // The join's shelf restore runs on after ready; step 11 closes the Tome and must not race it.
+  const shelfSettled = await waitFor(gm, P.shelfState, { ids: ["jj", "tt"] }, "the join's shelf restore", 300).catch((err) => ({ done: false, error: err.message }));
+  note("the join's shelf restore", shelfSettled);
   const staged = books(["jj", "tt"]);
   if (staged.length !== 2) blocked(`ACKS_TEST_BOOKS names ${staged.length} of jj and tt`);
   for (const { id, path } of staged) {
@@ -663,7 +687,7 @@ try {
   check("11. the import report names the Tome as an optional book that is not open", jobClosed.ok && jobClosed.optionalNamesTome && !jobClosed.missingNamesTome, { ok: jobClosed.ok, optional: jobClosed.optionalBooks, namesTome: jobClosed.optionalNamesTome, missingNamesTome: jobClosed.missingNamesTome });
   const during = await run(gm, P.tomeState);
   const chClosed = await run(gm, P.chain);
-  check("11. the Tome's raw tables stay in the document: the same table keys, the same subtables, the same Tome cites", !during.open && during.tables === pre.tables && during.hasSubtables && during.subtables === pre.subtables && during.cites === pre.cites && during.citesTT === pre.citesTT && pre.citesTT > 0, { tables: [pre.tables, during.tables], subtables: [pre.subtables, during.subtables], citesTT: [pre.citesTT, during.citesTT] });
+  check("11. the Tome's raw tables stay in the document: the same table keys, the same subtables, the same Tome cites", !during.open && during.tables === pre.tables && during.hasSubtables && during.subtables === pre.subtables && during.cites === pre.cites && during.citesTT === pre.citesTT && pre.citesTT > 0, { open: during.open, hasSubtables: during.hasSubtables, tables: [pre.tables, during.tables], subtables: [pre.subtables, during.subtables], cites: [pre.cites, during.cites], citesTT: [pre.citesTT, during.citesTT], tomeOpens: await run(gm, P.tomeOpens) });
   check("11. the same lists still stand as the Tome's: every classic and heroic list keeps its hops, the type list its eight", during.classicHops === pre.classicHops && during.heroicHops === pre.heroicHops && during.typeHops === pre.typeHops && chClosed.classicHop === ch.classicHop && chClosed.heroicHop === ch.heroicHop && chClosed.armorsHop && chClosed.typeHopsResolve === ch.typeHopsResolve, { classicHops: [pre.classicHops, during.classicHops], heroicHops: [pre.heroicHops, during.heroicHops], classicHop: chClosed.classicHop, heroicHop: chClosed.heroicHop });
   const realClosed = await run(gm, P.realRolls, { n: 1, rarities: ch.rarities ?? [] });
   check("11. a roll from the type list and one from each rarity still end unflagged and cite the Tome on the subtable step", realClosed.classic.length === 1 && realClosed.classic.every((t) => t.ok && t.flag === null && t.lists.length === 3) && realClosed.heroic.length === (ch.rarities ?? []).length && realClosed.heroic.every(heroicOk), { classic: realClosed.classic.map((t) => t.flag), heroicFlags: realClosed.heroic.filter((t) => t.flag !== null).length, notTT: realClosed.heroic.filter((t) => !t.citesTT?.[1]).length });
