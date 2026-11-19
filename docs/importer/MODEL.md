@@ -2480,8 +2480,11 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
   readers in `equipment.mjs`, `variations.mjs` and `monster.mjs`, call
   `verifyDoc` before their first page and answer `book-closed` when the file
   is gone or is another book. A reader that hands `session.doc` straight to
-  `executeEntry` (the scans, `browseAndLoad`) opens the file through its first
-  `getPage`, and a failure rejects there.
+  `executeEntry` (the scans, `browseAndLoad`, the adventure and class readers)
+  opens the file through its first `getPage`; where the file is gone the read
+  is not refused: `executeEntry` records the failure in the node's `misses` and
+  answers a node with blank fields, so a direct reader is as safe as its own
+  write guard.
 - **Deletes ask verified.** `rebuildable` and `readableHere` read
   `bookVerified`, never presence in `sessionDocs`. They are synchronous, so each
   repair entry (a shelf, a book, an adventure book, the entry picker, the class
