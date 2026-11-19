@@ -4,7 +4,12 @@
   non-magical base, and ranks the card at that base's cost plus the masterwork
   cost, so a +1 sword reads as a fine one and no longer as worth nothing. An
   arm whose row names only a kind of weapon or armour needs the pot's arms
-  column to type it; nothing in the pot window sets the column yet (it is set
-  through the API, `setDealOption`, until its control ships). A ring, a cloak or
+  column to type it: in the pot window's left rail, under Table style, the
+  "Arms and armor column" field lists "(none)" and the setting columns of your
+  imported arms grids. The pick is kept on the pot and is the next new pot's
+  default; with "(none)", or with no arms grid imported (the field is then
+  disabled), no type is rolled. On the Judge's cards a typed undetected arm reads
+  "Undetected · rolled: <type>", and hovering its band shows the base's cost and
+  the masterwork cost it ranks by; a Player sees the band only. A ring, a cloak or
   ammunition is not an arm and ranks as before. Re-import your magic-item
   tables so their rows carry the link.

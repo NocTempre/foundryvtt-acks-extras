@@ -562,3 +562,27 @@ masterwork quality at a glance unless disguised intentionally".
   apparent value instead of standing alone, which changes what a replaced pot
   looks like. That is the ruling's intent: a seed weighs what a seat would
   believe it is worth.
+
+## 2026-11-19 — The arms column is a select in the deal panel, and its label is the module's
+
+- **Ruled by the owner (2026-11-18).** The column is per pot, in the deal panel,
+  remembered ("Accept recommended"), and blank rolls no type. The board
+  ("ArmsColumn") was approved with "Approve, build it", and the label is
+  "Fixed label (Recommended)": the field reads "Arms and armor column" and never
+  the imported grid heading.
+- **Built.** A select under Table style listing "(none)" and the imported
+  columns by the import's own labels, disabled with "(none)" alone where no arms
+  grid is imported. Its tooltip names the column and the page; with none picked
+  or none imported it is the page alone. Where the import recorded a page for the
+  settings the tooltip cites it, else the reference the module ships.
+- **A stored column the import no longer has** reads as "(none)" in the select
+  and stays on the pot, where it types nothing: the roll finds no such column.
+- **The type is kept.** `apparent.type` holds the type a roll typed, so the
+  Judge's card can say it and its band's tooltip can name the parts; a row
+  linked by name rolled none and keeps none. The tooltip lists parts only where
+  `rankWorth` reached them, since a stated worth, a mask's cost or an apparent
+  value outranks them and a tooltip naming parts that did not make the band
+  would be wrong.
+- **Rejected:** widening the `magic-items` API with an accessor for the setting
+  columns. The deal panel reads the imported document through `lib/tables.mjs`,
+  as the hoard reads its own.

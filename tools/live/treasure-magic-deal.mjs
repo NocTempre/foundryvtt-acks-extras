@@ -17,10 +17,17 @@
  * placeholder); a rolled card never named for its item on a seat's turned face;
  * a linked card's claim data knowing no identification and no curse; a heroic
  * deal rolling on the rarity lists; No magic striking rolled cards at open; the
- * pot's arms column set by API (T6c-2; the deal panel's control is T6c-3) and
+ * pot's arms column set by API (`setDealOption`, T6c-2) and
  * sixty rolls on the weapons list, each stored arm's base cost checked against
  * its document and its masterwork cost against the tier's `costAdd`, ranking at
- * their sum. Needs the equipment tables and the masterwork documents imported,
+ * their sum; the deal panel's "Arms and armor column" select (T6c-3) read in the
+ * Judge's window (placement, label, options against the import, the pick kept
+ * on the pot and as the next pot's default, its tooltip), a typed arm's card
+ * (its "Undetected · rolled" line and its band's tooltip) and the Player seat's
+ * window, which has none of it. The pick is a scripted change event, since the
+ * native list is an operating-system popup the page cannot press; the disabled
+ * state (no arms grid imported) is read only in a world without the grids.
+ * Needs the equipment tables and the masterwork documents imported,
  * and the Tome's arms grids re-imported so rows carry their `arms` links.
  *
  * Scripted: the deal itself (`dealLettersIntoPot`, the rail's own call; the
@@ -132,7 +139,7 @@ const P = {
     };
   },
   /**
-   * The pot's arms column, set by API (the deal panel's control is a later slice): read back on the pot,
+   * The pot's arms column, set by API: read back on the pot,
    * kept as the next new pot's default, then cleared. Counts and booleans only.
    */
   column: async ({ mod, key }) => {
@@ -196,6 +203,157 @@ const P = {
       bases: seam.bases.length, tierDocs: !!W.masterworkFigure("weaponBoth") && !!W.masterworkFigure("armorAC"),
       blankStores: withoutKey.truths.filter((t) => t.apparent).length,
       unknownKept: stored.every((t) => t.magical && t.detected === false && t.identified === "none"),
+    };
+  },
+  /**
+   * The deal panel's arms column field on the Judge's window of `potId`, read as the DOM has it: whether it is
+   * there, labelled, described and placed under Table style, what its options are against the import, which one
+   * is selected, whether it is disabled, and what its tooltip names. Booleans and counts only.
+   */
+  armsField: async ({ mod, potId }) => {
+    const H = globalThis.__tk;
+    const D = await import(`${mod}/treasure/deal.mjs`);
+    const Pm = await import(`${mod}/treasure/pot.mjs`);
+    const root = H.root(H.sheet(potId));
+    const select = root?.querySelector("[data-deal-arms]") ?? null;
+    if (!select) return { found: false };
+    const src = D.armsSource();
+    const options = [...select.options];
+    const label = root.querySelector(`label[for="${CSS.escape(select.id)}"]`);
+    const describedBy = select.getAttribute("aria-describedby");
+    const hint = describedBy ? root.querySelector(`#${CSS.escape(describedBy)}`) : null;
+    const wrap = select.closest("[data-tooltip-text]");
+    const field = select.closest(".acks-extras-treasure__field");
+    const styles = root.querySelector("[data-action='dealStyle']")?.closest("fieldset");
+    const stored = Pm.potOf(H.pile(potId)).deal.armsSetting;
+    const chosen = options.find((o) => o.selected) ?? null;
+    return {
+      found: true,
+      hasId: !!select.id && root.querySelectorAll(`#${CSS.escape(select.id)}`).length === 1,
+      labelled: !!label && H.text(label) === H.t("deal.armsTitle"),
+      hinted: !!hint && H.text(hint) === H.t("deal.armsHint"),
+      underStyle: !!styles && styles.nextElementSibling === field,
+      noneFirst: options[0]?.value === "" && options[0]?.textContent.trim() === H.t("deal.armsNone"),
+      columns: src.columns.length,
+      optionsMatch: options.length === src.columns.length + 1 && src.columns.every((c, i) => options[i + 1]?.value === c.key && options[i + 1]?.textContent.trim() === c.label),
+      disabled: select.disabled,
+      selectedKey: chosen?.value ?? null,
+      selectedIsStored: (chosen?.value ?? "") === (src.columns.some((c) => c.key === stored) ? stored : ""),
+      tipNamesColumn: !!chosen?.value && (wrap?.getAttribute("data-tooltip-text") ?? "").includes(chosen.textContent.trim()),
+      tipNamesPage: (wrap?.getAttribute("data-tooltip-text") ?? "").includes(src.cite ?? H.t("cite.arms")),
+      tipPageOnly: (wrap?.getAttribute("data-tooltip-text") ?? "") === (src.cite ?? H.t("cite.arms")),
+      noTitle: !select.hasAttribute("title") && !wrap?.hasAttribute("title"),
+    };
+  },
+  /**
+   * Pick the column at option `index` the way a change event does (the native list is an operating-system
+   * popup the page cannot press), wait for the write and the re-render, and read the pot, the window and the
+   * Judge's remembered default back.
+   */
+  armsPick: async ({ mod, potId, index }) => {
+    const H = globalThis.__tk;
+    const Pm = await import(`${mod}/treasure/pot.mjs`);
+    const select = () => H.root(H.sheet(potId))?.querySelector("[data-deal-arms]") ?? null;
+    const first = select();
+    const option = first?.options[index] ?? null;
+    if (!option) return { picked: false };
+    H.armsFlag ??= game.user.getFlag("acks-extras", "treasureArms") ?? "";
+    const key = option.value;
+    const text = option.textContent.trim();
+    first.value = key;
+    first.dispatchEvent(new Event("change", { bubbles: true }));
+    const wrote = await H.poll(() => Pm.potOf(H.pile(potId)).deal.armsSetting === key, { tries: 40, every: 200 });
+    await H.sleep(600);
+    const after = select();
+    const wrap = after?.closest("[data-tooltip-text]");
+    return {
+      picked: true,
+      key,
+      stored: !!wrote,
+      remembered: (game.user.getFlag("acks-extras", "treasureArms") ?? "") === key,
+      reselected: after?.value === key,
+      tipNamesColumn: (wrap?.getAttribute("data-tooltip-text") ?? "").includes(text),
+    };
+  },
+  /**
+   * With `clear`, blank the Judge's remembered arms column so a new pot opens with none (the value found is
+   * kept for the restore); without it, put the column back as it was found.
+   */
+  armsRestore: async ({ clear = false } = {}) => {
+    const H = globalThis.__tk;
+    H.armsFlag ??= game.user.getFlag("acks-extras", "treasureArms") ?? "";
+    if (!clear && H.armsFlag) await game.user.setFlag("acks-extras", "treasureArms", H.armsFlag);
+    else await game.user.unsetFlag("acks-extras", "treasureArms");
+    if (!clear) H.armsFlag = undefined;
+    return { restored: !clear };
+  },
+  /**
+   * Stage one typed arm in `potId` (a roll on the weapons list with the column `key` until one is typed, no
+   * more than sixty), render the Judge's window, and read its card: the line naming the type, and the band's
+   * tooltip carrying the parts and pages. The type itself comes back for the Player seat's leak check and is
+   * never printed.
+   */
+  armsCard: async ({ mod, potId, key }) => {
+    const H = globalThis.__tk;
+    const Mg = await import(`${mod}/treasure/magic-deal-logic.mjs`);
+    const D = await import(`${mod}/treasure/deal.mjs`);
+    const L = await import(`${mod}/treasure/pot-logic.mjs`);
+    const Pm = await import(`${mod}/treasure/pot.mjs`);
+    const starts = globalThis.acksExtras.magicItems.starts();
+    const noun = starts?.classic?.find((e) => /weapon/i.test(`${e.key} ${e.caption}`))?.caption ?? null;
+    if (!noun) return { noList: true };
+    const seam = await D.armsSeam();
+    const dice = (expr) => { const sides = Number(String(expr).slice(String(expr).indexOf("d") + 1)); return { total: 1 + Math.floor(Math.random() * sides), sides }; };
+    let typed = null;
+    for (let n = 0; n < 60 && !typed; n++) {
+      const out = await Mg.rollMagicTruths({
+        truths: [{ ...L.normalizeTruth({ pool: "magic", label: "magic", magical: true, detected: false }), tableRef: noun }],
+        style: "classic", where: "W.magic", lists: starts, resolve: async () => null,
+        roll: (a) => globalThis.acksExtras.magicItems.roll({ ...a, roller: dice }), armsSetting: key, ...seam,
+      });
+      typed = out.truths.find((t) => t.apparent?.type) ?? null;
+    }
+    if (!typed) return { typed: false };
+    const pile = H.pile(potId);
+    await Pm.addTruths(pile, [typed]);
+    await H.sheet(potId).render();
+    const card = Pm.viewOf(pile).cards.find((c) => c.truth.apparent?.type);
+    const li = await H.poll(() => H.root(H.sheet(potId))?.querySelector(`li[data-card-id="${card?.id}"]`) ?? null, { tries: 40, every: 250 });
+    if (!li) return { typed: true, found: false };
+    const pips = li.querySelector(".acks-extras-treasure__pips");
+    const tip = pips?.getAttribute("data-tooltip-text") ?? "";
+    const { type, baseGp, masterworkGp } = typed.apparent;
+    const gp = (n) => (Math.round(n * 100) / 100).toLocaleString(game.i18n.lang);
+    const bandName = pips?.getAttribute("aria-label") ?? "";
+    return {
+      typed: true,
+      found: true,
+      type,
+      line: [...li.querySelectorAll(".acks-extras-treasure-card__note")].some((n) => H.text(n) === H.t("card.rolledType", { type })),
+      tipKeepsBand: tip.startsWith(H.t("tip.band", { band: bandName })),
+      tipParts: tip.includes(type) && tip.includes(`${gp(baseGp)} gp`) && tip.includes(`${gp(masterworkGp)} gp`) && tip.includes(H.t("cite.masterwork")),
+      tipPage: tip.includes(D.armsSource().cite ?? H.t("cite.arms")),
+      noTitle: !li.querySelector("[title]"),
+      ranks: L.rankWorth(L.normalizeTruth(typed)) === baseGp + masterworkGp,
+    };
+  },
+  /** The Player seat's window of `potId`: no deal panel, no arms field, and none of the Judge's types in its text or tooltips. */
+  armsPlayer: async ({ potId, types }) => {
+    const H = globalThis.__tk;
+    const pile = H.pile(potId);
+    if (!pile) return { rendered: false };
+    await pile.sheet.render(true);
+    const root = await H.poll(() => { const r = H.root(pile.sheet); return pile.sheet.rendered && r?.querySelector("li[data-card-id], .acks-extras-treasure__empty") ? r : null; }, { tries: 40, every: 250 });
+    if (!root) return { rendered: false };
+    if (!H.opened.includes(pile.sheet)) H.opened.push(pile.sheet);
+    const all = H.text(root) + " " + [...root.querySelectorAll("[data-tooltip-text],[aria-label]")].map((e) => `${e.getAttribute("data-tooltip-text") ?? ""} ${e.getAttribute("aria-label") ?? ""}`).join(" ");
+    return {
+      rendered: true,
+      field: !!root.querySelector("[data-deal-arms]"),
+      panel: !!root.querySelector(".acks-extras-treasure__side"),
+      leaks: (types ?? []).filter((x) => all.includes(x)).length,
+      rolledLine: all.includes(H.t("card.rolledType", { type: "" }).trim()),
+      masterworkTip: all.includes(H.t("cite.masterwork")),
     };
   },
   /** Open a staged pot to the table; the doorway message id comes back for the sweep. */
@@ -300,6 +458,43 @@ try {
     check("every such card ranks at the sum of its two parts", a.stored > 0 && a.ranked === a.stored, { stored: a.stored, ranked: a.ranked });
   }
 
+  section("Step 8. the arms column in the deal panel (T6c-3)");
+  await run(gm, P.armsRestore, { clear: true });
+  const potU = await run(gm, K.newPot);
+  if (!potU) blocked("a new pot did not open a window to walk the arms field in");
+  made.push(gm.track(potU.uuid, "Cards"));
+  const f0 = await run(gm, P.armsField, { mod: MOD, potId: potU.potId });
+  check("State A. a new pot's panel has the field under Table style, labelled, described, with its own id once, and \"(none)\" first", f0.found && f0.hasId && f0.labelled && f0.hinted && f0.underStyle && f0.noneFirst, f0);
+  if (!f0.columns) {
+    check("State C. no arms grid imported: the field is disabled, holds (none) alone, and its tooltip is the page reference alone", f0.disabled && f0.optionsMatch && f0.selectedKey === "" && f0.tipPageOnly && f0.noTitle, f0);
+    blocked("the Tome's arms grids are not imported, so no column can be picked; re-import the item tables");
+  }
+  check("the options are \"(none)\" and one per imported column, in the import's own labels and order", f0.optionsMatch && !f0.disabled, { columns: f0.columns });
+  check("State A. nothing is picked on a new pot, and the tooltip is the page reference alone", f0.selectedKey === "" && f0.selectedIsStored && f0.tipPageOnly, f0);
+  const pick = await run(gm, P.armsPick, { mod: MOD, potId: potU.potId, index: 1 });
+  check("State B. picking a column keeps it on the pot and as the Judge's next-pot default, and the window shows it selected", pick.picked && pick.stored && pick.remembered && pick.reselected, pick);
+  check("State B. the selected option's tooltip names the column and the page", pick.tipNamesColumn, { column: pick.tipNamesColumn });
+  const f1 = await run(gm, P.armsField, { mod: MOD, potId: potU.potId });
+  check("the field reads back the stored column after a re-render", f1.selectedKey === pick.key && f1.selectedIsStored && f1.tipNamesColumn && f1.tipNamesPage && f1.noTitle, { selected: f1.selectedKey === pick.key });
+  const potV = await run(gm, K.newPot);
+  if (potV) made.push(gm.track(potV.uuid, "Cards"));
+  const f2 = potV ? await run(gm, P.armsField, { mod: MOD, potId: potV.potId }) : { found: false };
+  check("a second new pot opens with the remembered column selected", f2.found && f2.selectedKey === pick.key && f2.selectedIsStored, { selected: f2.selectedKey === pick.key });
+  const none = await run(gm, P.armsPick, { mod: MOD, potId: potU.potId, index: 0 });
+  check("picking \"(none)\" clears the pot's column and the remembered default", none.picked && none.stored && none.remembered && none.reselected, none);
+  await run(gm, P.armsRestore);
+
+  const card = await run(gm, P.armsCard, { mod: MOD, potId: potU.potId, key: pick.key });
+  if (card.noList) blocked("no classic list names weapons, so no arm can be rolled");
+  check("a typed undetected arm is staged for the card walk", card.typed && card.found, { typed: card.typed, found: card.found });
+  check("the Judge's card says \"Undetected · rolled: <type>\" on its line", card.line === true);
+  check("its band's tooltip is the band's own, then the type, the base and masterwork costs, and the pages", card.tipKeepsBand && card.tipParts && card.tipPage && card.noTitle, { band: card.tipKeepsBand, parts: card.tipParts, page: card.tipPage });
+  check("the card ranks at the sum the tooltip names", card.ranks === true);
+  const opened = await run(gm, P.openIt, { mod: MOD, potId: potU.potId });
+  for (const id of opened.door) made.push(gm.track(id, "ChatMessage"));
+  const seen = await run(player, P.armsPlayer, { potId: potU.potId, types: card.type ? [card.type] : [] });
+  check("the Player seat's window has no deal panel and no arms field, and shows none of the type, the line or the parts", opened.ok && seen.rendered && !seen.field && !seen.panel && seen.leaks === 0 && !seen.rolledLine && !seen.masterworkTip, seen);
+
   walkDone();
 } catch (err) {
   if (err?.name !== "WalkBlocked") console.error("WALK ERROR:", err?.stack ?? err);
@@ -308,6 +503,7 @@ try {
   section("teardown");
   for (const [key, api] of [["player", player], ["gm", gm]]) {
     if (!api) continue;
+    if (key === "gm") try { await run(api, P.armsRestore); } catch {}
     try { await run(api, K.closeAll); } catch {}
     try { note(`restored (${key})`, await run(api, K.restore)); } catch (err) { console.error("restore:", err?.message ?? err); }
   }

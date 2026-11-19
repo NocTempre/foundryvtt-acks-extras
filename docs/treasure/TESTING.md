@@ -486,10 +486,10 @@ or the cookbook documents a real import writes.
 
    **Arms and their apparent worth (T6c-2).** Re-import the Tome's item tables
    first (a world imported before this slice has rows with no `arms` link), with
-   the equipment tables and the masterwork documents imported. The pot's column
-   has no control until T6c-3, so the walk sets it by API
-   (`setDealOption(pile, "armsSetting", "s1")`) and reads the pot back; a second
-   new pot opens with it, and a blank clears it. The walk then rolls sixty times
+   the equipment tables and the masterwork documents imported. The walk sets the
+   pot's column by API (`setDealOption(pile, "armsSetting", "s1")`) and reads the
+   pot back; a second new pot opens with it, and a blank clears it (the field in
+   the window is walked below). It then rolls sixty times
    on the weapons list through the real roll service on random dice
    (`rollMagicTruths` with `armsSeam()`'s bases and tier costs), so which rows it
    reaches varies by run, and
@@ -501,5 +501,45 @@ or the cookbook documents a real import writes.
    needs a type; a row linked by name is priced without one. A ring, a cloak and
    ammunition rolled by name store nothing (offline only; no live row is known
    to land on one).
+
+   **The arms column field (T6c-3).** With the same imports, on the Judge seat
+   open a staged pot (Scene controls → Token controls → New treasure pot) and
+   read the rail. The pick is a scripted `change` on the select (the native list
+   is an operating-system popup the page cannot press), so the write is real
+   and the dropdown's own gesture is not; hover each tooltip with a real pointer.
+   - *State A, a new pot.* A field "Arms and armor column" sits directly under
+     Table style, its label bound to the select (`for`), the hint "Used for arms
+     and armor dealt into this pot." bound by `aria-describedby`, "(none)" first
+     and selected, then one option per setting column of the imported arms grids
+     in the import's own labels and order. Hovering the select shows the page
+     reference alone.
+   - *State B, a pick.* Choose a column. Observables: the select re-renders with
+     it selected; `setDealOption` stored it (`potOf(pile).deal.armsSetting`) and
+     the Judge's `treasureArms` flag holds it; hovering the select shows the
+     column's label and the page. Press Deal at once after the change (no click
+     in between): the deal runs on the first press, since the change writer holds
+     the write until the press ends. A second new pot opens with the column
+     selected; choosing "(none)" clears the pot's column and the flag.
+   - *The card.* Deal a hoard with arms rolled on the weapons list with the
+     column set (the walk stages a typed arm through `rollMagicTruths`, since
+     which row a die reaches varies). Observables: the Judge's tile for an
+     undetected typed arm has the line "Undetected · rolled: <type>"; hovering
+     its band pips shows the band's tooltip followed by "<type> <base> gp (its
+     imported item) + masterwork <cost> gp (RR ch. 4) · <page>", the two figures
+     being the base document's `system.cost` and the tier's `costAdd`; the tile
+     of an arm with no type, a masked one with a cost, or a detected one has no
+     parts in its tooltip.
+   - *The Player seat.* Open the pot to the table and join as the Player. The
+     window has no deal panel and no field, and no tile or tooltip shows the
+     type, the line or the parts: the band alone, as before.
+   - *State C, no arms grid imported* (a world without the Tome's arms grids;
+     walked only where one is at hand, offline otherwise): the select is
+     disabled, holds "(none)" alone, and hovering it shows the page reference
+     alone, with no words saying anything is missing. Deal still works, and a
+     row linked by name is still priced.
+   - *Not walked by a script:* the disabled select's hover (the tooltip sits on
+     its wrapper so a disabled control still shows it; read it with a real
+     pointer), and the select at the narrowest rail width, where a long label
+     must not widen the rail.
 
 **Teardown:** the run's pots are tracked and swept; the kept fixtures stay.

@@ -327,7 +327,8 @@ base fitting. A row that is no arm (a ring, a cloak) finds none. The base's
 kind picks the masterwork tier (`ARMS_TIER`: a weapon `weaponBoth`, armour and
 shield `armorAC`), whose `costAdd` is the equipment feature's `masterworkFigure`.
 Both costs positive, the truth stores `apparent: {baseUuid, baseGp,
-masterworkGp}` at the deal, since bands freeze at open; otherwise nothing is
+masterworkGp, type?}` at the deal (`type` is the grid's cell, where one was
+rolled), since bands freeze at open; otherwise nothing is
 stored, nothing throws, and the card ranks as before. `rankWorth` reads the sum
 (`armsWorth`) after the mask's cost and the snapshot's apparent value, and the
 sum is never stored, so it is no card's price and no market's figure.
@@ -517,6 +518,32 @@ callout instead, and the callout's Deal anyway deals with `confirmLair`
 answering true. The callout clears on Cancel and on a lair toggle. Refusals and
 per-letter errors reach the Judge as lang strings (`dealMessages`). A letter
 typed in another case finds the type table's own key (`hoard-map.mjs`).
+
+**The arms column field** sits under Table style in the rail: a labelled select,
+"Arms and armor column", whose label is the module's own and never the imported
+grid heading. It lists "(none)" first, then one option per setting column of the
+imported arms grids (`armsColumns`: a column the import named, with rows under it
+in some grid), each labelled as the import read it, the Judge's own text. The pot's
+own `deal.armsSetting` is the selected option; a stored key the import no longer
+has reads as "(none)" and is left on the flag. A change is written by the rail's
+one press-safe change writer (`setDealOption(pile, "armsSetting", key)`, which also
+keeps the Judge's next-pot default), and a new pot opens with that default. With
+no arms grid imported the select is disabled and holds "(none)" alone; deal still
+works. The select's tooltip, on its wrapper since a disabled control takes no
+pointer, names the selected column and the page the import recorded for the
+settings (`citeOf`, else the reference the module ships), and with none picked or
+nothing imported is the page alone. The hint says what the field does. A Player's
+window never gets the panel, so it never gets the field.
+
+**The Judge's card shows the arm's type.** An undetected arm that was typed keeps
+the type as the grid printed it, `apparent.type`, beside its figures (absent where
+none was rolled, as for a row linked by name). Its Judge-only line reads
+"Undetected · rolled: <type>". Its band's tooltip, the one every card has, then
+adds the parts after it ("<type> <base> gp (its imported item) + masterwork <cost>
+gp · pages") with the world's figures, only where `rankWorth` reached them
+(`armsParts`: a stated worth, a mask's cost or an apparent value outranks them, and
+then the tooltip lists none). `cardView` builds both for a Judge alone: a Player's
+view carries a blank type and no parts, and the window is handed neither.
 
 **Two entries open it staged.** The token-controls button calls `newDealPot()`:
 with monster tokens selected the pot opens with their rows, each kind with a
