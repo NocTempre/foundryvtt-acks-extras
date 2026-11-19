@@ -21,7 +21,6 @@ import {
   STATES,
   autoSearchers,
   damageTaken,
-  disarmPlan,
   firingPlan,
   isBotch,
   lockAfterFailure,
@@ -947,27 +946,66 @@ const carriesTools = (actor) =>
   (actor?.items ?? []).some((i) => TOOLS_ITEM_PATTERN.test(i.name ?? ""));
 
 /**
- * Why a character may not work on this trap right now, or null if they may.
- * Every refusal is reported before anything is rolled.
+ * Every reason a character may not work on this trap right now, in the order
+ * they are checked; empty when they may. A refusal that leaves nothing to work
+ * on (no trap, spent, unfound) is the only one reported when it holds.
  */
-export function disarmRefusal(placement, actor, mode) {
-  if (!placement) return "noZone";
+export function disarmRefusals(placement, actor, mode) {
+  if (!placement) return ["noZone"];
   // An unfound trap cannot be worked on, and offering it would announce it;
   // the Judge marks a discovery made some other way as spotted first.
-  if (!placement.known) return "notFound";
-  if (!placement.trapUuid) return "noTrap";
-  if (placement.state === STATES.discharged) return "alreadyDischarged";
-  if (placement.state === STATES.disarmed) return "alreadyDisarmed";
-  if (!carriesTools(actor)) return "noTools";
+  if (!placement.known) return ["notFound"];
+  if (!placement.trapUuid) return ["noTrap"];
+  if (placement.state === STATES.discharged) return ["alreadyDischarged"];
+  if (placement.state === STATES.disarmed) return ["alreadyDisarmed"];
+  const out = [];
+  if (!carriesTools(actor)) out.push("noTools");
 
   const check = resolveCheck(actor, PARTY_CHECKS[mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical"]);
-  if (!check) return "cannotTry";
+  if (!check) out.push("cannotTry");
   // A hasty attempt is skill-only (RR p. 267).
-  if (mode === "hasty" && !check.skilled) return "hastyNeedsSkill";
+  else if (mode === "hasty" && !check.skilled) out.push("hastyNeedsSkill");
 
   const level = Number(actor?.system?.details?.level) || 1;
-  if (mode === "hasty" && repeatLocked(placement.repeatLock, actor.id, level)) return "alreadyFailedHasty";
-  return null;
+  if (mode === "hasty" && repeatLocked(placement.repeatLock, actor?.id, level)) out.push("alreadyFailedHasty");
+  return out;
+}
+
+/**
+ * Why a character may not work on this trap right now, or null if they may:
+ * the first of `disarmRefusals`. Every refusal is reported before anything is
+ * rolled.
+ */
+export function disarmRefusal(placement, actor, mode) {
+  return disarmRefusals(placement, actor, mode)[0] ?? null;
+}
+
+/**
+ * The refusals a Judge may work past, with a warning in their place: the
+ * character's tools or proficiency, and a failed hasty try at this level. Every
+ * other refusal leaves nothing to roll, and stays a block for the Judge too.
+ */
+export const SOFT_REFUSALS = Object.freeze(["noTools", "hastyNeedsSkill", "alreadyFailedHasty"]);
+
+/**
+ * What stands between this character and this trap, for one seat: `block` is
+ * the refusal that stops the attempt (null when it may be made) and `warnings`
+ * the soft refusals a Judge is told of and may work past. A player is blocked by
+ * every refusal; a Judge only by one that is not soft. The one gate the dialog
+ * shows and `attemptDisarm` enforces.
+ *
+ * @param {Placement|null} placement
+ * @param {Actor} actor
+ * @param {"hasty"|"methodical"} mode
+ * @param {object} [opts]
+ * @param {boolean} [opts.judge] the Judge declares this attempt (`judgeDeclares`)
+ * @returns {{block: string|null, warnings: string[]}}
+ */
+export function disarmGate(placement, actor, mode, { judge = false } = {}) {
+  const reasons = disarmRefusals(placement, actor, mode);
+  if (!judge) return { block: reasons[0] ?? null, warnings: [] };
+  const hard = reasons.find((r) => !SOFT_REFUSALS.includes(r));
+  return hard ? { block: hard, warnings: [] } : { block: null, warnings: reasons };
 }
 
 /**
@@ -991,12 +1029,16 @@ export function disarmRefusal(placement, actor, mode) {
  *   never comes leaves the trap disarmed. The question never holds the card,
  *   the clock or the caller: it settles on its own, and a discharge answer is
  *   written only over a trap still disarmed.
+ * @param {boolean} [opts.judge] the Judge declares this attempt (`judgeDeclares`,
+ *   never read off the client running this, which a player's relayed request
+ *   reaches): the soft refusals (`SOFT_REFUSALS`) are worked past and the throw
+ *   is made. Absent, every refusal stops it.
  * @returns {Promise<{ok: boolean, reason?: string, outcome?: string, asked?: Promise<void>}>}
  *   `outcome` is `disarmed` for a made throw whatever is answered later.
  *   `asked` is present after a made throw and settles once the question has
  *   been answered and any discharge written and noted; it never rejects.
  */
-export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true, askUserId = null } = {}) {
+export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true, askUserId = null, judge = false } = {}) {
   // The target is named, never guessed: a halted party may stand at more than
   // one trap.
   const target = targetUuid
@@ -1004,10 +1046,10 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
     : (knownPlacementsNear(formation)[0] ?? null);
   if (!target) return { ok: false, reason: "noZone" };
 
-  const refusal = disarmRefusal(target, actor, mode);
-  if (refusal) {
-    ui.notifications.warn(loc(`refuse.${refusal}`, { name: actor?.name ?? "" }));
-    return { ok: false, reason: refusal };
+  const { block } = disarmGate(target, actor, mode, { judge });
+  if (block) {
+    ui.notifications.warn(loc(`refuse.${block}`, { name: actor?.name ?? "" }));
+    return { ok: false, reason: block };
   }
 
   const trap = await trapFor(target);
@@ -1015,7 +1057,6 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   const crude = !!trap.system.crude;
   const cfgKey = mode === "hasty" ? "trapbreakHasty" : "trapbreakMethodical";
   const check = resolveCheck(actor, PARTY_CHECKS[cfgKey]);
-  const plan = disarmPlan({ mode, crude, skilled: check.skilled, extra });
 
   // `resolveCheck` carries the character's bonuses in its target; the die adds
   // what is true of the trap.
@@ -1065,12 +1106,14 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
               target: check.target,
               detail: breakdown.length ? `${check.source}; ${breakdown.join(", ")}` : check.source,
               outcome: loc(`disarmOutcome.${outcome}`),
-              emphasis: outcome === STATES.disarmed || outcome === STATES.discharged ? "success" : "failure",
+              emphasis: outcome === STATES.disarmed ? "success" : "failure",
             },
           ],
         },
       ],
-      footnote: plan.repeatable ? loc("mayTryAgain") : loc("noSecondHastyTry"),
+      footnote: outcome === "failed" && mode === "hasty"
+        ? loc("stateFailedHasty", { name: actor.name, level: Number(actor?.system?.details?.level) || 1 })
+        : undefined,
     }),
     formation,
     [roll],

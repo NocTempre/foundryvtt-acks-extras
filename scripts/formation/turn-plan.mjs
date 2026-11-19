@@ -139,8 +139,16 @@ function registerTrapbreak(key, mode) {
       return refusal ? `trap:${refusal}` : null;
     },
     // The question of what to do with a beaten trap goes to the user who locked the entry.
+    // A Judge's lock was written past a soft refusal (`lockForJudge`), so the throw
+    // is made past it too; an entry a player locked is refused again if it still holds.
     resolve: (actor, option, ctx, entry) =>
-      attemptDisarm(getFormation(ctx.formation.id) ?? ctx.formation, actor, { mode, targetUuid: option.id, spend: false, askUserId: entry?.by ?? null }),
+      attemptDisarm(getFormation(ctx.formation.id) ?? ctx.formation, actor, {
+        mode,
+        targetUuid: option.id,
+        spend: false,
+        askUserId: entry?.by ?? null,
+        judge: game.users?.get?.(entry?.by)?.isGM === true,
+      }),
   });
 }
 

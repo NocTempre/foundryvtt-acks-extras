@@ -97,7 +97,7 @@ globalThis.Roll = class {
 
 const T = await import("../scripts/lib/tables.mjs");
 const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
-const { attemptDisarm, registerTrapZoneSocket } = await import("../scripts/formation/trap-zone.mjs");
+const { attemptDisarm, disarmGate, disarmRefusals, registerTrapZoneSocket } = await import("../scripts/formation/trap-zone.mjs");
 const { thingsOf } = await import("../scripts/lib/place-things.mjs");
 const { resolveDue } = await import("../scripts/lib/turn-activities.mjs");
 const { registerFormationActivities } = await import("../scripts/formation/turn-plan.mjs");
@@ -439,5 +439,91 @@ await ok("with nothing imported the target alone decides, whatever the face", as
   throwOnce(19, 10);
   assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false })).outcome, "failed", "a high face under the target is a failure");
 });
+
+
+const lockOf = (level) => [{ id: "thing-1", kind: "trap", ref: "Item.trap", hidden: false, params: {}, state: { repeatLock: { Skilled: level } } }];
+const bare = { ...alder, id: "Bare", name: "Bare", items: [] };
+const nothing = { ...alder, id: "Nothing", name: "Nothing", system: { ...alder.system, adventuring: {} } };
+for (const a of [bare, nothing]) { game.actors.set(a.id, a); formation.members.push({ actorId: a.id, roles: [] }); a.testUserPermission = (user) => user.id === "player"; }
+const skilledActor = game.actors.get("Skilled");
+
+await ok("the gate: a Judge is warned of the soft refusals and blocked by the rest; a player is blocked by the first of any", async () => {
+  reset();
+  assert.deepEqual(disarmRefusals(null, alder, "methodical"), ["noZone"]);
+  const placement = { known: true, trapUuid: "Item.trap", state: "armed", repeatLock: {} };
+  assert.deepEqual(disarmGate(placement, bare, "methodical", { judge: true }), { block: null, warnings: ["noTools"] });
+  assert.deepEqual(disarmGate(placement, bare, "methodical"), { block: "noTools", warnings: [] });
+  assert.deepEqual(disarmGate(placement, alder, "methodical", { judge: true }), { block: null, warnings: [] });
+  assert.deepEqual(disarmGate({ ...placement, repeatLock: { Skilled: 3 } }, skilledActor, "hasty", { judge: true }).warnings, ["alreadyFailedHasty"]);
+  assert.equal(disarmGate({ ...placement, repeatLock: { Skilled: 3 } }, skilledActor, "hasty").block, "alreadyFailedHasty");
+  // A character with no throw at all has nothing to roll: hard for the Judge too, and the tools' warning is not the reason shown.
+  assert.deepEqual(disarmGate(placement, nothing, "methodical", { judge: true }), { block: "cannotTry", warnings: [] });
+});
+
+await ok("the gate: not found, spent, disarmed and no trap are hard for the Judge, whatever else is true", async () => {
+  const base = { known: true, trapUuid: "Item.trap", state: "armed", repeatLock: {} };
+  for (const [patch, reason] of [[{ known: false }, "notFound"], [{ trapUuid: "" }, "noTrap"], [{ state: "disarmed" }, "alreadyDisarmed"], [{ state: "discharged" }, "alreadyDischarged"]]) {
+    assert.deepEqual(disarmGate({ ...base, ...patch }, bare, "methodical", { judge: true }), { block: reason, warnings: [] }, reason);
+  }
+  assert.deepEqual(disarmGate(null, alder, "methodical", { judge: true }), { block: "noZone", warnings: [] });
+});
+
+await ok("a Judge's own attempt works past no thieves' tools; without the Judge's declaration it is refused", async () => {
+  reset();
+  click = () => false;
+  throwOnce(15, 20);
+  const refused = await attemptDisarm(formation, bare, { targetUuid, spend: false });
+  assert.deepEqual([refused.ok, refused.reason], [false, "noTools"]);
+  assert.equal(stateNow(), "armed");
+  assert.equal(chats.length, 0, "nothing rolled");
+  const made = await attemptDisarm(formation, bare, { targetUuid, spend: false, judge: true });
+  assert.equal(made.outcome, "disarmed");
+  assert.equal(stateNow(), "disarmed");
+});
+
+await ok("a Judge's attempt works past a failed hasty try at this level; a player's is refused", async () => {
+  reset();
+  place.update({ "flags.acks-extras.things": lockOf(3) });
+  click = () => false;
+  throwOnce(15, 20);
+  const refused = await attemptDisarm(formation, skilledActor, { mode: "hasty", targetUuid, spend: false });
+  assert.deepEqual([refused.ok, refused.reason], [false, "alreadyFailedHasty"]);
+  const made = await attemptDisarm(formation, skilledActor, { mode: "hasty", targetUuid, spend: false, judge: true });
+  assert.equal(made.ok, true, JSON.stringify(made));
+});
+
+await ok("a Judge's attempt is still refused for a character with no throw, an unfound trap and a disarmed one", async () => {
+  reset();
+  throwOnce(15, 20);
+  assert.equal((await attemptDisarm(formation, nothing, { targetUuid, spend: false, judge: true })).reason, "cannotTry");
+  place.update({ "flags.acks-extras.things": [{ id: "thing-1", kind: "trap", ref: "Item.trap", hidden: true, params: {}, state: {} }] });
+  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false, judge: true })).reason, "notFound");
+  place.update({ "flags.acks-extras.things": [{ id: "thing-1", kind: "trap", ref: "Item.trap", hidden: false, params: {}, state: { state: "disarmed" } }] });
+  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false, judge: true })).reason, "alreadyDisarmed");
+});
+
+await ok("a relayed player request is refused a soft refusal the Judge's own press would pass", async () => {
+  reset();
+  remoteAnswer = () => false;
+  throwOnce(15, 20);
+  // The relay runs on the Judge's client, where `game.user.isGM` is true: the declaring user is what counts.
+  await relayed("partyRequest", "player", { formationId: "F", type: "trapbreak", payload: { actorId: "Bare", targetUuid, mode: "methodical" } }).catch(() => {});
+  assert.equal(stateNow(), "armed", "no tools: the player's request threw nothing");
+  assert.deepEqual(asked, []);
+  assert.ok(notices.some((m) => m.includes("refuse.noTools")), notices.join("|"));
+});
+
+await ok("the turn plan resolves a Judge's entry past a soft refusal, and a player's entry is refused again", async () => {
+  registerFormationActivities();
+  const ctx = { formation };
+  for (const [by, resolved] of [["judge", "disarmed"], ["player", undefined]]) {
+    reset();
+    click = () => false;
+    throwOnce(15, 20);
+    const out = await resolveDue([{ actorId: "Bare", entry: { key: "trapbreakMethodical", option: targetUuid, by } }], { actorOf: () => bare, ctx });
+    assert.equal(stateNow(), resolved ?? "armed", `locked by ${by}: ${JSON.stringify(out[0])}`);
+  }
+});
+
 
 console.log(`\n${passed} passed`);
