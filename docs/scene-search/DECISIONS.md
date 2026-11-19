@@ -32,7 +32,7 @@ projection hides hidden entries from every screen and from `options`, but the
 relay does not re-check; closing it means passing the requesting user in the
 lock's `ctx`.
 
-## 2026-11-18 — The Round press is one seam, `resolveSceneRound`
+## 2026-11-18 — The Round press is one seam, `resolveSceneRound` — SUPERSEDED IN PART 2026-11-19
 
 Close-out's `resolvePlanRound` owns the press once `turn-plan.mjs` exports it,
 and `resolveSceneRound` calls it and nothing else. Until then it takes this
@@ -102,8 +102,8 @@ A lock a player's hand-made `plan` request makes at a hidden entry is held back
 at resolution, not at the lock: the relay runs `lockPlan` on a Judge's client with
 no word of who asked, and `turn-plan.mjs` is the dungeon close-out's. The check
 reads the plan entry's `by` (`planBy` seam, `activities.mjs`
-`namedBeyondSight`; on the Round press, which unlocks the entry before it
-resolves, the `lockedBy` it carries in the context) and refuses an entry that
+`namedBeyondSight`; both presses keep the entry in the plan while it resolves)
+and refuses an entry that
 user cannot see. The lock itself
 still lands in the plan, so a hidden key a player guesses is stored until the
 Judge's next press; closing that needs the registrant calls to carry the asking
@@ -111,3 +111,15 @@ user (R-DC3). Likewise the Dungeon tab's select labels each entry by the
 activity alone (`optionLabel` ignores an option's `label`), so while a session is
 open it lists identical lines; the scene's options carry `label`, which that
 function can read once R-DC3 lands.
+
+## 2026-11-19 — The Round press spends a round, and the scene's own resolution goes
+
+New evidence since the 2026-11-18 seam entry: close-out's `resolvePlanRound`
+landed (R-DC6), and it spends no clock time by design: the Dungeon tab's Round
+press spends one round (`advanceRounds`) and then calls it. The scene's Round
+press is now that same pair, so a Round on the scene screen costs the clock what
+a Round on the Dungeon tab costs. `resolvePlanRound` stamps each due entry and
+keeps it in the plan rather than taking it out, so the next Turn rolls nothing
+twice and the plan entry's `by` is still there for the locker check; the
+scene's fallback (unlock, then resolve) and the `lockedBy` it carried are
+removed. The import stays lazy, as the seam entry ruled.

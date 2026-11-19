@@ -271,7 +271,8 @@ Judge seat:
    solid; the bar's "You found N items." is the count of solid tiles; the log
    gains one row, newest first, and, on this seat only, a throw figure
    "(Judge: throw N against M.)" whose tooltip names the Judges' card; the bar's
-   Turn count did not move (the Round press spends no clock time).
+   clock spent one round (`clock.roundsPartial` up by one, as the Dungeon tab's
+   Round press spends it).
 5. **A hasty miss locks.** With the die at a 1, assign the skilled searcher to
    the second floor and press Round. Observables: a struck chip for them on that
    rail, whose tooltip names the lock; the picker lists them with the

@@ -36,9 +36,10 @@ entries the seat can see, a miss blanked to who and what, no card id.
 Assigning a member is a turn-plan lock (`sceneHasty` a round long,
 `sceneMethodical` a turn). A Judge's call locks directly; a player's goes
 through the party's `plan` relay for a character that seat owns. The Round press
-(`round.mjs` `resolveSceneRound`) calls the plan's `resolvePlanRound` where it
-exists, else unlocks the scene's round-length entries and resolves them itself,
-spending no clock time. Spend a turn is the Dungeon tab's own `resolvePlanTurn`.
+(`round.mjs` `resolveSceneRound`) is the Dungeon tab's own Round press: one
+round on the party's clock (`advanceRounds`), then the plan's `resolvePlanRound`,
+which resolves every round-length entry due. Spend a turn is the Dungeon tab's own
+`resolvePlanTurn`.
 
 Resolution (`activities.mjs` `resolveSceneCheck`) runs on a Judge's client: the
 member rolls for themself, the answer is applied to the entry's `state`, found
@@ -47,9 +48,8 @@ the log, and the Judges alone get a whispered card. The card's id is kept on the
 log row and the throw's figures on the card's flag (`words.mjs` `ROLL_FLAG`), so
 the Judge's screen can read the throw and no other seat can. A check never
 resolves at an entry the user who locked it cannot see: the plan entry's `by` is
-read through the `planBy` seam (and on the Round press, which unlocks each entry
-first, from the `lockedBy` it carries in the resolution's context), because the
-relay runs a lock on a Judge's client with no word of who asked.
+read through the `planBy` seam (both presses stamp an entry and keep it
+in the plan while it resolves), because the relay runs a lock on a Judge's client with no word of who asked.
 
 ## The haul
 

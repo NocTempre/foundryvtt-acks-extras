@@ -125,11 +125,11 @@ export function sceneOptionsFor(formation, actor, { isGM = !!game.user?.isGM } =
  * runs the lock on a Judge's client with no word of who asked, so the registry's
  * own refusal cannot tell a player's hand-made request from the Judge's; the
  * plan entry's `by` (the user the lock was made for) says it, and a check never
- * resolves at an entry its locker is not shown. `lockedBy` is that user where the
- * caller already holds it (the Round press, which unlocks the entry first).
+ * resolves at an entry its locker is not shown. Both presses stamp the entry
+ * before resolving it and keep it in the plan, so `by` is still there to read.
  */
-function namedBeyondSight(formation, actor, key, entries, lockedBy = null) {
-  const by = lockedBy ?? seams.planBy?.(formation, actor.id);
+function namedBeyondSight(formation, actor, key, entries) {
+  const by = seams.planBy?.(formation, actor.id);
   const user = by ? game.users?.get(by) : null;
   return !!user && !user.isGM && !seatView(entries, { isGM: false }).some((e) => e.key === key);
 }
@@ -145,15 +145,14 @@ function namedBeyondSight(formation, actor, key, entries, lockedBy = null) {
  * @param {object} args.actor the searcher
  * @param {string} args.key the entry's key
  * @param {string} args.layer `hasty` or `methodical`
- * @param {string|null} [args.lockedBy] the user who locked the check, where the caller already holds it
  * @returns {Promise<{ok: true, outcome: object, lots: {ids: string[], missing: string[]}|null}|{ok: false, reason: string, outcome?: object}>}
  */
-export async function resolveSceneCheck({ formation, actor, key, layer, lockedBy = null }) {
+export async function resolveSceneCheck({ formation, actor, key, layer }) {
   if (!game.user?.isGM) return { ok: false, reason: SESSION_REFUSAL.NOT_ALLOWED };
   const world = readWorld(formation);
   if (!world) return { ok: false, reason: SESSION_REFUSAL.NO_SESSION };
   const entry = world.entries.find((e) => e.key === key);
-  if (!entry || namedBeyondSight(formation, actor, key, world.entries, lockedBy)) return { ok: false, reason: SESSION_REFUSAL.UNKNOWN_ENTRY };
+  if (!entry || namedBeyondSight(formation, actor, key, world.entries)) return { ok: false, reason: SESSION_REFUSAL.UNKNOWN_ENTRY };
   const member = memberOf(actor, world.entries);
   const ctx = contextOf(formation, world, actor);
 
@@ -240,7 +239,7 @@ export function registerSceneActivities() {
         return entry ? turnsOf(entry.layers[name], name) : null;
       },
       blocked: (actor, option, ctx) => (ctx?.formation ? blockedOf(ctx.formation, actor, option?.id, name, askerIsJudge(ctx)) : { reason: SESSION_REFUSAL.NO_SESSION, missing: [] }),
-      resolve: (actor, option, ctx) => resolveSceneCheck({ formation: ctx.formation, actor, key: option.id, layer: name, lockedBy: ctx.lockedBy?.[actor.id] ?? null }),
+      resolve: (actor, option, ctx) => resolveSceneCheck({ formation: ctx.formation, actor, key: option.id, layer: name }),
     }),
   );
   return () => off.forEach((fn) => fn());

@@ -127,7 +127,7 @@ const SJ = await import("../scripts/scene-search/session-logic.mjs");
 const S = await import("../scripts/scene-search/session.mjs");
 const A = await import("../scripts/scene-search/activities.mjs");
 const { createSceneSearchApi } = await import("../scripts/scene-search/api.mjs");
-const { resolveSceneRound, dueRoundEntries } = await import("../scripts/scene-search/round.mjs");
+const { resolveSceneRound } = await import("../scripts/scene-search/round.mjs");
 const { revealExit } = await import("../scripts/scene-search/seams.mjs");
 const { offeredActivities, lockActivity, resolveDue, turnActivity } = await import("../scripts/lib/turn-activities.mjs");
 const { normalizeTruth } = await import("../scripts/treasure/pot-logic.mjs");
@@ -376,35 +376,21 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   eq(body.lots.missing, ["body:c1/1"], "a body's lot with no card is reported missing, not lost");
 }
 
-/* ---------------- the Round press's seam ---------------- */
+/* ---------------- the Round press ---------------- */
 {
+  // The plan the api's reads below take as stored.
   await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create({
-    a1: { key: ACTIVITY.HASTY, option: "thing:thing-6", remaining: 1, turns: 1 },
     a2: { key: ACTIVITY.METHODICAL, option: "thing:thing-1", remaining: 1, turns: 1 },
     a3: { key: ACTIVITY.HASTY, option: "thing:thing-1", remaining: 1, turns: 1, resolvedTurn: 3 },
   }) });
-  const plan = () => party.getFlag(MODULE_ID, "turnPlan");
-  const due = dueRoundEntries(plan());
-  eq(due.map((d) => d.actorId), ["a1"], "only an unresolved round-length scene entry is due at a Round press");
-
   const calls = [];
-  const viaPlan = await resolveSceneRound(formation(), {
-    plan: { resolvePlanRound: async (f) => (calls.push(f.id), { results: [{ status: "resolved" }] }), readPlan: () => assert.fail("not read"), unlockPlan: () => assert.fail("not written") },
-    actorOf: () => assert.fail("no actor lookup"),
-    readSession: () => assert.fail("no session read"),
+  const pressed = await resolveSceneRound(formation(), {
+    spendRound: async (f) => calls.push(["round", f.id]),
+    resolvePlanRound: async (f) => (calls.push(["resolve", f.id]), { results: [{ status: "resolved" }] }),
   });
-  eq([viaPlan.via, calls, viaPlan.results.length], ["plan", ["f1"], 1], "with close-out's resolver present the press calls it and does nothing else");
-
-  const unlocked = [];
-  const own = await resolveSceneRound(formation(), {
-    plan: { readPlan: () => plan(), unlockPlan: async (f, id) => { unlocked.push(id); const next = { ...plan() }; delete next[id]; await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create(next) }); } },
-    actorOf: (_f, id) => members[id],
-    readSession: S.readSession,
-  });
-  eq([own.via, unlocked, own.results.map((r) => r.status)], ["scene", ["a1"], ["resolved"]], "without it the scene resolves its own round entries through the activity's resolve");
-  eq(Object.keys(plan()).sort(), ["a2", "a3"], "and takes them out of the plan so the next Turn does not roll them again");
-  eq(own.results[0].result.reason, REFUSAL.OUT_OF_REACH, "the entry ran the activity's own resolve (this one was refused for reach)");
-  eq((await resolveSceneRound(formation(), { plan: { readPlan: () => plan(), unlockPlan: async () => assert.fail("none due") }, actorOf: () => null, readSession: () => null })).results, [], "a party with no session resolves nothing here");
+  eq(calls, [["round", "f1"], ["resolve", "f1"]], "the press spends one round on the party's clock, then the turn plan resolves its round-length entries");
+  eq(pressed.results.length, 1, "and answers the plan's results");
+  eq((await resolveSceneRound(formation(), { spendRound: async () => {}, resolvePlanRound: async () => null })).results, [], "a plan that answers nothing (off a Judge's client) resolves nothing");
 }
 
 /* ---------------- the session api ---------------- */
@@ -511,16 +497,6 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   eq((await resolveAt("thing:thing-4")).ok, true, "and a Judge's lock at the hidden entry resolves");
   delete lockedBy.a2;
   eq((await resolveAt("thing:thing-4")).reason === SESSION_REFUSAL.UNKNOWN_ENTRY, false, "a plan entry with no recorded locker is not held back");
-  // the Round press unlocks each entry before it resolves, so the locker travels in the context, not in the plan
-  const roundOf = async (by) => {
-    await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create({ a2: { key: ACTIVITY.HASTY, option: "thing:thing-4", remaining: 1, turns: 1, by } }) });
-    const stored = () => party.getFlag(MODULE_ID, "turnPlan") ?? {};
-    const unlock = async (_f, id) => { const next = { ...stored() }; delete next[id]; await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create(next) }); };
-    return resolveSceneRound(formation(), { plan: { readPlan: stored, unlockPlan: unlock }, actorOf: (_f, id) => members[id], readSession: S.readSession });
-  };
-  const byPlayer = await roundOf("p1");
-  eq([Object.keys(party.getFlag(MODULE_ID, "turnPlan")), byPlayer.results[0].result.reason], [[], SESSION_REFUSAL.UNKNOWN_ENTRY], "a hasty lock a player made at a hidden entry is held back on the Round press too, though the press has unlocked the entry by then");
-  eq((await roundOf("j1")).results[0].result.ok, true, "and a Judge's lock at it resolves");
   user.isGM = false;
   eq((await api4.assign({ partyId: "f1", actorId: "a2", layer: "methodical", entryKey: "thing:thing-4" })).reason, SESSION_REFUSAL.UNKNOWN_ENTRY, "a player's own assign at a hidden entry is refused as no such entry");
   user.isGM = true;

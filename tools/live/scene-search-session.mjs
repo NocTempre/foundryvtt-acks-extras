@@ -426,7 +426,6 @@ const P = {
     try {
       const answer = await acksExtras.sceneSearch.resolveRound(X.model.getFormation(fid));
       return {
-        via: answer.via,
         results: (answer.results ?? []).map((r) => ({ actorId: r.actorId, key: r.key, option: r.option ?? null, status: r.status })),
       };
     } finally {
@@ -723,10 +722,9 @@ try {
   const st3 = await run(gm, P.state, { fid, partyId, placeId });
   const pile3 = await run(gm, P.pile, { potUuid: opened.potUuid });
   const cards3 = await claimCards(since, [NAMES.skilled, NAMES.plain]);
-  note("the Round resolved via", round1.via);
   const rows3 = st3.log ?? [];
   const lotsOf = (prefix) => pile3.cards.filter((c) => c.lot?.startsWith(prefix));
-  check("the Round press answers via plan or scene and resolves both entries", ["scene", "plan"].includes(round1.via) && round1.results.length === 2 && round1.results.every((r) => r.status === "resolved"), { via: round1.via, statuses: round1.results.map((r) => r.status) });
+  check("the Round press resolves both entries", round1.results.length === 2 && round1.results.every((r) => r.status === "resolved"), { statuses: round1.results.map((r) => r.status) });
   check("the first floor's lot cards read found, and the second floor's stay unfound", lotsOf("thing:floor-1/").length > 0 && lotsOf("thing:floor-1/").every((c) => c.found === true) && lotsOf("thing:floor-2/").every((c) => c.found === false), { floor1: lotsOf("thing:floor-1/").map((c) => c.found), floor2: lotsOf("thing:floor-2/").map((c) => c.found) });
   check("the first floor's thing records the hasty check done and found, by the skilled searcher", layerIn(st3, "floor-1", "hasty").found === true && layerIn(st3, "floor-1", "hasty").done === true && (layerIn(st3, "floor-1", "hasty").by ?? []).includes(skilledId), layerIn(st3, "floor-1", "hasty"));
   check(
