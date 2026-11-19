@@ -18,7 +18,7 @@
   background: none;
 }
 .acks-henchmen-grid-head {
-  font-variant: small-caps;
+  font-variant: var(--acks-caps-variant, small-caps);
   letter-spacing: var(--acks-tracking-caps);
   font-weight: var(--acks-weight-medium);
   margin-top: var(--acks-sp-3);

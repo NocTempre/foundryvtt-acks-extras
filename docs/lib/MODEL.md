@@ -283,8 +283,8 @@ and likewise for its weight and for a letter-spacing it hard-codes in `em`. Unde
 that applies; replacing each seam read with its fallback and the token with
 `uppercase` returns the stylesheet to the text it had before. A rule that sets no
 face, weight or tracking of its own has no seam for that property and inherits as
-it always did, except a weight on a plain-classed element nothing else gives a
-weight: that rule reads `font-weight: var(--acks-caps-weight, inherit)`. A rule
+it always did. A `font-variant: small-caps` label reads
+`var(--acks-caps-variant, small-caps)`, which the block sets `normal`. A rule
 whose face is already `--acks-font-ui` or `--acks-font-body` needs no face seam,
 since the block re-points those at the same body face. The seams read a token with
 a fallback on purpose, because the missing token is what selects `book`. A literal

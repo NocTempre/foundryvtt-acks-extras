@@ -37,7 +37,7 @@
 }
 .acks-influence-dialog fieldset legend {
   font-family: var(--acks-font-banner);
-  font-variant: small-caps;
+  font-variant: var(--acks-caps-variant, small-caps);
   font-weight: bold;
   letter-spacing: var(--acks-tracking-caps);
   font-size: 0.85em;

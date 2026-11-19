@@ -601,6 +601,7 @@
   --acks-tracking-caps: 0;
   --acks-caps: none;
   --acks-caps-tracking: 0;
+  --acks-caps-variant: normal;
   --acks-tx-porphyry-opacity: 0;
   --acks-tx-parchment-opacity: 0;
   --acks-radius: 4px;
