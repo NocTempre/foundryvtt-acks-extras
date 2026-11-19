@@ -28,7 +28,7 @@ import { castSummon } from "../magic/cast-summon.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf, summonsOnScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey, castTrackers, castTrackerShape, standingBySpell } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
-import { buildEquipmentTab, takeFromPile } from "./tabs/equipment.mjs";
+import { buildEquipmentTab, takeFromPile, movesForPiles, pileReachKey } from "./tabs/equipment.mjs";
 import { PicksMixin } from "../lib/picks.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 import { buildStatsTab } from "./tabs/stats.mjs";
@@ -243,6 +243,9 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
   /** The wage line's figures at the last render (`wageLineKey`). */
   #wageLine = "";
 
+  /** Which piles the character reached at the last render (`pileReachKey`). */
+  #pileReach = "";
+
   /** Which casts the tracker cells stood for at the last render (`castTrackerShape`). */
   #castShape = "";
   /** The cast column's tracker fills at the last render or paint (`castTrackerKey`). */
@@ -299,9 +302,14 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     // Of a token's own changes the cell reads only which actor it is, what it
     // is called and shows, and an unlinked token's actor data (whose summons it
     // is). A move changes none of those and is nearly every token update on a
-    // live scene; answering it would re-render every open sheet on every seat.
+    // live scene; answering every one would re-render every open sheet on every
+    // seat.
+    // A move answers only when it is this character's or a pile's and changes
+    // which piles the character stands at: the bystander row and its Take come
+    // and go with it.
     const watchTokenUpdate = (doc, changes) => {
-      if (PARTY_TOKEN_KEYS.some((k) => k in (changes ?? {}))) watchToken(doc);
+      if (PARTY_TOKEN_KEYS.some((k) => k in (changes ?? {}))) return void watchToken(doc);
+      if (movesForPiles(this.actor, doc, changes) && pileReachKey(this.actor) !== this.#pileReach) this.#renderSoon();
     };
     const watchSetting = (setting) => {
       if (setting?.key === `${MODULE_ID}.formations`) this.#renderSoon();
@@ -385,6 +393,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     if (tabs.service) panels.service = buildServicePanel(actor, { isGM: gm, pins: snap.pins });
     panels.followers = await buildFollowersTab(actor);
     this.#wageLine = wageLineKey(actor);
+    this.#pileReach = pileReachKey(actor);
     this.#castKey = castTrackerKey(snap.cast.records);
     this.#castShape = castTrackerShape(castTrackers(snap.cast.records));
     panels.notes = await buildNotesTab(actor, { editing: this.#ui.editingNotes });

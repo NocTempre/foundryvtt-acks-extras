@@ -340,9 +340,10 @@ and the same unfolding list with *Take* on every line. It has no *Pick up*,
 since nothing on it is stamped to the viewer, no *Deposit* and no *Pin*, and
 *Open* only for a Judge. It is not part of the Load tooltip, which names only
 the viewer's own set-down packs, and not a choice in the coin order. Whether a
-row is listed is read at each render: a token moved to or from the pile does
-not itself re-render the sheet (token moves are unwatched), so the row follows
-the next render.
+row is listed is read at each render, and a move of the character's token or
+of a pile's re-renders the sheet when it changes which piles the character
+reaches (`movesForPiles`, `pileReachKey`; every other token's move is
+unwatched), so the row comes and goes as the character walks up and away.
 
 **What a pile does to the rest of the tab.** The Load figure drops by what was
 set down, since the sheet's load reads the character's own items, and its

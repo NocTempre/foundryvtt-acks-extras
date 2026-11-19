@@ -21,7 +21,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-09-07 — [The canvas figures are a specification, scaled by a ratio (2026-09-07)](DECISIONS-through-v11.14.5.md#the-canvas-figures-are-a-specification-scaled-by-a-ratio-2026-09-07)
 - 2026-09-16 — [The adventuring throws are listed from the system's fields, once (2026-09-16)](DECISIONS-through-v11.14.5.md#the-adventuring-throws-are-listed-from-the-systems-fields-once-2026-09-16) — superseded in part by "An Adventuring row is the better of the stored figure and the held skill's throw (2026-11-11)"
 - 2026-09-16 — [An editable field holds the stored value (2026-09-16)](DECISIONS-through-v11.14.5.md#an-editable-field-holds-the-stored-value-2026-09-16)
-- 2026-09-22 — [A token's move does not re-render the sheet (2026-09-22)](DECISIONS-through-v11.14.5.md#a-tokens-move-does-not-re-render-the-sheet-2026-09-22)
+- 2026-09-22 — [A token's move does not re-render the sheet (2026-09-22)](DECISIONS-through-v11.14.5.md#a-tokens-move-does-not-re-render-the-sheet-2026-09-22) — superseded in part by "2026-11-19 — A move to or from a pile redraws the sheet"
 - 2026-09-22 — [Core windows are reached through the sheet registry, not reimplemented (2026-09-22)](DECISIONS-through-v11.14.5.md#core-windows-are-reached-through-the-sheet-registry-not-reimplemented-2026-09-22)
 - 2026-09-23 — [An ability with no throw is a row that posts its card (2026-09-23)](DECISIONS-through-v11.14.5.md#an-ability-with-no-throw-is-a-row-that-posts-its-card-2026-09-23)
 - 2026-10-01 — [A stack divides by a count and joins by a drop (2026-10-01)](DECISIONS-through-v11.14.5.md#a-stack-divides-by-a-count-and-joins-by-a-drop-2026-10-01)
@@ -84,7 +84,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 
 **Cost.** A pale figure is what the register's reach builds at the caster level its source resolves; a cast may differ once the caster picks an option or types another level. The row id no longer carries the record's id, so two records granting one throw are one row, as the stacking already made them one figure.
 
-## 2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's
+## 2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's — SUPERSEDED IN PART 2026-11-19
 
 The owner, on the third board of the set-down design: "Approve, build it". The
 board put a list under each pile row on the Equipment tab's Kept elsewhere, one
@@ -109,3 +109,30 @@ badly live.
 
 *Cost:* a bystander who walks up to a pile does not see its row until the sheet
 next renders.
+
+## 2026-11-19 — A move to or from a pile redraws the sheet
+
+**Ruled** (owner, 2026-11-19, intake row T-0653), asked whether a token moving
+to or from a pile should refresh the character sheet, verbatim: "Yes, refresh
+it". For example: Alys walks onto Bran's pile, and her open sheet lists the
+pile's row with Take at once; she walks off and the row goes.
+
+**Supersedes in part** the earlier 2026-11-19 entry's bullet "a bystander's row
+is listed from reach alone … the row follows the next render", and its cost
+line. *New evidence:* the owner's answer to the question that entry left open.
+Also **supersedes in part 2026-09-22** ("A token's move does not re-render the
+sheet"), for this one case.
+
+- A token update that moves (`x`, `y` or `elevation`) the sheet's own
+  character, or a pile, re-renders the sheet when the piles the character
+  reaches that hold anything differ from those the last render drew
+  (`movesForPiles`, `pileReachKey`).
+- Every other token's move still answers nothing, as 2026-09-22 ruled: on a
+  live scene each step costs an open sheet one comparison, and the reach scan
+  runs only for its own character's moves or a pile's.
+
+**Rejected:** re-rendering on every move of the character's own token (a walk
+across a map redraws the sheet at each step though nothing it shows changed).
+
+*Cost:* each of the character's own moves, on a world holding any pile, runs
+one reach scan per open sheet of that character.

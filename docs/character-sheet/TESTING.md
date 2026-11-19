@@ -1091,9 +1091,9 @@ data)`, and kept.
 
 11. *A bystander takes from the pile, from the sheet.* Set the Backpack down
     again as `set-down-hero`. Move `set-down-bystander`'s token onto the pile's
-    token, then open the bystander's sheet (a token move re-renders nothing, so
-    open it after the move, or press any control that redraws it). As the
-    bystander's Player seat, Equipment tab, *Kept elsewhere*.
+    token with the bystander's sheet already open, as the bystander's Player
+    seat, on its Equipment tab, *Kept elsewhere*. The row appears without
+    reopening the sheet: the move redraws it.
     *Observable:* a row "On the ground · Hero's Backpack" with an *At risk*
     tag whose tooltip says anyone standing at it can take from it, the line
     "<n> item(s) · you are standing at it", whose tooltip lists the goods, and
@@ -1109,8 +1109,9 @@ data)`, and kept.
     so does the hero's *Kept elsewhere* row.
     Press *Take* on the dagger with the box left blank on the Torches.
     *Observable:* the dagger comes whole. Move the bystander's token well off
-    the pile and open the sheet again. *Observable:* the row is gone. Move the
-    token back, open the sheet, unfold the row and press *Take* on the
+    the pile, leaving the sheet open. *Observable:* the row is gone without
+    reopening the sheet. Move the token back. *Observable:* the row returns;
+    unfold it and press *Take* on the
     Backpack's own line. *Observable:* the Backpack is on the bystander,
     `flags["acks-extras"].setDown` is gone, the taken Backpack lists loose under
     *Carried* (its `gear.wornAt` is empty and it is not equipped, though it was

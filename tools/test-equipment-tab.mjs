@@ -43,7 +43,7 @@ globalThis.game = {
   i18n: { has: () => false, localize: (k) => k, format: fmt },
 };
 
-const { buildEquipmentTab, canSetDown, containerControls, groundRowOf, takeFromPile, pileTakePick } = await import("../scripts/character-sheet/tabs/equipment.mjs");
+const { buildEquipmentTab, canSetDown, containerControls, groundRowOf, takeFromPile, pileTakePick, movesForPiles, pileReachKey } = await import("../scripts/character-sheet/tabs/equipment.mjs");
 
 const HERO = "Actor.hero";
 const PILE = "Actor.pile";
@@ -331,6 +331,36 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
 }
 
 /* -------------------------------------------- */
+/*  A move to or from a pile redraws the sheet    */
+/* -------------------------------------------- */
+
+{
+  const alys = actorOf({ uuid: "Actor.alys", id: "alys", name: "Alys" });
+  useStorage({ held: false });
+  stand("beside");
+  eq(pileReachKey(alys), PILE, "standing at a pile that holds goods, the key names it");
+  stand("away");
+  eq(pileReachKey(alys), "", "walked away, the key is empty, so the move redraws");
+  stand(null);
+  eq(pileReachKey(alys), "", "nowhere on a map, nothing is reached");
+  stand("beside");
+  useStorage({ held: false, items: [] });
+  eq(pileReachKey(alys), "", "a pile holding nothing is no row, so it is no part of the key");
+  useStorage({ pile: null });
+  eq(pileReachKey(alys), "", "with no pile in the world there is nothing to reach");
+  stand(null);
+
+  ok(movesForPiles(alys, { actorId: "alys" }, { x: 100 }), "the character's own token moving answers");
+  ok(movesForPiles(alys, { actorId: "alys" }, { elevation: 10 }), "so does a change of elevation");
+  ok(!movesForPiles(alys, { actorId: "alys" }, { name: "Alys the Bold" }), "a change that is no move does not");
+  ok(!movesForPiles(alys, { actorId: "bran", actor: actorOf({ uuid: "Actor.bran", id: "bran" }) }, { x: 100 }), "someone else's move does not");
+  ok(movesForPiles(alys, { actorId: "pile", actor: pileOf() }, { y: 100 }), "a pile's token moving answers");
+  const tokenActor = { ...actorOf({ isToken: true, uuid: "Scene.s1.Token.t1.Actor.alys", id: "alys" }), token: { uuid: "Scene.s1.Token.t1" } };
+  ok(movesForPiles(tokenActor, { uuid: "Scene.s1.Token.t1", actorId: "alys" }, { x: 1 }), "a token actor answers to its own token");
+  ok(!movesForPiles(tokenActor, { uuid: "Scene.s1.Token.t2", actorId: "alys" }, { x: 1 }), "and not to another token of the same base actor");
+}
+
+/* -------------------------------------------- */
 /*  Open is the Judge's                          */
 /* -------------------------------------------- */
 
@@ -403,6 +433,8 @@ const setDownOf = (controls) => controls.find((c) => c.action === "containerSetD
   ok(/"placeOpen", "placeFold"/.test(sheet), "the fold stays live on a sheet the viewer cannot edit");
   ok(/extends FrameMixin\(PicksMixin\(/.test(sheet), "the sheet carries the staging-pick mixin, so a typed amount is no submit and survives a redraw");
   ok(/openPiles: this\.#ui\.openPiles/.test(sheet), "the sheet hands the tab the piles it has unfolded");
+  ok(/movesForPiles\(this\.actor, doc, changes\) && pileReachKey\(this\.actor\) !== this\.#pileReach/.test(sheet), "a token move redraws only when it changes which piles the character reaches");
+  ok(/this\.#pileReach = pileReachKey\(actor\)/.test(sheet), "and each render records the piles it drew against");
   ok(/data-action="\{\{action\}\}" data-tooltip="\{\{title\}\}" aria-label="\{\{title\}\}"/.test(gear), "a container's header controls are named for assistive technology");
   ok(!/\sid="/.test(gear + eqTpl), "no literal id in the templates");
   ok(/data-action="placeRetrieveAll" data-tooltip-text="\{\{place\.ground\.pickUpTip\}\}"/.test(eqTpl), "a pile's Pick up is the retrieve action with its own tooltip");

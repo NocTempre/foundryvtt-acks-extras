@@ -368,6 +368,44 @@ export async function takeFromPile(actor, pile, itemId, row = null) {
   return api.retrieve(pile, actor, [{ id: itemId, quantity }]);
 }
 
+/** The token fields a move changes: where it stands. */
+const MOVE_KEYS = Object.freeze(["x", "y", "elevation"]);
+
+/**
+ * Does this token update move the character or a pile? Only such a move can
+ * change which piles the character stands at; every other token's move is
+ * answered with nothing, so a live scene's steps cost an open sheet one
+ * comparison each.
+ * @param {Actor} actor the sheet's character
+ * @param {TokenDocument} token the token updated
+ * @param {object} changes the update's changes
+ */
+export function movesForPiles(actor, token, changes) {
+  if (!MOVE_KEYS.some((k) => k in (changes ?? {}))) return false;
+  const ours = actor?.isToken ? token?.uuid === actor.token?.uuid : !!token?.actorId && token.actorId === actor?.id;
+  return ours || isGroundPile(token?.actor);
+}
+
+/**
+ * The piles the character reaches that hold anything, as one string the sheet
+ * compares across a move: the bystander rows the tab lists and the lines Take
+ * is offered on both follow it, so a move that leaves it unchanged changes
+ * nothing the tab draws.
+ * @param {Actor} actor
+ * @param {object} [scan] a `reachScan` already taken
+ */
+export function pileReachKey(actor, scan = null) {
+  const storage = libStorage();
+  const piles = (storage?.providers?.() ?? []).filter(isGroundPile);
+  if (!piles.length) return "";
+  const pass = scan ?? reachScan(actor);
+  return piles
+    .filter((p) => depositReach(actor, p, { scan: pass }).can && (storage?.storedItems?.(p) ?? []).some(isGoods))
+    .map((p) => p.uuid)
+    .sort()
+    .join("|");
+}
+
 /**
  * The creature the character rides, as the Mount rule lists it, or null on
  * foot. Its line is what it bears, the rider and their kit included, against
