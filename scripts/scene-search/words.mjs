@@ -9,14 +9,14 @@ import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { autoCardRow } from "../formation/party-rolls.mjs";
 
-const ROOT = "ACKS-LOCATION.sceneSearch";
+const ROOT = "ACKS-LOCATION.sceneSearch.";
 
 /** A refusal's `scene:` code as a sentence; a code with no words reads as the generic line. A refusal for a figure nobody imported has no words and answers an empty string. */
 export function sceneReasonText(reason, name = "") {
   if (reason === "scene:notImported") return "";
   const code = typeof reason === "string" && reason.startsWith("scene:") ? reason.slice(6) : "";
-  const key = `${ROOT}.reason.${code}`;
-  return code && game.i18n.has(key) ? game.i18n.format(key, { name }) : game.i18n.localize(`${ROOT}.reason.other`);
+  const key = `${ROOT}reason.${code}`;
+  return code && game.i18n.has(key) ? game.i18n.format(key, { name }) : game.i18n.localize(`${ROOT}reason.other`);
 }
 
 /**
@@ -28,9 +28,9 @@ export function postRollCard({ formation, actor, rolled, outcome }) {
   if (!rolled) return null;
   const row = rolled.row;
   const html = renderRollCard({
-    title: game.i18n.localize(`${ROOT}.card.title`),
+    title: game.i18n.localize(`${ROOT}card.title`),
     subtitle: formation.name,
-    note: game.i18n.localize(`${ROOT}.outcome.${String(outcome.code).replace("scene:", "")}`),
+    note: game.i18n.localize(`${ROOT}outcome.${String(outcome.code).replace("scene:", "")}`),
     sections: [
       {
         rows: [

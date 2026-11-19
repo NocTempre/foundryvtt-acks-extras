@@ -27,7 +27,7 @@ import { logCheck, readWorld, reachContext, toolsOf, writeEntryState } from "./s
 import { markSceneFound } from "./haul.mjs";
 import { revealExit } from "./seams.mjs";
 
-const LANG_ACTIVITY = "ACKS-LOCATION.sceneSearch.activity";
+const LANG_ACTIVITY = "ACKS-LOCATION.sceneSearch.activity.";
 
 /** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor}`, `postRoll(card)` for the Judges' card, and `reveal` for `revealSecretDoor`. */
 const seams = { checks: null, postRoll: null, reveal: null, pot: null };
@@ -207,7 +207,7 @@ export function registerSceneActivities() {
       key: activity,
       pace: name === LAYER.HASTY ? "hasty" : "methodical",
       length: name === LAYER.HASTY ? "round" : "turn",
-      label: `${LANG_ACTIVITY}.${name}`,
+      label: `${LANG_ACTIVITY}${name}`,
       options: (_actor, ctx) => {
         const world = ctx?.formation ? readWorld(ctx.formation) : null;
         return world ? seatView(world.entries, { isGM: !!game.user?.isGM }).map((entry) => ({ id: entry.key })) : [];
