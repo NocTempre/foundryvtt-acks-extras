@@ -2744,7 +2744,9 @@ registration (a file removed from the server would then license deletes).
 
 *Cost:* a book whose file is gone from the server reads as registered, so the
 Books tab and the open-book gates show it open; the failure surfaces at its
-first read, as `book-closed`, instead of at join. The per-seat remembered
+first read, instead of at join: as `book-closed` through the verified readers,
+and as a node of blank fields (the failure in its `misses`) through a reader
+that hands the document straight to `executeEntry`. The per-seat remembered
 location of a shelved book is no longer tried when the shelf file is gone,
 since the book is already registered. A book is fetched on the first read of
 each session (the whole file) until a saved text layer replaces that read.
