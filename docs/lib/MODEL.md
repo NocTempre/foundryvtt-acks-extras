@@ -2197,6 +2197,34 @@ multiplier is the Judge's way to apply a defense by hand. Rulings: DECISIONS,
 "Damage against defenses is one lib stage, and a weapon hit is applied by
 lib".
 
+## The natural die of a throw
+
+`throws.mjs` is the one reader of the general automatic-failure and
+automatic-success rule (RR p. 10, "Throwing the Dice"). The procedure ships; its
+two figures are read. They are the `throws` document's `throwProse` table, a
+`proseValues` recipe in `importer/books/rr/table-recipes-throws.mjs`, declared
+with `expectTables` by `declareThrowTables()` at `init` and edited in the
+Ruledata Browser's override layer: `autoFailMax`, the highest natural result
+that fails, and `autoSucceedMin`, the lowest that succeeds for a thrower
+proficient in the task. The page prints one natural result for each, not a
+range.
+
+`isAutoFail(natural)` is true at or below the failing edge, false above it.
+`isAutoSucceed(natural, {proficient})` takes the thrower's proficiency because
+the page grants the success to a proficient thrower only: `proficient: false` is
+never an automatic success, and a proficiency that is not stated (not a
+boolean) answers null rather than being assumed. `dieFloor()` is the lowest
+natural result that can succeed, one past the failing edge. Each answer is null
+while its figure is not imported, is no whole number, or contradicts the other
+(a succeeding edge no higher than the failing one, which reads as neither), and
+`throwsCite()` is the page through `citeOf`, null for a Judge's own figures.
+
+**The caller's order.** The natural die is read before the target, and a
+natural result that is automatic never consults the modifiers or the target. A
+null answer sends the caller back to the target alone. This is the general
+rule only: a throw that prints a band of its own (a botch band, a wider failure
+range) keeps that band and does not read these figures.
+
 ## A record's modifiers at the roll
 
 An Active Effect carries the figures no field a change can write holds in

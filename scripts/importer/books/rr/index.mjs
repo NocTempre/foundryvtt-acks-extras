@@ -6,6 +6,7 @@
  */
 import { tableRecipes as formationRecipes } from "./table-recipes.mjs";
 import { researchRecipes } from "./table-recipes-research.mjs";
+import { throwsRecipes } from "./table-recipes-throws.mjs";
 
-/** The formation document's recipes and the magic research document's, each under its own document id. */
-export const tableRecipes = { ...formationRecipes, ...researchRecipes };
+/** The formation, magic research and throws documents' recipes, each under its own document id. */
+export const tableRecipes = { ...formationRecipes, ...researchRecipes, ...throwsRecipes };

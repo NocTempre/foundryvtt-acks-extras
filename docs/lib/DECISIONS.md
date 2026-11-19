@@ -876,3 +876,24 @@ are the owner's; what follows are the calls the build made.
   notice, so there is none.
 
 *Cost:* a rung gains three members, so lib `apiVersion` is 62.
+
+## 2026-11-18 — The natural die of a throw has one reader, `lib/throws.mjs`
+
+Ruled by the dungeon close-out's A0 pass (architect, page-checked): the
+general rule for a throw's natural die (RR p. 10, "Throwing the Dice") is read
+once, into a lib-owned `throws` document, and every throw that tests a natural
+result before its target (a door's bash, a trap's disarm, a party check) asks
+`isAutoFail` and `isAutoSucceed` instead of carrying its own literal.
+
+- The page prints each clause as one figure, not a range, so the window reads
+  `autoFailMax` and `autoSucceedMin` with `take: "int"`; the ruling's `band`
+  needs a printed range.
+- The automatic success is the page's for a proficient thrower only, so
+  `isAutoSucceed(natural, {proficient})` takes the proficiency and answers
+  null when it is unstated; each consumer says what counts as proficient for
+  its throw.
+- With nothing imported every reader answers null and the target alone
+  decides.
+
+*Rejected:* a bare `isAutoSucceed(natural)`, which would succeed for a thrower
+the page excludes; a default edge when nothing is imported.

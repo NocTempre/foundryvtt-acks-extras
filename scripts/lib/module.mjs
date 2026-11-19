@@ -104,6 +104,7 @@ import { installSurpriseCardPatch, SETTING_SURPRISE_CARD } from "./patches/surpr
 import { installAnimationBridge } from "./animations.mjs";
 import { installAttackApply } from "./attack-apply.mjs";
 import { declareDefenseTables } from "./defenses.mjs";
+import { declareThrowTables } from "./throws.mjs";
 import { installInitiativeCardPatch, SETTING_INITIATIVE_CARD } from "./patches/initiative-card.mjs";
 import { installCombatRoundPatch } from "./patches/combat-round.mjs";
 import { installTurnOrderPatch } from "./patches/turn-order.mjs";
@@ -576,6 +577,7 @@ Hooks.once("init", () => {
   light.declareLightTables();
   senses.declareSenseTables();
   declareDefenseTables();
+  declareThrowTables();
   movementScales.declareMovementTables();
   vocab.declareWearSlotTables();
   vocab.declareGearAccessTables();

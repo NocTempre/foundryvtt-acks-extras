@@ -60,6 +60,8 @@ const TABLES = {
   senses: ["shadowySensesProse", "nightVisionProse", "lightlessDefaultProse"],
   // The two figures lib/defenses.mjs reads: a resistant combatant's share of the damage and its saving throw modifier.
   defenses: ["resistanceProse"],
+  // The two natural results lib/throws.mjs reads: the one that fails and the one that succeeds for a proficient thrower.
+  throws: ["throwProse"],
   // The expedition speed grid and the sentences around it: the ratio, the hours of each day, the wilderness scale.
   travel: ["expeditionRows", "expeditionProse"],
   // The influence roller's two morale pages: a result column and a modifier
@@ -587,6 +589,13 @@ VERIFY["defenses.resistanceProse"] = (out, recipe, fail) => {
   proseKeys(out, recipe, fail);
   if (isNum(out?.fraction) && !(out.fraction > 0 && out.fraction <= 1)) fail("fraction: not a share above none and within the whole");
   if (isNum(out?.saveBonus) && !Number.isInteger(out.saveBonus)) fail("saveBonus: not a whole modifier");
+};
+// The natural-die figures lib/throws.mjs reads: each a whole number, and the
+// succeeding one above the failing one. Shape only; no figure is named.
+VERIFY["throws.throwProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  for (const key of ["autoFailMax", "autoSucceedMin"]) if (isNum(out?.[key]) && !Number.isInteger(out[key])) fail(`${key}: not a whole number`);
+  if (isNum(out?.autoFailMax) && isNum(out?.autoSucceedMin) && !(out.autoSucceedMin > out.autoFailMax)) fail("autoSucceedMin: not above autoFailMax");
 };
 // The expedition grid: every declared row read, a figure in both cells, and
 // every row holding the same ratio between them (the binding takes that ratio
