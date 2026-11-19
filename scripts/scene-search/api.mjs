@@ -152,6 +152,39 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
   return { open, end, assign, unassign, read, assignments, options };
 }
 
+/** The api over the real dependencies, made once at init by `configureSceneSearchApi`. */
+let live = null;
+
+/**
+ * Make the module's api over its real dependencies; the module's wiring calls
+ * it once, at init, before `acksExtras.sceneSearch` is assigned.
+ * @param {object} deps as `createSceneSearchApi` takes them
+ */
+export function configureSceneSearchApi(deps) {
+  live = createSceneSearchApi(deps);
+}
+
+/** Open a session at a place for a party and deal its haul (`createSceneSearchApi`'s `open`). Judge-only. */
+export const openSceneSearch = (args) => live.open(args);
+
+/** End the party's session (`createSceneSearchApi`'s `end`). Judge-only. */
+export const endSceneSearch = (partyId) => live.end(partyId);
+
+/** Assign a member to an entry's layer: a plan lock, or a player's declaration through the relay. */
+export const assignSceneCheck = (args) => live.assign(args);
+
+/** Take a member's scene assignment off the plan. */
+export const unassignSceneCheck = (args) => live.unassign(args);
+
+/** The session, its entries as this seat reads them, and the log; null with no session open. */
+export const readSceneSearch = (partyId) => live.read(partyId);
+
+/** Who is assigned to which entry and layer, `[{actorId, layer, entryKey, remaining, resolved}]`. */
+export const sceneAssignments = (partyId) => live.assignments(partyId);
+
+/** What one member may attempt at every entry this seat can see. */
+export const sceneOptions = (args) => live.options(args);
+
 /** A fight's record from the search card's message. */
 function defaultRecord(messageId) {
   return game.messages?.get(messageId)?.flags?.[MODULE_ID]?.[SEARCH_FLAG] ?? null;

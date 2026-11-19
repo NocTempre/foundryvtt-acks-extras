@@ -10,15 +10,31 @@ import { requestPartyAction } from "../formation/player-requests.mjs";
 import { PARTY_CHECKS, resolveCheck, rollCheckFor } from "../formation/party-rolls.mjs";
 import * as turnPlan from "../formation/turn-plan.mjs";
 import { configureSceneChecks, registerSceneActivities } from "./activities.mjs";
-import { createSceneSearchApi } from "./api.mjs";
+import {
+  assignSceneCheck,
+  configureSceneSearchApi,
+  endSceneSearch,
+  openSceneSearch,
+  readSceneSearch,
+  sceneAssignments,
+  sceneOptions,
+  unassignSceneCheck,
+} from "./api.mjs";
 import { resolveSceneRound } from "./round.mjs";
 import { postRollCard, sceneReasonText } from "./words.mjs";
 
 Hooks.once("init", () => {
   configureSceneChecks({ checks: { PARTY_CHECKS, resolveCheck, rollCheckFor }, postRoll: postRollCard });
   registerSceneActivities();
+  configureSceneSearchApi({ plan: turnPlan, request: requestPartyAction });
   acksExtras.sceneSearch = {
-    ...createSceneSearchApi({ plan: turnPlan, request: requestPartyAction }),
+    open: openSceneSearch,
+    end: endSceneSearch,
+    assign: assignSceneCheck,
+    unassign: unassignSceneCheck,
+    read: readSceneSearch,
+    assignments: sceneAssignments,
+    options: sceneOptions,
     resolveRound: resolveSceneRound,
     reasonText: sceneReasonText,
   };
