@@ -1,31 +1,34 @@
 /* global game, foundry, fromUuid, ui */
 /**
  * The Blood sacrifice window: a caster, a bucket of victims dropped from the sidebar or the canvas, what a Judge
- * says of each (willing or helpless, the traits that apply, the value, young) and of the sacrifice (the site, the
- * class power), the yield, and the verdicts that stand in the way. ApplicationV2 over a scrolling body and a pinned
- * footer, the cast dialog's shape. `sacrifice.mjs` answers every question the window asks (`panelModel`) and
- * decides the act; the live half (`sacrifice-live.mjs`) reads the documents and makes the writes.
+ * says of each (willing or helpless, the traits that apply, the value, young) inside the victim's own row and of the
+ * sacrifice (the site, the class power), the yield, and the verdicts that stand in the way. ApplicationV2 over a
+ * scrolling body and a pinned footer, the cast dialog's shape. `sacrifice.mjs` answers every question the window asks
+ * (`panelModel`) and decides the act; the live half (`sacrifice-live.mjs`) reads the documents and makes the writes.
  *
- * The toggles are a Judge's: a Player's seat draws them disabled and its Sacrifice button is disabled with the
- * reason in the footer, the way the cast plan's verdicts disable the cast button. What was typed lives on the
- * instance, and survives every re-render. One window serves one caster.
+ * The window holds nothing of its own. Everything it draws is the caster's shared record (`sacrifice-record.mjs`),
+ * written through `writeRecord` and drawn again by the update hook whenever it changes, so every window open for
+ * the caster shows the same facts as the Judge sets them. The checks are a Judge's: a Player's seat reads them as
+ * text and its Sacrifice button is disabled with the reason in the footer, the way the cast plan's verdicts disable
+ * the cast button, until nothing waits on the Judge. The record goes when the sacrifice is made, and when a Judge
+ * closes the window. One window serves one caster.
  */
 import { MODULE_ID, LANG_PREFIX } from "../constants.mjs";
 import { entryFromDrop, BUCKET_ACTIONS, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, BUCKET_LANG_PREFIX } from "../../lib/bucket.mjs";
 import { makeLoc } from "../../lib/util.mjs";
-import { panelModel, planOf, cleanState, VICTIM_KINDS } from "../sacrifice.mjs";
+import { panelModel, planOf, VICTIM_KINDS } from "../sacrifice.mjs";
+import { OP, stateOf, diffJudge } from "../sacrifice-record.mjs";
 import { casterFacts, victimsOf, tablesNow, sacrificeCites, sacrifice, creatureOf, holdsCreature, loc, announce } from "../sacrifice-live.mjs";
+import { openWindows, readRecord, writeRecord, clearRecord, refusal } from "../sacrifice-record-live.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/** The windows open now, by the caster's uuid. */
-const OPEN = new Map();
+/** The partial a victim's checks are drawn by inside its bucket row. */
+const ROW_PARTIAL = `modules/${MODULE_ID}/templates/magic/sacrifice-victim.hbs`;
 
 /** The Blood sacrifice window. */
 export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   #actor;
-  /** What the seat has set so far. Never named `state`: ApplicationV2 owns that name. */
-  #held = { list: [], site: false, power: false, victims: {} };
   #acting = false;
   #dragDrop;
 
@@ -70,10 +73,10 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
    * @returns {Promise<SacrificeWindow>}
    */
   static async open(actor) {
-    let window = OPEN.get(actor.uuid);
+    let window = openWindows.get(actor.uuid);
     if (!window) {
       window = new SacrificeWindow(actor, { id: `acks-extras-sacrifice-${actor.id}` });
-      OPEN.set(actor.uuid, window);
+      openWindows.set(actor.uuid, window);
     }
     await window.render({ force: true });
     window.bringToFront?.();
@@ -85,19 +88,23 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
     return loc("title", { name: this.#actor.name });
   }
 
+  /** The shared record as the model's state: what every window for this caster draws. */
+  get #shared() {
+    return stateOf(readRecord(this.#actor));
+  }
+
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     try {
-      await foundry.applications.handlebars.loadTemplates([BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE]);
+      await foundry.applications.handlebars.loadTemplates([BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, ROW_PARTIAL]);
     } catch (err) {
-      console.error(`${MODULE_ID} | the bucket partials could not be loaded`, err);
+      console.error(`${MODULE_ID} | the sacrifice's partials could not be loaded`, err);
     }
     const caster = await casterFacts(this.#actor);
-    const victims = await victimsOf(this.#held.list, this.#held);
-    // A victim whose document is gone leaves the list, so the bucket never holds a row nothing backs.
-    this.#held.list = this.#held.list.filter((row) => victims.some((v) => v.uuid === row.uuid));
-    const panel = panelModel({ caster, victims, state: this.#held, tables: tablesNow(), judge: game.user.isGM === true, loc, bucketLoc: makeLoc(BUCKET_LANG_PREFIX), cites: sacrificeCites() });
+    const state = this.#shared;
+    const victims = await victimsOf(state.list, state);
+    const panel = panelModel({ caster, victims, state, tables: tablesNow(), judge: game.user.isGM === true, loc, bucketLoc: makeLoc(BUCKET_LANG_PREFIX), cites: sacrificeCites(), rowPartial: ROW_PARTIAL });
     const { plan, ...view } = panel;
     return { ...context, ...view, caster: { name: caster.name, img: caster.img }, acting: this.#acting };
   }
@@ -111,50 +118,52 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   /** @override */
   _onClose(options) {
     super._onClose?.(options);
-    OPEN.delete(this.#actor.uuid);
+    // Leave the registry first: the clear this close writes is a change the update hook draws, and it must not find this window.
+    openWindows.delete(this.#actor.uuid);
+    if (game.user.isGM) void clearRecord(this.#actor);
   }
 
   /* -------------------------------------------- */
-  /*  What the seat has set                       */
+  /*  What the seat sets                          */
   /* -------------------------------------------- */
 
   /**
-   * Read the window's controls into what is held. A control that is disabled (a Player's seat) or not on the page
-   * leaves what is held as it is. A node is told by `nodeType`, never `instanceof`, so a window built in a browser
-   * window of its own reads the same.
+   * Read the Judge's controls off the window as the model's `read` (`diffJudge`): the site and the class power where they
+   * were drawn enabled, and each victim's checks, trait rows and value. A control that is disabled or not on the page is
+   * left out, so it is never sent. A node is told by `nodeType`, never `instanceof`, so a window built in a browser window
+   * of its own reads the same.
    */
-  #capture() {
+  #read() {
     const form = this.element;
-    if (form?.nodeType !== 1) return;
-    const held = this.#held;
+    if (form?.nodeType !== 1) return null;
+    const read = { victims: {} };
     for (const key of ["site", "power"]) {
       const box = form.querySelector(`input[name="${key}"]`);
-      if (box && !box.disabled) held[key] = box.checked;
+      if (box && !box.disabled) read[key] = box.checked;
     }
-    const byVictim = {};
     for (const el of form.querySelectorAll("[data-victim]")) {
       if (el.disabled) continue;
-      const mine = (byVictim[el.dataset.victim] ??= {});
+      const mine = (read.victims[el.dataset.victim] ??= {});
       if (el.dataset.field) mine[el.dataset.field] = el.checked;
       else if (el.dataset.trait !== undefined) {
         const ticked = (mine.traits ??= []);
         if (el.checked) ticked.push(Number(el.dataset.trait));
-      }
-      else if (el.dataset.value !== undefined) mine.value = el.value;
+      } else if (el.dataset.value !== undefined) mine.value = el.value;
     }
-    for (const [uuid, mine] of Object.entries(byVictim)) {
-      const before = cleanState(held.victims[uuid]);
-      // A victim's traits are read whole where its trait checks were drawn enabled, and left alone where they were not.
-      held.victims[uuid] = cleanState({ ...before, ...mine, traits: mine.traits ?? before.traits });
-    }
+    return read;
   }
 
-  /** A drop on the bucket: a creature or a token, once, other than the caster itself. */
+  /** Tell the user a write of the record was refused. */
+  #refused(result) {
+    if (result?.ok === false) ui.notifications?.warn(refusal(result.reason));
+  }
+
+  /** A drop on the bucket: a creature or a token, once, other than the caster itself; it is written through the record, which a Player's seat has the GM's client do. */
   async #onDrop(event) {
     event.currentTarget?.classList?.remove("drop-hover");
-    this.#capture();
     const data = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
-    const made = await entryFromDrop(data, fromUuid, { policy: { accepts: { kinds: VICTIM_KINDS } }, present: this.#held.list });
+    const list = this.#shared.list;
+    const made = await entryFromDrop(data, fromUuid, { policy: { accepts: { kinds: VICTIM_KINDS } }, present: list });
     if (!made.entry) {
       if (made.refused !== "noDrop") announce(made.refused === "kind" ? "kind" : made.refused, { name: made.name ?? "" });
       return;
@@ -164,31 +173,29 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
       announce("self");
       return;
     }
-    if (await holdsCreature(this.#held.list, doc)) {
+    if (await holdsCreature(list, doc)) {
       announce("duplicate");
       return;
     }
-    this.#held.list.push({ uuid: made.entry.uuid, qty: 1, fit: "" });
-    this.render();
+    this.#refused(await writeRecord(this.#actor, { op: OP.add, uuid: made.entry.uuid }));
   }
 
   /* -------------------------------------------- */
   /*  Actions                                     */
   /* -------------------------------------------- */
 
-  /** A change in any control: keep what is held and draw it again. */
-  static #onForm() {
-    this.#capture();
-    this.render();
+  /** A change in a Judge's control: only what differs from the record is written, and the record's update draws every window again. */
+  static async #onForm() {
+    if (!game.user.isGM) return;
+    const read = this.#read();
+    const op = read ? diffJudge(readRecord(this.#actor), read) : null;
+    if (op) this.#refused(await writeRecord(this.#actor, op));
+    else this.render();
   }
 
-  /** X on a victim row: it leaves the bucket, and what was set for it with it. */
-  static #onRemove(_event, target) {
-    this.#capture();
-    const uuid = target.dataset.uuid;
-    this.#held.list = this.#held.list.filter((row) => row.uuid !== uuid);
-    delete this.#held.victims[uuid];
-    this.render();
+  /** X on a victim row: it leaves the record, and what was set for it with it. */
+  static async #onRemove(_event, target) {
+    this.#refused(await writeRecord(this.#actor, { op: OP.remove, uuid: target.dataset.uuid }));
   }
 
   static #onCancel() {
@@ -196,29 +203,28 @@ export class SacrificeWindow extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /**
-   * Make the sacrifice. The gates are asked again on what the world holds now, so a stale window cannot act on a plan
-   * that no longer stands. What was acted on leaves the bucket; a victim that counted for nothing stays.
+   * Make the sacrifice. The gates are asked again on what the record holds now, so a stale window cannot act on a plan
+   * that no longer stands. A sacrifice that yielded something ends the open sacrifice and its record; one that yielded
+   * nothing changes nothing, and the record stays for the Judge to correct.
    */
   static async #onSacrifice() {
-    this.#capture();
     if (this.#acting) return;
     this.#acting = true;
     try {
+      const state = this.#shared;
       const caster = await casterFacts(this.#actor);
-      const victims = await victimsOf(this.#held.list, this.#held);
-      const plan = planOf({ caster, victims, state: this.#held, tables: tablesNow(), judge: game.user.isGM === true, loc });
+      const victims = await victimsOf(state.list, state);
+      const plan = planOf({ caster, victims, state, tables: tablesNow(), judge: game.user.isGM === true, loc });
       if (!plan.canAct) {
         this.render();
         return;
       }
-      const result = await sacrifice(this.#actor, this.#held);
+      const result = await sacrifice(this.#actor, state);
       if (!result.ok) {
         announce("act", { why: loc(`hold.${result.reason}`, { cite: "" }) });
         return;
       }
-      const gone = new Set([...(result.marked ?? [])]);
-      this.#held.list = this.#held.list.filter((row) => !gone.has(row.uuid));
-      for (const uuid of gone) delete this.#held.victims[uuid];
+      if (!result.nothing) await clearRecord(this.#actor);
     } catch (err) {
       console.error(`${MODULE_ID} | the sacrifice failed`, err);
       ui.notifications?.error(game.i18n.localize(`${LANG_PREFIX}.sacrifice.refused.failed`));

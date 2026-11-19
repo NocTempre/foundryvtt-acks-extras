@@ -473,6 +473,12 @@ legend > .acks-extras-classes-ctl {
   color: color-mix(in srgb, var(--acks-spot) 55%, var(--acks-ink) 45%);
   cursor: help;
 }
+/* The blood sacrifice's button rides the end of the tag line. */
+.acks-extras-classes-sacrifice {
+  margin-inline-start: auto;
+  font-size: var(--acks-fs-label);
+  cursor: pointer;
+}
 .acks-extras-classes-powerbtn {
   display: inline-grid;
   place-items: center;

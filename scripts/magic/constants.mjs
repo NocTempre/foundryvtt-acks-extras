@@ -28,5 +28,7 @@ export const POWER_HANDLER = "magicPower";
 export const FLAG_MAGIC = "magic";
 /** The handler on lib's sockets through which a seat has the GM's client write a research record it cannot. */
 export const PROJECT_HANDLER = "magicProject";
-/** The handler on lib's sockets through which a seat has the GM's client mark a blood sacrifice's victims dead, a write a Player's seat lacks. */
+/** Key under flags["acks-extras"].magic on a caster holding the open blood sacrifice's shared record (`sacrifice-record.mjs`). */
+export const FLAG_SACRIFICE = "sacrifice";
+/** The handler on lib's sockets through which a seat has the GM's client mark a blood sacrifice's victims dead, a write a Player's seat lacks, and write the open sacrifice's shared record (a request carrying an `op`). */
 export const SACRIFICE_HANDLER = "magicSacrifice";

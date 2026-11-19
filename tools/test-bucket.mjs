@@ -437,6 +437,45 @@ t("a pick-one bucket renders radios, tags the picked row Used and dims a too-low
   assert.doesNotMatch(html, /bucketFit/);
 });
 
+/* -------------------------------------------- */
+/*  The row's optional slot                    */
+/* -------------------------------------------- */
+
+/** A render with the row template given by its source, so the slot's absence can be held to the template that had no slot. */
+function renderWith(view, rowSource, partials = {}) {
+  const hbs = Handlebars.create();
+  hbs.registerHelper("localize", (key) => key);
+  const dir = new URL("../templates/lib/", import.meta.url);
+  hbs.registerPartial("modules/acks-extras/templates/lib/bucket-row.hbs", rowSource);
+  for (const [name, source] of Object.entries(partials)) hbs.registerPartial(name, source);
+  return hbs.compile(fs.readFileSync(new URL("bucket.hbs", dir), "utf8"))(view);
+}
+
+t("a bucket with no slot in use renders byte for byte as the template did without the slot, for every shape of row", () => {
+  const now = fs.readFileSync(new URL("../templates/lib/bucket-row.hbs", import.meta.url), "utf8");
+  const before = now.replace(/ {4}\{\{#unless pick\}\}[\s\S]*?\{\{\/unless\}\}\n/, "");
+  assert.notEqual(before, now, "the slot is a block of its own lines, which this removes");
+  const a = bucket.makeEntry({ uuid: "Item.a", kind: "item", name: "Lantern stings", qty: 2, cap: 2, value: { gp: 14, each: 7, source: "cost", cite: "p. 4" }, fit: "mine", img: "icons/a.svg" });
+  const gone = bucket.makeEntry({ uuid: "Actor.b", kind: "actor", name: "Dead one", img: "b.png", reason: "No yield" });
+  const standard = bucket.bucketView({ fit: FIT, due: { gp: 10 } }, [a, gone], { key: "components", loc, legend: "Components", icon: "fa-flask" });
+  const pick = bucket.bucketView({ pick: "one", fit: FIT }, [a, gone], { key: "implements", loc, legend: "Implements", picked: "Item.a", rows: { "Item.a": { caption: "Level 2", diamonds: { filled: 1, lost: 1 } }, "Actor.b": { caption: "Level 3", off: true, reason: "Too low" } } });
+  const locked = bucket.bucketView({ fit: FIT }, [a], { key: "components", loc, locked: true });
+  for (const view of [standard, pick, locked]) assert.equal(renderWith(view, now), renderWith(view, before));
+  for (const r of standard.rows) assert.equal("extra" in r, false, "a row without a slot carries no key for it");
+});
+
+t("a row given an extra draws that partial under its caption with the extra as its context; a pick row never draws it", () => {
+  const e = bucket.makeEntry({ uuid: "Actor.v", kind: "actor", name: "Captive", value: { gp: 5, source: "xp", cite: "p. 1" } });
+  const partial = "modules/acks-extras/templates/test/extra.hbs";
+  const parts = { [partial]: "<b class=\"mine\">{{label}}</b>" };
+  const view = bucket.bucketView({}, [e], { key: "v", loc, legend: "V", rows: { "Actor.v": { extra: { partial, label: "checks here" } } } });
+  const html = renderWith(view, fs.readFileSync(new URL("../templates/lib/bucket-row.hbs", import.meta.url), "utf8"), parts);
+  assert.match(html, /<span class="acks-extras-bucket__extra"><b class="mine">checks here<\/b><\/span>/);
+  assert.ok(html.indexOf("acks-extras-bucket__figure") < html.indexOf("checks here"), "under the value line");
+  const picked = bucket.bucketView({ pick: "one" }, [e], { key: "v", loc, legend: "V", rows: { "Actor.v": { caption: "c", extra: { partial, label: "checks here" } } } });
+  assert.doesNotMatch(renderWith(picked, fs.readFileSync(new URL("../templates/lib/bucket-row.hbs", import.meta.url), "utf8"), parts), /checks here/);
+});
+
 t("the stylesheet dims an off row's controls and never its reason, rounds nothing and sizes type by the ramp", () => {
   const css = fs.readFileSync(new URL("../styles/lib-bucket.css", import.meta.url), "utf8");
   assert.doesNotMatch(css, /border-radius|999px/);

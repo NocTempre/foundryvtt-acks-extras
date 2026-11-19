@@ -6,7 +6,10 @@
     `fitAction`, `pickAction`), so a list that is not a bucket can draw the same
     row with its own (the cast dialog's targets hand `untarget`); `chips` are
     extra labelled tags `{text, tip, tone}`. A target's weapon pills and
-    split fields are not part of this partial. --}}
+    split fields are not part of this partial. A caller may give a row an `extra`
+    `{partial, ...}`: the name of a loaded partial, drawn under the caption with
+    the whole `extra` as its context. It is never drawn on a `pick` row, whose
+    body sits inside a label. A row without one renders as it always has. --}}
 {{#*inline "acksExtrasBucketRowBody"}}
   <span class="acks-extras-bucket__art acks-extras-bucket__dim">
     {{#if glyph}}<i class="fa-solid {{glyph}}" inert></i>{{else}}<img src="{{img}}" alt="" inert>{{/if}}
@@ -18,6 +21,11 @@
       {{else}}<span class="acks-nums"{{#if captionTip}} data-tooltip-text="{{captionTip}}"{{/if}}>{{caption}}</span>{{#if diamonds.length}} <span class="acks-extras-bucket__diamonds" aria-hidden="true">{{#each diamonds}}{{#if this}}&#9670;{{else}}&#9671;{{/if}}{{/each}}</span>{{/if}}{{/if}}
     </span>
     {{#if reason}}<span class="acks-extras-bucket__reason">{{reason}}</span>{{/if}}
+    {{#unless pick}}
+    {{#if extra}}
+    <span class="acks-extras-bucket__extra">{{> (lookup extra "partial") extra}}</span>
+    {{/if}}
+    {{/unless}}
   </span>
 {{/inline}}
 <li class="acks-extras-bucket__row{{#if off}} is-off{{/if}}{{#if picked}} is-used{{/if}}" data-uuid="{{uuid}}" data-kind="{{kind}}">

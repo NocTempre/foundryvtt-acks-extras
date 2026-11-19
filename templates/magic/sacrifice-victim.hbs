@@ -1,0 +1,25 @@
+{{!-- What the Blood sacrifice window draws inside one victim's bucket row (lib's `bucket-row.hbs` `extra` slot,
+      scripts/magic/sacrifice.mjs `victimExtra`). A Judge's seat has two lines of controls: helpless or willing and
+      the imported traits, then young and a value box, a hand-set value carrying the gold edge. A Player's seat has
+      the same facts as text. Every check is wrapped in its own label, so no id is written, and a control is read
+      back by its data-* hooks (`apps/sacrifice-window.mjs`). --}}
+{{#if judge}}
+<span class="acks-extras-sacrifice-checks">
+  {{#each checks}}
+  <label class="acks-extras-sacrifice-check" data-tooltip-text="{{tip}}"><input type="checkbox" data-victim="{{../uuid}}" data-field="{{field}}"{{#if checked}} checked{{/if}}> <span>{{label}}</span></label>
+  {{/each}}
+  {{#each traits}}
+  <label class="acks-extras-sacrifice-check" data-tooltip-text="{{tip}}"><input type="checkbox" data-victim="{{../uuid}}" data-trait="{{index}}"{{#if checked}} checked{{/if}}> <span>{{label}}</span></label>
+  {{/each}}
+</span>
+<span class="acks-extras-sacrifice-checks">
+  {{#if young}}
+  <label class="acks-extras-sacrifice-check" data-tooltip-text="{{young.tip}}"><input type="checkbox" data-victim="{{uuid}}" data-field="young"{{#if young.checked}} checked{{/if}}> <span>{{young.label}}</span></label>
+  {{/if}}
+  <label class="acks-extras-sacrifice-value" data-tooltip-text="{{value.tip}}"><span>{{value.label}}</span> <input type="number" class="acks-input acks-nums{{#if value.edited}} is-edited{{/if}}" min="0" step="1" data-victim="{{uuid}}" data-value value="{{value.shown}}"></label>
+</span>
+{{else}}
+{{#if readonly}}
+<span class="acks-extras-sacrifice-readonly">{{readonly}}</span>
+{{/if}}
+{{/if}}

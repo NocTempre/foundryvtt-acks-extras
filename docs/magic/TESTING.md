@@ -1728,11 +1728,13 @@ cards.
 
 ## Blood sacrifice (M-s)
 
-The Blood sacrifice window (`apps/sacrifice-window.mjs`, `sacrifice.mjs` the model, `sacrifice-live.mjs`
-the world's half): a bucket of victims, the Judge's toggles, the yield, the verdicts and the act. Offline:
-`tools/test-sacrifice.mjs`. Live: `tools/live/magic-sacrifice.mjs`, the GM seat and a Player seat together
-(`SEAT_GM`, `SEAT_PLAYER`). The window opens through `acksExtras.magic.sacrifice.open(actor)`; no control on
-a sheet or the strip opens it yet (an owner question).
+The Blood sacrifice window (`apps/sacrifice-window.mjs`, `sacrifice.mjs` the model, `sacrifice-live.mjs` the
+world's half, `sacrifice-record.mjs` and `sacrifice-record-live.mjs` the shared record): a bucket of victims with
+the Judge's checks inside each row, the yield, the verdicts and the act. Offline: `tools/test-sacrifice.mjs`, and
+`tools/test-bucket.mjs` for the row's slot. Live: `tools/live/magic-sacrifice.mjs`, the GM seat and a Player seat
+together (`SEAT_GM`, `SEAT_PLAYER`). The window opens from the Sacrifice… button beside the power tags on the
+caster's casting strip (the character sheet, under the class field), which a test drives with a real click;
+`acksExtras.magic.sacrifice.open(actor)` is the same call under it.
 
 ### Fixtures
 
@@ -1740,62 +1742,79 @@ Kept, found by marker (`gm.fixture` builds them where none carries it): `magic/s
 `acks-extras.class` whose one casting row has the key `divine`, which is what makes the caster a divine
 caster), `magic/sacrifice-caster` (a chaotic character at level 4 bound to that class by
 `flags["acks-extras"].classes.uuid`, owned by the Player seat's user), `magic/sacrifice-stranger` (a character
-the Player may only observe, for the refused relay), `magic/sacrifice-lawful` and `magic/sacrifice-chaotic`
+the Player may only observe: it has no divine class, so the strip draws it no button, and a Player's write on it
+is refused), `magic/sacrifice-lawful` and `magic/sacrifice-chaotic`
 (monsters with an XP award in `system.details.xp`, an alignment in `system.details.alignment` and
 `flags["acks-extras"].extras.secondary.intelligence` set to `sapient`; Observer by default, so the Player
 cannot write them). The figures are the registry's `researchLadder`, `researchProse`, `sacrificeTraits` and
 `powerOfSacrifice` through the override layer, with invented values: a rung for level 4, an
 automatic-failure band of a natural 1, two traits with factors 4 and 7 and a multiple of 6. A table already
-overridden by another hand blocks the walk. Each step starts its shape (`RESET`): no window open, neither
-victim dead (`toggleStatusEffect("dead", {active: false})`), the caster's ledger unset
-(`flags.acks-extras.-=power`), level 4 and Chaotic. A victim marked dead is never deleted, so the fixtures
-survive every run.
+overridden by another hand blocks the walk. Each step starts its shape (`RESET`): no window open, no open
+record (`flags.acks-extras.magic.-=sacrifice`), neither victim dead (`toggleStatusEffect("dead", {active:
+false})`), the caster's ledger unset (`flags.acks-extras.-=power`), level 4 and Chaotic. A victim marked dead
+is never deleted, so the fixtures survive every run.
 
 ### Steps
 
-1. Open the window for the caster on the GM seat: titled with the caster's name, in the scroll contract,
-   with a drag corner, a body that scrolls apart from the pinned footer. With no victim the Sacrifice button
-   is `aria-disabled` and the verdict list beside it, which `aria-describedby` names, says why. Drop the
-   lawful creature by a real `drop` event on the bucket's zone: one row with the creature's picture, its XP
-   value and the page in the value's tooltip. The row draws a helpless check, the two imported traits and a
-   Judge's value box, each in its own label with a tooltip and no literal id.
-2. The gates. At the Judge's seat no site and a victim not helpless are two warnings and the button is live.
-   At the Player seat the same two are blocks, every toggle is disabled, the Judge's value box is not drawn,
-   the button is disabled, and pressing it writes nothing. Ticking the site and helpless clears both. A
-   lawful caster with a sapient victim is a warning naming the victim.
-3. A success, die rigged to 20: tick both traits, the yield reads 100 and 1100, press Sacrifice. The ledger
-   holds 1200 divine power as one entry, the victim has core's dead status as an overlay and still exists,
-   it left the bucket, and one success card posted carrying the die.
-4. A failure, die rigged to 2 (the target is not reached): 100 divine power and none of the traits, the
-   victim dead, one failure card.
-5. An unwilling chaotic victim: a dimmed row with its reason and a willing check, no verdict, the yield
-   reads 0, and Sacrifice posts a card with no die, gains nothing and leaves the victim alive and in the
-   bucket. Ticking willing makes the row count (the creature's own value).
+1. The strip. On the GM seat the caster's sheet draws a Sacrifice… button beside the power tags, its tooltip
+   naming the caster and the page, and a real click opens the window. The Player seat draws it for the same
+   caster (chaotic, divine class) though the ledger holds nothing; a character with no divine class and no
+   mark gets none. The window is titled with the caster's name, in the scroll contract, with a drag corner and a
+   body that scrolls apart from the pinned footer. With no victim the Sacrifice button is `aria-disabled` and
+   the verdict list beside it, which `aria-describedby` names, says why. Drop the lawful creature by a real
+   `drop` event on the bucket's zone: one row with the creature's picture, its XP value and the page in the
+   value's tooltip. The row's own `.acks-extras-bucket__extra` holds the helpless check, the two imported
+   traits, young (the fixtures are creatures) and a Judge's value box under the value line, each in its own label with a tooltip, no section of
+   states, no literal id.
+2. Shared checks. The Judge's dropped victim is on the caster's flag, and the Judge sees two warnings (no site,
+   not helpless). The Player's seat opens the window from its own strip and sees the same row, though it dropped
+   nothing: its checks are text with no input, the value box and the class-power check are not drawn, the site
+   check is read-only, and the footer is one "Waiting on the Judge" line while Sacrifice is disabled and does
+   nothing when pressed. The Judge ticks the site on the GM seat and the Player's open window shows it ticked
+   with no reload and stops waiting on it; the Judge ticks helpless and the Player's Sacrifice frees itself,
+   the row reading "helpless". A Player's `writeRecord(caster, {op: "judge", site: false})` is answered
+   `judgeOnly` by the GM's client and the site stays. A creature the Player drops is stored on the caster
+   through the GM's client and the Judge's window shows its row; the Player's X removes it. A lawful caster with
+   a sapient victim is a warning naming the victim.
+3. A success made by the Player, die rigged to 20 on both seats: the Judge ticks both traits, the Player's yield
+   reads 100 and 1100 and Sacrifice is live. The Player presses it: the ledger holds 1200 divine power as one
+   entry, the victim has core's dead status as an overlay and still exists, the bucket is empty on both seats,
+   the record is gone from the caster, and one success card posted carrying the die, the power and the victim
+   marked dead.
+4. A failure, die rigged to 2 (the target is not reached), pressed by the Judge: 100 divine power and none of
+   the traits, the victim dead, one failure card.
+5. An unwilling chaotic victim: a dimmed row with its reason and a willing check that stays live, no verdict,
+   the yield reads 0, and Sacrifice posts a card with no die, gains nothing and leaves the victim alive and in
+   the bucket, the record kept. Ticking willing makes the row count (the creature's own value).
 6. The class power: ticking it makes the yield arcane, base and traits through the multiple, and the act
    lands the product on the arcane ledger and nothing on the divine one.
 7. A figure not read: the caster at level 9, which the ladder has no rung for. The button is disabled with
    the reason and the page, pressing posts no card and marks no one, the yield is still shown, and level 4
    again lifts the hold.
-8. A Player's mark: on the Player seat, `markVictims` from `sacrifice-live.mjs` for a creature it cannot
+8. A Player's relays: on the Player seat, `markVictims` from `sacrifice-live.mjs` for a creature it cannot
    write asks the GM's client, which marks it dead for the owner of the caster. Naming a caster the Player
-   does not own is refused there (`owner`) and marks no one.
+   does not own is refused there (`owner`) and marks no one, and `writeRecord` of a drop on that caster is
+   refused the same way and writes no record.
 
 ### Drive mechanics
 
-The window's id is `acks-extras-sacrifice-<actor id>`; `foundry.applications.instances.get(id)` closes it.
-A checkbox is ticked by `click()`, which submits the form, and the window re-renders, so the control is
-looked up again after each tick. A victim's controls carry `data-victim="<uuid>"` with `data-field`
-(`helpless`, `willing`, `young`), `data-trait="<index>"` or `data-value`; the site and class power are
-`input[name="site"]` and `input[name="power"]`. The Judge's toggles are the window's own state: they live on
-the window instance and are not shared, so a Player's window always starts with them unset and disabled,
-which is why a Player's Sacrifice is blocked until a Judge acts for the Player's character. The Player's relay
-is therefore walked through `markVictims` itself, not through a click. The die is rigged on the GM seat with
+The window's id is `acks-extras-sacrifice-<actor id>`; `foundry.applications.instances.get(id)` closes it, and a
+Judge's close clears the record. The strip's button is found on `actor.sheet.element` after
+`sheet.render({force: true})`, polled for, since the strip is injected by the render hook; it carries
+`data-sacrifice-open`. A checkbox is ticked by `click()`, which submits the form: the Judge's seat writes the
+changed fact to the caster's flag and every window for the caster is drawn again by the `updateActor` hook, so
+a control is looked up again after each tick, and what a Player's window shows is polled for with `until`. A
+victim's controls carry `data-victim="<uuid>"` with `data-field` (`helpless`, `willing`, `young`),
+`data-trait="<index>"` or `data-value`, and sit inside the row (`.acks-extras-bucket__row`
+`.acks-extras-bucket__extra`); the site and class power are `input[name="site"]` and `input[name="power"]`. The
+record is `flags["acks-extras"].magic.sacrifice` (`{site, power, list}`), read straight off the actor. The seat that
+presses Sacrifice rolls, so the die is rigged on both seats with
 `CONFIG.Dice.randomUniform = () => 1 - (die - 0.5) / 20`, which throws that natural die on core 14. A card is
-waited for with a polling `until` over the messages spoken as the caster that were not there before, and
-every card id is tracked and swept by that list.
+waited for with a polling `until` over the messages spoken as the caster that were not there before, and every
+card id is tracked and swept by that list.
 
 ### Teardown
 
-Both windows are closed, the caster's ledger, level and alignment and both victims' dead marks are put
-back, the run's overrides are cleared (also in the walk's `finally`), the dice are restored, and the
-tracked cards are swept by id. The fixtures stay.
+Both windows and the caster's sheets are closed, the caster's ledger, level, alignment and open record and both
+victims' dead marks are put back, the run's overrides are cleared (also in the walk's `finally`), the dice are
+restored on both seats, and the tracked cards are swept by id. The fixtures stay.

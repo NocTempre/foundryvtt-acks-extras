@@ -23,7 +23,10 @@ import { castVerdicts, blocked } from "./cast-plan.mjs";
 import { throwPlan, throwResult, THROW_DIE } from "./research-project.mjs";
 import { sacrificeBonus } from "./research-tables.mjs";
 import { POWER_KIND } from "./power-ledger.mjs";
+import { cleanState, num } from "./sacrifice-record.mjs";
 import { makeEntry, settlementPlan, bucketView, ENTRY_KIND, OUTCOME, SETTLE } from "../lib/bucket.mjs";
+
+export { cleanState };
 
 /** The kinds of document a victims bucket takes by a drop. */
 export const VICTIM_KINDS = Object.freeze([ENTRY_KIND.actor, ENTRY_KIND.token]);
@@ -59,9 +62,6 @@ export const HOLD = Object.freeze({ victims: "victims", casterAlignment: "caster
 /** Why a victim counts for nothing besides a bar on its value (`value.reason`): already dead, an unwilling chaotic victim, an unread alignment. */
 export const NO_YIELD = Object.freeze({ dead: "dead", unwilling: "unwilling", alignment: "alignment" });
 
-/** A figure as a finite number, else null. */
-const num = (n) => (n === null || n === undefined || n === "" || !Number.isFinite(Number(n)) ? null : Number(n));
-
 /**
  * Whether a creature counts as sapient for the caster's limit: a character is, a creature whose intelligence reads
  * `sapient` is, any other reading is not, and a blank one is unread (null), which holds a lawful or neutral caster.
@@ -80,12 +80,6 @@ export function sapientOf({ isCharacter = false, intelligence = "" } = {}) {
 export function casterBasis({ divine = false, power = false } = {}) {
   if (power === true) return BASIS.arcane;
   return divine === true ? BASIS.divine : null;
-}
-
-/** A victim's state as the window holds it, cleaned: the toggles, the ticked trait rows, and a Judge's value and young mark. */
-export function cleanState(raw) {
-  const traits = Array.isArray(raw?.traits) ? [...new Set(raw.traits.map(Number).filter((i) => Number.isInteger(i) && i >= 0))].sort((a, b) => a - b) : [];
-  return { willing: raw?.willing === true, helpless: raw?.helpless === true, young: raw?.young === true, traits, value: num(raw?.value) };
 }
 
 /**
@@ -209,16 +203,48 @@ export function victimEntry(row, { loc = (key) => key } = {}) {
 }
 
 /**
- * The window's model: the bucket as lib draws it (its head replaced by the yield), each victim's toggles and
- * trait checks, the site and class-power checks, the two yield lines with their provenance, the verdicts and the
- * footer's state. `judge` seats may change every toggle; a Player's are drawn disabled.
+ * What a victim's row carries inside lib's bucket row (its `extra` slot): for a Judge the checks and the value box,
+ * for a Player the same facts as read-only text. The first line is helpless or willing and the imported trait checks;
+ * the second is `young` (a creature's mark, since a character's value is not read by its age) and the value box. A hand-set value
+ * is `edited`, and its tooltip names the figure it replaced, or says none was read, with the page. Nothing here is a
+ * figure of the book: the labels are the procedure's, and the trait rows and their factors are the imported table's.
  * @returns {object}
  */
-export function panelModel({ caster, victims, state, tables, judge, loc, bucketLoc, cites = {} }) {
+export function victimExtra(row, { judge, partial, tables, loc, cites = {} }) {
+  const st = row.state;
+  const traitRows = tables.sacrifice?.rows ?? [];
+  const page = cites.sacrifice ?? "";
+  const checks = [];
+  if (row.alignment === ALIGN.chaotic) checks.push({ field: "willing", label: loc("willing"), tip: loc("willingTip", { cite: page }), checked: st.willing });
+  else if (row.alignment) checks.push({ field: "helpless", label: loc("helpless"), tip: loc("helplessTip", { cite: page }), checked: st.helpless });
+  const traits = traitRows.map((t, i) => ({ index: i, label: t.label, checked: st.traits.includes(i), tip: t.times === null ? page : loc("traitTip", { times: t.times, cite: tables.sacrifice?.cite ?? page }) }));
+  const extra = { partial, uuid: row.uuid, judge: judge === true, checks, traits };
+  if (judge === true) {
+    const was = row.value?.basis?.was ?? null;
+    const edited = st.value !== null;
+    const valueTip = !edited ? loc("valueBoxTip", { cite: row.value?.cite ?? "" }) : was === null ? loc("valueBoxNoneRead", { cite: row.value?.cite ?? "" }) : loc("valueBoxWas", { was, cite: row.value?.cite ?? "" });
+    extra.young = row.isMonster ? { label: loc("young"), tip: loc("youngTip", { cite: cites.value ?? "" }), checked: st.young } : null;
+    extra.value = { label: loc("valueBox"), shown: st.value === null ? "" : String(st.value), tip: valueTip, edited };
+  } else {
+    const said = [...checks.filter((c) => c.checked).map((c) => c.label), ...traits.filter((t) => t.checked).map((t) => t.label), ...(row.isMonster && st.young ? [loc("young")] : [])];
+    extra.readonly = said.join(" · ");
+  }
+  return extra;
+}
+
+/**
+ * The window's model: the bucket as lib draws it (its head replaced by the yield, each victim's checks inside its
+ * own row through `rowPartial`), the site and class-power checks, the two yield lines with their provenance, the
+ * verdicts and the footer's state. A Judge's seat sets every check; a Player's seat sees them as text, and what only
+ * a Judge can settle, it is told it waits on (`wait`). `rowPartial` is the loaded partial a victim's checks are drawn by;
+ * with none given no row carries a slot.
+ * @returns {object}
+ */
+export function panelModel({ caster, victims, state, tables, judge, loc, bucketLoc, cites = {}, rowPartial = "" }) {
   const plan = planOf({ caster, victims, state, tables, judge, loc });
   const entries = plan.rows.map((r) => victimEntry(r, { loc }));
-  const bucket = bucketView({ accepts: { kinds: VICTIM_KINDS }, due: null }, entries, { key: "victims", loc: bucketLoc, legend: loc("victims"), icon: "fa-droplet", emptyText: loc("empty"), dropText: loc("drop"), locked: false });
-  const traitRows = tables.sacrifice?.rows ?? [];
+  const slots = rowPartial ? Object.fromEntries(plan.rows.map((r) => [r.uuid, { extra: victimExtra(r, { judge, partial: rowPartial, tables, loc, cites }) }])) : {};
+  const bucket = bucketView({ accepts: { kinds: VICTIM_KINDS }, due: null }, entries, { key: "victims", loc: bucketLoc, legend: loc("victims"), icon: "fa-droplet", emptyText: loc("empty"), dropText: loc("drop"), locked: false, rows: slots });
   bucket.head = null;
   bucket.rows.forEach((row, i) => {
     const standing = plan.rows[i].standing;
@@ -226,21 +252,6 @@ export function panelModel({ caster, victims, state, tables, judge, loc, bucketL
     if (plan.rows[i].sapient === true) row.chips.push({ text: loc("sapient"), tip: loc("sapientTip"), tone: "bad" });
     if (!standing.counts) row.chips.push({ text: loc("noYieldChip"), tip: standing.reason ? loc(`noYield.${standing.reason}`) : "", tone: "warn" });
   });
-  const states = plan.rows.map((r) => {
-    const st = r.state;
-    const controls = [];
-    const may = judge === true;
-    if (r.alignment === ALIGN.chaotic) controls.push({ field: "willing", label: loc("willing"), tip: loc("willingTip", { cite: cites.sacrifice ?? "" }), checked: st.willing });
-    else if (r.alignment) controls.push({ field: "helpless", label: loc("helpless"), tip: loc("helplessTip", { cite: cites.sacrifice ?? "" }), checked: st.helpless });
-    if (r.isMonster) controls.push({ field: "young", label: loc("young"), tip: loc("youngTip", { cite: cites.value ?? "" }), checked: st.young });
-    return {
-      uuid: r.uuid,
-      name: r.name,
-      controls: controls.map((c) => ({ ...c, disabled: !may })),
-      traits: traitRows.map((t, i) => ({ index: i, label: t.label, checked: st.traits.includes(i), disabled: !may, tip: t.times === null ? cites.sacrifice ?? "" : loc("traitTip", { times: t.times, cite: tables.sacrifice?.cite ?? cites.sacrifice ?? "" }) })),
-      value: may ? { label: loc("valueBox"), shown: st.value === null ? "" : String(st.value), tip: loc("valueBoxTip", { cite: r.value?.cite ?? "" }) } : null,
-    };
-  }).filter((s) => s.controls.length || s.traits.length || s.value);
   const y = plan.yielded;
   const unit = plan.basis === BASIS.arcane ? "arcane" : "divine";
   const text = (n) => (n === null ? "" : String(n));
@@ -250,19 +261,37 @@ export function panelModel({ caster, victims, state, tables, judge, loc, bucketL
     now: { label: loc(`yield.now.${unit}`), text: entries.length ? text(y.now) : "", tip: yieldTip(plan, loc, cites, tables) },
     bonus: { label: loc("yield.bonus"), text: entries.length && tables.sacrifice?.present ? text(y.onSuccess) : "", tip: loc("yield.bonusTip", { cite: cite || (cites.sacrifice ?? "") }) },
   };
-  const lines = [...plan.verdicts.map((v) => ({ severity: v.severity, text: v.notice })), ...(plan.hold.ok ? [] : [{ severity: "block", text: loc(`hold.${plan.hold.why}`, { cite: holdCite(plan.hold.why, tables, cites) }) }])];
+  const lines = footerLines(plan, { judge, loc, tables, cites });
   return {
     plan,
     bucket,
-    states,
-    traitsDrawn: traitRows.length > 0,
     site: { checked: state.site === true, disabled: judge !== true, label: loc("site"), tip: loc("siteTip", { cite: cites.sacrifice ?? "" }) },
-    power: { checked: state.power === true, disabled: judge !== true, label: loc("power"), tip: loc("powerTip", { cite: tables.powerOfSacrifice?.cite ?? cites.power ?? "" }) },
+    power: { shown: judge === true || state.power === true, checked: state.power === true, disabled: judge !== true, label: loc("power"), tip: loc("powerTip", { cite: tables.powerOfSacrifice?.cite ?? cites.power ?? "" }) },
     yield: yieldRows,
     lines,
     why: lines[0]?.text ?? "",
     blocked: !plan.canAct,
   };
+}
+
+/** The findings a Judge settles by a check or a figure, and so a Player waits on instead of being blocked by. */
+export const JUDGE_SETTLES = Object.freeze([FINDING.noSite, FINDING.notHelpless]);
+
+/**
+ * The footer's lines: each verdict, then the hold. A Player is told what waits on the Judge in one line, "Waiting on
+ * the Judge: ...", for the findings a Judge's check settles (`JUDGE_SETTLES`) and a victim's value left to the Judge to enter; those
+ * lines are severity `wait`, the rest keep their block. A Judge reads every one as it stands.
+ */
+export function footerLines(plan, { judge, loc, tables, cites = {} }) {
+  const verdictLines = plan.verdicts.map((v) => ({ severity: v.severity, text: v.notice, key: v.key }));
+  const holdLine = plan.hold.ok ? null : { severity: "block", text: loc(`hold.${plan.hold.why}`, { cite: holdCite(plan.hold.why, tables, cites) }) };
+  if (judge === true) return [...verdictLines, ...(holdLine ? [holdLine] : [])].map(({ key, ...line }) => line);
+  const waits = plan.findings.filter((f) => f.severity !== "warn" && JUDGE_SETTLES.includes(f.key)).map((f) => loc(`wait.${f.key}`, { name: f.name ?? "" }));
+  const valueWait = !plan.hold.ok && plan.hold.why === HOLD.values;
+  if (valueWait) waits.push(loc("wait.values"));
+  const kept = verdictLines.filter((v) => !JUDGE_SETTLES.includes(v.key)).map(({ key, ...line }) => line);
+  const waiting = waits.length ? [{ severity: "wait", text: loc("waiting", { what: waits.join("; ") }) }] : [];
+  return [...kept, ...waiting, ...(holdLine && !valueWait ? [holdLine] : [])];
 }
 
 /** The tooltip of the yield now: which victims make it, and the multiple the class power counts it by. */

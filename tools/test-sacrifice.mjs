@@ -11,8 +11,9 @@ import fs from "node:fs";
 
 /** What the live half reads and writes: the seat's user, the documents by uuid, and every request sent toward the GM. */
 const world = { isGM: true, activeGM: true, docs: new Map(), emitted: [], posted: [] };
-globalThis.Hooks = { on() {}, once() {} };
-globalThis.foundry = { utils: { randomID: () => "id", escapeHTML: (s) => String(s) } };
+const hooked = [];
+globalThis.Hooks = { on: (name, fn) => hooked.push([name, fn]), once() {} };
+globalThis.foundry = { utils: { randomID: () => "id", escapeHTML: (s) => String(s) }, data: { operators: { ForcedDeletion: class ForcedDeletion {} } } };
 globalThis.ui = { notifications: { warn() {}, error() {} } };
 globalThis.game = {
   i18n: { format: (key) => key, localize: (key) => key },
@@ -353,39 +354,71 @@ t("the GM's client marks for a Judge or the caster's owner, and only creatures i
 
 /* ------------------------------ the window's model ------------------------------ */
 
-const panel = (over = {}) => S.panelModel({ caster: CASTER, victims: [victim("A")], state: state({ victims: { A: { helpless: true, traits: [0] } } }), tables: TABLES, judge: true, loc: echo, bucketLoc: echo, cites: { sacrifice: "Invented p. 3", value: "Invented p. 5" }, ...over });
+const PARTIAL = "modules/acks-extras/templates/magic/sacrifice-victim.hbs";
+const panel = (over = {}) => S.panelModel({ caster: CASTER, victims: [victim("A")], state: state({ victims: { A: { helpless: true, traits: [0] } } }), tables: TABLES, judge: true, loc: echo, bucketLoc: echo, cites: { sacrifice: "Invented p. 3", value: "Invented p. 5" }, rowPartial: PARTIAL, ...over });
+const extraOf = (p, i = 0) => p.bucket.rows[i].extra;
 
-t("the bucket's rows are the victims, each with its value; the toggles are the Judge's and disabled at a Player's seat", () => {
+t("the bucket's rows are the victims, each with its value; the checks ride inside each row, as the Judge's controls or a Player's text", () => {
   const judge = panel();
   assert.equal(judge.bucket.rows.length, 1);
   assert.equal(judge.bucket.rows[0].valueText.length > 0, true);
   assert.equal(judge.bucket.head, null, "the bucket's own total is replaced by the yield lines");
-  assert.deepEqual(judge.states[0].controls.map((c) => [c.field, c.disabled]), [["helpless", false]]);
-  assert.equal(judge.states[0].traits.length, 3);
-  assert.equal(judge.states[0].traits.every((x) => !x.disabled), true);
-  assert.notEqual(judge.states[0].value, null, "a Judge may set a value");
+  assert.equal("states" in judge, false, "no section of victim states under the bucket");
+  const e = extraOf(judge);
+  assert.equal(e.partial, PARTIAL);
+  assert.equal(e.judge, true);
+  assert.deepEqual(e.checks.map((c) => [c.field, c.checked]), [["helpless", true]]);
+  assert.deepEqual(e.traits.map((x) => [x.index, x.checked]), [[0, true], [1, false], [2, false]]);
+  assert.notEqual(e.value, null, "a Judge may set a value");
+  assert.equal(e.readonly, undefined);
   assert.equal(judge.site.disabled, false);
   const player = panel({ judge: false });
-  assert.deepEqual(player.states[0].controls.map((c) => c.disabled), [true]);
-  assert.equal(player.states[0].traits.every((x) => x.disabled), true);
-  assert.equal(player.states[0].value, null);
+  const q = extraOf(player);
+  assert.equal(q.judge, false);
+  assert.equal(q.readonly, "helpless · Trait A", "the set checks as text, in the order drawn");
+  assert.equal(q.value, undefined, "a Player is given no value box; the row's own value line is its text");
+  assert.equal(q.young, undefined);
   assert.equal(player.site.disabled, true);
-  assert.equal(player.power.disabled, true);
+  assert.equal(player.power.shown, false, "the class-power check is a Judge's, and a Player sees it only where it is ticked");
+  assert.equal(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) }).power.shown, true);
+  assert.equal(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) }).power.disabled, true);
+  assert.equal(judge.power.shown, true);
 });
 
-t("the willing toggle belongs to a chaotic victim and the helpless one to the others; an unread alignment has neither", () => {
-  const fields = (a) => panel({ victims: [victim("A", { alignment: a })] }).states[0]?.controls.map((c) => c.field) ?? [];
+t("with no row partial named no row carries a slot", () => {
+  assert.equal("extra" in panel({ rowPartial: "" }).bucket.rows[0], false);
+});
+
+t("the willing check belongs to a chaotic victim and the helpless one to the others; an unread alignment has neither; young is a creature's", () => {
+  const fields = (a) => extraOf(panel({ victims: [victim("A", { alignment: a })] })).checks.map((c) => c.field);
   assert.deepEqual(fields("chaotic"), ["willing"]);
   assert.deepEqual(fields("lawful"), ["helpless"]);
   assert.deepEqual(fields("neutral"), ["helpless"]);
   assert.deepEqual(fields(null), []);
-  assert.deepEqual(panel({ victims: [victim("A", { isMonster: true })] }).states[0].controls.map((c) => c.field), ["helpless", "young"]);
+  assert.equal(extraOf(panel({ victims: [victim("A", { isMonster: true })] })).young.label, "young");
+  assert.equal(extraOf(panel()).young, null, "a character is no creature the young bar applies to");
+});
+
+t("a hand-set value is edited, and its tooltip names the figure it replaced, or says none was read, with the page", () => {
+  const set = (value, v = victim("A")) => extraOf(panel({ victims: [v], state: state({ victims: { A: { helpless: true, value } } }) })).value;
+  assert.deepEqual([set(null).edited, set(null).shown], [false, ""]);
+  assert.match(set(null).tip, /valueBoxTip.*Invented p. 5/, "a blank box says what it does");
+  const hand = set(250);
+  assert.deepEqual([hand.edited, hand.shown], [true, "250"]);
+  assert.match(hand.tip, /valueBoxWas.*"was":100.*Invented p. 5/, "the replaced figure and the page");
+  const none = set(250, victim("A", { value: { gp: null, source: "none", cite: "Invented p. 8" } }));
+  assert.match(none.tip, /valueBoxNoneRead.*Invented p. 8/, "no value was read, and the page says where it is printed");
+});
+
+t("a Player's row reads a creature's young mark and a ticked trait as text beside the checks", () => {
+  const p = panel({ judge: false, victims: [victim("A", { alignment: "chaotic", isMonster: true })], state: state({ victims: { A: { willing: true, young: true, traits: [1] } } }) });
+  assert.equal(extraOf(p).readonly, "willing · Trait B · young");
+  assert.equal(extraOf(panel({ judge: false, state: state({ victims: { A: {} } }) })).readonly, "", "nothing set reads as nothing");
 });
 
 t("with no trait table imported no trait check is drawn and the bonus line is blank", () => {
   const p = panel({ tables: { ...TABLES, sacrifice: NOTHING.sacrifice } });
-  assert.equal(p.traitsDrawn, false);
-  assert.equal(p.states[0].traits.length, 0);
+  assert.equal(extraOf(p).traits.length, 0);
   assert.equal(p.yield.bonus.text, "");
   assert.equal(panel().yield.bonus.text, "400");
 });
@@ -400,15 +433,28 @@ t("the yield lines: the figure now, the bonus on a success, each with where it c
   assert.equal(p.yield.unit, "divine");
 });
 
-t("a Player is blocked and told why; the Sacrifice button is disabled with the reason; a Judge's is enabled with the warning", () => {
-  const over = { state: state({ site: false, victims: { A: HELPLESS } }) };
+t("a Player waits on the Judge for what a Judge's check settles, in one footer line; a Judge's is enabled with the warning", () => {
+  const over = { state: state({ site: false, victims: { A: {} } }) };
   const player = panel({ ...over, judge: false });
-  assert.equal(player.blocked, true);
-  assert.equal(player.why, "finding.noSite" + JSON.stringify({ name: "" }));
-  assert.equal(player.lines[0].severity, "block");
+  assert.equal(player.blocked, true, "the Sacrifice button stays disabled");
+  assert.deepEqual(player.lines.map((l) => l.severity), ["wait"]);
+  assert.equal(player.why, 'waiting{"what":"wait.noSite{\\"name\\":\\"\\"}; wait.notHelpless{\\"name\\":\\"Victim A\\"}"}', "the site and the victim, said once");
   const judge = panel({ ...over, judge: true });
   assert.equal(judge.blocked, false);
-  assert.equal(judge.lines[0].severity, "warn");
+  assert.deepEqual(judge.lines.map((l) => l.severity), ["warn", "warn"], "a Judge reads each limit as it stands");
+  const done = panel({ judge: false, state: state({ site: true, victims: { A: HELPLESS } }) });
+  assert.deepEqual([done.blocked, done.lines.length], [false, 0], "once the Judge has set both, nothing waits and the button is free");
+});
+
+t("a limit no check of a Judge settles is a block, not a wait, and a victim's value the Judge must enter is a wait", () => {
+  const refused = panel({ judge: false, caster: { ...CASTER, alignment: "lawful" }, state: state({ victims: { A: HELPLESS } }) });
+  assert.deepEqual(refused.lines.map((l) => l.severity), ["block"], "a refused victim is the rules' limit, not the Judge's to set");
+  const blank = panel({ judge: false, victims: [victim("A", { value: { gp: null, source: "none", cite: "Invented p. 8" } })], state: state({ victims: { A: HELPLESS } }) });
+  assert.deepEqual(blank.lines.map((l) => l.severity), ["wait"]);
+  assert.match(blank.why, /wait\.values/);
+  assert.equal(blank.blocked, true);
+  const none = panel({ judge: false, state: state({ victims: {} }), victims: [] });
+  assert.deepEqual(none.lines.map((l) => l.severity), ["block"], "no victim dropped is the Player's own to fix");
 });
 
 t("a held figure is a footer line for everyone, worded with the page its figure is read from", () => {
@@ -562,13 +608,366 @@ await ta("the card names the throw, the power gained and who was marked dead; a 
   assert.equal(nothing.split("card.nothing").length - 1, 1, "the line is said once");
 });
 
+/* ------------------------------ the shared record: the model ------------------------------ */
+
+const R = await import("../scripts/magic/sacrifice-record.mjs");
+const RL = await import("../scripts/magic/sacrifice-record-live.mjs");
+
+t("a stored record is cleaned: each victim once, in order, with cleaned facts, and a uuid's dots are only characters", () => {
+  const rec = R.cleanRecord({ site: 1, power: true, list: [{ uuid: "Scene.s.Token.t", willing: true, traits: ["2", 0, 0, -1, "x"], value: "40" }, { uuid: "Scene.s.Token.t" }, { uuid: "" }, null, { uuid: "Actor.b", helpless: "yes" }] });
+  assert.deepEqual(rec, { site: false, power: true, list: [{ uuid: "Scene.s.Token.t", willing: true, helpless: false, young: false, traits: [0, 2], value: 40 }, { uuid: "Actor.b", willing: false, helpless: false, young: false, traits: [], value: null }] });
+  assert.deepEqual(R.cleanRecord(undefined), R.emptyRecord());
+  assert.equal(R.isOpen(undefined), false);
+  assert.equal(R.isOpen({}), false);
+  assert.equal(R.isOpen({ site: false }), true);
+});
+
+t("the record is the window's state: the bucket's list, the two facts and each victim's facts by uuid, which the plan reads as it always did", () => {
+  const rec = { site: true, power: false, list: [{ uuid: "A", helpless: true, traits: [0] }] };
+  const st = R.stateOf(rec);
+  assert.deepEqual(st.list, [{ uuid: "A", qty: 1, fit: "" }]);
+  assert.deepEqual(st.victims.A, { willing: false, helpless: true, young: false, traits: [0], value: null });
+  assert.deepEqual(keys(plan({ state: st })), keys(plan({ state: state({ victims: { A: { helpless: true, traits: [0] } } }) })));
+  assert.equal(plan({ state: st }).canAct, true);
+});
+
+t("an op is applied to the freshest record: a drop once, a removal, the Judge's facts for held victims only, and a clear", () => {
+  const base = { site: false, power: false, list: [{ uuid: "A" }] };
+  const frozen = JSON.stringify(base);
+  const added = R.applyOp(base, { op: "add", uuid: "B" });
+  assert.deepEqual(added.list.map((v) => v.uuid), ["A", "B"]);
+  assert.deepEqual(R.applyOp(added, { op: "add", uuid: "B" }).list.map((v) => v.uuid), ["A", "B"], "a victim is not added twice");
+  assert.deepEqual(R.applyOp(added, { op: "remove", uuid: "A" }).list.map((v) => v.uuid), ["B"]);
+  const set = R.applyOp(added, { op: "judge", site: true, victims: { A: { helpless: true, value: "75", ignored: 1 }, Z: { helpless: true } } });
+  assert.equal(set.site, true);
+  assert.equal(set.power, false, "a fact the op does not name is left as it was");
+  assert.deepEqual([set.list[0].helpless, set.list[0].value, set.list[1].helpless], [true, 75, false]);
+  assert.equal(set.list.some((v) => v.uuid === "Z"), false, "a fact for a victim that is not held changes nothing");
+  assert.deepEqual(R.applyOp(set, { op: "judge", victims: { A: { value: null } } }).list[0].value, null, "a blanked value goes back to unset");
+  assert.equal(R.applyOp(set, { op: "clear" }), null);
+  const marked = R.applyOp(set, { op: "judge", power: true });
+  assert.deepEqual(R.applyOp(marked, { op: "clear" }), { site: false, power: true, list: [] }, "a clear keeps the class-power mark, which is the caster's");
+  assert.equal(JSON.stringify(base), frozen, "the record passed in is never changed");
+  assert.deepEqual(R.applyOp(base, { op: "nonsense" }), R.cleanRecord(base));
+});
+
+t("a form's op carries only what differs from the record, so a Judge's tick does not carry the rest of the form over a Player's drop", () => {
+  const rec = { site: true, power: false, list: [{ uuid: "A", helpless: true, traits: [0], value: 5 }] };
+  const same = { site: true, victims: { A: { helpless: true, traits: [0], value: "5" } } };
+  assert.equal(R.diffJudge(rec, same), null, "nothing differs");
+  assert.deepEqual(R.diffJudge(rec, { ...same, power: true }), { op: "judge", power: true });
+  assert.deepEqual(R.diffJudge(rec, { victims: { A: { traits: [0, 1] } } }), { op: "judge", victims: { A: { traits: [0, 1] } } });
+  assert.deepEqual(R.diffJudge(rec, { victims: { A: { value: "" } } }), { op: "judge", victims: { A: { value: null } } }, "an emptied box is the value unset");
+  assert.equal(R.diffJudge(rec, { victims: { Gone: { helpless: true } } }), null, "a victim a Player's removal took meanwhile is not written back");
+  assert.equal(R.diffJudge(rec, { site: undefined, victims: { A: {} } }), null, "a control the form did not carry is not compared");
+});
+
+t("who may write the record, decided from the attested sender: a Judge or the caster's owner for a drop, a removal and the clear; a Judge alone for the facts", () => {
+  const ask = (op, o = {}) => R.checkRecordRequest({ casterUuid: "C", op }, { caster: { uuid: "C" }, fromJudge: false, owns: true, resolved: { creature: true, held: false }, ...o });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }), { ok: true });
+  assert.deepEqual(ask({ op: "remove", uuid: "A" }), { ok: true });
+  assert.deepEqual(ask({ op: "clear" }), { ok: true });
+  assert.deepEqual(ask({ op: "judge", site: true }), { refused: "judgeOnly" }, "an owning Player still cannot set the Judge's facts");
+  assert.deepEqual(ask({ op: "judge", site: true }, { fromJudge: true, owns: false }), { ok: true });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }, { owns: false }), { refused: "owner" });
+  assert.deepEqual(ask({ op: "judge", site: true }, { owns: false }), { refused: "owner" });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }, { caster: null }), { refused: "noCaster" });
+  assert.deepEqual(ask({ op: "wipe" }), { refused: "op" });
+  assert.deepEqual(ask(undefined), { refused: "op" });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }, { resolved: { creature: false, held: false } }), { refused: "victim" });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }, { resolved: { creature: true, held: true } }), { refused: "duplicate" });
+  assert.deepEqual(ask({ op: "add", uuid: "C" }), { refused: "self" });
+  assert.deepEqual(ask({ op: "add", uuid: "A" }, { resolved: { creature: true, held: false, self: true } }), { refused: "self" }, "a token of the caster is the caster");
+});
+
+t("an update touches the record in every spelling of a set or a deletion, and not for another flag", () => {
+  const flags = (magic) => ({ flags: { "acks-extras": { magic } } });
+  assert.equal(R.touchesRecord(flags({ sacrifice: { site: true } })), true);
+  assert.equal(R.touchesRecord(flags({ "-=sacrifice": null })), true);
+  assert.equal(R.touchesRecord(flags({ "==sacrifice": {} })), true);
+  assert.equal(R.touchesRecord(flags({ sacrifice: new foundry.data.operators.ForcedDeletion() })), true, "the operator a clear writes");
+  assert.equal(R.touchesRecord({ flags: { "acks-extras": { "-=magic": null } } }), true, "the whole magic object deleted takes the record");
+  assert.equal(R.touchesRecord({ flags: { "acks-extras": { magic: null } } }), true);
+  assert.equal(R.touchesRecord({ "flags.acks-extras.magic.sacrifice": { site: true } }), true);
+  assert.equal(R.touchesRecord({ "flags.acks-extras.magic.-=sacrifice": null }), true);
+  assert.equal(R.touchesRecord(flags({ formulas: [] })), false, "the researcher's formulas beside it are another record");
+  assert.equal(R.touchesRecord({ flags: { "acks-extras": { power: {} } } }), false);
+  assert.equal(R.touchesRecord({ name: "x" }), false);
+  assert.equal(R.touchesRecord(undefined), false);
+});
+
+t("the Sacrifice button: a Judge's seat on every caster the strip draws, a Player's on a chaotic divine caster or a marked class power", () => {
+  const seen = (o) => R.openerVisible(o);
+  assert.equal(seen({ judge: true, casts: true }), true);
+  assert.equal(seen({ judge: true, casts: false }), false, "an actor the strip does not draw for has no button");
+  assert.equal(seen({ divine: true, alignment: "chaotic" }), true, "a Player's, with an empty ledger and nothing cast yet");
+  assert.equal(seen({ divine: true, alignment: "lawful" }), false);
+  assert.equal(seen({ divine: true, alignment: "neutral" }), false);
+  assert.equal(seen({ divine: false, alignment: "chaotic" }), false);
+  assert.equal(seen({ divine: false, alignment: "lawful", power: true }), true, "the Judge's class-power mark");
+  assert.equal(seen({}), false);
+});
+
+/* ------------------------------ the shared record: the live half ------------------------------ */
+
+/** A deep merge as an actor update does it: objects merge key by key, arrays and scalars replace, a `-=` key deletes. */
+function applyUpdate(target, patch) {
+  for (const [path, value] of Object.entries(patch)) {
+    const parts = path.split(".");
+    let at = target;
+    for (const part of parts.slice(0, -1)) at = at[part] ??= {};
+    const last = parts.at(-1);
+    if (value instanceof foundry.data.operators.ForcedDeletion) delete at[last];
+    else if (last.startsWith("-=")) delete at[last.slice(2)];
+    else if (value && typeof value === "object" && !Array.isArray(value) && at[last] && typeof at[last] === "object") applyUpdate(at[last], Object.fromEntries(Object.entries(value).map(([k, v]) => [k, v])));
+    else at[last] = JSON.parse(JSON.stringify(value));
+  }
+}
+
+/** A caster that keeps its flags, records every update and says who owns it. */
+function casterDoc(uuid, o = {}) {
+  const doc = creature(uuid, { type: "character", alignment: o.alignment ?? "Chaotic", owner: o.owner ?? "pl1", flags: o.flags });
+  doc.updates = [];
+  doc.update = async (patch) => {
+    doc.updates.push(patch);
+    applyUpdate(doc, patch);
+  };
+  return doc;
+}
+const stored = (actor) => actor.flags?.["acks-extras"]?.magic?.sacrifice;
+
+await ta("the Judge's seat writes the record through the handler: a drop, the Judge's facts, a removal, and the clear that leaves the formulas beside it", async () => {
+  world.isGM = true;
+  world.emitted.length = 0;
+  const caster = casterDoc("Actor.rc", { flags: { "acks-extras": { magic: { formulas: [{ key: "f" }] } } } });
+  creature("Actor.rv1");
+  creature("Actor.rv2");
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.rv1" }), { ok: true });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.rv2" }), { ok: true });
+  assert.deepEqual(stored(caster).list.map((v) => v.uuid), ["Actor.rv1", "Actor.rv2"]);
+  await RL.writeRecord(caster, { op: "judge", site: true, victims: { "Actor.rv1": { helpless: true, value: 30 } } });
+  assert.deepEqual([stored(caster).site, stored(caster).list[0].helpless, stored(caster).list[0].value], [true, true, 30]);
+  await RL.writeRecord(caster, { op: "remove", uuid: "Actor.rv1" });
+  assert.deepEqual(stored(caster).list.map((v) => v.uuid), ["Actor.rv2"], "a removed victim is gone from the stored list, not merged back");
+  assert.equal(stored(caster).site, true, "the facts stay when a victim leaves");
+  const before = caster.updates.length;
+  await RL.writeRecord(caster, { op: "judge", site: true });
+  assert.equal(caster.updates.length, before, "a write that changes nothing is not made");
+  assert.deepEqual(world.emitted, [], "a Judge's seat relays nothing");
+  await RL.clearRecord(caster);
+  assert.equal(stored(caster), undefined, "the record is the open sacrifice, and it is gone");
+  assert.ok(caster.updates.at(-1)["flags.acks-extras.magic.sacrifice"] instanceof foundry.data.operators.ForcedDeletion, "deleted by core's operator, never null or the legacy key");
+  assert.deepEqual(caster.flags["acks-extras"].magic.formulas, [{ key: "f" }], "only the sacrifice key goes, never the magic object");
+  const quiet = caster.updates.length;
+  assert.deepEqual(await RL.clearRecord(caster), { ok: true, noop: true });
+  assert.equal(caster.updates.length, quiet, "a clear with nothing open writes nothing");
+  await RL.writeRecord(caster, { op: "add", uuid: "Actor.rv2" });
+  await RL.writeRecord(caster, { op: "judge", site: true, power: true });
+  await RL.clearRecord(caster);
+  assert.deepEqual(stored(caster), { site: false, power: true, list: [] }, "the class-power mark outlives the sacrifice");
+  const kept = caster.updates.length;
+  await RL.clearRecord(caster);
+  assert.equal(caster.updates.length, kept, "a second clear of a mark-only record writes nothing");
+});
+
+await ta("a drop the GM's client cannot read as a creature, the caster itself, and a creature already held are refused", async () => {
+  world.isGM = true;
+  const caster = casterDoc("Actor.rc2");
+  const twin = creature("Actor.twin2");
+  world.docs.set("Scene.s.Token.twin2", { documentName: "Token", uuid: "Scene.s.Token.twin2", actor: twin });
+  world.docs.set("Item.rx", { documentName: "Item", uuid: "Item.rx" });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.no-such-creature" }), { ok: false, reason: "victim" });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Item.rx" }), { ok: false, reason: "victim" });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.rc2" }), { ok: false, reason: "self" });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.twin2" }), { ok: true });
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Scene.s.Token.twin2" }), { ok: false, reason: "duplicate" }, "a token of a held actor is the same creature");
+  assert.deepEqual(stored(caster).list.length, 1);
+});
+
+await ta("a Player's seat asks the GM's client for every write; the GM's client refuses the Judge's facts from an owner and a stranger's drop, and writes the owner's drop", async () => {
+  const caster = casterDoc("Actor.rc3", { owner: "pl1" });
+  creature("Actor.rv3");
+  world.isGM = false;
+  world.activeGM = true;
+  world.emitted.length = 0;
+  const writes = caster.updates.length;
+  await RL.writeRecord(caster, { op: "judge", site: true });
+  await RL.writeRecord(caster, { op: "add", uuid: "Actor.rv3" });
+  assert.equal(caster.updates.length, writes, "the Player's seat writes nothing itself");
+  assert.deepEqual(world.emitted.map((m) => [m.action, m.payload.casterUuid, m.payload.op.op]), [["magicSacrifice", "Actor.rc3", "judge"], ["magicSacrifice", "Actor.rc3", "add"]], "each rides the sacrifice's own handler");
+  world.isGM = true;
+  const ask = (op, requestUserId) => L.sacrificeHandler({ casterUuid: "Actor.rc3", op, requestUserId });
+  assert.deepEqual(await ask({ op: "judge", site: true, power: true }, "pl1"), { ok: false, reason: "judgeOnly" });
+  assert.equal(stored(caster), undefined, "the owner's attempt at the Judge's facts changed nothing");
+  assert.deepEqual(await ask({ op: "add", uuid: "Actor.rv3" }, "pl9"), { ok: false, reason: "owner" });
+  assert.equal(stored(caster), undefined, "a stranger's drop changed nothing");
+  assert.deepEqual(await ask({ op: "add", uuid: "Actor.rv3" }, "pl1"), { ok: true });
+  assert.deepEqual(stored(caster).list.map((v) => v.uuid), ["Actor.rv3"]);
+  assert.deepEqual(await ask({ op: "judge", site: true }, "pl1"), { ok: false, reason: "judgeOnly" });
+  assert.deepEqual(await ask({ op: "judge", site: true }, null), { ok: true }, "the same facts from a Judge");
+  assert.equal(stored(caster).site, true);
+  assert.deepEqual(await ask({ op: "clear" }, "pl9"), { ok: false, reason: "owner" });
+  assert.equal(stored(caster).site, true, "a stranger's clear is refused");
+  assert.deepEqual(await ask({ op: "clear" }, "pl1"), { ok: true }, "the owner ends the sacrifice they made");
+  assert.equal(stored(caster), undefined);
+  assert.deepEqual(await L.sacrificeHandler({ casterUuid: "Actor.rc3", uuids: ["Actor.rv3"], requestUserId: "pl9" }), { ok: false, reason: "owner" }, "the mark request is still answered as it was");
+});
+
+await ta("with no Judge connected a Player's write is refused and not claimed made", async () => {
+  const caster = casterDoc("Actor.rc4");
+  world.isGM = false;
+  world.activeGM = false;
+  assert.deepEqual(await RL.writeRecord(caster, { op: "add", uuid: "Actor.rv3" }), { ok: false, reason: "noGm" });
+  world.isGM = true;
+  world.activeGM = true;
+});
+
+await ta("an update to the record draws the open window for that caster again, and an update to anything else does not", async () => {
+  let drawn = 0;
+  RL.openWindows.set("Actor.rc5", { render: () => void drawn++ });
+  RL.onActorUpdate({ uuid: "Actor.rc5" }, { flags: { "acks-extras": { magic: { sacrifice: { site: true } } } } });
+  RL.onActorUpdate({ uuid: "Actor.rc5" }, { flags: { "acks-extras": { magic: { "-=sacrifice": null } } } });
+  RL.onActorUpdate({ uuid: "Actor.rc5" }, { flags: { "acks-extras": { magic: { formulas: [] } } } });
+  RL.onActorUpdate({ uuid: "Actor.other" }, { flags: { "acks-extras": { magic: { sacrifice: { site: true } } } } });
+  assert.equal(drawn, 2, "a set and a deletion, not the formulas and not another caster");
+  RL.openWindows.delete("Actor.rc5");
+  RL.onActorUpdate({ uuid: "Actor.rc5" }, { flags: { "acks-extras": { magic: { sacrifice: { site: true } } } } });
+  assert.equal(drawn, 2, "a window that left the registry is not drawn, so a close's own clear never reopens it");
+  L.registerSacrifice();
+  assert.equal(hooked.filter(([name, fn]) => name === "updateActor" && fn === RL.onActorUpdate).length, 1, "the hook is registered once, at init");
+  L.registerSacrifice();
+  assert.equal(hooked.filter(([, fn]) => fn === RL.onActorUpdate).length, 1, "and not again by a second call");
+});
+
+await ta("the casting strip's button: the opener reads the seat, the tradition, the alignment and the mark, and names the caster in its tooltip", async () => {
+  world.docs.set("Item.divcls", { documentName: "Item", uuid: "Item.divcls", type: "acks-extras.class", system: { casting: [{ key: "Divine" }] } });
+  world.docs.set("Item.arccls", { documentName: "Item", uuid: "Item.arccls", type: "acks-extras.class", system: { casting: [{ key: "arcane" }] } });
+  const cls = (uuid) => ({ "acks-extras": { classes: { uuid } } });
+  const format = game.i18n.format;
+  game.i18n.format = (key, data) => (data ? `${key}${JSON.stringify(data)}` : key);
+  try {
+    const divineChaotic = casterDoc("Actor.o1", { alignment: "Chaotic", flags: cls("Item.divcls") });
+    const divineLawful = casterDoc("Actor.o2", { alignment: "Lawful", flags: cls("Item.divcls") });
+    const arcaneChaotic = casterDoc("Actor.o3", { alignment: "Chaotic", flags: cls("Item.arccls") });
+    const arcaneMarked = casterDoc("Actor.o4", { alignment: "Lawful", flags: { ...cls("Item.arccls"), "acks-extras": { classes: { uuid: "Item.arccls" }, magic: { sacrifice: { power: true } } } } });
+    world.isGM = false;
+    const player = (a) => RL.openerFor(a, false);
+    assert.notEqual(player(divineChaotic), null, "a Player's divine chaotic caster, with nothing cast");
+    assert.equal(player(divineLawful), null);
+    assert.equal(player(arcaneChaotic), null);
+    assert.notEqual(player(arcaneMarked), null, "the class-power mark");
+    assert.match(player(divineChaotic).tip, /openTip.*"name":"Actor\.o1".*"cite":"ACKS-MAGIC\.sacrifice\.cite\.sacrifice/, "the tooltip names the caster and the page");
+    world.isGM = true;
+    assert.notEqual(RL.openerFor(divineLawful, true), null, "a Judge's seat on every caster");
+    assert.equal(RL.openerFor(divineLawful, false), null);
+    const chip = await import("../scripts/classes/power-chip.mjs");
+    const html = chip.openerHtml(divineLawful, true);
+    assert.match(html, /<button type="button" class="acks-btn acks-extras-classes-sacrifice" data-sacrifice-open="1" data-tooltip-text="ACKS-MAGIC\.sacrifice\.openTip/);
+    assert.doesNotMatch(html, /\sid=|\stitle=/);
+    world.isGM = false;
+    assert.equal(chip.openerHtml(divineLawful, true), "", "no button for a Player on a lawful caster");
+    const section = chip.powerSectionHtml(divineChaotic, false);
+    assert.match(section, /data-sacrifice-open/, "drawn beside the tags even where the ledger holds nothing");
+    assert.equal(chip.powerSectionHtml(divineLawful, false), "", "and nothing at all for a Player whose caster has neither");
+    const source = fs.readFileSync("scripts/classes/power-chip.mjs", "utf8");
+    assert.match(source, /closest\("\[data-sacrifice-open\]"\)[\s\S]{0,120}openSacrifice\(actor\)/, "the click opens the window for the strip's caster");
+  } finally {
+    game.i18n.format = format;
+    world.isGM = true;
+  }
+});
+
+/* ------------------------------ the window's markup ------------------------------ */
+
+const Handlebars = (await import("handlebars")).default;
+
+/** Render the bucket and the footer as the window's files do, over the model's own view. */
+function renderWindow(model) {
+  const hbs = Handlebars.create();
+  hbs.registerHelper("localize", (key) => key);
+  hbs.registerHelper("eq", (a, b) => a === b);
+  const dir = (f) => fs.readFileSync(f, "utf8");
+  hbs.registerPartial("modules/acks-extras/templates/lib/bucket-row.hbs", dir("templates/lib/bucket-row.hbs"));
+  hbs.registerPartial(PARTIAL, dir("templates/magic/sacrifice-victim.hbs"));
+  const bucket = hbs.compile(dir("templates/lib/bucket.hbs"))(model.bucket);
+  const body = hbs.compile(dir("templates/magic/sacrifice.hbs"), { noEscape: false });
+  hbs.registerPartial("modules/acks-extras/templates/lib/bucket.hbs", dir("templates/lib/bucket.hbs"));
+  const whole = body({ ...model, caster: { name: "Caster", img: "" } });
+  const foot = hbs.compile(dir("templates/magic/sacrifice-footer.hbs"))({ ...model, partId: "p" });
+  return { bucket, whole, foot };
+}
+
+t("a Judge's victim row holds its checks under the value line, each wrapped in its label, young and the value box on a second line, and no section of states", () => {
+  const model = panel({ victims: [victim("A", { isMonster: true, value: { gp: 100, source: "xp", cite: "Invented p. 5", basis: { xp: 100 } } })], state: state({ victims: { A: { helpless: true, traits: [1], value: 250 } } }) });
+  const { bucket, whole } = renderWindow(model);
+  const row = bucket.slice(bucket.indexOf("<li"), bucket.indexOf("</li>"));
+  assert.ok(row.indexOf("acks-extras-bucket__figure") < row.indexOf("data-field=\"helpless\""), "the checks are under the value line");
+  assert.equal((row.match(/<input/g) ?? []).length, 6, "helpless, three trait rows, young, and the value box");
+  assert.equal((row.match(/<label[^>]*>[^]*?<\/label>/g) ?? []).length, (row.match(/<input/g) ?? []).length, "every control is inside a label of its own");
+  assert.match(row, /data-victim="A" data-value value="250"/);
+  assert.match(row, /class="acks-input acks-nums is-edited"/, "a hand-set value carries the gold edge");
+  assert.match(row, /data-field="young"/);
+  assert.doesNotMatch(whole, /acks-extras-sacrifice-states|ACKS-MAGIC\.sacrifice\.states/);
+  assert.doesNotMatch(row, /\sid=|\stitle=/);
+  const blank = renderWindow(panel({ state: state({ victims: { A: { helpless: true } } }) })).bucket;
+  assert.doesNotMatch(blank, /is-edited/, "an unset value carries no edge");
+});
+
+t("a Player's row reads the same facts as text, with no control in it", () => {
+  const model = panel({ judge: false, state: state({ victims: { A: { helpless: true, traits: [0] } } }) });
+  const { bucket, whole } = renderWindow(model);
+  const row = bucket.slice(bucket.indexOf("<li"), bucket.indexOf("</li>"));
+  assert.match(row, /<span class="acks-extras-sacrifice-readonly">helpless · Trait A<\/span>/);
+  assert.doesNotMatch(row, /<input|data-value/, "no check and no value box at a Player's seat");
+  assert.match(whole, /name="site"[^>]*disabled/, "the site check is read-only");
+  assert.doesNotMatch(whole, /name="power"/, "and the class-power check is not drawn unless a Judge ticked it");
+  const marked = renderWindow(panel({ judge: false, state: state({ power: true, victims: { A: HELPLESS } }) })).whole;
+  assert.match(marked, /name="power"[^>]*checked[^>]*disabled/);
+});
+
+t("the class-power check reads as the board words it and sets the yield to arcane power", () => {
+  const model = panel({ state: state({ power: true, victims: { A: HELPLESS } }) });
+  assert.equal(model.power.label, "power");
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  assert.equal(lang["ACKS-MAGIC.sacrifice.power"], "Holds the sacrifice power (arcane)");
+  assert.equal(lang["ACKS-MAGIC.sacrifice.yield.now.arcane"], "Arcane power now");
+  assert.equal(model.yield.now.label, "yield.now.arcane");
+  assert.equal(model.yield.now.text, "600", "counted through the imported multiple");
+  assert.equal(panel().yield.now.label, "yield.now.divine");
+});
+
+t("the footer: a Player's waiting line is named and its button stays disabled, described by it; once nothing waits the button is free", () => {
+  const waiting = panel({ judge: false, state: state({ site: false, victims: { A: HELPLESS } }) });
+  const held = renderWindow(waiting).foot;
+  assert.match(held, /<li data-severity="wait" class="is-wait"><i class="fa-solid fa-hourglass-half" inert><\/i> waiting\{/);
+  assert.match(held, /data-action="sacrifice" aria-disabled="true" aria-describedby="p-why"/);
+  const freed = renderWindow(panel({ judge: false, state: state({ site: true, victims: { A: HELPLESS } }) })).foot;
+  assert.doesNotMatch(freed, /aria-disabled|<li /, "no hold, no line, a button that acts");
+  assert.doesNotMatch(held, /\sid="(?!\{|p-why)/);
+});
+
+t("the record's round trip through the window's model: what a Judge sets is what a Player's window draws, and the Player's Sacrifice frees itself", () => {
+  const rec = { site: false, power: false, list: [{ uuid: "A" }] };
+  const asPlayer = (record) => panel({ judge: false, state: R.stateOf(record) });
+  const waiting = asPlayer(rec);
+  assert.deepEqual([waiting.blocked, waiting.lines.map((l) => l.severity)], [true, ["wait"]]);
+  const afterSite = R.applyOp(rec, { op: "judge", site: true });
+  assert.match(asPlayer(afterSite).why, /wait\.notHelpless/, "the site is set; the victim still waits");
+  const afterVictim = R.applyOp(afterSite, { op: "judge", victims: { A: { helpless: true } } });
+  const freed = asPlayer(afterVictim);
+  assert.deepEqual([freed.blocked, freed.lines.length], [false, 0]);
+  assert.equal(extraOf(freed).readonly, "helpless", "and the row shows the Judge's check as text");
+  assert.equal(R.applyOp(afterVictim, { op: "clear" }), null);
+});
+
 /* ------------------------------ the window's files ------------------------------ */
 
 t("the template and the sheet of styles hold to the layout contract; every string the window asks for exists", () => {
   const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
   const tpl = fs.readFileSync("templates/magic/sacrifice.hbs", "utf8");
   const foot = fs.readFileSync("templates/magic/sacrifice-footer.hbs", "utf8");
-  for (const file of [tpl, foot]) {
+  const victimTpl = fs.readFileSync("templates/magic/sacrifice-victim.hbs", "utf8");
+  for (const file of [tpl, foot, victimTpl]) {
     assert.doesNotMatch(file, /\sid="[^{]/, "no literal id in a template");
     assert.doesNotMatch(file, /\btitle="/, "no title attribute: the tooltip manager is the tooltip");
   }
@@ -580,9 +979,16 @@ t("the template and the sheet of styles hold to the layout contract; every strin
   assert.match(win, /"acks-extras-scroll"/, "the window joins the scroll contract");
   assert.match(win, /resizable: true/);
   assert.doesNotMatch(win, /isOwner/, "no ownership gate: a verdict is a verdict");
+  for (const f of ["sacrifice-record.mjs", "sacrifice-record-live.mjs", "sacrifice-live.mjs"]) assert.doesNotMatch(fs.readFileSync(`scripts/magic/${f}`, "utf8"), /isOwner/, `${f} writes no ownership gate`);
+  assert.doesNotMatch(win, /#held|instanceof [A-Z]/, "the window holds nothing of its own, and tells a node by nodeType");
+  assert.match(win, /if \(game\.user\.isGM\) void clearRecord/, "a Judge's close ends the open sacrifice");
+  assert.match(win, /if \(!result\.nothing\) await clearRecord/, "a sacrifice that was made ends it too");
+  for (const w of ["noSite", "notHelpless", "values"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.wait.${w}`], "string", w);
+  for (const r of ["noCaster", "owner", "judgeOnly", "op", "victim", "self", "duplicate", "noGm"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.refused.${r}`], "string", r);
+  assert.equal(lang[["ACKS-MAGIC.sacrifice", "states"].join(".")], undefined, "the states section is gone");
   const used = new Set();
-  for (const file of [tpl, foot]) for (const m of file.matchAll(/ACKS-MAGIC\.sacrifice\.([\w.]+)/g)) used.add(m[1]);
-  const live = fs.readFileSync("scripts/magic/sacrifice-live.mjs", "utf8") + win + fs.readFileSync("scripts/magic/sacrifice.mjs", "utf8");
+  for (const file of [tpl, foot, victimTpl]) for (const m of file.matchAll(/ACKS-MAGIC\.sacrifice\.([\w.]+)/g)) used.add(m[1]);
+  const live = ["sacrifice-live.mjs", "sacrifice.mjs", "sacrifice-record.mjs", "sacrifice-record-live.mjs"].map((f) => fs.readFileSync(`scripts/magic/${f}`, "utf8")).join("\n") + win;
   for (const m of live.matchAll(/\bloc\(\s*["`]([\w.]+)["`]/g)) used.add(m[1]);
   for (const key of used) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.${key}`], "string", `ACKS-MAGIC.sacrifice.${key}`);
   for (const f of ["noBasis", "noSite", "notHelpless", "sapientRefused", "animalWarn"]) assert.equal(typeof lang[`ACKS-MAGIC.sacrifice.finding.${f}`], "string", f);

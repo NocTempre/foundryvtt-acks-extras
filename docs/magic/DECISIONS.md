@@ -1279,7 +1279,7 @@ figure imported or left blank.
 - **Board 18 approved.** The owner: "Approve, build it", the Judge's "Common spell (no throw)" check as
   drawn. It builds as M-r3.
 
-## 2026-11-18 — The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3)
+## 2026-11-18 — The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3) — SUPERSEDED IN PART 2026-11-18
 
 Built to board 11, which the owner approved with the v19 canvas: "Approve spell cast design". The model is
 `scripts/magic/sacrifice.mjs`, the world's half `sacrifice-live.mjs`, the window `apps/sacrifice-window.mjs`. The
@@ -1317,3 +1317,33 @@ research ladder), so no figure ships. Rulings made in building it, each with the
   the sender against the caster and each victim as it reads them (`checkMarkRequest`). *Cost:* the GM's client cannot
   see the Judge's toggles, so the relay authorizes by ownership of the caster and the victim's state, not by the page's
   limits; a Player's own act is already held by them.
+
+## 2026-11-18 — The sacrifice's checks are shared and the strip opens the window (M-s second pass, board 19)
+
+The owner approved board 19, A to E as drawn: "Approve, build it". New evidence over the entry above: the owner ruled
+that the Judge's checks are stored and shared, which that entry's "The Judge's toggles are the window's own state" (and
+its "no sheet control opens it yet") could not know. Those two are superseded; the rest of that entry stands.
+
+- **The record is the open sacrifice, kept on the caster.** `flags["acks-extras"].magic.sacrifice = {site, power,
+  list}`, each victim in `list` carrying its own facts (`sacrifice-record.mjs`). It is written only by the GM's client,
+  as ops applied to the freshest flag (a drop, a removal, the Judge's facts, the clear), so a Player's drop and a Judge's
+  tick made together both land. A list is an array because a flag update merges objects and would keep a removed victim.
+  `magic.formulas` shares the object on a researcher; only the `sacrifice` key is ever cleared.
+- **The sender decides, never the seat.** A drop, a removal and the clear belong to the owner of the caster or a Judge, the
+  Judge's facts to a Judge alone (`checkRecordRequest`), from the sender Foundry attested. No `isOwner` test exists.
+  *Cost:* Foundry lets an owner update a flag of their own actor directly, and no client code can refuse a hand-made
+  call; the module's own seats write only through the handler and a Player's window draws checks as text.
+- **A Player's Sacrifice frees itself.** Every window redraws from the record on `updateActor`. What a Judge's check
+  settles (the site, a victim not helpless, a victim's value left to enter) is a "Waiting on the Judge" line; a limit
+  no check settles stays a block. *Counter (low):* every block could read as waiting; a lawful caster's refused sapient
+  victim is no Judge's to set, so it keeps its reason.
+- **The record clears whole when the sacrifice is made and when a Judge closes the window,** the class-power mark
+  included. *Counter (STRONG):* a class-power holder who is not a chaotic divine caster loses the Player's strip button
+  with the mark, until a Judge ticks it again; keeping the mark past the clear would fix that. Built as the brief reads;
+  an owner question. A sacrifice that yielded nothing is not "made": it writes nothing and keeps the record.
+- **The strip's button** is drawn by the classes feature's chip (`power-chip.mjs`) from magic's `openerFor`, for a Judge
+  on every caster the strip draws and a Player on a divine, chaotic caster or a marked class power.
+- **Departures from the board.** The young check is a creature's only (a character's value is not read by age, so it
+  would be inert); the class-power check is drawn to a Player only where it is ticked.
+- **lib's bucket row has an `extra` slot** (a loaded partial named by the row, drawn under the caption, never on a
+  pick row), so a caller's per-row controls sit in the row; an unused slot renders as the row always did.

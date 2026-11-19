@@ -344,8 +344,8 @@ const strip = (d) => (d ? [...Array(Math.max(0, d.filled | 0)).fill(true), ...Ar
  * @param {string} options.legend the heading, already localized
  * @param {string} [options.icon] a Font Awesome class for the heading
  * @param {string|null} [options.picked] a `pick: "one"` bucket's picked uuid
- * @param {Record<string, {caption?: string, captionTip?: string, off?: boolean, reason?: string, diamonds?: {filled: number, lost: number}}>} [options.rows]
- *   the caller's own caption, dimming and diamonds per row, which a `pick: "one"` bucket's rows carry
+ * @param {Record<string, {caption?: string, captionTip?: string, off?: boolean, reason?: string, diamonds?: {filled: number, lost: number}, extra?: {partial: string}}>} [options.rows]
+ *   the caller's own caption, dimming and diamonds per row, which a `pick: "one"` bucket's rows carry, and an `extra` `{partial, ...}` the row draws under its caption (`templates/lib/bucket-row.hbs`; never on a pick row)
  * @param {boolean} [options.locked] no X, no fit change, no drop zone
  * @param {string} [options.dropText] the drop zone's wording, already localized; the generic string by default
  * @param {string} [options.emptyText] the wording of an empty bucket, already localized; the generic string by default
@@ -386,6 +386,7 @@ export function bucketView(policy, entries, { key, loc, legend = "", icon = "", 
       fitAction: BUCKET_ACTIONS.fit,
       pickAction: BUCKET_ACTIONS.pick,
       chips: [],
+      ...(extra.extra ? { extra: extra.extra } : {}),
       caption: extra.caption ?? "",
       captionTip: extra.captionTip ?? "",
       diamonds: strip(extra.diamonds),

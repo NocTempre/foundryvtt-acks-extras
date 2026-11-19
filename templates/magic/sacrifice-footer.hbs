@@ -4,7 +4,7 @@
 <footer class="acks-extras-cast-foot">
   {{#if lines.length}}
   <ul class="acks-extras-cast-verdicts" id="{{@root.partId}}-why">
-    {{#each lines}}<li data-severity="{{severity}}" class="is-{{severity}}"><i class="fa-solid {{#if (eq severity 'block')}}fa-ban{{else}}fa-triangle-exclamation{{/if}}" inert></i> {{text}}</li>{{/each}}
+    {{#each lines}}<li data-severity="{{severity}}" class="is-{{severity}}"><i class="fa-solid {{#if (eq severity 'block')}}fa-ban{{else if (eq severity 'wait')}}fa-hourglass-half{{else}}fa-triangle-exclamation{{/if}}" inert></i> {{text}}</li>{{/each}}
   </ul>
   {{/if}}
   <div class="acks-extras-cast-foot__bar">

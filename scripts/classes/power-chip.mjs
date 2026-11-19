@@ -12,9 +12,12 @@
  * Fades, ends when its window closes (`forgetPowerSwitch`) and is never written
  * to the actor. The classes feature hosts the chip; the ledger is magic's, read and
  * written through `magic/power-ledger-live.mjs`. A Player's strip draws no
- * buttons, no switch and no count, and never a kind with no entries.
+ * buttons, no switch and no count, and never a kind with no entries. The blood sacrifice's button sits beside the
+ * tags (`openerHtml`): a Judge's seat draws it for every caster and a Player's for the casters the sacrifice's own
+ * rule names (`magic/sacrifice-record.mjs` `openerVisible`), whether or not the ledger holds anything yet.
  */
 import { chipModelFor, powerApi, announce } from "../magic/power-ledger-live.mjs";
+import { openerFor, openSacrifice } from "../magic/sacrifice-record-live.mjs";
 
 const esc = (s) => foundry.utils.escapeHTML(String(s ?? ""));
 
@@ -87,33 +90,47 @@ function rowHtml(row) {
   );
 }
 
+/** The Sacrifice button for a caster the strip draws for (`casts`), or "" where this seat sees none; a fault in reading the caster draws none rather than breaking the strip. */
+export function openerHtml(actor, casts = false) {
+  let opener = null;
+  try {
+    opener = openerFor(actor, casts);
+  } catch (err) {
+    console.error("acks-extras | the sacrifice button could not be read", err);
+  }
+  if (!opener) return "";
+  return `<button type="button" class="acks-btn acks-extras-classes-sacrifice" data-sacrifice-open="1" data-tooltip-text="${esc(opener.tip)}"><i class="fa-solid fa-droplet" inert></i> ${esc(opener.label)}</button>`;
+}
+
 /**
  * The ledger's markup for the strip, or "" where there is nothing to draw: a
- * Player with no entries, or an actor that casts nothing and holds no power.
+ * Player with no entries and no Sacrifice button, or an actor that casts nothing
+ * and holds no power.
  * @param {Actor} actor
  * @param {boolean} casts whether the actor has any casting pool to draw
  * @param {{divine: boolean, arcane: boolean}} [state] the window's switch state (`powerSwitchOf`); each pill pair is drawn pressed to match
  */
 export function powerSectionHtml(actor, casts, state = powerSwitchOf(null)) {
-  let model;
+  const opener = openerHtml(actor, casts);
+  let model = null;
   try {
     model = chipModelFor(actor);
   } catch (err) {
     console.error("acks-extras | the power ledger could not be read", err);
-    return "";
   }
-  if (!model.any || (!casts && !model.hasEntries)) return "";
-  const shown = model.kinds.filter((k) => k.shown);
+  const chips = Boolean(model) && model.any && (casts || model.hasEntries);
+  if (!chips && !opener) return "";
+  const shown = chips ? model.kinds.filter((k) => k.shown) : [];
   const rows = shown.flatMap((k) => k.rows);
-  const list = rows.length
+  const list = !chips ? "" : rows.length
     ? `<ul class="acks-extras-classes-powerlist">${rows.map(rowHtml).join("")}</ul>`
     : `<span class="acks-extras-classes-powerempty">${esc(model.emptyText)}</span>`;
-  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(model, k, state)).join("")}</div>${list}</div>`;
+  return `<div class="acks-extras-classes-power"><div class="acks-extras-classes-powerchips">${shown.map((k) => chipHtml(model, k, state)).join("")}${opener}</div>${list}</div>`;
 }
 
 /**
  * Wire the ledger's controls on a strip: a Judge's plus, minus, Fades / Stays
- * switch and Undo, and the arcane count. The switch is read at the press: a tag
+ * switch and Undo, the arcane count, and the Sacrifice button. The switch is read at the press: a tag
  * set to Stays writes its plus as a lot that stays and its minus as a removal
  * from the lots that stay. A press of the switch writes nothing to the actor; it
  * sets `state`, the window's record (`powerSwitchOf`), which a render of the strip
@@ -124,6 +141,11 @@ export function powerSectionHtml(actor, casts, state = powerSwitchOf(null)) {
  */
 export function wirePowerChip(strip, actor, state = powerSwitchOf(null)) {
   strip.addEventListener("click", (event) => {
+    if (event.target.closest("[data-sacrifice-open]")) {
+      event.preventDefault();
+      void openSacrifice(actor);
+      return;
+    }
     const pill = event.target.closest("[data-power-stay]");
     if (pill) {
       event.preventDefault();

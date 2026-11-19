@@ -1093,42 +1093,27 @@
   border-block-start: var(--acks-border-soft);
   padding-block-start: var(--acks-sp-3);
 }
-.acks-extras-sacrifice-legend {
-  margin: 0;
-  border: 0;
-  font-family: var(--acks-font-banner);
-  font-size: var(--acks-fs-body);
-  letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
-  color: var(--acks-ink);
-}
-.acks-extras-sacrifice-states {
-  display: flex;
-  flex-direction: column;
-  gap: var(--acks-sp-3);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.acks-extras-sacrifice-state {
+/* A victim's own row (lib's bucket row, its `extra` slot): the checks sit under the value line, one line of checks and a
+   second of young and the value box. The slot is outside the row's dimmed parts, so an unwilling victim's check stays live. */
+.acks-extras-sacrifice .acks-extras-bucket__extra {
   display: flex;
   flex-direction: column;
   gap: var(--acks-sp-2);
-  padding: var(--acks-sp-3);
-  border: var(--acks-border-soft);
+  margin-block-start: var(--acks-sp-2);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
 }
-.acks-extras-sacrifice-state__name {
-  font-family: var(--acks-font-display);
-  font-weight: var(--acks-weight-medium);
-  line-height: var(--acks-lh-tight);
-}
-.acks-extras-sacrifice-state__controls {
+.acks-extras-sacrifice-checks {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--acks-sp-2) var(--acks-sp-4);
-  font-family: var(--acks-font-ui);
-  font-size: var(--acks-fs-label);
+}
+.acks-extras-sacrifice-readonly {
+  color: var(--acks-ink-soft);
+}
+.acks-extras-sacrifice-value input.is-edited {
+  border-inline-start: var(--acks-rule-heavy) solid var(--acks-gold);
 }
 .acks-extras-sacrifice-check,
 .acks-extras-sacrifice-value {
@@ -1151,6 +1136,9 @@
 .acks-extras-sacrifice-yield dt,
 .acks-extras-sacrifice-yield dd {
   margin: 0;
+}
+.acks-extras-cast-verdicts li.is-wait {
+  color: var(--acks-warning-ink);
 }
 .acks-extras-cast-go[aria-disabled="true"] {
   opacity: 0.5;

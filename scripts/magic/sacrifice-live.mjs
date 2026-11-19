@@ -1,16 +1,18 @@
-/* global game, fromUuid, fromUuidSync, ui, Roll, ChatMessage */
+/* global game, fromUuid, ui, Roll, ChatMessage */
 /**
  * The blood sacrifice as the live world has it (`sacrifice.mjs` is the model and decides every gate, figure and
  * order of writes): the facts of the caster and of each victim read from their documents, the imported tables,
  * the writes the act makes, the GM's half of a Player's mark, the result card and the API that opens the
- * window (`acksExtras.magic.sacrifice`). Magic owns the sacrifice; its window is `apps/sacrifice-window.mjs`.
+ * window (`acksExtras.magic.sacrifice`). Magic owns the sacrifice; its window is `apps/sacrifice-window.mjs`, and the
+ * record the Judge's checks and the dropped victims are kept in while one is open is `sacrifice-record-live.mjs`.
  *
  * A victim is valued by lib's valuation (`bucket-value.mjs`): a creature by its component items, else by its XP
  * award where no bar applies, and a character blank until a Judge enters it, since no award-by-level table is
  * imported. Marking a victim dead is a write a Player's seat lacks, so the seat asks the GM's client, which
- * checks the sender against the caster before it writes (`checkMarkRequest`).
+ * checks the sender against the caster before it writes (`checkMarkRequest`). The same handler answers a write of the
+ * shared record, which is told by its `op` (`recordHandler`).
  */
-import { MODULE_ID, LANG_PREFIX, SACRIFICE_HANDLER } from "./constants.mjs";
+import { MODULE_ID, SACRIFICE_HANDLER } from "./constants.mjs";
 import { SACRIFICE_DIE, VICTIM_KINDS, sapientOf, planOf, performSacrifice, checkMarkRequest, SACRIFICE_SETTLE } from "./sacrifice.mjs";
 import { readResearchTables } from "./research-tables.mjs";
 import { levelOf, intBonusOf } from "./research-project-live.mjs";
@@ -20,38 +22,19 @@ import { summonerOf } from "../lib/summons-logic.mjs";
 import { STATUS_DEAD } from "../lib/status-effects.mjs";
 import { ANIMAL_TYPE } from "../lib/constants.mjs";
 import { ACTOR_TYPE } from "../lib/vocab.mjs";
-import { foldKey } from "./spell-logic.mjs";
+import { loc, resolve, creatureOf, castsDivine, recordHandler, registerRecordHook, openSacrifice } from "./sacrifice-record-live.mjs";
 
-/** A string of the sacrifice's lang group. */
-export const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.sacrifice.${key}`, data ?? {});
-
-/** A document of a uuid that resolves now, else null; a uuid into an unloaded pack throws. */
-function resolve(uuid) {
-  try {
-    return uuid ? fromUuidSync(uuid) : null;
-  } catch {
-    return null;
-  }
-}
-
-/** The creature a document is: an actor, or the actor of a token. Null for anything else. */
-export const creatureOf = (doc) => (doc?.documentName === "Token" ? doc.actor ?? null : doc?.documentName === "Actor" ? doc : null);
+export { loc, creatureOf };
 
 /** The page the sacrifice's passage is cited by, for a tooltip and a hold. */
 export const sacrificeCites = () => ({ sacrifice: loc("cite.sacrifice"), value: loc("cite.value"), power: loc("cite.power") });
-
-/** Whether a casting tradition of the class is divine, by the tradition's own key. */
-async function castsDivine(actor) {
-  const { classForActor } = await import("../classes/registry.mjs");
-  return (classForActor(actor)?.system?.casting ?? []).some((t) => foldKey(t?.key) === "divine");
-}
 
 /**
  * The caster as the model reads them: `{uuid, name, img, alignment, divine, level, intBonus}`. `divine` is whether a casting
  * tradition of the actor's class is divine; the level and the Intellect bonus are the research throw's own readers', null where unread.
  */
 export async function casterFacts(actor) {
-  return { uuid: actor.uuid, name: actor.name, img: actor.img ?? "", alignment: actorAlignment(actor), divine: await castsDivine(actor), level: levelOf(actor.uuid), intBonus: intBonusOf(actor.uuid) };
+  return { uuid: actor.uuid, name: actor.name, img: actor.img ?? "", alignment: actorAlignment(actor), divine: castsDivine(actor), level: levelOf(actor.uuid), intBonus: intBonusOf(actor.uuid) };
 }
 
 /** A creature's XP award, null where it is not read: the default zero is not an award. */
@@ -152,6 +135,7 @@ export async function markVictims(caster, uuids) {
  * the caster they own, and each victim as this client reads it, never what the payload says.
  */
 export async function sacrificeHandler(payload = {}) {
+  if (payload.op) return recordHandler(payload);
   const { judgeDeclares } = await import("../lib/sockets.mjs");
   const caster = resolve(payload.casterUuid);
   const fromJudge = judgeDeclares(payload.requestUserId);
@@ -174,6 +158,7 @@ let registered = false;
 export function registerSacrifice() {
   if (registered) return;
   registered = true;
+  registerRecordHook();
   void import("../lib/sockets.mjs").then(({ registerHandler }) => registerHandler(SACRIFICE_HANDLER, sacrificeHandler));
 }
 
@@ -187,7 +172,7 @@ export async function postCard(result, plan, { caster, tables }) {
   else {
     if (result.auto) lines.push(loc("card.auto", { cite: tables.prose?.cite ?? "" }));
     if (result.amount > 0) lines.push(loc(`card.power.${result.kind}`, { n: result.amount }));
-    if (names.length) lines.push(loc("card.dead", { names: names.join(", ") }));
+    for (const name of names) lines.push(loc("card.dead", { name }));
     if (result.failed.length) lines.push(loc("card.failedMark", { n: result.failed.length }));
     if (result.amount > 0 && !result.gain?.ok) lines.push(loc("card.gainFailed"));
   }
@@ -244,10 +229,7 @@ export async function sacrifice(actor, state) {
 export const sacrificeApi = {
   VICTIM_KINDS,
   /** Open the Blood sacrifice window for a character; one window per caster. */
-  async open(actor) {
-    const { SacrificeWindow } = await import("./apps/sacrifice-window.mjs");
-    return SacrificeWindow.open(actor);
-  },
+  open: openSacrifice,
 };
 
 /** Tell the user why an act or a drop was refused. */
