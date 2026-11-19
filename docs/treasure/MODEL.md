@@ -297,12 +297,40 @@ nothing. A magic item nobody has detected never ranks by its own cost, which
 would give the seed away: it ranks by its mask's cost (an intentional
 disguise), else by the apparent value its snapshot carries (`apparentWorth`:
 `markets.apparentValueGp`, the item's non-magical worth, which the importer
-reads off its entry in the Judge's own copy, JJ ch.4), else as nothing. Its
-band is therefore the band of the item it passes for. A find with no snapshot
+reads off its entry in the Judge's own copy, JJ ch.4), else, for a rolled arm,
+its base's cost plus the masterwork cost (`apparent`, below), else as nothing.
+Its band is therefore the band of the item it passes for. A find with no snapshot
 (a named placeholder) or with no figure ranks as nothing, and no figure is
 written anywhere: the pot shows an item's band, never its worth. `bandsOf` gives each
 worth `floor(BAND_COUNT × the number of strictly lower worths ÷ n)`: equal worths
 share a band, a pot of one or of equals is band 0, and no band is out of range.
+
+**An undetected arm ranks at its non-magical base plus masterwork** (the owner,
+2026-11-18: value is based on the non-magical version of the item, though almost
+all magic items are masterwork quality at a glance unless disguised
+intentionally). A pot carries an arms column, `deal.armsSetting` (a setting key
+of the Tome's arms grids, or blank), kept in its deal state beside the style
+and set by `setDealOption`, which also keeps it on the Judge's user as the
+default the next new pot opens with. A pot with no column rolls no type and
+stores nothing. With one, `rollMagicTruths` passes it to the roll
+(`magic-item-roll` v2) and, for each rolled arm, `apparentOf` names the arm
+(the type rolled, else for a row linked by name the words before its first
+signed figure) and finds its base among `armsBases`: the library's minted
+weapons (type `weapon` under `def.weapon.*`) and minted armour and shields
+(`def.armor.*`), by their import stamps and never by name; barding, helmets and
+ammunition (stamped, and priced per projectile) are never bases. A weapon is
+found through the weapon seam (`keyForName` over the name's forms), then by a
+shared name form, then by `lib/vocab.mjs` `leadingNameHit`: the label's first
+words, a period standing for a cut-short word, two words at least, exactly one
+base fitting. A row that is no arm (a ring, a cloak) finds none. The base's
+kind picks the masterwork tier (`ARMS_TIER`: a weapon `weaponBoth`, armour and
+shield `armorAC`), whose `costAdd` is the equipment feature's `masterworkFigure`.
+Both costs positive, the truth stores `apparent: {baseUuid, baseGp,
+masterworkGp}` at the deal, since bands freeze at open; otherwise nothing is
+stored, nothing throws, and the card ranks as before. `rankWorth` reads the sum
+(`armsWorth`) after the mask's cost and the snapshot's apparent value, and the
+sum is never stored, so it is no card's price and no market's figure.
+
 `BAND_COUNT` is four, a design constant and no printed figure. Bands are
 computed once, over the cards the pot will hold (`order` and both buckets, after
 the toggles), in `planOpen` and written to each Card's `value` by `openPot`

@@ -484,4 +484,19 @@ or the cookbook documents a real import writes.
    from the deal's result (`dealt[].audit`, the rows with `magic: true`); the
    deal posts no card for them (`MODEL.md`).
 
+   **Arms and their apparent worth (T6c-2).** Re-import the Tome's item tables
+   first (a world imported before this slice has rows with no `arms` link), with
+   the equipment tables and the masterwork documents imported. The pot's column
+   has no control until T6c-3, so the walk sets it by API
+   (`setDealOption(pile, "armsSetting", "s1")`) and reads the pot back; a second
+   new pot opens with it, and a blank clears it. The walk then rolls sixty times
+   on the weapons list through the real roll service with the die rigged to a
+   spread (`rollMagicTruths` with `armsSeam()`'s bases and tier costs) and
+   checks each card that stored `apparent` against the documents: `baseGp` is
+   the base's own `system.cost`, `masterworkGp` is the tier's `costAdd` for the
+   base's kind (a weapon's `weaponBoth`, armour's or a shield's `armorAC`), and
+   `rankWorth` is their sum. A blank column stores nothing. A ring, a cloak and
+   ammunition rolled by name store nothing (offline only; no live row is known
+   to land on one).
+
 **Teardown:** the run's pots are tracked and swept; the kept fixtures stay.

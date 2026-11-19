@@ -117,9 +117,11 @@ async function rollMagicCards({ letter, truths, style = "classic", roller, armsS
  * What a rolled arm's apparent worth is read from, once the library is warm: the
  * bases found by import stamp among the library's own items (no world copy, no
  * template part) and a masterwork tier's added cost, from the equipment
- * feature's imported masterwork documents (absent until imported).
+ * feature's imported masterwork documents (absent until imported). The live walk
+ * reads it to check the figures a deal stores against their documents.
+ * @returns {Promise<{bases: object[], masterwork: (tier: string) => number|null|undefined}>}
  */
-async function armsSeam() {
+export async function armsSeam() {
   await whenReady();
   const mints = libraryItems().filter((i) => !isWorldCopy(i) && !i.flags?.[MODULE_ID]?.templatePart && !i.flags?.[MODULE_ID]?.templateFor);
   return { bases: armsBases(mints, keyOfItem), masterwork: (tier) => masterworkFigure(tier)?.costAdd };

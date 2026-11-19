@@ -16,7 +16,12 @@
  * classic deal (rolled cards, audit rows, the refusal codes of any card left a
  * placeholder); a rolled card never named for its item on a seat's turned face;
  * a linked card's claim data knowing no identification and no curse; a heroic
- * deal rolling on the rarity lists; No magic striking rolled cards at open.
+ * deal rolling on the rarity lists; No magic striking rolled cards at open; the
+ * pot's arms column set by API (T6c-2; the deal panel's control is T6c-3) and
+ * sixty rolls on the weapons list, each stored arm's base cost checked against
+ * its document and its masterwork cost against the tier's `costAdd`, ranking at
+ * their sum. Needs the equipment tables and the masterwork documents imported,
+ * and the Tome's arms grids re-imported so rows carry their `arms` links.
  *
  * Scripted: the deal itself (`dealLettersIntoPot`, the rail's own call; the
  * rail's Deal press is walked by treasure-deal), the die (held at its floor
@@ -126,6 +131,73 @@ const P = {
       apparentRanked: linked.filter((t) => L.apparentWorth(t) != null && !(t.mask?.cost != null && t.mask.cost !== "") && L.rankWorth(t) === L.apparentWorth(t)).length,
     };
   },
+  /**
+   * The pot's arms column, set by API (the deal panel's control is a later slice): read back on the pot,
+   * kept as the next new pot's default, then cleared. Counts and booleans only.
+   */
+  column: async ({ mod, key }) => {
+    const Pm = await import(`${mod}/treasure/pot.mjs`);
+    const L = await import(`${mod}/treasure/pot-logic.mjs`);
+    const pile = await globalThis.acksExtras.treasure.newDealPot([]);
+    if (!pile) return { made: false };
+    const flagBefore = game.user.getFlag("acks-extras", "treasureArms") ?? "";
+    await Pm.setDealOption(pile, "armsSetting", key);
+    const set = Pm.potOf(pile).deal.armsSetting;
+    const refused = (await Pm.setDealOption(pile, "armsSetting", "not-a-column")) === null;
+    const next = await globalThis.acksExtras.treasure.newDealPot([]);
+    const inherited = next ? Pm.potOf(next).deal.armsSetting : null;
+    await Pm.setDealOption(pile, "armsSetting", "");
+    const cleared = Pm.potOf(pile).deal.armsSetting === "" && (game.user.getFlag("acks-extras", "treasureArms") ?? "") === "";
+    if (flagBefore) await game.user.setFlag("acks-extras", "treasureArms", flagBefore);
+    return { made: true, uuids: [pile.uuid, next?.uuid].filter(Boolean), set: set === key, refused, inherited: inherited === key, cleared, valid: L.normalizePot({ deal: { armsSetting: key } }).deal.armsSetting === key };
+  },
+  /**
+   * Sixty rolls on the classic list the noun `noun` names, with the setting `key`, through the real roll
+   * service and the real seam: every card that stores `apparent` is checked against its base's document
+   * (`system.cost`) and the masterwork tier's `costAdd` for the base's kind, and ranks at their sum.
+   * Counts and booleans only: no name or figure is returned.
+   */
+  arms: async ({ mod, key }) => {
+    const Mg = await import(`${mod}/treasure/magic-deal-logic.mjs`);
+    const D = await import(`${mod}/treasure/deal.mjs`);
+    const L = await import(`${mod}/treasure/pot-logic.mjs`);
+    const W = await import(`${mod}/equipment/printed-layers.mjs`);
+    const starts = globalThis.acksExtras.magicItems.starts();
+    const noun = starts?.classic?.find((e) => /weapon/i.test(`${e.key} ${e.caption}`))?.caption ?? null;
+    if (!noun) return { noList: true };
+    const seam = await D.armsSeam();
+    const dice = (expr) => { const sides = Number(String(expr).slice(String(expr).indexOf("d") + 1)); return { total: 1 + Math.floor(Math.random() * sides), sides }; };
+    const placeholders = Array.from({ length: 60 }, () => ({ ...L.normalizeTruth({ pool: "magic", label: "magic", magical: true, detected: false }), tableRef: noun }));
+    const out = await Mg.rollMagicTruths({
+      truths: placeholders, style: "classic", where: "W.magic", lists: starts, resolve: async () => null,
+      roll: (a) => globalThis.acksExtras.magicItems.roll({ ...a, roller: dice }), armsSetting: key, ...seam,
+    });
+    const stored = out.truths.filter((t) => t.apparent);
+    let partsMatch = 0;
+    let ranked = 0;
+    let weaponTier = 0;
+    let armourTier = 0;
+    for (const t of stored) {
+      const base = await fromUuid(t.apparent.baseUuid);
+      const kind = base?.type === "weapon" ? "weapon" : base?.type === "armor" ? (base.system?.type === "shield" ? "shield" : "armor") : null;
+      const tier = Mg.ARMS_TIER[kind];
+      const add = tier ? W.masterworkFigure(tier)?.costAdd : null;
+      if (Number(base?.system?.cost) === t.apparent.baseGp && add === t.apparent.masterworkGp) partsMatch++;
+      if (L.rankWorth(t) === t.apparent.baseGp + t.apparent.masterworkGp) ranked++;
+      if (kind === "weapon") weaponTier++;
+      else if (kind) armourTier++;
+    }
+    const withoutKey = await Mg.rollMagicTruths({
+      truths: placeholders.slice(0, 20), style: "classic", where: "W.magic", lists: starts, resolve: async () => null,
+      roll: (a) => globalThis.acksExtras.magicItems.roll({ ...a, roller: dice }), armsSetting: "", ...seam,
+    });
+    return {
+      rolled: out.truths.length, refused: out.errors.length, stored: stored.length, partsMatch, ranked, weaponTier, armourTier,
+      bases: seam.bases.length, tierDocs: !!W.masterworkFigure("weaponBoth") && !!W.masterworkFigure("armorAC"),
+      blankStores: withoutKey.truths.filter((t) => t.apparent).length,
+      unknownKept: stored.every((t) => t.magical && t.detected === false && t.identified === "none"),
+    };
+  },
   /** Open a staged pot to the table; the doorway message id comes back for the sweep. */
   openIt: async ({ mod, potId }) => {
     const Pm = await import(`${mod}/treasure/pot.mjs`);
@@ -210,6 +282,23 @@ try {
   const no = await run(gm, P.openIt, { mod: MOD, potId: n.potId });
   for (const id of no.door) made.push(gm.track(id, "ChatMessage"));
   check("with No magic turned on after the deal, the rolled cards are struck when the pot opens", n.rolled > 0 && no.ok && no.magicLeft === 0, { rolled: n.rolled, magicLeft: no.magicLeft });
+
+  section("Step 8. the arms column and an arm's apparent worth");
+  const col = await run(gm, P.column, { mod: MOD, key: "s1" });
+  for (const uuid of col.uuids ?? []) made.push(gm.track(uuid, "Cards"));
+  check("the pot's column is set by API, refuses a value that is no column, is the next new pot's default, and clears", col.made && col.set && col.refused && col.inherited && col.cleared && col.valid, col);
+  const a = await run(gm, P.arms, { mod: MOD, key: "s1" });
+  if (a.noList) blocked("no classic list names weapons, so no arm can be rolled");
+  note("arms: sixty rolls on the weapons list", a);
+  if (!a.bases) blocked("no minted weapon or armour document is in the library; import the equipment tables first");
+  if (!a.tierDocs) note("arms: the masterwork tier documents are not imported, so a card stores nothing and ranks 0", { stored: a.stored });
+  check("the roll with the column set stores no card that is not undetected, unidentified magic", a.unknownKept);
+  check("a blank column stores no figures on any card", a.blankStores === 0, { blank: a.blankStores });
+  if (a.tierDocs) {
+    check("some rolled arm stored its base and masterwork figures", a.stored > 0, { stored: a.stored, rolled: a.rolled, refused: a.refused });
+    check("every stored base cost is its document's own cost and every masterwork cost is its kind's tier `costAdd`", a.stored > 0 && a.partsMatch === a.stored, { stored: a.stored, matched: a.partsMatch });
+    check("every such card ranks at the sum of its two parts", a.stored > 0 && a.ranked === a.stored, { stored: a.stored, ranked: a.ranked });
+  }
 
   walkDone();
 } catch (err) {
