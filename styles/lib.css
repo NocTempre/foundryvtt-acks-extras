@@ -449,6 +449,7 @@
    under the text floor. */
 .acks-lib-group-sheet .member-state {
   font-size: var(--acks-fs-label);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   padding: 0.05rem 0.3rem;
@@ -1318,6 +1319,7 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
 .acks-extras-rung-head {
   font-size: var(--acks-fs-fine);
   color: var(--acks-ink-soft);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 

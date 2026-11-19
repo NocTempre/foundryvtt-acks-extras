@@ -56,6 +56,7 @@
 .acks-extras-ss-banner {
   font-family: var(--acks-caps-font, var(--acks-font-banner));
   letter-spacing: var(--acks-caps-tracking, 0.09em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   font-size: var(--acks-fs-banner);
 }
@@ -161,6 +162,7 @@
   border-bottom: 1px solid var(--acks-rule-color-soft);
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 
@@ -302,6 +304,7 @@
 .acks-extras-ss-lb {
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.04em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 

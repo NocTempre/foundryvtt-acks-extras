@@ -221,6 +221,7 @@
 .acks-extras.monster-v2 .acksm-cat-tag {
   background: var(--acks-tint);
   color: var(--acks-ink-soft);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
 }

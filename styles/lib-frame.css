@@ -342,6 +342,7 @@
   font-family: var(--acks-font-ui);
   font-size: calc(10px * var(--acks-extras-k));
   letter-spacing: var(--acks-caps-tracking, 0.08em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
   line-height: 1.2;
@@ -1941,6 +1942,7 @@ button.acks-extras-frame__pinchip {
   font-size: calc(10.5px * var(--acks-extras-k));
   color: var(--acks-ink-faint);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 

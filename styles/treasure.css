@@ -794,6 +794,7 @@
   font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 
@@ -987,6 +988,7 @@
 .acks-extras-treasure-door .acks-extras-treasure-door__title {
   font-family: var(--acks-caps-font, var(--acks-font-banner));
   letter-spacing: var(--acks-tracking-banner);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   font-size: var(--acks-fs-banner);
 }

@@ -149,6 +149,7 @@
   flex: 0 1 11em;
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
@@ -242,6 +243,7 @@
   flex: none;
   font-size: var(--acks-fs-fine);
   letter-spacing: var(--acks-caps-tracking, 0.08em);
+  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
