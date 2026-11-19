@@ -27,7 +27,7 @@ import { spellEffectOf } from "./spell-effect.mjs";
 import { effectRowsOf, rowsOf } from "./cast-rows.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { centreOfToken, pointGapFeet } from "../lib/distance-units.mjs";
-import { unset } from "../lib/util.mjs";
+import { isPrimaryGM, unset } from "../lib/util.mjs";
 import { registerHandler, executeAsGM, judgeDeclares } from "../lib/sockets.mjs";
 
 /** The wall's flag path for the stamp. */
@@ -129,12 +129,9 @@ async function writePlan(wall, plan) {
   return true;
 }
 
-/** Whether this window is the active GM's, the one seat that ends seals. */
-const isActiveGM = () => game.users?.activeGM?.isSelf === true;
-
 /** A deleted caster record that names a seal ends it. */
 function onDeleteEffect(effect) {
-  if (!isActiveGM()) return;
+  if (!isPrimaryGM()) return;
   const seal = sealOf(effect);
   const record = spellEffectOf(effect);
   if (!seal || !record) return;
@@ -148,7 +145,7 @@ function onDeleteEffect(effect) {
  * @returns {Promise<number>} the walls written
  */
 export async function sweepSeals() {
-  if (!isActiveGM()) return 0;
+  if (!isPrimaryGM()) return 0;
   const live = new Set();
   for (const actor of worldActors()) {
     for (const effect of actor.effects ?? []) {
