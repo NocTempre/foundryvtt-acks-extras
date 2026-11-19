@@ -216,4 +216,4 @@ Not walked:
 - the library journal page, which no world journal held, so MODEL's projection inference stays unconfirmed;
 - the Player half, which is the treasure card's walk once it reads `treasureArt`.
 
-Next: the MM harvest (H1-H4).
+Results, MM harvest (2026-11-19): deferred out of this minor by the owner: "Defer, the MM imports already partially carry that data, and those need a full audit in general that I will dedicate a full pass to." H1-H4 were not started, and no harvest code exists on any branch. The design stays in the session notes (`20261118-mm-harvest-design.md`), and ROADMAP carries the row.

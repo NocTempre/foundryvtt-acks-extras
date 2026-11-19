@@ -1049,3 +1049,19 @@ Not built:
   `placementAt`, but returning every match so it can tell none from two.
   Calling the shipped function (or one that shares its test) keeps the gate
   and the import from drifting apart.
+
+## Monster special components (the MM harvest), deferred
+
+The owner deferred this on 2026-11-19: "Defer, the MM imports already partially carry that data, and those need a full audit in general that I will dedicate a full pass to."
+
+The 2026-11-18 design proposes:
+- one ruledata document, `harvest`, assembled from six raw tables that the existing engine modes read;
+- the Monstrous Manual's book facts in `scripts/importer/books/mm/`;
+- the assembly in `scripts/importer/harvest-binding.mjs`;
+- a lib reader, `scripts/lib/harvest.mjs`.
+
+Two parts of the requested schema did not fit:
+- **Prerequisites.** The page prints alternatives, ranks totalled across two proficiencies, a specialty and a body-state qualifier.
+- **The identify target.** It is printed in the Revised Rulebook's proficiency entries, not on the MM pages.
+
+It waits for the owner's audit pass over the MM imports. That pass first decides what the existing monster imports already carry, so the harvest does not import it twice.
