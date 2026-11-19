@@ -2863,7 +2863,8 @@
   border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
   font-size: var(--acks-fs-h3);
   color: var(--acks-spot);
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.04em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-trapbreak-window .acks-extras-trapbreak-grid {
@@ -2918,8 +2919,8 @@
 
 .acks-extras-trapbreak-window .acks-extras-trapbreak-target .state {
   font-size: var(--acks-fs-label);
-  letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, var(--acks-tracking-caps));
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
