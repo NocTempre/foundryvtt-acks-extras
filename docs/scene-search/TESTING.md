@@ -224,11 +224,36 @@ fixtures stay.
 
 ## S4 — the screen
 
-**Not walked.** Offline coverage is `tools/test-scene-screen.mjs` (the view
-model: who sees what, the counts, the rails, the tray, the log, the drag
-payload) and the S4 block of `tools/test-scene-session.mjs` (the plan entry's
-locker, `show`, the player's log and assignments). Neither draws a window, so
-the observables below need a live Judge seat and a live Player seat at once.
+The walk is `tools/live/scene-search-screen.mjs`. Offline coverage is
+`tools/test-scene-screen.mjs` (the view model: who sees what, the counts, the
+rails, the tray, the log, the drag payload) and the S4 block of
+`tools/test-scene-session.mjs` (the plan entry's locker, `show`, the player's
+log and assignments). Neither draws a window, so the observables below need a
+live Judge seat and a live Player seat at once.
+
+What driving it taught:
+
+- **A stylesheet `module.json` gains is read when the world launches.** A world
+  launched before the screen's `styles/scene-search.css` was added draws the
+  window unstyled (no column scrolls, the type knob reaches nothing, the tray
+  falls off the frame). The walk notes whether the sheet is loaded and, where it
+  is not, adds a copy itself for the layout step, which then proves the
+  stylesheet and not its loading.
+- **The type knob is set on the document root**, where the client pin sets it
+  and the ramp steps are computed (`lib/client-pins.mjs`); set on the window it
+  moves nothing. Draw the window again after setting it.
+- **The Round and Turn presses keep a resolved entry in the plan**, stamped
+  `resolvedTurn`; "resolved" is that stamp, not the entry's absence. A refused
+  check (the locker check at a hidden entry) is stamped like any other and posts
+  no unresolved card.
+- **A player's relayed request is answered by the active GM**, which on a
+  shared world may be another lane's seat. When that client does not answer, a
+  player's assign, unassign and ask from this seat change nothing and post
+  nothing (Player 3 and Player 6 failed so on lane C while lane A's Gamemaster
+  was the active GM). Walk the player's relays where the walk's GM is the active
+  GM.
+- **Order:** the player's hidden-entry checks (Player 2 and 4) run before Judge 6
+  reveals the hidden container, and Player 1 before Judge 7.
 
 It reuses S2's fixtures, found by marker: `scene-search/session-scene`,
 `scene-search/session-place` (a floor, a container, a fixture whose hasty check
@@ -261,7 +286,7 @@ Judge seat:
    hastily", the bar's press line reads "Round: 1 hasty check resolves at once.",
    and the party's `turnPlan` holds the entry.
 3. **Assign by drag.** Drag the plain searcher's tile onto the fixture's
-   methodical rail, then onto the container's card (not a rail). Observables:
+   methodical rail, then onto the second floor's card (not a rail). Observables:
    a chip on the rail; the second drop lands on the first check that member may
    attempt; a drag onto a rail whose check is refused (the container past the
    reach) posts the refusal as a notification and adds no chip.
@@ -284,10 +309,12 @@ Judge seat:
    remains unfound there.
 7. **Show the scene.** Press Show the scene. Observables: the header reads "shown
    to the table"; the Player seat's screen opens by itself (Player 2).
-8. **Layout.** Resize narrower and raise the type size: the header, bar and tray
-   stay on screen and the entries and party columns scroll on their own; reopen
-   the window and the entries' scroll position is kept across a re-render (assign
-   a member while scrolled down).
+8. **Layout.** At 900 by 640 with the knob raised: the header, bar and tray stay
+   inside the window, the entries column scrolls on its own and the content box
+   does not, and the banner's size grew. At 520 by 420 with the knob higher: the
+   content box scrolls and the tray is within its scroll, never cut off. Then
+   the entries' scroll position is kept across a re-render (assign a member
+   while scrolled down).
 9. **End** (`end(partyId)`) with the window open. Observables: the window reads
    "No scene search is open" and nothing throws.
 
@@ -311,8 +338,7 @@ Player seat (the Player seat's character is `searcher-plain`):
    naming the hidden container's key for a methodical check, then have the Judge
    press Spend a turn; repeat for a hasty check and press Round. Observables: the
    check at the hidden entry never resolves on either press (no log row, no
-   state change, the container stays hidden); the Judge's client's unresolved
-   notes card names the member.
+   state change, the container stays hidden).
 5. **After the Judge's Round and Turn** the player's log shows who searched
    what; a found row shows the clue and "Something more is here." where
    something remains; a missed check shows only who and what, with no result; no

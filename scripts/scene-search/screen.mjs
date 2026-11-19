@@ -178,16 +178,25 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
   }
 
   /**
-   * Watch what the window draws: the formations record (the plan, the clock,
-   * the roster), the party actor (the session), the place (the things) and the
-   * pot's cards (the found marks).
+   * Start watching before the first draw reads anything, so a change that lands
+   * while that draw is being made still draws again.
    *
    * @override
    */
-  async _onFirstRender(context, options) {
-    await super._onFirstRender(context, options);
+  _configureRenderOptions(options) {
+    super._configureRenderOptions(options);
+    if (!this.#watch.length) this.#watchWorld();
+  }
+
+  /**
+   * Watch what the window draws: the formations record (the plan, the clock,
+   * the roster), the party actor (the session), the place (the things) and the
+   * pot's cards (the found marks). A change during a draw queues another.
+   */
+  #watchWorld() {
+    const { RENDERING } = foundry.applications.api.ApplicationV2.RENDER_STATES;
     this.#renderSoon ??= foundry.utils.debounce(() => {
-      if (this.rendered) this.render();
+      if (this.state >= RENDERING) this.render();
     }, 60);
     const onSetting = (setting) => {
       if (setting?.key === `${MODULE_ID}.${SETTING_FORMATIONS}`) this.#renderSoon();

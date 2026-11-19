@@ -1,7 +1,8 @@
 /* The scene screen (scripts/scene-search/screen.mjs). The window scrolls at its
    entries and party columns inside the one body part: the window root is capped
-   to the viewport, the content box takes the frame's remaining height without
-   scrolling itself, and the header, the bar and the tray stay on screen.
+   to the viewport, and the header, the bar and the tray stay on screen while
+   the board keeps its floor height. On a window too short for that floor the
+   content box scrolls instead, so the tray is never cut off.
    Every box is the canvas figure times the type knob (`--acks-extras-k`) and
    every size of type is a step of the ramp, so a raised type size reaches
    each surface. No texture is drawn but the one the art seam reads
@@ -17,7 +18,8 @@
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 0;
   font-size: var(--acks-fs-body);
 }
@@ -29,8 +31,8 @@
 .acks-extras-ss {
   display: flex;
   flex-direction: column;
-  flex: 1 1 auto;
-  min-height: 0;
+  /* Never shorter than its header, bar, tray and the board's floor: below that the content box scrolls. */
+  flex: 1 0 auto;
   background: var(--acks-paper-pure);
   color: var(--acks-ink);
   font-size: var(--acks-fs-body);
@@ -101,8 +103,9 @@
 .acks-extras-ss-board {
   display: grid;
   grid-template-columns: minmax(0, 1fr) calc(290px * var(--acks-extras-k));
-  flex: 1 1 auto;
-  min-height: 0;
+  /* Grows from nothing into the room left, never below its floor; its columns scroll inside it. */
+  flex: 1 1 0;
+  min-height: calc(220px * var(--acks-extras-k));
 }
 
 .acks-extras-ss-entries {
