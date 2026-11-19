@@ -2054,7 +2054,7 @@
   align-items: center;
   gap: 4px var(--acks-sp-2);
   padding: 2px 0;
-  border-bottom: 1px solid var(--acks-rule, currentColor);
+  border-bottom: 1px solid var(--acks-rule-color-soft);
 }
 
 .acks-extras.party-sheet .acks-extras-turn-plan-name {
@@ -2174,7 +2174,7 @@
   align-items: center;
   gap: 2px var(--acks-sp-2);
   padding: 2px 0;
-  border-bottom: 1px solid var(--acks-rule, currentColor);
+  border-bottom: 1px solid var(--acks-rule-color-soft);
 }
 
 .acks-extras.party-sheet .acks-extras-crossing-name {

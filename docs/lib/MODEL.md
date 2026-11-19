@@ -182,16 +182,13 @@ they named.
 
 ## Theming: one palette, three layers
 
-Every colour any ACKS surface draws comes from an `--acks-*` token. There are no
-hex literals in `styles/`. Reads of Foundry's *legacy* `--color-*` variables are
-avoided — that set is defined once globally in v14 with no theme scoping, so
-those names are light-theme constants and cannot follow a dark seat. (This is a
-rule the code does not yet fully keep: `styles/classes.css` still carries a
-nine legacy reads. They are masked while an ACKS class is on the root, because
-`foundry.css` re-points five of those same names at ACKS tokens — so the drift
-is invisible today and would surface under the `core` look. Tracked in
-[ROADMAP.md](ROADMAP.md) § "Sweep the legacy `--color-*` reads out of
-styles/classes.css".) The *modern* v14 variables — `--color-text-primary`, `--color-border`,
+Every colour any ACKS surface draws comes from an `--acks-*` token. The one set
+of hex literals in `styles/` is the travel weather chips' three hues in
+`formation.css` (cold, hot, mud), each mixed into `--acks-rule-color-soft` so the
+border still follows the seat; no token names a temperature. `styles/` reads none
+of Foundry's *legacy* `--color-*` variables. That set is defined once globally in
+v14 with no theme scoping, so those names are light-theme constants and cannot
+follow a dark seat. The *modern* v14 variables — `--color-text-primary`, `--color-border`,
 `--font-primary` — are a different set and genuinely theme-aware; the `core` look
 below is built on them.
 

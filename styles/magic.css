@@ -146,7 +146,7 @@
   align-items: baseline;
   gap: var(--acks-sp-2);
   padding: 2px 0;
-  border-bottom: 1px solid var(--acks-rule);
+  border-bottom: 1px solid var(--acks-rule-color-soft);
 }
 
 .acks-magic-effect-kind {
