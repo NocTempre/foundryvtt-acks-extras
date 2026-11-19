@@ -12,8 +12,10 @@ import assert from "node:assert/strict";
 globalThis.foundry = { utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) } };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
-const { spellEffectData } = await import("../scripts/magic/spell-effect.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
+const { castDuration } = await import("../scripts/magic/cast-duration.mjs");
+const { castSummonSpell } = await import("../scripts/magic/cast-summon.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -34,6 +36,53 @@ t("the status a held record carries follows the kind held", () => {
   assert.equal(heldStatusOf("stationary"), "concentratingStationary");
   assert.equal(heldStatusOf("mobile"), "concentrating");
   assert.equal(heldStatusOf(undefined), "concentrating");
+});
+
+const MARK = { spell: { uuid: "Actor.c1.Item.s1", name: "Invented Hold", img: "icons/invented.webp" }, caster: { uuid: "Actor.c1" }, castId: "cast0001", role: "caster" };
+
+t("a held record is the caster's status-only record: the status for its kind, the kind, the tail, the clock started now and the cap as its flag-timed duration", () => {
+  const cap = { value: 12, units: "rounds" };
+  const tail = { value: 2, units: "rounds" };
+  const data = heldRecordData(MARK, { held: "stationary", now: 40, tail, cap });
+  assert.deepEqual(data, spellEffectData({ ...MARK, startTime: 40, statuses: ["concentratingStationary"], held: "stationary", tail, duration: cap }));
+  assert.deepEqual(data.statuses, ["concentratingStationary"]);
+  assert.equal(data.changes.length, 0);
+  const back = spellEffectOf(data);
+  assert.deepEqual([back.role, back.held, back.tail, back.duration, back.startTime], ["caster", "stationary", tail, cap, 40]);
+  const bare = spellEffectOf(heldRecordData(MARK, { held: "mobile", now: 7 }));
+  assert.deepEqual([bare.held, bare.tail, bare.duration, bare.startTime], ["mobile", undefined, undefined, 7], "no tail and no cap leave neither");
+  assert.equal(heldRecordData({ ...MARK, invocationLevel: 3 }, { held: "mobile", now: 7 }).flags["acks-extras"].spellEffect.invocationLevel, 3, "the mark's own keys ride along");
+});
+
+await ta("a held summons writes the record heldRecordData returns, and a timed one writes none of it", async () => {
+  const spellOf = (duration) => {
+    const caster = { type: "character", uuid: "Actor.c1", isOwner: true, effects: [], created: [], createEmbeddedDocuments: async (type, data) => (caster.created.push(data[0]), data) };
+    const spell = { id: "s1", type: "spell", uuid: "Actor.c1.Item.s1", name: "Invented Hold", img: "icons/invented.webp", parent: caster, flags: { "acks-extras": { spell: { schools: ["summoning"], effects: [], duration } } } };
+    return { spell, caster };
+  };
+  const deps = () => ({
+    ready: async () => {},
+    lookups: { byCookbookId: () => null, fromUuidSync: () => null },
+    resolveRef: () => null,
+    pick: async () => ({ sourceUuid: "def.invented.glimmerkin", count: 1, spellId: "s1" }),
+    place: async () => ({ ok: true, castId: "cast0001", tokenUuids: [] }),
+    announce: () => {},
+    roll: () => 4,
+    castId: () => "minted00",
+    now: () => 40,
+    endHeld: async () => {},
+  });
+  const imported = { shape: "concentrationMax", concentration: "stationary", value: 1, unit: "hours" };
+  const read = castDuration(imported, {});
+  assert.ok(read.held === "stationary" && read.cap, "the invented duration reads as a held one with a cap");
+  const held = spellOf(imported);
+  await castSummonSpell(held.spell, async () => true, deps());
+  assert.deepEqual(held.caster.created[0], heldRecordData(MARK, { held: read.held, now: 40, tail: read.tail, cap: read.cap }));
+  assert.deepEqual(held.caster.created[0].statuses, ["concentratingStationary"]);
+  const timed = spellOf({ shape: "fixed", value: 2, unit: "hours" });
+  await castSummonSpell(timed.spell, async () => true, deps());
+  const plain = spellEffectOf(timed.caster.created[0]);
+  assert.deepEqual([plain.held, plain.startTime, timed.caster.created[0].statuses, timed.caster.created[0].duration], [undefined, undefined, undefined, { value: 2, units: "hours" }], "a timed summons is core-timed: no clock of the module's own, no status");
 });
 
 t("the cause: the cast's own delete names it, else the loss lib is lifting, else removed", () => {

@@ -28,7 +28,7 @@ import { MODULE_ID, FLAG_SPELL, LANG_PREFIX } from "./constants.mjs";
 import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef } from "./summon-spell.mjs";
 import { spellProcedureKind } from "./cast-procedure.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
-import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
+import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
 import { castDuration } from "./cast-duration.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { normalizeRef, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
@@ -168,9 +168,9 @@ export async function castSummonSpell(spell, spend, deps = liveDeps()) {
   try {
     const duration = summonCastDuration(spell, { lookups: deps.lookups, roll: deps.roll });
     const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: result.castId || deps.castId(), role: "caster" };
-    // A concentration is a held record, as `castSpellRun` writes one: the status, the kind, the tail, flag-timed by the cap where it has one.
+    // A concentration is the held record `castSpellRun` writes, from the same composition.
     const data = duration.held
-      ? spellEffectData({ ...mark, startTime: deps.now?.(), statuses: [heldStatusOf(duration.held)], held: duration.held, tail: duration.tail, duration: duration.cap })
+      ? heldRecordData(mark, { held: duration.held, now: deps.now?.(), tail: duration.tail, cap: duration.cap })
       : spellEffectData({ ...mark, duration });
     await caster.createEmbeddedDocuments("ActiveEffect", [data]);
   } catch (err) {

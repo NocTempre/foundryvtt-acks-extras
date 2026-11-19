@@ -38,6 +38,7 @@ const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTarge
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
+const { heldRecordData } = await import("../scripts/magic/cast-held.mjs");
 const { castMoment, declarationOf, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 
 let n = 0;
@@ -1383,6 +1384,9 @@ await ta("a concentration cast ends the caster's held records after the spend an
   assert.deepEqual(calls.records[0].statuses, ["concentratingStationary"]);
   assert.equal(calls.records[0].changes.length, 0);
   assert.equal(record.duration, undefined, "a plus shape has no cap");
+  const read = castDuration(HOLD, {});
+  const mark = { spell: { uuid: "Actor.c1.Item.s1", name: "Testscorch", img: "i.png" }, caster: { uuid: "Actor.c1" }, castId: record.castId, role: "caster" };
+  assert.deepEqual(calls.records[0], heldRecordData(mark, { held: read.held, now: 10, tail: read.tail, cap: read.cap }), "the cast writes the record heldRecordData composes, as the summoning cast does");
   assert.equal(spends, 1);
 });
 

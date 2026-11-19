@@ -31,7 +31,7 @@ import { castDuration } from "./cast-duration.mjs";
 import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
 import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
-import { heldStatusOf, endCasterHeld } from "./cast-held.mjs";
+import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
 import { liveDeclare, answerFromPending } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
@@ -957,7 +957,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   if (held || timed || untimedRecord) {
     const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}) };
     const data = held
-      ? spellEffectData({ ...mark, startTime: deps.now(), statuses: [heldStatusOf(held)], held, tail: card.duration.tail, duration: card.duration.cap })
+      ? heldRecordData(mark, { held, now: deps.now(), tail: card.duration.tail, cap: card.duration.cap })
       : spellEffectData(untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
     try {
       await deps.record(caster, data);

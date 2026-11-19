@@ -32,7 +32,7 @@
  * deleting client".
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_SPELL_EFFECT, FLAG_SPELL, CAST_HELD_END_FLAG, HELD_END_HANDLER } from "./constants.mjs";
-import { spellEffectOf } from "./spell-effect.mjs";
+import { spellEffectOf, spellEffectData } from "./spell-effect.mjs";
 import { castEndedRecipients } from "./cast-expiry.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { lossInFlight } from "../lib/status-effects.mjs";
@@ -43,6 +43,25 @@ export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "rem
 
 /** The status a held record carries, by the kind of concentration. */
 export const heldStatusOf = (held) => (held === "stationary" ? "concentratingStationary" : "concentrating");
+
+/**
+ * The caster record a concentration leaves, the one composition every cast that
+ * is held by concentration writes: the status for the kind held, the kind, the
+ * time its effects outlast it (`tail`), and the clock started now and flag-timed
+ * by the cap where the spell has one. A cast that is not held writes no such
+ * record and does not call this.
+ *
+ * @param {object} mark  the record's identity as `spellEffectData` takes it: `spell`, `caster`, `castId`, `role`, and `invocationLevel` where the cast has one
+ * @param {object} from
+ * @param {string} from.held  the kind held, `"stationary"` or any other kind
+ * @param {number} [from.now]  the world time the record starts at
+ * @param {{value: number, units: string}|{none: string}} [from.tail]  what the cast's effects outlast the concentration by
+ * @param {{value: number, units: string}|{none: string}} [from.cap]  the longest the concentration may last
+ * @returns {object} the Active Effect data to create on the caster
+ */
+export function heldRecordData(mark, { held, now, tail, cap }) {
+  return spellEffectData({ ...mark, startTime: now, statuses: [heldStatusOf(held)], held, tail, duration: cap });
+}
 
 /** The causes a cast's own delete may name in the operation's options: `saved` is a recurring prompt's pass ending the cast (`cast-recur.mjs`). */
 const NAMED = new Set(["cast", "time", "saved"]);
