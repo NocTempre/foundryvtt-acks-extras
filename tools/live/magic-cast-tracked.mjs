@@ -1123,9 +1123,9 @@ async function stageKinds() {
   check("H delay: the Player's cast at a held target posts a card", delay.card, { dialog: delay.dialog, disabled: delay.castDisabled });
   if (delay.card) {
     const onTarget = await recordsOfCast(W.target, delay.model.castId, 1);
-    const onCaster = await castRecords(delay.model.castId, 0);
+    const onCaster = await castRecords(delay.model.castId, 1);
     check("H delay: the target holds one recipient record of the cast, timed by the walk's duration", onTarget.length === 1 && onTarget[0].role === "recipient" && onTarget[0].duration?.value === DURATION.value && onTarget[0].duration?.units === DURATION.unit, onTarget.map((r) => ({ role: r.role, duration: r.duration })));
-    check("H delay: the record is the recipient's alone: the caster holds none of this cast", onCaster.length === 0, { caster: onCaster.length });
+    check("H delay: the caster holds the one caster record a timed cast leaves to announce its end, and no recipient record", onCaster.length === 1 && onCaster[0].role === "caster", onCaster.map((r) => r.role));
   }
 
   // A purify spell: a line per row and nothing else (the quantity is located from the page and stays blank on a miss).

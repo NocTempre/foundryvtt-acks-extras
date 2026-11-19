@@ -1196,7 +1196,8 @@ fails that check; re-import it (the Spells repair).
    caster record remain with no pending record or casting status.
 8. *A delayed affliction, aimed at the target token.* *Observable:* the card posts
    and the target actor holds one recipient record of the cast, timed by the
-   walk's duration; the caster holds none of this cast.
+   walk's duration; the caster holds one caster record of the cast, the one
+   every timed cast leaves to announce its end.
 9. *A purify spell.* *Observable:* the card is lines only: no section, no button,
    no entry and no row, and the instant row writes no record.
 10. *A detect with a stated range while the Player holds a target far beyond it.*

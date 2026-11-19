@@ -3956,6 +3956,82 @@ Owner checks: summonManes's control is read from its own page, against the
 JJ format note. summonManes carries no `amount`, so that `summonRefusal`
 does not cap it at one.
 
+**1d-B (2026-11-19).** Built on topic/spell-effects, 13 commits, and landed
+at 99369225 (main fast-forwarded from 46d00d73, not pushed). The board 21
+range ring was not built: the owner moved it out of the minor ("no new
+surfaces"), and it is a magic ROADMAP row. Commits on the topic, in order:
+- H 9f4f29d8: `heldRecordData` in cast-held.
+- L 5cc7f7ce: lib `pickPlacement`, `summonVerdict` and the range-bounded
+  `placeSummons`.
+- N cc7b7368: a summon row's `name` (`bindSpellNamed`).
+- K1 2f543230: the kinds afflictionDelay, purify and seal; the describe's
+  `max` and its default arm's kind.
+- K2 57823f61: the register entries for the four spells.
+- S-a f3c6b666: summons through `castSpellRun`, with the capacity verdict,
+  the pool spend and the noGm refusal before the spend.
+- E b52c5ac5: the effect-row editor's Lasts and Effects.
+- Z1 02821c0a: Seal Portal's door pick and seal.
+- S-b and D 9d8448fa: the Summon band and the held-end card with Dismiss.
+- C and Z2 7517b5d3: per-spell `controlEnd` (1d.7), conjurations cast held,
+  `door-pick` and `pointer-catcher` moved to lib.
+- W 32097d1e: a Player's seal with no GM refused before the spend; the docs
+  and the walks.
+- 572a3765: a docstring validate fix.
+- 99369225: the seal's end and its ready sweep gate on lib's `isPrimaryGM`.
+  The land's first gate found the inline active-GM test, which main's new
+  check refuses.
+
+Walk fix on main, not pushed: 290c1ca6. A summons whose control ends
+hostile kept its owners and was not stamped lost, while its disposition
+turned hostile. On a synthetic actor, an ownership update carrying a forced
+deletion writes nothing, the stamp beside it included. lib
+`applyControlEnd` sets each owner to NONE instead. The same commit makes the
+walk's reshape wait until the Player seat reads the zeroed count.
+
+Exercised live, on lane A with no `FIXTURE_OWN`, the world otherwise idle:
+- `magic-cast-summon` run 3: 92 pass, 0 fail. Run 1 was 83/7 (the stale
+  count, and the hostile bug); run 2 was 90/2 (the hostile bug alone).
+  It covered the caster level's ceiling, the Player's block and the Judge's
+  warning, the no-GM refusal before the spend (synthetic), the placement
+  range (a Player refused, a Judge warned, a calling exempt), a declaration
+  in a begun fight, a held summons' end under `stays` and `hostile` with
+  Dismiss on the Judge's seat only, and the delete path: a `gone` summons
+  removed at its timed end by its recorded tokens, with a decoy and the
+  other casts' creatures untouched.
+- `magic-cast-tracked` run 3: 163 pass, 0 fail. Run 1 was 162/1: the walk
+  expected no caster record for a delayed affliction, but every timed cast
+  leaves one to announce its end (`castSpellRun`). The walk and TESTING
+  step 8 were corrected. Run 2 failed 9 checks in stage I, the seal: the
+  door made locked read as closed straight after its create, and the later
+  clicks met the wrong doors. Run 3 passed with the same code. That is a
+  magic ROADMAP row, unexplained.
+- `magic-cast-spell`: 179 pass, 0 fail.
+- The battlemap, for the pointer catcher's move to lib:
+  - `battlemap` parts hex and layers (`WALK_PLAN`): 76 pass, 0 fail,
+    including the hex setup's real pointer drag through the capture
+    catcher.
+  - A scratch smoke drew a real three-hex paint stroke with the Country
+    brush on the kept `battlemap/layers-hex` fixture. All three hexes took
+    the brush, and the recorder saw no console error. It was attached at
+    the smoke's start, not at `init`.
+- No console error on either seat in the three magic walks; each walk's
+  recorder ran before Foundry's scripts.
+
+Fixtures kept and reused, by marker: `magic/summon-*` (7),
+`magic/tracked-*` (25), `magic/cast-*` (26), and `battlemap/layers-hex`
+with its regions (rebuilt by every battlemap run). Each magic walk built
+one combat. The sweeps deleted only what each run tracked; no delete
+was refused.
+
+Offline only: the editor's Lasts and Effects and "When control ends"
+fields, which no walk drives.
+
+Not checked:
+- A real absence of the GM. The no-GM steps make the Player seat read no
+  active GM while the Judge's seat stays connected.
+- The seal relay with two lanes up.
+- The battlemap's modes and country parts.
+
 ### Session 1d-B rulings (architect, 2026-11-19)
 
 The orchestrator moved 1d-B onto topic/spell-effects (the owner: "mostly
@@ -4245,3 +4321,27 @@ purify spell. Then the walk slice.
 > (the doc-scribe pass and the move of this file's substance into MODEL,
 > DECISIONS and ROADMAP), and commit on `main` with `acks-commit`. You
 > start no session.
+
+### Start prompt, the close
+
+> Close `docs/magic/wip/20261115-spell-effects-plan.md` in the extras repo,
+> on `main`'s tree (docs only, no topic branch: topic/spell-effects is
+> closed). Start after the minor that carries 1d-B is cut. Read the plan
+> whole first, every Results section included.
+>
+> - Move the plan's substance where it belongs, per
+>   `.claude/rules/docs-doctrine.md`. How the casting parts work now goes
+>   to `docs/magic/MODEL.md`. Rulings 17 to 177, the owner's rulings 1 to 4
+>   and the 1d.n answers go to `docs/magic/DECISIONS.md`, each as a dated
+>   entry or an "In force" row, never restated where MODEL already says it.
+>   What is not built goes to `docs/magic/ROADMAP.md`: board 21's range
+>   ring, the reversed purify, the seal stage's one unexplained failure, and
+>   anything a Results section names as not checked.
+> - Then delete the plan in the same session, and fix every pointer to it:
+>   ROADMAP part 2, ROADMAP's range-ring and seal-stage rows, MODEL,
+>   TESTING, and the stale pointer-catcher paths in the character-sheet and
+>   lib docs (1d-B moved it to `scripts/lib/pointer-catcher.mjs`).
+> - Use `doc-scribe` for the mechanical moves. Rulings that need judging go
+>   to `architect`.
+> - Commit with `acks-commit` and `"gate": []`. Push nothing, and start no
+>   session.
