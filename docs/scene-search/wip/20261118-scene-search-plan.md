@@ -199,3 +199,20 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
 - S2 is walked on main: `tools/live/scene-search-session.mjs`, 49 of 49 on lane A, committed with the recipe's drive mechanics as f4868813. The walk found no defect.
 - The seams stay as recorded above: R-DC1 and R-DC6 have not landed. The Round press resolved `via: "scene"`.
 - Next is S4, the screen. Its brief confirms which canvas version is the approved board before the first edit. S5, S6 and S7a follow, and the orchestrator dispatches each. `topic/scene-search` stays open; sync it before S4.
+
+### 2026-11-19 — S4 landed and walked (scene-search orchestrator, lane 5)
+
+- S4 is landed on main: `branch.mjs land`, tip c3ca9e17 (bb5ce9ad the screen, 41067586 a player's press asks the Judge, c3ca9e17 the Round press spends a round), fast-forwarded from 63588364. Not pushed; the orchestrator pushes.
+- The owner chose "Notify the Judge" for a player's Round and Spend a turn: the party relay's `askPress` request declares the ask and moves no clock (41067586).
+- R-DC6 is on main, so the scene's Round press is the Dungeon tab's own pair, one round on the clock and then `resolvePlanRound`. The scene's fallback resolution and its `lockedBy` map are gone (c3ca9e17).
+- S4 is walked on main: `tools/live/scene-search-screen.mjs` on lane C, six runs. The walk found two defects, fixed in 6e94d01d:
+  - a short window cut the tray off;
+  - the screen started watching only after its first draw.
+- Not checked live:
+  - The player's relays (Player 3's assigns and Player 6's asks) failed in runs 5 and 6, while lane A's Gamemaster was the active GM and did not answer. They passed in runs 1-3 and 1-4 respectively, and need one run where this walk's GM is the active GM.
+  - The layout step ran on an injected copy of `styles/scene-search.css`: the running world was launched before `module.json` named it, so the stylesheet loads only after the next world relaunch.
+- Findings carried forward:
+  - A refused check at a hidden entry is stamped resolved and tells the Judge nothing.
+  - (R-DC3) A player's hand-made lock at a hidden key still lands in the plan.
+  - (R-DC3) The Dungeon tab's identically labelled options.
+- Next are S5, S6 and S7a, each when the orchestrator dispatches it. `topic/scene-search` stays open; sync it before the next slice.
