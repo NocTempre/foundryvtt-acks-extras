@@ -142,3 +142,52 @@
 .acks-extras-sheetpdf-open {
   flex: 0 0 auto;
 }
+
+/* A pile's unfolded list under its Kept elsewhere row: one line per row the
+   pile holds, a Take control on each. Sizes ride the frame's ratio. */
+.acks-extras-pile {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 calc(4px * var(--acks-extras-k)) calc(26px * var(--acks-extras-k));
+}
+
+.acks-extras-pile__line {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  padding-block: calc(3px * var(--acks-extras-k));
+  border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
+}
+
+.acks-extras-pile__line.is-nested {
+  padding-inline-start: calc(14px * var(--acks-extras-k));
+}
+
+.acks-extras-pile__text {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras-pile__name {
+  font-family: var(--acks-font-ui);
+  font-size: calc(12px * var(--acks-extras-k));
+  color: var(--acks-ink);
+  overflow-wrap: anywhere;
+}
+
+.acks-extras-pile__fig,
+.acks-extras-pile__in {
+  font-family: var(--acks-font-ui);
+  font-size: calc(11px * var(--acks-extras-k));
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-pile__qty {
+  flex: none;
+  width: calc(52px * var(--acks-extras-k));
+  font-size: calc(11px * var(--acks-extras-k));
+}

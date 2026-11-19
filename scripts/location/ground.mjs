@@ -306,7 +306,8 @@ export async function onDeleteActor(actor) {
 /**
  * A container carrying a set-down record landed on an actor (`planArrival`):
  * on its owner it goes back to the slot it came from and a coin order that
- * named it is pointed at it again; the record is cleared once it is spent.
+ * named it is pointed at it again; anywhere else on a character it is taken
+ * off; the record is cleared once it is spent.
  * Landing at a place leaves the record alone.
  */
 export async function onCreateItem(item) {
@@ -324,6 +325,7 @@ export async function onCreateItem(item) {
     });
     if (plan.wear?.slot) await wearAt(item, plan.wear.slot);
     else if (plan.wear?.equip) await setEquipped(item, true);
+    else if (plan.unwear && isWorn(item)) await wearAt(item, null);
     if (plan.coinOrder) await setCoinOrder(parent, plan.coinOrder);
     if (plan.clear) await item.unsetFlag(MODULE_ID, SET_DOWN_FLAG);
   } catch (err) {

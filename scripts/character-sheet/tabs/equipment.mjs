@@ -39,6 +39,7 @@ import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../loc
 import { GROUND_FLAG, isGroundPile } from "../../lib/place.mjs";
 import { SET_DOWN_FLAG } from "../../location/ground.mjs";
 import { pileRowFacts } from "../../location/ground-logic.mjs";
+import { spendPicks } from "../../lib/picks.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -208,27 +209,98 @@ function rowOf(actor, item, ctx, depth = 0) {
 }
 
 /**
+ * The staging-pick key of one line on a pile. It carries the pile's id and the
+ * item's, so two piles listing like-named rows never share a typed amount
+ * across a redraw (`lib/picks.mjs`).
+ */
+export const pileTakePick = (pile, itemId) => `take-${pile?.id}-${itemId}`;
+
+/**
+ * One line per row the pile holds, as its Take control reads it. A line is
+ * takeable by the viewer's own seat (the sheet is editable) and either stamped
+ * to the viewer, who takes their own goods from anywhere, or the viewer
+ * reaches the pile, where anyone standing at it takes any row
+ * (docs/location/MODEL.md, "Who may take"). A row inside a container names it.
+ * @param {Actor} actor the viewer's character
+ * @param {Actor} pile the pile
+ * @param {Item[]} stored the goods on the pile, as `storedItems` lists them
+ * @param {boolean} reaches whether the viewer reaches the pile
+ */
+function pileLines(actor, pile, stored, reaches) {
+  const api = libStorage();
+  const names = new Map(stored.map((i) => [i.id, i.name]));
+  return stored.map((i) => {
+    const qty = stackCountOf(i) ?? 1;
+    const boxId = containedIn(i);
+    return {
+      id: i.id,
+      name: i.name,
+      qty,
+      stack: qty > 1,
+      inName: boxId && names.has(boxId) ? names.get(boxId) : "",
+      pick: pileTakePick(pile, i.id),
+      canTake: !!actor.isOwner && (api?.ownerOf?.(i)?.uuid === actor.uuid || reaches),
+    };
+  });
+}
+
+/**
  * The words of a ground pile's row, from the facts `pileRowFacts` reads off the
  * pile: its label (the container's name now, else the one it had when set
- * down), whether it is at risk, the viewer's goods as "name ×qty" for the
- * line's tooltip, and where Pick up puts the container back.
+ * down), whether it is at risk, the goods as "name ×qty" for the line's
+ * tooltip, where Pick up puts the container back, and the lines the row
+ * unfolds to.
+ *
+ * The owner's row (`bystander` false) speaks of the viewer's goods; a
+ * bystander's row, a pile at which the viewer stands holding none of theirs,
+ * names whose pack it is and speaks of everything on it.
  * @param {Actor} actor the viewer's character
  * @param {Actor} provider the pile
- * @param {Item[]} items what the pile holds, as `providersFor` lists it
+ * @param {Item[]} items what the pile holds of the viewer's, as `providersFor` lists it; empty for a bystander
+ * @param {object} [opts]
+ * @param {Item[]} [opts.stored] every good on the pile, for the lines
+ * @param {boolean} [opts.bystander] the row is a pile of someone else's
+ * @param {boolean} [opts.reaches] the viewer reaches the pile
  */
-export function groundRowOf(actor, provider, items) {
+export function groundRowOf(actor, provider, items, { stored = [], bystander = false, reaches = false } = {}) {
   const api = libStorage();
-  const facts = pileRowFacts({
-    flag: provider.getFlag?.(MODULE_ID, GROUND_FLAG) ?? null,
-    items: items.map((i) => ({
-      name: i.name,
-      quantity: stackCountOf(i) ?? 1,
-      ownerUuid: api?.ownerOf?.(i)?.uuid ?? null,
-      setDown: i.getFlag?.(MODULE_ID, SET_DOWN_FLAG) ?? null,
-    })),
-    viewerUuid: actor.uuid,
-  });
+  const flag = provider.getFlag?.(MODULE_ID, GROUND_FLAG) ?? null;
+  const factsOf = (list, viewerUuid) =>
+    pileRowFacts({
+      flag,
+      items: list.map((i) => ({
+        name: i.name,
+        quantity: stackCountOf(i) ?? 1,
+        ownerUuid: api?.ownerOf?.(i)?.uuid ?? null,
+        setDown: i.getFlag?.(MODULE_ID, SET_DOWN_FLAG) ?? null,
+      })),
+      viewerUuid,
+    });
+  const lines = pileLines(actor, provider, stored, reaches);
+  const listed = lines.map((l) => `${l.name} ×${l.qty}`).join(" · ");
+  const base = { lines, canTake: lines.some((l) => l.canTake), bystander };
+
+  if (bystander) {
+    // The container is read as the owner's view of the pile reads it.
+    const facts = factsOf(stored, flag?.ownerUuid ?? null);
+    const owner = api?.resolveActorSync?.(flag?.ownerUuid)?.name || flag?.ownerName || "";
+    return {
+      ...base,
+      label: owner
+        ? loc("equipment.groundOf", { owner, container: facts.container })
+        : game.i18n.format("ACKS-LOCATION.ground.name", { name: facts.container }),
+      container: facts.container,
+      count: lines.length,
+      atRisk: true,
+      atRiskTip: loc("equipment.atRiskTipOther"),
+      lineTip: listed,
+      pickUpTip: "",
+    };
+  }
+
+  const facts = factsOf(items, actor.uuid);
   return {
+    ...base,
     label: game.i18n.format("ACKS-LOCATION.ground.name", { name: facts.container }),
     container: facts.container,
     count: facts.count,
@@ -243,28 +315,57 @@ export function groundRowOf(actor, provider, items) {
  * A place kept off-person, as the Kept elsewhere rule lists it. A ground pile
  * carries a `ground` block of its own words, takes no deposit from anyone (a
  * Judge included) and is never pinned: a pin would give reach to it from
- * anywhere.
+ * anywhere. Its Open is the Judge's alone, since the pile's own sheet shows a
+ * Player nothing of it. `items` is what the place holds of the viewer's; a
+ * pile row with none (`bystander`) is one the viewer stands at.
  */
-function placeRow(actor, provider, items, coinGC, pinned, scan) {
+function placeRow(actor, provider, items, coinGC, pinned, scan, { bystander = false } = {}) {
   const api = libStorage();
   const reach = depositReach(actor, provider, { scan });
-  const ground = isGroundPile(provider) ? groundRowOf(actor, provider, items) : null;
+  const ground = isGroundPile(provider)
+    ? groundRowOf(actor, provider, items, { stored: (api?.storedItems?.(provider) ?? []).filter(isGoods), bystander, reaches: reach.can })
+    : null;
   return {
     uuid: provider.uuid,
     name: provider.name,
     img: provider.img,
     isVault: !!api.vaultOwnerUuid(provider),
-    count: items.length,
+    count: ground && bystander ? ground.count : items.length,
     coinGC,
     canReach: reach.can,
     canDeposit: !ground && (reach.can || !!game.user?.isGM),
     reachReason: reach.can || ground ? "" : game.i18n.format(`ACKS-LOCATION.storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     pinned,
     canPin: !ground,
+    canOpen: !ground || !!game.user?.isGM,
     ground,
-    // Picking up is not reach-gated; a pile holding nothing of the viewer's has nothing to take.
+    // Pick up is the owner's, from anywhere: it moves what is stamped to the
+    // viewer, so a row with none of the viewer's goods has nothing to pick up.
     canRetrieve: items.length > 0,
   };
+}
+
+/**
+ * Take one line off a pile onto the character. A stack takes the amount typed
+ * in its staging pick, the whole stack when the box is blank; the pick is
+ * spent before the move so the redraw shows what the pile holds now. The move
+ * is storage's own `retrieve`, which relays to the Judge's seat where this seat
+ * does not own the pile, and lands what it takes loose (what a container held
+ * goes with it, whole).
+ * @param {Actor} actor the character taking
+ * @param {Actor} pile the pile
+ * @param {string} itemId the line's row on the pile
+ * @param {ParentNode|null} row the element holding the line's pick
+ * @returns {Promise<object|null>} what `retrieve` answered, or null when nothing was asked
+ */
+export async function takeFromPile(actor, pile, itemId, row = null) {
+  const api = libStorage();
+  if (!api || !pile || !itemId) return null;
+  const pick = pileTakePick(pile, itemId);
+  const raw = row?.querySelector?.(`input[data-pick="${pick}"]`)?.value ?? "";
+  const quantity = raw === "" || !Number.isFinite(Number(raw)) ? null : Number(raw);
+  spendPicks(row, [pick]);
+  return api.retrieve(pile, actor, [{ id: itemId, quantity }]);
 }
 
 /**
@@ -307,8 +408,13 @@ function companionRows(actor) {
   }));
 }
 
-/** Build the tab's data. */
-export function buildEquipmentTab(actor) {
+/**
+ * Build the tab's data.
+ * @param {Actor} actor
+ * @param {object} [opts]
+ * @param {Set<string>} [opts.openPiles] the uuids of the piles whose list the sheet has unfolded
+ */
+export function buildEquipmentTab(actor, { openPiles = new Set() } = {}) {
   const companions = companionRows(actor);
   const sys = actor.system ?? {};
   const loadout = getLoadout(actor);
@@ -385,12 +491,26 @@ export function buildEquipmentTab(actor) {
   // they are standing. Anything wider puts a whole imported city on the tab.
   for (const p of storage?.providers?.() ?? []) {
     if (elsewhere.some((e) => e.uuid === p.uuid)) continue;
-    // A pile is listed for whoever has goods in it and no one else, even one
-    // standing on it.
-    if (isGroundPile(p)) continue;
+    // A pile is never pinned and never listed on the narrow rule: it is listed
+    // for the character whose goods are in it (above) and for one that reaches
+    // it while it holds anything, as a bystander's row, where Take is offered
+    // on every line.
+    if (isGroundPile(p)) {
+      if (depositReach(actor, p, { scan }).can && (storage?.storedItems?.(p) ?? []).some(isGoods)) {
+        elsewhere.push(placeRow(actor, p, [], 0, false, scan, { bystander: true }));
+      }
+      continue;
+    }
     if (listsWhenEmpty(actor, p, { scan, pinned })) {
       elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid), scan));
     }
+  }
+  // A pile's list is folded until the sheet opens it (`openPiles`, the sheet's
+  // own state), so a redraw keeps what the viewer unfolded.
+  for (const e of elsewhere) {
+    if (!e.ground) continue;
+    e.ground.open = e.ground.lines.length > 0 && openPiles.has(e.uuid);
+    e.ground.foldLabel = loc(e.ground.open ? "equipment.pileHide" : "equipment.pileShow");
   }
   // The coin order is offered every store the tab lists: loose, the
   // containers, and each place under Kept elsewhere, a ground pile excepted:
@@ -400,7 +520,9 @@ export function buildEquipmentTab(actor) {
     ? { ...order, note: loc("equipment.purseNote", { hand: gpLabel(order.onHandGp), kept: gpLabel(order.keptGp) }) }
     : null;
 
-  const setDownNames = elsewhere.filter((e) => e.ground?.count).map((e) => e.ground.container);
+  // The Load figure leaves out the character's own set-down packs; a pile of
+  // someone else's they stand at was never counted in it.
+  const setDownNames = elsewhere.filter((e) => e.ground?.count && !e.ground.bystander).map((e) => e.ground.container);
   const enc = sys.encumbrance ?? {};
   const pct = num(enc.pct);
   const bp = enc.breakpoints ?? {};

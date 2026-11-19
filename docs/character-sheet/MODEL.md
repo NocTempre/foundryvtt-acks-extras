@@ -299,20 +299,63 @@ While the pile holds the character's goods, *Kept elsewhere* lists it as "On
 the ground · <container>" (`groundRowOf`, from the facts `pileRowFacts` reads
 off the pile: the container's name now, else the one it was set down with). Its
 row carries an *At risk* tag in the warning tone, an item count whose tooltip
-lists the viewer's goods as "name ×qty" joined by " · ", and two controls, *Pick
-up* and *Open*. *Pick up* is the retrieve-all action with its own icon and a
-tooltip that says where it puts the pack back, "back to" the worn slot's label
-or "carried" when it was not worn. *Deposit* and *Pin* are absent for a pile
-(a pin would give reach to it from anywhere), and picking up is not reach-gated.
-The Load figure drops by what was set down, since the sheet's load reads the
-character's own items, and its tooltip names the containers on the ground. The
+lists the viewer's goods as "name ×qty" joined by " · ", a fold toggle, and the
+controls *Pick up* and *Open*. *Pick up* is the retrieve-all action with its
+own icon and a tooltip that says where it puts the pack back, "back to" the
+worn slot's label or "carried" when it was not worn. *Deposit* and *Pin* are
+absent for a pile (a pin would give reach to it from anywhere), and picking up
+is not reach-gated. *Open* opens the pile's own sheet, whose Storage tab a
+Player cannot see, so it is the Judge's alone: a Player's pile row has no
+*Open* control and its name is plain text (`canOpen`).
+
+**The row unfolds.** The fold toggle is a real button with `aria-expanded`,
+labelled "Show" or "Hide what is in the pile"; the list is closed by default and
+the sheet remembers which piles it opened (`openPiles` in its own state, handed
+to `buildEquipmentTab`), so a redraw keeps them. Under the row, one line per row
+the pile holds, the container and the rows inside it as the pile stores them
+(`pileLines`): its name, "×qty" for a stack, and "in <container>" for a row
+inside one. Each line a viewer may take has a *Take* button; a stack also has a
+labelled number box (min 1, max the count, the count as its placeholder; blank
+takes the lot). The box is a staging pick (`data-pick`, no `name`; keyed on the
+pile's id and the row's, `pileTakePick`), so typing in it submits nothing and
+a redraw keeps it. The sheet is the pick-aware kind (`PicksMixin`) for that.
+*Take* is `takeFromPile`, which spends the pick and calls the storage lib's
+`retrieve(pile, character, [{id, quantity}])`; the storage lib relays it to the
+Judge's seat where this seat does not own the pile, and what it takes lands on
+the character without the owner's stamp. Taking a container takes what is in it
+with it, whole; taking a row out of one lands it loose, its pointer dropped. A
+line is takeable (`canTake`) by a seat that owns the character, where the row is
+stamped to the character (the owner takes their own goods from anywhere, as
+*Pick up* does) or the character reaches the pile (`depositReach`, anyone there
+takes any row; the location MODEL's "Who may take").
+
+**A bystander's row.** A character holding none of a pile's goods but reaching
+it, while it holds anything, is listed under *Kept elsewhere* too
+(`buildEquipmentTab`'s walk over the providers; `depositReach` is asked, as
+`standsAtPile` does in the storage lib). Its label names the owner,
+"On the ground · <owner>'s <container>" (`groundOf`; the owner's name is read
+from the owner's actor, else the one the pile was made with), with the *At risk*
+tag, the line "<n> item(s) · you are standing at it" (everything on the pile)
+and the same unfolding list with *Take* on every line. It has no *Pick up*,
+since nothing on it is stamped to the viewer, no *Deposit* and no *Pin*, and
+*Open* only for a Judge. It is not part of the Load tooltip, which names only
+the viewer's own set-down packs, and not a choice in the coin order. Whether a
+row is listed is read at each render: a token moved to or from the pile does
+not itself re-render the sheet (token moves are unwatched), so the row follows
+the next render.
+
+**What a pile does to the rest of the tab.** The Load figure drops by what was
+set down, since the sheet's load reads the character's own items, and its
+tooltip names the containers on the ground. The
 tab adds no pile to the coin order's extra places, and a pile takes no
 arriving coin (`takesCoin`, the location MODEL), so it is never a receive-into
 choice. Coin set down in the pack is kept at the pile like any place's, so the
 pay-from choice can still name a pile that holds the character's coin. The
-sheet re-renders when a pile of the
-character's is deleted (`watchPile`, on the pile's own flag, since a deleted pile
-is already out of the providers).
+sheet re-renders when any pile is deleted (`watchPile`, on the pile's own flag,
+since a deleted pile is already out of the providers) and when what a pile
+holds changes: a pile is one of the lib's providers, so the sheet's item watch
+already names it, and the render is debounced, so a take of several rows draws
+once.
 
 A drop of the character's own item onto a slot wears or draws it (out of a
 container first; a torch stack dropped on a hand place readies one torch into

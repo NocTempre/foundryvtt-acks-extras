@@ -92,8 +92,9 @@ export const pileIsEmpty = ({ count, building = false } = {}) => !building && !(
  *
  * - at a place (a pile, a shelf): nothing, the record stays with the container;
  * - nested in another container (stowed, as a Judge's deleted pile hands it
- *   back): the record is cleared and nothing else;
- * - on another character: the record is cleared and nothing else;
+ *   back): the record is cleared and the container is taken off (`unwear`);
+ * - on another character: the record is cleared and the container is taken off
+ *   (`unwear`), since the worn mark rides a transfer and would put it on them;
  * - on its owner: the worn slot is restored (`wear.slot`, or `wear.equip` for an
  *   equippable item with no slot), a coin order naming the id the container had
  *   on its owner is rewritten to the id it has now, and the record is cleared.
@@ -105,12 +106,12 @@ export const pileIsEmpty = ({ count, building = false } = {}) => !building && !(
  * @param {boolean} facts.equippable the item carries core's `equipped` field
  * @param {boolean} [facts.nested] the container landed inside another container
  * @param {{payFrom?: string, receiveInto?: string}} [facts.coinOrder] the owner's coin order
- * @returns {{clear: boolean, wear: {slot?: string, equip?: boolean}|null, coinOrder: object|null}}
+ * @returns {{clear: boolean, wear: {slot?: string, equip?: boolean}|null, unwear: boolean, coinOrder: object|null}}
  */
 export function planArrival({ record, parent, itemId, equippable, nested = false, coinOrder = {} }) {
-  const none = { clear: false, wear: null, coinOrder: null };
+  const none = { clear: false, wear: null, unwear: false, coinOrder: null };
   if (!record?.ownerUuid || !parent?.uuid || parent.isProvider) return none;
-  if (nested || parent.uuid !== record.ownerUuid) return { ...none, clear: true };
+  if (nested || parent.uuid !== record.ownerUuid) return { ...none, clear: true, unwear: true };
 
   let wear = null;
   if (record.worn) wear = record.slot ? { slot: record.slot } : equippable ? { equip: true } : null;
@@ -119,7 +120,7 @@ export function planArrival({ record, parent, itemId, equippable, nested = false
   const now = containerStoreKey(itemId);
   const rewrite = {};
   for (const key of ["payFrom", "receiveInto"]) if (coinOrder?.[key] === was) rewrite[key] = now;
-  return { clear: true, wear, coinOrder: Object.keys(rewrite).length ? rewrite : null };
+  return { clear: true, wear, unwear: false, coinOrder: Object.keys(rewrite).length ? rewrite : null };
 }
 
 /**

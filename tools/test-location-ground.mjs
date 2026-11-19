@@ -368,7 +368,7 @@ await ok("planArrival: owner restores the slot, an equippable with no slot equip
   const owner = { uuid: "Actor.h1", isProvider: false };
   const arrive = (patch) => logic.planArrival({ record: RECORD, parent: owner, itemId: "pack9", equippable: false, coinOrder: {}, ...patch });
 
-  assert.deepEqual(arrive({}), { clear: true, wear: { slot: "back" }, coinOrder: null });
+  assert.deepEqual(arrive({}), { clear: true, wear: { slot: "back" }, unwear: false, coinOrder: null });
   assert.deepEqual(arrive({ record: { ...RECORD, slot: null }, equippable: true }).wear, { equip: true });
   assert.equal(arrive({ record: { ...RECORD, slot: null } }).wear, null, "plain item, no slot: nothing to restore");
   assert.equal(arrive({ record: { ...RECORD, worn: false } }).wear, null, "carried, not worn: stays carried");
@@ -376,12 +376,12 @@ await ok("planArrival: owner restores the slot, an equippable with no slot equip
   const order = arrive({ coinOrder: { payFrom: "item:pack1", receiveInto: "item:other" } }).coinOrder;
   assert.deepEqual(order, { payFrom: "item:pack9" }, "only the half that named the old id");
   assert.equal(arrive({ coinOrder: { payFrom: "", receiveInto: "place:Actor.x" } }).coinOrder, null);
-  assert.deepEqual(arrive({ nested: true, coinOrder: { payFrom: "item:pack1" } }), { clear: true, wear: null, coinOrder: null }, "stowed in a wrapper: not worn, order left, record spent");
+  assert.deepEqual(arrive({ nested: true, coinOrder: { payFrom: "item:pack1" } }), { clear: true, wear: null, unwear: true, coinOrder: null }, "stowed in a wrapper: taken off, order left, record spent");
 });
 
-await ok("planArrival: another character only clears the record, a place does nothing", () => {
-  const none = { clear: false, wear: null, coinOrder: null };
-  assert.deepEqual(logic.planArrival({ record: RECORD, parent: { uuid: "Actor.h2", isProvider: false }, itemId: "p", equippable: true }), { clear: true, wear: null, coinOrder: null });
+await ok("planArrival: another character clears the record and takes the container off, a place does nothing", () => {
+  const none = { clear: false, wear: null, unwear: false, coinOrder: null };
+  assert.deepEqual(logic.planArrival({ record: RECORD, parent: { uuid: "Actor.h2", isProvider: false }, itemId: "p", equippable: true }), { clear: true, wear: null, unwear: true, coinOrder: null });
   assert.deepEqual(logic.planArrival({ record: RECORD, parent: { uuid: "Actor.pile", isProvider: true }, itemId: "p", equippable: true }), none);
   assert.deepEqual(logic.planArrival({ record: null, parent: { uuid: "Actor.h1", isProvider: false }, itemId: "p", equippable: true }), none);
   assert.deepEqual(logic.planArrival({ record: RECORD, parent: null, itemId: "p", equippable: true }), none);
@@ -817,7 +817,7 @@ await ok("a character away from the pile is refused, and nothing moves", async (
   }
 });
 
-await ok("the bystander who takes the set-down pack gets it with its record cleared and no slot restored", async () => {
+await ok("the bystander who takes the set-down pack gets it loose: record cleared, not worn", async () => {
   const { hero, alys, pile } = await pileWithBystander();
   reachAnswers(true);
   try {
@@ -829,6 +829,8 @@ await ok("the bystander who takes the set-down pack gets it with its record clea
     const taken = alys.items.find((i) => i.name === "Backpack");
     assert.ok(taken);
     assert.equal(taken.getFlag(MOD, SET_DOWN_FLAG), null, "the record is cleared on another character");
+    assert.equal(taken.getFlag(MOD, "gear").wornAt || "", "", "the worn mark that rode the transfer is taken off");
+    assert.equal(!!taken.system.equipped, false, "and it is not equipped");
     assert.equal(alys.items.get("own1").flags[MOD].gear.wornAt, "back", "her own pack keeps the slot; nothing was put back on Back");
     assert.equal(hero.items.find((i) => i.name === "Backpack"), undefined, "and Hero does not have it");
     await flushSweeps();

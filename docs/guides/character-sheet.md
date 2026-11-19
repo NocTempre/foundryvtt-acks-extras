@@ -126,9 +126,19 @@ header → **Set down**. Your Load drops, the worn place shows empty, and
 risk** tag: it is on the ground, anyone standing at it can take from it, and it
 stays where you left it when you move on.
 **Pick up** on that row puts the pack back where it was worn, with whatever is
-still in it; **Open** opens the pile. The control shows only to the
-character's owner, on a container you carry at the top level (one inside
-another goes down with it), and not on an unlinked token's actor.
+still in it; **Open** opens the pile and shows to the Judge only. The control
+shows only to the character's owner, on a container you carry at the top level
+(one inside another goes down with it), and not on an unlinked token's actor.
+
+**Take from a pile.** To take something out of a pile, open the Actors sidebar →
+the character → Equipment tab → **Kept elsewhere** → the pile's row → **Show**,
+then press **Take** on a line. A stack has a number box beside it: type how many
+to take, or leave it blank for the lot. What you take goes into your own pack.
+Taking a container brings what is in it. A character standing at someone else's
+pile sees the pile's row too, "On the ground · <owner>'s <container>", and can
+take from it the same way; the row is there while you reach the pile and goes
+when you move away. You take your own goods from anywhere, and anyone else's
+only where you stand at the pile.
 
 **Mount** names what you ride and what it is bearing, with a control to
 dismount and one to open its sheet. On foot it says how to mount: drop an

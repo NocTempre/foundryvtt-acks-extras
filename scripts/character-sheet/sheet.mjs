@@ -28,7 +28,8 @@ import { castSummon } from "../magic/cast-summon.mjs";
 import { snapshotFrame, sheetFlag, saveLabel, partyOf, henchmanIds, currentScene, castOf, summonsOnScene } from "./snapshot.mjs";
 import { buildFrameModel, nextAcMode, partyMenuModel, castMenuModel, castTrackerKey, castTrackers, castTrackerShape, standingBySpell } from "./view-model.mjs";
 import { rollInventory, rollById } from "./rolls.mjs";
-import { buildEquipmentTab } from "./tabs/equipment.mjs";
+import { buildEquipmentTab, takeFromPile } from "./tabs/equipment.mjs";
+import { PicksMixin } from "../lib/picks.mjs";
 import { companionSlots, openCompanionPicker, releaseCompanion } from "../abilities/companions.mjs";
 import { buildStatsTab } from "./tabs/stats.mjs";
 import { buildClassTab } from "./tabs/class.mjs";
@@ -74,7 +75,7 @@ import { getManager } from "../henchmen/acks-adapter.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
 import { setDown } from "../location/ground.mjs";
-import { GROUND_FLAG, isGroundPile } from "../lib/place.mjs";
+import { isGroundPile } from "../lib/place.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
@@ -107,7 +108,7 @@ const trackerTip = (t) =>
 const attr = (o) =>Object.entries(o).map(([k, v]) => `data-${k}="${foundry.utils.escapeHTML(String(v))}"`).join(" ");
 
 /** The ACKS character sheet: the window the file header describes, registered as the default for `character`. */
-export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(ActorSheetV2)) {
+export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicationMixin(ActorSheetV2))) {
   static DEFAULT_OPTIONS = {
     // no-scroll: this sheet scrolls at its PART root, not at `.window-content`.
     // The shared contract would move the scroller onto `.window-content`, which
@@ -169,6 +170,8 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       placeOpen: AcksCharacterSheet.#onPlaceOpen,
       placeDeposit: AcksCharacterSheet.#onPlaceDeposit,
       placeRetrieveAll: AcksCharacterSheet.#onPlaceRetrieveAll,
+      placeFold: AcksCharacterSheet.#onPlaceFold,
+      pileTake: AcksCharacterSheet.#onPileTake,
       placePin: AcksCharacterSheet.#onPlacePin,
       mountOpen: AcksCharacterSheet.#onMountOpen,
       mountDismount: AcksCharacterSheet.#onMountDismount,
@@ -220,7 +223,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   static VIEW_ACTIONS = new Set([
     ...FRAME_VIEW_ACTIONS,
     "roll", "moveMenu", "cycleAc", "abilityFilter", "toggleBucket", "trainingView", "formation", "partyMenu", "influence",
-    "placeOpen", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source",
+    "placeOpen", "placeFold", "companionOpen", "mountOpen", "itemEdit", "hirelingShow", "relationshipOpen", "classOpen", "effectEdit", "source",
     "serviceEmployer",
   ]);
 
@@ -232,7 +235,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
   tabGroups = { primary: "rolls" };
 
   /** Sheet-local state that survives the re-render every form change causes. */
-  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set(), trainingEdit: false };
+  #ui = { editingBio: false, editingNotes: false, moveMode: "exploration", abilityFilter: "all", openBuckets: new Set(), openPiles: new Set(), trainingEdit: false };
 
   /** The roll inventory of the last render — what the folded bar and the row ids read against. */
   #rolls = null;
@@ -273,11 +276,14 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     const watchActor = (doc) => {
       if (related(doc)) this.#renderSoon();
     };
-    // A pile of this character's that is deleted is already out of
-    // `providers()` when the hook fires, so `related` no longer names it; its
-    // own flag still says whose it was.
+    // A pile that is deleted is already out of `providers()` when the hook
+    // fires, so `related` no longer names it; its own flag still says it was
+    // one. Any pile, since the tab also lists one the character stands at.
+    // What a pile holds changing needs no hook of its own: every provider's
+    // id is in `related`, so `watchItem` answers, and `#renderSoon` folds a
+    // burst of rows (a take of several) into one render.
     const watchPile = (doc) => {
-      if (doc?.documentName === "Actor" && isGroundPile(doc) && doc.getFlag(MODULE_ID, GROUND_FLAG)?.ownerUuid === this.actor.uuid) this.#renderSoon();
+      if (doc?.documentName === "Actor" && isGroundPile(doc)) this.#renderSoon();
     };
     const watchItem = (doc) => {
       if (related(doc?.parent)) this.#renderSoon();
@@ -371,7 +377,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     const panels = {};
     panels.rolls = { columns: this.#rollColumns(rolls.groups) };
     panels.abilities = buildAbilitiesTab(actor, { filter: this.#ui.abilityFilter });
-    panels.equipment = buildEquipmentTab(actor);
+    panels.equipment = buildEquipmentTab(actor, { openPiles: this.#ui.openPiles });
     panels.stats = buildStatsTab(actor, { openBuckets: this.#ui.openBuckets, editing: this.#ui.trainingEdit, view: this.#trainingView() });
     panels.class = buildClassTab(actor);
     if (tabs.magic) panels.magic = buildMagicTab(actor);
@@ -1303,6 +1309,23 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     if (!place || !api) return;
     const spec = api.storedItems(place, { ownerUuid: this.actor.uuid }).map((i) => ({ id: i.id }));
     if (spec.length) await api.retrieve(place, this.actor, spec);
+  }
+
+  /** Unfold or fold the list of what lies in a pile. */
+  static #onPlaceFold(event, target) {
+    const uuid = target.closest("[data-place-uuid]")?.dataset.placeUuid;
+    if (!uuid) return;
+    if (this.#ui.openPiles.has(uuid)) this.#ui.openPiles.delete(uuid);
+    else this.#ui.openPiles.add(uuid);
+    this.render();
+  }
+
+  /** Take one line of a pile into this character's pack (`takeFromPile`). */
+  static async #onPileTake(event, target) {
+    const line = target.closest("[data-pile-line]");
+    const pile = this.#placeOf(target);
+    if (!line || !pile) return;
+    await takeFromPile(this.actor, pile, line.dataset.pileLine, line);
   }
 
   static async #onPlacePin(event, target) {

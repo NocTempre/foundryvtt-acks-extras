@@ -259,8 +259,9 @@ character.
   reachable from anywhere (2026-11-18, 6A) and a stranger cannot take at a
   distance.
 - Every other provider keeps the rule it had.
-- A pack taken by a bystander lands on them with its record cleared and no slot
-  restored; the pile goes once it holds nothing.
+- A pack taken by a bystander lands on them loose: its record is cleared and
+  the worn mark that rode the transfer is taken off. The pile goes once it
+  holds nothing.
 
 **Rejected:** a pile owned by its owner or by the players, so that ownership
 carries the right to take (it would also take deposits from anywhere, as
@@ -270,3 +271,13 @@ carries the right to take (it would also take deposits from anywhere, as
 is the at-risk the owner ruled for; the module runs no theft check. The pile's
 own sheet does not yet show a bystander take controls; that surface waits on
 the owner's design approval, and until then the take is the relayed API call.
+
+## 2026-11-19 — The sheet takes from a pile, to the approved board
+
+The owner, on the third board (taking from a pile): "Approve, build it". The
+Equipment tab's Kept elsewhere now lists a pile a character stands at and
+offers Take on every line, which is the surface the 2026-11-19 entry above
+(anyone standing at a pile may take from it) waited on, and so ends the cost line
+there that the sheet showed no take controls. The surface is the character
+sheet's, and its rulings are in that feature's DECISIONS and MODEL; the take
+itself is still the relayed retrieve.

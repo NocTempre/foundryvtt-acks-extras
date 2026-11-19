@@ -83,3 +83,30 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 **Rejected.** `.is-disabled` or `.is-off` for the pale state: both already mean a suspended effect on the Effects tab.
 
 **Cost.** A pale figure is what the register's reach builds at the caster level its source resolves; a cast may differ once the caster picks an option or types another level. The row id no longer carries the record's id, so two records granting one throw are one row, as the stacking already made them one figure.
+
+## 2026-11-19 — A pile's row unfolds to Take, and Open is the Judge's
+
+The owner, on the third board of the set-down design: "Approve, build it". The
+board put a list under each pile row on the Equipment tab's Kept elsewhere, one
+line per row the pile holds with a Take button (a number box on a stack), on the
+owner's row and on a bystander's.
+
+- **Closed by default**, a real button with `aria-expanded`, its state kept in the
+  sheet and not in the document: a long pile would otherwise push every other
+  place off the tab, and a redraw must not shut what a player opened.
+- **Every row the pile stores is a line**, the container and what is in it,
+  because a bystander may take one torch out of a pack without taking the pack.
+  Proceeded on as a default, not the owner's words: the board said "one line per
+  top-level row" and this reads that as every stored row, flat.
+- **Open is the Judge's.** It opens the pile's own sheet, whose Storage tab a
+  Player cannot see; offered to a Player it opens a window with nothing in it.
+- **A bystander's row is listed from reach alone**, read at each render; a token
+  move re-renders nothing (2026-09-22, in force), so the row follows the next
+  render.
+
+**Not offered:** a Take button on a line the viewer neither owns nor reaches. An
+always-open list is the board's own alternative to the fold, should the fold test
+badly live.
+
+*Cost:* a bystander who walks up to a pile does not see its row until the sheet
+next renders.

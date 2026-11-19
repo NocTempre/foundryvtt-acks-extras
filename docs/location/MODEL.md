@@ -349,10 +349,13 @@ is stamped to, when `depositReach(character, pile)` says the character reaches
 it, which with the pile observed and owned by none means its own token; a
 character away from the pile takes only rows stamped to them. A row taken by
 someone else leaves the stamp behind with the rest of the attribution, so a
-container that lands on another character only has its record cleared (below)
-and the pile goes once it holds nothing. The rule is in lib storage's relay
+container that lands on another character has its record cleared and is taken
+off, since the worn mark rides the transfer (below), and the pile goes once it
+holds nothing. The rule is in lib storage's relay
 (`moveForSeat`), keyed on `isGroundPile`; no other provider's rule changes.
-The sheet's take controls for a bystander are not built.
+A character's own sheet lists a pile they stand at and takes through that
+relay ([character-sheet MODEL](../character-sheet/MODEL.md), "A bystander's
+row").
 
 **Not a point of interest.** `standsAsPlace` leaves a pile out, so
 `placesOnScene` does not offer it as a destination, `placeUnderParty` does not
@@ -368,12 +371,12 @@ left. When a container carrying the record is created on an actor (`createItem`,
 `planArrival`): on its owner, the worn slot is restored (`wearAt`, or
 `system.equipped` for an equippable item that names no slot), a coin order that
 named `fromId` is pointed at the new id, and the record is cleared; on another
-character the record is only cleared; at a place nothing happens and the record
-stays. This covers Pick up, the system sheet's Storage tab and the location
+character the record is cleared and the container is taken off (`wearAt` with
+no slot), so the worn mark that rode the transfer does not put it on them; at a
+place nothing happens and the record stays. This covers Pick up, the system sheet's Storage tab and the location
 sheet alike. A pack that lands nested in another container (a Judge deleting a
 pile that still holds goods: `returnGoodsTo` nests it in a wrapper) reads as
-stowed: the slot is not restored and the coin order is left, and the record is
-cleared.
+stowed: it is taken off, the coin order is left, and the record is cleared.
 
 **Removal.** A `deleteItem` hook deletes a pile once it holds no item and is not
 `building`: tokens first, then the actor. `building` is set while the pile is

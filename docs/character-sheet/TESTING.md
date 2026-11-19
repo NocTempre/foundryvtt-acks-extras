@@ -1051,8 +1051,9 @@ data)`, and kept.
    *At risk* tag in the warning tone whose tooltip says what the tag means here;
    the row's line gives the item count, and its tooltip lists the goods as
    "name ×qty" joined by " · " (the Backpack, the Torches, the dagger and the
-   coin row); the controls are *Pick up* (tooltip "Pick everything up, back to Back") and *Open*,
-   and no *Deposit* and no *Pin*. Hover the Load figure: its tooltip names the
+   coin row); the controls are the fold toggle, *Pick up* (tooltip "Pick
+   everything up, back to Back") and, as the Judge only, *Open*, and no
+   *Deposit* and no *Pin*. Hover the Load figure: its tooltip names the
    Backpack as set down. Open the coin order: the pile is offered in
    neither the receive-into select nor, while it holds no coin of the
    character's, the pay-from select (the hero's coin lies in it, so pay-from may
@@ -1088,22 +1089,59 @@ data)`, and kept.
     *Pick up* and each container header control, each named for a screen reader
     (`aria-label`).
 
-11. *A bystander takes from the pile (the relayed call; the pile sheet's own
-    take controls for a bystander are not built).* Set the Backpack down again
-    as `set-down-hero`. Move `set-down-bystander`'s token onto the pile's
-    token. As the bystander's Player seat, call
-    `acksExtras.lib.storage.retrieve(pile, bystander, [{id}])` with the id of
-    one Torch row on the pile. *Observable:* `{ok: true}` with no Judge action
-    and no refusal notification; the Torch is on the bystander with no
-    `flags["acks-extras"].storage`; the pile still holds the rest, stamped to
-    the hero; the hero's *Kept elsewhere* row loses the Torch without a reload.
-    Move the bystander's token well off the pile and call it again for another
-    row. *Observable:* `{ok: false, reason: "permission"}` and nothing moved.
-    Move the token back and call it for the Backpack's own row. *Observable:*
-    the Backpack is on the bystander, `flags["acks-extras"].setDown` is gone, and
-    the bystander's own worn container keeps its slot (nothing is put back on
-    Back); the hero has no Backpack. Take the remaining rows: a moment later the
-    pile and its token are deleted. Offline: `tools/test-location-ground.mjs`.
+11. *A bystander takes from the pile, from the sheet.* Set the Backpack down
+    again as `set-down-hero`. Move `set-down-bystander`'s token onto the pile's
+    token, then open the bystander's sheet (a token move re-renders nothing, so
+    open it after the move, or press any control that redraws it). As the
+    bystander's Player seat, Equipment tab, *Kept elsewhere*.
+    *Observable:* a row "On the ground · Hero's Backpack" with an *At risk*
+    tag whose tooltip says anyone standing at it can take from it, the line
+    "<n> item(s) · you are standing at it", whose tooltip lists the goods, and
+    no *Pick up*, no *Deposit*, no *Pin* and no *Open*. The Load tooltip does not
+    name the Backpack. Press the row's toggle ("Show what is in the pile").
+    *Observable:* the toggle's `aria-expanded` is `true`; a line for the
+    Backpack, the Torches ("×<n>") and the dagger, the last two marked "in
+    Backpack", each with a *Take* button, and the Torch line a number box.
+    Type 2 in the Torch box and press *Take*. *Observable:* no Judge action and no
+    refusal notification; two Torches are on the bystander, loose under
+    *Carried*, with no `flags["acks-extras"].storage`; the pile keeps the rest,
+    stamped to the hero; the Torch line now reads two fewer without a reload, and
+    so does the hero's *Kept elsewhere* row.
+    Press *Take* on the dagger with the box left blank on the Torches.
+    *Observable:* the dagger comes whole. Move the bystander's token well off
+    the pile and open the sheet again. *Observable:* the row is gone. Move the
+    token back, open the sheet, unfold the row and press *Take* on the
+    Backpack's own line. *Observable:* the Backpack is on the bystander,
+    `flags["acks-extras"].setDown` is gone, and the bystander's own worn
+    container keeps its slot (nothing is put back on Back); the hero has no
+    Backpack. Record where the taken Backpack shows on the bystander's sheet,
+    worn on Back or under *Carried* (the engine leaves its `gear.wornAt` mark on
+    it). Take the remaining lines: a moment later the pile and its token are
+    deleted and the row disappears from both sheets without a refresh.
+    *Fallback if the sheet's control cannot be driven:*
+    `acksExtras.lib.storage.retrieve(pile, bystander, [{id}])` as the bystander's
+    seat answers `{ok: true}` for a row at the pile and
+    `{ok: false, reason: "permission"}` away from it. Offline:
+    `tools/test-location-ground.mjs` for the relay and
+    `tools/test-equipment-tab.mjs` for the row and the handler.
+12. *Take on the owner's row.* As the Player of `set-down-hero`, with the pile
+    set down and the hero's token well away from it, open the sheet and unfold
+    the row. *Observable:* *Pick up* is still on the row, and every line has a
+    *Take* button (the owner's goods are theirs from anywhere). Type 2 in the
+    Torch box and press *Take*. *Observable:* two Torches are loose under
+    *Carried*; the pile keeps the rest; the row's count and the line update
+    without a reload. Fold the row, then change another field on the sheet.
+    *Observable:* the row stays folded; unfold it, type 3 in the Torch box and
+    cause a redraw (toggle another place's fold, or a peer takes a row).
+    *Observable:* the 3 is still in the box.
+13. *Open is the Judge's.* As the Player of `set-down-hero`, read the pile's
+    row. *Observable:* no *Open* control, and the name reads as text, not a
+    link. As the Judge, open the same sheet. *Observable:* both are there and
+    open the pile's own sheet. Repeat on the bystander's row, as both seats.
+14. *Keyboard and type size.* Raise the type size setting and reopen a sheet
+    with a pile unfolded. *Observable:* lines, boxes and buttons scale with it.
+    Tab reaches the toggle, each number box and each *Take*; a screen reader
+    names them ("Take <item> into your own pack", "How many of <item> to take").
 
 **Teardown.** The fixtures are kept. Delete the piles and tokens a run made by
 its own ledger (`api.track` each pile's uuid from `setDown`'s result,
