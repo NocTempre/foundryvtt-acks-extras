@@ -91,6 +91,8 @@ export const MAGIC_ITEM_LISTS = Object.freeze({
       armors4: ["tomeArmors4Raw"],
     },
   },
+  // The die that picks the kind of weapon a generic weapon row stands for; `magic-item-binding.mjs` links each of its rows to the arms grid that types it.
+  weaponKinds: { lists: { bands: ["tomeWeaponKindRaw"] } },
   scrollLanguages: { lists: { bands: ["tomeScrollLanguagesRaw"] } },
   scrollSpellLevels: { whole: true, lists: Object.fromEntries([1, 2, 3, 4, 5, 6].map((n) => [`col${n}`, [`tomeSpellLevel${n}Raw`]])) },
   treasureMaps: {

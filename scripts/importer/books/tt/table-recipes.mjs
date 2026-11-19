@@ -18,7 +18,7 @@
 import { list } from "../../table-recipes-magic-items.mjs";
 
 /** The Tome's printed folio of each page a table is read from. */
-const PAGE = Object.freeze({ classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, implementsB: 38, misc1: 39, misc2: 40, misc3: 41, misc4: 42, misc5: 43, misc6: 44, misc7: 45, swords1: 46, swords2: 47, weapons1: 48, weapons2: 49, armors1: 49, armors2: 50, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
+const PAGE = Object.freeze({ weaponKinds: 51, classic: 30, heroic: 31, potionsA: 32, potionsB: 33, potionsC: 34, potionsD: 35, rings: 36, scrolls: 37, implementsB: 38, misc1: 39, misc2: 40, misc3: 41, misc4: 42, misc5: 43, misc6: 44, misc7: 45, swords1: 46, swords2: 47, weapons1: 48, weapons2: 49, armors1: 49, armors2: 50, languages: 94, spellLevels: 96, mapContents: 96, clues: 97, code: 98 });
 
 /**
  * One Tome list. `bare` names the page by words with the spaces taken out (a
@@ -105,6 +105,12 @@ const capitalFirst = (recipe) => ({ ...recipe, cellColumns: recipe.cellColumns.m
 const topWrap = (recipe) => ({ ...recipe, wrapRows: { tol: 12, floorKey: "b0" } });
 
 /**
+ * A list whose header row opens on its die, with the caption set in the cell
+ * zone beside it: the caption is the whole label run from the die on.
+ */
+const dieCaption = (recipe) => ({ ...recipe, rows: [{ key: "caption", labelRe: "^d\\d+", labelPattern: "labelText" }, ...recipe.rows.slice(1)] });
+
+/**
  * The spell-level grid's six side-by-side lists: a band and the level it gives,
  * under the "1d100" header line, whose row also carries the column's
  * remaining-levels figure (read as the caption row's `level`).
@@ -122,7 +128,7 @@ const spellLevel = ({ xMin, xMax, labelMaxX }) => {
  */
 export const tableRecipes = {
   magicItemTables: {
-    pages: "TT 30-50, 94-98",
+    pages: "TT 30-51, 94-98",
     tables: {
       // Random Magic Item Type, and the eight category lists, which name subtables.
       tomeTypeRaw: tt({ ...CLASSIC, column: { ...LEFT, yMin: 135, yMax: 258 }, labelMaxX: 82, cells: [["item", 83, 200]], caption: true }),
@@ -192,6 +198,9 @@ export const tableRecipes = {
       tomeMisc9MoreRaw: tt(miscCol(PAGE.misc6, MISC_VERSO_R, 232, 750)),
       tomeMisc10Raw: tt({ ...miscCol(PAGE.misc7, MISC_RECTO_L, 76, 460), caption: true }),
       tomeMisc10MoreRaw: tt(miscCol(PAGE.misc7, MISC_RECTO_R, 92, 460)),
+
+      // The weapon-kind list: a die over the kinds of weapon a generic weapon row can stand for, beside the arms-and-armour prose.
+      tomeWeaponKindRaw: dieCaption(tt({ page: PAGE.weaponKinds, locate: "Miscellaneous Weapon", column: { xMin: 329, xMax: 592, yMin: 385, yMax: 475 }, labelMaxX: 460, cells: [["item", 461, 100]], caption: true })),
 
       // Sword subtables: four rarities, the second and third running across both columns of their page.
       tomeSwords1Raw: tt({ ...armsCol(PAGE.swords1, "Uncommon Swords", ARMS_VERSO_L, 118, 245), caption: true }),

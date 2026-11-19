@@ -107,13 +107,13 @@ const COLUMN_GRIDS = [
   // kept across a drop where the band's range still stands.
   { docId: "treasure", tableId: "special", field: "result", ownDie: true, keep: ["keep"] },
   // The magic-item chain. A list's rows may carry a field beyond the ones shown
-  // (a hop into another list), kept across a drop where the row's range still
-  // stands. `fieldsBy` names the fields of each list of a set whose lists
+  // (a hop into another list, a link to an entry, a link to an arms grid), kept
+  // across a drop where the row's range still stands. `fieldsBy` names the fields of each list of a set whose lists
   // differ.
   { docId: "magicItemTables", tableId: "classicType", field: "item", keep: ["hop"] },
-  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["hop", "ref"] },
-  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true, keep: ["hop", "ref"] },
-  { docId: "magicItemTables", tableId: "subtables", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["ref"] },
+  { docId: "magicItemTables", tableId: "classic", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["hop", "ref", "arms"] },
+  { docId: "magicItemTables", tableId: "heroic", field: "item", ownDie: true, keep: ["hop", "ref", "arms"] },
+  { docId: "magicItemTables", tableId: "subtables", field: "item", fields: ["item", "cues"], ownDie: true, keep: ["ref", "arms"] },
   { docId: "magicItemTables", tableId: "scrollLanguages", field: "item" },
   { docId: "magicItemTables", tableId: "scrollSpellLevels", field: "level", ownDie: true },
   {

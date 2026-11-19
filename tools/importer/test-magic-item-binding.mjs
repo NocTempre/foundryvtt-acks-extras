@@ -14,18 +14,24 @@ import { extractTable } from "../../scripts/importer/table-extract.mjs";
 import { TABLE_RECIPES } from "../../scripts/importer/table-recipes.mjs";
 import { MAGIC_ITEM_RECIPES, list, settingGrid } from "../../scripts/importer/table-recipes-magic-items.mjs";
 import {
+  ARMS_KIND_ID,
   ARMS_RAW_KEYS,
   LISTS,
   MAGIC_ITEM_DOC_ID,
   PRODUCES,
+  armsBands,
+  armsCaptions,
+  armsLinkOf,
   assembleArms,
   assembleMagicItemTables,
   assembleNested,
   assembleSettings,
   bandOf,
+  bonusNoun,
   captionKeys,
   applyMagicItemImport,
   hopOf,
+  leadsCaption,
   linkBands,
   listCitesOf,
   magicItemPlacement,
@@ -288,7 +294,89 @@ const place = (raw, books = zz(BLADE)) => magicItemPlacement(raw, { books });
   services.resetServices();
   resetTables();
 }
-eq("no book's map: no list is unplaced and no subtables table", [place(sharedRaw(), {}).unplaced, "subtables" in place(sharedRaw(), {}).engine], [[], false]);
+/* --- arms: a row named by its bonuses alone is linked to the grid that types it ------------ */
+{
+  // The header lines of a grid keep their left cells as labels, which are the grid's caption.
+  const hg = settingGrid({ page: 1, locate: "Qq", yMin: 0, yMax: 200, labelMaxX: 100, starts: [100, 160], end: 220 });
+  const header = [
+    run("Tine", 40, 84, 20), run("Kind", 64, 84, 20), run("Aa", 105, 84, 10), run("Bb", 165, 84, 10),
+    run("(roll d9)", 42, 96, 45), run("Cc", 105, 96, 10), run("Dd", 165, 96, 10),
+    run("Mm", 40, 108, 10), run("1-9", 105, 108, 15), run("1-9", 165, 108, 15),
+  ];
+  const read = extractTable(header, hg);
+  eq("a grid's header lines keep their left cells as labels", [read.head1.label, read.head2.label], ["Tine Kind", "(roll d9)"]);
+  eq("their setting cells are read as before", [read.head1.s1, read.head2.s2], ["Aa", "Dd"]);
+}
+eq("the grid caption is its two header lines as printed", armsCaptions({ swordTypeRaw: { head1: { label: "Tine Kind" }, head2: { label: "Type (roll d9)" } } }), { armsSword: "Tine Kind Type (roll d9)" });
+eq("a grid whose first header line was not read has no caption", armsCaptions({ swordTypeRaw: { head1: { __missing: true }, head2: { label: "(roll d9)" } } }), {});
+eq("a first line alone is a caption", armsCaptions({ axeTypeRaw: { head1: { label: "Cleaver Kind" } } }), { armsAxe: "Cleaver Kind" });
+
+eq("a number of either form leads, and a whole word does", [leadsCaption("Tines", "Tine Kind"), leadsCaption("Tine", "Tines Kind"), leadsCaption("tine", "TINE  kind (roll d9)")], [true, true, true]);
+eq("every word of a noun leads in order, the last in either number", [leadsCaption("Odd Gears", "Odd Gear Kind"), leadsCaption("Gear Odd", "Odd Gear Kind")], [true, false]);
+eq("a prefix of a word is no lead, nor is a word inside the caption, nor a noun longer than it", [leadsCaption("Ti", "Tine Kind"), leadsCaption("Kind", "Tine Kind"), leadsCaption("Tine Kind Extra", "Tine Kind"), leadsCaption("", "Tine Kind")], [false, false, false, false]);
+
+eq("a row of bonuses alone has its noun", [bonusNoun("Tine +1"), bonusNoun("Odd Gear +1, +2 versus X"), bonusNoun("Tine +1/+2 versus X"), bonusNoun("Pellet +1 (2d6)")], ["Tine", "Odd Gear", "Tine", "Pellet"]);
+eq("a part that opens on a word is a row with a figure of its own", [bonusNoun("Tine +1, Shiny"), bonusNoun("Tine +1, +2 versus X, Shiny"), bonusNoun("Tine +0, Shiny^"), bonusNoun("Shiny Tine +1, Shiny")], [null, null, null, null]);
+eq("a row with no signed figure has no noun", [bonusNoun("Tine"), bonusNoun("Tine 1"), bonusNoun("+1"), bonusNoun(""), bonusNoun(null)], [null, null, null, null, null]);
+eq("a minus is a signed figure too, in the page's marks", [bonusNoun("Tine -1"), bonusNoun("Tine −2"), bonusNoun("Tine –2, +1")], ["Tine", "Tine", "Tine"]);
+
+{
+  const heads = { armsArmor: "Mesh Kind", armsAmmo: "Pellet Kind", armsAxe: "Cleaver Kind", armsBludgeon: "Thump Kind", armsBow: "Twang Kind", armsSpear: "Prong Kind", armsSword: "Tines Kind", armsOther: "Odd Gear Kind" };
+  const gridRaws = (omit = []) => Object.fromEntries(Object.entries(ARMS_RAW_KEYS).filter(([id]) => !omit.includes(id)).map(([id, rawKey]) => [rawKey, { head1: { label: heads[id] }, head2: { label: "(roll d9)" } }]));
+  const kindBook = { zk: { magicItemLists: { lists: { weaponKinds: { lists: { bands: ["zkKindRaw"] } } }, alsoKeys: {} } } };
+  const listsRaw = () => ({
+    swordsRaw: seg("Zz Swords", one("Tine +1", 1, 20), one("Tine +1, +2 versus X", 21, 40), one("Tine +1, Shiny", 41, 60), one("Tine -1, +2", 61, 80), one("Plain Tine", 81, 100)),
+    weaponsRaw: seg("Zz Weapons", one("Weapon +2", 1, 30), one("Cleaver +1", 31, 50), one("Pellet +1 (2d6)", 51, 70), one("Weapon +1, Keen", 71, 85), one("Odd Gear +3", 86, 100)),
+    armorsRaw: seg("Zz Armors", one("Mesh +1", 1, 50), one("Ward +1", 51, 100)),
+  });
+  const kindRaw = () => ({ zkKindRaw: seg("d9 Kinds", one("Cleaver", 1, 2), one("Pellet", 3, 4), one("Twang", 5, 6), one("Odd Gear", 7, 8), one("Zork", 9, 9)) });
+  const armsOf = (bands) => Object.fromEntries(bands.map((b) => [b.item, b.arms ?? null]));
+  const withTome = magicItemPlacement({ ...listsRaw(), ...gridRaws(), ...kindRaw() }, { books: kindBook }).engine;
+  const bare = magicItemPlacement({ ...listsRaw(), ...gridRaws() }, { books: kindBook }).engine;
+
+  eq("a row of bonuses whose noun leads one caption links that grid, in either number of the header", armsOf(withTome.classic.swords), {
+    "Tine +1": { grid: "armsSword" },
+    "Tine +1, +2 versus X": { grid: "armsSword" },
+    "Tine +1, Shiny": null,
+    "Tine -1, +2": { grid: "armsSword" },
+    "Plain Tine": null,
+  });
+  eq("a weapons list's noun that leads no caption links the kind list; one that leads a caption links its grid", armsOf(withTome.classic.weapons), {
+    "Weapon +2": { kind: ARMS_KIND_ID },
+    "Cleaver +1": { grid: "armsAxe" },
+    "Pellet +1 (2d6)": null,
+    "Weapon +1, Keen": null,
+    "Odd Gear +3": { grid: "armsOther" },
+  });
+  eq("with no kind list the generic weapon row links nothing, and the rows that lead a caption still do", [armsOf(bare.classic.weapons)["Weapon +2"], armsOf(bare.classic.weapons)["Cleaver +1"]], [null, { grid: "armsAxe" }]);
+  eq("any other noun names its own arm once all eight captions are read", armsOf(withTome.classic.armors), { "Mesh +1": { grid: "armsArmor" }, "Ward +1": { name: true } });
+  eq("with a caption unread the nouns that lead none link nothing", armsOf(magicItemPlacement({ ...listsRaw(), ...gridRaws(["armsBow"]) }, { books: kindBook }).engine.classic.armors), { "Mesh +1": { grid: "armsArmor" }, "Ward +1": null });
+  eq("the ammunition grid is refused by its key", armsOf(withTome.classic.weapons)["Pellet +1 (2d6)"], null);
+
+  eq("the kind list's rows link the grid their words lead, the ammunition kind and an unnamed kind none", armsOf(withTome.weaponKinds.bands), {
+    Cleaver: { grid: "armsAxe" },
+    Pellet: null,
+    Twang: { grid: "armsBow" },
+    "Odd Gear": { grid: "armsOther" },
+    Zork: null,
+  });
+  check("a row that does not link carries no arms key at all", !("arms" in withTome.classic.swords.find((b) => b.item === "Plain Tine")) && !("arms" in withTome.weaponKinds.bands.find((b) => b.item === "Pellet")));
+  eq("the grid captions are kept beside the list captions, by grid id", [withTome.captions.armsSword, withTome.captions["classic.swords"]], ["Tines Kind (roll d9)", "Zz Swords"]);
+  check("no grid read, no arms and no caption of a grid", !JSON.stringify(magicItemPlacement({ ...listsRaw(), ...kindRaw() }, { books: kindBook }).engine).includes("\"arms\"") && !("armsSword" in (magicItemPlacement(listsRaw()).engine.captions ?? {})));
+  eq("the engine's kind list id is the one a weapons row names", Object.keys(withTome.weaponKinds), ["bands"]);
+
+  // The link is by rule, over any list of the item tables that does not hop; a hopping list's rows never carry one.
+  eq("a row of a hopping list is never linked", magicItemPlacement({ randomTypeRaw: seg("Zz Kinds", one("Tine +1", 1, 5), one("Zz Swords", 6, 10)), swordsRaw: seg("Zz Swords", one("Tine +2")), ...gridRaws() }).engine.classicType.bands.some((b) => "arms" in b), false);
+  eq("armsBands leaves a tail's outer face and a row without text alone and links the inner bands", armsBands([{ min: 1, max: 1, item: "Tine +1" }, { min: 2, max: 2, sub: [{ min: 1, max: 9, item: "Tine +2" }, { min: 10, max: 10 }] }], { captions: armsCaptions(gridRaws()), weapons: false, kind: null }), [
+    { min: 1, max: 1, item: "Tine +1", arms: { grid: "armsSword" } },
+    { min: 2, max: 2, sub: [{ min: 1, max: 9, item: "Tine +2", arms: { grid: "armsSword" } }, { min: 10, max: 10 }] },
+  ]);
+  eq("a noun that leads two captions is linked to neither", armsLinkOf("Tine", { captions: { armsSword: "Tine Kind", armsAxe: "Tine Kind", armsOther: "Odd" }, weapons: true, kind: ARMS_KIND_ID }), null);
+}
+check("PRODUCES names the arms raw tables as sources of the captions", Object.values(ARMS_RAW_KEYS).every((k) => PRODUCES[MAGIC_ITEM_DOC_ID].captions.includes(k)));
+check("PRODUCES names the Tome's kind list among its raw tables", PRODUCES[MAGIC_ITEM_DOC_ID].weaponKinds?.includes("tomeWeaponKindRaw"));
+
+eq("no book's map: no list is unplaced and no subtables table",[place(sharedRaw(), {}).unplaced, "subtables" in place(sharedRaw(), {}).engine], [[], false]);
 check("PRODUCES carries the engine tables the Journal's lists make", Object.keys(PRODUCES[MAGIC_ITEM_DOC_ID]).includes("classicType"));
 
 console.log(`test-magic-item-binding: ${pass} checks passed.`);

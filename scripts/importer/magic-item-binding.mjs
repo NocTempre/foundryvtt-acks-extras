@@ -32,14 +32,19 @@
  * row's `itemKey`, looked up in the book the list was read from (the page
  * its `listCites` entry names, else the book that declared it), and null where
  * none or more than one entry has that key.
+ *
+ * A row of those lists that names an arm by its bonuses alone is also linked to
+ * the grid that types it (`arms`, see `armsLinkOf`), so a roll can name which
+ * sword or axe the row stands for. The grid is found by the words the grid's
+ * header prints (`captions.<grid id>`), never by a name written here.
  */
 import { MODULE_ID } from "./constants.mjs";
 import * as services from "../lib/services.mjs";
 import { getLayer, PRIORITY } from "../lib/tables.mjs";
 import { assembledDoc, joinCites } from "./produces.mjs";
-import { itemKey, printKey } from "./printed-name.mjs";
+import { foldLabel, itemKey, printKey } from "./printed-name.mjs";
 import { parseCite } from "./books.mjs";
-import { clean, sentence, tiles } from "./treasure-binding.mjs";
+import { clean, numberForms, sentence, tiles } from "./treasure-binding.mjs";
 import { BOOK_CODE } from "./books/index.mjs";
 
 /** The registry document the magic-item tables are read into. */
@@ -140,7 +145,7 @@ export const PRODUCES = Object.freeze(
       [MAGIC_ITEM_DOC_ID]: {
         ...rawKeysByTable(units),
         ...ARMS_RAW_KEYS,
-        captions: units.flatMap((u) => Object.values(u.columns).map((keys) => keys[0])),
+        captions: [...units.flatMap((u) => Object.values(u.columns).map((keys) => keys[0])), ...Object.values(ARMS_RAW_KEYS)],
         listCites: units.flatMap((u) => Object.values(u.columns).flat()),
         armsSettings: Object.values(ARMS_RAW_KEYS),
       },
@@ -291,6 +296,113 @@ export function assembleSettings(raw = {}) {
     if (Object.keys(out).length) return out;
   }
   return null;
+}
+
+/** The id of the Tome's weapon-kind list: the die that says which kind of weapon a generic weapon row stands for. */
+export const ARMS_KIND_ID = "weaponKinds.bands";
+
+/** The grid of ammunition, which prints a per-projectile figure of its own and is never typed. */
+const AMMO_GRID = "armsAmmo";
+
+/**
+ * Each arms grid's caption as its two header lines print it, `{<grid id>:
+ * text}` over the `ARMS_RAW_KEYS` ids. A grid whose first header line was not
+ * read is left out.
+ *
+ * @param {object} [raw] the document's raw tables, by raw key
+ */
+export function armsCaptions(raw = {}) {
+  const out = {};
+  for (const [id, rawKey] of Object.entries(ARMS_RAW_KEYS)) {
+    const first = clean(raw[rawKey]?.head1?.label);
+    if (first) out[id] = clean(`${first} ${clean(raw[rawKey]?.head2?.label) ?? ""}`);
+  }
+  return out;
+}
+
+/** A text's words, each folded to its letters and digits; a mark that folds to nothing is no word. */
+const wordsOf = (text) => String(text ?? "").split(/\s+/).map(foldLabel).filter(Boolean);
+
+/**
+ * Whether a noun leads a caption: its words are the caption's first words, the
+ * last of them in either number. The caption may run on past the noun.
+ *
+ * @param {string} noun the words before a row's bonuses
+ * @param {string} caption a grid's caption
+ */
+export function leadsCaption(noun, caption) {
+  const mine = wordsOf(noun);
+  const theirs = wordsOf(caption);
+  if (!mine.length || mine.length > theirs.length) return false;
+  const last = mine.length - 1;
+  return mine.slice(0, last).every((w, i) => w === theirs[i]) && numberForms(mine[last]).includes(theirs[last]);
+}
+
+/** A signed figure: a plus or a minus (the sign marks the page sets) and a digit. */
+const SIGNED = /^[+\-−–]\s*\d/;
+
+/**
+ * The noun of a row whose words after it are bonuses only, else null: the text
+ * before its first signed figure, where every comma part of the rest opens on a
+ * signed figure. A part that opens on a word (a name, a note) disqualifies the
+ * row, since the row then prints a figure of its own.
+ *
+ * @param {string} text an item list row's text
+ */
+export function bonusNoun(text) {
+  const m = /^(.+?)\s+([+\-−–]\s*\d.*)$/.exec(clean(text) ?? "");
+  return m && m[2].split(",").every((part) => SIGNED.test(part.trim())) ? m[1].trim() : null;
+}
+
+/**
+ * What a bonus-only row's noun links to, taking the first rule that applies:
+ * a noun that leads exactly one grid caption links `{grid: id}` (never the
+ * ammunition grid, which is refused by its key); a noun of a weapons list, when
+ * the kind list stands, links `{kind: id}`, the list that picks the grid; any
+ * other noun links `{name: true}` once every grid's caption was read, the noun
+ * itself then naming the arm. Null where no rule gives a link, a noun that
+ * leads two captions included.
+ *
+ * @param {string} noun `bonusNoun`'s
+ * @param {{captions: Record<string, string>, weapons: boolean, kind: string|null}} by `captions` the
+ *   grids' (`armsCaptions`); `weapons` whether the row is of a weapons list; `kind` the kind list's id where it stands
+ */
+export function armsLinkOf(noun, { captions, weapons, kind }) {
+  const hits = Object.entries(captions).filter(([, caption]) => leadsCaption(noun, caption)).map(([id]) => id);
+  if (hits.length > 1) return null;
+  if (hits.length === 1) return hits[0] === AMMO_GRID ? null : { grid: hits[0] };
+  if (weapons) return kind ? { kind } : null;
+  return Object.keys(captions).length === Object.keys(ARMS_RAW_KEYS).length ? { name: true } : null;
+}
+
+/** Whether a list of an item table is a weapons list: the classic one, or a rarity subtable of the weapons. */
+const weaponsListOf = (table, column) => (table === "classic" && column === "weapons") || (table === "subtables" && /^weapons\d+$/.test(column));
+
+/**
+ * The bands with `arms` on every leaf band and inner band whose row links
+ * (`armsLinkOf`); a row that does not link is left as it is.
+ *
+ * @param {object[]} bands an item list's bands
+ * @param {{captions: Record<string, string>, weapons: boolean, kind: string|null}} by as `armsLinkOf`'s
+ */
+export function armsBands(bands, by) {
+  const link = (b) => {
+    const noun = typeof b.item === "string" ? bonusNoun(b.item) : null;
+    const arms = noun ? armsLinkOf(noun, by) : null;
+    return arms ? { ...b, arms } : b;
+  };
+  return bands.map((b) => (b.sub ? { ...b, sub: b.sub.map(link) } : link(b)));
+}
+
+/**
+ * The kind list's bands with `arms: {grid}` on each whose whole text leads
+ * exactly one grid caption; the ammunition grid is refused here too.
+ */
+function kindBands(bands, captions) {
+  return bands.map((b) => {
+    const hits = Object.entries(captions).filter(([, caption]) => leadsCaption(b.item, caption)).map(([id]) => id);
+    return hits.length === 1 && hits[0] !== AMMO_GRID ? { ...b, arms: { grid: hits[0] } } : b;
+  });
 }
 
 
@@ -457,6 +569,18 @@ export function magicItemPlacement(raw = {}, { books = BOOK_CODE, keys = null, c
   }
   const settings = assembleSettings(raw);
   if (settings) engine.armsSettings = settings;
+
+  // A row of an item list that names an arm by its bonuses alone is linked to the grid that types it.
+  const gridCaptions = armsCaptions(raw);
+  if (Object.keys(gridCaptions).length) {
+    engine.captions = { ...(engine.captions ?? {}), ...gridCaptions };
+    const kind = engine.weaponKinds?.bands ? ARMS_KIND_ID : null;
+    if (kind) engine.weaponKinds.bands = kindBands(engine.weaponKinds.bands, gridCaptions);
+    for (const l of standing.values()) {
+      if (!REF_TABLES.includes(l.table) || l.unit.hops) continue;
+      engine[l.table][l.column] = armsBands(engine[l.table][l.column], { captions: gridCaptions, weapons: weaponsListOf(l.table, l.column), kind });
+    }
+  }
 
   const read = (l) => l.keys.some((k) => Object.keys(raw[k] ?? {}).length > 0);
   const unplaced = bookLists.filter((l) => !placed.has(l) && read(l)).map((l) => l.id);

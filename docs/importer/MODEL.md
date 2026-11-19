@@ -1646,7 +1646,8 @@ item, ...cells}`, a tail band `{min, max, sub: [inner bands]}`),
 `armsArmor`, `armsAmmo`, `armsAxe`, `armsBludgeon`, `armsBow`, `armsSpear`,
 `armsSword`, `armsOther` (`{s1..s7: [{min, max, type}]}`, one column per
 setting), `armsSettings` (`{s1..s7: name}`) and `captions` (`{<table>.<column>:
-caption as printed}`, a spell-level list named by its header figure) and
+caption as printed}`, a spell-level list named by its header figure, an arms
+grid by its id) and
 `listCites` (`{<table>.<column>: cite}`: the pages of the raw segments each list
 is joined from, `joinCites` of their cites, so a list the Tome's version replaced
 cites the Tome; the document's `cites` name only a whole table's pages, and the
@@ -1660,6 +1661,28 @@ lower-case letter, or ends on a stranded letter, a list with no caption, a hop
 that does not resolve to one list, and an arms grid that does not read seven
 tiling columns with the same setting names as the others; it skips without the
 local Journal.
+
+**Arms links.** A row of an item list (`classic`, `heroic`, `subtables`, any list that
+does not hop) that names an arm by its bonuses alone also carries `arms`, which
+says what a roll types it by (`docs/lib/API.md`, "Contract `magic-item-roll`").
+A row qualifies when the words after its noun are bonuses only: the text before
+its first signed figure is the noun, and every comma part of the rest opens on a
+signed figure; a part that opens on a word is a row with a figure of its own
+(JJ ch. 4, "Types of Arms and Armor"; TT p. 51) and links nothing. The grid is
+found by the words its header prints: `settingGrid` keeps the left cell of both
+header lines as `label`, and `captions.<grid id>` (`armsSword` and the other
+seven) is the two joined. Taking the first rule that applies: a noun whose
+words are the first words of exactly one grid's caption, the last in either
+number, links `{grid: id}`; a noun of a weapons list (`classic.weapons`,
+`subtables.weapons<N>`) that leads none links `{kind: "weaponKinds.bands"}`
+where that list stands; any other noun links `{name: true}` once all eight
+captions were read. The ammunition grid is never linked (its rows print a
+per-projectile figure of their own), and a noun leading two captions links
+nothing. Where a rule links nothing no key is written. The kind list is the
+Tome's die over the kinds of weapon (TT p. 51), `weaponKinds.bands`, an optional
+Tome table read by a recipe whose header opens on its die; each of its rows is
+linked to a grid by the same lead rule. The projection keeps `arms` beside
+`ref` across a drop.
 
 **Projection.** Each list is a RollTable on a die of its own (`ownDie`) from
 `COLUMN_GRIDS`: a result reads its fields joined by " — "; a tail band is one
@@ -1679,7 +1702,8 @@ tables hop and into which (`hops`), which printed grid replaces its table whole
 reads it. The Tome's Random Type is `classicType.bands`, its category lists
 `classic.<key>`, its rarity lists `heroic.<key>`, its subtables a new table,
 `subtables.<key>` (neutral ordinal keys in page order within a category), and its
-scroll sub-tables (folios 94 to 98) the same ids the Journal's fill.
+scroll sub-tables (folios 94 to 98) the same ids the Journal's fill. Its
+weapon-kind list (folio 51) is `weaponKinds.bands`, a Tome-only table beside them.
 A raw table the Tome sets across two columns or a page break is a `...More`
 segment of its list. A band's `hop` stays an id `<table>.<column>`.
 

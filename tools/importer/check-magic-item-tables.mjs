@@ -24,7 +24,11 @@
  *   - a caption not read for a list, or a hop row of the Random Type list that
  *     does not resolve to exactly one list of the document;
  *   - an arms grid that does not read seven settings' columns each tiling the
- *     die, or whose setting names differ from another grid's.
+ *     die, or whose setting names differ from another grid's, or that has no
+ *     caption (its header's left cells, which item rows are linked by);
+ *   - no item row linking an arms grid, a link to a grid or kind list that does
+ *     not stand and, on the Tome side, a weapon-kind list that is not placed or
+ *     links fewer than two grids, or that no weapons row links.
  * The die each list is thrown on is read off its own bands, so no face is
  * written here.
  *
@@ -288,8 +292,36 @@ async function checkSide(side) {
       else for (let i = 1; i <= SETTING_COLUMNS; i++) if (!row[`s${i}`]) fail(at(`${rawKey} ${h} s${i}`), "empty header cell");
     }
     if (settingNames(raw, rawKey) !== settingNames(raw, first)) fail(at(rawKey), "setting names differ from the first grid's");
+    // The header's left cells are the grid's caption, which item rows are linked by.
+    if (!flat(assembled.captions?.[table])) fail(at(`${rawKey} head1`), "no caption read for the grid (its first header line has no label)");
   }
-  return { assembled, raw, rowsRead, listsChecked, hops, hopped, placed, unplaced: place.unplaced, waiting };
+
+  /* --- arms links: every grid is reachable from a row, and the kind list leads to a grid -- */
+  const armsLinks = {};
+  for (const table of ["classic", "heroic", "subtables"]) {
+    for (const [column, bands] of Object.entries(assembled[table] ?? {})) {
+      if (bands.some((b) => "hop" in b)) continue;
+      for (const b of leavesOf(bands)) {
+        const shape = b.arms ? Object.keys(b.arms)[0] : null;
+        if (shape) armsLinks[`${shape}`] = (armsLinks[shape] ?? 0) + 1;
+        if (b.arms?.grid && !ARMS_RAW_KEYS[b.arms.grid]) fail(at(`${table}.${column} ${b.min}-${b.max}`), "links a grid that is not an arms grid");
+        if (b.arms?.kind && !assembled.weaponKinds?.bands) fail(at(`${table}.${column} ${b.min}-${b.max}`), "links a kind list that does not stand");
+      }
+    }
+  }
+  if (!armsLinks.grid) fail(at("arms links"), "no row of an item list links an arms grid");
+  if (tome) {
+    const kinds = assembled.weaponKinds?.bands;
+    if (!kinds) fail(at("weaponKinds.bands"), "the weapon-kind list was not placed");
+    else {
+      const linked = kinds.filter((b) => b.arms?.grid);
+      armsLinks.kinds = linked.length;
+      if (linked.length < 2) fail(at("weaponKinds.bands"), `${linked.length} kind row(s) link a grid`);
+      for (const b of kinds) if (b.arms && !ARMS_RAW_KEYS[b.arms.grid]) fail(at(`weaponKinds.bands ${b.min}-${b.max}`), "links a grid that is not an arms grid");
+      if (!armsLinks.kind) fail(at("arms links"), "no weapons row links the kind list");
+    }
+  }
+  return { assembled, raw, rowsRead, listsChecked, hops, hopped, placed, unplaced: place.unplaced, waiting, armsLinks };
 }
 
 const results = {};
@@ -310,18 +342,19 @@ if (results.tt) {
   if (a !== b) fail("[tt] scrollSpellLevels", `${b} columns stand, the Journal's grid has ${a}`);
 }
 
+const armsSummary = (r) => Object.entries(r.armsLinks).map(([shape, n]) => `${shape} ${n}`).join(", ") || "none";
 const counts = (r, only) => Object.entries(r.rowsRead).filter(([k]) => !only || only(k)).map(([k, n]) => `${k} ${n}`).join(", ");
 const OVERLAID = ["creatureType.bands", ...Object.keys(ARMS_RAW_KEYS)];
 const summary = sides
   .map((s) => {
-    if (s === "jj") return `Journal: ${results.jj.listsChecked} lists read and tiling their dice; ${results.jj.hops} Random Type rows resolve to one list each. Rows read: ${counts(results.jj)}.`;
+    if (s === "jj") return `Journal: ${results.jj.listsChecked} lists read and tiling their dice; ${results.jj.hops} Random Type rows resolve to one list each. Rows read: ${counts(results.jj)}. Arms links: ${armsSummary(results.jj)}.`;
     const t = results.tt;
     const bookLists = Object.keys(t.rowsRead).filter((k) => k.includes(" (tt list)"));
     return (
       `Tome: ${t.listsChecked} lists read and tiling their dice (${bookLists.length} of them the Tome's own). ` +
       `Leaf hops resolved: ${Object.entries(t.hopped).map(([id, n]) => `${id} ${n}`).join(", ")}. ` +
       `Placed (${t.placed.length}): ${t.placed.join(", ") || "none"}. Waiting on a later batch (${t.waiting.length}): ${t.waiting.join(", ") || "none"}. ` +
-      `Rows read from the Tome: ${OVERLAID.map((k) => `${k} ${t.rowsRead[k]}`).join(", ")}; ${counts(t, (k) => k.includes(" (tt list)"))}.`
+      `Rows read from the Tome: ${OVERLAID.map((k) => `${k} ${t.rowsRead[k]}`).join(", ")}; ${counts(t, (k) => k.includes(" (tt list)"))}. Arms links: ${armsSummary(t)}.`
     );
   })
   .join(" ");

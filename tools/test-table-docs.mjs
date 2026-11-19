@@ -1088,6 +1088,29 @@ await test("a subtable row keeps its ref across a drop where its range stood, an
   ]);
 });
 
+await test("a row keeps its arms link across a drop where its range stood, in the classic, heroic and sub tables", async () => {
+  const arms = { grid: "armsZz" };
+  world({
+    registry: {
+      magicItemTables: {
+        classic: { qq: [{ min: 1, max: 40, item: "Zz tine +1", arms }, { min: 41, max: 100, item: "Zz tine +2", arms }] },
+        heroic: { qq: [{ min: 1, max: 40, item: "Zz tine +1", arms }, { min: 41, max: 100, item: "Zz tine +2", arms }] },
+        subtables: { qq1: [{ min: 1, max: 40, item: "Zz tine +1", arms }, { min: 41, max: 100, item: "Zz tine +2", arms }] },
+      },
+    },
+  });
+  const drop = () => droppedTable([{ range: [1, 40], description: "Zz tine +1 (edited)" }, { range: [41, 90], description: "Zz tine +2" }, { range: [91, 100], description: "Zz new" }]);
+  const want = [
+    { min: 1, max: 40, item: "Zz tine +1 (edited)", arms },
+    { min: 41, max: 90, item: "Zz tine +2" },
+    { min: 91, max: 100, item: "Zz new" },
+  ];
+  for (const [id, column] of [["magicItemTables.classic.qq", "qq"], ["magicItemTables.heroic.qq", "qq"], ["magicItemTables.subtables.qq1", "qq1"]]) {
+    const back = await parseDrop(entryAt(id), drop());
+    assert.deepEqual(back.data[column].map(({ cues, ...band }) => band), want, `${id}: the arms link stays on the range that stood and a range that moved has none`);
+  }
+});
+
 await test("a value list whose dice are a legend carries the legend in its description and never claims one formula for it", async () => {
   world({ registry: itemRegistry() });
   await materializeAll();

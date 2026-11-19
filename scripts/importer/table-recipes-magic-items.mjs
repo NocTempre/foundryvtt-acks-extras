@@ -77,8 +77,10 @@ const RIGHT = { xMin: 300, xMax: 592 };
 /**
  * The setting-appropriate arms grids: a type name down the left and, for each
  * of seven settings, the band of the die that picks it. Two header lines name
- * the settings; the body rows carry their label as read, keyed by position.
- * `starts` are the x of each setting column's left edge; a cell is placed by
+ * the settings; the body rows carry their label as read, keyed by position. The
+ * left cell of each header line is kept as that row's `label`: together they are
+ * the grid's caption, which a row of an item list is matched to
+ * (`magic-item-binding.mjs`, `armsCaptions`). `starts` are the x of each setting column's left edge; a cell is placed by
  * the centre of its run, because the grid centres its cells.
  *
  * @param {object} grid
@@ -106,8 +108,8 @@ export const settingGrid = ({ book = "jj", page, locate, yMin, yMax, labelMaxX, 
   joinGap: GLUE,
   cellColumns: starts.map((s, i) => ({ key: `s${i + 1}`, x: s + 2, w: (starts[i + 1] ?? end) - s - 2, pattern: "raw", row: true })),
   rows: [
-    { key: "head1", labelRe: "^[A-Za-z]", cellPattern: "raw" },
-    { key: "head2", labelRe: headRoll, cellPattern: "raw" },
+    { key: "head1", labelRe: "^[A-Za-z]", labelPattern: "labelText", cellPattern: "raw" },
+    { key: "head2", labelRe: headRoll, labelPattern: "labelText", cellPattern: "raw" },
     ...Array.from({ length: 14 }, (_, i) => ({ key: `r${i}`, labelRe: "^[A-Za-z]", labelPattern: "labelText", cellPattern: "raw", optional: true })),
   ],
 });
