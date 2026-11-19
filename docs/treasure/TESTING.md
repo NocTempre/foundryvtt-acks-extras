@@ -486,7 +486,12 @@ or the cookbook documents a real import writes.
 
    **Arms and their apparent worth (T6c-2).** Re-import the Tome's item tables
    first (a world imported before this slice has rows with no `arms` link), with
-   the equipment tables and the masterwork documents imported. The walk sets the
+   the equipment tables and the masterwork documents imported. A seat can
+   re-import alone: wait for `acksExtras.importer.bookOpen("jj")` and `("tt")`
+   (the shelf restore opens them after `ready`), then
+   `acksExtras.importer.cookbookImportTables(["magicItemTables"])`. The links sit
+   on the rows of `getTable("magicItemTables", "subtables")`; `classic`'s bands
+   only hop there, so a count over `classic` finds none. The walk sets the
    pot's column by API (`setDealOption(pile, "armsSetting", "s1")`) and reads the
    pot back; a second new pot opens with it, and a blank clears it (the field in
    the window is walked below). It then rolls sixty times
