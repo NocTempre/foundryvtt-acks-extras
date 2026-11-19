@@ -170,3 +170,25 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
 - `scripts/lib/place-things.mjs`: `THINGS_FLAG`, `thingsOf(place)` and `addThingTo(place, thing)`, the list written whole by a GM client as a `ForcedReplacement`, the co-signed shape unchanged. S2 extends this file rather than writing its own.
 - Formation registers the `trap`, `obstacle` and `condition` kinds (`formation/hazard-things.mjs`). `createLocationForRegion` takes `{render: false}` for a map drop.
 - A registrant keeps its `accepts` narrow: one as broad as "any Item" makes `kindOfDrop` null for every trap and hazard drop.
+
+### 2026-11-18 — S2 built on the topic, not landed (scene-search orchestrator, lane 5)
+
+- S2, the Foundry side with no screen, is on `topic/scene-search`, 2cba574d..05edc173, synced on df8ec005 (P3's `updateThingOn` reused for state writes). It was built by an `implementer` agent; two validate fixes are the orchestrator's (the api's calls named so the developer reference reads them, and lang prefixes that end in a dot). Offline: test-scene-session 108, test-scene-drop 26, test-scene-search 171, test-scene-haul 105; 33 of 33 mutants killed. Not walked; the S2 section of `docs/scene-search/TESTING.md` is marked not yet walked.
+- The canvas check: the live canvas reports version id 1795055765-e6c1, with no numeric 15. S2 reads no board, so the check moves to S4's brief.
+- Seams for unbuilt dependencies:
+  - The Round press, `scripts/scene-search/round.mjs` `resolveSceneRound(formation, deps)`. It calls `resolvePlanRound` once `turn-plan.mjs` exports it (R-DC6, `via: "plan"`). Until then it unlocks the scene's round-length plan entries and resolves them through the activities' own `resolve` (`via: "scene"`), and spends no clock time.
+  - A hidden exit found, `scripts/scene-search/seams.mjs` `revealExit(scene, wallId, {reveal})`. The reveal is recorded in the thing's `state.revealed`; no wall is edited until R-DC1's `revealSecretDoor` is passed as `reveal`.
+  - Doors and old-style traps as entries, `scripts/scene-search/session.mjs` `derivedInputs`. It answers none until R-DC1 and the third `Placement` source exist.
+  - R-DC2 is not wired: the failed-hasty lock lives in the thing's `state.layers.hasty.failed`.
+  - R-DC3 is not wired: `scene:` refusals take their own words (`words.mjs` `sceneReasonText`), and turn-plan's `reasonText` shows them as its generic line.
+- Rulings applied in the build:
+  - Reach with nothing imported, no scene scale or no party token is the Judge's call, never a refusal (S1's reading of "B", the imported search reach applies to positions).
+  - `open` and `end` are Judge-only. A player's `assign` is a declaration through the party's `plan` relay, for a character that seat owns.
+  - The thief's bonus is folded into the searching target by the cookbook's Searching throw modifier, so S1's `searchBonus` stays null. This rests on the cookbook row and the `ability-rolls.mjs` docstring, not on the gating code.
+- Findings registered, not worked:
+  - (S4) The relay's registrant calls carry no user, so a hand-made `plan` request can name a hidden entry. Pass the requesting user in the lock's `ctx`.
+  - (S4) While a session is open, the Dungeon tab's activity select lists one identically labelled option per entry.
+  - (S5) Goods a fight's bodies carry, dealt into a scene pot, are not taken off the bodies, since treasure's take-off keys on a combat origin.
+  - (S5) A body's linked table is not drawn at the deal; only its letter and carried goods are.
+  - (S4) The Round press spends no clock time.
+  - (S8) `docs/README.md` has no row for `docs/scene-search/DECISIONS.md`.
