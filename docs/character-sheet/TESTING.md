@@ -1020,7 +1020,7 @@ only where the run advanced it and no peer's cast depends on it.
 
 ## Set down a pack from the Equipment tab
 
-*Step 11 unwalked when written.* The pile itself (its actor, token, hooks and the
+The pile itself (its actor, token, hooks and the
 restoring of the slot) is walked in docs/location/TESTING.md, step 28; this
 recipe walks the sheet's half: the control, the row and what the sheet shows.
 
@@ -1117,8 +1117,10 @@ data)`, and kept.
     *Carried* (its `gear.wornAt` is empty and it is not equipped, though it was
     worn on Back when set down), and the bystander's own worn container is
     still on Back; the hero has no Backpack. Two packs on Back is the failure
-    this step exists to catch. Take the remaining lines: a moment later the pile and its token are
-    deleted and the row disappears from both sheets without a refresh.
+    this step exists to catch. The Backpack carries what is still in it (the
+    other Torches and the coin arrive inside it on the bystander), so the pile is
+    empty now: a moment later the pile and its token are deleted and the row
+    disappears from both sheets without a refresh.
     *Fallback if the sheet's control cannot be driven:*
     `acksExtras.lib.storage.retrieve(pile, bystander, [{id}])` as the bystander's
     seat answers `{ok: true}` for a row at the pile and
