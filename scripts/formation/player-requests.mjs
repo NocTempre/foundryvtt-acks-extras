@@ -380,7 +380,7 @@ async function executeRequest(formation, user, type, payload) {
         name: foundry.utils.escapeHTML(actor.name),
       }));
       if (type === "trapRearm") await attemptRearm(formation, actor, { targetUuid: payload.targetUuid });
-      else await attemptDisarm(formation, actor, { mode, targetUuid: payload.targetUuid });
+      else await attemptDisarm(formation, actor, { mode, targetUuid: payload.targetUuid, askUserId: user.id });
       break;
     }
 

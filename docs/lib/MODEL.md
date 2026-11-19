@@ -1642,6 +1642,15 @@ promise that never settles, so socketlib sends no answer and the requester
 takes the lead's. A handler registered with `{broadcast: true}` runs in every
 window, and so does a call a window makes to itself.
 
+`executeAsUser(action, userId, payload)` puts a question to one user's own
+client and returns its answer, for a result that belongs to the person a
+request came from and not to the Judge's seat. A seat's election is per user,
+so the call is answered by the targeted user's lead window and a second window
+of theirs stays silent. It runs locally for this client's own user; a user who
+is not connected, a missing socketlib or a throw answers undefined, and the
+caller reads undefined as its own default. A question put to a user who then
+leaves while it is open is never answered, since socketlib has no timeout.
+
 `automationCensus()` (`automation-client.mjs`) reports what one window
 believes, `{selfId, lead, joined, isLead, settled}`, for a live check
 ([TESTING.md](TESTING.md)).

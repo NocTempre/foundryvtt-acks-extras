@@ -392,11 +392,13 @@ const lang = {
   "ACKS-FORMATION.traps.refuse.noZone": "No zone",
   "ACKS-FORMATION.traps.targetWall": "Wall",
 };
-const savedGlobals = { game: globalThis.game, foundry: globalThis.foundry };
+const savedGlobals = { game: globalThis.game, foundry: globalThis.foundry, Hooks: globalThis.Hooks };
 // turn-plan.mjs pulls in the formation's whole import graph, which extends core classes at load: a
 // stand-in that answers every property with a constructable stub lets it load; nothing here calls one.
 const stub = new Proxy(function () {}, { get: (target, prop) => (prop === "prototype" ? target.prototype : stub), apply: () => stub });
 globalThis.foundry = stub;
+// lib/sockets.mjs registers its socketlib and ready hooks as it loads.
+globalThis.Hooks = { on() {}, once() {} };
 globalThis.game = {
   i18n: {
     has: (key) => key in lang,

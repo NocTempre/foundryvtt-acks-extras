@@ -490,7 +490,7 @@ party's own stops in the Foundry-free
   once. The two Trapbreaking columns offer one option per trap the party has
   found within reach (`knownPlacementsNear`) and refuse as the disarm dialog
   does (`disarmRefusal`, as `trap:<reason>`); each resolves through
-  `attemptDisarm`. Battering a door registers with no length: the time is the
+  `attemptDisarm`, asking the user who locked the entry. Battering a door registers with no length: the time is the
   picked door row's, imported, but a plan entry names no door (ROADMAP, "The
   turn plan"), so it is offered disabled, with no reason beside it, and cannot
   lock. Rest is registered under
@@ -948,6 +948,21 @@ state: a trap found, disarmed and then re-armed by the party's own thief reads
 reads `armed` and is a fresh secret. It is the stage the markers and the
 Trapbreaking target list are gated on — a Judge sees every trap, everyone else
 sees only what the party has found.
+
+**Disarm or discharge.** A made Trapbreaking throw writes the trap `disarmed`
+(and known) first, then asks whether to discharge it instead; a discharge
+answer writes `discharged` after. The question is the thrower's, so
+`attemptDisarm` takes `askUserId` and puts the dialog on that user's own client
+through `executeAsUser` (`lib/sockets.mjs`, the `trapAskDischarge` handler,
+registered on every client by `registerTrapZoneSocket`): the relayed player
+request names the requesting player, the Trapbreaking window the Judge's own
+user, and the turn plan the user who locked the entry (`entry.by`, the id of
+the user who declared it, which `resolveDue` hands a resolver as its fourth
+argument). With no `askUserId` the dialog opens on the running client. An
+answer that never comes (the user offline, no socketlib, a throw, the dialog
+dismissed) leaves the disarmed trap written first, so a lost question never
+loses the trap's state. The throw reads its natural die before the total
+(`lib/throws.mjs`), as the other party checks do.
 
 A trap wall **restricts nothing**. The party walks through it as though it were
 not there; what stops them is detection, applied by moving the party token back

@@ -75,7 +75,9 @@ it covers; a section no walk names is walked by hand.
   may be another session's browser holding a cached `lang/en.json`. Confirm
   with `game.i18n.has(key)` in your own tab before touching the lang file.
 - **`attemptDisarm` awaits a DialogV2 on success**, so a scripted click on
-  "Work on it" hangs until the disarm/discharge question is answered. Click
+  "Work on it" hangs until the disarm/discharge question is answered, on the
+  thrower's own client (a player's request opens it in that player's seat, not
+  the Judge's). The trap is already written disarmed while it is open. Click
   the button, then find the dialog by its own buttons
   (`[data-action="disarm"]`) — the class-name check most snippets use does not
   match v14's minified DialogV2.

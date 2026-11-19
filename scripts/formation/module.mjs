@@ -45,6 +45,7 @@ import {
   placementNearByUuid,
   placementsNear,
   registerTrapZone,
+  registerTrapZoneSocket,
   resetTrap,
   runTrapCheck,
   sweepForTraps,
@@ -751,6 +752,7 @@ Hooks.once("ready", () => {
   registerMapSocket();
   registerLostSocket();
   registerRequestSocket();
+  registerTrapZoneSocket();
   // Index the skill ladders the importer imported.
   initLadders();
   // A party holed up in a city has no movement to read, so its stay is

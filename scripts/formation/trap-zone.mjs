@@ -5,6 +5,8 @@ import { segmentDistance, setWallTrap, trapWallsCrossed, wallTrap } from "./trap
 import { PARTY_CHECKS, partText, resolveCheck } from "./party-rolls.mjs";
 import { advanceRounds, advanceTurns } from "./turn-engine.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
+import { executeAsUser, registerHandler } from "../lib/sockets.mjs";
+import { isAutoFail, isAutoSucceed } from "../lib/throws.mjs";
 import { makeLoc } from "../lib/util.mjs";
 import { centreOffset, tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
@@ -983,9 +985,13 @@ export function disarmRefusal(placement, actor, mode) {
  * @param {number} [opts.extra] the Judge's own modifier
  * @param {boolean} [opts.spend] spend the attempt's time on the clock; the turn
  *   plan passes false, having spent its turn before anything resolves
+ * @param {string|null} [opts.askUserId] the user asked whether to disarm or
+ *   discharge: the thrower, which is not the client running this when a request
+ *   was relayed. None, or this client's own user, asks here; an answer that
+ *   never comes leaves the trap disarmed.
  * @returns {Promise<{ok: boolean, reason?: string, outcome?: string}>}
  */
-export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true } = {}) {
+export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true, askUserId = null } = {}) {
   // The target is named, never guessed: a halted party may stand at more than
   // one trap.
   const target = targetUuid
@@ -1011,7 +1017,11 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   const bonus = check.bonus + (crude ? CRUDE.remove : 0) + (Number(extra) || 0);
   const roll = await new Roll(bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20").evaluate();
   const natural = roll.dice[0]?.results?.[0]?.result ?? roll.total - bonus;
-  const success = roll.total >= check.target;
+  // The natural die settles an automatic result before the total does; with
+  // nothing imported the target alone decides.
+  const success = isAutoSucceed(natural, { proficient: check.skilled }) === true
+    ? true
+    : isAutoFail(natural) === true ? false : roll.total >= check.target;
   const botched = isBotch(natural, mode);
 
   const breakdown = (check.parts ?? []).map(partText);
@@ -1019,10 +1029,15 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
 
   let outcome;
   if (success) {
-    // The thief's call: a disarmed trap can be re-armed later, a discharged one is spent.
-    const discharge = await askDischarge(actor);
-    outcome = discharge ? STATES.discharged : STATES.disarmed;
-    await target.write({ state: outcome, known: true });
+    // The thief's call: a disarmed trap can be re-armed later, a discharged one
+    // is spent. The disarm is written first, so a question that is lost or
+    // never answered leaves a valid disarmed trap.
+    outcome = STATES.disarmed;
+    await target.write({ state: STATES.disarmed, known: true });
+    if (await askDischarge(actor, askUserId)) {
+      outcome = STATES.discharged;
+      await target.write({ state: STATES.discharged });
+    }
   } else if (botched) {
     outcome = "botched";
   } else {
@@ -1077,22 +1092,44 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   return { ok: true, outcome };
 }
 
+/** The socket handler that puts the disarm-or-discharge question to the client it reaches. */
+const ASK_DISCHARGE_HANDLER = "trapAskDischarge";
+
+/**
+ * Registers the handler a relayed disarm asks its thrower through. Once, on
+ * every client, since the question is answered on the thrower's own.
+ */
+export function registerTrapZoneSocket() {
+  registerHandler(ASK_DISCHARGE_HANDLER, ({ name } = {}) => askDischargeHere(name));
+}
+
 /**
  * Disarm, or set it off on purpose? The choice is the thrower's, and only a
- * disarmed trap can be re-armed afterwards.
+ * disarmed trap can be re-armed afterwards. Asked on this client unless
+ * `askUserId` names another user, whose own client puts the question; an
+ * answer that does not come (offline, no socketlib, a throw) is not a discharge.
+ * @param {Actor} actor
+ * @param {string|null} [askUserId]
+ * @returns {Promise<boolean>} true only when discharge was chosen.
  */
-async function askDischarge(actor) {
+async function askDischarge(actor, askUserId = null) {
+  if (!askUserId || askUserId === game.user?.id) return askDischargeHere(actor?.name);
+  return (await executeAsUser(ASK_DISCHARGE_HANDLER, askUserId, { name: actor?.name ?? "" })) === true;
+}
+
+/** The dialog itself, on the client that runs it; true only for discharge. */
+async function askDischargeHere(name = "") {
   const chosen = await foundry.applications.api.DialogV2.wait({
     classes: ["acks-ui", "acks-extras", "acks-extras-scroll"],
     window: { title: loc("chooseTitle"), icon: "fa-solid fa-screwdriver-wrench" },
-    content: `<p>${loc("chooseHint", { name: actor.name })}</p>`,
+    content: `<p>${loc("chooseHint", { name: foundry.utils.escapeHTML(String(name)) })}</p>`,
     buttons: [
       { action: "disarm", default: true, icon: "fa-solid fa-lock", label: loc("chooseDisarm"), callback: () => false },
       { action: "discharge", icon: "fa-solid fa-burst", label: loc("chooseDischarge"), callback: () => true },
     ],
     rejectClose: false,
   }).catch(() => null);
-  // Dismissing the question leaves the trap disarmed.
+  // Dismissing the question leaves the trap disarmed; only the discharge button's own `true` counts.
   return chosen === true;
 }
 

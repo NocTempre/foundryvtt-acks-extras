@@ -138,8 +138,9 @@ function registerTrapbreak(key, mode) {
       const refusal = disarmRefusal(near(ctx).find((p) => p.uuid === option.id) ?? null, actor, mode);
       return refusal ? `trap:${refusal}` : null;
     },
-    resolve: (actor, option, ctx) =>
-      attemptDisarm(getFormation(ctx.formation.id) ?? ctx.formation, actor, { mode, targetUuid: option.id, spend: false }),
+    // The question of what to do with a beaten trap goes to the user who locked the entry.
+    resolve: (actor, option, ctx, entry) =>
+      attemptDisarm(getFormation(ctx.formation.id) ?? ctx.formation, actor, { mode, targetUuid: option.id, spend: false, askUserId: entry?.by ?? null }),
   });
 }
 

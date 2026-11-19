@@ -116,6 +116,33 @@ export async function executeAsGM(action, payload) {
   game.socket.emit(CHANNEL, { action, payload });
 }
 
+/**
+ * Ask one user's client a question and take its answer: a window that has to
+ * reach the person a request came from, not the Judge's seat. Runs locally when
+ * the user is this client's own. The call reaches the user's own lead window
+ * (`viaSocketlib`: a seat's election is per user, so a player's single window
+ * leads its seat, and a second window of theirs stays silent). A user who is
+ * not connected, a missing socketlib (the native fallback carries no result), an
+ * unregistered handler or a throw in either client all answer undefined, which
+ * the caller reads as its default. On the remote path an object payload's
+ * `requestUserId` is stamped by `runRelayed`, so a payload never carries it.
+ * @param {string} action   The registered handler's name.
+ * @param {string} userId   The user whose client answers.
+ * @param {*} [payload]
+ * @returns {Promise<*>} The handler's result, or undefined.
+ */
+export async function executeAsUser(action, userId, payload) {
+  try {
+    if (!userId) return undefined;
+    if (userId === game.user?.id) return await handlers.get(action)?.(payload);
+    if (!socket || !game.users?.get(userId)?.active) return undefined;
+    return await socket.executeAsUser(action, userId, payload);
+  } catch (err) {
+    console.error(`${MODULE_ID} | socket action ${action} as ${userId} failed`, err);
+    return undefined;
+  }
+}
+
 // This window joins its seat's election on the module's channel. At `ready`,
 // not before: the events a page receives while it loads are replayed to it
 // just before `ready`, and a window that led before then would answer for

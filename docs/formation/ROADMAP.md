@@ -38,11 +38,6 @@ Still unbuilt, in likely order:
 
 ## 3. Other open work
 
-1. **Traps: the disarm-or-discharge choice is asked of the wrong seat.** The
-   book gives it to whoever made the throw; the throw runs on the Judge's
-   client, so a player who declares an attempt has the Judge answer for them.
-   Fixing it means a second socket round-trip back to the declaring user, held
-   open while the Judge's client waits.
 7. **Wilderness mode: per-kind road refinement.** The road table is read from
    the Rulebook; the Judges Journal's per-kind road refinement does not
    replace it yet. An importer recipe and a binding read are owed.

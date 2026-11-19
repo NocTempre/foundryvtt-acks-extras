@@ -972,7 +972,9 @@ retry limit before you throw (RR p. 267):
   bonus, are figures imported from your book for each column.
 
 **Work on it** makes the throw. Beat it and you choose: **Disarm it**, which
-leaves it re-armable, or **Discharge it** deliberately, which spends it. A
+leaves it re-armable, or **Discharge it** deliberately, which spends it. The
+choice opens on the thrower's own screen, so a player's attempt asks that
+player, and the trap is already disarmed while the choice is open. A
 disarmed trap can be re-armed later with **Re-arm it**, on a Trapbreaking throw.
 
 **Crudely built** on the trap item marks it crude, and the module applies the

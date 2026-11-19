@@ -142,7 +142,7 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
     if (!formation || !actor) return;
     const targetUuid = (await this._targetUuid()) ?? "";
     if (!targetUuid) return;
-    if (game.user.isGM) await attemptDisarm(formation, actor, { mode: this.choice.mode, extra: this.choice.extra, targetUuid });
+    if (game.user.isGM) await attemptDisarm(formation, actor, { mode: this.choice.mode, extra: this.choice.extra, targetUuid, askUserId: game.user.id });
     else await requestPartyAction(formation.id, "trapbreak", { actorId: actor.id, targetUuid, mode: this.choice.mode });
     this.render();
   }

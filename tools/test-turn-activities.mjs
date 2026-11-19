@@ -333,6 +333,20 @@ await test("resolve runs each due entry in order and reports each", async () => 
   });
 });
 
+await test("resolve hands the registrant the plan entry as a fourth argument, so it can read who locked it", async () => {
+  let seen = null;
+  const ctx = { shared: true };
+  await withRegistry([dig({ resolve: (...args) => { seen = args; } })], async () => {
+    const locked = entry({ remaining: 1, by: "player-1" });
+    const { due } = advanceTurn({ A: locked }, 2);
+    await resolveDue(due, { actorOf: () => a, ctx });
+    assert.equal(seen.length, 4);
+    assert.equal(seen[2], ctx);
+    assert.equal(seen[3].by, "player-1");
+    assert.equal(seen[3].key, locked.key);
+  });
+});
+
 await test("resolve passes the registrant's option object through untouched", async () => {
   let seen = null;
   await withRegistry([dig({ resolve: (_actor, option) => { seen = option; } })], async () => {

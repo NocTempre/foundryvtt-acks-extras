@@ -76,8 +76,9 @@ const activities = new Map();
  *   Why this member cannot take this choice now: a reason id, or `{reason,
  *   missing}` where `missing` names what the member lacks. Null or absent means
  *   free to take it.
- * @param {(actor: Actor, option: object, ctx: object) => *} def.resolve Runs the
- *   activity when its last turn ends; awaited by `resolveDue`.
+ * @param {(actor: Actor, option: object, ctx: object, entry: object) => *} def.resolve Runs the
+ *   activity when its last turn ends; awaited by `resolveDue`. `entry` is the
+ *   plan entry being resolved, so a resolver can read who locked it (`entry.by`).
  * @param {boolean} [def.oncePerTurn] A member who already used this activity this
  *   turn is refused a second (`lockActivity`'s `usedThisTurn` says who did).
  * @returns {() => boolean} Unregisters this declaration; a no-op once another
@@ -328,7 +329,7 @@ export async function resolveDue(due, { actorOf, ctx = {} } = {}) {
         continue;
       }
       try {
-        out.push({ ...base, status: "resolved", result: await def.resolve(actor, option, ctx) });
+        out.push({ ...base, status: "resolved", result: await def.resolve(actor, option, ctx, entry) });
       } catch (error) {
         console.error(`${MODULE_ID} | turn activity "${def.key}" threw in resolve`, error);
         out.push({ ...base, status: "failed", error });
