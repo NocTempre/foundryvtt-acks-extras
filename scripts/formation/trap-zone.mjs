@@ -520,7 +520,7 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
       const check = resolveCheck(actor, PARTY_CHECKS.searchHasty);
       if (!check) continue; // no Searching skill: no automatic search to make
       const level = Number(actor?.system?.details?.level) || 1;
-      if (repeatLocked(lock, actor.id, level)) continue;
+      if (searchLedgerLocks(lock, actor.id, level)) continue;
 
       const bonus = check.bonus + (crude ? CRUDE.find : 0);
       const formula = bonus > 0 ? `1d20 + ${bonus}` : bonus < 0 ? `1d20 - ${-bonus}` : "1d20";
@@ -554,6 +554,52 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
   }
 
   return { found, rows, rolls, rowsBy, rollsBy, reachImported };
+}
+
+/**
+ * Does this ledger bar `actorId` from another hasty search at `level`? The one
+ * reading of a `searchLock` ledger: `hastySearchLocked` and the sweep both
+ * answer through it, the sweep over the copy it accumulates failures in.
+ *
+ * @param {Record<string, number>|undefined} ledger actorId → level failed at
+ */
+function searchLedgerLocks(ledger, actorId, level) {
+  return repeatLocked(ledger, actorId, level);
+}
+
+/**
+ * Has this character already failed the hasty search of this trap at this
+ * level? A failed hasty search is not repeated until the character gains a
+ * level, so the answer is true at the level failed at (or below) and false
+ * above it. Reads the placement's `searchLock` ledger, the sweep's own.
+ *
+ * @param {Placement|null} placement a zone, wall or trap thing
+ * @param {string} actorId
+ * @param {number} level the character's level now
+ * @returns {boolean} false for no placement or no actor
+ */
+export function hastySearchLocked(placement, actorId, level) {
+  if (!placement || !actorId) return false;
+  return searchLedgerLocks(placement.searchLock, actorId, level);
+}
+
+/**
+ * Record that this character failed the hasty search of this trap at this
+ * level, writing the `searchLock` ledger through the placement. The ledger
+ * keeps the highest level failed at, so a lower one recorded later changes
+ * nothing.
+ *
+ * @param {Placement|null} placement a zone, wall or trap thing
+ * @param {string} actorId
+ * @param {number} level the character's level now
+ * @returns {Promise<Record<string, number>|null>} the ledger as written; null,
+ *   with nothing written, for no placement or no actor
+ */
+export async function recordHastySearchFailure(placement, actorId, level) {
+  if (!placement || !actorId) return null;
+  const searchLock = lockAfterFailure(placement.searchLock, actorId, level);
+  await placement.write({ searchLock });
+  return searchLock;
 }
 
 /**

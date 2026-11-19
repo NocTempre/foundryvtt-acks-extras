@@ -12,7 +12,11 @@
  * nothing; `livePlacements` adds the armed trap things of the places under the
  * party after the zones, each place once, and none of them halts; `allPlacements`
  * lists every trap thing of each place linked to a Region of the scene, each place
- * once; a thing's distance is measured through its Region.
+ * once; a thing's distance is measured through its Region; the hasty-search
+ * ledger reads locked at a level failed at and below it, writes through a
+ * placement's own `write` and keeps the highest level, writes nothing for no
+ * placement or actor, and `sweepForTraps` skips a locked searcher and records
+ * its own failures in the same ledger.
  *
  * Run: node tools/test-trap-thing-placement.mjs
  */
@@ -40,7 +44,7 @@ globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
 
 const { patchThing } = await import("../scripts/lib/place-things-logic.mjs");
 const { thingsOf, updateThingOn } = await import("../scripts/lib/place-things.mjs");
-const { thingPlacement, livePlacements, allPlacements, placementsNear, placementNearByUuid } = await import("../scripts/formation/trap-zone.mjs");
+const { thingPlacement, livePlacements, allPlacements, placementsNear, placementNearByUuid, hastySearchLocked, recordHastySearchFailure, sweepForTraps } = await import("../scripts/formation/trap-zone.mjs");
 const { STATES, stackStops, walkTrapStack } = await import("../scripts/formation/trap-rules.mjs");
 
 /* --- fixtures --------------------------------------------------------------- */
@@ -270,6 +274,92 @@ await ok("a thing's distance is measured through its Region, and placementNearBy
   assert.equal(placementNearByUuid(formation, "Actor.P2::thing-1", 25)?.region, regionB);
   assert.equal(placementNearByUuid(formation, "Actor.P2::thing-1", 10), null);
   assert.equal(typeof within[1].write, "function", "the spread keeps the write closure");
+});
+
+/* --- the hasty-search ledger ------------------------------------------------ */
+await ok("hastySearchLocked is false until a failure is recorded, then true at that level and below, false above", async () => {
+  const place = makePlace("Actor.P1", [trapThing("thing-1", { hidden: true })]);
+  const before = thingPlacement(place, thingsOf(place)[0], null);
+  assert.equal(hastySearchLocked(before, "a", 3), false, "nothing recorded");
+  const ledger = await recordHastySearchFailure(before, "a", 3);
+  assert.deepEqual(ledger, { a: 3 });
+  const after = thingPlacement(place, thingsOf(place)[0], null);
+  assert.equal(hastySearchLocked(after, "a", 3), true, "the same level");
+  assert.equal(hastySearchLocked(after, "a", 2), true, "a lower level");
+  assert.equal(hastySearchLocked(after, "a", 4), false, "a higher level reopens it");
+  assert.equal(hastySearchLocked(after, "b", 3), false, "another character is not locked");
+});
+
+await ok("recordHastySearchFailure on a thing writes through to its state.searchLock, keeps the highest level and the other ledger", async () => {
+  const place = makePlace("Actor.P1", [trapThing("thing-1", { state: { repeatLock: { r: 1 }, searchLock: { b: 2 } } })]);
+  await recordHastySearchFailure(thingPlacement(place, thingsOf(place)[0], null), "a", 5);
+  assert.deepEqual(thingsOf(place)[0].state.searchLock, { a: 5, b: 2 });
+  assert.deepEqual(thingsOf(place)[0].state.repeatLock, { r: 1 });
+  const again = await recordHastySearchFailure(thingPlacement(place, thingsOf(place)[0], null), "a", 2);
+  assert.deepEqual(again, { a: 5, b: 2 }, "a lower level recorded later does not lower the ledger");
+  assert.deepEqual(thingsOf(place)[0].state.searchLock, { a: 5, b: 2 });
+});
+
+await ok("recordHastySearchFailure writes through whichever write a placement carries, and never mutates the ledger it read", async () => {
+  const writes = [];
+  const placement = { searchLock: { a: 1 }, write: async (patch) => { writes.push(patch); } };
+  const ledger = await recordHastySearchFailure(placement, "b", 2);
+  assert.deepEqual(writes, [{ searchLock: { a: 1, b: 2 } }]);
+  assert.deepEqual(ledger, { a: 1, b: 2 });
+  assert.deepEqual(placement.searchLock, { a: 1 }, "the input ledger is not mutated");
+});
+
+await ok("a null placement or a missing actor id writes nothing: locked reads false, record returns null", async () => {
+  const writes = [];
+  const placement = { searchLock: { a: 3 }, write: async (patch) => { writes.push(patch); } };
+  assert.equal(await recordHastySearchFailure(null, "a", 1), null);
+  assert.equal(await recordHastySearchFailure(placement, undefined, 1), null);
+  assert.equal(await recordHastySearchFailure(placement, "", 1), null);
+  assert.deepEqual(writes, []);
+  assert.equal(hastySearchLocked(null, "a", 1), false);
+  assert.equal(hastySearchLocked(placement, undefined, 1), false);
+});
+
+/* --- the sweep over the ledger ---------------------------------------------- */
+await ok("sweepForTraps skips a searcher the ledger locks, rolls again after a level, and writes a failure into the ledger the export reads", async () => {
+  const dice = [];
+  globalThis.Roll = class {
+    constructor(formula) { this.formula = formula; }
+    async evaluate() { this.total = dice.shift(); return this; }
+  };
+  globalThis.fromUuid = async () => null;
+  game.actors = new Map();
+  const skill = { id: "s1", type: "ability", name: "Probe Search", system: {}, flags: { "acks-extras": { extras: { provides: ["kw:searching"], effects: [], rolls: [{ key: "hasty", label: "hasty", formula: "1d20", rollType: "above", target: { kind: "flat", flat: 15 }, scale: "level" }] } } } };
+  skill.getFlag = (scope, key) => skill.flags[scope]?.[key];
+  const actor = { id: "Alder", name: "Alder", type: "character", statuses: new Set(), appliedEffects: [], system: { details: { level: 3 }, adventuring: {}, hp: { value: 8 }, saves: {} }, getFlag: () => undefined };
+  skill.actor = actor;
+  actor.items = Object.assign([skill], { get: (id) => (id === "s1" ? skill : undefined) });
+  game.actors.set("Alder", actor);
+
+  const place = makePlace("Actor.P1", [trapThing("thing-1", { hidden: true })]);
+  const regionA = mockRegion({ id: "a", rings: [rect(0, 0, 100, 100)] });
+  const { formation } = makeWorld({ regions: [regionA], links: new Map([[regionA, place]]) });
+  formation.members = [{ actorId: "Alder", roles: [] }];
+  const fresh = () => thingPlacement(place, thingsOf(place)[0], regionA);
+
+  dice.push(1);
+  const failed = await sweepForTraps(formation, { include: fresh() });
+  assert.deepEqual([failed.rows.length, failed.found.size], [1, 0], "the searcher threw once and found nothing");
+  assert.deepEqual(thingsOf(place)[0].state.searchLock, { Alder: 3 }, "the sweep wrote its failure to the ledger");
+  assert.equal(hastySearchLocked(fresh(), "Alder", 3), true, "and the export reads it");
+
+  dice.push(20);
+  const skipped = await sweepForTraps(formation, { include: fresh() });
+  assert.equal(skipped.rows.length, 0, "a locked searcher throws nothing");
+  assert.equal(dice.length, 1, "no die was spent");
+  assert.equal(skipped.found.size, 0);
+
+  actor.system.details.level = 4;
+  const reopened = await sweepForTraps(formation, { include: fresh() });
+  assert.equal(reopened.rows.length, 1, "a level gained reopens the search");
+  assert.equal(reopened.found.size, 1, "and a good throw spots it");
+  assert.equal(thingsOf(place)[0].hidden, false, "the trap is known");
+  assert.deepEqual(thingsOf(place)[0].state.searchLock, { Alder: 3 }, "a success records no failure");
 });
 
 console.log(`\n${passed} passed`);

@@ -48,6 +48,8 @@ import {
   resetTrap,
   runTrapCheck,
   sweepForTraps,
+  hastySearchLocked,
+  recordHastySearchFailure,
   thingPlacement,
   toggleArmed,
   toggleKnown,
@@ -594,7 +596,7 @@ Hooks.once("init", () => {
      * the rule from here rather than deriving it a second time. The journey's
      * hooks and their payloads are in docs/formation/MODEL.md, "The journey".
      */
-    apiVersion: 35,
+    apiVersion: 36,
     travel: { ...travel, ...journey, closeDay, offerDayEnd },
     weather,
     settlement,
@@ -639,6 +641,8 @@ Hooks.once("init", () => {
       ...trapRules,
       runTrapCheck,
       sweepForTraps,
+      hastySearchLocked,
+      recordHastySearchFailure,
       attemptDisarm,
       attemptRearm,
       resetTrap,
