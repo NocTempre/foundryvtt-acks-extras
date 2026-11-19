@@ -558,11 +558,11 @@
 
 .acks-extras-keying-cap {
   margin: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: normal;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, normal);
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-burgundy);
 }
 
@@ -602,10 +602,10 @@
 
 .acks-extras-keying-set legend {
   padding: 0 0.3em;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.07em);
+  text-transform: var(--acks-caps);
   color: var(--acks-burgundy);
 }
 
@@ -703,8 +703,8 @@
 
 .acks-extras-keying-kind {
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
   color: var(--acks-burgundy);
 }
 
