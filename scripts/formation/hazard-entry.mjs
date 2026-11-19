@@ -4,8 +4,8 @@
  * places hold. For each place the party newly stands in that holds an obstacle
  * one card goes to the Judges, a row per obstacle with a Begin button and the
  * place's conditions as chips. Begin opens the crossing of that obstacle with
- * its figures and every condition of the places the party stands in at the
- * press, once; nothing re-reads a place afterwards.
+ * its figures and picks and every condition of the places the party stands in
+ * at the press, once; nothing re-reads a place afterwards.
  *
  * Places are the places linked to the Regions the party token stands in, by
  * core's `token.regions`. The list the last move left is the party actor's
@@ -20,6 +20,8 @@ import { beginCrossing, endCrossing, readCrossing } from "./crossing.mjs";
 import { getFormation, getPartyActor, getPartyToken } from "./formation-model.mjs";
 import { hazardLabelKey } from "./hazard-keys.mjs";
 import { entryModel, moveHalted, newlyEntered, refsOf, seedForThing } from "./hazard-entry-logic.mjs";
+import { penaltyPicksOf } from "./hazard-logic.mjs";
+import { waterPenaltySteps } from "./swimming.mjs";
 import { travelOf } from "./travel.mjs";
 import { thingsOf } from "../lib/place-things.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
@@ -181,7 +183,7 @@ export async function pressBegin({ formationId, placeUuid, thingId, placeName = 
       ui.notifications.warn(loc("warn.left", { place: placeName }));
       return { refused: "left" };
     }
-    const entry = seedForThing(under, await hazardKeyResolver(under), placeUuid, thingId);
+    const entry = seedForThing(under, await hazardKeyResolver(under), placeUuid, thingId, { penaltyPicks: penaltyPicksOf(waterPenaltySteps()) });
     if (!entry) {
       ui.notifications.warn(loc("warn.gone", { place: placeName }));
       return { refused: "gone" };

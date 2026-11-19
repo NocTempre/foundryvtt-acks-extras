@@ -694,3 +694,11 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 **Rejected.** Openers on two tabs, one per seat: a Judge and a player looking for the same control found it in different places. Storing the warning on the plan entry: it is the sheet's note to the user who pressed, not part of the choice.
 
 **Cost.** A Judge on a journey or in a city has no Trapbreaking opener. A warning lives on the sheet that made it, so a second Judge client does not see it.
+
+## 2026-11-19 — Which crossing keys a place carries (obstacle regions H4)
+
+**Ruled.** A place carries what describes the obstacle itself, and nothing that describes the party's moment. A squeeze's `shape` is the passage's form, so a thing's `params.shape` seeds it. A swim's water-penalty pick is how bad that water is, so `params.penaltyPick` seeds it, with `penaltyLarger` beside it; the picks are passed in from the steps the world imports at the press, so a pick for a step no longer imported is absent rather than defaulted. A swim's `movement` is how the party is moving at the time, and `judgeMod` is the table's own call on the panel, where it is already offered for every kind; neither is carried. The swim row on the card shows no depth: the Swimming and Drowning passage (RR ch. 6) reads no depth figure, so there is nothing for one to feed, and the approved board's "Swim · depth —" is dropped. The orchestrator relayed the owner's go-ahead: "Build H4 + batch 3".
+
+**Rejected.** Carrying `judgeMod`: a modifier stored on a place would apply where nothing visible says why. Routing `shape` and `penaltyPick` through the party sheet's readers: both coerce any input to a value, so a blank or stale entry would seed the default instead of nothing. Showing the picks as card figures: the card's figures are the numeric ones, and new words there go beyond the approved board.
+
+**Cost.** No window writes a thing's `params` yet, figures included: the board's figure inputs on the hazard group in scene search's Things here are not built, so until they are only the place-things API sets them (ROADMAP).

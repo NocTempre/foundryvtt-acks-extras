@@ -120,12 +120,13 @@ export function entryModel(places, hazardKeyOf, entered) {
  * @param {(ref: string) => string|null} hazardKeyOf
  * @param {string} placeUuid the place the card's row names
  * @param {string} thingId the thing's id in that place
- * @returns {{kind: string, setup: Record<string, number|boolean>}|null} null when the
+ * @param {{penaltyPicks?: string[]}} [options] the water-penalty picks valid now, as for `crossingSeed`
+ * @returns {{kind: string, setup: Record<string, number|boolean|string>}|null} null when the
  *   party no longer stands in that place, or the thing is gone or no longer an obstacle
  */
-export function seedForThing(places, hazardKeyOf, placeUuid, thingId) {
+export function seedForThing(places, hazardKeyOf, placeUuid, thingId, options) {
   const lists = uniquePlaces(places).map((place) => (place.things ?? []).map((thing) => ({ ...thing, id: `${place.uuid}|${thing.id}` })));
-  const entry = seedFromPlaces(lists, hazardKeyOf).find((seed) => seed.thingId === `${placeUuid}|${thingId}`);
+  const entry = seedFromPlaces(lists, hazardKeyOf, options).find((seed) => seed.thingId === `${placeUuid}|${thingId}`);
   return entry ? { kind: entry.kind, setup: entry.setup } : null;
 }
 

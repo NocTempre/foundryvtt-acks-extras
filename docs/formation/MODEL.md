@@ -1145,8 +1145,9 @@ The `acks-extras.hazard` Item sub-type (`HAZARD_ITEM_TYPE`,
   `module.json`'s `htmlFields`). `key` is a string with a choices function, so
   the labels localize when a sheet renders; it may be blank, a hazard not yet
   chosen, which no kind accepts.
-- **No figures.** Length, gap and depth are typed on a place's own row
-  (the thing's `params`), so one Hazard serves places of different sizes.
+- **No figures.** Length, gap and depth belong to a place's own thing (its
+  `params`), so one Hazard serves places of different sizes. No window edits
+  `params` yet: the thing is written whole through lib's place-things API.
 - **The keys** are `hazard-keys.mjs`, which holds no Foundry global so the pack
   builder reads it under Node. Nine obstacle keys: the climb obstacles in
   `OBSTACLES` order, then `jump`, `swim` and `squeeze`. Six condition keys:
@@ -1173,10 +1174,17 @@ The `acks-extras.hazard` Item sub-type (`HAZARD_ITEM_TYPE`,
   where `KIND_SETUP_KEYS` says the kind reads that key (`CONDITION_SETUP` maps a
   condition to its setup key and value). A thing whose ref the resolver does
   not know, or whose kind is not `obstacle` or `condition`, is skipped.
-  `seedFromPlaces` reads several places' lists as one. Only length, gap, depth
-  and the conditions seed: a swim's `penaltyPick` and `movement`, a squeeze's
-  `shape` and the `judgeMod` of any kind are not carried by any thing, so a
-  crossing begun from a card opens on `beginCrossing`'s defaults for them.
+  `seedFromPlaces` reads several places' lists as one. Beside the figures a
+  thing's `params` may name a pick (`PICK_KEYS`): a squeeze's `shape`, only
+  `chokepoint` or `squeeze`, and a swim's `penaltyPick`, only one of the picks
+  the caller lists (`penaltyPicksOf`: none, larger, and each imported step as
+  the string the party sheet stores), with `penaltyLarger` riding on a pick of
+  larger. `pressBegin` builds that list from the imported steps at each press,
+  so a step the world no longer imports seeds nothing. A pick not listed, and
+  every other value, is absent and never defaulted. A swim's `movement` and
+  any kind's `judgeMod` are never carried, so a crossing begun from a card
+  opens on `beginCrossing`'s defaults for them. Only the numeric figures
+  (`PARAM_KEYS`) appear on the card.
   A test parses the party sheet's crossing template and holds
   `KIND_SETUP_KEYS` to the controls it offers for each kind.
 

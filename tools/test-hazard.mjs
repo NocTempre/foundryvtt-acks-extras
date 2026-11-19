@@ -10,7 +10,9 @@
  * crossing's own kinds and conditions; the `key` field is blank-allowed and its
  * choices never throw where no `game` stands; a seed carries a thing's figures
  * through the sheet's readers, and the union of its places' conditions where the
- * obstacle's kind reads them; a blank, unknown or mismatched thing seeds nothing;
+ * obstacle's kind reads them; a squeeze's shape and a swim's penalty pick (with its
+ * larger figure) are carried only where valid and listed, and `movement` and
+ * `judgeMod` never are; a blank, unknown or mismatched thing seeds nothing;
  * the per-kind key lists are the party sheet's own controls for each kind; and
  * the pack holds one hazard per key under the module's id prefix.
  *
@@ -55,7 +57,7 @@ const { default: HazardData } = await import("../scripts/formation/data/hazard-d
 const { kindGroups } = await import("../scripts/formation/hazard-sheet.mjs");
 const { buildHazards } = await import("./pack-data/formation.mjs");
 const { OBSTACLE_HAZARDS, CONDITION_HAZARDS, HAZARD_KEYS, HAZARD_ICONS, hazardLabelKey, hazardGroupOf, hazardChoices } = keys;
-const { crossingSeed, seedFromPlaces, setupKeysOf, KIND_SETUP_KEYS, CONDITION_SETUP } = logic;
+const { crossingSeed, seedFromPlaces, setupKeysOf, penaltyPicksOf, KIND_SETUP_KEYS, CONDITION_SETUP } = logic;
 
 const LANG = JSON.parse(fs.readFileSync(new URL("../lang/en.json", import.meta.url), "utf8"));
 const MANIFEST = JSON.parse(fs.readFileSync(new URL("../module.json", import.meta.url), "utf8"));
@@ -233,6 +235,93 @@ await ok("a blank key, an unknown ref, a mismatched kind and a malformed list se
   assert.deepEqual(crossingSeed(null, hazardKeyOf), []);
   assert.deepEqual(crossingSeed(undefined, hazardKeyOf), []);
   assert.deepEqual(seedFromPlaces(null, hazardKeyOf), []);
+});
+
+/** The water-penalty picks the world holds for these checks: the structural two and two invented steps. */
+const PICKS = { penaltyPicks: penaltyPicksOf([7, 12.5]) };
+
+await ok("the picks accepted are the structural two and one string per imported step", () => {
+  assert.deepEqual(penaltyPicksOf(null), ["none", "larger"]);
+  assert.deepEqual(penaltyPicksOf(undefined), ["none", "larger"]);
+  assert.deepEqual(penaltyPicksOf([7, 12.5]), ["none", "larger", "7", "12.5"]);
+});
+
+await ok("a squeeze's shape is carried when it names a shape the crossing knows", () => {
+  const shape = (value) => crossingSeed([obstacle("t1", SQUEEZE_KIND, { shape: value })], hazardKeyOf)[0].setup;
+  assert.deepEqual(shape("squeeze"), { shape: "squeeze" });
+  assert.deepEqual(shape("chokepoint"), { shape: "chokepoint" });
+  assert.deepEqual(shape(" squeeze "), { shape: "squeeze" });
+  assert.deepEqual(crossingSeed([obstacle("t1", SQUEEZE_KIND, { length: 6, shape: "squeeze" })], hazardKeyOf)[0].setup, { length: 6, shape: "squeeze" });
+});
+
+await ok("a blank, junk or non-string shape stays absent, never coerced to a default", () => {
+  for (const value of ["", null, undefined, "tight", "Squeeze", 3, true, {}, []]) {
+    assert.deepEqual(crossingSeed([obstacle("t1", SQUEEZE_KIND, { shape: value })], hazardKeyOf)[0].setup, {}, JSON.stringify(value));
+  }
+  assert.deepEqual(crossingSeed([obstacle("t1", SQUEEZE_KIND, {})], hazardKeyOf)[0].setup, {});
+});
+
+await ok("a shape is ignored on every kind that does not read one", () => {
+  for (const kind of OBSTACLE_HAZARDS.filter((k) => k !== SQUEEZE_KIND)) {
+    assert.ok(!("shape" in crossingSeed([obstacle("t1", kind, { shape: "squeeze" })], hazardKeyOf)[0].setup), kind);
+  }
+});
+
+await ok("a swim's penalty pick is carried when the caller lists it: none, larger and each imported step", () => {
+  const pick = (value, options = PICKS) => crossingSeed([obstacle("t1", SWIM_KIND, { penaltyPick: value })], hazardKeyOf, options)[0].setup;
+  assert.deepEqual(pick("none"), { penaltyPick: "none" });
+  assert.deepEqual(pick("7"), { penaltyPick: "7" });
+  assert.deepEqual(pick(12.5), { penaltyPick: "12.5" }, "a number is stored as the string the sheet's select stores");
+  assert.deepEqual(pick(" 7 "), { penaltyPick: "7" });
+  assert.deepEqual(pick("larger", { penaltyPicks: penaltyPicksOf(null) }), { penaltyPick: "larger" }, "the structural picks need no import");
+  assert.equal(SETUP_FIELDS.penaltyPick(pick("7").penaltyPick), "7", "the crossing reads it back unchanged");
+});
+
+await ok("a penalty pick the caller does not list is absent: a step not imported, junk, blank, or no list given", () => {
+  const pick = (value, options = PICKS) => crossingSeed([obstacle("t1", SWIM_KIND, { penaltyPick: value })], hazardKeyOf, options)[0].setup;
+  for (const value of ["9", 9, "bogus", "", null, undefined, {}, ["7"]]) assert.deepEqual(pick(value), {}, JSON.stringify(value));
+  assert.deepEqual(pick("7", { penaltyPicks: penaltyPicksOf(null) }), {}, "no steps imported, so no step is valid");
+  assert.deepEqual(crossingSeed([obstacle("t1", SWIM_KIND, { penaltyPick: "none" })], hazardKeyOf)[0].setup, {}, "no list given seeds no pick");
+  assert.deepEqual(pick("larger", {}), {});
+});
+
+await ok("a penalty pick is ignored on every kind that does not read one", () => {
+  for (const kind of OBSTACLE_HAZARDS.filter((k) => k !== SWIM_KIND)) {
+    const setup = crossingSeed([obstacle("t1", kind, { penaltyPick: "larger", penaltyLarger: 15 })], hazardKeyOf, PICKS)[0].setup;
+    assert.ok(!("penaltyPick" in setup) && !("penaltyLarger" in setup), kind);
+  }
+});
+
+await ok("the larger figure rides only on a pick of larger, and only as a positive number", () => {
+  const swim = (params) => crossingSeed([obstacle("t1", SWIM_KIND, params)], hazardKeyOf, PICKS)[0].setup;
+  assert.deepEqual(swim({ penaltyPick: "larger", penaltyLarger: 15 }), { penaltyPick: "larger", penaltyLarger: 15 });
+  assert.deepEqual(swim({ penaltyPick: "larger", penaltyLarger: "15" }), { penaltyPick: "larger", penaltyLarger: 15 });
+  for (const value of ["", null, undefined, 0, -4, "abc"]) assert.deepEqual(swim({ penaltyPick: "larger", penaltyLarger: value }), { penaltyPick: "larger" }, JSON.stringify(value));
+  assert.deepEqual(swim({ penaltyPick: "7", penaltyLarger: 15 }), { penaltyPick: "7" }, "a step pick ignores the figure");
+  assert.deepEqual(swim({ penaltyPick: "none", penaltyLarger: 15 }), { penaltyPick: "none" });
+  assert.deepEqual(swim({ penaltyLarger: 15 }), {}, "no pick, no figure");
+  assert.deepEqual(swim({ penaltyPick: "9", penaltyLarger: 15 }), {}, "an unlisted pick takes no figure with it");
+});
+
+await ok("movement and judgeMod in a thing's params are never seeded, on any kind", () => {
+  const params = { movement: "running", judgeMod: 3, penaltyPick: "larger", penaltyLarger: 15, shape: "squeeze" };
+  for (const kind of OBSTACLE_HAZARDS) {
+    const setup = crossingSeed([obstacle("t1", kind, params)], hazardKeyOf, PICKS)[0].setup;
+    assert.ok(!("movement" in setup) && !("judgeMod" in setup), kind);
+  }
+});
+
+await ok("the card's figures stay the three numerics and the swim row shows none", async () => {
+  const { figureKeysOf } = await import("../scripts/formation/hazard-entry-logic.mjs");
+  assert.deepEqual(logic.PARAM_KEYS, ["length", "gap", "depth"]);
+  assert.deepEqual(figureKeysOf("swim"), []);
+  assert.deepEqual(figureKeysOf("squeeze"), ["length"], "the squeeze shape is a pick, not a figure");
+});
+
+await ok("seedFromPlaces passes the options through to the seed", () => {
+  const lists = [[obstacle("t1", SWIM_KIND, { penaltyPick: "7" })], [condition("c1", "waterCold")]];
+  assert.deepEqual(seedFromPlaces(lists, hazardKeyOf, PICKS)[0].setup, { penaltyPick: "7", waterCold: true });
+  assert.deepEqual(seedFromPlaces(lists, hazardKeyOf)[0].setup, { waterCold: true });
 });
 
 await ok("every seeded key is a key of the crossing's setup that its kind reads", () => {

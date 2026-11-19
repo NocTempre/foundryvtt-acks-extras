@@ -61,6 +61,8 @@ globalThis.Hooks = { on() {}, once() {}, off() {}, call() {}, callAll() {} };
 const logic = await import("../scripts/formation/hazard-entry-logic.mjs");
 const { newlyEntered, moveHalted, entryModel, seedForThing, figureKeysOf, refsOf } = logic;
 const { runEntryStep, entryCard, pressBegin, BEGIN_ACTION, PLACES_UNDER_FLAG } = await import("../scripts/formation/hazard-entry.mjs");
+const { registerTable, resetTables, PRIORITY } = await import("../scripts/lib/tables.mjs");
+const { FORMATION_DOC } = await import("../scripts/formation/constants.mjs");
 const { hazardLabelKey } = await import("../scripts/formation/hazard-keys.mjs");
 const { stackStops } = await import("../scripts/formation/trap-rules.mjs");
 
@@ -163,6 +165,14 @@ await ok("the conditions of every place the party stands in are unioned into the
   assert.deepEqual(seedForThing(places, hazardKeyOf, "P3", "thing-1").setup, { gap: 9, ropeFixed: true, runUp: false, precarious: true }, "a jump takes a condition from another place");
 });
 
+await ok("the picks a place's obstacle states are seeded only through the options the caller passes", () => {
+  const places = [place("P1", "Pool", [obstacle("thing-1", "swim", { penaltyPick: "larger", penaltyLarger: 15, movement: "running", judgeMod: 2 }), condition("thing-2", "waterRough")])];
+  assert.deepEqual(seedForThing(places, hazardKeyOf, "P1", "thing-1", { penaltyPicks: ["none", "larger"] }), { kind: "swim", setup: { penaltyPick: "larger", penaltyLarger: 15, waterRough: true } });
+  assert.deepEqual(seedForThing(places, hazardKeyOf, "P1", "thing-1").setup, { waterRough: true }, "no options, no pick");
+  const squeeze = [place("P1", "Gap", [obstacle("thing-1", "squeeze", { shape: "squeeze" })])];
+  assert.deepEqual(seedForThing(squeeze, hazardKeyOf, "P1", "thing-1"), { kind: "squeeze", setup: { shape: "squeeze" } });
+});
+
 await ok("a place the party has left, a thing that is gone or one that is no obstacle seeds nothing", () => {
   const stands = [place("P1", "Pit", [obstacle("thing-1", "sheerClimb"), condition("thing-2", "ropeFixed")])];
   assert.equal(seedForThing(stands, hazardKeyOf, "P9", "thing-1"), null, "not under the party now");
@@ -254,7 +264,7 @@ function stand() {
   globalThis.acksExtras = { location: { scenes: { locationOfRegion: (region) => ({ rA: placeA, rB: placeB })[region.name] ?? null } } };
   globalThis.fromUuid = async (ref) => ({ type: "acks-extras.hazard", system: { key: ref.split(".").pop() } });
   globalThis.ChatMessage = { create: async (message) => { posted.push(message); return message; } };
-  return { posted, party, formation, inside, regionA };
+  return { posted, party, formation, inside, regionA, placeA };
 }
 const wall = (outcome) => ({ outcome, placement: { kind: "wall" } });
 
@@ -316,6 +326,41 @@ await ok("Begin seeds the crossing from the place's figures and the conditions o
   assert.deepEqual([w.crossing().kind, w.crossing().length, w.crossing().ropeFixed, w.crossing().waterFast], ["sheerClimb", 40, true, undefined], "the climb takes its length and its place's rope, and not the water of the place beside it");
   assert.equal(w.party.sheet.rendered, 1);
   assert.equal(w.asked.length, 0, "no crossing was open, so no question");
+});
+
+await ok("Begin opens a squeeze in the shape the place states and a swim at the penalty pick it states", async () => {
+  const squeeze = press();
+  squeeze.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "squeeze", { shape: "squeeze", length: 12 })];
+  assert.deepEqual(await pressBegin(squeeze.ids), { ok: true });
+  assert.deepEqual([squeeze.crossing().kind, squeeze.crossing().shape, squeeze.crossing().length], ["squeeze", "squeeze", 12]);
+
+  const blank = press();
+  blank.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "squeeze", { shape: "tight" })];
+  assert.deepEqual(await pressBegin(blank.ids), { ok: true });
+  assert.equal(blank.crossing().shape, "chokepoint", "a shape the place cannot state leaves the crossing's own default");
+
+  const swim = press();
+  swim.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "swim", { penaltyPick: "larger", penaltyLarger: 15, movement: "running" })];
+  assert.deepEqual(await pressBegin(swim.ids), { ok: true });
+  assert.deepEqual([swim.crossing().kind, swim.crossing().penaltyPick, swim.crossing().penaltyLarger, swim.crossing().movement], ["swim", "larger", 15, "combat"], "the movement is the table's");
+
+  const unlisted = press();
+  unlisted.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "swim", { penaltyPick: "7" })];
+  assert.deepEqual(await pressBegin(unlisted.ids), { ok: true });
+  assert.equal(unlisted.crossing().penaltyPick, "none", "with no steps imported a step pick is no valid pick");
+
+  registerTable({ id: FORMATION_DOC, source: "invented", tables: { swimWaterPenaltySteps: [7, 12.5] } }, { priority: PRIORITY.WORLD, source: "test" });
+  try {
+    const listed = press();
+    listed.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "swim", { penaltyPick: "12.5" })];
+    assert.deepEqual(await pressBegin(listed.ids), { ok: true });
+    assert.equal(listed.crossing().penaltyPick, "12.5", "a step the world imports is a valid pick at the press");
+
+    const gone = press();
+    gone.placeA.flags["acks-extras.things"] = [raw("thing-1", "obstacle", "swim", { penaltyPick: "9" })];
+    assert.deepEqual(await pressBegin(gone.ids), { ok: true });
+    assert.equal(gone.crossing().penaltyPick, "none", "a step the world does not import is not");
+  } finally { resetTables(); }
 });
 
 await ok("Begin refuses a player's seat, a place the party has left and a thing that is gone, and writes nothing", async () => {
