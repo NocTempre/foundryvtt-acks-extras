@@ -28,6 +28,7 @@ import {
   parseStretchFeet, parseWaterPenaltySteps, signedFigures, assembleSpelunkingOutcomes, parseOutcomeCell,
   parseVulnerableCell, parseBotchRange, parseDexBands, parseDexCap, parseProgressCell, PROGRESS_SPEED_WORDS,
   assemblePaceRates, parsePaceBase, parsePaceRates, PACE_SPEED_WORDS,
+  assembleBash, assembleDoors, parseDoorBatter, parseSignedMagnitude,
 } from "../scripts/importer/formation-binding.mjs";
 import { assembleTravelTables, parseNavigationBonus } from "../scripts/importer/travel-binding.mjs";
 import { FORMATION_DOC, carriedBody, formationValue, restEnforced, restInterval } from "../scripts/formation/constants.mjs";
@@ -390,9 +391,11 @@ const TRAP_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => TRAP_PRO
 const SQUEEZE_PROSE_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => PRODUCES[FORMATION_DOC_ID][k] === "squeezingProse");
 const PACE_KEYS = ["climbPacePenalties", "crawlPacePenalties", "balancePacePenalties"];
 const RATE_KEYS = ["climbPaceRates", "crawlPaceRates", "balancePaceRates"];
+const DOOR_PROSE = ["doorGrid", "bashProse"];
+const DOOR_KEYS = Object.keys(PRODUCES[FORMATION_DOC_ID]).filter((k) => DOOR_PROSE.includes(PRODUCES[FORMATION_DOC_ID][k]));
 eq("all eight figures assemble from the recipes' windows", Object.keys(engine).sort(),
   Object.keys(PRODUCES[FORMATION_DOC_ID])
-    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS, ...RATE_KEYS].includes(k)).sort());
+    .filter((k) => !["jumping", "fall", "spelunking", "spelunkingOutcomes", ...FRONTAGE_KEYS, ...TRAP_KEYS, ...SQUEEZE_PROSE_KEYS, ...PACE_KEYS, ...RATE_KEYS, ...DOOR_KEYS].includes(k)).sort());
 eq("the water penalty sizes, three conditions named and two sizes printed", engine.swimWaterPenaltySteps, [6, 11]);
 check("the proficiency bonus", engine.swimmingBonus === 3);
 check("the swimmer's share of speed", near(engine.swimSpeedShare, 1 / 3));
@@ -789,6 +792,104 @@ function actor(id, abilities = []) {
   game.actors.set(id, a);
   return a;
 }
+
+/* --- the doors: invented pages through the door grid and the bash recipes ----- */
+// The bash paragraph runs down the left column. Every figure here differs from
+// every other (the size bonus from the size penalty, the pair's bonus from the
+// crowbar's), so a window that read its neighbour's figure cannot pass; the
+// strength figure carries the plus-or-minus mark the page prints.
+const BASH_PAGE = [
+  "Gnomes tally a latch thus: modify the result of the die roll by ±6 for each point.",
+  "A gnome shoulders in beside the stronger character’s kin, +3 for the pair. A gnome equipped with a crowbar gains +5 more.",
+  "Giants gain a further +9 for each tier up, and by the category above the gnome, a -11 for each tier down.",
+  "A gnome rolls a Dungeonbashing throw, at a -7 per extra peg. A gate can hold a maximum of 5 pegs.",
+  "A bad toss fails on an unmodified 1-2, and the gnome limps off with a painful grunt, suffering 3 bruises.",
+];
+const bashRaw = extractTable(leftPage(BASH_PAGE), recipes.bashProse);
+const BASH_KEYS = ["bashStrengthFactor", "bashPairBonus", "bashCrowbarBonus", "bashSizeBonus", "bashSizePenalty", "bashSpikePenalty", "doorSpikeMax", "bashBotchBand", "bashReboundDamage"];
+eq("every window of the bash recipe reads from the invented page", Object.keys(bashRaw).sort(),
+  ["botch", "crowbar", "pair", "rebound", "sizeDown", "sizeUp", "spike", "spikeMax", "strength"]);
+eq("each bash figure reads from its own window", assembleBash(bashRaw), {
+  bashStrengthFactor: 6, bashPairBonus: 3, bashCrowbarBonus: 5, bashSizeBonus: 9, bashSizePenalty: 11,
+  bashSpikePenalty: 7, doorSpikeMax: 5, bashBotchBand: 2, bashReboundDamage: 3,
+});
+eq("every bash figure is produced from the one passage", BASH_KEYS.map((k) => PRODUCES[FORMATION_DOC_ID][k]), BASH_KEYS.map(() => "bashProse"));
+eq("the bash recipe cites the page its paragraph prints on", recipes.bashProse.printedPage, 267);
+eq("the bash recipe reads the left column only: a right-hand paragraph's figure is never taken",
+  assembleBash(extractTable([...leftPage(BASH_PAGE.slice(0, 1)), { x: 340, y: 90, str: "A gate can hold a maximum of 2 pegs." }], recipes.bashProse)), {
+    bashStrengthFactor: 6,
+  });
+eq("a window that drifted costs its own figure and nothing beside it",
+  Object.keys(assembleBash({ ...bashRaw, sizeDown: " somewhat less" })).sort(), BASH_KEYS.filter((k) => k !== "bashSizePenalty").sort());
+eq("a modifier is read as a magnitude whatever its sign, and a mark is required",
+  [" ±6. then", " +3 and", " -11 penalty", " −4 penalty", " 6 and no mark", " +0", " ±0", "", undefined].map(parseSignedMagnitude), [6, 3, 11, 4, null, null, null, null, null]);
+eq("a figure past the full stop is the next rule's", parseSignedMagnitude(" about as before. +5 more"), null);
+eq("a count of spikes or of damage is a whole figure above zero, in digits or words",
+  [assembleBash({ spikeMax: " 5 spikes", rebound: " two damage." }), assembleBash({ spikeMax: " 0 spikes", rebound: " no damage" }), assembleBash({ spikeMax: " 2.5 spikes" })],
+  [{ doorSpikeMax: 5, bashReboundDamage: 2 }, {}, {}]);
+eq("a botch band reads as its top and starts at the die's lowest", [assembleBash({ botch: " 1-3, the gnome" }), assembleBash({ botch: " 2-3, the gnome" })], [{ bashBotchBand: 3 }, {}]);
+eq("nothing assembles from an absent bash passage", [assembleBash(), assembleBash({}), assembleFormationTables({ restProse: raw.restProse })].map((o) => BASH_KEYS.filter((k) => k in o)), [[], [], []]);
+
+// The door grid: a title above the header, the header, rows with label runs left
+// of the cells, a figure under the armour class and hit point columns that no
+// reader wants, and a second table below. One label is split by a small-capital
+// initial, two doors share a name, one note has no time, and one has a time
+// and no tool.
+const GRID_X = { ac: 244, shp: 266, notes: 291 };
+const doorRow = (y, label, notes) => [
+  ...[].concat(label).map((run) => ({ y, ...run })),
+  { x: GRID_X.ac, y, str: "9" },
+  { x: GRID_X.shp, y, str: "8" },
+  { x: GRID_X.notes, y, str: notes },
+];
+const DOOR_PAGE = [
+  { x: 45, y: 80, str: "Gnome Door Table" },
+  { x: 60, y: 90, str: "Stray label above the header" },
+  { x: 214, y: 100, str: "Door" }, { x: 244, y: 100, str: "AC" }, { x: 266, y: 100, str: "SHP" }, { x: 298, y: 100, str: "Notes" },
+  ...doorRow(112, { x: 60, str: "Tin Hatch (3’ × 3’, 40 lbs)" }, "Cracks in the cold"),
+  ...doorRow(123, { x: 60, str: "Tin Hatch (4’ × 4’, 90 lbs)" }, "Dented in 4 rounds with mallet, else leave it"),
+  ...doorRow(134, [{ x: 60, str: "r", w: 5 }, { x: 65.5, str: "eed Screen" }], "Torn in two turns with a pick, or burn it"),
+  ...doorRow(145, { x: 60, str: "Moat Gate" }, "Hauled up in 6 turns by any crew"),
+  ...doorRow(156, { x: 60, str: "Hung Bell" }, "Rung in 5 turns"),
+  { x: 45, y: 180, str: "Opening Door Method Table" },
+  { x: 60, y: 195, str: "Use Latch" }, { x: 140, y: 195, str: "1 action" },
+  { x: 60, y: 206, str: "Time Needed" }, { x: 140, y: 206, str: "1 round" },
+];
+const doorRaw = { doorGrid: extractTable(DOOR_PAGE, recipes.doorGrid) };
+eq("the grid claims the rows between the header and the next table, keyed by ordinal",
+  Object.keys(doorRaw.doorGrid), ["door1", "door2", "door3", "door4", "door5"]);
+eq("each row keeps its printed label and its notes cell whole, and nothing from the figure columns",
+  Object.values(doorRaw.doorGrid).map((r) => Object.keys(r).sort()), Array(5).fill(["label", "notes"]));
+eq("the doors table is the rows in print order, each with its batter parsed from its own notes", assembleDoors(doorRaw.doorGrid), [
+  { ordinal: 1, label: "Tin Hatch (3’ × 3’, 40 lbs)", batter: null },
+  { ordinal: 2, label: "Tin Hatch (4’ × 4’, 90 lbs)", batter: { count: 4, unit: "round", tool: "mallet" } },
+  { ordinal: 3, label: "Reed Screen", batter: { count: 2, unit: "turn", tool: "pick" } },
+  { ordinal: 4, label: "Moat Gate", batter: null },
+  { ordinal: 5, label: "Hung Bell", batter: null },
+]);
+eq("a name two rows share keeps both rows", assembleDoors(doorRaw.doorGrid).filter((r) => r.label.startsWith("Tin Hatch")).map((r) => r.ordinal), [1, 2]);
+eq("assembleDoors is what the binding calls, beside the bash figures",
+  assembleFormationTables({ ...doorRaw, bashProse: bashRaw }), { ...assembleBash(bashRaw), doors: assembleDoors(doorRaw.doorGrid) });
+eq("the doors table is produced from the grid, which cites its own page",
+  [PRODUCES[FORMATION_DOC_ID].doors, recipes.doorGrid.printedPage], ["doorGrid", 266]);
+eq("the formation document cites the grid's page beside the others",
+  /(?:^|[,;]\s*)RR 266(?:$|[,;])/.test(TABLE_RECIPES.formation.source.pages), true);
+eq("a batter is a count of turns or rounds with a tool, and nothing else is one",
+  [" broken in five turns with an adze", " in 3 rounds with the ram", " in 2 turns with any cart", " in 3 turns", " in 0 turns with an adze", " in 2 hours with an adze",
+    " nothing doing", "", undefined].map(parseDoorBatter),
+  [{ count: 5, unit: "turn", tool: "adze" }, { count: 3, unit: "round", tool: "ram" }, { count: 2, unit: "turn", tool: "cart" }, null, null, null, null, null, null]);
+eq("a row with no label, or that did not read, is left out and the rest keep their ordinals",
+  assembleDoors({ door1: { __missing: true }, door2: { label: "  ", notes: "x" }, door3: { label: "Kept Gate", notes: "in 2 turns with a bar" }, door10: { label: "Last Gate" }, other: { label: "Not A Door" } }),
+  [{ ordinal: 3, label: "Kept Gate", batter: { count: 2, unit: "turn", tool: "bar" } }, { ordinal: 10, label: "Last Gate", batter: null }]);
+eq("nothing assembles from an absent grid", [assembleDoors(), assembleDoors({}), "doors" in assembleFormationTables({ restProse: raw.restProse })], [[], [], false]);
+// The two read through the registry like every other figure: blank until
+// imported, the import's layer under a Judge's override.
+eq("with nothing registered the doors and the bash figures read null", [formationValue("doors"), ...BASH_KEYS.map((k) => formationValue(k))], Array(10).fill(null));
+registerTable({ id: FORMATION_DOC_ID, tables: assembleFormationTables({ ...doorRaw, bashProse: bashRaw }) }, { priority: PRIORITY.WORLD });
+eq("imported, a figure reads through", [formationValue("doorSpikeMax"), formationValue("doors").length], [5, 5]);
+registerTable({ id: FORMATION_DOC_ID, tables: { doorSpikeMax: 8 } }, { priority: PRIORITY.OVERRIDE });
+eq("a Judge's override wins its own figure and leaves the others", [formationValue("doorSpikeMax"), formationValue("bashPairBonus")], [8, 3]);
+unregisterTable(FORMATION_DOC_ID);
 
 /* --- the marching order's competence, priced by the imported row ----------- */
 actor("navigator", ["Navigation"]);

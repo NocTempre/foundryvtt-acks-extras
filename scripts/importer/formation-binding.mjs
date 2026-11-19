@@ -37,7 +37,14 @@
  * pp. 269-270) give three pairs (`assemblePacePenalties`): the two penalties a
  * climb, a crawling traverse and a balancing traverse each price a faster pace
  * at, in printed order, the pace nearer the base one first, and the same
- * paragraphs give the speed each pace moves at (`assemblePaceRates`).
+ * paragraphs give the speed each pace moves at (`assemblePaceRates`). The Doors
+ * section (RR pp. 266-267) gives the `doors` table, one row per door or portal
+ * of the grid (`assembleDoors`), and nine bash figures, one window each
+ * (`assembleBash`): what a point of Strength is worth, the pair's and the
+ * crowbar's bonuses, the bonus above and the penalty below man-sized, the
+ * spike's penalty and the most spikes a door holds, the unmodified result that
+ * is a botch and the damage the rebound deals. The bash target is the
+ * character's own Adventuring throw and is not read here.
  *
  * Each figure is read out of a short window of prose and parsed here, once. A
  * window that did not read leaves its key absent, so the reader reports that
@@ -97,6 +104,16 @@ export const PRODUCES = Object.freeze({
     climbPaceRates: "climbPaceProse",
     crawlPaceRates: "crawlPaceProse",
     balancePaceRates: "balancePaceProse",
+    doors: "doorGrid",
+    bashStrengthFactor: "bashProse",
+    bashPairBonus: "bashProse",
+    bashCrowbarBonus: "bashProse",
+    bashSizeBonus: "bashProse",
+    bashSizePenalty: "bashProse",
+    bashSpikePenalty: "bashProse",
+    doorSpikeMax: "bashProse",
+    bashBotchBand: "bashProse",
+    bashReboundDamage: "bashProse",
   },
 });
 
@@ -789,8 +806,95 @@ export function assemblePaceRates(raw = {}) {
   return out;
 }
 
+/**
+ * A modifier's size as a magnitude, the sign dropped: the first figure of the
+ * window's first sentence that carries a plus, a minus or a plus-or-minus mark.
+ * A figure with no mark is not read, and a size of nothing is none. Null when
+ * the sentence prints none.
+ */
+export function parseSignedMagnitude(window) {
+  const m = /[±+\-−]\s?(\d+(?:\.\d+)?)/.exec(firstSentence(window));
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+/** A whole figure above zero from the window's first sentence: its first count, digits or a number word; null when none. */
+function parseWholeCount(window) {
+  const n = firstCount(firstSentence(window));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+/**
+ * The bash paragraph's figures, each on its own so a window that drifted costs
+ * that figure and nothing beside it. Sizes are magnitudes: the sign a size is
+ * printed with says whether it helps the basher or hinders, which the consumer's
+ * procedure already knows. Keys: `bashStrengthFactor` (per point of Strength
+ * modifier), `bashPairBonus`, `bashCrowbarBonus`, `bashSizeBonus` (per size
+ * category above man-sized), `bashSizePenalty` (per size category below it),
+ * `bashSpikePenalty` (per spike after the first), `doorSpikeMax`,
+ * `bashBotchBand` (the top of the unmodified results that are a botch, read as
+ * a trap's band is) and `bashReboundDamage` (what a botch costs the basher).
+ */
+export function assembleBash(raw = {}) {
+  const out = {};
+  const set = (key, value) => {
+    if (value != null) out[key] = value;
+  };
+  set("bashStrengthFactor", parseSignedMagnitude(raw.strength));
+  set("bashPairBonus", parseSignedMagnitude(raw.pair));
+  set("bashCrowbarBonus", parseSignedMagnitude(raw.crowbar));
+  set("bashSizeBonus", parseSignedMagnitude(raw.sizeUp));
+  set("bashSizePenalty", parseSignedMagnitude(raw.sizeDown));
+  set("bashSpikePenalty", parseSignedMagnitude(raw.spike));
+  set("doorSpikeMax", parseWholeCount(raw.spikeMax));
+  set("bashBotchBand", parseBandTop(raw.botch));
+  set("bashReboundDamage", parseWholeCount(raw.rebound));
+  return out;
+}
+
+/**
+ * What a door's notes cell says about battering it down: `{count, unit, tool}`,
+ * the count of turns or rounds it takes, that unit's name (`"turn"` or
+ * `"round"`) and the tool word the cell names, lowercased and as printed. Null
+ * for a cell that names no such time with a tool (a door the grid gives no time
+ * for), so no batter is ever guessed for it. The tool is the page's word:
+ * the consumer decides which tools it prices.
+ *
+ * @returns {{count: number, unit: string, tool: string}|null}
+ */
+export function parseDoorBatter(cell) {
+  const m = new RegExp(String.raw`\bin\s+(${COUNT})\s+(turn|round)s?\s+with\s+(?:(?:an?|any|the)\s+)?([a-z]+)`).exec(cellText(cell));
+  const count = m ? parseCount(m[1]) : null;
+  return m && Number.isFinite(count) && count > 0 ? { count, unit: m[2], tool: m[3] } : null;
+}
+
+/**
+ * The `doors` table from the door grid: an array of rows in print order, each
+ * `{ordinal, label, batter}`. `ordinal` is the row's place in the grid, counted
+ * from one; it and `label`, the printed construction as the grid words it,
+ * together name a door (two rows may share a name, so neither stands alone).
+ * `batter` is `parseDoorBatter` of the row's notes cell.
+ * A row with no label, or one that did not read, is left out; the grid's armour
+ * class and structural hit points are not read.
+ */
+export function assembleDoors(grid = {}) {
+  const rows = [];
+  const keys = Object.keys(grid)
+    .map((key) => /^door(\d+)$/.exec(key))
+    .filter(Boolean)
+    .map((m) => ({ key: m[0], n: Number(m[1]) }))
+    .sort((a, b) => a.n - b.n);
+  for (const { key, n } of keys) {
+    const row = grid[key];
+    const label = typeof row?.label === "string" ? row.label.replace(/\s+/g, " ").trim() : "";
+    if (!label || row.__missing) continue;
+    rows.push({ ordinal: n, label, batter: parseDoorBatter(row.notes) });
+  }
+  return rows;
+}
+
 /* ------------------------------------------------------------------ */
-/*  Assembly                                                           */
+/*  Assembly                                                         */
 /* ------------------------------------------------------------------ */
 
 /**
@@ -847,6 +951,9 @@ export function assembleFormationTables(raw = {}) {
   Object.assign(out, assembleSqueezing(raw.squeezingProse));
   Object.assign(out, assemblePacePenalties(raw));
   Object.assign(out, assemblePaceRates(raw));
+  Object.assign(out, assembleBash(raw.bashProse));
+  const doors = assembleDoors(raw.doorGrid);
+  if (doors.length) out.doors = doors;
 
   return out;
 }

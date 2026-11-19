@@ -34,7 +34,7 @@ import { SIZES } from "../../scripts/monsters/config.mjs";
 import { SIZE_ORDER } from "../../scripts/monsters/natural-weapons.mjs";
 import { DAMAGE_TYPES } from "../../scripts/lib/vocab.mjs";
 import { parseArmourLimits } from "../../scripts/equipment/armour-limits.mjs";
-import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, parseDie } from "../../scripts/importer/formation-binding.mjs";
+import { SPELUNKING_COLUMNS, assembleFall, assembleJumping, assembleSpelunking, assembleSpelunkingOutcomes, assembleSqueezing, assemblePacePenalties, assemblePaceRates, assembleBash, assembleDoors, parseDie } from "../../scripts/importer/formation-binding.mjs";
 import * as RT from "../../scripts/magic/research-tables.mjs";
 import { FILES } from "./reference-lib.mjs";
 
@@ -121,7 +121,8 @@ const TABLES = {
   "acks.classBuilder": ["thiefLimits", "tradeoffPenalty"],
   // The jumping, fall and squeezing figures, the Spelunking grids' stretch and targets
   // and their missed-throw outcomes, and the street's two dice.
-  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "climbPaceProse", "crawlPaceProse", "balancePaceProse", "spelunkingGrid", "spelunkingOutcomeGrid"],
+  // The door grid and the bash paragraph likewise.
+  formation: ["jumpingProse", "jumpingLandingProse", "squeezingProse", "climbPaceProse", "crawlPaceProse", "balancePaceProse", "spelunkingGrid", "spelunkingOutcomeGrid", "doorGrid", "bashProse"],
   cityTravel: ["streetDieProse", "afterDarkProse"],
   // The cultures' name lists and appearance palettes, each read by the keys of
   // its page; a culture's name list may be in a supplement. The supplement's
@@ -788,6 +789,44 @@ VERIFY["formation.spelunkingOutcomeGrid"] = (out, recipe, fail) => {
   if (!counted.length) fail("rounds: no outcome cell reads a duration");
   if (counted.some((cell) => !(Number.isInteger(cell.rounds) && cell.rounds > 0))) fail("rounds: not a positive whole number");
   if (counted.some((cell) => !/round/i.test(cell.text))) fail("rounds: read from a cell that names no round");
+};
+// The door grid: the rows are minted by ordinal over a generic run, so the run
+// must not be exhausted; every row read holds a label and a notes cell, the
+// binding keeps every one, ordinals are the rows' places in print order, and a
+// batter, where a notes cell names one, is a count of turns or rounds with a
+// tool word. The grid prints a batter for some doors and none for others. Shape
+// only; no door, count or tool is named.
+VERIFY["formation.doorGrid"] = (out, recipe, fail) => {
+  const rows = Object.entries(out ?? {}).filter(([, row]) => !isMissingRow(row));
+  if (rows.length < 2) fail("fewer than two door rows read");
+  if (rows.length >= recipe.rows.length) fail("as many rows as specs: the run may have stopped short");
+  rows.forEach(([key, row], i) => {
+    if (key !== `door${i + 1}`) fail(`${key}: not the ordinal of its place`);
+    if (!isText(row.label) || row.label.length > 120) fail(`${key}: label empty or too long to be one row's`);
+    if (!isText(row.notes)) fail(`${key}: notes cell empty or non-text`);
+  });
+  const doors = assembleDoors(out);
+  if (doors.length !== rows.length) fail("the binding keeps fewer rows than the grid read");
+  doors.forEach((d, i) => { if (d.ordinal !== i + 1) fail(`row ${i + 1}: ordinal is not its place`); });
+  if (new Set(doors.map((d) => `${d.ordinal} ${d.label}`)).size !== doors.length) fail("two rows share an ordinal and label");
+  const batters = doors.filter((d) => d.batter);
+  if (!batters.length) fail("no row names a batter");
+  if (batters.length === doors.length) fail("every row names a batter: a notes cell may have welded another's");
+  for (const { ordinal, batter } of batters) {
+    if (!(Number.isInteger(batter.count) && batter.count > 0)) fail(`row ${ordinal}: batter count is not a positive whole number`);
+    if (!["turn", "round"].includes(batter.unit)) fail(`row ${ordinal}: batter unit is neither turn nor round`);
+    if (!isText(batter.tool)) fail(`row ${ordinal}: batter tool is empty`);
+  }
+};
+// The bash paragraph: every window reads through the binding's own parsers into
+// its figure, each a whole number or a magnitude above zero. Shape only; no
+// figure is named.
+VERIFY["formation.bashProse"] = (out, recipe, fail) => {
+  proseKeys(out, recipe, fail);
+  const figures = assembleBash(out);
+  missingFigures(figures, ["bashStrengthFactor", "bashPairBonus", "bashCrowbarBonus", "bashSizeBonus", "bashSizePenalty", "bashSpikePenalty", "doorSpikeMax", "bashBotchBand", "bashReboundDamage"], fail);
+  for (const [key, n] of Object.entries(figures)) if (!(n > 0)) fail(`${key}: not above zero`);
+  for (const key of ["doorSpikeMax", "bashBotchBand", "bashReboundDamage"]) if (figures[key] !== undefined && !Number.isInteger(figures[key])) fail(`${key}: not a whole number`);
 };
 // The street's two dice: each window must name a die the binding rebuilds.
 VERIFY["cityTravel.streetDieProse"] = (out, recipe, fail) => {

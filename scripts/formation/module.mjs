@@ -401,6 +401,10 @@ Hooks.once("init", () => {
     "climbPacePenalties", "crawlPacePenalties", "balancePacePenalties",
     // The speed each of those paces, and the base one, moves at (`assemblePaceRates`, `climb-pace.mjs` `paceRates`).
     "climbPaceRates", "crawlPaceRates", "balancePaceRates",
+    // The doors: the grid's rows with each one's batter time and tool, and the bash paragraph's
+    // modifiers, spike limit, botch band and rebound (`assembleDoors`, `assembleBash`).
+    "doors", "bashStrengthFactor", "bashPairBonus", "bashCrowbarBonus", "bashSizeBonus", "bashSizePenalty",
+    "bashSpikePenalty", "doorSpikeMax", "bashBotchBand", "bashReboundDamage",
   ]);
   // The delve's wandering throw (`getEncounterParams`): with no die and target
   // no throw is made, and with no dice no distance is rolled.
