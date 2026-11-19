@@ -10330,6 +10330,8 @@
   "ACKS-MAGIC.cast.row.createObject": "Create object",
   "ACKS-MAGIC.cast.row.wall": "Wall",
   "ACKS-MAGIC.cast.row.afflictionDelay": "Affliction delayed",
+  "ACKS-MAGIC.cast.row.purify": "Purify",
+  "ACKS-MAGIC.cast.row.seal": "Seal",
   "ACKS-MAGIC.cast.detail.weapon": "Weapon: {name}",
   "ACKS-MAGIC.cast.detail.destroyed": "Destroyed: {name}",
   "ACKS-MAGIC.cast.detail.weaponKept": "Weapon kept: {name}",

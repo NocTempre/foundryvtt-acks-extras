@@ -197,6 +197,18 @@ t("a repair replaces the register's rows from the fresh bind and keeps a Judge's
   assert.deepEqual(rowsAfter(plan), [judge, register("2d2"), register("3d3"), edited0]);
 });
 
+t("a row's effects list rides the recipe through materialization, bindSpell and a repair, beside a located field", () => {
+  const spec = { key: "hold", type: "afflictionDelay", appliesTo: "recipient", effects: ["disease", "poison"], lasts: "duration", onMiss: "blank", from: [{ into: "value", pattern: "with\\s*a\\s*(\\d+)\\W+\\s*radius" }] };
+  assert.deepEqual(spellRecipeProblems({ effects: [spec] }), []);
+  const [made] = materializeEffects([spec], PROSE);
+  assert.deepEqual(made.effects, ["disease", "poison"]);
+  assert.deepEqual(made.value, { kind: "flat", flat: 15 }, "the located field rides beside it");
+  const bound = bindSpell(entryFor([spec], null), nodeFor([spec], null), "def.spell.glimmerfrost").flags[MODULE_ID].spell.effects[0];
+  assert.deepEqual([bound.effects, bound.type, bound.origin], [["disease", "poison"], "afflictionDelay", "register"]);
+  const plan = refreshPlan(stored([{ ...bound, effects: ["disease"] }]), freshBuild([bound]), REPAIR.spell);
+  assert.deepEqual(rowsAfter(plan)[0].effects, ["disease", "poison"], "the register's row replaces the stored one whole");
+});
+
 t("a stamped row with no key is replaced, and so is one whose key the build no longer has", () => {
   const { rows, kept } = mergeRowsByOrigin([register("1d1"), judge, reg("gone", "5d5")], [reg("a", "2d2"), reg("b", "3d3")]);
   assert.deepEqual(rows, [reg("a", "2d2"), reg("b", "3d3"), judge]);

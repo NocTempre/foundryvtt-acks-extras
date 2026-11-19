@@ -2528,7 +2528,18 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "delay",
+        "type": "afflictionDelay",
+        "appliesTo": "recipient",
+        "effects": [
+          "disease"
+        ],
+        "lasts": "duration"
+      }
+    ]
   },
   {
     "id": "def.spell.delayPoison",
@@ -5488,7 +5499,15 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "sense",
+        "type": "detect",
+        "appliesTo": "area",
+        "lasts": "duration"
+      }
+    ]
   },
   {
     "id": "def.spell.locateDistantObject",
@@ -6213,7 +6232,43 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "water",
+        "type": "purify",
+        "appliesTo": "area",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "value",
+            "pattern": "(\\d+)\\s*gallons\\s*of\\s*water"
+          }
+        ],
+        "note": "water",
+        "noteFrom": {
+          "pattern": "\\d+\\s*(gallons\\s*of\\s*water)"
+        }
+      },
+      {
+        "key": "food",
+        "type": "purify",
+        "appliesTo": "area",
+        "lasts": "instant",
+        "onMiss": "blank",
+        "from": [
+          {
+            "into": "value",
+            "pattern": "(\\d+)\\s*lbs?\\.?\\s*of\\s*food"
+          }
+        ],
+        "note": "food",
+        "noteFrom": {
+          "pattern": "\\d+\\s*(lbs?\\.?\\s*of\\s*food)"
+        }
+      }
+    ]
   },
   {
     "id": "def.spell.quest",
@@ -6701,7 +6756,15 @@
         72,
         329
       ]
-    }
+    },
+    "effects": [
+      {
+        "key": "seal",
+        "type": "seal",
+        "appliesTo": "target",
+        "lasts": "duration"
+      }
+    ]
   },
   {
     "id": "def.spell.selectiveFire",

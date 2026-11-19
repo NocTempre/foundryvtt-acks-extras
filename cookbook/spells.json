@@ -11986,6 +11986,20 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "delay",
+              "type": "afflictionDelay",
+              "appliesTo": "recipient",
+              "effects": [
+                "disease"
+              ],
+              "lasts": "duration"
+            }
+          ]
         }
       }
     },
@@ -23520,6 +23534,17 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "sense",
+              "type": "detect",
+              "appliesTo": "area",
+              "lasts": "duration"
+            }
+          ]
         }
       }
     },
@@ -26564,6 +26589,45 @@
               }
             }
           ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "water",
+              "type": "purify",
+              "appliesTo": "area",
+              "lasts": "instant",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "value",
+                  "pattern": "(\\d+)\\s*gallons\\s*of\\s*water"
+                }
+              ],
+              "note": "water",
+              "noteFrom": {
+                "pattern": "\\d+\\s*(gallons\\s*of\\s*water)"
+              }
+            },
+            {
+              "key": "food",
+              "type": "purify",
+              "appliesTo": "area",
+              "lasts": "instant",
+              "onMiss": "blank",
+              "from": [
+                {
+                  "into": "value",
+                  "pattern": "(\\d+)\\s*lbs?\\.?\\s*of\\s*food"
+                }
+              ],
+              "note": "food",
+              "noteFrom": {
+                "pattern": "\\d+\\s*(lbs?\\.?\\s*of\\s*food)"
+              }
+            }
+          ]
         }
       }
     },
@@ -28953,6 +29017,17 @@
                   7
                 ]
               }
+            }
+          ]
+        },
+        "effects": {
+          "op": "effects",
+          "specs": [
+            {
+              "key": "seal",
+              "type": "seal",
+              "appliesTo": "target",
+              "lasts": "duration"
             }
           ]
         }
