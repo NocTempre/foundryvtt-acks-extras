@@ -107,3 +107,5 @@ questions, ruled"): 2 and 4a before 1b.
   "Creating Magic Items" and "Proficiencies and Powers"), each add to the
   research throw by a printed size. Neither is imported or read; when built,
   the size is a register row and the throw names it as a part.
+- **A range ring while summons are placed.** Board 21 of the cast canvas (approved by the owner, "Build it now", then moved out of the 2026-11-19 minor: "no new surfaces") draws a dashed ring of the spell's range around the caster's token while the seat clicks the summons' points, with a counting banner. The range check itself is built (lib `pickPlacement`); the ring is not. The 1d-B rulings are in `docs/magic/wip/20261115-spell-effects-plan.md`.
+- **A reversed purify spell.** The purify entry's reverse, which spoils what its forward form cleans, has no rows: no apply kind models it.

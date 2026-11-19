@@ -4186,6 +4186,13 @@ board 24 A), and R (board 21). Owner question:
   in slice C. The delete path gets its own walk step: the tokens are gone
   and nothing else is touched.
 
+**The owner split the magic batch (2026-11-19, relayed, verbatim):** "Magic
+batch gets split, finish what's in dev and spells that use them, no new
+surfaces. Close out what's in flight." H, L, N, K1, K2, S-a, Z1, S-b, D, E,
+C and Z2 finish with the spell rows that use them. R (board 21, the range
+ring) is not started and moves to the magic ROADMAP, as does the reversed
+purify spell. Then the walk slice.
+
 ### Start prompt, session 1d-B
 
 > Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
