@@ -133,6 +133,10 @@ export async function createLocationForScene(scene) {
  */
 export async function linkRegion(region, location) {
   if (!region || !location || !game.user.isGM) return false;
+  const held = regionOfLocation(location);
+  if (held && held.uuid !== region.uuid) {
+    await held.unsetFlag(MODULE_ID, SCENE_LINK_FLAG).catch(() => null);
+  }
   const previous = locationOfRegion(region);
   if (previous && previous.uuid !== location.uuid) {
     await previous.update({ "system.regionUuid": "" }).catch(() => null);
