@@ -2839,5 +2839,10 @@ background backfill (the owner: "On first read").
   uploaded file's digest with the gate's.
 - A parse or upload that fails leaves reads opening the PDF, once per book per
   idle release, with a warning.
-- T-0675's guard, which protected the join pass that S1 removed, is dead code to
-  delete in a later slice.
+- A parse opens the PDF of its own (the saved font ids depend on the order
+  pages load, which a handle's held document no longer guarantees), so a first
+  read that also reads pixels (an `art` op, OCR, a scene map) fetches the file
+  twice: once to parse, once for the live document. After a reload the text-only
+  read fetches nothing and the pixel read fetches once.
+- `verify()` on a GM seat with no current pointer now parses, so `verifyBooks`,
+  which a repair runs before it asks to delete, can make the first parse.

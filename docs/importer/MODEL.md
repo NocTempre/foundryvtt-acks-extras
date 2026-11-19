@@ -2505,7 +2505,9 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
 
 `parsed-book.mjs` makes and reads a shelved book's text layer. A GM seat parses
 a book once; every seat then serves a page's text from the saved file, so a
-read after the first fetches no PDF. A form is never parsed.
+text read after the first fetches no PDF. A parse opens the file separately from
+the handle's live document, so a first read that also needs pixels fetches it
+twice. A form is never parsed.
 
 - **The file.** One JSON per book, uploaded by `FilePicker.upload` to
   `acks-extras-books/parsed/<book>-<stamp>-<attempt>.json`. Header

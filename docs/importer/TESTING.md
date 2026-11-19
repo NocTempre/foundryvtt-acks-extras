@@ -1616,9 +1616,11 @@ shelf journal's pointer names, so every step counts requests.
    to log method and url, and wraps `FilePicker.upload` (the class at
    `foundry.applications.apps.FilePicker.implementation`) to log its target
    and file name. Two GM seats are needed for step 5.
-3. **The reference digest.** `node tools/importer/check-parse-parity.mjs <book>`
-   prints the sha256 of the file a parse of the reference PDF writes. It equals
-   the uploaded file's only where the fixture's PDF is that same printing.
+3. **The reference digest.** `node tools/importer/check-parse-parity.mjs --src
+   <the PDF page's src> <book>` prints the sha256 of the file a parse of the
+   reference PDF writes. The file's header names the PDF's path and size, so it
+   equals the uploaded file's only with the journal's own `src` and where the
+   fixture's PDF is that same printing.
 
 ### Steps
 
@@ -1626,16 +1628,18 @@ shelf journal's pointer names, so every step counts requests.
    "fixture") === "importer/parse-fresh").getFlag("acks-extras", "parsed")`.
    *Observable:* undefined, or its `src` is not the PDF page's current path.
 2. As a GM, run an import that reads the fixture's book (the shelf recipe's
-   step 7). *Observable:* one `GET` of the fixture's `.pdf` for the whole
-   import, however many entries it reads; one `upload` into
+   step 7), over entries with no `art` or `ocr` field: those open the PDF
+   live as well, one more `GET` of the same path, which this step counts apart.
+   *Observable:* one `GET` of the fixture's `.pdf` for the whole import, however
+   many entries it reads (the parse's); one `upload` into
    `acks-extras-books/parsed` of `<book>-<stamp>-<attempt>.json`; and the pointer
    now reads `{stamp, file, src, bytes, numPages, title}` with `src` the PDF page's
    path, `bytes` the file's size on disk and `file` the uploaded path. The
    imported documents are as with a book read live. Where fixture 3 applies,
    fetch `file` and compare its sha256 with the gate's; record the node of one
    entry (`executeEntry` through `cookbookDebug`) for step 3.
-3. Reload the GM seat and run the same import. *Observable:* no `.pdf` `GET`
-   for the fixture, one `HEAD` of its path and one `GET` of the saved file, no
+3. Reload the GM seat and run the same text-only import. *Observable:* no
+   `.pdf` `GET` for the fixture, one `HEAD` of its path and one `GET` of the saved file, no
    `upload`, the pointer unchanged, and the recorded node of step 2 equal to the
    new one.
 4. Rename the Data copy so the fixture's path answers 404, and

@@ -9,7 +9,9 @@
  *   - every page's `pageItems`, deep-equal;
  *   - every cookbook entry's executed node (`ok`, `fields`, `misses`),
  *     deep-equal, through the shipping executor over a handle-shaped document
- *     whose pixel calls reach the live one, as a `BookHandle`'s do;
+ *     whose pixel calls reach the live one, as a `BookHandle`'s do. The entries
+ *     are the book's own cookbook and, from the content cookbooks (equipment,
+ *     powers, spells and the rest), every entry that names the book;
  *   - that a second parse of the same file from another open is the same file
  *     byte for byte (the digest), since racing seats must write one file.
  *
@@ -28,7 +30,12 @@
  * (reference-lib.mjs), never runs in CI, and prints counts, page numbers and
  * digests, never a run of text. Writes a book's file with `--out <dir>`.
  *
- * Usage: node tools/importer/check-parse-parity.mjs [--out dir] [book ...]   (default: rr jj)
+ * The digest covers the file's header, which names the PDF's path and size, so
+ * it equals a seat's uploaded file only for the same `--src` (the path the
+ * shelf journal's PDF page holds) and the same PDF. Without `--src` the header
+ * names `shelf/<book>.pdf`.
+ *
+ * Usage: node tools/importer/check-parse-parity.mjs [--out dir] [--src path] [book ...]   (default: rr jj)
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -44,9 +51,11 @@ const COOKBOOK = path.join(HERE, "..", "..", "cookbook");
 
 const args = process.argv.slice(2);
 let outDir = null;
+let srcArg = null;
 const books = [];
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--out") outDir = args[++i];
+  else if (args[i] === "--src") srcArg = args[++i];
   else books.push(args[i]);
 }
 if (!books.length) books.push("rr", "jj");
@@ -128,10 +137,10 @@ for (const bookId of books) {
   const bytes = fs.readFileSync(file);
   const t0 = Date.now();
   const first = await openBook(bytes, { book: bookId });
-  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title }));
+  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title }));
   await releaseDoc(first.doc);
   const secondOpen = await openBook(bytes, { book: bookId });
-  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title }));
+  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title }));
   await releaseDoc(secondOpen.doc);
   const digest = createHash("sha256").update(text).digest("hex");
   const deterministic = text === again;
@@ -167,33 +176,33 @@ for (const bookId of books) {
 
   // Every entry's node, through the shipping executor.
   const registers = JSON.parse(fs.readFileSync(path.join(COOKBOOK, "registers.json"), "utf8"));
-  const cbFile = fs
+  const cookbooks = fs
     .readdirSync(COOKBOOK)
     .filter((f) => f.endsWith(".json") && f !== "registers.json" && f !== "index.json")
     .map((f) => JSON.parse(fs.readFileSync(path.join(COOKBOOK, f), "utf8")))
-    .find((cb) => cb.book?.id === bookId);
-  if (!cbFile) {
-    console.log(`  entries: no cookbook for ${bookId}`);
-  } else {
-    const skipOps = ["art", "ocr"];
-    const liveCache = new Map();
-    const savedCache = new Map();
-    const savedDoc = handleOver(saved, live, bookId);
-    const ids = Object.keys(cbFile.entries);
-    let bad = 0;
-    const badIds = [];
+    .map((cb) => ({ cb, ids: Object.keys(cb.entries ?? {}).filter((id) => (cb.book ? cb.book.id === bookId : cb.entries[id].book === bookId)) }))
+    .filter(({ ids }) => ids.length);
+  const skipOps = ["art", "ocr"];
+  const liveCache = new Map();
+  const savedCache = new Map();
+  const savedDoc = handleOver(saved, live, bookId);
+  let total = 0;
+  let bad = 0;
+  const badIds = [];
+  for (const { cb, ids } of cookbooks) {
     for (const id of ids) {
-      const a = await executeEntry(live, cbFile, registers, id, { skipOps, pageCache: liveCache });
-      const b = await executeEntry(savedDoc, cbFile, registers, id, { skipOps, pageCache: savedCache });
+      total++;
+      const a = await executeEntry(live, cb, registers, id, { skipOps, pageCache: liveCache });
+      const b = await executeEntry(savedDoc, cb, registers, id, { skipOps, pageCache: savedCache });
       const d = firstDiff(canon({ ok: a.ok, reason: a.reason, fields: a.fields, misses: a.misses }), canon({ ok: b.ok, reason: b.reason, fields: b.fields, misses: b.misses }));
       if (d) {
         bad++;
         if (badIds.length < 10) badIds.push(`${id}${d}`);
       }
     }
-    console.log(`  entries: ${ids.length - bad}/${ids.length} nodes equal${bad ? ` — DIFFER: ${badIds.join(", ")}` : ""} (art and ocr skipped on both sides)`);
-    failures += bad;
   }
+  console.log(`  entries: ${total - bad}/${total} nodes equal across ${cookbooks.length} cookbook file(s)${bad ? ` — DIFFER: ${badIds.join(", ")}` : ""} (art and ocr skipped on both sides)`);
+  failures += bad;
   await releaseDoc(live);
 }
 
