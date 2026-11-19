@@ -89,7 +89,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-11-11 — [The encounter throw ships no house modifier](DECISIONS-through-v11.14.5.md#2026-11-11--the-encounter-throw-ships-no-house-modifier)
 - 2026-11-11 — [The mapper is vulnerable until their first free turn](DECISIONS-through-v11.14.5.md#2026-11-11--the-mapper-is-vulnerable-until-their-first-free-turn)
 - 2026-11-11 — [Mapping is two checks, read where the mapper stands](DECISIONS-through-v11.14.5.md#2026-11-11--mapping-is-two-checks-read-where-the-mapper-stands)
-- 2026-11-11 — [The turn plan is the party's, and only Turn and Rest resolve it](DECISIONS-through-v11.14.5.md#2026-11-11--the-turn-plan-is-the-partys-and-only-turn-and-rest-resolve-it)
+- 2026-11-11 — [The turn plan is the party's, and only Turn and Rest resolve it](DECISIONS-through-v11.14.5.md#2026-11-11--the-turn-plan-is-the-partys-and-only-turn-and-rest-resolve-it) — superseded in part by "2026-11-18 — A round-length activity resolves on the Round press"
 - 2026-11-11 — [A monster henchman's share of Deal XP is credited to its own record](DECISIONS-through-v11.14.5.md#2026-11-11--a-monster-henchmans-share-of-deal-xp-is-credited-to-its-own-record)
 - 2026-11-11 — [A speed under a load is the system's, and a table change repaints the column](DECISIONS-through-v11.14.5.md#2026-11-11--a-speed-under-a-load-is-the-systems-and-a-table-change-repaints-the-column)
 - 2026-11-11 — [No maximum encumbrance where core derived none](DECISIONS-through-v11.14.5.md#2026-11-11--no-maximum-encumbrance-where-core-derived-none)
@@ -652,4 +652,20 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 **Rejected.** A card with no headings, a hidden thing left unmarked or left off the card, and the board's bare figure beside the kind. The mark is the row's detail text and, on a condition's chip, the chip's tooltip.
 
 **Cost.** Each figure carries its param's name, so a row is wider and its lang strings are longer. A blank figure reads as a dash beside its name, never a stand-in number. The board's "Swim · depth —" is not built: the swim setup reads no length, gap or depth, so a swim row shows no figure. That is carried to H4 (ROADMAP): either drop the depth figure from that row or add the read, whichever the page supports.
+
+## 2026-11-18 — A round-length activity resolves on the Round press
+
+**Supersedes** (in part) [The turn plan is the party's, and only Turn and Rest resolve it](DECISIONS-through-v11.14.5.md#2026-11-11--the-turn-plan-is-the-partys-and-only-turn-and-rest-resolve-it) (2026-11-11), its bullet "Only the Dungeon tab's Turn and Rest a turn, and a player's rest request, resolve the plan". The rest of that entry stands: the plan is the party actor's flag, the clock is spent once and first on a Turn or Rest, movement and combat rounds never resolve anything, and a move or a fight cancels as it ruled. **Evidence:** the owner's answer of 2026-11-18 on the scene search plan, open question 2, which the 2026-11-11 entry did not have: **"B" (a hasty check resolves at once, on a Round press).** A hasty search takes a round, so it cannot wait for the turn it is a tenth of.
+
+**Ruled.** (Dungeon close-out slice R-DC6.)
+- An activity opts in with `length: "round"` on its declaration (lib keeps the field untouched; an activity with no `length` is a turn). `resolvePlanRound(formation)` resolves the plan's unstamped entries of those activities, for members who take part, and returns `runPlanTurn`'s answer shape (`turn`, `due`, `progressed`, `results`, `flushed`). It is GM-client only.
+- It is called from the manual Round press only: the party sheet's `advanceRound` action, after its round advance. A round that movement, combat or the crossing counts resolves nothing.
+- It spends no clock time. The press has already advanced the round.
+- Stamp first, then resolve: each due entry is written `resolvedTurn` = the clock's current turn (and `remaining` 0) before any of them runs, so none resolves twice and the next Turn or Rest, counting at a later turn, drops it. A turn-length entry is not counted down by it.
+- A Turn or Rest press (`resolvePlanTurn`) first resolves the round entries still due, then runs its own order unchanged; the round resolution's answer rides on its result as `round`. A round entry no Round press reached resolves once, on that Turn.
+- Group checks a round entry queues roll once on one card, as a turn's do. An entry that did not resolve posts the same warning card a turn's does.
+
+**Rejected.** Resolving round entries on any counted round: a drag, a fight or a crossing is not a Judge's choice to act on the plan, and the 2026-11-11 reasoning for them stands. Spending the clock inside the resolver: the Round press already spends it, so the resolver would bill the round twice.
+
+**Cost.** The City tab's Round pill shares the `advanceRound` action and so resolves the plan too. An entry a Round press stamped shows as done in the column until the next Turn or Rest drops it, even when further Round presses complete a turn. No activity registered by the formation is round-length; the first is scene search's hasty check.
 

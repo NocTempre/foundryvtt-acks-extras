@@ -6136,6 +6136,84 @@ await scenario("turn plan: one spend a turn, one card for the searchers, a playe
   await model.disband(model.getFormation(id));
   await drain();
 });
+await scenario("turn plan: a round-length entry resolves on the Round press or once on the next Turn, spends no time, and a turn never rolls it twice", async () => {
+  const plan = await import("../scripts/formation/turn-plan.mjs");
+  const lib = await import("../scripts/lib/turn-activities.mjs");
+  const seen = [];
+  const off = lib.registerTurnActivity({
+    key: "qaRoundJob",
+    pace: "hasty",
+    length: "round",
+    label: "QA round job",
+    options: () => [{}],
+    turns: () => 1,
+    resolve: (actor) => { seen.push(actor.id); return "done"; },
+  });
+  try {
+    const hasty = await member("Round Hasty");
+    const slow = await member("Round Slow");
+    await drain();
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    let formation = await model.createFormation("Round Party");
+    for (const [n, actor] of [hasty, slow].entries()) {
+      const [token] = await scene.createEmbeddedDocuments("Token", [{ name: actor.name, actorId: actor.id, x: 900 + n * 100, y: 900 }]);
+      formation = await model.addMember(model.getFormation(formation.id), actor, token);
+    }
+    await drain();
+    const id = onlyFormation().id;
+    const party = game.actors.get(onlyFormation().actorId);
+    const stored = () => party.getFlag(MODULE_ID, "turnPlan") ?? {};
+    const lockBoth = async () => {
+      assert.equal((await plan.lockPlan(model.getFormation(id), { actorId: hasty.id, key: "qaRoundJob", by: "GM1" })).ok, true);
+      assert.equal((await plan.lockPlan(model.getFormation(id), { actorId: slow.id, key: "searchMethodical", by: "GM1" })).ok, true);
+    };
+
+    // The Round press: the round-length entry resolves at once and is stamped; the turn-length one is untouched; no clock is spent.
+    await lockBoth();
+    const t0 = onlyFormation().clock.turnsTotal;
+    const rounds0 = onlyFormation().clock.roundsPartial;
+    const chat0 = chat.length;
+    const out = await plan.resolvePlanRound(model.getFormation(id));
+    await drain();
+    assert.deepEqual(seen, [hasty.id], "the round-length entry resolved");
+    assert.deepEqual(out.results.map((r) => [r.actorId, r.key, r.status]), [[hasty.id, "qaRoundJob", "resolved"]]);
+    assert.equal(onlyFormation().clock.turnsTotal, t0, "no turn spent");
+    assert.equal(onlyFormation().clock.roundsPartial, rounds0, "no round spent by the resolver itself");
+    assert.equal(stored()[hasty.id].resolvedTurn, t0, "stamped at the clock's current turn");
+    assert.equal(stored()[slow.id].resolvedTurn, undefined, "the turn-length entry is untouched");
+    assert.equal(stored()[slow.id].remaining, 1);
+    assert.equal(chat.slice(chat0).filter((m) => String(m.content ?? "").includes("ACKS-FORMATION.rolls.searchMethodical")).length, 0, "no search rolled by a Round press");
+    await plan.resolvePlanRound(model.getFormation(id));
+    assert.equal(seen.length, 1, "a second Round press resolves nothing");
+
+    // The Turn after it: the search rolls, the round entry is not resolved again and is dropped.
+    await plan.resolvePlanTurn(model.getFormation(id));
+    await drain();
+    assert.equal(seen.length, 1, "the Turn does not resolve the round entry a second time");
+    assert.equal(onlyFormation().clock.turnsTotal, t0 + 1);
+    assert.ok(!(hasty.id in stored()), "the stamped entry leaves at the next turn");
+    assert.equal(stored()[slow.id].resolvedTurn, t0 + 1, "the turn-length entry resolved with the turn");
+
+    // No Round press: the Turn resolves it once, and a further Turn finds nothing.
+    await plan.unlockPlan(model.getFormation(id), slow.id);
+    await plan.lockPlan(model.getFormation(id), { actorId: hasty.id, key: "qaRoundJob", by: "GM1" });
+    const t1 = onlyFormation().clock.turnsTotal;
+    const turned = await plan.resolvePlanTurn(model.getFormation(id));
+    await drain();
+    assert.equal(seen.length, 2, "resolved once, by the Turn");
+    assert.equal(turned.round.results.length, 1, "the Turn reports the round resolution beside its own");
+    assert.equal(onlyFormation().clock.turnsTotal, t1 + 1, "one turn spent, not two");
+    assert.deepEqual(stored(), {}, "the entry was stamped before the turn's count and dropped by it");
+    await plan.resolvePlanTurn(model.getFormation(id));
+    await drain();
+    assert.equal(seen.length, 2, "a further Turn rolls nothing");
+
+    await model.disband(model.getFormation(id));
+    await drain();
+  } finally {
+    off();
+  }
+});
 await scenario("a party save rolls each member's own formula against the stored target, through the shared save throw, with the conditions left out", async () => {
   const save = (target) => ({ blast: { value: target } });
   const roster = {

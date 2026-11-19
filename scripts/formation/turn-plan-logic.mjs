@@ -132,3 +132,45 @@ export async function runPlanTurn({
   const flushed = flush ? await flush(ctx.groups, results) : null;
   return { resting, rest, turn, due: counted.due, progressed: counted.progressed, results, flushed };
 }
+
+/**
+ * Resolve the round-length entries of a plan, on a Round press, spending no
+ * clock time (the press that calls this has already advanced the round).
+ * The due set is every entry not yet stamped whose activity `isRound` names,
+ * for a member who takes part; nothing else is touched, and a turn-length entry
+ * is not counted down. Each due entry is stamped as done at the clock's current
+ * turn (`remaining` 0, `advancedTurn` and `resolvedTurn` as `advanceTurn` writes
+ * them), the stamped plan is written, and only then do the entries resolve, so
+ * a stamped entry is never resolved twice and the next `advanceTurn` drops it.
+ * With nothing due, nothing is written and nothing rolls.
+ * @param {object} round
+ * @param {object} round.plan The plan as stored.
+ * @param {string[]} round.memberIds The members who take part.
+ * @param {number} round.turn The clock's current turn.
+ * @param {(key: string) => boolean} round.isRound Whether an activity is round-length.
+ * @param {(plan: object) => Promise<*>} round.writePlan
+ * @param {(actorId: string) => object|null} round.actorOf
+ * @param {object} [round.ctx] Passed to every activity; collects `groups`.
+ * @param {(groups: Map<string, string[]>, results: object[]) => Promise<*>} [round.flush]
+ * @returns {Promise<{turn: number, due: object[], progressed: object[], results: object[], flushed: *}>}
+ *   `runPlanTurn`'s answer shape, without the rest fields
+ */
+export async function runPlanRound({
+  plan, memberIds, turn, isRound, writePlan, actorOf, ctx = {}, flush = null,
+} = {}) {
+  const taking = new Set(memberIds ?? []);
+  const next = { ...(plan ?? {}) };
+  const due = [];
+  for (const [actorId, entry] of Object.entries(plan ?? {})) {
+    if (entry.resolvedTurn != null || !taking.has(actorId) || !isRound(entry.key)) continue;
+    const stamped = { ...entry, remaining: 0, advancedTurn: turn, resolvedTurn: turn };
+    next[actorId] = stamped;
+    due.push({ actorId, entry: stamped });
+  }
+  if (!due.length) return { turn, due, progressed: [], results: [], flushed: null };
+  await writePlan(next);
+  ctx.groups ??= new Map();
+  const results = await resolveDue(due, { actorOf, ctx });
+  const flushed = flush ? await flush(ctx.groups, results) : null;
+  return { turn, due, progressed: [], results, flushed };
+}

@@ -3992,6 +3992,23 @@ full hit points.
    before either, false with the rope alone, true with the ability. A
    hand-made ability counts only where its `provides` lists `kw:endurance`;
    the ability sheet shows `provides` and does not edit it.
+9. **The Round press resolves a round-length entry and spends nothing more.**
+   No activity the formation registers is round-length, so register one for
+   the walk: on the GM seat import `/modules/acks-extras/scripts/lib/turn-activities.mjs`
+   (the module instance the sheet uses, which an `import` by the same URL
+   returns) and call `registerTurnActivity({ key: "qaRoundJob", pace: "hasty",
+   length: "round", options: () => [{}], turns: () => 1, resolve: () => "done"
+   })`, keeping the returned function to unregister it. Lock it for the cleric
+   and the thief's search for the thief from the Judge's row, note
+   `clock.turnsTotal` and `clock.roundsPartial`, then press the Dungeon tab's
+   Round. *Observable:* `roundsPartial` rose by exactly one (the press's own
+   round); the cleric's entry carries `resolvedTurn` equal to `turnsTotal`; the
+   thief's search is unstamped with its `remaining` unchanged and no search card
+   was posted. Press Round again: the cleric's stamp is unchanged. Press Turn:
+   `turnsTotal` rose by one, the cleric's entry is gone and the thief's carries
+   the new turn. Unregister the activity. The positive case for a real
+   registrant, the hasty search, is walked through scene search's own recipe
+   once it lands.
 
 Teardown: every card the GM seat posts carries the run's nonce, is tracked by
 id the moment the walk reads it, and is swept with the combat and step 8's

@@ -11,8 +11,8 @@
  */
 import assert from "node:assert/strict";
 
-const { registerTurnActivity, cancelForCombat, TURN_REASONS } = await import("../scripts/lib/turn-activities.mjs");
-const { PLAN_REASONS, cancelForMove, lockForMember, memberBlock, queueGroup, runPlanTurn } = await import(
+const { registerTurnActivity, cancelForCombat, turnActivity, TURN_REASONS } = await import("../scripts/lib/turn-activities.mjs");
+const { PLAN_REASONS, cancelForMove, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } = await import(
   "../scripts/formation/turn-plan-logic.mjs"
 );
 
@@ -59,6 +59,18 @@ const undo = [
     resolve: () => null,
   }),
   registerTurnActivity({ key: "qaLong", pace: "methodical", options: () => [{}], turns: () => null, resolve: () => null }),
+  // A round-length job (`length: "round"`, a field lib keeps untouched) that queues a group check too.
+  registerTurnActivity({
+    key: "qaHasty",
+    pace: "hasty",
+    length: "round",
+    options: () => [{}],
+    turns: () => 1,
+    resolve: (actor, _option, ctx) => {
+      calls.resolve.push(["qaHasty", actor.id]);
+      return queueGroup(ctx, "qaHasty", actor.id);
+    },
+  }),
   registerTurnActivity({ key: "rest", pace: "methodical", options: () => [{}], turns: () => 1, resolve: () => "rested" }),
 ];
 
@@ -217,6 +229,104 @@ await test("a fight cancels single-turn entries and keeps a multi-turn entry's p
   assert.deepEqual(out.cancelled.map((c) => c.actorId), ["b"]);
   assert.deepEqual(out.kept.map((k) => k.actorId), ["a"]);
   assert.equal(out.plan.a.remaining, 2, "the dig keeps the turn it had done");
+});
+
+// The Round press: a round-length entry resolves at once and spends no clock time.
+const isRound = (key) => turnActivity(key)?.length === "round";
+
+/** A plan store: each write replaces the plan the next call reads, as the party actor's flag does. */
+function store(plan) {
+  const s = { plan, writes: [], rolls: [] };
+  s.writePlan = async (next) => { s.writes.push(next); s.plan = JSON.parse(JSON.stringify(next)); };
+  s.flush = async (groups) => { for (const [g, ids] of groups) s.rolls.push([g, [...ids]]); };
+  return s;
+}
+const round = (s, { memberIds = ["a", "b", "c"], turn = 40 } = {}) =>
+  runPlanRound({ plan: s.plan, memberIds, turn, isRound, writePlan: s.writePlan, actorOf, flush: s.flush });
+const mixedPlan = () => {
+  let plan = lock({}, "a", "qaHasty").plan;
+  plan = lock(plan, "b", "qaDig").plan;
+  return lock(plan, "c", "qaLook").plan;
+};
+
+await test("a round entry resolves on the Round press, stamped with the current turn; a turn entry is untouched", async () => {
+  calls.resolve.length = 0;
+  const s = store(mixedPlan());
+  const before = JSON.parse(JSON.stringify(s.plan));
+  const out = await round(s);
+  assert.deepEqual(calls.resolve, [["qaHasty", "a"]], "only the round-length entry resolved");
+  assert.deepEqual(out.due.map((d) => d.actorId), ["a"]);
+  assert.equal(out.results.length, 1);
+  assert.equal(out.results[0].status, "resolved");
+  assert.equal(out.results[0].key, "qaHasty");
+  assert.equal(out.turn, 40);
+  assert.equal(s.writes.length, 1, "one write");
+  assert.deepEqual(s.plan.a, { ...before.a, remaining: 0, advancedTurn: 40, resolvedTurn: 40 }, "stamped as done at turn 40");
+  assert.deepEqual(s.plan.b, before.b, "the three-turn dig is not counted down");
+  assert.deepEqual(s.plan.c, before.c, "the one-turn look is not resolved or counted");
+  assert.deepEqual(s.rolls, [["qaHasty", ["a"]]], "its queued group check rolls once, for it alone");
+});
+
+await test("a Round press with nothing due, or only a member who does not take part, writes and resolves nothing", async () => {
+  calls.resolve.length = 0;
+  const s = store(mixedPlan());
+  const out = await round(s, { memberIds: ["b", "c"] });
+  assert.deepEqual(out.due, []);
+  assert.deepEqual(out.results, []);
+  assert.equal(s.writes.length, 0);
+  assert.equal(calls.resolve.length, 0);
+  const t = store({ b: mixedPlan().b });
+  assert.deepEqual((await round(t)).results, []);
+  assert.equal(t.writes.length, 0);
+});
+
+await test("a second Round press resolves nothing: the stamp is the plan's, read back", async () => {
+  calls.resolve.length = 0;
+  const s = store(mixedPlan());
+  await round(s);
+  const again = await round(s);
+  assert.deepEqual(again.due, []);
+  assert.deepEqual(again.results, []);
+  assert.equal(s.writes.length, 1, "no second write");
+  assert.equal(calls.resolve.length, 1, "resolved once");
+  const later = await round(s, { turn: 41 });
+  assert.deepEqual(later.results, [], "a stamped entry stays done until a turn drops it");
+});
+
+/** What a Turn press does: round entries still due first, then the turn, on the plan as last written. */
+async function turnPress(s, h) {
+  const first = await runPlanRound({ plan: s.plan, memberIds: ["a", "b", "c"], turn: h.log.turn, isRound, writePlan: s.writePlan, actorOf, flush: s.flush });
+  const turn = await runPlanTurn({
+    plan: s.plan, memberIds: ["a", "b", "c"], ...h.effects, writePlan: s.writePlan, flush: s.flush, ctx: {},
+  });
+  return { first, turn };
+}
+
+await test("a Turn press after a Round press does not resolve the round entry again", async () => {
+  calls.resolve.length = 0;
+  const s = store(mixedPlan());
+  const h = harness();
+  await round(s, { turn: h.log.turn });
+  assert.equal(calls.resolve.length, 1);
+  const { first, turn } = await turnPress(s, h);
+  assert.deepEqual(first.results, [], "nothing round-length still due");
+  assert.equal(calls.resolve.length, 1, "qaHasty is not resolved a second time");
+  assert.deepEqual(turn.due.map((d) => d.actorId), ["c"], "the turn resolves only the one-turn look");
+  assert.ok(!("a" in s.plan), "the clock at the next turn dropped the entry the Round press stamped");
+  assert.equal(h.log.spends.length, 1, "the clock was spent once, by the turn");
+});
+
+await test("a Turn press with an unresolved round entry resolves it once, and the turn does not count it down", async () => {
+  calls.resolve.length = 0;
+  const s = store(mixedPlan());
+  const h = harness();
+  const { first, turn } = await turnPress(s, h);
+  assert.deepEqual(first.due.map((d) => d.actorId), ["a"]);
+  assert.equal(calls.resolve.filter(([k]) => k === "qaHasty").length, 1, "resolved once");
+  assert.ok(!turn.due.some((d) => d.actorId === "a"), "the turn does not roll it again");
+  assert.ok(!("a" in s.plan), "the turn's count dropped the entry stamped at the earlier turn");
+  assert.equal(s.plan.b.remaining, 2, "the dig counted down as before");
+  assert.equal(h.log.spends.length, 1, "the clock is spent once, by the turn");
 });
 
 // The column's words: a registrant's option label and its own refusal lang root.

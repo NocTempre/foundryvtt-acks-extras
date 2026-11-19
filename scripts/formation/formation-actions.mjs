@@ -40,7 +40,7 @@ import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
   applyCrossingForm, beginCrossing, endCrossing, haulToSurface, jumpFor, landFor, readCrossing, relayRefusalWords, reportLanding, rescueRefusalWords, setPace, setRescuer, throwAll, throwFor,
 } from "./crossing.mjs";
-import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
+import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
@@ -902,11 +902,16 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
-  /** One bookkeeping round (1 minute) — hasty actions, short delays. */
+  /**
+   * One bookkeeping round (1 minute) — hasty actions, short delays. The press
+   * also resolves the plan's round-length entries (`resolvePlanRound`); a round
+   * that movement, combat or a crossing counts does not.
+   */
   async advanceRound() {
     const formation = gmFormation(this);
     if (!formation) return;
     await advanceRounds(formation, 1, { reason: "manual" });
+    await resolvePlanRound(formation);
     this.render();
   },
 

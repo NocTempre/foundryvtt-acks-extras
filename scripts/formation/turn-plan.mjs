@@ -18,9 +18,12 @@
  *
  * The Advance turn and Rest presses resolve the plan (`resolvePlanTurn`), in
  * `runPlanTurn`'s order: the clock spends the turn once and every roll after it
- * is made with `spend: false`. A move cancels the open entries
- * (`cancelPlanForMove`); a fight cancels the single-turn ones and keeps the
- * multi-turn ones' progress, on one card (`cancelPlanForCombat`).
+ * is made with `spend: false`. An activity that declares `length: "round"`
+ * resolves on the Round press instead (`resolvePlanRound`), spending no time of
+ * its own, and on the next Turn or Rest if no Round press reached it. A move
+ * cancels the open entries (`cancelPlanForMove`); a fight cancels the
+ * single-turn ones and keeps the multi-turn ones' progress, on one card
+ * (`cancelPlanForCombat`).
  */
 import { MODULE_ID } from "./constants.mjs";
 import { makeLoc, unset } from "../lib/util.mjs";
@@ -35,7 +38,7 @@ import {
   turnActivity,
   unlockActivity,
 } from "../lib/turn-activities.mjs";
-import { cancelForMove, lockForMember, memberBlock, queueGroup, runPlanTurn } from "./turn-plan-logic.mjs";
+import { cancelForMove, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } from "./turn-plan-logic.mjs";
 import { getFormation, getMemberActor, getPartyActor, isDown, isHurried, memberActorById, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck, rollPartyCheck } from "./party-rolls.mjs";
 import { advanceTurns, hasEndurance, postNotesCard } from "./turn-engine.mjs";
@@ -246,14 +249,19 @@ function takingPart(formation) {
  * pressed Rest or every member who owes rest chose it; the plan counts down and
  * is written stamped; each due entry resolves through its own activity, and each
  * group check is rolled once, for the members who chose it, on one card.
+ * Round-length entries still due resolve first (`resolvePlanRound`), so one no
+ * Round press reached resolves here once and is not counted down and rolled
+ * again by the turn: it is stamped, and this turn's count drops it.
  * @param {object} formation
  * @param {object} [opts]
  * @param {boolean} [opts.resting] The Judge's own Rest.
- * @returns {Promise<object|null>} `runPlanTurn`'s answer; null off a GM client
+ * @returns {Promise<object|null>} `runPlanTurn`'s answer, with `round`, the
+ *   round resolution's answer; null off a GM client
  */
 export async function resolvePlanTurn(formation, { resting = false } = {}) {
   if (!game.user.isGM || !formation) return null;
   const fid = formation.id;
+  const round = await resolvePlanRound(formation);
   const outcome = await runPlanTurn({
     plan: readPlan(formation),
     memberIds: takingPart(formation),
@@ -264,25 +272,64 @@ export async function resolvePlanTurn(formation, { resting = false } = {}) {
     writePlan: (plan) => writePlan(getFormation(fid) ?? formation, plan),
     actorOf: (id) => (memberOf(getFormation(fid) ?? formation, id) ? memberActorById(getFormation(fid) ?? formation, id) : null),
     ctx: { formation },
-    flush: async (groups) => {
-      const rolled = {};
-      for (const [checkKey, only] of groups) {
-        rolled[checkKey] = await rollPartyCheck(getFormation(fid) ?? formation, checkKey, { only, spend: false });
-      }
-      return rolled;
-    },
+    flush: (groups) => flushGroups(getFormation(fid) ?? formation, groups),
   });
-  const unresolved = outcome.results.filter((r) => r.status !== "resolved");
-  if (unresolved.length) {
-    await postNotesCard(formation, unresolved.map((r) => ({
-      type: "warn",
-      text: loc(`plan.${r.status}`, {
-        name: memberActorById(formation, r.actorId)?.name ?? "?",
-        activity: activityLabel(r.key),
-      }),
-    })));
-  }
+  await postUnresolved(formation, outcome.results);
+  return { ...outcome, round };
+}
+
+/**
+ * Resolve the round-length entries still due, on the manual Round press (the
+ * Dungeon tab's Round, after its round advance) and ahead of a Turn or Rest
+ * press's own resolution. An activity is round-length when its declaration
+ * carries `length: "round"`; an entry of any other activity is left as it is.
+ * The press spends no clock time: the round it follows is already spent, and
+ * each due entry is stamped at the clock's current turn before it resolves, so
+ * the next Turn or Rest drops it and rolls nothing twice. Group checks the
+ * entries queued roll once on one card, as a turn's do.
+ * @param {object} formation
+ * @returns {Promise<{turn: number, due: object[], progressed: object[], results: object[], flushed: *}|null>}
+ *   `runPlanTurn`'s answer shape without the rest fields (`results` is the
+ *   caller's); null off a GM client
+ */
+export async function resolvePlanRound(formation) {
+  if (!game.user.isGM || !formation) return null;
+  const fid = formation.id;
+  const current = () => getFormation(fid) ?? formation;
+  const outcome = await runPlanRound({
+    plan: readPlan(formation),
+    memberIds: takingPart(formation),
+    turn: current().clock.turnsTotal,
+    isRound: (key) => turnActivity(key)?.length === "round",
+    writePlan: (plan) => writePlan(current(), plan),
+    actorOf: (id) => (memberOf(current(), id) ? memberActorById(current(), id) : null),
+    ctx: { formation },
+    flush: (groups) => flushGroups(current(), groups),
+  });
+  await postUnresolved(formation, outcome.results);
   return outcome;
+}
+
+/** Roll each queued group check once, for the members queued on it. */
+async function flushGroups(formation, groups) {
+  const rolled = {};
+  for (const [checkKey, only] of groups) {
+    rolled[checkKey] = await rollPartyCheck(formation, checkKey, { only, spend: false });
+  }
+  return rolled;
+}
+
+/** One warning card on the Judges' notes for every entry that did not resolve; nothing for none. */
+async function postUnresolved(formation, results) {
+  const unresolved = results.filter((r) => r.status !== "resolved");
+  if (!unresolved.length) return;
+  await postNotesCard(formation, unresolved.map((r) => ({
+    type: "warn",
+    text: loc(`plan.${r.status}`, {
+      name: memberActorById(formation, r.actorId)?.name ?? "?",
+      activity: activityLabel(r.key),
+    }),
+  })));
 }
 
 /* -------------------------------------------- */

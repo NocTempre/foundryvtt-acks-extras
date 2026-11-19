@@ -484,8 +484,9 @@ party's own stops in the Foundry-free
   `attemptDisarm`. Battering a door registers with no length: the turns an axe
   needs are the door's printed figure, which no import reads yet (ROADMAP §6),
   so it is offered disabled, with no reason beside it, and cannot lock. Rest is registered under
-  lib's `REST_KEY`. Every other length is one turn: a pace is structural, and a
-  hasty activity takes a round inside the turn.
+  lib's `REST_KEY`. Every other length is one turn: a pace is structural, and no
+  activity the formation registers is round-length (`length`, under
+  Resolution).
 - **What stops a member** before any activity is asked (`memberBlock`, in this
   order): not in the party, the party moved this turn (`clock.movedThisTurn`),
   the party is held in a fight, the member was left behind, is out on a
@@ -511,7 +512,7 @@ party's own stops in the Foundry-free
   lib's generic line when the root has neither).
 - **Resolution** runs on the Dungeon tab's Turn and Rest a turn presses and a
   player's rest request (`resolvePlanTurn`), never on a turn that movement or
-  combat rounds complete. The order is `runPlanTurn`'s: whether the turn rests
+  combat rounds complete (the Round press, below, is the one other). The order is `runPlanTurn`'s: whether the turn rests
   is read first (the Judge's Rest, or every member taking part who owes rest
   chose Rest; a member with Endurance owes none); the clock spends one turn;
   lib's `advanceTurn` counts the plan down at the clock's new turn and the
@@ -522,6 +523,16 @@ party's own stops in the Foundry-free
   `travelToPlace` take it too), so a planned turn spends the clock exactly once.
   An entry whose activity, option or member is gone is dropped, and a dropped or
   failed entry is a line on a Judges' note card.
+  A registrant's activity declares `length: "round"` (a field lib keeps
+  untouched; no `length` is a turn) to resolve on the Dungeon tab's Round press
+  instead (`resolvePlanRound`, called by the `advanceRound` action after its
+  round advance, and by no round that movement, combat or the crossing
+  counts). It spends no clock time: each unstamped round-length entry of a
+  member who takes part is stamped at the clock's current turn, the plan is
+  written, and the entries resolve (`runPlanRound`), so the next Turn or Rest
+  drops them and a second press resolves nothing. Turn-length entries are not
+  counted down. A Turn or Rest press resolves the round entries still due
+  first, and answers the round's outcome as `round`.
 - **A move** cancels every open entry, a multi-turn entry's progress with it,
   and says whose on one public line (`cancelPlanForMove`, from the movement
   hook where `movedThisTurn` is set).
