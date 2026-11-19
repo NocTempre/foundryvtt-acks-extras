@@ -102,6 +102,14 @@
         {{else}}
         <span class="acks-nums" data-tooltip-text="{{levelTip}}">{{level}}</span>
         {{/if}}
+        {{#if common}}
+        {{#if common.editable}}
+        <label class="acks-extras-research__check" data-tooltip-text="{{common.tip}}"><input type="checkbox" data-research-control data-research-field="common"{{#if common.checked}} checked{{/if}}> {{common.label}}</label>
+        {{else}}
+        <span data-tooltip-text="{{common.tip}}">{{common.rowLabel}}</span>
+        <span data-tooltip-text="{{common.tip}}">{{common.rowText}}</span>
+        {{/if}}
+        {{/if}}
         {{#each costs}}
         <span data-tooltip-text="{{tip}}">{{label}}</span>
         {{#if editable}}

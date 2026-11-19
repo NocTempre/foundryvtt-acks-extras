@@ -344,7 +344,7 @@ export function bindResearchTab(sheet) {
       const id = projectIdOf(box);
       if (!id) return;
       const path = box.dataset.researchField;
-      const value = box.type === "number" ? numberOf(box.value) : box.value.trim();
+      const value = box.type === "checkbox" ? box.checked : box.type === "number" ? numberOf(box.value) : box.value.trim();
       write(researchApi.update(location, id, patchOf(path, value)));
     });
   }

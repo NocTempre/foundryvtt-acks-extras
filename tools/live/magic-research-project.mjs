@@ -857,9 +857,35 @@ try {
     await sleep(700);
     return { reason: r.reason, ok: r.ok, stored: projects().find((p) => p.id === ${JSON.stringify(fj.id)})?.common };`, ids13);
   check("a Player's write of the common mark is refused as the Judge's (relayed, the attested sender decides) and nothing is stored", jt2.ok === false && jt2.reason === "judge" && jt2.stored !== true, jt2);
+  // The Judge's check on the sheet (board 18 A): a real click on the checkbox writes the mark; the Finish label follows. An item project shows no such check.
+  const jt2b = await run(gm, U, `
+    const itemProj = await research().create(place(), { kind: "item", researcher: ID.hero, level: 2, subject: { uuid: ID.gear2, name: "QA Research Gear Two" } });
+    await sleep(900);
+    await open();
+    const fin = () => card(${JSON.stringify(fj.id)})?.querySelector('[data-action="finishResearchProject"]')?.textContent.trim() ?? "";
+    const box = () => card(${JSON.stringify(fj.id)})?.querySelector('input[type="checkbox"][data-research-field="common"]');
+    const before = { has: !!box(), checked: box()?.checked, label: box()?.closest("label")?.textContent.trim(), tip: box()?.closest("label")?.dataset.tooltipText, finish: fin(), stored: projects().find((p) => p.id === ${JSON.stringify(fj.id)})?.common === true };
+    const level = card(${JSON.stringify(fj.id)}).querySelector('[data-research-field="level"]');
+    const costs = card(${JSON.stringify(fj.id)}).querySelector('[data-research-field^="costs."]');
+    const underLevel = !!level && !!box() && !!costs && !!(level.compareDocumentPosition(box()) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(costs.compareDocumentPosition(box()) & Node.DOCUMENT_POSITION_PRECEDING);
+    box().click();
+    const stored = await until(() => projects().find((p) => p.id === ${JSON.stringify(fj.id)})?.common === true, 80);
+    await until(() => box()?.checked === true && /common spell/i.test(fin()), 80);
+    const after = { stored, checked: box()?.checked, finish: fin() };
+    const itemCard = card(itemProj.id);
+    await research().close(place(), itemProj.id);
+    await sleep(700);
+    return { before, after, underLevel, itemDrawn: !!itemCard, itemHas: !!itemCard?.querySelector('[data-research-field="common"]') };`, ids13);
+  check("the Judge's Research tab offers 'Common spell (no throw)' on a spell project, unchecked with the page in its tooltip and Finish unchanged; a real click on it writes common to the project, leaves it checked and the Finish label reads 'Finish (common spell)'; an item project shows no such check", jt2b.before.has && jt2b.before.checked === false && jt2b.before.stored === false && /^Common spell \(no throw\)$/.test(jt2b.before.label) && /RR/.test(jt2b.before.tip ?? "") && !/common spell/i.test(jt2b.before.finish) && jt2b.after.stored === true && jt2b.after.checked === true && /^Finish \(common spell\)$/.test(jt2b.after.finish) && jt2b.underLevel && jt2b.itemDrawn && jt2b.itemHas === false, jt2b);
+  const jt2c = await run(player, U, `
+    await open();
+    const rows = [...card(${JSON.stringify(fj.id)}).querySelectorAll(".acks-extras-research__parts > span")].map((s) => s.textContent.trim());
+    const at = rows.indexOf("Common spell");
+    return { at, next: rows[at + 1], control: !!card(${JSON.stringify(fj.id)}).querySelector('[data-research-field="common"]'), finish: card(${JSON.stringify(fj.id)}).querySelector('[data-action="finishResearchProject"]')?.textContent.trim() };`, ids13);
+  check("a Player's seat shows the mark as a 'Common spell' / 'no throw' row once the Judge has set it, with no checkbox", jt2c.at >= 0 && jt2c.next === "no throw" && jt2c.control === false && /^Finish \(common spell\)$/.test(jt2c.finish), jt2c);
   const jt3 = await run(gm, U, `
     ${snap}
-    const marked = await research().update(place(), ${JSON.stringify(fj.id)}, { common: true });
+    const marked =await research().update(place(), ${JSON.stringify(fj.id)}, { common: true });
     await sleep(900);
     const planJ = await research().plan(place(), ${JSON.stringify(fj.id)});
     const real = CONFIG.Dice.randomUniform;

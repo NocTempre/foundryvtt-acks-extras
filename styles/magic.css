@@ -811,6 +811,12 @@
 .acks-extras-research__parts .acks-input {
   inline-size: 10ch;
 }
+.acks-extras-research__check {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+}
 .acks-extras-research__progress {
   display: inline-flex;
   align-items: center;

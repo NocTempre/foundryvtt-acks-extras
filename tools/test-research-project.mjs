@@ -2148,4 +2148,39 @@ t("a project that makes no throw says why on its button and tag, and its throw c
   assert.deepEqual([thrown.finish.label, thrown.finish.tag, thrown.throw.text], ["finish", null, 'throw{"n":13}'], "with a throw to make the button reads as it did and shows a target");
 });
 
+t("the common-spell mark: a Judge is offered the check on a spell project, a Player reads a text row only while it is set, and no other kind shows it", () => {
+  const rec = (common) => ({ facilities: { library: 5000 }, projects: [{ id: "a", kind: "spell", level: 2, researcher: "A.hero", common }, { id: "b", kind: "item", researcher: "A.hero", common }, { id: "c", kind: "identify", researcher: "A.hero" }, { id: "d", kind: "ritual", level: 3, researcher: "A.hero" }] });
+  const J = { judge: true, owns: () => true };
+  const own = { owns: () => true };
+  const [on, off] = [true, false].map((c) => panel(rec(c), J).projects);
+  assert.deepEqual([on[0].common.editable, on[0].common.checked, off[0].common.editable, off[0].common.checked], [true, true, true, false]);
+  assert.deepEqual(on.slice(1).map((x) => x.common), [null, null, null], "no item, identification or ritual project carries it, even with the flag stored");
+  assert.match(on[0].common.tip, /commonTip.*cite\.costs/);
+  const card = (html, id) => {
+    const from = html.indexOf(`data-project-id="${id}"`);
+    const next = html.indexOf("data-project-id=", from + 1);
+    return html.slice(from, next < 0 ? undefined : next);
+  };
+  const set = render(panel(rec(true), J));
+  assert.match(card(set, "a"), /<label class="acks-extras-research__check"[^>]*><input type="checkbox" data-research-control data-research-field="common" checked> commonLabel<\/label>/);
+  assert.match(card(render(panel(rec(false), J)), "a"), /<input type="checkbox" data-research-control data-research-field="common"> /, "unchecked while unset");
+  for (const id of ["b", "c", "d"]) assert.doesNotMatch(card(set, id), /data-research-field="common"|commonRow/, `project ${id}`);
+  const a = card(set, "a");
+  assert.ok(a.indexOf('data-research-field="level"') < a.indexOf('data-research-field="common"') && a.indexOf('data-research-field="common"') < a.indexOf('data-research-field="costs.'), "directly under Level of effect");
+  const seen = render(panel(rec(true), own));
+  assert.match(card(seen, "a"), /commonRow<\/span>\s*<span[^>]*>commonRowText<\/span>/);
+  assert.doesNotMatch(seen, /data-research-field="common"/, "a Player is offered no control");
+  assert.doesNotMatch(render(panel(rec(false), own)), /commonRow/, "the text row is hidden while the mark is unset");
+  assert.doesNotMatch(set, /\sid=|\stitle=/);
+});
+
+t("the tab writes the common check through update as a boolean", () => {
+  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
+  assert.match(tab, /box\.type === "checkbox" \? box\.checked/, "a checkbox reads checked");
+  assert.match(tab, /researchApi\.update\(location, id, patchOf\(path, value\)\)/);
+  assert.ok(M.UPDATE_FIELDS.includes("common") && M.JUDGE_FIELDS.includes("common"));
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  assert.equal(lang["ACKS-MAGIC.research.commonLabel"], "Common spell (no throw)");
+});
+
 console.log(`research-project: ${n} cases passed`);

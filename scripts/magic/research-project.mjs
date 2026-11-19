@@ -1183,6 +1183,10 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
       level: p.level ?? "",
       levelLabel: loc("levelLabel"),
       levelTip: loc("levelTip", { cite: citeOf("library") }),
+      // The Judge's common-spell mark, on a spell project only: a Judge's checkbox, and for a Player a text row shown while the mark is set.
+      common: p.kind === PROJECT_KIND.spell && (judge || p.common)
+        ? { editable: judge, checked: p.common === true, label: loc("commonLabel"), tip: loc("commonTip", { cite: citeOf("costs") }), rowLabel: loc("commonRow"), rowText: loc("commonRowText") }
+        : null,
       caption: p.level ? loc("caption", { kind: loc(`kind.${p.kind}`), level: p.level }) : loc(`kind.${p.kind}`),
       can,
       judge,
