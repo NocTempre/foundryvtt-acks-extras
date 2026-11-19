@@ -53,6 +53,34 @@ export const bashBotchBand = () => figure("bashBotchBand", { whole: true });
 export const bashReboundDamage = () => figure("bashReboundDamage", { whole: true });
 
 /**
+ * Kept so a caller that named the old constant still resolves it; it holds no
+ * figure. The bash target now arrives from the import as the basher's own
+ * Dungeonbashing throw: read it through `bashThrow` or `resolveCheck`.
+ */
+export const BASH_TARGET = null;
+
+/**
+ * Kept so a caller that named the old constant still resolves it; it holds no
+ * figure. The Strength factor now arrives from the import: read it through
+ * `bashStrFactor()`.
+ */
+export const BASH_STR_FACTOR = null;
+
+/**
+ * Kept so a caller that named the old constant still resolves it; it holds no
+ * figure. The spike limit now arrives from the import: read it through
+ * `maxSpikes()`.
+ */
+export const MAX_SPIKES = null;
+
+/**
+ * Kept so a caller that named the old table still resolves it; it holds no
+ * row. The door kinds now arrive from the import as the door grid's rows: read
+ * them through `doorRows()`.
+ */
+export const DOOR_KINDS = Object.freeze([]);
+
+/**
  * Strength's contribution to a Dungeonbashing throw for a given modifier: 0 for
  * a modifier of zero, which needs no figure, and null for any other modifier
  * while the factor is not imported. The one reader every surface that resolves
@@ -210,6 +238,20 @@ export async function bashThrow(actor) {
   return check && Number.isFinite(check.target) ? { target: check.target, proficient: !!check.skilled } : null;
 }
 
+/**
+ * The Strength adjustment a bash uses: the basher's own, whatever its sign, and
+ * the stronger of the two where a partner heaves too (RR p. 267). No basher
+ * reads 0.
+ *
+ * @param {Actor|null} actor
+ * @param {Actor|null} [partner]
+ * @returns {number}
+ */
+export function bashStrength(actor, partner = null) {
+  const mods = [actor, partner].filter(Boolean).map((who) => Number(abilityMod(who, "str")) || 0);
+  return mods.length ? Math.max(...mods) : 0;
+}
+
 /** Write door state, merging over what is stored: only the keys passed are written. */
 async function setDoorState(wall, patch) {
   return wall.setFlag(MODULE_ID, DOOR_FLAG, patch);
@@ -281,7 +323,7 @@ export async function bashDoor(wall, { actor = null, partner = null, crowbar = f
   if (!isDoor(wall)) return { ok: false, reason: "notADoor" };
   const state = doorState(wall);
   const pair = !!partner;
-  const strMod = Math.max(actor ? abilityMod(actor, "str") : 0, partner ? abilityMod(partner, "str") : 0);
+  const strMod = bashStrength(actor, partner);
   const thrown = await bashThrow(actor);
   const plan = bashPlan({ target: thrown?.target ?? null, proficient: thrown?.proficient ?? false, strMod, pair, crowbar, sizeSteps, spikes: state.spikes, extra });
   if (!plan.ready) return { ok: false, reason: plan.noThrow ? "noThrow" : "missing", missing: plan.missing };

@@ -813,7 +813,7 @@ const member = (name) =>
       movement: { base: 120 },
       encumbrance: { value: 5, max: 20 },
       scores: { str: { mod: 1 } },
-      adventuring: { listening: 18, searching: 18, dungeonbashing: 18 },
+      adventuring: { listening: 13, searching: 13, dungeonbashing: 13 },
     },
   });
 
@@ -1459,7 +1459,7 @@ await scenario("players steer their own members via the GM relay", async () => {
       movement: { base: 120 },
       encumbrance: { value: 4, max: 20 },
       scores: { str: { mod: 0 } },
-      adventuring: { listening: 18, searching: 18, dungeonbashing: 18 },
+      adventuring: { listening: 13, searching: 13, dungeonbashing: 13 },
     },
   });
   const eve = await member("Eve"); // GM-owned only
@@ -1745,7 +1745,7 @@ await scenario("a player lights their own lamp from the character sheet", async 
       movement: { base: 120 },
       encumbrance: { value: 4, max: 20 },
       scores: { str: { mod: 0 } },
-      adventuring: { listening: 18, searching: 18, dungeonbashing: 18 },
+      adventuring: { listening: 13, searching: 13, dungeonbashing: 13 },
     },
   });
   const quinn = await member("Quinn"); // GM-owned only
@@ -1985,7 +1985,7 @@ await scenario("template renders live controls for a member-owner", async () => 
       movement: { base: 120 },
       encumbrance: { value: 4, max: 20 },
       scores: { str: { mod: 0 } },
-      adventuring: { listening: 18, searching: 18, dungeonbashing: 18 },
+      adventuring: { listening: 13, searching: 13, dungeonbashing: 13 },
     },
   });
   const eve = await member("Eve2"); // GM-owned only
@@ -5732,18 +5732,39 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     assert.equal(bplan({ strMod: 2, pair: true }).needs, TARGET - 6 - 5);
     assert.equal(doors.maxSpikes(), BASH.doorSpikeMax, "the spike limit is the import's");
 
+    /* --- the four names a companion may still read stay exported and hold no figure --- */
+    assert.deepEqual(["BASH_TARGET", "BASH_STR_FACTOR", "MAX_SPIKES", "DOOR_KINDS"].map((name) => name in doors), [true, true, true, true], "each old name is still exported");
+    assert.deepEqual([doors.BASH_TARGET, doors.BASH_STR_FACTOR, doors.MAX_SPIKES], [null, null, null], "the figures arrive from the import, so the constants hold none");
+    assert.deepEqual([[...doors.DOOR_KINDS], Object.isFrozen(doors.DOOR_KINDS)], [[], true], "the door kinds are the import's rows, so the table is empty");
+
+    /* --- a solo basher's own Strength adjustment stands, negative included; a pair takes the stronger --- */
+    const frail = await member("Frail");
+    frail.system.scores.str.mod = -2;
+    const mate = await member("Mate");
+    mate.system.scores.str.mod = -1;
+    assert.deepEqual([doors.bashStrength(frail), doors.bashStrength(frail, mate), doors.bashStrength(null)], [-2, -1, 0], "alone the basher's own, paired the stronger of the two, nobody none");
+    rigRoll(9);
+    const frailBash = await doors.bashDoor(wall, { actor: frail });
+    assert.deepEqual(frailBash.plan.parts.map((p) => [p.key, p.value]), [["str", -2 * BASH.bashStrengthFactor]], "a negative Strength is a negative term, not nothing");
+    assert.equal(frailBash.total, 9 - 2 * BASH.bashStrengthFactor);
+    frail.system.scores.str.mod = -1;
+    mate.system.scores.str.mod = -3;
+    wall.ds = 0;
+    const pairBash = await doors.bashDoor(wall, { actor: frail, partner: mate });
+    assert.deepEqual(pairBash.plan.parts.map((p) => [p.key, p.value]), [["str", -BASH.bashStrengthFactor], ["pair", BASH.bashPairBonus]], "a pair takes the stronger's adjustment, and the pair term");
+
     /* --- the natural die is read first, then the door's own band, then the target --- */
     rigRoll(2);
     const bandOverTotal = await doors.bashDoor(wall, { actor: basher, extra: 20 });
     assert.deepEqual([bandOverTotal.success, bandOverTotal.botch, bandOverTotal.damage], [true, false, 0], "with no throws imported the total decides, and a botch is a failure");
-    importThrows({ autoFailMax: 3, autoSucceedMin: 18 });
+    importThrows({ autoFailMax: 3, autoSucceedMin: 17 });
     rigRoll(3);
     const autoFailed = await doors.bashDoor(wall, { actor: basher, extra: 20 });
     assert.deepEqual([autoFailed.total >= TARGET, autoFailed.success, autoFailed.botch], [true, false, false], "an automatic failure fails a total over the target, outside the band");
     rigRoll(2);
     const autoFailedBotch = await doors.bashDoor(wall, { actor: basher, extra: 20 });
     assert.deepEqual([autoFailedBotch.success, autoFailedBotch.botch, autoFailedBotch.damage], [false, true, BASH.bashReboundDamage], "a natural in the band that fails is a botch");
-    rigRoll(18);
+    rigRoll(17);
     const noSkill = await doors.bashDoor(wall, { actor: basher, extra: -10 });
     assert.deepEqual([noSkill.total < TARGET, noSkill.success], [true, false], "an automatic success is for a basher holding the skill: this one throws the Adventuring figure");
     const skilled = await member("Skilled");
@@ -5753,19 +5774,19 @@ await scenario("a door's construction and marks persist, a botch reports its dam
       flags: { [MODULE_ID]: { extras: { rolls: [{ key: "primary", formula: "1d20", rollType: "above", target: { kind: "flat", flat: TARGET }, scale: "level" }] } } },
     }]);
     assert.deepEqual(await doors.bashThrow(skilled), { target: TARGET, proficient: true }, "a holder of the skill is proficient, as resolveCheck reports it");
-    rigRoll(18);
+    rigRoll(17);
     const skillAuto = await doors.bashDoor(wall, { actor: skilled, extra: -10 });
     assert.deepEqual([skillAuto.total < TARGET, skillAuto.success], [true, true], "a proficient automatic success opens it with the total under the target");
     importThrows(null);
-    rigRoll(18);
+    rigRoll(17);
     assert.equal((await doors.bashDoor(wall, { actor: skilled, extra: -10 })).success, false, "with nothing imported the target alone decides");
 
     /* --- the plan's hopelessness counts an automatic success --- */
     const weak = { strMod: -5 };
     assert.equal(bplan(weak).hopeless, true, "no roll reaches it and nothing is automatic");
-    importThrows({ autoFailMax: 3, autoSucceedMin: 18 });
+    importThrows({ autoFailMax: 3, autoSucceedMin: 17 });
     assert.equal(bplan({ ...weak, proficient: true }).hopeless, false, "a proficient basher's automatic success can");
-    assert.equal(bplan({ ...weak, proficient: true }).needs, 18, "and the die must show its edge");
+    assert.equal(bplan({ ...weak, proficient: true }).needs, 17, "and the die must show its edge");
     assert.equal(bplan({ ...weak, proficient: false }).hopeless, true, "a basher without the skill has none");
     importThrows(null);
 

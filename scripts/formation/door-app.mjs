@@ -9,8 +9,7 @@
  * and walk away instead of burning rounds finding out.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { bashPlan, bashDoor, bashThrow, spikeDoor, unspikeDoor, batterPlan, batterDoor, setDoorTraits, doorRows, doorState, selectedDoor, maxSpikes } from "./doors.mjs";
-import { abilityMod } from "../lib/actor-read.mjs";
+import { bashPlan, bashDoor, bashThrow, bashStrength, spikeDoor, unspikeDoor, batterPlan, batterDoor, setDoorTraits, doorRows, doorState, selectedDoor, maxSpikes } from "./doors.mjs";
 
 const LANG_PREFIX = "ACKS-FORMATION.doors";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -69,7 +68,7 @@ export default class DoorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const state = doorState(this.wall);
     const actor = this.basher;
     const partner = this.opts.partnerId ? game.actors.get(this.opts.partnerId) : null;
-    const strMod = Math.max(actor ? abilityMod(actor, "str") : 0, partner ? abilityMod(partner, "str") : 0);
+    const strMod = bashStrength(actor, partner);
     const thrown = await bashThrow(actor);
     const plan = bashPlan({
       crowbar: this.opts.crowbar, sizeSteps: this.opts.sizeSteps, extra: this.opts.extra,

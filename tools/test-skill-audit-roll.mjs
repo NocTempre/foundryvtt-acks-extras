@@ -102,7 +102,7 @@ const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
 const STR_FACTOR = 3;
 const importFactor = (tables = { bashStrengthFactor: STR_FACTOR }) =>
   registerTable({ id: FORMATION_DOC, source: "invented", tables }, { priority: PRIORITY.WORLD, source: "test" });
-const { PARTY_CHECKS, boundChecks, checkTip, citedParts, citedSource, resolveCheck, rollCheckFor, usedForOptions } = await import("../scripts/formation/party-rolls.mjs");
+const { PARTY_CHECKS, boundChecks, checkTip, citedParts, citedSource, resolveCheck, rollCheckFor, rollPartyCheck, usedForOptions } = await import("../scripts/formation/party-rolls.mjs");
 
 /* --- fixtures ---------------------------------------------------------------- */
 /** A throw as an ability stores it: a flat target, optionally of another kind. */
@@ -364,12 +364,33 @@ await ok("a Strength-scaled check with a modifier and no imported factor is not 
   assert.deepEqual([rolled.roll, rolled.row, rolled.missing], [null, null, ["bashStrengthFactor"]], "nothing is rolled");
   assert.equal(seen.formulas.length, 0, "no die was thrown");
   const result = await rollAbilityForParty(party("Birch"), { key: "name:dungeonbashing", name: "Dungeonbashing" });
-  assert.deepEqual([result.rolled, result.cannot], [0, ["Birch"]], "the audit leaves the member out");
+  assert.deepEqual([result.rolled, result.cannot, result.unthrown], [0, [], ["Birch"]], "the audit leaves the member out and files them as not thrown");
+  assert.match(seen.created.at(-1).content, /Not thrown for Birch \(RR p\. 267\)\./);
+  assert.doesNotMatch(seen.created.at(-1).content, /cannot attempt/);
   strong.system.scores = { str: { mod: 0 } };
   dice.push(11);
   const plain = await rollCheckFor(strong, PARTY_CHECKS.dungeonbashing);
   assert.deepEqual([plain.row.target, plain.row.total], [14, 11], "a modifier of zero rolls with nothing imported");
   assert.equal(plain.missing, undefined);
+});
+
+await ok("the party check's card words a member it did not throw for apart from one who cannot attempt it", async () => {
+  reset();
+  const skill = () => [{ name: "Dungeonbashing", rolls: [throwOf(14)], system: { rollTarget: 14 } }];
+  const strong = actor("Birch", skill());
+  strong.system.scores = { str: { mod: 2 } };
+  const plain = actor("Oak", skill());
+  plain.system.scores = { str: { mod: 0 } };
+  dice.push(11);
+  const rows = await rollPartyCheck(party("Birch", "Oak"), "dungeonbashing", { spend: false });
+  assert.equal(rows, 1, "only the member with nothing owed rolled");
+  const card = seen.created.at(-1).content;
+  assert.match(card, /Not thrown for Birch \(RR p\. 267\)\./);
+  assert.doesNotMatch(card, /Cannot attempt/, "a missing figure is never reported as incapable");
+  reset();
+  assert.equal(await rollPartyCheck(party("Birch"), "dungeonbashing", { spend: false }), 0, "nobody thrown");
+  assert.match(seen.warned.at(-1), /Not thrown for Birch/);
+  assert.doesNotMatch(seen.warned.at(-1), /No member can attempt/);
 });
 
 await ok("the natural die is read first: an automatic failure fails a total over the target, and a proficient automatic success passes one under it, only for a holder of the skill", async () => {

@@ -400,7 +400,16 @@ const P = {
   doorSeed: async ({ actorId, on }) => {
     const H = globalThis.__d;
     const T = H.m.tables;
-    T.unregisterTable("formation", { priority: 30 });
+    // The override layer is a Judge's to hold: what stood there before the seed is kept aside and put back when it retires.
+    if (!("doorSeedHeld" in H)) {
+      const standing = T.getLayer("formation", T.PRIORITY.OVERRIDE);
+      H.doorSeedHeld = standing?._registeredBy === "formation-steps" ? null : standing; // a seed a dead run left is not a Judge's
+    }
+    T.unregisterTable("formation", { priority: T.PRIORITY.OVERRIDE });
+    if (!on) {
+      if (H.doorSeedHeld) T.registerTable(H.doorSeedHeld, { priority: T.PRIORITY.OVERRIDE, source: H.doorSeedHeld._registeredBy });
+      delete H.doorSeedHeld;
+    }
     if (on) {
       T.registerTable({
         id: "formation",
@@ -413,7 +422,7 @@ const P = {
           bashStrengthFactor: 3, bashPairBonus: 5, bashCrowbarBonus: 7, bashSizeBonus: 6, bashSizePenalty: 9,
           bashSpikePenalty: 11, doorSpikeMax: 6, bashBotchBand: 2, bashReboundDamage: 3,
         },
-      }, { priority: 30, source: "formation-steps" });
+      }, { priority: T.PRIORITY.OVERRIDE, source: "formation-steps" });
     }
     await game.actors.get(actorId).update({ "system.adventuring.dungeonbashing": 15 });
     return { on: !!on };

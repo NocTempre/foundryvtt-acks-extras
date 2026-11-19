@@ -300,9 +300,11 @@ export function resolveCheck(actor, cfg, { auto = false } = {}) {
     const adv = adventuringThrow(actor, cfg.advKey, { allow: skillGateAllows, auto });
     const via = loc("rolls.viaAdventuring");
     const by = adv.source === "standIn" ? adv.standIn.name : adv.source === "skill" ? adv.skillName : "";
-    if (adv.auto) return { target: null, auto: adv.auto, source: by ? `${via} (${by})` : via, parts: [], skilled: false, bonus: 0, record: adv.record };
+    // A figure a held skill supplied is a skill's throw whoever resolved it; a stored or stand-in figure is not.
+    const heldSkill = adv.source === "skill";
+    if (adv.auto) return { target: null, auto: adv.auto, source: by ? `${via} (${by})` : via, parts: [], skilled: heldSkill, bonus: 0, record: adv.record };
     if (adv.target == null) return null;
-    found = { target: adv.target, source: by ? `${via} (${by})` : via, parts: abilityParts(adv.parts), skilled: false };
+    found = { target: adv.target, source: by ? `${via} (${by})` : via, parts: abilityParts(adv.parts), skilled: heldSkill };
   }
   if (!found) return null;
 

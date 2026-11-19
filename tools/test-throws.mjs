@@ -99,7 +99,7 @@ t("an edge that is no whole number reads as nothing", () => {
 });
 
 t("a zero failing edge fails nothing and leaves the whole die open", () => {
-  importThrows({ autoFailMax: 0, autoSucceedMin: 20 });
+  importThrows({ autoFailMax: 0, autoSucceedMin: 19 });
   assert.equal(isAutoFail(1), false);
   assert.equal(dieFloor(), 1);
 });

@@ -586,7 +586,8 @@ Hooks.once("init", () => {
     /**
      * The contract version of this namespace, which a companion module keys on.
      * It rises on every additive change; a removal or a shape change is a major
-     * of the module. The stable core is `marchingOrder(formation)` rows
+     * of the module. A name whose figure now arrives from the import stays
+     * exported, empty, so it is no removal. The stable core is `marchingOrder(formation)` rows
      * ({actorId, name, roles, rank, file}), `ROLES`, `getFormations()`,
      * `rollPartyCheck(formation, key)` and `PARTY_CHECKS`; every other member
      * publishes one feature's pure pieces and live surface so a consumer reads

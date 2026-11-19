@@ -114,13 +114,13 @@ function rowFor(actor, item, ev) {
  * @param {object} ability
  * @param {string} ability.key   the ability's identity (`abilityKey`): every member's copy answers to it
  * @param {string} ability.name  the name the card is titled with
- * @returns {Promise<{rolled: number, lacking: string[], noThrow: string[], cannot: string[], down: string[], failed: string[]}>}
+ * @returns {Promise<{rolled: number, lacking: string[], noThrow: string[], cannot: string[], unthrown: string[], down: string[], failed: string[]}>}
  *   how many members rolled, and the names of those who did not, by reason
  */
 export async function rollAbilityForParty(formation, { key, name }) {
   const rows = [];
   const dice = [];
-  const skipped = { lacking: [], noThrow: [], cannot: [], down: [], failed: [] };
+  const skipped = { lacking: [], noThrow: [], cannot: [], unthrown: [], down: [], failed: [] };
   const checks = new Set();
 
   for (const member of realMembers(formation)) {
@@ -141,8 +141,13 @@ export async function rollAbilityForParty(formation, { key, name }) {
       const bound = boundChecks(item)[0];
       if (bound) {
         const rolled = await rollCheckFor(actor, bound.cfg);
-        if (!rolled || rolled.missing) {
+        if (!rolled) {
           skipped.cannot.push(actor.name);
+          continue;
+        }
+        // A figure the check needs is not imported: the member is no one who cannot attempt it.
+        if (rolled.missing) {
+          skipped.unthrown.push(actor.name);
           continue;
         }
         checks.add(game.i18n.localize(bound.cfg.label));
@@ -167,6 +172,7 @@ export async function rollAbilityForParty(formation, { key, name }) {
     lacking: "audit.rollLacking",
     noThrow: "audit.rollNoThrow",
     cannot: "audit.rollCannot",
+    unthrown: "rolls.notThrown",
     down: "audit.rollDown",
     failed: "audit.rollFailed",
   })

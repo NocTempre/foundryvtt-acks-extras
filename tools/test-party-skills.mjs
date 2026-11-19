@@ -189,6 +189,17 @@ await ok("the Adventuring row is the party check's figure for a member who holds
   assert.deepEqual([methodical.target, methodical.skilled, methodical.target === adventuringThrow(a, "trapbreaking").target], [19, false, true]);
 });
 
+await ok("an Adventuring figure a held skill supplied is skilled, and a stored or stand-in one is not", async () => {
+  // No capability, pattern or binding: the check's own skill lookup finds nothing, so the Adventuring route answers.
+  const probe = { label: "ACKS-FORMATION.audit.flagNone", advKey: "listening", flagKey: "probe", capability: null, pattern: null };
+  const held = resolveCheck(member("Oak", [LISTEN()]), probe);
+  assert.deepEqual([held.target, held.skilled, held.source.includes("Adventuring")], [11, true, true]);
+  assert.deepEqual(
+    [resolveCheck(member("Pine", [STAND(14)]), probe), resolveCheck(member("Rowan", []), probe)].map((c) => [c.skilled, c.target]),
+    [[false, 14], [false, STORED.listening]],
+  );
+});
+
 await ok("an ability that stands in for the stored figure lowers it, and the party check and the Rolls tab read one figure", async () => {
   for (const key of ["listening", "searching"]) {
     const a = member("Elm", [STAND(14)]);
