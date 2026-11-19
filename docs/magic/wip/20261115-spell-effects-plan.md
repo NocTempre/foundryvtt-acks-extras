@@ -3875,6 +3875,14 @@ other session on the server:
   cast ritual goes (board 17 C: take effect now, a new scroll, a charge in an
   item). magic-research-project 99/0, magic-cast-spell 179/179, both on the
   first run. M-r is built; M-s follows.
+- M-s's first cut (topic 90613fb6) found parts no board drew. Board 19 draws
+  them, and the owner approved it with "Approve, build it", A to E as drawn:
+  - A: a Sacrifice… button on the casting strip;
+  - B: young and a value box on each victim's row, Judge only;
+  - C: a Judge marks the class power;
+  - D: the Judge's checks are shared live with a Player's window;
+  - E: the card goes through the shared roll card.
+  Board 11's per-victim checks return to the row as drawn.
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built
