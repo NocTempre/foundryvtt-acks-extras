@@ -199,6 +199,10 @@ const reset = async () => {
   found.find((e) => e.key === "thing:thing-3").state = { layers: { hasty: { done: true, found: true } } };
   const after = SL.playerView(found).find((e) => e.key === "thing:thing-3");
   eq([after.layers.hasty.yields.clue, after.layers.methodical.yields.reveal], ["A subject", []], "a found layer keeps what it yielded while an unfound one stays stripped");
+  const solved = structuredClone(found);
+  solved.find((e) => e.key === "thing:thing-3").state = { layers: { hasty: { done: true, found: true }, methodical: { done: true, found: true } } };
+  const done = SL.playerView(solved).find((e) => e.key === "thing:thing-3");
+  eq([done.hint, done.more, done.moreRemains], [null, [], false], "the Judge's hint goes once nothing more remains");
   eq(entries.find((e) => e.key === "thing:thing-3").layers.hasty.yields.clue, "A subject", "the projection never touches its input");
   eq(SL.sceneView(entries, { isGM: true }).find((e) => e.key === "thing:thing-3").layers.hasty.yields.clue, "A subject", "the Judge's view keeps every yield");
 }
@@ -442,7 +446,11 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   const entries = api.read("f1").entries;
   ok(entries.some((e) => e.key === "body:c1"), "and the body is an entry");
   eq((await api.assignments("f1")).length, 2, "the plan's scene entries are readable");
-  eq(api.options({ partyId: "f1", actorId: "a1" }).length, entries.length, "a screen reads what a member may attempt at each entry");
+  const rowsOf = api.options({ partyId: "f1", actorId: "a1" });
+  eq(rowsOf.length, entries.length, "a screen reads what a member may attempt at each entry");
+  await addThingTo(place, base("", THING_KINDS.FLOOR));
+  const floor = api.options({ partyId: "f1", actorId: "a1" }).find((r) => r.key === "thing:thing-8").layers[0];
+  eq([floor.mode, floor.target, floor.bonus], ["search", 14, null], "the thief's bonus is already in the member's target, so none is added on top");
   await api.end("f1");
 }
 
