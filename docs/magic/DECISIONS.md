@@ -1259,3 +1259,22 @@ figure imported or left blank.
   project's barred row and throw parts; C, where a cast ritual goes; D, Add power; E, the Finish (formula)
   button and card. Each takes one gate and one walk. *Counter (low):* two landings of one board's work;
   the procedure is correct without the surfaces and is walked first.
+
+## 2026-11-19 — M-r1 and M-r2a as built: power in gp, the ritual project, board 18
+
+- **A point of power is a gp.** RR ch. 8 counts arcane and divine power in gp ("gp of divine power",
+  "gp value of divine power"), so a power row is worth its held amount toward a component cost
+  (`powerRowValue`). The coordinator ruled this a lookup, not an owner question. It is a unit, not a printed
+  figure, so nothing is imported. *Counter (low):* a Judge marking a power row otherwise keeps the choice.
+- **A ritual's facility is the workshop.** The page names a workshop for casting a ritual. *Counter (low):*
+  learning a ritual names a library, which is the spell-research kind's facility.
+- **A cast ritual waits for its placement.** A successful ritual stamps `pending: "placement"` and is listed
+  as awaiting, not closed, until board 17 C (M-r2b) writes where its effect goes. *Counter (medium):* until
+  then a Judge records the placement by hand.
+- **A part's XP is taken whole, and 0 reads as unread.** A monster part's value for a ritual is its source
+  monster's award (`xpPartValue`), blank and held where unread. *Counter (low):* a creature whose award is
+  genuinely 0 holds; no such creature yields special components.
+- **A ritual spell is claimed as a ritual first,** ahead of a summoning claim, and its dialog hides the
+  ordinary bands. Finding 1c.36 is closed by the same claim.
+- **Board 18 approved.** The owner: "Approve, build it", the Judge's "Common spell (no throw)" check as
+  drawn. It builds as M-r3.

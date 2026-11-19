@@ -3860,6 +3860,17 @@ other session on the server:
   first run.
 - 164eedfe: board 16 (the Judge's due box, Post days… and withdrawing a
   posted day). magic-research-project 57/0 on the first run.
+- df79b40a: M-q3, Finish & throw and the formula record (223). Walk fix
+  153ac2a1. magic-research-project 74/0.
+- 25ccc64e, 8852dc91: M-r1, the research throw follows the page (RR ch. 8): the
+  short-bucket hold, no throw for a formula item or a common spell, power
+  matched and worth its amount in gp, Intellect on the die, the target raised
+  by the level. eb382218: M-r2a, board 17 A, B, D and E. Walk fixes in this
+  record's commit (the Finish card is waited for, not timed, and the section-14
+  first card is tracked). magic-research-project 87/0, magic-cast-spell
+  179/179.
+- Board 18 (a Judge's "Common spell (no throw)" check) is approved, owner:
+  "Approve, build it". It builds next as M-r3, then M-r2b (board 17 C).
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built

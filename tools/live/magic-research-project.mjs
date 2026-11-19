@@ -692,7 +692,9 @@ try {
     const out = { enabled: !!btn && !btn.disabled, controlMark: !!btn?.hasAttribute("data-research-control"), plan: { target: planA.target, by: planA.by, levelRaise: planA.levelRaise, int: planA.int, intUnread: planA.intUnread, noThrow: planA.noThrow } };
     btn.click();
     await until(() => proj(${JSON.stringify(fa.id)})?.status === "closed", 80);
-    await sleep(2000);
+    // The card is posted after the writers and the settlement, so it is waited for, not timed.
+    await until(() => newCards().length > 0, 80);
+    await sleep(500);
     const p = proj(${JSON.stringify(fa.id)});
     out.status = p.status;
     out.outcome = p.outcome;
@@ -1038,7 +1040,8 @@ try {
   const partF = await mkPart("QA Research Component F");
   const first = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partF, qty: 1, fit: "matched" }]);
   await rig13(20);
-  await run(gm, U, `${snap} await research().finish(place(), ${JSON.stringify(first.id)}); await sleep(2000); return true;`, ids13);
+  const firstCards = await run(gm, U, `${snap} await research().finish(place(), ${JSON.stringify(first.id)}); await until(() => newCards().length > 0, 80); await sleep(500); return newCards().map((m) => m.uuid);`, ids13);
+  for (const u of firstCards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
   const partG2 = await mkPart("QA Research Component F2");
   const again = await makeReady({ kind: "item", subject: { uuid: ids13.gear, name: "QA Research Gear" } }, [{ uuid: partG2, qty: 1, fit: "matched" }]);
   const fo = await run(gm, U, `
@@ -1051,7 +1054,8 @@ try {
     out.throwChip = [...c.querySelectorAll(".acks-extras-research__parts .acks-tag")].map((e) => e.textContent.trim()).join("|");
     btn.click();
     await until(() => proj(${JSON.stringify(again.id)})?.status === "closed", 80);
-    await sleep(2000);
+    await until(() => newCards().length > 0, 80);
+    await sleep(500);
     const msg = newCards().at(-1);
     out.card = { text: msg ? String(msg.content).replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim() : "", rolls: msg?.rolls?.length ?? -1, targetColumn: msg ? /Target/i.test(String(msg.content)) : null };
     out.cards = newCards().map((m) => m.uuid);
