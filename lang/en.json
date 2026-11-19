@@ -3786,7 +3786,7 @@
         "tierText": "The printed sentence for this level, kept whole. The fields below hold whatever could be read out of it."
       },
       "assigned": "{trap} assigned to that wall.",
-      "dropNoWall": "Drop a trap onto a wall to assign it — there is no wall there.",
+      "dropNoWall": "Drop a trap onto a wall to assign it, or inside a region to add it to that region's place. There is neither here.",
       "wallTrapLabel": "ACKS trap",
       "wallTrapNone": "None. Drag a Trap item here.",
       "wallTrapSet": "Trapped — {state}.",
@@ -4509,7 +4509,8 @@
         "notItem": "Only an item can be dropped here.",
         "blankHazard": "That hazard has no kind set. Set its kind on its sheet, then drop it again.",
         "notAccepted": "Only a trap, an obstacle or a condition can be dropped here.",
-        "noPlace": "No place could be made for this region."
+        "noPlace": "No place could be made for this region.",
+        "noRegion": "Drop it inside a region that has no zone or terrain of its own, or on a place, to add it there."
       }
     },
     "DISTRICT": {

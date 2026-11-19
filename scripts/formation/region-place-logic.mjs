@@ -42,20 +42,22 @@ export const acceptsCondition = (drop) => hazardGroupOfDrop(drop) === "condition
 /**
  * The thing a drop of this kind builds. `ref` is the dropped document's own
  * uuid; a trap starts hidden, as an unfound trap is; an obstacle's figures
- * start blank for the Judge to set at the table, and a condition has none.
+ * start blank for the Judge to set at the table, and a condition has none. A
+ * map drop sets `point`; a sheet drop leaves it null.
  * The id is assigned by `addThing`.
  *
  * @param {string} kind one of `HAZARD_THING_KINDS`
  * @param {{uuid: string}} drop
+ * @param {{point?: {x: number, y: number}|null}} [options] `point` is where a map drop landed, in scene pixels; a sheet drop has none
  */
-export function thingOfDrop(kind, drop) {
+export function thingOfDrop(kind, drop, { point = null } = {}) {
   if (!HAZARD_THING_KINDS.includes(kind)) throw new RangeError(`thingOfDrop: ${kind} is not a hazard thing kind`);
   return {
     kind,
     ref: drop?.uuid ?? null,
     hidden: kind === "trap",
     hint: null,
-    point: null,
+    point: point && Number.isFinite(point.x) && Number.isFinite(point.y) ? { x: point.x, y: point.y } : null,
     params: kind === "obstacle" ? { length: null, gap: null, depth: null } : {},
     layers: {},
     state: {},

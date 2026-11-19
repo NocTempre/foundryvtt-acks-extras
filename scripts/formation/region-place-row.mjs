@@ -12,9 +12,10 @@
  */
 import { MODULE_ID } from "./constants.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
+import { placesAround } from "../location/places-around.mjs";
 import { associateLabels } from "../lib/a11y.mjs";
 import { elementOf, escape as esc } from "../lib/util.mjs";
-import { kindOfDrop } from "../lib/place-things-logic.mjs";
+import { THING_KINDS, kindOfDrop } from "../lib/place-things-logic.mjs";
 import { addThingTo, thingsOf } from "../lib/place-things.mjs";
 import { countsOf, descriptorOf, refusalOfDrop, thingOfDrop } from "./region-place-logic.mjs";
 
@@ -100,22 +101,32 @@ function countsLineOf(place) {
 }
 
 /**
+ * Resolve a drag's own data to what it becomes: the dropped Item, its
+ * descriptor and the kind the one table makes of it (null when none does).
+ */
+async function dropKind(data) {
+  const dropped = data?.type === "Item" && data.uuid ? await fromUuid(data.uuid).catch(() => null) : null;
+  const drop = descriptorOf(dropped, data?.uuid);
+  return { drop, kind: drop ? kindOfDrop(drop) : null };
+}
+
+/**
  * Take one drop onto the region's place. Resolves the dragged document, asks
  * the one kind table what it becomes, makes the place first when the region has
  * none (without opening its sheet), and adds the thing. A drop no kind accepts
- * warns in words and writes nothing.
+ * warns in words and writes nothing. `point` is where a map drop landed and is
+ * left out for a drop on a sheet, which has no place on the map to name.
  *
  * @param {object} options
  * @param {RegionDocument} options.region
  * @param {object} options.scenes the location feature's `scenes` api
  * @param {{type?: string, uuid?: string}|null} options.data the drag's own data
+ * @param {{x: number, y: number}|null} [options.point] where a map drop landed, in scene pixels
  * @returns {Promise<object|null>} the thing's list after the write, or null
  */
-export async function dropOnRegionPlace({ region, scenes, data }) {
+export async function dropOnRegionPlace({ region, scenes, data, point = null }) {
   const warn = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.${key}`));
-  const dropped = data?.type === "Item" && data.uuid ? await fromUuid(data.uuid).catch(() => null) : null;
-  const drop = descriptorOf(dropped, data?.uuid);
-  const kind = drop ? kindOfDrop(drop) : null;
+  const { drop, kind } = await dropKind(data);
   const refusal = refusalOfDrop(drop, kind);
   if (refusal) {
     warn(refusal);
@@ -126,7 +137,52 @@ export async function dropOnRegionPlace({ region, scenes, data }) {
     warn("noPlace");
     return null;
   }
-  return addThingTo(place, thingOfDrop(kind, drop));
+  return addThingTo(place, thingOfDrop(kind, drop, { point }));
+}
+
+/**
+ * The Region a drop on the map lands in when no place holds the point: the
+ * smallest Region over it that has no behaviors at all. A Region that already
+ * carries a behavior (a zone, a terrain, a district) stands for another
+ * feature's area, and a drop there does not make a place of it.
+ */
+function bareRegionAt(scene, point, scenes) {
+  const holds = (region) => region.behaviors?.size === 0 && !scenes.locationOfRegion(region) && region.testPoint({ ...point, elevation: 0 });
+  return [...(scene?.regions ?? [])].filter(holds).sort((x, y) => (x.area ?? 0) - (y.area ?? 0))[0] ?? null;
+}
+
+/**
+ * Take one drop onto the map. The point is the drop's `x`/`y`. The thing goes
+ * to the place whose area holds it (`placesAround`: its Region, its token, its
+ * map; the first when more than one does), and with no place there to a bare
+ * Region over it, which is made a place first and the thing added through the
+ * same path as a drop in the Region window, `point` set. A drop no kind accepts
+ * is not this row's and is left alone without a word. A trap is the map drop's
+ * wall assignment first: the trap drop asks here only where no wall is near
+ * (`includeTraps`), and this row's own hook never takes one.
+ *
+ * @param {object} options
+ * @param {Scene} options.scene
+ * @param {{type?: string, uuid?: string, x?: number, y?: number}|null} options.data the drag's own data
+ * @param {boolean} [options.includeTraps] take a trap drop too (the trap drop's fallback)
+ * @param {object} [options.scenes] the location feature's `scenes` api
+ * @param {(point: object, scene: Scene) => Array<{place: Actor}>} [options.around] `placesAround`
+ * @returns {Promise<object|null>} the list after the write, or null when nothing took the drop
+ */
+export async function dropOnMapPlace({ scene, data, includeTraps = false, scenes = globalThis.acksExtras?.location?.scenes, around = placesAround }) {
+  const point = { x: Number(data?.x), y: Number(data?.y) };
+  if (!scene || !scenes || !Number.isFinite(point.x) || !Number.isFinite(point.y)) return null;
+  const { drop, kind } = await dropKind(data);
+  if (!kind || (kind === THING_KINDS.TRAP && !includeTraps)) return null;
+  const held = around(point, scene)[0]?.place ?? null;
+  if (held) return addThingTo(held, thingOfDrop(kind, drop, { point }));
+  const region = bareRegionAt(scene, point, scenes);
+  if (!region) {
+    // The trap drop words its own refusal; a hazard has no other.
+    if (!includeTraps) ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.noRegion`));
+    return null;
+  }
+  return dropOnRegionPlace({ region, scenes, data, point });
 }
 
 /**
@@ -178,7 +234,17 @@ function mountRegionPlaceRow(app) {
   associateLabels(row);
 }
 
-/** Add the Place row to every Region window. */
+/**
+ * Add the Place row to every Region window, and take a hazard dragged onto the
+ * map into the place under it. The hook always answers true: the work is async,
+ * and a returned promise would read as a truthy "handled" to core.
+ */
 export function installRegionPlaceRow() {
   Hooks.on("renderRegionConfig", (app) => mountRegionPlaceRow(app));
+  Hooks.on("dropCanvasData", (canvasRef, data) => {
+    if (game.user?.isGM && data?.type === "Item" && data.uuid) {
+      report(dropOnMapPlace({ scene: canvasRef?.scene, data }), "map place drop");
+    }
+    return true;
+  });
 }

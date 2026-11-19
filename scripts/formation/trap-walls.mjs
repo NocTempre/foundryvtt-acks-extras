@@ -14,6 +14,7 @@ import {
   wallSheetFields,
 } from "../lib/wall-layers.mjs";
 import { elementOf } from "../lib/util.mjs";
+import { dropOnMapPlace } from "./region-place-row.mjs";
 
 /**
  * Traps laid on walls: a trap is a layer over an existing wall (a door
@@ -272,7 +273,9 @@ export function installTrapDrop() {
       const reach = scene.grid.size;
       const wall = wallNear(scene, data.x, data.y, reach);
       if (!wall) {
-        ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.dropNoWall"));
+        // With no wall near, a trap goes to the place under the drop, when there is one.
+        const placed = await dropOnMapPlace({ scene, data, includeTraps: true });
+        if (!placed) ui.notifications?.warn(game.i18n.localize("ACKS-FORMATION.traps.dropNoWall"));
         return;
       }
       await assignTrapToWall(wall, trap);
