@@ -61,7 +61,6 @@
 .acks-extras-battlemap-unit {
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-faint);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
   white-space: nowrap;
@@ -242,7 +241,6 @@
   font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.06em);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
 }
 
@@ -361,7 +359,6 @@
   font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.1em);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
@@ -391,7 +388,6 @@
   flex: 0 0 auto;
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.05em);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
@@ -547,7 +543,6 @@
   font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.1em);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-spot);
   margin-top: calc(4px * var(--acks-extras-k));
@@ -621,7 +616,6 @@
   font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-caps-tracking, 0.05em);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }

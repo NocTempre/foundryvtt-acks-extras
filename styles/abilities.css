@@ -26,7 +26,6 @@
   flex: 0 0 auto;
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-caps-weight, inherit);
   text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   color: var(--acks-ink-soft);
