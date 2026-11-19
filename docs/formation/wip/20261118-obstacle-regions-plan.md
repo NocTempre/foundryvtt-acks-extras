@@ -151,4 +151,36 @@ cross-checked against the treasure plan's scene-search screen.
 
 ## Results
 
-(appended per slice)
+### H1: the Hazard item type, its compendium and the seed
+
+H1 is on main as d20a664b. It was walked live twice:
+
+- On eb4db7a2 the item type and its sheet passed.
+- On 90eb3e9a, after the packs were rebuilt, the Hazards compendium passed: 15 entries, locked, a real drag-import works, and an entry is read-only to both seats.
+
+Finding T-0672: the header title does not follow the type size. The fixture `formation/hazard-sample` is kept.
+
+### H0 and B3: trap stacking and the Region window's Place row
+
+Main gained four commits:
+
+| Commit | What |
+|---|---|
+| 7d26b616 | H0 |
+| 0bd2e79c | B3 |
+| 3d8c5f9e | the lang-root rename the gate needed |
+| bcf1382e | the walk's finding: a drop that makes a region's place left the Judge's unsaved Region-window edits to a re-render; the link flag is now written with `render:false` |
+
+The walk on lane B passed 14/14. B3 step 7 passed on its re-walk after the fix. Fixtures kept: `formation/trap-stack-*` and `formation/place-row-*`.
+
+B3 also built the carrier's write half, `lib/place-things.mjs`. The scene-search plan's Results record it, for S2 to extend.
+
+### B2 and H3: the Judges' hazard card and seeding
+
+B2 and H3 are on the topic as 5dfdfbec. The owner answered the three points of the card that go beyond board v13, verbatim:
+
+- Column headings ("Obstacle", "Figures", "Crossing"): "Keep headings".
+- A "Hidden from players" mark on a hidden thing's row and chip: "Keep the mark".
+- Figures as "Length 40 ft · Depth —", not the board's "Sheer climb · 40′": "Labelled".
+
+**Carried to H4:** the board draws "Swim · depth —", but the swim setup reads no depth, so a swim row shows no figure. H4 either drops the depth figure from that row or adds the read, whichever the page supports.
