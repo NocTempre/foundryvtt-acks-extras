@@ -686,3 +686,11 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 - *Spiking* with no `doorSpikeMax` imported hammers nothing. A Strength-scaled party check missing the factor is reported as not thrown, never as incapable.
 - *API:* `api.formation.doors` loses `BASH_TARGET`, `BASH_STR_FACTOR`, `DOOR_KINDS` and `MAX_SPIKES`, and gains `maxSpikes()`, `bashStrFactor()`, `bashBotchBand()`, `bashReboundDamage()`, `doorRows()`, `doorRow()`, `doorKey()` and `bashThrow()`. `bashPlan` takes the target and returns `ready`, `missing` and `needs`; `batterPlan` and `batterDoor` count `count`, `unit`, `tool` and `rounds` where they returned `turns`. `apiVersion` 35. The namespace's own policy calls a removal a major of the module, which this note does not declare: it is the owner's.
 
+
+## 2026-11-18 — The Judge's Turn plan lock warns where a player's refuses; Trapbreaking opens from one place
+
+**Ruled.** The owner: "Players get blocks, judges get warnings", and on the Dungeon-tab board (2026-11-18): "Approve, build it". A Judge's Lock on a Turn plan row writes a choice a player would be refused, and the row carries the reason as a warning for the turn it was made on (`lockForJudge`, `planNotes`). A choice nothing can be built from stays refused for the Judge too: no member, no such activity or option, no imported length, or a refusal with no words. A player's press-time refusal is shown on the row as well as in a toast. The Trapbreaking opener has one home, the Dungeon tab's head, on both seats; the Order tab and the request section shared by the Wilderness and City tabs no longer carry it.
+
+**Rejected.** Openers on two tabs, one per seat: a Judge and a player looking for the same control found it in different places. Storing the warning on the plan entry: it is the sheet's note to the user who pressed, not part of the choice.
+
+**Cost.** A Judge on a journey or in a city has no Trapbreaking opener. A warning lives on the sheet that made it, so a second Judge client does not see it.
