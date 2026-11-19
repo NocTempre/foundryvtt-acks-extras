@@ -2634,41 +2634,181 @@
   grid-template-columns: repeat(var(--frontage, 1), minmax(7rem, 1fr));
 }
 
-/* --- the door helper --- */
+/* --- the door window: a scrolling body over a pinned footer ---
+   The body part is the scroller, so a draw after each change keeps its place;
+   the footer never shrinks, so Batter and Bash it stay in reach. The window
+   root is capped to the viewport so the frame never grows past the screen.
+   Widths are ems and ramp steps: the type knob reaches every part. */
 
-.acks-extras-door {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+.acks-extras-door-window.application {
+  max-height: 92vh;
 }
 
-.acks-extras-door-who {
-  margin: 0.2rem 0;
-}
-
-.acks-extras-door-needs {
-  margin: 0.2rem 0;
+.acks-extras-door-window.application .window-content {
+  padding: 0;
+  /* Re-take the type from core, which pins a size on the content box. */
   font-size: var(--acks-fs-body);
 }
 
-/* The throw broken into what made it, one line each — this is the whole point
-   of the helper, so it reads as a stack of terms rather than a sentence. */
-.acks-extras-door-parts {
-  list-style: none;
-  margin: 0.2rem 0 0;
+.acks-extras-door-window .acks-extras-door-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4) var(--acks-sp-5);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-door-window .acks-extras-door-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  margin: 0 0 var(--acks-sp-3);
+  padding-block-end: var(--acks-sp-2);
+  border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
+  font-size: var(--acks-fs-h3);
+  color: var(--acks-spot);
+  text-transform: uppercase;
+}
+
+.acks-extras-door-window .acks-extras-door-record {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-door-window .acks-extras-door-grid {
+  display: grid;
+  flex: 1 1 auto;
+  min-width: 0;
+  grid-template-columns: minmax(0, 10em) minmax(0, 1fr);
+  gap: var(--acks-sp-3) var(--acks-sp-4);
+  align-items: center;
+}
+
+.acks-extras-door-window .acks-extras-door-grid :is(select, input[type="number"]) {
+  inline-size: 100%;
+  box-sizing: border-box;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-door-window .acks-extras-door-number {
+  max-inline-size: 6em;
+}
+
+.acks-extras-door-window .hint {
+  margin: 0;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-door-window .acks-extras-door-who {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+  margin: 0;
+}
+
+.acks-extras-door-window .acks-extras-door-basher {
+  font-size: 1.1em;
+}
+
+/* A selected token that cannot bash is refused where the Judge is looking. */
+.acks-extras-door-window .acks-extras-door-refusal {
+  margin: 0;
+  color: var(--acks-danger-ink);
+}
+
+.acks-extras-door-window .acks-extras-door-spikes {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-door-window .acks-extras-door-count,
+.acks-extras-door-window .acks-extras-door-parts span,
+.acks-extras-door-window .acks-extras-door-needs-figure {
+  font-weight: var(--acks-weight-bold);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+
+/* The picture frame: a tall strip, sized in ems so it rides the type knob. The
+   glyph is the icon module's file used as a mask, so it takes the ink colour of
+   the seat's theme and shows on a dark one. */
+.acks-extras-door-window .acks-extras-door-art {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  inline-size: 6em;
+  block-size: 8em;
+  box-sizing: border-box;
+  border: var(--acks-rule-hair) dashed var(--acks-spot);
+  color: var(--acks-spot);
+}
+
+.acks-extras-door-window .acks-extras-door-art::before {
+  content: "";
+  inline-size: 70%;
+  block-size: 70%;
+  background: currentColor;
+  mask: var(--acks-extras-door-glyph) center / contain no-repeat;
+  -webkit-mask: var(--acks-extras-door-glyph) center / contain no-repeat;
+}
+
+.acks-extras-door-window .acks-extras-door-throw {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  margin-block-start: var(--acks-sp-4);
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) solid var(--acks-tint-2);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-door-window .acks-extras-door-needs {
+  display: flex;
+  align-items: baseline;
+  gap: var(--acks-sp-3);
+  margin: 0;
+}
+
+.acks-extras-door-window .acks-extras-door-needs-figure {
+  font-size: 1.6em;
+  color: var(--acks-spot);
+}
+
+/* The throw broken into what made it, one line each; this is the whole point
+   of the window, so it reads as a stack of terms rather than a sentence. */
+.acks-extras-door-window .acks-extras-door-parts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  margin: 0;
   padding: 0;
+  list-style: none;
   font-size: var(--acks-fs-label);
 }
 
-.acks-extras-door-parts > li {
+.acks-extras-door-window .acks-extras-door-footer {
   display: flex;
-  justify-content: space-between;
-  gap: 0.6rem;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--acks-sp-3);
+  padding: var(--acks-sp-3) var(--acks-sp-5);
+  border-block-start: var(--acks-rule) solid var(--acks-spot);
+  background: var(--acks-tint);
+  font-size: var(--acks-fs-body);
 }
 
-.acks-extras-door-spikes {
-  align-items: center;
-  gap: 0.3rem;
+/* Core pins the type size of buttons and form controls; the window's own re-take it. */
+.acks-extras-door-window :is(button, select, input) {
+  font-size: var(--acks-fs-body);
 }
 
 /* A member the party must carry or leave. Marked in the danger ink because it

@@ -269,7 +269,14 @@ it covers; a section no walk names is walked by hand.
     drop on the party sheet, the formation's own add-member path, enrols it
     where the kept party lacks it); a second character
     `formation/steps-stranger` (token `formation/steps-stranger-token`) in no
-    formation. At the step's start both doors are written closed (`ds: 0`)
+    formation. For the window's own checks, three more, built with
+    `api.fixture` when no document carries the marker: a character
+    `formation/steps-door-mate` with its token `formation/steps-door-mate-token`
+    on the scene, enrolled in `formation/steps-door-party` the way the basher is
+    (the party then holds two); a monster actor `formation/steps-door-beast`
+    with its token `formation/steps-door-beast-token`; and a token
+    `formation/steps-door-ghost-token` built with no `actorId`, which core
+    allows. At the step's start both doors are written closed (`ds: 0`)
     with the `door` flag unset, both characters' hit points set to 6, and the
     party's record brought to a new record's shape. The step seeds INVENTED
     door figures, never a page's: the `formation` document registered at world
@@ -282,36 +289,67 @@ it covers; a section no walk names is walked by hand.
     target; it unregisters them at the end. Select the door on the Walls layer,
     select the first character's token, and press the **ACKS door actions**
     tool (Scene controls → Walls).
+    - *One window per door, following the selection.* After the tool opens the
+      window, read `foundry.applications.instances`: the window's id is
+      `acks-extras-door-<scene id>-<wall id>`. Select the second door and press
+      the tool again without closing the first: two windows stand, each with its
+      own id, and pressing the tool on the first door again fronts the first and
+      opens no third. Without asking for a draw, select `formation/steps-door-mate-token`: within a second the **Basher** line names that character (no window
+      refresh, no reopening), and with nothing selected it reads "nobody
+      selected" and **Bash it** is disabled. Select `formation/steps-door-beast-token`, then
+      `formation/steps-door-ghost-token`: the window shows the refusal line in
+      the Bash section and **Bash it** stays disabled.
+    - *Partners.* With the first character's token selected the **Partner**
+      select lists `formation/steps-door-mate` and not
+      `formation/steps-stranger` (in no party); with that party's token
+      moved to another scene the list is empty. A world actor in no party never
+      appears. Pick a partner, then select another token: the partner is not
+      applied to the new basher.
+    - *Pinned footer, short display.* Resize the browser window (or the
+      window) to a height of about 400 px at the default type size: the body
+      scrolls and **Batter** and **Bash it** stay in view; raise the type size
+      setting and open a fresh window: the same.
+    - *Hover each part.* Hover the needs figure and each term in the list. The
+      needs figure lists the basher's own throw, its terms and their pages; the
+      throw's tooltip names the character's own Dungeonbashing throw (RR ch. 3);
+      each term shows its count times the seeded figure with a page; the spike
+      count reads the most a door holds with RR p. 267; **Batter** names the row
+      and RR p. 266. The seed registers no page of its own, so each page is the
+      module's reference (RR p. 267 or RR p. 266). The picture frame beside the
+      door's fields shows the door glyph when the game-icons-net module is
+      active, and no frame when it is not.
     - *Construction.* Read the select with the grid imported: its first option
-      is the unset choice, selected, and the **Batter** fieldset shows no
-      time and no hint. Pick a row in the select.
+      is the unset choice, selected, and the **Batter it down** section shows
+      its figure as a dash, **Batter** is disabled, and no hint shows. Pick a
+      row in the select.
       *Observable:* re-read `wall.flags["acks-extras"].door.kind` from the
       document (not the DOM): it is the row's key, `<ordinal>:<label>`. The
       **Time to batter down** line shows the row's count, unit and tool word as
-      imported, and the row with no time shows the "no battering time" hint in
-      place of the button. Write an older kind name (`ironBanded`) into the
+      imported and **Batter** is live, and the row with no time shows the "no
+      battering time" hint and **Batter** disabled. Write an older kind name (`ironBanded`) into the
       flag by hand: the select reads unset and `doorState(wall).kind` is null.
     - *Blanked.* Unregister the `formation` figures. Re-open the window.
-      *Observable:* the **Needs a roll of** figure is blank, **Heave** is
-      disabled and not styled as hopeless, the Construction select lists only
-      the unset choice, and the tooltips on the throw and on the Batter
-      fieldset carry RR p. 267 and RR p. 266. Register only the botch band and
-      the rebound: with no Strength modifier, no partner, no crowbar and no
-      size step the figure and the button return; ticking **Crowbar in hand**
-      blanks them again.
-    - *Marks.* Tick **Evil**, then **Lock jammed**, then untick **Evil**.
+      *Observable:* the **Needs a roll of** figure is a dash, **Bash it** is
+      disabled and not styled as hopeless, no part list shows, the Construction
+      select lists only the unset choice, and the tooltips on the needs figure,
+      on the spike count and on the Batter figure are the page reference alone
+      (RR p. 267, RR p. 267 and RR p. 266) with no sentence about what is
+      missing. Register only the botch band and the rebound: with no Strength
+      modifier, no partner, no crowbar and no size step the figure and the
+      button return; ticking **Crowbar** blanks them again.
+    - *Marks.* Tick **Evil**, then **Jammed**, then untick **Evil**.
       *Observable:* the wall's `door.evil` and `door.jammed` flags read
       `false`/`true` after the last change, and `api.doors.doorState(wall)`
       returns the same; the spikes count is unchanged by each write.
     - *Botch.* Rig the d20 to show a 1 (the dice rig reads from the top; probe
-      one roll after rigging) and press **Heave**.
+      one roll after rigging) and press **Bash it**.
       *Observable:* the card carries a "Damage to {name}" line with the
       imported rebound and the "reported, not applied" note; the character's
       hit points are unchanged. An ordinary miss carries neither line. The card
       shows the character's own target (the invented figure) and the total as
       the die plus the imported Strength term.
     - *Batter.* On the row counted in turns, read
-      `getFormations()[id].clock.turnsTotal`, press **Batter it down** with the
+      `getFormations()[id].clock.turnsTotal`, press **Batter** in the footer with the
       formation's member selected.
       *Observable:* `turnsTotal` rose by exactly the count the line showed,
       a turn card posted, the wall's `ds` reads 1, and

@@ -1,0 +1,11 @@
+{{!-- The door window's two writes. A separate part so they stay pinned below the
+      scrolling body. A control that cannot act is disabled, and its tooltip says
+      where its figure comes from. --}}
+<footer class="form-footer acks-extras-door-footer">
+  <button type="button" data-action="batter" data-tooltip-text="{{batterTip}}" {{#unless batter.ok}}disabled{{/unless}}>
+    <i class="fa-solid fa-axe" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.batterIt"}}
+  </button>
+  <button type="button" class="acks-btn acks-btn--roll" data-action="bash" data-tooltip-text="{{needsTip}}" {{#unless canBash}}disabled{{/unless}}>
+    <i class="fa-solid fa-person-falling-burst" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.bashIt"}}
+  </button>
+</footer>

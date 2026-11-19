@@ -1300,13 +1300,44 @@ batter.
 **The dialog edits the door's record.** `door-app.mjs` is GM-only (the
 `acksDoor` scene tool, Scene controls → Walls). Its form submits on change; the
 construction select, which lists the imported rows after an unset choice that
-leads and is selected until a row is picked, and the **Evil** and **Lock
-jammed** checkboxes are written through `setDoorTraits` to `kind`, `evil` and
+leads and is selected until a row is picked, and the **Evil** and **Jammed**
+checkboxes are written through `setDoorTraits` to `kind`, `evil` and
 `jammed`, and only when the submitted value differs from the stored one, so the
 rolling options (crowbar, size, Judge's modifier) never touch the wall. The
 render that follows re-reads `doorState`, so the batter figure follows the
 construction. `evil` and `jammed` are records for the Judge; no figure in the
 dialog changes with them.
+
+**The door window is one window per door.** Its id is built from the scene and
+the wall (`doorWindowId`), so two doors open two windows and opening a door
+that is already open fronts its window (`openDoorApp`). The body part is the
+scroller (`scrollable: [""]`, so a draw keeps its place) and the footer, Batter
+and Bash it, is its own part pinned under it; the width is the canvas figure
+scaled to the seat's type size and every other size is a ramp step or an em.
+**The basher is the selected token, read when the window draws.** The window
+names that token's actor, keeps it for its presses, and draws again on
+`controlToken` once the selection settles, when the controlled token is not the
+one it drew. A press acts for the basher the window showed. A selected token
+with no actor, or a creature with no Dungeonbashing throw, is refused on the
+window (`refuse.noThrow`) with Bash it disabled; with nothing selected the
+name says so and nothing is refused. **The partner list is the basher's party**:
+the other members of the formation that holds the basher (`partnerActors`),
+who can work now, when that formation's recorded scene is the door's scene or
+none is recorded; a basher no party holds has none. A partner named in the form
+who is not in that list at a draw or a press is not applied. **Every figure and
+part has a tooltip of its own.** The needs figure joins its parts with the
+actor's own numbers and a page; each part names where its figure came from (the
+character's own throw, RR ch. 3; a term's count times its imported figure with
+the page the import recorded, `citeOf`, else RR p. 267; the Judge's own
+modifier). Each term reads as what it does to the number needed, so the throw,
+then the terms, add down to the needs figure; the spike count reads the most a door holds with its page; the
+construction and the batter figure give their grid row and the page (RR p.
+266). Where the throw is not ready the needs stay blank, Bash it is disabled
+and the tooltip is the page alone, with no message. The picture frame shows the
+door glyph from the game-icons-net module by path (`blacktransparent/wooden-door.svg`
+as a mask, so it takes the seat's ink) and is not drawn when that module is
+inactive; no book picture is cut for it (ROADMAP: the importer has no register
+for a picture a surface other than an actor or a scene reads).
 
 **The bash target is the basher's own throw.** `bashThrow(actor)` is
 `resolveCheck(actor, PARTY_CHECKS.dungeonbashing)`: its target, and `skilled`
@@ -1324,7 +1355,7 @@ ticked, a size term by the sign of the steps, and the spike penalty for each
 spike past the first. A term in play whose figure is not imported, and the
 botch band and rebound every bash needs, are named in `missing`; with any, or
 with no throw, the plan is not `ready`, `needs` and `hopeless` are null, and the
-window leaves needs blank and Heave disabled, with RR p. 267 in the tooltip.
+window leaves needs blank and Bash it disabled, with RR p. 267 in the tooltip.
 `bashDoor` throws nothing from such a plan and answers `{ok: false, reason:
 "missing", missing}`. `needs` is the lowest natural result that succeeds: the
 target less the modifier, no lower than the die's floor (`dieFloor`), and no
@@ -1347,8 +1378,8 @@ as for a trap (see Traps above).
 
 **A batter spends its time.** `batterPlan` reads the picked row's batter
 `{count, unit, tool}`, a count of turns or rounds with the tool as the import
-words it, and answers `noRow` for a door with no row picked (the window shows no
-batter) and `tooSolid` for a row whose notes give no time. `batterDoor` opens
+words it, and answers `noRow` for a door with no row picked (the window shows the figure
+blank and Batter disabled) and `tooSolid` for a row whose notes give no time. `batterDoor` opens
 the wall (`ds: 1`) and charges the plan's `rounds` through
 `advanceRounds(formation, rounds, { reason: "action" })` to the formation
 holding the basher (`getFormationForActor`); a count of turns is `count` times

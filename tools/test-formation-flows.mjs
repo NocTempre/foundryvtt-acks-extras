@@ -23,9 +23,11 @@ const uid = (p = "id") => `${p}${(++nextId).toString().padStart(4, "0")}`;
 
 const hooks = new Map();
 globalThis.Hooks = {
+  // Core hands back an id that `off` takes; the mock's id is the listener itself, which `off` also takes.
   on(name, fn) {
     if (!hooks.has(name)) hooks.set(name, []);
     hooks.get(name).push(fn);
+    return fn;
   },
   once(name, fn) {
     const wrapper = (...args) => {
@@ -148,6 +150,8 @@ globalThis.foundry = {
         constructor(options = {}) {
           this.options = options;
         }
+        async _onFirstRender() {}
+        async _onClose() {}
         render() {
           return this;
         }
@@ -5929,6 +5933,209 @@ await scenario("a door's construction and marks persist, a botch reports its dam
     canvas.tokens.controlled = priorControlled;
     if (!hadSpeaker) delete ChatMessage.getSpeaker;
     if (!hadExpand) delete foundry.utils.expandObject;
+  }
+});
+
+await scenario("the door window: one per door, the basher is the selected token, partners are the party's, tooltips carry their pages", async () => {
+  const doors = await import("../scripts/formation/doors.mjs");
+  const { default: DoorApp, doorWindowId, openDoorApp, partnerActors } = await import("../scripts/formation/door-app.mjs");
+  const { registerTable, unregisterTable, PRIORITY } = await import("../scripts/lib/tables.mjs");
+  const { default: Handlebars } = await import("handlebars");
+  const fs = await import("node:fs");
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+
+  // INVENTED figures, registered the way an import registers them; one carries an invented page.
+  const BASH = {
+    bashStrengthFactor: 3, bashPairBonus: 5, bashCrowbarBonus: 7, bashSizeBonus: 6, bashSizePenalty: 9,
+    bashSpikePenalty: 11, doorSpikeMax: 6, bashBotchBand: 2, bashReboundDamage: 3,
+  };
+  const GRID = [{ ordinal: 1, label: "Door A", batter: { count: 2, unit: "turn", tool: "mattock" } }];
+  const STR_PAGE = "TEST p. 9";
+  const importDoors = (doc = { tables: { doors: GRID, ...BASH }, cites: { bashStrengthFactor: STR_PAGE } }) => {
+    unregisterTable("formation", { priority: PRIORITY.WORLD });
+    if (doc) registerTable({ id: "formation", ...doc }, { priority: PRIORITY.WORLD, source: "test" });
+  };
+  const wallOf = (id, sceneId) => ({
+    id, parent: { id: sceneId }, door: 1, ds: 0, flags: {},
+    getFlag(ns, key) { return this.flags[ns]?.[key]; },
+    async setFlag(ns, key, value) { (this.flags[ns] ??= {})[key] = { ...(this.flags[ns][key] ?? {}), ...foundry.utils.deepClone(value) }; return this; },
+    async update(patch) { Object.assign(this, patch); return this; },
+  });
+  const tokenOf = (id, actor, name = actor?.name) => ({ id, name, actor });
+  const render = (file, ctx) => Handlebars.compile(fs.readFileSync(`templates/formation/${file}`, "utf8"))({ partId: "p", ...ctx });
+
+  Handlebars.registerHelper("localize", (k) => String(k));
+  Handlebars.registerHelper("checked", (v) => (v ? "checked" : ""));
+  const priorControlled = canvas.tokens.controlled;
+  const priorModules = game.modules.get;
+  const priorInstances = foundry.applications.instances;
+  const priorDebounce = foundry.utils.debounce;
+  try {
+    await game.settings.set(MODULE_ID, "formations", {}); // isolate
+    importDoors();
+    const basher = await member("Win Basher");
+    const mate = await member("Win Mate");
+    const stranger = await member("Win Stranger"); // on the scene, in no party
+    const elsewhere = await member("Win Elsewhere"); // in another party
+    const other = await member("Win Other");
+    const beast = await ActorMock.create({ name: "Win Beast", type: "monster", system: { hp: { value: 5, max: 5 }, scores: { str: { mod: 1 } } } });
+    basher.system.adventuring.dungeonbashing = 15;
+    await drain();
+    let party = await model.createFormation("Win Party");
+    party = await model.addMember(model.getFormation(party.id), basher, null);
+    party = await model.addMember(model.getFormation(party.id), mate, null);
+    let party2 = await model.createFormation("Win Party Two");
+    party2 = await model.addMember(model.getFormation(party2.id), elsewhere, null);
+    party2 = await model.addMember(model.getFormation(party2.id), other, null);
+    await drain();
+    const setScene = async (id, sceneId) => {
+      const all = foundry.utils.deepClone(game.settings.get(MODULE_ID, "formations"));
+      all[id].sceneId = sceneId;
+      await game.settings.set(MODULE_ID, "formations", all);
+      await drain();
+    };
+    const wallA = wallOf("wallA1", "sceneS1");
+    const wallB = wallOf("wallB1", "sceneS1");
+
+    /* --- one window per door --- */
+    assert.notEqual(doorWindowId(wallA), doorWindowId(wallB), "two doors take two ids");
+    assert.ok(doorWindowId(wallA).includes("wallA1") && doorWindowId(wallA).includes("sceneS1"), "the id is built from the scene and the wall");
+    assert.equal(doorWindowId(wallA), doorWindowId(wallOf("wallA1", "sceneS1")), "one door always takes the same id");
+    assert.equal(new DoorApp(wallA).options.id, doorWindowId(wallA), "the window carries it");
+    assert.equal(DoorApp.DEFAULT_OPTIONS.id, undefined, "no fixed id remains on the class");
+    const fronted = [];
+    const standing = { render: (o) => { fronted.push(["render", o]); return Promise.resolve(); }, bringToFront: () => fronted.push(["front"]) };
+    foundry.applications.instances = new Map([[doorWindowId(wallA), standing]]);
+    await openDoorApp(wallA);
+    assert.deepEqual(fronted, [["render", { force: true }], ["front"]], "reopening a door fronts its window and makes no second");
+
+    /* --- the basher is the selected token, captured at render --- */
+    canvas.tokens.controlled = [tokenOf("tokB", basher)];
+    const app = new DoorApp(wallA);
+    let ctx = await app._prepareContext();
+    assert.deepEqual([ctx.actorName, app.basher === basher, ctx.refusal], ["Win Basher", true, null], "the window names the selected token's actor");
+    canvas.tokens.controlled = [tokenOf("tokM", mate)];
+    assert.equal(app.basher, basher, "a new selection changes nothing until the window draws again");
+    chat.length = 0;
+    await DoorApp.DEFAULT_OPTIONS.actions.spike.call(app);
+    assert.match(String(chat.at(-1)?.content), /Win Basher/, "a press acts for the basher the window showed");
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.actorName, app.basher === mate], ["Win Mate", true], "and a draw follows the selection");
+
+    /* --- the window draws again when the selection changes --- */
+    foundry.utils.debounce = (fn) => fn;
+    const drawn = [];
+    const watched = new DoorApp(wallA);
+    watched.render = () => { drawn.push(canvas.tokens.controlled[0]?.id ?? null); return watched; };
+    watched.rendered = true;
+    canvas.tokens.controlled = [tokenOf("tokB", basher)];
+    await watched._prepareContext();
+    await watched._onFirstRender({}, {});
+    Hooks.callAll("controlToken", null, true);
+    assert.deepEqual(drawn, [], "the same token controlled again draws nothing");
+    canvas.tokens.controlled = [tokenOf("tokM", mate)];
+    Hooks.callAll("controlToken", null, true);
+    assert.deepEqual(drawn, ["tokM"], "a different token draws the window once");
+    await watched._onClose({});
+    canvas.tokens.controlled = [tokenOf("tokB", basher)];
+    Hooks.callAll("controlToken", null, true);
+    assert.deepEqual(drawn, ["tokM"], "a closed window no longer follows the selection");
+    foundry.utils.debounce = priorDebounce;
+
+    /* --- partners: the party's other members who are on this scene --- */
+    const partyId = onlyFormationHolding(basher)[0].id;
+    canvas.tokens.controlled = [tokenOf("tokB", basher)];
+    assert.deepEqual(partnerActors(wallA, basher).map((a) => a.name), ["Win Mate"], "the party's other member, and nobody else: not the stranger, not the other party's");
+    ctx = await app._prepareContext();
+    assert.deepEqual(ctx.partners.map((p) => p.name), ["Win Mate"], "the window lists the same");
+    await setScene(partyId, "sceneS1");
+    assert.deepEqual(partnerActors(wallA, basher).map((a) => a.name), ["Win Mate"], "a party on the door's scene lends its members");
+    await setScene(partyId, "sceneOther");
+    assert.deepEqual(partnerActors(wallA, basher), [], "a party on another scene lends none");
+    await setScene(partyId, "sceneS1");
+    assert.deepEqual(partnerActors(wallA, stranger), [], "a basher no party holds has no partner");
+    assert.deepEqual(partnerActors(wallA, null), [], "and neither has nobody");
+    // A partner the form named who is no longer one of the basher's is not applied.
+    app.opts.partnerId = mate.id;
+    ctx = await app._prepareContext();
+    assert.equal(ctx.plan.parts.some((p) => p.key === "pair"), true, "the named partner adds the partner term");
+    canvas.tokens.controlled = [tokenOf("tokE", elsewhere)];
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.partners.map((p) => p.name), ctx.plan.parts.some((p) => p.key === "pair")], [["Win Other"], false], "a new basher keeps no partner of the old party");
+    app.opts.partnerId = "";
+
+    /* --- a selected token that cannot bash is refused on the window --- */
+    canvas.tokens.controlled = [tokenOf("tokX", null, "Win Ghost")];
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.actorName, ctx.refusal, ctx.canBash], ["Win Ghost", "ACKS-FORMATION.doors.refuse.noThrow", false], "a token with no actor is refused, by name");
+    assert.match(render("door.hbs", ctx), /refuse\.noThrow/, "and the refusal is on the window");
+    canvas.tokens.controlled = [tokenOf("tokY", beast)];
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.refusal, ctx.canBash, ctx.needs], ["ACKS-FORMATION.doors.refuse.noThrow", false, null], "a monster's token is refused");
+    canvas.tokens.controlled = [];
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.actorName, ctx.refusal, ctx.canBash], ["ACKS-FORMATION.doors.noToken", null, false], "nothing selected says so and refuses nothing");
+
+    /* --- figures imported: each part names where its figure came from --- */
+    canvas.tokens.controlled = [tokenOf("tokB", basher)];
+    app.opts = { crowbar: true, sizeSteps: 2, extra: 0, partnerId: mate.id };
+    ctx = await app._prepareContext();
+    assert.equal(ctx.plan.ready, true);
+    const byLabel = Object.fromEntries(ctx.parts.map((p) => [p.label, p]));
+    assert.deepEqual(Object.keys(byLabel), ["ACKS-FORMATION.doors.throw", "ACKS-FORMATION.doors.mod.str", "ACKS-FORMATION.doors.mod.pair", "ACKS-FORMATION.doors.mod.crowbar", "ACKS-FORMATION.doors.mod.size"], "the throw, then each term in play");
+    assert.match(byLabel["ACKS-FORMATION.doors.throw"].tip, /tip\.throw.*Win Basher.*page\.throw/, "the throw is the character's own, with its chapter");
+    assert.match(byLabel["ACKS-FORMATION.doors.mod.str"].tip, new RegExp(`"count":1,"unit":3,"page":"${STR_PAGE}"`), "a term shows its count, its imported figure and the page the import recorded");
+    assert.match(byLabel["ACKS-FORMATION.doors.mod.crowbar"].tip, /"unit":7,"page":"ACKS-FORMATION.doors.page.bash"/, "a term with no recorded page carries the module's own reference");
+    assert.ok(ctx.needsTip.includes(STR_PAGE) && ctx.needsTip.includes("Win Basher"), "the needs figure lists its parts with the page and the actor");
+    assert.equal(ctx.needsTip.split(" · ").length, ctx.parts.length, "one segment for each part");
+    const plain = await (async () => { const keep = app.opts; app.opts = { crowbar: false, sizeSteps: 0, extra: 0, partnerId: "" }; try { return await app._prepareContext(); } finally { app.opts = keep; } })();
+    assert.equal(plain.parts.length, 2, "the throw and the one term in play");
+    assert.equal(plain.parts.reduce((sum, p) => sum + Number.parseInt(p.display, 10), 0), plain.needs, "the throw and the terms as shown, each as what it does to the number needed, add down to the needs figure");
+    const shown = render("door.hbs", ctx);
+    assert.equal((shown.match(/data-tooltip-text/g) ?? []).length >= ctx.parts.length + 4, true, "each part has its own tooltip beside the figures");
+    assert.equal(/\btitle=/.test(shown), false, "no title attribute");
+    assert.equal(/\bid="p-kind"/.test(shown) && /\bid="p-partner"/.test(shown), true, "ids are seeded by the part, so two windows share none");
+    assert.equal(ctx.spikeTip.includes(`"page":"ACKS-FORMATION.doors.page.bash"`), true, "the spike count reads the most a door holds, with the page");
+    const foot = render("door-footer.hbs", ctx);
+    assert.equal(/data-action="bash"[^>]*>/.exec(foot)[0].includes("disabled"), false, "Bash it is live on a ready plan");
+    assert.equal(/data-action="batter"[^>]*>/.exec(foot)[0].includes("disabled"), true, "Batter is not live with no construction picked");
+    await doors.setDoorTraits(wallA, { kind: "1:Door A" });
+    ctx = await app._prepareContext();
+    assert.equal(ctx.batterTip.includes("tip.row") && ctx.batterTip.includes(`"ordinal":1`), true, "Batter cites its row");
+    assert.equal(/data-action="batter"[^>]*>/.exec(render("door-footer.hbs", ctx))[0].includes("disabled"), false, "and is live once a row with a time is picked");
+
+    /* --- nothing imported: blank, disabled, the page alone --- */
+    importDoors(null);
+    app.opts = { crowbar: false, sizeSteps: 0, extra: 0, partnerId: "" };
+    ctx = await app._prepareContext();
+    assert.deepEqual([ctx.needs, ctx.canBash, ctx.parts.length, ctx.needsTip, ctx.maxSpikes, ctx.spikeTip], [null, false, 0, "ACKS-FORMATION.doors.page.bash", "—", "ACKS-FORMATION.doors.page.bash"], "needs blank, Bash disabled, the tooltip the page reference alone");
+    assert.equal(ctx.kinds.length, 1, "no door rows to pick");
+    assert.equal(ctx.kindTip, "ACKS-FORMATION.doors.page.grid", "the construction's tooltip is its page alone");
+    assert.equal(ctx.refusal, null, "no message says anything is missing");
+    const blankFoot = render("door-footer.hbs", ctx);
+    assert.equal([...blankFoot.matchAll(/<button[^>]*>/g)].every((m) => m[0].includes("disabled")), true, "both footer buttons are disabled");
+    assert.match(render("door.hbs", ctx), /acks-extras-door-needs-figure">—</, "the needs figure is blank");
+    assert.equal(lang["ACKS-FORMATION.doors.page.bash"], "RR p. 267", "the bash reference is the page's");
+    assert.equal(lang["ACKS-FORMATION.doors.page.grid"], "RR p. 266", "the door grid reference is the page's");
+    assert.equal(lang["ACKS-FORMATION.doors.spikeHint"].includes("most a door holds"), true, "the spike count's tooltip");
+
+    /* --- the picture frame is the icon module's glyph, and absent without it --- */
+    assert.equal(ctx.glyph, "modules/game-icons-net/blacktransparent/wooden-door.svg", "the glyph is referenced by path from the icon module");
+    assert.match(render("door.hbs", ctx), /acks-extras-door-art/, "the frame is drawn with the glyph");
+    game.modules.get = () => null;
+    ctx = await app._prepareContext();
+    assert.equal(ctx.glyph, null, "without the module there is no glyph");
+    assert.equal(/acks-extras-door-art/.test(render("door.hbs", ctx)), false, "and no frame");
+
+    await model.disband(model.getFormation(partyId));
+    await model.disband(model.getFormation(party2.id));
+    await drain();
+  } finally {
+    unregisterTable("formation", { priority: PRIORITY.WORLD });
+    canvas.tokens.controlled = priorControlled;
+    game.modules.get = priorModules;
+    foundry.applications.instances = priorInstances;
+    foundry.utils.debounce = priorDebounce;
   }
 });
 

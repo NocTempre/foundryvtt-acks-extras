@@ -982,9 +982,10 @@ throw (JJ p. 238).
 ## Doors
 
 Select a door on the **Walls** scene control and press **ACKS door actions**
-(Judge only). The window shows what the door is built of, how many spikes are
+(Judge only). Each door has its own window, so two doors open two windows and
+pressing the tool on an open door brings its window forward. The window shows what the door is built of, how many spikes are
 in it, and the three things a party does to one that will not open. The
-construction and the Judge's two marks, *Evil* and *Lock jammed*, are written
+construction and the Judge's two marks, *Evil* and *Jammed*, are written
 to the door the moment they are set, for the Judge's record and for anything
 that reads the door's state; the marks change no figure in the window.
 
@@ -994,15 +995,16 @@ that reads the door's state; the marks change no figure in the window.
 spikes, and the number it needs — and what battering it down with an axe would
 cost in turns.*
 
-- **Spikes**: **Hammer a spike** drives one in, up to the most a door holds, and
+- **Spikes**: **Spike it** drives one in, up to the most a door holds, and
   the heave counts every spike (RR p. 267). **Pull one** takes one back out.
-- **Bash it open** is the throw, itemized before you take it: who is heaving,
-  whether a second pair of shoulders is on it, a crowbar, how far from man-sized
+- **Bash it open** is the throw, itemized before you take it: the basher is the
+  token you have selected, and the window follows when you select another; a
+  partner is another member of the basher's party on this scene, a crowbar, how far from man-sized
   the heaver is, and the Judge's own modifier. The number it needs is shown, and
   so is every part of what you have. A botched heave rebounds on the heaver:
   the card carries the damage line, reported and not applied, as a trap's card
   does.
-- **Batter it down** is the slow certainty instead — the window says how many
+- **Batter** (beside **Bash it**, pinned under the window's body) is the slow certainty instead — the window says how many
   turns an axe wants for that construction (RR p. 267), and a construction with
   no axe figure says so where the button would be. The turns are charged to the clock
   of the formation holding the basher, and the notice names them; a basher no

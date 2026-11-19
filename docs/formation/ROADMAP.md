@@ -172,6 +172,14 @@ leave the module; the rest are inventoried" (2026-09-02).
   follows the world clock"). A season table that printed sunrise and sunset
   would arrive through the importer and write those two settings by season;
   no page this feature reads prints one.
+- **The door window's book picture.** The window's frame shows the game-icons-net door glyph.
+  The picture the owner approved is the banded, riveted door at the right edge of
+  the portal picture on RR p. 261 (PDF page index 262, a tall strip right of the
+  portal and below the ivy, x 526-566, y 330-470 in PDF points, well above the
+  page foot). The importer cuts art for an actor (a cookbook entry's `art` box) and
+  for a scene (a recipe's `crop`) only, and has no register a window of another
+  kind reads, so the row waits on a free-standing picture register: a row naming
+  page and box, the importer cutting and uploading it, the frame reading its path.
 
 ## Scoped effects for ability matching
 

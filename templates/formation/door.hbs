@@ -1,113 +1,103 @@
-<section class="acks-extras-door">
+{{!-- The door window's body: the door's record, the bash, the batter figure. The
+      part root is the scroller; Batter and Bash it are the footer part. --}}
+<div class="acks-extras-door-body">
 
-  <fieldset>
-    <legend>{{localize "ACKS-FORMATION.doors.theDoor"}}</legend>
-
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.construction"}}</label>
-      <div class="form-fields" data-tooltip="ACKS-FORMATION.doors.constructionTip">
-        <select name="kind">
+  <section class="acks-extras-door-section">
+    <h3 class="acks-extras-door-heading"><i class="fa-solid fa-door-closed" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.theDoor"}}</h3>
+    <div class="acks-extras-door-record">
+      <div class="acks-extras-door-grid">
+        <label class="acks-label" for="{{@root.partId}}-kind">{{localize "ACKS-FORMATION.doors.construction"}}</label>
+        <select id="{{@root.partId}}-kind" name="kind" data-tooltip-text="{{kindTip}}">
           {{#each kinds}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
         </select>
+
+        <label class="acks-label" for="{{@root.partId}}-evil">{{localize "ACKS-FORMATION.doors.evil"}}</label>
+        <label class="acks-check"><input type="checkbox" id="{{@root.partId}}-evil" name="evil" {{checked state.evil}}> {{localize "ACKS-FORMATION.doors.evilCheck"}}</label>
+
+        <label class="acks-label" for="{{@root.partId}}-jammed">{{localize "ACKS-FORMATION.doors.jammed"}}</label>
+        <label class="acks-check"><input type="checkbox" id="{{@root.partId}}-jammed" name="jammed" {{checked state.jammed}}> {{localize "ACKS-FORMATION.doors.jammedCheck"}}</label>
+
+        {{! Spikes are state, not a modifier the Judge types: they were hammered
+            in a round at a time and the door remembers them. }}
+        <span class="acks-label">{{localize "ACKS-FORMATION.doors.spikes"}}</span>
+        <div class="acks-extras-door-spikes">
+          <span class="acks-extras-door-count" data-tooltip-text="{{spikeTip}}">{{state.spikes}} / {{maxSpikes}}</span>
+          {{#if canSpike}}
+            <button type="button" data-action="spike">
+              <i class="fa-solid fa-hammer" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.spikeIt"}}
+            </button>
+          {{/if}}
+          {{#if state.spikes}}
+            <button type="button" data-action="unspike">
+              <i class="fa-solid fa-minus" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.pullOne"}}
+            </button>
+          {{/if}}
+        </div>
       </div>
+      {{! The picture frame: a book picture arrives through the importer; with none, the door glyph from the icon module stands in, and with neither the frame is not drawn. }}
+      {{#if glyph}}
+        <div class="acks-extras-door-art" role="img" aria-label="{{localize "ACKS-FORMATION.doors.theDoor"}}" style="--acks-extras-door-glyph: url({{glyph}})"></div>
+      {{/if}}
     </div>
+    <p class="hint">{{localize "ACKS-FORMATION.doors.recordHint"}}</p>
+  </section>
 
-    {{! The Judge's record of the door; each change is written to the wall. }}
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.evil"}}</label>
-      <div class="form-fields"><input type="checkbox" name="evil" {{checked state.evil}}></div>
-      <p class="hint">{{localize "ACKS-FORMATION.doors.recordHint"}}</p>
-    </div>
-
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.jammed"}}</label>
-      <div class="form-fields"><input type="checkbox" name="jammed" {{checked state.jammed}}></div>
-      <p class="hint">{{localize "ACKS-FORMATION.doors.recordHint"}}</p>
-    </div>
-
-    {{! Spikes are state, not a modifier the Judge types — they were hammered
-        in a round at a time and the door remembers them. }}
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.spikes"}}</label>
-      <div class="form-fields acks-extras-door-spikes">
-        <span data-tooltip="ACKS-FORMATION.doors.spikeHint">{{state.spikes}} / {{maxSpikes}}</span>
-        {{#if canSpike}}
-          <button type="button" data-action="spike">
-            <i class="fa-solid fa-hammer"></i> {{localize "ACKS-FORMATION.doors.spikeIt"}}
-          </button>
-        {{/if}}
-        {{#if state.spikes}}
-          <button type="button" data-action="unspike">
-            <i class="fa-solid fa-minus"></i> {{localize "ACKS-FORMATION.doors.pullOne"}}
-          </button>
-        {{/if}}
+  <section class="acks-extras-door-section">
+    <h3 class="acks-extras-door-heading"><i class="fa-solid fa-person-falling-burst" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.heave"}}</h3>
+    <div class="acks-extras-door-grid">
+      <span class="acks-label">{{localize "ACKS-FORMATION.doors.basher"}}</span>
+      <div class="acks-extras-door-who">
+        <strong class="acks-extras-door-basher">{{actorName}}</strong>
+        <span class="hint">{{localize "ACKS-FORMATION.doors.basherHint"}}</span>
       </div>
-      <p class="hint">{{localize "ACKS-FORMATION.doors.spikeHint"}}</p>
-    </div>
-  </fieldset>
+      {{#if refusal}}
+        <span></span>
+        <p class="acks-extras-door-refusal" role="alert"><i class="fa-solid fa-ban" aria-hidden="true"></i> {{refusal}}</p>
+      {{/if}}
 
-  <fieldset>
-    <legend>{{localize "ACKS-FORMATION.doors.heave"}}</legend>
+      <label class="acks-label" for="{{@root.partId}}-partner">{{localize "ACKS-FORMATION.doors.partner"}}</label>
+      <select id="{{@root.partId}}-partner" name="partnerId" aria-describedby="{{@root.partId}}-partner-hint">
+        <option value="">{{localize "ACKS-FORMATION.doors.alone"}}</option>
+        {{#each partners}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
+      </select>
+      <span></span>
+      <span class="hint" id="{{@root.partId}}-partner-hint">{{localize "ACKS-FORMATION.doors.partnerHint"}}</span>
 
-    <p class="acks-extras-door-who">{{localize "ACKS-FORMATION.doors.basher"}}: <strong>{{actorName}}</strong></p>
+      <label class="acks-label" for="{{@root.partId}}-crowbar">{{localize "ACKS-FORMATION.doors.crowbar"}}</label>
+      <label class="acks-check"><input type="checkbox" id="{{@root.partId}}-crowbar" name="crowbar" {{checked opts.crowbar}}> {{localize "ACKS-FORMATION.doors.crowbarCheck"}}</label>
 
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.partner"}}</label>
-      <div class="form-fields">
-        <select name="partnerId">
-          <option value="">{{localize "ACKS-FORMATION.doors.alone"}}</option>
-          {{#each partners}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
-        </select>
-      </div>
-    </div>
+      <label class="acks-label" for="{{@root.partId}}-size">{{localize "ACKS-FORMATION.doors.sizeSteps"}}</label>
+      <input class="acks-input acks-extras-door-number" type="number" id="{{@root.partId}}-size" name="sizeSteps" step="1" value="{{opts.sizeSteps}}">
 
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.crowbar"}}</label>
-      <div class="form-fields"><input type="checkbox" name="crowbar" {{checked opts.crowbar}}></div>
-    </div>
-
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.sizeSteps"}}</label>
-      <div class="form-fields"><input type="number" name="sizeSteps" step="1" value="{{opts.sizeSteps}}"></div>
-      <p class="hint">{{localize "ACKS-FORMATION.doors.sizeHint"}}</p>
-    </div>
-
-    <div class="form-group">
-      <label>{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
-      <div class="form-fields"><input type="number" name="extra" step="1" value="{{opts.extra}}"></div>
+      <label class="acks-label" for="{{@root.partId}}-extra">{{localize "ACKS-FORMATION.doors.judgeMod"}}</label>
+      <input class="acks-input acks-extras-door-number" type="number" id="{{@root.partId}}-extra" name="extra" step="1" value="{{opts.extra}}">
     </div>
 
     {{! The throw, before anyone spends a round on it. A throw that is not
         ready (a figure it applies is not imported, or the token has no
-        Dungeonbashing throw) leaves its figure blank, and the tooltip carries the page. }}
-    <div class="acks-extras-door-throw{{#if plan.hopeless}} is-hopeless{{/if}}" data-tooltip="ACKS-FORMATION.doors.bashTip">
+        Dungeonbashing throw) leaves its figure blank, and the tooltip carries the page alone. }}
+    <div class="acks-extras-door-throw{{#if plan.hopeless}} is-hopeless{{/if}}">
       {{#if plan.hopeless}}
-        <p><i class="fa-solid fa-ban"></i> {{localize "ACKS-FORMATION.doors.hopeless"}}</p>
+        <p class="acks-extras-door-needs" data-tooltip-text="{{needsTip}}"><i class="fa-solid fa-ban" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.hopeless"}}</p>
       {{else}}
-        <p class="acks-extras-door-needs">{{localize "ACKS-FORMATION.doors.needs"}} <strong>{{#if plan.ready}}{{needs}}+{{/if}}</strong></p>
+        <p class="acks-extras-door-needs" data-tooltip-text="{{needsTip}}"><span class="acks-label">{{localize "ACKS-FORMATION.doors.needs"}}</span> <strong class="acks-extras-door-needs-figure">{{#if plan.ready}}{{needs}}+{{else}}—{{/if}}</strong></p>
       {{/if}}
       {{#if parts.length}}
         <ul class="acks-extras-door-parts">
-          {{#each parts}}<li>{{label}} <span>{{sign}}{{value}}</span></li>{{/each}}
+          {{#each parts}}<li data-tooltip-text="{{tip}}">{{label}} <span>{{display}}</span></li>{{/each}}
         </ul>
+        <p class="hint">{{localize "ACKS-FORMATION.doors.partsHint"}}</p>
       {{/if}}
     </div>
+  </section>
 
-    <button type="button" data-action="bash" data-tooltip="ACKS-FORMATION.doors.bashTip" {{#unless canBash}}disabled{{/unless}}>
-      <i class="fa-solid fa-person-falling-burst"></i> {{localize "ACKS-FORMATION.doors.bashIt"}}
-    </button>
-  </fieldset>
+  <section class="acks-extras-door-section acks-extras-door-batter">
+    <h3 class="acks-extras-door-heading"><i class="fa-solid fa-axe" aria-hidden="true"></i> {{localize "ACKS-FORMATION.doors.axe"}}</h3>
+    <p class="acks-extras-door-who">
+      <span class="acks-label">{{localize "ACKS-FORMATION.doors.batterCost"}}</span>
+      <strong class="acks-extras-door-batter-figure" data-tooltip-text="{{batterTip}}">{{#if batter.ok}}{{batter.line}}{{else}}—{{/if}}</strong>
+    </p>
+    {{#if batter.tooSolid}}<p class="hint">{{localize "ACKS-FORMATION.doors.tooSolid"}}</p>{{/if}}
+  </section>
 
-  <fieldset data-tooltip="ACKS-FORMATION.doors.batterTip">
-    <legend>{{localize "ACKS-FORMATION.doors.axe"}}</legend>
-    {{#if batter.ok}}
-      <p>{{localize "ACKS-FORMATION.doors.batterCost"}} <strong>{{batter.line}}</strong></p>
-      <button type="button" data-action="batter">
-        <i class="fa-solid fa-axe"></i> {{localize "ACKS-FORMATION.doors.batterIt"}}
-      </button>
-    {{else if batter.tooSolid}}
-      <p class="hint">{{localize "ACKS-FORMATION.doors.tooSolid"}}</p>
-    {{/if}}
-  </fieldset>
-
-</section>
+</div>

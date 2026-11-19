@@ -113,6 +113,8 @@ const P = {
       return null;
     };
     H.root = (app) => (app?.element?.nodeType === 1 ? app.element : app?.element?.[0]) ?? null;
+    // One door window stands per door, its id built from the wall; the walk keeps one open.
+    H.doorWin = () => [...foundry.applications.instances.values()].find((a) => typeof a.id === "string" && a.id.startsWith("acks-extras-door-")) ?? null;
     H.F = acksExtras.formation;
     H.T = acksExtras.formation.travel;
     const base = "/modules/acks-extras/scripts/";
@@ -332,7 +334,7 @@ const P = {
   /** Select the door on the Walls layer, press the tool, then select the basher's token. */
   doorOpen: async ({ wallId, tokenId }) => {
     const H = globalThis.__d;
-    const prior = foundry.applications.instances.get("acks-extras-door");
+    const prior = H.doorWin();
     if (prior) { try { await prior.close({ animate: false }); } catch (_e) { /* closed */ } }
     ui.controls.activate({ control: "walls", tool: "select" });
     await H.sleep(800);
@@ -341,17 +343,18 @@ const P = {
     await H.sleep(300);
     const btn = document.querySelector('[data-tool="acksDoor"]');
     btn?.click();
-    const app = await H.poll(() => { const a = foundry.applications.instances.get("acks-extras-door"); return a?.rendered ? a : null; }, { tries: 50, every: 100 });
+    const app = await H.poll(() => { const a = H.doorWin(); return a?.rendered ? a : null; }, { tries: 50, every: 100 });
     ui.controls.activate({ control: "tokens", tool: "select" });
     await H.sleep(800);
     const tok = canvas.tokens.get(tokenId);
     const tokenControlled = !!tok?.control({ releaseOthers: true });
-    if (app) { await app.render(); await H.sleep(800); }
+    // The window follows the selection on its own: no draw is asked for, and the name is awaited.
+    if (app) await H.poll(() => (app.basher?.id === tok?.actor?.id && H.root(app)?.querySelector(".acks-extras-door-basher")?.textContent.trim() === tok?.actor?.name ? true : null), { tries: 50, every: 100 });
     const el = H.root(app);
     return {
-      controlled, tool: !!btn, open: !!app, wallMatches: app?.wall?.id === wallId, tokenControlled,
+      controlled, tool: !!btn, open: !!app, wallMatches: app?.wall?.id === wallId, idHasWall: !!app?.id && app.id.endsWith(`-${wallId}`), tokenControlled,
       basher: !!app?.basher && app.basher.id === tok?.actor?.id,
-      nameShown: el?.querySelector(".acks-extras-door-who strong")?.textContent.trim() === tok?.actor?.name,
+      nameShown: el?.querySelector(".acks-extras-door-basher")?.textContent.trim() === tok?.actor?.name,
     };
   },
 
@@ -362,9 +365,9 @@ const P = {
     const wall = game.scenes.get(sceneId).walls.get(wallId);
     const flag = wall.flags?.["acks-extras"]?.door ?? {};
     const state = D.doorState(wall);
-    const el = H.root(foundry.applications.instances.get("acks-extras-door"));
-    const axe = el ? [...el.querySelectorAll("fieldset")].at(-1) : null;
-    const fig = axe?.querySelector("p strong")?.textContent.trim() ?? null;
+    const el = H.root(H.doorWin());
+    const axe = el?.querySelector(".acks-extras-door-batter") ?? null;
+    const fig = axe?.querySelector(".acks-extras-door-batter-figure")?.textContent.trim() ?? null;
     const row = D.doorRow(state.kind);
     const kind = row ? { batter: row.batter ? game.i18n.format("ACKS-FORMATION.doors.batterLine", { count: row.batter.count, unit: game.i18n.localize(`ACKS-FORMATION.doors.unit.${row.batter.unit}`), tool: row.batter.tool }) : null } : null;
     return {
@@ -375,7 +378,8 @@ const P = {
       evilBox: el?.querySelector('input[name="evil"]')?.checked ?? null,
       jammedBox: el?.querySelector('input[name="jammed"]')?.checked ?? null,
       axeBeats: kind?.batter != null,
-      batterButton: !!axe?.querySelector('[data-action="batter"]'),
+      // The Batter button lives in the pinned footer, and is live only for a row that prints a time.
+      batterButton: !!el?.querySelector('[data-action="batter"]:not([disabled])'),
       figureFollows: kind?.batter != null && fig === kind.batter,
       tooSolidShown: axe?.querySelector(".hint")?.textContent.trim() === game.i18n.localize("ACKS-FORMATION.doors.tooSolid"),
     };
@@ -384,7 +388,7 @@ const P = {
   /** Change one field of the open dialog as a user would; the form submits on change. */
   doorInput: async ({ name, value }) => {
     const H = globalThis.__d;
-    const el = H.root(foundry.applications.instances.get("acks-extras-door"));
+    const el = H.root(H.doorWin());
     const input = el?.querySelector(`[name="${name}"]`);
     if (!input) return { found: false };
     if (input.type === "checkbox") input.checked = !!value; else input.value = value;
@@ -429,7 +433,7 @@ const P = {
   },
 
   doorPlace: async () => {
-    const app = foundry.applications.instances.get("acks-extras-door");
+    const app = globalThis.__d.doorWin();
     app?.setPosition({ left: 16, top: 16 });
     await new Promise((r) => setTimeout(r, 500));
     return { placed: !!app, dialogs: document.querySelectorAll("dialog[open], .application.dialog").length };
@@ -438,7 +442,7 @@ const P = {
   /** Heave with the d20 rigged to `face`; read the card and the basher's hit points. */
   doorBash: async ({ face, actorId }) => {
     const H = globalThis.__d;
-    const app = foundry.applications.instances.get("acks-extras-door");
+    const app = H.doorWin();
     const el = H.root(app);
     const ctx = await app._prepareContext({});
     const actor = game.actors.get(actorId);
@@ -467,16 +471,15 @@ const P = {
   /** Press Batter it down; compare the turns charged with the figure the dialog showed. */
   doorBatter: async ({ fid, sceneId, wallId, watch }) => {
     const H = globalThis.__d;
-    const app = foundry.applications.instances.get("acks-extras-door");
+    const app = H.doorWin();
     const el = H.root(app);
-    const axe = [...el.querySelectorAll("fieldset")].at(-1);
-    const shown = Number.parseInt(axe.querySelector("p strong")?.textContent, 10);
+    const shown = Number.parseInt(el.querySelector(".acks-extras-door-batter-figure")?.textContent, 10);
     const turns = () => Object.fromEntries(watch.map((id) => [id, H.formation(id)?.clock?.turnsTotal ?? 0]));
     const before = turns();
     const w0 = game.time.worldTime;
     H.takeNotes();
     const t0 = Date.now();
-    axe.querySelector('[data-action="batter"]').click();
+    el.querySelector('[data-action="batter"]').click();
     await H.sleep(3000);
     // The charge is one formation write among the world's; a world that holds more formations takes longer to land it.
     if (fid) await H.poll(() => turns()[fid] - before[fid] === shown, { tries: 50, every: 200 });
@@ -1001,7 +1004,7 @@ const P = {
       if (b) { b.click(); n++; }
     }
     for (const a of [...foundry.applications.instances.values()]) {
-      if (a.id === "acks-extras-door" || a === H?.popout || /Party|Formation|Dialog/.test(a.constructor.name)) {
+      if ((typeof a.id === "string" && a.id.startsWith("acks-extras-door-")) || a === H?.popout || /Party|Formation|Dialog/.test(a.constructor.name)) {
         try { await a.close({ animate: false }); n++; } catch (_e) { /* closed */ }
       }
     }
@@ -1158,7 +1161,7 @@ try {
 
   note("invented door figures imported, the basher's Dungeonbashing figure set", await run(gm, P.doorSeed, { actorId: basher.id, on: true }));
   let r = await run(gm, P.doorOpen, { wallId: door1.id, tokenId: tBasher.id });
-  check("the door tool opens the dialog on the selected door, heaving with the selected token", r.controlled && r.tool && r.open && r.wallMatches && r.tokenControlled && r.basher && r.nameShown, r);
+  check("the door tool opens the dialog on the selected door, heaving with the selected token", r.controlled && r.tool && r.open && r.wallMatches && r.idHasWall && r.tokenControlled && r.basher && r.nameShown, r);
 
   r = await run(gm, P.doorRead, { sceneId: s1.id, wallId: door1.id });
   check("Construction: a door with no row picked reads unset and shows no batter", r.select === "" && !r.batterButton && !r.tooSolidShown, { select: r.select, batterButton: r.batterButton });
@@ -1181,7 +1184,7 @@ try {
   if (SHOTS) {
     note("door dialog placed", await run(gm, P.doorPlace));
     try {
-      const shot = await gm.shot(`${shotDir()}/formation-door-marks.png`, "#acks-extras-door");
+      const shot = await gm.shot(`${shotDir()}/formation-door-marks.png`, '[id^="acks-extras-door-"]');
       note("plate formation-door-marks", { bytes: shot.bytes, width: shot.clip?.width, height: shot.clip?.height });
     } catch (err) { note("plate formation-door-marks failed", err?.message ?? String(err)); }
   }
