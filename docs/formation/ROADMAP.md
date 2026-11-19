@@ -151,6 +151,23 @@ leave the module; the rest are inventoried" (2026-09-02).
   that `resolveCheck` now carries (T-0683, `8b285f48`). A climb figure's
   tooltip therefore ends on the Spelunking page and never on the page of the
   skill that supplied the figure. It is built with S20 and S24 (plan §19).
+- **What close-out batch 2 left for next week.** The owner, relayed:
+  "anything left on batch 2 is moved to next week with batch 3... Close out
+  what's in flight." Batch 2 landed and walked (plan §20). What is left:
+  - **A Judge's Lock past a hard trap refusal (T-0686).** `lockForJudge`
+    treats every `trap:<reason>` as soft, since `HARD_REASONS` lists none, so
+    a Judge can lock a Trapbreaking row on a trap already disarmed, spent,
+    unfound or missing; the entry is written and resolves refused. The trap
+    reasons outside `SOFT_REFUSALS` join the hard set.
+  - **A trap thing's plan label (T-0687).** `turn-plan.mjs` `optionLabel`
+    names every kind but a wall as a trap area; a thing takes its place's
+    name, as the Trapbreaking dialog's `traps.targetThing` gives it.
+  - **The guide's Trapbreaking shot (T-0688).** It shows the dialog before
+    the rework; reshot from a user-produced party at the next release.
+  - **Walk steps not yet driven** (TESTING step 8, `formation-trapbreak`):
+    deleting the trap thing, the floor and blank-figure variants of the
+    figures, Re-arm and the type size, step 11's canvas markers, closing the
+    question, and the turn plan clause.
 
 - **The night, and what a night restores.** The night's fatigue and
   armoured-sleep clocks are built (`lib/fatigue.mjs`, `formation/rest.mjs`).

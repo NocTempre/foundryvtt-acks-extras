@@ -1232,7 +1232,7 @@ Phase 4. No slice below has a build commit on `main` yet.
 | 1 | D1 | Door and Strength windows in `importer/books/rr/table-recipes.mjs`; `formation-binding.mjs` `PRODUCES`; `expectTables`; `test-formation-binding` and `test-recipe-content`; an `upgrading` fragment | implementer | no | "The delve's figures, imported" | A0 |
 | 1 | D2, U3, U1d | `doors.mjs` loses its printed names and inline magnitudes. `door-app.mjs`, `door.hbs`, `party-rolls.mjs` and `squeezing.mjs` change, and `test-formation-flows`, `test-crossing`, `test-skill-audit-roll` and `live/formation-steps.mjs` move onto invented figures. Also: `apiVersion`; ROADMAP §6; U3's basher and partners; U1's door half. | implementer ×3 | door window | Steps 13, imported and blanked; party bash; Q6; §10's door look | D1 |
 | 1 | U2 | Strip, player actions, one Trapbreaking opener; `planLock` warns the Judge | implementer | Dungeon tab | The turn plan, player seat | none |
-| 2 | R-DC2, U1t, R2 | `trap-zone.mjs`, `trapbreak-app.mjs`, `player-requests.mjs`, `lib/sockets.mjs` | implementer ×3 | Trapbreaking (U1t) | Steps 8 and 11, real player seat | H0 and P3 landed |
+| 2 | R-DC2, U1t, R2 | `trap-zone.mjs`, `trapbreak-app.mjs`, `player-requests.mjs`, `lib/sockets.mjs` | implementer ×3 | Trapbreaking (U1t) | Steps 8 and 11, real player seat | H0 and P3 landed. **Landed and walked 2026-11-19** (§20) |
 | 3 | S26→S25, S20→S24 | As §9, with an architect first for S26. **Parked 2026-11-19 out of the minor** (§19) | per §9 | S20, S24, S25 (approved) | The crossing | the next week's start (§19) |
 
 **Files shared with obstacle regions.**
@@ -2344,3 +2344,75 @@ Tests must not pin `citedSource` output.
   Burglary term.
   - A failed save marks the member fallen.
   - The fall comes from the crossing's depth. It is reported, not applied.
+
+## 20. Batch 2 results (2026-11-19)
+
+Built on `topic/dungeon-closeout`, one agent per slice, and landed on
+`main` as `abfcdde3` (full gate green; the first two tries stopped on a
+DECISIONS conflict with H4's entry, kept both, and on T-0666's capitals rule,
+fixed in the last commit). The landed commits: R-DC2 `ac0194de`; R2
+`6c0539b9`, `4d4fc5bd` and the non-blocking follow-up `7404de4e`; U1t
+`ce1d8d85`, `c7512f50`, `369e7b9a`, `486d0829` and `384c2232`; docs
+`ae82ed28`; the RAW ruling `4208f4e3`; capitals `abfcdde3`. `apiVersion` is
+36: H4 did not bump it. The walk is `7d5f87fd` on `main`. None of these is
+pushed by this session.
+
+Owner rulings it was built on, relayed: the board, "Approve, build it
+(Recommended)"; the late discharge, "No, stays disarmed (Recommended)";
+"Build U1t from the board, quote both in DECISIONS"; and on the hasty column,
+"Check RAW on adventuring, follow RAW" (RR ch. 6, Disabling Traps, p. 267:
+hasty without the skill is a hard refusal for the Judge too). Then, closing
+the minor: "anything left on batch 2 is moved to next week with batch 3...
+Close out what's in flight."
+
+### Exercised live
+
+Walked on `main` on lane C (Gamemaster 3 / Player 3) by
+`tools/live/formation-trapbreak.mjs`: 77 pass, 0 fail
+(`aia-tmp/live/formation-trapbreak-20261119-152519.log`), every section A to
+G, the rigged half of step 11 included; nothing thrown on either seat since
+the recorder attached after `ready`. TESTING step 8's bullets: the Judge
+warned past the missing tools with Work on it enabled, refusals for an
+unfound and a disarmed trap, a rigged press whose trap reads disarmed as the
+card posts; the Player blocked beside a disabled Work on it, with only found
+traps and no Judge controls, redrawn when tools are given; two windows per
+pair; redraws on Rebuild and Mark spotted; each figure's tooltip ending on a
+page; the footer pinned while the body scrolls at 260 px; the Character
+select handing over; the Dungeon tab's pill. Step 11: the question opens on
+the Player's seat, Discharge writes discharged and whispers one line, a
+Discharge after the Judge's Rebuild leaves the trap armed, and an unowned
+member's relay writes nothing.
+
+### Found by the walk
+
+No product defect. Three walk faults, fixed in the walk: a poll that read
+"Work on it disabled" before the redraw it was waiting for; a resize measured
+across a re-render; and a gate demanding that the walk's GM be the active GM,
+which only the step-11 relay needs. With a second lane up a player's relay
+goes to that lane's GM, and one that has just joined refuses it unregistered
+(runs 15:01 and 15:22); TESTING step 8 records it.
+
+### Registered for next week
+
+T-0686 (a Judge's Lock past a hard trap refusal), T-0687 (a trap thing's
+plan label), T-0688 (the guide's Trapbreaking shot). Each is a row in the
+formation ROADMAP, "What close-out batch 2 left for next week".
+
+### Checked offline only
+
+The suites over every module the batch touches, green before the land; the
+land's full gate on `abfcdde3` and the commit gate on `7d5f87fd`.
+
+### Not checked
+
+Deleting the trap thing; the floor and blank-figure variants of the figures;
+Re-arm and the type size; step 11's canvas markers and closing the question;
+the turn plan clause (the plan's next entry resolves without waiting). All in
+the same ROADMAP row.
+
+### Fixtures kept
+
+`formation/trapbreak-scene`, `-party`, `-wall`, `-place`, `-region`,
+`-trap`, `-thief`, `-thief-skill`, `-thief-tools` and `-fighter`.
+`formation/trapbreak-fighter-tools` and the `formation/trapbreak-card-<n>`
+cards are retired by the next run.
