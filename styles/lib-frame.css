@@ -686,7 +686,7 @@
 .acks-extras-frame__tabs .acks-tab {
   font-size: calc(10.5px * var(--acks-extras-k));
   font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.07em;
+  letter-spacing: var(--acks-caps-tracking, 0.07em);
   padding: var(--acks-sp-3) var(--acks-sp-5);
   display: inline-flex;
   align-items: center;

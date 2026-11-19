@@ -505,9 +505,10 @@ client `look` back to `world`.
      exception; the label elements (the sheet's field and section labels, chips,
      tab captions, the card's key labels) read Foundry's body face and a
      `letter-spacing` of `normal` or `0px`. Their `font-weight` is 600 where the
-     rule sets a weight or its element has none of its own; a label on a heading,
-     `th`, `button`, `label` or `legend` keeps the weight that element has, and a
-     reading other than 600 there is a finding to note, not a failure.
+     capitals rule sets a weight of its own; a rule that sets none leaves the
+     weight the element inherits (the frame's overline reads 400), as
+     `DECISIONS.md` 2026-11-19 rules. A tab caption whose tracking comes from a
+     feature rule over the design system's `.acks-tab` reads `normal` too.
    - Under `core`, an element whose capitals rule sets no `font-family` (a rule
      with no `--acks-caps-font` read and a face other than `--acks-font-ui` or
      `--acks-font-body`) is read for the face it inherits. A label that reads a display or banner face is a finding for the
