@@ -1037,6 +1037,10 @@ data)`, and kept.
 - `character-sheet/set-down-other`: a `character` the Player seat observes and
   does not own, carrying one container. It receives the Torches in step 4 and is
   looked at in step 8.
+- `character-sheet/set-down-bystander`: a `character` owned by a second Player
+  seat (not the one that owns `set-down-hero`), with a token on the active
+  scene, carrying one worn container. Step 11 stands it at the pile and then
+  moves its token away.
 
 **Steps.**
 1. As the Player, open `set-down-hero`'s sheet, Equipment tab, and note the
@@ -1083,6 +1087,23 @@ data)`, and kept.
     *Observable:* the row, the tag and the controls scale with it; Tab reaches
     *Pick up* and each container header control, each named for a screen reader
     (`aria-label`).
+
+11. *A bystander takes from the pile (the relayed call; the pile sheet's own
+    take controls for a bystander are not built).* Set the Backpack down again
+    as `set-down-hero`. Move `set-down-bystander`'s token onto the pile's
+    token. As the bystander's Player seat, call
+    `acksExtras.lib.storage.retrieve(pile, bystander, [{id}])` with the id of
+    one Torch row on the pile. *Observable:* `{ok: true}` with no Judge action
+    and no refusal notification; the Torch is on the bystander with no
+    `flags["acks-extras"].storage`; the pile still holds the rest, stamped to
+    the hero; the hero's *Kept elsewhere* row loses the Torch without a reload.
+    Move the bystander's token well off the pile and call it again for another
+    row. *Observable:* `{ok: false, reason: "permission"}` and nothing moved.
+    Move the token back and call it for the Backpack's own row. *Observable:*
+    the Backpack is on the bystander, `flags["acks-extras"].setDown` is gone, and
+    the bystander's own worn container keeps its slot (nothing is put back on
+    Back); the hero has no Backpack. Take the remaining rows: a moment later the
+    pile and its token are deleted. Offline: `tools/test-location-ground.mjs`.
 
 **Teardown.** The fixtures are kept. Delete the piles and tokens a run made by
 its own ledger (`api.track` each pile's uuid from `setDown`'s result,

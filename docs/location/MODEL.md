@@ -343,6 +343,17 @@ and from companions (`ownersShare`, `depositReach`); observed, it is reached by
 its own token only. Picking up is not reach-gated: a retrieval takes rows
 stamped to the claimant from wherever they stand (`docs/lib/API.md`, storage).
 
+**Who may take.** Anyone standing at the pile (2026-11-19). A relayed
+retrieval into a character the sender owns takes any row on a pile, whoever it
+is stamped to, when `depositReach(character, pile)` says the character reaches
+it, which with the pile observed and owned by none means its own token; a
+character away from the pile takes only rows stamped to them. A row taken by
+someone else leaves the stamp behind with the rest of the attribution, so a
+container that lands on another character only has its record cleared (below)
+and the pile goes once it holds nothing. The rule is in lib storage's relay
+(`moveForSeat`), keyed on `isGroundPile`; no other provider's rule changes.
+The sheet's take controls for a bystander are not built.
+
 **Not a point of interest.** `standsAsPlace` leaves a pile out, so
 `placesOnScene` does not offer it as a destination, `placeUnderParty` does not
 name it, and a deployed wagon beside it is not filed under it. Reach to the pile

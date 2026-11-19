@@ -9129,7 +9129,7 @@
   "ACKS-CHARACTER.equipment.elsewhereNote": "not on you · weighs nothing",
   "ACKS-CHARACTER.equipment.placeLine": "{n} item(s) · {gp} gp in coin",
   "ACKS-CHARACTER.equipment.atRisk": "At risk",
-  "ACKS-CHARACTER.equipment.atRiskTip": "Set down on the ground: it stays where it was left when you move on",
+  "ACKS-CHARACTER.equipment.atRiskTip": "Set down on the ground: anyone standing at it can take from it, and it stays where it was left when you move on",
   "ACKS-CHARACTER.equipment.pickUp": "Pick everything up, back to {slot}",
   "ACKS-CHARACTER.equipment.pickUpCarried": "Pick everything up, carried",
   "ACKS-CHARACTER.equipment.loadGround": "Not counted here, set down on the ground: {names}",

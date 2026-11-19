@@ -187,7 +187,7 @@ tokens on several maps. *Cost:* a Judge who drags a promoted place into
 another quarter sees the breadcrumb keep the old one until they re-file it by
 a drop on the sheet.
 
-## 2026-11-18 — A pack set down is a pile on the ground, and at risk
+## 2026-11-18 — A pack set down is a pile on the ground, and at risk — SUPERSEDED IN PART 2026-11-19
 
 **Ruled** (owner, 2026-11-18, intake row T-0653), on load, verbatim: "no, but it
 is on the ground and at risk". On the approved design: "Take recommendations",
@@ -196,6 +196,10 @@ wearing a Backpack with torches, 40 gp and a dagger inside sets it down. The
 pack and everything in it leave them for a pile at their token and their Load
 drops; the pile is listed with their goods kept elsewhere as at risk; picking it
 up puts the pack back on their Back with whatever is still in the pile.
+
+**Superseded in part 2026-11-19:** who may take from the pile. The design left
+it open and its recommendations assumed only the character's own rows; see
+"Anyone standing at a pile may take from it" below.
 
 **Settled by "Take recommendations"** (the design's recommended option on each
 point):
@@ -233,3 +237,36 @@ design, so none are listed here.
 `all` coin scope can draw on coin set down in a pack, and a Judge who deletes a
 pile still holding goods gets them back inside a wrapper container with no slot
 to return to. Landing on another character's sheet never restores a slot.
+
+## 2026-11-19 — Anyone standing at a pile may take from it
+
+**Ruled** (owner, 2026-11-19, intake row T-0653), asked "can another player's
+character take straight from someone else's pile?", verbatim: "Yes, anyone
+there". Earlier rulings stand: "no, but it is on the ground and at risk";
+"Take recommendations"; "Build it now". The approved design said anyone at the
+pile can take from it. For example: Bran sets down his Backpack. Alys's player,
+whose character stands at the pile, takes Bran's rope from it with no Judge
+involved.
+
+**Supersedes in part 2026-11-18**, on who may take. *New evidence:* the owner's
+answer to the question that entry's design left open; before it the only rule
+written was lib storage's, which lets a seat take rows stamped to its own
+character.
+
+- A character that reaches a pile (`depositReach`, its own token) takes any
+  row on it, through lib storage's relayed retrieve; the Judge is not asked.
+- A character away from it takes only rows stamped to them, so Pick up stays
+  reachable from anywhere (2026-11-18, 6A) and a stranger cannot take at a
+  distance.
+- Every other provider keeps the rule it had.
+- A pack taken by a bystander lands on them with its record cleared and no slot
+  restored; the pile goes once it holds nothing.
+
+**Rejected:** a pile owned by its owner or by the players, so that ownership
+carries the right to take (it would also take deposits from anywhere, as
+2026-11-18 rejected); a Judge's approval per take.
+
+*Cost:* a character can lose a pack's contents to anyone who walks up, which
+is the at-risk the owner ruled for; the module runs no theft check. The pile's
+own sheet does not yet show a bystander take controls; that surface waits on
+the owner's design approval, and until then the take is the relayed API call.

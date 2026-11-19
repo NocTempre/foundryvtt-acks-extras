@@ -48,6 +48,7 @@ const actors = new Coll();
 const byUuid = new Map();
 const users = new Coll(Object.entries(USERS));
 const listeners = {};
+const onceHooks = {};
 const pendingHooks = [];
 let notes = [];
 let calls = {};
@@ -60,7 +61,7 @@ console.error = (...args) => logged.push(args.map(String).join(" "));
 
 globalThis.Hooks = {
   on(name, fn) { (listeners[name] ??= []).push(fn); },
-  once() {},
+  once(name, fn) { (onceHooks[name] ??= []).push(fn); },
   call() {},
   callAll(name, ...args) {
     for (const fn of listeners[name] ?? []) {
@@ -204,11 +205,29 @@ const { registerGround, setDown, setDownRelay, sweepPile, flushSweeps, onDeleteI
   await import("../scripts/location/ground.mjs");
 const logic = await import("../scripts/location/ground-logic.mjs");
 const { isGroundPile } = await import("../scripts/lib/place.mjs");
-const { isProvider, retrieve, storedItems } = await import("../scripts/lib/storage.mjs");
+const { isProvider, retrieve, stash, registerStorageRelay } = await import("../scripts/lib/storage.mjs");
 const { standsAsPlace } = await import("../scripts/location/here.mjs");
 const { LOCATION_TYPE } = await import("../scripts/location/constants.mjs");
 
 registerGround();
+await registerStorageRelay();
+/** The module's socket: a Player's call reaches the Judge's seat with the sender attested, as socketlib does. */
+const handlers = new Map();
+globalThis.socketlib = {
+  registerModule: () => ({
+    register: (name, fn) => handlers.set(name, fn),
+    executeAsGM: async (name, payload) => {
+      const seat = game.user;
+      game.user = USERS[JUDGE];
+      try {
+        return await handlers.get(name).call({ socketdata: { userId: seat.id } }, structuredClone(payload));
+      } finally {
+        game.user = seat;
+      }
+    },
+  }),
+};
+for (const fn of onceHooks["socketlib.ready"] ?? []) fn();
 
 /* -------------------------------------------- */
 /*  Fixtures                                    */
@@ -732,4 +751,131 @@ await ok("a pile is the one shape: observed, a provider, flagged, not a point of
   assert.equal(standsAsPlace({ ...actor, getFlag: () => null }), true, "any other location still is one");
 });
 
-console.log(`\ntest-location-ground: OK (${passed} checks — the planners, the Judge's handler and its refusals, rollback, arrival, the three hooks)`);
+/* -------------------------------------------- */
+/*  Anyone standing at a pile may take from it  */
+/* -------------------------------------------- */
+
+/** Answers the location feature's deposit reach with `can`, recording who was asked about what. */
+function reachAnswers(can) {
+  const asked = [];
+  globalThis.acksExtras.location = { reach: { depositReach: (who, where) => (asked.push([who.name, where.name]), { can, reason: "far" }) } };
+  return asked;
+}
+const noReach = () => { delete globalThis.acksExtras.location; };
+const seatOf = (id) => { game.user = USERS[id]; };
+
+/** A pile Hero's pack was set down at, and Alys, a second Player's character with a pack of her own. */
+async function pileWithBystander() {
+  const scene = makeScene();
+  const hero = await makeHero({ scene });
+  const pack = await kit(hero);
+  assert.equal((await setDownRelay(asPlayer(hero, pack, PLAYER, scene.id))).ok, true);
+  const alys = await Actor.create({ name: "Alys", type: "character", ownership: { [STRANGER]: 3 } });
+  await alys.createEmbeddedDocuments("Item", [{ _id: "own1", name: "Satchel", type: "item", system: { subtype: "item", cost: 0, weight6: 0 }, flags: { [MOD]: gear() } }], { keepId: true });
+  return { hero, alys, pile: pileOf() };
+}
+const idOf = (actor, name) => actor.items.find((i) => i.name === name).id;
+
+await ok("a character standing at a pile takes another's row from it, with no Judge asked", async () => {
+  const { hero, alys, pile } = await pileWithBystander();
+  const asked = reachAnswers(true);
+  try {
+    seatOf(STRANGER);
+    const answer = await retrieve(pile, alys, [{ id: idOf(pile, "Torch") }]);
+    seatOf(JUDGE);
+    assert.equal(answer.ok, true);
+    assert.deepEqual(asked, [["Alys", pile.name]], "the location feature was asked whether Alys reaches the pile");
+    const torch = alys.items.find((i) => i.name === "Torch");
+    assert.ok(torch, "it landed on her");
+    assert.equal(torch.getFlag(MOD, "storage"), null, "carried, no longer kept for anyone");
+    assert.equal(pile.items.find((i) => i.name === "Torch"), undefined);
+    assert.equal(pile.items.size, 3, "the rest still lies there, Hero's");
+    assert.ok(pile.items.every((i) => i.getFlag(MOD, "storage")?.ownerUuid === hero.uuid));
+    assert.deepEqual(notes.filter(([k]) => k === "warn" || k === "error"), []);
+  } finally {
+    noReach();
+  }
+});
+
+await ok("a character away from the pile is refused, and nothing moves", async () => {
+  const { alys, pile } = await pileWithBystander();
+  reachAnswers(false);
+  try {
+    seatOf(STRANGER);
+    const answer = await retrieve(pile, alys, [{ id: idOf(pile, "Torch") }]);
+    seatOf(JUDGE);
+    assert.deepEqual(answer, { ok: false, reason: "permission" });
+    assert.equal(pile.items.size, 4);
+    assert.equal(alys.items.find((i) => i.name === "Torch"), undefined);
+
+    noReach();
+    seatOf(STRANGER);
+    assert.equal((await retrieve(pile, alys, [{ id: idOf(pile, "Torch") }])).reason, "permission", "with no location feature there is no reach to stand in");
+    seatOf(JUDGE);
+  } finally {
+    noReach();
+  }
+});
+
+await ok("the bystander who takes the set-down pack gets it with its record cleared and no slot restored", async () => {
+  const { hero, alys, pile } = await pileWithBystander();
+  reachAnswers(true);
+  try {
+    seatOf(STRANGER);
+    const answer = await retrieve(pile, alys, pile.items.map((i) => ({ id: i.id })));
+    seatOf(JUDGE);
+    assert.equal(answer.ok, true);
+    await settle();
+    const taken = alys.items.find((i) => i.name === "Backpack");
+    assert.ok(taken);
+    assert.equal(taken.getFlag(MOD, SET_DOWN_FLAG), null, "the record is cleared on another character");
+    assert.equal(alys.items.get("own1").flags[MOD].gear.wornAt, "back", "her own pack keeps the slot; nothing was put back on Back");
+    assert.equal(hero.items.find((i) => i.name === "Backpack"), undefined, "and Hero does not have it");
+    await flushSweeps();
+    assert.equal(pileOf(), undefined, "the empty pile is removed");
+  } finally {
+    noReach();
+  }
+});
+
+await ok("an ordinary place still refuses another character's row, whoever stands at it", async () => {
+  const hero = await makeHero();
+  await kit(hero);
+  const alys = await Actor.create({ name: "Alys", type: "character", ownership: { [STRANGER]: 3 } });
+  const place = await Actor.create({ name: "Cellar", type: LOCATION_TYPE, flags: { [MOD]: { storage: { provider: true } } }, ownership: { default: 2 } });
+  assert.equal((await stash(hero, place, [{ id: "rope1" }])).ok, true);
+  assert.equal(isGroundPile(place), false);
+  const asked = reachAnswers(true);
+  try {
+    seatOf(STRANGER);
+    const answer = await retrieve(place, alys, [{ id: idOf(place, "Rope") }]);
+    seatOf(JUDGE);
+    assert.deepEqual(answer, { ok: false, reason: "permission" });
+    assert.deepEqual(asked, [], "reach is not asked about a place that is no pile");
+    assert.equal(place.items.size, 1);
+  } finally {
+    noReach();
+  }
+});
+
+await ok("the owner takes their own rows from a pile from anywhere, reach not asked", async () => {
+  const scene = makeScene();
+  const hero = await makeHero({ scene });
+  const pack = await kit(hero);
+  assert.equal((await setDownRelay(asPlayer(hero, pack, PLAYER, scene.id))).ok, true);
+  const pile = pileOf();
+  const asked = reachAnswers(false);
+  try {
+    seatOf(PLAYER);
+    const answer = await retrieve(pile, hero, pile.items.map((i) => ({ id: i.id })));
+    seatOf(JUDGE);
+    assert.equal(answer.ok, true);
+    assert.deepEqual(asked, [], "the owner's own rows are not reach-gated");
+    await settle();
+    assert.ok(hero.items.find((i) => i.name === "Backpack"));
+  } finally {
+    noReach();
+  }
+});
+
+console.log(`\ntest-location-ground: OK (${passed} checks — the planners, the Judge's handler and its refusals, rollback, arrival, the three hooks, a bystander's take)`);

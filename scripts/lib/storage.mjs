@@ -414,11 +414,24 @@ const takeableBy = (row, claimant) =>
   !!row && (rowOwnerOf(row) === claimant.uuid || (rowOwnerOf(row) === HOUSE_OWNER && !!storageFlagOf(row)?.retrievable));
 
 /**
+ * Does `claimant` stand at `pile`, a set-down pile? Only a pile answers true:
+ * the location feature is asked whether the character reaches it, and a world
+ * without that feature answers no. The pile is told by its flag (`place.mjs`
+ * `isGroundPile`), read lazily since that file imports this one.
+ */
+async function standsAtPile(claimant, pile) {
+  const { isGroundPile } = await import("./place.mjs");
+  if (!isGroundPile(pile)) return false;
+  return globalThis.acksExtras?.location?.reach?.depositReach?.(claimant, pile)?.can === true;
+}
+
+/**
  * The move `askJudge` asked for, made on the Judge's seat. A relayed call
  * (`requestUserId`, set by `lib/sockets.mjs`) is made only for a sender who
  * owns the character. A deposit must be within that character's reach of the
  * place, as the location feature answers it; a retrieval takes only rows
- * `takeableBy` the character, from wherever they stand.
+ * `takeableBy` the character, from wherever they stand, except that a
+ * character standing at a ground pile takes any row on it.
  * @returns {Promise<{ok: boolean, manifest?: object[], reason?: string, why?: string, scene?: string}>}
  */
 async function moveForSeat({ kind, sourceUuid, targetUuid, spec, requestUserId = null } = {}) {
@@ -439,7 +452,9 @@ async function moveForSeat({ kind, sourceUuid, targetUuid, spec, requestUserId =
   if (kind === "retrieve") {
     if (!owns(target) || !isProvider(source)) return { ok: false, reason: "permission" };
     const asked = (spec ?? []).map((entry) => (typeof entry === "string" ? entry : entry?.id));
-    if (!asked.every((id) => takeableBy(source.items.get(id), target))) return { ok: false, reason: "permission" };
+    const rows = asked.map((id) => source.items.get(id));
+    const own = rows.every((row) => takeableBy(row, target));
+    if (!own && !(rows.every(Boolean) && (await standsAtPile(target, source)))) return { ok: false, reason: "permission" };
     return transfer(source, target, spec, { hook: STORAGE_HOOKS.RETRIEVED, stampOwner: false, ...made });
   }
   return { ok: false, reason: "permission" };

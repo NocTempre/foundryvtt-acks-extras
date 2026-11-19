@@ -123,7 +123,8 @@ the right column to take it off or out.
 open the Actors sidebar → the character → Equipment tab → the container's
 header → **Set down**. Your Load drops, the worn place shows empty, and
 **Kept elsewhere** lists the pack as "On the ground · <name>" with an **At
-risk** tag: it is on the ground, and it stays where you left it when you move on.
+risk** tag: it is on the ground, anyone standing at it can take from it, and it
+stays where you left it when you move on.
 **Pick up** on that row puts the pack back where it was worn, with whatever is
 still in it; **Open** opens the pile. The control shows only to the
 character's owner, on a container you carry at the top level (one inside

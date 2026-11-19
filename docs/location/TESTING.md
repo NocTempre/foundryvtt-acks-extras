@@ -581,6 +581,9 @@ by hand.
     location sheet's Storage tab). *Observable:* the pack is on the character
     again in its slot with whatever came back, and a moment later the pile and
     its token are gone; a pile still holding one item stays.
+    *A bystander's take:* walked in docs/character-sheet/TESTING.md, "Set down a
+    pack from the Equipment tab", step 11 (fixture
+    `character-sheet/set-down-bystander`).
     *Teardown:* the fixtures by their ledger uuids. Offline:
     `tools/test-location-ground.mjs`, `tools/test-location-reach.mjs`.
 

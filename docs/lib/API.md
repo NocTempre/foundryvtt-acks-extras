@@ -1580,7 +1580,9 @@ place's hands the whole move to the GM (the `libMoveGoods` handler), whose seat
 plans it again from the same arguments. It is made only for a sender who owns
 the character. A deposit is put to the location feature's deposit reach there;
 a retrieval takes rows kept for that character and house rows marked
-`retrievable`, and one row outside those refuses the whole request. Every move
+`retrievable`, and one row outside those refuses the whole request, except
+that a character who reaches a set-down pile (`depositReach`, the pile's own token)
+takes any row on it. Every move
 resolves `{ok, manifest?, reason?}`: `noGm` with no GM connected, `outOfReach`
 (with `why` and `scene`) for a deposit the character cannot make from where
 they stand, `permission` for a sender or a row the rule does not allow. The
