@@ -2582,8 +2582,8 @@ twice. A form is never parsed.
   {inputs, walls, digest}}`: `traceWalls` or `traceStoreys` output in page
   points. The parse traces them last, in the open that read the text, by
   `traceRecipeWalls` (the crop, or each storey's, rendered to gray at
-  `TRACE_PITCH` and read by the tracer, the body `traceSceneWalls` ran before);
-  that is one render per crop on top of the text pass. A trace that fails to
+  `TRACE_PITCH` and read by the tracer); that is one render per crop on top of
+  the text pass. A trace that fails to
   render or throws is not saved, and the file keeps the rest. `inputs` is
   `wallTraceInputs(recipe)`: one canonical string of the tracer's version
   (`WALL_TRACE_VERSION`), `TRACE_PITCH`, the recipe's `page`, `crop`, `levels`,

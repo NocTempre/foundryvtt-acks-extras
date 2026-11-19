@@ -3072,7 +3072,7 @@ fetches no PDF. This is S5, and it supersedes in part the entry "Placements ride
 in the saved text", which rejected caching wall traces as "not asked for" and
 priced a walled map as still fetching the PDF. The new evidence: 15 of AX1's 17
 scene recipes are walled, so S3's saved placements made the fetch-free rebuild
-true for the two maps that least needed it, and the owner asked for it.
+true only for its 2 maps without walls, and the owner asked for the rest.
 
 - **What is saved.** For each scene recipe of the book with a `walls` block
   (`cookbookWalledScenes`), `{inputs, walls, digest}` under its cookbook id in the
@@ -3085,7 +3085,8 @@ true for the two maps that least needed it, and the owner asked for it.
   string of the tracer's version, `TRACE_PITCH`, and the recipe's `page`, `crop`,
   `levels`, `grid` and `walls`; a saved trace answers a recipe whose string is
   equal and no other. A hash was rejected: a 32-bit collision would accept a
-  stale trace, and the string costs a few hundred bytes per scene.
+  stale trace, and the string is 235 to 2,693 bytes for AX1's 15 walled scenes
+  (11 KB in all).
 - **The tracer's version is in the key, not the stamp.** A trace is an
   algorithm's output, unlike the text and the boxes, which `pageItems` interprets
   at read. `WALL_TRACE_VERSION` is bumped with a change to what the tracer
@@ -3101,15 +3102,15 @@ true for the two maps that least needed it, and the owner asked for it.
   edited recipe (which must). It renders through `@napi-rs/canvas`; the module's
   tracer runs on a browser canvas, and the two renders are not compared.
 
-*Rejected:* saving the gray renders (megabytes per crop to keep an algorithm's
-input, where the walls are kilobytes); a hash of the inputs; the tracer's version
+*Rejected:* saving the gray renders (174 KB of gray for the one 645x270 crop
+measured, to keep the input of an algorithm whose output is the walls); a hash of the inputs; the tracer's version
 in `PARSE_SCHEMA` (a whole-book re-parse per tuning pass).
 
 *Costs.*
 - Every saved file is of another stamp, so each shelved book is parsed again on
   its next GM read: a whole-book fetch and parse for every book already staged,
   one render per walled crop on top for books that have walled scenes (AX1: 15
-  scenes). No released build wrote a schema 2 file.
+  scenes). No tag contains the commits that wrote a schema 2 file.
 - A parse is slower by those renders, and the progress bar counts pages, so it
   sits at the last page while the walls are traced.
 - The saved walls are one rasteriser's output. Two seats on different browsers
