@@ -916,7 +916,9 @@ counted 98).
 weapon's damage type is `system.damage.base.types`. `damageTypeOf` answers the
 same as `ownDamageType`: it never reads `flags.acks-extras.damageTypeOverride`,
 `flags.acks-extras.damageType` or equipment's classifier. Nothing writes those
-two flags (the readied torch wrote the second; it now writes core's field
+two flags (the readied torch wrote the second; the retired bestiary sample in
+`tools/pack-data/bestiary-data.mjs`, which no build reads, still spells it; the
+torch now writes core's field
 through `weaponBaseDamage`, so the torch rolls fire). `classifyWeapon`'s `type`
 is the item's own base type, else the row's: the row stays that function's
 answer for the one question of which condition table a weapon rolls on

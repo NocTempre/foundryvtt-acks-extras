@@ -2112,9 +2112,9 @@ roll, core's card icons and the defence stage below read it, and so does
 first named type, `varies` for a weapon typed only as varying) and is null for
 a weapon whose set is empty. It consults no flag, no override and no
 classifier, so a surface shows the type the roll carries. The Rolls tabs, the
-follower card's attack rows and a monster's attack row show a blank type and
-the neutral icon for an untyped weapon, and the weapons core ships in its own
-packs are untyped. A write goes to the same field (`damageTypeUpdate`,
+follower card's attack rows and a monster's attack row show no type for an
+untyped weapon (the follower card and the item sheet's rail draw their neutral
+icons), and the weapons core ships in its own packs are untyped. A write goes to the same field (`damageTypeUpdate`,
 `weaponBaseDamage`). Equipment's classifier keeps its own `type`, the row's
 for a weapon that states none, for the one question of which condition table a
 weapon rolls on. Ruling: DECISIONS, "A weapon's damage type is core's alone".

@@ -149,11 +149,8 @@ attack roll reads; that is its own change.
 
 ## 2026-11-17 — A monster weapon's damage type and extraordinary mark are core's fields — SUPERSEDED IN PART 2026-11-19
 
-Superseded in part: "Calls made here" ruled that the attack row and the Rolls
-tab show `damageTypeOf`, which falls back past core, and left that fallback to
-lib. Lib's 2026-11-19 entry "A weapon's damage type is core's alone" settles it
-(`damageTypeOf` answers core's types alone, so the row is blank for an untyped
-weapon); the rest of this entry stands.
+Superseded in part by lib's 2026-11-19 "A weapon's damage type is core's alone"
+(the fallback "Calls made here" leaves to lib).
 
 **Ruled.** The ACKS Monster group's Damage Type and Extraordinary damage
 controls read and write the weapon's `system.damage.base.types` and
