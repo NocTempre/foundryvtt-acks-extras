@@ -1315,6 +1315,19 @@ page, never by value.
   how a pair's throw is made and follows the page. Where the page prints no
   combination, the basher throws at their own target and the partner adds
   only the terms the page gives a partner; no combination rule is invented.
+- Boards for D2, U3, U1d and U2, approved 2026-11-18 as drawn: "Approve,
+  build it" (relayed by the managing session). Canvas "Door window and
+  Dungeon tab", https://claude.ai/artifact/6V9wnpVeCzqTHRZkLVbaSM (private to
+  the owner). It has four boards: the door window with figures imported, the
+  door window with nothing imported, and the Dungeon tab on the Judge and
+  Player seats. The door window's art frame is the box of the banded door
+  at the right edge of the portal picture on RR p. 261, cut by the importer.
+  RR pp. 266–267 print no picture; with none imported, a dashed frame shows
+  the door glyph. Icons are game-icons.net glyphs (CC BY 3.0) from the
+  game-icons-net module.
+- Close-out scope: "A: whole close-out". The minor holds until every
+  close-out batch has landed. After batch 1 the session carries on through
+  the remaining batches without a new ask.
 
 ### Phase 3's questions, put for one pass
 
