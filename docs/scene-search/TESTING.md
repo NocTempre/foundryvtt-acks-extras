@@ -238,9 +238,12 @@ What driving it taught:
 - **A stylesheet `module.json` gains is read when the world launches.** A world
   launched before the screen's `styles/scene-search.css` was added draws the
   window unstyled (no column scrolls, the type knob reaches nothing, the tray
-  falls off the frame). The walk notes whether the sheet is loaded and, where it
-  is not, adds a copy itself for the layout step, which then proves the
-  stylesheet and not its loading.
+  falls off the frame). After a relaunch the world loads it natively (checked
+  2026-11-19, both seats). A top-level `document.styleSheets` href test cannot
+  see it: core 14 pulls module sheets in through an `@import` inside a layered
+  sheet, so walk the nested rules (the lore walk's `sheetProbe`). The S4, S5
+  and S6 walks still use the top-level test and so add a cache-busted copy,
+  which duplicates the loaded rules harmlessly.
 - **The type knob is set on the document root**, where the client pin sets it
   and the ramp steps are computed (`lib/client-pins.mjs`); set on the window it
   moves nothing. Draw the window again after setting it.
@@ -419,10 +422,9 @@ What driving it taught:
 - **A walk on a lane is blocked while another GM client is the active GM.**
   Another lane's seat connecting mid-run reads as `WALK BLOCKED`; it is the
   environment, so rerun once that seat has left.
-- **A stylesheet `module.json` gains is read when the world launches.** The
-  screen's `styles/scene-search.css` was not loaded by the world, so the walk
-  injects a copy with a cache-buster on both seats before opening a window (see
-  S4).
+- **The stylesheet probe is blind**, as S4 says: the walk injects a
+  cache-busted copy on both seats before opening a window, over a sheet the
+  world already loads.
 
 ### Fixtures
 
@@ -584,8 +586,8 @@ What driving it taught:
   the scene's id, so the walk's party is a formation of one member on a scene.
   A body on the screen is written by hand into the session's `bodies`, since no
   fight's record is reachable here.
-- **The stylesheet is read when the world launches**, as in S4: the walk adds
-  `styles/scene-search.css` with a cache-buster where the page does not hold it.
+- **The stylesheet probe is blind**, as S4 says: the walk adds a cache-busted
+  `styles/scene-search.css` over the sheet the world already loads.
 
 ### Fixtures
 
@@ -687,7 +689,7 @@ old-style trap zone is derived yet).
 
 ## S7a — lore checks
 
-**Not yet walked.** Offline coverage is `tools/test-scene-lore.mjs` (the real
+Walked by `tools/live/scene-search-lore.mjs` (`node tools/live/run.mjs scene-search-lore`). Offline coverage is `tools/test-scene-lore.mjs` (the real
 party check joined to the scene search's own `skillConfig`, over ability items
 shaped like the importer's). It draws no window, posts no card and reads no
 import, so every observable below needs a live seat.
@@ -695,9 +697,9 @@ import, so every observable below needs a live seat.
 Fixtures, found by marker (`api.fixture`):
 
 - `scene-search/lore-place` — a location actor whose `flags.acks-extras.things`
-  holds four fixtures written whole, each with BOTH checks keyed Proficiency, each
+  holds five fixtures written whole, each with BOTH checks keyed Proficiency, each
   to one capability: `{id: "theology"}` (the Theology token), `{id: "naturalism"}`,
-  `{id: "loremastery"}` and `{id: "sensing"}`. Each yields a clue line on both
+  `{id: "loremastery"}`, `{id: "sensing"}` and a second `{id: "sensing-2"}`. Each yields a clue line on both
   layers. The tokens are the ones the rail's picker lists for the imported
   proficiencies.
 - `scene-search/lore-holder` — a character owned by the Player seat holding the
@@ -707,14 +709,15 @@ Fixtures, found by marker (`api.fixture`):
   from this recipe.
 - `scene-search/lore-outsider` — a character holding none of them, owned by the
   same seat.
-- `scene-search/lore-party` — a party with both characters as members and the
-  place above as its place.
+- `scene-search/lore-party` — a party with both characters as members, standing
+  on `scene-search/lore-scene` inside `scene-search/lore-region`, a Region linked to
+  the place (Search here finds the place through it).
 
 A step that needs a figure reads it first; a proficiency whose Rolls tab shows
 no throw is the observable for that step's blank case, not a failed fixture.
 
 1. **Open** a scene search at the place (Judge seat, party sheet → Dungeon tab →
-   Search here). Open the Judge's screen. *Observable:* four entry cards.
+   Search here). Open the Judge's screen. *Observable:* five entry cards.
 2. **Assignable by the holder.** Pick Theology's card, Checked hastily, press
    `+ Assign`. *Observable:* the picker lists the holder with no refusal and the
    outsider with no refusal either (a missing skill is the vague hint at the
@@ -729,9 +732,12 @@ no throw is the observable for that step's blank case, not a failed fixture.
    *Observable:* the log row reads "There might be something more here" on both
    seats (the Player's log keeps the code), no card is posted, the entry is not
    found.
-5. **The first throw.** Naturalism's item lists two throws on its Rolls tab.
-   Assign the holder, Round. *Observable:* the card's target equals the FIRST
-   throw's figure on the Rolls tab (not the lowest).
+5. **The first throw.** Assign the holder to Naturalism hasty, Round.
+   *Observable:* the card's target equals the FIRST throw's figure on the Rolls
+   tab. The imported item lists ONE throw, so this proves nothing about "first, not
+   lowest": add a second throw with a lower figure through the roll writer, Round
+   again, and the card's target is still the first's (put the library's throws
+   back afterwards).
 6. **Loremastery at two levels.** Read the target on the holder, change the
    holder's level by one, read the picker's card again. *Observable:* the
    figure moves with the level, as the sheet's does. *Unverified offline:* the
@@ -739,7 +745,9 @@ no throw is the observable for that step's blank case, not a failed fixture.
    confirms the lift produced a throw at all; with none, step 7's blank case
    applies to it.
 7. **A blank figure.** Rebuild the holder's Theology item with its throw emptied
-   (clear the roll on its Rolls tab), assign Theology hasty. *Observable:* the
+   (clear the roll on its Rolls tab), assign Theology hasty (the layer must not
+   already be found: refusals for found and a hasty lock come before a blank
+   figure). *Observable:* the
    holder is listed blocked with no words; the row's tooltip is the page the
    item cites, with no figure or other text.
 8. **No throw printed.** Assign the holder to Sensing Power hasty, Round.
@@ -752,6 +760,43 @@ no throw is the observable for that step's blank case, not a failed fixture.
 Teardown: end the session; `api.sweepTracked()` over the run's own ids. The
 kept fixtures stay; the walk writes the place's list back to its recipe shape at
 its start.
+
+### What driving it taught
+
+- The place's list is written whole before every step, which clears every thing's
+  state; a found layer refuses `alreadyFound` and a hasty miss locks, and both
+  refusals outrank a blank figure. The second Sensing Power thing exists for the
+  same reason: the vague hint is only given where something is still unfound.
+- Each proficiency reaches the holder through the sheet's add-proficiency route
+  where the general list offers it, else `grantAbility`. The walk finds the library
+  item by the capability token the rail's picker lists, never by name.
+- The sheet's figure on a flat throw is the flat value less the standing bonus on
+  the throw. A second throw written to differ from the first is written with that
+  bonus added, read off a probe throw.
+- The picker's option (`acksExtras.sceneSearch.options`) carries the `target`: the
+  Loremastery figure is read there at each level and held against the sheet's,
+  with no Round and no card.
+- A blank figure is written through `writeRolls` and put back by replacing
+  `flags.acks-extras.extras.rolls` with the library source's own; a `writeRolls`
+  round trip alone leaves the roll normalised (its target, score and note differ
+  from the import's) while the figure is unchanged.
+- A Round at a held 1 is the proof that a throwless proficiency rolls nothing: it
+  still reads found, posts no card, and the layer's `failed` is an empty object.
+- A whispered card is delivered to every client: on the Player seat
+  `game.messages.has` is true while `visible` is false and the chat DOM holds no
+  node for it. Read `visible` and the DOM. Every Judge-level seat is a recipient.
+- **Open finding:** the card's target tooltip reads the figure and the ability's
+  name only; it names no page, though the item cites one and the picker's own
+  tooltip carries it (`citedSource` in `party-rolls.mjs` lists only the modifier
+  parts' pages). Registered as T-0683; the walk's check for the page stays red
+  until that lands.
+- `document.styleSheets` held against `styles/scene-search.css` is blind: core 14
+  pulls module sheets in through an `@import` inside a layered sheet. Walk the
+  nested rules (the walk's `sheetProbe`) and match a selector against the open
+  screen (`ruleProbe`); both seats showed the sheet loaded natively, so no
+  injection is needed.
+- Not reached: a real pointer drag, the chooser between a proficiency's two throws
+  (not built), and Magical Engineering (no fixture holds it).
 
 ## What this walk does not reach
 
