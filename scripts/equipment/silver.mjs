@@ -53,16 +53,17 @@ export function isSilvered(item) {
  *
  * The flag is "plating bought" and is what the price layer reads; it never
  * says whether a weapon is silver. On a weapon, `true` sets the flag and the
- * system's `special.silver`, `false` writes the system's field false and
- * unsets the flag, and `null` or "auto" unsets the flag and leaves the
- * system's field as it stands. On ammunition the flag is the answer: `false`
- * is stored, an explicit no that overrules a table row or a name.
+ * system's `special.silver`, `false` writes both false (the price layer keys
+ * on `true` alone, so a stored no buys nothing and lets the picker keep the
+ * pick), and `null` or "auto" unsets the flag and leaves the system's field as
+ * it stands. On ammunition the flag is the answer: `false` is stored, an
+ * explicit no that overrules a table row or a name.
  */
 export async function setSilvered(item, silvered) {
   const auto = silvered === null || silvered === "auto";
   if (item?.type === ITEM_TYPE.weapon) {
-    if (auto || !silvered) await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
-    else await item.setFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED, true);
+    if (auto) await item.unsetFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
+    else await item.setFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED, !!silvered);
     if (!auto) await item.update?.({ "system.special.silver": !!silvered });
   } else if (auto) {
     await item?.unsetFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED);
@@ -70,4 +71,18 @@ export async function setSilvered(item, silvered) {
     await item?.setFlag?.(MODULE_ID, ITEM_FLAGS.SILVERED, !!silvered);
   }
   return recomputeItemFields(item);
+}
+
+/**
+ * Which of the silver picker's options is selected: "auto", "true" or "false".
+ * Ammunition shows its stored answer. A weapon shows a stored pick only while
+ * the system's field still agrees with it, so a weapon whose silver was cleared
+ * elsewhere never reads as Silvered; otherwise it shows "auto", whose label
+ * reports the system's field.
+ */
+export function silverChoiceOf(item) {
+  const flag = silveredFlagOf(item);
+  if (flag === null) return "auto";
+  if (item?.type === ITEM_TYPE.weapon && flag !== silverOf(item)) return "auto";
+  return String(flag);
 }

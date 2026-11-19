@@ -871,9 +871,10 @@ Net row all read one answer.
   true (`isSilvered`, lib `silverOf`), which is also what the damage stage in
   lib reads; its name and its table row say nothing. The item sheet's
   Construction tab Silver control (`setSilvered`): *Silvered* sets the plating
-  flag and the system's field true; *Not silvered* writes the field false and
-  unsets the flag; *Auto* unsets the flag and leaves the field, and its label
-  reports the field. Ammunition has no system field, so its flag, then its row,
+  flag and the system's field true; *Not silvered* writes both false (the price
+  layer keys on `true` alone); *Auto* unsets the flag and leaves the field, and its label
+  reports the field. The picker shows a stored pick only while the field
+  agrees with it (`silverChoiceOf`), else Auto. Ammunition has no system field, so its flag, then its row,
   then its name answer; `pickAmmo` and the fired-silver notice read that. The
   flag's readers (the price layer, the price ledger, the variation-family
   conflict) ask whether plating was bought.

@@ -175,7 +175,7 @@ the name. The module's `silvered` flag means "plating bought", which is what
 the price layer reads, and never answers "is it silver" for a weapon. The
 Construction tab's Silver control keeps its three options: *Silvered* sets the
 flag and `system.special.silver` true; *Not silvered* writes the system's field
-false and unsets the flag; *Auto* unsets the flag and leaves the system's field
+and the flag false (the price layer keys on `true` alone); *Auto* unsets the flag and leaves the system's field
 alone, so its "Auto (…)" label reports that field. Ammunition has no core
 silver field and its stack is picked in the post-attack hook, so it keeps the
 flag, then the row, then the name. `dealsExtraordinaryDamage` is retired.
@@ -192,8 +192,8 @@ named for silver is not silver until the field is ticked (the sheet's Silver
 quality chip or the control). The importer lights a system special for every
 word of a weapon row's Special cell that names one (`settleQualities`), so an
 imported weapon whose printed cell says silver carries the field; whether a
-given row's cell does is the Judge's book, not read here. Not silvered reads back as
-Auto, since the flag is unset. A weapon whose chip is cleared while the
-plating flag is still true reads as Silvered in the control while not silver:
-the flag is the price's, and the chip is the field's.
+given row's cell does is the Judge's book, not read here. A weapon whose chip is cleared
+while the plating flag is still true keeps the plating price, and its picker
+reads Auto (Not silvered), since the picker shows a stored pick only while the
+field agrees with it (`silverChoiceOf`).
 

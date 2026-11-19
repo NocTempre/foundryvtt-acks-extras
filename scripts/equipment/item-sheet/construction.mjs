@@ -27,8 +27,8 @@ import {
   setShieldVariant, SHIELD_VARIANT_KEYS, setGearSlotList, setGearAccess, setGearRelief, SLOT_AUTO,
   setWeaponProfile, setWeaponSize, setWeaponGrips, setWeaponCategory,
 } from "../actions.mjs";
-import { masterworkTierOf, scavengedOf, layerSummary, layerProvenance, silveredFlagOf } from "../properties.mjs";
-import { canBeSilvered, isSilvered, setSilvered } from "../silver.mjs";
+import { masterworkTierOf, scavengedOf, layerSummary, layerProvenance } from "../properties.mjs";
+import { canBeSilvered, isSilvered, setSilvered, silverChoiceOf } from "../silver.mjs";
 import { classifyWeapon, isHelmet, inferGear, weaponIdentity, inferredGrips, WEAPON_CATEGORY_VALUES } from "../profiles.mjs";
 import { weaponName, CATEGORY_TOKENS } from "../training-view.mjs";
 import { weaponKeys, weaponRow, hasWeaponRows } from "../../lib/weapons.mjs";
@@ -369,12 +369,11 @@ export function buildConstructionPanel(item, { editing = false } = {}) {
   // Silvered outright is what sets the plating flag that applies the price
   // layer (see config.mjs SILVER and `setSilvered`).
   if (canBeSilvered(item)) {
-    const flag = silveredFlagOf(item);
     row("ACKS-EQUIPMENT.props.silver", select(
       [{ value: "auto", label: loc("props.silverAuto", { guess: loc(isSilvered(item) ? "props.silverYes" : "props.silverNo") }) },
         { value: "true", label: loc("props.silverYes") },
         { value: "false", label: loc("props.silverNo") }],
-      flag === null ? "auto" : String(flag),
+      silverChoiceOf(item),
       (v) => setSilvered(item, v === "auto" ? "auto" : v === "true"),
     ));
     // The note says which state is in force, so a picker whose price layer

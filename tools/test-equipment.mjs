@@ -3277,7 +3277,7 @@ check("clearHands disturbs nothing when a hand is already free", noop.released.l
 /*  Silver (RR ch.4) — the one material that changes what a weapon counts as */
 /* ---------------------------------------------------------------------- */
 
-const { isSilvered, canBeSilvered, setSilvered } = await import(new URL("silver.mjs", S));
+const { isSilvered, canBeSilvered, setSilvered, silverChoiceOf } = await import(new URL("silver.mjs", S));
 const { layerDeltas } = await import(new URL("properties.mjs", S));
 const { weaponKey } = await import(new URL("profiles.mjs", S));
 const weaponKeyOf = (name) => weaponKey({ name });
@@ -3336,7 +3336,12 @@ check("Silvered on a weapon sets the system's silver", sv.system.special.silver 
 const svOff = silverItem("Sword", "weapon", { silvered: true }, true);
 await setSilvered(svOff, false);
 check("Not silvered on a weapon writes the system's silver false", svOff.system.special.silver === false && !isSilvered(svOff));
-check("Not silvered on a weapon leaves no flag", !("silvered" in svOff.flags));
+check("Not silvered on a weapon stores a no, which buys no plating", svOff.flags.silvered === false);
+check("the picker keeps Not silvered on a weapon", silverChoiceOf(svOff) === "false");
+check("the picker keeps Silvered on a weapon", silverChoiceOf(sv) === "true");
+const svCleared = silverItem("Sword", "weapon", { silvered: true }, false);
+check("a weapon whose system silver was cleared elsewhere never shows Silvered", silverChoiceOf(svCleared) === "auto");
+check("an ammunition stack shows its stored no", silverChoiceOf(silverItem("Silver Arrow", "item", { silvered: false })) === "false");
 
 const svAuto = silverItem("Sword", "weapon", { silvered: true }, true);
 await setSilvered(svAuto, "auto");
