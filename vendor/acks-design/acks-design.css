@@ -100,7 +100,7 @@
 .acks-text-center   { text-align: center; }
 .acks-text-end      { text-align: end; }
 .acks-caps {
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
 }
 .acks-nums {

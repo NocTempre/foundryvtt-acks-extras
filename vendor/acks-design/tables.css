@@ -14,11 +14,11 @@
  * ========================================================================== */
 
 .acks-table-title {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-h3);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
   margin-block: var(--acks-sp-6) var(--acks-sp-2);
 }
@@ -52,10 +52,10 @@
     color-mix(in srgb, var(--acks-burgundy-deep) 50%, transparent) 100%
   );
   color: var(--acks-on-burgundy);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   text-align: start;
   padding: var(--acks-sp-3) var(--acks-sp-4);
   border: none;

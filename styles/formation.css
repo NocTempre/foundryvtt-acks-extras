@@ -240,11 +240,11 @@
 
 .acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__mode {
   flex: none;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.09em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
   white-space: nowrap;
 }
@@ -327,11 +327,11 @@
   inset: 0;
   display: grid;
   place-items: center;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   white-space: nowrap;
   color: var(--acks-ink);
   text-shadow: 0 0 calc(2px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(3px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(4px * var(--acks-extras-k)) var(--acks-paper);
@@ -557,8 +557,8 @@
 .acks-extras-party-sheet__overline {
   font-family: var(--acks-font-ui);
   font-size: calc(10px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1.2;
   color: var(--acks-ink-soft);
 }
@@ -576,11 +576,11 @@
   padding: calc(3px * var(--acks-extras-k)) var(--acks-sp-3);
   border: var(--acks-rule-hair) solid var(--acks-spot);
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -653,11 +653,11 @@
 
 .acks-extras.acks-extras-party-sheet .acks-extras-party-sheet__key-head h2 {
   margin: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
 }
 
@@ -675,9 +675,9 @@
   border: none;
   font-family: var(--acks-font-ui);
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -749,11 +749,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.07em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -873,11 +873,11 @@
   border: var(--acks-rule-hair) solid var(--acks-success);
   background: var(--acks-success-tint);
   color: var(--acks-success-ink);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1;
 }
 
@@ -909,11 +909,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-ink-soft);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -1000,11 +1000,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-ink-soft);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -1075,11 +1075,11 @@
   display: inline-flex;
   align-items: center;
   gap: var(--acks-sp-2);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -1112,11 +1112,11 @@
   padding: 0 0 calc(3px * var(--acks-extras-k));
   border: none;
   border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(11px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
 }
 
@@ -1181,11 +1181,11 @@
 }
 
 .acks-extras.acks-extras-party-sheet .acks-extras-country-label {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1.2;
   color: var(--acks-ink-soft);
 }
@@ -1226,11 +1226,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-ink-soft);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -1337,11 +1337,11 @@
   margin: 0;
   padding-inline-start: var(--acks-sp-3);
   border-inline-start: calc(2px * var(--acks-extras-k)) solid var(--acks-gold-deep);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1.3;
   color: var(--acks-warning-ink);
 }
@@ -1367,11 +1367,11 @@
 
 .acks-extras.acks-extras-party-sheet :is(.acks-extras-where__caption, .acks-extras-where__shift, .acks-extras-shown__caption) {
   margin: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1.2;
   color: var(--acks-ink-soft);
 }
@@ -1401,11 +1401,11 @@
   border: var(--acks-rule-hair) solid var(--acks-gold-deep);
   background: var(--acks-warning-tint);
   color: var(--acks-warning-ink);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1.2;
 }
 
@@ -1429,11 +1429,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-ink-soft);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.04em);
+  text-transform: var(--acks-caps);
   line-height: 1;
 }
 
@@ -1604,7 +1604,7 @@
 .acks-extras:is(.party-sheet, .skill-audit) .rank-divider {
   list-style: none;
   font-size: var(--acks-fs-fine);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   opacity: 0.6;
   border-bottom: var(--acks-border-soft);
   margin: 2px 0 1px;
@@ -1652,7 +1652,7 @@
 .acks-extras:is(.party-sheet, .skill-audit) .clock .stat :is(label, .stat-label) {
   display: block;
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   opacity: 0.75;
 }
 
@@ -2678,7 +2678,7 @@
   border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
   font-size: var(--acks-fs-h3);
   color: var(--acks-spot);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-door-window .acks-extras-door-record {

@@ -76,10 +76,10 @@
 }
 
 .acks-lib-follower-card__score-k {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 
@@ -280,10 +280,10 @@
 }
 
 .acks-lib-follower-card__k {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(8px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -327,10 +327,10 @@
 }
 
 :is(.acks-lib-follower-card, .acks-lib-build) .fc-build-label {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(8px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   margin-right: 1px;
 }

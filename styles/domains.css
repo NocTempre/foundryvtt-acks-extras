@@ -148,8 +148,8 @@
 .acks-extras.acks-extras-domain-sheet.application .acks-extras-domain-sheet__title {
   flex: 0 1 11em;
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -172,8 +172,8 @@
   align-items: center;
   gap: var(--acks-sp-2);
   font-size: var(--acks-fs-fine);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
   white-space: nowrap;
 }
@@ -241,8 +241,8 @@
 .acks-extras-domain-sheet__chip-role {
   flex: none;
   font-size: var(--acks-fs-fine);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -305,11 +305,11 @@
   padding: var(--acks-sp-1) var(--acks-sp-3);
   border: var(--acks-rule-hair) solid var(--acks-spot);
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-fine);
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -442,11 +442,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-fine);
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.07em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -499,11 +499,11 @@
   padding: 0 0 var(--acks-sp-1);
   border: none;
   border-block-end: var(--acks-rule-hair) solid var(--acks-tint-2);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 

@@ -115,6 +115,10 @@
   --acks-tracking-caps: 0.07em;     /* small-caps UI labels                 */
   --acks-tracking-body: 0;
 
+  /* -- Case. Every label that sets capitals reads this, never a literal, so
+   *    the `core` look can hand the capitals back (foundry.css § 8). ------- */
+  --acks-caps: uppercase;
+
   --acks-weight-body: 400;
   --acks-weight-medium: 600;
   --acks-weight-bold: 700;

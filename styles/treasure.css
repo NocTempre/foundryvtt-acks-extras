@@ -483,10 +483,10 @@
   background-color: var(--band);
   color: var(--acks-on-burgundy);
   border: var(--acks-rule-hair) solid var(--acks-on-burgundy);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   transition: box-shadow var(--acks-duration) var(--acks-ease);
 }
 
@@ -791,10 +791,10 @@
   padding: var(--acks-sp-2) var(--acks-sp-4);
   background: var(--face-ink, var(--acks-spot));
   color: var(--acks-on-burgundy);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-treasure .acks-extras-treasure-card__tag .acks-extras-treasure__swatch {
@@ -917,10 +917,10 @@
 
 .acks-extras-treasure .acks-extras-treasure__bucket-title {
   margin: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 
@@ -985,9 +985,9 @@
 }
 
 .acks-extras-treasure-door .acks-extras-treasure-door__title {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   font-size: var(--acks-fs-banner);
 }
 
@@ -1043,9 +1043,9 @@
 
 .acks-extras-treasure-record h3 {
   margin: 0 0 var(--acks-sp-3);
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   font-size: var(--acks-fs-banner);
 }
 

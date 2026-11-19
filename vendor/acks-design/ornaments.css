@@ -38,11 +38,11 @@
 }
 
 .acks-banner-title {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-banner);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   line-height: 1;
   color: var(--acks-on-burgundy);
   margin: 0;
@@ -53,7 +53,7 @@
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-fine);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-on-burgundy-soft);
   margin-inline-end: auto;
 }
@@ -97,11 +97,11 @@
 }
 
 .acks-thumb-tab > span {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-micro);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   writing-mode: vertical-rl;
   line-height: 1;
   white-space: nowrap;

@@ -112,11 +112,11 @@
    a defect, and the design system's caption look is keyed on the tag. Same
    tokens, one declaration, wherever such a caption stands. */
 .acks-extras .acks-extras-caption {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 /* --- The coin order (lib/coin-order.mjs) ------------------------------------
@@ -144,11 +144,11 @@
 }
 
 .acks-extras-coin-order__caption {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 /* One class more than a host's own field rule, so the select fills its field
@@ -449,7 +449,7 @@
    under the text floor. */
 .acks-lib-group-sheet .member-state {
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   padding: 0.05rem 0.3rem;
   border-radius: var(--acks-radius);
@@ -1318,7 +1318,7 @@ body .actor-v2 :is(input, select).acks-extras-overridden {
 .acks-extras-rung-head {
   font-size: var(--acks-fs-fine);
   color: var(--acks-ink-soft);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-rung-grid input {

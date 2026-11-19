@@ -54,19 +54,19 @@
 }
 
 .acks-extras-ss-banner {
-  font-family: var(--acks-font-banner);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
+  letter-spacing: var(--acks-caps-tracking, 0.09em);
+  text-transform: var(--acks-caps);
   font-size: var(--acks-fs-banner);
 }
 
 .acks-extras-ss-cap {
   margin: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: normal;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, normal);
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-burgundy);
 }
 
@@ -160,8 +160,8 @@
   padding: calc(5px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
   border-bottom: 1px solid var(--acks-rule-color-soft);
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-ss-state {
@@ -301,8 +301,8 @@
 
 .acks-extras-ss-lb {
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.04em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-ss-lb em {
@@ -493,8 +493,8 @@
   height: calc(80px * var(--acks-extras-k));
   border: 1px solid var(--acks-rule-color-soft);
   font-size: var(--acks-fs-fine);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-ss-back i {

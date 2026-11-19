@@ -60,7 +60,7 @@
 .acks-extras.monster-v2 .acksm-lore-label,
 .acks-extras.monster-v2 .acksm-rows-head {
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   opacity: 0.75;
 }
 
@@ -128,7 +128,7 @@
 }
 .acks-extras.monster-v2 .acksm-saves .rollable-header__label {
   font-size: var(--acks-fs-fine);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   opacity: 0.8;
 }
 
@@ -221,7 +221,7 @@
 .acks-extras.monster-v2 .acksm-cat-tag {
   background: var(--acks-tint);
   color: var(--acks-ink-soft);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
 }
 .acks-extras.monster-v2 .acksm-inv-meta {
@@ -325,7 +325,7 @@
 }
 .acks-extras.monster-v2 .acksm-ro :is(label, .acksm-ro-label) {
   font-size: var(--acks-fs-fine);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   opacity: 0.7;
 }
 .acks-extras.monster-v2 .acksm-ro span:not(.acksm-ro-label) {
@@ -425,11 +425,11 @@
   border-radius: 0;
   background: transparent;
   color: var(--acks-ink-faint);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -522,11 +522,11 @@
   margin-block: var(--acks-sp-4) var(--acks-sp-2);
 }
 .acks-monsters-flags__head {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.1em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   padding-block-end: var(--acks-sp-1);
   border-block-end: var(--acks-rule-hair) solid var(--acks-spot);
@@ -554,8 +554,8 @@
 .acks-monsters-flags__label {
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 .acks-monsters-flags__check {

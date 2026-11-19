@@ -235,9 +235,9 @@
   /* A section head inside the sheet, not a title above it: the banner face is
      the one cut for uppercase running heads, and the caps tracking is what
      makes an inscriptional setting legible at label size. */
-  font-family: var(--acks-font-banner);
-  font-weight: var(--acks-weight-medium);
-  text-transform: uppercase;
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   font-size: var(--acks-fs-label);
   color: var(--acks-spot);
@@ -481,10 +481,10 @@
 .acks-extras-roster__stat:nth-of-type(3) { grid-area: wage; }
 
 .acks-extras-roster__k {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(8px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 

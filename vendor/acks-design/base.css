@@ -38,11 +38,11 @@
  * `text-transform` is belt-and-braces for lowercase source text.
  * ----------------------------------------------------------------------- */
 .acks-ui :is(h1, h2, h3, h4, .acks-h1, .acks-h2, .acks-h3) {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   color: var(--acks-spot);
   line-height: var(--acks-lh-tight);
   letter-spacing: var(--acks-tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   margin: 0;
   /* Balance only. The `text-wrap` shorthand also resets the wrap mode, and
    * this rule reaches headings a lower layer holds to one line: core's window
@@ -78,11 +78,11 @@
 
 /* H4 — a run-in label, no rule. Used for stat-block field names. */
 .acks-ui :is(h4, .acks-h4) {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   margin-block: var(--acks-sp-5) var(--acks-sp-2);
 }
@@ -98,12 +98,12 @@
 
 /* Chapter-opener display type. Ornamental caps, centred, for hero panels. */
 .acks-display {
-  font-family: var(--acks-font-caps);
+  font-family: var(--acks-caps-font, var(--acks-font-caps));
   font-size: var(--acks-fs-display);
-  font-weight: var(--acks-weight-bold);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
   line-height: 1;
   letter-spacing: var(--acks-tracking-display);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   text-align: center;
   /* The longhand, as on the headings above. */

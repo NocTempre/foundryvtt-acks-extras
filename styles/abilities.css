@@ -26,7 +26,7 @@
   flex: 0 0 auto;
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   color: var(--acks-ink-soft);
   min-width: 7.5rem;

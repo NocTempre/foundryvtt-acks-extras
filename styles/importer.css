@@ -364,8 +364,8 @@
 .acks-extras-importer-books .acks-extras-importer-band > h4 {
   margin: 0 0 var(--acks-sp-1);
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: var(--acks-caps);
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
   color: var(--acks-ink-soft);
 }
 
@@ -543,7 +543,7 @@
 }
 .acks-extras-importer-table th {
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
 }
 .acks-extras-importer-table td:first-child {

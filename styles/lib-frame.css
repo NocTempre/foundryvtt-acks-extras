@@ -180,11 +180,11 @@
 
 .acks-extras-frame__rank {
   flex: none;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.09em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
   white-space: nowrap;
 }
@@ -236,11 +236,11 @@
   inset: 0;
   display: grid;
   place-items: center;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
   text-shadow: 0 0 calc(2px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(3px * var(--acks-extras-k)) var(--acks-paper), 0 0 calc(4px * var(--acks-extras-k)) var(--acks-paper);
 }
@@ -341,8 +341,8 @@
 .acks-extras-frame__overline {
   font-family: var(--acks-font-ui);
   font-size: calc(10px * var(--acks-extras-k));
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
   line-height: 1.2;
 }
@@ -813,11 +813,11 @@
 }
 
 .acks-extras-frame__rule-title {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.1em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 
@@ -833,11 +833,11 @@
   align-items: baseline;
   gap: var(--acks-sp-3);
   padding: var(--acks-sp-3) 0 calc(2px * var(--acks-extras-k));
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9.5px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -955,11 +955,11 @@ a.acks-extras-frame__gear-name:hover {
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: var(--acks-burgundy);
   color: var(--acks-on-burgundy);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -998,11 +998,11 @@ a.acks-extras-frame__gear-name:hover {
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: transparent;
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-medium);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
   cursor: pointer;
@@ -1120,11 +1120,11 @@ a.acks-extras-frame__gear-name:hover {
 }
 
 .acks-extras-frame__badge-k {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(9px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -1478,11 +1478,11 @@ a.acks-extras-frame__gear-name:hover {
   border: var(--acks-rule-hair) solid var(--acks-ink-faint);
   background: transparent;
   color: var(--acks-ink-faint);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   cursor: default;
 }
@@ -1672,11 +1672,11 @@ button.acks-extras-frame__pill:not(:disabled) {
 }
 
 .acks-extras-frame__gold-title {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(11px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-frame__delta {
@@ -1723,11 +1723,11 @@ button.acks-extras-frame__pill:not(:disabled) {
   border: var(--acks-rule-hair) solid var(--acks-gold-deep);
   background: var(--acks-gold);
   color: var(--acks-ink);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(13px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.045em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.045em);
+  text-transform: var(--acks-caps);
   cursor: pointer;
 }
 
@@ -1790,11 +1790,11 @@ button.acks-extras-frame__pill:not(:disabled) {
   border: var(--acks-rule-hair) solid var(--acks-spot);
   background: linear-gradient(to right, var(--acks-tint) var(--acks-extras-fill), var(--acks-paper-pure) var(--acks-extras-fill));
   color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: calc(10px * var(--acks-extras-k));
-  font-weight: var(--acks-weight-bold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
   line-height: 1;
   white-space: nowrap;
 }
@@ -1940,8 +1940,8 @@ button.acks-extras-frame__pinchip {
   font-family: var(--acks-font-ui);
   font-size: calc(10.5px * var(--acks-extras-k));
   color: var(--acks-ink-faint);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-frame__pill.is-shortcut {

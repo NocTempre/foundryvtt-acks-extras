@@ -131,11 +131,11 @@
 }
 
 .acks-ui.application > .window-header .window-title {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-banner);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-on-burgundy);
   text-shadow: none;
   line-height: 1;
@@ -198,11 +198,11 @@
   padding: var(--acks-sp-3) var(--acks-sp-5);
   background: var(--acks-tint);
   color: var(--acks-spot);
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   text-shadow: none;
   line-height: 1;
 }
@@ -232,11 +232,11 @@
 }
 
 .acks-ui fieldset > legend {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-bold);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   padding-inline: var(--acks-sp-3);
 }
@@ -277,11 +277,11 @@
 
 /* Foundry's form-group row layout, retuned to the books' label style. */
 .acks-ui .form-group > label {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
 }
 
@@ -326,11 +326,11 @@
 }
 
 .acks-chat-title {
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-banner);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   letter-spacing: var(--acks-tracking-banner);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-on-burgundy);
   margin: 0;
   line-height: 1;
@@ -340,7 +340,7 @@
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-fine);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-on-burgundy-soft);
   margin-inline-start: auto;
 }
@@ -378,17 +378,17 @@
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-fine);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
 /* Outcome line: success/failure stated in words AND colour, never colour alone. */
 .acks-chat-outcome {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-h3);
-  font-weight: var(--acks-weight-bold);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-bold));
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   text-align: center;
   padding: var(--acks-sp-3);
   border-block-end: var(--acks-border-hair);
@@ -583,12 +583,24 @@
   --acks-font-ui: var(--font-sans, sans-serif);
   --acks-font-script: var(--font-serif, serif);
 
+  /* -- The label seams. Declared ONLY here, so a label reading
+   *    `var(--acks-caps-font, <its own face>)` keeps its own face and weight
+   *    under the books' look and takes the host's body face and the medium
+   *    weight under this one. Deliberately a read WITH a fallback: leaving the
+   *    token undefined is what selects the books' look. -------------------- */
+  --acks-caps-font: var(--font-sans, sans-serif);
+  --acks-caps-weight: var(--acks-weight-medium);
+
   /* -- The books' letterpress mannerisms stand down with the palette: no
-   *    inscriptional tracking, no procedural stone or parchment, and the
-   *    host's own corner radius rather than the books' hard square. ------ */
+   *    inscriptional tracking, no capitals (labels read as written),
+   *    no procedural stone or parchment, and the host's own corner radius
+   *    rather than the books' hard square. `--acks-caps-tracking` is the
+   *    same stand-down for a label that hard-codes its tracking. ---------- */
   --acks-tracking-banner: 0;
   --acks-tracking-display: 0;
   --acks-tracking-caps: 0;
+  --acks-caps: none;
+  --acks-caps-tracking: 0;
   --acks-tx-porphyry-opacity: 0;
   --acks-tx-parchment-opacity: 0;
   --acks-radius: 4px;

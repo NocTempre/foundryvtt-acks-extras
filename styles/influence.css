@@ -82,8 +82,8 @@
 }
 .acks-influence-dialog .influence-party-role {
   font-size: 0.7em;
-  font-weight: bold;
-  text-transform: uppercase;
+  font-weight: var(--acks-caps-weight, bold);
+  text-transform: var(--acks-caps);
   letter-spacing: var(--acks-tracking-caps);
   color: var(--acks-ink-soft);
 }

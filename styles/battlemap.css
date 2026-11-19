@@ -61,8 +61,8 @@
 .acks-extras-battlemap-unit {
   font-size: var(--acks-fs-label);
   color: var(--acks-ink-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  text-transform: var(--acks-caps);
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
   white-space: nowrap;
 }
 
@@ -101,10 +101,10 @@
 }
 
 .acks-extras-battlemap-rule > span {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.1em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 
@@ -126,8 +126,8 @@
 
 .acks-extras-battlemap-field > span {
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -162,8 +162,8 @@
 .acks-extras-battlemap-withunit > span {
   flex: 0 0 auto;
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: var(--acks-caps);
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
   color: var(--acks-ink-faint);
 }
 
@@ -176,8 +176,8 @@
   gap: 4px;
   flex: 0 0 auto;
   font-size: var(--acks-fs-label);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  text-transform: var(--acks-caps);
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
   color: var(--acks-ink-faint);
 }
 
@@ -238,10 +238,10 @@
   padding: 4px 8px;
   border: 1px solid var(--acks-spot);
   background: color-mix(in srgb, var(--acks-burgundy) 30%, transparent);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.06em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-battlemap-armed button {
@@ -356,10 +356,10 @@
    window's own unit, so a long list or a raised type size never pushes the
    button below the frame. */
 .acks-extras-battlemap-rowshead {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.1em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 
@@ -387,8 +387,8 @@
 .acks-extras-battlemap-rowlabel {
   flex: 0 0 auto;
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
   color: var(--acks-ink-soft);
 }
 
@@ -409,10 +409,10 @@
   background: var(--acks-burgundy);
   color: var(--acks-on-burgundy);
   border-color: var(--acks-spot);
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-body);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-battlemap-primary:disabled {
@@ -524,8 +524,8 @@
   padding: calc(3px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
   border-radius: calc(999px * var(--acks-extras-k));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -540,10 +540,10 @@
 
 /* A group's name over its swatches, for a layer that registers groups. */
 .acks-extras-terrain-group {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.1em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
   margin-top: calc(4px * var(--acks-extras-k));
 }
@@ -613,10 +613,10 @@
 }
 
 .acks-extras-map-climate-label {
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-label);
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.05em);
+  text-transform: var(--acks-caps);
   color: var(--acks-spot);
 }
 

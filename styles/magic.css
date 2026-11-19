@@ -449,10 +449,10 @@
 .acks-extras-cast-targets__head h3 {
   margin: 0;
   border: 0;
-  font-family: var(--acks-font-display);
+  font-family: var(--acks-caps-font, var(--acks-font-display));
   font-size: var(--acks-fs-h3);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: var(--acks-caps-tracking, 0.08em);
+  text-transform: var(--acks-caps);
 }
 
 .acks-extras-cast-count {
@@ -708,10 +708,10 @@
   align-items: baseline;
   gap: var(--acks-sp-4);
   margin: 0;
-  font-family: var(--acks-font-banner);
+  font-family: var(--acks-caps-font, var(--acks-font-banner));
   font-size: var(--acks-fs-body);
   letter-spacing: var(--acks-tracking-caps);
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
   color: var(--acks-ink);
 }
 .acks-extras-research__cap {

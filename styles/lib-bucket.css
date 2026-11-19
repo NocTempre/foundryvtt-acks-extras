@@ -161,9 +161,9 @@
   color: var(--acks-ink);
   font-family: var(--acks-font-ui);
   font-size: var(--acks-fs-fine);
-  font-weight: var(--acks-weight-medium);
+  font-weight: var(--acks-caps-weight, var(--acks-weight-medium));
   line-height: 1.2;
-  text-transform: uppercase;
+  text-transform: var(--acks-caps);
 }
 
 button.acks-extras-bucket__chip {
