@@ -412,6 +412,13 @@ What driving it taught:
   control that is not the element under its centre is pressed with `click()`
   and printed; a scripted Begin Combat did not start the combat once, so the
   walk writes the round instead and End Combat still fires the real hook.
+- **The screen's Round is clicked within the window's own root.** A pointer
+  press at its centre landed on another window and a scripted click on the
+  wrong match resolved nothing; `[data-action="round"]` under the window root,
+  with the die held, resolves the assigned hasty checks.
+- **A walk on a lane is blocked while another GM client is the active GM.**
+  Another lane's seat connecting mid-run reads as `WALK BLOCKED`; it is the
+  environment, so rerun once that seat has left.
 - **A stylesheet `module.json` gains is read when the world launches.** The
   screen's `styles/scene-search.css` was not loaded by the world, so the walk
   injects a copy with a cache-buster on both seats before opening a window (see
@@ -461,13 +468,13 @@ Judge seat:
    entry; the pot the scene dealt is open, with `origin.kind` `scene`,
    `origin.takeOff` true and `origin.carried` naming each goods item's card (the
    natural weapon none); **the goods are still on their body** (`origin.taken`
-   is empty; changed 2026-11-19, not yet walked); the lots the letter dealt and the one the
+   is empty; changed 2026-11-19, walked 2026-11-19, treasure-search 130212); the lots the letter dealt and the one the
    table drew are unfound tiles; no chat message
    was posted by the draw, and the table's text result is listed on the card;
    a lair warning notice appeared for the letter's hoard; the card's button now reads "Open the scene".
 3. **Press it again.** Observables: the same screen comes forward and no second
    pot exists. End the session (`acksExtras.sceneSearch.end(partyId)`) and press
-   the card once more (changed 2026-11-19, not yet walked): the scene reopens at
+   the card once more (changed 2026-11-19, walked 2026-11-19, treasure-search 130212): the scene reopens at
    the place the first opening used, with the same bodies as entries, the same
    pot reattached (`session.potUuid` is the first pot's uuid, the lots' tiles
    and found marks are the pot's), no second pot, no chat message from a table
@@ -476,21 +483,28 @@ Judge seat:
    stay as the first opening stamped them). From the Player seat's console,
    `acksExtras.sceneSearch.searchHere({recordMessageId})` answers
    `scene:notAllowed` and opens nothing.
-3a. **Goods leave when found** (new 2026-11-19, not yet walked). With the scene
+3a. **Goods leave when found** (new 2026-11-19, walked 2026-11-19,
+   treasure-search 130212). With the scene
    open, assign a member to the first body's hasty check and resolve it with the
    die held to pass. Observables: the lot the check found is a found tile and
    its good has left the body (the actor's item is gone; `origin.taken` lists
-   its card); the body's natural weapon is still on it; the lot the table
-   drew, found by the same check, takes nothing; the second body's goods are
-   still on it until its own check finds them. Then end the session and press
-   the card again: the first body reads as found, no item is deleted a second
-   time, and a second check at it is refused as already found.
-3b. **The pot is gone** (new 2026-11-19, not yet walked). End the session, close
-   the pot from its window (closing deletes it), press the card: the scene
+   its card); the body's natural weapon is still on it. The table's lot sits on
+   the second body, which carries no goods: its own check finds that lot first
+   and takes nothing, with `taken` still empty and the first body untouched.
+   The first body's one check found all four of its lots, both goods among them.
+   A second find takes nothing: treasure's `takeOffBodies` asked again for the
+   cards already taken deletes no item, and a second check at the found body
+   is refused as already found. Then end the session and press the card again:
+   the first body reads as found and no item is deleted a second time.
+3b. **The pot is gone** (new 2026-11-19, walked 2026-11-19, treasure-search
+   130212, on the second fight's card). End the session, close
+   the pot from its window (Close the pot, then the dialog's confirm; closing
+   deletes it), press the card: the scene
    reopens with its bodies and no lots, the Judge is told "That treasure pot is
-   gone.", the screen's tray reads "No pot was dealt for this search.", and
+   gone.", the screen's Open the pot control is disabled with the tooltip "No
+   pot was dealt for this search." (the tray holds no tiles), and
    nothing is dealt. The goods of every lot not yet found are still on their
-   bodies.
+   bodies. The sweep lists that pot as missing, since closing deleted it.
 4. **No place.** Move the party's token outside the Region and every other
    area (`placesAround` for the token answers no place), make a fresh fight,
    press **Search the scene**. Observables: a notification says the party stands

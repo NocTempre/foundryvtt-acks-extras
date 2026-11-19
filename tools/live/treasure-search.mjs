@@ -12,19 +12,26 @@
  *
  * Order: seats and fixtures; a fight on the walk's scene (the party's token
  * stands in the place's Region), its card (rows, letter, table, note, the
- * Player seat sees none); Search the scene (the screen opens "After the
- * battle", the pot holds the bodies' goods, the letter's lot and the table's
- * item as unfound lots, the carried goods leave the bodies when the pot opens,
- * the table is drawn once and posts no chat message, its text result is listed
- * on the card); the card pressed again (same screen, no second pot, the table
- * not drawn again); the session ended and the card refused; the Judge's Search
+ * Player seat sees none, its items chip's tooltip); Search the scene (the
+ * screen opens "After the battle", the pot holds the bodies' goods, the
+ * letter's lot and the table's item as unfound lots, opening it takes nothing
+ * off the bodies, the table is drawn once and posts no chat message, its text
+ * result is listed on the card); the card pressed again (same screen, no second
+ * pot, the table not drawn again); a scene check finding each body's lot (the
+ * second body's first, which takes nothing, then the first body's, whose found
+ * goods leave it and are listed in the origin's `taken`, a second find taking
+ * nothing); the session ended, a Player seat's press refused and the Judge's
+ * press reopening the scene on the same bodies and pot with nothing dealt or
+ * drawn again; the Judge's Search
  * here on the Dungeon tab (a session with no fight and no pot, pressed again
  * brings the same screen forward, an assigned member shows on the Turn plan);
  * the Player seat's Search here (one declaration card, nothing opened or
  * moved); the Judge accepting (the session opens, the Player seat's screen
  * follows Show the scene); the party token moved out of every area and a
  * fresh fight's card refused with the no-place notice, then pressable again
- * with the token back; the console on both seats; teardown.
+ * with the token back, then that card's pot closed (deleted) from its window and
+ * the card pressed again, reopening the scene with the bodies, no lots and the
+ * pot-gone notice; the console on both seats; teardown.
  *
  * Fixtures, kept and found by marker: `scene-search/ways-scene`,
  * `scene-search/ways-region`, `scene-search/ways-place` (a location actor
@@ -40,7 +47,8 @@
  *
  * Scripted, not gestured: the knock-down (the tracker's defeat toggle
  * replayed for one body, a hit-point write for the other), the move of the
- * party token, the Judge's assign, and the die (held through
+ * party token, the Judge's assign, the screen's Round (clicked within the
+ * window's own root) and the die (held through
  * `CONFIG.Dice.randomUniform` around each card press and restored in
  * `finally`).
  *
@@ -120,9 +128,12 @@ const P = {
         })],
       ];
     }
+    X.haul = await import(`${base}scene-search/haul.mjs`);
+    X.search = await import(`${base}treasure/search.mjs`);
     await X.util.primaryGMSettled?.();
     const api = globalThis.acksExtras?.sceneSearch;
     return {
+      reattach: typeof X.haul.reattachSceneHaul === "function",
       api: typeof api?.open === "function" && typeof api?.searchHere === "function" && typeof api?.openScreen === "function",
       primary: !!X.util.isPrimaryGM?.(),
       reasons: ["noPartyHere", "noPlaceHere", "cardSpent"].every((k) => typeof X.consts.WAYS_REFUSAL?.[{ noPartyHere: "NO_PARTY_HERE", noPlaceHere: "NO_PLACE_HERE", cardSpent: "CARD_SPENT" }[k]] === "string"),
@@ -388,6 +399,9 @@ const P = {
       opened: flag?.opened === true,
       drawnText: flag?.drawnText ?? [],
       drawnBy: Object.fromEntries(Object.entries(flag?.drawnBy ?? {}).map(([k, v]) => [k, Array.isArray(v) ? v.length : null])),
+      stamp: { potUuid: flag?.potUuid ?? null, placeUuid: flag?.placeUuid ?? null, lots: (flag?.lots ?? []).map((l) => `${l.key}|${l.thing}|${l.layer}`) },
+      itemsTip: li?.querySelector(".acks-extras-treasure-search__items")?.getAttribute("data-tooltip") ?? null,
+      itemsLabel: li?.querySelector(".acks-extras-treasure-search__items")?.getAttribute("aria-label") ?? null,
       fallen: (flag?.fallen ?? []).map((e) => ({ id: e.combatantId, name: e.name, goods: e.goods?.length ?? 0, letter: e.letter ?? null, tableUuid: e.tableUuid ?? null, actorUuid: e.actorUuid })),
       rows: [...(li?.querySelectorAll(".acks-extras-treasure-search__list > li") ?? [])].map((r) => ({
         name: H.text(r.querySelector(".acks-extras-treasure-search__name")),
@@ -407,7 +421,13 @@ const P = {
   /** The scene search flag on the party actor: what is open, its pot and its fight's card. */
   session: async ({ partyId }) => {
     const f = game.actors.get(partyId)?.getFlag("acks-extras", "sceneSearch") ?? null;
-    return f ? { open: true, potUuid: f.potUuid ?? null, recordMessageId: f.recordMessageId ?? null, shown: f.shown === true, bodies: (f.bodies ?? []).map((b) => b.id), lots: (f.lots ?? []).map((l) => ({ key: l.key, thing: l.thing, cardId: l.cardId })), placeUuid: f.placeUuid ?? null } : { open: false };
+    return f ? { open: true, potUuid: f.potUuid ?? null, recordMessageId: f.recordMessageId ?? null, shown: f.shown === true, bodies: (f.bodies ?? []).map((b) => b.id), lots: (f.lots ?? []).map((l) => ({ key: l.key, thing: l.thing, layer: l.layer ?? null, cardId: l.cardId })), placeUuid: f.placeUuid ?? null } : { open: false };
+  },
+  /** One entry's hasty layer as the Judge reads it: whether its check found, and the lot keys it yields. */
+  entryHasty: async ({ fid, key }) => {
+    const e = (acksExtras.sceneSearch.read(fid)?.entries ?? []).find((x) => x.key === key);
+    const layer = e?.layers?.hasty ?? null;
+    return { exists: !!e, found: e?.state?.layers?.hasty?.found === true, lots: layer?.yields?.lots ?? null };
   },
   /** Wait for the party's session flag to appear (or vanish). */
   waitSession: async ({ partyId, open = true, tries = 80 }) => {
@@ -430,7 +450,7 @@ const P = {
     return {
       phase: flag.phase ?? null,
       messageId: flag.messageId ?? null,
-      origin: flag.origin ? { kind: flag.origin.kind ?? null, takeOff: flag.origin.takeOff === true, takenOff: flag.origin.takenOff === true, carried: Object.keys(flag.origin.carried ?? {}).length } : null,
+      origin: flag.origin ? { kind: flag.origin.kind ?? null, takeOff: flag.origin.takeOff === true, hasTakenOff: "takenOff" in flag.origin, taken: Array.isArray(flag.origin.taken) ? [...flag.origin.taken].sort() : null, carried: Object.keys(flag.origin.carried ?? {}).length } : null,
       cards: view.cards.map((c) => ({ id: c.id, found: c.truth?.found, lot: c.truth?.lot ?? null, face: c.face ?? null, source: pile.cards.get(c.id)?.getFlag("acks-extras", "card")?.source?.data?.name ?? null })),
     };
   },
@@ -440,7 +460,7 @@ const P = {
       const pile = await fromUuid(potUuid);
       const f = pile?.getFlag("acks-extras", "treasure") ?? {};
       if (until === "open") return f.phase === "open";
-      if (until === "takenOff") return f.origin?.takenOff === true;
+      if (until === "gone") return !pile;
       return false;
     };
     return { met: !!(await H.poll(met, { tries: 60, every: 250 })) };
@@ -453,7 +473,7 @@ const P = {
       let doc = null;
       try { doc = fromUuidSync(ref.actorUuid); } catch { doc = null; }
       const actor = doc?.documentName === "Token" ? doc.actor : doc?.documentName === "Actor" ? doc : null;
-      return { card: pile.cards.get(cardId)?.getFlag("acks-extras", "card")?.source?.data?.name ?? null, bodyName: actor?.name ?? null, item: actor?.items.get(ref.itemId)?.name ?? null, itemStillThere: !!actor?.items.get(ref.itemId) };
+      return { cardId, card: pile.cards.get(cardId)?.getFlag("acks-extras", "card")?.source?.data?.name ?? null, bodyName: actor?.name ?? null, item: actor?.items.get(ref.itemId)?.name ?? null, itemStillThere: !!actor?.items.get(ref.itemId) };
     });
   },
   /** The names a body (an actor or an unlinked token's actor, by uuid) carries. */
@@ -496,6 +516,7 @@ const P = {
       found: txt(spans[0]),
       cards: qa(".acks-extras-ss-card").map((c) => ({ key: c.dataset.dropEntry, plate: txt(c.querySelector(".acks-extras-ss-plate")) })),
       tray: qa(".acks-extras-ss-back").map((b) => ({ wait: b.classList.contains("is-wait") })),
+      potButton: q("[data-action='openPot']") ? { disabled: q("[data-action='openPot']").disabled === true, tip: q("[data-action='openPot']").getAttribute("data-tooltip") } : null,
       sameAs: X.prevWin === app,
     };
   },
@@ -514,6 +535,67 @@ const P = {
   show: async ({ fid }) => { const r = await acksExtras.sceneSearch.show(fid); return { ok: r.ok === true }; },
   assign: async ({ fid, actorId, entryKey }) => { const r = await acksExtras.sceneSearch.assign({ partyId: fid, actorId, layer: "hasty", entryKey }); return { ok: r.ok === true, reason: r.reason ?? null }; },
   unassign: async ({ fid, actorId }) => { const r = await acksExtras.sceneSearch.unassign({ partyId: fid, actorId }); return { ok: r.ok === true }; },
+  /** Wait until the plan holds no unresolved hasty check, then let the writes that follow a find land. */
+  waitResolved: async ({ fid }) => {
+    const H = globalThis.__tk;
+    const done = await H.poll(async () => ((await acksExtras.sceneSearch.assignments(fid)).filter((a) => a.layer === "hasty" && !a.resolved).length === 0 ? true : null), { tries: 100, every: 250 });
+    await H.sleep(1800);
+    return !!done;
+  },
+  /** The open screen's Round, clicked within the window's own root (scripted: the screen sits under other windows). */
+  clickRound: async ({ fid }) => {
+    const H = globalThis.__tk;
+    const btn = H.root(globalThis.__tw.win(fid))?.querySelector("[data-action='round']");
+    if (!btn) return { found: false };
+    const disabled = btn.disabled === true;
+    if (!disabled) btn.click();
+    return { found: true, disabled, label: H.text(btn) };
+  },
+  /** The scene refusal codes the walk compares a reason to. */
+  codes: async () => ({ alreadyFound: globalThis.__tw.consts.REFUSAL.ALREADY_FOUND, notAllowed: globalThis.__tw.consts.SESSION_REFUSAL.NOT_ALLOWED }),
+  /** Treasure's take-off asked again for these cards (the ones already taken): the items it deleted and the origin's `taken` before and after. */
+  takeAgain: async ({ potUuid, cardIds }) => {
+    const pile = await fromUuid(potUuid);
+    if (!pile) return { removed: null };
+    const read = () => [...(pile.getFlag("acks-extras", "treasure")?.origin?.taken ?? [])].sort();
+    const before = read();
+    const removed = await globalThis.__tw.search.takeOffBodies(pile, { cardIds });
+    return { removed, before, after: read() };
+  },
+  /** The scene search's `searchHere` called from this seat for a card, with what it answered. */
+  searchFor: async ({ recordMessageId }) => {
+    const r = await acksExtras.sceneSearch.searchHere({ recordMessageId });
+    return { ok: r?.ok === true, reason: r?.reason ?? null };
+  },
+  /** The core tooltip manager shown on a card's items chip, as text. */
+  chipTip: async ({ messageId }) => {
+    const H = globalThis.__tk;
+    const el = document.querySelector(`[data-message-id='${messageId}'] .acks-extras-treasure-search__items`);
+    if (!el) return { found: false };
+    game.tooltip.activate(el);
+    await H.sleep(400);
+    const shown = (game.tooltip.tooltip?.textContent ?? "").replace(/\s+/g, " ").trim();
+    game.tooltip.deactivate();
+    return { found: true, shown };
+  },
+  /** The pot's own window opened on this seat. */
+  openPotSheet: async ({ potUuid }) => {
+    const H = globalThis.__tk;
+    const pile = await fromUuid(potUuid);
+    if (!pile) return { rendered: false };
+    const app = pile.sheet;
+    await app.render(true);
+    const ok = await H.poll(() => (app.rendered && H.root(app) ? true : null), { tries: 40, every: 200 });
+    if (!H.opened.includes(app)) H.opened.push(app);
+    await H.sleep(500);
+    return { rendered: !!ok, id: pile.id };
+  },
+  waitDialog: async () => {
+    const H = globalThis.__tk;
+    const d = await H.poll(() => H.dialog(), { tries: 30, every: 200 });
+    await H.sleep(300);
+    return !!d;
+  },
 
   /* ---- The party sheet's Dungeon tab ------------------------------------- */
   openSheet: async ({ partyId }) => {
@@ -662,6 +744,20 @@ async function pressCard({ cardId, partyId, die = HIT, expectOpen = true, settle
   const chat = await claim(since);
   return { pressed, notes, session, chat, since };
 }
+/** Press the open screen's Round with the die held at a pass, and wait until the plan holds no unresolved hasty check. */
+async function pressRound({ die = HIT } = {}) {
+  await run(gm, P.rig, { die });
+  rigged = true;
+  try {
+    const pressed = await run(gm, P.clickRound, { fid: ids.fid });
+    const resolved = pressed.found && !pressed.disabled ? await run(gm, P.waitResolved, { fid: ids.fid }) : false;
+    return { pressed, resolved };
+  } finally {
+    await run(gm, P.unrig);
+    rigged = false;
+  }
+}
+const sameSet = (a, b) => JSON.stringify([...(a ?? [])].sort()) === JSON.stringify([...(b ?? [])].sort());
 
 try {
   section("seats");
@@ -671,6 +767,7 @@ try {
   const setG = await run(gm, P.setup, { nonce: NONCE });
   const setP = await run(player, P.setup, { nonce: NONCE });
   if (!setG.api || !setP.api) blocked("acksExtras.sceneSearch.searchHere is not on both seats: the ways in (S5) are not in the loaded tree");
+  if (!setG.reattach || !setP.reattach) blocked("the loaded tree has no reattachSceneHaul: the reopen of a spent card (S5b) is not in it");
   if (!setG.primary) blocked("the GM seat's client is not the primary GM (isPrimaryGM is false): its deleteCombat hook would not record the fight, and a synthetic hook call is not the trigger");
   check("the ways in are on both seats, the GM seat is the primary GM, and the refusals' codes exist", setG.api && setP.api && setG.primary && setG.reasons, { gm: setG, player: setP });
   const bootBase = { gm: (await run(gm, P.boot)).length, player: (await run(player, P.boot)).length };
@@ -772,6 +869,13 @@ try {
   const cardP = await run(player, P.card, { combatId: f1.combatId, messageId: card1.id });
   const logP = await run(player, P.anySearchCardInLog);
   check("the Player seat sees no search card: not visible to it, not in its chat log", !cardP.visible && !cardP.rendered && logP === 0, { visible: cardP.visible, log: logP });
+  const tipWords = await say(gm, "ACKS-TREASURE.search.itemsTip");
+  const chip = await run(gm, P.chipTip, { messageId: card1.id });
+  check(
+    "the card's items chip names its tooltip key and carries the same words as its accessible name, the tooltip the manager shows is the lang string, and that string no longer says the goods leave when the scene opens",
+    card1.itemsTip === "ACKS-TREASURE.search.itemsTip" && card1.itemsLabel === tipWords && tipWords.length > 0 && !tipWords.includes("when the scene opens") && chip.found && chip.shown === tipWords,
+    { key: card1.itemsTip, label: card1.itemsLabel === tipWords, shown: chip.shown === tipWords, chip },
+  );
 
   /* ================= Step 2: Search the scene ================= */
   section("Step 2. Search the scene");
@@ -784,7 +888,7 @@ try {
   trackPot(potUuid);
   const potsAfter = await run(gm, P.pots, { known: knownPots });
   const opened2 = await run(gm, P.waitPot, { potUuid, until: "open" });
-  const took2 = await run(gm, P.waitPot, { potUuid, until: "takenOff" });
+  await sleep(1500);
   const win2 = await run(gm, P.winState, { fid });
   check(
     "the scene screen opened at the place, reading 'After the battle', with an entry for each body and one dashed tile per lot",
@@ -796,17 +900,18 @@ try {
   const lotKeys = a2.session.lots.map((l) => l.key);
   const sources = pot2.cards.map((c) => c.source);
   check(
-    "the pot the scene dealt is open, its origin is a scene's with take-off asked for and done, and it holds one pot (the card made exactly one)",
-    opened2.met && took2.met && pot2.phase === "open" && pot2.origin?.kind === "scene" && pot2.origin.takeOff === true && pot2.origin.takenOff === true && potsAfter.fresh.length === 1 && potsAfter.fresh[0] === potUuid && before2.count + 1 === potsAfter.count,
+    "the pot the scene dealt is open, its origin is a scene's with take-off asked for, nothing taken yet (`taken` is an empty list, and no `takenOff` mark is written), and it holds one pot (the card made exactly one)",
+    opened2.met && pot2.phase === "open" && pot2.origin?.kind === "scene" && pot2.origin.takeOff === true && Array.isArray(pot2.origin.taken) && pot2.origin.taken.length === 0 && pot2.origin.hasTakenOff === false && potsAfter.fresh.length === 1 && potsAfter.fresh[0] === potUuid && before2.count + 1 === potsAfter.count,
     { phase: pot2.phase, origin: pot2.origin, fresh: potsAfter.fresh.length },
   );
   check(
-    "origin.carried names the goods' cards (one per carried item, the natural weapon none) and each item it points at has left its body",
-    pot2.origin?.carried === CARRIED.length && pairs.length === CARRIED.length && [...pairs.map((p) => p.card)].sort().join() === [...CARRIED].sort().join() && pairs.every((p) => !p.itemStillThere) && CARRIED.every((n) => sources.includes(n)) && !sources.includes(NATURAL),
+    "origin.carried names the goods' cards (one per carried item, the natural weapon none) and after the pot opened each item it points at is still on its body",
+    pot2.origin?.carried === CARRIED.length && pairs.length === CARRIED.length && [...pairs.map((p) => p.card)].sort().join() === [...CARRIED].sort().join() && pairs.every((p) => p.itemStillThere) && CARRIED.every((n) => sources.includes(n)) && !sources.includes(NATURAL),
     { carried: pot2.origin?.carried, pairs },
   );
-  const bodyAnow = await run(gm, P.waitBody, { actorUuid: bodyA.actorUuid, gone: CARRIED, kept: [NATURAL] });
-  check("the first body no longer carries the goods that are lots and still carries its natural weapon", bodyAnow.met, bodyAnow);
+  const bodyAnow = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const bodyBnow = await run(gm, P.body, { actorUuid: bodyB.actorUuid });
+  check("opening the pot took nothing: the first body carries both goods and its natural weapon, and the second still carries what it did", bodyAnow.exists && sameSet(bodyAnow.items, [...CARRIED, NATURAL]) && bodyBnow.exists && bodyBnow.items.length === 0, { a: bodyAnow, b: bodyBnow });
   const letterLots = lotKeys.filter((k) => k.startsWith(`body:${bodyA.id}/`));
   const tableLots = lotKeys.filter((k) => k.startsWith(`body:${bodyB.id}/`));
   check(
@@ -824,8 +929,8 @@ try {
   check("a lair warning notice appeared for the letter's hoard", a2.notes.warns.some((w) => w.includes(warnLabel)), { warns: a2.notes.warns.length });
   check("the card's button now reads 'Open the scene', and its record is marked opened", cardAfter.button === (await tt("search.open")) && cardAfter.opened, { button: cardAfter.button, opened: cardAfter.opened });
 
-  /* ================= Step 3: press again, end, refused ================= */
-  section("Step 3. press again; end the session; the card is refused");
+  /* ================= Step 3: press again ================= */
+  section("Step 3. press again with the session open");
   await run(gm, P.markWin, { fid });
   const a3 = await pressCard({ cardId: card1.id, partyId: actorIds.party, expectOpen: false, settleMs: 1200 });
   const win3 = await run(gm, P.winState, { fid });
@@ -836,17 +941,113 @@ try {
     a3.pressed.found && win3.open && win3.sameAs && a3.session.potUuid === potUuid && pots3.fresh.length === 1 && sameJson(card3.drawnBy, cardAfter.drawnBy) && card3.drawnText.length === cardAfter.drawnText.length && a3.chat.length === 0,
     { same: win3.sameAs, fresh: pots3.fresh.length, drawnText: card3.drawnText.length, chat: a3.chat.length },
   );
+
+  /* ================= Step 3a: a good leaves its body when its lot is found ================= */
+  section("Step 3a. goods leave their body when a check finds their lot");
+  const codes = await run(gm, P.codes);
+  const keyA = `body:${bodyA.id}`;
+  const keyB = `body:${bodyB.id}`;
+  const lotsOf = (key) => a2.session.lots.filter((l) => l.key.startsWith(`${key}/`));
+  const cardsOf = (view, key) => view.cards.filter((c) => (c.lot ?? "").startsWith(`${key}/`));
+  const pot3a0 = await run(gm, P.potView, { potUuid });
+  const aPre = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const bPre = await run(gm, P.body, { actorUuid: bodyB.actorUuid });
+  check(
+    "before any check the goods are on the first body (both goods and the natural weapon), nothing is taken, and the second body (the table's) has lots and no goods",
+    sameSet(aPre.items, [...CARRIED, NATURAL]) && sameJson(pot3a0.origin?.taken, []) && lotsOf(keyA).length > CARRIED.length && lotsOf(keyB).length === 1 && bPre.items.length === 0,
+    { a: aPre.items, taken: pot3a0.origin?.taken, lotsA: lotsOf(keyA).length, lotsB: lotsOf(keyB).length },
+  );
+  // The second body's check first: it finds a lot that carries no goods, so nothing may leave the first body.
+  const asB = await run(gm, P.assign, { fid, actorId: actorIds.mate, entryKey: keyB });
+  const rB = asB.ok ? await pressRound() : { pressed: { found: false }, resolved: false };
+  const potB = await run(gm, P.potView, { potUuid });
+  const aAfterB = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const bAfterB = await run(gm, P.body, { actorUuid: bodyB.actorUuid });
+  const foundBofB = cardsOf(potB, keyB).filter((c) => c.found);
+  check(
+    "the second body's check found its table lot (and none of the first body's), and nothing left any body: `taken` is still empty, the first body keeps every item, the second has none to lose",
+    asB.ok && rB.pressed.found && rB.resolved && foundBofB.length === 1 && cardsOf(potB, keyA).every((c) => !c.found) && sameJson(potB.origin?.taken, []) && sameSet(aAfterB.items, [...CARRIED, NATURAL]) && bAfterB.items.length === 0,
+    { assign: asB, press: rB.pressed, resolved: rB.resolved, foundB: foundBofB.length, taken: potB.origin?.taken, a: aAfterB.items },
+  );
+  if (asB.ok) await run(gm, P.unassign, { fid, actorId: actorIds.mate });
+  const asA = await run(gm, P.assign, { fid, actorId: actorIds.owner, entryKey: keyA });
+  const aBeforeFind = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const rA = asA.ok ? await pressRound() : { pressed: { found: false }, resolved: false };
+  const potA = await run(gm, P.potView, { potUuid });
+  const pairsA = await run(gm, P.carriedNames, { potUuid });
+  const aAfterA = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const bAfterA = await run(gm, P.body, { actorUuid: bodyB.actorUuid });
+  const foundA = cardsOf(potA, keyA).filter((c) => c.found);
+  const foundIdsA = foundA.map((c) => c.id);
+  const foundCarried = pairsA.filter((p) => foundIdsA.includes(p.cardId));
+  const hastyA = await run(gm, P.entryHasty, { fid, key: keyA });
+  check(
+    "the first body's check found lots; every good whose lot was found left that body (its card is listed in `taken`, its item is gone), every good whose lot was not found is still on it, the natural weapon never leaves, and only the first body's cards are listed",
+    aBeforeFind.items.length === CARRIED.length + 1 && asA.ok && rA.pressed.found && rA.resolved && foundA.length >= 1 && foundCarried.length >= 1
+      && sameSet(potA.origin?.taken, foundCarried.map((p) => p.cardId)) && foundCarried.every((p) => !p.itemStillThere) && pairsA.filter((p) => !foundIdsA.includes(p.cardId)).every((p) => p.itemStillThere)
+      && aAfterA.items.includes(NATURAL) && sameSet(aAfterA.items, aBeforeFind.items.filter((n) => !foundCarried.map((p) => p.card).includes(n))),
+    { assign: asA, press: rA.pressed, resolved: rA.resolved, found: [foundA.length, lotsOf(keyA).length], foundCarried: foundCarried.length, taken: potA.origin?.taken?.length, bodyAfter: aAfterA.items, hasty: hastyA },
+  );
+  check(
+    "the second body kept what it had and its lot stayed found, and the table's item is the world's, untouched",
+    sameJson(bAfterA.items, bPre.items) && cardsOf(potA, keyB).every((c) => c.found) && (await run(gm, P.itemExists, { uuid: itemUuid })),
+    { b: bAfterA.items },
+  );
+  const again = await run(gm, P.takeAgain, { potUuid, cardIds: potA.origin?.taken ?? [] });
+  const aAfterAgain = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const asA2 = await run(gm, P.assign, { fid, actorId: actorIds.owner, entryKey: keyA });
+  check(
+    "a second find takes nothing: asking again for the cards already taken deletes no item and leaves `taken` as it was, and a second check at the found body is refused as already found",
+    again.removed === 0 && sameSet(again.before, again.after) && sameSet(aAfterAgain.items, aAfterA.items) && asA2.ok === false && asA2.reason === codes.alreadyFound,
+    { again, bodyAfter: aAfterAgain.items, refused: asA2 },
+  );
+  await run(gm, P.unassign, { fid, actorId: actorIds.owner });
+  await run(gm, P.unassign, { fid, actorId: actorIds.mate });
+
+  /* ================= Step 3: end, the Player's press refused, the Judge's reopens ================= */
+  section("Step 3. the session ended; a Player seat's press is refused; the Judge's press reopens the scene");
   const ended3 = await run(gm, P.endSession, { fid });
   check("the session ended: the party carries no session flag", ended3.ok && (await run(gm, P.session, { partyId: actorIds.party })).open === false, ended3);
-  const refusedWords = await run(gm, P.reasonText, { reason: await run(gm, P.refusal, { name: "CARD_SPENT" }) });
-  const a3b = await pressCard({ cardId: card1.id, partyId: actorIds.party, expectOpen: false, settleMs: 1200 });
-  const pots3b = await run(gm, P.pots, { known: knownPots });
-  const card3b = await run(gm, P.card, { combatId: f1.combatId, messageId: card1.id });
+  const potsBeforeReopen = await run(gm, P.pots, { known: knownPots });
+  const cardBefore = await run(gm, P.card, { combatId: f1.combatId, messageId: card1.id });
+  await run(player, P.takeNotes);
+  const asked = await run(player, P.searchFor, { recordMessageId: card1.id });
+  const playerNotes = await run(player, P.takeNotes);
+  const potsAfterAsk = await run(gm, P.pots, { known: knownPots });
   check(
-    "pressed after the session ended, the card is refused: a notification says the fight's scene was already opened, and no session, no pot and no table draw followed",
-    a3b.notes.warns.includes(refusedWords) && !a3b.session.open && pots3b.fresh.length === 1 && sameJson(card3b.drawnBy, cardAfter.drawnBy) && refusedWords.length > 0,
-    { warns: a3b.notes.warns, session: a3b.session.open, fresh: pots3b.fresh.length },
+    "the Player seat's attempt on the spent card stays refused (the scene search says not allowed), opens no session and makes no pot",
+    asked.ok === false && asked.reason === codes.notAllowed && !(await run(gm, P.session, { partyId: actorIds.party })).open && sameSet(potsBeforeReopen.all, potsAfterAsk.all),
+    { asked, notes: playerNotes.warns.length },
   );
+  const a3r = await pressCard({ cardId: card1.id, partyId: actorIds.party, expectOpen: true });
+  const win3r = await run(gm, P.winState, { fid });
+  const potsReopen = await run(gm, P.pots, { known: knownPots });
+  const potR = await run(gm, P.potView, { potUuid });
+  const aReopen = await run(gm, P.body, { actorUuid: bodyA.actorUuid });
+  const cardReopen = await run(gm, P.card, { combatId: f1.combatId, messageId: card1.id });
+  const lotKeysR = (a3r.session.lots ?? []).map((l) => `${l.key}|${l.cardId}`);
+  check(
+    "the Judge's press on the spent card reopened its scene: a session naming the card, at the first opening's place, with the first opening's two bodies, the same pot and the same lots (keys and cards), the screen reading 'After the battle'",
+    a3r.pressed.found && a3r.session.open && a3r.session.recordMessageId === card1.id && a3r.session.placeUuid === placeUuid && sameSet(a3r.session.bodies, a2.session.bodies) && a3r.session.potUuid === potUuid
+      && sameSet(lotKeysR, a2.session.lots.map((l) => `${l.key}|${l.cardId}`)) && win3r.open && win3r.place === `· ${NAMES.place}` && win3r.cap === (await say(gm, "ACKS-LOCATION.sceneSearch.screen.cap.fight")),
+    { open: a3r.session.open, bodies: a3r.session.bodies?.length, samePot: a3r.session.potUuid === potUuid, lots: lotKeysR.length, samePlace: a3r.session.placeUuid === placeUuid, cap: win3r.cap },
+  );
+  check(
+    "nothing was dealt or drawn again: the world holds the same pots (none new), no table draw or other chat was posted, no lair notice appeared, the card's held draw and its flag (pot, place, lots) are as the first opening left them",
+    sameSet(potsBeforeReopen.all, potsReopen.all) && potsReopen.fresh.length === 1 && a3r.chat.length === 0 && !a3r.notes.warns.some((w) => w.includes(warnLabel))
+      && sameJson(cardReopen.drawnBy, cardAfter.drawnBy) && sameJson(cardReopen.drawnText, cardAfter.drawnText) && sameJson(cardReopen.stamp, cardAfter.stamp) && sameJson(cardBefore.stamp, cardAfter.stamp) && cardReopen.stamp.potUuid === potUuid && cardReopen.opened,
+    { pots: [potsBeforeReopen.all.length, potsReopen.all.length], chat: a3r.chat.length, warns: a3r.notes.warns.length, stamp: cardReopen.stamp.lots.length },
+  );
+  const foundNow = potR.cards.filter((c) => c.found).map((c) => c.id);
+  const hastyR = await run(gm, P.entryHasty, { fid, key: keyA });
+  const asR = await run(gm, P.assign, { fid, actorId: actorIds.owner, entryKey: keyA });
+  check(
+    "the pot is the first one with its found marks and its `taken` list as they were, no good was taken a second time, and the first body (whose lots are all found) reads as found and refuses a second check as already found",
+    sameSet(foundNow, potA.cards.filter((c) => c.found).map((c) => c.id)) && foundNow.length === foundA.length + foundBofB.length && sameSet(potR.origin?.taken, potA.origin?.taken) && sameSet(aReopen.items, aAfterA.items) && hastyR.found === true && asR.ok === false && asR.reason === codes.alreadyFound,
+    { found: foundNow.length, taken: potR.origin?.taken?.length, hasty: hastyR, refused: asR },
+  );
+  await run(gm, P.unassign, { fid, actorId: actorIds.owner });
+  await run(gm, P.endSession, { fid });
   await run(gm, P.closeScreen, { fid });
 
   /* ================= Step 5 (Judge): Search here ================= */
@@ -955,6 +1156,48 @@ try {
   const a4b = await pressCard({ cardId: card2.id, partyId: actorIds.party });
   trackPot(a4b.session.potUuid);
   check("with the token back in the Region the same card opens the scene (a refused press stamps nothing)", back.moved && at4.places.length === 1 && a4b.session.open && a4b.session.recordMessageId === card2.id, { places: at4.places.length, session: a4b.session.open });
+
+  /* ================= Step 3b: the pot is gone ================= */
+  section("Step 3b. the pot is closed (deleted); the card reopens its scene with the bodies and no lots");
+  const pot2Uuid = a4b.session.potUuid;
+  const body2 = card2.fallen[0];
+  const b2pre = await run(gm, P.body, { actorUuid: body2?.actorUuid });
+  const pot2v = await run(gm, P.potView, { potUuid: pot2Uuid });
+  check(
+    "the second fight's scene opened with a pot holding unfound lots, and its body still carries every item (nothing was found, so nothing left)",
+    !!pot2Uuid && pot2v?.phase === "open" && sameJson(pot2v.origin?.taken, []) && pot2v.cards.length > 0 && pot2v.cards.every((c) => !c.found) && sameSet(b2pre.items, [...CARRIED, NATURAL]),
+    { phase: pot2v?.phase, taken: pot2v?.origin?.taken, cards: pot2v?.cards?.length, body: b2pre.items },
+  );
+  await run(gm, P.endSession, { fid });
+  await run(gm, P.closeScreen, { fid });
+  const sheet3b = await run(gm, P.openPotSheet, { potUuid: pot2Uuid });
+  const pressClose = await press(gm, PORTS.gm, { scope: "sheet", potId: sheet3b.id, sel: "[data-action='closePot']" }, "the pot window's Close the pot");
+  const dialogUp = pressClose.found ? await run(gm, P.waitDialog) : false;
+  const pressOk = dialogUp ? await press(gm, PORTS.gm, { scope: "dialog", sel: "button[data-action='ok']" }, "the close dialog's confirm") : { found: false };
+  const gone3b = pressOk.found ? await run(gm, P.waitPot, { potUuid: pot2Uuid, until: "gone" }) : { met: false };
+  const potsAfterClose = await run(gm, P.pots, { known: knownPots });
+  check(
+    "the pot's own window closed it from the Close the pot control and its dialog: the pot is deleted and no other pot was touched",
+    sheet3b.rendered && pressClose.found && dialogUp && pressOk.found && gone3b.met && !potsAfterClose.all.includes(pot2Uuid) && potsAfterClose.all.length === potsReopen.all.length &&potsAfterClose.fresh.length === 1,
+    { rendered: sheet3b.rendered, close: pressClose, dialog: dialogUp, ok: pressOk, gone: gone3b.met, fresh: potsAfterClose.fresh.length },
+  );
+  const potGoneWords = await say(gm, "ACKS-TREASURE.refuse.noPot");
+  const a3b = await pressCard({ cardId: card2.id, partyId: actorIds.party, expectOpen: true });
+  const win3b = await run(gm, P.winState, { fid });
+  const potsReopen3b = await run(gm, P.pots, { known: knownPots });
+  const b2post = await run(gm, P.body, { actorUuid: body2?.actorUuid });
+  const card3b = await run(gm, P.card, { combatId: f2.combatId, messageId: card2.id });
+  check(
+    "the Judge's press on the second card reopened its scene with the body and no lots and no pot, told 'That treasure pot is gone.' (the lang string), and dealt nothing: no new pot, no chat, no lair notice",
+    a3b.pressed.found && a3b.session.open && a3b.session.recordMessageId === card2.id && a3b.session.potUuid === null && (a3b.session.lots ?? []).length === 0 && a3b.session.bodies.length === 1 && a3b.notes.warns.includes(potGoneWords) && potGoneWords.length > 0
+      && potsReopen3b.all.length === potsAfterClose.all.length && potsReopen3b.fresh.length === 1 && a3b.chat.length === 0 && !a3b.notes.warns.some((w) => w.includes(warnLabel)) && card3b.opened && card3b.stamp.potUuid === pot2Uuid,
+    { session: { open: a3b.session.open, pot: a3b.session.potUuid, lots: a3b.session.lots?.length, bodies: a3b.session.bodies?.length }, warns: a3b.notes.warns.length, pots: [potsAfterClose.all.length, potsReopen3b.all.length], chat: a3b.chat.length },
+  );
+  check(
+    "the reopened screen has no tiles and its Open the pot control is disabled and says no pot was dealt, and the body's goods, whose lots were never found, are still on it",
+    win3b.open && win3b.tray.length === 0 && win3b.potButton?.disabled === true && win3b.potButton?.tip === "ACKS-LOCATION.sceneSearch.screen.tray.noPot" && sameSet(b2post.items, b2pre.items),
+    { tray: win3b.tray.length, potButton: win3b.potButton, body: b2post.items },
+  );
   await run(gm, P.endSession, { fid });
   await run(gm, P.closeScreen, { fid });
 

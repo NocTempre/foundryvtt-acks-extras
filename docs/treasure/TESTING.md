@@ -231,7 +231,7 @@ What this surface adds to that recipe:
   defeated friend and the party's own token are not listed; the Player seat holds
   the message in its collection and neither sees nor renders it. A second Judge
   seat sees it once (not walked: the walk has one Judge seat).
-- **The take-off** (changed 2026-11-19, not yet walked). A pot whose origin asks
+- **The take-off** (changed 2026-11-19, walked 2026-11-19, treasure-search 130212). A pot whose origin asks
   for it takes a good off its body when that good's lot is found, from the Judge's
   client that resolved the check; opening the pot takes nothing. Observables: the
   pot's `origin.takeOff` true and `origin.taken` empty after the open; each
