@@ -130,6 +130,28 @@ leave the module; the rest are inventoried" (2026-09-02).
 
 ## Other open rows
 
+- **The crossing rules, parked 2026-11-19 (close-out batch 3).** The owner
+  parked them out of the minor: "Just park the dungeoneering too. That will
+  be next week". Four slices remain:
+  - **S26:** one owner, the proficiency's own imported row, for the Swimming,
+    Acrobatics, Cat Burglary and Contortionism terms, and the landing save's
+    bonus.
+  - **S20:** the Spelunking grid's fall exemption.
+  - **S24:** Mountaineering's kit, its party cap, the leader's throw and the
+    assisting mountaineer.
+  - **S25:** the balance save when a member on a ledge is damaged.
+
+  The architect's S26 ruling, the S20/S24/S25 briefs and the slice order are
+  in the dungeon close-out plan, §19 (`wip/20261116-dungeon-closeout-plan.md`).
+  The three boards (MtnJudge, MtnPlayer, Balance) are approved, in the
+  crossing canvas's "Batch 3" row. The owner's answers to OQ-A, OQ-B and OQ-C
+  are in DECISIONS 2026-11-19, "The crossing rules' three owner answers".
+- **The crossing panel's target tooltip names no throw page.**
+  `crossing.mjs` builds the climb target's source itself, without the `cite`
+  that `resolveCheck` now carries (T-0683, `8b285f48`). A climb figure's
+  tooltip therefore ends on the Spelunking page and never on the page of the
+  skill that supplied the figure. It is built with S20 and S24 (plan §19).
+
 - **The night, and what a night restores.** The night's fatigue and
   armoured-sleep clocks are built (`lib/fatigue.mjs`, `formation/rest.mjs`).
   Missing: a rest-now prompt; a night restoring castings (`restPools` in

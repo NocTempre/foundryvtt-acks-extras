@@ -712,6 +712,20 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 **Cost.** A card can say disarmed for a trap the thrower then discharges, followed by the one-line note. A discharge answered after a Judge reset the trap is dropped without a word.
 
 
+## 2026-11-19 — The crossing rules' three owner answers
+
+**Ruled.** The owner answered the three questions the dungeon close-out's batch 3 put (plan §19). The managing session relayed the answers before batch 3 was parked; they govern its build.
+- **OQ-A, the precarious path.** "Mountaineer + assisted (Recommended)". A mountaineer carrying the kit, and the members he assists, may try the precarious path. They throw at his level, as RR ch. 3, Mountaineering (p. 115) gives. Where RR ch. 6, Spelunking, admits Climbing alone on that column, it is not followed. This reads OQ3's "(c), conditions only" (plan §12) as that qualifier says: the stricter reading applies to conditions, never to who may try. It follows OQ11's ch. 3-over-ch. 6 precedence.
+- **OQ-B, what calls the balance save on a ledge** (RR ch. 6, Spelunking). "Both (Recommended)". A member's HP fall prompts the Judges with a card, and nothing rolls by itself. A Judge-only "Took damage" press covers damage the hook cannot see.
+- **OQ-C, Cat Burglary's catch-yourself** (RR ch. 3, Cat Burglary, p. 108). "Any obstacle fall (Recommended)". It covers any fall from a failed obstacle throw, not only the climbs ch. 6 files under Climbing. It covers neither a failed balance save nor a jump.
+
+**Rejected.**
+- OQ-A: Climbing holders only, at their own level. Also rejected: an assisted Climbing holder at the mountaineer's level.
+- OQ-B: the hook alone, or the press alone.
+- OQ-C: the easy and sheer climbs only.
+
+**Cost.** A precarious path admits more members than the ch. 6 prose names. Every HP fall of a member on a ledge prompts the Judges, a correction included, and the card can be dismissed.
+
 ## 2026-11-19 — The Trapbreaking dialog is one window per party and character, and a Judge is warned past what stops a player
 
 **Ruled.** The owner, on the Trapbreaking dialog board: "Approve, build it (Recommended)", with the refusal split as proposed. The 2026-11-18 ruling that a Judge's Turn plan lock warns where a player's refuses now reaches the dialog and the throw. For the Judge these refusals become warnings, with Work on it enabled: no thieves' tools (`noTools`) and a failed hasty try at this level (`alreadyFailedHasty`). These stay hard refusals for the Judge too, because there is nothing to roll: the trap is not found (`notFound`), already disarmed or spent (`alreadyDisarmed`, `alreadyDischarged`), or has no trap linked (`noTrap`, `noZone`); and a character with no throw at all (`cannotTry`). The board also proposed a warning for hasty without the skill (`hastyNeedsSkill`). Asked whether that warning could ever be reached, the owner said: "Check RAW on adventuring, follow RAW". The Disabling Traps table (RR ch. 6, p. 267) gives Adventuring no hasty throw ("Not permitted") and permits it only for the methodical column. So `hastyNeedsSkill` is a hard refusal for the Judge too, and `SOFT_REFUSALS` holds the other two. A player is blocked by any refusal, and the reason shows on the window beside Work on it, not only in a toast ("Players get blocks, judges get warnings"). The Judge's authority is the declaring user's, never the executing client's: `attemptDisarm` takes `judge`, which the Judge's own press passes as `judgeDeclares()` and a player's relayed request never does, since the relay runs on a GM client where `game.user.isGM` is true. `disarmGate` is the one gate the dialog shows and the throw enforces. The turn plan's resolve passes `judge` for an entry a GM locked (`entry.by`), so a lock written past a soft refusal is not refused again when it resolves; an entry a player locked is refused again if the refusal still holds.

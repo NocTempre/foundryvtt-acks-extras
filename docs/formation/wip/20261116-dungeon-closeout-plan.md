@@ -1233,7 +1233,7 @@ Phase 4. No slice below has a build commit on `main` yet.
 | 1 | D2, U3, U1d | `doors.mjs` loses its printed names and inline magnitudes. `door-app.mjs`, `door.hbs`, `party-rolls.mjs` and `squeezing.mjs` change, and `test-formation-flows`, `test-crossing`, `test-skill-audit-roll` and `live/formation-steps.mjs` move onto invented figures. Also: `apiVersion`; ROADMAP §6; U3's basher and partners; U1's door half. | implementer ×3 | door window | Steps 13, imported and blanked; party bash; Q6; §10's door look | D1 |
 | 1 | U2 | Strip, player actions, one Trapbreaking opener; `planLock` warns the Judge | implementer | Dungeon tab | The turn plan, player seat | none |
 | 2 | R-DC2, U1t, R2 | `trap-zone.mjs`, `trapbreak-app.mjs`, `player-requests.mjs`, `lib/sockets.mjs` | implementer ×3 | Trapbreaking (U1t) | Steps 8 and 11, real player seat | H0 and P3 landed |
-| 3 | S26→S25, S20→S24 | As §9, with an architect first for S26 | per §9 | S20, S24, S25 | The crossing | H3 and H4 landed; OQ11 |
+| 3 | S26→S25, S20→S24 | As §9, with an architect first for S26. **Parked 2026-11-19 out of the minor** (§19) | per §9 | S20, S24, S25 (approved) | The crossing | the next week's start (§19) |
 
 **Files shared with obstacle regions.**
 - `trap-zone.mjs`: R-DC2 goes inside H0's `sweepForTraps` hunks, and U1t and R2 edit `attemptDisarm` and `askDischarge`.
@@ -2151,3 +2151,196 @@ and 2, basher and stranger tokens, door party, and
 `formation/secret-door`. Also the `formation/plan-*` turn-plan fixtures.
 The world registry holds the RR `formation` and `throws` import. Nothing
 was swept.
+
+## 19. Batch 3 results: parked (2026-11-19)
+
+The owner, relayed by the managing session: "Just park the dungeoneering
+too. That will be next week". Batch 3 leaves the minor. Nothing was built
+and nothing is on `topic/dungeon-closeout` for it. What it settled is kept
+here and in ROADMAP §1's rows, so next week's phase starts from this.
+
+### What was settled
+
+- **S26 was ruled by an `architect`, read-only.** The ruling is below.
+- **Three boards were approved:** MtnJudge, MtnPlayer and Balance. The
+  owner's words were "Approve as drawn (Recommended)". The boards are the
+  "Batch 3: the crossing rules" row on the crossing canvas,
+  https://claude.ai/artifact/JmdFLnu3QPncGFCxQspvMX (private to the owner).
+- **The owner answered three questions.** They are recorded in DECISIONS
+  2026-11-19, "The crossing rules' three owner answers":
+  - OQ-A: "Mountaineer + assisted (Recommended)".
+  - OQ-B: "Both (Recommended)".
+  - OQ-C: "Any obstacle fall (Recommended)".
+- OQ11 was already answered in §12's A0 results.
+- **The managing session made three rulings:**
+  - S26 is written on `main` and gets its own land-and-walk turn.
+  - `swimming.swimmingBonus` and `jumping.NO_ACROBATICS` stay exported and
+    answer null or empty, following batch 1's door precedent.
+  - The crossing panel's target tooltip gains the throw's `cite`, as T-0683's
+    crossing half, built with S20 and S24.
+- T-0683's party-check half is fixed-unreleased (`8b285f48`).
+
+### Slice order
+
+| Slice | Tree | Visible | Scope |
+|---|---|---|---|
+| S26a | `main` | no | `lib/typed-modifiers.mjs` `proficiencyTerm` and `lib/library.mjs` `cookbookCite`, with the four query constants and `test-typed-modifiers`. No caller changes. |
+| S26b | `main` | tooltip | Swimming reads its term. The importer drops `swimmingBonus` from `PRODUCES`, `assembleFormationTables`, `expectTables` and the `swimmingProse` `proficiency` window. `apiVersion` + 1. |
+| S26c | `main` | tooltip, applied save | The landing save (OQ5 a) and the wiggle read their terms. Includes the DECISIONS entry, lang keys and fragments. |
+| S20a, S24a | topic | no | The `unless` binding and `readThrow`'s exemption. The Mountaineering rows, the `holds` split and the assisted targets. |
+| S20b + S24b | topic | MtnJudge, MtnPlayer | The kit toggle, Assisted by, Leads n / cap, the Fall lifted chip, and the target tooltip's `cite`. |
+| S24c | topic | MtnJudge | Cat Burglary's traverse term and catch-yourself (OQ-C). |
+| S25a, S25b | topic | Balance | The HP-fall hook, the balance record, the save path, then the surface (OQ-B). |
+
+Every slice edits `crossing.mjs`, so the slices run one after another.
+
+### S26 ruling (architect)
+
+**One owner per term.** Each proficiency's own imported effect row is the one
+owner of its crossing term: Swimming (RR p. 119), Acrobatics (p. 105), Cat
+Burglary (p. 108) and Contortionism (p. 109). Today Swimming has a second
+owner: the formation register's `swimmingBonus`, from the ch. 6 Swimming and
+Drowning window. The crossing reads that one, and the ability's row applies
+only to the ability's own roll. The other three rows are SITUATIONAL in
+`modifierDisposition`: they are listed and never written, so nothing applies
+them.
+
+**The reader.**
+- Signature: `proficiencyTerm(actor, {token, pattern, defId, target, forWhat,
+  resolve})`.
+- With no holder it answers null. Otherwise `{value, label, cite, itemId,
+  index, from, standAside}`.
+- **Holder:** the first ability item with the capability token, else the
+  first whose name matches the pattern.
+- **Row:** the first `modifier` spec whose target matches and whose mode is
+  add. An absent `forWhat` matches any; for a save it is compared with
+  `saveKeyOf`.
+- **Value:** taken from the holder's own row, else from the world's imported
+  definition (`byCookbookId`), else null. It is never 0.
+- **`standAside`:** set when an enabled own Active Effect writes the spec's
+  path. Callers then add 0.
+- **The row's `condition` is ignored:** the caller is the situation it names.
+- **Rank:** the four rows are plain numbers, so rank does not matter for a
+  library definition. A ladder row read off a library item would take that
+  item's own `qty`.
+- **Rejected base:** `effect-scan.mjs` `abilityModifiers`. It drops
+  unresolved rows and has no `forWhat` filter, no stand-aside and no cite.
+
+**Callers.**
+- **Swimming:**
+  - `swimming.mjs` `swimmingThrow` takes `bonus`. A holder with no figure is
+    `unknown: ["swimmingTerm"]`.
+  - `crossing-logic.mjs` `swimRow` and `crossing.mjs` `swimEntry` read the
+    term once. `swimTargetTip` ends with the item's cite.
+- **The landing:**
+  - `jumping.mjs` `landingSave` drops the `Math.max` that turns a blank into
+    zero.
+  - `landingRow` refuses a blank acrobat as an absence (`landingTerm`), which
+    bites only on precarious or charging landings.
+  - `rowFor` passes the term.
+  - `attemptJump` and `landFor` compare against the target minus the term and
+    roll inside `withSaveShift`, so the row's verdict matches core's card.
+  - `landingTooltip` names the term and its cite. It retires
+    `crossing.tip.landingBonus`.
+- **The wiggle:**
+  - `squeezing.mjs` `wiggleShift` takes `saveTerm`, as the part
+    `contortionismSave`.
+  - `squeezeEntry` reads the term.
+  - `rollSqueeze` already shifts the save.
+- **Cat Burglary:** only the query constant ships until S25.
+
+**DECISIONS.** Title: "A proficiency's term on a crossing is its own imported
+row, read once".
+- It supersedes in part:
+  - 2026-09-02 "Swimming's printed magnitudes move to the register", In-force
+    row 47's Swimming clause;
+  - two 2026-11-17 squeeze entries, their wiggle clauses.
+- **New evidence (both squeeze entries are under 7 days old):**
+  - the effect is applied on no seat;
+  - SITUATIONAL rows are never written;
+  - a relayed press skips core's dialog;
+  - OQ5 (a) puts the landing on the same read.
+- It implements 2026-08-15 row 26.
+- **Cost:** a term needs the abilities import. Without it, the swim, a
+  precarious or charging landing and the wiggle refuse until a Judge adds a
+  row.
+
+**Mutations that must fail:**
+- the `formationValue` read restored in `swimmingThrow`;
+- the `Math.max` restored;
+- `rowFor` passing 0;
+- the landing's `withSaveShift` dropped;
+- the comparison made against the unshifted target;
+- `standAside` ignored;
+- 0 returned for a holder with no row;
+- the `forWhat` filter dropped;
+- the library fallback dropped.
+
+Tests must not pin `citedSource` output.
+
+**Live walk:** fixtures `formation/acrobat` and `formation/contortionist`.
+- Walk a precarious landing and a wiggle, and hover each tooltip.
+- Check that core's card agrees with the row.
+
+### S20, S24 and S25 briefs (architect)
+
+**S20 (A2, §6.1; OQ2 a, OQ3 c).**
+- **Binding.** `parseOutcomeCell` adds `unless: {proficiencies, double,
+  gear}`, and only where the cell carries the exemption.
+  - "Double" resolves to `DOUBLE_PAIR`, Climbing and Mountaineering (RR
+    ch. 6, Spelunking).
+  - The block's "Using …" label is rejected as its source.
+  - Pin the cell strings from the real extraction, not the wiki.
+- **Logic.** `readThrow` lifts the fall when `exempt(unless)` holds:
+  - the member holds the proficiencies;
+  - the member carries the kit, where the cell names gear;
+  - the member is at base pace. The rappel has no pace pick, so it is always
+    at base pace.
+- An exempted miss is `stalled`.
+- **Surface:** a "Fall lifted" chip, its tooltip naming each part, and a card
+  note.
+
+**S24 (B11, A4, A8 in part, §6.10; OQ4 a, OQ11, OQ-A).**
+- **Cookbook rows** go on Mountaineering (RR p. 115), in the register source,
+  compiled. Never hand-edit the cookbook.
+  - The rows: the party cap, the kit by role, and the leader's failing face.
+  - The failing face is the proficiency page's own row. The grid's botch band
+    and `lib/throws` are rejected for it.
+- **The `holds` split.** It becomes `climbing`, `mountaineer: {holds, kit}`
+  and `assist: {…, kit, assistantKit}`, through
+  `proficiencyFor(kind, member)`.
+  - Without the kit, Mountaineering gives nothing (OQ4 a).
+  - An assist counts only with both kits.
+  - On the precarious path, a kitted mountaineer and those he assists may try
+    (OQ-A).
+- **The assisted target.** The member throws on the imported Climbing ladder
+  at the mountaineer's level (OQ11), plus their own conditions, the Judge
+  modifier, and their pace if they hold Climbing.
+- **Controls** are Judge-set; a player sees chips.
+  - A per-member kit toggle.
+  - An "Assisted by" select.
+  - "Leads n / cap" on the mountaineer's row. Over the cap, a player is
+    blocked and a Judge warned.
+- **The kit is not read from inventory**, because party gear rides on the
+  party. A ROADMAP row offers an inventory hint instead.
+- **S24c, Cat Burglary.**
+  - The traverse term is a conditioned `proficiencyThrow` row, which
+    `resolveCheck` leaves pending. The crossing adds it on the narrow and
+    precarious ledges.
+  - Catch-yourself covers any obstacle fall (OQ-C).
+
+**S25 (B9; OQ-B).**
+- **Hook.** Widen and export `lib/status-effects.mjs` `notePriorHp` as
+  `onHpFall(handler, {where})`.
+  - `equipment/overlays/mounted.mjs` drops its own `markHpFall` and joins it,
+    which adds the mounted walk.
+- **When it fires.** A member on a narrow or precarious ledge who has thrown
+  and is not settled gets `balance: {due: true}`, and the Judges get a card.
+  - A Judge-only "Took damage" press sets the same thing.
+  - Nothing rolls by itself.
+- **While a save is due:** Throw blocks a player and warns a Judge, and Throw
+  for all skips the member.
+- **The save.** Core's Paralysis save through `withSaveShift`, plus the Cat
+  Burglary term.
+  - A failed save marks the member fallen.
+  - The fall comes from the crossing's depth. It is reported, not applied.
