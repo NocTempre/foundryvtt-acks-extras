@@ -19,7 +19,8 @@
   <label class="acks-extras-sacrifice-value" data-tooltip-text="{{value.tip}}"><span>{{value.label}}</span> <input type="number" class="acks-input acks-nums{{#if value.edited}} is-edited{{/if}}" min="0" step="1" data-victim="{{uuid}}" data-value value="{{value.shown}}"></label>
 </span>
 {{else}}
-{{#if readonly}}
-<span class="acks-extras-sacrifice-readonly">{{readonly}}</span>
+{{!-- `said`, never `readonly`: core registers a `readonly` helper, which a bare {{readonly}} calls in place of the field. --}}
+{{#if said}}
+<span class="acks-extras-sacrifice-readonly">{{said}}</span>
 {{/if}}
 {{/if}}

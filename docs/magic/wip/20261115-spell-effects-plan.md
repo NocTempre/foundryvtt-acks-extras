@@ -3883,6 +3883,13 @@ other session on the server:
   - D: the Judge's checks are shared live with a Player's window;
   - E: the card goes through the shared roll card.
   Board 11's per-victim checks return to the row as drawn.
+- db7657b6, c5e5cfa6, bde69357: M-s landed (board 11 and board 19 A to E;
+  the class-power mark is the caster's and outlives a clear). The first walk
+  on lane B, 29/2, found that a Player's row printed "readonly": core's
+  `readonly` Handlebars helper shadowed the field of that name. It also found
+  the walk reading `aria-describedby` once the button was free. Both are fixed
+  on main, and magic-sacrifice is 31/0. Not walked: research or cast, which
+  M-s does not touch.
 
 Owner design steps: board 14 (the hand plus fades or stays) was approved as
 B, "Fades/Stays switch", and builds next. Board 15 draws what M-q1 built

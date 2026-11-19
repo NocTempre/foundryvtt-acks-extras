@@ -167,7 +167,7 @@ try {
   check("a Player's seat draws no button on a character with no divine class and no mark", b3.rendered && b3.shown === false, b3);
   const w1 = await run(gm, U, `
     const root = W();
-    const empty = { rows: rowsOf().length, lines: lines(), disabled: btn()?.getAttribute("aria-disabled") === "true" };
+    const empty = { rows: rowsOf().length, lines: lines(), disabled: btn()?.getAttribute("aria-disabled") === "true", describedBy: btn()?.getAttribute("aria-describedby") ?? "" };
     await drop(ID.lawful);
     const rows = rowsOf();
     const row = root.querySelector('.acks-extras-bucket__row[data-uuid="' + ID.lawful + '"]');
@@ -188,12 +188,11 @@ try {
       tips: [...root.querySelectorAll(".acks-extras-bucket__extra label, .acks-extras-sacrifice-band label")].every((l) => (l.getAttribute("data-tooltip-text") ?? "").length > 0),
       unboundLabels: [...root.querySelectorAll("label")].filter((l) => !l.control).length,
       badIds: [...root.querySelectorAll("[id]")].filter((e) => e.id !== root.id && !e.id.startsWith(root.id)).length,
-      describedBy: btn()?.getAttribute("aria-describedby") ?? "",
     };`, ids);
   check("the window opens titled for the caster inside the scroll contract, with a drag corner and a body that scrolls apart from its pinned footer", /QA Sacrifice Caster/.test(w1.title) && w1.classes.scroll && w1.classes.frame && w1.classes.resize && w1.body && w1.foot && !w1.footInBody, w1);
   check("with no victim the Sacrifice button is disabled and says why; the dropped creature is one row with its picture, its XP value and the page in the value's tooltip", w1.empty.rows === 0 && w1.empty.disabled && w1.empty.lines.some((l) => l.sev === "block") && w1.rows === 1 && /100/.test(w1.rowText) && w1.art && /RR/.test(w1.valueTip) && /QA Sacrifice Lawful/.test(w1.removeLabel), { empty: w1.empty, rows: w1.rows, rowText: w1.rowText, valueTip: w1.valueTip });
   check("a lawful creature's checks sit inside its own row under the value line (helpless, the imported traits, young, a Judge's value box), each labelled with a tooltip, with no section of states, no literal id and no label left unbound", w1.toggles.join() === "helpless,trait0,trait1,young,value" && w1.inRow && w1.noStates && w1.tips && w1.unboundLabels === 0 && w1.badIds === 0, { toggles: w1.toggles, inRow: w1.inRow, tips: w1.tips, unbound: w1.unboundLabels, badIds: w1.badIds });
-  check("the disabled button is described by the verdict list that carries the reason", w1.describedBy.length > 0 && w1.describedBy.endsWith("-why"), w1.describedBy);
+  check("the disabled button (no victim yet) is described by the verdict list that carries the reason", w1.empty.describedBy.length > 0 && w1.empty.describedBy.endsWith("-why"), w1.empty.describedBy);
 
   section("2. the Judge's checks are shared: a Player's window shows them live and frees its Sacrifice once nothing waits");
   const g1 = await run(gm, U, `

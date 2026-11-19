@@ -370,12 +370,12 @@ t("the bucket's rows are the victims, each with its value; the checks ride insid
   assert.deepEqual(e.checks.map((c) => [c.field, c.checked]), [["helpless", true]]);
   assert.deepEqual(e.traits.map((x) => [x.index, x.checked]), [[0, true], [1, false], [2, false]]);
   assert.notEqual(e.value, null, "a Judge may set a value");
-  assert.equal(e.readonly, undefined);
+  assert.equal(e.said, undefined);
   assert.equal(judge.site.disabled, false);
   const player = panel({ judge: false });
   const q = extraOf(player);
   assert.equal(q.judge, false);
-  assert.equal(q.readonly, "helpless · Trait A", "the set checks as text, in the order drawn");
+  assert.equal(q.said, "helpless · Trait A", "the set checks as text, in the order drawn");
   assert.equal(q.value, undefined, "a Player is given no value box; the row's own value line is its text");
   assert.equal(q.young, undefined);
   assert.equal(player.site.disabled, true);
@@ -412,8 +412,8 @@ t("a hand-set value is edited, and its tooltip names the figure it replaced, or 
 
 t("a Player's row reads a creature's young mark and a ticked trait as text beside the checks", () => {
   const p = panel({ judge: false, victims: [victim("A", { alignment: "chaotic", isMonster: true })], state: state({ victims: { A: { willing: true, young: true, traits: [1] } } }) });
-  assert.equal(extraOf(p).readonly, "willing · Trait B · young");
-  assert.equal(extraOf(panel({ judge: false, state: state({ victims: { A: {} } }) })).readonly, "", "nothing set reads as nothing");
+  assert.equal(extraOf(p).said, "willing · Trait B · young");
+  assert.equal(extraOf(panel({ judge: false, state: state({ victims: { A: {} } }) })).said, "", "nothing set reads as nothing");
 });
 
 t("with no trait table imported no trait check is drawn and the bonus line is blank", () => {
@@ -956,7 +956,7 @@ t("the record's round trip through the window's model: what a Judge sets is what
   const afterVictim = R.applyOp(afterSite, { op: "judge", victims: { A: { helpless: true } } });
   const freed = asPlayer(afterVictim);
   assert.deepEqual([freed.blocked, freed.lines.length], [false, 0]);
-  assert.equal(extraOf(freed).readonly, "helpless", "and the row shows the Judge's check as text");
+  assert.equal(extraOf(freed).said, "helpless", "and the row shows the Judge's check as text");
   assert.equal(R.applyOp(afterVictim, { op: "clear" }), null);
 });
 

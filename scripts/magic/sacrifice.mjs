@@ -227,7 +227,7 @@ export function victimExtra(row, { judge, partial, tables, loc, cites = {} }) {
     extra.value = { label: loc("valueBox"), shown: st.value === null ? "" : String(st.value), tip: valueTip, edited };
   } else {
     const said = [...checks.filter((c) => c.checked).map((c) => c.label), ...traits.filter((t) => t.checked).map((t) => t.label), ...(row.isMonster && st.young ? [loc("young")] : [])];
-    extra.readonly = said.join(" · ");
+    extra.said = said.join(" · ");
   }
   return extra;
 }
