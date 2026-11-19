@@ -43,6 +43,7 @@ import { registerCastRecur } from "./cast-recur.mjs";
 import { registerCastExpiry } from "./cast-expiry.mjs";
 import { registerCastHeld } from "./cast-held.mjs";
 import { registerCastDeclare } from "./cast-declare.mjs";
+import { registerCastSeal } from "./cast-seal-live.mjs";
 import { coreItemSheetFor } from "../lib/util.mjs";
 import { TEMPLATE_HOOKS } from "../lib/constants.mjs";
 
@@ -168,6 +169,12 @@ Hooks.once("init", () => {
     registerCastDeclare();
   } catch (err) {
     console.error(`${MODULE_ID} | the concentration and declaration hooks could not register`, err);
+  }
+  // A sealed door is unlocked by the active GM's client when its cast ends.
+  try {
+    registerCastSeal();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the door seal could not register`, err);
   }
   // A summoning's cast that runs out on the world clock tells its caster's
   // owners and the GMs, with a Dismiss for what it left standing.
