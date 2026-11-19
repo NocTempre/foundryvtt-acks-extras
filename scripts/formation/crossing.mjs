@@ -478,18 +478,22 @@ export function crossingTurn(formation, member) {
  * A member's own speeds: exploration in feet per turn, combat and run in feet per
  * round. Core's derived figures, or, bearing a stone (a body lifted, a load a
  * carrier shares), the system's calculation for that load; `lifted` takes the
- * calculation alone. A speed neither gives is null, and a `stone` left out reads
- * the actor's own figures only.
+ * calculation alone. An actor with neither, a monster, reads the speed core
+ * derives on every actor (`movement.base` per turn, which is also its run, and
+ * `movement.encounter` per round). A speed none gives is null, and a `stone`
+ * left out reads the actor's own figures only.
  */
 function memberSpeeds(actor, stone, lifted = false) {
   const own = actor.system?.movementacks ?? {};
   const max = capacityStone(actor);
   const bearing = max == null || !Number.isFinite(stone) ? null : movementBearing({ stone, max, mod: actor.system?.movement?.mod });
   if (lifted) return { exploration: bearing?.exploration ?? null, combat: bearing?.combat ?? null, run: bearing?.running ?? null };
+  const core = actor.system?.movement ?? {};
+  const derived = (value) => (Number.isFinite(value) && value > 0 ? value : null);
   return {
-    exploration: Number.isFinite(own.exploration) ? own.exploration : bearing?.exploration ?? null,
-    combat: Number.isFinite(own.combat) ? own.combat : bearing?.combat ?? null,
-    run: Number.isFinite(own.chargerun) ? own.chargerun : bearing?.running ?? null,
+    exploration: Number.isFinite(own.exploration) ? own.exploration : bearing?.exploration ?? derived(core.base),
+    combat: Number.isFinite(own.combat) ? own.combat : bearing?.combat ?? derived(core.encounter),
+    run: Number.isFinite(own.chargerun) ? own.chargerun : bearing?.running ?? derived(core.base),
   };
 }
 
@@ -2090,7 +2094,7 @@ export function escapeTargetTip(entry, name) {
   const cite = squeezeCite("escapeFeet");
   if (way.target === null) return cite;
   const head = name === "push"
-    ? loc("crossing.squeeze.part.figure", { figure: entry.pushFigure?.target, source: entry.pushFigure?.source ?? "" })
+    ? loc("crossing.squeeze.part.figure", { figure: entry.pushFigure?.target, source: entry.pushFigure?.source ? loc("crossing.squeeze.part.figureFrom", { source: entry.pushFigure.source }) : "" })
     : loc("crossing.squeeze.part.save", { save: saveName({ save: WIGGLE_SAVE }), base: entry.save.base });
   return [head, ...squeezeParts(way.parts), cite].join(" · ");
 }

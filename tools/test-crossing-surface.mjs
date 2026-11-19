@@ -2547,6 +2547,7 @@ await ok("the push takes the member's Strength, named in its tooltip with the mo
   assert.deepEqual([strong.row.escape.wiggle.target, strong.row.target], [plain.row.escape.wiggle.target, plain.row.target]);
   const tip = crossing.escapeTargetTip(strong, "push");
   assert.ok(tip.includes("Strength (modifier +2, RR ch. 1) −6"), tip);
+  assert.ok(tip.startsWith("Dungeonbashing, base 14+"), "the push's base names the throw its button names");
   assert.equal(crossing.escapeTargetTip(plain, "push").includes("Strength"), false, "no modifier, no part");
   assert.equal(crossing.escapeTargetTip(strong, "wiggle").includes("Strength"), false);
 });
@@ -2562,6 +2563,18 @@ await ok("a monster squeezes against the load it carries, named as its source in
   const stuck = crossingRow(formation, "Wolf");
   assert.equal(stuck.row.escape.wiggle.parts.find((p) => p.key === "encumbrance").source, "load");
   assert.equal(stuck.row.escape.push.parts.some((p) => p.key === "strength"), false, "a monster has no Strength term");
+});
+
+await ok("a monster with no character speeds works along a squeeze at the round's speed core derives for it", async () => {
+  const { formation, actors } = await squeezeWorld([["Wolf", { type: "monster", load: 3 }], ["Alder", { stone: 5 }]], { form: { shape: "squeeze", length: "100" } });
+  const beast = actors.find((a) => a.name === "Wolf");
+  delete beast.system.movementacks;
+  beast.system.movement = { base: 90, encounter: 30 };
+  const wolf = crossingRow(formation, "Wolf");
+  assert.equal(wolf.row.unknown?.includes?.("speed") ?? false, false, "no speed is missing");
+  assert.notEqual(wolf.row.target, null, "the beast has a target on a long squeeze");
+  beast.system.movement = { base: 0, encounter: 0 };
+  assert.equal(crossingRow(formation, "Wolf").row.target, null, "a beast with no speed at all has no throw");
 });
 
 await ok("ending a crossing warns the Judge, naming the members still stuck or drowning, and says nothing when none is", async () => {

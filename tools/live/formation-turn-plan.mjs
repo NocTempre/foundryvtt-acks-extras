@@ -556,8 +556,8 @@ try {
   cards = await run(gm, P.cardsSince, { since });
   for (const c of cards) tracked.push(gm.track(c.uuid, "ChatMessage"));
   check("and says so on one public line", cards.filter((c) => c.isPublic && /QA Plan Thief/.test(c.text) && /QA Plan Cleric/.test(c.text)).length === 1, cards.map((c) => c.text));
-  const blocked = await run(player, P.column, { partyId: party.id });
-  check("the player's column now shows the reason on the row and no choice to lock", !!rowOf(blocked, thief.id)?.block && !rowOf(blocked, thief.id)?.select, rowOf(blocked, thief.id));
+  const movedColumn = await run(player, P.column, { partyId: party.id });
+  check("the player's column now shows the reason on the row and no choice to lock", !!rowOf(movedColumn, thief.id)?.block && !rowOf(movedColumn, thief.id)?.select, rowOf(movedColumn, thief.id));
 
   section("Turn: one turn spent, one card, the Rolls-tab figure");
   // A new turn clears the move; the turn the walk measures starts from there.
