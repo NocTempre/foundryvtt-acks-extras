@@ -325,8 +325,8 @@ await ok("a resolution keeps its visible text and carries the cited form in its 
   const search = member.resolutions[1];
   assert.equal(search.label, "12+");
   assert.equal(search.source, "Searching [+1]; +2 Alertness, +1 Throw bonus", "no page in the visible text");
-  assert.equal(search.tip, "Target 12+: Searching [+1]; +2 Alertness (XX p.1), +1 Throw bonus.");
-  assert.match(html, /<td data-tooltip-text="Target 12\+: Searching \[\+1\]; \+2 Alertness \(XX p\.1\), \+1 Throw bonus\.">\s*<strong>12\+<\/strong><br \/><span class="src">Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus<\/span>/);
+  assert.equal(search.tip, "Target 12+: Searching [+1] (XX p.7); +2 Alertness (XX p.1), +1 Throw bonus.", "the throw's own page, then each part's");
+  assert.match(html, /<td data-tooltip-text="Target 12\+: Searching \[\+1\] \(XX p\.7\); \+2 Alertness \(XX p\.1\), \+1 Throw bonus\.">\s*<strong>12\+<\/strong><br \/><span class="src">Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus<\/span>/);
   const none = member.resolutions[0];
   assert.deepEqual([none.label, none.tip], ["—", ""], "a check the member cannot make carries no tooltip");
   assert.match(html, /<td><strong>—<\/strong>/);
@@ -388,7 +388,7 @@ await ok("the Skill tab names its options as the audit does, names its controls,
   assert.match(html, /<label data-tooltip="ACKS-FORMATION\.audit\.throwBonusHint">/);
   assert.match(html, /<input type="number"[^>]*data-field="targetMod" aria-label="Throw bonus \(±\)" data-tooltip="ACKS-FORMATION\.audit\.throwBonusHint"/);
   assert.doesNotMatch(html, /\stitle\s*=/);
-  assert.match(html, /<li data-tooltip-text="Target 12\+: Searching \[\+1\]; \+2 Alertness \(XX p\.1\), \+1 Throw bonus\."><strong>[^<]*<\/strong>: 12\+ <em>\(Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus\)<\/em><\/li>/);
+  assert.match(html, /<li data-tooltip-text="Target 12\+: Searching \[\+1\] \(XX p\.7\); \+2 Alertness \(XX p\.1\), \+1 Throw bonus\."><strong>[^<]*<\/strong>: 12\+ <em>\(Searching \[\+1\]; \+2 Alertness, \+1 Throw bonus\)<\/em><\/li>/);
 });
 
 await ok("the Skill tab escapes an item's name into its select's attribute", async () => {

@@ -194,15 +194,17 @@ export function citedParts(parts, extra = []) {
 }
 
 /**
- * A resolved check's source line with its parts cited: `check.source` and the
- * `citedParts`, which is the line alone when no part is left to list.
+ * A resolved check's source line with its pages: `check.source` followed by the
+ * page of the throw that supplied the figure where it has one, then the
+ * `citedParts`; the source alone when neither is there.
  *
- * @param {{source: string, parts?: Array<{label: string, value: number, cite?: string}>}} check `resolveCheck`'s result
+ * @param {{source: string, cite?: string, parts?: Array<{label: string, value: number, cite?: string}>}} check `resolveCheck`'s result
  * @param {string[]} [extra] parts already formatted, appended after the cited ones
  */
 export function citedSource(check, extra = []) {
+  const source = check.cite ? `${check.source} (${check.cite})` : check.source;
   const cited = citedParts(check.parts, extra);
-  return cited ? `${check.source}; ${cited}` : check.source;
+  return cited ? `${source}; ${cited}` : source;
 }
 
 /** A resolved check's figure as a control prints it: "14+", or the word for an automatic throw. */
@@ -261,7 +263,8 @@ function bestSkill(actor, cfg, { auto = false } = {}) {
 }
 
 /**
- * Resolve one member's throw: `{target, source, bonus, parts, skilled}` or null.
+ * Resolve one member's throw: `{target, source, cite?, bonus, parts, skilled}` or null;
+ * `cite` is the page of the throw that supplied the figure, absent for a stored one.
  *
  * A throw a spell record made automatic answers `auto` (the spell, its page)
  * with a null `target`, no parts and no bonus: nothing is rolled and the
@@ -293,6 +296,7 @@ export function resolveCheck(actor, cfg, { auto = false } = {}) {
     found = {
       target: best.target,
       source: (best.found.scaled ? `${best.item.name} (${game.i18n.format("ACKS-FORMATION.audit.levelTag", { level })})` : best.item.name) + modTag,
+      ...(best.found.cite ? { cite: best.found.cite } : {}),
       parts,
       skilled: true,
     };
@@ -304,7 +308,9 @@ export function resolveCheck(actor, cfg, { auto = false } = {}) {
     const heldSkill = adv.source === "skill";
     if (adv.auto) return { target: null, auto: adv.auto, source: by ? `${via} (${by})` : via, parts: [], skilled: heldSkill, bonus: 0, record: adv.record };
     if (adv.target == null) return null;
-    found = { target: adv.target, source: by ? `${via} (${by})` : via, parts: abilityParts(adv.parts), skilled: heldSkill };
+    // The page is the throw's that supplied the figure; a stored figure is read off the sheet and names none.
+    const cite = adv.source === "standIn" ? adv.standIn?.cite : heldSkill ? adv.cite : undefined;
+    found = { target: adv.target, source: by ? `${via} (${by})` : via, ...(cite ? { cite } : {}), parts: abilityParts(adv.parts), skilled: heldSkill };
   }
   if (!found) return null;
 

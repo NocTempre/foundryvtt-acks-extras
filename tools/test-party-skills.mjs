@@ -86,7 +86,7 @@ globalThis.foundry = {
   },
 };
 
-const { PARTY_CHECKS, resolveCheck, rollPartyCheck } = await import("../scripts/formation/party-rolls.mjs");
+const { PARTY_CHECKS, citedSource, resolveCheck, rollPartyCheck } = await import("../scripts/formation/party-rolls.mjs");
 const { rollsOf, throwOutcome, throwText, defaultKeyOf, keyOf } = await import("../scripts/abilities/ability-rolls.mjs");
 const { adventuringThrow } = await import("../scripts/abilities/adventuring-throw.mjs");
 const { rollInventory, rollById } = await import("../scripts/character-sheet/rolls.mjs");
@@ -217,6 +217,20 @@ await ok("a bonus part names its ability and carries the page its import cites",
   const party = resolveCheck(a, PARTY_CHECKS.searchMethodical);
   assert.equal(party.target, 8, "10 less the bonus, once");
   assert.deepEqual(party.parts.map((p) => [p.label, p.value, p.cite]), [["Keen Eyes", 2, "XX p.1"]]);
+});
+
+await ok("a check's source line names the page of the throw that supplied the figure, before its parts' pages; a stored figure names none", async () => {
+  const a = member("Fir", [SEARCH(), keen(2)]);
+  const skilled = resolveCheck(a, PARTY_CHECKS.searchMethodical);
+  assert.equal(skilled.cite, "XX p.9");
+  assert.equal(citedSource(skilled), `${skilled.source} (XX p.9); +2 Keen Eyes (XX p.1)`);
+  const alone = resolveCheck(member("Ash", [LISTEN()]), PARTY_CHECKS.listen);
+  assert.equal(citedSource(alone), `${alone.source} (XX p.7)`, "no part: the source and its page");
+  const stand = resolveCheck(member("Elm", [STAND(14)]), PARTY_CHECKS.listen);
+  assert.equal(stand.cite, "XX p.4", "a stand-in's figure cites the stand-in");
+  const stored = resolveCheck(member("Rowan", []), PARTY_CHECKS.listen);
+  assert.equal(stored.cite, undefined);
+  assert.equal(citedSource(stored), stored.source, "a stored figure is the source alone");
 });
 
 await ok("an item that only carries a printed ability's name gives nothing", async () => {
