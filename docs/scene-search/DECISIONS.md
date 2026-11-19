@@ -260,3 +260,10 @@ pinned the rest.
   (a second rank reads the first rank's figure); a Judges' card naming which of a
   proficiency's throws was rolled; a throw chooser on the rail. All are on the
   ROADMAP.
+- **The owner's answers (relayed 2026-11-19).** The first printed throw is
+  rolled; the chooser waits for a design. A holder whose item is off or reads no
+  figure stays refused as not imported, with the page, under the standing
+  "missing imports stay blank". The throwless reading of Sensing Power was put
+  to "No house rules ship". It holds because RR ch. 3, Proficiencies, "Sensing
+  Power", prints an activation by concentration and no throw (read against the
+  reference snapshot before landing).
