@@ -1530,8 +1530,12 @@ fetched and holds, not only what it shows.
    fixture 2 is, whose `pdf` page points at a path under the Data directory
    that holds no file (`acks-extras-books/gone-<book>.pdf`), beside one
    imported document of that book (any document carrying that book's
-   `flags.acks-extras.cookbook.id`). Choose a book that has none on the real
-   shelf, or build it under `own: <tag>`. Kept.
+   `flags.acks-extras.cookbook.id`). `shelf()` takes the first journal per
+   book, so where the book also has a real shelf journal the fixture is built
+   with an `_id` that sorts ahead of it (`keepId`, e.g. `0gonefixture<book>`),
+   and an `own: <tag>` journal is shadowed instead. **Not kept:** while it
+   exists it points every seat's copy of that book at a 404, so the run that
+   builds it retires it (`api.retire`) once step 8 is read.
 
 ### Drive mechanics
 
@@ -1552,10 +1556,12 @@ fetched and holds, not only what it shows.
 
 ### Steps
 
-4. Join as the **Player**. *Observable:* of the world's shelf, only
-   `importer/shelf-shared`'s book is registered (`acksExtras.importer.bookOpen`);
-   the seat fetched no `.pdf` and holds no pdf.js worker; the console reads
-   `registered 1 book(s) from the shelf`; no Getting Started window opened; no
+4. Join as the **Player**. *Observable:* of the world's shelf, only the books
+   shared with this seat are registered (`acksExtras.importer.bookOpen`) —
+   `importer/shelf-shared`'s, and any other journal shared by default
+   ownership, such as the character sheet's; the seat fetched no `.pdf` and
+   holds no pdf.js worker; the console's `registered N book(s) from the shelf`
+   counts exactly those; no Getting Started window opened; no
    progress bar and no "entries available" notice appeared for the book (a
    book connected by hand afterwards raises both).
    *Your Books*: each withheld row says the book is not shared with this
@@ -1586,7 +1592,8 @@ fetched and holds, not only what it shows.
 
 ### Teardown
 
-The three fixtures are kept. Step 7 imports documents: track the uuids of what
+Fixtures 1 and 2 are kept; `importer/shelf-gone` is retired in the run that
+built it. Step 7 imports documents: track the uuids of what
 it made (`api.track`, read back from the action's own result) and sweep them
 with `api.sweepTracked()`; the world's shelf itself was only read.
 
