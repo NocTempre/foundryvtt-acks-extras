@@ -19,7 +19,7 @@
  *   sprung stopped the move, and nothing is posted for it.
  */
 import { CONDITION_HAZARDS, OBSTACLE_HAZARDS } from "./hazard-keys.mjs";
-import { PARAM_KEYS, readParam, seedFromPlaces, setupKeysOf } from "./hazard-logic.mjs";
+import { PARAM_KEYS, readParam, seedFromPlaces, setupKeysOf, squeezeShapeOf } from "./hazard-logic.mjs";
 import { stackStops } from "./trap-rules.mjs";
 
 /** The places a list names, each once, in the order first met. */
@@ -79,7 +79,7 @@ export function figureKeysOf(kind) {
  * @param {(ref: string) => string|null} hazardKeyOf
  * @param {string[]} entered the uuids `newlyEntered` answered
  * @returns {Array<{uuid: string, name: string,
- *   obstacles: Array<{thingId: string, key: string, hidden: boolean, figures: Array<{param: string, value: number|null}>}>,
+ *   obstacles: Array<{thingId: string, key: string, hidden: boolean, figures: Array<{param: string, value: number|null}>, shape: string|null}>,
  *   conditions: Array<{key: string, hidden: boolean}>}>}
  */
 export function entryModel(places, hazardKeyOf, entered) {
@@ -97,6 +97,8 @@ export function entryModel(places, hazardKeyOf, entered) {
           key,
           hidden: thing.hidden === true,
           figures: figureKeysOf(key).map((param) => ({ param, value: readParam(param, thing.params?.[param]) ?? null })),
+          // The shape Begin seeds, so the row is named for the passage it opens.
+          shape: setupKeysOf(key).includes("shape") ? squeezeShapeOf(thing.params?.shape) : null,
         });
       } else if (thing?.kind === "condition" && CONDITION_HAZARDS.includes(key)) {
         // Shown once however many times it is stacked; hidden only when every copy is.

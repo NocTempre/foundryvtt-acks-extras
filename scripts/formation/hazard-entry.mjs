@@ -105,7 +105,7 @@ export function entryCard(formation, model) {
       rows: place.obstacles.map((obstacle) => {
         const figures = figuresOf(obstacle);
         return {
-          name: game.i18n.localize(hazardLabelKey(obstacle.key)),
+          name: obstacle.shape ? loc(`squeezeAs.${obstacle.shape}`) : game.i18n.localize(hazardLabelKey(obstacle.key)),
           detail: obstacle.hidden ? loc("hidden") : undefined,
           total: figures.text,
           tooltipText: figures.tip || undefined,

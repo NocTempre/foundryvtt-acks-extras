@@ -36,6 +36,11 @@ export const PARAM_KEYS = Object.freeze(["length", "gap", "depth"]);
 /** The squeeze shapes a thing's `params.shape` may name. */
 const SQUEEZE_SHAPES = Object.freeze(["chokepoint", "squeeze"]);
 
+/** The squeeze shape a thing's `params.shape` names, trimmed, or null while it is blank or no shape. */
+export function squeezeShapeOf(raw) {
+  return typeof raw === "string" && SQUEEZE_SHAPES.includes(raw.trim()) ? raw.trim() : null;
+}
+
 /** The picks a thing's `params` may carry beyond the figures; each is a setup key of the crossing. */
 const PICK_KEYS = Object.freeze(["shape", "penaltyPick", "penaltyLarger"]);
 
@@ -101,7 +106,7 @@ export function readParam(key, raw) {
  */
 function readPick(key, raw, setup, penaltyPicks) {
   if (raw === null || raw === undefined || raw === "") return undefined;
-  if (key === "shape") return typeof raw === "string" && SQUEEZE_SHAPES.includes(raw.trim()) ? raw.trim() : undefined;
+  if (key === "shape") return squeezeShapeOf(raw) ?? undefined;
   if (key === "penaltyPick") {
     if (typeof raw !== "string" && typeof raw !== "number") return undefined;
     const pick = String(raw).trim();

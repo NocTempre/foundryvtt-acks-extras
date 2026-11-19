@@ -1,0 +1,1 @@
+- The Judges' hazard card (Chat sidebar → the hazard card a party move posts) names a squeeze row for the shape its place stores: a place set to squeeze reads "Squeeze · squeeze" instead of always "Squeeze · chokepoint", matching the crossing its Begin opens.

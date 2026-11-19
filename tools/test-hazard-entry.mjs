@@ -227,6 +227,25 @@ await ok("the card names Begin's ids, cites the setup's own page for each figure
   assert.ok(html.includes('class="acks-extras-roll-chip">') && html.includes(`>${lookup("ACKS-FORMATION.crossing.ropeFixed")}<`), "a chip per condition");
 });
 
+await ok("a squeeze row is named for the shape its place stores; with none, or junk, the hazard's own name", () => {
+  const rows = entryModel([place("Actor.p1", "Gap", [
+    obstacle("thing-1", "squeeze", { shape: "squeeze", length: 20 }),
+    obstacle("thing-2", "squeeze", { shape: "chokepoint" }),
+    obstacle("thing-3", "squeeze", {}),
+    obstacle("thing-4", "squeeze", { shape: "wide" }),
+    obstacle("thing-5", "sheerClimb", { shape: "squeeze" }),
+  ])], hazardKeyOf, ["Actor.p1"])[0].obstacles;
+  assert.deepEqual(rows.map((r) => r.shape), ["squeeze", "chokepoint", null, null, null], "only a squeeze reads a shape, and only a known one");
+  const html = entryCard({ id: "f1" }, [{ uuid: "Actor.p1", name: "Gap", obstacles: rows, conditions: [] }]);
+  const named = (key) => lookup(`ACKS-FORMATION.HAZARD_ENTRY.squeezeAs.${key}`);
+  const count = (text) => html.split(`>${text}<`).length - 1;
+  assert.ok(named("squeeze") && named("chokepoint"), "both shape names exist");
+  assert.notEqual(named("squeeze"), lookup("ACKS-FORMATION.crossing.kind.squeeze"));
+  assert.equal(count(named("squeeze")), 1, "the stored squeeze shape names its row");
+  assert.equal(named("chokepoint"), lookup("ACKS-FORMATION.crossing.kind.squeeze"), "a chokepoint reads as the hazard's own name");
+  assert.equal(count(named("chokepoint")), 3, "a stored chokepoint, a blank and a junk shape");
+});
+
 await ok("every lang key the card and Begin read exists", () => {
   const source = fs.readFileSync(new URL("../scripts/formation/hazard-entry.mjs", import.meta.url), "utf8");
   const keys = [...source.matchAll(/\bloc\("([\w.]+)"/g)].map((m) => m[1]);

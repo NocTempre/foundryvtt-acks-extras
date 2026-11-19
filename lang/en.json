@@ -3608,7 +3608,7 @@
       "hint": {
         "kind": "What this hazard adds to a place it is dropped on. Left at “—” it adds nothing."
       },
-      "noFigures": "No figures here: length, gap and depth are typed on each place’s row, so one hazard can be two sizes in two places."
+      "noFigures": "No figures here: length, gap and depth belong to each place this hazard is on, so one hazard can be two sizes in two places."
     },
     "HAZARD_ENTRY": {
       "title": "The party reaches",
@@ -3627,7 +3627,11 @@
       },
       "figure": "{param} {value} ft",
       "figureBlank": "{param} —",
-      "figureTip": "Typed on this place’s row: {params}.",
+      "figureTip": "Stored on this place’s obstacle: {params}.",
+      "squeezeAs": {
+        "chokepoint": "Squeeze · chokepoint",
+        "squeeze": "Squeeze · squeeze"
+      },
       "confirm": {
         "title": "Begin a crossing",
         "body": "A crossing is open ({open}). End it and begin {next}?",
