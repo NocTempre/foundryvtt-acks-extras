@@ -26,6 +26,12 @@
  * disabled while the cost is not credited, with no throw read, and a Player's own Finish
  * (relayed) and the two they are refused. Every document it makes is tracked by uuid and swept by that list.
  *
+ * Section 14 (A2) walks where a cast ritual's effect goes (M-r2b): Choose… is pressed on the awaiting row and the prompt is driven as a
+ * user does (the radios, a real drop event on the zone, Confirm). A new scroll is read back off the researcher (marked a magic scroll,
+ * recording the spell and the project), a charge off the kept rod (`system.charges.value` up by one, the maximum with it, the effect
+ * listed), Take effect now opens the ordinary cast dialog and leaves the ritual waiting when it is cancelled, and a Player's own
+ * researcher is placed through the relay while another character's rod is held with its reason. Every project it places is already closed.
+ *
  * Sections 9 to 11 walk the posted days (M-q2, ruling 222): a day posted from a
  * Player's seat at the pace its radios chose, the day strip and chip, a past day
  * posted by the Judge and held while its rate is unread (nothing credited or
@@ -52,7 +58,8 @@
  * roster the Player does not own), `magic/research-lena` (a character the Player
  * owns who is NOT on the roster) and `magic/research-part` (an item to drop as a
  * component), plus for section 13 `magic/research-spell`, `magic/research-gear`, `magic/research-gear2` and
- * `magic/research-relic` (a spell, two items and an item to identify). The place's research record and roster are set at the start and the
+ * `magic/research-relic` (a spell, two items and an item to identify), and for section 14 `magic/research-ritual-spell` (the hero's own
+ * ritual spell), `magic/research-wand` (the hero's rod, brought to no charge and no stored effect at the step's start) and `magic/research-stray-rod` (a rod Pell holds). The place's research record and roster are set at the start and the
  * end; the run's overrides are cleared in the finally. Nothing else is made.
  */
 import { connect } from "./_driver.mjs";
@@ -1018,13 +1025,183 @@ try {
     out.outcome = p.outcome;
     await open();
     const row = tab().querySelector('.acks-extras-research__awaiting-row[data-project-id="' + ${JSON.stringify(ritual.id)} + '"]');
-    out.awaiting = { present: !!row, tag: row?.querySelector(".acks-tag")?.textContent.trim() ?? "", chooseDisabled: row?.querySelector("button")?.disabled === true };
+    out.awaiting = { present: !!row, tag: row?.querySelector(".acks-tag")?.textContent.trim() ?? "", chooseLive: !!row?.querySelector('[data-action="chooseResearchPlacement"]') && row.querySelector('[data-action="chooseResearchPlacement"]').disabled === false };
     out.cards = newCards().map((m) => m.uuid);
     out.kept = !!fromUuidSync(${JSON.stringify(partM)});
     out.spent = !fromUuidSync(${JSON.stringify(partR)}) || Number(fromUuidSync(${JSON.stringify(partR)}).system.quantity?.value) === 0;
     return out;`, ids13);
   for (const u of rb.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
-  check("with a matched component the ritual is thrown for: the project closes, stamps `pending: placement`, shows `cast · awaiting where it goes` with a disabled Choose…, the card posts, the matched row is spent and the barred row is kept", rb.enabled && rb.status === "closed" && rb.outcome?.result === "success" && rb.outcome?.pending === "placement" && rb.awaiting.present && rb.awaiting.tag.length > 0 && rb.awaiting.chooseDisabled && rb.cards.length === 1 && rb.kept && rb.spent, rb);
+  check("with a matched component the ritual is thrown for: the project closes, stamps `pending: placement`, shows `cast · awaiting where it goes` with a live Choose…, the card posts, the matched row is spent and the barred row is kept", rb.enabled && rb.status === "closed" && rb.outcome?.result === "success" && rb.outcome?.pending === "placement" && rb.awaiting.present && rb.awaiting.tag.length > 0 && rb.awaiting.chooseLive && rb.cards.length === 1 && rb.kept && rb.spent, rb);
+
+  // A2. where a cast ritual's effect goes (M-r2b): Choose… is driven through the UI for each placement, and each write is read back from the world.
+  // The researcher holds a kept ritual spell (the project's subject, so Take effect now has the caster's own item to cast) and a kept rod (the charge's item).
+  const ritualSpellFx = await gm.fixture("magic/research-ritual-spell", "Item", { name: "QA Research Ritual Spell", type: "spell", system: { lvl: 3 }, flags: { "acks-extras": { spell: { ritual: true } } } }, { parent: ids13.hero });
+  const rodFx = await gm.fixture("magic/research-wand", "Item", { name: "QA Research Rod", type: "item", system: { charges: { value: 0, max: 0 } } }, { parent: ids13.hero });
+  const strayRodFx = await gm.fixture("magic/research-stray-rod", "Item", { name: "QA Research Stray Rod", type: "item", system: { charges: { value: 0, max: 0 } } }, { parent: ids13.pell });
+  // A step that needs a known shape asserts it at its start: the kept rod holds no charge and records no effect.
+  const shape2 = await run(gm, U, `
+    const rod = await fromUuid(${JSON.stringify(rodFx.uuid)});
+    await rod.update({ "system.charges.value": 0, "system.charges.max": 0, "flags.acks-extras.magic.-=stored": null });
+    await sleep(400);
+    const fresh = await fromUuid(${JSON.stringify(rodFx.uuid)});
+    return { value: fresh.system.charges.value, max: fresh.system.charges.max, stored: fresh.flags?.["acks-extras"]?.magic?.stored ?? null, scrolls: [...fromUuidSync(ID.hero).items].filter((i) => /^Scroll of QA Research/.test(i.name)).length };`, ids13);
+  if (shape2.scrolls) blocked("the hero already carries a scroll of one of the walk's spells: a leaving of a run that did not sweep");
+  check("the step starts from a known shape: the kept rod holds no charge and no stored effect", shape2.value === 0 && shape2.max === 0 && shape2.stored === null, shape2);
+  const ritualSpec = { kind: "ritual", level: 5, subject: { uuid: ritualSpellFx.uuid, name: "QA Research Ritual Spell" } };
+  const finishRitual = async (spec) => {
+    const part = await mkPart("QA Research Component P");
+    const made = await makeReady(spec, [{ uuid: part, qty: 1, fit: "matched" }]);
+    await rig13(20);
+    const done = await run(gm, U, `
+      ${snap}
+      const f = await research().finish(place(), ${JSON.stringify(made.id)});
+      await until(() => newCards().length > 0, 80);
+      await sleep(500);
+      return { ok: f.ok, pending: f.pending, cards: newCards().map((m) => m.uuid) };`, ids13);
+    for (const u of done.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+    return { id: made.id, ...done };
+  };
+  // The page's drive of Choose…: open the tab, press the row's control, take the prompt that opens, and hand back what it shows.
+  const chooser = (id) => `
+    const row = () => tab().querySelector('.acks-extras-research__awaiting-row[data-project-id="${id}"]');
+    const promptOf = () => document.querySelector("[data-placement-drop]")?.closest(".application") ?? null;
+    const radio = (dlg, v) => dlg.querySelector('input[name="placement"][value="' + v + '"]');
+    const choose = async () => {
+      await open();
+      const btn = row()?.querySelector('[data-action="chooseResearchPlacement"]');
+      if (!btn || btn.disabled) return null;
+      btn.click();
+      return until(promptOf, 80);
+    };
+    const shown = (dlg) => ({ okDisabled: dlg.querySelector('button[data-action="ok"]')?.disabled === true, why: dlg.querySelector("[data-placement-why]")?.textContent.trim() ?? "", dropActive: dlg.querySelector("[data-placement-drop]")?.hasAttribute("data-active") === true, classed: dlg.classList.contains("acks-extras-scroll") });
+    const pick = async (dlg, v) => { radio(dlg, v).click(); await sleep(250); };
+    const dropOn = async (dlg, uuid) => {
+      const dt = new DataTransfer();
+      dt.setData("text/plain", JSON.stringify({ type: "Item", uuid }));
+      dlg.querySelector("[data-placement-drop]").dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));
+      await sleep(500);
+    };`;
+
+  // The ritual A cast is the first: a new scroll.
+  const scrollRun = await run(gm, U, `
+    ${snap}
+    ${chooser(ritual.id)}
+    const dlg = await choose();
+    if (!dlg) return { prompt: false };
+    const out = { prompt: true, initial: shown(dlg) };
+    await pick(dlg, "charge");
+    out.charge = shown(dlg);
+    await dropOn(dlg, ID.relic);
+    out.badDrop = shown(dlg);
+    await pick(dlg, "scroll");
+    out.scroll = shown(dlg);
+    dlg.querySelector('button[data-action="ok"]').click();
+    await until(() => proj(${JSON.stringify(ritual.id)})?.outcome?.placed === "scroll", 80);
+    await until(() => newCards().length > 0, 80);
+    await sleep(800);
+    const p = proj(${JSON.stringify(ritual.id)});
+    const made = [...hero.items].filter((i) => /^Scroll of QA Research Spell/.test(i.name));
+    out.outcome = p.outcome;
+    out.status = p.status;
+    out.scrolls = made.map((i) => ({ uuid: i.uuid, kind: i.flags?.["acks-extras"]?.markets?.kind, magic: i.flags?.["acks-extras"]?.markets?.magic, stored: i.flags?.["acks-extras"]?.magic?.stored }));
+    out.closed = !promptOf();
+    await open();
+    out.stillAwaiting = !!row();
+    out.cards = newCards().map((m) => ({ uuid: m.uuid, text: String(m.content).replace(/<[^>]+>/g, " ").replace(/\\s+/g, " ").trim() }));
+    return out;`, ids13);
+  for (const s of scrollRun.scrolls ?? []) { tracked.push(s.uuid); gm.track(s.uuid, "Item"); }
+  for (const c of scrollRun.cards ?? []) { tracked.push(c.uuid); gm.track(c.uuid, "ChatMessage"); }
+  check("Choose… on the awaiting ritual opens a prompt in the scroll contract on Take effect now with Confirm enabled and the drop zone off", scrollRun.prompt && scrollRun.initial.classed && !scrollRun.initial.okDisabled && !scrollRun.initial.dropActive, scrollRun.initial);
+  check("As a charge in an item turns the drop zone on and holds Confirm with its reason shown; an item a charge cannot go in leaves it held with its reason", scrollRun.charge.dropActive && scrollRun.charge.okDisabled && scrollRun.charge.why.length > 0 && scrollRun.badDrop.okDisabled && scrollRun.badDrop.why.length > 0 && scrollRun.badDrop.why !== scrollRun.charge.why, { charge: scrollRun.charge, badDrop: scrollRun.badDrop });
+  check("On a new scroll with Confirm writes it: the prompt closes, the project's `pending` is gone and `placed` is scroll, one scroll exists on the researcher marked a magic scroll and recording the spell and the project, and one card names where it went", scrollRun.scroll.dropActive === false && !scrollRun.scroll.okDisabled && scrollRun.closed && scrollRun.status === "closed" && scrollRun.outcome?.placed === "scroll" && scrollRun.outcome.pending === undefined && scrollRun.scrolls.length === 1 && scrollRun.scrolls[0].kind === "scroll" && scrollRun.scrolls[0].magic === true && scrollRun.scrolls[0].stored?.[0]?.project === ritual.id && scrollRun.scrolls[0].stored[0].name === "QA Research Spell" && scrollRun.cards.length === 1 && scrollRun.stillAwaiting === false, scrollRun);
+
+  // A second ritual: as a charge in the kept rod, by a real drop. The stray rod is another character's, and the control writes nothing for it.
+  const chargeProj = await finishRitual(ritualSpec);
+  const chargeRun = await run(gm, U, `
+    ${snap}
+    ${chooser(chargeProj.id)}
+    const dlg = await choose();
+    if (!dlg) return { prompt: false };
+    const out = { prompt: true };
+    await pick(dlg, "charge");
+    await dropOn(dlg, ${JSON.stringify(strayRodFx.uuid)});
+    out.stray = shown(dlg);
+    await dropOn(dlg, ${JSON.stringify(rodFx.uuid)});
+    out.rod = shown(dlg);
+    dlg.querySelector('button[data-action="ok"]').click();
+    await until(() => proj(${JSON.stringify(chargeProj.id)})?.outcome?.placed === "charge", 80);
+    await until(() => newCards().length > 0, 80);
+    await sleep(800);
+    const rod = await fromUuid(${JSON.stringify(rodFx.uuid)});
+    out.outcome = proj(${JSON.stringify(chargeProj.id)}).outcome;
+    out.charges = rod.system.charges;
+    out.stored = rod.flags?.["acks-extras"]?.magic?.stored ?? null;
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of chargeRun.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("a Judge may store into a rod another character holds: the prompt accepts it (Confirm enabled)", chargeRun.stray?.okDisabled === false, chargeRun.stray);
+  check("the kept rod takes the charge: `system.charges.value` rose by one, the maximum with it, the effect is recorded under the module's magic flag, the project is answered and one card posts", chargeRun.prompt && chargeRun.rod.dropActive && !chargeRun.rod.okDisabled && chargeRun.charges?.value === 1 && chargeRun.charges.max === 1 && chargeRun.stored?.length === 1 && chargeRun.stored[0].project === chargeProj.id && chargeRun.outcome?.placed === "charge" && chargeRun.cards.length === 1, chargeRun);
+
+  // The Player seat: the hero is the Player's own researcher, so Choose… is live there. Another character's rod is held with its reason, and a scroll is written through the relay.
+  const playerProj = await finishRitual(ritualSpec);
+  const playerRun = await run(player, U, `
+    ${snap}
+    ${chooser(playerProj.id)}
+    const dlg = await choose();
+    if (!dlg) return { prompt: false };
+    const out = { prompt: true };
+    await pick(dlg, "charge");
+    await dropOn(dlg, ${JSON.stringify(strayRodFx.uuid)});
+    out.stray = shown(dlg);
+    out.refusedApi = (await research().place(place(), ${JSON.stringify(playerProj.id)}, { mode: "charge", itemUuid: ${JSON.stringify(strayRodFx.uuid)} })).reason;
+    await pick(dlg, "scroll");
+    dlg.querySelector('button[data-action="ok"]').click();
+    await until(() => proj(${JSON.stringify(playerProj.id)})?.outcome?.placed === "scroll", 120);
+    await sleep(1200);
+    out.outcome = proj(${JSON.stringify(playerProj.id)}).outcome;
+    out.scrolls = [...hero.items].filter((i) => /^Scroll of QA Research Ritual Spell/.test(i.name)).map((i) => i.uuid);
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of playerRun.scrolls ?? []) { tracked.push(u); gm.track(u, "Item"); }
+  for (const u of playerRun.cards ?? []) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("on the Player seat, an item another character holds leaves Confirm held with the owner reason and the API refuses it as itemOwner; the Player's own scroll is written through the relay and the project is answered", playerRun.prompt && playerRun.stray.okDisabled && playerRun.stray.why.length > 0 && playerRun.refusedApi === "itemOwner" && playerRun.outcome?.placed === "scroll" && playerRun.scrolls.length === 1, playerRun);
+
+  // A third ritual: Take effect now casts first. A cancelled cast leaves the ritual waiting; a cast that goes through answers it.
+  const nowProj = await finishRitual(ritualSpec);
+  const nowRun = await run(gm, U, `
+    ${snap}
+    ${chooser(nowProj.id)}
+    const castDialog = () => document.querySelector(".application.acks-extras-cast");
+    const castCards = () => [...game.messages].filter((m) => !before.msgs.includes(m.id) && m.flags?.["acks-extras"]?.castCard);
+    let dlg = await choose();
+    if (!dlg) return { prompt: false };
+    dlg.querySelector('button[data-action="ok"]').click();
+    const opened = await until(castDialog, 80);
+    const out = { prompt: true, castOpened: !!opened, ritualBand: !!opened?.querySelector(".acks-extras-cast-ritual"), button: opened?.querySelector('button[data-action="cast"]')?.textContent.trim() ?? "", disabled: opened?.querySelector('button[data-action="cast"]')?.disabled === true, waitingWhileOpen: proj(${JSON.stringify(nowProj.id)})?.outcome?.pending === "placement" };
+    opened?.querySelector('button[data-action="cancel"]')?.click();
+    await sleep(900);
+    out.afterCancel = { pending: proj(${JSON.stringify(nowProj.id)})?.outcome?.pending, placed: proj(${JSON.stringify(nowProj.id)})?.outcome?.placed ?? null, casts: castCards().length };
+    dlg = await choose();
+    dlg.querySelector('button[data-action="ok"]').click();
+    const again = await until(castDialog, 80);
+    again?.querySelector('button[data-action="cast"]')?.click();
+    await until(() => proj(${JSON.stringify(nowProj.id)})?.outcome?.placed === "now", 120);
+    await sleep(1200);
+    out.outcome = proj(${JSON.stringify(nowProj.id)}).outcome;
+    out.casts = castCards().map((m) => m.uuid);
+    out.cards = newCards().map((m) => m.uuid);
+    return out;`, ids13);
+  for (const u of [...(nowRun.casts ?? []), ...(nowRun.cards ?? [])]) { tracked.push(u); gm.track(u, "ChatMessage"); }
+  check("Take effect now with Confirm opens the ordinary cast dialog on the researcher's own spell (no Ritual band, an enabled cast button), and the project still waits while it is open", nowRun.prompt && nowRun.castOpened && !nowRun.ritualBand && nowRun.button.length > 0 && !nowRun.disabled && nowRun.waitingWhileOpen, nowRun);
+  check("cancelling the cast leaves the ritual waiting with nothing cast; casting it answers the project `placed: now`, posts the spell's cast card and one placement card", nowRun.afterCancel?.pending === "placement" && nowRun.afterCancel.placed === null && nowRun.afterCancel.casts === 0 && nowRun.outcome?.placed === "now" && nowRun.casts.length >= 1 && nowRun.cards.length >= 1, { afterCancel: nowRun.afterCancel, outcome: nowRun.outcome, casts: nowRun.casts?.length, cards: nowRun.cards?.length });
+
+  // A project that is not a cast ritual never offers Choose…, and the API refuses to place it.
+  const notRitual = await run(gm, U, `
+    const spellProj = projects().find((p) => p.kind !== "ritual" && p.status === "closed");
+    await open();
+    const refused = spellProj ? (await research().place(place(), spellProj.id, { mode: "scroll" })).reason : "none";
+    return { found: !!spellProj, refused, controls: tab().querySelectorAll('.acks-extras-research__awaiting-row [data-action="chooseResearchPlacement"]').length };`, ids13);
+  check("a closed project that is no cast ritual is refused by the API as notAwaiting, and no Choose… control is drawn for it", notRitual.refused === "notAwaiting" && notRitual.controls === 0, notRitual);
 
   // B. Add power: the control opens a row, Add writes a power row worth its amount, and with none held it says so.
   const spellProj = await makeReady({ kind: "spell", subject: { uuid: ids13.spell, name: "QA Research Spell" } }, [], 4);
@@ -1112,7 +1289,7 @@ try {
     return true;`, ids);
   overrode = false;
   await gm.eval(`Hooks.off("updateActor", __rp.hookA); delete globalThis.__rp;`);
-  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part, magic/research-spell, magic/research-gear, magic/research-gear2, magic/research-relic");
+  console.log("fixtures kept: magic/research-place, magic/research-hero, magic/research-pell, magic/research-lena, magic/research-part, magic/research-spell, magic/research-gear, magic/research-gear2, magic/research-relic, magic/research-ritual-spell, magic/research-wand, magic/research-stray-rod");
   walkDone();
 } catch (e) {
   if (!(e instanceof WalkBlocked)) console.log("WALK ERROR:", e?.stack ?? e);

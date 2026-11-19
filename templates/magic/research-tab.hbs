@@ -183,7 +183,7 @@
       <li class="acks-extras-research__awaiting-row" data-project-id="{{id}}">
         <span>{{name}}</span>
         <span class="acks-tag is-ok" tabindex="0" data-tooltip-text="{{tag.tip}}">{{tag.text}}</span>
-        <button type="button" class="acks-btn" disabled data-tooltip-text="{{choose.tip}}">{{choose.label}}</button>
+        <button type="button" class="acks-btn" data-action="chooseResearchPlacement"{{#if choose.live}} data-research-control{{else}} disabled{{/if}} data-tooltip-text="{{choose.tip}}">{{choose.label}}</button>
       </li>
       {{/each}}
     </ul>

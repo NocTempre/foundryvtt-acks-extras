@@ -13,15 +13,19 @@
  *   read by the next project for the same subject (`formulasOf`);
  * - the bucket is settled by lib (`settlementPlan` decides, `applySettlement` writes) and a power row is spent from
  *   the researcher's ledger (`acksExtras.magic.power.settle`);
- * - the result is one card through lib's `renderRollCard`, naming the throw's parts and what was written.
+ * - the result is one card through lib's `renderRollCard`, naming the throw's parts and what was written;
+ * - where a cast ritual's effect goes (`place`): a new scroll item for the researcher, or one charge more in an item the
+ *   researcher holds, either marked in `flags["acks-extras"].magic.stored` (`STORED_KEY`) with the effect it holds, and one
+ *   short card naming where it went. Taking the effect at once opens the cast on the requester's own client (`takeEffectNow`).
  *
  * Every heavy import is taken where it is used, so the model's suites load this file without the world.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC } from "./constants.mjs";
-import { FORMULAS_KEY, PROJECT_KIND, powerRowFit, powerRowValue, componentPolicy, cleanFormulas, withFormula, subjectFits } from "./research-project.mjs";
+import { FORMULAS_KEY, STORED_KEY, PLACEMENT, PROJECT_KIND, powerRowFit, powerRowValue, componentPolicy, cleanFormulas, withFormula, withStored, subjectFits } from "./research-project.mjs";
 import { kindOfRow, POWER_ROW_PREFIX } from "./power-ledger.mjs";
 import { cookbookId } from "../lib/library.mjs";
-import { ACTOR_TYPE } from "../lib/vocab.mjs";
+import { ACTOR_TYPE, ITEM_TYPE } from "../lib/vocab.mjs";
+import { ITEM_FLAG } from "../markets/constants.mjs";
 
 /** A string of the research lang group. */
 const loc = (key, data) => game.i18n.format(`${LANG_PREFIX}.research.${key}`, data ?? {});
@@ -84,6 +88,45 @@ export async function projectEntries(project) {
 /** The spell or item a known subject names, and the researcher who is to have it. */
 async function parties(project) {
   return { doc: await resolveAsync(project.subject.uuid), actor: resolve(project.researcher) };
+}
+
+/**
+ * What a placement reads of an item: `{documentName, uuid, name, type, hasCharges, kind, currency, parentUuid}`, null for no document.
+ * `hasCharges` is whether its type carries `system.charges` (only the system's plain item does), `kind` its markets magic kind
+ * ("" where it has none), `parentUuid` the actor that holds it ("" where none does). Nothing in the module classifies a ring, a rod,
+ * a staff or a wand, so any held plain item that is not a consumable takes a charge (`chargeRefusal`).
+ */
+export function heldItemInfo(doc) {
+  if (!doc) return null;
+  const markets = doc.flags?.[MODULE_ID]?.[ITEM_FLAG] ?? {};
+  return {
+    documentName: doc.documentName,
+    uuid: doc.uuid,
+    name: doc.name,
+    type: doc.type,
+    hasCharges: doc.type === ITEM_TYPE.item && doc.system?.charges !== undefined && doc.system?.charges !== null,
+    kind: markets.magic ? String(markets.kind ?? "") : "",
+    currency: doc.type === ITEM_TYPE.money,
+    parentUuid: doc.parent?.documentName === "Actor" ? doc.parent.uuid : "",
+  };
+}
+
+/**
+ * Take the effect of a cast ritual at once: the researcher's own spell item (the project's subject where it is theirs, else
+ * the one of that name they hold) goes through the ordinary cast with nothing spent (`castFromProject`). Runs on the
+ * requester's own client, since the cast opens a dialog there; a cancel answers `{ok: false, reason: "cancelled"}`.
+ * @param {{researcher: string, subject: {uuid: string, name: string}}} project
+ */
+export async function takeEffectNow(project) {
+  const actor = resolve(project.researcher);
+  let spell = await resolveAsync(project.subject.uuid);
+  if (spell?.parent !== actor) {
+    const { foldName } = await import("../lib/spell-sources.mjs");
+    spell = [...(actor?.items ?? [])].find((i) => i.type === "spell" && foldName(i.name) === foldName(project.subject.name)) ?? null;
+  }
+  if (!spell || spell.parent !== actor) return { ok: false, reason: "spellGone" };
+  const { castFromProject } = await import("./cast-spell.mjs");
+  return castFromProject(spell);
 }
 
 /** The writers and the card, in the shape `projectOps`'s `deps.outcome` takes. */
@@ -154,6 +197,41 @@ export function outcomeDeps() {
       }
       return { spent: done.spent.length, marked: done.marked.length, gone: done.gone.length, failed: done.failed.length, power };
     },
+    /** An item as a placement reads it (`heldItemInfo`), null where the uuid names none. */
+    heldItem: async (uuid) => heldItemInfo(await resolveAsync(uuid)),
+    /** A scroll made for the researcher, or one charge more in the item `item` names; both carry the effect in the stored list. */
+    place: async (project, mode, { item, entry }) => {
+      const actor = resolve(project.researcher);
+      if (mode === PLACEMENT.scroll) {
+        const { markIdentified } = await import("../lib/item-model.mjs");
+        const data = {
+          name: loc("scrollName", { name: entry.name }),
+          type: ITEM_TYPE.item,
+          flags: { [MODULE_ID]: { [ITEM_FLAG]: markIdentified({ magic: true, kind: "scroll" }, "full"), [FLAG_MAGIC]: { [STORED_KEY]: withStored([], entry) } } },
+        };
+        if (project.subject.img) data.img = project.subject.img;
+        const made = (await actor.createEmbeddedDocuments("Item", [data]))?.[0];
+        return { what: "scroll", name: made?.name ?? data.name, uuid: made?.uuid ?? "", actor: actor.name };
+      }
+      const doc = await resolveAsync(item.uuid);
+      const charges = doc.system?.charges ?? {};
+      const value = Math.max(0, Number(charges.value) || 0) + 1;
+      const max = Math.max(Number(charges.max) || 0, value);
+      await doc.update({
+        "system.charges.value": value,
+        "system.charges.max": max,
+        [`flags.${MODULE_ID}.${FLAG_MAGIC}.${STORED_KEY}`]: withStored(doc.flags?.[MODULE_ID]?.[FLAG_MAGIC]?.[STORED_KEY], entry),
+      });
+      return { what: "charge", name: doc.name, uuid: doc.uuid, charges: value, actor: actor?.name ?? "" };
+    },
+    /** One short card naming where the ritual's effect went, through lib's roll card. */
+    placeCard: async ({ project, mode, written }) => {
+      const { renderRollCard } = await import("../lib/roll-card.mjs");
+      const actor = resolve(project.researcher);
+      const name = project.subject.name || loc(`kind.${project.kind}`);
+      const content = renderRollCard({ title: loc("card.title", { name }), subtitle: loc(`kind.${project.kind}`), empty: loc(`card.placed.${mode}`, { name, actor: actor?.name ?? "", item: written?.name ?? "" }) });
+      await ChatMessage.create({ content, speaker: actor ? ChatMessage.getSpeaker({ actor }) : undefined });
+    },
     /** The outcome as one card through lib's roll card, posted to everyone who sees the researcher's rolls. */
     card: async ({ project, plan, result, rolled, written, failed, settled, made }) => {
       const { renderRollCard } = await import("../lib/roll-card.mjs");
@@ -199,6 +277,19 @@ export function outcomeDeps() {
       return made;
     },
   };
+}
+
+/**
+ * Whether this seat may write everything a placement touches: a Judge always, anyone else only where Foundry lets them modify
+ * the location and the researcher, and for a charge the item that takes it.
+ */
+export function canPlace(location, args) {
+  if (game.user.isGM) return true;
+  const project = (location?.flags?.[MODULE_ID]?.[FLAG_MAGIC]?.projects ?? []).find((p) => p?.id === args?.id);
+  if (!project) return false;
+  const may = (doc) => doc?.canUserModify?.(game.user, "update") === true;
+  if (!may(location) || !may(resolve(project.researcher))) return false;
+  return args.mode === PLACEMENT.charge ? may(resolve(args.itemUuid)) : true;
 }
 
 /**

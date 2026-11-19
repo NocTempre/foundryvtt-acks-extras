@@ -764,6 +764,30 @@ await ta("a ritual spell opens a project at the chosen linked location and spend
   assert.equal((await cast(spell([heal()], { ritual: false }), r.deps)).ok, true, "a spell that is no ritual is untouched");
 });
 
+await ta("a ritual resolved from a project is the ordinary cast: not claimed again as a ritual, no slot needed or taken, no turn read", async () => {
+  const world = { capacity: { verdict: "none", source: "tradition", tradition: "wisp", slotKey: "s1", used: 1, max: 1 }, ...fight("cb2") };
+  const spent = { spend: 0, pool: 0 };
+  const r = runDeps({ answer: { mode: "normal", picks: {} }, declared: world });
+  r.deps.adjustPool = async () => void spent.pool++;
+  r.deps.ritualOpen = async () => assert.fail("the ritual's project is not opened again");
+  const done = await castSpellRun(spell([heal()], { ritual: true }), () => void spent.spend++, r.deps, { fromProject: true });
+  assert.deepEqual([done.ok, done.declared, spent.spend, spent.pool, r.calls.declares.length, r.calls.posts.length], [true, undefined, 0, 0, 0, 1], "the cast resolves and posts its card, spending nothing and declaring nothing");
+  assert.deepEqual([r.calls.asked.ritual, r.calls.asked.capacity], [undefined, null], "the dialog is the ordinary one and shows no slot");
+  const control = runDeps({ answer: { mode: "normal", picks: {} }, declared: world });
+  assert.equal((await castSpellRun(spell([heal()]), () => {}, control.deps)).ok, false, "the same world stops an ordinary cast of this spell");
+  // The tradition's procedure is not run: its throw and its spends belong to a cast the project already was.
+  const { log, procedure } = logging();
+  const off = registerCastProcedure(KIND, procedure);
+  const withProc = runDeps({ answer: { mode: "normal", picks: {} }, declared: world });
+  const viaProc = await castSpellRun(spell([heal()], { ritual: true }), () => {}, withProc.deps, { fromProject: true });
+  off();
+  assert.deepEqual([viaProc.ok, log.performs.length, log.verdicts.length, withProc.calls.asked.procedure], [true, 0, 0, null], "no procedure performs, judges or is drawn");
+  // A rowless ritual is the same cast: it posts its card.
+  const rowless = runDeps({ answer: { mode: "normal", picks: {} }, declared: world });
+  const bare = await castSpellRun(spell([], { ritual: true }), () => {}, rowless.deps, { fromProject: true });
+  assert.deepEqual([bare.ok, rowless.calls.posts.length, rowless.calls.opened], [true, 1, undefined], "a ritual with no rows resolves and posts its card too");
+});
+
 t("a rowless ritual spell is claimed whatever its tradition; a rowless spell that is no ritual stays the system's", () => {
   const rowless = spell([], { ritual: true });
   assert.equal(castSpellClaims(rowless, NO_TWIN, () => null), true, "no procedure and no rows: still claimed, so the dialog reaches it");

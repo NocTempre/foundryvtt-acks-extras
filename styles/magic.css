@@ -913,6 +913,31 @@
   border-color: var(--acks-burgundy);
   color: var(--acks-on-burgundy);
 }
+.acks-extras-research-prompt__choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+.acks-extras-research-prompt__radio {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  font-size: var(--acks-fs-body);
+}
+.acks-extras-research-prompt__drop {
+  display: flex;
+  align-items: center;
+  min-block-size: 2.4em;
+  padding: var(--acks-sp-3) var(--acks-sp-4);
+  border: var(--acks-rule-hair) dashed var(--acks-ink-faint);
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+  opacity: 0.55;
+}
+.acks-extras-research-prompt__drop[data-active] {
+  opacity: 1;
+  border-color: var(--acks-spot);
+}
 .acks-extras-research-prompt__pill:focus-visible {
   box-shadow: var(--acks-focus-ring);
   outline: none;

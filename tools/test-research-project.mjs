@@ -2048,14 +2048,189 @@ t("a stored outcome keeps what a cast ritual waits on, and no other wait", () =>
   assert.equal(M.cleanProject({ id: "r", kind: "ritual", status: "closed", outcome: { result: "success", pending: "elsewhere" } }).outcome.pending, undefined);
 });
 
-t("the panel lists a cast ritual awaiting its placement apart from the closed ones, with a Choose control drawn off", () => {
+t("the panel lists a cast ritual awaiting its placement apart from the closed ones, with a Choose control live for the researcher's owner and a Judge", () => {
   const p = panel({ projects: [{ id: "r", kind: "ritual", level: 5, researcher: "A.hero", subject: { name: "Lantern" }, status: "closed", closed: 4, outcome: { result: "success", day: 4, pending: "placement" } }, { id: "c", kind: "spell", researcher: "A.hero", subject: { name: "Old" }, status: "closed", closed: 3, outcome: { result: "failure", day: 3 } }] });
   assert.deepEqual(p.awaiting.map((a) => [a.id, a.name, a.tag.text, a.choose.label]), [["r", "Lantern", "awaiting", "choose"]]);
   assert.deepEqual(p.closed.map((c) => c.id), ["c"], "it is not also listed as closed");
   const html = render(p);
-  assert.match(html, /acks-extras-research__awaiting-row[\s\S]*awaiting[\s\S]*<button type="button" class="acks-btn" disabled[^>]*>choose</, "the control is drawn and disabled");
-  assert.doesNotMatch(html, /data-action="chooseRitual/, "and wired to nothing");
+  assert.match(html, /acks-extras-research__awaiting-row[\s\S]*awaiting[\s\S]*<button type="button" class="acks-btn" data-action="chooseResearchPlacement" data-research-control data-tooltip-text="chooseTip">choose</, "the owner's control is wired and live");
+  const other = panel({ projects: [{ id: "r", kind: "ritual", level: 5, researcher: "A.pell", subject: { name: "Lantern" }, status: "closed", closed: 4, outcome: { result: "success", day: 4, pending: "placement" } }] });
+  assert.deepEqual([other.awaiting[0].choose.live, other.awaiting[0].choose.tip], [false, "chooseOwnerTip"], "another character's ritual is not the viewer's to place");
+  assert.match(render(other), /data-action="chooseResearchPlacement" disabled data-tooltip-text="chooseOwnerTip"/, "its control is drawn disabled, with the reason");
+  assert.equal(panel({ projects: [{ id: "r", kind: "ritual", researcher: "A.pell", subject: { name: "Lantern" }, status: "closed", closed: 4, outcome: { result: "success", day: 4, pending: "placement" } }] }, { judge: true }).awaiting[0].choose.live, true, "a Judge's is live");
 });
+
+t("a project that is not a cast ritual never offers Choose…", () => {
+  const wait = { result: "success", day: 4, pending: "placement" };
+  const p = panel({ projects: [
+    { id: "s", kind: "spell", researcher: "A.hero", subject: { name: "Old" }, status: "closed", closed: 4, outcome: wait },
+    { id: "f", kind: "ritual", researcher: "A.hero", subject: { name: "Failed" }, status: "closed", closed: 4, outcome: { result: "failure", day: 4 } },
+    { id: "o", kind: "ritual", level: 5, researcher: "A.hero", subject: { name: "Open" }, status: "open", costs: { research: 90, component: 100 } },
+    { id: "d", kind: "ritual", researcher: "A.hero", subject: { name: "Answered" }, status: "closed", closed: 4, outcome: { result: "success", day: 4, placed: "scroll" } },
+  ] });
+  assert.deepEqual(p.awaiting, [], "no spell, failed, open or answered project waits on a placement");
+  assert.deepEqual(p.closed.map((c) => c.id).sort(), ["d", "f", "s"]);
+  assert.doesNotMatch(render(p), /chooseResearchPlacement/);
+});
+
+/* ------------------------------ where a cast ritual's effect goes (M-r2b) ------------------------------ */
+
+const WAND = { documentName: "Item", uuid: "A.hero.Item.rod", name: "Invented Rod", type: "item", hasCharges: true, kind: "", currency: false, parentUuid: "A.hero" };
+
+t("the placement prompt: the drop zone is live for a charge alone, and Confirm waits for an item a charge can go in", () => {
+  const ask = (mode, item, judge = false) => M.placementState(mode, item, { researcher: "A.hero", judge });
+  assert.deepEqual(ask("now", null), { ok: true, why: "", dropActive: false });
+  assert.deepEqual(ask("scroll", null), { ok: true, why: "", dropActive: false });
+  assert.deepEqual(ask("charge", null), { ok: false, why: "needItem", dropActive: true }, "no item dropped: Confirm is held");
+  assert.deepEqual(ask("charge", WAND), { ok: true, why: "", dropActive: true });
+  assert.deepEqual(ask("charge", { ...WAND, documentName: "Actor" }).why, "chargeItem");
+  assert.deepEqual(ask("charge", { ...WAND, hasCharges: false }).why, "chargeKind", "a type with no charges takes none");
+  assert.deepEqual(ask("charge", { ...WAND, kind: "potion" }).why, "chargeKind", "a consumable is used up whole");
+  assert.deepEqual(ask("charge", { ...WAND, kind: "scroll" }).why, "chargeKind");
+  assert.equal(ask("charge", { ...WAND, kind: "weapon" }).ok, true, "any other magic kind takes it");
+  assert.deepEqual(ask("charge", { ...WAND, parentUuid: "" }).why, "chargeHeld");
+  assert.deepEqual(ask("charge", { ...WAND, parentUuid: "A.pell" }).why, "itemOwner", "a Player's is the researcher's alone");
+  assert.equal(ask("charge", { ...WAND, parentUuid: "A.pell" }, true).ok, true, "a Judge may store into any held item");
+  assert.equal(ask("elsewhere", null).ok, false);
+  assert.deepEqual(M.cleanStored([{ uuid: "Item.s", name: "Lantern", project: "r1", day: 3 }, { uuid: "Item.s", name: "Lantern", project: "r1" }, {}, { name: "Glow", project: "r2" }]).map((e) => [e.name, e.project, e.day]), [["Lantern", "r1", 3], ["Glow", "r2", null]], "a project stores its effect once, and a row naming no spell is dropped");
+});
+
+/** A closed ritual project awaiting where its effect goes, over invented writers that record what they are asked. */
+function placeRig({ judge = false, owned = ["A.hero"], items = { [WAND.uuid]: WAND }, failing = [], canPlace, relay, project = {} } = {}) {
+  const calls = [];
+  const cards = [];
+  const made = [];
+  const loc = { uuid: "L.p", flag: { facilities: {}, projects: [{ id: "r1", kind: "ritual", level: 5, researcher: "A.hero", subject: { uuid: "Item.spell", name: "Lantern" }, costs: { research: 90, component: 100 }, status: "closed", closed: 10, outcome: { result: "success", die: 18, total: 18, target: 16, day: 10, pending: "placement" }, ...project }] } };
+  const deps = {
+    read: (l) => l.flag,
+    write: async (l, patch) => {
+      calls.push("write");
+      l.flag = { ...l.flag, ...patch };
+    },
+    canWrite: () => true,
+    ...(canPlace ? { canPlace } : {}),
+    relay: relay ?? (async () => undefined),
+    today: () => 11,
+    isJudge: () => judge,
+    owns: (u) => judge || owned.includes(u),
+    linked: () => ["A.hero", "A.pell"],
+    levelOf: () => 5,
+    intBonusOf: () => 0,
+    tables: () => FIN,
+    newId: () => "n1",
+    outcome: {
+      heldItem: async (uuid) => items[uuid] ?? null,
+      place: async (p, mode, { item, entry }) => {
+        calls.push(`place:${mode}`);
+        if (failing.includes("place")) throw new Error("place failed");
+        made.push({ mode, item, entry });
+        return { what: mode, name: mode === "charge" ? item.name : "Scroll of Lantern" };
+      },
+      placeCard: async (c) => {
+        calls.push("card");
+        if (failing.includes("card")) throw new Error("card failed");
+        cards.push(c);
+      },
+    },
+  };
+  return { loc, ops: M.projectOps(deps), calls, cards, made, now: () => M.readRecord(loc.flag).projects[0] };
+}
+
+await ta("a cast ritual's effect goes on a new scroll: the wait is answered, the scroll is asked for with the effect, and one card names it", async () => {
+  const f = placeRig();
+  const r = await f.ops.place(f.loc, "r1", { mode: "scroll" });
+  assert.deepEqual([r.ok, r.mode, r.spell, r.written.what, r.failed], [true, "scroll", { uuid: "Item.spell", name: "Lantern" }, "scroll", []]);
+  assert.deepEqual(f.now().outcome, { result: "success", die: 18, total: 18, target: 16, day: 10, placed: "scroll" }, "pending is cleared and the answer kept");
+  assert.equal(f.now().status, "closed");
+  assert.deepEqual(f.made[0].entry, { uuid: "Item.spell", name: "Lantern", project: "r1", day: 11 }, "the writer is handed the effect the item will record");
+  assert.deepEqual(f.calls, ["write", "place:scroll", "card"]);
+  assert.equal(f.cards[0].mode, "scroll");
+  assert.equal((await f.ops.place(f.loc, "r1", { mode: "scroll" })).reason, "notAwaiting", "a second press finds it answered and makes no second scroll");
+  assert.equal(f.made.length, 1);
+});
+
+await ta("a cast ritual's effect goes as a charge in an item the researcher holds; the item is read here and a Player's must be theirs", async () => {
+  const f = placeRig();
+  const r = await f.ops.place(f.loc, "r1", { mode: "charge", itemUuid: WAND.uuid });
+  assert.deepEqual([r.ok, r.written.what, r.written.name, f.made[0].item.uuid, f.now().outcome.placed, f.now().outcome.pending], [true, "charge", "Invented Rod", WAND.uuid, "charge", undefined]);
+  const noItem = placeRig();
+  assert.deepEqual([(await noItem.ops.place(noItem.loc, "r1", { mode: "charge" })).reason, noItem.calls, noItem.now().outcome.pending], ["chargeItem", [], "placement"], "no item named: nothing is written and the ritual still waits");
+  const theirs = placeRig({ items: { "A.pell.Item.rod": { ...WAND, uuid: "A.pell.Item.rod", parentUuid: "A.pell" } } });
+  assert.deepEqual([(await theirs.ops.place(theirs.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" })).reason, theirs.calls], ["itemOwner", []], "a Player is refused another character's item");
+  const judges = placeRig({ judge: true, items: { "A.pell.Item.rod": { ...WAND, uuid: "A.pell.Item.rod", parentUuid: "A.pell" } } });
+  assert.equal((await judges.ops.place(judges.loc, "r1", { mode: "charge", itemUuid: "A.pell.Item.rod" })).ok, true, "a Judge's may be any held item");
+  const potion = placeRig({ items: { [WAND.uuid]: { ...WAND, kind: "potion" } } });
+  assert.equal((await potion.ops.place(potion.loc, "r1", { mode: "charge", itemUuid: WAND.uuid })).reason, "chargeKind");
+});
+
+await ta("taking the effect now writes no item: it answers the wait and posts the card", async () => {
+  const f = placeRig();
+  const r = await f.ops.place(f.loc, "r1", { mode: "now" });
+  assert.deepEqual([r.ok, r.written, f.calls, f.now().outcome.placed], [true, null, ["write", "card"], "now"]);
+});
+
+await ta("a Player is refused another character's ritual and an unknown placement; nothing is written", async () => {
+  const f = placeRig({ owned: [] });
+  assert.deepEqual([(await f.ops.place(f.loc, "r1", { mode: "scroll" })).reason, f.calls], ["owner", []]);
+  const g = placeRig();
+  assert.deepEqual([(await g.ops.place(g.loc, "r1", { mode: "elsewhere" })).reason, g.calls], ["placement", []]);
+  assert.equal((await g.ops.place(g.loc, "nope", { mode: "scroll" })).reason, "notAwaiting");
+  const spellProject = placeRig({ project: { kind: "spell", outcome: { result: "success", day: 10, pending: "placement" } } });
+  assert.equal((await spellProject.ops.place(spellProject.loc, "r1", { mode: "scroll" })).reason, "notAwaiting", "only a cast ritual is placed");
+  const open = placeRig({ project: { status: "open", closed: null, outcome: null } });
+  assert.equal((await open.ops.place(open.loc, "r1", { mode: "scroll" })).reason, "notAwaiting");
+});
+
+await ta("a writer that throws puts the wait back and posts nothing; a card that throws is reported and the placement stands", async () => {
+  const f = placeRig({ failing: ["place"] });
+  const r = await f.ops.place(f.loc, "r1", { mode: "scroll" });
+  assert.deepEqual([r.ok, r.reason, f.now().outcome.pending, f.now().outcome.placed, f.calls], [false, "placeFailed", "placement", undefined, ["write", "place:scroll", "write"]]);
+  const g = placeRig({ failing: ["card"] });
+  const s = await g.ops.place(g.loc, "r1", { mode: "scroll" });
+  assert.deepEqual([s.ok, s.failed.map((x) => x.what), g.now().outcome.placed], [true, ["card"], "scroll"]);
+});
+
+await ta("a placement runs where the seat may write what it touches, else is relayed to the Judge's client as the requester's", async () => {
+  const relayed = [];
+  const f = placeRig({ canPlace: () => false, relay: async (req) => { relayed.push(req); return { ok: true, relayed: true }; } });
+  const r = await f.ops.place(f.loc, "r1", { mode: "charge", itemUuid: WAND.uuid });
+  assert.deepEqual([r.relayed, relayed[0].op, relayed[0].args], [true, "place", { id: "r1", mode: "charge", itemUuid: WAND.uuid }]);
+  assert.ok(Object.values(M.PROJECT_OP).includes("place"), "the GM's handler accepts the op");
+  assert.equal(f.calls.length, 0, "nothing ran here");
+});
+
+await ta("the live writers: a scroll is made for the researcher as a magic scroll holding the effect; a charge raises the count and the maximum with it", async () => {
+  const posted = [];
+  globalThis.ChatMessage = { create: async (data) => { posted.push(data); return data; }, getSpeaker: ({ actor: a }) => ({ actor: a.uuid }) };
+  const embedded = [];
+  const hero = actor("A.hero", "character", { createEmbeddedDocuments: async (kind, rows) => { embedded.push(...rows); return rows.map((r, i) => ({ id: `n${i}`, uuid: `A.hero.Item.n${i}`, name: r.name })); } });
+  const updates = [];
+  const rod = { documentName: "Item", uuid: "A.hero.Item.rod", name: "Invented Rod", type: "item", parent: hero, system: { charges: { value: 2, max: 1 } }, flags: { "acks-extras": { magic: { stored: [{ uuid: "Item.old", name: "Glow", project: "r0", day: 2 }] } } }, update: async (data) => updates.push(data) };
+  const plain = { documentName: "Item", uuid: "A.hero.Item.sword", name: "Invented Sword", type: "weapon", parent: hero, system: {}, flags: { "acks-extras": { markets: { magic: true, kind: "weapon" } } } };
+  globalThis.fromUuid = async (uuid) => state.actors.get(uuid) ?? null;
+  for (const a of [hero, rod, plain]) state.actors.set(a.uuid, a);
+  const out = L.liveDeps().outcome;
+  const entry = { uuid: "Item.spell", name: "Lantern", project: "r1", day: 11 };
+  const project = { researcher: "A.hero", subject: { uuid: "Item.spell", name: "Lantern", img: "lantern.png" }, kind: "ritual" };
+  const scroll = await out.place(project, "scroll", { item: null, entry });
+  assert.deepEqual([scroll.what, scroll.actor, embedded[0].type, embedded[0].img], ["scroll", "hero", "item", "lantern.png"]);
+  assert.deepEqual([embedded[0].flags["acks-extras"].markets.magic, embedded[0].flags["acks-extras"].markets.kind, embedded[0].flags["acks-extras"].markets.identified], [true, "scroll", "full"], "the markets flag marks it a scroll");
+  assert.deepEqual(embedded[0].flags["acks-extras"].magic.stored, [entry], "and the held effect is recorded under the module's magic flag");
+  const charge = await out.place(project, "charge", { item: heldInfo(rod), entry });
+  assert.deepEqual([charge.what, charge.charges, updates[0]["system.charges.value"], updates[0]["system.charges.max"]], ["charge", 3, 3, 3], "one more charge, and the maximum raised to match where it was below");
+  assert.deepEqual(updates[0]["flags.acks-extras.magic.stored"].map((e) => e.name), ["Glow", "Lantern"], "the list keeps the effects already stored");
+  assert.deepEqual([OL.heldItemInfo(rod).hasCharges, OL.heldItemInfo(rod).parentUuid, OL.heldItemInfo(plain).hasCharges, OL.heldItemInfo(plain).kind, OL.heldItemInfo(null)], [true, "A.hero", false, "weapon", null], "only the plain item type carries charges");
+  await out.placeCard({ project, mode: "scroll", written: scroll });
+  assert.match(posted[0].content, /card\.placed\.scroll/, "one card names where it went");
+  assert.equal(posted.length, 1);
+  delete globalThis.ChatMessage;
+  delete globalThis.fromUuid;
+  state.actors.clear();
+});
+
+function heldInfo(doc) {
+  return OL.heldItemInfo(doc);
+}
 
 const ritualCard = { id: "a", kind: "ritual", level: 5, subject: { name: "Lantern" }, researcher: "A.hero", costs: { research: 90, component: 100 }, credited: [{ day: 1, amount: 90, by: "A.hero" }], bucket: [] };
 
@@ -2181,6 +2356,24 @@ t("the tab writes the common check through update as a boolean", () => {
   assert.ok(M.UPDATE_FIELDS.includes("common") && M.JUDGE_FIELDS.includes("common"));
   const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
   assert.equal(lang["ACKS-MAGIC.research.commonLabel"], "Common spell (no throw)");
+});
+
+t("the sheet wires Choose… to a prompt in the scroll contract whose Confirm waits on the model, and takes the effect now before it answers", () => {
+  const tab = fs.readFileSync("scripts/magic/research-tab.mjs", "utf8");
+  assert.match(tab, /chooseResearchPlacement: onChoosePlacement/);
+  assert.match(tab, /placementState\(modeOf\(\), picked/, "Confirm is held by the model's verdict");
+  assert.match(tab, /classes: DIALOG_CLASSES,\n\s+window: \{ title: loc\("placeTitle"/, "the prompt names the module classes (scroll contract, drag corner)");
+  assert.doesNotMatch(tab, /instanceof/, "a node is told by nodeType");
+  assert.ok(tab.indexOf("takeEffectNow(project)") < tab.indexOf("researchApi.place(this.actor, id, { mode: answer.mode"), "the cast comes first, so a cancelled cast leaves the ritual waiting");
+  assert.doesNotMatch(tab, /createEmbeddedDocuments|\.update\(\{ "system/, "no writer of the placement is in the sheet's file");
+  const lang = JSON.parse(fs.readFileSync("lang/en.json", "utf8"));
+  const used = [...tab.matchAll(/loc\(\s*["`]([\w.]+)["`]/g), ...tab.matchAll(/loc\(`(placeTip|place)\.\$\{/g)].map((m) => m[1]);
+  for (const key of ["place.now", "place.scroll", "place.charge", "placeTip.now", "placeTip.scroll", "placeTip.charge", "placeTitle", "placeLegend", "placeDrop", "placeDropTip", "placeConfirm", "refused.needItem", "refused.chargeItem", "refused.chargeKind", "refused.chargeHeld", "refused.itemOwner", "refused.notAwaiting", "refused.placement", "refused.placeFailed", "refused.spellGone", "chooseOwnerTip", "scrollName", "card.placed.now", "card.placed.scroll", "card.placed.charge"]) {
+    assert.equal(typeof lang["ACKS-MAGIC.research." + key], "string", key);
+  }
+  assert.ok(used.includes("placeTitle") && used.includes("placeConfirm"));
+  const tpl = fs.readFileSync("templates/magic/research-tab.hbs", "utf8");
+  assert.doesNotMatch(tpl, /\sid="/, "no literal id in the template");
 });
 
 console.log(`research-project: ${n} cases passed`);

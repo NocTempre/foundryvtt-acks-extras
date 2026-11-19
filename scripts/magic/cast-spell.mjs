@@ -574,7 +574,7 @@ async function castRitual(spell, deps) {
  * @param {Item} spell
  * @param {() => Promise<boolean>} spend  the seam's once-only door to the system's cast
  * @param {object} [deps]  see `liveDeps`
- * @param {{skipDialog?: boolean}} [options]  the cast's options from the seam
+ * @param {{skipDialog?: boolean, fromProject?: boolean}} [options]  the cast's options from the seam; `fromProject` resolves the effect of a ritual a finished project cast (`castFromProject`): the ritual is not claimed again, and the cast takes no slot, reads no turn and leaves no declaration
  * @returns {Promise<{ok: boolean, reason?: string, castId?: string, messageId?: string}>}
  */
 export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}) {
@@ -582,9 +582,12 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   await deps.ready?.();
   const extras = flagOf(spell);
   // A ritual is not cast from a slot or a turn: its dialog names a location and the cast opens a project there.
-  if (extras.ritual === true) return castRitual(spell, deps);
+  const fromProject = options.fromProject === true;
+  if (extras.ritual === true && !fromProject) return castRitual(spell, deps);
   const { rows: all } = rowsOf(spell, deps.lookups);
-  const world = await deps.read(spell);
+  const read = await deps.read(spell);
+  // A cast from a project was the project: no slot, no turn, no declaration and no tradition procedure (its throw and its spends) stand behind it, so none is read.
+  const world = fromProject ? { ...read, capacity: null, cap: null, tradition: null, combat: null, combatant: null, declarations: [], prepareSpell: false } : read;
   // The seat's targets are read apart from the world: the dialog is a bucket the seat fills and empties, and the cast reads them again once it is answered.
   const readSeat = () => deps.targets?.(world) ?? { tokens: world.tokens ?? [], gaps: world.gaps ?? {} };
   let seat = readSeat();
@@ -794,8 +797,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   for (const v of verdicts) tell(v, "verdict");
 
-  // A declaration being resolved was spent at its declaring.
-  if (!resolving) {
+  // A declaration being resolved was spent at its declaring, and a cast from a project at the project.
+  if (!resolving && !fromProject) {
     await spend();
     if (spendsFromPool(world.capacity)) await deps.adjustPool(caster, world.capacity.tradition, world.capacity.slotKey);
   }
@@ -1003,6 +1006,15 @@ async function applyAll(message, deps) {
   }
   return results;
 }
+
+/**
+ * Resolve the effect of a ritual a finished project cast (board 17 part C, "Take effect now"): the ordinary cast dialog and
+ * card for the researcher's own spell item, with nothing spent, no throw made for the cast and no turn read.
+ * @param {Item} spell  the researcher's own ritual spell item
+ * @param {object} [deps]  see `liveDeps`
+ * @returns {Promise<{ok: boolean, reason?: string, castId?: string, messageId?: string}>}
+ */
+export const castFromProject = (spell, deps = liveDeps()) => castSpellRun(spell, async () => true, deps, { fromProject: true });
 
 /**
  * The claimant for the cast seam. `claims` is synchronous.

@@ -82,7 +82,7 @@ export const PACE = Object.freeze({ dedicated: "dedicated", ancillary: "ancillar
 export const PACES = Object.freeze(Object.values(PACE));
 
 /** The operations a request names. */
-export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", postRange: "postRange", withdraw: "withdraw", credit: "credit", finish: "finish" });
+export const PROJECT_OP = Object.freeze({ create: "create", update: "update", close: "close", facility: "facility", post: "post", postRange: "postRange", withdraw: "withdraw", credit: "credit", finish: "finish", place: "place" });
 
 /** The die a research throw rolls; the throw is the die and the throw's modifiers against the target. */
 export const THROW_DIE = "1d20";
@@ -147,6 +147,68 @@ export const NO_THROW = Object.freeze({ formula: "formula", common: "common" });
 
 /** What a closed project still waits on: a cast ritual waits for the caster to say where its effect goes. */
 export const PENDING = Object.freeze({ placement: "placement" });
+
+/** Where a cast ritual's effect goes: taken at once, stored on a new scroll, or stored as one charge in an item. */
+export const PLACEMENT = Object.freeze({ now: "now", scroll: "scroll", charge: "charge" });
+
+/**
+ * The key, under `flags["acks-extras"].magic` on a scroll or a charged item, of the effects stored in it: a list of
+ * `{uuid, name, project, day}`, one row per stored effect (`uuid` and `name` are the researcher's ritual spell, `project`
+ * the project that stored it). The item's `system.charges` counts the charges; this list says whose they are.
+ */
+export const STORED_KEY = "stored";
+
+/** The stored effects as `[{uuid, name, project, day}]`: a row naming no spell is dropped, and a project stores one effect once. */
+export function cleanStored(raw) {
+  const out = [];
+  for (const row of Array.isArray(raw) ? raw : []) {
+    const entry = { uuid: str(row?.uuid), name: str(row?.name), project: str(row?.project), day: dayOf(row?.day) };
+    if (!entry.uuid && !entry.name) continue;
+    if (entry.project && out.some((e) => e.project === entry.project)) continue;
+    out.push(entry);
+  }
+  return out;
+}
+
+/** The stored effects with this one added; the list as it was where the project already stored its effect. */
+export function withStored(stored, entry) {
+  const held = cleanStored(stored);
+  const next = cleanStored([...held, entry]);
+  return next.length === held.length ? held : next;
+}
+
+/** The markets magic kinds a charge cannot be stored in: a consumable is used up whole. */
+const CONSUMABLE_KINDS = Object.freeze(["potion", "scroll"]);
+
+/**
+ * Why an item cannot take a stored charge, or "" where it can. `item` is what the world says of it,
+ * `{documentName, hasCharges, kind, currency, parentUuid}`: `hasCharges` is whether its type carries `system.charges`,
+ * `kind` its markets magic kind. The researcher must hold it; a Judge may store into any held item.
+ * Reasons are `refused.<reason>` strings: `chargeItem` (not an item), `chargeKind` (no charges, or a consumable), `chargeHeld`
+ * (nobody holds it), `itemOwner` (a Player's other than the researcher's).
+ */
+export function chargeRefusal(item, { researcher, judge = false } = {}) {
+  if (!item || item.documentName !== "Item") return "chargeItem";
+  if (item.hasCharges !== true || item.currency === true || CONSUMABLE_KINDS.includes(item.kind)) return "chargeKind";
+  if (!item.parentUuid) return "chargeHeld";
+  if (!judge && item.parentUuid !== researcher) return "itemOwner";
+  return "";
+}
+
+/**
+ * What the placement prompt shows for a choice: `{ok, why, dropActive}`. The drop zone is live for a charge alone, and Confirm
+ * is held for a charge until the dropped item (`item`, null before one is dropped) is one a charge can go in.
+ */
+export function placementState(mode, item, { researcher, judge = false } = {}) {
+  if (!Object.values(PLACEMENT).includes(mode)) return { ok: false, why: "placement", dropActive: false };
+  if (mode !== PLACEMENT.charge) return { ok: true, why: "", dropActive: false };
+  if (!item) return { ok: false, why: "needItem", dropActive: true };
+  const why = chargeRefusal(item, { researcher, judge });
+  return { ok: why === "", why, dropActive: true };
+}
+
+/** Is this a closed ritual project still waiting on where its effect goes? Only a ritual that was cast ever is. */
+const awaitsPlacement = (p) => p.status === "closed" && p.kind === PROJECT_KIND.ritual && p.outcome?.pending === PENDING.placement;
 
 /** The most days one range post takes: a bound on one write, not a rule of the book. */
 export const RANGE_MAX = 366;
@@ -255,13 +317,14 @@ const num = (raw) => (raw === null || raw === undefined || raw === "" || !Number
 /**
  * What Finish came to as stored: `{result, die, total, target, day}`, or null where there is none to read. A Finish
  * that made no throw has no die, total or target and names why in `noThrow` (`NO_THROW`); a cast ritual names what it
- * waits on in `pending` (`PENDING`).
+ * waits on in `pending` (`PENDING`) until the caster answers, and then names the answer in `placed` (`PLACEMENT`).
  */
 export function cleanOutcome(raw) {
   if (!raw || typeof raw !== "object" || !["success", "failure"].includes(raw.result)) return null;
   const noThrow = Object.values(NO_THROW).includes(raw.noThrow) ? raw.noThrow : null;
   const pending = Object.values(PENDING).includes(raw.pending) ? raw.pending : null;
-  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day), ...(noThrow ? { noThrow } : {}), ...(pending ? { pending } : {}) };
+  const placed = Object.values(PLACEMENT).includes(raw.placed) ? raw.placed : null;
+  return { result: raw.result, die: num(raw.die), total: num(raw.total), target: num(raw.target), day: dayOf(raw.day), ...(noThrow ? { noThrow } : {}), ...(pending ? { pending } : {}), ...(placed ? { placed } : {}) };
 }
 
 /**
@@ -736,7 +799,8 @@ export function finishState(project, prog, plan, { subjectType = null } = {}) {
  * `tables()` the imported research tables, `newId()`, and, for the rates a day is
  * worth, `levelOf(uuid)` a participant's class level (null where there is none) and
  * `intBonusOf(uuid)` an Intellect bonus. A Finish adds `outcome` (the world's half, `finish` lists it) and
- * `canFinish(location, id)`, whether this seat may write everything a Finish touches.
+ * `canFinish(location, id)`, whether this seat may write everything a Finish touches, and `place` (the writers of where a cast ritual's
+ * effect goes, `outcome.place`, `outcome.heldItem`, `outcome.placeCard`) with `canPlace(location, args)`, whether this seat may write what a placement touches.
  */
 export function projectOps(deps) {
   const recordOf = (location) => readRecord(deps.read(location));
@@ -820,6 +884,49 @@ export function projectOps(deps) {
     return { ok: true, id: project.id, outcome: stamp.result, ...(waits ? { pending: PENDING.placement } : {}), die: result.die, total: result.total, target: result.target, auto: result.auto, modifier: plan.modifier, formula: plan.formula, noThrow: plan.noThrow, written, failed, settled, ...(gate.warn ? { warn: gate.warn, warns: gate.warns } : {}) };
   }
 
+  /**
+   * Say where a cast ritual's effect goes (ruling 224): the closed project that waits on it (`pending: "placement"`) is stamped
+   * answered, and a scroll is made or a charge stored. A scroll or a charge is written after the stamp, so a second press finds the
+   * project answered; a writer that throws puts the wait back and nothing more is posted. `take effect now` writes nothing here: the
+   * cast that resolves the effect opens on the requester's own client, which asks this only once it has been made. An item for
+   * a charge is read here, and a Player's must be the researcher's (`chargeRefusal`).
+   */
+  async function place(location, record, args, who) {
+    const out = deps.outcome;
+    if (!out?.place) return { ok: false, reason: "op" };
+    const judge = who.judge === true;
+    const project = record.projects.find((p) => p.id === args.id);
+    if (!project || !awaitsPlacement(project)) return { ok: false, reason: "notAwaiting" };
+    if (!judge && who.owns(project.researcher) !== true) return { ok: false, reason: "owner" };
+    if (!Object.values(PLACEMENT).includes(args.mode)) return { ok: false, reason: "placement" };
+    const item = args.mode === PLACEMENT.charge ? await out.heldItem(str(args.itemUuid)) : null;
+    if (args.mode === PLACEMENT.charge) {
+      const why = chargeRefusal(item, { researcher: project.researcher, judge });
+      if (why) return { ok: false, reason: why };
+    }
+    const today = deps.today();
+    const { pending: _waited, ...answered } = project.outcome;
+    const stamped = (outcome) => record.projects.map((p) => (p.id === project.id ? { ...p, outcome } : p));
+    await deps.write(location, { projects: stamped({ ...answered, placed: args.mode }) });
+    const entry = { uuid: project.subject.uuid, name: project.subject.name, project: project.id, day: Number.isFinite(today) ? today : null };
+    let written = null;
+    if (args.mode !== PLACEMENT.now) {
+      try {
+        written = await out.place(project, args.mode, { item, entry });
+      } catch (err) {
+        await deps.write(location, { projects: stamped(project.outcome) });
+        return { ok: false, reason: "placeFailed", error: String(err?.message ?? err) };
+      }
+    }
+    const failed = [];
+    try {
+      await out.placeCard({ project, mode: args.mode, written });
+    } catch (err) {
+      failed.push({ what: "card", error: String(err?.message ?? err) });
+    }
+    return { ok: true, id: project.id, mode: args.mode, spell: { uuid: project.subject.uuid, name: project.subject.name }, written, failed };
+  }
+
   /** Run one op here, on a location this client may write; `who` is the requester's: `{judge, owns(uuid)}`. */
   async function apply(location, op, args, who) {
     if (!location) return { ok: false, reason: "noLocation" };
@@ -875,6 +982,8 @@ export function projectOps(deps) {
       if (credited) await deps.write(location, { projects: next });
       return { ok: true, credited };
     }
+
+    if (op === PROJECT_OP.place) return place(location, record, args, who);
 
     const project = projectOf(args.id);
     if (!project || project.status !== "open") return { ok: false, reason: "noProject" };
@@ -968,7 +1077,7 @@ export function projectOps(deps) {
   async function run(location, op, args = {}) {
     const who = { judge: deps.isJudge(), owns: (uuid) => deps.owns(uuid) };
     // A Finish writes documents beyond the location (the researcher, the components, the subject), so the seat must be able to write all of them.
-    const here = op === PROJECT_OP.finish && deps.canFinish ? deps.canFinish(location, args.id) : deps.canWrite(location);
+    const here = op === PROJECT_OP.finish && deps.canFinish ? deps.canFinish(location, args.id) : op === PROJECT_OP.place && deps.canPlace ? deps.canPlace(location, args) : deps.canWrite(location);
     if (here) return apply(location, op, args, who);
     const answer = await deps.relay({ locationUuid: location?.uuid, op, args });
     return answer && typeof answer === "object" ? answer : { ok: false, reason: "noGm" };
@@ -992,6 +1101,8 @@ export function projectOps(deps) {
     credit: (location, id) => run(location, PROJECT_OP.credit, id ? { id } : {}),
     /** A project finished: the throw, the outcome stamped as it closes, the result written, the bucket settled and the card posted (`finish`). */
     finish: (location, id) => run(location, PROJECT_OP.finish, { id }),
+    /** A cast ritual's effect placed: `{mode, itemUuid}` (`PLACEMENT`; the item is for `charge`); see `place`. */
+    place: (location, id, { mode, itemUuid } = {}) => run(location, PROJECT_OP.place, { id, mode, itemUuid }),
     /** A project closed: it stays on the record and counts for no facility. */
     close: (location, id) => run(location, PROJECT_OP.close, { id }),
     /** A facility's value in gold, null to blank it; the Judge's. */
@@ -1252,9 +1363,12 @@ export function panelModel({ record, tables, linked, today, loc, bucketLoc, judg
     facilities,
     projects,
     openCount: open.length,
-    // A cast ritual waits for the caster to say where its effect goes; the choice is the next slice's, so its control is drawn off.
-    awaiting: record.projects.filter((p) => p.status === "closed" && p.outcome?.pending === PENDING.placement).map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), tag: { text: loc("awaiting"), tip: loc("awaitingTip") }, choose: { label: loc("choose"), tip: loc("chooseTip") } })),
-    closed: record.projects.filter((p) => p.status === "closed" && p.outcome?.pending !== PENDING.placement).map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), day: p.closed ?? "", dayText: p.closed === null ? "" : loc("closedOn", { day: p.closed }) })),
+    // A cast ritual waits for the caster to say where its effect goes: Choose is live for a Judge and for the researcher's owner.
+    awaiting: record.projects.filter(awaitsPlacement).map((p) => {
+      const can = judge || owns(p.researcher) === true;
+      return { id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), researcher: p.researcher, tag: { text: loc("awaiting"), tip: loc("awaitingTip") }, choose: { label: loc("choose"), tip: can ? loc("chooseTip") : loc("chooseOwnerTip"), live: can } };
+    }),
+    closed: record.projects.filter((p) => p.status === "closed" && !awaitsPlacement(p)).map((p) => ({ id: p.id, name: p.subject.name || loc(`kind.${p.kind}`), day: p.closed ?? "", dayText: p.closed === null ? "" : loc("closedOn", { day: p.closed }) })),
     canCreate: linked.some((a) => judge || owns(a.uuid) === true),
     createLabel: loc("newProject"),
     noLinked: linked.length === 0,

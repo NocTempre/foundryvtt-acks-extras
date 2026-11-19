@@ -16,8 +16,8 @@
  * write everything it touches it runs here, otherwise the GM's client runs it for the sender.
  */
 import { MODULE_ID, LANG_PREFIX, FLAG_MAGIC, PROJECT_HANDLER } from "./constants.mjs";
-import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, THROW_DIE, COMPONENT_FIT, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText, throwPlan, subjectRef, knowsFormula } from "./research-project.mjs";
-import { outcomeDeps, canFinish, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf } from "./research-outcome-live.mjs";
+import { PROJECT_KIND, PROJECT_KINDS, FACILITY, FACILITY_KEYS, PROJECT_OP, PACE, PACES, KIND_FACILITIES, UPDATE_FIELDS, RANGE_MAX, THROW_DIE, COMPONENT_FIT, PLACEMENT, projectOps, readRecord, facilityVerdicts, facilityGate, linksFor, openProjects, progressOf, daysText, throwPlan, subjectRef, knowsFormula } from "./research-project.mjs";
+import { outcomeDeps, canFinish, canPlace, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf, heldItemInfo, takeEffectNow } from "./research-outcome-live.mjs";
 import { readResearchTables } from "./research-tables.mjs";
 import { dayOfWorldTime, onWorldTimeAdvanced } from "../lib/world-time.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
@@ -115,10 +115,11 @@ export const liveDeps = () => ({
   tables: () => readResearchTables(),
   newId: () => foundry.utils.randomID(),
   canFinish,
+  canPlace,
   outcome: outcomeDeps(),
 });
 
-export { projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf };
+export { projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf, heldItemInfo, takeEffectNow };
 
 const ops = () => projectOps(liveDeps());
 
@@ -289,6 +290,15 @@ export const researchApi = {
    */
   finish: (location, id) => ops().finish(location, id),
   /**
+   * Where a cast ritual's effect goes: `place(location, id, {mode, itemUuid})` with `mode` one of `PLACEMENT` (`now`, `scroll`, `charge`)
+   * answers a closed ritual project that waits on it (refused `notAwaiting` otherwise). `scroll` makes a scroll item for the
+   * researcher; `charge` adds one charge to the item `itemUuid` names (a Player's must be the researcher's; a Judge's may be any
+   * held item); both record the effect in `flags["acks-extras"].magic.stored`. `now` records the answer and posts the card only: the
+   * cast that resolves the effect opens on the seat's own client (`takeEffectNow`), which the Research tab runs first.
+   * Answers `{ok, id, mode, spell, written, failed}`.
+   */
+  place: (location, id, { mode, itemUuid } = {}) => ops().place(location, id, { mode, itemUuid }),
+  /**
    * The throw as the project stands, `{target, by, levelRaise, int, intUnread, bonus, bonusRead, bonusUnread, share, substituted,
    * penalty, penaltyUnread, modifier, formula: {known, used}, noThrow, components}` (`throwPlan`); null for a project that is not on the location.
    */
@@ -305,6 +315,7 @@ export const researchApi = {
   formulas: (actor) => formulasOf(actor?.uuid),
   THROW_DIE,
   COMPONENT_FIT,
+  PLACEMENT,
   /** The projects an actor is on, across the world's locations, as its sheet links to them. Nothing is written on the actor. */
   projectsOf: (actor) => linksFor(worldEntries(), actor?.uuid),
 };

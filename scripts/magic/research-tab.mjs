@@ -14,11 +14,13 @@
  * submit-on-change never sees it: no control writes through the form, and the facility
  * inputs exist only on a Judge's render. The pace radios write nothing: the choice is held
  * per window (`paceMemory`) and read by the Post control. Finish throws the project's research and writes
- * its result through the API; the result is a chat card, so the tab draws nothing for it.
+ * its result through the API; the result is a chat card, so the tab draws nothing for it. A cast ritual waits under
+ * "awaiting" until its Choose… prompt says where the effect goes (`promptPlacement`): taken now through the cast,
+ * stored on a new scroll, or stored as a charge in an item dropped on the prompt.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf } from "./research-project-live.mjs";
-import { PROJECT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, POWER_PILLS, panelModel, componentPolicy, withPowerRow } from "./research-project.mjs";
+import { researchApi, linkedCharacters, recordOf, liveDeps, levelOf, intBonusOf, loc, announce, projectEntries, formulasOf, cookbookOf, subjectTypeOf, partXpOf, heldItemInfo, takeEffectNow } from "./research-project-live.mjs";
+import { PROJECT_KINDS, FACILITY_KEYS, PACE, PACES, RANGE_MAX, POWER_PILLS, PLACEMENT, placementState, panelModel, componentPolicy, withPowerRow } from "./research-project.mjs";
 import { elementOf } from "../lib/util.mjs";
 import { BUCKET_ACTIONS, BUCKET_LANG_PREFIX, BUCKET_TEMPLATE, BUCKET_ROW_TEMPLATE, entriesFromAnswer, entryFromDrop, nextFit } from "../lib/bucket.mjs";
 
@@ -210,6 +212,88 @@ async function onCloseProject(_event, target) {
   this.render();
 }
 
+/**
+ * The prompt behind a cast ritual's Choose…: where the effect goes, and for a charge the item dropped on its zone. Confirm is
+ * held for a charge until the dropped item is one a charge can go in, and the reason shows beside it. Null when dismissed.
+ * @returns {Promise<{mode: string, item: object|null}|null>}
+ */
+async function promptPlacement(project) {
+  const esc = foundry.utils.escapeHTML;
+  const radios = Object.values(PLACEMENT)
+    .map((value, i) => `<label class="acks-extras-research-prompt__radio" data-tooltip-text="${esc(loc(`placeTip.${value}`))}"><input type="radio" name="placement" value="${esc(value)}"${i === 0 ? " checked" : ""}> <span>${esc(loc(`place.${value}`))}</span></label>`)
+    .join("");
+  const content = `<div class="acks-extras-research-prompt">
+    <div class="acks-extras-research-prompt__choice" role="radiogroup" aria-label="${esc(loc("placeLegend"))}">${radios}</div>
+    <div class="acks-extras-research-prompt__drop" data-placement-drop aria-disabled="true" data-tooltip-text="${esc(loc("placeDropTip"))}"><span data-placement-drop-text>${esc(loc("placeDrop"))}</span></div>
+    <span class="acks-extras-research__cap" data-placement-why role="status"></span>
+  </div>`;
+  const researcher = project.researcher;
+  const judge = game.user.isGM === true;
+  let picked = null;
+  return foundry.applications.api.DialogV2.prompt({
+    classes: DIALOG_CLASSES,
+    window: { title: loc("placeTitle", { name: project.subject.name || loc(`kind.${project.kind}`) }), icon: "fa-solid fa-moon" },
+    position: { width: 420 },
+    content,
+    render: (_event, dialog) => {
+      const root = elementOf(dialog?.element);
+      const form = root?.querySelector?.("form") ?? root;
+      if (!form?.querySelector) return;
+      const zone = form.querySelector("[data-placement-drop]");
+      const zoneText = form.querySelector("[data-placement-drop-text]");
+      const why = form.querySelector("[data-placement-why]");
+      const confirm = root.querySelector('button[data-action="ok"]');
+      const modeOf = () => form.querySelector('input[name="placement"]:checked')?.value ?? PLACEMENT.now;
+      const refresh = () => {
+        const state = placementState(modeOf(), picked, { researcher, judge });
+        zone.toggleAttribute("data-active", state.dropActive);
+        zone.setAttribute("aria-disabled", String(!state.dropActive));
+        zoneText.textContent = picked?.name || loc("placeDrop");
+        const reason = state.ok ? "" : loc(`refused.${state.why}`);
+        why.textContent = reason;
+        if (confirm) {
+          confirm.disabled = !state.ok;
+          confirm.setAttribute("data-tooltip-text", reason);
+        }
+      };
+      for (const radio of form.querySelectorAll('input[name="placement"]')) radio.addEventListener("change", refresh);
+      takesDrops(zone, async (data) => {
+        if (placementState(modeOf(), null, { researcher, judge }).dropActive !== true) return;
+        const doc = data?.uuid ? await resolveDoc(data.uuid) : null;
+        picked = heldItemInfo(doc);
+        refresh();
+      });
+      refresh();
+    },
+    ok: {
+      label: loc("placeConfirm"),
+      callback: (_event, button) => ({ mode: button.form.elements.placement.value, item: picked }),
+    },
+  }).catch(() => null);
+}
+
+/**
+ * Press of Choose…: ask where the cast ritual's effect goes and write the answer. Taking the effect now casts first, on this
+ * client, and the project is answered only once the cast went through, so a cancelled cast leaves the ritual waiting.
+ */
+async function onChoosePlacement(_event, target) {
+  const id = projectIdOf(target);
+  const project = recordOf(this.actor).projects.find((p) => p.id === id);
+  if (!project) return;
+  const answer = await promptPlacement(project);
+  if (!answer) return;
+  if (answer.mode === PLACEMENT.now) {
+    const cast = await takeEffectNow(project);
+    if (!cast?.ok) {
+      if (cast?.reason === "spellGone") ui.notifications?.warn(loc("refused.spellGone"));
+      this.render();
+      return;
+    }
+  }
+  announce(await researchApi.place(this.actor, id, { mode: answer.mode, itemUuid: answer.item?.uuid }));
+  this.render();
+}
+
 /** Press of Finish: the project throws and writes its result, where the viewer may; the result is told on the card. */
 async function onFinishProject(_event, target) {
   const id = projectIdOf(target);
@@ -294,6 +378,7 @@ export const RESEARCH_TAB_ACTIONS = {
   withdrawResearchDay: onWithdrawDay,
   closeResearchProject: onCloseProject,
   finishResearchProject: onFinishProject,
+  chooseResearchPlacement: onChoosePlacement,
   removeResearchAssistant: onRemoveAssistant,
   toggleResearchPower: onTogglePower,
   pickResearchPower: onPickPower,
