@@ -43,7 +43,9 @@
  * another kind like the light level. A condition row also edits what ends its
  * record (`endsOn`), the conditions written with no clock (`untimed`, offered
  * from the row's own conditions) and the size strictly above which a target is
- * exempt. A spellcasting row edits its target, figure and the words it narrows
+ * exempt. A tracked kind (`TRACKED_KINDS`) edits `lasts` as the spell's
+ * duration or the instant, and the delayed affliction picks the effects it
+ * holds back (`effects`). A spellcasting row edits its target, figure and the words it narrows
  * on. A store that names a `cite` (the page the row is read from) puts it in
  * the tooltip of a located figure left blank. `extraordinary` is nullable, since a capture that read none is
  * not a "no": its select offers unset, yes and no, and unset stores null. A
@@ -137,7 +139,7 @@ const FIELD_SPECS = {
   saveEffect: { kind: "select", choices: () => vocabChoices("saveEffect") },
   delivery: { kind: "select", choices: () => vocabChoices("effectDelivery") },
   extraordinary: { kind: "select", choices: () => ({ true: loc("field.extraordinaryYes"), false: loc("field.extraordinaryNo") }) },
-  lasts: { kind: "select", choices: () => vocabChoices("effectLasts") },
+  lasts: { kind: "select", choices: (domain, row) => lastsChoices(row) },
   recur: { kind: "select", choices: () => vocabChoices("effectRecur") },
   recurAt: { kind: "select", choices: () => vocabChoices("effectRecurMoment") },
   recurSave: { kind: "select", choices: () => vocabChoices("effectRecurSave") },
@@ -194,6 +196,36 @@ function bucketChoices() {
   return Object.fromEntries(SPELLCASTING_TARGETS.map((key) => [key, loc(`bucket.${key}`)]));
 }
 
+/**
+ * The spell kinds the cast tracks without computing them (a card line and a
+ * record, `magic/cast-kinds.mjs` `APPLY_KINDS`), which the library cannot
+ * import from the feature above it. Their row edits `lasts` as a choice of the
+ * spell's duration or the instant of the cast; `afflictionDelay` also names
+ * the effects it holds back, and `purify` is left out since it ends at the
+ * cast and keeps its quantity field.
+ */
+const TRACKED_KINDS = ["transform", "wall", "detect", "dispel", "illusion", "light", "teleport", "createObject", "structural", "curse", "afflictionDelay", "seal"];
+
+/** The `lasts` values a tracked kind's select offers, in the order shown. */
+const TRACKED_LASTS = ["duration", "instant"];
+
+/** Is this row a tracked kind whose `lasts` select is the short one? */
+const isTrackedRow = (row) => TRACKED_KINDS.includes(row?.type);
+
+/**
+ * The choices of a row's `lasts`: a tracked kind offers the spell's duration
+ * and the instant, under words that name the record; any other kind offers the
+ * whole vocabulary. A stored value outside the short list stays selectable, or
+ * the select would fall to blank and the next change rewrite it.
+ */
+function lastsChoices(row) {
+  const all = vocabChoices("effectLasts");
+  if (!isTrackedRow(row)) return all;
+  const choices = Object.fromEntries(TRACKED_LASTS.map((key) => [key, loc(`lastsTracked.${key}`)]));
+  if (row.lasts && !choices[row.lasts]) choices[row.lasts] = all[row.lasts] ?? row.lasts;
+  return choices;
+}
+
 /** The conditions a row may write with no clock: the ones it lists, and any the row already stores. */
 function untimedChoices(row) {
   const keys = new Set([...(row?.conditions ?? []), ...(row?.untimed ?? [])]);
@@ -232,6 +264,9 @@ function citeOfStore(store) {
 /** The scope fields a modifier or a ward row edits, in the order they are shown. */
 const SCOPE_FIELDS = ["vsKinds", "vsAlignment", "vsAlignmentOf", "vsAlignmentMode", "vsEnemy", "anyOf"];
 
+/** The fields of a kind with no entry of its own in `TYPE_FIELDS`. */
+const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
+
 /** Which fields each kind edits, in the order they are shown; the tail is shared. */
 const TYPE_FIELDS = {
   // A modifier's tail groups what narrows it: scope, the kind the caster picks, the attack kinds, then the gates.
@@ -269,8 +304,11 @@ const TYPE_FIELDS = {
   // Neither kind reads a figure: a save decides whether it lands, and `appliesTo` names who it meets.
   slay: ["appliesTo", "saveEffect", "reversed"],
   destroyItem: ["appliesTo", "saveEffect", "reversed"],
+  // A delayed affliction names the effects it holds back for as long as it lasts.
+  afflictionDelay: ["appliesTo", "effects", "lasts"],
+  // The other tracked kinds keep the default figure fields and add how long the record stands.
+  ...Object.fromEntries(TRACKED_KINDS.filter((kind) => kind !== "afflictionDelay").map((kind) => [kind, [...DEFAULT_FIELDS, "lasts"]])),
 };
-const DEFAULT_FIELDS = ["appliesTo", "value", "range"];
 const TAIL_FIELDS = ["condition", "note"];
 const SET_FIELDS = new Set(["damage", "effects", "conditions", "attackKinds", "endsOn", "untimed"]);
 const LIST_FIELDS = new Set(["refs", "vsKinds", "stacksWith", "notStacksWith", "ifHas", "schools", "elements", "saveCategories"]);
@@ -523,6 +561,9 @@ export class EffectRowEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       if (TIPPED_FIELDS.has(name)) field.tip = loc(`tip.${name}`);
       // A located figure left blank carries the page it is read from, and no figure.
       if (LOCATED_FIELDS.has(name) && cite && !String(field.value ?? "").trim()) field.tip = [field.tip, loc("tip.cite", { cite })].join(" · ");
+      // A tracked kind's tooltips name what the field does to its record, and carry the store's page where it names one.
+      if (name === "lasts" && isTrackedRow(row)) field.tip = [loc("tip.lastsTracked"), cite && loc("tip.cite", { cite })].filter(Boolean).join(" · ");
+      if (name === "effects" && row.type === "afflictionDelay") field.tip = [loc("tip.effectsDelay"), cite && loc("tip.cite", { cite })].filter(Boolean).join(" · ");
       if (name === "gate.light") {
         field.disabled = Boolean(row.gate?.kind) && row.gate.kind !== LIGHT_GATE_KIND;
         field.tip = loc(field.disabled ? "lightLocked" : "lightTip");

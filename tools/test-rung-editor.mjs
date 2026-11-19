@@ -975,4 +975,96 @@ await t("every lang key the rung editor reads is in the lang file, and none of i
   for (const key of mine) assert.ok(used.has(key), `${key} is in the lang file and read nowhere`);
 });
 
+/* ------------------------------------------------------------------ */
+/*  The tracked kinds' Lasts and the delayed affliction's Effects        */
+/* ------------------------------------------------------------------ */
+
+const { fieldsForType } = await import("../scripts/lib/apps/effect-row-editor.mjs");
+const TRACKED = ["transform", "wall", "detect", "dispel", "illusion", "light", "teleport", "createObject", "structural", "curse", "afflictionDelay", "seal"];
+
+/** The window's form as the editor reads it: dotted names expand as core's `expandObject` does. */
+function formOf(fields) {
+  foundry.applications.ux = { FormDataExtended: class { constructor(form) { this.object = form.fields; } } };
+  foundry.utils.expandObject = (flat) => {
+    const out = {};
+    for (const [path, value] of Object.entries(flat)) setProperty(out, path, value);
+    return out;
+  };
+  return { fields };
+}
+
+await t("Lasts is a tracked kind's field in a spell and nothing else's: purify keeps its quantity, an ability's rows never see it", () => {
+  for (const kind of TRACKED) assert.ok(fieldsForType(kind, "spell").includes("lasts"), `${kind} edits lasts`);
+  for (const kind of TRACKED) assert.ok(!fieldsForType(kind, "ability").includes("lasts"), `an ability's ${kind} row has no lasts`);
+  for (const kind of ["purify", "heal", "slay", "summon", "control", "modifier", "ward"]) assert.ok(!fieldsForType(kind, "spell").includes("lasts"), `${kind} is not tracked`);
+  assert.ok(fieldsForType("purify", "spell").includes("value"), "purify keeps its quantity field");
+  assert.deepEqual(fieldsForType("afflictionDelay", "spell").slice(0, 3), ["appliesTo", "effects", "lasts"], "the board's order: applies to, effects, lasts");
+  assert.ok(!fieldsForType("wall", "spell").includes("effects"), "only the delayed affliction picks effects");
+});
+
+await t("a tracked row's Lasts offers the duration or the instant, keeps a stored other value, carries the page, and a blank stays blank", async () => {
+  asGM(true);
+  const field = async (row) => fieldOf(await rowEditor({ current: [row] }).editor._prepareContext({}), "lasts");
+  const wall = await field({ key: "a", type: "wall", lasts: "duration" });
+  assert.deepEqual(Object.keys(wall.choices), ["duration", "instant"]);
+  assert.equal(wall.value, "duration");
+  assert.match(wall.tip, /tip\.lastsTracked/);
+  assert.match(wall.tip, /tip\.cite {"cite":"Book p\. 9"}/, "the store's page is in the tooltip");
+  assert.equal((await field({ key: "b", type: "seal" })).value, "", "no lasts is blank");
+  assert.deepEqual(Object.keys((await field({ key: "c", type: "illusion", lasts: "rounds" })).choices), ["duration", "instant", "rounds"], "a stored rounds lasting stays selectable");
+  assert.ok(Object.keys((await field({ key: "d", type: "conditionGrant", lasts: "duration" })).choices).includes("nextTurn"), "another kind keeps the whole vocabulary");
+  assert.doesNotMatch((await field({ key: "e", type: "conditionGrant" })).tip, /lastsTracked/, "and its own tooltip");
+});
+
+await t("the delayed affliction's effect checks write the array on change, with Lasts beside them, and the redraw shows it", async () => {
+  asGM(true);
+  const rows = { current: [{ key: "a", type: "afflictionDelay", appliesTo: "recipient", lasts: "duration", effects: ["poison"] }] };
+  const { editor, writes } = rowEditor(rows);
+  const effects = fieldOf(await editor._prepareContext({}), "effects");
+  assert.equal(effects.kind, "set");
+  assert.ok(effects.options.length > 1, "the options are the effect list");
+  assert.deepEqual(effects.options.filter((o) => o.checked).map((o) => o.key), ["poison"]);
+  assert.match(effects.tip, /tip\.effectsDelay/);
+  assert.match(effects.tip, /Book p\. 9/);
+  editor.element = formOf({ "effects.poison": true, "effects.charm": true, "effects.sleep": false, lasts: "instant" });
+  await EffectRowEditor.DEFAULT_OPTIONS.form.handler.call(editor);
+  assert.equal(writes.length, 1, "one write for the change");
+  assert.deepEqual(writes[0][0].effects, ["poison", "charm"], "the array is what is checked");
+  assert.equal(writes[0][0].lasts, "instant", "the Lasts select writes its value");
+  assert.equal(writes[0][0].appliesTo, "recipient", "the rest of the row is kept");
+  assert.equal(editor.renders, 1, "and the window redraws");
+  const after = fieldOf(await editor._prepareContext({}), "effects");
+  assert.deepEqual(after.options.filter((o) => o.checked).map((o) => o.key).sort(), ["charm", "poison"]);
+});
+
+await t("a Player's view of a tracked row has the same fields and no footer: no gate of ownership is added to the editor", async () => {
+  asGM(false);
+  const rows = { current: [{ key: "a", type: "afflictionDelay", lasts: "duration", effects: ["poison"] }] };
+  const ctx = await rowEditor(rows).editor._prepareContext({});
+  assert.deepEqual(ctx.fields.map((f) => f.name).filter((name) => name !== "key").slice(0, 3), ["appliesTo", "effects", "lasts"]);
+  assert.equal(ctx.footer.show, false, "no ladder, so no footer for a Player");
+  assert.ok(!/data-action="rung/.test(render("lib/effect-row-editor", { ...ctx, partId: "p" })));
+  assert.ok(!/isOwner/.test(read("scripts/lib/apps/effect-row-editor.mjs")), "the editor tests no ownership");
+  asGM(true);
+});
+
+await t("the tracked row renders its Lasts select and the effect checks under their legend, every control named, no literal id and no fixed type size", async () => {
+  asGM(true);
+  const rows = { current: [{ key: "a", type: "afflictionDelay", appliesTo: "recipient", lasts: "instant", effects: ["poison"] }] };
+  const html = render("lib/effect-row-editor", { ...(await rowEditor(rows).editor._prepareContext({})), partId: "p" });
+  assert.match(html, /<select name="lasts" aria-label="ACKS-LIB\.effectEditor\.field\.lasts">/);
+  assert.match(html, /<option value="instant" selected>/);
+  assert.match(html, /<fieldset class="acks-extras-effect-set" data-tooltip-text="[^"]*tip\.effectsDelay[^"]*">\s*<legend>ACKS-LIB\.effectEditor\.field\.effects<\/legend>/);
+  const checks = [...html.matchAll(/<label class="acks-extras-effect-pick">\s*<input type="checkbox" name="effects\.([a-zA-Z]+)"([^>]*)>\s*<span>/g)];
+  assert.ok(checks.length > 1, "each effect key is a check wrapped in its own label");
+  assert.equal(checks.filter((m) => /checked/.test(m[2])).length, 1);
+  assert.ok(!/\sid="(?!\{\{)/.test(html), "no literal id");
+  assert.ok(!/\b\d+(px|rem)\b/.test(read("templates/lib/effect-row-editor.hbs")), "no px or rem size in the template");
+});
+
+await t("the tracked kinds' words are in the lang file", () => {
+  const root = ["ACKS", "LIB"].join("-");
+  for (const key of ["tip.lastsTracked", "tip.effectsDelay", "lastsTracked.duration", "lastsTracked.instant", "field.lasts", "field.effects", "tip.cite"]) assert.ok(`${root}.effectEditor.${key}` in lang, `${key} is missing from the lang file`);
+});
+
 console.log(`\n${n} passed`);
