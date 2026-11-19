@@ -4266,3 +4266,71 @@ Imports first.
 The import is kept. Step 5's override is removed by its own last action and,
 if the walk dies first, by the table name its page-side record holds; nothing
 is swept by document.
+
+## A host that serves the module's files from another origin
+
+Some hosts answer a request for a module file with a redirect to a file
+server on another origin. Two things break there and nowhere else: a worker
+whose script is asked for on the game's origin, and a worker script named by
+a URL on the other one. The surfaces are every PDF the module opens (the
+Books tab, the shelf, the official-sheet window) and the picture-text read.
+
+### Fixtures
+
+None in the world. The staged books (`rr` and `jj`) are connected with
+`remember: false` and `bridge: false`, so the seat keeps nothing.
+
+### Drive mechanics (learned live)
+
+- `node tools/importer/dev-redirect-rig.mjs <foundryPort> <proxyPort> <filesPort>`
+  is the host. Join through the proxy's origin; the page, its socket and the
+  staged books stay on that origin, and every file under
+  `modules/acks-extras/` arrives from the files server after a `307`.
+- Drive it from the capture driver's own browser, never the pane: a session
+  cookie is kept by host name, ports ignored, so a join through a proxy on
+  `localhost` re-seats every pane tab.
+- Judge by the workers that start, never by "the book opened". `openBook`
+  silences pdf.js's warnings, and pdf.js opens a book on the main thread when
+  its worker fails, as long as it can import the worker script. Attach a
+  second DevTools session to the page with `Target.setAutoAttach` before the
+  step and read each `Target.attachedToTarget` of type `worker`.
+- pdf.js starts a script on another origin from a `blob:` wrapper of its own,
+  so on the rig its workers list as `blob:` URLs on the proxy's origin, and
+  on the plain server as `…/vendor/pdfjs/pdf.worker.mjs`. The OCR engine
+  lists the same two ways (`…/vendor/tesseract/worker.min.js` when plain).
+- The module's own pdf.js instance is reachable from the page by the URL its
+  import resolved to: on the rig,
+  `import("<files origin>/bazaar/modules/acks-extras/rig/vendor/pdfjs/pdf.mjs")`
+  answers the instance whose `GlobalWorkerOptions.workerSrc` the module set.
+  An empty `workerSrc` there means a second instance, and a wrong URL.
+- `cookbookDebug(id)` ends in a prompt that resolves only when it is
+  dismissed. Fire it, wait for `.acks-extras-importer-debug-pre`, count what
+  the window shows and close it.
+- Attach the console recorder before a reload, so `init`, `setup` and `ready`
+  on the rig are inside it.
+
+### Steps
+
+1. Start the rig and join through the proxy as a GM seat, recorder attached,
+   then reload. *Observable:* `ready` with no console error; the rig prints
+   no `files 404`.
+2. `acksExtras.importer.connectBookUrl("rr", "acks-test-books/rr.pdf", { remember: false, bridge: false })`.
+   *Observable:* it resolves, `bookOpen("rr")` is true, the notice counts the
+   book's entries, and worker targets started during the call. The rig prints
+   no `proxy 307` for `pdf.worker.mjs`: the worker is asked for where the
+   module was served.
+3. Connect `jj` the same way and fire `cookbookDebug("jj.scenario1")`.
+   *Observable:* the debug window opens with its read (five blocks), and
+   worker targets started for the engine and the pinned copy.
+4. `acksExtras.characterSheet.pdf.open()`. *Observable:* the window renders.
+5. Walk steps 2 to 4 on the plain server. *Observable:* the same results, the
+   step 3 window holding the same count of words as on the rig, and the
+   workers listed by their own paths under `modules/acks-extras/vendor/`.
+
+The rig is one browser's reading of a redirect with cross-origin reads open.
+It says nothing about a real host's content security policy for `blob:`
+workers, or about what that host's file server allows to be read.
+
+### Teardown
+
+Stop the rig. Nothing is written to the world.

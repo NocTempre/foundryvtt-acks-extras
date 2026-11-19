@@ -27,8 +27,8 @@ const OBJECT_WAIT_MS = 10000;
  * with `doc.loadingTask.destroy()`.
  *
  * @param {ArrayBuffer|Uint8Array} data
- * @param {{wasmUrl?: string}} [options] where the wasm image decoders live, as
- *   `extract.mjs` `setWasmUrl` takes it
+ * @param {{wasmUrl?: string}} [options] where the wasm image decoders live: a
+ *   folder URL ending in a slash
  */
 export async function openPinned(data, { wasmUrl = null } = {}) {
   return getDocument({
@@ -237,8 +237,10 @@ function isNode() {
 
 /**
  * The browser engine: tesseract.js's worker over the vendored files, with its
- * CDN, cache and blob-worker defaults off. The empty `errorHandler` stops the
- * library throwing a second time.
+ * CDN and cache defaults off. The worker script is started directly where the
+ * module's files are on the page's origin. A script on another origin is
+ * refused as a worker, so there the library's blob worker loads it. The empty
+ * `errorHandler` stops the library throwing a second time.
  */
 async function browserEngine(root) {
   const { default: Tesseract } = await import("../../vendor/tesseract/tesseract.esm.min.js");
@@ -248,7 +250,7 @@ async function browserEngine(root) {
     langPath: new URL("lang", root).href,
     gzip: true,
     cacheMethod: "none",
-    workerBlobURL: false,
+    workerBlobURL: root.origin !== globalThis.location.origin,
     errorHandler: () => {},
   });
   await worker.setParameters({ tessedit_pageseg_mode: String(DEFAULT_PSM) });

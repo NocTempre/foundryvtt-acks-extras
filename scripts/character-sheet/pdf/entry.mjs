@@ -4,10 +4,9 @@
  * window menu (an owner's), and a button in the Actors directory for a seat
  * that may create characters. Also points pdf.js at its worker.
  */
-import { MODULE_ID } from "../../lib/constants.mjs";
 import { elementOf } from "../../lib/util.mjs";
 import { ACTOR_TYPE } from "../../lib/vocab.mjs";
-import { setWasmUrl, setWorker } from "../../importer/extract.mjs";
+import { wirePdfjs } from "../../importer/extract.mjs";
 import { LANG } from "../constants.mjs";
 import { openSheetPdf } from "./app.mjs";
 import { importSheet, keepSheetValue } from "./apply.mjs";
@@ -33,8 +32,7 @@ export const sheetPdfApi = Object.freeze({
 
 /** Install the window's entry points. Called at `init`. */
 export function installSheetPdf() {
-  setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
-  setWasmUrl(`modules/${MODULE_ID}/vendor/pdfjs/wasm/`);
+  wirePdfjs();
 
   Hooks.on("getHeaderControlsActorSheetV2", (app, controls) => {
     const actor = app.document;

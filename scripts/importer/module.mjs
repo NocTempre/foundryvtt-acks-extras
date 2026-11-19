@@ -30,7 +30,7 @@ import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintWarning, identify
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
-import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, setWorker, setWasmUrl } from "./extract.mjs";
+import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
@@ -2387,8 +2387,7 @@ Hooks.once("init", () => {
   });
   // An Adventure the importer wrote imports as a fill, never an overwrite.
   registerBookAdventureHooks();
-  setWorker(`modules/${MODULE_ID}/vendor/pdfjs/pdf.worker.mjs`);
-  setWasmUrl(`modules/${MODULE_ID}/vendor/pdfjs/wasm/`);
+  wirePdfjs();
 });
 
 Hooks.once("ready", async () => {

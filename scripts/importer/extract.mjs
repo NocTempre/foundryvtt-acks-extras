@@ -3,7 +3,7 @@
  * text runs.
  *
  * Runs identically in the browser and in Node (the tools harness): the worker
- * is only wired up when the module boots in Foundry (`setWorker`); under Node
+ * is only wired up when the module boots in Foundry (`wirePdfjs`); under Node
  * pdf.js falls back to its fake worker. Nothing here persists; callers
  * receive plain strings and decide caching.
  */
@@ -39,10 +39,14 @@ const COL_MIN_MEASURE = 0.5; // a rescued column's median line against the page'
  */
 export const SPOIL_RE = /([A-Za-z][A-Za-z' -]*?)\s*\((?:(\d+)\s*)?(?:(\d)\/6\s*)?st\.?,\s*([\d,]+)\s*gp(?:,\s*((?:[^()]|\([^)]*\))+?))?\)/g;
 
-/** Points pdf.js at its worker script; the module calls it once at boot. */
-export function setWorker(url) {
-  GlobalWorkerOptions.workerSrc = url;
-}
+/**
+ * The vendored pdf.js folder, absolute, from where this file was served. A
+ * host may answer a module file's request with a redirect to another origin.
+ * A worker's script may not follow one, and a path relative to the page is no
+ * specifier pdf.js's main-thread fallback can import; an absolute URL on the
+ * serving origin passes both, and pdf.js wraps a cross-origin one itself.
+ */
+const VENDOR = new URL("../../vendor/pdfjs/", import.meta.url);
 
 /**
  * Where the wasm image decoders live (openjpeg/jbig2/qcms). JPEG2000 images
@@ -51,9 +55,14 @@ export function setWorker(url) {
  * pixels.
  */
 let WASM_URL = null;
-/** Sets the wasm decoder directory read by `openBook`. */
-export function setWasmUrl(url) {
-  WASM_URL = url;
+
+/**
+ * Points pdf.js at its vendored worker script and wasm decoders. The module
+ * calls it at boot; Node never does, and keeps pdf.js's fake worker.
+ */
+export function wirePdfjs() {
+  GlobalWorkerOptions.workerSrc = new URL("pdf.worker.mjs", VENDOR).href;
+  WASM_URL = new URL("wasm/", VENDOR).href;
 }
 
 /**

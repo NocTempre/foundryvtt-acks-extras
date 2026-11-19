@@ -2652,3 +2652,42 @@ answered: "Keep it (Recommended)"; `check-cookbook-drift.mjs` is unchanged.
 commit that reached `main` without the full check is not re-read until a later
 change touches what this check reads. A PDF replaced under its committed name
 is not a diff, as it is not for the drift check.
+
+## 2026-11-18 — The vendored workers are addressed from where the module was served
+
+A Judge on a host that serves module files from a file server on another
+origin could open no PDF: the Books tab answered "Setting up fake worker
+failed" for every book. That host answers a request for a module file with a
+`307` to its file server. The module handed pdf.js a path relative to the
+page. A worker's script may not follow a redirect to another origin, and
+pdf.js's main-thread fallback imports the same string, which is no specifier
+an `import()` resolves.
+
+- **`wirePdfjs` builds the worker and wasm URLs from `import.meta.url`.** A
+  module script's URL is the one its response came from, after any redirect,
+  so the URL names the file where the host serves it. On the page's origin
+  pdf.js starts the worker directly, as before. On another origin pdf.js
+  wraps the script in a `blob:` worker of its own, and its fallback can
+  import the URL.
+- **The OCR engine takes tesseract.js's blob worker only where the vendored
+  folder is on another origin.** `ocr.mjs` already built its paths from
+  `import.meta.url`, so on such a host it handed `new Worker` a script on
+  another origin, which a browser refuses, and nothing fell back. On the
+  page's origin the worker is still started by its own path.
+- **The 2026-11-13 ruling stands.** Every path is still one of the module's
+  own vendored files, fetched from wherever the host serves the module, and
+  no path of the library's own choosing is reachable.
+
+*Rejected:* the blob worker on every host, which changes how the engine is
+asked for everywhere to mend one kind of host, and hides the worker's path
+from the recipe that observes it. A path built with the route prefix, which
+is still on the game's origin and still redirected. A request at boot to
+learn where the redirect lands, which asks the network what the loader
+already knows.
+
+*Cost:* walked on a local stand-in (`tools/importer/dev-redirect-rig.mjs`;
+`TESTING.md`, "A host that serves the module's files from another origin"),
+not on such a host. The stand-in cannot show a host's content security policy
+for `blob:` workers, or what its file server lets another origin read. Where
+a `blob:` worker is refused, pdf.js opens the book on the main thread, slower;
+the OCR engine has no such fallback.
