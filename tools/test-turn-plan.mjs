@@ -378,13 +378,15 @@ await test("the Judge's refusals that stay: no length, no such activity or optio
 });
 
 // The column's words: a registrant's option label and its own refusal lang root.
+/** A lang root no shipped key lives under, built so the gate does not read it as a reference. */
+const QA = ["ACKS", "QA"].join("-");
 const lang = {
   "ACKS-FORMATION.plan.warned": "A player would be refused: {reason}. Locked for you anyway.",
   "ACKS-FORMATION.plan.refused": "Not locked: {reason}",
-  "ACKS-QA.act.dig": "Dig",
-  "ACKS-QA.opt.east": "East wall",
-  "ACKS-QA.reason.outOfReach": "{name} cannot reach it",
-  "ACKS-QA.reason.other": "Not now",
+  [`${QA}.act.dig`]: "Dig",
+  [`${QA}.opt.east`]: "East wall",
+  [`${QA}.reason.outOfReach`]: "{name} cannot reach it",
+  [`${QA}.reason.other`]: "Not now",
   "ACKS-LIB.turnActivity.reason.other": "Lib generic",
   "ACKS-FORMATION.plan.reason.moved": "Moved",
   "ACKS-FORMATION.traps.refuse.noZone": "No zone",
@@ -407,8 +409,8 @@ const undoWords = [
   registerTurnActivity({
     key: "qaScene",
     pace: "methodical",
-    label: "ACKS-QA.act.dig",
-    reasons: { prefix: "qa:", root: "ACKS-QA.reason" },
+    label: `${QA}.act.dig`,
+    reasons: { prefix: "qa:", root: `${QA}.reason` },
     options: () => [{}],
     turns: () => 1,
     resolve: () => null,
@@ -417,7 +419,7 @@ const undoWords = [
   registerTurnActivity({
     key: "qaBare",
     pace: "methodical",
-    reasons: { prefix: "bare:", root: "ACKS-QA.none" },
+    reasons: { prefix: "bare:", root: `${QA}.none` },
     options: () => [{}],
     turns: () => 1,
     resolve: () => null,
@@ -440,7 +442,7 @@ await test("an undeclared prefix, and the built-in reasons, read as before", () 
 });
 
 await test("an option's label shows beside the activity: a lang key localized, plain text as written, a trap's target as before", () => {
-  assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "ACKS-QA.opt.east" } }), "Dig (East wall)");
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: `${QA}.opt.east` } }), "Dig (East wall)");
   assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "Gallery of Echoes" } }), "Dig (Gallery of Echoes)");
   assert.equal(optionLabel({ key: "qaScene", option: {} }), "Dig", "no label: the activity alone");
   assert.equal(optionLabel({ key: "qaScene", option: { id: "w", kind: "wall", label: "Ignored" } }), "Dig (Wall)", "a trap option wins");

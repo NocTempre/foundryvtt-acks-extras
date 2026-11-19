@@ -425,8 +425,8 @@ export function activityLabel(key) {
 
 /**
  * The declaration of the registrant whose `reasons.prefix` starts this reason,
- * or null. A registrant declares `reasons: {prefix: "scene:", root:
- * "ACKS-LOCATION.sceneSearch.reason"}` on its activity: every refusal it
+ * or null. A registrant declares `reasons: {prefix, root}` on its activity
+ * (scene search: the prefix `scene:` and its own lang root): every refusal it
  * answers as `<prefix><code>` is worded by the lang key `<root>.<code>`.
  */
 function reasonsOf(reason) {

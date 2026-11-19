@@ -2414,7 +2414,7 @@ await ok("each water condition's tooltip is its own datum in the view, so the pa
 /* --- the squeeze --------------------------------------------------------------- */
 const { SQUEEZE_KIND } = crossing;
 /** Invented squeeze figures: no book is imported. */
-const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2 };
+const SQZ = { contortionismBonus: 3, chokepointFeet: 6, escapeFeet: 8, escapePenaltyStep: 2, squeezeBotchBand: 2, bashStrengthFactor: 3 };
 const loadSqueezeTables = (figures = SQZ) => {
   resetTables();
   registerTable(
@@ -2543,10 +2543,10 @@ await ok("the push takes the member's Strength, named in its tooltip with the mo
   await stuckAt(formation, "Strong");
   await stuckAt(formation, "Plain");
   const [strong, plain] = ["Strong", "Plain"].map((name) => crossingRow(formation, name));
-  assert.equal(plain.row.escape.push.target - strong.row.escape.push.target, 8, "the bash's Strength on the push");
+  assert.equal(plain.row.escape.push.target - strong.row.escape.push.target, 6, "the bash's Strength on the push");
   assert.deepEqual([strong.row.escape.wiggle.target, strong.row.target], [plain.row.escape.wiggle.target, plain.row.target]);
   const tip = crossing.escapeTargetTip(strong, "push");
-  assert.ok(tip.includes("Strength (modifier +2, RR ch. 1) −8"), tip);
+  assert.ok(tip.includes("Strength (modifier +2, RR ch. 1) −6"), tip);
   assert.equal(crossing.escapeTargetTip(plain, "push").includes("Strength"), false, "no modifier, no part");
   assert.equal(crossing.escapeTargetTip(strong, "wiggle").includes("Strength"), false);
 });
