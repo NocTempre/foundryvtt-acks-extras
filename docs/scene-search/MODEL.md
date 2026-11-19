@@ -1,8 +1,8 @@
 # Scene search — how it works
 
-Present tense. The owner's words are in `wip/20261118-scene-search-plan.md`;
-rulings and rejections are in `DECISIONS.md`; the live-test recipe is
-`TESTING.md`.
+Present tense. The owner's words, rulings and rejections are in `DECISIONS.md`;
+the live-test recipe is `TESTING.md`; the user's guide is
+`docs/guides/scene-search.md`.
 
 ## Entries and checks
 

@@ -1,7 +1,8 @@
 # Scene search — decisions
 
 Dated: what was ruled, what was rejected, what it cost. The owner's words that
-govern the feature are in `wip/20261118-scene-search-plan.md`.
+govern the feature are the entry "The owner's words, kept when the plan retires"
+(2026-11-19).
 
 ## 2026-11-18 — A session keeps what a place's list must not: lot keys, bodies' state
 
@@ -358,3 +359,30 @@ Asked where the Judge's editor for a thing's crossing `params` goes (obstacle re
 **Rejected.** Inline inputs on the row, the board's v13 alternative: the row is one button that opens the rail, so inputs on it would need the row split, and the swim's two controls crowd a sheet. Writing `params` whole through the place-things API: it would rewrite keys the editor never read.
 
 **Cost.** The Crossing fieldset is the only window that writes `params`; `movement` and `judgeMod` stay on the crossing panel. A hazard Item dropped from a compendium resolves its kind by loading the document, so the rail draws one async read later than before (`railFor` is async).
+
+## 2026-11-19 — The owner's words, kept when the plan retires
+
+The phase plan (`wip/20261118-scene-search-plan.md`) is deleted now that every slice is landed and walked or moved to `ROADMAP.md`. The owner's words that set the feature's scope move here verbatim, from 2026-11-18 unless dated. How each was built is in `MODEL.md`, and each later ruling has its own entry above.
+
+- "Spoils should be rolled into this too, with the bodies shown as cards to inspect to see if they find anything with the proper skills and tools"
+- "It should be assigning people to search the area and the bodies, and based on the rolls they find stuff. This rewards having multiple people working together and honors proper time tracking. Check RAW if you need extra hints."
+- "Scope is all three, part of the next minor."
+- "Finding the loot is the hasty check of the room, just like a hasty body check will turn out the pockets/inventory carried gear. Some things might be explicitly hidden up to judge's discretion. There also might be a hint that something feels off (secrets yet to be found) following the GUMSHOE principle. This is becoming a whole scene tool and could incorporate things like inspecting statues/art. To clarify, there is an obvious layer (bodies, doors, lights), an obvious with inspection layer (hasty search, pockets, chests, history, theology check, secrets present incl traps), found with methodical search and/or appropriate skill (spoils, secret doors, hidden keys, trap defeats). Everything beyond that is narrative in GM responsibility. Survey RAW and the adventures for examples. I like this tool as an end combat screen."
+- "It could also be used in general when the party declares searching even without combat... add integration on party sheet?"
+- "Seeing there is a fresco is obvious and would show up as a card to assign someone to, inspecting for subject is hasty, learning a secret/clue from it is methodical, as an example"
+- On the obstacle redesign, which shares the carrier: "Conditions are present when added, most easily by dragging. This is akin to a natural trap. Not doing a big switchboard of possibilities.", "Traps, obstacles, conditions can stack arbitrarily." and "This is some variation of location."
+- The answers to the design questions on canvas v15 (https://claude.ai/artifact/MWGwR5rfqxhhgmzrjvytnR):
+  1. "rolled by judge before interaction, visible as found"
+  2. "B" (a hasty check resolves at once, on a Round press)
+  3. "missing skill just gets the vague hint there might be something more at hasty search, follow RAW"
+  4. "B - GUMSHOE principal, it is meta-public knowledge if more clues remain unless it is hidden behind an unsolved (still something off) clue"
+  5. "Unclear question". Built on the drawn default: the Judge may write an optional line, and otherwise the table sees the generic words.
+  6. "No picked clean state, only checked hastily and checked methodically for each inspectable, and a found X or did not find X (and a hint if Y is known to be there but unknown what, e.g. a seen trap with a hidden disarm)"
+  7. "A" (open loot takes the hasty search throw as printed)
+  8. "B" (the imported search reach applies to positions)
+  9. "B, there is no "stage a pot" as a thing"
+- Where the things live: "Everything to a place that can apply effects to a region. All to region if easiest".
+- The go-ahead: "Get this implemented".
+- Standing rules: "Standing rule for repo no generated art." and "No house rules ship".
+
+**Cost.** The plan's per-slice Results go with it. Each slice's walk is recorded in `TESTING.md` and in its commit, and its rulings in the entries above. What was registered and not built is in `ROADMAP.md`, including the harvest answers that "Harvest waits on the monster-import audit" left "in the plan": the owner's "Round up" and "Any of its rows", now on the ROADMAP's harvest row.

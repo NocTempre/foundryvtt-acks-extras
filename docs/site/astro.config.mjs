@@ -93,6 +93,7 @@ export default defineConfig({
             { label: "Proficiencies & class powers", slug: "guides/abilities" },
             { label: "Equipment & fighting styles", slug: "guides/equipment" },
             { label: "Exploration formations", slug: "guides/formation" },
+            { label: "Searching a scene", slug: "guides/scene-search" },
             { label: "Map setup & token scale", slug: "guides/battlemap" },
             { label: "Vehicles, wagons & vessels", slug: "guides/vehicles" },
             { label: "Henchmen & hirelings", slug: "guides/henchmen" },
