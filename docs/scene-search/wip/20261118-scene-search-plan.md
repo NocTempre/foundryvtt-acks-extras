@@ -192,3 +192,10 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
   - (S5) A body's linked table is not drawn at the deal; only its letter and carried goods are.
   - (S4) The Round press spends no clock time.
   - (S8) `docs/README.md` has no row for `docs/scene-search/DECISIONS.md`.
+
+### 2026-11-18 — S2 landed and walked (scene-search orchestrator, lane 5)
+
+- S2 is landed on main: `branch.mjs land`, tip 782fbe48, fast-forwarded from 8e9916c5. The orchestrator pushes it.
+- S2 is walked on main: `tools/live/scene-search-session.mjs`, 49 of 49 on lane A, committed with the recipe's drive mechanics as f4868813. The walk found no defect.
+- The seams stay as recorded above: R-DC1 and R-DC6 have not landed. The Round press resolved `via: "scene"`.
+- Next is S4, the screen. Its brief confirms which canvas version is the approved board before the first edit. S5, S6 and S7a follow, and the orchestrator dispatches each. `topic/scene-search` stays open; sync it before S4.
