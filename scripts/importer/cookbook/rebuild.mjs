@@ -31,6 +31,7 @@ import { escape as esc } from "../../lib/util.mjs";
 import { isWorldCopy } from "../../lib/library.mjs";
 import {
   FOLDER_NAME, lineOf, bookOfCookbookId, data, ctx, cookbookEntry, bookOf, bookLabel, api, claimedId, readableHere,
+  bookVerified, verifyBooks, verifyClaims, verifiedBook,
   offeredHere, claimsEntry, playersCharacter, ACTOR_KINDS, actorKindOf, characterEntry, isAbilityEntry, classEntries,
   vehicleEntries, merchandiseEntries, variationEntries, trapEntries, spellEntries, abilityEntries, cookbookEquipmentIds,
 } from "./state.mjs";
@@ -353,6 +354,7 @@ async function repairShelf(shelf, { tally, quiet = false, ask = null }) {
   );
   const notOffered = shelved.filter((d) => !offeredHere(claimedId(d))).length;
   const held = shelved.filter((d) => ids.has(claimedId(d)) || isTableRow(shelf, claimedId(d)));
+  await verifyClaims(held.map((d) => claimedId(d)));
   const over = held.filter((d) => readableHere(claimedId(d)));
   const kept = held.length - over.length;
   const skipped = shelved.length - held.length - notOffered;
@@ -866,7 +868,7 @@ export async function cookbookReimportBook(bookId, { mode, ask = null, decision 
   ignoredMode(mode, "cookbookReimportBook");
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only (writes over imported documents).`);
   const label = BOOKS[bookId]?.label ?? bookId;
-  if (!ctx?.sessionDocs?.has(bookId)) {
+  if (!(await verifiedBook(bookId))) {
     return ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportNotConnected`, { book: label }));
   }
   return runMerged((t, at) => repairBook(bookId, label, { tally: t, quiet: !at.first, ask }), { decision, tally, choose });
@@ -1177,7 +1179,7 @@ export async function cookbookReimportAdventure(bookId, { mode, ask = null, deci
   const label = bookLabel(bookId);
   const t = (key, data) => game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data ?? {});
   if (!bookIsJudges(bookId) || !data.books.has(bookId)) return ui.notifications.warn(t("reimportAdventureNotJudges", { book: label }));
-  if (!ctx?.sessionDocs?.has(bookId)) return ui.notifications.warn(t("reimportNotConnected", { book: label }));
+  if (!(await verifiedBook(bookId))) return ui.notifications.warn(t("reimportNotConnected", { book: label }));
   const pass = async (passTally, { first }) => {
     if (first) {
       const { written, left, markets } = await adventureForceCensus(bookId);
@@ -1651,15 +1653,9 @@ const tableShelfOfClaim = (id) => {
   return shelf && Object.hasOwn(TABLE_BOOKS, shelf) ? shelf : null;
 };
 
-/**
- * Whether a rebuild may delete the library document claiming `id`: a loaded
- * owner can re-create it (an entry of a loaded cookbook, or the recipe of the table a row is read from),
- * its book is open on this seat, and that book is one the module offers
- * (`BOOKS`). Every delete a rebuild makes asks this first; a document it
- * refuses is left standing and counted. See `rebuildVerdict`.
- */
-const rebuildable = (id) => {
-  const owner = ownerOfClaim(id, {
+/** The loaded owner of the claim `id` and its book (`ownerOfClaim`): an entry of a loaded cookbook, or the recipe of the table a row is read from. */
+const ownerOf = (id) =>
+  ownerOfClaim(id, {
     entryBookOf: (claim) => {
       const found = cookbookEntry(claim);
       return found ? bookOf(found) : undefined;
@@ -1673,8 +1669,28 @@ const rebuildable = (id) => {
       return shelf ? (tableBookOf(shelf) ?? undefined) : undefined;
     },
   });
-  return rebuildVerdict({ ...owner, isOpen: (book) => !!ctx?.sessionDocs?.has(book), books: BOOKS }) === "rebuild";
+
+/**
+ * Every book the document claiming `id` draws from, given its owner
+ * (`ownerOf`): the owner's book, which is the whole answer until a document
+ * can be merged from two books. A delete is licensed only when each is verified.
+ */
+const drawnFrom = (id, owner) => [owner.book];
+
+/**
+ * Whether a rebuild may delete the library document claiming `id`: a loaded
+ * owner can re-create it, every book it draws from is open and verified on
+ * this seat (`bookVerified`, settled by `verifyOwners`), and each is one the
+ * module offers (`BOOKS`). Every delete a rebuild makes asks this first; a
+ * document it refuses is left standing and counted. See `rebuildVerdict`.
+ */
+const rebuildable = (id) => {
+  const owner = ownerOf(id);
+  return drawnFrom(id, owner).every((book) => rebuildVerdict({ ...owner, book, isOpen: bookVerified, books: BOOKS }) === "rebuild");
 };
+
+/** Verify the books the claims `ids` draw from, so `rebuildable` has its answer. */
+const verifyOwners = (ids) => verifyBooks(ids.flatMap((id) => drawnFrom(id, ownerOf(id))));
 
 /**
  * Which entry ids this world already holds something for.
@@ -1836,6 +1852,7 @@ async function runEntryReimport(all, { mode, decision = null, choose = null } = 
   ignoredMode(mode, "cookbookReimportEntries");
   // Rules tables carry no book to check and delete nothing. An entry nothing
   // loaded here can put back (`rebuildable`) is refused before any write.
+  await verifyOwners(all.filter(({ key }) => key !== "Tables").map(({ id }) => id));
   const closed = all.filter(({ key, id }) => key !== "Tables" && !rebuildable(id));
   const picked = all.filter((p) => !closed.includes(p));
   if (closed.length) ui.notifications.warn(game.i18n.format(`${LANG_PREFIX}.ui.reimportLeft`, { n: closed.length }));

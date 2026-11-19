@@ -23,6 +23,7 @@ import {
   bookStamp, data, ctx, cookbookEntry, bookOf, merchandiseEntries, SIXTHS_PER_STONE, variationEntries, trapEntries,
   spellEntries,
 } from "./state.mjs";
+import { verifyDoc } from "../book-handle.mjs";
 import { repairFromEntry, readForImport, passedOver } from "./read.mjs";
 import { createDoc, claimImport, importedItem, ensureItemFolder } from "./target.mjs";
 
@@ -39,8 +40,9 @@ async function readEntryGrids(id) {
   const found = cookbookEntry(id);
   const bookId = found ? bookOf(found) : null;
   const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-  const node = session ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
-  return node?.ok ? { node, closed: false } : { node: null, closed: !session };
+  const readable = !!session && (await verifyDoc(session.doc));
+  const node = readable ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
+  return node?.ok ? { node, closed: false } : { node: null, closed: !readable };
 }
 
 /**

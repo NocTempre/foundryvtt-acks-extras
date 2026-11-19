@@ -2459,6 +2459,44 @@ The GM alone sees the controls; a write a locked library pack refuses is counted
 as refused. The art is referenced by path from the other package, never copied
 into this repository or shipped in this module.
 
+## A book is registered at join and opens when read
+
+A shelved book a seat may read (`shelfBooksToOpen`: every one on a GM seat, on
+a player seat what the Judge shared) is registered at join by `restoreShelf`:
+a `BookHandle` (`book-handle.mjs`) goes into `sessionDocs` in place of a pdf.js
+document, `acksExtras.bookOpened` fires, and nothing is fetched. The handle is
+doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
+
+- **Registered and verified.** A handle answers `numPages` and `title` from the
+  registry row until a live open reports the file's own, and carries the book's
+  typography. `live()` fetches the file from the handle's `src`, opens it
+  through `openChecked` (`module.mjs`: the fingerprint, the wrong-book and
+  not-a-form refusals) and holds the pdf.js document; it is single-flight, and
+  a failure is not remembered. Once it has succeeded the handle is
+  *verified* for the session. A connect or a staging (`ingestBook`) hands its
+  open document to the handle (`adopt`), which is verified from then on; a file
+  this seat picked has no `src`.
+- **Reads verify first.** `readForImport` and `repairFromEntry`, and the direct
+  readers in `equipment.mjs`, `variations.mjs` and `monster.mjs`, call
+  `verifyDoc` before their first page and answer `book-closed` when the file
+  is gone or is another book. A reader that hands `session.doc` straight to
+  `executeEntry` (the scans, `browseAndLoad`) opens the file through its first
+  `getPage`, and a failure rejects there.
+- **Deletes ask verified.** `rebuildable` and `readableHere` read
+  `bookVerified`, never presence in `sessionDocs`. They are synchronous, so each
+  repair entry (a shelf, a book, an adventure book, the entry picker, the class
+  update) awaits `verifyBooks` / `verifiedBook` for its scope first.
+  `rebuildable` asks every book the claim draws from (`drawnFrom`). A
+  registered, unverified handle licenses no delete.
+- **The live document.** The pixel and operator-list readers of `extract.mjs`
+  take `liveDoc(doc)` before a page, and OCR takes the bytes through
+  `getData()`, which fetches `src`. A live document is held while a
+  `holdingLive` scope stands (the import chain, `holdingReads`) and released
+  after `IDLE_MS` with no read; the handle stays verified. A handle with no
+  `src` never releases.
+- **The character sheet's blank** is `bookBytes("sheet")`: a fetch of the
+  shelf file when Export is pressed.
+
 ## The cookbook's files
 
 `scripts/importer/cookbook.mjs` is a facade: it holds no code, only

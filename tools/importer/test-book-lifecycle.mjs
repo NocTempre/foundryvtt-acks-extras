@@ -31,6 +31,28 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
   ok("the bridge still stores nothing when its window is 0", /!cacheWindowMs\(\)\) return/.test(cache));
 }
 
+// A connect or a staging opens through the one checked open and leaves the handle verified.
+{
+  const checked = fn("async function openChecked\\(");
+  ok("openChecked is found", checked.length > 0);
+  ok("it refuses a file that fingerprints as another book", /actualId !== bookId/.test(checked) && /err\.wrongBook = actualId/.test(checked));
+  ok("it refuses a form with no fields", /bookIsForm\(bookId\)/.test(checked) && /connectNotForm/.test(checked));
+  ok("a refused file's document is released", (checked.match(/await doc\.destroy\?\.\(\)/g) ?? []).length === 2);
+  ok("it tags the document before any page is read", checked.indexOf("useTypography(doc, bookId)") > checked.indexOf("readForm"));
+  const ingest = fn("async function ingestBook\\(");
+  ok("ingestBook opens through openChecked", /await openChecked\(bookId, buffer\)/.test(ingest));
+  ok("ingestBook keeps a registered handle and adopts the open document into it", /held\?\.isBookHandle \? held : handleFor\(bookId, src\)\)\.adopt\(/.test(ingest));
+  ok("the session record's document is the handle", /sessionDocs\.set\(bookId, \{ doc: handle, title \}\)/.test(ingest));
+  ok("a book opened by hand reaches the handle with no path", /async function ingestBook\(bookId, buffer, \{ silent = false, cache = null, src = null \} = \{\}\)/.test(src));
+}
+
+// The character sheet's export reads the file when Export is pressed, never at join.
+{
+  const blank = readFileSync(new URL("../../scripts/character-sheet/pdf/blank.mjs", import.meta.url), "utf8");
+  ok("the blank sheet is read through the importer's bookBytes on demand", /importer\?\.bookBytes\?\.\(SHEET_BOOK\)/.test(blank));
+  ok("bookBytes is the session document's own getData, which a handle answers with a fetch of its path", /bookBytes: openBookBytes/.test(src));
+}
+
 // A citation clicked in a detached window reaches the handler.
 {
   const listen = fn("function listenForCites\\(");

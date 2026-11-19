@@ -30,6 +30,7 @@ import {
 import { warmSpellPacks } from "../../classes/grants.mjs";
 import { TEMPLATE_TYPE } from "../../lib/constants.mjs";
 import { data, ctx, cookbookEntry, bookOf, firstInt, diceOf, capitalize, intFrom } from "./state.mjs";
+import { verifyDoc } from "../book-handle.mjs";
 import { isRewriting, createDoc, importedIndex, importedActorsOfType, primaryTypeOf, sysObject } from "./target.mjs";
 import { bindAbility, refForPrintedName, idForName, abilityNameIndex, loadedAbilityIndex, reportGuess } from "./abilities.mjs";
 
@@ -1301,7 +1302,7 @@ export async function refillMonster(actor, { whole = false, force = false, repai
   if (!found) return null;
   const bookId = bookOf(found);
   const session = ctx.sessionDocs.get(bookId);
-  if (!session) return { ok: false, reason: "book-closed", book: bookId, name: found.entry.name };
+  if (!session || !(await verifyDoc(session.doc))) return { ok: false, reason: "book-closed", book: bookId, name: found.entry.name };
   const node = await executeEntry(session.doc, found.cb, data.registers, found.id);
   if (!node.ok) return { ok: false, reason: "no-match", book: bookId, name: found.entry.name };
   // An entry with no `stats.*` fields retracts nothing (see the DECISIONS entry above).

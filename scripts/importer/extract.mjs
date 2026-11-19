@@ -9,6 +9,7 @@
  */
 import { getDocument, GlobalWorkerOptions, OPS } from "../../vendor/pdfjs/pdf.mjs";
 import { BOOKS } from "./books.mjs";
+import { liveDoc } from "./book-handle.mjs";
 
 const HEADING_MIN_H = 12; // display headings are >=14pt; body is 9-10pt
 const FAMILY_BODY_PT = 9.5; // the body size every size test in the engine is calibrated to
@@ -349,6 +350,7 @@ function fuseRuns(items, { ligatureRuns = false, labelColon = false } = {}) {
  * indexes.
  */
 export async function glyphColorRuns(doc, pageNo, codepoints) {
+  doc = await liveDoc(doc);
   const want = new Set(codepoints.map((c) => (typeof c === "number" ? c : c.codePointAt(0))));
   const page = await doc.getPage(pageNo);
   const vp = page.getViewport({ scale: 1 });
@@ -686,6 +688,7 @@ const ART_WAIT_MS = 10000;
 
 /** Image XObjects painted on a page: [{ name, width, height, kind, img }]. An image that never arrives is left out. */
 export async function pageArtInfo(doc, pageNo) {
+  doc = await liveDoc(doc);
   const page = await doc.getPage(pageNo);
   const ops = await page.getOperatorList();
   const names = new Set();
@@ -706,6 +709,7 @@ export async function pageArtInfo(doc, pageNo) {
  * with the illustration printed inside its claimed region.
  */
 export async function pageArtPlacements(doc, pageNo) {
+  doc = await liveDoc(doc);
   const page = await doc.getPage(pageNo);
   const vp = page.getViewport({ scale: 1 });
   const ops = await page.getOperatorList();
@@ -763,6 +767,7 @@ export function pickArt(infos) {
  */
 export async function extractPageArtRegion(doc, pageNo, box) {
   if (typeof document === "undefined") return null;
+  doc = await liveDoc(doc);
   const page = await doc.getPage(pageNo);
   const scale = 2;
   const vp = page.getViewport({ scale });
@@ -810,6 +815,7 @@ export async function extractPageArtRegion(doc, pageNo, box) {
  */
 export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
   if (typeof document === "undefined") return null;
+  doc = await liveDoc(doc);
   const page = await doc.getPage(pageNo);
   const vp = page.getViewport({ scale: frame.scale, offsetX: -crop.x * frame.scale, offsetY: -crop.y * frame.scale });
   const cut = document.createElement("canvas");
@@ -855,6 +861,7 @@ export async function extractPageMap(doc, pageNo, crop, frame, matrix) {
  */
 export async function extractPageGray(doc, pageNo, crop, scale) {
   if (typeof document === "undefined") return null;
+  doc = await liveDoc(doc);
   const page = await doc.getPage(pageNo);
   const vp = page.getViewport({ scale, offsetX: -crop.x * scale, offsetY: -crop.y * scale });
   const canvas = document.createElement("canvas");

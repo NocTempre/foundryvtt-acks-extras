@@ -15,7 +15,7 @@ import { materializeTemplates, TEMPLATE_PART } from "../../classes/template-pack
 import { RACE_TYPE } from "../../classes/constants.mjs";
 import { spellNameKey, splitSpellNames, titleIndex } from "../../magic/spell-names.mjs";
 import {
-  bookStamp, lineOfData, data, ctx, cookbookEntry, bookOf, readableHere, intFrom, NON_ABILITY_KINDS, CLASS_ITEM_TYPE,
+  bookStamp, lineOfData, data, ctx, cookbookEntry, bookOf, readableHere, verifyClaims, intFrom, NON_ABILITY_KINDS, CLASS_ITEM_TYPE,
   classEntries, spellEntries,
 } from "./state.mjs";
 import { readForImport, passedOver } from "./read.mjs";
@@ -2049,6 +2049,7 @@ export async function cookbookUpdateClasses({ only = null, confirm = true, repai
     if (!repair) ui.notifications?.info(`${MODULE_ID} | no imported class documents to update.`);
     return 0;
   }
+  await verifyClaims(targets.map((i) => i.flags[MODULE_ID].cookbook.id));
   const readable = targets.filter((i) => readableHere(i.flags[MODULE_ID].cookbook.id));
   const closed = targets.length - readable.length;
   if (repair) repair.refused += closed;

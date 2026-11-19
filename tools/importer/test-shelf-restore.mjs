@@ -1,9 +1,8 @@
 /**
- * Which shelved books a seat opens at join: the books whose shelf page it may
- * observe, and no others — a GM every one, a player only what the Judge
- * shared, the form included. A book is a fetch and a parse of the whole PDF,
- * so a book opened on a seat that may not read it is pure cost at every join.
- * No PDFs, no Foundry.
+ * Which shelved books a seat registers at join: the books whose shelf page it
+ * may observe, and no others — a GM every one, a player only what the Judge
+ * shared, the form included. Registering is a handle with no fetch and no
+ * worker; a seat that may not read a book never holds one. No PDFs, no Foundry.
  */
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -36,21 +35,21 @@ const seat = (user) => ({
   observes: (record) => user === "gm" || record.readers.includes(user),
   isOpen: (id) => id === OPEN_ALREADY,
 });
-const opens = (user, shelf = staged) => {
+const registers = (user, shelf = staged) => {
   const { observes, isOpen } = seat(user);
   return shelfBooksToOpen(shelf, observes, isOpen).sort();
 };
 
-check("a player opens what was shared with it, the form among them", opens("player"), [SHARED, FORM].sort());
-ok("a player never opens a book the Judge did not share", !opens("player").includes(GM_ONLY));
-check("a player shared nothing opens nothing", opens("stranger"), []);
-check("a GM opens every book the registry knows", opens("gm"), [GM_ONLY, SHARED, FORM].sort());
-ok("a book already open is not opened twice", !opens("gm").includes(OPEN_ALREADY));
-ok("an id the registry does not know is never opened", !opens("gm").includes("not-a-book"));
+check("a player opens what was shared with it, the form among them", registers("player"), [SHARED, FORM].sort());
+ok("a player never opens a book the Judge did not share", !registers("player").includes(GM_ONLY));
+check("a player shared nothing opens nothing", registers("stranger"), []);
+check("a GM opens every book the registry knows", registers("gm"), [GM_ONLY, SHARED, FORM].sort());
+ok("a book already open is not opened twice", !registers("gm").includes(OPEN_ALREADY));
+ok("an id the registry does not know is never opened", !registers("gm").includes("not-a-book"));
 
 const withheldForm = { ...staged, [FORM]: { ...staged[FORM], readers: [] } };
-ok("a form the Judge withheld is not opened", !opens("player", withheldForm).includes(FORM));
-check("an empty shelf opens nothing", opens("gm", {}), []);
+ok("a form the Judge withheld is not opened", !registers("player", withheldForm).includes(FORM));
+check("an empty shelf opens nothing", registers("gm", {}), []);
 
 // The restore asks the predicate, with no reading of its own beside it.
 {
@@ -59,13 +58,18 @@ check("an empty shelf opens nothing", opens("gm", {}), []);
   ok("restoreShelf is found", restore.length > 0);
   ok("restoreShelf picks its books through shelfBooksToOpen", /shelfBooksToOpen\(/.test(restore));
   ok("restoreShelf asks no book its kind", !/bookIsForm/.test(restore));
-  // T-0675: the list is taken at join, so a book opened by another path during the pass is skipped, not read twice.
-  ok("restoreShelf re-checks each book is still closed before it opens it", restore.includes("if (sessionDocs.has(bookId)) continue;") && restore.indexOf("if (sessionDocs.has(bookId)) continue;") < restore.indexOf("connectBookUrl("));
-  // A join opens a book per shelved PDF: no bar and no notice per book, one console line for the batch.
-  ok("restoreShelf opens each book silently", /connectBookUrl\(bookId, record\.path, \{[^}]*silent: true[^}]*\}\)/.test(restore));
+  // Nothing at join: a registration is a handle and a hook, and no read of the file.
+  ok("restoreShelf registers a BookHandle per book", /handleFor\(bookId, staged\[bookId\]\.path\)/.test(restore) && /sessionDocs\.set\(bookId, \{ doc: handle/.test(restore));
+  ok("restoreShelf announces each registered book", /Hooks\.callAll\("acksExtras\.bookOpened", bookId\)/.test(restore));
+  ok("restoreShelf fetches nothing", !/fetch\(|openBook\(|connectBookUrl\(|ingestBook\(|openChecked\(/.test(restore));
+  ok("restoreShelf awaits nothing, so no other path can open a book while it runs", !/\bawait\b/.test(restore.replace("async function restoreShelf", "")));
   ok("restoreShelf reports the batch once, on the console", (restore.match(/console\.log\(/g) ?? []).length === 1);
+  const handleFor = boot.match(/function handleFor\([\s\S]*?\n\}/)?.[0] ?? "";
+  ok("a handle opens through the shared checked open", /open: \(buffer\) => openChecked\(bookId, buffer\)/.test(handleFor));
+  ok("a handle carries the book's typography from its first page", /return useTypography\(handle, bookId\)/.test(handleFor));
+  ok("a handle's size and title come from the registry row", /numPages: row\?\.pages/.test(handleFor) && /title: row\?\.label/.test(handleFor));
   const connect = boot.match(/async function connectBookUrl\([\s\S]*?\n\}/)?.[0] ?? "";
-  ok("connectBookUrl hands silent to the open", /silent = false/.test(connect) && /ingestBook\(bookId, await blob\.arrayBuffer\(\), \{ silent,/.test(connect));
+  ok("connectBookUrl hands silent and the path to the open", /silent = false/.test(connect) && /ingestBook\(bookId, await blob\.arrayBuffer\(\), \{ silent,[^}]*src: url/.test(connect));
   const ingest = boot.match(/async function ingestBook\([\s\S]*?\n\}/)?.[0] ?? "";
   ok("a silent open raises no progress bar", /const bar = silent\s*\?\s*\{ note\(\) \{\}, step\(\) \{\}, finish\(\) \{\} \}\s*: progressBar\(/.test(ingest));
   ok("a silent open raises no notice", /if \(silent\) console\.debug\(message\);\s*else ui\.notifications\.info\(message\);/.test(ingest));

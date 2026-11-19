@@ -1502,10 +1502,13 @@ check is one click on each shape, from two seats.
 
 ## The shelf opens on the seats it is shared with
 
-At join, `restoreShelf` opens each shelved book whose shelf page the seat may
-observe: every one on a GM seat, on a player seat only what the Judge shared.
-Each open book is a fetch of the whole PDF and a pdf.js worker of its own, so
-the observable is what the seat fetched and holds, not only what it shows.
+At join, `restoreShelf` registers each shelved book whose shelf page the seat
+may observe: every one on a GM seat, on a player seat only what the Judge
+shared. A registered book is a `BookHandle` in the seat's open books and
+nothing else: no `.pdf` fetch and no pdf.js worker. The first read that needs
+a page fetches and opens the file (`docs/importer/MODEL.md`, "A book is
+registered at join and opens when read"), so the observable is what the seat
+fetched and holds, not only what it shows.
 
 ### Fixtures
 
@@ -1521,18 +1524,26 @@ the observable is what the seat fetched and holds, not only what it shows.
    from a GM seat with `api.fixture` in the shape `shelfPut` writes: named for
    the book's label, in the shelf-flagged *Your Books* folder,
    `flags.acks-extras.shelf` = `{book, name, size}`, one `pdf` page. Every GM
-   seat opens it at join as well, so pick the smallest book that fits. Kept.
+   seat registers it at join as well, and the first import fetches it, so pick
+   the smallest book that fits. Kept.
+3. **`importer/shelf-gone`** — a shelf journal for a registry book, built as
+   fixture 2 is, whose `pdf` page points at a path under the Data directory
+   that holds no file (`acks-extras-books/gone-<book>.pdf`), beside one
+   imported document of that book (any document carrying that book's
+   `flags.acks-extras.cookbook.id`). Choose a book that has none on the real
+   shelf, or build it under `own: <tag>`. Kept.
 
 ### Drive mechanics
 
 - **Join from a capture browser of its own profile**, so no pane's seat is
   taken, and time the join from the page. The restore runs after `ready` and
-  holds the main thread while it parses, so a probe sent at `ready` waits on
-  it. A script added with `Page.addScriptToEvaluateOnNewDocument` before the
-  navigation to `/game` registers `Hooks.once("ready")` as soon as `Hooks`
-  exists, wraps `fetch` to count `.pdf` requests, and wraps `console.log` to
-  catch `opened N book(s) from the shelf` — the restore's last act whenever it
-  opened anything.
+  runs before the importer's api is set. A script added with
+  `Page.addScriptToEvaluateOnNewDocument` before the navigation to `/game`
+  registers `Hooks.once("ready")` as soon as `Hooks` exists, wraps `fetch` to
+  count `.pdf` requests with their urls, and wraps `console.log` to catch
+  `registered N book(s) from the shelf` — the restore's last act whenever it
+  registered anything. Count the requests again after the importer's api
+  arrives and a few seconds more: a book registered at join stays at zero.
 - **The main-thread heap misses the books.** pdf.js hands each buffer to a
   worker of its own, outside `performance.memory` and the page's
   `Runtime.getHeapUsage` alike. Count the workers (`Target.setAutoAttach`)
@@ -1541,20 +1552,32 @@ the observable is what the seat fetched and holds, not only what it shows.
 
 ### Steps
 
-3. Join as the **Player**. *Observable:* of the world's shelf, only
-   `importer/shelf-shared`'s book is open (`acksExtras.importer.bookOpen`);
-   the seat fetched one PDF and holds one pdf.js worker; the console reads
-   `opened 1 book(s) from the shelf`; no Getting Started window opened; no
+4. Join as the **Player**. *Observable:* of the world's shelf, only
+   `importer/shelf-shared`'s book is registered (`acksExtras.importer.bookOpen`);
+   the seat fetched no `.pdf` and holds no pdf.js worker; the console reads
+   `registered 1 book(s) from the shelf`; no Getting Started window opened; no
    progress bar and no "entries available" notice appeared for the book (a
    book connected by hand afterwards raises both).
    *Your Books*: each withheld row says the book is not shared with this
    seat, and the shared row says it is read from the server on every launch.
-4. Press a citation to a withheld book (step 7 above). *Observable:* the
+5. Press a citation to a withheld book (step 7 above). *Observable:* the
    permission warning and nothing opens. A citation reads the shelf page, not
-   the seat's open book, so this answer does not depend on step 3.
-5. Join as a **GM** seat. *Observable:* every shelved book is open, the
-   fixture's included. Joined alone, this seat is the primary GM and runs the
-   GM-at-ready duties; say so in the report.
+   the seat's registered book, so this answer does not depend on step 4.
+6. Join as a **GM** seat. *Observable:* every shelved book is registered, the
+   fixture's included, and the seat fetched no `.pdf` and holds no pdf.js
+   worker. Joined alone, this seat is the primary GM and runs the GM-at-ready
+   duties; say so in the report.
+7. As the GM, run an import that reads `importer/shelf-shared`'s book (an
+   entry of that book through `cookbookImportIds`, or the Books tab's import).
+   *Observable:* exactly one `.pdf` request for that book's file, however many
+   entries it reads, and none for any other book; the imported documents land
+   as with a book opened at join.
+8. With `importer/shelf-gone` in place, run
+   `acksExtras.importer.cookbookReimportBook(<its book>, {ask: async () => true})`
+   as the GM. *Observable:* a notice that the book is not connected, one
+   failed `.pdf` request (a 404) for the fixture's path, and the fixture's
+   imported document with the same id and the same `_stats.modifiedTime`:
+   nothing was deleted or written.
 
 ### Teardown
 

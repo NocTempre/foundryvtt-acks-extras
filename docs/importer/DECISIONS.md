@@ -23,7 +23,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-25 — [Reconciling is a claim about one game's library (2026-08-25)](DECISIONS-through-v11.14.5.md#reconciling-is-a-claim-about-one-games-library-2026-08-25)
 - 2026-08-25 — [A batched write files by identity, never by position (2026-08-25)](DECISIONS-through-v11.14.5.md#a-batched-write-files-by-identity-never-by-position-2026-08-25)
 - 2026-08-25 — [Another game's books get their own shelf (2026-08-25)](DECISIONS-through-v11.14.5.md#another-games-books-get-their-own-shelf-2026-08-25) — superseded in part by "2026-11-10 — The books statted for OSE are switched off, and their code kept"; "2026-11-13 — The books statted for OSE leave `main` for a parked branch"
-- 2026-08-24 — [Imported text is written into the world, once, by the GM who owns the book (2026-08-24)](DECISIONS-through-v11.14.5.md#imported-text-is-written-into-the-world-once-by-the-gm-who-owns-the-book-2026-08-24) — superseded in part by "2026-09-02 — Importing again refreshes what it did not create"
+- 2026-08-24 — [Imported text is written into the world, once, by the GM who owns the book (2026-08-24)](DECISIONS-through-v11.14.5.md#imported-text-is-written-into-the-world-once-by-the-gm-who-owns-the-book-2026-08-24) — superseded in part by "2026-09-02 — Importing again refreshes what it did not create"; "2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it" (connecting is an open and a fingerprint)
 - 2026-08-24 — [Same name, two books: merge unless they differ beyond their source (2026-08-24)](DECISIONS-through-v11.14.5.md#same-name-two-books-merge-unless-they-differ-beyond-their-source-2026-08-24) — superseded in part by "2026-10-17 — Later books supersede, by the year their printing carries"; "2026-10-24 — An item two books print is the later printing's"
 - 2026-08-24 — [Three controls, not twenty-one (2026-08-24)](DECISIONS-through-v11.14.5.md#three-controls-not-twenty-one-2026-08-24) — superseded in part by "2026-10-28 — One management window"
 - 2026-08-24 — [Writes are batched, because a write costs what the shelf already holds (2026-08-24)](DECISIONS-through-v11.14.5.md#writes-are-batched-because-a-write-costs-what-the-shelf-already-holds-2026-08-24)
@@ -35,7 +35,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-08-24 — [A namespace with no shelf is a failing test, not a folder nobody notices (2026-08-24)](DECISIONS-through-v11.14.5.md#a-namespace-with-no-shelf-is-a-failing-test-not-a-folder-nobody-notices-2026-08-24)
 - 2026-08-24 — [Organize is deleted, because destination has one author (2026-08-24)](DECISIONS-through-v11.14.5.md#organize-is-deleted-because-destination-has-one-author-2026-08-24)
 - 2026-08-21 — [Four macros, three dialogs, one question (2026-08-21)](DECISIONS-through-v11.14.5.md#four-macros-three-dialogs-one-question-2026-08-21)
-- 2026-08-21 — [A book the server holds asks nobody for anything (2026-08-21)](DECISIONS-through-v11.14.5.md#a-book-the-server-holds-asks-nobody-for-anything-2026-08-21) — superseded in part by "2026-09-03 — A book the server holds is a journal"
+- 2026-08-21 — [A book the server holds asks nobody for anything (2026-08-21)](DECISIONS-through-v11.14.5.md#a-book-the-server-holds-asks-nobody-for-anything-2026-08-21) — superseded in part by "2026-09-03 — A book the server holds is a journal"; "2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it" (the join-time open)
 - 2026-08-23 — [A class's variants are PATHS, and the grid that prints them is read by geometry (2026-08-23)](DECISIONS-through-v11.14.5.md#a-classs-variants-are-paths-and-the-grid-that-prints-them-is-read-by-geometry-2026-08-23)
 - 2026-08-21 — [A totem animal is a creature, and the template is which one (2026-08-21)](DECISIONS-through-v11.14.5.md#a-totem-animal-is-a-creature-and-the-template-is-which-one-2026-08-21)
 - 2026-08-21 — [A head dress is a hat (2026-08-21)](DECISIONS-through-v11.14.5.md#a-head-dress-is-a-hat-2026-08-21)
@@ -222,7 +222,7 @@ Rulings through v11.14.5: [DECISIONS-through-v11.14.5.md](DECISIONS-through-v11.
 - 2026-10-25 — [A book Adventure's import waits for the library](DECISIONS-through-v11.14.5.md#2026-10-25--a-book-adventures-import-waits-for-the-library)
 - 2026-10-28 — [The importer walks keep only what no import reads](DECISIONS-through-v11.14.5.md#2026-10-28--the-importer-walks-keep-only-what-no-import-reads) — superseded in part by "2026-11-13 — A major's gate is 47 walks, and the rest are suites"
 - 2026-10-28 — [AX1 registers the three items no later book prints](DECISIONS-through-v11.14.5.md#2026-10-28--ax1-registers-the-three-items-no-later-book-prints)
-- 2026-10-28 — [A seat opens only the shelved books it may read](DECISIONS-through-v11.14.5.md#2026-10-28--a-seat-opens-only-the-shelved-books-it-may-read)
+- 2026-10-28 — [A seat opens only the shelved books it may read](DECISIONS-through-v11.14.5.md#2026-10-28--a-seat-opens-only-the-shelved-books-it-may-read) — superseded in part by "2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it" (it registers those books; it no longer opens them)
 - 2026-10-28 — [One management window](DECISIONS-through-v11.14.5.md#2026-10-28--one-management-window) — superseded in part by "2026-11-04 — The Books window is a tab of the import manager"
 - 2026-10-28 — [An adventure book is a reimport unit](DECISIONS-through-v11.14.5.md#2026-10-28--an-adventure-book-is-a-reimport-unit) — superseded in part by "2026-11-11 — One repair, in place, and the Judge chooses what it writes over"; "2026-11-11 — The manager draws only the one repair, and Repair everything replaces the Mode select"; "2026-11-13 — Book repair reaches a book's own rows and vehicles (T-0458)"
 - 2026-10-28 — [Every rebuilt document keeps its id](DECISIONS-through-v11.14.5.md#2026-10-28--every-rebuilt-document-keeps-its-id)
@@ -2691,3 +2691,60 @@ not on such a host. The stand-in cannot show a host's content security policy
 for `blob:` workers, or what its file server lets another origin read. Where
 a `blob:` worker is refused, pdf.js opens the book on the main thread, slower;
 the OCR engine has no such fallback.
+
+## 2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it
+
+**Ruled.** The owner: "Parse once, read everywhere". This slice (S1) is its
+first half: nothing is fetched or parsed at join. Example: a GM seat joining
+a world with 23 staged books fetches no `.pdf` and starts no pdf.js worker; the
+first import that reads one book fetches that one file, once, and every other
+book stays unfetched.
+
+`restoreShelf` puts a `BookHandle` (`book-handle.mjs`) in `sessionDocs` for each
+shelved book the seat may read (the same `shelfBooksToOpen` test as before) and
+fires `bookOpened`, with no fetch. The handle answers `numPages` and `title`
+from the registry row until an open, carries the book's typography, and opens
+the file when a read first needs a page: one fetch, one `openChecked`
+(fingerprint, wrong-book and form refusal, the same open a connect uses), one
+live document shared by every caller at once.
+
+Two states. *Registered*: placed at join. *Verified*: a live open
+fingerprinted this session. Reads verify before their first page, and a file
+that is gone or is another book answers `book-closed` from `readForImport`,
+`repairFromEntry` and the three direct readers (`refillMonster`, the vehicle
+and merchandise reads). Deletes ask verified: `rebuildable` and
+`readableHere` read `bookVerified`, and each repair entry (a shelf, a book, an
+adventure book, the entry picker, the class update) verifies its scope before
+it asks. A registered, unverified handle licenses no delete, so a repair over
+a book whose file has been removed from the server deletes nothing. The pixel
+readers in `extract.mjs` take the live document first (`liveDoc`). A live
+document is held for a bulk run (`holdingLive`, taken by the import chain and
+by every merged repair) and released after two idle minutes, which outlasts
+the longest page render; a file this seat picked, with no path to refetch, is
+never released. The character sheet's blank is fetched when Export is pressed.
+
+**Supersedes in part**, each over seven days old, on new evidence. 2026-10-28
+and 2026-08-21: the join no longer opens the books a seat may read, it
+registers them. 2026-08-24, "Imported text is written into the world, once":
+connecting a book is no longer an open and a fingerprint; the open and the
+fingerprint happen at the first read. Evidence: a join opened every book on
+every GM seat (a 52-103 MB fetch and open per book, on every seat), and
+the join's reopen raced a walk that had closed a book on purpose (T-0675),
+which a pass that fetches nothing cannot do.
+
+**Stands.** 2026-09-03 (the journal is the record and its permission is the
+read test). 2026-10-28's rule about WHICH books a seat may read. 2026-11-10's
+delete licence, now asked of verified. 2026-11-13's OCR ruling, its bytes
+fetched from the handle's path.
+
+*Rejected:* opening at join and closing after (the fetch is the cost);
+keeping T-0675's re-check in `restoreShelf` (the pass has no await, so no
+other path can open a book while it runs); a handle that is verified by
+registration (a file removed from the server would then license deletes).
+
+*Cost:* a book whose file is gone from the server reads as registered, so the
+Books tab and the open-book gates show it open; the failure surfaces at its
+first read, as `book-closed`, instead of at join. The per-seat remembered
+location of a shelved book is no longer tried when the shelf file is gone,
+since the book is already registered. A book is fetched on the first read of
+each session (the whole file) until a saved text layer replaces that read.

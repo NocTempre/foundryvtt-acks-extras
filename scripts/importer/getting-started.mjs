@@ -10,6 +10,7 @@
 import { MODULE_ID, LANG_PREFIX } from "./constants.mjs";
 import { acksExtras } from "../namespace.mjs";
 import { progressBar } from "./progress.mjs";
+import { holdingLive } from "./book-handle.mjs";
 
 /** The client setting key holding whether this seat dismissed the first-run band. */
 export const SETTING_DISMISSED = "gettingStartedDismissed";
@@ -167,21 +168,24 @@ export async function runImportEverything(root = null) {
   const overall = progressBar(t("importOverall"), GM_STEPS.length);
   const chain = {};
   try {
-    for (const [key, run] of GM_STEPS) {
-      if (status) status.textContent = t(key);
-      // Names the step about to run against the count already finished.
-      overall.note(t(key));
-      // One failed step must not silence the rest: each covers a different
-      // document type.
-      try {
-        await run(api, { quiet: true, run: chain });
-      } catch (err) {
-        console.error(`${MODULE_ID} | getting started: ${key}`, err);
-        ui.notifications.error(`${MODULE_ID} | ${t(key)}: ${err.message}`);
+    // Every book the steps read stays open for the whole chain: one fetch each, however many steps read it.
+    await holdingLive(async () => {
+      for (const [key, run] of GM_STEPS) {
+        if (status) status.textContent = t(key);
+        // Names the step about to run against the count already finished.
+        overall.note(t(key));
+        // One failed step must not silence the rest: each covers a different
+        // document type.
+        try {
+          await run(api, { quiet: true, run: chain });
+        } catch (err) {
+          console.error(`${MODULE_ID} | getting started: ${key}`, err);
+          ui.notifications.error(`${MODULE_ID} | ${t(key)}: ${err.message}`);
+        }
+        // Counted whether it succeeded or threw.
+        overall.step();
       }
-      // Counted whether it succeeded or threw.
-      overall.step();
-    }
+    });
     if (status) status.textContent = t("importDone");
   } finally {
     overall.finish(t("importDone"));

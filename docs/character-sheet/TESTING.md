@@ -525,10 +525,11 @@ leave the fixture.
   report or the captured download with a bound of minutes, not a fixed
   sleep.
 - **The importer's api arrives after `ready`** (5–17 s on this world): poll
-  `acksExtras.importer` before reading `bookOpen("sheet")`. The shelf opens
-  one book at a time, so the sheet waits behind every shelved book the seat
-  may read: on a GM seat the whole shelf, on a Player seat only what the
-  Judge shared with it.
+  `acksExtras.importer` before reading `bookOpen("sheet")`. The shelf
+  registers at join without a fetch, so `bookOpen("sheet")` is true as soon as
+  the api is there, on a GM seat and on a Player seat the Judge shared the
+  sheet with. The file itself is fetched by `bookBytes("sheet")`, which Export
+  calls on press.
 - **Your Books' row controls are file-system pickers** on localhost and
   cannot be scripted. The shelf band's `input[data-shelf-bulk]` (GM) and the
   local band's `input[data-bulk]` take Files as above and match the sheet by
@@ -617,14 +618,15 @@ leave the fixture.
     the footer's Import stays in view, and every input has a label.
 13. As the Player seat: the owned character's window menu carries *Official
     sheet (PDF)*, and the Actors directory has no *Import sheet*. The sheet
-    opens from the server at join. Import the filled copy. *Observable:*
+    is registered at join with no `.pdf` request. Import the filled copy. *Observable:*
     there is no henchmen box, and the henchman goes to the notes. The
     preview's domain row says the page is kept in the notes and there is no
     domain box; the domain is unchanged. Export works from the server's
-    sheet, and its domain page is the one this import read.
+    sheet, and its domain page is the one this import read; the sheet's file
+    was fetched once, at that press, and not at join.
 14. As GM, set the sheet journal's default ownership to None, then join a
-    fresh Player seat. *Observable:* the sheet is not open there and Export
-    is disabled. Give the local band's input the colour blank. *Observable:*
+    fresh Player seat. *Observable:* the sheet is not registered there, no
+    `.pdf` request was made, and Export is disabled. Give the local band's input the colour blank. *Observable:*
     the window re-renders with Export enabled, and the export reads back as
     the form holding the character.
 

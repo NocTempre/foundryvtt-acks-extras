@@ -12,9 +12,11 @@
  * it.
  *
  * A PDF staged under the Foundry data directory is the shelf: one JournalEntry
- * per book, its PDF page pointing at the staged file, read by every GM seat on
- * join with no gesture. The per-seat kinds are how a book is read the first
- * time and how its bytes reach the shelf. Design: docs/importer/MODEL.md.
+ * per book, its PDF page pointing at the staged file. Every seat that may read
+ * a shelved book registers it at join with no gesture and fetches nothing: the
+ * file is fetched and opened by the first read that needs it. The per-seat
+ * kinds are how a book is read the first time and how its bytes reach the
+ * shelf. Design: docs/importer/MODEL.md.
  *
  * api (acksExtras.importer / game.modules.get("acks-extras").api.importer):
  *   bookStatus()     the import manager on its Books tab: every book's state, and its control
@@ -30,6 +32,7 @@ import { BOOKS, REGISTRY, bookIsForm, bookIsJudges, fingerprintWarning, identify
 import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
+import { BookHandle } from "./book-handle.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
@@ -63,7 +66,10 @@ import { registerBookAdventureHooks } from "./book-adventure.mjs";
 const SETTING_DYNAMIC = "dynamicRecipes";
 const SETTING_REFRESH_CACHE = "refreshCacheSeconds";
 
-/** Open PDFs this session: bookId -> { doc, title }. Memory only. */
+/**
+ * The books this session can read: bookId -> { doc, title }. `doc` is a
+ * `BookHandle`, registered at join and fetched on first use. Memory only.
+ */
 const sessionDocs = new Map();
 
 /* -------------------------------------------- */
@@ -568,29 +574,43 @@ async function stageFile(bookId, file) {
 }
 
 /**
- * Open every shelved book this seat may read: all of them on a GM seat, on a
- * player seat only what the Judge shared. Each is a fetch and a parse of the
- * whole PDF, so a seat never opens a book it may not read. Runs on join before
- * the per-seat restore, so a shelved book never waits for a gesture.
+ * A handle for a book: the registry row's page count and label until a live
+ * open reports the file's own, the book's typography from the first page
+ * read, and `openChecked` as the open that fingerprints. `src` is where the
+ * file can be fetched again, null for a file only this seat holds.
+ */
+function handleFor(bookId, src) {
+  const row = REGISTRY[bookId];
+  const handle = new BookHandle({
+    bookId,
+    src,
+    numPages: row?.pages ?? 0,
+    title: row?.label ?? bookId,
+    open: (buffer) => openChecked(bookId, buffer),
+  });
+  return useTypography(handle, bookId);
+}
+
+/**
+ * Register every shelved book this seat may read: all of them on a GM seat, on
+ * a player seat only what the Judge shared. Registering is a handle in
+ * `sessionDocs` and a `bookOpened`, with no fetch and no worker; the file is
+ * fetched when a read first needs a page of it. Runs on join before the
+ * per-seat restore, so a shelved book never waits for a gesture.
  */
 async function restoreShelf() {
   const staged = shelf();
-  const opened = [];
+  const registered = [];
   for (const bookId of shelfBooksToOpen(staged, shelfReadable, (id) => sessionDocs.has(id))) {
-    // The list is taken once; a book another path opened while the pass ran is not read twice.
-    if (sessionDocs.has(bookId)) continue;
-    const record = staged[bookId];
-    try {
-      await connectBookUrl(bookId, record.path, { remember: false, bridge: false, silent: true });
-      opened.push(bookId);
-    } catch (err) {
-      console.warn(`${MODULE_ID} | shelved ${REGISTRY[bookId]?.label ?? bookId} could not be read at ${record.path}`, err);
-    }
+    const handle = handleFor(bookId, staged[bookId].path);
+    sessionDocs.set(bookId, { doc: handle, title: handle.title });
+    Hooks.callAll("acksExtras.bookOpened", bookId);
+    registered.push(bookId);
   }
-  if (opened.length) {
-    console.log(`${MODULE_ID} | opened ${opened.length} book(s) from the shelf: ${opened.map((id) => REGISTRY[id].label).join(", ")}`);
+  if (registered.length) {
+    console.log(`${MODULE_ID} | registered ${registered.length} book(s) from the shelf: ${registered.map((id) => REGISTRY[id].label).join(", ")}`);
   }
-  return opened;
+  return registered;
 }
 
 /* -------------------------------------------- */
@@ -780,7 +800,7 @@ const allRecipes = () => [...RECIPES, ...Object.values(dynamicRecipes())];
  * behind.
  *
  * `bridge` says whether the bytes are kept across a page reload; a shelved book
- * is refetched on every join, so the shelf passes false.
+ * is fetched again from the server, so the shelf passes false.
  * See docs/importer/DECISIONS.md, "A book the server holds is never bridged (2026-08-24)".
  *
  * `silent` opens the book without a progress bar or an "entries available"
@@ -801,7 +821,7 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true, sil
   }
   // Blob first, buffer from it: pdf.js detaches the array it is handed.
   const blob = await resp.blob();
-  const hits = await ingestBook(bookId, await blob.arrayBuffer(), { silent, cache: bridge ? blob : null });
+  const hits = await ingestBook(bookId, await blob.arrayBuffer(), { silent, cache: bridge ? blob : null, src: url });
   // A path is the one location kind that reopens with no gesture.
   if (remember) {
     await locationPut(bookId, { kind: "url", url, name: url.split("/").pop() || url }).catch((err) =>
@@ -812,15 +832,59 @@ async function connectBookUrl(bookId, url, { remember = true, bridge = true, sil
 }
 
 /**
+ * Open a PDF's bytes as `bookId` and fingerprint them: the one open every path
+ * to a book shares (a connect, a staging, the handle's first read).
+ *
+ * A file that fingerprints as another book in the registry is never read into
+ * this one; edition drift stays a warning (see identifyBook). A printed copy
+ * of a form has the same pages and no fields, and is refused too. A refused
+ * file's document is released before the error is thrown.
+ * See docs/importer/DECISIONS.md, "Position is not evidence, and a file that is another book is refused (2026-08-11)".
+ *
+ * @returns {Promise<{doc: object, numPages: number, title: string}>} a document tagged with the book's typography
+ */
+async function openChecked(bookId, buffer) {
+  const { doc, numPages, title } = await openBook(buffer);
+  const actualId = identifyBook(numPages, title);
+  if (actualId && actualId !== bookId) {
+    await doc.destroy?.();
+    const err = new Error(
+      game.i18n.format(`${LANG_PREFIX}.ui.connectWrongBook`, {
+        book: REGISTRY[bookId]?.label ?? bookId,
+        actual: REGISTRY[actualId].label,
+      }),
+    );
+    err.wrongBook = actualId;
+    throw err;
+  }
+  if (bookIsForm(bookId)) {
+    const { isForm, share } = await readForm(doc);
+    if (!isForm) {
+      await doc.destroy?.();
+      throw new Error(
+        game.i18n.format(`${LANG_PREFIX}.ui.connectNotForm`, { book: BOOKS[bookId].label, share: Math.round(share * 100) }),
+      );
+    }
+  }
+  // Tagged before anything reads a page: an untagged read uses the wrong size
+  // ladder and leaves the book's ligatures encoded.
+  useTypography(doc, bookId);
+  return { doc, numPages, title };
+}
+
+/**
  * Read a book into this session.
  *
  * Opening is an open and a fingerprint: nothing is extracted here; text is read
- * from the page an import names, at import time.
+ * from the page an import names, at import time. The book's handle takes the
+ * open document and is verified from then on; a book already registered keeps
+ * its handle.
  *
  * `cache` is the File/Blob the caller read `buffer` from, when it still holds
- * one; it is bridged across page reloads (see the refresh bridge above).
+ * one; it is bridged across page reloads (see the refresh bridge above). `src`
+ * is the path the bytes were fetched from, null for a file only this seat holds.
  */
-async function ingestBook(bookId, buffer, { silent = false, cache = null } = {}) {
+async function ingestBook(bookId, buffer, { silent = false, cache = null, src = null } = {}) {
   const entries = cookbookCount(bookId);
   // A silent open raises no bar and no notice; the caller reports the batch once.
   const bar = silent
@@ -828,39 +892,12 @@ async function ingestBook(bookId, buffer, { silent = false, cache = null } = {})
     : progressBar(game.i18n.format(`${LANG_PREFIX}.ui.progressReading`, { book: BOOKS[bookId]?.label ?? bookId }), 1);
   try {
     bar.note(game.i18n.localize(`${LANG_PREFIX}.ui.progressOpening`));
-    const { doc, numPages, title } = await openBook(buffer);
-    // A file that fingerprints as another book in the registry is never read
-    // into this one; edition drift stays a warning (see identifyBook).
-    // See docs/importer/DECISIONS.md, "Position is not evidence, and a file that is another book is refused (2026-08-11)".
-    const actualId = identifyBook(numPages, title);
-    if (actualId && actualId !== bookId) {
-      await doc.destroy?.();
-      const err = new Error(
-        game.i18n.format(`${LANG_PREFIX}.ui.connectWrongBook`, {
-          book: REGISTRY[bookId]?.label ?? bookId,
-          actual: REGISTRY[actualId].label,
-        }),
-      );
-      err.wrongBook = actualId;
-      throw err;
-    }
-    // A printed copy of a form has the same pages and no fields; it is refused
-    // here, before the shelf can upload it.
-    if (bookIsForm(bookId)) {
-      const { isForm, share } = await readForm(doc);
-      if (!isForm) {
-        await doc.destroy?.();
-        throw new Error(
-          game.i18n.format(`${LANG_PREFIX}.ui.connectNotForm`, { book: BOOKS[bookId].label, share: Math.round(share * 100) }),
-        );
-      }
-    }
+    const { doc, numPages, title } = await openChecked(bookId, buffer);
     const warning = fingerprintWarning(bookId, numPages, title);
     if (warning && !silent) ui.notifications.warn(`${MODULE_ID} | ${warning}`);
-    // Tagged before anything reads a page: an untagged read uses the wrong size
-    // ladder and leaves the book's ligatures encoded.
-    useTypography(doc, bookId);
-    sessionDocs.set(bookId, { doc, title });
+    const held = sessionDocs.get(bookId)?.doc;
+    const handle = (held?.isBookHandle ? held : handleFor(bookId, src)).adopt({ doc, numPages, title, src });
+    sessionDocs.set(bookId, { doc: handle, title });
     Hooks.callAll("acksExtras.bookOpened", bookId);
     // Bridged only once the book actually opened.
     await cacheBytes(bookId, cache);

@@ -5,6 +5,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { repairWrite } from "../refresh.mjs";
 import { executeEntry } from "../executor.mjs";
+import { holdingLive, verifyDoc } from "../book-handle.mjs";
 import { data, ctx, cookbookEntry, bookOf } from "./state.mjs";
 
 /** The open read hold (`holdingReads`): executed nodes by session doc, then entry id, and the counts it logs. */
@@ -17,13 +18,14 @@ let heldReads = null;
  * first pass read. Nodes only, never pages. A node is kept under the open book
  * it was read from, so a book closed and reopened inside the hold reads again.
  * A hold already standing is joined; the outermost one clears it and logs how
- * many entries it read and how many reads it answered again.
+ * many entries it read and how many reads it answered again. It also keeps
+ * every book's live document open for the run (`holdingLive`).
  */
 export async function holdingReads(run) {
   if (heldReads) return run();
   heldReads = { nodes: new WeakMap(), entries: 0, hits: 0 };
   try {
-    return await run();
+    return await holdingLive(run);
   } finally {
     const { entries, hits } = heldReads;
     heldReads = null;
@@ -66,7 +68,8 @@ async function executeHeld(session, found, id, opts) {
  * Write a fresh read of `id` over one imported document: execute the entry on
  * this seat, bind it with `build(node)`, and write the build under `policy`
  * (`repairWrite`). Resolves to the written plan, or to why nothing was
- * written — `book-closed` when the entry's book is not open here, `no-match`
+ * written — `book-closed` when the entry's book is not open here or its file
+ * cannot be opened and fingerprinted (`verifyDoc`), `no-match`
  * when its page no longer matches, `error` when the binding threw. The
  * tally's `decision`, or its force, says what becomes of a hand-written
  * description.
@@ -74,7 +77,7 @@ async function executeHeld(session, found, id, opts) {
 export async function repairFromEntry(doc, id, build, policy, tally = null) {
   const found = cookbookEntry(id);
   const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
-  if (!session) return "book-closed";
+  if (!session || !(await verifyDoc(session.doc))) return "book-closed";
   const node = await executeHeld(session, found, id, {}).catch(() => null);
   if (!node?.ok) return "no-match";
   let built;
@@ -90,7 +93,8 @@ export async function repairFromEntry(doc, id, build, policy, tally = null) {
 /**
  * Read one entry off the seat's own book for an import: `{node}` when the
  * page yielded one, else `{node: null, reason}` — `book-closed` when the
- * entry's book is not open here, `no-match` when its page no longer matches
+ * entry's book is not open here or its file cannot be opened and fingerprinted
+ * (`verifyDoc`), `no-match` when its page no longer matches
  * the cookbook. Inside `holdingReads`, a repeated read of one entry is served
  * from the first. An import creates nothing from a null node. `opts` is
  * `executeEntry`'s.
@@ -99,7 +103,7 @@ export async function repairFromEntry(doc, id, build, policy, tally = null) {
 export async function readForImport(id, opts = {}) {
   const found = cookbookEntry(id);
   const session = found ? ctx.sessionDocs.get(bookOf(found)) : null;
-  if (!session) return { node: null, reason: "book-closed" };
+  if (!session || !(await verifyDoc(session.doc))) return { node: null, reason: "book-closed" };
   const node = await executeHeld(session, found, id, opts);
   return node?.ok ? { node, reason: null } : { node: null, reason: "no-match" };
 }

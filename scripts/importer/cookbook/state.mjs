@@ -5,6 +5,7 @@
 import { MODULE_ID } from "../constants.mjs";
 import { BOOKS, bookIsJudges, bookLine, offeredBookFiles, registryBookOf } from "../books.mjs";
 import { groupBookOf } from "../import-kinds.mjs";
+import { verifiedDoc, verifyDoc } from "../book-handle.mjs";
 import { judgeLine } from "../../lib/library.mjs";
 import { playerOwned } from "../character-binding.mjs";
 import { CLASS_TYPE } from "../../classes/constants.mjs";
@@ -228,13 +229,38 @@ export const api = () => acksExtras.importer ?? {};
 export const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
 
 /**
+ * Whether a book's file has been opened and fingerprinted this session, which
+ * is what a delete may rest on: a book only registered at join is not (see
+ * `BookHandle`). Settled by `verifyBooks` before the delete is asked.
+ */
+export const bookVerified = (book) => verifiedDoc(ctx?.sessionDocs?.get(book)?.doc);
+
+/** Open and fingerprint each of `books` on this seat, in parallel, so `bookVerified` has its answer. A book that fails stays unverified. */
+export async function verifyBooks(books) {
+  await Promise.all([...new Set(books.filter(Boolean))].map((book) => verifyDoc(ctx?.sessionDocs?.get(book)?.doc)));
+}
+
+/** Whether `bookId` is on this seat and its file opens and fingerprints: `verifyBooks`, then `bookVerified`. */
+export async function verifiedBook(bookId) {
+  await verifyBooks([bookId]);
+  return bookVerified(bookId);
+}
+
+/** The book an entry's claim is read from, or undefined when its id names none. */
+const claimBook = (id) => bookOf(cookbookEntry(id)) ?? groupBookOf(id);
+
+/** `verifyBooks` for the books the claims `ids` are read from. */
+export const verifyClaims = (ids) => verifyBooks(ids.map(claimBook));
+
+/**
  * Whether an entry can be read back on this seat: false only when the entry
- * names its book and that book is not open here. See
- * docs/importer/DECISIONS.md, "A closed book is refused, not rebuilt."
+ * names its book and that book is not verified here (`bookVerified`). Callers
+ * await `verifyClaims` first. See docs/importer/DECISIONS.md, "A closed book
+ * is refused, not rebuilt."
  */
 export const readableHere = (id) => {
-  const book = bookOf(cookbookEntry(id)) ?? groupBookOf(id);
-  return !book || !!ctx?.sessionDocs?.has(book);
+  const book = claimBook(id);
+  return !book || bookVerified(book);
 };
 
 /**

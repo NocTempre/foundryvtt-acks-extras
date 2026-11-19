@@ -25,6 +25,7 @@ import {
   lineOfClaim, bookStamp, data, ctx, cookbookEntry, bookOf, vehicleEntries, SIXTHS_PER_STONE, canImportAnimals,
   isAnimalEntry, cookbookEquipmentIds,
 } from "./state.mjs";
+import { verifyDoc } from "../book-handle.mjs";
 import { repairFromEntry, readForImport, passedOver } from "./read.mjs";
 import {
   createDoc, rememberImported, claimImport, claimActorImport, importedDocs, importedItem, importedActor, actorFolderFor,
@@ -304,10 +305,11 @@ export async function importVehicles({ only = null, repair = null } = {}) {
     const found = cookbookEntry(id);
     const bookId = found ? bookOf(found) : null;
     const session = bookId ? ctx.sessionDocs.get(bookId) : null;
-    const node = session ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
-    // Nothing to read: the book is not connected, or its page no longer matches.
+    const readable = !!session && (await verifyDoc(session.doc));
+    const node = readable ? await executeEntry(session.doc, found.cb, data.registers, id) : null;
+    // Nothing to read: the book is not connected or its file cannot be opened, or its page no longer matches.
     if (!node?.ok) {
-      if (repair) countRepair(repair, session ? "no-match" : "book-closed");
+      if (repair) countRepair(repair, readable ? "no-match" : "book-closed");
       continue;
     }
     for (const grid of Object.values(node.fields?.grids ?? {})) {
