@@ -113,7 +113,7 @@
             {{#each this.members}}
               <li class="member" data-member-key="{{this.key}}">
                 <span class="member-name">{{this.name}}</span>
-                <span class="member-state state-{{this.state}}">{{this.state}}</span>
+                <span class="member-state state-{{this.state}}">{{this.stateLabel}}</span>
                 {{#if this.hp}}<span class="member-hp">{{this.hp.value}}/{{this.hp.max}}</span>{{/if}}
                 {{#if @root.editable}}
                   <button type="button" class="icon" data-action="detach" data-tooltip

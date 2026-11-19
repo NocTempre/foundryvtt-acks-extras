@@ -119,6 +119,7 @@ export class GroupSheet extends PicksMixin(HandlebarsApplicationMixin(foundry.ap
       ordinal: m.ordinal,
       name: groups.memberName(stack, m),
       state: m.state,
+      stateLabel: loc(`memberState.${m.state}`),
       note: m.note,
       hp: m.delta?.system?.hp ?? null,
       hasActor: !!m.actorUuid,
