@@ -31,6 +31,11 @@
  *   check-treasure-tables  Do the treasure tables read whole off the Judges
  *                       Journal — every type row found, every band list tiling
  *                       its die? Needs the PDF and skips without it.
+ *   check-book-art      Does each book's art recipe still select its picture
+ *                       (one placement by box, the recipe's decoded size),
+ *                       keep its crops inside the page and above the stamp,
+ *                       and name faces the cookbook holds? Needs the PDFs and
+ *                       skips without them.
  *   check-magic-item-tables  Do the Judges Journal's magic-item and arms
  *                       tables read whole — every row found, every list
  *                       tiling its die, every Random Type row naming one list?
@@ -150,7 +155,7 @@ if (failed) {
 // the others read, so they run side by side, each to its end.
 const importerTool = ([tool, ...args]) => [path.join(ROOT, "tools", "importer", tool), ...args];
 execFileSync(process.execPath, importerTool(["lint-register.mjs"]), { stdio: "inherit" });
-const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-treasure-tables.mjs"], ["check-magic-item-tables.mjs"], ["check-market-classes.mjs"]].map(importerTool));
+const checks = await sideBySide([["icon-ledger.mjs", "--check"], ["audit-transcription.mjs"], ["check-prose-boxes.mjs"], ["check-prose-stops.mjs"], ["check-cookbook-drift.mjs"], ["check-encounter-grids.mjs"], ["check-treasure-tables.mjs"], ["check-book-art.mjs"], ["check-magic-item-tables.mjs"], ["check-market-classes.mjs"]].map(importerTool));
 if (checks.some((check) => check.status !== 0)) {
   console.error(`validate-extra: FAILED — ${checks.filter((check) => check.status !== 0).map((check) => path.basename(check.args[0])).join(", ")}`);
   process.exit(1);

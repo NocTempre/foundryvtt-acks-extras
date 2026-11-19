@@ -6,9 +6,13 @@
  * no book id, and the treasure feature's pools and band count reach it as
  * arguments. The runtime step is `cookbook/book-art.mjs`.
  *
- * A recipe row is `{n, page, box: {x, y, w, h}, size: {w, h}, uses}`: `n` the
- * census ordinal, `page` the PDF page, `box` the placement in page points,
- * `size` the decoded samples. Each use is `{side, pool, band?, entry?}` for a
+ * A recipe row has one of two shapes. A picture, `{n, page, box: {x, y, w, h},
+ * size: {w, h}, uses}`: `n` the census ordinal, `page` the PDF page, `box` the
+ * placement in page points (it selects the picture), `size` the decoded
+ * samples (they verify it). A crop, `{n, page, crop: {x0, y0, x1, y1}, uses}`:
+ * a page region in top-origin page points, rendered at import like a scene's
+ * crop, for textures only; it has no size, and its ordinal lies outside the
+ * census (the books' files number crops from 1001). Each use is `{side, pool, band?, entry?}` for a
  * back or a face (a face's `entry` is a cookbook id of the book, and the row's
  * `kind`), or `{side: "texture", kind, band?, licence?}`, which has no pool and
  * no entry.
@@ -38,13 +42,40 @@ export const PRODUCES = Object.freeze({
 });
 
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+
+/**
+ * The page a crop must lie on, in points, and the stamp line it must stay
+ * above: a purchaser's stamp is printed at a page's foot, so no crop reaches
+ * below `stampLine`. Letter size; a caller that reads the page passes its own.
+ */
+export const CROP_LIMITS = Object.freeze({ pageW: 612, pageH: 792, stampLine: 776 });
+
+/** Whether a row is the crop shape: it carries `crop` and neither `box` nor `size`. */
+export const isCropRow = (row) => row?.crop != null;
+
+/**
+ * What is wrong with one crop box against a page and its stamp line, as short
+ * messages without the box's numbers; empty when it is sound.
+ *
+ * @param {{x0: number, y0: number, x1: number, y1: number}} crop
+ * @param {{pageW?: number, pageH?: number, stampLine?: number}} [limits]
+ * @returns {string[]}
+ */
+export function cropProblems(crop, { pageW = CROP_LIMITS.pageW, pageH = CROP_LIMITS.pageH, stampLine = CROP_LIMITS.stampLine } = {}) {
+  if (!["x0", "y0", "x1", "y1"].every((k) => isNum(crop?.[k]))) return ["crop needs numbers x0, y0, x1 and y1"];
+  const out = [];
+  if (!(crop.x1 > crop.x0 && crop.y1 > crop.y0)) out.push("crop must have x1 > x0 and y1 > y0");
+  if (crop.x0 < 0 || crop.y0 < 0 || crop.x1 > pageW || crop.y1 > pageH) out.push("crop must lie inside the page");
+  if (crop.y1 > stampLine) out.push("crop must stay above the stamp line");
+  return out;
+}
 const nonEmpty = (v) => typeof v === "string" && v.length > 0;
 
 /** The registry kind a use writes: a face's entry, a texture's kind, null for a back. */
 const kindOfUse = (use) => (use.side === "face" ? use.entry ?? null : use.side === "texture" ? use.kind ?? null : null);
 
 /** The lookup key two uses may not share: side, pool, band, kind. */
-const lookupKey = (use) =>
+export const lookupKey = (use) =>
   JSON.stringify([use.side, use.side === "texture" ? null : use.pool ?? null, use.band ?? null, kindOfUse(use)]);
 
 /**
@@ -53,12 +84,15 @@ const lookupKey = (use) =>
  * `kind.magicItem` of `cookbook`, a texture takes a kind and neither a pool nor
  * an entry, a pool must be one of `pools`, a band an integer in
  * `0..bandCount-1`, an ordinal is used once, and no two uses share a lookup key.
+ * A row is a picture (`box` and `size`) or a crop (`crop`), never both or
+ * neither; a crop's uses are textures only, and it lies inside the page and
+ * above the stamp line (`cropProblems`, with `limits`).
  *
  * @param {object[]} rows the recipe
- * @param {{cookbook?: {entries?: object}, pools?: string[], bandCount?: number}} [opts]
+ * @param {{cookbook?: {entries?: object}, pools?: string[], bandCount?: number, limits?: object}} [opts]
  * @returns {string[]}
  */
-export function bookArtProblems(rows, { cookbook = null, pools = [], bandCount = 0 } = {}) {
+export function bookArtProblems(rows, { cookbook = null, pools = [], bandCount = 0, limits = CROP_LIMITS } = {}) {
   if (!Array.isArray(rows)) return ["the recipe is not an array"];
   const out = [];
   const ordinals = new Set();
@@ -70,9 +104,15 @@ export function bookArtProblems(rows, { cookbook = null, pools = [], bandCount =
     else if (ordinals.has(row.n)) out.push(`${at}: the ordinal is used twice`);
     else ordinals.add(row.n);
     if (!(Number.isInteger(row.page) && row.page > 0)) out.push(`${at}: page must be a positive integer`);
-    if (!["x", "y", "w", "h"].every((k) => isNum(row.box?.[k]))) out.push(`${at}: box needs numbers x, y, w and h`);
-    if (!["w", "h"].every((k) => Number.isInteger(row.size?.[k]) && row.size[k] > 0)) out.push(`${at}: size needs positive integers w and h`);
+    const crop = isCropRow(row);
+    if (crop && (row.box != null || row.size != null)) out.push(`${at}: a row is a picture (box and size) or a crop, not both`);
+    else if (crop) for (const p of cropProblems(row.crop, limits)) out.push(`${at}: ${p}`);
+    else {
+      if (!["x", "y", "w", "h"].every((k) => isNum(row.box?.[k]))) out.push(`${at}: box needs numbers x, y, w and h`);
+      if (!["w", "h"].every((k) => Number.isInteger(row.size?.[k]) && row.size[k] > 0)) out.push(`${at}: size needs positive integers w and h`);
+    }
     if (!Array.isArray(row.uses) || !row.uses.length) return out.push(`${at}: uses must be a non-empty array`);
+    if (crop && row.uses.some((use) => use?.side !== "texture")) out.push(`${at}: a crop's uses are textures only`);
     for (const use of row.uses) {
       if (!use || typeof use !== "object") {
         out.push(`${at}: a use is not an object`);
@@ -108,26 +148,30 @@ export function bookArtProblems(rows, { cookbook = null, pools = [], bandCount =
   return out;
 }
 
+/** A crop edge in a file stem: the number with its point written `p`. */
+const stemNum = (v) => String(v).replace(".", "p").replace("-", "m");
+
 /**
  * The pictures to fetch for one book, one per recipe row however many uses it
- * has: `{n, id, stem, page, box, size, uses}`. The stem `<book>-art<n>-<w>x<h>`
- * names the world file, so a recipe that points an ordinal at another picture
- * makes a new file.
+ * has: `{n, id, stem, page, box, size, uses}` for a picture, `{n, id, stem,
+ * page, crop, uses}` for a crop. A picture's stem `<book>-art<n>-<w>x<h>` and
+ * a crop's `<book>-art<n>-p<page>-<x0>-<y0>-<x1>-<y1>` name the world file, so
+ * a recipe that points an ordinal at another picture or region makes a new
+ * file.
  *
  * @param {string} bookId
  * @param {object[]} rows the book's recipe
  * @returns {object[]}
  */
 export function planBookArt(bookId, rows) {
-  return (rows ?? []).map((row) => ({
-    n: row.n,
-    id: `${bookId}.art${row.n}`,
-    stem: `${bookId}-art${row.n}-${row.size?.w}x${row.size?.h}`,
-    page: row.page,
-    box: row.box,
-    size: row.size,
-    uses: row.uses ?? [],
-  }));
+  return (rows ?? []).map((row) => {
+    const base = { n: row.n, id: `${bookId}.art${row.n}`, page: row.page };
+    if (isCropRow(row)) {
+      const c = row.crop;
+      return { ...base, stem: `${bookId}-art${row.n}-p${row.page}-${[c.x0, c.y0, c.x1, c.y1].map(stemNum).join("-")}`, crop: c, uses: row.uses ?? [] };
+    }
+    return { ...base, stem: `${bookId}-art${row.n}-${row.size?.w}x${row.size?.h}`, box: row.box, size: row.size, uses: row.uses ?? [] };
+  });
 }
 
 /** One picture's result from a Map or a plain object keyed by ordinal. */
