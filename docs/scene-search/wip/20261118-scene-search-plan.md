@@ -216,3 +216,21 @@ Every UI slice (S4, S5, S6) builds from the approved boards. A change beyond the
   - (R-DC3) A player's hand-made lock at a hidden key still lands in the plan.
   - (R-DC3) The Dungeon tab's identically labelled options.
 - Next are S5, S6 and S7a, each when the orchestrator dispatches it. `topic/scene-search` stays open; sync it before the next slice.
+
+### 2026-11-19 — S5 and S6 landed and walked (scene-search orchestrator, lane 5)
+
+- The S4 relay re-run passed 58/58 on lane C with Gamemaster 3 as the only GM seated (`/api/status` users 0 before and after): Player 3's assign was accepted by Gamemaster 3, and Player 6's asks each posted one card and moved no clock.
+- S5 (ways in) and S6 (keying) are landed on main: tip 25a38137 (6dc4712e S5, 24f642e5 S6, 25a38137 fixes), fast-forwarded from 3ef4245c. Not pushed.
+  - The first land was refused: test-strip's Handlebars mock lacked core's `or`, which the Dungeon tab's Search here uses. 25a38137 adds it.
+  - 25a38137 also rolls a body's linked table once per card (`drawnBy`, `heldDraw`), so a re-press after a refused open no longer draws it again.
+- Walked on main, lane C:
+  - S5 passed 35/35 on the rewritten `tools/live/treasure-search.mjs`.
+  - S6 passed 54 of 55 on the new `tools/live/scene-search-keying.mjs`. Its one skip is step 8, since nothing derives the map's doors.
+  - The S5 walk found one defect, fixed in f5a4e97f: a chat card's stored content loses `hidden`, so every fight-over card showed its empty table-text block.
+- `tools/live/treasure-search.mjs` is not committed yet: the edit ledger gives one of its lines to session e9a0fede, which may still be working, so it waits on that line's adopt.
+- Not checked live:
+  - Both walks ran on an injected copy of `styles/scene-search.css`, because the world has not been relaunched since `module.json` named it.
+  - Drops are synthetic events.
+  - A seat that owns no member was not tried, since there is one Player seat.
+- Owner answers relayed by the orchestrator: S5 Q1 keeps the lair notice ("players get blocks, judges get warnings"). S6 Q2, Q3 and Q4 are deferred to the ROADMAP ("What S6 left"). Still with the owner: whether a spent card can reopen its scene, the take-off timing, how long Show to the table lasts, and the board deviations (S5 card rows and relabel; S6 tab position, proficiency select, empty-aside prompt).
+- Next: S7a (lore checks) on the topic, after a sync. Then S7b, with the architect first.
