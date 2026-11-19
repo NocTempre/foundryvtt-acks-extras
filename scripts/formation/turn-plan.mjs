@@ -28,6 +28,7 @@ import { renderRollCard } from "../lib/roll-card.mjs";
 import {
   REST_KEY,
   cancelForCombat,
+  listTurnActivities,
   offeredActivities,
   partyRest,
   registerTurnActivity,
@@ -350,10 +351,30 @@ export function activityLabel(key) {
 }
 
 /**
+ * The declaration of the registrant whose `reasons.prefix` starts this reason,
+ * or null. A registrant declares `reasons: {prefix: "scene:", root:
+ * "ACKS-LOCATION.sceneSearch.reason"}` on its activity: every refusal it
+ * answers as `<prefix><code>` is worded by the lang key `<root>.<code>`.
+ */
+function reasonsOf(reason) {
+  if (typeof reason !== "string") return null;
+  for (const def of listTurnActivities()) {
+    const { prefix, root } = def.reasons ?? {};
+    if (typeof prefix === "string" && prefix && typeof root === "string" && root && reason.startsWith(prefix)) {
+      return { prefix, root };
+    }
+  }
+  return null;
+}
+
+/**
  * A refusal as the column and the warning say it. A trap's refusal is the trap
- * dialog's own line; the party's reasons are the formation's; lib's are lib's;
- * anything else is the generic line. A refusal for a figure nobody imported
- * has no words and answers an empty string.
+ * dialog's own line; a registrant's prefixed refusal (`reasons`, above) is its
+ * own lang root's, `<root>.other` when its code has no line of its own, lib's
+ * generic line when it has neither; the party's reasons are the formation's;
+ * lib's are lib's; anything else is the generic line. A refusal for a figure
+ * nobody imported, a registrant's `<prefix>notImported` included, has no words
+ * and answers an empty string.
  */
 export function reasonText(reason, actor = null) {
   const name = actor?.name ?? "";
@@ -361,16 +382,32 @@ export function reasonText(reason, actor = null) {
   if (typeof reason === "string" && reason.startsWith("trap:")) {
     return game.i18n.format(`ACKS-FORMATION.traps.refuse.${reason.slice(5)}`, { name });
   }
+  const own = reasonsOf(reason);
+  if (own) {
+    const code = reason.slice(own.prefix.length);
+    if (code === "notImported") return "";
+    for (const key of [`${own.root}.${code}`, `${own.root}.other`]) {
+      if (hasKey(key)) return game.i18n.format(key, { name });
+    }
+    return game.i18n.localize("ACKS-LIB.turnActivity.reason.other");
+  }
   for (const key of [`ACKS-FORMATION.plan.reason.${reason}`, `ACKS-LIB.turnActivity.reason.${reason}`]) {
     if (hasKey(key)) return game.i18n.format(key, { name });
   }
   return game.i18n.localize("ACKS-LIB.turnActivity.reason.other");
 }
 
-/** An option's name in the select: the activity, and for a trap which one. */
-function optionLabel(row) {
+/**
+ * An option's name in the select: the activity, and which choice it is. A trap
+ * option names its target; any other option whose registrant gave it a string
+ * `label` shows that, localized when it is a lang key that exists and as text
+ * otherwise (a name assembled at render).
+ */
+export function optionLabel(row) {
   const base = activityLabel(row.key);
   if (row.option?.kind) return `${base} (${loc(`traps.${row.option.kind === "wall" ? "targetWall" : "targetZone"}`)})`;
+  const label = row.option?.label;
+  if (typeof label === "string" && label) return `${base} (${hasKey(label) ? game.i18n.localize(label) : label})`;
   return base;
 }
 

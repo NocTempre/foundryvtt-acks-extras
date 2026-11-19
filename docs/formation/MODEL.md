@@ -502,7 +502,13 @@ party's own stops in the Foundry-free
   anyone; a player for a member they own, refused on their own client with the
   reason, then relayed as the `plan` request, which the GM client decides again
   against the attested sender and announces. When someone chose Rest, a line
-  says whether the turn rests or who still owes it.
+  says whether the turn rests or who still owes it. A registrant words its own
+  choices and refusals: an option's string `label` follows the activity's name
+  in the select, as a lang key when one exists and as text otherwise; and an
+  activity declaration's `reasons: {prefix, root}` makes every refusal it
+  answers as `<prefix><code>` read from the lang key `<root>.<code>` (the
+  root's `.other` for a code with no line, nothing for `<prefix>notImported`,
+  lib's generic line when the root has neither).
 - **Resolution** runs on the Dungeon tab's Turn and Rest a turn presses and a
   player's rest request (`resolvePlanTurn`), never on a turn that movement or
   combat rounds complete. The order is `runPlanTurn`'s: whether the turn rests

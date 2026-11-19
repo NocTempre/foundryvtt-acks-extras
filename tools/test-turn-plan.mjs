@@ -219,5 +219,74 @@ await test("a fight cancels single-turn entries and keeps a multi-turn entry's p
   assert.equal(out.plan.a.remaining, 2, "the dig keeps the turn it had done");
 });
 
+// The column's words: a registrant's option label and its own refusal lang root.
+const lang = {
+  "ACKS-QA.act.dig": "Dig",
+  "ACKS-QA.opt.east": "East wall",
+  "ACKS-QA.reason.outOfReach": "{name} cannot reach it",
+  "ACKS-QA.reason.other": "Not now",
+  "ACKS-LIB.turnActivity.reason.other": "Lib generic",
+  "ACKS-FORMATION.plan.reason.moved": "Moved",
+  "ACKS-FORMATION.traps.refuse.noZone": "No zone",
+  "ACKS-FORMATION.traps.targetWall": "Wall",
+};
+const savedGlobals = { game: globalThis.game, foundry: globalThis.foundry };
+// turn-plan.mjs pulls in the formation's whole import graph, which extends core classes at load: a
+// stand-in that answers every property with a constructable stub lets it load; nothing here calls one.
+const stub = new Proxy(function () {}, { get: (target, prop) => (prop === "prototype" ? target.prototype : stub), apply: () => stub });
+globalThis.foundry = stub;
+globalThis.game = {
+  i18n: {
+    has: (key) => key in lang,
+    localize: (key) => lang[key] ?? key,
+    format: (key, data = {}) => (lang[key] ?? key).replace(/\{(\w+)\}/g, (_m, k) => data[k] ?? ""),
+  },
+};
+const { reasonText, optionLabel } = await import("../scripts/formation/turn-plan.mjs");
+const undoWords = [
+  registerTurnActivity({
+    key: "qaScene",
+    pace: "methodical",
+    label: "ACKS-QA.act.dig",
+    reasons: { prefix: "qa:", root: "ACKS-QA.reason" },
+    options: () => [{}],
+    turns: () => 1,
+    resolve: () => null,
+  }),
+  // Registers a prefix but no `other` line, so an unknown code falls to lib's.
+  registerTurnActivity({
+    key: "qaBare",
+    pace: "methodical",
+    reasons: { prefix: "bare:", root: "ACKS-QA.none" },
+    options: () => [{}],
+    turns: () => 1,
+    resolve: () => null,
+  }),
+];
+
+await test("a registrant's prefixed refusal reads its own lang root, its other line, or nothing for notImported", () => {
+  assert.equal(reasonText("qa:outOfReach", { name: "Ann" }), "Ann cannot reach it");
+  assert.equal(reasonText("qa:somethingNew", { name: "Ann" }), "Not now", "an unknown code takes the root's other line");
+  assert.equal(reasonText("qa:notImported", { name: "Ann" }), "", "a figure nobody imported has no words");
+  assert.equal(reasonText("bare:x"), "Lib generic", "a root with no other line falls to lib's generic line");
+});
+
+await test("an undeclared prefix, and the built-in reasons, read as before", () => {
+  assert.equal(reasonText("zz:outOfReach"), "Lib generic", "nothing declared zz:");
+  assert.equal(reasonText("notImported"), "");
+  assert.equal(reasonText("moved"), "Moved", "the formation's own reason");
+  assert.equal(reasonText("trap:noZone"), "No zone", "the trap branch still wins its prefix");
+  assert.equal(reasonText("qaUnknown"), "Lib generic");
+});
+
+await test("an option's label shows beside the activity: a lang key localized, plain text as written, a trap's target as before", () => {
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "ACKS-QA.opt.east" } }), "Dig (East wall)");
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "Gallery of Echoes" } }), "Dig (Gallery of Echoes)");
+  assert.equal(optionLabel({ key: "qaScene", option: {} }), "Dig", "no label: the activity alone");
+  assert.equal(optionLabel({ key: "qaScene", option: { id: "w", kind: "wall", label: "Ignored" } }), "Dig (Wall)", "a trap option wins");
+});
+
+for (const u of undoWords) u();
+Object.assign(globalThis, savedGlobals);
 for (const u of undo) u();
 console.log(`test-turn-plan: ${passed} checks passed`);
