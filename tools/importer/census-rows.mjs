@@ -19,8 +19,15 @@
  * heading's on its page, which the display anchor would find first) and
  * `named`; every other ordinal, one the verdict does not list included, is
  * `Item <n>` with the census key as `anchor.hash`. `pages` spans the entry
- * (PDF), `meta.category` is the census's, and `values: []` marks an entry whose
- * header line opens with a variant. It is an upsert: a row whose id exists
+ * (PDF; a census entry's own `pages` where it carries them), `meta.category`
+ * is the census's, and `values: []` marks an entry whose header line opens
+ * with a variant. A book that prints its labels at an entry's end declares it
+ * (`itemLabelsAtEnd` in its `books/<id>/index.mjs`); the line under its
+ * heading holds no label, so only a label found after other words marks a
+ * variant. A census
+ * entry marked `notItem` is a heading the book sets in the item face that is
+ * no item (a rules sub-heading): it gets no row and is no heading a batch must
+ * hold, and it still ends the entry before it. It is an upsert: a row whose id exists
  * anywhere in the register is left untouched. Without `--write` it prints what
  * it would write, and refuses a batch whose last entry spans onto a page whose
  * other headings are not in it.
@@ -36,6 +43,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { foldLabel, printKey } from "../../scripts/importer/printed-name.mjs";
+import { BOOK_CODE } from "../../scripts/importer/books/index.mjs";
 import { MAGIC_CATEGORIES } from "../../scripts/importer/cookbook/magic-items.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -54,8 +62,11 @@ export function parsePages(text) {
   return [a, b];
 }
 
-/** The census entries on PDF pages `[a, b]`, in reading order. */
-export const entriesOn = (census, [a, b]) => (census.entries ?? []).filter((e) => e.pdfPage >= a && e.pdfPage <= b);
+/** The census entries that are items on PDF pages `[a, b]`, in reading order. A `notItem` entry is left out. */
+export const entriesOn = (census, [a, b]) => (census.entries ?? []).filter((e) => !e.notItem && e.pdfPage >= a && e.pdfPage <= b);
+
+/** Whether a census heading is an item a row is owed for: every entry not marked `notItem`. */
+const isItem = (e) => !e.notItem;
 
 /** The census entry after `entry` in reading order, or undefined for the last. */
 export const nextOf = (census, entry) => census.entries[census.entries.findIndex((e) => e.n === entry.n) + 1];
@@ -68,12 +79,12 @@ function prefixesAnother(census, entry) {
 
 /**
  * The rows a batch seeds. `clear` is a Set of cleared ordinals (null: none).
- * `spanOf(entry, next)` gives the entry's PDF pages; the default is its own
- * page. `variantLed(entry)` says the header line opens with a variant. A
+ * `spanOf(entry, next)` gives the entry's PDF pages; the default is the
+ * entry's own `pages`, else its own page. `variantLed(entry)` says the header line opens with a variant. A
  * cleared heading holding a digit is a figure and is seeded flagged.
  * @returns {{rows: object[], hashFallback: number[], flagged: number[], cleared: number[], variantLed: number[]}}
  */
-export function seedRows(census, { book, pages, clear = null, spanOf = (e) => [e.pdfPage], variantLed = () => false, named }) {
+export function seedRows(census, { book, pages, clear = null, spanOf = (e) => e.pages ?? [e.pdfPage], variantLed = () => false, named }) {
   const rows = [];
   const out = { rows, hashFallback: [], flagged: [], cleared: [], variantLed: [] };
   for (const entry of entriesOn(census, pages)) {
@@ -114,7 +125,7 @@ export function boundaryProblems(census, rows, pages) {
   for (const row of rows) {
     const n = +row.id.split(".item")[1];
     for (const p of row.pages.slice(1)) {
-      if ((census.entries ?? []).some((e) => e.pdfPage === p && !inBatch.has(e.n))) out.push(n);
+      if ((census.entries ?? []).some((e) => isItem(e) && e.pdfPage === p && !inBatch.has(e.n))) out.push(n);
     }
   }
   return [...new Set(out)];
@@ -164,7 +175,7 @@ export function checkRows(census, rows, { book, pages, spanOf = null, readKey = 
       continue;
     }
     for (const p of row.pages.slice(1)) {
-      if (census.entries.some((o) => o.pdfPage === p && !rows.has(`${book}.item${o.n}`))) out.spanOntoUnrowed.push(entry.n);
+      if (census.entries.some((o) => isItem(o) && o.pdfPage === p && !rows.has(`${book}.item${o.n}`))) out.spanOntoUnrowed.push(entry.n);
     }
     if (spanOf) {
       const want = spanOf(entry, nextOf(census, entry));
@@ -210,15 +221,31 @@ export const readNameOf = (nameField) => String(nameField?.title ?? nameField?.f
 const place = (colOf, cols, it) => [colOf(it.x, cols), it.y];
 const before = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
 
-/** The body-height ceiling and the runs of an entry's region on one page, between two reading-order points. */
-async function regionRuns(ctxPdf, page, from, to) {
+/**
+ * The body-height ceiling and the runs of an entry's region on one page, between
+ * two reading-order points. A row's own assists shape the read as the compiler
+ * does: its `columns` on the entry's first page only, and a run inside one of
+ * its `excludeBoxes` is no prose.
+ */
+async function regionRuns(ctxPdf, page, from, to, assists = {}, first = false) {
   const { doc, colOf, compiler } = ctxPdf;
   const pd = await compiler.axPageItems(doc, page);
-  const cols = compiler.axColumns(pd);
+  const cols = compiler.axColumns(pd, first ? { columns: assists.columns } : {});
+  const boxes = (assists.excludeBoxes ?? []).filter((b) => b.page === page);
+  const boxedOut = (it) => boxes.some((b) => it.x >= b.x0 && it.x <= b.x1 && it.y >= b.y0 && it.y <= b.y1);
+  // The census numbers its columns by the page's two halves; a page the detector
+  // reads as three columns puts a heading under another index, so a point given
+  // as `{half, y}` is placed by the run of that heading on the page.
+  const at = (pt) => {
+    if (!pt || Array.isArray(pt)) return pt;
+    const own = pd.items.filter((it) => Math.abs(it.y - pt.y) < 3 && (pt.half === 0 ? it.x < pd.width / 2 : it.x >= pd.width / 2) && it.h >= (pd.axBands?.headMinH ?? 9.5));
+    return own.length ? [colOf((pt.half === 0 ? Math.min : Math.max)(...own.map((it) => it.x)), cols), pt.y] : [pt.half, pt.y];
+  };
+  [from, to] = [at(from), at(to)];
   const top = pd.axBands?.topBand ?? 60;
   const foot = pd.axBands?.footY ?? 750;
   const items = pd.items
-    .filter((it) => it.y > top && it.y < foot && String(it.str).trim())
+    .filter((it) => it.y > top && it.y < foot && String(it.str).trim() && !boxedOut(it))
     .map((it) => ({ it, at: place(colOf, cols, it) }))
     .sort((p, q) => (before(p.at, q.at) ? -1 : before(q.at, p.at) ? 1 : 0))
     .filter(({ at }) => (!from || !before(at, from)) && (!to || before(at, to)));
@@ -274,13 +301,31 @@ export function opensWith(line, pattern) {
   return !!m && line.slice(0, m.index).trim() === "";
 }
 
-/** Whether a page's header line under `entry`'s heading opens with the kind's first locator. */
-async function opensWithLabel(ctxPdf, entry, pattern) {
+/**
+ * Whether a header line prints a variant ahead of the kind's first locator: the
+ * locator is found, and words stand before it. For a book whose labels stand at
+ * the entry's end, where a line with no locator in it is no variant's.
+ */
+export function labelAfterVariant(line, pattern) {
+  if (!line) return false;
+  const m = new RegExp(pattern, "i").exec(line);
+  return !!m && line.slice(0, m.index).trim() !== "";
+}
+
+/**
+ * Whether the line under an entry's heading marks it variant-led. A book that
+ * declares its labels at the entry's end (`labelsAtEnd`) is told by a label
+ * found after other words; any other by what opens the line.
+ */
+export const variantLedLine = (line, pattern, labelsAtEnd = false) => (labelsAtEnd ? labelAfterVariant(line, pattern) : !opensWith(line, pattern));
+
+/** Whether the line under `entry`'s heading marks it variant-led (`variantLedLine`). */
+async function variantBeforeLabel(ctxPdf, entry, pattern, labelsAtEnd) {
   const { doc, colOf, compiler } = ctxPdf;
   const pd = await compiler.axPageItems(doc, entry.pdfPage);
   const cols = compiler.axColumns(pd);
   const near = pd.items.filter((it) => colOf(it.x, cols) === entry.column && it.y > entry.y + 2 && it.y < entry.y + 20);
-  return opensWith(firstBodyLine(near, compiler.AX_BODY_MAX_H), pattern);
+  return variantLedLine(firstBodyLine(near, compiler.AX_BODY_MAX_H), pattern, labelsAtEnd);
 }
 
 const readJson = (p) => JSON.parse(fs.readFileSync(p, "utf8"));
@@ -299,8 +344,8 @@ async function main(argv) {
   const spanOf = new Map();
   const variant = new Set();
   for (const entry of entriesOn(census, pages)) {
-    spanOf.set(entry.n, await spans(entry, nextOf(census, entry)));
-    if (firstLocator && !(await opensWithLabel(ctxPdf, entry, firstLocator))) variant.add(entry.n);
+    spanOf.set(entry.n, entry.pages ?? (await spans(entry, nextOf(census, entry))));
+    if (firstLocator && (await variantBeforeLabel(ctxPdf, entry, firstLocator, !!BOOK_CODE[book]?.itemLabelsAtEnd))) variant.add(entry.n);
   }
   const dir = path.join(REPO, "register", book);
   if (cmd === "seed") {
@@ -352,9 +397,9 @@ async function main(argv) {
     const head = (await ctxPdf.compiler.axPageItems(ctxPdf.doc, entry.pdfPage)).items.filter((it) => Math.abs(it.y - entry.y) < 2);
     for (const it of head) faces.add(it.alias);
     for (const p of spanOf.get(entry.n)) {
-      const from = p === entry.pdfPage ? [entry.column, entry.y + 2] : null;
-      const to = next && p === next.pdfPage ? [next.column, next.y] : null;
-      const { runs } = await regionRuns(ctxPdf, p, from, to);
+      const from = p === entry.pdfPage ? { half: entry.column, y: entry.y + 2 } : null;
+      const to = next && p === next.pdfPage ? { half: next.column, y: next.y } : null;
+      const { runs } = await regionRuns(ctxPdf, p, from, to, rows.get(id)?.assists ?? {}, p === entry.pdfPage);
       for (const it of runs) {
         total += String(it.str).split(/\s+/).filter(Boolean).length;
         if (it.h >= (ctxPdf.doc.axBands?.headMinH ?? 9.5) && !faces.has(it.alias)) absorbed++;

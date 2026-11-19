@@ -4189,6 +4189,59 @@ the two items it touched, not Import Everything.
    *Observable:* the card is unchanged (it does not show a link), and no card
    ends flagged.
 
+
+### The Journal's entries and the pair walk
+
+The Judges Journal's chapter-four entries are the same kind (rows
+`jj.item<n>`, 158 of them; one heading in the item face is a rules
+sub-heading and has no row). A Journal row whose item the Tome also prints
+carries `meta.revisedBy: "tt.item<m>"`, and the two import as one document, the
+Tome's (ruling C, "the Tome's"). J below is the count of `kind.magicItem`
+entries in `cookbook/jj.json`; P the count of them with a `revisedBy`. Offline,
+`verify-cookbook jj 144 173` and `census-rows check jj` prove the compile; the
+steps below prove the import. The lines below use invented ids: `jj.item<n>` is
+a Journal row with a pair, `tt.item<m>` its Tome row.
+
+**Fixtures.** The Journal and the Tome both connected on the seat, and a world
+holding neither book's items. A step edits or deletes an item only after marking
+it `importer/magic-pair-<n>` as above (the items live in a compendium; the walk
+writes `flags.world.fixture` itself and tracks the uuid).
+
+7. **Journal alone.** Close the Tome. Import Magic Items with the Journal open.
+   *Observable:* the notice reads J imported; every row, paired or not, is its
+   own item with `cookbook.id` `jj.item<n>`, filed in the Journal's folder
+   (the Journal is marked `judge`, so the Judge's pack) under its category.
+8. **Journal, then the Tome.** Open the Tome and import Magic Items again.
+   *Observable:* the notice reads P taken over from an earlier book. Read a
+   paired item (uuid as before the import): the uuid is unchanged, `cookbook.id`
+   is `tt.item<m>` and `cookbook.book` `tt`, `cookbook.merged` holds
+   `jj.item<n>`, the description is the Tome's, and the item now stands in the
+   Tome's folder of its category. An unpaired Journal item is untouched.
+9. **A held edit through the takeover.** Before step 8, rename one paired item
+   and rewrite its description by hand. After step 8 *observable:* the name and
+   the description are the hand-written ones; the id, the book and `merged` are
+   the Tome's; the figures in the markets flag are the Tome's unless a figure was
+   changed by hand, which is held.
+10. **The Tome, then the Journal.** Delete every imported magic item, open both
+    books and import Magic Items. *Observable:* the notice reads the Tome's
+    count imported and the unpaired Journal rows imported, and P Journal rows
+    joined with none built. A paired item reads exactly as in step 8:
+    `cookbook.id` `tt.item<m>`, `cookbook.merged` `jj.item<n>`, the Tome's
+    folder. No item named for a Journal heading is left beside it, and no
+    Journal paragraph is appended to the Tome's text.
+11. **Either order, one document.** Compare one paired item from step 8 with the
+    same item from step 10. *Observable:* the same name, `cookbook.id`,
+    `cookbook.book`, `cookbook.merged`, folder and description text.
+12. **The delete path.** Delete one paired item (marked as above) and import
+    Magic Items with both books open. *Observable:* the notice reads 1 imported
+    and the rest already present; the Journal row's id answers to the new
+    document (it is not imported twice), and `cookbook.merged` again holds it.
+    Close the Tome, delete that item again and import: the Journal row is built
+    as its own item with `jj.item<n>`, and opening the Tome and importing
+    takes it over as in step 8.
+13. **A second import adds nothing.** Import Magic Items once more.
+    *Observable:* no item is made or taken over; the notice reads 0 imported.
+
 ### Teardown
 
 The imports stay. The marked items are swept by ledger and the walk re-imports

@@ -473,6 +473,39 @@ export function magicItemKeyProblems(rows) {
   return out;
 }
 
+/**
+ * The magic items a later book reprints, over every row at once. An item's
+ * `meta.revisedBy` names the row of the later printing the import defers to,
+ * and that row is a magic item (`kind.magicItem`) of a later book
+ * (`rowMetaProblems` holds the printing order, `supersedes` included) that is
+ * built as the same core type (`coreTypeOf` maps a category to it), so the one
+ * document can stand for both. A later row is named by one row of each earlier
+ * book, never two: two rows folded into one document would lose one.
+ * @param {Map<string, object>} rows id -> row
+ * @param {(category: string) => string} coreTypeOf the core item type a category is built as
+ */
+export function magicItemPairProblems(rows, coreTypeOf) {
+  const out = [];
+  const claimed = new Map(); // `${book} ${target}` -> first row id
+  for (const r of rows.values()) {
+    const to = r?.kind === "kind.magicItem" ? r.meta?.revisedBy : undefined;
+    if (to === undefined) continue;
+    const t = typeof to === "string" ? rows.get(to) : null;
+    if (!t) {
+      out.push(`${r.id}: meta.revisedBy names ${to}, which no row defines`);
+      continue;
+    }
+    if (t.kind !== "kind.magicItem") out.push(`${r.id}: meta.revisedBy names ${to}, which is no magic item`);
+    else if (coreTypeOf(r.meta?.category) !== coreTypeOf(t.meta?.category)) {
+      out.push(`${r.id}: meta.revisedBy names ${to}, which is built as another core type (${coreTypeOf(t.meta?.category)}, not ${coreTypeOf(r.meta?.category)})`);
+    }
+    const key = `${r.book} ${to}`;
+    if (claimed.has(key)) out.push(`${r.id}: ${to} is already named by ${claimed.get(key)}; one printing's item is one row of each earlier book`);
+    else claimed.set(key, r.id);
+  }
+  return out;
+}
+
 /** A row of an `ORDINAL_KINDS` kind against its label, id and anchor rule. */
 export function ordinalProblems(e, bookId) {
   const rule = ORDINAL_KINDS[e.kind];

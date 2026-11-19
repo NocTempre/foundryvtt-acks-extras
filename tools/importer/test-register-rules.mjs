@@ -1,7 +1,7 @@
 /** The register rules between an adventure's rows, fed invented rows. No PDFs, no Foundry. */
 import assert from "node:assert";
 import {
-  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
+  KEY_NUMBER, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemPairProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems, sceneLinkProblems,
   scenePartProblems, siteProblems, spaceKeyed, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -304,5 +304,22 @@ none("alsoKeys distinct across rows", magicItemKeyProblems(rowsOf(item(5, { also
 flags("an alsoKey shared by two rows", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["k1"] }), item(6, { anchor: { hash: "h6" }, alsoKeys: ["k1"] }))), /key k1 also names zz\.item5/);
 flags("an alsoKey that is another row's hash", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["h6"] }), item(6, { anchor: { hash: "h6" } }))), /key h6 also names/);
 none("one key in two books", magicItemKeyProblems(rowsOf(item(5, { alsoKeys: ["k1"] }), { ...item(6), id: "yy.item6", book: "yy", alsoKeys: ["k1"] })));
+
+/* --- a magic item a later book reprints: meta.revisedBy --- */
+
+const core = (c) => ({ swords: "weapon", weapons: "weapon", armors: "armor" })[c] ?? "item";
+const jjItem = (n, extra = {}) => ({ ...item(n), id: `jj.item${n}`, book: "jj", ...extra });
+const ttItem = (n, extra = {}) => ({ ...item(n), id: `tt.item${n}`, book: "tt", ...extra });
+const withBy = (n, to, extra = {}) => jjItem(n, { meta: { category: "rings", revisedBy: to, ...extra } });
+none("an item naming a later book's item of its own kind", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), ttItem(9)), core));
+none("rings and potions are both plain items", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), ttItem(9, { meta: { category: "potions" } })), core));
+none("a row with no revisedBy", magicItemPairProblems(rowsOf(jjItem(1), ttItem(9)), core));
+flags("a target no row defines", magicItemPairProblems(rowsOf(withBy(1, "tt.item9")), core), /tt\.item9, which no row defines/);
+flags("a target that is no magic item", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), ttItem(9, { kind: "kind.prose" })), core), /which is no magic item/);
+flags("a target built as another core type", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), ttItem(9, { meta: { category: "swords" } })), core), /another core type \(weapon, not item\)/);
+flags("a later row named by two rows", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), withBy(2, "tt.item9"), ttItem(9)), core), /already named by jj\.item1/);
+none("the same number in two earlier books is two rows", magicItemPairProblems(rowsOf(withBy(1, "tt.item9"), { ...withBy(2, "tt.item9"), id: "xx.item2", book: "xx" }, ttItem(9)), core));
+flags("an item whose revisedBy names an earlier printing", rowMetaProblems(ttItem(9, { meta: { category: "rings", revisedBy: "jj.item1" } })), /not a later printing/);
+none("the Tome is the later printing of the Journal", rowMetaProblems(withBy(1, "tt.item9")));
 
 console.log(`test-register-rules: all ${pass} checks passed`);

@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { boundaryProblems, checkRows, firstBodyLine, opensWith, readNameOf, parsePages, seedRows, writeRows } from "./census-rows.mjs";
+import { boundaryProblems, checkRows, firstBodyLine, labelAfterVariant, opensWith, readNameOf, variantLedLine, parsePages, seedRows, writeRows } from "./census-rows.mjs";
 import { printKey } from "../../scripts/importer/printed-name.mjs";
 
 let n = 0;
@@ -175,6 +175,45 @@ t("the header line is read past a superscript that sits above it, and a variant-
   assert.equal(opensWith("Quorv 2,000gp: alpha", pattern), true);
   assert.equal(opensWith("Other Quorv 5", pattern), false);
   assert.equal(opensWith("", pattern), true);
+});
+
+t("a book that prints its labels at the entry's end marks a variant only by a label found after other words", () => {
+  const pattern = "Quorv\\s*(\\d+)";
+  assert.equal(labelAfterVariant("A flask of pale brine, sealed with wax.", pattern), false);
+  assert.equal(labelAfterVariant("Pale variant. Quorv 9", pattern), true);
+  assert.equal(labelAfterVariant("Quorv 9 opens the line", pattern), false);
+  assert.equal(labelAfterVariant("", pattern), false);
+  // The default test reads the same lines the other way round: no label is variant-led.
+  assert.equal(variantLedLine("A flask of pale brine, sealed with wax.", pattern), true);
+  assert.equal(variantLedLine("A flask of pale brine, sealed with wax.", pattern, true), false);
+  assert.equal(variantLedLine("Pale variant. Quorv 9", pattern, true), true);
+  assert.equal(variantLedLine("Quorv 9 opens the line", pattern), false);
+});
+
+t("a census entry's own pages are the row's span, and a span the PDF half gives still wins", () => {
+  const paged = { entries: [e(1, 60, "Brenmoth Flask", { pages: [60, 61] }), e(2, 61, "Cord of Yalwin", { category: "misc" })] };
+  const own = seedRows(paged, { book: "zz", pages: [60, 61] });
+  assert.deepEqual(own.rows.map((r) => r.pages), [[60, 61], [61]]);
+  const given = seedRows(paged, { book: "zz", pages: [60, 61], spanOf: () => [60] });
+  assert.deepEqual(given.rows.map((r) => r.pages), [[60], [60]]);
+});
+
+t("a notItem census entry is skipped, not thrown on, and is no heading a batch must hold", () => {
+  const withRules = {
+    entries: [
+      e(1, 60, "Brenmoth Flask", { pages: [60, 61] }),
+      e(2, 61, "Sub Rules Head", { category: null, notItem: true, pages: [61, 62] }),
+      e(3, 62, "Cord of Yalwin", { category: "misc" }),
+    ],
+  };
+  const { rows } = seedRows(withRules, { book: "zz", pages: [60, 62] });
+  assert.deepEqual(idsOf(rows), [1, 3]);
+  // Entry 1 spans onto page 61, which holds only the notItem entry: no refusal.
+  assert.deepEqual(boundaryProblems(withRules, rows.slice(0, 1), [60, 60]), []);
+  const have = new Map(rows.map((r) => [r.id, r]));
+  const checked = checkRows(withRules, have, { book: "zz", pages: [60, 62] });
+  assert.deepEqual(checked.unrowed, []);
+  assert.deepEqual(checked.spanOntoUnrowed, []);
 });
 
 console.log(`\ncensus-rows: ${n} checks OK`);

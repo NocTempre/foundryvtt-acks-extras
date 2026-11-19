@@ -11,6 +11,7 @@ import { MODULE_ID, LANG_PREFIX, DEFAULT_IMG } from "../constants.mjs";
 import { entryText } from "../prose.mjs";
 import { REPAIR, countRepair, unrepaired } from "../refresh.mjs";
 import { printedNameOf } from "../printed-name.mjs";
+import { bindPatch, magicItemPairs, pairStep, takeoverPatch } from "../magic-item-pair.mjs";
 import { executeEntry } from "../executor.mjs";
 import { progressBar } from "../progress.mjs";
 import { data, ctx, cookbookEntry } from "./state.mjs";
@@ -120,7 +121,13 @@ export function magicItemData(bookId, id, entry, node, folder = null) {
  * written over in place where a `repair` tally is given (`REPAIR.magicItem`).
  * Quiet when no open book prints any, since the step runs in every Import
  * Everything.
- * @returns {Promise<{made: number, already: number, refused: number, created: {items: string[]}}>}
+ *
+ * An item two books print is one document (`meta.revisedBy`, `pairStep`): the
+ * later book's rows go first, an earlier book's row whose later row is open is
+ * not built but joins that document (made from the later row where none stands),
+ * and a later row meeting the earlier book's document writes its build over it
+ * in place (`REPAIR.magicItem`: the uuid, a Judge's edits and play's fields stay).
+ * @returns {Promise<{made: number, already: number, refused: number, taken: number, created: {items: string[]}}>}
  */
 export async function cookbookImportMagicItems({ books = null, only = null, repair = null } = {}) {
   if (!game.user.isGM) return ui.notifications.warn(`${MODULE_ID} | GM only.`);
@@ -132,15 +139,65 @@ export async function cookbookImportMagicItems({ books = null, only = null, repa
       if (entry.kind === "kind.magicItem" && (!only || only.has(id))) jobs.push({ bookId, id, entry });
     }
   }
-  const counts = { made: 0, already: 0, refused: 0, created: { items: [] } };
+  // The later printing goes first, so an earlier row finds its document made.
+  const pairs = magicItemPairs(data.books);
+  jobs.sort((a, b) => Number(pairs.get(b.id)?.later === b.id) - Number(pairs.get(a.id)?.later === a.id));
+  const counts = { made: 0, already: 0, refused: 0, taken: 0, created: { items: [] } };
   if (!jobs.length) return counts;
   const bar = progressBar(game.i18n.localize(`${LANG_PREFIX}.ui.progressMagicItems`), jobs.length);
   try {
     for (const { bookId, id, entry } of jobs) {
       bar.step(entry.name);
-      const have = await importedItem(id);
+      const pair = pairs.get(id);
+      const docs = new Map();
+      for (const x of new Set([id, pair?.earlier, pair?.later].filter(Boolean))) {
+        const doc = await importedItem(x);
+        if (doc) docs.set(x, doc);
+      }
+      const { step, from, to } = pairStep(pairs, id, {
+        held: (x) => (docs.has(x) ? docs.get(x).toObject() : null),
+        open: (b) => ctx.sessionDocs.has(b),
+      });
+      if (step === "bind") {
+        counts.already++;
+        await bindOnto(docs.get(to), id);
+        continue;
+      }
+      if (step === "defer") {
+        const target = cookbookEntry(to);
+        const doc = target
+          ? await claimImport(to, () => importMagicItem(to.split(".")[0], to, target.entry)).catch((err) => {
+              console.error(`${MODULE_ID} | magic item ${to} failed`, err);
+              return null;
+            })
+          : null;
+        if (doc) {
+          counts.made++;
+          counts.created.items.push(doc.uuid);
+          await bindOnto(doc, id);
+        } else counts.refused++;
+        continue;
+      }
+      if (step === "takeover") {
+        const held = docs.get(from);
+        const result = await repairFromEntry(held, id, (node) => magicItemData(bookId, id, entry, node), REPAIR.magicItem, repair);
+        if (typeof result === "string" || result?.refused) {
+          counts.refused++;
+          continue;
+        }
+        const category = game.i18n.localize(`${LANG_PREFIX}.magicItems.category.${entry.meta?.category}`);
+        const folder = (await targetFolder("Item", bookId, category))?.id ?? null;
+        const filedUnder = (await targetFolder("Item", from.split(".")[0], category))?.id ?? null;
+        const patch = takeoverPatch(held.toObject(), { id, book: bookId, folder }, { id: from, folder: filedUnder });
+        if (Object.keys(patch).length) await held.update(patch);
+        counts.taken++;
+        continue;
+      }
+      const have = docs.get(id) ?? null;
       if (have) {
         counts.already++;
+        // A document standing under another claim (the later printing's) is that book's to repair.
+        if (have.flags?.[MODULE_ID]?.cookbook?.id !== id) continue;
         if (unrepaired(repair, have)) {
           countRepair(repair, await repairFromEntry(have, id, (node) => magicItemData(bookId, id, entry, node), REPAIR.magicItem, repair));
         }
@@ -159,9 +216,15 @@ export async function cookbookImportMagicItems({ books = null, only = null, repa
     bar.finish();
   }
   ui.notifications[counts.refused ? "warn" : "info"](
-    `${MODULE_ID} | magic items: ${counts.made} imported, ${counts.already} already present${repair ? ", repaired in place" : ""}${counts.refused ? `, ${counts.refused} refused (the page did not match the cookbook)` : ""}.`,
+    `${MODULE_ID} | magic items: ${counts.made} imported, ${counts.already} already present${counts.taken ? `, ${counts.taken} taken over from an earlier book` : ""}${repair ? ", repaired in place" : ""}${counts.refused ? `, ${counts.refused} refused (the page did not match the cookbook)` : ""}.`,
   );
   return counts;
+}
+
+/** Records on a held item document that it answers for the earlier printing's id too (`bindPatch`). */
+async function bindOnto(doc, earlierId) {
+  const patch = bindPatch(doc.toObject(), { id: earlierId });
+  if (Object.keys(patch).length) await doc.update(patch);
 }
 
 /** One magic item created from its page (`magicItemData`), or null when the page did not match. */

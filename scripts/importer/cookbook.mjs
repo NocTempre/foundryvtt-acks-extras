@@ -55,6 +55,7 @@ export {
   gridScenePlan, mapCreateData, repairHeldMap, cookbookImportLinks, cookbookImportAdventures, bookCensus,
 } from "./cookbook/adventure-maps.mjs";
 export { cookbookImportMagicItems, magicItemData, magicItemEntries, keysByBook, cookbookItemsProvider } from "./cookbook/magic-items.mjs";
+export { bindPatch as bindMagicItemPatch, magicItemPairs, pairStep, takeoverPatch as takeoverMagicItemPatch } from "./magic-item-pair.mjs";
 export { importAbility, cookbookFillCompanions, resolveAbilities, rebracket } from "./cookbook/actor-import.mjs";
 export {
   cookbookImportAbilitiesDialog, cookbookImportAbilities, cookbookUpdateAbilities, danglingAbilities,

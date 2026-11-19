@@ -20,10 +20,10 @@ import { ABILITY_CATEGORIES, TRAVEL_MODES, capabilityForId } from "../../scripts
 import { scenarioProblems, rosterProblems } from "./scenario-rules.mjs";
 import { spellRecipeProblems, spellcastingModProblems } from "./spell-recipe-rules.mjs";
 import { LABELLED_FIELDS, fieldProblem, noteProblem } from "../../scripts/importer/condition-labels.mjs";
-import { MAGIC_CATEGORIES } from "../../scripts/importer/cookbook/magic-items.mjs";
+import { MAGIC_CATEGORIES, coreTypeOf } from "../../scripts/importer/cookbook/magic-items.mjs";
 import { FACTION_KINDS, RELATION_STANCES } from "../../scripts/factions/constants.mjs";
 import {
-  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
+  KEY_NUMBER, ORDINAL_KINDS, bareKey, erratumProblems, errataIdsOf, lairOfProblems, magicItemKeyProblems, magicItemPairProblems, magicItemProblems, marketColumnProblems, ordinalProblems, pairProblems, partyProblems, regionMapProblems, replacementProblems, rowMetaProblems,
   sceneLinkProblems, scenePartProblems, siteProblems, spaceProblems,
 } from "./register-rules.mjs";
 
@@ -851,6 +851,7 @@ for (const problem of lairOfProblems(allRows)) err(problem);
 for (const problem of pairProblems(allRows)) err(problem);
 for (const problem of partyProblems(allRows)) err(problem);
 for (const problem of magicItemKeyProblems(allRows)) err(problem);
+for (const problem of magicItemPairProblems(allRows, coreTypeOf)) err(problem);
 for (const problem of marketColumnProblems(allRows)) err(problem);
 for (const problem of erratumProblems(allRows, errataIdsOf(fs.existsSync(ERRATA) ? fs.readFileSync(ERRATA, "utf8") : ""))) err(problem);
 for (const problem of regionMapProblems(allRows)) err(problem);
