@@ -22,18 +22,27 @@
  * The finders answer `{region, behavior}` pairs in the scene's own region
  * order, so a caller that takes the first keeps the same "first zone" answer
  * wherever it asks from. `regionsUnder` and `regionsAt` answer a Region
- * carrying two enabled behaviors of the type once, with the first;
- * `behaviorsUnder` answers each.
+ * carrying two live behaviors of the type once, with the first;
+ * `behaviorsUnder` answers each. A behavior is live when it is not disabled and
+ * its Region is not hidden: core turns every behavior of a hidden Region off,
+ * so a hidden Region answers nothing from any finder.
  *
  * Foundry-free: every call goes through a document passed in.
  */
 import { segmentDistance } from "./wall-geometry.mjs";
 
-/** The first enabled behavior of `type` on a Region, or undefined. */
-const behaviorOf = (region, type) => region.behaviors?.find((b) => b.type === type && !b.disabled);
+/**
+ * Whether a behavior of a Region acts: it is not disabled and its Region is not
+ * hidden. Core's `RegionBehavior#active` is the same test; it is restated here
+ * so the finders stay Foundry-free.
+ */
+const live = (region, behavior) => !behavior.disabled && !region.hidden;
+
+/** The first live behavior of `type` on a Region, or undefined. */
+const behaviorOf = (region, type) => region.behaviors?.find((b) => b.type === type && live(region, b));
 
 /**
- * The Regions a token stands in that carry an enabled behavior of `type`.
+ * The Regions a token stands in that carry a live behavior of `type`.
  *
  * Membership is core's: `token.regions` tests the token's whole footprint at
  * its level, at the stored destination of every move. The moving client works
@@ -60,7 +69,7 @@ export function regionsUnder(token, type) {
 }
 
 /**
- * Every enabled behavior of `type` on the Regions a token stands in, one pair
+ * Every live behavior of `type` on the Regions a token stands in, one pair
  * per behavior: `regionsUnder` without its once-per-Region rule, for a feature
  * whose behaviors stack (each trap in a Region is its own). Ordered by the
  * scene's Regions and then by each Region's own behaviors; membership is
@@ -77,14 +86,14 @@ export function behaviorsUnder(token, type) {
   for (const region of token.parent?.regions ?? []) {
     if (!standing.has(region)) continue;
     for (const behavior of region.behaviors ?? []) {
-      if (behavior.type === type && !behavior.disabled) out.push({ region, behavior });
+      if (behavior.type === type && live(region, behavior)) out.push({ region, behavior });
     }
   }
   return out;
 }
 
 /**
- * The Regions over a point of a scene that carry an enabled behavior of `type`.
+ * The Regions over a point of a scene that carry a live behavior of `type`.
  *
  * `region.testPoint` applies the Region's own elevation range (the floor
  * inclusive, the ceiling only when the Region says so, and a flat Region at

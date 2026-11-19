@@ -557,7 +557,7 @@ function stretchTooltip(stretches) {
   const stretch = stretchFeet();
   const cite = citeFor("spelunking");
   if (stretch === null || stretches === null) return spelunkingRef();
-  return [loc("crossing.tip.stretches", { stretches, stretch }), cite].filter(Boolean).join(" · ");
+  return [loc(`crossing.tip.stretches.${stretches === 1 ? "one" : "other"}`, { stretches, stretch }), cite].filter(Boolean).join(" · ");
 }
 
 /** A jump's working as a tooltip: each part of the distance, then the page. */
@@ -744,7 +744,7 @@ function roundsLine(name, record) {
   }
   const parts = [
     ...[...moves.values()].map((m) => loc("crossing.rounds.move", { feet: Math.round(m.feet * 100) / 100, share: Math.round(m.share * 1000) / 1000, speed: loc(`crossing.rounds.speed.${m.speed}`), rounds: roundsText(m.rounds) })),
-    ...[...misses].map(([rounds, count]) => loc("crossing.rounds.miss", { count, rounds: roundsText(rounds) })),
+    ...[...misses].map(([rounds, count]) => loc(`crossing.rounds.miss.${count === 1 ? "one" : "other"}`, { count, rounds: roundsText(rounds) })),
   ];
   return loc("crossing.rounds.member", { name, parts: parts.join(" + "), rounds: roundsText(record.elapsed ?? 0) });
 }
@@ -1493,13 +1493,17 @@ export function rescueRefusalWords(reason, actor) {
   return game.i18n.has(key) ? game.i18n.format(key, { name: actor?.name ?? loc("crossing.relay.unnamed") }) : relayRefusalWords(reason, actor);
 }
 
-/** The setup's water penalty as words and a tooltip: the step it stands on, what was ticked as its reason, then the page. */
+/**
+ * The setup's water penalty as words and a tooltip: the step it stands on, what
+ * was ticked as its reason, then the page. With no step imported and none picked
+ * there is no step to stand on, so nothing but the reason and the page is said.
+ */
 function penaltyWords(crossing) {
   const steps = waterPenaltySteps() ?? [];
   const pick = crossing.penaltyPick ?? "none";
   const size = swimPenalty(crossing);
   const ticked = swimConditions(crossing).map((key) => game.i18n.localize(WATER[key].label));
-  let stand = loc("crossing.swim.tip.none");
+  let stand = steps.length ? loc("crossing.swim.tip.none") : "";
   if (pick === "larger") stand = loc("crossing.swim.tip.larger");
   else if (size && steps.includes(size)) stand = loc("crossing.swim.tip.step", { n: steps.indexOf(size) + 1 });
   else if (size) stand = loc("crossing.swim.tip.off");

@@ -32,12 +32,12 @@ export function districtAt(scene, point, elevation = 0, level) {
 }
 
 /**
- * Whether any region of a scene carries an enabled district behaviour — the
+ * Whether any shown region of a scene carries an enabled district behaviour — the
  * map itself says it is a settlement, wherever the party stands on it.
  */
 export function sceneHasDistrict(scene) {
   for (const region of scene?.regions ?? []) {
-    if (region.behaviors?.some((b) => b.type === DISTRICT_TYPE && !b.disabled)) return true;
+    if (!region.hidden && region.behaviors?.some((b) => b.type === DISTRICT_TYPE && !b.disabled)) return true;
   }
   return false;
 }

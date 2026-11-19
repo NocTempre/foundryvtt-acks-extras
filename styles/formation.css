@@ -3502,6 +3502,16 @@
   font-size: var(--acks-fs-body);
 }
 
+/* Core pins a font-size on `.window-header` and its title sits inside it, so
+   the knob reaches neither until both re-take a ramp step. */
+.acks-extras.acks-extras-hazard-sheet.application > .window-header {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras.acks-extras-hazard-sheet.application > .window-header .window-title {
+  font-size: var(--acks-fs-banner);
+}
+
 .acks-extras-hazard-sheet .acks-extras-hazard-head {
   display: flex;
   gap: 0.75em;

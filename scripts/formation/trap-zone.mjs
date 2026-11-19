@@ -366,7 +366,7 @@ export function allPlacements(scene) {
   }
   for (const region of scene?.regions ?? []) {
     for (const behavior of region.behaviors) {
-      if (behavior.type === TRAP_ZONE_TYPE && !behavior.disabled) out.push(zonePlacement({ region, behavior }));
+      if (behavior.type === TRAP_ZONE_TYPE && !behavior.disabled && !region.hidden) out.push(zonePlacement({ region, behavior }));
     }
   }
   const seen = new Set();

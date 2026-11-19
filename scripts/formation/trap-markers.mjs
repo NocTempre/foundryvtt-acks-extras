@@ -265,7 +265,7 @@ export function refreshTrapMarkers() {
     });
   }
   for (const region of canvas.scene?.regions ?? []) {
-    const behavior = region.behaviors.find((b) => b.type === TRAP_ZONE_TYPE && !b.disabled);
+    const behavior = !region.hidden && region.behaviors.find((b) => b.type === TRAP_ZONE_TYPE && !b.disabled);
     if (!behavior) continue;
     if (!gm && !behavior.system.known) continue;
     const at = regionCentre(region);

@@ -50,6 +50,17 @@ test("regionsAt keeps only enabled behaviors of the type, answering a Region onc
   assert.deepEqual(ids(regionsAt(sceneOf(twice, trap, off), { x: 50, y: 50 }, {}, OTHER)), ["trap"]);
 });
 
+test("a hidden Region answers nothing from regionsUnder, behaviorsUnder or regionsAt", () => {
+  const hidden = mockRegion({ id: "hidden", rings: [rect(0, 0, 100, 100)], behaviors: [behavior(ZONE), behavior(OTHER)], hidden: true });
+  const shown = mockRegion({ id: "shown", rings: [rect(0, 0, 100, 100)], behaviors: [behavior(ZONE), behavior(OTHER)], hidden: false });
+  const scene = sceneOf(hidden, shown);
+  const token = { parent: scene, regions: new Set([hidden, shown]) };
+  assert.deepEqual(ids(regionsUnder(token, ZONE)), ["shown"], "regionsUnder skips the hidden Region");
+  assert.deepEqual(ids(behaviorsUnder(token, OTHER)), ["shown"], "behaviorsUnder skips the hidden Region");
+  assert.deepEqual(ids(regionsAt(scene, { x: 50, y: 50 }, {}, ZONE)), ["shown"], "regionsAt skips the hidden Region");
+  assert.deepEqual(regionsAt(sceneOf(hidden), { x: 50, y: 50 }, {}, OTHER), [], "a scene holding only the hidden Region answers nothing");
+});
+
 test("regionsAt reads a grid shape through core's merged outline", () => {
   // A `grid` shape carries cell offsets and no points of its own: the Region's
   // polygon tree is where the cells' merged outline lives, and membership reads

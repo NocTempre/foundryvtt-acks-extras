@@ -415,6 +415,9 @@ await ok("a holder's and a non-holder's targets carry their parts; the Judge mod
   assert.equal(h.covered, "0 / 3", "100 feet is three stretches of 40");
   assert.ok(h.coveredTip.includes("3 stretches of 40") && h.coveredTip.includes("XX p.1"));
   assert.equal(h.can, true);
+  await applyCrossingForm(formation, { length: "40" });
+  const one = rowOf(buildCrossingView(formation), "Alder");
+  assert.ok(one.coveredTip.includes("1 stretch of 40") && !one.coveredTip.includes("1 stretches"), "singular at one stretch: " + one.coveredTip);
 });
 
 await ok("a target's tooltip lists the figure's base and its parts with their pages, not the source alone", async () => {
@@ -667,7 +670,7 @@ await ok("a non-owner is refused with a whisper and nothing is rolled, declared 
   let { declarations, cards, whispers } = posted();
   assert.deepEqual([declarations.length, cards.length, whispers.length], [0, 0, 1]);
   assert.deepEqual(whispers[0].whisper, [OTHER.id], "told to the requester alone");
-  assert.equal(whispers[0].content, "Alder is not yours to throw for.");
+  assert.equal(whispers[0].content, "Alder is not one of your characters.");
   assert.equal(naturals.length, 3, "no die was rolled");
   assert.deepEqual(readCrossing(formation).members, {}, "no record");
   // A payload naming no member must not pass on the strength of owning some other one.
@@ -1424,7 +1427,7 @@ await ok("a player's attempt is relayed: declared publicly, rolled and recorded 
   await relay(OTHER, other.formation, "crossing", { crossingId: id, actorId: "Alder", step: "attempt" });
   const sent = posted();
   assert.deepEqual([sent.declarations.length, sent.cards.length, sent.whispers.length], [0, 0, 1]);
-  assert.equal(sent.whispers[0].content, "Alder is not yours to throw for.");
+  assert.equal(sent.whispers[0].content, "Alder is not one of your characters.");
   assert.equal(naturals.length, 1, "no die was rolled");
   await relay(PLAYER, other.formation, "crossing", { crossingId: "other", actorId: "Alder", step: "attempt" });
   assert.equal(posted().whispers.length, 2, "a press for another crossing is told so");
@@ -2149,13 +2152,16 @@ await ok("the swim setup reads each imported step by its size, one pick for the 
   assert.equal(larger.penaltyTip.split(" · ")[0], format("ACKS-FORMATION.crossing.swim.tip.larger"));
   await applyCrossingForm(formation, { penaltyPick: "none" });
   assert.equal(swimView(formation).swim.inForce, format("ACKS-FORMATION.crossing.swim.noPenalty"));
+  assert.equal(swimView(formation).swim.penaltyTip.split(" · ")[0], format("ACKS-FORMATION.crossing.swim.tip.none"), "with steps imported, a pick of none still says so");
 });
 
 await ok("with no steps imported the penalty offers None and Larger alone, and the tooltip is the page alone", async () => {
   const { formation } = await swimWorld([["Alder", { stone: 9 }]], { figures: { ...SWIMFIG, swimWaterPenaltySteps: undefined } });
   const setup = swimView(formation).swim;
   assert.deepEqual(setup.penaltyOptions.map((o) => o.value), ["none", "larger"]);
-  assert.equal(setup.penaltyTip, [format("ACKS-FORMATION.crossing.swim.tip.none"), PAGE].join(" · "));
+  assert.equal(setup.penaltyTip, PAGE, "nothing imported to stand on, so the page reference alone");
+  await applyCrossingForm(formation, { penaltyPick: "larger", penaltyLarger: "11" });
+  assert.equal(swimView(formation).swim.penaltyTip.split(" · ")[0], format("ACKS-FORMATION.crossing.swim.tip.larger"), "a picked figure still says what it stands on");
 });
 
 await ok("a swim row for each seat: the target, No throw for a holder, a blank for a creature with nothing to read, and the round", async () => {
@@ -3135,7 +3141,10 @@ await ok("the header line carries the rounds billed, each member's working in it
   assert.ok(/acks-extras-crossing-spent-figure">6</.test(html));
   const missed = await timeWorld([["Alder", {}]], { kind: "sheerClimb" });
   await press(missed.formation, "Alder", 5);
-  assert.ok(buildCrossingView(missed.formation).rounds.tip.includes("Alder: 1 misses × 3 rd = 3 rd"), "misses and their duration");
+  assert.ok(buildCrossingView(missed.formation).rounds.tip.includes("Alder: 1 miss × 3 rd = 3 rd"), "misses and their duration, singular at one");
+  assert.ok(!buildCrossingView(missed.formation).rounds.tip.includes("1 misses"), "never a plural at one");
+  await press(missed.formation, "Alder", 5);
+  assert.ok(buildCrossingView(missed.formation).rounds.tip.includes("Alder: 2 misses × 3 rd = 6 rd"), "plural at two: " + buildCrossingView(missed.formation).rounds.tip);
 
   reset();
   load();
