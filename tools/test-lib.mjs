@@ -131,6 +131,23 @@ t("looseCreatureName: a family head, a number, an abbreviation or a truncation n
   assert.equal(vocab.looseCreatureName("Moor Grazer, Large", ["Moor Grazer", "Moor Grazer"]), 0, "a repeated name answers with the first");
 });
 
+t("leadingNameHit: a label's words that begin exactly one name answer with it", () => {
+  const rows = ["Zork Blade", "Tarn Hauberk Armor", "Tarn Buckler", "Tarn Bulwark", "Fen Drone, Medium Wasp"];
+  const at = (label, names = rows) => vocab.leadingNameHit(label, names);
+  assert.equal(at("Tarn Hauberk"), 1, "the label's words are the name's first words");
+  assert.equal(at("zork blade"), 0, "the whole name, in any case, fits");
+  assert.equal(at("Tarn Haub. Armor"), 1, "a period marks a cut-short word the name's word begins");
+  assert.equal(at("Tarn Haub Armor"), null, "a cut-short word with no period is a different word");
+  assert.equal(at("Tarn Bu."), null, "a label that begins two names names neither");
+  assert.equal(at("Tarn Bul."), 3, "and one that begins one is that name");
+  assert.equal(at("Tarn"), null, "one word that opens a longer name is not read");
+  assert.equal(at("Fen Drone, Medium"), 4, "a comma is no word, as for a creature");
+  assert.equal(at("Zork Blade Armor"), null, "a label longer than the name fits nothing");
+  assert.equal(at("Zork B"), null, "a bare cut-short word is not a period abbreviation");
+  assert.equal(at("Tarn Buckler", ["Tarn Buckler", "Tarn Buckler"]), 0, "a repeated name answers with the first");
+  assert.deepEqual([at(""), at(null), at("Zork Blade", [])], [null, null, null]);
+});
+
 t("choicesOf maps {key:{label}} -> {key:label}", () => {
   assert.deepEqual(choicesOf(vocab.ROLL_TYPES), { result: "=", above: "≥", below: "≤" });
 });

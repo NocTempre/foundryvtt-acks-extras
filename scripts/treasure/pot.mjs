@@ -19,7 +19,7 @@ import { isProvider, stockProvider } from "../lib/storage.mjs";
 import { magicKnowledge, physicalItems } from "../lib/item-model.mjs";
 import { capacity6, load6 } from "../lib/capacity.mjs";
 import * as services from "../lib/services.mjs";
-import { CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
+import { ARMS_LAST_FLAG, CARD_FLAG, LANG, MODULE_ID, PHASE, POOL, POT_FLAG, POT_SHEET_KEY, REFUSAL } from "./constants.mjs";
 import {
   buildCard, claimCoinCredits, claimItemData, flipUpdate, goodsWeights6, haulOf, normalizePot, normalizeTruth, planClose, planFound, planOpen, seatCards, setDealChoice, setMetInLair, setMonsterOn, setMonsters, setToggle,
   stage, turnedOf, unstage, cardView,
@@ -68,7 +68,9 @@ export const findPot = (id) => {
 /**
  * A new pot in staging, GM-only, with its own sheet chosen. Judge-only.
  * `deal` is the staged deal state the pot is created with (the monster rows a
- * sheet or the selected tokens open it with), written in the create itself.
+ * sheet or the selected tokens open it with), written in the create itself. A
+ * pot whose `deal` names no arms column opens with the one this Judge last chose
+ * on any pot (`setDealOption`), blank where none was.
  * @param {{name?: string, render?: boolean, deal?: object}} [opts]
  * @returns {Promise<Cards|null>}
  */
@@ -81,7 +83,7 @@ export async function newPot({ name = "", render = true, deal = undefined } = {}
     name: name || loc("pot.defaultName"),
     type: "pile",
     ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
-    flags: { core: { sheetClass: POT_SHEET_KEY }, [MODULE_ID]: { [POT_FLAG]: normalizePot({ deal }) } },
+    flags: { core: { sheetClass: POT_SHEET_KEY }, [MODULE_ID]: { [POT_FLAG]: normalizePot({ deal: { armsSetting: game.user.getFlag?.(MODULE_ID, ARMS_LAST_FLAG) ?? "", ...deal } }) } },
   });
   if (pile && render) pile.sheet?.render(true);
   return pile;
@@ -184,11 +186,17 @@ export async function setDealMonsterOn(pile, index, on) {
   return pile.update({ [`${potPath}.deal.monsters`]: pot.deal.monsters });
 }
 
-/** Set one deal choice (`style`, `special` or the by-hand `letter`) on a staged pot. Stored only. Judge-only. */
+/**
+ * Set one deal choice (`style`, `special`, the by-hand `letter` or the
+ * `armsSetting` column) on a staged pot. Stored only. Judge-only. A column is
+ * also kept on the Judge's user, as the default the next new pot opens with.
+ */
 export async function setDealOption(pile, key, value) {
   const pot = setDealChoice(potOf(pile), key, value);
   if (!game.user.isGM || !pot) return null;
-  return pile.update({ [`${potPath}.deal.${key}`]: pot.deal[key] });
+  const written = await pile.update({ [`${potPath}.deal.${key}`]: pot.deal[key] });
+  if (key === "armsSetting") await game.user.setFlag(MODULE_ID, ARMS_LAST_FLAG, pot.deal.armsSetting);
+  return written;
 }
 
 /* -------------------------------------------- */

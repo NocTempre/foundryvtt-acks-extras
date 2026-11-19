@@ -50,7 +50,9 @@ globalThis.foundry = {};
 const { MODULE_ID, CARD_FLAG, POT_FLAG, PHASE, POOL } = await import("../scripts/treasure/constants.mjs");
 const { apparentName, claimItemData, dealOf, normalizePot, normalizeTruth, rankWorth } = await import("../scripts/treasure/pot-logic.mjs");
 const { DEAL_ERROR_CODES, dealMessages } = await import("../scripts/treasure/deal-logic.mjs");
-const { MAGIC_ERROR, MAGIC_REASON, rollMagicTruths, startFor, unknownTruth } = await import("../scripts/treasure/magic-deal-logic.mjs");
+const { ARMS_TIER, MAGIC_ERROR, MAGIC_REASON, apparentOf, armsBases, findBase, rollMagicTruths, startFor, unknownTruth } = await import("../scripts/treasure/magic-deal-logic.mjs");
+const { registerWeaponSource } = await import("../scripts/lib/weapons.mjs");
+const { slug } = await import("../scripts/lib/vocab.mjs");
 const { PRIORITY, registerTable, resetTables, unregisterTable } = await import("../scripts/lib/tables.mjs");
 const services = await import("../scripts/lib/services.mjs");
 const { acksExtras } = await import("../scripts/namespace.mjs");
@@ -209,6 +211,90 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   eq([nouns.length, r.truths.map((t) => t.label)], [3, ["Item 1", "Item 2", "Item 3"]], "each card is rolled on its own, once");
 }
 
+/* --- an arm's apparent worth: the base found by import stamp, plus masterwork ------- */
+{
+  const mint = (id, name, type, cost, { system = {}, flags = {} } = {}) => ({ uuid: `Item.${id.split(".").pop()}`, name, type, system: { cost, ...system }, flags: { [MODULE_ID]: { cookbook: { id }, ...flags } } });
+  const keyOf = (i) => slug(i.flags[MODULE_ID].cookbook.id.slice("def.weapon.".length));
+  const LIB = [
+    mint("def.weapon.zorkBlade", "Zork Blade", "weapon", 19),
+    mint("def.weapon.quillSpear", "Quill Spear", "weapon", 7),
+    // Typed `weapon` on purpose: only the ammunition stamp keeps it from being a base.
+    mint("def.weapon.tineDarts", "Tine Darts", "weapon", 5, { flags: { ammunition: true } }),
+    mint("def.armor.tarnHauberkArmor", "Tarn Hauberk Armor", "armor", 40, { system: { type: "heavy" } }),
+    mint("def.armor.tarnBuckler", "Tarn Buckler", "armor", 10, { system: { type: "shield" } }),
+    mint("def.armor.tarnBarding", "Tarn Barding", "armor", 90, { system: { type: "heavy" }, flags: { armor: { barding: true } } }),
+    mint("def.armor.tarnHelm", "Tarn Helm", "armor", 12, { system: { type: "light" }, flags: { armor: { helmet: true } } }),
+    // A document that is not a mint is no base.
+    { uuid: "Item.byHand", name: "Hand Spear", type: "weapon", system: { cost: 3 }, flags: {} },
+  ];
+  const previous = registerWeaponSource({ rows: { zorkblade: {}, quillspear: {}, tinedarts: {} } });
+  const bases = armsBases(LIB, keyOf);
+  eq(bases.map((b) => [b.name, b.kind]), [["Zork Blade", "weapon"], ["Quill Spear", "weapon"], ["Tarn Hauberk Armor", "armor"], ["Tarn Buckler", "shield"]], "bases are minted weapons, armour and shields: no ammunition, barding, helmet or hand-made document");
+  eq(bases[0], { uuid: "Item.zorkBlade", name: "Zork Blade", costGp: 19, kind: "weapon", key: "zorkblade" }, "a weapon carries its seam key and cost");
+
+  const pick = (name) => findBase(name, bases)?.name ?? null;
+  eq([pick("Zork Blade"), pick("zork blade"), pick("Blade, Zork")], ["Zork Blade", "Zork Blade", "Zork Blade"], "a weapon is found through the weapon seam over the name's forms");
+  eq(pick("Tarn Hauberk Armor"), "Tarn Hauberk Armor", "armour is found by its own name");
+  eq([pick("Tarn Hauberk"), pick("Zork Bl."), pick("Tarn Haub. Armor")], ["Tarn Hauberk Armor", "Zork Blade", "Tarn Hauberk Armor"], "a miss falls to the leading words, a period standing for a cut-short word");
+  eq([pick("Quill"), pick("Tarn"), pick("Blade")], [null, null, null], "one word that opens a longer name stands for no base");
+  eq([pick("Tarn Bu."), pick("Wobble Gear"), pick(""), pick(null)], ["Tarn Buckler", null, null, null], "a cut-short word that fits one name is that name; a name nothing holds is none");
+  const twins = armsBases([mint("def.armor.tarnBulwark", "Tarn Bulwark", "armor", 11, { system: { type: "shield" } }), ...LIB.slice(3, 5)], keyOf);
+  eq(findBase("Tarn Bu.", twins), null, "a leading-words fit that holds two names names neither");
+  eq([pick("Tine Darts"), pick("Tine Dart"), pick("Tine D.")], [null, null, null], "an ammunition document is never a base, by name or by leading words");
+
+  const masterwork = (asked = []) => (tier) => (asked.push(tier), { weaponBoth: 403, armorAC: 211 }[tier]);
+  const asked = [];
+  const row = (text, extra = {}) => item(text, extra);
+  eq(apparentOf(row("Zork Blade +1", { arms: { name: true } }), { bases, masterwork: masterwork(asked) }), { baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: 403 }, "a row linked by name: the noun before its bonuses is the base, and a weapon takes the both-tier cost");
+  eq(apparentOf(row("Shiny +2", { arms: { grid: "armsZz" }, armsType: "Tarn Hauberk Armor" }), { bases, masterwork: masterwork(asked) }), { baseUuid: "Item.tarnHauberkArmor", baseGp: 40, masterworkGp: 211 }, "a rolled type is the base, and armour takes the AC-tier cost");
+  eq(apparentOf(row("Shiny +1", { arms: { kind: "k" }, armsType: "Tarn Buckler" }), { bases, masterwork: masterwork(asked) }).masterworkGp, 211, "a shield takes the AC-tier cost");
+  eq([asked, ARMS_TIER], [["weaponBoth", "armorAC", "armorAC"], { weapon: "weaponBoth", armor: "armorAC", shield: "armorAC" }], "the tier is asked once per arm, by the base's kind");
+  eq(apparentOf(row("Band of Tines +1", { arms: { name: true } }), { bases, masterwork: masterwork() }), null, "a ring linked by name finds no base, so no figures");
+  eq(apparentOf(row("Cloak of Quills +1, +2 versus X", { arms: { name: true } }), { bases, masterwork: masterwork() }), null, "so does a cloak with bonuses alone");
+  eq(apparentOf(row("Tine Darts +1", { arms: { name: true } }), { bases, masterwork: masterwork() }), null, "ammunition finds no base, so no figures");
+  eq(apparentOf(row("Tine Darts +1", { arms: { grid: "armsZz" }, armsType: "Tine Darts" }), { bases, masterwork: masterwork() }), null, "a rolled ammunition type finds none either");
+  eq(apparentOf(row("Zork Blade +1, Shiny", { arms: { name: true } }), { bases, masterwork: masterwork() }), null, "a row that prints a figure of its own has no noun, so no figures");
+  eq(apparentOf(row("Zork Blade +1"), { bases, masterwork: masterwork() }), null, "a row with no arms link names no arm");
+  eq(apparentOf(row("Zork Blade +1", { arms: { grid: "armsZz" } }), { bases, masterwork: masterwork() }), null, "a link rolled no type on names no arm");
+  const costless = armsBases([mint("def.weapon.zorkBlade", "Zork Blade", "weapon", undefined)], keyOf);
+  eq([apparentOf(row("Zork Blade +1", { arms: { name: true } }), { bases: costless, masterwork: masterwork() }), apparentOf(row("Zork Blade +1", { arms: { name: true } }), { bases: armsBases([mint("def.weapon.zorkBlade", "Zork Blade", "weapon", 0)], keyOf), masterwork: masterwork() })], [null, null], "a base with no positive cost gives none");
+  const blade = row("Zork Blade +1", { arms: { name: true } });
+  eq([null, undefined, 0, "lots", -4].map((mw) => apparentOf(blade, { bases, masterwork: () => mw })), [null, null, null, null, null], "no positive tier cost gives none");
+  eq([apparentOf(blade, { bases, masterwork: null }), apparentOf(blade, { bases: [], masterwork: masterwork() }), apparentOf(blade, { bases: null, masterwork: masterwork() })], [null, null, null], "no tier source and no bases give none");
+
+  // Through the deal: what is rolled, passed, and stored.
+  const asks = [];
+  const rolling = (it) => async (a) => (asks.push(a), walked(it));
+  const withArms = (it, over = {}) => run([placeholder("widgets")], { roll: rolling(it), armsSetting: "s2", bases, masterwork: masterwork(), ...over });
+  let r = await withArms(row("Zork Blade +1", { arms: { name: true } }));
+  eq([asks.at(-1), r.truths[0].apparent, r.truths[0].label], [{ from: "classic.wd", style: "classic", armsSetting: "s2" }, { baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: 403 }, "Zork Blade +1"], "the pot's column goes to the roll, and an arm is stored with its figures");
+  eq(rankWorth(r.truths[0]), 422, "and the card ranks 19 plus 403");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { armsSetting: "" });
+  eq([asks.at(-1), r.truths[0].apparent], [{ from: "classic.wd", style: "classic" }, null], "a blank column passes no setting and stores nothing");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { armsSetting: undefined });
+  eq(r.truths[0].apparent, null, "an unset column stores nothing");
+  r = await withArms(row("Band of Tines +1", { arms: { name: true } }));
+  eq([r.truths[0].apparent, rankWorth(r.truths[0]), r.errors], [null, 0, []], "a ring row stores nothing and is no error");
+  r = await withArms(row("Tine Darts +1", { arms: { name: true } }));
+  eq([r.truths[0].apparent, rankWorth(r.truths[0])], [null, 0], "an ammunition row stores nothing");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { masterwork: () => null });
+  eq([r.truths[0].apparent, r.errors], [null, []], "no masterwork document: nothing stored, nothing wrong");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { masterwork: () => { throw new Error("boom"); } });
+  eq([r.truths[0].apparent, r.errors], [null, []], "a tier source that throws stores nothing and does not throw");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { bases: undefined, masterwork: undefined });
+  eq(r.truths[0].apparent, null, "no seams stores nothing");
+  r = await withArms(row("Zork Blade +1", { arms: { grid: "armsZz" }, armsType: "Quill Spear" }));
+  eq(r.truths[0].apparent, { baseUuid: "Item.quillSpear", baseGp: 7, masterworkGp: 403 }, "a rolled type is stored as its base");
+
+  const two = async () => [knownTruth(), normalizeTruth({ pool: POOL.coins, label: "2 Tin", coin: { name: "Tin", cv: 1, count: 2 } })];
+  r = await withArms(row("Zork Blade +1", { arms: { name: true }, uuid: "Item.d" }), { resolve: two });
+  eq(r.truths.map((t) => [t.pool, t.apparent?.baseGp ?? null]), [[POOL.magic, 19], [POOL.coins, null]], "a document the roll links to carries the figures on its magic part alone");
+  r = await withArms(row("Zork Blade +1", { arms: { name: true }, uuid: "Item.d" }), { resolve: async () => [knownTruth()], armsSetting: "" });
+  eq(r.truths[0].apparent, null, "and none with no column");
+
+  registerWeaponSource(previous);
+}
+
 /* --- refusals: the placeholder stays, an error says so ------------------------------ */
 {
   const refused = async (label, truths, over, reason, rolled = 0) => {
@@ -362,6 +448,16 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   eq(dealMessages(r).filter((x) => x.key.includes("magic")).length, 1, "three refusals are one notice");
 
   const saved = services.get("magic-item-roll");
+  const seen = [];
+  services.register("magic-item-roll", { roll: (a) => (seen.push(a.armsSetting), saved.roll(a)) });
+  fresh();
+  pile.flags[MODULE_ID][POT_FLAG].deal.armsSetting = "s4";
+  r = await dealLettersIntoPot(pile, { letters: ["M"], roller: sequence(1) });
+  eq([r.ok, seen, truthsStored()[0].apparent], [true, ["s4"], null], "the pot's arms column reaches the roll; a library holding no base and no masterwork document stores nothing");
+  fresh();
+  seen.length = 0;
+  await dealLettersIntoPot(pile, { letters: ["M"], roller: sequence(1) });
+  eq(seen, [undefined], "a pot with no column passes no setting");
   services.register("magic-item-roll", {});
   fresh();
   r = await dealLettersIntoPot(pile, { letters: ["M"], roller: sequence(1) });

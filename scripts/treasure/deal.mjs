@@ -10,11 +10,14 @@
  * (`newDealPot`).
  */
 import { acksExtras } from "../namespace.mjs";
+import { masterworkFigure } from "../equipment/printed-layers.mjs";
+import { keyOfItem } from "../equipment/weapon-rows.mjs";
+import { isWorldCopy, libraryItems, whenReady } from "../lib/library.mjs";
 import * as services from "../lib/services.mjs";
-import { MAGIC_ITEM_ROLL_CONTRACT } from "./constants.mjs";
+import { MAGIC_ITEM_ROLL_CONTRACT, MODULE_ID } from "./constants.mjs";
 import { groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
 import { dealHoard } from "./hoard.mjs";
-import { rollMagicTruths } from "./magic-deal-logic.mjs";
+import { armsBases, rollMagicTruths } from "./magic-deal-logic.mjs";
 import { addTruths, newPot, potOf, truthsFromItem } from "./pot.mjs";
 
 /**
@@ -67,13 +70,14 @@ export function newDealPot(groups = selectedMonsterGroups()) {
  * @returns {Promise<{ok: boolean, reason?: string, dealt?: object[], staged?: string[]}>}
  */
 export function dealLettersIntoPot(pile, { letters, style, special, confirmLair, roller } = {}) {
+  const pot = pile ? potOf(pile) : null;
   return runLetterDeal({
     isGM: !!game.user?.isGM,
-    pot: pile ? potOf(pile) : null,
+    pot,
     letters,
     confirmLair,
     deal: ({ letter, toggles }) => dealHoard({ letter, style, toggles, special }),
-    rollMagic: ({ letter, truths }) => rollMagicCards({ letter, truths, style, roller }),
+    rollMagic: ({ letter, truths }) => rollMagicCards({ letter, truths, style, roller, armsSetting: pot?.deal.armsSetting ?? "" }),
     stage: (truths) => addTruths(pile, truths),
   });
 }
@@ -89,9 +93,11 @@ export function dealLettersIntoPot(pile, { letters, style, special, confirmLair,
  * @param {object[]} args.truths the letter's truths
  * @param {"classic"|"heroic"|"gritty"} [args.style] the deal's style; classic by default, as the hoard is
  * @param {(expr: string) => {total: number, sides: number}|Promise<{total: number, sides: number}>} [args.roller] dice for the walk; core's by default
+ * @param {string} [args.armsSetting] the pot's arms column; blank leaves arms typeless and unpriced
  */
-function rollMagicCards({ letter, truths, style = "classic", roller }) {
+async function rollMagicCards({ letter, truths, style = "classic", roller, armsSetting = "" }) {
   const provider = services.get(MAGIC_ITEM_ROLL_CONTRACT);
+  const arms = armsSetting ? await armsSeam().catch(() => ({})) : {};
   return rollMagicTruths({
     truths,
     style,
@@ -102,5 +108,19 @@ function rollMagicCards({ letter, truths, style = "classic", roller }) {
       const item = await fromUuid(uuid);
       return item ? truthsFromItem(item) : null;
     },
+    armsSetting,
+    ...arms,
   });
+}
+
+/**
+ * What a rolled arm's apparent worth is read from, once the library is warm: the
+ * bases found by import stamp among the library's own items (no world copy, no
+ * template part) and a masterwork tier's added cost, from the equipment
+ * feature's imported masterwork documents (absent until imported).
+ */
+async function armsSeam() {
+  await whenReady();
+  const mints = libraryItems().filter((i) => !isWorldCopy(i) && !i.flags?.[MODULE_ID]?.templatePart && !i.flags?.[MODULE_ID]?.templateFor);
+  return { bases: armsBases(mints, keyOfItem), masterwork: (tier) => masterworkFigure(tier)?.costAdd };
 }

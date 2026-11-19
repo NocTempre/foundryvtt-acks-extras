@@ -58,7 +58,10 @@ function normalizeMonsters(list) {
     });
 }
 
-/** A staged pot's deal state with every key present: the toggles, the lair state, the monster rows, the by-hand letter, the table style and the special choice. */
+/** Whether a value is a setting column's key in the arms grids (`s1` and on); a blank is no column. */
+const isArmsSetting = (v) => typeof v === "string" && /^s\d+$/.test(v);
+
+/** A staged pot's deal state with every key present: the toggles, the lair state, the monster rows, the by-hand letter, the table style, the special choice and the arms column (a setting key, or blank for none). */
 function normalizeDeal(d) {
   return {
     toggles: normalizeToggles(d?.toggles),
@@ -67,6 +70,7 @@ function normalizeDeal(d) {
     letter: letterOf(d?.letter),
     style: DEAL_STYLE.includes(d?.style) ? d.style : DEAL_STYLE[0],
     special: d?.special === true,
+    armsSetting: isArmsSetting(d?.armsSetting) ? d.armsSetting : "",
   };
 }
 
@@ -135,9 +139,14 @@ export function normalizePot(flag) {
  * check finds it, and a truth that states none reads as found, so a pot dealt
  * any other way shows everything it holds. `lot` is the key a scene's entry
  * lists the lot under (`yields.lots`), or null for a lot no entry holds.
+ * `apparent` is what a rolled magic arm ranks by while undetected: its base's
+ * cost and the masterwork cost, kept only when both are positive figures.
  */
 export function normalizeTruth(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
+  const apparent = f.apparent && typeof f.apparent === "object" && num(f.apparent.baseGp) > 0 && num(f.apparent.masterworkGp) > 0
+    ? { baseUuid: typeof f.apparent.baseUuid === "string" && f.apparent.baseUuid ? f.apparent.baseUuid : null, baseGp: num(f.apparent.baseGp), masterworkGp: num(f.apparent.masterworkGp) }
+    : null;
   const coin = f.coin && typeof f.coin === "object"
     ? { name: String(f.coin.name ?? ""), cv: num(f.coin.cv, 1), count: Math.max(0, Math.floor(num(f.coin.count))) }
     : null;
@@ -157,6 +166,7 @@ export function normalizeTruth(flag) {
     claimedBy: f.claimedBy && typeof f.claimedBy === "object" ? { ...f.claimedBy } : null,
     found: f.found !== false,
     lot: typeof f.lot === "string" && f.lot ? f.lot : null,
+    apparent,
   };
 }
 
@@ -227,15 +237,28 @@ export function worthOf(truth) {
  * nobody has detected never ranks by its own cost, which would give the seed
  * away: it ranks by its mask's cost (an intentional disguise), else by the
  * apparent value its snapshot carries (`apparentWorth`, the non-magical worth
- * the import reads from the Judge's own copy), else as worth nothing.
+ * the import reads from the Judge's own copy), else, for an arm, its base's cost
+ * with the masterwork cost added (`armsWorth`), else as worth nothing.
  */
 export function rankWorth(truth) {
   const stated = worthOf(truth);
   if (stated != null) return stated;
   const maskCost = truth.mask?.cost;
   if (maskCost != null && maskCost !== "" && Number.isFinite(Number(maskCost))) return Number(maskCost);
-  if (truth.magical && !truth.detected) return apparentWorth(truth) ?? 0;
+  if (truth.magical && !truth.detected) return apparentWorth(truth) ?? armsWorth(truth) ?? 0;
   return num(truth.source?.data?.system?.cost, 0);
+}
+
+/**
+ * What a magic arm is taken to be worth at a glance, in gp: the cost of its
+ * non-magical base plus the masterwork cost the deal stored beside it
+ * (`apparent`), or null where either figure is missing or not positive. The
+ * sum is read here and never stored, so no card carries it as a price.
+ */
+export function armsWorth(truth) {
+  const base = num(truth?.apparent?.baseGp);
+  const masterwork = num(truth?.apparent?.masterworkGp);
+  return base > 0 && masterwork > 0 ? base + masterwork : null;
 }
 
 /**
@@ -572,9 +595,11 @@ export function setMonsterOn(pot, index, on) {
 
 /**
  * The pot with one deal choice set, during staging only: `style` (one of
- * `DEAL_STYLE`), `special` (a boolean) or `letter` (the by-hand treasure type;
- * blank clears it). Returns the new pot, or null for a pot that is not staging,
- * a key that is not a choice, or a style that is not listed.
+ * `DEAL_STYLE`), `special` (a boolean), `letter` (the by-hand treasure type;
+ * blank clears it) or `armsSetting` (the arms grids' column a rolled arm is typed
+ * on; blank clears it). Returns the new pot, or null for a pot that is not
+ * staging, a key that is not a choice, a style that is not listed, or an arms
+ * column that is not a setting key.
  */
 export function setDealChoice(pot, key, value) {
   if (pot.phase !== PHASE.staging) return null;
@@ -583,7 +608,10 @@ export function setDealChoice(pot, key, value) {
     if (!DEAL_STYLE.includes(value)) return null;
     next.deal.style = value;
   } else if (key === "special") next.deal.special = value === true;
-  else if (key === "letter") next.deal.letter = letterOf(value);
+  else if (key === "armsSetting") {
+    if (value !== "" && value != null && !isArmsSetting(value)) return null;
+    next.deal.armsSetting = isArmsSetting(value) ? value : "";
+  } else if (key === "letter") next.deal.letter = letterOf(value);
   else return null;
   return next;
 }

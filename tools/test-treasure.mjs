@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { BUCKET, PHASE, POOL, REFUSAL } from "../scripts/treasure/constants.mjs";
 import {
   AURA_BACK_ICON, DEAL_TOGGLE, apparentImg, apparentName, backIconOf, bandsOf, buildCard, cardInPot, cardView, claimCoinCredits, claimItemData, dealOf, faceLook, flipUpdate, haulOf,
-  normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, apparentWorth, setToggle, shownPool, stage,
+  normalizePot, normalizeTruth, placeAdds, planClaim, planClose, planFlip, planOpen, potCards, rankWorth, apparentWorth, armsWorth, setDealChoice, setToggle, shownPool, stage,
   replaceWarning, turnedOf, unstage, withBands, worthOf,
 } from "../scripts/treasure/pot-logic.mjs";
 import { backArt, backDress, faceArt } from "../scripts/treasure/card-art.mjs";
@@ -294,6 +294,46 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq(rankWorth(seeming(66, { detected: true })), 9000, "detected magic still ranks by what it is, not by the apparent value");
   eq(rankWorth(truth({ pool: POOL.magic, label: "M", magical: true, detected: false })), 0, "a placeholder with no snapshot ranks as nothing");
   eq([apparentWorth(seeming("66")), apparentWorth(truth()), apparentWorth(null)], [66, null, null], "apparentWorth reads a numeric string and answers null where nothing is carried");
+}
+
+/* --- an undetected magic arm ranks at its base's cost plus the masterwork cost --- */
+{
+  const arm = (apparent, over = {}) => truth({ pool: POOL.magic, label: "Zork blade +1", magical: true, detected: false, apparent, ...over });
+  const figures = { baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: 403 };
+  eq(rankWorth(arm(figures)), 422, "undetected magic with no mask cost and no apparent value ranks at base plus masterwork");
+  eq(rankWorth(arm(figures, { mask: { name: "Plain", cost: 5 } })), 5, "an intentional disguise's cost outranks the arm's figures");
+  eq(rankWorth(arm(figures, { source: { uuid: "Item.z", data: snap(9000, { magic: true, apparentValueGp: 66 }) } })), 66, "an apparent value the snapshot carries outranks the arm's figures");
+  eq(rankWorth(arm(figures, { source: { uuid: "Item.z", data: snap(9000, { magic: true }) } })), 422, "a snapshot with no apparent value falls to the arm's figures, never to its own cost");
+  eq(rankWorth(arm(figures, { detected: true, source: { uuid: "Item.z", data: snap(9000, { magic: true }) } })), 9000, "detected magic still ranks by what it is");
+  eq(rankWorth(arm({ baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: null })), 0, "a missing masterwork half ranks as nothing");
+  eq(rankWorth(arm({ baseUuid: "Item.zorkBlade", baseGp: null, masterworkGp: 403 })), 0, "a missing base half ranks as nothing");
+  eq(rankWorth(arm({ baseUuid: "Item.zorkBlade", baseGp: 0, masterworkGp: 403 })), 0, "a base that costs nothing is no figure");
+  eq(rankWorth(arm(null)), 0, "an arm with no figures ranks as nothing");
+  eq(arm(figures).apparent, figures, "the figures survive normalisation");
+  eq([arm({ baseGp: 19 }).apparent, arm("lots").apparent, truth().apparent], [null, null, null], "partial figures, junk and no figures normalise to none");
+  eq(armsWorth(arm(figures)), 422, "armsWorth is the sum the rank reads");
+  ok(!("worth" in arm(figures).apparent), "and the sum is never stored on the card");
+  eq([armsWorth(null), armsWorth(truth())], [null, null], "armsWorth answers null where nothing is stored");
+
+  const lot = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id }));
+  const seed = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id, bucket: BUCKET.replace }));
+  const v = stagingView([lot("a", 100), cardOf("m", arm(figures)), seed("s", 300)], { order: ["a", "m"], buckets: { add: [], replace: ["s"] } });
+  eq(dealOf(v).struck, ["m"], "a 300 seed takes the arms lot, which ranks 422");
+  const none = stagingView([lot("a", 100), cardOf("m", arm(null)), seed("s", 300)], { order: ["a", "m"], buckets: { add: [], replace: ["s"] } });
+  eq(dealOf(none).struck, [], "the same arm with no figures ranks 0, and a 300 seed finds the lots short");
+}
+
+/* --- the arms column: a staged pot's deal choice -------------------------------------- */
+{
+  eq(normalizePot({}).deal.armsSetting, "", "a pot with no column has none");
+  eq(normalizePot({ deal: { armsSetting: "s3" } }).deal.armsSetting, "s3", "a setting key is kept");
+  eq([normalizePot({ deal: { armsSetting: "zz" } }).deal.armsSetting, normalizePot({ deal: { armsSetting: 3 } }).deal.armsSetting, normalizePot({ deal: { armsSetting: "s" } }).deal.armsSetting], ["", "", ""], "anything else is no column");
+  const staged = normalizePot({});
+  eq(setDealChoice(staged, "armsSetting", "s2").deal.armsSetting, "s2", "a column is set");
+  eq(setDealChoice(setDealChoice(staged, "armsSetting", "s2"), "armsSetting", "").deal.armsSetting, "", "and cleared by a blank");
+  eq(setDealChoice(staged, "armsSetting", null).deal.armsSetting, "", "a null clears it too");
+  eq(setDealChoice(staged, "armsSetting", "other"), null, "a value that is no setting key is refused");
+  eq(setDealChoice({ ...staged, phase: PHASE.open }, "armsSetting", "s1"), null, "an open pot's column is not changed");
 }
 
 /* --- bands frozen at open; an undetected magic item takes its mask's band --- */

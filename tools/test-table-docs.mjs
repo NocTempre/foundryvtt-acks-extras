@@ -1111,6 +1111,15 @@ await test("a row keeps its arms link across a drop where its range stood, in th
   }
 });
 
+await test("the weapon-kind list is an entry a Judge can edit, and a row keeps its arms link across a drop where its range stood", async () => {
+  const arms = { grid: "armsZz" };
+  world({ registry: { magicItemTables: { weaponKinds: { bands: [{ min: 1, max: 10, item: "Zz kind", arms }, { min: 11, max: 20, item: "Qq kind" }] } } } });
+  const kinds = entryAt("magicItemTables.weaponKinds.bands");
+  assert.ok(kinds?.rollable, "the kind list is rollable");
+  const back = await parseDrop(kinds, droppedTable([{ range: [1, 10], description: "Zz kind (edited)" }, { range: [11, 18], description: "Qq kind" }]));
+  assert.deepEqual(back.data.bands, [{ min: 1, max: 10, item: "Zz kind (edited)", arms }, { min: 11, max: 18, item: "Qq kind" }]);
+});
+
 await test("a value list whose dice are a legend carries the legend in its description and never claims one formula for it", async () => {
   world({ registry: itemRegistry() });
   await materializeAll();

@@ -16,6 +16,9 @@ export const POT_FLAG = "treasure";
 /** Flag key, under the module's scope, of a Card's truth (`pot-logic.mjs` `normalizeTruth`). */
 export const CARD_FLAG = "card";
 
+/** Flag key, under the module's scope on the Judge's user, of the arms column last chosen on a pot: the default a new pot opens with. */
+export const ARMS_LAST_FLAG = "treasureArms";
+
 /** The id a pot's sheet is registered and chosen under (`flags.core.sheetClass`). */
 export const POT_SHEET_KEY = `${MODULE_ID}.PotSheet`;
 

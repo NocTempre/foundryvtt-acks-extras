@@ -112,7 +112,7 @@ export function rowOf(item) {
 }
 
 /** The key a minted item's row is published under: its mint id's tail, folded. */
-const keyOfItem = (item) => slug(cookbookId(item).slice(MINTED_PREFIX.length));
+export const keyOfItem = (item) => slug(cookbookId(item).slice(MINTED_PREFIX.length));
 
 /**
  * Every minted weapon in the library as `{ [weaponKey]: row }`. Where two

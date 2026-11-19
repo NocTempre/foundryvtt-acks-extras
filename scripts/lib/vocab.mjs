@@ -153,6 +153,28 @@ export function looseCreatureName(raw, names) {
   return null;
 }
 
+/**
+ * The one catalogue name a label's words begin: an index into `names`, or null.
+ * The label's words are the first words of the name, each equal or a cut-short
+ * word (a period after it) the name's word begins, and a label that is the whole
+ * name with such a cut-short word fits too. At least two words are needed, since
+ * one word that opens a longer name stands for nothing in particular. It answers
+ * only when exactly one distinct name fits, so a label that opens two names
+ * names neither. It is the fallback after an exact match (`nameKeys`) misses, and
+ * builds no map of printed names.
+ */
+export function leadingNameHit(raw, names) {
+  const list = [...names].map((n) => String(n ?? ""));
+  const cell = creatureWords(raw);
+  if (cell.length < 2) return null;
+  const fits = [];
+  list.forEach((n, i) => {
+    const row = creatureWords(n);
+    if (row.length && wordsStandFor(cell, row, true)) fits.push(i);
+  });
+  return new Set(fits.map((i) => slug(list[i]))).size === 1 ? fits[0] : null;
+}
+
 // `alignmentKey` (Scoping, below) is the one reader of a free-text alignment;
 // influence keeps its own token set and delegates its classifier to it.
 

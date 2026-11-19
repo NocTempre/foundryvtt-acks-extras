@@ -15,8 +15,16 @@
  *
  * A rolled item is a dealt find, unknown whatever its source document's own
  * marks say: undetected, unidentified, its curse not known.
+ *
+ * With the pot's arms column set, a rolled arm also stores what it ranks by
+ * while undetected (`apparentOf`): its non-magical base's cost and the masterwork
+ * cost, found by the base's import stamp. Bands freeze at open, so the figures are
+ * read at the deal. A find with no base or no cost stores nothing and ranks as it
+ * did.
  */
-import { creatureKeys } from "../lib/vocab.mjs";
+import { bonusNoun } from "../importer/magic-item-binding.mjs";
+import { creatureKeys, leadingNameHit, nameKeys } from "../lib/vocab.mjs";
+import { keyForName } from "../lib/weapons.mjs";
 import { MODULE_ID, POOL } from "./constants.mjs";
 import { parseDice } from "./hoard-logic.mjs";
 import { normalizeTruth } from "./pot-logic.mjs";
@@ -132,6 +140,91 @@ export function unknownTruth(truth, placeholder = null) {
  */
 const isMagicPart = (truth, i) => i === 0 || truth.magical === true || truth.source?.data?.flags?.[MODULE_ID]?.markets?.magic === true;
 
+/** The masterwork tier (the equipment feature's `MASTERWORK` key) a base of each kind takes: a weapon's both, an armour's or a shield's AC. */
+export const ARMS_TIER = Object.freeze({ weapon: "weaponBoth", armor: "armorAC", shield: "armorAC" });
+
+/** The prefix of the cookbook id the importer stamps on a minted weapon row and on a minted armour row. */
+const WEAPON_STAMP = "def.weapon.";
+const ARMOR_STAMP = "def.armor.";
+
+/**
+ * The documents a rolled arm's base can be, from the library's own items and
+ * by their import stamps, never by name: a minted weapon (type `weapon` under
+ * `def.weapon.*`) and a minted armour or shield (type `armor` under
+ * `def.armor.*`), kind `weapon`, `armor` or `shield`. Barding and helmets are
+ * not bases, and ammunition, which prints its figure per projectile, is
+ * refused by its stamp wherever it is filed. A weapon carries `key`, the key
+ * the weapon seam files it under (`keyOf`).
+ *
+ * @param {object[]} items library items, each reduced to a mint (no world copies)
+ * @param {(item: object) => string} keyOf the weapon seam's key of a minted weapon item
+ * @returns {Array<{uuid: string|null, name: string, kind: string, costGp: number, key?: string}>}
+ */
+export function armsBases(items, keyOf) {
+  const out = [];
+  for (const item of items ?? []) {
+    const stamp = item?.flags?.[MODULE_ID];
+    const id = String(stamp?.cookbook?.id ?? "");
+    if (stamp?.ammunition === true) continue;
+    const base = { uuid: item.uuid ?? null, name: String(item.name ?? ""), costGp: Number(item.system?.cost) };
+    if (item.type === "weapon" && id.startsWith(WEAPON_STAMP)) out.push({ ...base, kind: "weapon", key: keyOf(item) });
+    else if (item.type === "armor" && id.startsWith(ARMOR_STAMP) && !stamp?.armor?.helmet && !stamp?.armor?.barding) out.push({ ...base, kind: item.system?.type === "shield" ? "shield" : "armor" });
+  }
+  return out;
+}
+
+/**
+ * The base a written arm name is, among `armsBases`, or null. In order: a
+ * weapon through the weapon seam (`keyForName` over the name's forms), a base
+ * whose own name shares a form with it, and last the leading-words rule
+ * (`leadingNameHit`), which needs exactly one base to fit.
+ */
+export function findBase(name, bases) {
+  const list = bases ?? [];
+  const forms = nameKeys(name ?? "");
+  if (!forms.size || !list.length) return null;
+  for (const form of forms) {
+    const key = keyForName(form);
+    const weapon = key ? list.find((b) => b.kind === "weapon" && b.key === key) : null;
+    if (weapon) return weapon;
+  }
+  const named = list.find((b) => [...nameKeys(b.name)].some((k) => forms.has(k)));
+  if (named) return named;
+  const at = leadingNameHit(name, list.map((b) => b.name));
+  return at == null ? null : list[at];
+}
+
+/**
+ * The arm a walked item names: the type rolled on the pot's column
+ * (`item.armsType`), or for a row linked by name the words before its first
+ * signed figure, the noun naming the arm itself. Null where the row is no arm.
+ */
+const armsNameOf = (item) => {
+  if (typeof item?.armsType === "string" && item.armsType.trim()) return item.armsType;
+  return item?.arms?.name === true ? bonusNoun(item.text) : null;
+};
+
+/**
+ * The figures an undetected arm ranks by: `{baseUuid, baseGp, masterworkGp}`,
+ * or null. The arm's name is looked up among the bases (`findBase`) and the base's
+ * kind picks the masterwork tier (`ARMS_TIER`). Nothing is returned, and nothing
+ * stored, unless the base's cost and the tier's cost are both positive: a row that
+ * is no arm (a ring, a cloak) finds no base, and a world with no masterwork
+ * document imported has no tier cost.
+ *
+ * @param {object} item a roll result's item
+ * @param {object} deps
+ * @param {object[]} deps.bases `armsBases`'
+ * @param {(tier: string) => number|null|undefined} deps.masterwork the masterwork tier's added cost in gp
+ */
+export function apparentOf(item, { bases, masterwork }) {
+  const base = findBase(armsNameOf(item), bases);
+  const baseGp = Number(base?.costGp);
+  if (!(baseGp > 0)) return null;
+  const masterworkGp = Number(masterwork?.(ARMS_TIER[base.kind]));
+  return masterworkGp > 0 ? { baseUuid: base.uuid, baseGp, masterworkGp } : null;
+}
+
 /**
  * One walk as audit rows in the hoard's shape (`where`, `expr`, `sides`,
  * `min`, `max`, `total`, `cite`), one per die thrown, each also naming the
@@ -174,9 +267,12 @@ function auditRows(result, where, item) {
  * @param {{classicType?: object|null, classic?: object[], heroic?: object[]}|null} args.lists `startFor`'s lists
  * @param {((args: {from: string, style: string}) => Promise<object>)|null} args.roll the roll service's `roll`, with its roller bound
  * @param {(uuid: string) => Promise<object[]|null>} args.resolve the truths of the document a uuid names, or null
+ * @param {string} [args.armsSetting] the pot's arms column (a setting key); blank rolls no type and stores no `apparent`
+ * @param {object[]} [args.bases] `armsBases`', read once for the deal
+ * @param {(tier: string) => number|null|undefined} [args.masterwork] a masterwork tier's added cost in gp
  * @returns {Promise<{truths: object[], errors: object[], audit: object[]}>}
  */
-export async function rollMagicTruths({ truths, style, where, lists, roll, resolve }) {
+export async function rollMagicTruths({ truths, style, where, lists, roll, resolve, armsSetting = "", bases = [], masterwork = null }) {
   const out = [];
   const errors = [];
   const audit = [];
@@ -200,7 +296,7 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
 
     let result;
     try {
-      result = await roll({ from: start.id, style });
+      result = await roll({ from: start.id, style, ...(armsSetting ? { armsSetting } : {}) });
     } catch {
       result = null;
     }
@@ -217,8 +313,17 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
         found = null;
       }
     }
-    if (Array.isArray(found) && found.length) out.push(...found.map((t, i) => (isMagicPart(t, i) ? unknownTruth(t, truth) : t)));
-    else out.push(normalizeTruth({ pool: POOL.magic, label: item.text.trim(), magical: true, detected: false, mask: passesFor({}, truth) }));
+    let apparent = null;
+    if (armsSetting) {
+      try {
+        apparent = apparentOf(item, { bases, masterwork });
+      } catch {
+        apparent = null;
+      }
+    }
+    const worn = (t) => (apparent && !t.coin ? normalizeTruth({ ...t, apparent }) : t);
+    if (Array.isArray(found) && found.length) out.push(...found.map((t, i) => (isMagicPart(t, i) ? worn(unknownTruth(t, truth)) : t)));
+    else out.push(worn(normalizeTruth({ pool: POOL.magic, label: item.text.trim(), magical: true, detected: false, mask: passesFor({}, truth) })));
   }
   return { truths: out, errors, audit };
 }

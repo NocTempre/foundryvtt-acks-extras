@@ -124,6 +124,8 @@ const COLUMN_GRIDS = [
     fieldsBy: { contents: ["place", "clues"], clueSpecifics: ["detail", "content", "obscurity"], clueConcealment: ["type", "text"], clueCode: ["type", "text"] },
   },
   { docId: "magicItemTables", tableId: "creatureType", field: "item" },
+  // The Tome's weapon-kind list: each row names the kind of weapon a generic weapon row stands for, and keeps its link to the arms grid it picks.
+  { docId: "magicItemTables", tableId: "weaponKinds", field: "item", keep: ["arms"] },
   { docId: "magicItemTables", prefix: "arms", field: "type", ownDie: true },
 ];
 
