@@ -1,4 +1,4 @@
-/* global game, canvas, ui, foundry, ChatMessage, Roll */
+/* global game, canvas, ui, foundry, ChatMessage, Roll, CONST */
 /**
  * Doors, and the four ways past one (RR ch. 6 "Doors"): a key, picking the
  * lock, battering it down, or bashing it open on a Dungeonbashing throw. A
@@ -236,6 +236,31 @@ export async function batterDoor(wall, actor = null, { spend = true } = {}) {
   const formation = actor?.id ? getFormationForActor(actor.id) : null;
   if (formation) await advanceTurns(formation, plan.turns, { reason: "action" });
   return { ok: true, turns: plan.turns, spent: formation ? plan.turns : 0, formation: formation?.name ?? null };
+}
+
+/**
+ * Show a secret door: the wall becomes an ordinary door. Only `door` is
+ * written, so its open/closed/locked state and every flag, the `door` flag
+ * included, stay as they were. A wall that is already an ordinary door is
+ * left alone and no write is made, so a second call is harmless. Only a GM
+ * client writes (a player's client may not update walls); anywhere else the
+ * call refuses and nothing is written. Nothing throws.
+ *
+ * @param {WallDocument|null} wall
+ * @returns {Promise<{ok: true, revealed: boolean}|{ok: false, reason: "noWall"|"notGM"|"notADoor"}>}
+ *   `revealed` is true when this call turned a secret door into a door and
+ *   false when the wall already showed as one; `reason` names the refusal.
+ */
+export async function revealSecretDoor(wall) {
+  if (!wall) return { ok: false, reason: "noWall" };
+  if (!game.user?.isGM) return { ok: false, reason: "notGM" };
+  const types = CONST.WALL_DOOR_TYPES;
+  const secret = types?.SECRET ?? 2;
+  if (Number(wall.door) !== secret) {
+    return isDoor(wall) ? { ok: true, revealed: false } : { ok: false, reason: "notADoor" };
+  }
+  await wall.update({ door: types?.DOOR ?? 1 });
+  return { ok: true, revealed: true };
 }
 
 /** A one-line note in chat, for the things that are not rolls. */

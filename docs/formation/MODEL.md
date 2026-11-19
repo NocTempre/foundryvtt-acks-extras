@@ -1277,6 +1277,12 @@ no basher selected, or no formation holding them, the door still opens, no
 clock moves, and the notification says so. A construction an axe cannot beat
 opens nothing and spends nothing.
 
+**A secret door is shown by one write.** `revealSecretDoor(wall)` sets a secret
+door's `door` to an ordinary door and writes nothing else, so `ds` and every
+flag stay; it answers `{ok, revealed}` or `{ok: false, reason}`, writes only on
+a GM client, and leaves an ordinary door alone (published as
+`api.formation.doors.revealSecretDoor`).
+
 ## Detaching a member
 
 A formation travels as one token. Two things take a member out of it, and both

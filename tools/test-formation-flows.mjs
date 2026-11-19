@@ -212,6 +212,7 @@ globalThis.CONST = {
   TOKEN_DISPOSITIONS: { FRIENDLY: 1 },
   FOG_EXPLORATION_MODES: { DISABLED: 0, INDIVIDUAL: 1, SHARED: 2 }, // matches core v14
   GRID_TYPES: { GRIDLESS: 0, SQUARE: 1, HEXODDR: 2, HEXEVENR: 3, HEXODDQ: 4, HEXEVENQ: 5 }, // matches core v14
+  WALL_DOOR_TYPES: { NONE: 0, DOOR: 1, SECRET: 2 }, // matches core v14
 };
 
 const chat = [];
@@ -5714,6 +5715,50 @@ await scenario("a door's construction and marks persist, a botch reports its dam
 
     await model.disband(model.getFormation(id));
     await drain();
+
+    /* --- a secret door is shown by one write of `door`, on a GM client only --- */
+    const makeWall = (door, extra = {}) => {
+      const updates = [];
+      return {
+        door,
+        ds: 2,
+        flags: { [MODULE_ID]: { door: { kind: "iron", spikes: 3 } } },
+        updates,
+        async update(patch) {
+          updates.push(patch);
+          Object.assign(this, patch);
+          return this;
+        },
+        ...extra,
+      };
+    };
+    const secret = makeWall(2);
+    assert.deepEqual(await doors.revealSecretDoor(secret), { ok: true, revealed: true }, "a secret door is revealed");
+    assert.deepEqual(secret.updates, [{ door: 1 }], "the one write is the door type and nothing else");
+    assert.equal(secret.ds, 2, "the locked state stays");
+    assert.deepEqual(secret.flags[MODULE_ID].door, { kind: "iron", spikes: 3 }, "the module's door flag stays");
+    assert.deepEqual(await doors.revealSecretDoor(secret), { ok: true, revealed: false }, "a second call finds an ordinary door");
+    assert.equal(secret.updates.length, 1, "and writes nothing");
+
+    const ordinary = makeWall(1);
+    assert.deepEqual(await doors.revealSecretDoor(ordinary), { ok: true, revealed: false });
+    assert.equal(ordinary.updates.length, 0, "an ordinary door is not written");
+
+    const plain = makeWall(0);
+    assert.deepEqual(await doors.revealSecretDoor(plain), { ok: false, reason: "notADoor" });
+    assert.equal(plain.updates.length, 0, "a plain wall is not written");
+    assert.deepEqual(await doors.revealSecretDoor(null), { ok: false, reason: "noWall" });
+
+    const gmSeat = game.user;
+    game.user = game.users.get("PL1");
+    try {
+      const hidden = makeWall(2);
+      assert.deepEqual(await doors.revealSecretDoor(hidden), { ok: false, reason: "notGM" }, "a player's client refuses");
+      assert.equal(hidden.updates.length, 0, "and writes nothing");
+      assert.equal(hidden.door, 2);
+    } finally {
+      game.user = gmSeat;
+    }
   } finally {
     globalThis.Roll = priorRoll;
     canvas.tokens.controlled = priorControlled;

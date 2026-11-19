@@ -299,6 +299,22 @@ it covers; a section no walk names is walked by hand.
     Mark each chat card as it lands, `formation/steps-card-<n>` in the order
     posted; the next run retires them before its first step, counting up from
     1 and stopping after five markers in a row that nothing carries.
+    - *One reveal, both seats.* Fixture, kept: a scene wall carrying the marker
+      `formation/secret-door`, built with `api.fixture(marker, "Wall", data)` on
+      the scene `formation/steps-doors` (a wall is an embedded document, so
+      build it as `scene.createEmbeddedDocuments("Wall", [...])` and mark it
+      with `api.mark`), with `door: 2`, `ds: 2` and a `door` flag of
+      `{evil: true}`. At the step's start write `door: 2` again, so a kept
+      wall that an earlier run revealed is a secret door once more. On the GM
+      seat call `await game.modules.get("acks-extras").api.formation.doors
+      .revealSecretDoor(wall)`; seat a Player on the scene.
+      *Observable:* the call returns `{ok: true, revealed: true}`; the
+      document reads `door` 1 with `ds` 2 and the `door` flag unchanged; the
+      Player seat's Walls layer shows a door control on that wall, which it did
+      not before. Call it a second time: it returns `{ok: true, revealed:
+      false}` and the document's `_stats.modifiedTime` does not move. The same
+      call on the Player seat returns `{ok: false, reason: "notGM"}` and
+      writes nothing.
 14. **A marcher's survival state bars the forced march; only the Judge
     overrides it.** Fixtures, kept: a scene `formation/steps-march` with an
     `acks-extras.party` actor `formation/steps-march-party` on it (token
