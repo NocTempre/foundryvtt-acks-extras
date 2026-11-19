@@ -1,1 +1,0 @@
-- **Market sheet → Trade tab → Buy and Commission:** the Purchase and Commission windows now open with the **Acting as** character selected as the buyer. Before, they opened on the first character in the list, so submitting unchanged charged that character instead.

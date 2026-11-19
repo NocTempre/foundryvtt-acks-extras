@@ -1,1 +1,0 @@
-- **Judges: re-run the Rules tables import so the squeeze's botch band is read** (Settings tab → Game Settings → ACKS II — Extras → Manage imports, choose **Rules tables**, with the Revised Rulebook open). Until you re-run it the band stays blank in the `formation` table, and no squeezing throw leaves a member stuck.

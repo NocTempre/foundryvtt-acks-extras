@@ -1,1 +1,0 @@
-- **Classes:** applying a different class to a character asks that class's own choice rungs instead of treating them as answered by the old class's; re-running character generation over an existing character clears the previous run's path answers, so the new template's variant applies; one click on a pending-choice marker on the character sheet opens one chooser, not two.

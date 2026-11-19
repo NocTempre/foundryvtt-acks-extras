@@ -1,1 +1,0 @@
-- **Actors sidebar → a group actor's sheet → Deploy:** when the group has no token on the scene, the deployed bodies now land at the centre of the playable map area. On a scene with padding they used to land off-centre, toward the bottom right.

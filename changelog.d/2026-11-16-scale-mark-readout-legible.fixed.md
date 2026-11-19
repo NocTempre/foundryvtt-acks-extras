@@ -1,1 +1,0 @@
-- **Canvas → a token that carries the not-to-scale mark, on hover:** the readout under its nameplate is now drawn as sharply as the nameplate, where on a small grid it was smeared past reading.

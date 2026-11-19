@@ -1,1 +1,0 @@
-- **Character sheet → Magic tab → Cast, for a spell that only creates an effect (a detection, a light, an illusion and the like):** targets left from an earlier action no longer count against the spell's range, so a Player's dialog is no longer blocked by a far-off target the spell would never use.

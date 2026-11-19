@@ -1,1 +1,0 @@
-- **Party sheet → Kit tab → New Map:** the button is disabled while the party is in combat, and pressing it any other way warns and changes nothing, so it no longer closes the working map and leaves a second one marked active.

@@ -1,1 +1,0 @@
-- **Chat card → a search hour → Found:** the button marks the point in the hex that was searched, even after the party has moved on, and stays live when the point is gone instead of disabling itself on nothing.

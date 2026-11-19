@@ -1,1 +1,0 @@
-- **Actors sidebar → the market's sheet → Trade tab, a sale:** a market that cannot make change pays the seller exactly the price and mints only the part it is short, instead of handing over its larger coins whole and minting the change back into its own till.

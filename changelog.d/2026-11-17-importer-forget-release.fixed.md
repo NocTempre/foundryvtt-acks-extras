@@ -1,1 +1,0 @@
-- **Settings tab → Game Settings → ACKS II — Extras → Manage imports → Books tab → Forget books on this computer…:** the open books are now released, not only forgotten, so repeated forget-and-reconnect cycles no longer leave a PDF reader running in the background for every book.

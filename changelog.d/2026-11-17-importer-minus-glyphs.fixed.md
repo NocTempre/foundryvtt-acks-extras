@@ -1,1 +1,0 @@
-- **Settings tab → Game Settings → ACKS II — Extras → Manage imports:** a figure a table prints with a typographic minus sign or a dash now imports negative instead of positive. A world imported before this fix keeps the unsigned figure until the book is imported again, so re-import the affected tables.

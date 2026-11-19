@@ -1,1 +1,0 @@
-- **Party sheet, trap and door windows:** six hints now say what their field or control is, with the page they cite, instead of restating a rule. They are the speed figure's and the pace toggle's tooltips (Actors sidebar → party sheet → Dungeon tab), the Trapbreaking dialog's retry footnote and its refusal for a hasty attempt, and the door window's spikes field.

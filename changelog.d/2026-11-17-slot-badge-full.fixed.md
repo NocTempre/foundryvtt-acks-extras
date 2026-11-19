@@ -1,1 +1,0 @@
-- **The place badge (character sheet → Equipment tab):** a place now reads full to a player only when the magic they know of passes its cap, the same count its badge shows. It read full on the truth, so a badge under its cap beside a full mark told a player an unknown magic item was there. A Judge's place still reads full on the truth.

@@ -1,1 +1,0 @@
-- **A citation link in a pop-out window:** pressing one of the module's page citations in a sheet or journal opened in its own browser window now opens the cited PDF page, as it does in the main window.

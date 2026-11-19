@@ -1,1 +1,0 @@
-- **Compendium tab → ACKS Extras Macros → Item Loss from Damage:** an item already marked destroyed is left out of the next loss, though what it held is still planned at its container's place; a stack or bundle is planned at its whole weight; and an item's material is guessed from whole words of its name, so Boiled Leather is no longer taken for oil nor a potion for a pot.

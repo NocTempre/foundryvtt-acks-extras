@@ -1,1 +1,0 @@
-- **Scene controls → Battlemap:** a fast drag of the terrain brush paints every hex it crosses, where overlapping writes used to drop some and could make a second region for one terrain; while a calibration capture is armed, Ctrl+Z and Escape in a text field or another window act there instead of removing a sample or disarming the capture.

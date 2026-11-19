@@ -1,1 +1,0 @@
-- **The price ledger (item sheet → Details tab):** a player looking at magic that is not yet identified, or at a disguised item, now sees one line at the apparent cost the value badge reads. It showed the true cost build-up. A Judge still reads every line, except while previewing as a player.

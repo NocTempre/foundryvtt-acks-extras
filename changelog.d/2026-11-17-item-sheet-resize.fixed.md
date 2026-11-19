@@ -1,1 +1,0 @@
-- **Item sheets (any weapon, armor, item or money sheet, resized shorter by its corner):** the sheet's body now shrinks and scrolls. It kept its full height, so the window clipped its lower part with no way to scroll to it.

@@ -1,1 +1,0 @@
-- **Scene configuration → Grid → Type / Distance Units, with Map setup open (Scene controls → Battlemap → Map setup):** the panel's grid family, hex parity and units now follow an edit made there, so Apply no longer writes the old values back over it.

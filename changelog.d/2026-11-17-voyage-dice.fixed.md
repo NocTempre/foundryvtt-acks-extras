@@ -1,1 +1,0 @@
-- **Settings tab → Game Settings → ACKS II — Extras → Manage imports:** a voyage table's dice read from a rule clause now keep the bonus or penalty printed straight after them, where the import used to drop it. Re-import the voyage tables to pick it up.

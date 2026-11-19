@@ -1,1 +1,0 @@
-- **Actors sidebar → the market's sheet → Ventures tab, Solicit:** a solicitation that comes due after the market month has turned, or whose price cannot be set, now leaves a failed row in the market log instead of being used up with no trace.

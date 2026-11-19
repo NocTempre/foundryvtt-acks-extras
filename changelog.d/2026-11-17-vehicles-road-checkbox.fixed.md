@@ -1,1 +1,0 @@
-- **Vehicle sheet → Travel tab → Road:** ticking Road now counts the road in a land vehicle's speed, and a proficient driver counts on it; before, the box changed nothing.

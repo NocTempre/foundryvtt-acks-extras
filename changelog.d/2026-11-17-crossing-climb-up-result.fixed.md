@@ -1,1 +1,0 @@
-- A jumper's result line on the party sheet (Actors sidebar → party sheet → Dungeon tab → The crossing) now follows the climb up: after a Climb up it reads "Climbed up" or "Fell" (with the fall's distance and dice) beside the landing's footing, where it kept saying "Hanging" against a row whose state column already said Across or Fell.

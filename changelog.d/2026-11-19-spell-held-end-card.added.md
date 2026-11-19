@@ -1,1 +1,0 @@
-- **Chat → a held cast's end card (the card posted when a concentration ends):** the card now lists the creatures the cast left standing, each with a Dismiss button, and a Dismiss all button, drawn for the Judge's seat only; Restore puts the cast's records back and nothing else. Player seats see the list without the buttons.
