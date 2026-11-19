@@ -26,8 +26,8 @@ export const FLAG_SEALED_BY = "sealedBy";
 export const SEAL_ROW_TYPE = "seal";
 
 /**
- * Why a seal request was refused, the lang key of each under
- * `ACKS-MAGIC.castSeal.refused`. `noGm` is the asking seat's own answer where
+ * Why a seal request was refused, each the last segment of a lang key in the
+ * seal's `refused` group. `noGm` is the asking seat's own answer where
  * no Judge is connected to carry the request out; `checkSealRequest` never gives it.
  */
 export const SEAL_REFUSED = Object.freeze({
