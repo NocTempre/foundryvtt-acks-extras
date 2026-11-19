@@ -988,8 +988,13 @@ export function disarmRefusal(placement, actor, mode) {
  * @param {string|null} [opts.askUserId] the user asked whether to disarm or
  *   discharge: the thrower, which is not the client running this when a request
  *   was relayed. None, or this client's own user, asks here; an answer that
- *   never comes leaves the trap disarmed.
- * @returns {Promise<{ok: boolean, reason?: string, outcome?: string}>}
+ *   never comes leaves the trap disarmed. The question never holds the card,
+ *   the clock or the caller: it settles on its own, and a discharge answer is
+ *   written only over a trap still disarmed.
+ * @returns {Promise<{ok: boolean, reason?: string, outcome?: string, asked?: Promise<void>}>}
+ *   `outcome` is `disarmed` for a made throw whatever is answered later.
+ *   `asked` is present after a made throw and settles once the question has
+ *   been answered and any discharge written and noted; it never rejects.
  */
 export async function attemptDisarm(formation, actor, { mode = "methodical", extra = 0, targetUuid = "", spend = true, askUserId = null } = {}) {
   // The target is named, never guessed: a halted party may stand at more than
@@ -1028,16 +1033,14 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   if (crude) breakdown.push(`+${CRUDE.remove} ${loc("partCrude")}`);
 
   let outcome;
+  let asked;
   if (success) {
     // The thief's call: a disarmed trap can be re-armed later, a discharged one
-    // is spent. The disarm is written first, so a question that is lost or
-    // never answered leaves a valid disarmed trap.
+    // is spent. The disarm is written first and the question is never awaited
+    // here, so an absent thrower holds up nothing.
     outcome = STATES.disarmed;
     await target.write({ state: STATES.disarmed, known: true });
-    if (await askDischarge(actor, askUserId)) {
-      outcome = STATES.discharged;
-      await target.write({ state: STATES.discharged });
-    }
+    asked = dischargeIfChosen(formation, target.uuid, actor, askUserId);
   } else if (botched) {
     outcome = "botched";
   } else {
@@ -1085,11 +1088,36 @@ export async function attemptDisarm(formation, actor, { mode = "methodical", ext
   }
 
   // Time cost: a round hastily, a full turn methodically.
-  if (!spend) return { ok: true, outcome };
-  if (mode === "hasty") await advanceRounds(formation, 1, { reason: "action" });
-  else await advanceTurns(formation, 1, { reason: "trapbreaking" });
+  if (spend) {
+    if (mode === "hasty") await advanceRounds(formation, 1, { reason: "action" });
+    else await advanceTurns(formation, 1, { reason: "trapbreaking" });
+  }
 
-  return { ok: true, outcome };
+  return asked ? { ok: true, outcome, asked } : { ok: true, outcome };
+}
+
+/**
+ * Puts the disarm-or-discharge question and settles it on its own, detached
+ * from the throw. Only an answer of `true` discharges, and only a trap that is
+ * still `disarmed` when the answer arrives: a Judge's reset or re-arm in the
+ * meantime wins. The trap is read again at the write. Never rejects; an error
+ * is logged and the trap stays as it was.
+ * @param {object} formation
+ * @param {string} uuid the placement's `uuid`
+ * @param {Actor} actor the thrower
+ * @param {string|null} askUserId
+ * @returns {Promise<void>}
+ */
+async function dischargeIfChosen(formation, uuid, actor, askUserId) {
+  try {
+    if ((await askDischarge(actor, askUserId)) !== true) return;
+    const now = placementNearByUuid(formation, uuid, Infinity);
+    if (now?.state !== STATES.disarmed) return;
+    await now.write({ state: STATES.discharged });
+    await whisper(`<p>${loc("dischargedAfter", { name: foundry.utils.escapeHTML(String(actor?.name ?? "")) })}</p>`, formation);
+  } catch (err) {
+    console.error(`${MODULE_ID} | a trap's disarm-or-discharge answer could not be applied`, err);
+  }
 }
 
 /** The socket handler that puts the disarm-or-discharge question to the client it reaches. */

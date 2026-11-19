@@ -5,7 +5,10 @@
  *
  * What this pins: a made throw writes the trap disarmed (and known) BEFORE the
  * question is put, so a question that is lost or never answered leaves a valid
- * disarmed trap, and an answer of discharge writes the trap discharged after;
+ * disarmed trap, and an answer of discharge writes the trap discharged after,
+ * and only over a trap still disarmed; the question is never awaited by the
+ * throw (the card, the clock spend and the return come at once, `asked` settles
+ * on its own and never rejects, a discharge is noted in one whispered line);
  * the question goes to the user named by `askUserId` (none, or this client's
  * own user, asks here; another user's is asked through `executeAsUser` and an
  * answer of undefined reads as disarmed); the dialog escapes the actor's name
@@ -76,7 +79,8 @@ globalThis.socketlib = {
     executeAsUser: async (name, userId, payload) => (asked.push({ name, userId, payload }), remoteAnswer(payload)),
   }),
 };
-globalThis.ChatMessage = { create: async () => ({}) };
+const chats = [];
+globalThis.ChatMessage = { create: async (data) => (chats.push(data), {}) };
 globalThis.fromUuid = async (uuid) => (uuid === "Item.trap" ? { type: "acks-extras.trap", name: "Probe trap", system: { crude: false } } : null);
 /** Each roll the test queues: the natural face and the total. */
 const throws = [];
@@ -136,6 +140,7 @@ const reset = () => {
   notices.length = 0;
   throws.length = 0;
   asked.length = 0;
+  chats.length = 0;
   click = () => true;
 };
 const stateNow = () => thingsOf(place)[0].state.state ?? "armed";
@@ -156,7 +161,8 @@ await ok("a made throw writes the trap disarmed and known BEFORE the question; a
   throwOnce(15, 20);
   const done = await attemptDisarm(formation, alder, { mode: "methodical", targetUuid, spend: false });
   assert.deepEqual(stateAtQuestion, { state: "disarmed", hidden: false }, "disarmed and known when the dialog opened");
-  assert.equal(done.outcome, "discharged");
+  assert.equal(done.outcome, "disarmed", "the card is for the throw; a later discharge is noted, not awaited");
+  await done.asked;
   assert.equal(stateNow(), "discharged");
   assert.deepEqual(writes.map((w) => w.state), ["disarmed", "discharged"]);
 });
@@ -165,16 +171,129 @@ await ok("a disarm answer, or an answer that never comes, leaves the trap disarm
   reset();
   click = () => false;
   throwOnce(15, 20);
-  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false })).outcome, "disarmed");
+  const first = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  await first.asked;
+  assert.equal(first.outcome, "disarmed");
   assert.deepEqual(writes.map((w) => w.state), ["disarmed"]);
   reset();
   click = () => null;
   throwOnce(15, 20);
-  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false })).outcome, "disarmed", "a dismissed dialog");
+  const dismissed = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  await dismissed.asked;
+  assert.equal(dismissed.outcome, "disarmed", "a dismissed dialog");
   reset();
   click = () => { throw new Error("closed"); };
   throwOnce(15, 20);
-  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false })).outcome, "disarmed", "a dialog that throws");
+  const thrown = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  await thrown.asked;
+  assert.equal(thrown.outcome, "disarmed", "a dialog that throws");
+  assert.equal(stateNow(), "disarmed");
+});
+
+/* --- the question holds nothing --------------------------------------------- */
+/** What a promise settled to, or "pending" when it had not by the time `ms` passed. */
+const settledWithin = (promise, ms = 100) => Promise.race([promise.then((v) => ({ value: v }), (e) => ({ error: e })), new Promise((r) => setTimeout(() => r("pending"), ms))]);
+const stuck = () => new Promise(() => {});
+const sawDischargeNote = () => chats.some((c) => String(c.content).includes("dischargedAfter"));
+
+await ok("a question nobody answers holds neither the return nor the clock spend", async () => {
+  for (const askUserId of [undefined, "player"]) {
+    reset();
+    click = stuck;
+    remoteAnswer = stuck;
+    throwOnce(15, 20);
+    // The stand-in world has no clock, so the spend (`advanceTurns`) throws inside the turn engine:
+    // reaching that failure, rather than hanging, is the proof the spend was reached.
+    const run = await settledWithin(attemptDisarm(formation, alder, { targetUuid, askUserId }));
+    assert.notEqual(run, "pending", `attemptDisarm waited on the question (askUserId ${askUserId})`);
+    assert.match(String(run.error?.stack), /advanceTurns/, "the clock spend (advanceTurns) ran, and failed only on the stand-in world having no clock");
+    assert.equal(chats.length, 1, "the roll card was posted at once");
+    assert.equal(stateNow(), "disarmed");
+  }
+  remoteAnswer = () => false;
+});
+
+await ok("with the clock not spent, the return carries outcome disarmed and an asked that is still pending", async () => {
+  reset();
+  click = stuck;
+  throwOnce(15, 20);
+  const run = await settledWithin(attemptDisarm(formation, alder, { targetUuid, spend: false }));
+  assert.notEqual(run, "pending", "the return did not wait");
+  assert.equal(run.value.outcome, "disarmed");
+  assert.equal(await settledWithin(run.value.asked, 30), "pending", "the question is still open");
+  assert.equal(chats.length, 1);
+});
+
+await ok("a discharge answer after the return writes discharged and whispers one line naming the thrower", async () => {
+  reset();
+  let answer;
+  click = () => new Promise((resolve) => { answer = resolve; });
+  throwOnce(15, 20);
+  const done = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  assert.equal(stateNow(), "disarmed");
+  assert.equal(chats.length, 1, "only the roll card so far");
+  answer(true);
+  await done.asked;
+  assert.equal(stateNow(), "discharged");
+  assert.deepEqual(writes.map((w) => w.state), ["disarmed", "discharged"]);
+  assert.equal(chats.length, 2);
+  assert.ok(sawDischargeNote(), "the note is the dischargedAfter line");
+  assert.ok(String(chats[1].content).includes('"name":"Alder"'));
+});
+
+await ok("a thrower's name in the discharge note is escaped", async () => {
+  reset();
+  const rough = { ...alder, name: "<b>Al</b>" };
+  throwOnce(15, 20);
+  await (await attemptDisarm(formation, rough, { targetUuid, spend: false })).asked;
+  const note = String(chats.at(-1).content);
+  assert.ok(note.includes("dischargedAfter") && !note.includes("<b>Al"), note);
+});
+
+await ok("a Judge's reset between the write and the answer wins: the late discharge writes nothing", async () => {
+  reset();
+  let answer;
+  click = () => new Promise((resolve) => { answer = resolve; });
+  throwOnce(15, 20);
+  const done = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  await place.update({ "flags.acks-extras.things": [{ id: "thing-1", kind: "trap", ref: "Item.trap", hidden: false, params: {}, state: { state: "armed" } }] });
+  const before = writes.length;
+  answer(true);
+  await done.asked;
+  assert.equal(stateNow(), "armed", "the reset stands");
+  assert.equal(writes.length, before, "no write after the answer");
+  assert.ok(!sawDischargeNote(), "no note");
+});
+
+await ok("an ask that fails leaves the trap disarmed and asked still resolves; a failed late write is logged once", async () => {
+  reset();
+  click = () => { throw new Error("closed"); };
+  remoteAnswer = () => { throw new Error("socket"); };
+  throwOnce(15, 20);
+  await (await attemptDisarm(formation, alder, { targetUuid, spend: false })).asked;
+  throwOnce(15, 20);
+  await (await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "player" })).asked;
+  assert.equal(stateNow(), "disarmed");
+  remoteAnswer = () => false;
+
+  reset();
+  let answer;
+  click = () => new Promise((resolve) => { answer = resolve; });
+  throwOnce(15, 20);
+  const done = await attemptDisarm(formation, alder, { targetUuid, spend: false });
+  const logged = [];
+  const realError = console.error;
+  const realUpdate = place.update;
+  console.error = (...args) => logged.push(args);
+  place.update = async () => { throw new Error("write refused"); };
+  try {
+    answer(true);
+    await done.asked;
+  } finally {
+    console.error = realError;
+    place.update = realUpdate;
+  }
+  assert.equal(logged.length, 1, "the failure is logged, not thrown");
   assert.equal(stateNow(), "disarmed");
 });
 
@@ -183,7 +302,7 @@ await ok("with no askUserId, or this client's own, the dialog opens here and not
   for (const askUserId of [undefined, null, "judge"]) {
     reset();
     throwOnce(15, 20);
-    await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId });
+    await (await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId })).asked;
     assert.equal(dialogs.length, 1, `asked here for ${askUserId}`);
     assert.deepEqual(asked, []);
   }
@@ -196,21 +315,27 @@ await ok("another user is asked through the socket and the Judge's own client op
   const done = await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "player" });
   assert.deepEqual(dialogs, [], "no dialog on the Judge's screen");
   assert.deepEqual(asked.map((a) => [a.name, a.userId, a.payload]), [["trapAskDischarge", "player", { name: "Alder" }]]);
-  assert.equal(done.outcome, "discharged");
+  assert.equal(done.outcome, "disarmed");
+  await done.asked;
   assert.deepEqual(writes.map((w) => w.state), ["disarmed", "discharged"]);
 });
 
 await ok("an unanswered ask (offline user, no answer) leaves the trap disarmed", async () => {
   reset();
   throwOnce(15, 20);
+  remoteAnswer = () => false;
   const done = await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "away" });
+  await done.asked;
   assert.equal(done.outcome, "disarmed");
   assert.deepEqual(dialogs, []);
   assert.equal(stateNow(), "disarmed");
   reset();
   remoteAnswer = () => undefined;
   throwOnce(15, 20);
-  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "player" })).outcome, "disarmed", "an answer of undefined is a disarm");
+  const unanswered = await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "player" });
+  await unanswered.asked;
+  assert.equal(unanswered.outcome, "disarmed", "an answer of undefined is a disarm");
+  assert.equal(stateNow(), "disarmed");
 });
 
 await ok("a player cannot put the question to another user: only a Judge's call opens the dialog", async () => {
@@ -227,7 +352,7 @@ await ok("the dialog escapes the actor's name and only the discharge button's tr
   reset();
   const rough = { ...alder, name: `<img src=x onerror=boom()> & "Al"` };
   throwOnce(15, 20);
-  await attemptDisarm(formation, rough, { targetUuid, spend: false });
+  await (await attemptDisarm(formation, rough, { targetUuid, spend: false })).asked;
   const [config] = dialogs;
   assert.ok(!config.content.includes("<img"), "markup in a name is not live");
   assert.ok(config.content.includes("&lt;img src=x onerror=boom()&gt; &amp; &quot;Al&quot;"));
@@ -255,6 +380,7 @@ await ok("the turn plan's resolve asks the user who locked the entry, and the Ju
   const ctx = { formation };
   for (const by of ["player", null]) {
     reset();
+    click = () => false;
     throwOnce(15, 20);
     const out = await resolveDue([{ actorId: "Alder", entry: { key: "trapbreakMethodical", option: targetUuid, by } }], { actorOf: () => alder, ctx });
     assert.equal(out[0].status, "resolved", JSON.stringify(out[0]));

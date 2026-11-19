@@ -950,8 +950,14 @@ Trapbreaking target list are gated on — a Judge sees every trap, everyone else
 sees only what the party has found.
 
 **Disarm or discharge.** A made Trapbreaking throw writes the trap `disarmed`
-(and known) first, then asks whether to discharge it instead; a discharge
-answer writes `discharged` after. The question is the thrower's, so
+(and known) first, then asks whether to discharge it instead, without waiting
+for the answer: the card, the clock spend and the return (`outcome:
+"disarmed"`, with `asked`, the promise that settles once the question is
+answered and its consequence written) come at once. Only an answer of `true`
+discharges, and the late write goes over the trap read again at that moment
+and only if it is still `disarmed`, so a Judge's reset or re-arm in the
+meantime stands; a discharge is followed by one whispered line
+(`dischargedAfter`). The question is the thrower's, so
 `attemptDisarm` takes `askUserId` and puts the dialog on that user's own client
 through `executeAsUser` (`lib/sockets.mjs`, the `trapAskDischarge` handler,
 registered on every client by `registerTrapZoneSocket`): the relayed player

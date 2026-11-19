@@ -3708,6 +3708,7 @@
         "botched": "{name} sets it off — badly, and while standing over it.",
         "failed": "{name} cannot beat it."
       },
+      "dischargedAfter": "{name} sets the trap off.",
       "disarmOutcome": {
         "disarmed": "Disarmed",
         "discharged": "Discharged",

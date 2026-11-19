@@ -702,3 +702,11 @@ The card shows a hidden obstacle or condition to the Judges, marked, since the c
 **Rejected.** Carrying `judgeMod`: a modifier stored on a place would apply where nothing visible says why. Routing `shape` and `penaltyPick` through the party sheet's readers: both coerce any input to a value, so a blank or stale entry would seed the default instead of nothing. Showing the picks as card figures: the card's figures are the numeric ones, and new words there go beyond the approved board.
 
 **Cost.** No window writes a thing's `params` yet, figures included: the board's figure inputs on the hazard group in scene search's Things here are not built, so until they are only the place-things API sets them (ROADMAP).
+
+## 2026-11-19 — The disarm-or-discharge question is asked of the thrower and never holds the turn
+
+**Ruled.** A made Trapbreaking throw is asked "disarm it, or set it off?" of the thrower's seat: the user who declared it, which is the relayed requester, the turn plan entry's locker, or the Judge's own client for the Judge's window. The trap is written disarmed first. The question holds nothing: the card, the clock spend and the turn plan's resolution go ahead at once with outcome disarmed, and a later discharge is written only over a trap still disarmed, then noted in one whispered line. Basis: the dungeon close-out plan's A0 ruling 6 ("Write the disarmed state first"; `docs/formation/wip/20261116-dungeon-closeout-plan.md`, "A0 results").
+
+**Rejected.** Holding the resolution open for the answer: the turn plan resolves its entries one after another, so a thrower who ignores the dialog or drops with it open stalls the Judge's whole turn on an absent player. Asking the Judge: the throw is the thrower's call.
+
+**Cost.** A card can say disarmed for a trap the thrower then discharges, followed by the one-line note. A discharge answered after a Judge reset the trap is dropped without a word.
