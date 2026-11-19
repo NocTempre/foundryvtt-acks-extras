@@ -25,7 +25,8 @@ import { acksExtras } from "../namespace.mjs";
 import { LANG, MODULE_ID, POT_FLAG } from "./constants.mjs";
 import { potOf, truthsFromItem } from "./pot.mjs";
 import {
-  DRAW_REQUEST, SEARCH_FLAG, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, planTakeOff, recordOf, specOfResult,
+  DRAW_REQUEST, SEARCH_FLAG, bodyActorOf, cardRows, entryOf, fallenOf, heldDraw, isNaturalWeapon, needsTakeOff, normalizeRecord, planTakeOff, recordOf, settleSheetButtons,
+  specOfResult,
 } from "./search-logic.mjs";
 
 const loc = makeLoc(LANG);
@@ -41,6 +42,30 @@ function actorOfUuid(uuid) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Whether a fallen body's uuid still names an actor to open, for a control that
+ * is drawn disabled where it does not.
+ * @param {string|null} uuid the fallen's actor uuid
+ */
+export function bodySheetExists(uuid) {
+  return !!bodyActorOf(uuid, fromUuidSync);
+}
+
+/**
+ * Open the sheet of the actor a fallen body stands for (an unlinked token's own
+ * actor where the body has a token). A body whose actor and token are gone
+ * opens nothing, says nothing and throws nothing. Reads only: nothing is taken
+ * from the sheet.
+ * @param {string|null} uuid the fallen's actor uuid
+ * @returns {boolean} whether a sheet was asked to open
+ */
+export function openBodySheet(uuid) {
+  const sheet = bodyActorOf(uuid, fromUuidSync)?.sheet;
+  if (!sheet) return false;
+  sheet.render({ force: true });
+  return true;
 }
 
 /* -------------------------------------------- */
@@ -225,8 +250,18 @@ Hooks.on("deleteCombat", (combat) => {
 
 Hooks.on("renderChatMessageHTML", (message, html) => {
   const flag = message.flags?.[MODULE_ID]?.[SEARCH_FLAG];
-  if (!flag || !game.user.isGM) return;
+  if (!flag) return;
+  // The open-sheet buttons are a Judge's: removed here for any other seat, never hidden by the template.
+  const sheetButtons = [...html.querySelectorAll('[data-action="openSheet"]')];
+  settleSheetButtons(sheetButtons, { isGM: game.user.isGM, record: flag, resolve: fromUuidSync });
+  if (!game.user.isGM) return;
   const record = normalizeRecord(flag);
+  for (const sheetButton of sheetButtons) {
+    sheetButton.addEventListener("click", () => {
+      const row = record.fallen.find((e) => e.combatantId === sheetButton.dataset.combatant);
+      openBodySheet(row?.actorUuid ?? null);
+    });
+  }
   const button = html.querySelector('[data-action="searchScene"]');
   if (record.opened && button) button.textContent = loc("search.open");
   // The block is hidden here, never by the template: a chat card's stored content loses its `hidden` attribute.

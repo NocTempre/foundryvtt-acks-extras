@@ -196,6 +196,41 @@
   padding: calc(5px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
   border: 1px solid var(--acks-rule-color-soft);
   background: color-mix(in srgb, var(--acks-ink) 60%, transparent);
+  display: flex;
+  align-items: flex-start;
+  gap: calc(6px * var(--acks-extras-k));
+}
+
+.acks-extras-ss-plate > b,
+.acks-extras-ss-plate > .acks-extras-ss-keybtn {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* The Judge's open-sheet button, right of a body's name. */
+.acks-extras-ss-sheet {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  gap: calc(4px * var(--acks-extras-k));
+  width: auto;
+  height: auto;
+  min-height: calc(28px * var(--acks-extras-k));
+  margin: 0;
+  padding: calc(2px * var(--acks-extras-k)) calc(7px * var(--acks-extras-k));
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+  color: var(--acks-burgundy);
+  font-size: var(--acks-fs-label);
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.acks-extras-ss-sheet:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .acks-extras-ss-plate b {

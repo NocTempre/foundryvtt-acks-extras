@@ -190,6 +190,21 @@ pot's own flows act on found lots only (turning, claiming, Quick grab and the
 close's filing and record all skip an unfound one). Nothing is posted to a player
 until the Judge shows the scene. Why each choice: [DECISIONS.md](DECISIONS.md).
 
+**The open-sheet control.** Each fallen row on the card carries a button, an
+icon after the name, that opens the sheet of the body (`openBodySheet`; the
+scene screen's body cards reuse it, see
+[scene-search's MODEL](../scene-search/MODEL.md)). It resolves the entry's
+`actorUuid` through `bodyActorOf`: the token's actor where the uuid runs through
+a token (an unlinked token's own synthetic actor), else the document the uuid
+names, else nothing. A body whose token is gone is nothing, never the world
+actor the token was made from. Nothing is read off the sheet or harvested: it
+is the entry point to the creature's own sheet and no more. The template always
+renders the button, which a chat card's stored content cannot hide, so the render
+hook settles it per seat (`settleSheetButtons`): removed for every seat that is
+not a Judge's, and for a Judge's, disabled where the body resolves to no actor.
+Each button names its row by `data-combatant`, the combatant id `cardRows`
+carries. A card posted before this control existed has none.
+
 ## Quick grab
 
 `planGrab({members, lots, paceWith})` in `grab-logic.mjs` is the pure planner of

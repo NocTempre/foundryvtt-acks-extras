@@ -6,8 +6,8 @@
  */
 import assert from "node:assert/strict";
 import {
-  DRAW_REQUEST, cardRows, entryOf, fallenOf, heldDraw, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
-  normalizeRecord, planTakeOff, recordOf, specOfResult, uuidOfLink,
+  DRAW_REQUEST, actorOfDoc, bodyActorOf, cardRows, entryOf, fallenOf, heldDraw, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
+  normalizeRecord, planTakeOff, recordOf, settleSheetButtons, specOfResult, uuidOfLink,
 } from "../scripts/treasure/search-logic.mjs";
 
 let checks = 0;
@@ -162,10 +162,54 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
     ],
   });
   eq(cardRows(record), [
-    { name: "Mossback", items: 2, letter: null, hasTable: false },
-    { name: "Gnarl", items: 0, letter: "B", hasTable: true },
+    { combatantId: "a", name: "Mossback", items: 2, letter: null, hasTable: false },
+    { combatantId: "b", name: "Gnarl", items: 0, letter: "B", hasTable: true },
   ]);
   eq(cardRows(null), []);
+}
+
+/* --- the open-sheet control: which actor a body opens, and who keeps its button --- */
+{
+  const actor = (name) => ({ documentName: "Actor", name });
+  const world = actor("Mossback");
+  const synthetic = actor("Mossback (token)");
+  const token = { documentName: "Token", actor: synthetic };
+  const docs = {
+    "Actor.a1": world,
+    "Scene.s1.Token.t1": token,
+    "Scene.s1.Token.t1.Actor.a1": world,
+    "Scene.s1.Token.t2": { documentName: "Token", actor: null },
+    "Item.i1": { documentName: "Item" },
+  };
+  const resolve = (uuid) => docs[uuid] ?? null;
+  const seen = [];
+  const spy = (uuid) => (seen.push(uuid), resolve(uuid));
+
+  eq(actorOfDoc(token), synthetic, "a token stands for its actor");
+  eq([actorOfDoc(world), actorOfDoc(docs["Item.i1"]), actorOfDoc(null), actorOfDoc({ documentName: "Token" })], [world, null, null, null], "an actor is itself; an item, nothing and a token with no actor are none");
+  eq(bodyActorOf("Actor.a1", resolve), world, "a world actor's uuid opens that actor");
+  eq(bodyActorOf("Scene.s1.Token.t1", resolve), synthetic, "a token's uuid opens the token's actor");
+  eq(bodyActorOf("Scene.s1.Token.t1.Actor.a1", spy), synthetic, "a uuid through a token opens the token's actor");
+  eq(seen, ["Scene.s1.Token.t1"], "asking the token first, and stopping where it has an actor");
+  eq(bodyActorOf("Scene.s1.Token.t2.Actor.a1", resolve), null, "a token with no actor and no document under its uuid opens nothing");
+  eq(bodyActorOf("Scene.s1.Token.t2.Actor.a1", (uuid) => (uuid === "Scene.s1.Token.t2.Actor.a1" ? world : docs[uuid] ?? null)), world, "a token with no actor falls back to the document the uuid itself names");
+  eq(bodyActorOf("Scene.s9.Token.gone.Actor.a1", resolve), null, "a token that is gone resolves to nothing, never to the world actor it was made from");
+  eq([bodyActorOf("Actor.gone", resolve), bodyActorOf("Item.i1", resolve), bodyActorOf("", resolve), bodyActorOf(null, resolve), bodyActorOf(7, resolve)], [null, null, null, null, null], "a missing, foreign or blank uuid is no body");
+  eq(bodyActorOf("Actor.a1", () => { throw new Error("no such pack"); }), null, "a resolver that throws names no body and throws nothing");
+  eq(bodyActorOf("Scene.s1.Token.t1.Actor.a1", (uuid) => { if (uuid === "Scene.s1.Token.t1") throw new Error("scene not loaded"); return world; }), world, "a token that cannot be read falls back to the uuid itself");
+
+  const button = (combatant) => ({ dataset: { combatant }, disabled: false, removed: false, remove() { this.removed = true; } });
+  const record = { fallen: [{ combatantId: "c1", actorUuid: "Actor.a1" }, { combatantId: "c2", actorUuid: "Actor.gone" }, { combatantId: "c3" }] };
+  const row = (isGM) => {
+    const buttons = [button("c1"), button("c2"), button("c3"), button("zz")];
+    settleSheetButtons(buttons, { isGM, record, resolve });
+    return buttons.map((b) => [b.removed, b.disabled]);
+  };
+  eq(row(false), [[true, false], [true, false], [true, false], [true, false]], "a seat that is not the Judge's loses every button");
+  eq(row(true), [[false, false], [false, true], [false, true], [false, true]], "the Judge keeps them, disabled where the body's actor is gone, has no uuid, or is not in the record");
+  settleSheetButtons([button("c1")], { isGM: true, record: null, resolve });
+  settleSheetButtons([{ remove() {} }], { isGM: true, record, resolve });
+  ok(true, "a card with no record, or a button naming no body, settles without throwing");
 }
 
 /* --- the quiet draw's request --- */

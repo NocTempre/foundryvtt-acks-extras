@@ -15,7 +15,7 @@
  * more" line, and one rail row per check (hastily, methodically) carrying who
  * is assigned and, once a check is found, no more assigning.
  */
-import { LAYER_NAMES } from "../lib/place-things-logic.mjs";
+import { LAYER_NAMES, THING_KINDS } from "../lib/place-things-logic.mjs";
 import { seatCards, cardView } from "../treasure/pot-logic.mjs";
 import { CODE, LAYER } from "./constants.mjs";
 import { isVisible, layerState } from "./scene-logic.mjs";
@@ -168,6 +168,24 @@ export function logLineOf(row, { names, memberName, throwOf, isGM, t }) {
 }
 
 /**
+ * The open-sheet control of one card: a body's, on the Judge's seat only, and
+ * never a container's or any other kind's. `gone` is a body whose actor and
+ * token no longer resolve, drawn disabled.
+ * @param {object} entry
+ * @param {{isGM: boolean, name: string, resolves: boolean, t: Function}} seat
+ * @returns {{label: string, button: string, tip: string, gone: boolean}|null}
+ */
+export function sheetControl(entry, { isGM, name, resolves, t }) {
+  if (!isGM || entry.kind !== THING_KINDS.BODY) return null;
+  return {
+    label: t(`${ROOT}sheet.label`, { name }),
+    button: t(`${ROOT}sheet.button`),
+    tip: t(`${ROOT}sheet.${resolves ? "tip" : "goneTip"}`),
+    gone: !resolves,
+  };
+}
+
+/**
  * The whole screen as one model.
  *
  * @param {object} input
@@ -181,10 +199,11 @@ export function logLineOf(row, { names, memberName, throwOf, isGM, t }) {
  * @param {{key: string, layer: string, rows: Array<{actorId: string, name: string, refusal: string}>}|null} [input.picker] the open assign picker
  * @param {(entryKey: string) => {img: string|null}} [input.refOf] the document an entry points at
  * @param {(cardId: string) => object|null} [input.throwOf] the figures on a Judges' card
+ * @param {(entryKey: string) => boolean} [input.sheetOf] whether a body entry still stands for an actor whose sheet can open; false where none is given
  * @param {(key: string, data?: object) => string} input.t the words
  * @returns {object}
  */
-export function buildScreen({ isGM, read, assignments, members, names, potView, turn = null, picker = null, refOf = () => ({ img: null }), throwOf = () => null, t }) {
+export function buildScreen({ isGM, read, assignments, members, names, potView, turn = null, picker = null, refOf = () => ({ img: null }), throwOf = () => null, sheetOf = () => false, t }) {
   const { session, place, entries } = read;
   const seat = isGM ? "judge" : "player";
   const owned = members.filter((m) => m.owned).map((m) => m.name);
@@ -258,6 +277,7 @@ export function buildScreen({ isGM, read, assignments, members, names, potView, 
       tell,
       finds: findsOf(entry, t),
       notes: isGM ? judgeNotes(entry, entries, names, t) : [],
+      sheet: sheetControl(entry, { isGM, name, resolves: sheetOf(entry.key), t }),
       rows,
       aria: [name, t(`${KIND_ROOT}${entry.kind}`), t(`${ROOT}state.${status}`), tell].filter(Boolean).join(", "),
     };

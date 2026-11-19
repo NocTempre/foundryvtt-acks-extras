@@ -798,6 +798,35 @@ its start.
 - Not reached: a real pointer drag, the chooser between a proficiency's two throws
   (not built), and Magical Engineering (no fixture holds it).
 
+## The open-sheet control
+
+**Not yet walked.** Offline coverage is the view model (`tools/test-scene-screen.mjs`)
+and the actor resolution and the per-seat button rule (`tools/test-treasure-search.mjs`);
+no window or card is drawn offline.
+
+Fixtures: a fight whose defeated hostile combatants carry something, so the
+fight-over card posts (the recipe of "S5 — the ways in"); one of the fallen is an
+unlinked token. The party's scene search opened from that card.
+
+1. **Judge, the screen.** Open the scene screen (party sheet → Dungeon tab → Search
+   here, or the card's Search the scene). *Observable:* each body's card has a
+   Sheet button right of its name, with the book icon, tooltip "Open this body's
+   sheet" and the label "Open {name}'s sheet"; a container's card has none.
+2. **Press it.** Press the unlinked body's Sheet. *Observable:* the token's own
+   actor sheet opens (its HP matches the token, not the world actor), and the
+   card is not selected (the keying aside does not change).
+3. **Judge, the card.** On the fight-over chat card, each fallen row has the same
+   button, icon only, after its name. Press one. *Observable:* that body's sheet
+   opens.
+4. **A body gone.** Delete one fallen body's token and the actor it stood for
+   (made for this step, never a kept fixture), then redraw the screen and the
+   card. *Observable:* that body's button is disabled on both; pressing it opens
+   nothing and warns nothing; the console shows no error.
+5. **Player seat.** Join as the Player seat and show the scene. *Observable:* the
+   screen's body cards have no Sheet button. The fight-over card is whispered to
+   the Judges, so this seat never sees it; the removal of its buttons for a
+   non-Judge is covered offline only.
+
 ## What this walk does not reach
 
 The doorway card, the haul total and Quick grab with a mixed pot are covered by

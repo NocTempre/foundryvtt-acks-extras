@@ -149,16 +149,71 @@ export function normalizeRecord(flag) {
 
 /**
  * What the card shows: a row per fallen creature, with how many items it
- * carried, its letter and whether a table is linked.
+ * carried, its letter and whether a table is linked, and its combatant id,
+ * which the open-sheet control carries to name the body it opens.
  */
 export function cardRows(record) {
   const r = normalizeRecord(record);
   return r.fallen.map((e) => ({
+    combatantId: text(e.combatantId),
     name: String(e.name ?? ""),
     items: Array.isArray(e.goods) ? e.goods.length : 0,
     letter: letterOf(e.letter),
     hasTable: !!e.tableUuid,
   }));
+}
+
+/**
+ * The actor a document stands for: a token's actor, an actor itself, else null.
+ * @param {object|null} doc a resolved document
+ */
+export function actorOfDoc(doc) {
+  if (doc?.documentName === "Token") return doc.actor ?? null;
+  return doc?.documentName === "Actor" ? doc : null;
+}
+
+/**
+ * The actor a fallen body's uuid stands for, for the control that opens its
+ * sheet: the token's actor where the uuid runs through a token (an unlinked
+ * token's own synthetic actor), else the document the uuid names. A uuid whose
+ * token is gone resolves to nothing, never to the world actor the token was made
+ * from; a throwing resolver is nothing too.
+ * @param {string|null} uuid the fallen's actor uuid
+ * @param {(uuid: string) => object|null} resolve a synchronous resolver, `fromUuidSync` in the world
+ * @returns {object|null}
+ */
+export function bodyActorOf(uuid, resolve) {
+  if (typeof uuid !== "string" || !uuid) return null;
+  const token = uuid.match(/^(.*?\.Token\.[^.]+)\./)?.[1] ?? null;
+  for (const candidate of token ? [token, uuid] : [uuid]) {
+    try {
+      const actor = actorOfDoc(resolve(candidate));
+      if (actor) return actor;
+    } catch {
+      /* a uuid that cannot be resolved names no body */
+    }
+  }
+  return null;
+}
+
+/**
+ * Settle the open-sheet buttons of a fight-over card for the seat drawing it:
+ * a non-Judge's are removed (the card's stored content reaches every seat that
+ * can read the message, and `hidden` does not survive it), a Judge's are
+ * disabled where the body they name no longer resolves to an actor.
+ * @param {Array<{dataset?: {combatant?: string}, disabled?: boolean, remove: () => void}>} buttons
+ * @param {{isGM: boolean, record: object|null, resolve: (uuid: string) => object|null}} seat
+ */
+export function settleSheetButtons(buttons, { isGM, record, resolve }) {
+  const fallen = normalizeRecord(record).fallen;
+  for (const button of buttons) {
+    if (!isGM) {
+      button.remove();
+      continue;
+    }
+    const row = fallen.find((e) => text(e.combatantId) === button.dataset?.combatant);
+    button.disabled = !bodyActorOf(row?.actorUuid, resolve);
+  }
 }
 
 /**

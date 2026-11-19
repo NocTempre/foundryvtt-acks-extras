@@ -147,6 +147,14 @@ view model `screen-logic.mjs` `buildScreen` makes for the seat that opened it:
   behind), and the two rails. A rail lists who is assigned, a struck chip for a
   character the hasty lock holds out, a bar for a check of several turns, and
   `+ Assign`. A found check offers no assigning.
+- **A body's sheet:** on the Judge's seat, a body's card (kind Body, whether the
+  fight dealt it or the place lists it; no other kind) has a Sheet button on its
+  name plate, right of the name, which opens the sheet of the actor the body's
+  `ref` stands for. The view model carries it as `sheet`
+  (`screen-logic.mjs` `sheetControl`, null on a player's seat and on every other
+  kind), drawn disabled where the actor and token are gone. The resolution is
+  treasure's, once: [treasure's MODEL](../treasure/MODEL.md), "The open-sheet
+  control". The press is its own action, so it selects no card.
 - **Assigning:** the picker lists the members this seat may assign, each with the
   reason where the member may not attempt the check; or a member tile is dragged
   onto a rail (that check) or a card (the first check the member may attempt).

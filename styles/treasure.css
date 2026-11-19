@@ -1032,6 +1032,38 @@
   font-variant-numeric: lining-nums tabular-nums;
 }
 
+/* A fallen row's name with the Judge's open-sheet button after it; the facts stay at the far end. */
+.acks-extras-treasure-search .acks-extras-treasure-search__who {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+}
+
+.acks-extras-treasure-search .acks-extras-treasure-search__sheet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: auto;
+  height: auto;
+  min-height: 2em;
+  min-width: 2em;
+  margin: 0;
+  padding: 0 var(--acks-sp-3);
+  border: var(--acks-rule-hair) solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+  color: var(--acks-burgundy);
+  font-size: var(--acks-fs-label);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-treasure-search .acks-extras-treasure-search__sheet:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* --- The closing record -------------------------------------------------------- */
 .acks-extras-treasure-record {
   background: var(--acks-paper);

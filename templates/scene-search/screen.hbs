@@ -71,6 +71,10 @@
             {{#if @root.isGM}}
             <button type="button" class="acks-extras-ss-keybtn" data-action="select" data-key="{{key}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"
                     data-tooltip="ACKS-LOCATION.sceneSearch.keying.screen.selectTip">{{name}}</button>
+            {{#if sheet}}
+            <button type="button" class="acks-extras-ss-sheet" data-action="openSheet" data-key="{{key}}"{{#if sheet.gone}} disabled{{/if}}
+                    aria-label="{{sheet.label}}" data-tooltip-text="{{sheet.tip}}"><i class="fa-solid fa-book-open" aria-hidden="true"></i>{{sheet.button}}</button>
+            {{/if}}
             {{else}}<b>{{name}}</b>{{/if}}
           </div>
           {{#if tell}}<div class="acks-extras-ss-tell"><span class="acks-extras-ss-folio" aria-hidden="true"><b>?</b></span>{{tell}}</div>{{/if}}

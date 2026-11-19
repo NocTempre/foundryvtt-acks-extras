@@ -27,8 +27,10 @@ import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { atTypeScale } from "../lib/util.mjs";
 import { SETTING_FORMATIONS, getFormation, getMemberActor, getPartyActor, realMembers } from "../formation/formation-model.mjs";
 import { resolvePlanTurn } from "../formation/turn-plan.mjs";
+import { THING_KINDS } from "../lib/place-things-logic.mjs";
 import { TEXTURE, textureArt } from "../treasure/card-art.mjs";
 import { isPot, viewOf } from "../treasure/pot.mjs";
+import { bodySheetExists, openBodySheet } from "../treasure/search.mjs";
 import { askScenePress, assignSceneCheck, readSceneSearch, sceneAssignments, sceneOptions, showSceneSearch, unassignSceneCheck } from "./api.mjs";
 import { resolveSceneRound } from "./round.mjs";
 import { CHECK } from "./constants.mjs";
@@ -114,6 +116,7 @@ export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationM
       assign: SceneSearchScreen.#onAssign,
       unassign: SceneSearchScreen.#onUnassign,
       select: SceneSearchScreen.#onSelect,
+      openSheet: SceneSearchScreen.#onOpenSheet,
       ...KEYING_RAIL_ACTIONS,
     },
   };
@@ -193,6 +196,7 @@ export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationM
       picker: this.#pickerFor(members, entries),
       refOf: (key) => ({ img: refImageOf(entries.find((e) => e.key === key) ?? {}) }),
       throwOf,
+      sheetOf: (key) => game.user.isGM && bodySheetExists(entries.find((e) => e.key === key)?.ref),
       t: say,
     });
     // The Judge's seat alone has the rail; an entry gone from the scene closes it.
@@ -343,6 +347,18 @@ export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationM
     const uuid = readSceneSearch(this.#partyId)?.session.potUuid;
     const pile = uuid ? fromUuidSync(uuid, { strict: false }) : null;
     if (pile) pile.sheet.render(true);
+  }
+
+  /**
+   * Open the sheet of the actor a body entry stands for, on the Judge's seat. The
+   * card is itself a `select` target, so the press stops here and selects nothing.
+   * A body whose actor is gone opens nothing.
+   */
+  static #onOpenSheet(event, target) {
+    event?.stopPropagation?.();
+    if (!game.user.isGM) return;
+    const entry = readSceneSearch(this.#partyId)?.entries.find((e) => e.key === target.dataset.key);
+    if (entry?.kind === THING_KINDS.BODY) openBodySheet(entry.ref);
   }
 
   /** Open an entry's keying rail on the Judge's seat. */

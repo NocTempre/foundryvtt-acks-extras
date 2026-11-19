@@ -6,7 +6,13 @@
     <ul class="acks-extras-treasure-search__list">
       {{#each rows}}
       <li class="acks-extras-treasure-door__row">
-        <span class="acks-extras-treasure-search__name">{{name}}</span>
+        <span class="acks-extras-treasure-search__who">
+          <span class="acks-extras-treasure-search__name">{{name}}</span>
+          {{#if combatantId}}
+          <button type="button" class="acks-extras-treasure-search__sheet" data-action="openSheet" data-combatant="{{combatantId}}"
+                  aria-label="{{localize 'ACKS-TREASURE.search.sheet.label' name=name}}" data-tooltip="ACKS-TREASURE.search.sheet.tip"><i class="fa-solid fa-book-open" aria-hidden="true"></i></button>
+          {{/if}}
+        </span>
         <span class="acks-extras-treasure-search__facts">
           <span class="acks-extras-treasure-search__items" data-tooltip="ACKS-TREASURE.search.itemsTip" aria-label="{{localize 'ACKS-TREASURE.search.itemsTip'}}">{{localize "ACKS-TREASURE.search.items" n=items}}</span>
           {{#if letter}}

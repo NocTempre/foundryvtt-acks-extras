@@ -74,6 +74,29 @@ const card = (model, key) => model.cards.find((c) => c.key === key);
   ok(!JSON.stringify(player).includes("thing:door"), "nor the hidden entry's key");
 }
 
+/* ---------------- the open-sheet control ---------------- */
+{
+  const slain = base("slain", THING_KINDS.BODY, { ref: "Actor.a1" });
+  const list = [...LIST, slain];
+  const open = () => true;
+  const judge = build(true, { sheetOf: open }, { list });
+  const word = card(judge, "thing:slain").name;
+  eq(card(judge, "thing:slain").sheet, { label: `sheet.label[name=${word}]`, button: "sheet.button", tip: "sheet.tip", gone: false }, "a body's card carries the control, named for the body, with its tooltip");
+  eq(judge.cards.filter((c) => c.sheet).map((c) => c.key), ["thing:slain"], "only a body's card carries it: a container, a fixture, an exit and a floor get none");
+  const player = build(false, { sheetOf: open }, { list });
+  ok(card(player, "thing:slain"), "the player's board still shows the body");
+  eq(card(player, "thing:slain").sheet, null, "but never the control, even where the actor resolves");
+  ok(!JSON.stringify(player).includes("sheet.label"), "no word of the control is anywhere in a player's model");
+  eq(card(build(true, { sheetOf: () => false }, { list }), "thing:slain").sheet, { label: `sheet.label[name=${word}]`, button: "sheet.button", tip: "sheet.goneTip", gone: true }, "a body whose actor and token are gone is drawn disabled with its own tooltip");
+  eq(card(build(true, {}, { list }), "thing:slain").sheet.gone, true, "with no resolver handed in, nothing is claimed to open");
+
+  // A body the fight dealt (not a place's thing) reads the same, keyed to its own entry.
+  const fought = { ...session, bodies: [{ id: "c1", ref: "Actor.a2", name: "Mossback", hidden: false, hint: null, point: null, state: {}, layers: {} }] };
+  const read = { session: fought, place: { uuid: "Actor.p", name: "The hall" }, entries: sceneView(sessionEntries({ things: [], session: fought }), { isGM: true }), log: [] };
+  const seen = buildScreen({ isGM: true, read, assignments: [], members: MEMBERS, names: names(read.entries), potView: null, sheetOf: (key) => key === "body:c1", t });
+  eq(card(seen, "body:c1").sheet.gone, false, "a body from the fight's record carries the control and asks the resolver by its entry key");
+}
+
 /* ---------------- the waiting screen ---------------- */
 {
   const hold = { ...session, shown: false };
