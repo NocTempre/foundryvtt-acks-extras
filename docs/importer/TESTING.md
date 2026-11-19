@@ -4242,11 +4242,30 @@ writes `flags.world.fixture` itself and tracks the uuid).
 13. **A second import adds nothing.** Import Magic Items once more.
     *Observable:* no item is made or taken over; the notice reads 0 imported.
 
+`tools/live/importer-magic-item-pairs.mjs` walks steps 7-13 on four pairs named
+by id in the walk (three Journal rows of different categories, two core types,
+and one reprint), by the importer's own calls rather than the buttons, with
+every import restricted to the eight ids of the four pairs: the notice counts
+are the pairs' own, so the whole-book counts (J, P, the Tome's count) are read
+from the served cookbooks and not walked, and all 158 Journal rows carry a
+`revisedBy`, so the "unpaired Journal item" half of steps 8 and 10 has no
+subject. It also walks one step TESTING does not number, labelled 14 in the
+walk: the Journal's row imported alone with the Tome open and no document
+standing, which builds the item from the Tome's row and joins the Journal's id
+to it.
+Run it with `node tools/live/run.mjs importer-magic-item-pairs` (both books
+staged in `ACKS_TEST_BOOKS`).
+
 ### Teardown
 
-The imports stay. The marked items are swept by ledger and the walk re-imports
-them, so every Tome item stands as the page gives it and none keeps step 3's
-edit.
+The imports stay. The marked items are swept by ledger, then the walk imports the
+Tome's four rows again by id (with the Journal's where a pair stood merged before
+the walk), so every Tome item of the pairs stands as the page gives it and none
+keeps step 9's edit; the Journal's id is merged into a pair only where it was.
+A pair that stood in any other shape (two documents, or the Journal's alone) is
+not reshaped: the walk stops before touching it. The walk never runs a bare
+Magic Items import with both books open, which would bind every Journal row onto
+the world's Tome items.
 
 ## The gnostic tables, read from By This Axe
 
