@@ -206,9 +206,26 @@ it covers; a section no walk names is walked by hand.
    `api.fixture` when nothing carries one): `formation/trapbreak-scene`,
    `formation/trapbreak-party`, `formation/trapbreak-wall`,
    `formation/trapbreak-place`, `formation/trapbreak-thief`,
-   `formation/trapbreak-fighter`; the trap thing is found through its place.
+   `formation/trapbreak-fighter`, the trap Item `formation/trapbreak-trap`,
+   the Region `formation/trapbreak-region`, the thief's
+   `formation/trapbreak-thief-skill` and `formation/trapbreak-thief-tools`,
+   and the fighter's `formation/trapbreak-fighter-tools`, given for step 11
+   and retired at the walk's start; the trap thing is found through its
+   place. Each card a press posts is marked `formation/trapbreak-card-<n>`
+   and retired by the next run. Walked by `tools/live/formation-trapbreak.mjs`
+   on two seats, this step's bullets and step 11 together; it rigs the GM
+   page's dice, so each press also spends a turn on the walk's party. It does
+   not drive deleting the trap thing, the floor and blank-figure variants of
+   *The figures*, Re-arm or the type size, the canvas markers, closing the
+   question, or the turn plan clause of step 11. A player's press relays to
+   whichever GM client Foundry makes active, so the rigged half of step 11
+   runs only while the walk's GM seat is that client, and the walk notes it
+   NOT WALKED otherwise; a GM client that has just joined can take a relay
+   before its handlers are registered, and that press then writes nothing.
    Drive the window as the capture driver's seats do; read
-   what the window shows, then press.
+   what the window shows, then press. Work on it is already disabled on an
+   unfound trap, so a redraw to another refusal is told by the refusal's
+   text, never by the button.
    - *Judge seat, warned.* Open for the fighter, a trap found. *Observable:* a
      warning chip names the missing tools and ends "As Judge you may proceed.";
      Work on it is enabled; pressing it throws and the card posts. Mark the
