@@ -311,9 +311,10 @@ all magic items are masterwork quality at a glance unless disguised
 intentionally). A pot carries an arms column, `deal.armsSetting` (a setting key
 of the Tome's arms grids, or blank), kept in its deal state beside the style
 and set by `setDealOption`, which also keeps it on the Judge's user as the
-default the next new pot opens with. A pot with no column rolls no type and
-stores nothing. With one, `rollMagicTruths` passes it to the roll
-(`magic-item-roll` v2) and, for each rolled arm, `apparentOf` names the arm
+default the next new pot opens with. A column only types: `rollMagicTruths`
+passes it to the roll (`magic-item-roll` v2), and a pot with none rolls no type,
+so a row linked to a grid or to the weapon-kind list stays unpriced while a row
+linked by name is priced all the same. For each rolled arm, `apparentOf` names the arm
 (the type rolled, else for a row linked by name the words before its first
 signed figure) and finds its base among `armsBases`: the library's minted
 weapons (type `weapon` under `def.weapon.*`) and minted armour and shields

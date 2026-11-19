@@ -270,9 +270,13 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   eq([asks.at(-1), r.truths[0].apparent, r.truths[0].label], [{ from: "classic.wd", style: "classic", armsSetting: "s2" }, { baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: 403 }, "Zork Blade +1"], "the pot's column goes to the roll, and an arm is stored with its figures");
   eq(rankWorth(r.truths[0]), 422, "and the card ranks 19 plus 403");
   r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { armsSetting: "" });
-  eq([asks.at(-1), r.truths[0].apparent], [{ from: "classic.wd", style: "classic" }, null], "a blank column passes no setting and stores nothing");
+  eq([asks.at(-1), r.truths[0].apparent?.baseGp ?? null], [{ from: "classic.wd", style: "classic" }, 19], "a blank column passes no setting, and a row that names its base is priced all the same");
   r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { armsSetting: undefined });
-  eq(r.truths[0].apparent, null, "an unset column stores nothing");
+  eq(r.truths[0].apparent?.baseGp ?? null, 19, "as with an unset column");
+  r = await withArms(row("Weapon +1", { arms: { kind: "weaponKinds.bands" } }), { armsSetting: "" });
+  eq([r.truths[0].apparent, rankWorth(r.truths[0])], [null, 0], "a kind-linked row with no column has no type, so stores nothing");
+  r = await withArms(row("Zork Blade +1", { arms: { grid: "armsZz" } }), { armsSetting: "" });
+  eq(r.truths[0].apparent, null, "nor does a grid-linked row the roll left untyped");
   r = await withArms(row("Band of Tines +1", { arms: { name: true } }));
   eq([r.truths[0].apparent, rankWorth(r.truths[0]), r.errors], [null, 0, []], "a ring row stores nothing and is no error");
   r = await withArms(row("Tine Darts +1", { arms: { name: true } }));
@@ -290,7 +294,7 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   r = await withArms(row("Zork Blade +1", { arms: { name: true }, uuid: "Item.d" }), { resolve: two });
   eq(r.truths.map((t) => [t.pool, t.apparent?.baseGp ?? null]), [[POOL.magic, 19], [POOL.coins, null]], "a document the roll links to carries the figures on its magic part alone");
   r = await withArms(row("Zork Blade +1", { arms: { name: true }, uuid: "Item.d" }), { resolve: async () => [knownTruth()], armsSetting: "" });
-  eq(r.truths[0].apparent, null, "and none with no column");
+  eq(r.truths[0].apparent?.baseGp ?? null, 19, "and with no column, since the row names its base");
 
   registerWeaponSource(previous);
 }

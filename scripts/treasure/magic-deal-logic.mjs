@@ -267,7 +267,7 @@ function auditRows(result, where, item) {
  * @param {{classicType?: object|null, classic?: object[], heroic?: object[]}|null} args.lists `startFor`'s lists
  * @param {((args: {from: string, style: string}) => Promise<object>)|null} args.roll the roll service's `roll`, with its roller bound
  * @param {(uuid: string) => Promise<object[]|null>} args.resolve the truths of the document a uuid names, or null
- * @param {string} [args.armsSetting] the pot's arms column (a setting key); blank rolls no type and stores no `apparent`
+ * @param {string} [args.armsSetting] the pot's arms column (a setting key); blank rolls no type, so only a row that names its base stores `apparent`
  * @param {object[]} [args.bases] `armsBases`', read once for the deal
  * @param {(tier: string) => number|null|undefined} [args.masterwork] a masterwork tier's added cost in gp
  * @returns {Promise<{truths: object[], errors: object[], audit: object[]}>}
@@ -314,12 +314,10 @@ export async function rollMagicTruths({ truths, style, where, lists, roll, resol
       }
     }
     let apparent = null;
-    if (armsSetting) {
-      try {
-        apparent = apparentOf(item, { bases, masterwork });
-      } catch {
-        apparent = null;
-      }
+    try {
+      apparent = apparentOf(item, { bases, masterwork });
+    } catch {
+      apparent = null;
     }
     const worn = (t) => (apparent && !t.coin ? normalizeTruth({ ...t, apparent }) : t);
     if (Array.isArray(found) && found.length) out.push(...found.map((t, i) => (isMagicPart(t, i) ? worn(unknownTruth(t, truth)) : t)));

@@ -490,12 +490,15 @@ or the cookbook documents a real import writes.
    has no control until T6c-3, so the walk sets it by API
    (`setDealOption(pile, "armsSetting", "s1")`) and reads the pot back; a second
    new pot opens with it, and a blank clears it. The walk then rolls sixty times
-   on the weapons list through the real roll service with the die rigged to a
-   spread (`rollMagicTruths` with `armsSeam()`'s bases and tier costs) and
+   on the weapons list through the real roll service on random dice
+   (`rollMagicTruths` with `armsSeam()`'s bases and tier costs), so which rows it
+   reaches varies by run, and
    checks each card that stored `apparent` against the documents: `baseGp` is
    the base's own `system.cost`, `masterworkGp` is the tier's `costAdd` for the
    base's kind (a weapon's `weaponBoth`, armour's or a shield's `armorAC`), and
-   `rankWorth` is their sum. A blank column stores nothing. A ring, a cloak and
+   `rankWorth` is their sum. With a blank column no weapons-list card stores
+   figures, since each of those rows links a grid or the weapon-kind list and
+   needs a type; a row linked by name is priced without one. A ring, a cloak and
    ammunition rolled by name store nothing (offline only; no live row is known
    to land on one).
 

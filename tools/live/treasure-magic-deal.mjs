@@ -293,7 +293,7 @@ try {
   if (!a.bases) blocked("no minted weapon or armour document is in the library; import the equipment tables first");
   if (!a.tierDocs) note("arms: the masterwork tier documents are not imported, so a card stores nothing and ranks 0", { stored: a.stored });
   check("the roll with the column set stores no card that is not undetected, unidentified magic", a.unknownKept);
-  check("a blank column stores no figures on any card", a.blankStores === 0, { blank: a.blankStores });
+  check("a blank column stores no figures on a weapons-list card (each links a grid or the weapon-kind list, so needs a type)", a.blankStores === 0, { blank: a.blankStores });
   if (a.tierDocs) {
     check("some rolled arm stored its base and masterwork figures", a.stored > 0, { stored: a.stored, rolled: a.rolled, refused: a.refused });
     check("every stored base cost is its document's own cost and every masterwork cost is its kind's tier `costAdd`", a.stored > 0 && a.partsMatch === a.stored, { stored: a.stored, matched: a.partsMatch });

@@ -93,11 +93,11 @@ export function dealLettersIntoPot(pile, { letters, style, special, confirmLair,
  * @param {object[]} args.truths the letter's truths
  * @param {"classic"|"heroic"|"gritty"} [args.style] the deal's style; classic by default, as the hoard is
  * @param {(expr: string) => {total: number, sides: number}|Promise<{total: number, sides: number}>} [args.roller] dice for the walk; core's by default
- * @param {string} [args.armsSetting] the pot's arms column; blank leaves arms typeless and unpriced
+ * @param {string} [args.armsSetting] the pot's arms column; blank rolls no type, so only a row that names its base is priced
  */
 async function rollMagicCards({ letter, truths, style = "classic", roller, armsSetting = "" }) {
   const provider = services.get(MAGIC_ITEM_ROLL_CONTRACT);
-  const arms = armsSetting ? await armsSeam().catch(() => ({})) : {};
+  const arms = await armsSeam().catch(() => ({}));
   return rollMagicTruths({
     truths,
     style,
