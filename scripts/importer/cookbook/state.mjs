@@ -6,6 +6,7 @@ import { MODULE_ID } from "../constants.mjs";
 import { BOOKS, bookIsJudges, bookLine, offeredBookFiles, registryBookOf } from "../books.mjs";
 import { groupBookOf } from "../import-kinds.mjs";
 import { verifiedDoc, verifyDoc } from "../book-handle.mjs";
+import { isSceneRecipe } from "../scene-binding.mjs";
 import { judgeLine } from "../../lib/library.mjs";
 import { playerOwned } from "../character-binding.mjs";
 import { CLASS_TYPE } from "../../classes/constants.mjs";
@@ -181,6 +182,19 @@ export const cookbookEntry = (fullId) => {
  * Which book an entry is read from: the file's, else the entry's own.
  */
 export const bookOf = (found) => found?.cb?.book?.id ?? found?.entry?.book ?? null;
+/**
+ * The PDF pages a book's scene recipes name, ascending: the pages whose image
+ * placements a parse saves with the book's text (`parsed-book.mjs`). Empty
+ * until the cookbook has loaded, and for a book with no scene recipe.
+ */
+export const cookbookScenePages = (bookId) => {
+  const pages = Object.values(data.books.get(bookId)?.scenes ?? {})
+    .filter((row) => isSceneRecipe(row))
+    .map((row) => Number(row.scene.page))
+    .filter((n) => Number.isInteger(n) && n >= 1);
+  return [...new Set(pages)].sort((a, b) => a - b);
+};
+
 /**
  * How many shipped entries this book unlocks, counting both cookbook shapes.
  * A book id the registry (`BOOKS`) does not know is named on the console and

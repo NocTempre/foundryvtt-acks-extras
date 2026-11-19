@@ -12,6 +12,11 @@
  *     whose pixel calls reach the live one, as a `BookHandle`'s do. The entries
  *     are the book's own cookbook and, from the content cookbooks (equipment,
  *     powers, spells and the rest), every entry that names the book;
+ *   - the saved image placements, live against saved (the boxes
+ *     `pageArtPlacements` answers, without the image's name): every page a
+ *     scene recipe of the book names, which is what a parse saves, and, so a
+ *     book with no scene recipe still checks something, twelve pages spread
+ *     across it. The count of pages compared is printed;
  *   - that a second parse of the same file from another open is the same file
  *     byte for byte (the digest), since racing seats must write one file.
  *
@@ -41,8 +46,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { openBook, pageItems, useTypography } from "../../scripts/importer/extract.mjs";
+import { openBook, pageArtPlacements, pageItems, placementsOfPage, useTypography } from "../../scripts/importer/extract.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
+import { isSceneRecipe } from "../../scripts/importer/scene-binding.mjs";
 import { PARSE_STAMP, SavedBook, fontId, parseDocument } from "../../scripts/importer/parsed-book.mjs";
 import { releaseDoc } from "../../scripts/importer/release-doc.mjs";
 import { FILES } from "./reference-lib.mjs";
@@ -119,6 +125,7 @@ function handleOver(saved, live, bookId) {
     title: saved.title,
     verified: true,
     getPage: (n) => saved.getPage(n),
+    savedPlacements: async (n) => saved.placements(n),
     verify: async () => true,
     live: async () => live,
   };
@@ -135,13 +142,32 @@ for (const bookId of books) {
     continue;
   }
   ran++;
+  const registers = JSON.parse(fs.readFileSync(path.join(COOKBOOK, "registers.json"), "utf8"));
+  const cookbooks = fs
+    .readdirSync(COOKBOOK)
+    .filter((f) => f.endsWith(".json") && f !== "registers.json" && f !== "index.json")
+    .map((f) => JSON.parse(fs.readFileSync(path.join(COOKBOOK, f), "utf8")))
+    .map((cb) => ({ cb, ids: Object.keys(cb.entries ?? {}).filter((id) => (cb.book ? cb.book.id === bookId : cb.entries[id].book === bookId)) }))
+    .filter(({ ids }) => ids.length);
+  // The pages a scene recipe names: the shipping rule (`isSceneRecipe`), over this book's own cookbook.
+  const scenePages = [
+    ...new Set(
+      cookbooks
+        .filter(({ cb }) => cb.book?.id === bookId)
+        .flatMap(({ cb }) => Object.values(cb.scenes ?? {}))
+        .filter((row) => isSceneRecipe(row))
+        .map((row) => Number(row.scene.page)),
+    ),
+  ].sort((a, b) => a - b);
   const bytes = fs.readFileSync(file);
   const t0 = Date.now();
   const first = await openBook(bytes, { book: bookId });
-  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title }));
+  const sampled = Array.from({ length: 12 }, (_, i) => 1 + Math.floor((i * first.numPages) / 12));
+  const placementPages = [...new Set([...scenePages, ...sampled])].sort((a, b) => a - b);
+  const text = JSON.stringify(await parseDocument(first.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: first.title, placementPages }));
   await releaseDoc(first.doc);
   const secondOpen = await openBook(bytes, { book: bookId });
-  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title }));
+  const again = JSON.stringify(await parseDocument(secondOpen.doc, { book: bookId, src: srcArg ?? `shelf/${bookId}.pdf`, bytes: bytes.length, title: secondOpen.title, placementPages }));
   await releaseDoc(secondOpen.doc);
   const digest = createHash("sha256").update(text).digest("hex");
   const deterministic = text === again;
@@ -175,14 +201,25 @@ for (const bookId of books) {
   console.log(`  fonts: ${pairing.fonts} live names, ${pairing.broken.length ? `NOT one-to-one: ${pairing.broken.slice(0, 5).join(", ")}` : "one-to-one with the saved names"}`);
   failures += pageBad + pairing.broken.length;
 
+  // Every saved page's placements.
+  let placeBad = 0;
+  let placeImages = 0;
+  const badPlaces = [];
+  for (const n of placementPages) {
+    const mine = saved.placements(n);
+    const boxes = (await placementsOfPage(await live.getPage(n))).map(({ x, y, w, h }) => ({ x, y, w, h }));
+    const viaHandle = await pageArtPlacements(savedHandle, n);
+    placeImages += boxes.length;
+    const d = firstDiff(canon(boxes), canon(mine)) ?? firstDiff(canon(boxes), canon(viaHandle));
+    if (d) {
+      placeBad++;
+      if (badPlaces.length < 10) badPlaces.push(`p${n}${d}`);
+    }
+  }
+  console.log(`  placements: ${placementPages.length - placeBad}/${placementPages.length} pages equal (${scenePages.length} scene page(s), ${placeImages} image(s) in all)${placeBad ? ` — DIFFER: ${badPlaces.join(", ")}` : ""}`);
+  failures += placeBad;
+
   // Every entry's node, through the shipping executor.
-  const registers = JSON.parse(fs.readFileSync(path.join(COOKBOOK, "registers.json"), "utf8"));
-  const cookbooks = fs
-    .readdirSync(COOKBOOK)
-    .filter((f) => f.endsWith(".json") && f !== "registers.json" && f !== "index.json")
-    .map((f) => JSON.parse(fs.readFileSync(path.join(COOKBOOK, f), "utf8")))
-    .map((cb) => ({ cb, ids: Object.keys(cb.entries ?? {}).filter((id) => (cb.book ? cb.book.id === bookId : cb.entries[id].book === bookId)) }))
-    .filter(({ ids }) => ids.length);
   const skipOps = ["art", "ocr"];
   const liveCache = new Map();
   const savedCache = new Map();

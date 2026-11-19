@@ -18,11 +18,19 @@
  * on a registered handle (`verifiedDoc`). A page's text comes from the saved
  * text (`parsed-book.mjs`) when its pointer is current and from the live pdf.js
  * document otherwise; a GM seat with no current pointer makes the saved text
- * first (`prepare`), a player seat never does. The pixel readers take the live
+ * first (`prepare`), a player seat never does. The saved text also holds
+ * the image placements of the pages a scene recipe names (`savedPlacements`),
+ * so a rebuild whose pictures are cached opens no PDF. The pixel readers take the live
  * document (`liveDoc`), which opens on the first call, is kept while a hold
  * stands (`holdingLive`), and is released after `IDLE_MS` with no read. A
  * handle with no `src` (a file this seat picked) cannot reopen what it
  * released and has no saved text, so it never releases.
+ *
+ * A handle follows its book's shelf journal: when the journal's PDF page is
+ * re-pointed (`src` changes) the handle drops its live document, its vouching
+ * and its saved text, takes the new path, and reads, verifies and parses that
+ * file as a fresh handle would. Nothing it holds of the old file answers for
+ * the new one, and a parse it started before the change is not recorded.
  *
  * Fetch, open and the saved-text store are injected, so the handle holds no PDF
  * engine and no Foundry: `open(buffer)` fingerprints and returns
@@ -73,6 +81,7 @@ export class BookHandle {
   #timer = null;
   #gone = false;
   #idleMs;
+  #epoch = 0;
 
   /**
    * @param {object} o
@@ -108,6 +117,32 @@ export class BookHandle {
 
   get src() {
     return this.#src;
+  }
+
+  /**
+   * Take the journal's path when it is no longer this handle's. A handle with
+   * no `src` (a file this seat picked) and a book the shelf no longer holds
+   * keep what they have. Runs at the head of every read, so a stale handle
+   * is corrected before it serves a page, a placement or a verdict.
+   */
+  #follow() {
+    const now = this.#parsed?.shelfSrc(this.#bookId) ?? null;
+    if (!this.#src || !now || now === this.#src) return;
+    const doc = this.#doc;
+    this.#epoch++;
+    this.#src = now;
+    this.#doc = null;
+    this.#opening = null;
+    this.#verifying = null;
+    this.#verified = false;
+    this.#vouched = false;
+    this.#opened = false;
+    this.#saved = null;
+    this.#noParse = false;
+    this.#refusal = null;
+    clearTimeout(this.#timer);
+    this.#timer = null;
+    releaseDoc(doc).catch(() => {});
   }
 
   /** The current saved text's pointer, when it is this handle's file. */
@@ -163,24 +198,29 @@ export class BookHandle {
    * after. A failure is not remembered; the next call fetches again.
    */
   live() {
+    this.#follow();
     if (this.#doc) {
       this.#arm();
       return Promise.resolve(this.#doc);
     }
-    this.#opening ??= this.#fetchAndOpen().finally(() => {
-      this.#opening = null;
-    });
+    if (!this.#opening) {
+      const opening = this.#fetchAndOpen().finally(() => {
+        if (this.#opening === opening) this.#opening = null;
+      });
+      this.#opening = opening;
+    }
     return this.#opening;
   }
 
   async #fetchAndOpen() {
-    if (!this.#src) throw new Error(`${this.#bookId}: no file to open`);
-    const resp = await this.#fetch(this.#src);
-    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${this.#src} (${resp?.status})`);
+    const src = this.#src;
+    if (!src) throw new Error(`${this.#bookId}: no file to open`);
+    const resp = await this.#fetch(src);
+    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${src} (${resp?.status})`);
     const { doc, numPages, title } = await this.#open(await resp.arrayBuffer());
-    if (this.#gone) {
+    if (this.#gone || this.#src !== src) {
       await releaseDoc(doc);
-      throw new Error(`${this.#bookId}: the handle was destroyed while it opened`);
+      throw new Error(`${this.#bookId}: the handle ${this.#gone ? "was destroyed" : "was re-pointed"} while it opened`);
     }
     this.#doc = doc;
     this.#numPages = numPages;
@@ -207,29 +247,36 @@ export class BookHandle {
    * A verified handle answers at once. A concurrent call shares the first's run.
    */
   verify() {
-    if (this.#verifying) return this.#verifying;
-    this.#verifying = this.#verify().finally(() => {
-      this.#verifying = null;
-    });
+    this.#follow();
+    if (!this.#verifying) {
+      const verifying = this.#verify().finally(() => {
+        if (this.#verifying === verifying) this.#verifying = null;
+      });
+      this.#verifying = verifying;
+    }
     return this.#verifying;
   }
 
   async #verify() {
+    const epoch = this.#epoch;
     try {
       let pointer = this.#pointer();
       if (!pointer && this.#canPrepare()) {
-        const made = await this.#prepare();
+        const made = await this.#prepare(epoch);
         pointer = made?.pointer ?? null;
-        if (made?.fresh) this.#vouch();
+        if (made?.fresh && epoch === this.#epoch) this.#vouch();
       }
+      // Re-pointed while it ran: what it learned is of the old file, so ask again of the new.
+      if (epoch !== this.#epoch) return await this.#verify();
       if (this.verified) {
         this.#arm();
         return true;
       }
-      if (pointer) return await this.#head(pointer);
+      if (pointer) return await this.#head(pointer, epoch);
       await this.live();
       return true;
     } catch (err) {
+      if (epoch !== this.#epoch) return this.#verify();
       return this.#refuse(err);
     }
   }
@@ -245,12 +292,12 @@ export class BookHandle {
     return !!this.#parsed && !!this.#src && !this.#noParse && this.#parsed.canParse(this.#bookId);
   }
 
-  async #prepare() {
+  async #prepare(epoch) {
     try {
-      return await this.#parsed.prepare(this.#bookId, { getBytes: () => this.#bytes() });
+      return await this.#parsed.prepare(this.#bookId, { getBytes: () => this.#bytes(), src: this.#src });
     } catch (err) {
       console.warn(`acks-extras | ${this.#bookId}: its text could not be saved, so reads open the PDF`, err);
-      this.#noParse = true;
+      if (epoch === this.#epoch) this.#noParse = true;
       return null;
     }
   }
@@ -265,8 +312,9 @@ export class BookHandle {
    * One HEAD of the saved text's `src`. The size is checked where the host
    * reports one; a reply with no `content-length` vouches for presence only.
    */
-  async #head(pointer) {
+  async #head(pointer, epoch) {
     const resp = await this.#fetch(pointer.src, { method: "HEAD" });
+    if (epoch !== this.#epoch) return this.#verify();
     if (!resp?.ok) return this.#refuse(new Error(`${this.#bookId}: could not read ${pointer.src} (${resp?.status})`));
     const length = resp.headers?.get?.("content-length");
     if (length != null && length !== "" && Number(length) !== pointer.bytes) {
@@ -293,6 +341,19 @@ export class BookHandle {
     return saved ? saved.getPage(n) : (await this.live()).getPage(n);
   }
 
+  /**
+   * The saved placements of one page, or null when none are current or the
+   * saved text lacks the page, and the caller then opens the PDF. Verifies the
+   * book first, as a page read does, and rejects when it cannot be verified.
+   * @param {number} n 1-based
+   * @returns {Promise<{x: number, y: number, w: number, h: number}[]|null>}
+   */
+  async savedPlacements(n) {
+    if (!(await this.verify())) throw this.#refusal ?? new Error(`${this.#bookId}: the file could not be verified`);
+    const saved = await this.#text();
+    return saved?.placements(n) ?? null;
+  }
+
   /** The saved text, read once while the pointer stays the same; null when none is current or it cannot be read. */
   #text() {
     const pointer = this.#pointer();
@@ -308,6 +369,7 @@ export class BookHandle {
 
   /** A fresh copy of the file's bytes, fetched from `src`, or from the live document for a picked file. */
   async getData() {
+    this.#follow();
     if (!this.#src) return this.#doc ? this.#doc.getData() : null;
     const resp = await this.#fetch(this.#src);
     if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${this.#src} (${resp?.status})`);

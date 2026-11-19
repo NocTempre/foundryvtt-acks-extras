@@ -2847,3 +2847,50 @@ background backfill (the owner: "On first read").
   read fetches nothing and the pixel read fetches once.
 - `verify()` on a GM seat with no current pointer now parses, so `verifyBooks`,
   which a repair runs before it asks to delete, can make the first parse.
+
+## 2026-11-19 — Placements ride in the saved text, and a handle follows its journal
+
+**Ruled.** The owner: "Parse once, read everywhere". Example: AX1 is parsed once
+on a GM seat. A later Adventure rebuild asks each scene's page for its image
+placements; they are in the saved file, the pictures are cached, and a map with
+no `walls` is built with no PDF fetched. This is S3 of the plan whose S2 is the
+entry above.
+
+- **What is saved.** For every page a scene recipe of the book names, the boxes
+  `pageArtPlacements` computes (`placementsOfPage`), in the file's
+  `placements`, after the text pass. The image's name is left out: pdf.js names
+  a document-cached image by the open that loaded it, so it would make two seats'
+  files differ, and the only runtime callers read the boxes. A page the file
+  does not hold is read live, and a live answer carries the names. `PARSE_SCHEMA`
+  is 2: every file written by S2 is of another stamp, read by no seat, and its
+  book is parsed again on the next GM read. S2 has not shipped, so no world holds
+  one.
+- **A handle follows its journal.** S2's handle kept the path it was registered
+  with, while a parse recorded the journal's current one. A GM handle registered
+  before a re-point (a peer seat re-staging, a hand-edited page: nothing hooks the
+  page) would have parsed the old file and pointed the new path at it, and every
+  other seat would have read the old text as the new book's. The handle now
+  takes the journal's path at the head of each read, and a parse names the file
+  its bytes came from and refuses another. Found while building S3; the test that
+  shows it fails without either guard.
+
+*Rejected:* a pointer that lists the pages whose placements it holds (the owner's
+S4 answer keeps the pointer `{stamp, file, src, bytes, numPages, title}`); a
+re-parse whenever the cookbook gains a scene page (a whole-book parse for one
+page's boxes); caching wall traces (not asked for; a separate slice); refusing a
+stale handle where it follows (the Judge re-pointed the book on purpose, so the
+session should read what the world now names).
+
+*Costs.*
+- A scene page a later cookbook adds is not in a file parsed before it, so a
+  rebuild opens the PDF for that page until the book is parsed again. Nothing
+  re-parses on its own; the Books tab's control (S4) does.
+- A map whose recipe has `walls` still renders its page to trace it, so an
+  Adventure with such maps (AX1: 15 of 17) still fetches the PDF. Saved
+  placements make a rebuild fetch-free only for the maps without them.
+- A handle that follows the journal re-reads the shelf journal on every read
+  (the pointer check already did), and a re-point in the middle of a read costs
+  that read one more verify.
+- A re-point made between a staging's open and its journal write (`shelvePath`
+  adopts the new path first) makes the handle follow the old path back and then
+  forward again, one extra fetch.

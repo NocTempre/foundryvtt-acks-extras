@@ -5,16 +5,21 @@
  * One JSON file per shelved book, written by `FilePicker.upload` under the
  * shelf directory, holds what `pageItems` consumes from pdf.js: per page its
  * size and its text runs, after `textRuns` (empty runs and coincident
- * duplicates gone, the word-space boundary kept as `sp`), at full precision.
+ * duplicates gone, the word-space boundary kept as `sp`), at full precision,
+ * and for the pages a scene recipe names the boxes of their placed images.
  * Furniture, typography and `fuseRuns` still run when the page is read, so a
  * change to `extract.mjs` never invalidates a saved book; only a change to
  * `textRuns`, to this shape (`PARSE_SCHEMA`) or to the pdf.js build (its
  * version rides the stamp) does.
  *
- *   header  {book, stamp, src, bytes, numPages, title, fonts}
+ *   header  {book, stamp, src, bytes, numPages, title, fonts, placements}
  *   page    [width, height, runs]
  *   run     [str, x, y, width, height, font, sp]   x, y the text matrix's
  *           translation (pdf.js's own origin), font an index into `fonts`
+ *   placements  {"<page>": [{x, y, w, h}]}   top-origin page points, as
+ *           `placementsOfPage` gives them without the image's name. A page
+ *           absent from the map was not saved and is read live; `[]` is a page
+ *           saved with no image on it.
  *
  * The file carries no time and no seat, so two seats parsing one PDF write the
  * same bytes under different names. Foundry overwrites no non-media file and
@@ -30,11 +35,15 @@
  * and no PDF engine beyond the version stamp.
  */
 import { version } from "../../vendor/pdfjs/pdf.mjs";
-import { textRuns } from "./extract.mjs";
+import { placementsOfPage, textRuns } from "./extract.mjs";
 import { releaseDoc } from "./release-doc.mjs";
 
-/** The shape of a saved book, bumped with the shape or with `textRuns`; part of the stamp. */
-export const PARSE_SCHEMA = 1;
+/**
+ * The shape of a saved book, bumped with the shape or with `textRuns` or
+ * `placementsOfPage`; part of the stamp. 2 added `placements`: a file of
+ * schema 1 is read by no seat and its book is parsed again on the next GM read.
+ */
+export const PARSE_SCHEMA = 2;
 
 /** What a saved book is stamped with: this schema over this pdf.js build. A file with any other stamp is not read. */
 export const PARSE_STAMP = `p${PARSE_SCHEMA}-${version}`;
@@ -59,10 +68,11 @@ export const fontId = (name) => (typeof name === "string" ? name.replace(/^(g_)?
  * @param {string} o.src the path the file is served from
  * @param {number} o.bytes the file's size in bytes
  * @param {string} o.title the document's own title
+ * @param {number[]} [o.placementPages] the 1-based pages whose image placements are saved; a page the document lacks is skipped
  * @param {string} [o.stamp]
  * @returns {Promise<object>} the saved book, ready for `JSON.stringify`
  */
-export async function parseDocument(doc, { book, src, bytes, title, stamp = PARSE_STAMP }) {
+export async function parseDocument(doc, { book, src, bytes, title, placementPages = [], stamp = PARSE_STAMP }) {
   const fonts = [];
   const fontIx = new Map();
   const indexOf = (name) => {
@@ -82,7 +92,19 @@ export async function parseDocument(doc, { book, src, bytes, title, stamp = PARS
     ]);
     page.cleanup?.();
   }
-  return { book, stamp, src, bytes, numPages: doc.numPages, title, fonts, pages };
+  // After every page's text, so the order fonts load in, and the names they get, are the text pass's alone.
+  const placements = {};
+  for (const n of [...new Set(placementPages)].filter((n) => Number.isInteger(n) && n >= 1 && n <= doc.numPages).sort((a, b) => a - b)) {
+    try {
+      const page = await doc.getPage(n);
+      placements[n] = (await placementsOfPage(page)).map(({ x, y, w, h }) => ({ x, y, w, h }));
+      page.cleanup?.();
+    } catch (err) {
+      // A page whose operators cannot be read is left out, and a read of it opens the PDF.
+      console.warn(`acks-extras | ${book}: the images of page ${n} could not be saved`, err);
+    }
+  }
+  return { book, stamp, src, bytes, numPages: doc.numPages, title, fonts, pages, placements };
 }
 
 /** One saved page, answering the two calls `pageItems` makes of a pdf.js page. */
@@ -148,6 +170,18 @@ export class SavedBook {
     return this.#json.title;
   }
 
+  /**
+   * The saved placements of a page, or null when this file does not hold the
+   * page's (an older recipe set, a page that could not be read). A copy, so a
+   * caller's edit never reaches the next reader.
+   * @param {number} n 1-based
+   * @returns {{x: number, y: number, w: number, h: number}[]|null}
+   */
+  placements(n) {
+    const boxes = this.#json.placements?.[n];
+    return Array.isArray(boxes) ? boxes.map((b) => ({ ...b })) : null;
+  }
+
   /** @param {number} n 1-based */
   async getPage(n) {
     const entry = this.#json.pages[n - 1];
@@ -165,6 +199,7 @@ export class ParsedBooks {
   #fetch;
   #isGM;
   #srcOf;
+  #placementPagesOf;
   #pointerOf;
   #writePointer;
   #upload;
@@ -176,6 +211,7 @@ export class ParsedBooks {
    * @param {object} o
    * @param {() => boolean} o.isGM whether this seat is a GM's
    * @param {(bookId: string) => string|null} o.srcOf the path of the shelf journal's PDF page now; null when the book is not shelved
+   * @param {(bookId: string) => number[]} [o.placementPagesOf] the pages whose image placements a parse saves, read when a parse starts (the recipes load after this is built)
    * @param {(bookId: string) => object|null} o.pointerOf the pointer stored on the shelf journal
    * @param {(bookId: string, pointer: object) => Promise<void>} o.writePointer store a pointer on the shelf journal
    * @param {(name: string, text: string) => Promise<string>} o.upload put a file under the saved-books directory; resolves its path
@@ -184,9 +220,10 @@ export class ParsedBooks {
    * @param {typeof fetch} [o.fetchImpl]
    * @param {string} [o.stamp]
    */
-  constructor({ isGM, srcOf, pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP }) {
+  constructor({ isGM, srcOf, placementPagesOf = () => [], pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP }) {
     this.#isGM = isGM;
     this.#srcOf = srcOf;
+    this.#placementPagesOf = placementPagesOf;
     this.#pointerOf = pointerOf;
     this.#writePointer = writePointer;
     this.#upload = upload;
@@ -211,6 +248,11 @@ export class ParsedBooks {
     if (!pointer || !src || pointer.stamp !== this.#stamp || pointer.src !== src) return null;
     if (typeof pointer.file !== "string" || !pointer.file || !(pointer.numPages > 0) || !(pointer.bytes > 0)) return null;
     return pointer;
+  }
+
+  /** The path of the shelf journal's PDF page now; null when the book is not shelved. A handle follows it when its own path goes stale. */
+  shelfSrc(bookId) {
+    return this.#srcOf(bookId);
   }
 
   /** Whether this seat may make a saved book: a GM seat, for a shelved book. */
@@ -238,29 +280,31 @@ export class ParsedBooks {
    * @param {string} bookId
    * @param {object} [o]
    * @param {() => Promise<ArrayBuffer>} [o.getBytes] the file's bytes where the caller holds them, else the shelved path is fetched
+   * @param {string|null} [o.src] the path those bytes are of; the parse refuses unless it is the journal's PDF page now, since a pointer names the file of the page and a parse of another file would be served as its text
    * @returns {Promise<{pointer: object, fresh: boolean}>} `fresh` says this run opened and fingerprinted the file
    */
-  prepare(bookId, { getBytes = null } = {}) {
+  prepare(bookId, { getBytes = null, src = null } = {}) {
     let flight = this.#flights.get(bookId);
     if (!flight) {
-      flight = this.#prepare(bookId, getBytes).finally(() => this.#flights.delete(bookId));
+      flight = this.#prepare(bookId, getBytes, src).finally(() => this.#flights.delete(bookId));
       this.#flights.set(bookId, flight);
     }
     return flight;
   }
 
-  async #prepare(bookId, getBytes) {
+  async #prepare(bookId, getBytes, bytesSrc) {
     if (!this.canParse(bookId)) throw new Error(`${bookId}: this seat does not make saved text`);
     const current = this.pointer(bookId);
     if (current) return { pointer: current, fresh: false };
     const src = this.#srcOf(bookId);
+    if (bytesSrc && bytesSrc !== src) throw new Error(`${bookId}: the bytes are of ${bytesSrc}, not of the shelf's ${src}`);
     const buffer = await (getBytes ?? (() => this.#fetchBytes(src)))();
     // The open hands the buffer to pdf.js, which detaches it.
     const bytes = buffer.byteLength;
     const { doc, numPages, title } = await this.#open(bookId, buffer);
     let saved;
     try {
-      saved = await parseDocument(doc, { book: bookId, src, bytes, title, stamp: this.#stamp });
+      saved = await parseDocument(doc, { book: bookId, src, bytes, title, placementPages: this.#placementPagesOf(bookId) ?? [], stamp: this.#stamp });
     } finally {
       await releaseDoc(doc);
     }

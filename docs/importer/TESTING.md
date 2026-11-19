@@ -1659,7 +1659,27 @@ shelf journal's pointer names, so every step counts requests.
    them, and both seats' imports complete with equal nodes.
 6. Re-point the PDF page at a second copy. *Observable:* the pointer's `src` no
    longer matches, the next read parses again (one `GET`, one `upload`), and
-   the earlier file is still in the `parsed` folder.
+   the earlier file is still in the `parsed` folder. A GM seat that was already
+   joined, with the book registered on the first path, needs no reload: its next
+   read follows the journal and fetches the second copy, never the first. A Player
+   seat joined before the re-point reads the second copy live (one `GET` of its
+   path, no read of the saved file) until a GM seat has parsed it.
+7. Rebuild an Adventure from a book whose pictures are already cached. Use a
+   book with scene recipes and none with `walls` (the AX1 maps with walls
+   still render the page to trace it, so they open the PDF; count that apart).
+   Run the book's Adventure once so `acks-extras-art` holds every scene's
+   picture and the pointer is current (fixture 4), reload the GM seat, and
+   rebuild the Adventure (**Settings tab → Game Settings → ACKS II — Extras →
+   Manage imports → Adventures** tab → **Write Adventure** beside the book).
+   *Observable:* no `.pdf` `GET` for the book; one `HEAD` of its
+   path and one `GET` of the saved file; no `upload`; every scene is built.
+   A map whose picture is not yet cached renders its page, so that rebuild
+   fetches the PDF once and uploads the picture; a placement check alone never
+   does.
+
+Fixture 4, for step 7: **`importer/adventure-cached`**, a shelf journal for a
+book with scene recipes, none walled, whose pictures are cached in
+`acks-extras-art`. Found by its marker; built by importing the book's maps once.
 
 A Player seat's half (no parse, no upload, no pointer write, opening the PDF
 while no text is saved) has no read a Player can start live: the hire's ability

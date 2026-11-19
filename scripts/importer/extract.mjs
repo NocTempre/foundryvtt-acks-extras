@@ -704,13 +704,15 @@ export async function pageArtInfo(doc, pageNo) {
 }
 
 /**
- * Placed image rectangles from the page's operator list: a pure operator walk
- * that waits on no object. Top-origin y like `pageItems`. The offline compiler uses placement to associate an entry
- * with the illustration printed inside its claimed region.
+ * Placed image rectangles from a page's operator list: a pure operator walk
+ * that waits on no object. Top-origin y like `pageItems`. The offline compiler
+ * uses placement to associate an entry with the illustration printed inside
+ * its claimed region.
+ *
+ * @param {object} page a pdf.js page
+ * @returns {Promise<{name: string, x: number, y: number, w: number, h: number}[]>}
  */
-export async function pageArtPlacements(doc, pageNo) {
-  doc = await liveDoc(doc);
-  const page = await doc.getPage(pageNo);
+export async function placementsOfPage(page) {
   const vp = page.getViewport({ scale: 1 });
   const ops = await page.getOperatorList();
   const mul = (m, n) => [
@@ -744,6 +746,21 @@ export async function pageArtPlacements(doc, pageNo) {
     }
   }
   return out;
+}
+
+/**
+ * Placed image rectangles of one page (`placementsOfPage`). A shelved book's
+ * handle answers from the placements saved with its text when it holds the
+ * page's (`savedPlacements`), and then the boxes alone: an image pdf.js keeps
+ * for the whole document is named by the open that loaded it, so a name is not
+ * saved. Any other document, and a saved text that lacks the page, takes the
+ * live document, whose answer carries the names.
+ */
+export async function pageArtPlacements(doc, pageNo) {
+  const saved = await doc?.savedPlacements?.(pageNo);
+  if (saved) return saved;
+  doc = await liveDoc(doc);
+  return placementsOfPage(await doc.getPage(pageNo));
 }
 
 /**

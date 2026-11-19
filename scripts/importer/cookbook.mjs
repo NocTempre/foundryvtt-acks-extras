@@ -18,7 +18,7 @@
 
 export {
   UNLINED_LINE, lineOf, bookOfCookbookId, isContentId, lineOfClaim, initCookbook, loadCookbook, cookbookContentFile,
-  cookbookRegisters, cookbookSessionDoc, cookbookBookFile, cookbookEntry, cookbookCount, offeredHere, isAbilityEntry,
+  cookbookRegisters, cookbookSessionDoc, cookbookBookFile, cookbookEntry, cookbookCount, cookbookScenePages, offeredHere, isAbilityEntry,
   classEntries, vehicleEntries, merchandiseEntries, variationEntries, trapEntries, spellEntries, abilityEntries,
   cookbookAbilityIds, cookbookEquipmentIds,
 } from "./cookbook/state.mjs";

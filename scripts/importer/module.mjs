@@ -51,7 +51,7 @@ import { assembleReadTables, applyReadTables } from "./tables-phases.mjs";
 import {
   initCookbook, loadCookbook, cookbookImport, cookbookImportIds, cookbookImportMonsters, cookbookRemoveImports, cookbookImportAbilities, cookbookImportAbilitiesDialog, cookbookUpdateAbilities,
   cookbookFillCompanions, cookbookPruneAbilities, registerAbilityDirectoryButtons, importAbility, cookbookDebug,
-  cookbookCount, refillMonster, resolveAbilities, proficiencyResolver,
+  cookbookCount, cookbookScenePages, refillMonster, resolveAbilities, proficiencyResolver,
   importEquipment, importAllEquipment, cookbookEquipmentIds,
   importWeapons, importArmor,
   importClasses, cookbookUpdateClasses, importTemplatePackages, importTraps, importSpells, importVariations, importVehicles, importMerchandise,
@@ -539,7 +539,7 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   const record = { path: res.path, name, size: named.size ?? 0 };
   if (!verified) return shelvePath(bookId, res.path, { name, size: record.size });
   await shelfPut(bookId, record);
-  parseStaged(bookId, named);
+  parseStaged(bookId, named, record.path);
   return record;
 }
 
@@ -549,10 +549,10 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
  * waited for: staging does not take the length of a parse. A failure leaves the
  * book as it was; the first GM read makes the text instead.
  */
-function parseStaged(bookId, file) {
+function parseStaged(bookId, file, src) {
   if (!parsedBooks.canParse(bookId)) return;
   parsedBooks
-    .prepare(bookId, { getBytes: () => file.arrayBuffer() })
+    .prepare(bookId, { getBytes: () => file.arrayBuffer(), src })
     .catch((err) => console.warn(`${MODULE_ID} | the text of ${bookId} could not be saved after staging`, err));
 }
 
@@ -622,6 +622,8 @@ const parsedBooks = new ParsedBooks({
   isGM: () => !!game.user?.isGM,
   // A form is read by field and never parsed.
   srcOf: (bookId) => (bookIsForm(bookId) ? null : (shelfPage(shelfJournal(bookId))?.src ?? null)),
+  // Read when a parse starts: the cookbook loads after this store is built.
+  placementPagesOf: (bookId) => cookbookScenePages(bookId),
   pointerOf: (bookId) => shelfJournal(bookId)?.getFlag(MODULE_ID, PARSED_FLAG) ?? null,
   writePointer: async (bookId, pointer) => {
     const journal = shelfJournal(bookId);

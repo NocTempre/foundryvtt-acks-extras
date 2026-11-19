@@ -9,13 +9,19 @@
  * changed stamp or a re-pointed `src` makes the pointer stale, a HEAD that
  * answers 404 or another size refuses the book without opening it, a player
  * seat never parses, racing seats and concurrent callers make one file each,
- * and a failed upload never fails a read. Every text in it is invented.
+ * and a failed upload never fails a read. The placements of the pages a scene
+ * recipe names ride in the same file: a rebuild reads them with no PDF fetch
+ * and no open, a page the file lacks is read live, and a re-pointed `src` or
+ * another stamp leaves nothing of the old file to answer. Every text in it is
+ * invented.
  */
 import assert from "node:assert";
 import { createHash } from "node:crypto";
 import { BookHandle } from "../../scripts/importer/book-handle.mjs";
 import { ParsedBooks, PARSE_STAMP, SavedBook, fontId, parseDocument } from "../../scripts/importer/parsed-book.mjs";
-import { pageItems } from "../../scripts/importer/extract.mjs";
+import { OPS } from "../../vendor/pdfjs/pdf.mjs";
+import { pageArtPlacements, pageItems, placementsOfPage } from "../../scripts/importer/extract.mjs";
+import { placementMatches } from "../../scripts/importer/scene-binding.mjs";
 import { executeEntry } from "../../scripts/importer/executor.mjs";
 
 let pass = 0;
@@ -35,7 +41,7 @@ const PDF = "books/rr.pdf";
 const PDF_BYTES = 1000;
 
 /** The runs of one invented page: a heading, a doubled heading, a tight word space, body lines, a folio. */
-function runsOf(n, doc) {
+function runsOf(n, doc, edition = "A") {
   const f = `g_d${doc}_f1`;
   const g = `g_d${doc}_f2`;
   const run = (str, x, y, width, height, fontName) => ({ str, transform: [1, 0, 0, 1, x, y], width, height, fontName });
@@ -46,13 +52,31 @@ function runsOf(n, doc) {
     run(" ", 94.5, H - 120.25, 0, 9.5, f),
     run("second", 94.5, H - 120.25, 30.125, 9.5, f),
     run("", 0, 0, 0, 0, f),
-    run(`line of page ${n}`, 72, H - 140, 90.0625, 9.5, f),
+    run(`line of page ${n} ed ${edition}`, 72, H - 140, 90.0625, 9.5, f),
     run(String(n), 300, 20, 6, 8, f),
   ];
 }
 
-/** An invented document of `numPages` pages; `docNo` is the counter pdf.js puts in a font id. */
-function fakeDoc(numPages, docNo) {
+/**
+ * The operator list of an invented page: pages 3 and 5 paint images (page 3
+ * two, the second inside a nested transform and named by its document as
+ * pdf.js names a shared image), every other page paints none.
+ */
+function opsOf(n, docNo) {
+  const T = OPS.transform;
+  const paint = OPS.paintImageXObject;
+  if (n === 3) {
+    return {
+      fnArray: [OPS.save, T, paint, OPS.save, T, paint, OPS.restore, OPS.restore],
+      argsArray: [null, [100, 0, 0, 50, 20, 300], [`g_d${docNo}_img_1`], null, [0.5, 0, 0, 0.5, 0.25, 0.25], [`g_d${docNo}_img_2`], null, null],
+    };
+  }
+  if (n === 5) return { fnArray: [OPS.save, T, paint, OPS.restore], argsArray: [null, [0, 40, -60, 0, 300, 100.5], [`img_${docNo}`], null] };
+  return { fnArray: [], argsArray: [] };
+}
+
+/** An invented document of `numPages` pages; `docNo` is the counter pdf.js puts in a font id, `edition` marks which file it is. */
+function fakeDoc(numPages, docNo, edition = "A") {
   const doc = {
     numPages,
     destroyed: 0,
@@ -60,8 +84,8 @@ function fakeDoc(numPages, docNo) {
       if (n < 1 || n > numPages) throw new Error("no such page");
       return {
         getViewport: () => ({ width: 612, height: H }),
-        getTextContent: async () => ({ items: runsOf(n, docNo) }),
-        getOperatorList: async () => ({ fnArray: [], argsArray: [] }),
+        getTextContent: async () => ({ items: runsOf(n, docNo, edition) }),
+        getOperatorList: async () => opsOf(n, docNo),
       };
     },
     async destroy() {
@@ -88,6 +112,8 @@ function world({ pages = 7 } = {}) {
     pointerWrites: 0,
     headLength: undefined,
     attempt: 0,
+    edition: "A",
+    scenePages: [3, 5],
   };
   w.fetchImpl = async (path, init = {}) => {
     const method = init.method ?? "GET";
@@ -109,6 +135,7 @@ function world({ pages = 7 } = {}) {
     const parsed = new ParsedBooks({
       isGM: () => isGM,
       srcOf: (id) => w.journals[id]?.src ?? null,
+      placementPagesOf: () => w.scenePages,
       pointerOf: (id) => w.journals[id]?.pointer ?? null,
       writePointer: async (id, pointer) => {
         w.pointerWrites++;
@@ -123,7 +150,7 @@ function world({ pages = 7 } = {}) {
         return path;
       },
       open: async () => {
-        const doc = fakeDoc(w.pages, w.opens++);
+        const doc = fakeDoc(w.pages, w.opens++, w.edition);
         return { doc, numPages: w.pages, title: "The Real Title" };
       },
       attempt: () => `a${w.attempt++}`,
@@ -136,7 +163,7 @@ function world({ pages = 7 } = {}) {
         numPages: 3,
         title: "Row Title",
         open: async () => {
-          const doc = fakeDoc(w.pages, w.opens++);
+          const doc = fakeDoc(w.pages, w.opens++, w.edition);
           return { doc, numPages: w.pages, title: "The Real Title" };
         },
         fetchImpl: w.fetchImpl,
@@ -402,6 +429,231 @@ function stub(w) {
   await assert.rejects(() => picked.getPage(1), /no file to open/);
   pass++;
   ok("a picked file is never parsed", p.uploads.length === 0 && p.pointerWrites === 0);
+}
+
+/* --- placements ride in the saved file ------------------------------------------------------- */
+
+const boxes = (list) => list.map(({ x, y, w, h }) => ({ x, y, w, h }));
+const liveBoxes = async (n, edition = "A") => boxes(await placementsOfPage(await fakeDoc(7, 77, edition).getPage(n)));
+const ANCHOR_3 = { x: 20, y: H - 350, w: 100, h: 50 };
+
+{
+  const saved = await parseDocument(fakeDoc(7, 5), { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T", placementPages: [5, 3, 3, 6, 99, 0, 1.5] });
+  same("placements are keyed by page, ascending, once, in range", Object.keys(saved.placements), ["3", "5", "6"]);
+  const book = new SavedBook(JSON.parse(JSON.stringify(saved)), { book: "rr", stamp: PARSE_STAMP, src: PDF, bytes: PDF_BYTES, numPages: 7 });
+  same("a page's saved boxes are the live document's boxes", book.placements(3), await liveBoxes(3));
+  ok("a page with two images saves both", book.placements(3).length === 2);
+  same("a turned image's box is its extent, top-origin", book.placements(5), [{ x: 240, y: H - 140.5, w: 60, h: 40 }]);
+  same("a requested page with no image is saved empty", book.placements(6), []);
+  ok("a page never requested is absent, which is not empty", book.placements(4) === null && book.placements(1) === null);
+  ok("no image name is saved, since pdf.js names a shared image by the open", !JSON.stringify(saved.placements).includes("img"));
+  ok("the recipe's matcher takes a saved answer", placementMatches(book.placements(3), ANCHOR_3) && !placementMatches(book.placements(5), ANCHOR_3));
+  book.placements(5)[0].x = 0;
+  same("a caller's edit never reaches the next read", book.placements(5)[0].x, 240);
+  same("the file is the same whichever open wrote it, and in whatever order the pages were asked", JSON.stringify(saved), JSON.stringify(await parseDocument(fakeDoc(7, 12), { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T", placementPages: [3, 5, 6] })));
+  same("the text pass is the same with or without placements", (await parseDocument(fakeDoc(7, 5), { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T" })).pages, saved.pages);
+
+  const bad = fakeDoc(7, 5);
+  const getPage = bad.getPage;
+  bad.getPage = async (n) => {
+    const page = await getPage(n);
+    return n === 5 ? { ...page, getOperatorList: async () => { throw new Error("operators"); } } : page;
+  };
+  const warn = console.warn;
+  console.warn = () => {};
+  let partial;
+  try {
+    partial = await parseDocument(bad, { book: "rr", src: PDF, bytes: PDF_BYTES, title: "T", placementPages: [3, 5] });
+  } finally {
+    console.warn = warn;
+  }
+  ok("a page whose operators cannot be read is left out and the rest are kept", Object.keys(partial.placements).join() === "3" && partial.pages.length === 7);
+  assert.throws(() => new SavedBook({ ...saved, stamp: "p1-x" }, { stamp: PARSE_STAMP }), /stamp/);
+  pass++;
+}
+
+/* --- a rebuild with its pictures cached opens no PDF ------------------------------------------ */
+
+{
+  const w = world();
+  const first = w.seat().handle();
+  same("the first read of a page's placements is the live page's boxes", boxes(await pageArtPlacements(first, 3)), await liveBoxes(3));
+  ok("it made the saved text, with the PDF fetched once", w.gets(".pdf") === 1 && w.uploads.length === 1);
+  same("the file holds the pages the recipes name", Object.keys(JSON.parse(w.uploads[0].text).placements), ["3", "5"]);
+  await first.destroy();
+
+  // A reload, and an Adventure rebuild: every scene's page is asked, its pictures already cached.
+  w.log.length = 0;
+  w.opens = 0;
+  const next = w.seat().handle();
+  const asked = await Promise.all([3, 5].map((n) => pageArtPlacements(next, n).catch(() => [])));
+  ok("the recipe's matcher passes on the saved placements", placementMatches(asked[0], ANCHOR_3));
+  same("and they are the live boxes", asked, [await liveBoxes(3), await liveBoxes(5)]);
+  ok("no PDF was fetched and none was opened", w.gets(".pdf") === 0 && w.opens === 0 && !next.isLive, w.log.join(" | "));
+  ok("the book was asked one HEAD and its saved file read once", w.heads() === 1 && w.log.filter((l) => l.startsWith("GET books/parsed/")).length === 1, w.log.join(" | "));
+  ok("nothing was saved again", w.uploads.length === 1 && w.pointerWrites === 1);
+  ok("the pages' text came from the same file", JSON.stringify(await pageItems(next, 3)).includes("ed A") && w.gets(".pdf") === 0);
+
+  // A page the file lacks is read live.
+  const live = await pageArtPlacements(next, 4);
+  ok("a page the saved text lacks opens the PDF and answers", live.length === 0 && w.gets(".pdf") === 1 && w.opens === 1 && next.isLive);
+  await next.destroy();
+
+  // A player seat reads the same file.
+  w.log.length = 0;
+  w.opens = 0;
+  const player = w.seat({ isGM: false }).handle();
+  same("a player seat reads the GM's saved placements", boxes(await pageArtPlacements(player, 5)), await liveBoxes(5));
+  ok("without fetching or opening the PDF", w.gets(".pdf") === 0 && w.opens === 0);
+  await player.destroy();
+}
+
+/* --- placements missing: the PDF answers, with its names -------------------------------------- */
+
+{
+  // The page is not one the recipes named when the text was parsed.
+  const w = world();
+  w.scenePages = [3];
+  await w.seat().handle().verify();
+  w.log.length = 0;
+  const handle = w.seat().handle();
+  const got = await pageArtPlacements(handle, 5);
+  same("a page parsed without placements is read live", boxes(got), await liveBoxes(5));
+  ok("and the live answer carries the image's name", got.length === 1 && got[0].name.startsWith("img_"));
+  ok("the PDF was fetched once; the text is not parsed again", w.gets(".pdf") === 1 && w.uploads.length === 1);
+  await handle.destroy();
+
+  // A saved file with no placements at all (written before they were saved).
+  const v = world();
+  await v.seat().handle().verify();
+  const pointer = v.journals.rr.pointer;
+  const body = JSON.parse(v.files.get(pointer.file).text);
+  delete body.placements;
+  v.files.set(pointer.file, { text: JSON.stringify(body) });
+  v.log.length = 0;
+  const older = v.seat().handle();
+  same("a file without placements answers from the live page", boxes(await pageArtPlacements(older, 3)), await liveBoxes(3));
+  ok("its text is still read from the file", v.gets(".pdf") === 1 && v.uploads.length === 1 && JSON.stringify(await pageItems(older, 2)).includes("ed A"));
+  await older.destroy();
+
+  // A book that is gone is refused and not opened by another road.
+  const g = world();
+  await g.seat().handle().verify();
+  g.files.delete(PDF);
+  g.log.length = 0;
+  g.opens = 0;
+  const gone = g.seat().handle();
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    await assert.rejects(() => pageArtPlacements(gone, 3), /404/);
+    pass++;
+  } finally {
+    console.warn = warn;
+  }
+  ok("a gone file's placements are not opened live or read from the saved file", g.opens === 0 && g.gets(".pdf") === 0 && g.gets(".json") === 0);
+}
+
+/* --- a re-pointed page: nothing of the old file answers --------------------------------------- */
+
+/** Re-point the journal at a second file whose text is another edition. */
+const repoint = (w) => {
+  w.files.set("books/rr-2.pdf", { bytes: 2048 });
+  w.journals.rr.src = "books/rr-2.pdf";
+  w.edition = "B";
+};
+const said = async (handle, n) => JSON.stringify(await pageItems(handle, n));
+
+{
+  // A handle registered before the re-point, before anything was parsed.
+  const w = world();
+  const stale = w.seat().handle(PDF);
+  repoint(w);
+  ok("a stale handle verifies against the new file", (await stale.verify()) === true);
+  ok("it fetched the new file and never the old", w.gets("/rr-2.pdf") === 1 && w.gets("/rr.pdf") === 0, w.log.join(" | "));
+  ok("the pointer names the new file's src and size", w.journals.rr.pointer.src === "books/rr-2.pdf" && w.journals.rr.pointer.bytes === 2048 && stale.src === "books/rr-2.pdf");
+  ok("its text is the new file's", (await said(stale, 3)).includes("ed B"));
+  await stale.destroy();
+}
+
+{
+  // A handle that has read and holds the old text, a placement and a vouching.
+  const w = world();
+  const handle = w.seat().handle();
+  ok("before the re-point it reads the old edition", (await said(handle, 3)).includes("ed A") && handle.verified);
+  const oldPointer = w.journals.rr.pointer;
+  repoint(w);
+  w.log.length = 0;
+  const text = await said(handle, 3);
+  ok("after it, the text is the new edition's and the old text answers for nothing", text.includes("ed B") && !text.includes("ed A"));
+  ok("the old saved file was not read again, nor the old PDF fetched", !w.log.includes(`GET ${oldPointer.file}`) && w.gets("/rr.pdf") === 0, w.log.join(" | "));
+  ok("the new file was parsed into a new saved file and the old one stays", w.uploads.length === 2 && w.files.has(oldPointer.file) && w.journals.rr.pointer.file !== oldPointer.file);
+  same("its placements are the new file's", boxes(await pageArtPlacements(handle, 3)), await liveBoxes(3, "B"));
+  ok("and came from that file, not from an open", w.gets("/rr.pdf") === 0);
+  await handle.destroy();
+}
+
+{
+  // A player seat registered on the old path, before any GM has parsed the new file.
+  const w = world();
+  await w.seat().handle().verify();
+  const player = w.seat({ isGM: false }).handle(PDF);
+  ok("a player reads the saved text before the re-point", (await said(player, 3)).includes("ed A"));
+  repoint(w);
+  w.log.length = 0;
+  w.opens = 0;
+  ok("after it the player reads the new file", (await said(player, 3)).includes("ed B"));
+  ok("live, since no saved text of it exists, and saving nothing", w.opens === 1 && w.gets("/rr-2.pdf") === 1 && w.uploads.length === 1 && w.pointerWrites === 1);
+  ok("the old saved file is not read", !w.log.some((l) => l.includes("books/parsed/")), w.log.join(" | "));
+  const live = await pageArtPlacements(player, 3);
+  ok("its placements come from the new PDF, named", live.length === 2 && live[0].name.startsWith("g_d"));
+  await player.destroy();
+}
+
+{
+  // The journal moves while the old file is being read: the parse is not recorded, and the handle ends on the new file.
+  const w = world();
+  const fetchImpl = w.fetchImpl;
+  w.fetchImpl = async (path, init = {}) => {
+    const resp = await fetchImpl(path, init);
+    if (path === PDF && !init.method && w.journals.rr.src === PDF) repoint(w);
+    return resp;
+  };
+  const handle = w.seat().handle(PDF);
+  ok("a read that began on the old file is answered from the new", (await said(handle, 3)).includes("ed B"));
+  ok("no pointer was written for the old file's parse", w.journals.rr.pointer === null || w.journals.rr.pointer.src === "books/rr-2.pdf");
+  await handle.destroy();
+}
+
+{
+  // Bytes of one file are never recorded as another's text.
+  const w = world();
+  w.journals.rr.src = "books/rr-2.pdf";
+  await assert.rejects(() => w.seat().parsed.prepare("rr", { getBytes: async () => new ArrayBuffer(PDF_BYTES), src: PDF }), /not of the shelf/);
+  pass++;
+  ok("a parse of the old path's bytes writes neither a file nor a pointer", w.uploads.length === 0 && w.pointerWrites === 0);
+}
+
+/* --- a stamp bump invalidates ----------------------------------------------------------------- */
+
+{
+  ok("the stamp names schema 2, which added placements", PARSE_STAMP.startsWith("p2-"));
+  const w = world();
+  await w.seat().handle().verify();
+  const firstFile = w.journals.rr.pointer.file;
+  // The pointer a build before placements wrote.
+  w.journals.rr.pointer = { ...w.journals.rr.pointer, stamp: PARSE_STAMP.replace(/^p\d+/, "p1") };
+  ok("an older schema's pointer is not current", w.seat().parsed.pointer("rr") === null);
+
+  w.log.length = 0;
+  const player = w.seat({ isGM: false }).handle();
+  ok("a player seat does not read the older file", (await said(player, 2)).includes("ed A") && !w.log.some((l) => l.includes("books/parsed/")) && w.uploads.length === 1);
+  await player.destroy();
+
+  const gm = w.seat().handle();
+  same("a GM seat parses again and answers the placements from the new file", boxes(await pageArtPlacements(gm, 3)), await liveBoxes(3));
+  ok("under a new name, with the current stamp", w.uploads.length === 2 && w.journals.rr.pointer.stamp === PARSE_STAMP && w.journals.rr.pointer.file !== firstFile);
+  await gm.destroy();
 }
 
 console.log(`test-parsed-book: ${pass} checks passed`);

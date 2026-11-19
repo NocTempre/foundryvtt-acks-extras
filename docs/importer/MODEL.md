@@ -2511,14 +2511,15 @@ twice. A form is never parsed.
 
 - **The file.** One JSON per book, uploaded by `FilePicker.upload` to
   `acks-extras-books/parsed/<book>-<stamp>-<attempt>.json`. Header
-  `{book, stamp, src, bytes, numPages, title, fonts}`; per page
+  `{book, stamp, src, bytes, numPages, title, fonts, placements}`; per page
   `[width, height, runs]`; a run `[str, x, y, width, height, font, sp]`, the
   text matrix's translation as pdf.js gave it, at full precision, `font` an index
   into `fonts`, `sp` the word-space boundary `textRuns` keeps. It holds
   `textRuns`' output and nothing after it: the furniture profile, typography and
   `fuseRuns` run in `pageItems` at read, so an edit to `extract.mjs` or to a
   registry row never invalidates a file. The stamp is `PARSE_SCHEMA` (bumped with
-  the shape or with `textRuns`) over the pdf.js version. The body holds no time
+  the shape, `textRuns` or `placementsOfPage`; 2 added `placements`) over the
+  pdf.js version, so a file of another schema is read by no seat. The body holds no time
   and no seat, so two seats parsing one PDF write the same bytes.
 - **Font ids.** pdf.js names a font by the document that loaded it
   (`g_d3_f1`), a counter that runs on across every open in a page. The saved id
@@ -2554,10 +2555,41 @@ twice. A form is never parsed.
   answers. A saved page throws for an operator list or a render, so a pixel
   reader that skipped `liveDoc` fails loudly; the pixel readers, the bytes and
   OCR still take the live document.
-- **Not saved.** Placements for scene pages (`pageArtPlacements` still opens the
-  PDF) and any control or state on the Books tab.
+- **Placements.** The same file holds the image placements of the pages a scene
+  recipe names (`cookbookScenePages`, read when a parse starts, since the
+  cookbook loads after the store is built), as `placements: {"<page>": [{x, y, w,
+  h}]}`: the boxes `placementsOfPage` computes from the operator list, top-origin
+  page points, in a second pass after the text pass so font load order is the
+  text pass's alone. The image's name is not saved: pdf.js names an image it keeps
+  for the whole document by the open that loaded it (`g_d3_img_1`), so a name
+  would make two seats' files differ. `pageArtPlacements` asks a handle
+  `savedPlacements(n)` first (verify, then the file's boxes) and takes the live
+  document only when that answers null; a plain document, as the offline tools
+  pass, is unchanged. A page absent from `placements` was not saved and is read
+  live; `[]` is a page saved with no image. A saved answer carries boxes alone
+  and the live answer the names too; the two runtime callers
+  (`adventure-maps.mjs`, over `placementMatches`) read only the boxes. A
+  rebuild whose scene pictures are cached (`uploadSceneMap` answers from the art
+  cache) therefore fetches no PDF. It still does for a map whose recipe has
+  `walls`: `traceSceneWalls` renders the page every time and nothing caches its
+  trace. A refused book (a 404, another size) rejects the placements, and the
+  callers' `.catch` refuses the map.
+- **A re-pointed page.** A pointer names the file it was parsed from, and is
+  current only while its `src` is the journal's PDF page now. A handle follows
+  the journal (`#follow`, at the head of `verify`, `live` and `getData`): when
+  the page's `src` is no longer its own it drops its live document, vouching,
+  saved text and remembered refusal, takes the new path, and is a fresh handle on
+  it; a verify, HEAD or open that was running when the path moved is discarded and
+  asked again. A parse names the file its bytes came from (`prepare`'s `src`) and
+  refuses when that is not the journal's, so one file's text is never recorded
+  under another's path. A handle with no `src` (a file this seat picked) and a
+  book the shelf no longer holds keep what they have. A re-pointed book is parsed
+  again on the next GM read into a new file; a player seat opens the new PDF live
+  until then.
+- **Not saved.** Any control or state on the Books tab.
 - **The parity gate.** `tools/importer/check-parse-parity.mjs`, local only like
-  `verify-cookbook`: every page's `pageItems` and every entry's node, live
+  `verify-cookbook`: every page's `pageItems`, every entry's node and the
+  placements of the book's scene pages (and twelve pages spread across it), live
   against saved, deep-equal, plus the digest of the file and of a second parse
   from another open. Run it after a change to `textRuns`, `parsed-book.mjs` or
   the pdf.js build.
