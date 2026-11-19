@@ -1,19 +1,32 @@
 /* global game, ui, fromUuid, fromUuidSync, Roll */
 /**
- * Casting a spell that has effect rows. A claimant on the cast seam
- * (`lib/patches/spell-use.mjs`), registered after the summoning's, takes the
- * cast of a flagged spell on an actor this seat owns, whichever door the player
- * pressed, and declines everything else: a spell with no rows, a summoning
- * spell, an actor this seat does not own. A spell whose tradition has a
- * registered procedure (`cast-procedure.mjs`) is taken whatever its rows, and
- * a summoning of one is taken here rather than by the summoning's claimant. A
- * monster's attack item is no spell and stays the system's.
+ * Casting a spell that has effect rows, and every summoning spell. A claimant
+ * on the cast seam (`lib/patches/spell-use.mjs`) takes the cast of a flagged
+ * spell on an actor this seat owns, whichever door the player pressed, and
+ * declines everything else: a spell with no rows, an actor this seat does not
+ * own. A spell whose tradition has a registered procedure
+ * (`cast-procedure.mjs`) is taken whatever its rows, and so is a summoning
+ * spell of a character, a rowless one too. A monster's attack item is no spell
+ * and stays the system's.
  *
  * The cast asks (`apps/cast-dialog.mjs`), refuses before it spends where a
  * Player is blocked and warns a Judge, spends once (`spend()` and, for a
  * vancian tradition, its pool), rolls each row once, has each target's seat
  * roll the save, posts the cast card and applies what the seat may and the GM's
  * client what it may not (`cast-apply.mjs`). A cancel spends nothing.
+ *
+ * A summoning declares like any cast and asks for its creature and count (the
+ * answer's `summon`; the shelf prompt where the dialog gave none). Every
+ * refusal lib's placement gives before a click (`summonVerdict`) and a count over
+ * the ceiling are verdicts, so they come before the spend. The seat's clicks
+ * (`pickPlacement`) come next and make nothing; a cancel there spends nothing,
+ * and a declared summons clicks at its turn, where a cancel leaves the
+ * declaration standing. The creatures are made only after the spend, the end of
+ * the caster's concentration and the tradition's step, and only when the cast
+ * proceeds (`APPLY_KINDS.summon.step`). A refusal at the placement is a card
+ * line, and the spend stands. The cast leaves the caster a record: the held one
+ * for a concentration, else a core-timed one with no clock of this module's own,
+ * so its end is announced with Dismiss (`cast-expiry.mjs`).
  *
  * A row with a throw rides the system's own attack pipeline as the `magic`
  * attack type on a carrier (`lib/patches/attack-throw.mjs`); a row with none
@@ -32,7 +45,7 @@ import { roundsCount, roundsFormulaOf } from "./cast-life.mjs";
 import { castMoment, declarationOf, fightHolding, MOMENT } from "./cast-moment.mjs";
 import { procedureFor, procedureView, procedureVerdicts, procedureTime, runPerform, runRevert, spellProcedureKind, withoutMissing, BUCKETS_KEY } from "./cast-procedure.mjs";
 import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
-import { liveDeclare, answerFromPending } from "./cast-declare.mjs";
+import { liveDeclare, answerFromPending, ANSWER_FIELDS } from "./cast-declare.mjs";
 import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
 import { describeSpellEffect } from "./describe.mjs";
 import { requestApply, registerCastRelay, undoEntries, liveApplyDeps, entryId } from "./cast-apply.mjs";
@@ -42,10 +55,11 @@ import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
-import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets } from "./cast-kinds.mjs";
+import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets, stepOf } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
-import { isSummonSpell } from "./summon-spell.mjs";
+import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
+import { summonRowsOf, summonCeilingFor, summonIsCalling } from "./cast-summon.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
@@ -67,14 +81,14 @@ const loc = (key, data = {}) => game.i18n.format(`ACKS-MAGIC.cast.${key}`, data)
 /** The raw spell flag of an item. */
 const flagOf = (item) => item?.flags?.[MODULE_ID]?.[FLAG_SPELL] ?? {};
 
-/** Does the spell hold a summon row, or print as a summoning? The summoning cast owns those. */
+/** Does the spell hold a summon row, or print as a summoning? A summon row on an item that is no character's summoning spell is declined. */
 const summoning = (item) => isSummonSpell(item) || effectRowsOf(item).some((row) => row.type === "summon");
 
 /**
  * Does this claimant take this cast? A flagged spell item on an actor this
- * seat owns whose tradition has a registered procedure (rows or not, and a
- * summoning too), or that is marked a ritual (rows or not), else one with no
- * summoning and rows of its own or its twin's.
+ * seat owns whose tradition has a registered procedure (rows or not), that is
+ * marked a ritual (rows or not), or that is a character's summoning spell
+ * (rows or not), else one with rows of its own or its twin's and no summon row.
  * @param {Item} item
  * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
  * @param {((actor: object) => object|null)|null} [classFor]  the classes feature's `classForActor`, which tells the tradition that cast the spell; without it no procedure is found
@@ -86,6 +100,7 @@ export function castSpellClaims(item, lookups = worldLookups(), classFor = null)
   if (spellProcedureKind(item, classFor)) return true;
   // A ritual is opened as a project whatever rows it has and whichever tradition cast it.
   if (flag.ritual === true) return true;
+  if (isSummonSpell(item)) return true;
   if (summoning(item)) return false;
   return rowsOf(item, lookups).rows.length > 0;
 }
@@ -502,6 +517,22 @@ const liveDeps = () => ({
   record: async (caster, data) => caster.createEmbeddedDocuments("ActiveEffect", [data]),
   endHeld: endCasterHeld,
   declare: liveDeclare(),
+  // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
+  pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
+  resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
+  summonVerdict: async (caster, o) => {
+    const lib = await import("../lib/summons.mjs");
+    const verdict = await lib.summonVerdict(caster, o);
+    return verdict.ok ? verdict : { ...verdict, notice: lib.refusalText(verdict.reason) };
+  },
+  pickPlacement: async (caster, o) => (await import("../lib/summons.mjs")).pickPlacement(caster, o),
+  summon: async (ctx) => {
+    const lib = await import("../lib/summons.mjs");
+    const result = (await lib.placeSummons(ctx.caster, { sourceUuid: ctx.pick.ref, count: ctx.positions.length, spellId: ctx.spell.id, positions: ctx.positions, castId: ctx.castId, cast: ctx.cast, rangeFeet: ctx.rangeFeet, calling: ctx.calling, casterToken: ctx.casterToken })) ?? { ok: false, reason: "noGm" };
+    lib.announceSummon(result);
+    // lib words every refusal but a missing GM; the card says that one itself.
+    return result.ok || result.reason === "noGm" ? result : { ...result, notice: lib.refusalText(result.reason) };
+  },
   // One core throw, with the seat's targets narrowed to the token it is for and restored after; a token off the viewed scene is not thrown at.
   throwRow: async (caster, carrier, skipDialog, token = null) => {
     const run = () => caster.makeAttackThrow({ item: carrier, attackType: MAGIC_ATTACK_TYPE, skipDialog });
@@ -511,6 +542,8 @@ const liveDeps = () => ({
   },
   now: () => game.time.worldTime,
   isGM: () => game.user.isGM,
+  // Is a GM connected to make a Player's creatures?
+  gmOnline: () => Boolean(game.users?.activeGM),
 });
 
 /** The card's row, as the card keeps it; `count` is a damage or heal row's instance count (`cast-instances.mjs`). */
@@ -664,7 +697,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     }
     return { counts, assigned };
   };
-  const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv, praw = declared?.procedure ?? {}) => {
+  const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv, praw = declared?.procedure ?? {}, summon = null) => {
     const reach = reachAt(levelValue, inv, mode, picks);
     const { value, cap, reads } = levelFor(mode, inv);
     const at = momentAt(mode, inv, levelValue, praw);
@@ -683,6 +716,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       instances: instancesFor(mode, picks, levelValue, typed, inv),
       invocation: { value, cap, reads },
       procedure: view ? [...procedureVerdicts(procedure, procCtx(value, levelValue, at), view.answer), ...view.findings] : [],
+      summon,
     });
   };
   // The thrown rows whose count is above one and that several targets could share: the dialog offers a split of each, one figure per target, by token uuid.
@@ -778,7 +812,33 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // The bucket may have changed while the dialog was open, and a cast reads the seat's targets as they stand now. A declaration that fits keeps the seat it declared.
   if (!storedFits) seat = readSeat();
 
-  const mode = modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
+  // A summoning's pick: the answer's own, else the declaration's, else the shelf prompt. A cancel ends the cast with nothing spent.
+  const summonRows = isSummonSpell(spell) && !fromProject ? summonRowsOf(spell, deps.lookups) : [];
+  let pick = null;
+  if (isSummonSpell(spell) && !fromProject) {
+    pick = ANSWER_FIELDS.summon(answer.summon ?? declared?.summon);
+    if (!pick) {
+      const chosen = await deps.pickSummon?.(caster, { spell, options: summonRows, resolveRef: deps.resolveRef });
+      pick = ANSWER_FIELDS.summon(chosen ? { ref: chosen.sourceUuid, count: chosen.count } : null);
+    }
+    if (!pick) return { ok: false, reason: "cancelled" };
+    answer = { ...answer, summon: pick };
+  }
+  // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (none in a declaring, which places nothing, or where the seat cannot ask).
+  const summonJudged = async ({ pick: picked, rows, level: casterLvl, at: invAt, declaring }) => {
+    const creature = { source: (await deps.resolveRef?.(picked.ref)) ?? null, sourceRef: picked.ref };
+    let asked = declaring || !deps.summonVerdict ? { ok: true } : await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
+    // A Player's creatures are made by the GM's client: with none connected the placement would be refused after the spend, so it is refused here. A Judge's own seat needs no relay.
+    if (asked?.ok !== false && !declaring && !deps.isGM() && deps.gmOnline && !deps.gmOnline()) asked = { ok: false, reason: "noGm", notice: loc("notice.summonNoGm") };
+    return {
+      count: picked.count,
+      ceiling: summonCeilingFor(rows, { ...creature, level: casterLvl, at: invAt }),
+      calling: summonIsCalling(rows, creature),
+      refused: asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null,
+    };
+  };
+
+  const mode =modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
   // The rows are kept at the invocation level the answer holds, and the figures the gates read are taken at it.
   const invocation = levelFor(mode, answer.invocationLevel);
   const at = { invocationLevel: invocation.value };
@@ -790,7 +850,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // Where the cast falls given the final answer: the procedure's casting time is read from it.
   moment = momentAt(mode, invocation.value, level.value, answer.procedure);
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
-  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure);
+  // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so lib's checks wait for the turn.
+  const summon = pick ? await summonJudged({ pick, rows: summonRows, level: level.value, at, declaring: moment === MOMENT.declare }) : null;
+  const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure, summon);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
   // A finding a procedure worded itself is told in its own words; every other has a key of the cast's own.
@@ -801,13 +863,27 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   }
   for (const v of verdicts) tell(v, "verdict");
 
+  // A summoning's clicks come before the spend and make nothing: a cancel costs the cast nothing, and a declared summons clicks at its turn, where a cancel leaves the declaration standing. A declaring places nothing, so it asks nothing. The range is the spell's figure in feet, a number or none.
+  let positions = null;
+  let rangeLimit = null;
+  if (summon && moment !== MOMENT.declare) {
+    rangeLimit = rangeFeet(figuresAt(mode, invocation.value).range, level.value)?.value ?? null;
+    const picked = await deps.pickPlacement?.(caster, { sourceUuid: pick.ref, count: pick.count, spellId: spell.id, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null });
+    if (!picked?.positions?.length) return { ok: false, reason: "cancelled" };
+    positions = picked.positions;
+  }
+
   // A declaration being resolved was spent at its declaring, and a cast from a project at the project.
   if (!resolving && !fromProject) {
     await spend();
     if (spendsFromPool(world.capacity)) await deps.adjustPool(caster, world.capacity.tradition, world.capacity.slotKey);
   }
   // The cast, or the declaring of it, ends what the caster holds by concentration, before any record of this cast.
-  await deps.endHeld?.(caster);
+  try {
+    await deps.endHeld?.(caster);
+  } catch (err) {
+    console.error(`${MODULE_ID} | the caster's concentration could not be ended by a cast`, err);
+  }
   if (resolving) await deps.declare?.finish({ caster, record: declaration.valid, combat: world.combat, combatant: world.combatant });
   else if (moment === MOMENT.resolve && declaration.lost) await deps.declare?.finish({ caster, record: declaration.lost, combat: world.combat, combatant: world.combatant });
   else if (declaration.hand) await deps.declare?.clearHand({ combat: world.combat, combatant: world.combatant });
@@ -869,6 +945,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
       const message = await deps.post({ ...card, lines: done.failed ? [loc("line.procedureFailed")] : [] }, { rolls, mode: answer.visibility || "public", speaker: undefined });
       return { ok: true, castId, messageId: message?.id, applied: [], performed: false };
     }
+  }
+  // The creatures stand only once the cast proceeds. The placement is the summon kind's own step (`cast-kinds.mjs`); a refusal now is a line on the card, and the spend stands.
+  let placed = null;
+  if (positions) {
+    placed = await stepOf("summon")({ caster, spell, castId, pick, positions, cast: { castId, casterLevel: level.value, invocationLevel: invocation.value }, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null, card }, deps);
+    if (placed?.ok) card.lines.push(loc("line.summonPlaced", { n: placed.tokenUuids?.length ?? positions.length }));
+    else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
   }
   for (const keyed of kept) {
     const { row } = keyed;
@@ -958,11 +1041,12 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   const timed = card.duration && !card.duration.none && (castersTurnRecurs(kept) || kept.some(({ row }) => row.lasts === "duration"));
   const untimedRecord = !held && !timed && recurringRows(kept, "casterTurn").some(({ row }) => row.recurSave === "cast");
   card.recurs = kept.some(({ row }) => isRecurring(row));
-  if (held || timed || untimedRecord) {
-    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}) };
+  // A summoning leaves its record whatever its rows are, carrying the id its creatures carry. Unless held it is core-timed with no `startTime` of this module's own, so its end is announced with Dismiss and never deleted silently (`cast-expiry.mjs`).
+  if (held || summon || timed || untimedRecord) {
+    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: placed?.castId || castId, role: "caster", ...(invocation.value !== null ? { invocationLevel: invocation.value } : {}) };
     const data = held
       ? heldRecordData(mark, { held, now: deps.now(), tail: card.duration.tail, cap: card.duration.cap })
-      : spellEffectData(untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
+      : spellEffectData(summon ? { ...mark, duration: card.duration } : untimedRecord ? mark : { ...mark, startTime: deps.now(), duration: card.duration });
     try {
       await deps.record(caster, data);
     } catch (err) {
@@ -972,7 +1056,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
 
   const message = await deps.post(card, { rolls, mode: answer.visibility || "public", speaker: undefined });
   const results = await applyAll(message, deps);
-  return { ok: true, castId, messageId: message?.id, applied: results };
+  return { ok: true, castId, messageId: message?.id, applied: results, ...(placed ? { placed } : {}) };
 }
 
 /**

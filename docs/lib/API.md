@@ -1027,7 +1027,10 @@ default the canvas's) and the held summons `held` and `entries` name (`held` is
 `{partyId, actorId}`, an entry's `held` that, or null); with none of the three
 it takes the summoner's tokens on the scene and every summon of theirs riding
 in a party token. `castId` filters both halves. The GM's client re-reads each
-held summon from the roster rather than the request. A deployed member's token
+held summon from the roster rather than the request. `refusalText(reason)`,
+exported from `scripts/lib/summons.mjs` and imported directly, is a refusal
+reason in the seat's own words, for a caller that tells it in a place of its own
+(a cast's verdict). A deployed member's token
 and a held summon are removed through the roster's `release`, and any other
 token from its scene; with `release` absent, a held summon is refused and
 counted in `refused`, and a token is deleted from its scene. `deleted` counts

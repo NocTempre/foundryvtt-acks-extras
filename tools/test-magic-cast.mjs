@@ -1040,7 +1040,9 @@ t("the claimant takes a flagged spell with rows on an actor the seat owns, and d
   assert.equal(castSpellClaims(s, NO_TWIN), true);
   assert.equal(castSpellClaims(spell([]), NO_TWIN), false, "a rowless spell stays the system's");
   assert.equal(castSpellClaims(spell([dmg()], {}, { parent: { isOwner: false } }), NO_TWIN), false, "an actor the seat does not own");
-  assert.equal(castSpellClaims(spell([dmg(), { type: "summon", ref: "def.invented.x" }]), NO_TWIN), false, "a summoning spell is the summoning's");
+  assert.equal(castSpellClaims(spell([dmg(), { type: "summon", ref: "def.invented.x" }]), NO_TWIN), true, "a character's summoning spell is claimed here, with rows or none");
+  assert.equal(castSpellClaims(spell([], { schools: ["summoning"] }), NO_TWIN), true, "a rowless summoning spell is claimed on its type word");
+  assert.equal(castSpellClaims(spell([dmg(), { type: "summon", ref: "def.invented.x" }], {}, { parent: { isOwner: true, type: "monster", uuid: "Actor.m1" } }), NO_TWIN), false, "a summon row on a monster's item is no summoning spell and stays the system's");
   assert.equal(castSpellClaims({ ...spell([dmg()]), type: "weapon" }, NO_TWIN), false, "a monster's attack item is no spell");
   assert.equal(castSpellClaims({ ...spell([dmg()]), flags: {} }, NO_TWIN), false, "an unflagged item");
   const claimant = castSpellClaimant({ lookups: NO_TWIN });

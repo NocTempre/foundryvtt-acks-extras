@@ -134,16 +134,13 @@ Hooks.once("init", () => {
   } catch (err) {
     console.warn(`${MODULE_ID} | magic template preload skipped`, err);
   }
-  // A summoning spell's cast places its creatures: a claimant on lib's cast
-  // seam, with the rules over what the spell may call riding lib's summons.
+  // The rules over what a summoning spell may call ride lib's summons.
   try {
-    // The class reader is the classes feature's, so a claimant tells synchronously which tradition cast a spell.
-    registerCastSummon({ classFor: classForActor });
+    registerCastSummon();
   } catch (err) {
-    console.error(`${MODULE_ID} | the summoning cast could not register`, err);
+    console.error(`${MODULE_ID} | the summoning rules could not register`, err);
   }
-  // A spell with effect rows is cast through a dialog, a card and an applier;
-  // its claimant is registered after the summoning's, so a summoning stays there.
+  // A spell with effect rows, and every summoning spell, is cast through a dialog, a card and an applier.
   try {
     registerCastSpell({ classFor: classForActor });
   } catch (err) {

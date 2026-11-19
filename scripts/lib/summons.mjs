@@ -639,6 +639,14 @@ function warnRefusal(reason) {
 }
 
 /**
+ * A refusal reason in the seat's own words, for a caller that tells it in a
+ * place of its own (a cast's verdict). Imported directly; it is not on the API.
+ * @param {string} reason  one of `placeSummons`' refusal reasons
+ * @returns {string}
+ */
+export const refusalText = (reason) => loc(`refused.${reason}`);
+
+/**
  * Tell the seat how a placement went: the count placed, or the reason it was
  * refused in the seat's own words (nothing for a cancel). For a caller that
  * runs `placeSummons` itself, as a spell's cast does.

@@ -869,9 +869,9 @@ async function holdFlow(who, { endIt }) {
   const recB = await castRecords(b.castId, 1);
   const rb = recB[0];
   const warned = await run(seat, P.logs);
-  const expected = await run(seat, P.notice, { key: "endsConcentration", data: { name: W.names.caster, held: ra.name, spell: W.names[B] } });
+  const expected = await run(seat, P.notice, { key: "verdict.concentrating", data: { name: W.names.caster } });
   const warn = warned.warnLog.find((w) => w.text === expected);
-  check(`${L}: casting while a concentration is held warns once, naming the caster, the held cast and the new spell`, warned.warnLog.filter((w) => w.text === expected).length === 1, { warns: warned.warns.length });
+  check(`${L}: casting while a concentration is held gives the general concentrating warning once, naming the caster`, warned.warnLog.filter((w) => w.text === expected).length === 1, { warns: warned.warns.length });
   check(`${L}: at the warning the old concentration still stood and no end card for it had posted`, !!warn && warn.held.includes(a.castId) && !warn.ended.includes(a.castId), { held: warn?.held?.length, ended: warn?.ended?.length });
   const ends = (await run(seat, P.endCards, { since })).filter((e) => e.castId === a.castId);
   for (const e of ends) await track(e.uuid, "ChatMessage");

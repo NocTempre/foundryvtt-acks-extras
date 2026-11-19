@@ -139,7 +139,7 @@ await ta("a declaration writes a status-only casting record and a status-free pe
 
 t("the stored shape is one table: a declaration stores exactly ANSWER_FIELDS' keys, and reads back as the answer, with a record from before targets were stored read as having none recorded", () => {
   assert.deepEqual(Object.keys(answerStored(answer)), Object.keys(ANSWER_FIELDS));
-  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "invocationLevel", "items", "mode", "pickKind", "picks", "procedure", "procedureKind", "saveMod", "situational", "targets", "visibility"]);
+  assert.deepEqual(Object.keys(answerStored(answer)).sort(), ["allocation", "casterLevel", "invocationLevel", "items", "mode", "pickKind", "picks", "procedure", "procedureKind", "saveMod", "situational", "summon", "targets", "visibility"]);
   const blank = answerStored({ mode: "normal" });
   assert.equal(blank.invocationLevel, null, "no invocation level answered is stored as none");
   assert.deepEqual([blank.targets, blank.allocation, blank.items, blank.visibility, blank.saveMod, blank.casterLevel], [[], {}, {}, "public", false, null]);

@@ -35,7 +35,6 @@ const { registerCastProcedure, procedureFor, procedureOfKind, spellProcedureKind
 const { castMoment, longerThanRound, MOMENT } = await import("../scripts/magic/cast-moment.mjs");
 const { castVerdicts, blocked, VERDICT } = await import("../scripts/magic/cast-plan.mjs");
 const { castSpellRun, castSpellClaims, castSpellClaimant, castTimeOf } = await import("../scripts/magic/cast-spell.mjs");
-const { castSummonClaimant } = await import("../scripts/magic/cast-summon.mjs");
 const { answerStored, answerFromPending, ANSWER_FIELDS } = await import("../scripts/magic/cast-declare.mjs");
 const { castCardView, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
 const { dialogContext, answerOf, initialState } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
@@ -187,15 +186,15 @@ t("a flagged spell whose tradition has a procedure is claimed with rows or witho
   assert.equal(castSpellClaims(rowless, NO_TWIN, classFor), false, "removed, it claims nothing again");
 });
 
-t("a summoning spell with a procedure is the spell claimant's and not the summoning's; one without stays the summoning's, and the spell claimant still declines it", () => {
+t("a character's summoning spell is the spell claimant's with a procedure or without, with no class reader too; a summon row on an item that is no character's stays declined", () => {
   const summon = spell([heal(), { type: "summon", ref: "def.invented.x" }]);
   const off = registerCastProcedure(KIND, {});
-  assert.equal(castSpellClaims(summon, NO_TWIN, classFor), true, "summoning() is ignored for a spell with a procedure");
-  assert.equal(castSummonClaimant(undefined, { classFor }).claims(summon), false, "the summoning declines it");
-  assert.equal(castSummonClaimant(undefined, {}).claims(summon), true, "with no class reader the summoning keeps it, as before");
+  assert.equal(castSpellClaims(summon, NO_TWIN, classFor), true, "a spell with a procedure");
   off();
-  assert.equal(castSpellClaims(summon, NO_TWIN, classFor), false);
-  assert.equal(castSummonClaimant(undefined, { classFor }).claims(summon), true);
+  assert.equal(castSpellClaims(summon, NO_TWIN, classFor), true, "and with none");
+  assert.equal(castSpellClaims(summon, NO_TWIN), true, "and with no class reader");
+  assert.equal(castSpellClaims(spell([], { schools: ["summoning"] }), NO_TWIN), true, "a rowless one too");
+  assert.equal(castSpellClaims(spell([heal(), { type: "summon", ref: "def.invented.x" }], {}, { parent: { isOwner: true, type: "monster", uuid: "Actor.m1" } }), NO_TWIN), false, "a monster's");
 });
 
 /* ------------------------------------------------------------------ */

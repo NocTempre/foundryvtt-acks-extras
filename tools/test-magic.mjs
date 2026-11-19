@@ -857,17 +857,11 @@ t("the library twin is found by cookbook stamp, else by compendium source, never
 /* ------------------------------------------------------------------ */
 
 const {
-  CAST_SUMMON_KEY,
-  castSummon,
-  castSummonClaimant,
-  castSummonSpell,
   registerCastSummon,
   spellNamesCreature,
-  summonCastDuration,
   summonRefusal,
   summonRowsOf,
 } = await import("../scripts/magic/cast-summon.mjs");
-const { addSpellUseClaimant, installSpellUsePatch, removeSpellUseClaimant } = await import("../scripts/lib/patches/spell-use.mjs");
 const { registerSummonPolicy, registerSummonNaming, checkPlaceRequest } = await import("../scripts/lib/summons-logic.mjs");
 
 /** Run an async test body the way `t` runs a sync one. */
@@ -909,19 +903,6 @@ const castSpell = ({ rows = [summonRow({ ref: "def.invented.glimmerkin", amount:
 
 /** A creature the request names, as the placement check sees one. */
 const creature = (over = {}) => ({ uuid: "Compendium.invented.Actor.abc", name: "Glimmerkin", type: "monster", flags: { "acks-extras": { cookbook: { id: "def.invented.glimmerkin" } } }, ...over });
-
-await ta("claims is true only for a summoning spell on a character this seat owns", () => {
-  const { claims } = castSummonClaimant({});
-  assert.equal(claims(castSpell().spell), true);
-  assert.equal(claims(castSpell({ owner: false }).spell), false, "a character this seat does not own is the system's cast");
-  assert.equal(claims(castSpell({ parentType: "monster" }).spell), false, "a monster's spell item is never taken");
-  assert.equal(claims(castSpell({ rows: [] }).spell), true, "a type word alone is a summoning spell");
-  const plain = castSpell({ rows: [{ type: "damage" }] });
-  plain.spell.flags["acks-extras"].spell.schools = ["blast"];
-  assert.equal(claims(plain.spell), false, "an ordinary spell is the system's cast");
-  assert.equal(claims({ type: "weapon", parent: { type: "character", isOwner: true } }), false);
-  assert.equal(claims(null), false);
-});
 
 await ta("the policy refuses a creature no row names, and a count over the row's amount", () => {
   const { spell } = castSpell({ rows: [summonRow({ ref: "def.invented.glimmerkin", amount: 2 }), summonRow({ ref: "Compendium.invented.Actor.zzz", amount: 5 })] });
@@ -970,7 +951,6 @@ await ta("a spell with no rows of its own reads its library twin's, in the polic
   assert.equal(summonRefusal({ user: PLAYER_SEAT, spell, source: creature(), count: 2 }, lookups), "badCount");
   assert.equal(spellNamesCreature({ spell, source: creature() }, lookups), true);
   assert.equal(spellNamesCreature({ spell, source: creature({ flags: {}, uuid: "x", name: "Other" }) }, lookups), false);
-  assert.deepEqual(summonCastDuration(spell, { lookups }), { value: 3, units: "hours" }, "the twin's imported duration");
 });
 
 await ta("an open row names nothing, so it keeps the shelf-readable check", () => {
@@ -979,212 +959,7 @@ await ta("an open row names nothing, so it keeps the shelf-readable check", () =
   assert.equal(spellNamesCreature({ spell: null, source: creature() }, NO_LOOKUPS) === false, true, "no spell, no naming");
 });
 
-await ta("the cast's duration is the spell's imported one, and none where nothing is imported", () => {
-  const dur = (duration) => summonCastDuration(castSpell({ duration }).spell, { lookups: NO_LOOKUPS, roll: () => 4 });
-  assert.deepEqual(dur({ shape: "fixed", value: 2, unit: "hours" }), { value: 2, units: "hours" });
-  assert.deepEqual(dur({ shape: "dice", dice: "1d6", unit: "days" }), { value: 4, units: "days" }, "a dice duration reads the roll it is handed");
-  assert.deepEqual(dur({ shape: "perLevel", value: 1, unit: "turns" }), { none: NONE.noLevel }, "no caster level is guessed");
-  assert.deepEqual(dur(undefined), { none: NONE.noShape }, "nothing imported");
-  assert.deepEqual(dur({ shape: "instantaneous" }), { none: NONE.untimed });
-});
-
-/** The dependencies a cast uses, with the prompt, the placement and the notices scripted. */
-const fakeDeps = ({ pick = { sourceUuid: "def.invented.glimmerkin", count: 2, spellId: "sp1" }, place = { ok: true, castId: "castOK1", tokenUuids: ["a", "b"] }, roll = () => 4 } = {}) => {
-  const log = { picks: [], places: [], notices: [], ready: 0 };
-  return {
-    log,
-    ready: async () => { log.ready += 1; },
-    lookups: NO_LOOKUPS,
-    resolveRef: () => null,
-    pick: async (caster, o) => (log.picks.push(o), typeof pick === "function" ? pick(o) : pick),
-    place: async (caster, o) => (log.places.push(o), typeof place === "function" ? place(o) : place),
-    announce: (result) => log.notices.push(result),
-    roll,
-    castId: () => "minted00",
-  };
-};
-
-await ta("a placement the relay answers ok spends the cast once, before the cast returns, and writes the record", async () => {
-  const { spell, caster } = castSpell({ duration: { shape: "fixed", value: 2, unit: "hours" } });
-  const deps = fakeDeps();
-  let spends = 0;
-  let spendAt = -1;
-  const out = await castSummonSpell(spell, async () => { spends += 1; spendAt = deps.log.places.length; return true; }, deps);
-  assert.equal(out.ok, true);
-  assert.equal(spends, 1);
-  assert.equal(spendAt, 1, "spent after the placement, never before it");
-  assert.deepEqual(deps.log.picks[0].options.map((r) => r.ref), ["def.invented.glimmerkin"], "the prompt is handed the spell's rows");
-  assert.deepEqual(deps.log.places[0], { sourceUuid: "def.invented.glimmerkin", count: 2, spellId: "sp1" }, "the picked ref goes on untouched");
-  assert.equal(deps.log.notices.length, 1, "the seat is told how it went");
-  assert.equal(caster.created.length, 1);
-  const [type, [data]] = caster.created[0];
-  assert.equal(type, "ActiveEffect");
-  assert.deepEqual(data.flags["acks-extras"].spellEffect, { spellUuid: spell.uuid, castId: "castOK1", casterUuid: caster.uuid, role: "caster" }, "the record carries the cast id the summons carry");
-  assert.equal(data.origin, spell.uuid);
-  assert.deepEqual(data.duration, { value: 2, units: "hours" });
-  assert.equal(spellEffectOf(data).role, "caster");
-});
-
-await ta("a cast with no imported duration leaves a record with no duration, never a guess", async () => {
-  const { spell, caster } = castSpell();
-  await castSummonSpell(spell, async () => true, fakeDeps());
-  assert.equal(caster.created[0][1][0].duration, undefined);
-});
-
-await ta("a cancelled prompt places nothing and spends nothing", async () => {
-  const { spell, caster } = castSpell();
-  const deps = fakeDeps({ pick: null });
-  let spends = 0;
-  const out = await castSummonSpell(spell, async () => { spends += 1; }, deps);
-  assert.deepEqual(out, { ok: false, reason: "cancelled" });
-  assert.equal(spends, 0);
-  assert.equal(deps.log.places.length, 0);
-  assert.equal(caster.created.length, 0);
-});
-
-await ta("a placement the user cancelled or the GM refused spends nothing and writes no record", async () => {
-  for (const place of [{ ok: false, reason: "cancelled" }, { ok: false, reason: "notNamed" }, { ok: false, reason: "noGm" }, null]) {
-    const { spell, caster } = castSpell();
-    const deps = fakeDeps({ place });
-    let spends = 0;
-    const out = await castSummonSpell(spell, async () => { spends += 1; }, deps);
-    assert.equal(out.ok, false, JSON.stringify(place));
-    assert.equal(spends, 0, JSON.stringify(place));
-    assert.equal(caster.created.length, 0);
-    assert.equal(deps.log.notices.length, 1, "the refusal is announced; lib stays quiet for a cancel");
-  }
-});
-
-await ta("a record that cannot be written is logged and never undoes a cast that happened", async () => {
-  const { spell, caster } = castSpell();
-  caster.createEmbeddedDocuments = async () => { throw new Error("no write"); };
-  const logged = [];
-  const prior = console.error;
-  console.error = (...args) => logged.push(String(args[0]));
-  let spends = 0;
-  try {
-    const out = await castSummonSpell(spell, async () => { spends += 1; }, fakeDeps());
-    assert.equal(out.ok, true);
-  } finally {
-    console.error = prior;
-  }
-  assert.equal(spends, 1);
-  assert.match(logged[0], /cast record/);
-});
-
-/** A record of a held cast on a caster, as the caster's effects list it. */
-const heldRecord = (id, name, over = {}) => ({ id, name, flags: { "acks-extras": { spellEffect: { spellUuid: `Actor.caster1.Item.${id}`, castId: `c-${id}`, casterUuid: "Actor.caster1", role: "caster", held: "mobile", ...over } } } });
-
-await ta("a summoning held by concentration writes the held record a held cast writes, not a plain one", async () => {
-  const held = async (duration, now = 500) => {
-    const { spell, caster } = castSpell({ duration });
-    const deps = { ...fakeDeps(), now: () => now };
-    await castSummonSpell(spell, async () => true, deps);
-    return caster.created[0][1][0];
-  };
-  const data = await held({ shape: "concentrationPlus", concentration: "mobile", plus: { value: 2, unit: "hours" } });
-  const mark = data.flags["acks-extras"].spellEffect;
-  assert.deepEqual(data.statuses, ["concentrating"], "the status the end funnel and the loss path read");
-  assert.equal(mark.held, "mobile");
-  assert.deepEqual(mark.tail, { value: 2, units: "hours" }, "the time the effect outlasts the concentration");
-  assert.equal(mark.startTime, 500, "stamped with the world time of the cast");
-  assert.equal(mark.duration, undefined, "no cap, no clock");
-  assert.equal(data.duration, undefined);
-  assert.equal(spellEffectOf(data).held, "mobile");
-  const still = await held({ shape: "concentrationMax", concentration: "stationary", value: 3, unit: "turns" });
-  assert.deepEqual(still.statuses, ["concentratingStationary"], "the stationary kind has its own status");
-  assert.deepEqual(still.flags["acks-extras"].spellEffect.duration, { value: 3 * TURN_SECONDS, units: "seconds" }, "a cap that needs no level is flag-timed");
-  const perLevel = await held({ shape: "concentrationMax", maxPerLevel: true, value: 1, unit: "turns" });
-  assert.equal(perLevel.flags["acks-extras"].spellEffect.duration, undefined, "a cap that needs a level is not guessed");
-  assert.deepEqual(perLevel.statuses, ["concentrating"]);
-  const plain = await held({ shape: "fixed", value: 2, unit: "hours" });
-  assert.equal(plain.statuses, undefined, "a timed summons is still a plain record");
-  assert.equal(plain.flags["acks-extras"].spellEffect.held, undefined);
-});
-
-await ta("a new summoning ends the caster's concentration, warned first, after the spend and before its own record", async () => {
-  const { spell, caster } = castSpell({ duration: { shape: "concentration" } });
-  caster.name = "Invented Caster";
-  caster.effects = [heldRecord("old1", "Invented Gleam"), { id: "plain", name: "Invented Plain", flags: { "acks-extras": { spellEffect: { spellUuid: "u", castId: "x", casterUuid: "Actor.caster1", role: "caster" } } } }, heldRecord("rec1", "Invented Ward", { role: "recipient" }), { id: "other", name: "Invented Foreign", flags: {} }];
-  const order = [];
-  const notices = [];
-  const deps = {
-    ...fakeDeps(),
-    now: () => 1,
-    notify: (level, key, data) => { order.push("notify"); notices.push([level, key, data]); },
-    endHeld: async (c) => { order.push("end"); assert.equal(c, caster); return ["old1"]; },
-  };
-  const create = caster.createEmbeddedDocuments;
-  caster.createEmbeddedDocuments = async (...args) => { order.push("record"); return create(...args); };
-  await castSummonSpell(spell, async () => { order.push("spend"); return true; }, deps);
-  assert.deepEqual(order, ["spend", "notify", "end", "record"], "the notice comes before the end, the end before the new record");
-  assert.deepEqual(notices, [["warn", "endsConcentration", { name: "Invented Caster", held: "Invented Gleam", spell: "Invented Calling" }]], "one warning naming only the held cast (a recipient's, an unheld caster record and a foreign effect are not it)");
-});
-
-await ta("no concentration in force, or a cast that does not happen, ends and warns of nothing", async () => {
-  const none = castSpell();
-  none.caster.effects = [heldRecord("rec1", "Invented Ward", { role: "recipient" })];
-  const quiet = { ...fakeDeps(), notify: () => assert.fail("no warning"), endHeld: async () => assert.fail("no end") };
-  await castSummonSpell(none.spell, async () => true, quiet);
-  assert.equal(none.caster.created.length, 1);
-  for (const place of [{ ok: false, reason: "cancelled" }, null]) {
-    const { spell, caster } = castSpell();
-    caster.effects = [heldRecord("old1", "Invented Gleam")];
-    await castSummonSpell(spell, async () => assert.fail("no spend"), { ...fakeDeps({ place }), notify: () => assert.fail("no warning"), endHeld: async () => assert.fail("no end") });
-  }
-  const { spell, caster } = castSpell();
-  caster.effects = [heldRecord("old1", "Invented Gleam")];
-  await castSummonSpell(spell, async () => true, { ...fakeDeps({ pick: null }), notify: () => assert.fail("a cancelled pick warns of nothing"), endHeld: async () => assert.fail("a cancelled pick ends nothing") });
-  assert.equal(caster.created.length, 0);
-});
-
-await ta("a concentration that cannot be ended is logged, and the new cast's record is still written", async () => {
-  const { spell, caster } = castSpell({ duration: { shape: "concentration" } });
-  caster.effects = [heldRecord("old1", "Invented Gleam")];
-  const logged = [];
-  const prior = console.error;
-  console.error = (...args) => logged.push(String(args[0]));
-  try {
-    await castSummonSpell(spell, async () => true, { ...fakeDeps(), notify: () => {}, endHeld: async () => { throw new Error("no end"); } });
-  } finally {
-    console.error = prior;
-  }
-  assert.match(logged[0], /concentration could not be ended/);
-  assert.equal(caster.created.length, 1, "the cast happened and leaves its record");
-  assert.equal(caster.created[0][1][0].statuses[0], "concentrating");
-});
-
-await ta("through the seam: castSummon awaits the placement, and the system's cast runs once, only on an ok relay", async () => {
-  class FakeItem {
-    cast = 0;
-    async _useSpell() { this.cast += 1; }
-  }
-  const prior = { CONFIG: globalThis.CONFIG, libWrapper: globalThis.libWrapper };
-  globalThis.CONFIG = { Item: { documentClass: FakeItem } };
-  delete globalThis.libWrapper;
-  try {
-    installSpellUsePatch();
-    for (const [place, expected] of [[{ ok: true, castId: "castSeam1", tokenUuids: ["a"] }, 1], [{ ok: false, reason: "cancelled" }, 0]]) {
-      const deps = fakeDeps({ place });
-      const { spell } = castSpell();
-      const item = Object.assign(new FakeItem(), spell, { id: "sp1" });
-      addSpellUseClaimant({ ...castSummonClaimant(deps), key: `${CAST_SUMMON_KEY}.test` });
-      try {
-        await castSummon(item, {});
-      } finally {
-        removeSpellUseClaimant(`${CAST_SUMMON_KEY}.test`);
-      }
-      assert.equal(item.cast, expected, `relay ${place.ok ? "ok" : "refused"}: the count rises by ${expected}`);
-      assert.equal(deps.log.places.length, 1, "the placement was awaited, not left running");
-    }
-  } finally {
-    globalThis.CONFIG = prior.CONFIG;
-    if (prior.CONFIG === undefined) delete globalThis.CONFIG;
-    if (prior.libWrapper) globalThis.libWrapper = prior.libWrapper;
-  }
-});
-
-await ta("registerCastSummon registers all three once, replaces rather than doubles, and takes all three back", async () => {
+await ta("registerCastSummon registers the policy and the naming once, replaces rather than doubles, and takes both back", async () => {
   let off = registerCastSummon();
   const policies = [];
   const offTest = registerSummonPolicy((req) => (policies.push(req), null));
@@ -1192,22 +967,20 @@ await ta("registerCastSummon registers all three once, replaces rather than doub
     const { spell } = castSpell({ rows: [summonRow({ ref: "def.invented.glimmerkin", amount: 1 })] });
     const summoner = { type: "character", items: new Map([["sp1", spell]]), testUserPermission: () => true, uuid: "Actor.caster1" };
     spell.parent = summoner;
-    const verdict = (source, count) => checkPlaceRequest({ user: GM_SEAT, summoner, source, count, spellId: "sp1" });
-    assert.equal(verdict(creature({ flags: {}, uuid: "x", name: "Other" }), 1).reason, "notNamed", "the registered policy refuses through lib's own check");
+    const verdict = (source, count, user = PLAYER_SEAT) => checkPlaceRequest({ user, summoner, source, count, spellId: "sp1" });
+    assert.equal(verdict(creature({ flags: {}, uuid: "x", name: "Other" }), 1, GM_SEAT).reason, "notNamed", "the registered policy refuses through lib's own check, a Judge too");
     assert.equal(verdict(creature(), 2).reason, "badCount");
+    assert.equal(verdict(creature(), 2, GM_SEAT).ok, true, "a Judge's count is warned by the cast's verdict and never refused here");
     assert.equal(verdict(creature(), 1).ok, true);
     const stale = off;
     off = registerCastSummon();
     stale();
     assert.equal(verdict(creature(), 2).reason, "badCount", "a stale handle after a second registration takes nothing down");
-    assert.equal(removeSpellUseClaimant(CAST_SUMMON_KEY), true, "the claimant is on the seam under its key");
     off();
     off();
-    assert.equal(verdict(creature({ flags: {}, uuid: "x", name: "Other" }), 1).ok, true, "removed, the policy no longer refuses");
-    assert.equal(removeSpellUseClaimant(CAST_SUMMON_KEY), false, "and the claimant is gone");
+    assert.equal(verdict(creature({ flags: {}, uuid: "x", name: "Other" }), 1, GM_SEAT).ok, true, "removed, the policy no longer refuses");
   } finally {
     offTest();
-    removeSpellUseClaimant(CAST_SUMMON_KEY);
   }
   registerCastSummon()();
 });

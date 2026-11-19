@@ -22,7 +22,9 @@
  * GM connected they stay and are listed with End. One card, whispered to the GMs
  * and the caster's owners, says why and what ended, what runs on, what still
  * stands, and carries the Judge's Restore (every record it lists, put back with
- * its own id, the re-timings undone).
+ * its own id, the re-timings undone). A held summons' creatures stay when its
+ * control ends: the card also lists those the cast left standing, with the
+ * Judge's Dismiss, and Restore puts back the records only.
  *
  * The GM's client takes the tail from the spell, never from the request, and
  * accepts the request only from a user who owns the caster once no held record
@@ -193,7 +195,7 @@ export async function runHeldPlan(plan, deps) {
  * @param {object} o
  * @param {string} o.cause  a `HELD_CAUSES` value
  * @param {object} o.caster  `{actorUuid, name, data}` of the caster record's actor and the deleted record's data, for Restore
- * @param {object} o.deps  `now()`, `recipients(castId)`, `canWrite(recipient)`, `remove(recipient)`, `retime(recipient)`, `relay(request)` (answers `{ok, ended, retimed, open}` or null with no GM) and `post(flag)`
+ * @param {object} o.deps  `now()`, `recipients(castId)`, `canWrite(recipient)`, `remove(recipient)`, `retime(recipient)`, `relay(request)` (answers `{ok, ended, retimed, open}` or null with no GM), `post(flag)` and, optional, `standing(record)` (the cast's creatures still standing, `{tokens, held}`, as `castSummons` answers)
  * @returns {Promise<object>} the card's flag
  */
 export async function endHeldCast(record, { cause, caster, deps }) {
@@ -208,6 +210,9 @@ export async function endHeldCast(record, { cause, caster, deps }) {
       done.open.push(...answer.open);
     } else done.open.push(...plan.relay.map((r) => ({ actorUuid: r.actorUuid, id: r.id, name: r.name })));
   }
+  // A summons held by concentration loses its control, and its creatures stay: the card lists them by name, and Dismiss is the Judge's.
+  const found = (await deps.standing?.(record)) ?? {};
+  const summons = [...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? "") })), ...(found.held ?? []).map((h) => ({ name: String(h.name ?? "") }))];
   const flag = {
     cause,
     castId: record.castId,
@@ -219,6 +224,7 @@ export async function endHeldCast(record, { cause, caster, deps }) {
     ended: done.ended,
     retimed: done.retimed,
     open: done.open,
+    ...(summons.length ? { summons } : {}),
     caster: { actorUuid: caster.actorUuid, data: caster.data },
   };
   await deps.post(flag);
@@ -232,6 +238,7 @@ export async function endHeldCast(record, { cause, caster, deps }) {
 /** The attributes the card's buttons carry. */
 const END_ATTR = "data-acks-extras-held-end";
 const RESTORE_ATTR = "data-acks-extras-held-restore";
+const DISMISS_ATTR = "data-acks-extras-held-dismiss";
 
 /**
  * The card's body, as a viewer with no rights sees it: the buttons are in it and
@@ -253,6 +260,10 @@ export function heldEndContent(flag, loc) {
   if (flag.open?.length) {
     const line = (i) => `${esc(i.name)} <button type="button" ${END_ATTR} data-actor-uuid="${esc(i.actorUuid)}" data-record-id="${esc(i.id)}">${esc(loc("button.end"))}</button>`;
     sections.push(`<section><h5>${esc(loc("open"))}</h5>${list(flag.open, line)}</section>`);
+  }
+  if (flag.summons?.length) {
+    const dismiss = `<button type="button" ${DISMISS_ATTR} data-tooltip-text="${esc(loc("tip.dismiss"))}"><i class="fa-solid fa-ghost" inert></i> ${esc(loc("button.dismiss"))}</button>`;
+    sections.push(`<section><h5>${esc(loc("summons"))}</h5>${list(flag.summons, (i) => esc(i.name))}${dismiss}</section>`);
   }
   const restore = `<button type="button" ${RESTORE_ATTR} data-tooltip-text="${esc(loc("tip.restore"))}"><i class="fa-solid fa-rotate-left" inert></i> ${esc(loc("button.restore"))}</button>`;
   return (
@@ -335,6 +346,12 @@ const liveDeps = () => ({
     return executeAsGM(HELD_END_HANDLER, request);
   },
   post: postCard,
+  standing: async (record) => {
+    const caster = fromUuidSync(record.casterUuid);
+    if (!caster) return { tokens: [], held: [] };
+    const { castSummons } = await import("../lib/summons.mjs");
+    return castSummons(caster, record.castId, { scenes: game.scenes });
+  },
 });
 
 /**
@@ -432,10 +449,27 @@ async function pressEnd(button) {
   button.disabled = true;
 }
 
-/** Wire a card's buttons for this seat: Restore for a GM alone, End for the record's owners and GMs. */
-function bindCard(message, html) {
+/** A Dismiss press: the cast's creatures on every scene and in a party token, through lib's confirmed dismissal. */
+async function pressDismiss(flag) {
+  const caster = fromUuidSync(flag.casterUuid);
+  if (!caster) return;
+  const { promptDismiss, castSummons } = await import("../lib/summons.mjs");
+  await promptDismiss(caster, { ...castSummons(caster, flag.castId, { scenes: game.scenes }), castId: flag.castId });
+}
+
+/** Wire a card's buttons for this seat: Restore and Dismiss for a GM alone, End for the record's owners and GMs. Dismiss is drawn for a GM seat and display only: lib's dismissal decides who may remove. */
+export function bindCard(message, html) {
   const flag = message?.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
   if (!flag || !html?.querySelectorAll) return;
+  for (const button of html.querySelectorAll(`[${DISMISS_ATTR}]`)) {
+    if (!game.user.isGM) button.remove();
+    else {
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        pressDismiss(flag).catch((err) => console.error(`${MODULE_ID} | dismiss failed`, err));
+      });
+    }
+  }
   for (const button of html.querySelectorAll(`[${RESTORE_ATTR}]`)) {
     if (!game.user.isGM) button.remove();
     else if (flag.restored) {

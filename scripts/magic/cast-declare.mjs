@@ -39,6 +39,14 @@ import { isPrimaryGM } from "../lib/util.mjs";
 /** The status the declaration puts on the caster. */
 const CASTING = "casting";
 
+/** A summoning's pick as a declaration stores it: the creature's ref and a whole count of one or more (a count that is none reads one); null with no ref. */
+function storedSummon(v) {
+  const ref = typeof v?.ref === "string" ? v.ref.trim() : "";
+  if (!ref) return null;
+  const count = Number(v.count);
+  return { ref, count: Number.isInteger(count) && count >= 1 ? count : 1 };
+}
+
 /**
  * What a declaration stores of the seat's answer, one normalizer per field. This
  * table IS the stored shape: a declared field is added here and nowhere else, and
@@ -49,7 +57,9 @@ const CASTING = "casting";
  * invocation level chosen (null where none was), `procedure` the answer of the
  * tradition's procedure (its field values, its band's controls and its `buckets`;
  * null where it has none) and `procedureKind` the tradition kind whose procedure
- * it is, which the declaration's loss reads to find that procedure again.
+ * it is, which the declaration's loss reads to find that procedure again, and
+ * `summon` a summoning's pick, `{ref, count}` (the creature as `placeSummons`
+ * reads it and how many; null where the cast summons nothing).
  */
 export const ANSWER_FIELDS = Object.freeze({
   mode: (v) => v,
@@ -65,6 +75,7 @@ export const ANSWER_FIELDS = Object.freeze({
   saveMod: (v) => v === true,
   targets: (v) => (Array.isArray(v) ? [...v] : []),
   allocation: (v) => v ?? {},
+  summon: storedSummon,
 });
 
 /**

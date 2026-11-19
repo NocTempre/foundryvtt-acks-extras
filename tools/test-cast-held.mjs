@@ -12,10 +12,8 @@ import assert from "node:assert/strict";
 globalThis.foundry = { utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) } };
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
-const { castDuration } = await import("../scripts/magic/cast-duration.mjs");
-const { castSummonSpell } = await import("../scripts/magic/cast-summon.mjs");
 
 let n = 0;
 const t = (name, fn) => {
@@ -52,37 +50,6 @@ t("a held record is the caster's status-only record: the status for its kind, th
   const bare = spellEffectOf(heldRecordData(MARK, { held: "mobile", now: 7 }));
   assert.deepEqual([bare.held, bare.tail, bare.duration, bare.startTime], ["mobile", undefined, undefined, 7], "no tail and no cap leave neither");
   assert.equal(heldRecordData({ ...MARK, invocationLevel: 3 }, { held: "mobile", now: 7 }).flags["acks-extras"].spellEffect.invocationLevel, 3, "the mark's own keys ride along");
-});
-
-await ta("a held summons writes the record heldRecordData returns, and a timed one writes none of it", async () => {
-  const spellOf = (duration) => {
-    const caster = { type: "character", uuid: "Actor.c1", isOwner: true, effects: [], created: [], createEmbeddedDocuments: async (type, data) => (caster.created.push(data[0]), data) };
-    const spell = { id: "s1", type: "spell", uuid: "Actor.c1.Item.s1", name: "Invented Hold", img: "icons/invented.webp", parent: caster, flags: { "acks-extras": { spell: { schools: ["summoning"], effects: [], duration } } } };
-    return { spell, caster };
-  };
-  const deps = () => ({
-    ready: async () => {},
-    lookups: { byCookbookId: () => null, fromUuidSync: () => null },
-    resolveRef: () => null,
-    pick: async () => ({ sourceUuid: "def.invented.glimmerkin", count: 1, spellId: "s1" }),
-    place: async () => ({ ok: true, castId: "cast0001", tokenUuids: [] }),
-    announce: () => {},
-    roll: () => 4,
-    castId: () => "minted00",
-    now: () => 40,
-    endHeld: async () => {},
-  });
-  const imported = { shape: "concentrationMax", concentration: "stationary", value: 1, unit: "hours" };
-  const read = castDuration(imported, {});
-  assert.ok(read.held === "stationary" && read.cap, "the invented duration reads as a held one with a cap");
-  const held = spellOf(imported);
-  await castSummonSpell(held.spell, async () => true, deps());
-  assert.deepEqual(held.caster.created[0], heldRecordData(MARK, { held: read.held, now: 40, tail: read.tail, cap: read.cap }));
-  assert.deepEqual(held.caster.created[0].statuses, ["concentratingStationary"]);
-  const timed = spellOf({ shape: "fixed", value: 2, unit: "hours" });
-  await castSummonSpell(timed.spell, async () => true, deps());
-  const plain = spellEffectOf(timed.caster.created[0]);
-  assert.deepEqual([plain.held, plain.startTime, timed.caster.created[0].statuses, timed.caster.created[0].duration], [undefined, undefined, undefined, { value: 2, units: "hours" }], "a timed summons is core-timed: no clock of the module's own, no status");
 });
 
 t("the cause: the cast's own delete names it, else the loss lib is lifting, else removed", () => {
@@ -241,6 +208,54 @@ t("the card names the cause, lists what ended, what runs on and what stands, wit
   const bare = heldEndContent({ ...FLAG(), ended: [], retimed: [], open: [], cause: "mystery" }, loc);
   assert.ok(bare.includes("cause.removed") && !bare.includes("<section>") && !bare.includes("data-acks-extras-held-end"), "an unknown cause reads as removed, and empty lists draw nothing");
   assert.ok(!heldEndContent({ ...FLAG(), spellName: "<b>x</b>" }, loc).includes("<b>x</b>"), "names are escaped");
+});
+
+await ta("a held summons' end lists the cast's standing creatures by name, token and stashed alike, and leaves the flag as it was where none stand", async () => {
+  const asked = [];
+  const r = funnelDeps({ recipients: [] });
+  r.deps.standing = async (record) => (asked.push(record.castId), { tokens: [{ name: "Invented Wisp" }, { actor: { name: "Invented Sprite" } }], held: [{ name: "Invented Stashed" }] });
+  const flag = await endHeldCast(held(), { cause: "damage", caster, deps: r.deps });
+  assert.deepEqual(asked, ["x"], "asked of the record's own cast");
+  assert.deepEqual(flag.summons, [{ name: "Invented Wisp" }, { name: "Invented Sprite" }, { name: "Invented Stashed" }]);
+  assert.deepEqual(r.calls.removed, [], "the creatures are listed and never removed by the end");
+  const none = funnelDeps({ recipients: [] });
+  none.deps.standing = async () => ({ tokens: [], held: [] });
+  assert.equal("summons" in (await endHeldCast(held(), { cause: "damage", caster, deps: none.deps })), false);
+  const plan = restorePlan(flag);
+  assert.deepEqual([plan.create.length, plan.undo.length, plan.skipped], [1, 0, 0], "Restore puts the record back and has nothing to say of the creatures");
+});
+
+t("the card lists the standing creatures with a Dismiss, drawn only when there are some; every name is escaped", () => {
+  const html = heldEndContent({ ...FLAG(), summons: [{ name: "Invented Wisp" }, { name: "<i>x</i>" }] }, loc);
+  assert.ok(html.includes("summons") && html.includes("Invented Wisp"));
+  assert.ok(html.includes("data-acks-extras-held-dismiss") && html.includes('data-tooltip-text="tip.dismiss"'));
+  assert.ok(!html.includes("<i>x</i>"), "escaped");
+  assert.ok(!heldEndContent(FLAG(), loc).includes("data-acks-extras-held-dismiss"), "no creature, no Dismiss");
+});
+
+t("on a seat, Dismiss is kept for a GM seat alone, whoever owns the caster; Restore follows the same seat, and the lib dismissal is what decides who may remove", () => {
+  const button = () => ({ removed: false, listeners: 0, remove() { this.removed = true; }, addEventListener() { this.listeners += 1; } });
+  const seat = (isGM, owner) => {
+    globalThis.game.user = { isGM };
+    globalThis.fromUuidSync = () => ({ isOwner: owner });
+    const dismiss = button();
+    const restore = button();
+    const end = button();
+    end.dataset = { actorUuid: "Actor.c2" };
+    const message = { flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: [{ name: "Invented Wisp" }] } } } };
+    const html = { querySelectorAll: (sel) => (sel.includes("dismiss") ? [dismiss] : sel.includes("restore") ? [restore] : [end]) };
+    bindCard(message, html);
+    return { dismiss, restore, end };
+  };
+  const gm = seat(true, false);
+  assert.deepEqual([gm.dismiss.removed, gm.dismiss.listeners], [false, 1], "a GM seat keeps Dismiss and wires it");
+  const owner = seat(false, true);
+  assert.deepEqual([owner.dismiss.removed, owner.dismiss.listeners], [true, 0], "an owner's seat is not a GM's: Dismiss is removed");
+  assert.equal(owner.end.removed, false, "End keeps its own owner test, which Dismiss does not copy");
+  const other = seat(false, false);
+  assert.equal(other.dismiss.removed, true);
+  delete globalThis.game.user;
+  delete globalThis.fromUuidSync;
 });
 
 console.log(`\n${n} cast-held tests passed`);

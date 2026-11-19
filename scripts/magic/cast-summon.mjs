@@ -1,45 +1,29 @@
-/* global fromUuid, fromUuidSync, Roll, game, ui */
+/* global fromUuidSync */
 /**
- * Casting a summoning spell places its creatures. A claimant on the cast seam
- * (`lib/patches/spell-use.mjs`) takes the cast of a summoning spell on a
- * character this seat owns, whichever door the player pressed (the system's
- * sheet button, the Magic tab, a hotbar macro): it asks for the creature and
- * the count (`lib/summons.mjs` `pickSummon`, from the spell's own rows), has the
- * seat click where each stands and the GM's client make the tokens
- * (`placeSummons`), and only then spends the cast through the seam's `spend`.
- * A cancel or a refusal spends nothing. The cast leaves a record on the
- * caster, an Active Effect marked with the cast id the summons carry
- * (`spell-effect.mjs`), whose duration is the spell's imported duration or
- * none. A summoning held by concentration leaves the held record a held cast
- * does (the status, the tail, the cap where it needs no level), and any cast
- * ends what the caster already holds by concentration, with a notice naming it,
- * before the new record is written. A summons is not declared: it resolves at
- * the cast, in a begun fight as outside one.
- *
- * Two feature rules ride lib's registries and read the summoner's spell item
- * on the seat and on the GM's client alike: a NAMING that says the spell's
- * rows name a creature (which exempts it from the shelf-readable check, since
- * the GM's client resolves it), and a POLICY that refuses a creature the rows
- * do not name and a count over the row's amount. A Player seat's summon must
- * come through a summoning spell, so the policy also refuses a spell that is
- * none.
+ * What a summoning spell's rows say to a cast. The cast itself is the spell
+ * cast's (`cast-spell.mjs`, which claims every summoning spell, a rowless one
+ * too): it asks for the creature and the count, has the seat click where each
+ * stands, spends, and only then has the GM's client make the tokens
+ * (`lib/summons.mjs`). This file holds the rows' reading and the two feature
+ * rules that ride lib's registries and read the summoner's spell item on the
+ * seat and on the GM's client alike: a NAMING that says the spell's rows name a
+ * creature (which exempts it from the shelf-readable check, since the GM's
+ * client resolves it), and a POLICY that refuses a creature the rows do not name
+ * and, for a Player, a count over the ceiling the rows state at the cast's
+ * caster level. A Player seat's summon must come through a summoning spell, so
+ * the policy also refuses a spell that is none.
  */
-import { MODULE_ID, FLAG_SPELL, LANG_PREFIX } from "./constants.mjs";
-import { isSummonSpell, summonOptionsOf, libraryTwin, resolveSummonRef } from "./summon-spell.mjs";
-import { spellProcedureKind } from "./cast-procedure.mjs";
-import { spellEffectData, spellEffectOf, newCastId } from "./spell-effect.mjs";
-import { heldRecordData, endCasterHeld } from "./cast-held.mjs";
-import { castDuration } from "./cast-duration.mjs";
-import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
+import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs";
+import { flattenAt } from "./cast-rows.mjs";
+import { modifierFigure } from "./cast-mods.mjs";
+import { byCookbookId, cookbookId } from "../lib/library.mjs";
 import { normalizeRef, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
-import { pickSummon, placeSummons, announceSummon } from "../lib/summons.mjs";
-import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
-
-/** The claimant's key on the cast seam. */
-export const CAST_SUMMON_KEY = `${MODULE_ID}.magic.castSummon`;
 
 /** The world lookups the rows and the twin need, as the live world gives them. */
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
+
+/** The `summonFormat` of a row whose creature is called from where it stands, so no range bounds its place (a key of `SUMMON_FORMATS`). */
+export const CALLING_FORMAT = "calling";
 
 /**
  * A summoning spell's rows: its own, else its library twin's. The twin is
@@ -76,13 +60,69 @@ export function spellNamesCreature(req, lookups = worldLookups()) {
 }
 
 /**
+ * The rows that fit a creature: those that name it and those with no ref (an
+ * open pick fits any creature).
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{source: object|null, sourceRef?: string}} creature  the creature in hand, or the ref a seat that could not open it names it by
+ */
+export const summonFitting = (rows, creature) => rows.filter((row) => !row.ref || rowNames(row.ref, creature));
+
+/**
+ * The most creatures one row lets a cast call: its `max` at the caster level
+ * where it states one, else its `amount`; null where it states neither, or its
+ * `max` cannot be read yet (no caster level). The row is read at the
+ * invocation level `at` carries first (`flattenAt`), so a `max` keyed on it
+ * resolves before the caster level reads it.
+ * @param {{amount?: number, max?: *}} row  one of `summonRowsOf`'s
+ * @param {{level?: number|null, at?: {invocationLevel?: number|null}|null}} [from]
+ * @returns {number|null}
+ */
+export function summonCeiling(row, { level = null, at = null } = {}) {
+  // A row that states a max states its ceiling by it alone: a max that reads null here (no level, below a ladder's first rung) is a blank, and the amount does not stand in.
+  if (row?.max != null) {
+    const figure = modifierFigure({ value: flattenAt(row, at).max }, level);
+    return Number.isFinite(figure) && figure > 0 ? figure : null;
+  }
+  return Number(row?.amount) > 0 ? Number(row.amount) : null;
+}
+
+/**
+ * The most creatures a cast of this spell may call of this creature: the
+ * greatest ceiling among the rows that fit it, and null as soon as one fitting
+ * row states none (it sets no limit), or none fits.
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{source: object|null, sourceRef?: string, level?: number|null, at?: object|null}} from
+ * @returns {number|null}
+ */
+export function summonCeilingFor(rows, { source = null, sourceRef = "", level = null, at = null } = {}) {
+  const fitting = summonFitting(rows, { source, sourceRef });
+  if (!fitting.length) return null;
+  const ceilings = fitting.map((row) => summonCeiling(row, { level, at }));
+  return ceilings.every((c) => c !== null) ? Math.max(...ceilings) : null;
+}
+
+/**
+ * Is this creature called from where it stands? True when every row that fits
+ * it names the calling format; false with no fitting row.
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{source: object|null, sourceRef?: string}} creature
+ */
+export function summonIsCalling(rows, creature) {
+  const fitting = summonFitting(rows, creature);
+  return fitting.length > 0 && fitting.every((row) => row.summonFormat === CALLING_FORMAT);
+}
+
+/**
  * The refusal this feature adds to a placement, or null.
  * - `badSpell`: a seat that may not summon bare names a spell that is no
  *   summoning spell;
  * - `notNamed`: the spell's rows name creatures and this is not one of them;
- * - `badCount`: more creatures than the amount every row that fits states.
+ * - `badCount`: more creatures than the ceiling every row that fits states at
+ *   the request's caster level (`cast`, where the request names one; a `max`
+ *   with no level states none yet). A Judge's count is not refused: the cast's
+ *   verdict warns a Judge, and a refusal here would make that warning false.
  * A row with no ref is an open pick and fits any creature; a row stating no
- * amount sets no limit; a spell with no rows asks nothing.
+ * ceiling sets no limit; a spell with no rows asks nothing.
  * @param {object} req  `registerSummonPolicy`'s request
  * @param {{byCookbookId: Function, fromUuidSync: Function}} [lookups]
  * @returns {string|null}
@@ -93,107 +133,10 @@ export function summonRefusal(req, lookups = worldLookups()) {
   if (!bareSummonAllowed(user) && !isSummonSpell(spell)) return "badSpell";
   const rows = summonRowsOf(spell, lookups);
   if (!rows.length) return null;
-  const fitting = rows.filter((row) => !row.ref || rowNames(row.ref, req));
-  if (!fitting.length) return "notNamed";
-  if (fitting.every((row) => row.amount > 0) && count > Math.max(...fitting.map((row) => row.amount))) return "badCount";
+  if (!summonFitting(rows, req).length) return "notNamed";
+  const ceiling = summonCeilingFor(rows, { source: req.source, sourceRef: req.sourceRef, level: req.cast?.casterLevel ?? null, at: { invocationLevel: req.cast?.invocationLevel ?? null } });
+  if (user?.isGM !== true && ceiling !== null && count > ceiling) return "badCount";
   return null;
-}
-
-/**
- * The effect duration a cast leaves: the spell's own imported duration, else
- * its library twin's, through `castDuration`. No caster level is passed, so a
- * per-level duration answers none and the record stays until its owner removes
- * it. A concentration answers the kind held, with its cap and tail where they
- * need no level.
- * @returns {{value: number, units: string}|{none: string}}
- */
-export function summonCastDuration(spell, { lookups = worldLookups(), roll } = {}) {
-  const own = spell?.flags?.[MODULE_ID]?.[FLAG_SPELL]?.duration;
-  const duration = own?.shape ? own : (libraryTwin(spell, lookups)?.flags?.[MODULE_ID]?.[FLAG_SPELL]?.duration ?? own);
-  return castDuration(duration, { roll });
-}
-
-/** The dependencies a cast uses, as the live world supplies them; a test supplies its own. */
-const liveDeps = () => ({
-  ready: whenReady,
-  lookups: worldLookups(),
-  resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
-  pick: pickSummon,
-  place: placeSummons,
-  announce: announceSummon,
-  roll: (formula) => new Roll(formula).evaluateSync().total,
-  castId: () => newCastId(),
-  now: () => game.time.worldTime,
-  endHeld: endCasterHeld,
-  notify: (level, key, data) => ui.notifications?.[level]?.(game.i18n.format(`${LANG_PREFIX}.cast.notice.${key}`, data ?? {})),
-});
-
-/** The caster's records of a concentration in force, as `{id, name}`. */
-const heldRecordsOf = (caster) =>
-  [...(caster?.effects ?? [])].filter((e) => {
-    const r = spellEffectOf(e);
-    return r?.role === "caster" && r.held;
-  }).map((e) => ({ id: e.id, name: e.name ?? "" }));
-
-/**
- * The cast of one summoning spell. Asks, places, then spends: `spend()` runs
- * only when the relay answered ok, before this returns, so a cancel, a closed
- * prompt or a refusal costs the spell nothing. The record is written after the
- * spend, and its failure is logged and never undoes a cast that happened.
- * @param {Item} spell
- * @param {() => Promise<boolean>} spend  the seam's once-only door to the system's cast
- * @param {object} [deps]  see `liveDeps`
- * @returns {Promise<{ok: boolean, reason?: string, castId?: string, tokenUuids?: string[]}>}
- */
-export async function castSummonSpell(spell, spend, deps = liveDeps()) {
-  const caster = spell.parent;
-  await deps.ready?.();
-  const options = summonRowsOf(spell, deps.lookups);
-  const picked = await deps.pick(caster, { spell, options, resolveRef: deps.resolveRef });
-  if (!picked) return { ok: false, reason: "cancelled" };
-  const result = await deps.place(caster, { sourceUuid: picked.sourceUuid, count: picked.count, spellId: picked.spellId });
-  deps.announce(result);
-  if (!result?.ok) return result ?? { ok: false, reason: "noGm" };
-  await spend();
-  // The cast ends what the caster holds by concentration, said first, and before any record of this cast. The same notice goes to either seat: the end is the caster's own cast, not a refusal.
-  try {
-    const held = heldRecordsOf(caster);
-    if (held.length) {
-      deps.notify?.("warn", "endsConcentration", { name: caster.name ?? "", held: held.map((h) => h.name).join(", "), spell: spell.name });
-      await deps.endHeld?.(caster);
-    }
-  } catch (err) {
-    console.error(`${MODULE_ID} | the caster's concentration could not be ended by a summoning`, err);
-  }
-  try {
-    const duration = summonCastDuration(spell, { lookups: deps.lookups, roll: deps.roll });
-    const mark = { spell: { uuid: spell.uuid, name: spell.name, img: spell.img }, caster: { uuid: caster.uuid }, castId: result.castId || deps.castId(), role: "caster" };
-    // A concentration is the held record `castSpellRun` writes, from the same composition.
-    const data = duration.held
-      ? heldRecordData(mark, { held: duration.held, now: deps.now?.(), tail: duration.tail, cap: duration.cap })
-      : spellEffectData({ ...mark, duration });
-    await caster.createEmbeddedDocuments("ActiveEffect", [data]);
-  } catch (err) {
-    console.error(`${MODULE_ID} | the cast record of a summoning was not written`, err);
-  }
-  return result;
-}
-
-/**
- * The claimant for the cast seam. `claims` is synchronous and answers true only
- * for a summoning spell on a character this seat owns; a monster's spell items
- * and a character this seat does not own are the system's own cast. A summoning
- * whose tradition has a registered procedure is declined, and the spell cast
- * claimant takes it with its procedure.
- * @param {object} [deps]  see `liveDeps`
- * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`, which tells the tradition that cast the spell
- */
-export function castSummonClaimant(deps, { classFor = null } = {}) {
-  return {
-    key: CAST_SUMMON_KEY,
-    claims: (item) => isSummonSpell(item) && item.parent?.isOwner === true && !spellProcedureKind(item, classFor),
-    cast: (item, _options, spend) => castSummonSpell(item, spend, deps),
-  };
 }
 
 /**
@@ -210,14 +153,12 @@ export async function castSummon(spell, options = {}) {
 let unregister = null;
 
 /**
- * Register the claimant, the policy and the naming. Once, at `init`; a second
- * call replaces the first rather than doubling it.
- * @param {{classFor?: ((actor: object) => object|null)|null}} [claim]  the classes feature's `classForActor`
- * @returns {() => void} removes all three
+ * Register the policy and the naming. Once, at `init`; a second call replaces
+ * the first rather than doubling it.
+ * @returns {() => void} removes both
  */
-export function registerCastSummon(claim = {}) {
+export function registerCastSummon() {
   unregister?.();
-  addSpellUseClaimant(castSummonClaimant(undefined, claim));
   const offPolicy = registerSummonPolicy((req) => summonRefusal(req));
   const offNaming = registerSummonNaming((req) => spellNamesCreature(req));
   let done = false;
@@ -225,7 +166,6 @@ export function registerCastSummon(claim = {}) {
     // A registration that was replaced or already removed does nothing, so a stale handle never takes the live one down.
     if (done) return;
     done = true;
-    removeSpellUseClaimant(CAST_SUMMON_KEY);
     offPolicy();
     offNaming();
     if (unregister === off) unregister = null;

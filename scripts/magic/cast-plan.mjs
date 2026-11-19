@@ -28,6 +28,8 @@ export const VERDICT = Object.freeze({
   overCap: "overCap",
   invocationUnset: "invocationUnset",
   longCast: "longCast",
+  summonCount: "summonCount",
+  summonRefused: "summonRefused",
 });
 
 /**
@@ -56,9 +58,10 @@ export const VERDICT = Object.freeze({
  * @param {{counts: Record<string, number|null>, assigned?: Record<string, number>}|null} [from.instances]  by row key, each thrown row's instance count (`cast-instances.mjs`) and how many throws the seat's split assigns; a thrown row with no count here counts as one
  * @param {{value: number|null, cap: number|null, reads?: boolean}|null} [from.invocation]  `invocationLevel`'s answer with `reads`: a level above the tradition's cap and a level a row or figure reads and nothing sets are each a verdict (`invocationFindings`)
  * @param {Array<{key: string, notice: string}>} [from.procedure]  the findings the tradition's procedure adds (`cast-procedure.mjs`); each takes this plan's severity and carries its own text
+ * @param {{count: number|null, ceiling: number|null, refused?: {reason: string, notice: string}|null}|null} [from.summon]  a summoning's answer: the count asked and its ceiling at the caster level (`summonCeilingFor`), where a count above a stated ceiling is `summonCount`; `refused` is a refusal lib's request check gave before any click, which lib gives again at the placement to every seat, so it blocks a Judge too and carries lib's own words
  * @returns {Array<{key: string, severity: "block"|"warn", conditions?: string[], out?: object[], limit?: number, parts?: object[], max?: number, over?: number, notice?: string}>}
  */
-export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [] } = {}) {
+export function castVerdicts({ capacity, targets = [], rows = [], statuses = [], isGM = false, bearers = targets.length, held = false, moment = MOMENT.free, declaration = null, range = null, count = null, instances = null, invocation = null, procedure = [], summon = null } = {}) {
   const severity = isGM ? "warn" : "block";
   const out = [];
   const resolving = moment === MOMENT.resolve && Boolean(declaration?.valid);
@@ -84,6 +87,10 @@ export function castVerdicts({ capacity, targets = [], rows = [], statuses = [],
   // A time longer than a round is cast outside the initiative order: a Player is stopped and a Judge's cast resolves at its confirm.
   if (moment === MOMENT.long) out.push({ key: VERDICT.longCast, severity });
   for (const found of procedure ?? []) out.push({ key: found.key, severity, notice: found.notice ?? "" });
+  const asked = Number(summon?.count);
+  const ceiling = Number(summon?.ceiling);
+  if (summon?.count != null && summon?.ceiling != null && Number.isFinite(asked) && Number.isFinite(ceiling) && ceiling > 0 && asked > ceiling) out.push({ key: VERDICT.summonCount, severity, max: ceiling, over: asked - ceiling });
+  if (summon?.refused) out.push({ key: VERDICT.summonRefused, severity: "block", reason: summon.refused.reason, notice: summon.refused.notice });
   if (needsBearer(rows) && bearers !== 1) out.push({ key: VERDICT.oneBearer, severity });
   const stopped = forbiddenBy(conditionSet(statuses), "cast");
   if (stopped.length) out.push({ key: VERDICT.forbidden, severity, conditions: stopped });
