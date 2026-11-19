@@ -4,8 +4,9 @@ Format per docs-doctrine: fixtures → steps → observable → teardown. Server
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. Offline coverage
 of the haul is `tools/test-scene-haul.mjs`; of the model, `tools/test-scene-search.mjs`.
 Neither proves a window opens or a Card writes; only this walk does. The screen
-(S4) and the session API (S2) have no walk here yet: the haul's steps reach the
-Foundry side by a dynamic import in page context, until the API exists.
+(S4) has no walk here yet. The session API and the activities (S2) are written
+up below and not yet walked; the haul's steps above reach the Foundry side by a
+dynamic import in page context.
 
 The walk needs a real Judge seat and a real Player seat joined at once
 (`live-testing.md`): the found-only rule is a projection on the player's client,
@@ -109,6 +110,87 @@ const r = await dealSceneHaul({
    Take onto `scene-search/player-character` lands the goods on the actor (the
    treasure recipe's Take step). Observable: the unfound Card is still
    unclaimed and face down.
+
+## S2 — session, activities and drops (NOT YET WALKED)
+
+Offline coverage is `tools/test-scene-session.mjs` (the world, the refusals,
+resolution, the Round seam, the api) and `tools/test-scene-drop.mjs`
+(`placesAround` and the map drop). Nothing below has been driven live; the
+offline suites run over a fake world and prove neither a Region's `testPoint`
+nor a real plan relay.
+
+Fixtures, found by `flags.world.fixture`:
+
+- `scene-search/session-scene`: a scene with a grid and a scale, holding the
+  party token and one Region with no behaviors.
+- `scene-search/session-place`: a location actor linked to that Region
+  (`createLocationForRegion`), its things written whole: a floor, a container, a
+  fixture whose hasty check is an inspection yielding a clue and whose
+  methodical check reveals a hidden container, and a container with a
+  `point` farther from the party token than the imported reach.
+- `scene-search/searcher-skilled`: a character who holds the Searching
+  proficiency, level 2; `scene-search/searcher-plain`: one who does not. Both
+  are members of the formation recipe's party fixture, and the plain one is the
+  Player seat's character.
+- A session is **not** a kept fixture: `open` writes it on the party actor and
+  `end` unsets it. A walk calls `end` at its start (a standing session blocks
+  `open`) and at its end.
+
+Drive mechanics known without the world:
+
+- The Judge seat must be the active GM (see above); a plan lock and the Round
+  press both write from the pressing GM's client.
+- Hold the die with `CONFIG.Dice.randomUniform`: 0.025 throws a 20 on a d20,
+  0.975 a 1. Restore it after.
+- The Round press is `acksExtras.sceneSearch.resolveRound(formation)`. Its
+  answer's `via` is `"scene"` while `turn-plan.mjs` exports no
+  `resolvePlanRound`, and `"plan"` once it does.
+- A hasty check at the floor needs the searching throw and the imported search
+  throws; with none imported the option is refused `scene:notImported`.
+- `acksExtras.sceneSearch.read(partyId)` is what a screen reads. Call it from
+  each seat: a player's answer has no `lots` and no `bodies`, and no unfound
+  layer's yields.
+
+Judge seat:
+
+1. **Open.** `open({partyId, placeUuid, sceneId, sources, metInLair: true})`
+   with a source per entry that hides goods, keyed `thing:<id>`. Observables:
+   `ok` is true; the party actor's `flags.acks-extras.sceneSearch` holds the
+   place, the pot's uuid and a `lots` row per dealt lot; the place's own
+   `things` list holds no lot key; the pot's flag carries the party's id.
+2. **Assign** the skilled searcher to the floor's hasty check, the plain one to
+   the same check, and the plain one to the container's methodical check
+   (`assign({partyId, actorId, layer, entryKey})`). Observables: the party's
+   `turnPlan` holds each entry, `key` `sceneHasty` or `sceneMethodical`, option
+   the entry key; the thing past the reach is refused `scene:outOfReach`.
+3. **Round press** (die held at a 20 for the skilled searcher). Observables: the
+   floor's lot card reads `found: true`; the thing's `state.layers.hasty.found`
+   is true; the plain searcher's hasty entry gave no roll and the log row is
+   `scene:vague`; the Judges received one whispered card for the throw, the
+   table none; the hasty entries are gone from the plan.
+4. **The lock.** Repeat with the die at a 1 on a second floor thing: the thing's
+   `state.layers.hasty.failed` holds the character's id and level, and assigning
+   them to that check again is refused `scene:hastyLocked`. Raise the character's
+   level and it is offered again.
+5. **Turn press** (the Dungeon tab's Advance turn). Observables: the methodical
+   entry resolves; the hidden container's `state.shown` is true; the plan is empty.
+6. **Drops.** Drag a trap Item and a hazard Item onto the place's Region on the
+   map, and onto the bare Region. Observables: each adds a thing whose `point` is
+   where it landed; the bare Region gains a place with its sheet closed; the same
+   Item dropped in the Region window's Place row has `point: null`; a trap
+   dropped next to a wall assigns the wall, not the place.
+7. **End.** `end(partyId)` unsets the flag; the pot stays.
+
+Player seat:
+
+1. `read(partyId)` hides the hidden container and every unfound yield, and
+   shows the "something more" mark on the fixture.
+2. `assign` for the player's own character goes through the party's plan relay
+   and the Judge sees the declaration; for another member it is refused.
+3. `open` and `end` answer `scene:notAllowed`.
+
+Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept
+fixtures stay.
 
 ## What this walk does not reach
 
