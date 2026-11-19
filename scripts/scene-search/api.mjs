@@ -1,0 +1,152 @@
+/* global game, fromUuidSync */
+/**
+ * `acksExtras.sceneSearch`: the calls a scene screen makes. Opening and ending a
+ * session are the Judge's alone; a player's call to either is refused with a
+ * `scene:` reason, since the one relay that exists (the party's `plan` request)
+ * carries a player's plan entry and nothing else. Assigning a member is a plan
+ * lock, so a player assigns their own character through that relay and the Judge
+ * is told, and a Judge's call locks the plan directly. The read calls answer
+ * every seat, a player's through the projection that strips what is unfound.
+ *
+ * The turn plan, the party's request relay and the fight's record are reached
+ * through `deps` so a suite supplies its own; the module's wiring supplies the
+ * real ones.
+ */
+import { MODULE_ID } from "../lib/constants.mjs";
+import { LOCATION_TYPE } from "../location/constants.mjs";
+import { thingsOf } from "../lib/place-things.mjs";
+import { SEARCH_FLAG, normalizeRecord } from "../treasure/search-logic.mjs";
+import { getFormation } from "../formation/formation-model.mjs";
+import { ACTIVITY, LAYER, LAYER_OF_ACTIVITY, SCENE, SESSION_REFUSAL } from "./constants.mjs";
+import { sceneOptionsFor } from "./activities.mjs";
+import { dealSceneHaul } from "./haul.mjs";
+import { sceneView } from "./scene-logic.mjs";
+import { bodiesFromRecord, sessionEntries } from "./session-logic.mjs";
+import { readSession, readWorld, writeSession } from "./session.mjs";
+
+const refuse = (reason, extra = {}) => ({ ok: false, reason, ...extra });
+const isGM = () => !!game.user?.isGM;
+
+/** The activity key a layer name is assigned through. */
+const activityOf = (layer) => (layer === LAYER.METHODICAL ? ACTIVITY.METHODICAL : layer === LAYER.HASTY ? ACTIVITY.HASTY : null);
+
+/** The place actor a uuid names, when it is a location. */
+function locationOf(uuid) {
+  try {
+    const doc = uuid ? fromUuidSync(uuid, { strict: false }) : null;
+    return doc?.documentName === "Actor" && doc.type === LOCATION_TYPE ? doc : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The scene search api over its dependencies.
+ * @param {object} deps
+ * @param {{lockPlan: Function, unlockPlan: Function, planRefusal: Function, readPlan: Function}|(() => Promise<object>)} deps.plan `formation/turn-plan.mjs`, or a loader for it
+ * @param {(formationId: string, type: string, payload: object) => Promise<*>} deps.request the party's `requestPartyAction`
+ * @param {(messageId: string) => object|null} [deps.record] a fight's record by the search card's message id
+ */
+export function createSceneSearchApi({ plan, request, record = defaultRecord }) {
+  const planOf = async () => (typeof plan === "function" ? plan() : plan);
+
+  async function open({ partyId, placeUuid, sceneId = null, recordMessageId = null, sources = null, ...deal } = {}) {
+    if (!isGM()) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    const place = locationOf(placeUuid);
+    if (!place) return refuse(SESSION_REFUSAL.NO_PLACE);
+    if (readSession(formation)) return refuse(SESSION_REFUSAL.SESSION_OPEN);
+
+    const found = recordMessageId ? bodiesFromRecord(normalizeRecord(record(recordMessageId))) : { bodies: [], sources: [] };
+    const asked = Array.isArray(sources) ? sources : found.sources;
+    const keys = new Set(sessionEntries({ things: thingsOf(place), session: { bodies: found.bodies, lots: [] } }).map((e) => e.key));
+    const unknown = asked.find((s) => !keys.has(String(s?.thing ?? "").trim()));
+    if (unknown) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY, { entry: unknown.thing });
+
+    let potUuid = null;
+    let lots = [];
+    if (asked.length) {
+      const dealt = await dealSceneHaul({ ...deal, sources: asked, scene: { sceneId, placeUuid }, partyId });
+      if (!dealt.ok) return refuse(SESSION_REFUSAL.DEAL_FAILED, { detail: dealt.reason });
+      potUuid = dealt.potUuid;
+      lots = dealt.lots.map(({ key, thing, layer, cardId }) => ({ key, thing, layer, cardId }));
+    }
+    const session = { sceneId, placeUuid, recordMessageId, potUuid, bodies: found.bodies, lots, log: [] };
+    await writeSession(formation, session);
+    return { ok: true, session: readSession(formation), potUuid };
+  }
+
+  async function end(partyId) {
+    if (!isGM()) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    if (!readSession(formation)) return refuse(SESSION_REFUSAL.NO_SESSION);
+    await writeSession(formation, null);
+    return { ok: true };
+  }
+
+  async function assign({ partyId, actorId, layer, entryKey } = {}) {
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    const key = activityOf(layer);
+    if (!key) return refuse(SESSION_REFUSAL.NOT_OFFERED);
+    const world = readWorld(formation);
+    if (!world) return refuse(SESSION_REFUSAL.NO_SESSION);
+    if (!world.entries.some((e) => e.key === entryKey)) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY);
+    if (!formation.members?.some((m) => m.actorId === actorId)) return refuse(SESSION_REFUSAL.NOT_A_MEMBER);
+    const turnPlan = await planOf();
+    const asked = { actorId, key, option: entryKey, by: game.user.id };
+    if (isGM()) {
+      const locked = await turnPlan.lockPlan(formation, asked);
+      return locked.ok ? { ok: true, entry: locked.entry } : refuse(locked.reason, { missing: locked.missing });
+    }
+    const refused = turnPlan.planRefusal(formation, asked);
+    if (refused) return refuse(refused.reason, { missing: refused.missing });
+    const answer = await request(formation.id, "plan", { actorId, key, option: entryKey });
+    return answer?.ok === false ? refuse(answer.refused ?? `${SCENE}notOffered`) : { ok: true };
+  }
+
+  async function unassign({ partyId, actorId } = {}) {
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    if (!readSession(formation)) return refuse(SESSION_REFUSAL.NO_SESSION);
+    const turnPlan = await planOf();
+    if (isGM()) return { ok: true, unlocked: await turnPlan.unlockPlan(formation, actorId) };
+    await request(formation.id, "plan", { actorId, unlock: true });
+    return { ok: true };
+  }
+
+  /** The session, its entries as this seat reads them, and the log; null with no session open. */
+  function read(partyId) {
+    const formation = getFormation(partyId);
+    const world = formation ? readWorld(formation) : null;
+    if (!world) return null;
+    const { session, place, entries } = world;
+    const { bodies: _bodies, lots, ...shown } = session;
+    return { session: isGM() ? { ...shown, lots } : shown, place: { uuid: place.uuid, name: place.name }, entries: sceneView(entries, { isGM: isGM() }), log: session.log };
+  }
+
+  /** Who is assigned to which entry and layer: the plan's scene entries, `[{actorId, layer, entryKey, remaining, resolved}]`. */
+  async function assignments(partyId) {
+    const formation = getFormation(partyId);
+    const turnPlan = await planOf();
+    return Object.entries(formation ? turnPlan.readPlan(formation) : {})
+      .filter(([, entry]) => entry?.key in LAYER_OF_ACTIVITY)
+      .map(([actorId, entry]) => ({ actorId, layer: LAYER_OF_ACTIVITY[entry.key], entryKey: entry.option, remaining: entry.remaining, resolved: entry.resolvedTurn != null }));
+  }
+
+  /** What one member may attempt at every entry this seat can see (`layerOptions`' rows). */
+  function options({ partyId, actorId } = {}) {
+    const formation = getFormation(partyId);
+    const actor = game.actors?.get(actorId);
+    return formation && actor ? sceneOptionsFor(formation, actor) : [];
+  }
+
+  return { open, end, assign, unassign, read, assignments, options };
+}
+
+/** A fight's record from the search card's message. */
+function defaultRecord(messageId) {
+  return game.messages?.get(messageId)?.flags?.[MODULE_ID]?.[SEARCH_FLAG] ?? null;
+}

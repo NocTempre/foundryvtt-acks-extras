@@ -43,6 +43,8 @@
  *              location's market subtree; nothing consumes it.
  *   treasure   after markets — its claims build the item the markets disguise,
  *              and deliver through lib bundles and money; nothing imports it.
+ *   scene-search after treasure and formation — it registers its activities
+ *              into lib's turn-plan registry and drives the pot; nothing imports it.
  *   monsters   near-last — no hooks depend on it, but battlemap reads its pure
  *              size-frontage reader (`sizes.mjs`), so it registers first of
  *              the two.
@@ -76,6 +78,7 @@ import "./factions/module.mjs";
 import "./domains/module.mjs";
 import "./markets/module.mjs";
 import "./treasure/module.mjs";
+import "./scene-search/module.mjs";
 import "./monsters/module.mjs";
 import "./battlemap/module.mjs";
 import "./vehicles/module.mjs";
