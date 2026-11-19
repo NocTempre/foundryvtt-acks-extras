@@ -59,6 +59,8 @@ check("an empty shelf opens nothing", opens("gm", {}), []);
   ok("restoreShelf is found", restore.length > 0);
   ok("restoreShelf picks its books through shelfBooksToOpen", /shelfBooksToOpen\(/.test(restore));
   ok("restoreShelf asks no book its kind", !/bookIsForm/.test(restore));
+  // T-0675: the list is taken at join, so a book opened by another path during the pass is skipped, not read twice.
+  ok("restoreShelf re-checks each book is still closed before it opens it", restore.includes("if (sessionDocs.has(bookId)) continue;") && restore.indexOf("if (sessionDocs.has(bookId)) continue;") < restore.indexOf("connectBookUrl("));
   // A join opens a book per shelved PDF: no bar and no notice per book, one console line for the batch.
   ok("restoreShelf opens each book silently", /connectBookUrl\(bookId, record\.path, \{[^}]*silent: true[^}]*\}\)/.test(restore));
   ok("restoreShelf reports the batch once, on the console", (restore.match(/console\.log\(/g) ?? []).length === 1);

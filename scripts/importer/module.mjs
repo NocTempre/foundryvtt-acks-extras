@@ -577,6 +577,8 @@ async function restoreShelf() {
   const staged = shelf();
   const opened = [];
   for (const bookId of shelfBooksToOpen(staged, shelfReadable, (id) => sessionDocs.has(id))) {
+    // The list is taken once; a book another path opened while the pass ran is not read twice.
+    if (sessionDocs.has(bookId)) continue;
     const record = staged[bookId];
     try {
       await connectBookUrl(bookId, record.path, { remember: false, bridge: false, silent: true });

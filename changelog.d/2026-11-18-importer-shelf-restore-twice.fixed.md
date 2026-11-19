@@ -1,0 +1,1 @@
+- **Joining a world whose books are on the server:** a book that is already open by the time the join reaches it on the shelf is no longer fetched and read a second time.
