@@ -314,6 +314,7 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq(armsWorth(arm(figures)), 422, "armsWorth is the sum the rank reads");
   ok(!("worth" in arm(figures).apparent), "and the sum is never stored on the card");
   eq([armsWorth(null), armsWorth(truth())], [null, null], "armsWorth answers null where nothing is stored");
+  eq([armsWorth({ apparent: { baseGp: 19, masterworkGp: null } }), armsWorth({ apparent: { baseGp: null, masterworkGp: 403 } }), armsWorth({ apparent: { baseGp: 19, masterworkGp: 0 } })], [null, null, null], "and where either half is missing from a truth not normalised");
 
   const lot = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id }));
   const seed = (id, gp) => cardOf(id, truth({ valueGp: gp, label: id, bucket: BUCKET.replace }));

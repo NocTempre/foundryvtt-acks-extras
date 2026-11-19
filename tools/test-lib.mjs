@@ -141,6 +141,7 @@ t("leadingNameHit: a label's words that begin exactly one name answer with it", 
   assert.equal(at("Tarn Bu."), null, "a label that begins two names names neither");
   assert.equal(at("Tarn Bul."), 3, "and one that begins one is that name");
   assert.equal(at("Tarn"), null, "one word that opens a longer name is not read");
+  assert.equal(at("Zork"), null, "even when only one name begins with it");
   assert.equal(at("Fen Drone, Medium"), 4, "a comma is no word, as for a creature");
   assert.equal(at("Zork Blade Armor"), null, "a label longer than the name fits nothing");
   assert.equal(at("Zork B"), null, "a bare cut-short word is not a period abbreviation");
