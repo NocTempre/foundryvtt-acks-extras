@@ -875,6 +875,20 @@ What driving it taught:
 - End a session and close its screen before `open` at another place, or the run
   throws `scene:sessionOpen`.
 
+## The keyed place and the clean-up
+
+**Walked 2026-11-19** by `tools/live/location-prune-keyed.mjs` (`node tools/live/run.mjs location-prune-keyed`), GM seat only, lane B, log `aia-tmp/live/location-prune-keyed-20261119-150852.log`: 7 pass, 0 fail, with the real trigger. An earlier run that day (`-150652`) found another lane's GM primary and ran the dry check alone. Offline: nothing, since the prune reads `game`.
+
+Fixtures: `scene-search/prune-keyed`, a location holding one thing (kind fixture, no ref) and nothing else, its list brought to that one thing at the step's start. A bare location the run builds with `api.create` and sweeps by its uuid.
+
+1. **Run dry.** Call `pruneEmptyLocations({ dryRun: true })` (import `scripts/location/module.mjs`; the prune is not on the api). *Observable:* the keyed place is not among `doomed`; the bare place is.
+2. **The real trigger.** Only where this seat is the primary GM (`game.users.activeGM.isSelf`) and **Clean up empty locations** is on, reload the seat. *Observable:* after its `ready` the keyed place stands and the bare place is gone. Elsewhere the step is not walked, and the log says so.
+
+What driving it taught:
+
+- The primary GM is whichever lane's GM Foundry elects, and a seat on another lane outranks this one while it is connected. Check `activeGM` before the reload; never move another lane's seat to get the trigger.
+- Never call the prune for real from a walk: it takes every empty place in the world. The reload is the trigger, and the dry count says beforehand what it will take (1 here: the bare place alone).
+
 ## What this walk does not reach
 
 The doorway card, the haul total and Quick grab with a mixed pot are covered by
