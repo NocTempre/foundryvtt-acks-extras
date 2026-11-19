@@ -44,7 +44,7 @@ export const SACRIFICE_SETTLE = Object.freeze({ [OUTCOME.success]: SETTLE.mark, 
 export const BASIS = Object.freeze({ divine: POWER_KIND.divine, arcane: POWER_KIND.arcane });
 
 /**
- * The limits of the rules as findings, each a lang key under `ACKS-MAGIC.sacrifice.finding`: `noBasis` (the caster
+ * The limits of the rules as findings, each the last segment of a lang key in the sacrifice window's `finding` group: `noBasis` (the caster
  * is neither a divine caster nor holds the class power), `noSite`, `notHelpless` (a lawful or neutral victim that is
  * not helpless), `sapientRefused` (a lawful or neutral caster and a sapient victim) and `animalWarn`, a Judge's
  * warning alone (a lawful or neutral caster and a victim that is not sapient).

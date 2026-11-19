@@ -35,7 +35,7 @@ export const VICTIM_FIELDS = Object.freeze(["willing", "helpless", "young", "tra
 /** The sacrifice's own two Judge-set facts. */
 export const SACRIFICE_FIELDS = Object.freeze(["site", "power"]);
 
-/** Why a write to the record is refused, each a lang key under `ACKS-MAGIC.sacrifice.refused`. */
+/** Why a write to the record is refused, each the last segment of a lang key in the sacrifice window's `refused` group. */
 export const REFUSED = Object.freeze({ noCaster: "noCaster", owner: "owner", judgeOnly: "judgeOnly", op: "op", victim: "victim", self: "self", duplicate: "duplicate" });
 
 /** The record as it is when nothing is open. */
@@ -171,6 +171,7 @@ export function checkRecordRequest(req, { caster, fromJudge, owns, resolved = nu
 export function touchesRecord(changes, key = "sacrifice") {
   const ours = changes?.flags?.[MODULE_ID];
   if (ours && typeof ours === "object") {
+    // legacy-key-ok: read only; a received diff may carry the legacy spellings, and nothing here writes them
     for (const spelling of ["magic", "-=magic", "==magic"]) {
       if (!(spelling in ours)) continue;
       const magic = ours[spelling];
