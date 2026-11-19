@@ -43,20 +43,36 @@
     {{/if}}
   </div>
 
-  <div class="acks-extras-ss-board">
+  <div class="acks-extras-ss-board{{#if isGM}} has-key{{/if}}">
+    {{#if isGM}}
+    <aside class="acks-extras-keying-aside" aria-label="{{localize 'ACKS-LOCATION.sceneSearch.keying.screen.aside'}}">
+      {{#if rail}}
+        {{> "modules/acks-extras/templates/scene-search/keying-rail.hbs" rail}}
+      {{else}}
+        <h4 class="acks-extras-keying-cap">{{localize "ACKS-LOCATION.sceneSearch.keying.screen.aside"}}</h4>
+        <p class="acks-extras-keying-note">{{localize "ACKS-LOCATION.sceneSearch.keying.screen.empty"}}</p>
+        <p class="acks-extras-keying-hint">{{localize "ACKS-LOCATION.sceneSearch.keying.add"}}</p>
+      {{/if}}
+    </aside>
+    {{/if}}
     <section class="acks-extras-ss-entries" aria-labelledby="{{@root.partId}}-entries">
       <h3 class="acks-extras-ss-cap" id="{{@root.partId}}-entries">{{localize "ACKS-LOCATION.sceneSearch.screen.section.entries"}}</h3>
       <div class="acks-extras-ss-grid">
         {{#each cards}}
-        <div class="acks-extras-ss-card is-{{kind}}{{#if hidden}} is-hidden{{/if}}" role="group" aria-label="{{aria}}"
-             data-drop-entry="{{key}}">
+        <div class="acks-extras-ss-card is-{{kind}}{{#if hidden}} is-hidden{{/if}}{{#if selected}} is-selected{{/if}}" role="group" aria-label="{{aria}}"
+             data-drop-entry="{{key}}"{{#if @root.isGM}} data-action="select" data-key="{{key}}"{{/if}}>
           <div class="acks-extras-ss-strip">
             <span><span aria-hidden="true">◇</span> {{kindWord}}</span>
             {{#if hidden}}<span class="acks-extras-ss-tag">{{localize "ACKS-LOCATION.sceneSearch.screen.state.hidden"}}</span>{{/if}}
             <span class="acks-extras-ss-state">{{statusWord}}</span>
           </div>
           {{#if img}}<div class="acks-extras-ss-art" aria-hidden="true"><img src="{{img}}" alt=""></div>{{/if}}
-          <div class="acks-extras-ss-plate"><b>{{name}}</b></div>
+          <div class="acks-extras-ss-plate">
+            {{#if @root.isGM}}
+            <button type="button" class="acks-extras-ss-keybtn" data-action="select" data-key="{{key}}" aria-pressed="{{#if selected}}true{{else}}false{{/if}}"
+                    data-tooltip="ACKS-LOCATION.sceneSearch.keying.screen.selectTip">{{name}}</button>
+            {{else}}<b>{{name}}</b>{{/if}}
+          </div>
           {{#if tell}}<div class="acks-extras-ss-tell"><span class="acks-extras-ss-folio" aria-hidden="true"><b>?</b></span>{{tell}}</div>{{/if}}
           {{#if finds.length}}
           <ul class="acks-extras-ss-finds" data-tooltip="ACKS-LOCATION.sceneSearch.screen.finds.tip">

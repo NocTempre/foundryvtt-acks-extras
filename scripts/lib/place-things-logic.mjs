@@ -190,6 +190,59 @@ export function patchThing(list, id, patch, options = {}) {
   });
 }
 
+/**
+ * `base` with `patch` merged over it, key by key: a plain object merges one
+ * level down, a `null` removes the key, `undefined` is skipped and anything
+ * else (an array included) replaces the stored value whole. A new object.
+ */
+function mergeAuthored(base, patch) {
+  const out = isPlain(base) ? copy(base) : {};
+  for (const [key, value] of Object.entries(isPlain(patch) ? patch : {})) {
+    if (value === undefined) continue;
+    if (value === null) delete out[key];
+    else if (isPlain(value) && isPlain(out[key])) out[key] = mergeAuthored(out[key], value);
+    else if (isPlain(value)) out[key] = mergeAuthored({}, value);
+    else out[key] = copy(value);
+  }
+  return out;
+}
+
+/**
+ * The list with the authored half of some things changed: a NEW list, the input
+ * untouched. Each edit is `{id, patch}`, found by id; an id the list does not
+ * hold changes nothing. `patch.hidden`, when a boolean, replaces `hidden`;
+ * `patch.hint`, a string or null, replaces `hint`; `patch.layers` names layers
+ * (`LAYER_NAMES`), each a patch merged over the stored layer key by key
+ * (`null` removes a key, a plain object merges one level down, an array
+ * replaces the stored one) or `null` to remove the layer. A layer left with no
+ * keys is removed. `state`, `params`, `ref`, `point` and `kind` are never
+ * written here, and a layer key the patch does not name stays as stored, so a
+ * caller holding an overlaid view (a feature's runtime keys laid over the
+ * authored layer) writes only the keys it names.
+ *
+ * @param {object[]} list
+ * @param {Array<{id: string, patch: {hidden?: boolean, hint?: string|null, layers?: object}}>} edits
+ * @param {object} [options] see `normalizeThing`
+ */
+export function reviseThings(list, edits, options = {}) {
+  const byId = new Map();
+  for (const edit of Array.isArray(edits) ? edits : []) if (isPlain(edit) && typeof edit.id === "string") byId.set(edit.id, edit.patch);
+  return normalizeThings(list, options).map((thing) => {
+    if (!byId.has(thing.id)) return thing;
+    const patch = isPlain(byId.get(thing.id)) ? byId.get(thing.id) : {};
+    const next = { ...thing, layers: { ...thing.layers } };
+    if (typeof patch.hidden === "boolean") next.hidden = patch.hidden;
+    if (patch.hint === null || typeof patch.hint === "string") next.hint = (patch.hint ?? "").trim() || null;
+    for (const name of LAYER_NAMES) {
+      if (!isPlain(patch.layers) || !(name in patch.layers) || patch.layers[name] === undefined) continue;
+      const merged = patch.layers[name] === null ? null : mergeAuthored(next.layers[name], patch.layers[name]);
+      if (merged && Object.keys(merged).length) next.layers[name] = merged;
+      else delete next.layers[name];
+    }
+    return next;
+  });
+}
+
 /* -------------------------------------------- */
 /*  What a drop becomes                          */
 /* -------------------------------------------- */

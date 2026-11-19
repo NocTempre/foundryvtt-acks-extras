@@ -431,6 +431,102 @@ What this walk could teach and has not: the card's whisper reaching a second
 Judge seat; the button's label after a world reload; the take-off when a body's
 token was deleted between the fight and the press.
 
+## S6 — keying (not yet walked)
+
+Offline coverage is `tools/test-scene-keying.mjs`: lib's `reviseThings` (what an
+authored write keeps and never writes), each rail field's edit, the dealt-lot
+guard, Behind and its loop guard, the rail's model and the tab's lists. It draws
+no window, reads no drop and writes no actor, so every observable below needs a
+live Judge seat; the Player seat's part is that it has no tab and no rail.
+
+### Fixtures
+
+Found by `flags.world.fixture`, built through `api.fixture`. Reuse S2's place
+and party where the walk is not about keying.
+
+- `scene-search/key-place` — a location actor with no market and three things
+  written whole: a fixture (hasty check: no throw, yielding a clue; methodical
+  check: the party's search, revealing the second), a container with
+  `hidden: true`, and a lot. It is not the S2 place: the walk edits it.
+- `scene-search/key-party` — a formation of one character on a scene whose
+  Region the place is linked to, so the screen opens at the place. Reuse
+  `scene-search/session-party` where it exists.
+- `scene-search/key-trap` and `scene-search/key-hazard` — a trap Item and a
+  Hazard item whose key is an obstacle's, kept in the world's Items.
+- `scene-search/key-tool` — an Item the tools field takes.
+- `scene-search/key-goods` — a plain Item, for the goods drop.
+- A scene search session is not kept: step 9 opens it with
+  `acksExtras.sceneSearch.open` and the walk ends it.
+
+### Steps
+
+Judge seat:
+
+1. **The tab.** Open `key-place`'s sheet. Observables: a **Things here** tab
+   after Research, labelled with its count; opening it lists the three things,
+   each row with its kind, summary and flag (the clue's row says it is in front
+   of a secret, the container's that it is hidden, the lot's that it is dealt
+   at open), and no "From the map" section while nothing derives the map's
+   doors.
+2. **Open a thing.** Press the fixture's row. Observables: its rail opens under
+   it with the fields in the board's order; pressing the row again closes it;
+   the rail's controls carry names (tab through them) and the type knob reaches
+   them (draw the sheet again after setting it, at 18 px and at 22 px).
+3. **Write each field**, reading `flags.acks-extras.things` after each:
+   Hidden → the thing's `hidden`; the Something more line → `hint`, and blank
+   removes it; the hasty Check set to Proficiency adds `layers.hasty.check:
+   "skill"`, the proficiency select appears and, once one is picked,
+   `capability` is its token, and setting the check back to the party's search
+   removes `capability`; Others may look hastily → `layers.hasty.anyone`; Yields
+   → `yields.clue`; Tools, by dropping `key-tool` on the field → `tools` holds
+   its uuid once (drop it twice: still once) and its × removes it; Turns, left
+   blank → no `turns` key, and a typed 0 or 1.5 is refused with a notice and
+   the field returns to its stored value. Observables beside each: the thing's
+   `state` and `params` are as they were.
+4. **Behind.** Open the container (hidden). Choose the fixture's methodical
+   layer in Behind. Observables: the fixture's `layers.methodical.yields.reveal`
+   names `thing:<container id>` and no other thing changed; choosing the
+   fixture's hasty layer moves the key (the methodical layer no longer names
+   it); choosing Nothing removes it. With the container behind the fixture's
+   layer, open the fixture and tick Hidden: its Behind select does not offer
+   the container (the fixture reveals it), and no write is made.
+5. **Show to the table.** On the container press **Show to the table**.
+   Observables: `state.shown` is true on that thing alone and `hidden` is still
+   true; the button is disabled afterwards; a Reset of the place
+   (`resetThingIn`) clears it.
+6. **Remove.** Remove the lot. Observables: it is gone from the list, the
+   document it pointed at is not touched, and no other thing's `reveal` names its
+   key.
+7. **Drops.** Drag `key-trap` and then `key-hazard` onto the tab. Observables:
+   each becomes a thing with `point: null`, the trap hidden; drag `key-goods`
+   onto the tab: it is stored as the place's goods (the Storage tab lists it)
+   and no thing is made.
+8. **A derived thing.** Where a door or an old-style trap zone is read off the
+   map (not built yet; skip while `derivedInputs` answers none), its row lists
+   under "From the map" and opens no fields.
+9. **The screen's aside.** `open` a session at `key-place`, open the screen.
+   Observables: with no entry selected the aside says to open one; pressing a
+   card's name (or the card) selects it, outlines it and fills the aside with
+   the same fields the tab showed; a field written there changes the place's
+   list and the card; the dealt lot's key appears read-only under its layer and
+   does not land in `things` after any write (read the list: no lot key).
+   Select a door or a body: the aside says it is read from elsewhere and holds
+   no field. End the session.
+
+Player seat:
+
+10. Open the place's sheet and the scene screen on a Player seat. Observables:
+    the sheet has no Things here tab; the screen has no aside and no keying
+    control, and its cards' names are text, not buttons.
+
+Teardown: end the session; `api.sweepTracked()` over the run's own ids. The kept
+fixtures stay, and the walk writes the place's list back to its recipe shape
+at its start, since step 4 to 6 change it.
+
+What this walk could not teach offline: that the partial is registered before
+the first render, that the tools field takes a drop from every source, and what
+the aside's three columns do at the window's narrowest size.
+
 ## What this walk does not reach
 
 The doorway card, the haul total and Quick grab with a mixed pot are covered by

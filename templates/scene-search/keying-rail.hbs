@@ -1,0 +1,96 @@
+{{!-- The keying rail of one entry: the Judge's fields for the thing the scene screen or a place's Things here tab has open. One partial for both windows. A control is a staging pick (`data-pick`, no `name`): it writes on its own change through scene-search's keying.mjs, never through a form. --}}
+<div class="acks-extras-keying" data-thing-id="{{id}}" role="group" aria-label="{{title}}">
+  <h4 class="acks-extras-keying-cap">{{title}}</h4>
+  {{#if keyable}}
+  <fieldset class="acks-extras-keying-set">
+    <legend>{{localize "ACKS-LOCATION.sceneSearch.keying.hidden.legend"}}</legend>
+    <label class="acks-extras-keying-inline" data-tooltip="ACKS-LOCATION.sceneSearch.keying.hidden.tip">
+      <input type="checkbox" data-pick="key:{{id}}:hidden" data-key-field="hidden"{{#if hidden}} checked{{/if}}>
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.hidden.label"}}</span>
+    </label>
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.behind.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.behind.label"}}</span>
+      <select data-pick="key:{{id}}:behind" data-key-field="behind"{{#if behind.disabled}} disabled{{/if}}>
+        {{#each behind.options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+  </fieldset>
+
+  <fieldset class="acks-extras-keying-set">
+    <legend>{{localize "ACKS-LOCATION.sceneSearch.keying.more.legend"}}</legend>
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.more.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.more.label"}}</span>
+      <input type="text" data-pick="key:{{id}}:hint" data-key-field="hint" value="{{hint}}" placeholder="{{hintPlaceholder}}">
+    </label>
+  </fieldset>
+
+  {{#each layers}}
+  <fieldset class="acks-extras-keying-set">
+    <legend>{{legend}}</legend>
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.check.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.check.label"}}</span>
+      <select data-pick="key:{{../id}}:{{layer}}:check" data-key-field="check" data-layer="{{layer}}">
+        {{#each check.options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+    {{#if skill}}
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.skill.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.skill.label"}}</span>
+      <select data-pick="key:{{../id}}:{{layer}}:capability" data-key-field="capability" data-layer="{{layer}}">
+        {{#each skill.options}}<option value="{{value}}"{{#if selected}} selected{{/if}}>{{label}}</option>{{/each}}
+      </select>
+    </label>
+    {{#if skill.unnamed}}<p class="acks-extras-keying-note">{{localize "ACKS-LOCATION.sceneSearch.reason.skillUnnamed"}}</p>{{/if}}
+    {{/if}}
+    {{#if anyone}}
+    <label class="acks-extras-keying-inline" data-tooltip="ACKS-LOCATION.sceneSearch.keying.anyone.tip">
+      <input type="checkbox" data-pick="key:{{../id}}:{{layer}}:anyone" data-key-field="anyone" data-layer="{{layer}}"{{#if anyone.on}} checked{{/if}}>
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.anyone.label"}}</span>
+    </label>
+    {{/if}}
+    {{#if tools}}
+    <div class="acks-extras-keying-field">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.tools.label"}}</span>
+      {{#if tools.list.length}}
+      <ul class="acks-extras-keying-chips">
+        {{#each tools.list}}
+        <li>
+          <span>{{name}}</span>
+          <button type="button" class="acks-extras-keying-x" data-action="keyToolRemove" data-layer="{{../layer}}" data-uuid="{{uuid}}"
+                  aria-label="{{localize 'ACKS-LOCATION.sceneSearch.keying.tools.remove' name=name}}"
+                  data-tooltip-text="{{localize 'ACKS-LOCATION.sceneSearch.keying.tools.remove' name=name}}">×</button>
+        </li>
+        {{/each}}
+      </ul>
+      {{/if}}
+      <input type="text" readonly data-key-drop="tools" data-layer="{{layer}}"
+             aria-label="{{localize 'ACKS-LOCATION.sceneSearch.keying.tools.label'}}"
+             placeholder="{{localize 'ACKS-LOCATION.sceneSearch.keying.tools.placeholder'}}"
+             data-tooltip="ACKS-LOCATION.sceneSearch.keying.tools.tip">
+    </div>
+    {{/if}}
+    {{#if turns}}
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.turns.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.turns.label"}}</span>
+      <input type="number" min="1" step="1" data-pick="key:{{../id}}:{{layer}}:turns" data-key-field="turns" data-layer="{{layer}}" value="{{turns.value}}">
+    </label>
+    {{/if}}
+    <label data-tooltip="ACKS-LOCATION.sceneSearch.keying.yields.tip">
+      <span>{{localize "ACKS-LOCATION.sceneSearch.keying.yields.label"}}</span>
+      <input type="text" data-pick="key:{{../id}}:{{layer}}:clue" data-key-field="clue" data-layer="{{layer}}" value="{{clue}}">
+    </label>
+    {{#each held}}<p class="acks-extras-keying-note">{{this}}</p>{{/each}}
+  </fieldset>
+  {{/each}}
+
+  <div class="acks-extras-keying-buttons">
+    <button type="button" class="acks-btn acks-btn--sm" data-action="keyShow"{{#unless canShow}} disabled{{/unless}}
+            data-tooltip="ACKS-LOCATION.sceneSearch.keying.show.tip">{{localize "ACKS-LOCATION.sceneSearch.keying.show.label"}}</button>
+    <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="keyRemove"
+            data-tooltip="ACKS-LOCATION.sceneSearch.keying.remove.tip">{{localize "ACKS-LOCATION.sceneSearch.keying.remove.label"}}</button>
+  </div>
+  {{else}}
+  <p class="acks-extras-keying-note">{{derivedNote}}</p>
+  {{/if}}
+  <p class="acks-extras-keying-hint">{{localize "ACKS-LOCATION.sceneSearch.keying.add"}}</p>
+</div>

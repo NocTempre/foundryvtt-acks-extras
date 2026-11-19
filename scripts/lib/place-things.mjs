@@ -7,7 +7,7 @@
  * `place-things-logic.mjs`.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { addThing, normalizeThings, patchThing, removeThing, resetThing } from "./place-things-logic.mjs";
+import { addThing, normalizeThings, patchThing, removeThing, resetThing, reviseThings } from "./place-things-logic.mjs";
 
 /** The flag key, under the module's scope, holding a place's list of things. */
 export const THINGS_FLAG = "things";
@@ -54,14 +54,36 @@ export async function updateThingOn(place, id, patch) {
   return next;
 }
 
-/* -------------------------------------------- */
-/*  Removing and resetting                       */
-/* -------------------------------------------- */
-
 /** Write a list whole, replacing what the flag held rather than merging into it. */
 function writeThings(place, list) {
   return place.update({ [`flags.${MODULE_ID}.${THINGS_FLAG}`]: foundry.data.operators.ForcedReplacement.create(list) });
 }
+
+/**
+ * Change the authored half of some of a place's things (`reviseThings`) and
+ * write the whole list back. `revise` is handed the list as read at the moment
+ * of the write and answers the edits to make, so what an edit keeps is what the
+ * place holds now and never a caller's older snapshot or an overlaid view of it.
+ * A GM client is the only writer; any other seat, a missing place, or no edit
+ * writes nothing.
+ *
+ * @param {Actor} place the location actor
+ * @param {(list: object[]) => Array<{id: string, patch: object}>} revise the edits, from the list as stored
+ * @returns {Promise<object[]|null>} the written list, or null when nothing was written
+ */
+export async function reviseThingsOn(place, revise) {
+  if (!place || !game.user?.isGM) return null;
+  const held = thingsOf(place);
+  const edits = revise(held);
+  if (!Array.isArray(edits) || !edits.length) return null;
+  const next = reviseThings(held, edits);
+  await writeThings(place, next);
+  return next;
+}
+
+/* -------------------------------------------- */
+/*  Removing and resetting                       */
+/* -------------------------------------------- */
 
 /**
  * Remove one thing from a place and write the whole list back. The list is read

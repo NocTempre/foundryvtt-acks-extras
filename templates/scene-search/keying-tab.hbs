@@ -1,0 +1,29 @@
+{{!-- The place sheet's Things here tab (Judge only): what the place keys, each row opening the keying rail, and what the map says. --}}
+<div class="acks-extras-keying-tab">
+  <p class="acks-extras-keying-dropzone" data-tooltip="ACKS-LOCATION.sceneSearch.keying.tab.dropTip">{{localize "ACKS-LOCATION.sceneSearch.keying.tab.drop"}}</p>
+
+  {{#each keying.things}}
+  <div class="acks-extras-keying-row{{#if open}} is-open{{/if}}{{#if hidden}} is-hidden{{/if}}">
+    <button type="button" class="acks-extras-keying-open" data-action="keyingOpen" data-key="{{key}}" aria-expanded="{{#if open}}true{{else}}false{{/if}}"
+            data-tooltip="ACKS-LOCATION.sceneSearch.keying.tab.openTip">
+      <span class="acks-extras-keying-kind">{{kindWord}}</span>
+      <span class="acks-extras-keying-name">{{name}} <span class="acks-extras-keying-sum">· {{summary}}</span></span>
+      <span class="acks-extras-keying-flag">{{flag}}</span>
+    </button>
+    {{#if open}}{{> "modules/acks-extras/templates/scene-search/keying-rail.hbs" @root.keying.rail}}{{/if}}
+  </div>
+  {{else}}
+  <p class="acks-extras-keying-note">{{localize "ACKS-LOCATION.sceneSearch.keying.tab.empty"}}</p>
+  {{/each}}
+
+  {{#if keying.derived.length}}
+  <h4 class="acks-extras-keying-cap">{{localize "ACKS-LOCATION.sceneSearch.keying.tab.derived"}}</h4>
+  {{#each keying.derived}}
+  <div class="acks-extras-keying-derived">
+    <span class="acks-extras-keying-kind">{{kindWord}}</span>
+    <span>{{name}}</span>
+    <span class="acks-extras-keying-flag">{{flag}}</span>
+  </div>
+  {{/each}}
+  {{/if}}
+</div>

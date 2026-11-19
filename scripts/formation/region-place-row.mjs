@@ -22,6 +22,9 @@ import { countsOf, descriptorOf, refusalOfDrop, thingOfDrop } from "./region-pla
 const ROW = "acks-extras-region-place";
 const LANG_PREFIX = "ACKS-FORMATION.REGION_PLACE";
 
+/** Say why a drop was refused, in the row's own words. */
+const warnRefused = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.${key}`));
+
 /** Log a rejected promise where a developer looks; the row never throws into core's render. */
 const report = (run, what) => Promise.resolve(run).catch((err) => console.error(`${MODULE_ID} | ${what} failed`, err));
 
@@ -125,19 +128,42 @@ async function dropKind(data) {
  * @returns {Promise<object|null>} the thing's list after the write, or null
  */
 export async function dropOnRegionPlace({ region, scenes, data, point = null }) {
-  const warn = (key) => ui.notifications?.warn(game.i18n.localize(`${LANG_PREFIX}.refused.${key}`));
   const { drop, kind } = await dropKind(data);
   const refusal = refusalOfDrop(drop, kind);
   if (refusal) {
-    warn(refusal);
+    warnRefused(refusal);
     return null;
   }
   const place = scenes.locationOfRegion(region) ?? (await scenes.createLocationForRegion(region, { render: false }));
   if (!place) {
-    warn("noPlace");
+    warnRefused("noPlace");
     return null;
   }
   return addThingTo(place, thingOfDrop(kind, drop, { point }));
+}
+
+/**
+ * Take one drop onto a place's own sheet, which already is the place: the one
+ * kind table says what the document becomes and it is added with no `point`. A
+ * drop no kind takes is not this row's and answers false with no word, so the
+ * sheet can file it as goods; a Hazard item with no usable key is refused in
+ * words and answers true.
+ *
+ * @param {object} options
+ * @param {Actor} options.place the location actor
+ * @param {{type?: string, uuid?: string}|null} options.data the drag's own data
+ * @returns {Promise<boolean>} whether this took the drop
+ */
+export async function dropOnPlace({ place, data }) {
+  const { drop, kind } = await dropKind(data);
+  const refusal = refusalOfDrop(drop, kind);
+  if (refusal === "notItem" || refusal === "notAccepted") return false;
+  if (refusal) {
+    warnRefused(refusal);
+    return true;
+  }
+  await addThingTo(place, thingOfDrop(kind, drop, { point: null }));
+  return true;
 }
 
 /**

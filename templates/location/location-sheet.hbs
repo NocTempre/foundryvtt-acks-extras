@@ -592,6 +592,12 @@
   {{#if isGM}}
   {{!-- ------------------------- GM settings ------------------------- --}}
 
+  {{#if keying}}
+  <section class="tab location-tab {{tabs.things.cssClass}}" data-group="primary" data-tab="things">
+    {{> "modules/acks-extras/templates/scene-search/keying-tab.hbs"}}
+  </section>
+  {{/if}}
+
   <section class="tab location-tab {{tabs.storage.cssClass}}" data-group="primary" data-tab="storage">
     <div class="acks-location-storage-head">
       <h3><i class="fas fa-boxes-stacked"></i> {{localize "ACKS-LOCATION.storage.heldHere"}}</h3>

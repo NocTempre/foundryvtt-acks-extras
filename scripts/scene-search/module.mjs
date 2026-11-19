@@ -27,6 +27,7 @@ import {
   unassignSceneCheck,
 } from "./api.mjs";
 import { resolveSceneRound } from "./round.mjs";
+import { loadKeyingTemplates } from "./keying.mjs";
 import { announceSceneShown, openSceneScreen, registerSceneScreen } from "./screen.mjs";
 import { configureWaysIn, searchSceneHere } from "./ways-in-live.mjs";
 import { postRollCard, sceneReasonText } from "./words.mjs";
@@ -39,6 +40,7 @@ Hooks.once("init", () => {
   });
   registerSceneActivities();
   registerSceneScreen();
+  loadKeyingTemplates();
   configureSceneSearchApi({ plan: turnPlan, request: requestPartyAction, announce: announceSceneShown, drawTable: drawFallenTable });
   configureWaysIn({ open: openSceneSearch, openScreen: openSceneScreen, stamp: markCardOpened, record: recordOfMessage });
   acksExtras.sceneSearch = {

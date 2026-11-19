@@ -168,3 +168,59 @@ S5 itself. Readings the board does not settle:
   pressed again.
 - **A fight whose fallen hold nothing posts no card**, so it has no way in but
   Search here. Left as is.
+
+## 2026-11-19 — Keying: what S6 built to the boards, and where it stopped
+
+Built to SceneKey (the Things here tab) and SceneJudge (the keying aside), both
+approved, as one shared partial. The owner's rulings it stands on: the three
+layers ("an obvious layer ... an obvious with inspection layer ... found with
+methodical search and/or appropriate skill"), "Some things might be explicitly
+hidden up to judge's discretion", Q4 ("it is meta-public knowledge if more
+clues remain unless it is hidden behind an unsolved (still something off)
+clue"), Q5 (the optional line, else the generic words), Q6 ("only checked
+hastily and checked methodically for each inspectable"), and "Traps, obstacles,
+conditions can stack arbitrarily". Readings the boards do not settle:
+
+- **Lib gains an authored write, `reviseThings` / `reviseThingsOn`.** The
+  list had writers for `hidden` and `state` only (`patchThing`), and none for
+  `hint` or a layer. The shape is unchanged. The op merges key by key and is
+  handed the list as stored at the write, so the screen's view, which carries
+  the session's dealt lot keys in each layer, can never write them into the
+  place (the 2026-11-18 ruling that rejected it). `patchThing`'s own narrow
+  contract is left as it was. The cost is a change to lib's co-signed file;
+  nothing signed there moves.
+- **Show to the table sets `state.shown`, not `hidden`.** The model's own
+  words are that a hidden entry is visible once shown and a Reset hides it
+  again; `hidden` is what the Judge authored. The brief's "makes the one entry
+  not hidden" is met for the table (the entry is visible now) without editing
+  the authored flag; unticking Hidden from the table is the field that does.
+  Open for the owner: whether a show should outlive a Reset.
+- **Behind is the clue's, not the entry's.** There is no key on a hidden thing
+  that names its clue; the reveal lives on the clue's layer. The select offers
+  one option per other thing and layer, and takes the key off any clue it was
+  behind, so an entry is behind one clue at a time. Rejected: a new `behind`
+  key on the thing, which the shape does not have and would duplicate the
+  reveal. A thing read from the map cannot be named as a clue in front (it has
+  no list row), and cannot itself be put behind one from the rail.
+- **Yields is the clue text alone.** The lots belong to the session (dealt at
+  open) and the reveals to Behind; both are listed read-only. Rejected: one
+  field that edited all three.
+- **The Seen line has no home in the shape and is not built.** The plate's name
+  is the document an entry points at or the word for its kind; no key holds a
+  line of the Judge's. Not invented.
+- **Disarm (trap) is not offered.** A named-capability check resolves through an
+  ad hoc config with no throw column (`rollKey: null`), where the party's
+  Trapbreaking methodical check names its own; the two were not shown to give
+  the same figure, so the option is not offered until a check of its own exists.
+- **Proficiency needs a picker, which the boards draw only as "Proficiency…".**
+  A select of the imported library abilities that stand for a capability
+  appears under the check when it is Proficiency; nothing but those names ships.
+- **Turns carries no default and no placeholder.** Blank stores nothing, and the
+  tooltip carries the page reference.
+- **Remove also takes the thing's key out of every reveal**, in a second write,
+  so an id the list reuses later is not shown by a clue that named the old one.
+  Dealt lots a session keyed to the removed thing stay in the session, as an
+  ended place's do.
+- **The screen's rail opens by selecting a card**, on the Judge's seat only; with
+  none selected the aside says to open one. The boards show a selected entry
+  throughout.

@@ -14,6 +14,7 @@
  * `.window-content`.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
+import { PicksMixin } from "../lib/picks.mjs";
 import { PressFocus } from "../lib/press-focus.mjs";
 import { getSocket, registerHandler } from "../lib/sockets.mjs";
 import { atTypeScale } from "../lib/util.mjs";
@@ -24,7 +25,8 @@ import { isPot, viewOf } from "../treasure/pot.mjs";
 import { askScenePress, assignSceneCheck, readSceneSearch, sceneAssignments, sceneOptions, showSceneSearch, unassignSceneCheck } from "./api.mjs";
 import { resolveSceneRound } from "./round.mjs";
 import { CHECK } from "./constants.mjs";
-import { plateNamesOf, refImageOf } from "./session.mjs";
+import { KEYING_RAIL_ACTIONS, bindKeyingRail, loadKeyingTemplates, railFor } from "./keying.mjs";
+import { placeOfSession, plateNamesOf, readSession, refImageOf } from "./session.mjs";
 import { ROOT, buildScreen, firstOpenLayer, memberDragData, memberDropOf } from "./screen-logic.mjs";
 import { ROLL_FLAG, sceneReasonText } from "./words.mjs";
 
@@ -62,8 +64,11 @@ function potViewOf(uuid) {
  * The scene screen of one party's search. Opened by `openSceneScreen`, and on a
  * player's seat by the Judge showing the scene.
  */
-export default class SceneSearchScreen extends HandlebarsApplicationMixin(ApplicationV2) {
+export default class SceneSearchScreen extends PicksMixin(HandlebarsApplicationMixin(ApplicationV2)) {
   #partyId;
+
+  /** The entry the Judge's keying rail has open, by key, or null. */
+  #selected = null;
 
   /** The press whose render is pending: where keyboard focus returns once the HTML is replaced. */
   #press = new PressFocus();
@@ -101,13 +106,15 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
       cancelPick: SceneSearchScreen.#onCancelPick,
       assign: SceneSearchScreen.#onAssign,
       unassign: SceneSearchScreen.#onUnassign,
+      select: SceneSearchScreen.#onSelect,
+      ...KEYING_RAIL_ACTIONS,
     },
   };
 
   static PARTS = {
     body: {
       template: `modules/${MODULE_ID}/templates/scene-search/screen.hbs`,
-      scrollable: [".acks-extras-ss-entries", ".acks-extras-ss-aside"],
+      scrollable: [".acks-extras-ss-entries", ".acks-extras-ss-aside", ".acks-extras-keying-aside"],
     },
   };
 
@@ -122,6 +129,11 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
     if (opts.position?.width) opts.position.width = atTypeScale(opts.position.width);
     if (opts.position?.height) opts.position.height = atTypeScale(opts.position.height);
     return opts;
+  }
+
+  /** The place the keying rail writes to: the session's. */
+  keyingPlace() {
+    return this.formation ? placeOfSession(readSession(this.formation)) : null;
   }
 
   /** The members as this seat reads them: every real member, each marked owned where this user owns the character. */
@@ -173,8 +185,13 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
       throwOf,
       t: say,
     });
+    // The Judge's seat alone has the rail; an entry gone from the scene closes it.
+    const isGM = game.user.isGM;
+    if (isGM) await loadKeyingTemplates();
+    if (!entries.some((e) => e.key === this.#selected)) this.#selected = null;
+    const cards = isGM ? (model.cards ?? []).map((card) => ({ ...card, selected: card.key === this.#selected })) : model.cards;
     // The grime reads through the art seam: with nothing imported there is none, and a card is a plain slab.
-    return Object.assign(context, model, { open: true, texture: textureArt(TEXTURE.grime, 1) });
+    return Object.assign(context, model, { cards, rail: isGM ? railFor(entries, this.#selected) : null, open: true, texture: textureArt(TEXTURE.grime, 1) });
   }
 
   /**
@@ -237,6 +254,7 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
   async _onRender(context, options) {
     await super._onRender(context, options);
     const root = this.element;
+    if (game.user.isGM) bindKeyingRail(this);
     for (const tile of root.querySelectorAll("[data-member-drag]")) {
       tile.addEventListener("dragstart", (event) => {
         event.dataTransfer?.setData("text/plain", memberDragData(tile.dataset.actorId));
@@ -315,6 +333,13 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
     const uuid = readSceneSearch(this.#partyId)?.session.potUuid;
     const pile = uuid ? fromUuidSync(uuid, { strict: false }) : null;
     if (pile) pile.sheet.render(true);
+  }
+
+  /** Open an entry's keying rail on the Judge's seat. */
+  static #onSelect(_event, target) {
+    if (!game.user.isGM) return;
+    this.#selected = target.dataset.key || null;
+    this.render();
   }
 
   /** Open the assign picker on a rail, or close it where it is already open there. */

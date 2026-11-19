@@ -40,6 +40,7 @@ import { ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { prepareTradeTab, bindTradeTab, TRADE_TAB_ACTIONS } from "../../markets/apps/trade-tab.mjs";
 import { prepareResearchTab, bindResearchTab, RESEARCH_TAB_ACTIONS } from "../../magic/research-tab.mjs";
 import { PicksMixin, spendPicks } from "../../lib/picks.mjs";
+import { KEYING_ACTIONS, bindKeyingTab, prepareKeyingTab, takeThingDrop } from "../../scene-search/keying.mjs";
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -135,6 +136,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       ...TRADE_TAB_ACTIONS,
       // --- research tab (handlers live in the magic feature) ---
       ...RESEARCH_TAB_ACTIONS,
+      // --- things tab (handlers live in scene search) ---
+      ...KEYING_ACTIONS,
       // --- the market gate ---
       addMarket: LocationSheet.#onAddMarket,
       removeMarket: LocationSheet.#onRemoveMarket,
@@ -163,6 +166,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
         { id: "ventures", icon: "fas fa-scale-balanced" },
         { id: "storage", icon: "fas fa-boxes-stacked" },
         { id: "research", icon: "fas fa-flask" },
+        { id: "things", icon: "fas fa-magnifying-glass" },
         { id: "gmSettings", icon: "fas fa-gears" },
         { id: "gmView", icon: "fas fa-eye" },
       ],
@@ -221,6 +225,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     // a market, and the GM tabs only for GMs.
     context.tabs = this.#prepareVisibleTabs(context);
     await this.#prepareStorage(context);
+    await prepareKeyingTab(this, context);
     await prepareResearchTab(this, context);
 
     const tabCounts = {
@@ -235,6 +240,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
       trade: context.tradeRows?.length ?? 0,
       ventures: context.ventureActions?.length ?? 0,
       storage: context.groups.length,
+      things: context.keying?.count,
       research: context.researchOpen,
     };
     for (const [id, tab] of Object.entries(context.tabs)) {
@@ -254,6 +260,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     if (!context.hasMarket) for (const id of MARKET_TABS) delete tabs[id];
     if (!game.user.isGM) {
       delete tabs.storage;
+      delete tabs.things;
       delete tabs.gmSettings;
       delete tabs.gmView;
     }
@@ -716,6 +723,11 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     for (const control of this.element.querySelectorAll(VIEWER_CONTROLS)) control.disabled = false;
   }
 
+  /** The place the Things here tab's rail keys: this sheet's own. */
+  keyingPlace() {
+    return this.actor;
+  }
+
   /** DragDrop instances for the declared configs; _onRender only re-binds them. */
   #dragDrop;
 
@@ -730,6 +742,7 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
     const root = this.element;
     bindTradeTab(this);
     bindResearchTab(this);
+    bindKeyingTab(this);
 
     // The GM-only permission gates the bind itself: a player's demographics
     // block gets no drop handlers at all.
@@ -1487,6 +1500,8 @@ export class LocationSheet extends PicksMixin(HandlebarsApplicationMixin(ActorSh
    * holds none is refused by `stash`.
    */
   async _onDropItem(event, item) {
+    // On the Things here tab an Item some kind of thing accepts is a thing of this place; goods are the sheet's own.
+    if (await takeThingDrop(this, event, item)) return null;
     const source = item?.parent;
     if (game.user.isGM && !storage().isProvider(this.actor) && source?.uuid !== this.actor.uuid) {
       await storage().setProvider(this.actor, true);

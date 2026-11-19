@@ -127,7 +127,50 @@ view model `screen-logic.mjs` `buildScreen` makes for the seat that opened it:
   dashed tile for a lot not yet found (Judge only), and Open the pot.
 
 The window re-renders on the formations record, the party actor, the place and
-the pot's cards. It holds no search state of its own but the open picker.
+the pot's cards. It holds no search state of its own but the open picker and, on
+the Judge's seat, the entry whose keying fields are open.
 
 A card paints a texture only through `treasure/card-art.mjs` `textureArt`; with
 none imported it is a plain slab with its frame and words.
+
+## Keying
+
+The Judge keys what a place holds in one rail, drawn in two windows
+(`templates/scene-search/keying-rail.hbs`; `keying-logic.mjs` is its pure half,
+`keying.mjs` the Foundry half): the **Things here** tab of the place's sheet
+(Judges only; a seat that is not a Judge has neither the tab nor its context),
+and the left aside of the scene screen's Judge seat, for the entry selected
+there (a card's name, or the card). The tab lists the place's things, each row a
+summary of both checks and a flag, and under it, read and never keyed, what the
+map says (`derivedInputs`: doors and old-style trap zones; nothing derives them
+yet, so that list is empty today). A row opens its rail.
+A trap, an obstacle or a condition (the hazard group, a thing like any other) is
+a row; an Item dropped on the tab goes through the one kind table
+(`region-place-row.mjs` `dropOnPlace`: `kindOfDrop`, `thingOfDrop`,
+`addThingTo`, no `point`), and any other Item is the sheet's own goods drop.
+
+Every field writes a key the thing already has, and none adds one:
+
+| Field | Writes |
+|---|---|
+| Hidden from the table | `hidden` |
+| Behind (a clue that shows it) | the OTHER thing's `layers.<layer>.yields.reveal`: this thing's key moves off any clue it was behind onto the layer picked, in one write; a clue the entry itself leads to is not offered |
+| Something more (optional line) | `hint`; blank removes it and the table reads the generic words |
+| Check | the layer's `check`; leaving Proficiency drops its `capability` |
+| Proficiency | the layer's `capability`, picked from the imported library abilities that stand for one |
+| Others may look hastily | the hasty layer's `anyone` |
+| Yields | `yields.clue`; the lots dealt at open and the reveals are listed read-only |
+| Tools | the methodical layer's `tools`, by dropping an item |
+| Turns | the methodical layer's `turns`; blank stores nothing |
+| Show to the table | `state.shown`, which a Reset clears |
+| Remove | lib's remove, then every reveal that named the thing is taken out |
+
+An authored write is lib's `reviseThingsOn`: it reads the list at the moment of
+the write, asks the keying logic for edits against the list AS STORED, and
+merges each edit key by key. The rail's own view carries the session's dealt lot
+keys in each layer; they never reach the place, since an edit names only the
+keys it changes and `state` is never written by it. A thing read from the map
+or from a fight (a door, an old-style trap zone, a body) has no list row: its
+rail says so and holds no field. A change that cannot be kept (a turn count that
+is no whole number, a clue that would loop) is refused in words and writes
+nothing.

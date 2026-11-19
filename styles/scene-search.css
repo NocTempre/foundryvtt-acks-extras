@@ -506,3 +506,217 @@
   border-style: dashed;
   opacity: 0.75;
 }
+
+/* The Judge's keying aside: a third column on the screen, left of the entries. */
+.acks-extras-ss-board.has-key {
+  grid-template-columns: calc(272px * var(--acks-extras-k)) minmax(0, 1fr) calc(290px * var(--acks-extras-k));
+}
+
+.acks-extras-keying-aside {
+  display: flex;
+  flex-direction: column;
+  gap: calc(8px * var(--acks-extras-k));
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: calc(10px * var(--acks-extras-k)) calc(12px * var(--acks-extras-k));
+  border-right: calc(2px * var(--acks-extras-k)) solid var(--acks-burgundy);
+  background: var(--acks-paper-deep);
+}
+
+.acks-extras-ss-card.is-selected {
+  outline: calc(3px * var(--acks-extras-k)) solid var(--acks-burgundy);
+  outline-offset: calc(2px * var(--acks-extras-k));
+}
+
+/* The plate's name is the control that opens the entry's keying fields, on the Judge's seat. */
+.acks-extras-ss-keybtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The keying rail, drawn by the scene screen's aside and by the place sheet's Things here tab. */
+.acks-extras-keying {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5em;
+  min-width: 0;
+  font-size: var(--acks-fs-body);
+  color: var(--acks-ink);
+}
+
+.acks-extras-keying-cap {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-keying label,
+.acks-extras-keying-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+  min-width: 0;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-keying label.acks-extras-keying-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.4em;
+}
+
+.acks-extras-keying input[type="text"],
+.acks-extras-keying input[type="number"],
+.acks-extras-keying select {
+  min-width: 0;
+  width: 100%;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-keying-set {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  min-width: 0;
+  margin: 0;
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-keying-set legend {
+  padding: 0 0.3em;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-keying-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3em;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-keying-chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0 0.3em;
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+  font-size: var(--acks-fs-fine);
+}
+
+.acks-extras-keying-x {
+  padding: 0 0.3em;
+  border: 0;
+  background: none;
+  color: inherit;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.acks-extras-keying-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+}
+
+.acks-extras-keying-note,
+.acks-extras-keying-hint {
+  margin: 0;
+  font-size: var(--acks-fs-fine);
+  line-height: 1.4;
+  color: var(--acks-ink-soft);
+}
+
+/* The place sheet's tab: a drop zone, a row per thing (its rail under it when open), and what the map says. */
+.acks-extras-keying-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  min-width: 0;
+}
+
+.acks-extras-keying-dropzone {
+  margin: 0;
+  padding: 0.6em;
+  border: 1px dashed var(--acks-burgundy);
+  text-align: center;
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-keying-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4em;
+  border: 1px solid var(--acks-rule-color-soft);
+}
+
+.acks-extras-keying-row.is-hidden {
+  border-style: dashed;
+}
+
+.acks-extras-keying-row .acks-extras-keying {
+  padding: 0.5em 0.6em;
+  border-top: 1px solid var(--acks-rule-color-soft);
+  background: var(--acks-paper-deep);
+}
+
+.acks-extras-keying-open {
+  display: grid;
+  grid-template-columns: minmax(5em, 8em) minmax(0, 1fr) auto;
+  gap: 0.6em;
+  align-items: center;
+  width: 100%;
+  padding: 0.3em 0.5em;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.acks-extras-keying-kind {
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-keying-sum,
+.acks-extras-keying-flag {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-keying-derived {
+  display: grid;
+  grid-template-columns: minmax(5em, 8em) minmax(0, 1fr) auto;
+  gap: 0.6em;
+  padding: 0.2em 0.5em;
+  border-bottom: 1px solid var(--acks-rule-color-soft);
+  color: var(--acks-ink-soft);
+}
