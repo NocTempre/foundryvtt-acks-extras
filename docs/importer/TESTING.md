@@ -1569,15 +1569,20 @@ fetched and holds, not only what it shows.
    duties; say so in the report.
 7. As the GM, run an import that reads `importer/shelf-shared`'s book (an
    entry of that book through `cookbookImportIds`, or the Books tab's import).
-   *Observable:* exactly one `.pdf` request for that book's file, however many
+   *Observable:* one `.pdf` request for that book's file opens it, however many
    entries it reads, and none for any other book; the imported documents land
-   as with a book opened at join.
+   as with a book opened at join. A book whose import OCRs pictures makes a
+   second request for the same path, since OCR takes its bytes through
+   `getData()`, which is a fetch of its own: count the opening request on its
+   own, and expect the OCR's after it.
 8. With `importer/shelf-gone` in place, run
    `acksExtras.importer.cookbookReimportBook(<its book>, {ask: async () => true})`
    as the GM. *Observable:* a notice that the book is not connected, one
    failed `.pdf` request (a 404) for the fixture's path, and the fixture's
    imported document with the same id and the same `_stats.modifiedTime`:
-   nothing was deleted or written.
+   nothing was deleted or written. A direct reader (an item the book prints,
+   imported through `cookbookImportAdventureItems`) is refused the same way
+   and makes no document.
 
 ### Teardown
 

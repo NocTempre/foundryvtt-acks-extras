@@ -25,7 +25,7 @@ const fn = (head) => src.match(new RegExp(`${head}[\\s\\S]*?\\n\\}`))?.[0] ?? ""
   ok("shelveOpen falls back to the open document", /\?\? \(await openBookBytes\(bookId\)/.test(open));
   ok("shelveOpen still refuses when neither holds bytes", /shelfNoBytes/.test(open));
   ok("the bytes it uploads are marked already fingerprinted", /\{ verified: true \}/.test(open));
-  ok("the open document's bytes are its getData", /openBookBytes = async \(bookId\) => \(await sessionDocs\.get\(bookId\)\?\.doc\?\.getData\?\.\(\)\) \?\? null/.test(src));
+  ok("the open document's bytes are its getData, and a file that cannot be read answers null", /openBookBytes = async \(bookId\) => \{\s*try \{\s*return \(await sessionDocs\.get\(bookId\)\?\.doc\?\.getData\?\.\(\)\) \?\? null;\s*\} catch \{\s*return null;\s*\}/.test(src));
   ok("the public bookBytes is the same reader", /bookBytes: openBookBytes/.test(src));
   const cache = fn("async function cacheBytes\\(");
   ok("the bridge still stores nothing when its window is 0", /!cacheWindowMs\(\)\) return/.test(cache));

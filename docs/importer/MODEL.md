@@ -2473,18 +2473,17 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
   through `openChecked` (`module.mjs`: the fingerprint, the wrong-book and
   not-a-form refusals) and holds the pdf.js document; it is single-flight, and
   a failure is not remembered. Once it has succeeded the handle is
-  *verified* for the session. A connect or a staging (`ingestBook`) hands its
+  *verified* for as long as it holds that document. A connect or a staging (`ingestBook`) hands its
   open document to the handle (`adopt`), which is verified from then on; a file
   this seat picked has no `src`.
 - **Reads verify first.** `readForImport` and `repairFromEntry`, and the direct
   readers in `equipment.mjs`, `variations.mjs` and `monster.mjs`, call
   `verifyDoc` before their first page and answer `book-closed` when the file
-  is gone or is another book. A reader that hands `session.doc` straight to
-  `executeEntry` (the scans, `browseAndLoad`, the adventure and class readers)
-  opens the file through its first `getPage`; where the file is gone the read
-  is not refused: `executeEntry` records the failure in the node's `misses` and
-  answers a node with blank fields, so a direct reader is as safe as its own
-  write guard.
+  is gone or is another book. `executeEntry` makes the same check on a handle
+  before any page, so a reader that hands `session.doc` straight to it (the
+  scans, `browseAndLoad`, the adventure, class, magic-item and actor readers)
+  gets `{ok: false, reason: "book-closed", fields: {}}`, the refusal an
+  unknown entry gets, and writes nothing.
 - **Deletes ask verified.** `rebuildable` and `readableHere` read
   `bookVerified`, never presence in `sessionDocs`. They are synchronous, so each
   repair entry (a shelf, a book, an adventure book, the entry picker, the class
@@ -2495,10 +2494,11 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
   take `liveDoc(doc)` before a page, and OCR takes the bytes through
   `getData()`, which fetches `src`. A live document is held while a
   `holdingLive` scope stands (the import chain, `holdingReads`) and released
-  after `IDLE_MS` with no read; the handle stays verified. A handle with no
+  after `IDLE_MS` with no read, and the release lapses the handle's verified
+  state, so the next read or delete opens the file again. A handle with no
   `src` never releases.
 - **The character sheet's blank** is `bookBytes("sheet")`: a fetch of the
-  shelf file when Export is pressed.
+  shelf file when Export is pressed, null when the file cannot be read.
 
 ## The cookbook's files
 

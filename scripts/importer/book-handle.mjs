@@ -8,8 +8,9 @@
  * its `doc.getPage(n)` / `doc.numPages` shape. Its two states:
  *
  *   registered  placed at join; the file has not been asked for.
- *   verified    a live open fingerprinted this session (`live()`), so the file
- *               is there and is this book.
+ *   verified    a live open fingerprinted the file (`live()`) and its document is
+ *               still held, so the file is there and is this book. A release
+ *               lapses it.
  *
  * Reads verify before their first page; deletes ask `verified` and never run
  * on a registered handle (`verifiedDoc`). The live pdf.js document opens on
@@ -102,7 +103,7 @@ export class BookHandle {
     return this.#title;
   }
 
-  /** Whether a live open this session fingerprinted the file: the only state a delete may rest on. */
+  /** Whether a live open fingerprinted the file and still holds it: the only state a delete may rest on. */
   get verified() {
     return this.#verified;
   }
@@ -202,9 +203,14 @@ export class BookHandle {
     this.#release();
   }
 
+  // A fingerprint vouches for the file as it was when the live document opened.
+  // Once that document is released nothing holds the file, so the vouching
+  // lapses with it: the next read or delete opens again and finds the file
+  // gone or changed instead of resting on a stale answer.
   #release() {
     const doc = this.#doc;
     this.#doc = null;
+    this.#verified = false;
     Promise.resolve(doc?.destroy?.()).catch(() => {});
   }
 

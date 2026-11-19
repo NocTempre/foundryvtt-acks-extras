@@ -536,8 +536,18 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   return record;
 }
 
-/** The file of a book open on this seat, as fresh bytes, or null when it is not open. */
-const openBookBytes = async (bookId) => (await sessionDocs.get(bookId)?.doc?.getData?.()) ?? null;
+/**
+ * The file of a book open on this seat, as fresh bytes, or null when it is not
+ * open or its file cannot be read (a registered handle's `getData` rejects for
+ * a gone file, and a caller's no-book path takes null).
+ */
+const openBookBytes = async (bookId) => {
+  try {
+    return (await sessionDocs.get(bookId)?.doc?.getData?.()) ?? null;
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Put a book that is OPEN on this seat onto the server. The server is asked

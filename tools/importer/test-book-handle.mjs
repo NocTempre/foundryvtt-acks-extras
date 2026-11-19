@@ -12,6 +12,7 @@ import assert from "node:assert";
 import { BookHandle, IDLE_MS, holdingLive, liveDoc, verifiedDoc, verifyDoc } from "../../scripts/importer/book-handle.mjs";
 import { rebuildVerdict } from "../../scripts/importer/rebuild-guard.mjs";
 import { initCookbook, loadCookbook } from "../../scripts/importer/cookbook.mjs";
+import { executeEntry } from "../../scripts/importer/executor.mjs";
 import { readForImport, repairFromEntry, holdingReads } from "../../scripts/importer/cookbook/read.mjs";
 import { bookVerified, verifyBooks, verifiedBook } from "../../scripts/importer/cookbook/state.mjs";
 
@@ -164,9 +165,19 @@ const quiet = console.warn;
   const handle = handleOn(srv, { idleMs: 25 });
   await handle.live();
   await new Promise((r) => setTimeout(r, 90));
-  ok("an idle live document is released and the handle stays verified", handle.isLive === false && handle.verified === true && srv.log.docs[0].destroyed === 1);
+  ok("an idle live document is released and the vouching lapses with it", handle.isLive === false && handle.verified === false && srv.log.docs[0].destroyed === 1);
   await handle.getPage(1);
-  ok("the next read opens it again", srv.log.opens === 2 && srv.log.fetches.length === 2);
+  ok("the next read opens it again", srv.log.opens === 2 && srv.log.fetches.length === 2 && handle.verified === true);
+
+  const files = { ...FILES };
+  const gone = handleOn(server(files), { idleMs: 25 });
+  await gone.live();
+  delete files["books/zz.pdf"];
+  ok("a file removed while the document is held still reads from the held document", gone.verified === true);
+  await new Promise((r) => setTimeout(r, 90));
+  console.warn = () => {};
+  ok("a file removed before an idle release does not verify afterwards", (await gone.verify()) === false && gone.verified === false);
+  console.warn = quiet;
 
   const held = handleOn(srv, { idleMs: 25 });
   await holdingLive(async () => {
@@ -273,6 +284,19 @@ const quiet = console.warn;
   console.warn = () => {};
   ok("a file that is another book answers book-closed", (await readForImport(ID)).reason === "book-closed");
   console.warn = quiet;
+
+  // A direct reader hands executeEntry the session's document and reads `ok`.
+  const none = server({}, { pages: 4 });
+  console.warn = () => {};
+  const direct = await executeEntry(handleOn(none, { src: "books/missing.pdf" }), CONTENT.proficiencies, {}, ID);
+  ok("executeEntry on a handle whose file is gone refuses with book-closed and no fields", direct.ok === false && direct.reason === "book-closed" && Object.keys(direct.fields).length === 0, JSON.stringify(direct));
+  console.warn = quiet;
+  ok("and opened nothing", none.log.opens === 0);
+  const live = server(FILES, { pages: 4 });
+  const fresh = handleOn(live);
+  const good = await executeEntry(fresh, CONTENT.proficiencies, {}, ID);
+  ok("executeEntry on a handle whose file is there verifies it first and reads", good.ok === true && fresh.verified === true && live.log.fetches.length === 1, JSON.stringify(good.reason));
+  ok("executeEntry on a plain open document reads it as before", (await executeEntry(fakeDoc(4), CONTENT.proficiencies, {}, ID)).ok === true);
 }
 
 console.log(`test-book-handle: ${pass} checks passed`);

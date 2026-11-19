@@ -12,6 +12,7 @@
  * Runs identically in the browser (Foundry binding) and Node (verify harness).
  */
 import { pageItems, pageArtInfo, SPOIL_RE } from "./extract.mjs";
+import { verifyDoc } from "./book-handle.mjs";
 import { rowsByY, applyCellPattern, slugLabel, takeProse, joinRuns as joinCellRuns } from "./table-extract.mjs";
 import { opensWithNumber, printKey } from "./printed-name.mjs";
 import { scenarioRoutines } from "./statline-attacks.mjs";
@@ -2343,6 +2344,11 @@ export async function executeEntry(doc, bookCookbook, registers, entryId, opts =
   if (!entry || !COOKBOOK_SCHEMAS.includes(bookCookbook.schema)) {
     return { id: entryId, ok: false, reason: !entry ? "unknown-entry" : "schema-mismatch", fields: {} };
   }
+  // A registered handle has fetched nothing, so a read of a gone file would
+  // come back ok with every field null and the failure only in `misses`, which
+  // a writer takes for a page that matched nothing. Refusing here, before any
+  // page, gives every direct reader the refusal a book never opened gets.
+  if (doc?.isBookHandle && !(await verifyDoc(doc))) return { id: entryId, ok: false, reason: "book-closed", fields: {} };
   const pageCache = opts.pageCache ?? new Map();
   const getPage = async (n) => {
     if (!pageCache.has(n)) pageCache.set(n, await pageItems(doc, n));
