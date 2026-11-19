@@ -229,7 +229,7 @@ export const api = () => acksExtras.importer ?? {};
 export const claimedId = (doc) => String(doc.getFlag(MODULE_ID, "cookbook")?.id ?? "");
 
 /**
- * Whether a book's file has been opened and fingerprinted this session, which
+ * Whether a book's file has been opened and fingerprinted and is still held, which
  * is what a delete may rest on: a book only registered at join is not (see
  * `BookHandle`). Settled by `verifyBooks` before the delete is asked.
  */

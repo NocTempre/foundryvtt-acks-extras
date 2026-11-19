@@ -1580,13 +1580,13 @@ fetched and holds, not only what it shows.
    as the GM. *Observable:* a notice that the book is not connected, one
    failed `.pdf` request (a 404) for the fixture's path, and the fixture's
    imported document with the same id and the same `_stats.modifiedTime`:
-   nothing was deleted or written. A direct reader (an item the book prints,
-   imported through `cookbookImportAdventureItems`) is refused the same way
-   and makes no document.
+   nothing was deleted or written.
 
 ### Teardown
 
-None: the fixture is kept, and the world's shelf was only read.
+The three fixtures are kept. Step 7 imports documents: track the uuids of what
+it made (`api.track`, read back from the action's own result) and sweep them
+with `api.sweepTracked()`; the world's shelf itself was only read.
 
 ## Location journals refuse a page they cannot anchor
 

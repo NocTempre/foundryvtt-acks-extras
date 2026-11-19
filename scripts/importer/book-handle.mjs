@@ -163,7 +163,7 @@ export class BookHandle {
     return doc;
   }
 
-  /** Whether the file is there and is this book: a live open, once per session. Never throws. */
+  /** Whether the file is there and is this book: a live open, repeated after a release. Never throws. */
   async verify() {
     if (this.#verified) return true;
     try {

@@ -1,16 +1,18 @@
 /**
  * A repair over a book whose file is gone writes nothing and deletes nothing.
  *
- * The shelved book is a registered `BookHandle` whose fetch answers 404. Two
+ * The shelved book is a registered `BookHandle` whose fetch answers 404. Three
  * repair entries are driven over it, after the book was imported while its
- * file was there: the book repair (`cookbookReimportBook`), which verifies
- * the book before it asks anything, and the items step on a repair tally
- * (`cookbookImportAdventureItems`). The same step imports an item the world
- * lacks through a reader that hands `executeEntry` the session's document
- * directly. None may write an item from a read that came back blank, and none
- * may call a delete. A control run with the
- * file back shows the same entries do repair. The book is invented, two items
- * with nothing to execute; the world is the item-repair suite's shape.
+ * file was there: the book repair (`cookbookReimportBook`), which verifies the
+ * book before it asks anything; the entry picker (`cookbookReimportEntries`),
+ * whose rebuild is the route that deletes a document and makes it again; and
+ * the items step on a repair tally (`cookbookImportAdventureItems`), which
+ * also imports an item the world lacks through a reader that hands
+ * `executeEntry` the session's document directly. None may write an item from
+ * a read that found no file, and none may call a delete. A control run with
+ * the file there shows the picker's rebuild does delete and the step does
+ * repair. The book is invented, two items with nothing to execute; the world
+ * is the item-repair suite's shape.
  */
 import assert from "node:assert";
 import { MODULE_ID } from "../../scripts/importer/constants.mjs";
@@ -22,6 +24,7 @@ import {
   loadCookbook,
   cookbookImportAdventureItems,
   cookbookReimportBook,
+  cookbookReimportEntries,
   importedItemFor,
   forgetImportedIndex,
 } from "../../scripts/importer/cookbook.mjs";
@@ -225,6 +228,32 @@ const one = await importedItemFor(ID1);
 ok("the book's first item is on the shelf", !!one && mine(one).cookbook?.id === ID1);
 await one.update({ "system.cost": 99 });
 
+/* --- the entry picker's rebuild, the route whose normal path deletes ---------------------- */
+// An actor claiming an entry whose kind no in-place run writes is deleted and made
+// again by a rebuild (`repairEntries`), after the picker has checked `rebuildable`.
+class MockActor {
+  static documentName = "Actor";
+  static async deleteDocuments(ids) {
+    deletes.push(...ids.map((id) => `Actor:${id}`));
+    for (const id of ids) game.actors.delete(id);
+    return ids;
+  }
+  static async createDocuments(list) {
+    return list.map((d) => ({ ...d, id: id16("ac") }));
+  }
+}
+foundry.utils.getDocumentClass = (type) => (type === "Actor" ? MockActor : MockItem);
+const seedActor = () => {
+  const _id = id16("ac");
+  const actor = { id: _id, _id, name: "Held", type: "npc", documentName: "Actor", pack: null, flags: { [MODULE_ID]: { cookbook: { id: ID1, book: BOOK } } }, getFlag, toObject: () => ({ _id }) };
+  game.actors.set(_id, actor);
+  return actor;
+};
+foundry.applications.api.DialogV2.prompt = async (opts) =>
+  opts.ok.callback(null, { form: { querySelectorAll: () => [{ value: `Monsters|${ID1}` }] } });
+/** Press Rebuild in the picker on the one entry; what a rebuild makes again after its delete is not under test. */
+const pickAndRebuild = () => cookbookReimportEntries().catch(() => null);
+
 /* --- then its file goes: a registered handle whose fetch is a 404 ------------------------- */
 let files = {};
 const fetches = [];
@@ -249,6 +278,13 @@ ok("it never asked to rebuild", confirms === 0);
 ok("it called no delete and wrote nothing", deletes.length === 0 && JSON.stringify(one.toObject()) === before, JSON.stringify(deletes));
 ok("the handle is still unverified", handle.verified === false);
 
+const held = seedActor();
+const warnedBefore = notices.length;
+await pickAndRebuild();
+ok("the picker's rebuild over a gone file calls no delete and keeps the held document", deletes.length === 0 && game.actors.has(held.id), JSON.stringify(deletes));
+ok("it says the entry was left", notices.slice(warnedBefore).some(([, m]) => /reimportLeft/.test(m)), JSON.stringify(notices.slice(warnedBefore)));
+ok("and the handle is still unverified", handle.verified === false);
+
 forgetImportedIndex();
 const tally = repairTally({ force: true });
 const step = await cookbookImportAdventureItems({ books: [BOOK], repair: tally });
@@ -268,6 +304,9 @@ const back = repairTally({ force: true });
 await cookbookImportAdventureItems({ books: [BOOK], only: new Set([ID1]), repair: back });
 ok("with the file back the step replaces the item", repairCounts(back).replaced >= 1 && one.system.cost === 0, JSON.stringify(repairCounts(back)));
 ok("and the handle is verified by that read", handle.verified === true);
+forgetImportedIndex();
+await pickAndRebuild();
+ok("control: with the file back the picker's rebuild deletes the held document", deletes.includes(`Actor:${held.id}`) && !game.actors.has(held.id), JSON.stringify(deletes));
 forgetImportedIndex();
 const made = await cookbookImportAdventureItems({ books: [BOOK] });
 ok("and the item the world lacked is imported", made.made === 1 && !!(await importedItemFor(ID2)), JSON.stringify(made));
