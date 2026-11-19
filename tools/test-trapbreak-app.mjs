@@ -288,6 +288,38 @@ await ok("the Judge's press carries the Judge's authority into the throw and a p
   assert.equal(sent.length, 1);
 });
 
+await ok("Re-arm is offered to a player and enabled for either seat only on a disarmed trap", async () => {
+  reset();
+  let { ctx } = await ctxOf("Alder");
+  assert.deepEqual([ctx.showRearm, ctx.canRearm], [true, false], "the Judge's button is drawn and disabled while the trap is armed");
+  game.user = player;
+  ({ ctx } = await ctxOf("Alder"));
+  assert.deepEqual([ctx.showRearm, ctx.canRearm], [false, false], "a player is not shown it for an armed trap");
+  setThing({ state: { state: "disarmed" } });
+  ({ ctx } = await ctxOf("Alder"));
+  assert.deepEqual([ctx.showRearm, ctx.canRearm], [true, true], "a player is shown it and may press it");
+  game.user = judge;
+  ({ ctx } = await ctxOf("Alder"));
+  assert.deepEqual([ctx.showRearm, ctx.canRearm], [true, true]);
+});
+
+await ok("a character who throws methodically and not hastily is told so in hasty mode, on both seats; one with no throw in either column stays blank", async () => {
+  reset();
+  let { ctx } = await ctxOf("Alder", { mode: "hasty" });
+  assert.equal(ctx.canAttempt, false, "nothing to roll: a hard block for the Judge too");
+  assert.match(ctx.refusal.text, /refuse.hastyNeedsSkill/);
+  assert.equal(ctx.needs, null);
+  game.user = player;
+  ({ ctx } = await ctxOf("Alder", { mode: "hasty" }));
+  assert.match(ctx.refusal.text, /refuse.hastyNeedsSkill/);
+  ({ ctx } = await ctxOf("Alder", { mode: "methodical" }));
+  assert.equal(ctx.refusal, null);
+  assert.equal(ctx.canAttempt, true);
+  ({ ctx } = await ctxOf("Nothing", { mode: "hasty" }));
+  assert.equal(ctx.refusal, null, "neither column read: blank, and no words");
+  assert.equal(ctx.canAttempt, false);
+});
+
 /* --- the figures ------------------------------------------------------------ */
 const importThrows = (cells) => T.registerTable({ id: THROWS_DOC, source: { pages: "ZZ p. 4" }, tables: { [THROW_TABLE]: cells } }, { priority: T.PRIORITY.WORLD });
 

@@ -274,8 +274,10 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       if (STATE_REFUSALS.has(reason)) return { text: loc("stateFailedHasty", { name: actor?.name ?? "", level: Number(chosen?.repeatLock?.[actor?.id]) || level }), tip: page };
       return { text: loc(`refuse.${reason}`, { name: actor?.name ?? "" }), tip: null };
     };
-    // A character with no throw at all has the blank needs and the page; nothing is said about what is missing.
-    const refusal = gate.block && gate.block !== "cannotTry" ? said(gate.block) : null;
+    // A character with no throw in either column has the blank needs and the page, and nothing is said about
+    // what is missing; one who throws methodically and not hastily lacks the skill, and the window says so.
+    const lacksSkill = gate.block === "cannotTry" && mode === "hasty" && !!resolveCheck(actor, PARTY_CHECKS.trapbreakMethodical);
+    const refusal = lacksSkill ? said("hastyNeedsSkill") : gate.block && gate.block !== "cannotTry" ? said(gate.block) : null;
     const warnings = gate.warnings.map(said).map((w) => ({ ...w, advice: loc("breakWarning") }));
     // The character's own state at this trap, when no refusal already says it.
     const note = chosen && actor && !gate.warnings.concat(gate.block ?? []).some((r) => STATE_REFUSALS.has(r))
@@ -311,8 +313,8 @@ export default class TrapbreakApp extends HandlebarsApplicationMixin(Application
       warnings,
       note,
       canAttempt: !!actor && !!chosen && !gate.block,
-      canRearm: !!actor && !!chosen?.disarmed,
-      showRearm: isGM || !!chosen?.disarmed,
+      canRearm: !!actor && chosen?.state === STATES.disarmed,
+      showRearm: isGM || chosen?.state === STATES.disarmed,
       reachText: reachImported ? `${reachFeet} ft` : "—",
       reachTip: reachImported ? loc("tipReach", { page: citeOf(FORMATION_DOC, "trapbreakReachFeet") ?? page }) : page,
       reachImported,
