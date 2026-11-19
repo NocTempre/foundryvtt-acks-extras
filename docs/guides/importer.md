@@ -17,7 +17,8 @@ written into the world, so nobody needs the file again afterwards.
 
 *The Books tab of Manage Imports: the books on the server, the picker and the
 folder scan that put more there, this seat's books folded by state, and Forget
-books on this computer.*
+books on this computer. Taken before each staged book's row carried its saved-text
+chip and Read control.*
 
 ### Connect
 
@@ -91,8 +92,11 @@ computer first:
 Every route **opens and checks the file before anything is staged**, and the
 first two check it before anything is uploaded: a PDF is only recorded as a
 book once it proves to be that book, so a misnamed file is refused rather than
-staged wrong. From then on every GM seat, on any machine, reads it
-automatically at launch — no picker, no permission click, nothing to remember.
+staged wrong. From then on every GM seat, on any machine, can read it with no
+picker, no permission click and nothing to remember: the seat fetches the file
+only when something is imported from it, and the book's text is saved beside it
+once, so every other seat reads the saved text instead (see *A staged book's
+text* below).
 
 If the server already holds a file under that book's name, nothing is uploaded
 a second time: the copy already there is read and staged if it is that book,
@@ -104,8 +108,9 @@ under *Your Books*: one entry per book, holding a PDF page. Open it and press
 button on the book's row in the Books tab goes to the same place. The
 journal is yours alone until you share it — give a player Observer permission
 on it the way you would on any other journal, and they can read the book too.
-A player's seat reads at launch only the books you have shared with it, so a
-book you keep to yourself costs their seat nothing when they join.
+A player's seat lists only the books you have shared with it, and a book you
+keep to yourself shows the line "On the server, not shared with you" and no
+state.
 
 The official fillable **character sheet** has a row of its own. Nothing is
 imported from it: the character sheet's export writes characters into it
@@ -124,6 +129,43 @@ fetched by anyone signed in to your world who knows the path, whether or not
 you shared its journal. Staging a book makes it undiscoverable, not
 inaccessible. If that matters for your table, keep your books on your own disk
 and connect them per seat.
+
+### A staged book's text
+
+The first time something is imported from a staged book, a GM seat reads the
+whole file once and saves its text beside the PDF, in
+`acks-extras-books/parsed/` under the Foundry data folder. Every seat then
+reads that saved text and fetches nothing from the PDF, so an import reads the
+book in memory. Open the **Your Books** macro (**Compendium Packs tab → ACKS
+II — Extras → Macros → ACKS Extras Macros → ACKS Extras → Your Books**); in the
+Books tab that opens, each staged book's row in the **On the server** band says
+where it stands:
+
+- **Prepared** — the text is saved and this build reads it. Hover the chip for
+  the saved file, the PDF it came from and the reader that wrote it.
+- **Not read** — nothing is saved yet. The first import from the book reads it
+  once, for every seat.
+- **Stale** — a text is saved, but this build will not use it: it was written
+  by an older reader, or the book's journal now points at a different file. The
+  next import from the book reads it again. Hover the chip for which.
+- **Reading** — a read is running on this seat; the row shows the page it has
+  reached, with a bar.
+- **Refused** — a check made this session found the file gone, or not the book
+  that was staged. Nothing is read from it. The row offers **Remove** only;
+  remove it, then add the right file from the book's row below. The tab
+  checks no file on its own, so a book shows Refused only after an import, a
+  repair or a press of **Read again** has touched it, and it clears after a
+  reload.
+
+To read a book's text without waiting for an import, press **Read now** (a book
+with nothing saved) or **Read again** (any other) in the book's row in the Books tab's **On the server** band. There is no confirmation, and
+nothing is deleted: each read writes a new saved file beside the old ones, and
+the journal's pointer moves only once the new file is up. **Read** and
+**Remove** are disabled while the book is being read, and a notification says
+how it ended: the text saved, the read failed and the book is as it was, or
+the file refused. Only a GM can read; a Player sees each book's state and none
+of these controls. With more than four books staged the list folds under
+**Staged on the server (N)**, followed by how many are stale or refused.
 
 ### Status and reconnecting
 

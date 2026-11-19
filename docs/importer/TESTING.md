@@ -74,13 +74,13 @@ GM has this tab alone.
    none. The file is read and identified BEFORE anything is uploaded, so
    handing a row the wrong book's PDF is refused with nothing on the server;
    the bulk picker stages everything it can name and lists the files that named
-   no book. Both leave the row reading "Open from the server on every launch".
+   no book. Both leave the row on the server, with its state chip (a book never read shows "Not read").
 3c. **Add to server** on an open book with the refresh bridge off. Set the
    refresh-bridge window setting to 0, forget books on this computer, connect one book from a folder, and confirm
    it is not staged (a book that is staged takes the server's copy and never
    reaches this path); then press its row's **Add to server**.
-   *Observable:* the book uploads and its row reads "Open from the server on
-   every launch"; the console carries no "no longer held in memory" error,
+   *Observable:* the book uploads and its row reads "Staged on the server —
+   <file>" with a state chip; the console carries no "no longer held in memory" error,
    which is what the row said every time before. `acksExtras.importer.bookBytes(id)`
    returns the same bytes the upload wrote, so `md5sum` of the file under
    `Data/acks-extras-books/` matches the source PDF.
@@ -1565,7 +1565,7 @@ fetched and holds, not only what it shows.
    progress bar and no "entries available" notice appeared for the book (a
    book connected by hand afterwards raises both).
    *Your Books*: each withheld row says the book is not shared with this
-   seat, and the shared row says it is read from the server on every launch.
+   seat, and the shared row says it is staged on the server, with its state chip and no Read or Remove.
 5. Press a citation to a withheld book (step 7 above). *Observable:* the
    permission warning and nothing opens. A citation reads the shelf page, not
    the seat's registered book, so this answer does not depend on step 4.
@@ -1695,6 +1695,95 @@ mechanics here.
 The fixture is kept. Step 2's imports make documents: track their uuids from the
 action's result and sweep them with `api.sweepTracked()`. Restore the PDF
 page's `src` to the copy the fixture is meant to hold; the uploaded files stay.
+
+## The Books tab's saved-text states
+
+Each staged book's row in the Books tab's **On the server** band says where its
+saved text stands (`docs/importer/MODEL.md`, "A book's text is parsed once and
+read from the saved file", "State and re-read"): a chip (Prepared, Stale, Not
+read, Reading, Refused), a state line, and for a GM **Read now** or **Read
+again** and **Remove**. The observables are the row's `data-text-state`, its
+chip and line, the controls it carries, the requests the seat made while the
+tab was built, and the notification a press raises.
+
+### Fixtures
+
+Each is a shelf journal for a registry book, built as `importer/shelf-shared`
+is (the shelf recipe's fixture 2), its PDF page pointed at a copy under the Data
+directory, with `flags.world.fixture` set to the marker. Kept; found by marker,
+never by name. A fixture's state is asserted at the start of each step that
+needs it and reset as written, since a kept fixture carries whatever the last
+walk left.
+
+1. **`importer/parse-fresh`** (the recipe above) is the book with no pointer.
+   Reset: re-point its PDF page at a fresh copy.
+2. **`importer/books-prepared`**: a second shelf journal, read once with **Read
+   now**, so its pointer is current.
+3. **`importer/books-stale`**: a third, read once, then its pointer's
+   `stamp` rewritten (`journal.setFlag("acks-extras", "parsed", {...pointer,
+   stamp: "p0-0"})`) for the reader cause. Its other cause is the same journal with
+   its PDF page re-pointed after a read.
+4. **`importer/books-refused`**: a fourth, read once, whose PDF is then
+   renamed on disk so its path answers 404. The refusal is held by the seat's
+   handle: it exists only after a check, and a page reload clears it.
+5. A fifth staged book (any marker) brings the shelf past four, so the band folds.
+6. A **Player seat** joined as the world's Player, one of the books shared with it
+   and one not (the shelf recipe's fixtures).
+7. A **seat that counts** (the prepared-once recipe's fixture 2): `fetch` and
+   `FilePicker.upload` logged from before navigation.
+
+### Steps
+
+1. As a GM, open the Books tab with fixtures 1 to 4 staged and the seat's log
+   cleared. *Observable:* the rows read, in order, Not read, Prepared, Stale
+   and (after step 6) Refused; no `HEAD` and no `GET` of any `.pdf` while the
+   tab was built, even for the book whose file is gone (it reads Prepared until
+   something touches it); each state has its line; hovering each chip shows
+   its figures from the journal (the saved file and the PDF, the two readers, the two
+   paths, "no prepared text").
+2. Press **Read now** on the Not read book. *Observable:* at once the row's
+   chip says Reading, its button reads "Reading…" and is disabled, **Remove** is
+   disabled, the line reads "page n of N" and the progress bar's
+   `aria-valuenow` rises to N; one `GET` of the PDF and one upload of a
+   `<book>-<stamp>-<attempt>.json`; then an info notification, the chip
+   Prepared, **Read again** offered, and the pointer naming the new file.
+   Another row stays usable throughout.
+3. Press **Read again** on the Prepared book. *Observable:* the same, one more
+   uploaded file beside the old one, the pointer moved to the new file, no
+   confirmation.
+4. On the Stale book read **Read again**. *Observable:* Prepared when it ends.
+5. Make the server unreachable for the PDF only (the seat's `fetch` wrapper
+   throws for that path) and press **Read again**. *Observable:* a warning
+   notification that the read failed and the text prepared before is left as it
+   was; the row returns to the state it had; the pointer is unchanged.
+6. Rename fixture 4's PDF on disk and press **Read again** on its row.
+   *Observable:* an error notification that the file is no longer on the server;
+   the row reads Refused, offers **Remove** only (no Open, no Read), and its line
+   says the file is gone; the tooltip of the chip names the file and the status.
+   Rename it back; the row still reads Refused until a reload.
+7. With five or more books staged, fold the band shut. *Observable:* the summary
+   reads "Staged on the server (N) · X stale · Y refused", each figure with a
+   tooltip, and no control inside the summary.
+8. On the Player seat open the Books tab. *Observable:* each shared book shows its
+   chip and state line and no Read, Remove, pick or scan control; Open only
+   where the journal is visible; the book not shared shows the withheld line and
+   no chip. Run `acksExtras.importer.readBookText("<book>")` in that page:
+   a warning notification that only a GM can read a book's text again, and no
+   request logged.
+9. Resize the manager to 420 px wide, at the larger type sizes too.
+   *Observable:* the name, chip and buttons wrap under each other; the tab strip
+   stays put while the body scrolls; no row is clipped; a second Manage Imports
+   copy opened beside it (detached browser window) answers the same press.
+10. Press **Read now** on one book and **Remove** on it while it reads.
+    *Observable:* the press does nothing; Remove works once the read ends.
+
+### Teardown
+
+The fixtures are kept. Re-point and restore as each fixture says; the uploaded
+files stay, since Foundry deletes none. A step that raised notifications leaves
+none to remove. `docs/releases/v2026.11.14/importer-books-tab.png` predates the
+chips and the Read control and is stale: the release snapshot is shot again from
+a state a user can produce, never from an API-built journal.
 
 ## Location journals refuse a page they cannot anchor
 

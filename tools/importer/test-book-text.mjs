@@ -14,7 +14,7 @@
 import assert from "node:assert";
 import { BookHandle } from "../../scripts/importer/book-handle.mjs";
 import { ParsedBooks, PARSE_STAMP } from "../../scripts/importer/parsed-book.mjs";
-import { TEXT_STATES, pressRead, rowActions, tally, textState } from "../../scripts/importer/book-text.mjs";
+import { TEXT_STATES, pressRead, refusalKind, rowActions, tally, textState } from "../../scripts/importer/book-text.mjs";
 
 let pass = 0;
 const ok = (label, cond, detail = "") => {
@@ -237,6 +237,45 @@ const stateOf = (parsed, bookId = "rr", refusal = null) => textState({ parsed, b
   pass++;
 }
 
+/* --- a re-read and the journal's path -------------------------------------------------------- */
+
+{
+  const w = world();
+  const gm = w.seat();
+  const V2 = "books/rr-v2.pdf";
+  w.files.set(V2, { bytes: 2000 });
+
+  // A journal re-pointed after the handle was made: the press reads the journal's file and records it under that path.
+  const handle = gm.handle();
+  w.journals.rr.src = V2;
+  const made = await handle.reread();
+  ok("a re-read of a re-pointed book fetches the journal's file", made.pointer.src === V2 && w.log.includes(`GET ${V2}`) && !w.log.includes(`GET ${PDF}`), w.log.join(" | "));
+  ok("and the handle serves that text", handle.src === V2 && (await handle.getPage(1)) != null);
+
+  // A file this seat connected on purpose is not the journal's: the parse refuses its bytes and the book stays unrefused.
+  const own = gm.handle();
+  own.adopt({ doc: fakeDoc(4), numPages: 4, title: "Mine", src: "books/mine.pdf" });
+  w.files.set("books/mine.pdf", { bytes: 3000 });
+  const uploads = w.uploads.length;
+  await assert.rejects(() => own.reread(), /not of the shelf/);
+  pass++;
+  ok("a re-read of a connected file records nothing and refuses nothing", w.uploads.length === uploads && own.refusal === null);
+
+  // A journal that moves while the press runs: the result is not the new file's text, so the handle takes none of it.
+  w.journals.rr.src = PDF;
+  w.journals.rr.pointer = null;
+  const moving = gm.handle();
+  w.release = new Promise((resolve) => setTimeout(resolve, 20));
+  const running = moving.reread();
+  w.journals.rr.src = "books/rr-v3.pdf";
+  await moving.getData().catch(() => {}); // the handle follows the journal while the press is in flight
+  await assert.rejects(() => running, /changed while it was parsed/);
+  pass++;
+  w.release = null;
+  ok("a press the journal moved under records nothing and leaves the handle unrefused", w.journals.rr.pointer === null && moving.refusal === null && moving.src === "books/rr-v3.pdf");
+  w.journals.rr.src = PDF;
+}
+
 /* --- the controls a row offers --------------------------------------------------------------- */
 
 {
@@ -277,6 +316,96 @@ const stateOf = (parsed, bookId = "rr", refusal = null) => textState({ parsed, b
 
   const player = await pressRead({ bookId: "rr", reread: async () => (called++, { pointer }), canRead: false, reading: false, notify });
   ok("a seat that may not read is told so and reads nothing", player.ok === false && called === 0 && notes.at(-1)[0] === "warn");
+}
+
+/* --- the kind of a failure, progress and change events --------------------------------------- */
+
+{
+  const w = world({ pages: 5 });
+  const events = [];
+  let watchedRef = null;
+  // A store of this seat's own that reports what it is doing.
+  const watched = new ParsedBooks({
+    isGM: () => true,
+    srcOf: (id) => w.journals[id]?.src ?? null,
+    pointerOf: (id) => w.journals[id]?.pointer ?? null,
+    writePointer: async (id, pointer) => {
+      w.journals[id].pointer = structuredClone(pointer);
+    },
+    upload: async (name, text) => {
+      w.files.set(`books/parsed/${name}`, { text });
+      return `books/parsed/${name}`;
+    },
+    open: async () => ({ doc: fakeDoc(5), numPages: 5, title: "T" }),
+    attempt: () => `w${w.attempt++}`,
+    fetchImpl: w.fetchImpl,
+    onChange: (id, kind) => events.push([id, kind, watchedRef?.reading(id), watchedRef?.progress(id)?.page ?? null]),
+  });
+  watchedRef = watched;
+  await watched.prepare("rr");
+  same("a run reports its start, each page and its end", events.map((e) => e[1]).join(","), "state,progress,progress,progress,progress,progress,state");
+  same("progress counts pages of the book's total", [events[1][3], events[5][3]], [1, 5]);
+  ok("the start is seen as reading and the end as not", events[0][2] === true && events.at(-1)[2] === false);
+  ok("nothing is left of the progress after the run", watched.progress("rr") === null && watched.reading("rr") === false);
+  ok("the store names the path the journal's page holds, and none for a form", watched.src("rr") === PDF && watched.src("form") === null);
+  const stale = textState({ parsed: watched, bookId: "rr" });
+  ok("a current pointer has no stale cause", stale.state === TEXT_STATES.PREPARED && stale.cause === null && stale.src === PDF && stale.stamp === PARSE_STAMP);
+  w.journals.rr.pointer = { ...w.journals.rr.pointer, stamp: "p0-old" };
+  ok("another stamp is stale for the reader", textState({ parsed: watched, bookId: "rr" }).cause === "reader");
+  w.journals.rr.pointer = { ...w.journals.rr.pointer, stamp: PARSE_STAMP, src: "books/other.pdf" };
+  ok("another src is stale for the file", textState({ parsed: watched, bookId: "rr" }).cause === "file");
+  w.journals.rr.pointer = { ...w.journals.rr.pointer, src: PDF, numPages: 0 };
+  ok("an incomplete pointer is stale for the pointer", textState({ parsed: watched, bookId: "rr" }).cause === "pointer");
+}
+
+{
+  // A request that fails is a warning and not a refusal; only a missing file or another book refuses.
+  const w = world();
+  const gm = w.seat();
+  const handle = gm.handle();
+  await handle.reread();
+  const real = w.fetchImpl;
+  w.fetchImpl = async () => {
+    throw new TypeError("network down");
+  };
+  const failing = new BookHandle({ bookId: "rr", src: PDF, open: async () => ({}), fetchImpl: w.fetchImpl, parsed: gm.parsed });
+  await assert.rejects(() => failing.reread(), (err) => err.kind === "fetch");
+  pass++;
+  ok("a request that fails leaves the book unrefused, with its text current", failing.refusal === null && stateOf(gm.parsed).state === TEXT_STATES.PREPARED);
+  w.fetchImpl = async (path) => (path === PDF ? { ok: false, status: 503 } : real(path));
+  const busy = new BookHandle({ bookId: "rr", src: PDF, open: async () => ({}), fetchImpl: w.fetchImpl, parsed: gm.parsed });
+  await assert.rejects(() => busy.reread(), (err) => err.kind === "fetch" && err.status === 503);
+  pass++;
+  ok("a 503 is a request that failed, not a file that is gone", busy.refusal === null);
+  w.fetchImpl = real;
+
+  // The open the store makes (the module's fingerprinting one) is what rejects another book.
+  const other = world();
+  const wrongStore = new ParsedBooks({
+    isGM: () => true,
+    srcOf: () => PDF,
+    pointerOf: () => null,
+    writePointer: async () => {},
+    upload: async (name) => name,
+    open: async () => {
+      throw Object.assign(new Error("another book"), { wrongBook: "other" });
+    },
+    attempt: () => "x",
+    fetchImpl: other.fetchImpl,
+  });
+  const wrong = new BookHandle({ bookId: "rr", src: PDF, open: async () => ({}), fetchImpl: other.fetchImpl, parsed: wrongStore });
+  await assert.rejects(() => wrong.reread(), /another book/);
+  pass++;
+  ok("a file that opens as another book refuses, as kind wrong", wrong.refusal?.wrongBook === "other" && wrong.refusal.kind === "wrong" && stateOf(wrongStore, "rr", wrong.refusal).state === TEXT_STATES.REFUSED);
+  same("the kind of a refusal reads off the error", [refusalKind(wrong.refusal), refusalKind(Object.assign(new Error("x"), { kind: "gone" })), refusalKind(null)], ["wrong", "gone", null]);
+}
+
+{
+  const notes = [];
+  const notify = { info: (n) => notes.push(["info", n]), warn: (n) => notes.push(["warn", n]) };
+  let called = 0;
+  const denied = await pressRead({ bookId: "rr", reread: async () => (called++, {}), canRead: false, reading: false, notify });
+  ok("a seat that may not read is denied, flagged so, and nothing is fetched", denied.denied === true && notes.at(-1)[1].denied === true && called === 0);
 }
 
 console.log(`test-book-text: ${pass} passed (stamp ${PARSE_STAMP})`);

@@ -2898,3 +2898,30 @@ session should read what the world now names).
 - A staging adopts the new path before it writes the journal (`shelvePath`);
   the journal then moves to the path the handle already holds, which changes
   nothing.
+
+## 2026-11-19 — The Books tab shows a staged book's saved text, and a GM can read it again
+
+Ruled by the owner on the S4 board for "parse once": the pointer stays
+`{stamp, file, src, bytes, numPages, title}` ("No, keep it simple"), so the tab
+names no time and no user. A staged book's row carries a chip (Prepared, Not
+read, Stale, Reading, Refused), a state line and, for a GM, **Read now** (no text)
+or **Read again** (otherwise) and **Remove**. Refused shows only after a check
+this session has touched the book (an import, a repair or a press): the tab
+sends no request of its own. A Refused row offers Remove only. A press has no
+confirm, since a read deletes and overwrites nothing; Read and Remove are
+disabled while it runs. The result is a notification (info saved, warning read
+failed, error refused), and a Player sees the chip and line, no control, and a
+warning if a read ever reaches the seat. The closed fold reads "Staged on the
+server (N) · X stale · Y refused".
+
+- **A refusal is a 404 or another book, not any failed request.** A network
+  error, a 503, an upload or a pointer failure leave the book as it was and warn.
+  The first two would otherwise lock a book out for a session over a blip.
+- **Progress comes from the store.** `ParsedBooks` reports each page it reads, so
+  the bar and "page n of N" show a run started by an import or by staging as well
+  as by a press. It is this seat's only: another GM seat's read does not show. A run of a file the journal has since left shows no progress; its result is refused when it ends.
+- **Cost.** A Prepared book whose file was deleted reads Prepared until something
+  touches it. A Stale or Prepared book read again leaves its old saved file on
+  the server, since Foundry deletes none.
+- Rejected: time and user on the pointer ("When and by whom"); a HEAD for every
+  row when the tab opens.

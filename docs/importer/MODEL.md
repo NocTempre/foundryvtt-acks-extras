@@ -2591,24 +2591,43 @@ twice. A form is never parsed.
   keep what they have. A re-pointed book is parsed
   again on the next GM read into a new file; a player seat opens the new PDF live
   until then.
-- **State and re-read** (`book-text.mjs`; the controls that show them are the
-  Books tab's). `textState` derives one of four states without a request: *none*
-  (no pointer ever written), *prepared* (`ParsedBooks.pointer` is current),
-  *stale* (`ParsedBooks.stored` holds a pointer that is not current) and
-  *refused* (`BookHandle.refusal`, which wins over the others). A state is read
-  from the shelf journal, the store's run in flight (`ParsedBooks.reading`) and the
-  handle, never from the server, so building the tab opens nothing. A handle holds
-  a refusal only where a check ran on it (a read, a repair, a re-read), which is
-  how refused shows only once a book was touched; the next check that passes
-  clears it. A form has no state. `rowActions` offers a GM *Read now* on a book
-  with none and *Read again* on prepared or stale; refused offers Remove only; both
-  are disabled while a read runs, and a player is offered neither.
-  `BookHandle.reread()` is the press: `ParsedBooks.prepare` with `force`, fetching
-  the file afresh and writing a new file and pointer, the old file staying put. A
-  file that cannot be fetched refuses the book; an upload or pointer failure leaves
-  the old text current and the book unrefused. `pressRead` reports the result
-  through a notifier and never throws. The importer API carries
-  `bookText(bookId)`, `bookTextTally(ids)` and `readBookText(bookId, notify)`.
+- **State and re-read** (`book-text.mjs`, `book-rows.mjs`). `textState`
+  derives one of four states without a request: *none* (no pointer ever
+  written), *prepared* (`ParsedBooks.pointer` is current), *stale*
+  (`ParsedBooks.stored` holds a pointer that is not current; `cause` says
+  `reader` for another stamp, `file` for a journal naming another PDF,
+  `pointer` for an incomplete record) and *refused* (`BookHandle.refusal`, which
+  wins over the others). A state is read from the shelf journal, the store's run
+  in flight (`reading`, `progress`) and the handle, never from the server, so
+  building the tab opens nothing. A handle holds a refusal only where a check ran
+  on it (a read, a repair, a re-read), which is how Refused shows only once a book
+  was touched; the next check that passes clears it, and a reload does. A
+  refusal carries a `kind`: `gone` (404), `size` (the HEAD's length is not the
+  pointer's `bytes`), `wrong` (the open fingerprints another book) or `other`.
+- **The row.** `shelfRowView` makes the chip, state line, tooltips, controls
+  and progress bar of one staged book as data, and `shelfRowHtml` writes it.
+  A GM is offered **Read now** on none, **Read again** on prepared or stale and
+  **Remove** always; refused offers **Remove** only; both are disabled while a
+  read runs. A seat that is not a GM sees the journal's state (never Refused or
+  Reading, since it checks no file) and no control, and a book not shared with it
+  shows the withheld line and no state. The closed fold's summary adds the stale
+  and refused counts when they are not zero. `booksPanel` draws rows from
+  `bookTextStatus` and listens to the store (`ParsedBooks`' `onChange`: a run
+  starting or ending redraws that row and the fold's counts, a page moves the
+  line and bar in place).
+- **The press.** `BookHandle.reread()` is `ParsedBooks.prepare` with `force`,
+  fetching the file afresh and writing a new file and pointer, the old file
+  staying put and the pointer moving only once the new one is up. The handle
+  follows the journal first, so the file fetched is the journal's PDF page now, and
+  the parse refuses bytes of any other path; a press whose journal moves while it
+  runs records nothing and refuses nothing. A 404 or a file
+  that opens as another book refuses the book; a request that fails (a network
+  error, a 503), an upload or a pointer failure leaves the old text current and
+  the book unrefused. `pressRead` reports through a notifier and never throws:
+  info when the text was saved, an error when the book was refused, a warning when
+  the read failed, and a warning for a seat that may not read, before anything is
+  fetched. The importer API carries `bookText(bookId)`, `bookTextTally(ids)` and
+  `readBookText(bookId, notify)`.
 - **The parity gate.** `tools/importer/check-parse-parity.mjs`, local only like
   `verify-cookbook`: every page's `pageItems`, every entry's node and the
   placements of the book's scene pages (and twelve pages spread across it), live

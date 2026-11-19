@@ -70,9 +70,10 @@ export const fontId = (name) => (typeof name === "string" ? name.replace(/^(g_)?
  * @param {string} o.title the document's own title
  * @param {number[]} [o.placementPages] the 1-based pages whose image placements are saved; a page the document lacks is skipped
  * @param {string} [o.stamp]
+ * @param {(page: number, total: number) => void} [o.onPage] called after each page is read
  * @returns {Promise<object>} the saved book, ready for `JSON.stringify`
  */
-export async function parseDocument(doc, { book, src, bytes, title, placementPages = [], stamp = PARSE_STAMP }) {
+export async function parseDocument(doc, { book, src, bytes, title, placementPages = [], stamp = PARSE_STAMP, onPage = null }) {
   const fonts = [];
   const fontIx = new Map();
   const indexOf = (name) => {
@@ -91,6 +92,7 @@ export async function parseDocument(doc, { book, src, bytes, title, placementPag
       runs.map((it) => [it.str, it.transform[4], it.transform[5], it.width, it.height, indexOf(it.fontName), it.spaceBefore === true ? 1 : 0]),
     ]);
     page.cleanup?.();
+    onPage?.(n, doc.numPages);
   }
   // After every page's text, so the order fonts load in, and the names they get, are the text pass's alone.
   const placements = {};
@@ -206,6 +208,8 @@ export class ParsedBooks {
   #open;
   #attempt;
   #flights = new Map();
+  #progress = new Map();
+  #onChange;
 
   /**
    * @param {object} o
@@ -219,8 +223,10 @@ export class ParsedBooks {
    * @param {() => string} o.attempt a token no other attempt shares, for the file name
    * @param {typeof fetch} [o.fetchImpl]
    * @param {string} [o.stamp]
+   * @param {(bookId: string, kind: "state"|"progress") => void} [o.onChange] told when a run starts or ends ("state") and after each page it reads ("progress")
    */
-  constructor({ isGM, srcOf, placementPagesOf = () => [], pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP }) {
+  constructor({ isGM, srcOf, placementPagesOf = () => [], pointerOf, writePointer, upload, open, attempt, fetchImpl = (...args) => globalThis.fetch(...args), stamp = PARSE_STAMP, onChange = null }) {
+    this.#onChange = onChange;
     this.#isGM = isGM;
     this.#srcOf = srcOf;
     this.#placementPagesOf = placementPagesOf;
@@ -273,6 +279,30 @@ export class ParsedBooks {
     return this.#pointerOf(bookId) ?? null;
   }
 
+  /** The path the shelf journal's PDF page names now; null when the book is not shelved. */
+  src(bookId) {
+    return this.#srcOf(bookId) ?? null;
+  }
+
+  /**
+   * The page a run on this seat has reached and the book's page count, or null
+   * while none has read a page, and for a run of a file that is no longer the
+   * journal's PDF page (the guard at the run's end refuses its result).
+   */
+  progress(bookId) {
+    const reached = this.#progress.get(bookId);
+    if (!reached || reached.src !== this.#srcOf(bookId)) return null;
+    return { page: reached.page, total: reached.total };
+  }
+
+  #changed(bookId, kind) {
+    try {
+      this.#onChange?.(bookId, kind);
+    } catch (err) {
+      console.warn("acks-extras | a saved-book listener failed", err);
+    }
+  }
+
   /** Whether a run is making this book's text now, from any caller on this seat. */
   reading(bookId) {
     return this.#flights.has(bookId);
@@ -320,9 +350,14 @@ export class ParsedBooks {
   #fly(bookId, run, force) {
     const flight = { force, promise: null };
     flight.promise = run.finally(() => {
-      if (this.#flights.get(bookId) === flight) this.#flights.delete(bookId);
+      if (this.#flights.get(bookId) === flight) {
+        this.#flights.delete(bookId);
+        this.#progress.delete(bookId);
+        this.#changed(bookId, "state");
+      }
     });
     this.#flights.set(bookId, flight);
+    this.#changed(bookId, "state");
     return flight;
   }
 
@@ -338,7 +373,18 @@ export class ParsedBooks {
     const { doc, numPages, title } = await this.#open(bookId, buffer);
     let saved;
     try {
-      saved = await parseDocument(doc, { book: bookId, src, bytes, title, placementPages: this.#placementPagesOf(bookId) ?? [], stamp: this.#stamp });
+      saved = await parseDocument(doc, {
+        book: bookId,
+        src,
+        bytes,
+        title,
+        placementPages: this.#placementPagesOf(bookId) ?? [],
+        stamp: this.#stamp,
+        onPage: (page, total) => {
+          this.#progress.set(bookId, { page, total, src });
+          this.#changed(bookId, "progress");
+        },
+      });
     } finally {
       await releaseDoc(doc);
     }

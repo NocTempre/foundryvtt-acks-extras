@@ -41,6 +41,17 @@
  */
 import { releaseDoc } from "./release-doc.mjs";
 
+/**
+ * An error that says what kind of failure it is, which is what the Books tab
+ * words: `gone` (the file answers 404), `size` (it answers at another size
+ * than its saved text was read from), `wrong` (it fingerprints as another
+ * book; set by the open), `fetch` (a request failed in some other way) or `other`.
+ */
+const failure = (message, kind, extra = {}) => Object.assign(new Error(message), { kind, ...extra });
+
+/** The kind a failed response is: a 404 is the file gone, anything else a request that failed. */
+const httpKind = (status) => (status === 404 ? "gone" : "fetch");
+
 /** How long a live document stays open after its last read, in milliseconds. Longer than the slowest page render. */
 export const IDLE_MS = 120_000;
 
@@ -240,7 +251,7 @@ export class BookHandle {
     const src = this.#src;
     if (!src) throw new Error(`${this.#bookId}: no file to open`);
     const resp = await this.#fetch(src);
-    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${src} (${resp?.status})`);
+    if (!resp?.ok) throw failure(`${this.#bookId}: could not read ${src} (${resp?.status})`, httpKind(resp?.status), { status: resp?.status });
     const { doc, numPages, title } = await this.#open(await resp.arrayBuffer());
     if (this.#gone || this.#src !== src) {
       await releaseDoc(doc);
@@ -316,10 +327,10 @@ export class BookHandle {
    * refusal cleared and the new text read on the next page. The handle follows
    * the journal first, so the file fetched is the journal's PDF page now, and
    * the parse refuses bytes that are of any other path (a file this seat
-   * connected on purpose). A file that cannot be fetched refuses the book; any
-   * other failure (an upload, the pointer, a journal that moved while it ran)
-   * leaves the handle as it was, with the old text still current. Rejects with
-   * the failure.
+   * connected on purpose). A file that cannot be found (404) or is another book
+   * refuses the book; any other failure (a request, an upload, the pointer, a
+   * journal that moved while it ran) leaves the handle as it was, with the old
+   * text still current. Rejects with the failure, whose `kind` says which.
    *
    * @returns {Promise<{pointer: object, fresh: boolean}>}
    */
@@ -330,7 +341,6 @@ export class BookHandle {
       throw new Error(`${this.#bookId}: this seat does not make saved text`);
     }
     const epoch = this.#epoch;
-    let fetchFailure = null;
     try {
       const made = await this.#parsed.prepare(this.#bookId, {
         force: true,
@@ -339,7 +349,7 @@ export class BookHandle {
           try {
             return await this.#bytes(src);
           } catch (err) {
-            fetchFailure = err;
+            err.kind ??= "fetch";
             throw err;
           }
         },
@@ -353,7 +363,7 @@ export class BookHandle {
       }
       return made;
     } catch (err) {
-      if (fetchFailure && epoch === this.#epoch) this.#refuse(fetchFailure);
+      if ((err.kind === "gone" || err.wrongBook) && epoch === this.#epoch) this.#refuse(err);
       throw err;
     }
   }
@@ -361,6 +371,7 @@ export class BookHandle {
   /** Remember why the book was refused, so a read rejects with it; answers false. */
   #refuse(err) {
     console.warn(`acks-extras | ${this.#bookId} could not be verified`, err);
+    if (err && typeof err === "object") err.kind ??= err.wrongBook ? "wrong" : "other";
     this.#refusal = err;
     return false;
   }
@@ -381,7 +392,7 @@ export class BookHandle {
 
   async #bytes(src = this.#src) {
     const resp = await this.#fetch(src);
-    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${src} (${resp?.status})`);
+    if (!resp?.ok) throw failure(`${this.#bookId}: could not read ${src} (${resp?.status})`, httpKind(resp?.status), { status: resp?.status });
     return resp.arrayBuffer();
   }
 
@@ -392,10 +403,10 @@ export class BookHandle {
   async #head(pointer, epoch) {
     const resp = await this.#fetch(pointer.src, { method: "HEAD" });
     if (epoch !== this.#epoch) return this.#verify();
-    if (!resp?.ok) return this.#refuse(new Error(`${this.#bookId}: could not read ${pointer.src} (${resp?.status})`));
+    if (!resp?.ok) return this.#refuse(failure(`${this.#bookId}: could not read ${pointer.src} (${resp?.status})`, httpKind(resp?.status), { status: resp?.status }));
     const length = resp.headers?.get?.("content-length");
     if (length != null && length !== "" && Number(length) !== pointer.bytes) {
-      return this.#refuse(new Error(`${this.#bookId}: ${pointer.src} is ${length} bytes, its saved text was read from ${pointer.bytes}`));
+      return this.#refuse(failure(`${this.#bookId}: ${pointer.src} is ${length} bytes, its saved text was read from ${pointer.bytes}`, "size", { length: Number(length), bytes: pointer.bytes, src: pointer.src }));
     }
     this.#vouch();
     return true;

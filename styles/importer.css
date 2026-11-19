@@ -405,10 +405,43 @@
   border-bottom: var(--acks-border-soft);
 }
 
-/* A shelved book is stated, not actioned: the server answers for it, so the
-   row carries no picker and reads as settled. */
+/* A shelved book is stated more than it is actioned: its name, its saved-text
+   state and a few small controls. The name takes the line and the chip and
+   controls wrap under it on a narrow window; the body scrolls, never the row. */
 .acks-extras-importer-shelf-row strong {
   font-weight: 600;
+  flex: 1 1 12em;
+}
+
+.acks-extras-importer-shelf-acts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+}
+
+.acks-extras-importer-shelf-row .acks-extras-importer-text-state {
+  color: var(--acks-ink);
+}
+
+/* Stale is a warning, not a failure: the saved text is still there, only not this build's. */
+.acks-extras-importer-tag-stale {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
+/* Pages read so far, of the book's pages. Its fill is set inline as a percentage. */
+.acks-extras-importer-bar {
+  height: 0.7em;
+  border: 1px solid var(--acks-ink);
+  background: var(--acks-neutral);
+  margin-top: var(--acks-sp-1);
+}
+
+.acks-extras-importer-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--acks-burgundy);
 }
 
 /* Forgetting is destructive and confirmed, so it is coloured as the exception

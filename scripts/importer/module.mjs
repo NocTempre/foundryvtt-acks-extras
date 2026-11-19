@@ -38,7 +38,8 @@ import { RECIPES } from "./recipes.mjs";
 import { BookHandle } from "./book-handle.mjs";
 import { releaseDoc } from "./release-doc.mjs";
 import { ParsedBooks } from "./parsed-book.mjs";
-import { pressRead, rowActions, tally, textState } from "./book-text.mjs";
+import { pressRead, refusalKind, rowActions, tally, textState } from "./book-text.mjs";
+import { foldSummaryHtml, shelfRowHtml, shelfRowView } from "./book-rows.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
@@ -644,7 +645,15 @@ const parsedBooks = new ParsedBooks({
   },
   open: (bookId, buffer) => openChecked(bookId, buffer),
   attempt: () => foundry.utils.randomID(10),
+  onChange: (bookId, kind) => shelfWatcher?.(bookId, kind),
 });
+
+/**
+ * The open Books tab's listener for a saved-text run starting, ending or
+ * reading a page (`booksPanel`'s `wire` sets it, and the next build replaces
+ * it). A listener whose panel has left the page clears itself.
+ */
+let shelfWatcher = null;
 
 /**
  * What the Books tab says of one shelved book's saved text: its state, whether
@@ -665,13 +674,41 @@ function bookTextTally(bookIds) {
   return tally(bookIds.map((id) => bookTextStatus(id)));
 }
 
+/** A localized Books-tab string. */
+const uiText = (key, data) =>
+  data ? game.i18n.format(`${LANG_PREFIX}.ui.${key}`, data) : game.i18n.localize(`${LANG_PREFIX}.ui.${key}`);
+
+/**
+ * The notifier of a press: info when the text was saved, an error when the
+ * file was refused (gone, another size, another book), a warning when the read
+ * failed and the book is as it was, and a warning for a seat that may not read.
+ */
+function readNotifier(bookId) {
+  const book = BOOKS[bookId]?.label ?? bookId;
+  const again = !!parsedBooks.stored(bookId);
+  return {
+    info: ({ pointer }) => ui.notifications.info(uiText("readSaved", { book, pages: pointer.numPages })),
+    warn: ({ error, denied }) => {
+      if (denied) return ui.notifications.warn(uiText("readDenied"));
+      const kind = refusalKind(error);
+      if (kind === "gone") return ui.notifications.error(uiText("readRefusedGone", { book }));
+      if (kind === "wrong" || kind === "size") return ui.notifications.error(uiText("readRefused", { book }));
+      const why = uiText(error?.kind === "fetch" ? "readWhyFetch" : "readWhySave");
+      const said = uiText(again ? "readFailedAgain" : "readFailed", { book, why });
+      return ui.notifications.warn(again ? `${said}${uiText("readKept")}` : said);
+    },
+  };
+}
+
 /**
  * "Read now" / "Read again": make a shelved book's text again on this GM seat,
  * from a fresh fetch of its file, and tell the seat the result. The handle does
  * it where the book has one, so its refusal and saved text follow the result.
- * `notify` receives `{bookId, pointer}` or `{bookId, error}`.
+ * `notify` receives `{bookId, pointer}`, `{bookId, error}` or, for a seat that
+ * may not read, `{bookId, error, denied: true}`; with none given the result
+ * is shown as a Foundry notification.
  */
-function readBookText(bookId, notify) {
+function readBookText(bookId, notify = readNotifier(bookId)) {
   const doc = sessionDocs.get(bookId)?.doc;
   const reread = doc?.isBookHandle ? () => doc.reread() : () => parsedBooks.prepare(bookId, { force: true });
   return pressRead({
@@ -1405,18 +1442,25 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   // the shelf rows, each saying whether this seat reads the book or the Judge
   // has not shared it; a row's journal button shows only where the journal is visible.
   const openable = (record) => !!game.journal.get(record.journalId)?.visible;
+  // A row is drawn from the saved-text status of its book, read from the
+  // journal and the store and never from the server, so opening the tab fetches nothing.
+  const shelfRowFor = (id, record) =>
+    shelfRowHtml(
+      shelfRowView({
+        bookId: id,
+        label: BOOKS[id].label,
+        fileName: record.name ?? record.path,
+        shared: shelfReadable(record),
+        journalId: openable(record) ? record.journalId : null,
+        status: bookTextStatus(id),
+        isGM,
+        L,
+      }),
+      { esc, L },
+    );
   const shelfRows = Object.entries(staged)
     .filter(([id]) => BOOKS[id])
-    .map(
-      ([id, record]) => `<div class="acks-extras-importer-reconnect-row acks-extras-importer-shelf-row" data-shelf-row="${esc(id)}">
-        <div class="acks-extras-importer-reconnect-head">
-          <strong>${esc(BOOKS[id].label)}</strong>
-          ${openable(record) ? `<button type="button" data-shelf-open="${esc(record.journalId)}">${L("shelfOpen")}</button>` : ""}
-          ${isGM ? `<button type="button" data-unshelve="${esc(id)}">${L("shelfRemove")}</button>` : ""}
-        </div>
-        <p class="notes" data-shelf-status="${esc(id)}">${L(shelfReadable(record) ? "shelfHeld" : "shelfWithheld", { name: esc(record.name ?? record.path) })}</p>
-      </div>`,
-    )
+    .map(([id, record]) => shelfRowFor(id, record))
     .join("");
   // Two ways in, neither needing a seat-local connect first: pick the files to
   // be read, checked and uploaded, or copy them onto the host and scan.
@@ -1438,7 +1482,7 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   const shelfList = !shelfRows
     ? `<p class="notes">${L(isGM ? "shelfEmpty" : "shelfEmptyPlayer")}</p>`
     : staffCount > 4
-      ? `<details class="acks-extras-importer-book-group"><summary>${L("shelfCount", { count: staffCount })}</summary>${shelfRows}</details>`
+      ? `<details class="acks-extras-importer-book-group"><summary data-shelf-count>${foldSummaryHtml({ count: staffCount, tally: bookTextTally(Object.keys(staged).filter((id) => BOOKS[id])), esc, L })}</summary>${shelfRows}</details>`
       : shelfRows;
   const shelfBand = `<section class="acks-extras-importer-band">
     <h4>${L("shelfHead")}</h4>
@@ -1535,16 +1579,16 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
   };
 
   const groups = [
-    ["booksWaiting", Object.entries(BOOKS).filter(([id]) => pending.includes(id)), true],
-    ["booksOpenHead", Object.entries(BOOKS).filter(([id]) => sessionDocs.has(id)), false],
-    ["booksAbsentHead", Object.entries(BOOKS).filter(([id]) => !sessionDocs.has(id) && !records.has(id)), false],
+    ["booksWaiting", Object.entries(BOOKS).filter(([id]) => pending.includes(id)), true, "booksWaitingTip"],
+    ["booksOpenHead", Object.entries(BOOKS).filter(([id]) => sessionDocs.has(id)), false, "booksOpenHeadTip"],
+    ["booksAbsentHead", Object.entries(BOOKS).filter(([id]) => !sessionDocs.has(id) && !records.has(id)), false, "booksAbsentHeadTip"],
   ];
   // Waiting books stay expanded; the other two collapse behind their count.
   const bookBands = groups
     .filter(([, list]) => list.length)
     .map(
-      ([key, list, open]) => `<details class="acks-extras-importer-book-group"${open ? " open" : ""}>
-        <summary>${L(key, { count: list.length })}</summary>
+      ([key, list, open, tip]) => `<details class="acks-extras-importer-book-group"${open ? " open" : ""}>
+        <summary><span data-tooltip-text="${esc(L(tip))}">${L(key, { count: list.length })}</span></summary>
         ${list.map(([id, book]) => row(id, book)).join("")}
       </details>`,
     )
@@ -1617,9 +1661,71 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
 
       /* -- band 2: the shelf ----------------------------------------- */
 
-      for (const button of root.querySelectorAll("button[data-shelf-open]")) {
-        button.addEventListener("click", () => game.journal.get(button.dataset.shelfOpen)?.sheet.render(true));
-      }
+      /**
+       * The listeners of one shelf row: open its journal, read its text again,
+       * remove it. A row drawn again while a run starts, reads a page or ends is
+       * wired again here, since replacing it drops its listeners.
+       */
+      const wireShelfRow = (row) => {
+        for (const button of row.querySelectorAll("button[data-shelf-open]")) {
+          button.addEventListener("click", () => game.journal.get(button.dataset.shelfOpen)?.sheet.render(true));
+        }
+        for (const button of row.querySelectorAll("button[data-shelf-read]")) {
+          // No confirm: nothing is deleted, since each read writes a file of its own. The row
+          // draws "Reading…" from the store's run, which starts inside this call.
+          button.addEventListener("click", () => {
+            button.disabled = true;
+            readBookText(button.dataset.shelfRead).catch((err) => console.error(`${MODULE_ID} | read ${button.dataset.shelfRead}`, err));
+          });
+        }
+        for (const button of row.querySelectorAll("button[data-unshelve]")) {
+          button.addEventListener("click", async () => {
+            const bookId = button.dataset.unshelve;
+            if (parsedBooks.reading(bookId)) return; // a read in flight holds the row's journal
+            button.disabled = true;
+            const record = shelf()[bookId];
+            await shelfPut(bookId, null);
+            // The journal goes with the entry; the file stays, and the report names its path.
+            await rebuild(L("shelfRemoved", { path: record?.path ?? SHELF_DIR }));
+          });
+        }
+      };
+      for (const row of root.querySelectorAll("[data-shelf-row]")) wireShelfRow(row);
+
+      // The tab follows the store: a run starting or ending redraws that book's row and the
+      // fold's counts, and each page a run reads moves the row's line and bar in place.
+      const shelfBooks = () => Object.keys(shelf()).filter((id) => BOOKS[id]);
+      const redrawShelfRow = (row, bookId, record) => {
+        row.insertAdjacentHTML("afterend", shelfRowFor(bookId, record));
+        const fresh = row.nextElementSibling;
+        row.remove();
+        if (fresh) wireShelfRow(fresh);
+      };
+      shelfWatcher = (bookId, kind) => {
+        if (!root.isConnected) {
+          shelfWatcher = null;
+          return;
+        }
+        const row = root.querySelector(`[data-shelf-row="${bookId}"]`);
+        const record = shelf()[bookId];
+        if (!row || !record) return;
+        if (kind === "progress") {
+          const p = parsedBooks.progress(bookId);
+          if (!p) return;
+          const bar = row.querySelector("[data-text-bar]");
+          if (!bar) return redrawShelfRow(row, bookId, record);
+          say(`[data-text-line="${bookId}"]`, L("textLineReading", { page: p.page.toLocaleString("en-US"), total: p.total.toLocaleString("en-US") }));
+          bar.setAttribute("aria-valuenow", String(p.page));
+          bar.setAttribute("aria-valuemax", String(p.total));
+          bar.firstElementChild?.setAttribute("style", `width:${Math.round((100 * p.page) / Math.max(1, p.total))}%`);
+          return;
+        }
+        redrawShelfRow(row, bookId, record);
+        const summary = root.querySelector("[data-shelf-count]");
+        if (summary) {
+          summary.innerHTML = foldSummaryHtml({ count: shelfBooks().length, tally: bookTextTally(shelfBooks()), esc, L });
+        }
+      };
 
       for (const button of root.querySelectorAll("button[data-shelve]")) {
         button.addEventListener("click", async () => {
@@ -1706,17 +1812,6 @@ async function booksPanel({ firstRun = false, notice = "" } = {}) {
         if (added) await rebuild(report);
         else say("[data-shelf-bulk-status]", report);
       });
-
-      for (const button of root.querySelectorAll("button[data-unshelve]")) {
-        button.addEventListener("click", async () => {
-          const bookId = button.dataset.unshelve;
-          button.disabled = true;
-          const record = shelf()[bookId];
-          await shelfPut(bookId, null);
-          // The journal goes with the entry; the file stays, and the report names its path.
-          await rebuild(L("shelfRemoved", { path: record?.path ?? SHELF_DIR }));
-        });
-      }
 
       const scanBtn = root.querySelector("[data-shelf-scan]");
       scanBtn?.addEventListener("click", async () => {
