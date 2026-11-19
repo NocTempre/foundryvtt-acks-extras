@@ -6,7 +6,8 @@
  * only so that a folio can differ from its PDF page. The last cases lint the
  * real manifest's recipes against the committed cookbooks and the treasure
  * feature's pools and band count (shapes and ids only, no PDF).
- * `placementAt` is the finder's and is tested with it.
+ * `placementAt` and `cropBox` are the finder's and are tested with it, as is
+ * its encoder `pictureBlob` (and `extractPageArt` over it) on a stub canvas.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -20,12 +21,19 @@ import { BOOK_ART_DOC, artRowProblems } from "../../scripts/lib/book-art.mjs";
 import { citeFor, BOOKS } from "../../scripts/importer/books.mjs";
 import { BOOK_CODE } from "../../scripts/importer/books/index.mjs";
 import { POOL, BAND_COUNT } from "../../scripts/treasure/constants.mjs";
+import { placementAt, cropBox, pictureBlob, extractPageArt } from "../../scripts/importer/extract.mjs";
+import { OPS } from "../../vendor/pdfjs/pdf.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 let passed = 0;
 const ok = (name, fn) => {
   fn();
+  passed++;
+  console.log("ok   " + name);
+};
+const okAsync = async (name, fn) => {
+  await fn();
   passed++;
   console.log("ok   " + name);
 };
@@ -295,6 +303,134 @@ ok("the lint the real-manifest case runs refuses with the treasure pools and ban
   const got = bookArtProblems(bad, { cookbook: { entries: {} }, pools, bandCount: BAND_COUNT });
   assert.ok(got.some((p) => p.startsWith("art1: band")) && got.some((p) => p.startsWith("art2: unknown pool")), JSON.stringify(got));
   assert.deepEqual(bookArtProblems([pic(1, [{ side: "back", pool: pools[0], band: 0 }])], { cookbook: { entries: {} }, pools, bandCount: BAND_COUNT }), []);
+});
+
+/* --- the finder's pure half and its encoder (scripts/importer/extract.mjs) --- */
+
+const BOX = { x: 100, y: 200, w: 240, h: 180 };
+const placed = (dx = 0, dy = 0, dw = 0, dh = 0, name = "img_p0_1") => ({ name, x: BOX.x + dx, y: BOX.y + dy, w: BOX.w + dw, h: BOX.h + dh });
+
+ok("placementAt: an exact match is selected", () => {
+  const p = placed();
+  assert.equal(placementAt([placed(300, 0, 0, 0, "other"), p], BOX), p);
+});
+
+ok("placementAt: a placement within 2 pt on every edge is selected, exactly 2 pt included", () => {
+  const p = placed(1.5, -1.2, 0.4, 0.9);
+  assert.equal(placementAt([p], BOX), p);
+  assert.ok(placementAt([placed(2, 2, 0, 0)], BOX), "2 pt off on two edges is within slack");
+  assert.equal(placementAt([placed(2.1, 0, 0, 0)], BOX), null, "2.1 pt off is not");
+  assert.equal(placementAt([placed(0, 0, 2.5, 0)], BOX), null, "a far edge 2.5 pt off is not");
+  assert.equal(placementAt([placed(0, 2.1, 0, -2.1)], BOX), null, "a top edge alone 2.1 pt off is not");
+  assert.equal(placementAt([placed(0, 0, 0, 2.5)], BOX), null, "a bottom edge alone 2.5 pt off is not");
+});
+
+ok("placementAt: two pictures of one size in one column are told apart by where they print", () => {
+  const upper = placed(0, 0, 0, 0, "u");
+  const lower = placed(0, 316, 0, 0, "l");
+  assert.equal(placementAt([upper, lower], BOX).name, "u");
+  assert.equal(placementAt([upper, lower], { ...BOX, y: BOX.y + 316 }).name, "l");
+});
+
+ok("placementAt: two placements within slack are refused, though a wider slack is the caller's", () => {
+  assert.equal(placementAt([placed(0, 0, 0, 0, "a"), placed(1, 1, 0, 0, "b")], BOX), null);
+  assert.equal(placementAt([placed(0, 0, 0, 0, "a"), placed(5, 0, 0, 0, "b")], BOX).name, "a");
+  assert.equal(placementAt([placed(0, 0, 0, 0, "a"), placed(5, 0, 0, 0, "b")], BOX, 6), null);
+});
+
+ok("placementAt: none within slack, no placements, or no box is refused", () => {
+  assert.equal(placementAt([placed(50, 50)], BOX), null);
+  assert.equal(placementAt([], BOX), null);
+  assert.equal(placementAt(null, BOX), null);
+  assert.equal(placementAt([placed()], null), null);
+});
+
+ok("placementAt selects a saved box, which carries no name", () => {
+  const { name, ...saved } = placed(0.5);
+  assert.deepEqual(placementAt([saved], BOX), saved);
+});
+
+ok("cropBox turns a crop's corners into the renderers' box", () => {
+  assert.deepEqual(cropBox({ x0: 48, y0: 722, x1: 214, y1: 774 }), { x: 48, y: 722, w: 166, h: 52 });
+  assert.deepEqual(cropBox({ x0: 0.5, y0: 1, x1: 10, y1: 2.5 }), { x: 0.5, y: 1, w: 9.5, h: 1.5 });
+});
+
+ok("planBookArt's stems are what the uploader names files by: a picture's size, a crop's page and corners", () => {
+  const [p, c] = planBookArt("zz", [pic(1, [{ side: "back", pool: "zp" }]), crop(2, [{ side: "texture", kind: "grime" }], { x0: 10.5, y0: 20, x1: 300, y1: 400 })]);
+  assert.equal(p.stem, "zz-art1-200x160");
+  assert.equal(c.stem, "zz-art2-p40-10p5-20-300-400");
+  assert.ok(c.crop && !c.box && !c.size, "a crop plan carries the crop, which the step passes on");
+});
+
+/**
+ * A stub canvas under Node: records each toBlob type and quality, and answers
+ * a blob of the asked type unless that type is in `refuse`.
+ */
+function stubCanvas({ refuse = [] } = {}) {
+  const asked = [];
+  const drawn = [];
+  globalThis.ImageData = class {
+    constructor(data, w, h) {
+      Object.assign(this, { data, width: w, height: h });
+    }
+  };
+  globalThis.document = {
+    createElement: () => ({
+      width: 0,
+      height: 0,
+      getContext: () => ({ drawImage: (...a) => drawn.push(["draw", ...a]), putImageData: (d) => drawn.push(["put", d]), fillRect: () => drawn.push(["fill"]) }),
+      toBlob: (cb, type, quality) => {
+        asked.push([type, quality]);
+        cb(refuse.includes(type) ? null : { type });
+      },
+    }),
+  };
+  return { asked, drawn, done: () => { delete globalThis.document; delete globalThis.ImageData; } };
+}
+
+await okAsync("pictureBlob: WebP 0.92 by default, alpha kept (nothing painted under it), PNG where WebP does not encode", async () => {
+  const c = stubCanvas();
+  const art = await pictureBlob({ width: 4, height: 2, bitmap: {} });
+  assert.deepEqual(c.asked, [["image/webp", 0.92]]);
+  assert.equal(art.ext, "webp");
+  assert.deepEqual([art.width, art.height], [4, 2]);
+  assert.ok(!c.drawn.some((d) => d[0] === "fill"), "no background is painted");
+  c.done();
+  const r = stubCanvas({ refuse: ["image/webp"] });
+  const png = await pictureBlob({ width: 1, height: 1, kind: 3, data: new Uint8ClampedArray(4) });
+  assert.deepEqual(r.asked.map((a) => a[0]), ["image/webp", "image/png"]);
+  assert.equal(png.ext, "png");
+  r.done();
+});
+
+await okAsync("pictureBlob: RGB data is widened to opaque RGBA; another kind, or no pixels, is null", async () => {
+  const c = stubCanvas();
+  await pictureBlob({ width: 1, height: 1, kind: 2, data: new Uint8ClampedArray([1, 2, 3]) });
+  assert.deepEqual([...c.drawn.find((d) => d[0] === "put")[1].data], [1, 2, 3, 255]);
+  assert.equal(await pictureBlob({ width: 1, height: 1, kind: 1, data: new Uint8ClampedArray(1) }), null);
+  assert.equal(await pictureBlob({ width: 1, height: 1 }), null);
+  assert.equal(await pictureBlob(null), null);
+  c.done();
+  assert.equal(await pictureBlob({ width: 1, height: 1, bitmap: {} }), null, "no canvas under Node: null");
+});
+
+await okAsync("extractPageArt (monster art) still picks the largest picture, asks for PNG, and returns blob, width and height only", async () => {
+  const objs = { i_small: { width: 220, height: 220, bitmap: {} }, i_big: { width: 600, height: 400, bitmap: {} }, i_strip: { width: 1200, height: 100, bitmap: {} } };
+  const page = {
+    getOperatorList: async () => ({ fnArray: Object.keys(objs).map(() => OPS.paintImageXObject), argsArray: Object.keys(objs).map((n) => [n]) }),
+    objs: { get: (name, cb) => cb(objs[name]) },
+    commonObjs: { get: (name, cb) => cb(null) },
+  };
+  const doc = { getPage: async () => page };
+  const c = stubCanvas();
+  const art = await extractPageArt(doc, 1);
+  assert.deepEqual(c.asked.map((a) => a[0]), ["image/png"]);
+  assert.deepEqual(Object.keys(art).sort(), ["blob", "height", "width"]);
+  assert.deepEqual([art.width, art.height], [600, 400]);
+  const named = await extractPageArt(doc, 1, "i_small");
+  assert.deepEqual([named.width, named.height], [220, 220], "a shipped name still outranks the largest-picture rule");
+  c.done();
+  assert.equal(await extractPageArt(doc, 1), null, "no canvas under Node: null, as before");
 });
 
 console.log(`\ntest-book-art-binding: all ${passed} checks passed`);

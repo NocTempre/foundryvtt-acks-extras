@@ -41,6 +41,7 @@ import { ParsedBooks } from "./parsed-book.mjs";
 import { pressRead, refusalKind, rowActions, tally, textState } from "./book-text.mjs";
 import { foldSummaryHtml, shelfRowHtml, shelfRowView } from "./book-rows.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
+import { placedPicture, pictureBlob, cropBox } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
 import { extractStatPairs } from "./stats.mjs";
@@ -2394,6 +2395,47 @@ async function uploadSceneMap(doc, id, recipe, { pixelsPerPoint } = {}) {
 }
 
 /**
+ * Cuts and uploads one picture of a book's art recipe, a sibling of
+ * `uploadSceneMap`: `{path, cached}`, or `{reason}` when it cannot be made.
+ * The file is `<stem>.webp` or `<stem>.png` in the art directory, and one
+ * already there (`cachedFile`) answers with no PDF read. A picture
+ * (`box` and `size`) is selected by its box and verified by its size
+ * (`placedPicture`), then encoded (`pictureBlob`); a picture that does not
+ * decode on this seat is cut from the rendered page at its box instead, but a
+ * box or size miss (another printing) is refused. A crop (`crop`, as
+ * `{x0, y0, x1, y1}`) is rendered through the scene crop machinery at 2 pixels
+ * to the point, unturned.
+ */
+async function uploadBookPicture(doc, { stem, page, box, size, crop } = {}) {
+  const FP = foundry.applications?.apps?.FilePicker?.implementation ?? globalThis.FilePicker;
+  for (const ext of ["webp", "png"]) {
+    const existing = await cachedFile(`${stem}.${ext}`);
+    if (existing) return { path: existing, cached: true };
+  }
+  let art = null;
+  if (crop) {
+    const frame = sceneFrame({ crop: cropBox(crop) }, { pixelsPerPoint: 2 });
+    art = await extractPageMap(doc, page, cropBox(crop), frame, turnMatrix(frame));
+    if (!art) return { reason: "render" };
+  } else {
+    const found = await placedPicture(doc, page, { box, size });
+    if (found.reason && found.reason !== "decode") return { reason: found.reason };
+    art = found.img ? await pictureBlob(found.img) : null;
+    if (!art) {
+      const region = await extractPageArtRegion(doc, page, box);
+      art = region ? { ...region, ext: "png" } : null;
+    }
+    if (!art) return { reason: "decode" };
+  }
+  await ensureDirectory(FP, ART_DIR);
+  const filename = `${stem}.${art.ext}`;
+  const res = await FP.upload("data", ART_DIR, new File([art.blob], filename, { type: art.blob.type }), {}, { notify: false });
+  if (!res?.path) return { reason: "upload" };
+  (await artIndex(FP)).set(filename, res.path);
+  return { path: res.path, cached: false };
+}
+
+/**
  * Traces a scene recipe's walls off the Judge's own page: the crop rendered to
  * gray at `TRACE_PITCH` pixels to the drawn cell, read by `traceWalls`, or on a
  * plan of storeys every storey's crop, read by `traceStoreys`. Returns
@@ -2642,7 +2684,7 @@ Hooks.once("init", () => {
 });
 
 Hooks.once("ready", async () => {
-  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap, traceSceneWalls });
+  initCookbook({ sessionDocs, importArtForPage: importArt, uploadPageArt, cachedArt, uploadSceneMap, uploadBookPicture, traceSceneWalls });
   registerAbilityDirectoryButtons();
   await loadCookbook();
   const api = {

@@ -59,7 +59,7 @@ async function fetchPicture(doc, pic) {
   try {
     const got = await Promise.race([
       Promise.resolve()
-        .then(() => upload(doc, { stem: pic.stem, page: pic.page, box: pic.box, size: pic.size }))
+        .then(() => upload(doc, { stem: pic.stem, page: pic.page, box: pic.box, size: pic.size, ...(pic.crop ? { crop: pic.crop } : {}) }))
         .then((r) => r ?? { reason: "not-found" })
         .catch(() => ({ reason: "error" })),
       timeout,

@@ -764,6 +764,63 @@ export async function pageArtPlacements(doc, pageNo) {
 }
 
 /**
+ * The one placement of `placements` within `slack` points of `box` on every
+ * edge, or null when none is or more than one is. Pure. A book-art recipe's
+ * box selects its picture this way, so two pictures of one size on a page are
+ * told apart by where they print.
+ *
+ * @param {{x: number, y: number, w: number, h: number}[]} placements
+ * @param {{x: number, y: number, w: number, h: number}} box
+ * @param {number} [slack]
+ * @returns {object|null}
+ */
+export function placementAt(placements, box, slack = 2) {
+  if (!box) return null;
+  const held = (placements ?? []).filter(
+    (p) =>
+      Math.abs(p.x - box.x) <= slack &&
+      Math.abs(p.y - box.y) <= slack &&
+      Math.abs(p.x + p.w - (box.x + box.w)) <= slack &&
+      Math.abs(p.y + p.h - (box.y + box.h)) <= slack,
+  );
+  return held.length === 1 ? held[0] : null;
+}
+
+/**
+ * A book-art picture found by its placement box and verified by its decoded
+ * size: `{img}` (the pdf.js image object), or `{reason}`: "box" when the box
+ * selects no placement or more than one, "size" when the picture decodes at
+ * another size (another printing), "decode" when it never arrives. The box is
+ * checked against `pageArtPlacements` (a handle's saved boxes when it holds the
+ * page), then selected again among the live page's named placements, and only
+ * that one object is fetched. The name is used within this read and never
+ * returned. Needs no canvas, so it runs under Node as in the browser.
+ *
+ * @param {object} doc a session document or book handle
+ * @param {number} pageNo
+ * @param {{box: {x: number, y: number, w: number, h: number}, size: {w: number, h: number}}} want
+ * @returns {Promise<{img: object}|{reason: string}>}
+ */
+export async function placedPicture(doc, pageNo, { box, size } = {}) {
+  const hit = placementAt(await pageArtPlacements(doc, pageNo), box);
+  if (!hit) return { reason: "box" };
+  const page = await (await liveDoc(doc)).getPage(pageNo);
+  // Saved boxes carry no name, so the live page's own walk (its operator list cached by pdf.js) names the picture.
+  const named = placementAt(await placementsOfPage(page), box);
+  if (!named?.name) return { reason: "box" };
+  const img = await pageObject(page, named.name, ART_WAIT_MS);
+  if (!img) return { reason: "decode" };
+  if (img.width !== size?.w || img.height !== size?.h) return { reason: "size" };
+  return { img };
+}
+
+/**
+ * A book-art crop `{x0, y0, x1, y1}` (top-origin page points) as the
+ * `{x, y, w, h}` box the page renderers take. Pure.
+ */
+export const cropBox = (crop) => ({ x: crop.x0, y: crop.y0, w: crop.x1 - crop.x0, h: crop.y1 - crop.y0 });
+
+/**
  * Pick the page's illustration: exclude page-background rasters (very wide)
  * and ornament strips (extreme aspect), take the largest remainder above a
  * minimum size. Returns the info entry or null.
@@ -907,16 +964,17 @@ export async function extractPageGray(doc, pageNo, crop, scale) {
 }
 
 /**
- * Extract the page illustration as a PNG blob (browser only; needs canvas).
- * Handles pdf.js bitmap images and raw RGB/RGBA/gray data.
+ * Encode a pdf.js image object (browser only; needs canvas): a bitmap, or raw
+ * RGB or RGBA data; any other kind is null. WebP at 0.92 by default, alpha
+ * kept (no background is painted), and PNG where WebP does not encode; `type`
+ * asks for another format. Returns `{blob, width, height, ext}` or null.
+ *
+ * @param {object} img a pdf.js image object
+ * @param {{type?: string}} [opts]
  */
-export async function extractPageArt(doc, pageNo, name = null) {
-  if (typeof document === "undefined") return null;
-  const infos = await pageArtInfo(doc, pageNo);
-  // A shipped XObject name is a compile-time association and outranks the largest-image rule.
-  const chosen = (name ? infos.find((i) => i.name === name) : null) ?? pickArt(infos);
-  if (!chosen) return null;
-  const { img, width, height } = chosen;
+export async function pictureBlob(img, { type = "image/webp" } = {}) {
+  if (typeof document === "undefined" || !img) return null;
+  const { width, height } = img;
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
@@ -942,8 +1000,23 @@ export async function extractPageArt(doc, pageNo, name = null) {
   } else {
     return null;
   }
-  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-  return blob ? { blob, width, height } : null;
+  const encode = (as) => new Promise((resolve) => canvas.toBlob(resolve, as, 0.92));
+  const blob = (await encode(type)) ?? (type === "image/png" ? null : await encode("image/png"));
+  return blob ? { blob, width, height, ext: blob.type === "image/webp" ? "webp" : "png" } : null;
+}
+
+/**
+ * Extract the page illustration as a PNG blob (browser only; needs canvas).
+ * Handles pdf.js bitmap images and raw RGB/RGBA/gray data (`pictureBlob`).
+ */
+export async function extractPageArt(doc, pageNo, name = null) {
+  if (typeof document === "undefined") return null;
+  const infos = await pageArtInfo(doc, pageNo);
+  // A shipped XObject name is a compile-time association and outranks the largest-image rule.
+  const chosen = (name ? infos.find((i) => i.name === name) : null) ?? pickArt(infos);
+  if (!chosen) return null;
+  const art = await pictureBlob(chosen.img, { type: "image/png" });
+  return art ? { blob: art.blob, width: art.width, height: art.height } : null;
 }
 
 /** Run one recipe against an open document. Returns prose string or null. */
