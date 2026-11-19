@@ -1484,7 +1484,7 @@ await t("a creature that stays is stamped lost and nothing else is written", asy
   assert.equal(calls.actorUpdate.some((u) => u.id === decoy.id), false);
 });
 
-await t("a creature that turns hostile drops every owner as a forced deletion, turns hostile and is stamped lost", async () => {
+await t("a creature that turns hostile sets every owner to NONE, turns hostile and is stamped lost", async () => {
   const { summoner, scene } = setup();
   const a1 = summonedBy(scene, summoner.uuid, { castId: "cA", sourceUuid: "x", at: 1 }, { p1: 3, p2: 3 });
   const decoy = summonedBy(scene, summoner.uuid, { castId: "cB", sourceUuid: "x", at: 1 }, { p1: 3 });
@@ -1494,7 +1494,7 @@ await t("a creature that turns hostile drops every owner as a forced deletion, t
   const patch = calls.actorUpdate[0].patch;
   assert.equal(patch[`flags.${M}.${logic.SUMMON_RECORD_FLAG}.lost`], "hostile");
   assert.deepEqual(Object.keys(patch.ownership).sort(), ["p1", "p2"]);
-  assert.ok(Object.values(patch.ownership).every((v) => v instanceof ForcedDeletion), "an update merges objects, so each owner is a forced deletion and never an emptied map");
+  assert.ok(Object.values(patch.ownership).every((v) => v === CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE), "a synthetic actor's ownership is a delta over the world copy's, so each owner is set to NONE: a forced deletion writes nothing there");
   assert.deepEqual(calls.tokenUpdate, [{ id: a1.id, patch: { disposition: logic.HOSTILE_DISPOSITION } }]);
   assert.equal(calls.actorUpdate.concat(calls.tokenUpdate).some((u) => u.id === decoy.id), false, "another cast's creature is untouched");
 });

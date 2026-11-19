@@ -870,7 +870,12 @@ try {
   const TWO_HOURS = { shape: "fixed", value: 2, unit: "hours" };
   const HELD = { shape: "concentration", concentration: "stationary" };
   const summonRow = (over = {}) => ({ type: "summon", ref: creatureUuid, amount: 2, ...over });
-  const reshape = (rows, { duration = TWO_HOURS, rangeFeet = null } = {}) => run(gm, P.reshape, { casterId, spellId: act.id, rows, duration, rangeFeet });
+  /** Reshape on the GM seat, then wait until the Player seat reads the zeroed count: a Player read made before the update reaches it sees the last cast's count. */
+  const reshape = async (rows, { duration = TWO_HOURS, rangeFeet = null } = {}) => {
+    const out = await run(gm, P.reshape, { casterId, spellId: act.id, rows, duration, rangeFeet });
+    await until(player, P.state, { casterId, spellId: act.id }, (s) => s.cast === 0, { tries: 40, every: 150 });
+    return out;
+  };
   /** A localized string as the seat reads it; the caller passes the key without its root, which is joined here so no bare prefix is spelled. */
   const loc = (who, key, data) => run(seatOf(who), P.loc, { key: "ACKS-" + key, data });
   const openDialog = async (who) => {
@@ -1038,8 +1043,8 @@ try {
   for (const outcome of ["stays", "hostile"]) {
     await reshape([summonRow({ amount: 1, controlEnd: outcome })], { duration: HELD });
     const before11 = await standing();
-    await openDialog("player");
-    await run(player, P.confirm, { count: 1 });
+    const d11 = await openDialog("player");
+    note(`11 ${outcome}: the dialog and its Cast press`, { verdicts: d11.verdicts?.map((v) => v.text), pressed: await run(player, P.confirm, { count: 1 }) });
     await clickPlaces("player", 1);
     const fresh11 = await awaitFresh(before11, 1);
     const fin11 = await settle("player", fresh11);

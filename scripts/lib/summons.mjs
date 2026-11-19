@@ -32,7 +32,7 @@
  * that cannot open its shelf still summons it.
  */
 import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK } from "./constants.mjs";
-import { docOf, makeLoc, unset } from "./util.mjs";
+import { docOf, makeLoc } from "./util.mjs";
 import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
@@ -407,7 +407,8 @@ export async function applyControlEnd(summoner, { castId, outcome } = {}) {
       await token.actor.update({ [stampPath]: step.lost });
       done.stamped++;
     } else if (step.op === "hostile" && token?.actor) {
-      await token.actor.update({ [stampPath]: step.lost, ...(step.drop.length ? { ownership: Object.fromEntries(step.drop.map((id) => [id, unset()])) } : {}) });
+      // A creature's actor is synthetic, its ownership a delta over the world copy's: a forced deletion there writes nothing at all, the stamp beside it included, and could not lower the copy's level anyway. Each owner is set to NONE instead.
+      await token.actor.update({ [stampPath]: step.lost, ...(step.drop.length ? { ownership: Object.fromEntries(step.drop.map((id) => [id, CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE])) } : {}) });
       await token.update({ disposition: step.disposition });
       done.stamped++;
       done.hostile++;
