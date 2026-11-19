@@ -4091,7 +4091,7 @@ and all its areas at once.
    and not by its neutral label, each with hit points, none with
    `extras.derived.unread`. They carry 25 weapons between them, one a
    routine: one creature prints no attack and has none, five have two, and
-   every weapon but one carries `flags.acks-extras.damageType`.
+   every weapon but one carries a type in `system.damage.base.types`.
 2. Press the points-of-interest step (`stepPoi`). *Observable:* no picture
    bar (the read is reused); the notice counts 77 places created and the
    occupants rostered, with the links waiting on a creature the library does

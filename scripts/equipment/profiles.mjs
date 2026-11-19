@@ -4,8 +4,9 @@
  * used by the Loadout model and roll wrapper.
  *
  * Source order (reuse → override → lookup → default):
- *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`)
- *   2. per-item overrides `flags.acks-extras.{size,grips,category,style,damageType}`
+ *   1. core weapon data (`system.melee/missile`, `system.special.*`, `system.customTags`,
+ *      `system.damage.base.types`)
+ *   2. per-item overrides `flags.acks-extras.{size,grips,category,style}`
  *   3. the weapon-table row the item is identified as (`weaponIdentity`)
  *   4. default: melee, one-handed; a size, class or damage die nothing above
  *      states is null (the die "")
@@ -20,6 +21,7 @@
 import { MODULE_ID, ITEM_FLAGS } from "./constants.mjs";
 import { SIZE, STYLE, WEAPON_CATEGORY, IMPROVISED_THROWN, gearProfileFor, clothingSlotsFor } from "./config.mjs";
 import { slotsOf, declaresSlots, isClothing } from "../lib/item-model.mjs";
+import { ownDamageType } from "../lib/damage-type.mjs";
 import { SLOT, slug, nameKeys, ITEM_TYPE, retrievalAccess } from "../lib/vocab.mjs";
 import { weaponRow, weaponKeys, keyForName, weaponFocusGroup, weaponThrowsAsAnyone } from "../lib/weapons.mjs";
 import { splitDamage, joinDamage, damageFormulaOf } from "./properties.mjs";
@@ -443,7 +445,9 @@ export function classifyWeapon(item) {
     twoHandedForced: base?.twoHandedForced === true || twoHandedTag,
     damage,
     damage2h: alternate ?? twoHandedDamage(damage, base),
-    type: flag(ITEM_FLAGS.DAMAGE_TYPE) ?? base?.type ?? "",
+    // The item's own base type outranks the row's, which stays the answer for a
+    // weapon that states none (it picks the condition table the weapon rolls on).
+    type: ownDamageType(item) ?? base?.type ?? "",
     // The declared class outranks the row's; an unknown value is no declaration.
     cat: WEAPON_CATEGORY_VALUES.has(flag(ITEM_FLAGS.CATEGORY)) ? flag(ITEM_FLAGS.CATEGORY) : base?.cat ?? null,
     special: base?.special ?? [],

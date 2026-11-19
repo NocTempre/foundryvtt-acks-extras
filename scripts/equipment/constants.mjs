@@ -94,7 +94,6 @@ export const ITEM_FLAGS = Object.freeze({
   // weapon no row identifies count as trained.
   CATEGORY: "category",
   STYLE: "style", // required fighting style key
-  DAMAGE_TYPE: "damageType", // aligns with the monsters feature's DAMAGE_TYPES
   THROWN_STATE: "thrownAway", // runtime STATE: this weapon has been thrown and awaits recovery (weight removed)
   SHIELD_VARIANT: "shieldVariant", // JJ overlay: buckler|auxiliary|crescent|heater|kite|phalanx
   STRAP: "strap", // JJ overlay: "hand" | "back" | "front"

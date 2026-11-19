@@ -36,8 +36,9 @@ other VTTs) while cookbooks stay valid.
   ([MODEL.md](MODEL.md), "A settlement's map").
 - **Field mapping:** executor output → `system.*` paths (the successor of
   `scripts/stats-map.mjs`). E.g. `stats.armorClass` → `system.ac.value`,
-  save class+level → the saves LUT, attacks → weapon Items with
-  `flags.acks-extras.*` (damageType/naturalWeapon/extraordinary from the
+  save class+level → the saves LUT, attacks → weapon Items whose damage type
+  and extraordinary mark go to `system.damage.base.types` and `.extraordinary`
+  and whose natural weapon is `flags.acks-extras.naturalWeapon` (from the
   executor's `{key, ref}` triples and glyphColor result).
 - **Grid types → document types:** the weapons grid prints three, and only two
   of them are weapons. A row the page types **Ammunition** becomes an `item`

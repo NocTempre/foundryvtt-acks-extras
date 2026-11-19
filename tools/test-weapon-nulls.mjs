@@ -189,13 +189,14 @@ check("a toggle names no unit and changes nothing", training.toggledGrant("axe",
 
 // --- the readied torch states only what its row states ------------------------------------
 check("with no table nothing is a torch to ready", actions.readiedWeaponData({ name: "Torch", img: "t.png", system: { cost: 1, weight6: 1 } }) === null);
-const lit = { name: "Torch", melee: true, missile: false, thrown: true, damage: "9d3", type: "zap", special: ["light"] };
+const lit = { name: "Torch", melee: true, missile: false, thrown: true, damage: "9d3", type: "fire", special: ["light"] };
 registerWeaponSource({ rows: { torch: lit }, aliases: {}, focusGroups: {} });
 const readied = actions.readiedWeaponData({ name: "Torch", img: "t.png", system: { cost: 1, weight6: 1 } });
-check("a torch row's die and type are the readied weapon's", readied?.system.damage.base.formula === "9d3" && readied.flags["acks-extras"].damageType === "zap");
+check("a torch row's die and type are the readied weapon's, the type in core's own field", readied?.system.damage.base.formula === "9d3" && JSON.stringify(readied.system.damage.base.types) === JSON.stringify(["fire"]));
+check("the readied torch writes no damageType flag", !("damageType" in readied.flags["acks-extras"]));
 registerWeaponSource({ rows: { torch: { name: "Torch", melee: true, special: ["light"] } }, aliases: {}, focusGroups: {} });
 const silent = actions.readiedWeaponData({ name: "Torch", img: "t.png", system: { cost: 1, weight6: 1 } });
-check("a torch row that states no die or type readies one with neither", silent?.system.damage.base.formula === "" && !("damageType" in silent.flags["acks-extras"]));
+check("a torch row that states no die or type readies one with neither", silent?.system.damage.base.formula === "" && !("types" in silent.system.damage.base) && !("damageType" in silent.flags["acks-extras"]));
 check("equipmentClass answers null for a name no row holds", equipmentClass("Lantern") !== null && equipmentClass("Zorgle") === null);
 
 // --- the annotate writer refuses what no row states ----------------------------------------

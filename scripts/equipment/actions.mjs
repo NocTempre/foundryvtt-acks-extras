@@ -19,6 +19,7 @@ import {
 } from "./overlays/scavenged.mjs";
 import { recomputeItemFields, withFlatDelta, scavengedOf, itemLossAcOf } from "./properties.mjs";
 import { unset } from "../lib/util.mjs";
+import { weaponBaseDamage } from "../lib/damage-type.mjs";
 import { isMissingRow } from "../lib/tables.mjs";
 import { skipDialogFor } from "../lib/roll-dialog.mjs";
 import { trueIdentityOf, disguisePatch, revealPatch } from "./disguise-logic.mjs";
@@ -61,7 +62,7 @@ export function readiedWeaponData(item) {
     type: "weapon",
     img: item.img,
     system: {
-      damage: { base: { formula: klass.damage ?? "" } },
+      damage: weaponBaseDamage(klass.damage ?? "", klass.damageType),
       melee: klass.melee ?? true,
       missile: klass.missile ?? true,
       bonus: { attack: 0, damage: 0 },
@@ -71,7 +72,7 @@ export function readiedWeaponData(item) {
       weight6: Number(item.system?.weight6 ?? 0) / per,
     },
     flags: {
-      [MODULE_ID]: { light: true, ...(klass.damageType ? { [ITEM_FLAGS.DAMAGE_TYPE]: klass.damageType } : {}), readied: true },
+      [MODULE_ID]: { light: true, readied: true },
     },
   };
 }

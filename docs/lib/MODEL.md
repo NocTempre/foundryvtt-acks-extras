@@ -2104,6 +2104,21 @@ that replaces it ("Damage against defenses").
 unless the system has one. Ruling: DECISIONS, "A spell's damage is a fourth
 attack type on a carrier".
 
+## A weapon's damage type
+
+A weapon's damage type is core's alone: `system.damage.base.types`. The attack
+roll, core's card icons and the defence stage below read it, and so does
+`damage-type.mjs`: `damageTypeOf` answers the same as `ownDamageType` (the
+first named type, `varies` for a weapon typed only as varying) and is null for
+a weapon whose set is empty. It consults no flag, no override and no
+classifier, so a surface shows the type the roll carries. The Rolls tabs, the
+follower card's attack rows and a monster's attack row show a blank type and
+the neutral icon for an untyped weapon, and the weapons core ships in its own
+packs are untyped. A write goes to the same field (`damageTypeUpdate`,
+`weaponBaseDamage`). Equipment's classifier keeps its own `type`, the row's
+for a weapon that states none, for the one question of which condition table a
+weapon rolls on. Ruling: DECISIONS, "A weapon's damage type is core's alone".
+
 ## Damage against defenses
 
 `defenses.mjs` is the one place a damage type meets a creature's immunities,

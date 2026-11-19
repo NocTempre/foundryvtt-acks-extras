@@ -75,8 +75,9 @@ rolls live. The system's own item sheet, picked by hand, takes it in its
   Damage Type select and Extraordinary checkbox edit those through `item.update`
   and write no flag. The select shows the weapon's own first type and names no
   fallback, so it shows what it writes; a pick replaces the whole set and a blank
-  pick clears it. The monster sheet's attack rows read the same fields, with the
-  Rolls tab's fallback order for the type (`lib/damage-type.mjs` `damageTypeOf`).
+  pick clears it. The monster sheet's attack rows read the same fields through
+  `lib/damage-type.mjs` `damageTypeOf`, which answers core's types alone: a weapon
+  with none shows a blank type.
 - **ability**: `abilityCategory` (enum), `usage` (lib's `SPELL_LIKE_FREQ`, re-exported as `USAGE`), `xpAsterisks` (optional)
 - **item (spoil)**: `component` (bool), `researchEffects` (string[])
 

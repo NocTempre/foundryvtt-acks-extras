@@ -88,7 +88,7 @@ const weapon = (name, over = {}) => ({
   // weapon/armor/item carries them, which is what itemModel.isPhysical tests.
   system: {
     equipped: over.equipped ?? true, cost: over.cost ?? 0, weight6: over.w6 ?? 0,
-    damage: { base: { formula: over.damage ?? FIXTURE_ROWS.sword.damage }, alternate: { formula: over.alternate ?? "" } },
+    damage: { base: { formula: over.damage ?? FIXTURE_ROWS.sword.damage, ...(over.types ? { types: over.types } : {}) }, alternate: { formula: over.alternate ?? "" } },
     bonus: { attack: 0, damage: 0 }, melee: over.melee, missile: over.missile,
     customTags: over.tags ?? [], special: over.special ?? {},
   },
@@ -1257,6 +1257,14 @@ const { tableFor, accumulateImported, toItemUpdates } =
 check("bludgeoning weapons use their own table", tableFor(weapon("Mace", { melee: true }), { type: "bludgeoning" }) === "bludgeoning");
 check("swords use the piercing/slashing table", tableFor(weapon("Sword", { melee: true }), { type: "slashing" }) === "piercingSlashing");
 check("armour uses the armour/equipment table", tableFor(armor("Plate", "heavy"), {}) === "armourEquipment");
+{
+  const rowTyped = weapon("Sword", { melee: true });
+  const coreTyped = weapon("Sword", { melee: true, types: ["bludgeoning"] });
+  const flagged = { ...weapon("Sword", { melee: true }), getFlag: (_m, k) => ({ damageType: "bludgeoning" })[k] };
+  check("a weapon's own base type is its classified type, and the row answers where it states none", classifyWeapon(rowTyped).type === FIXTURE_ROWS.sword.type && classifyWeapon(coreTyped).type === "bludgeoning");
+  check("core's bludgeoning beats a piercing/slashing row, and the bludgeoning table follows", FIXTURE_ROWS.sword.type !== "bludgeoning" && tableFor(coreTyped, classifyWeapon(coreTyped)) === "bludgeoning" && tableFor(rowTyped, classifyWeapon(rowTyped)) === "piercingSlashing");
+  check("a damageType flag no longer declares a type", classifyWeapon(flagged).type === FIXTURE_ROWS.sword.type);
+}
 
 // An invented condition grid in the imported shape; the book's rows arrive through the importer.
 const scRow = (c, e, v, min, max) => ({ category: c, effect: e, value: v, min, max });

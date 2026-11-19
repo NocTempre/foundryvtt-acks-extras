@@ -136,8 +136,8 @@ export function loadReading({ stone = 0, normal = null, max = null, maxMultiple 
 /**
  * One owned weapon as the snapshot's attack row. The damage type and the
  * extraordinary mark are the weapon's own system fields, read the way its Rolls
- * tab reads them (`damageTypeOf`, with its fallbacks), so the row agrees with
- * what the attack rolls; `natural` is the monster feature's own flag, which the
+ * tab reads them (`damageTypeOf`, core's own types alone), so the row agrees
+ * with what the attack rolls and an untyped weapon's row is blank; `natural` is the monster feature's own flag, which the
  * system has no field for. `damageLabel` turns a damage-type key into text.
  */
 export function attackRowOf(weapon, damageLabel) {

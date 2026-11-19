@@ -4,23 +4,12 @@
  *
  * A core weapon Item types its base damage itself (`system.damage.base.types`,
  * a set the sheet edits, and `system.damage.base.extraordinary`), and core's
- * attack roll reads those fields. An older or hand-made weapon leaves the set
- * empty, so a read falls through to `flags.acks-extras.damageType`, which the
- * readied torch and a pre-existing import write, and then to the equipment
- * feature's own classifier — every profiled weapon is typed with no annotation
- * step and no second copy of the data. A write goes to core's fields only.
- *
- * Resolution order, most explicit first:
- *   1. `flags.acks-extras.damageTypeOverride` — a hand-set override (ad-hoc weapons)
- *   2. `system.damage.base.types`             — the weapon's own first type
- *   3. `flags.acks-extras.damageType`         — the flag's value, where one was written
- *   4. equipment's live `classifyWeapon(item).type`
- *   5. null — genuinely unknown; the UI shows a neutral icon rather than guessing
- *
- * The override key stays spelled `damageTypeOverride`, distinct from
- * `damageType`, so it can never collapse into the value it overrides. See
- * docs/lib/DECISIONS.md, "The damage-type override keeps a name distinct
- * from the stamped value".
+ * attack roll reads those fields. They are the only source of a weapon's
+ * damage type: the roll, core's card icons and the defence stage read them, so
+ * every surface here shows the type the roll carries. A weapon whose set is
+ * empty is untyped (`null`), and the UI shows a neutral icon and a blank label
+ * rather than a type the roll would not deal. A write goes to the same fields.
+ * See docs/lib/DECISIONS.md, "A weapon's damage type is core's alone".
  */
 import { MODULE_ID } from "./constants.mjs";
 import { DAMAGE_TYPES, ITEM_TYPE } from "./vocab.mjs";
@@ -138,26 +127,13 @@ export const extraordinaryOf = (item) => item?.system?.damage?.base?.extraordina
 export const damageTypeUpdate = (key) => ({ "system.damage.base.types": key ? [coreDamageKey(key)].filter(Boolean) : [] });
 
 /**
- * The damage type of a weapon item, or null when unknown.
+ * The damage type of a weapon item: the first type its own base damage states
+ * (`ownDamageType`), or null when it states none. Nothing else is consulted,
+ * so a weapon the roll deals untyped reads untyped.
  * @param {Item} item
  * @returns {string|null} a DAMAGE_TYPES key
  */
-export function damageTypeOf(item) {
-  if (!item) return null;
-  const own = item.getFlag?.(MODULE_ID, "damageTypeOverride");
-  if (own && DAMAGE_TYPES[own]) return own;
-  const stated = ownDamageType(item);
-  if (stated) return stated;
-  const stamped = item.getFlag?.(MODULE_ID, "damageType");
-  if (stamped && DAMAGE_TYPES[stamped]) return stamped;
-  try {
-    const t = equipmentApi()?.classifyWeapon?.(item)?.type;
-    if (t && DAMAGE_TYPES[t]) return t;
-  } catch {
-    /* classifier unavailable or unrecognised item — fall through to unknown */
-  }
-  return null;
-}
+export const damageTypeOf = (item) => ownDamageType(item);
 
 /** Localised label for a damage type key. */
 export function damageTypeLabel(key) {

@@ -322,8 +322,8 @@ const asKey = (key) => key ?? "";
 test("a core type beats a stale flag", () => {
   assert.equal(attackRowOf(weaponDoc({ types: ["fire"], flags: { damageType: "slashing" } }), asKey).damageType, "fire");
 });
-test("the flag answers only where core states no type", () => {
-  assert.equal(attackRowOf(weaponDoc({ flags: { damageType: "slashing" } }), asKey).damageType, "slashing");
+test("a weapon core states no type for shows a blank row, whatever a flag says", () => {
+  assert.equal(attackRowOf(weaponDoc({ flags: { damageType: "slashing" } }), asKey).damageType, "");
   assert.equal(attackRowOf(weaponDoc(), asKey).damageType, "");
 });
 test("the core extraordinary mark shows with no flag, and a stale flag alone does not", () => {

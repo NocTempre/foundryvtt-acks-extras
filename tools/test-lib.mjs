@@ -4355,10 +4355,25 @@ t("areEnemies: friendly against hostile is true, one side false, neutral secret 
     assert.deepEqual(weaponBaseDamage(undefined), { base: { formula: "" } });
     assert.deepEqual(weaponBaseDamage("1d4", "zorp", null), { base: { formula: "1d4" } }, "an unknown type and an unset mark write nothing");
   });
-  t("damageTypeOf: a core type beats a stale flag, and the flag answers where core is silent", () => {
+  t("damageTypeOf: core's types alone, so a flag where core is silent answers nothing", () => {
     assert.equal(damageTypeOf(weapon({ types: ["fire"], flags: { damageType: "slashing" } })), "fire");
-    assert.equal(damageTypeOf(weapon({ types: [], flags: { damageType: "slashing" } })), "slashing");
+    assert.equal(damageTypeOf(weapon({ types: [], flags: { damageType: "slashing" } })), null);
+    assert.equal(damageTypeOf(weapon({ types: [], flags: { damageTypeOverride: "slashing" } })), null);
+    assert.equal(damageTypeOf(weapon({ types: ["fire"], flags: { damageTypeOverride: "slashing" } })), "fire");
     assert.equal(damageTypeOf(weapon({ types: ["variesByWeapon"] })), "varies");
+    assert.equal(damageTypeOf(null), null);
+  });
+  t("damageTypeOf: equipment's classifier is never asked", () => {
+    const had = globalThis.acksExtras;
+    let asked = 0;
+    globalThis.acksExtras = { equipment: { classifyWeapon: () => (asked++, { type: "piercing" }) } };
+    try {
+      assert.equal(damageTypeOf(weapon({ types: [] })), null);
+      assert.equal(damageTypeOf(weapon({ types: ["cold"] })), "cold");
+      assert.equal(asked, 0);
+    } finally {
+      globalThis.acksExtras = had;
+    }
   });
   t("ownDamageType: reads core only, never the flag", () => {
     assert.equal(ownDamageType(weapon({ types: [], flags: { damageType: "slashing" } })), null);

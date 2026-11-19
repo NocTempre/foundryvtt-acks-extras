@@ -897,3 +897,51 @@ result before its target (a door's bash, a trap's disarm, a party check) asks
 
 *Rejected:* a bare `isAutoSucceed(natural)`, which would succeed for a thrower
 the page excludes; a default edge when nothing is imported.
+
+## 2026-11-19 — A weapon's damage type is core's alone
+
+**New evidence** (T-0658, T-0659, T-0660; for the monsters entry "A monster
+weapon's damage type and extraordinary mark are core's fields", 2026-11-17,
+whose "Calls made here" left lib's fallback "to settle"): the readied torch
+wrote its type only to a flag, so a torch readied from the character sheet
+rolled untyped while its Rolls tab named fire; and a weapon with an empty
+`system.damage.base.types` showed a type from a flag or from the equipment
+classifier's row on the Rolls tabs, the follower card and a monster's attack
+row, which the attack roll, core's card icons and the defence stage never
+carried. 0 of the 125 weapon documents in core's own source packs carry types
+(37 equipment, 20 monster abilities, 68 inside monsters; the architect
+counted 98).
+
+**Ruled** (architect, accepted by the owner's session). The single source of a
+weapon's damage type is `system.damage.base.types`. `damageTypeOf` answers the
+same as `ownDamageType`: it never reads `flags.acks-extras.damageTypeOverride`,
+`flags.acks-extras.damageType` or equipment's classifier. Nothing writes those
+two flags (the readied torch wrote the second; it now writes core's field
+through `weaponBaseDamage`, so the torch rolls fire). `classifyWeapon`'s `type`
+is the item's own base type, else the row's: the row stays that function's
+answer for the one question of which condition table a weapon rolls on
+(`overlays/scavenged.mjs` `tableFor`), so core's bludgeoning on an item beats a
+piercing row there too. `ITEM_FLAGS.DAMAGE_TYPE` and the flag readers are
+deleted, since root DECISIONS §29 serves only what the module and the current
+system write. This supersedes the archived ruling "The damage-type override
+keeps a name distinct from the stamped value (2026-09-22)", which has no row in
+force, and supersedes in part the monsters entry named above in what it says of
+the attack row's fallback. No migration: "no tools for previous-version data"
+(owner, 2026-11-11), so a world holding a flag alone loses what the flag said.
+
+**Rejected.**
+- Stamping core's types from the row onto a weapon (at read or in an update):
+  two stores of one fact, and a Judge's blank would be refilled.
+- Feeding the fallback into the stamp, so the roll carries what the surfaces
+  show: the roll would deal a type nobody set, and a weapon whose row lacks a
+  type would still differ from its sheet.
+- A `preCreateItem` writer copying a library row's types onto an untyped
+  weapon: viable, and left for the owner as a row of its own.
+
+**What it cost.** The strongest counter, *medium*: all 125 of core's own
+shipped weapons are untyped, so a weapon dragged from core's packs now reads
+blank on the Rolls tabs, the follower card and a monster's attack row where it
+read a type from the classifier's row. The roll dealt it untyped all along, so
+the figure was never the roll's; the blank is the truth, and the remedy is the
+sheet's Damage Type select or the writer above. A weapon a world already holds
+with only a flag loses its shown type.
