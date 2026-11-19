@@ -503,15 +503,18 @@ client `look` back to `world`.
    **Observable:**
    - Under `core`, `text-transform` reads `none` on every element, with no
      exception; the label elements (the sheet's field and section labels, chips,
-     tab captions, the card's key labels) read Foundry's body face, a
-     `font-weight` of 600 and a `letter-spacing` of `normal` or `0px`.
+     tab captions, the card's key labels) read Foundry's body face and a
+     `letter-spacing` of `normal` or `0px`. Their `font-weight` is 600 where the
+     rule sets a weight or its element has none of its own; a label on a heading,
+     `th`, `button`, `label` or `legend` keeps the weight that element has, and a
+     reading other than 600 there is a finding to note, not a failure.
    - Under `core`, an element whose capitals rule sets no `font-family` (a rule
      with no `--acks-caps-font` read and a face other than `--acks-font-ui` or
      `--acks-font-body`) is read for the face it inherits. A label that reads a display or banner face is a finding for the
      triage ledger: it names a label whose face comes from a second rule.
-   - Under `book`, the same elements read as they did before the change:
-     `uppercase` on the label elements, their display, banner or UI face and
-     their weight, and the tracking each rule writes.
+   - Under `book`, the label elements read `uppercase`, the display, banner or
+     UI face their rule names, the weight their rule sets, and the tracking each
+     rule writes.
    - The seams are undefined under `book` and defined under `core`:
      `getComputedStyle(document.body).getPropertyValue("--acks-caps-font")` is
      empty, then the body face, and `--acks-caps` reads `uppercase`, then `none`.

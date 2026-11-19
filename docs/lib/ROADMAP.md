@@ -416,13 +416,8 @@ walks what holds. Players who asked for sheets that look like Foundry's
 default still find what follows. Each item changes what a user sees, so each
 starts with `/design`.
 
-- **The capitals.** This module's own sheets keep their uppercase labels,
-  though the setting's hint says System style hands the inscriptional
-  capitals back. Most `text-transform: uppercase` rules in `styles/` and
-  `vendor/acks-design/` carry no look scope. The likely shape is a caps token
-  that System style sets to `none`, read at each site.
 - **Buttons, table heads and gold.** `.acks-btn` and `.acks-table` carry no
-  `.acks-ui` scope, so they keep their own fills and capitals in place of
+  `.acks-ui` scope, so they keep their own fills in place of
   Foundry's. The gold tokens and the text colours drawn on burgundy are not
   re-pointed at Foundry's variables (`vendor/acks-design/foundry.css` §8).
   Foundry declares its `--button-*` variables only on `a.button`, `button`

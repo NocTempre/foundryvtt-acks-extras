@@ -964,8 +964,13 @@ medium weight. The face, the weight and a hard-coded tracking are seams
 (`--acks-caps-font`, `--acks-caps-weight`, `--acks-caps-tracking`) that only the
 `core` block defines, and each capitals rule reads one with its own value as the
 fallback, so Book style computes what it did before. Checked offline by
-substituting each fallback and the literal back into the 126 converted rules and
-comparing with the stylesheets as they stood: identical. `validate` § 8h holds the
+substituting each fallback and the literal back into the 126 converted rules,
+dropping the 25 `inherit` weight reads, and comparing with the stylesheets as they
+stood: identical. The medium weight reaches 98 of the 126: 73 rules already set a
+weight, and 25 more, on a plain-classed element that nothing else gives a weight,
+gained a `var(--acks-caps-weight, inherit)`. The other 28 (a heading, `th`,
+`button`, `label` or `legend`, a selector ending in an element, a class on no
+static template tag) keep the weight they have. `validate` § 8h holds the
 line (a literal uppercase fails; `/* caps-ok: <reason> */` is the escape).
 
 **Exception to "read bare".** The 2026-08-01 ruling "One token publisher" has
