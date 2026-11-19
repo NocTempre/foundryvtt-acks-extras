@@ -4215,8 +4215,10 @@ writes `flags.world.fixture` itself and tracks the uuid).
    *Observable:* the notice reads P taken over from an earlier book. Read a
    paired item (uuid as before the import): the uuid is unchanged, `cookbook.id`
    is `tt.item<m>` and `cookbook.book` `tt`, `cookbook.merged` holds
-   `jj.item<n>`, the description is the Tome's, and the item now stands in the
-   Tome's folder of its category. An unpaired Journal item is untouched.
+   `jj.item<n>`, the description is the Tome's, and the item still stands where step 7 filed
+   it: the Journal's folder of its category, in the Judge's pack (DECISIONS
+   2026-11-19, "A taken-over magic item stays on the shelf it stands on"). An
+   unpaired Journal item is untouched.
 9. **A held edit through the takeover.** Before step 8, rename one paired item
    and rewrite its description by hand. After step 8 *observable:* the name and
    the description are the hand-written ones; the id, the book and `merged` are
@@ -4226,12 +4228,13 @@ writes `flags.world.fixture` itself and tracks the uuid).
     books and import Magic Items. *Observable:* the notice reads the Tome's
     count imported and the unpaired Journal rows imported, and P Journal rows
     joined with none built. A paired item reads exactly as in step 8:
-    `cookbook.id` `tt.item<m>`, `cookbook.merged` `jj.item<n>`, the Tome's
-    folder. No item named for a Journal heading is left beside it, and no
+    `cookbook.id` `tt.item<m>`, `cookbook.merged` `jj.item<n>`, except
+    that it stands in the Tome's folder of its category, in the Tome's pack. No item named for a Journal heading is left beside it, and no
     Journal paragraph is appended to the Tome's text.
 11. **Either order, one document.** Compare one paired item from step 8 with the
     same item from step 10. *Observable:* the same name, `cookbook.id`,
-    `cookbook.book`, `cookbook.merged`, folder and description text.
+    `cookbook.book`, `cookbook.merged` and description text. The folder and
+    the pack follow the order: the Journal's from step 8, the Tome's from step 10.
 12. **The delete path.** Delete one paired item (marked as above) and import
     Magic Items with both books open. *Observable:* the notice reads 1 imported
     and the rest already present; the Journal row's id answers to the new

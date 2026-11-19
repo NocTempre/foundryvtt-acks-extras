@@ -2750,3 +2750,29 @@ direct reader never writes a node of blank fields. The per-seat remembered
 location of a shelved book is no longer tried when the shelf file is gone,
 since the book is already registered. A book is fetched on the first read of
 each session (the whole file) until a saved text layer replaces that read.
+
+## 2026-11-19 — A taken-over magic item stays on the shelf it stands on
+
+**Asked.** The S8 pair walk, on lane C. The Judges Journal files its items in
+the Judge's pack, because it is marked `judge`. The Tome files its items in
+its line's pack. When the Journal's import ran first, the Tome's import took
+the item over in place (`takeoverPatch`). The import wrote the Tome's folder
+id onto a document in the other pack. Core dropped that folder, so the item
+sat unfiled at the pack's root. The walk asked for two things that cannot both
+hold across packs: the uuid stays, and either import order ends on one shelf.
+
+**Ruled (owner, 2026-11-19, "Stays put (Recommended)").** A takeover leaves the
+item where it stands: in the Judge's pack, in the Journal's folder of its
+category, under its uuid. Its id, book and `merged` become the Tome's, and so
+does its build. The folder moves to the Tome's only when that folder is in the
+item's own pack. A later repair recreates the item in its own pack
+(`recreateUnderId`), so it stays there.
+
+*Rejected:* moving the item to the Tome's pack and folder. Both orders would
+end on one shelf, but the document gets a new uuid. A link to the old uuid
+breaks, and the dedup index and the ledger have to follow the move.
+
+*Cost:* which pack holds a paired item depends on the order the books were
+imported in. Journal first leaves it in the Judge's pack; Tome first puts it
+in the Tome's line pack. A Judge who looks for every Tome item in the Tome's
+pack finds the ones the Journal made first in the Judge's pack.

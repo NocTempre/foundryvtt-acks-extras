@@ -553,8 +553,9 @@ try {
   check("8. cookbook.id is the Tome's tt.item<m>, cookbook.book is tt, and cookbook.merged holds the Journal's jj.item<n>", s8.every((r) => r.holders[0]?.id === r.tt && r.holders[0].book === "tt" && sameSet(r.holders[0].merged, [r.jj])), s8.map((r) => ({ id: r.tt, book: r.holders[0]?.book, merged: r.holders[0]?.merged })));
   const unedited8 = s8.filter((r) => r.jj !== EDIT.jj);
   check("8. an untouched pair's description is the Tome's entry block alone: the Tome's stamp, none of the Journal's", unedited8.every((r) => r.holders[0].stamps.includes(r.tt) && !r.holders[0].stamps.some((s) => s.startsWith("jj."))), unedited8.map((r) => r.holders[0].stamps));
-  check("8. each pair stands in the Tome's folder of its category, a folder of its own compendium", s8.every((r, i) => folderOk(r.holders[0], PAIRS[i], "tt") && r.holders[0].folder.inPack), s8.map((r, i) => ({ id: r.tt, folder: folderBrief(r.holders[0], PAIRS[i]) })));
-  check("8. each pair stands on the Tome's shelf: the pack and folder a standing Tome item of its category has (not made where none stands)", s8.every((r, i) => sameShelf(r.holders[0], PAIRS[i])), s8.map((r, i) => ({ id: r.tt, pack: refs[PAIRS[i].cat] ? r.holders[0].pack === refs[PAIRS[i].cat].pack : null, folder: refs[PAIRS[i].cat] ? r.holders[0].folderId === refs[PAIRS[i].cat].folderId : null })));
+  // Owner ruling 2026-11-19 ("Stays put"): a takeover leaves the item on the shelf the earlier book filed it on, under its uuid.
+  check("8. each pair stays in the Journal's folder of its category, a folder of the Judge's compendium (a takeover stays put)", s8.every((r, i) => folderOk(r.holders[0], PAIRS[i], "jj") && r.holders[0].folder.inPack), s8.map((r, i) => ({ id: r.tt, folder: folderBrief(r.holders[0], PAIRS[i]) })));
+  check("8. each pair stands on the shelf it stood on before the import: the compendium and folder step 7 filed it in", s8.every((r) => { const was = s7.find((x) => x.jj === r.jj)?.holders[0]; return !!was && r.holders[0].pack === was.pack && r.holders[0].folderId === was.folderId; }), s8.map((r) => { const was = s7.find((x) => x.jj === r.jj)?.holders[0]; return { id: r.tt, pack: r.holders[0]?.pack === was?.pack, folder: r.holders[0]?.folderId === was?.folderId }; }));
 
   section("9. A held edit, after the takeover");
   const hand = await run(gm, P.handRead, { uuid: u7[EDIT.jj], name: HAND_NAME, text: HAND_TEXT, base: handBase });
@@ -589,7 +590,7 @@ try {
   check("11. the same name from either order", same("name"), compared.map(({ p, a, b }) => ({ id: p.tt, same: a.name === b.name })));
   check("11. the same cookbook.id, cookbook.book and cookbook.merged", same("id") && same("book") && same("merged"));
   check("11. the same description: the same bytes and the same text", same("desc") && same("descText"), compared.map(({ p, a, b }) => ({ id: p.tt, desc: a.desc === b.desc })));
-  check("11. the same folder and the same compendium", same("folderId") && same("pack") && JSON.stringify(compared.map(({ a }) => a.folder)) === JSON.stringify(compared.map(({ b }) => b.folder)), compared.map(({ p, a, b }) => ({ id: p.tt, folder: a.folderId === b.folderId, pack: a.pack === b.pack })));
+  check("11. the shelf follows the order: the Journal first leaves the item in the Journal's folder of its category, the Tome first files it in the Tome's, each in its own book's compendium", compared.every(({ p, a, b }) => folderOk(a, p, "jj") && folderOk(b, p, "tt") && a.folder.inPack && b.folder.inPack && a.pack !== b.pack), compared.map(({ p, a, b }) => ({ id: p.tt, first: a.folder?.parentBook, second: b.folder?.parentBook, packsDiffer: a.pack !== b.pack })));
   check("11. the same core type and the same figures in the markets flag", same("type") && same("base") && same("apparent") && same("magic"));
   const e8 = factsOf(s8.find((r) => r.jj === EDIT.jj), EDIT.tt);
   const e10 = factsOf(s10.find((r) => r.jj === EDIT.jj), EDIT.tt);

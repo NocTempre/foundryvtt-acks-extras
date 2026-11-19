@@ -191,3 +191,10 @@ S6 status (2026-11-18): every Tome entry heading has a register row. The batches
 Book recipes in shared files: `resistanceProse` and `squeezingProse` (landed from main, 6cac2c8a and 78434f38) moved the `rr` silo baseline from 161 to 163. They are Revised Rulebook recipes and belong under `scripts/importer/books/rr/` at the owner's cleanup.
 
 Next: S8, the Journal's ch. 4 entries under `kind.magicItem` with the Journal-Tome pairs (ruling C). A local census found 158 items, of which 140 pair by heading key and 18 are reprints. The Journal needs its own page bands (`books/jj/`). The seed must learn that the Journal prints its labels at an entry's end. After S8, the treasure-art seam and the MM harvest.
+
+S8 status (2026-11-19): the Journal's 158 magic items are registered (`register/jj/p144-p173-items.json`, 140 cleared names, 18 flagged), each naming its Tome partner in `meta.revisedBy`. The pair glue (`scripts/importer/magic-item-pair.mjs`) imports a pair as one document in either order. S8 landed on `main` as afdd6ec7. Commit 1d2eb61c's subject says the pair walk was "walked live", but it was committed before any walk. The walks ran on `main` on lane C after landing: `importer-magic-items` 59 of 59; `importer-magic-item-pairs` 63 of 63 after two fixes.
+- The pair walk named a probe that does not exist; it is fixed in 04ac86ea.
+- A takeover wrote the Tome's folder id onto a document in the Judge's pack, so core dropped the folder and the item sat unfiled at the pack's root. 04ac86ea moves the folder only within the item's own pack.
+- The owner ruled that a taken-over item stays in the Judge's pack under its uuid (DECISIONS 2026-11-19). Walk steps 8 and 11 now expect that.
+
+Next: the treasure-art seam (B1-B6 and the texture crops), then the MM harvest (H1-H4).
