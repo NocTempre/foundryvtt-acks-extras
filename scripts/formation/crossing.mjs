@@ -63,6 +63,7 @@ import {
   fallFromClimb, fallFromDepth, haulStep, heldAfter, isHanging, jumpResult, jumpRow, landingOutcome, landingRow, memberRow, rescueIsCircumstance, rescueRefusal, stepMember, swimRow,
   swimThrowStep, withFooting, escapeStep, monsterStone, squeezeRow, squeezeThrowStep, paceStep, crossingElapsed, pressRate, pressRounds, roundsDue, timedStep,
 } from "./crossing-logic.mjs";
+import { setupKeysOf } from "./hazard-logic.mjs";
 import { BOOK_TO_RELEASED_SAVES } from "../lib/actor-compat.mjs";
 import { abilityMod } from "../lib/actor-read.mjs";
 import { capacityStone, loadStone, movementBearing } from "../lib/capacity.mjs";
@@ -178,13 +179,29 @@ export function readCrossing(formation) {
  * Open a crossing: the flag is replaced whole, with a fresh id and no members.
  * Nothing is written for a kind that is neither an obstacle nor a jump, or
  * while one stands, or from a seat that is no GM.
+ *
+ * A `seed` is a place's figures and conditions (`hazard-logic.mjs`
+ * `crossingSeed`), merged over the defaults in the same write: only the setup
+ * keys this kind reads are taken, each through its `SETUP_FIELDS` reader, and a
+ * value the reader refuses is left at its default. It never reaches `id`,
+ * `kind` or `members`.
+ * @param {object} formation
+ * @param {string} kind
+ * @param {{seed?: Record<string, number|boolean>|null}} [options]
  * @returns {Promise<string|null>} the new crossing's id, or null
  */
-export async function beginCrossing(formation, kind) {
+export async function beginCrossing(formation, kind, { seed = null } = {}) {
   const actor = getPartyActor(formation);
   if (!actor || !game.user.isGM || !CROSSING_KINDS.includes(kind) || readCrossing(formation)) return null;
   await releaseStrays();
-  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, ...(kind === SWIM_KIND ? { movement: "combat", penaltyPick: "none" } : {}), ...(kind === SQUEEZE_KIND ? { shape: "chokepoint" } : {}), members: {} };
+  const seeded = {};
+  const reads = setupKeysOf(kind);
+  for (const [key, value] of Object.entries(seed ?? {})) {
+    if (!reads.includes(key)) continue;
+    const read = SETUP_FIELDS[key](value);
+    if (read !== null) seeded[key] = read;
+  }
+  const setup = { id: foundry.utils.randomID(), kind, judgeMod: 0, ropeFixed: false, runUp: true, precarious: false, charging: false, ...(kind === SWIM_KIND ? { movement: "combat", penaltyPick: "none" } : {}), ...(kind === SQUEEZE_KIND ? { shape: "chokepoint" } : {}), ...seeded, members: {} };
   await actor.update({ [`flags.${MODULE_ID}.${CROSSING_FLAG}`]: foundry.data.operators.ForcedReplacement.create(setup) });
   return setup.id;
 }

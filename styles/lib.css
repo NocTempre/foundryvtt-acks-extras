@@ -656,6 +656,25 @@ body .sheet.acks.actor-v2 .encumbrance-label {
   font-style: italic;
 }
 
+/* A section's chips: labels with no figure, wrapped under its table. */
+.acks-extras-roll-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-1);
+  list-style: none;
+  margin: var(--acks-sp-2) 0 0;
+  padding: 0;
+}
+
+.acks-extras-roll-chip {
+  font-size: var(--acks-fs-fine);
+  padding: 0 var(--acks-sp-2);
+  background: var(--acks-tint-2);
+  border: var(--acks-border-soft);
+  border-radius: var(--acks-radius);
+  color: var(--acks-ink);
+}
+
 /* A press on the card, in a row's own column or in the footer under the
    tables. The system's chat handler binds only `.card-buttons`, so these are
    the caller's to bind. */

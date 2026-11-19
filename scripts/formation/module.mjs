@@ -175,6 +175,7 @@ import {
 } from "./hex-stock.mjs";
 import { installNavigationCardActions } from "./navigation-card.mjs";
 import { registerCrossingDriver } from "./crossing-driver.mjs";
+import { registerHazardEntry, runEntryStep } from "./hazard-entry.mjs";
 
 /** Open the formation window. */
 function openPartySheet() {
@@ -215,6 +216,7 @@ Hooks.once("init", () => {
   installHexStockCardActions();
   installNavigationCardActions();
   registerCrossingDriver();
+  registerHazardEntry();
   installTrapDrop();
   installTrapMarkers();
   installColumnView();
@@ -881,7 +883,12 @@ Hooks.on("updateToken", (tokenDoc, changes, options, userId) => {
     afterMove: async ({ from }) => {
       const formation = getFormation(formationId);
       if (!formation) return null;
-      return runTrapCheck(formation, { from, to });
+      const check = await runTrapCheck(formation, { from, to });
+      // The Judges' hazard card for the places the move entered, after every trap
+      // card and only when no wall stopped the move. Its failure never costs the
+      // move its trap answer.
+      await runEntryStep(getFormation(formationId) ?? formation, check).catch((err) => console.error(`${MODULE_ID} | the entry step failed`, err));
+      return check;
     },
   })
     // Once the day's march is walked off, or the party marches on after dusk,

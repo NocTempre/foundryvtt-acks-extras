@@ -156,4 +156,13 @@ ok("a target word alone opens the column, and a number wins over a word on the s
   assert.ok(!neither.includes("colTarget") && !neither.includes('data-tooltip-text="t"'));
 });
 
+ok("a section's chips print under its table as labels, escaped, each with its tooltip as text, and none leaves the card as it was", () => {
+  const rows = [{ name: "A", total: 1 }];
+  const plain = renderRollCard({ title: "T", sections: [{ rows }] });
+  assert.equal(renderRollCard({ title: "T", sections: [{ rows, chips: [] }] }), plain, "no chips change nothing");
+  const html = renderRollCard({ title: "T", sections: [{ rows, chips: [{ label: "Rope <fixed>", tooltipText: "why & how" }, { label: "Fast" }] }] });
+  assert.ok(html.includes('</table><ul class="acks-extras-roll-chips"><li class="acks-extras-roll-chip" data-tooltip-text="why &amp; how">Rope &lt;fixed&gt;</li><li class="acks-extras-roll-chip">Fast</li></ul>'));
+  assert.equal(renderRollCard({ title: "T", sections: [{ rows: [], chips: [{ label: "x" }] }] }), "", "chips alone do not make a card");
+});
+
 console.log(`\n${passed} passed`);

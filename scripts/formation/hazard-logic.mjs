@@ -60,7 +60,7 @@ export function setupKeysOf(kind) {
 }
 
 /** A figure as the sheet's reader takes it, or undefined while it is blank or refused. */
-function readParam(key, raw) {
+export function readParam(key, raw) {
   if (raw === null || raw === undefined || raw === "") return undefined;
   const value = SETUP_FIELDS[key](raw);
   return value === null ? undefined : value;

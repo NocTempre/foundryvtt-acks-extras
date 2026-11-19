@@ -3600,6 +3600,38 @@
       },
       "noFigures": "No figures here: length, gap and depth are typed on each place’s row, so one hazard can be two sizes in two places."
     },
+    "HAZARD_ENTRY": {
+      "title": "The party reaches",
+      "audience": "To the Judges",
+      "note": "Begin opens that crossing with these figures and every condition of the places the party stands in.",
+      "colObstacle": "Obstacle",
+      "colFigures": "Figures",
+      "colCrossing": "Crossing",
+      "begin": "Begin",
+      "beginTip": "Open a crossing of this kind with this row’s figures and the conditions of the places the party stands in now.",
+      "hidden": "Hidden from players",
+      "param": {
+        "length": "Length",
+        "gap": "Gap",
+        "depth": "Depth"
+      },
+      "figure": "{param} {value} ft",
+      "figureBlank": "{param} —",
+      "figureTip": "Typed on this place’s row: {params}.",
+      "confirm": {
+        "title": "Begin a crossing",
+        "body": "A crossing is open ({open}). End it and begin {next}?",
+        "endAndBegin": "End and begin",
+        "cancel": "Cancel"
+      },
+      "warn": {
+        "mode": "A journey or a settlement opens no crossing, so nothing was begun.",
+        "left": "The party no longer stands in {place}, so nothing was begun.",
+        "gone": "That obstacle is no longer on {place}, so nothing was begun.",
+        "changed": "The open crossing changed while you decided, so nothing was begun. Press Begin again.",
+        "refused": "No crossing was begun."
+      }
+    },
     "traps": {
       "title": "Trap",
       "sheet": "ACKS Trap",

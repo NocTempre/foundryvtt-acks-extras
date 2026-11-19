@@ -485,7 +485,9 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
  * halts it, and nothing beyond that wall is reached; a zone halts nothing.
  *
  * @returns {Promise<{outcome: string|null, results: Array<{outcome: string,
- *   victims?: object[]}>}>} `outcome` is the first trap's, or "found" when only
+ *   placement: {kind: string}, victims?: object[]}>}>} each result names the
+ *   kind of placement it came from, which is what `stackStops` reads to tell a
+ *   halt from a zone; `outcome` is the first trap's, or "found" when only
  *   a trap off the line turned up, or null with nothing to resolve
  */
 export async function runTrapCheck(formation, { from = null, to = null } = {}) {
@@ -525,9 +527,9 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
 
   /* (b) Each trap in the order the party meets it. */
   const reached = new Set();
-  const results = await walkTrapStack(stack, (entry) => {
+  const results = await walkTrapStack(stack, async (entry) => {
     reached.add(entry.placement.uuid);
-    return resolveStacked(formation, entry, {
+    const answer = await resolveStacked(formation, entry, {
       rows: search.rowsBy.get(entry.placement.uuid) ?? [],
       rolls: [...(search.rollsBy.get(entry.placement.uuid) ?? [])],
       found: search.found.has(entry.placement.uuid),
@@ -536,6 +538,8 @@ export async function runTrapCheck(formation, { from = null, to = null } = {}) {
       order,
       rankFeet,
     });
+    // The answer names the kind of placement it came from, so a caller can ask `stackStops` of it.
+    return answer && { ...answer, placement: { kind: entry.placement.kind } };
   });
 
   // A trap the sweep found beyond a wall that stopped the party was never walked to: reported as off the line.

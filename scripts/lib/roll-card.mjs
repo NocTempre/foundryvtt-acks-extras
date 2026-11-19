@@ -85,8 +85,13 @@ function buttonHtml({ action, label, icon, data, tooltip, disabled }) {
   return `<button type="button" class="acks-extras-roll-action"${attrs}>${glyph}<span>${esc(label)}</span></button>`;
 }
 
+/** One chip of a section: a label on its own, `tooltipText` its hover text assembled at render. */
+function chipHtml({ label, tooltipText }) {
+  return `<li class="acks-extras-roll-chip"${tooltipText ? ` data-tooltip-text="${esc(tooltipText)}"` : ""}>${esc(label)}</li>`;
+}
+
 /** One `<table>`, or "" when the section has no rows. `labels` overrides a column's heading. */
-function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
+function sectionHtml({ title, titleTooltip, rows, chips }, labels = {}) {
   if (!rows?.length) return "";
   const showTarget = rows.some((r) => Number.isFinite(Number(r.target)) || r.targetText);
   // Result, like Target, is printed only where there is one: a roll that
@@ -125,7 +130,9 @@ function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
     if (showActions) html += `<td>${(row.actions ?? []).map(buttonHtml).join("")}</td>`;
     html += `</tr>`;
   }
-  return `${html}</tbody></table>`;
+  html += `</tbody></table>`;
+  if (chips?.length) html += `<ul class="acks-extras-roll-chips">${chips.map(chipHtml).join("")}</ul>`;
+  return html;
 }
 
 /**
@@ -139,7 +146,8 @@ function sectionHtml({ title, titleTooltip, rows }, labels = {}) {
  *                                    or that the card is Judges-only.
  * @param {string}  [card.note]       One line under the banner: a rule reminder.
  * @param {string}  [card.noteTooltip] Hover text for the note, assembled at render.
- * @param {Array<{title?: string, titleTooltip?: string, rows: RollCardRow[]}>} card.sections
+ * @param {Array<{title?: string, titleTooltip?: string, rows: RollCardRow[], chips?: Array<{label: string, tooltipText?: string}>}>} card.sections
+ *                                    A section's `chips` print under its table, as a list of labels with no figure.
  * @param {string}  [card.footnote]   Small print at the foot (who could not roll).
  * @param {string}  [card.empty]      What the card says when no section has a row,
  *                                    already localized. A card with no rows

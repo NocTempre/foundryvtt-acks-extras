@@ -312,6 +312,29 @@ await ok("who sees what: a Judge always has the begin row, a player nothing unti
   assert.equal(open.isGM, false);
 });
 
+await ok("a seed is merged over the defaults in the begin write: only the kind's own keys, through the sheet's readers", async () => {
+  reset();
+  const { formation } = world([person("Alder")]);
+  const begun = async (kind, seed) => {
+    const id = await beginCrossing(formation, kind, { seed });
+    const stored = readCrossing(formation);
+    await endCrossing(formation);
+    return { id, stored };
+  };
+  const climb = (await begun("sheerClimb", { length: 40, ropeFixed: true, runUp: false, gap: 9, waterFast: true, id: "taken", kind: "swim", members: { x: 1 } })).stored;
+  assert.deepEqual([climb.length, climb.ropeFixed], [40, true], "a climb reads its length and rope");
+  assert.deepEqual([climb.runUp, "gap" in climb, "waterFast" in climb], [true, false, false], "a key its kind does not read is left out");
+  assert.deepEqual([climb.kind, climb.members], ["sheerClimb", {}], "the seed never reaches kind, id or members");
+  assert.notEqual(climb.id, "taken");
+  const jump = (await begun("jump", { gap: 12, runUp: false, precarious: true })).stored;
+  assert.deepEqual([jump.gap, jump.runUp, jump.precarious], [12, false, true], "a false the seed states beats the default");
+  const swim = (await begun("swim", { waterFast: true, depth: 20, length: 5 })).stored;
+  assert.deepEqual([swim.waterFast, "depth" in swim, "length" in swim, swim.movement, swim.penaltyPick], [true, false, false, "combat", "none"]);
+  const refused = (await begun("sheerClimb", { length: 0, ropeFixed: "yes" })).stored;
+  assert.deepEqual(["length" in refused, refused.ropeFixed], [false, false], "a figure the reader refuses leaves the default");
+  assert.equal((await begun("sheerClimb", null)).stored.ropeFixed, false, "no seed is the old begin");
+});
+
 await ok("with nothing imported a row's target is blank and its tooltip is the page reference alone", async () => {
   reset();
   const beast = person("Wolf", { type: "monster", adventuring: null });
