@@ -24,7 +24,7 @@ globalThis.Roll = class {
   }
 };
 
-const { rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows, damageOfRow, resistedDamage } = await import("../scripts/magic/cast-rows.mjs");
+const { keyedRows, rowsOf, rowKeyOf, rowsForMode, pickGroups, optionTokenOf, rowNeedsThrow, saveFractionOf, spellSaves, hasReversedRows, damageOfRow, resistedDamage } = await import("../scripts/magic/cast-rows.mjs");
 const Tables = await import("../scripts/lib/tables.mjs");
 const { DEFENSES_DOC, RESISTANCE_TABLE } = await import("../scripts/lib/defenses.mjs");
 const { casterLevel, levelNeeded } = await import("../scripts/magic/cast-level.mjs");
@@ -34,7 +34,8 @@ const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-
 const { castRecordEnd, endAction, sweepEndedCasts, announceEndedCast } = await import("../scripts/magic/cast-expiry.mjs");
 const { damageBounds, checkApplyRequest, applyOnTarget: applyRaw, amountOf, undoEntry, undoEntries, missingGroupKeys, entryId, conditionRecords } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView, castCardContent, CARD_ACTIONS } = await import("../scripts/magic/cast-card.mjs");
-const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
+const { castSpellClaims, castSpellClaimant, castSpellRun, rollResist, buildTargets, castReach, CAST_SPELL_KEY } = await import("../scripts/magic/cast-spell.mjs");
+const { takesTargets } = await import("../scripts/magic/cast-kinds.mjs");
 const { dialogContext } = await import("../scripts/magic/apps/cast-dialog-model.mjs");
 const { describeSpellEffect } = await import("../scripts/magic/describe.mjs");
 const { castDuration, NONE } = await import("../scripts/magic/cast-duration.mjs");
@@ -1608,6 +1609,61 @@ await ta("a per-level range is judged at the level the seat typed; a count the i
   const blank = spell([{ key: "mend", type: "heal", roll: "1d6" }], { range: { shape: "distance", value: 30, unit: "feet" }, target: { model: "creature" } });
   r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [a, b], gaps: { [a.uuid]: 5, [b.uuid]: 5 } });
   assert.equal((await castSpellRun(blank, () => {}, r.deps)).ok, true, "a blank count caps nothing");
+});
+
+await ta("a cast whose rows open no entry measures no target: a detect row lasting the duration is not range-blocked by far targets, and neither range nor count applies; one aimed at a recipient still is", async () => {
+  const detect = (appliesTo) => ({ key: "sense", type: "detect", appliesTo, lasts: "duration" });
+  const figures = { range: { shape: "distance", value: 30, unit: "feet" }, target: { model: "creature", count: { kind: "flat", flat: 1 } }, duration: { shape: "fixed", value: 3, unit: "rounds" } };
+  const a = folkToken("a");
+  const b = folkToken("b");
+  const gaps = { [a.uuid]: 90, [b.uuid]: 95 };
+  const cast = async (rows, over = {}) => {
+    const r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [a, b], gaps, ...over });
+    const out = await castSpellRun(spell(rows, figures), () => r.calls.spends++, r.deps);
+    return { r, out };
+  };
+  const area = await cast([detect("area")]);
+  assert.equal(area.out.ok, true, "far, over-count stale targets stop a Player's cast of nothing");
+  assert.deepEqual(area.r.calls.asked.verdicts.normal, [], "the dialog shows no verdict");
+  assert.equal(area.r.calls.asked.rangeUnmeasured, false);
+  assert.equal(area.r.calls.spends, 1);
+  assert.ok(!area.r.calls.notices.some(([, key]) => /outOfRange|tooManyTargets/.test(key)));
+  const none = await cast([detect("area")], { isGM: true });
+  assert.ok(!none.r.calls.notices.some(([, key]) => /outOfRange|tooManyTargets/.test(key)), "and a Judge is warned of neither");
+  const mirror = await cast([detect("recipient")]);
+  assert.deepEqual([mirror.out.ok, mirror.out.reason], [false, "outOfRange"], "a recipient row opens an entry per target, so the targets are measured");
+  assert.deepEqual(mirror.r.calls.asked.verdicts.normal.map((v) => v.key), ["outOfRange", "tooManyTargets"]);
+  const mixed = await cast([detect("area"), { key: "mend", type: "heal", roll: "1d6" }]);
+  assert.equal(mixed.out.reason, "outOfRange", "one row that opens an entry is enough");
+  const reach = castReach({ figures, level: 5, tokens: [a, b], gaps, takes: false });
+  assert.deepEqual([reach.range.out, reach.range.limit, reach.count], [[], null, null]);
+});
+
+await ta("takesTargets agrees with the entries a cast opens: no row that opens one on a token is called one that does not", async () => {
+  const kinds = {
+    heal: { key: "r", type: "heal", roll: "1d6" },
+    healSelf: { key: "r", type: "heal", roll: "1d6", appliesTo: "self" },
+    laterRounds: { key: "r", type: "damage", roll: "1d6", recur: "laterRounds" },
+    slay: { key: "r", type: "slay" },
+    lift: { key: "r", type: "conditionRemove", conditions: ["dread"] },
+    ignite: { key: "r", type: "ignite", appliesTo: "target", lasts: "duration" },
+    igniteSelf: { key: "r", type: "ignite", appliesTo: "self", lasts: "duration" },
+    detectArea: { key: "r", type: "detect", appliesTo: "area", lasts: "duration" },
+    detectRecipient: { key: "r", type: "detect", appliesTo: "recipient", lasts: "duration" },
+    delay: { key: "r", type: "afflictionDelay", appliesTo: "recipient", effects: ["disease"], lasts: "duration" },
+    purify: { key: "r", type: "purify" },
+    seal: { key: "r", type: "seal", lasts: "duration" },
+  };
+  const near = folkToken("n");
+  for (const [name, row] of Object.entries(kinds)) {
+    const r = runDeps({ answer: { mode: "normal", picks: {} }, tokens: [near], gaps: { [near.uuid]: 5 } });
+    await castSpellRun(spell([row]), () => {}, r.deps);
+    const card = r.calls.posts[0];
+    const onTokens = Object.keys(card.entries).filter((id) => !card.targets[id.split("_")[0]]?.self);
+    const takes = takesTargets(keyedRows([row]));
+    if (onTokens.length) assert.equal(takes, true, `${name}: an entry opened on a token, so the cast measures it`);
+    if (!takes) assert.deepEqual(onTokens, [], `${name}: no entry on a token`);
+  }
 });
 
 await ta("a cast keeps every row of the picked option on the card", async () => {

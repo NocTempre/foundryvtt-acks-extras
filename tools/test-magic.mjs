@@ -305,6 +305,15 @@ t("a spell's subjects are relative to the cast; an ability's picker never sees t
   assert.ok(ability.includes("self") && spell.includes("self"));
 });
 
+{
+  const { RECORD_KINDS, APPLY_KINDS } = await import("../scripts/magic/cast-kinds.mjs");
+  t("every kind of the dispatch is offered to a spell, and each that can be a section of the card has its heading", () => {
+    for (const type of Object.keys(APPLY_KINDS)) assert.ok(Object.hasOwn(V.effectTypesFor("spell"), type), `${type} is offered to a spell`);
+    for (const type of ["afflictionDelay", "purify", "seal"]) assert.equal(V.EFFECT_TYPES[type]?.domain, "spell", `${type} is a spell kind`);
+    for (const type of RECORD_KINDS) assert.ok(lang[`ACKS-MAGIC.cast.row.${type}`], `${type} has a card heading`);
+  });
+}
+
 t("effect rows read as one line each, spell kinds and shared kinds alike", () => {
   const line = (e) => describeSpellEffect(e).text;
   assert.equal(line({ type: "damage", appliesTo: "area", roll: "1d6", damage: ["fire"] }), "Everything in the area: 1d6 fire");
@@ -314,8 +323,13 @@ t("effect rows read as one line each, spell kinds and shared kinds alike", () =>
   assert.equal(line({ type: "modifier", target: "ac", value: { kind: "perLevel", base: 1, per: 1 } }), "Armor Class 1/level");
   assert.equal(line({ type: "conditionRemove", appliesTo: "recipient", conditions: ["paralysis"] }), "The recipient: cures Paralysis");
   assert.equal(line({ type: "spellLike", spellRef: { name: "Glimmer" }, spell: "old", frequency: "perDay" }), "Glimmer — Once per day");
-  assert.equal(line({ type: "wall", appliesTo: "area", value: { kind: "flat", flat: 10 }, note: "stone" }), "Everything in the area: 10 (stone)");
-  assert.equal(line({ type: "illusion" }), "—");
+  assert.equal(line({ type: "wall", appliesTo: "area", value: { kind: "flat", flat: 10 }, note: "stone" }), "Wall: Everything in the area: 10 (stone)", "the default arm leads with its kind");
+  assert.equal(line({ type: "illusion" }), "Illusion", "a row with nothing else to say is its kind");
+  assert.equal(line({ type: "afflictionDelay", appliesTo: "recipient", effects: ["disease", "poison"], lasts: "duration" }), "Affliction Delay: The recipient: Disease, Poison", "the effects a row holds back are named");
+  assert.equal(line({ type: "purify", value: { kind: "flat", flat: 4 } }), "Purify: 4", "a located quantity reads as its figure");
+  assert.equal(line({ type: "seal", appliesTo: "area", note: "a sample way" }), "Seal: Everything in the area: (a sample way)");
+  assert.equal(line({ type: "summon", summonFormat: "calling", ref: "a beast", max: { kind: "perLevel", base: 1, per: 1 }, control: "obedient" }), "Calling up to 1/level a beast Obedient", "a summon row reads its count's ceiling");
+  assert.equal(line({ type: "summon", summonFormat: "calling", amount: 2, ref: "a beast", max: { kind: "flat", flat: 6 } }), "Calling 2× up to 6 a beast");
   assert.equal(describeSpellEffect({ type: "curse" }).kind, "Curse");
 });
 
@@ -347,6 +361,8 @@ t("the Mechanics list marks each row's origin and names its blank fields without
   assert.equal(hand.origin, "hand");
   assert.equal(hand.unread, "", "a row with nothing blank lists nothing");
   assert.equal(effectRowView({ type: "damage" }, 0).origin, "hand", "a row with no origin is a hand's");
+  const wall = effectRowView({ type: "wall", appliesTo: "area", note: "stone" }, 0);
+  assert.ok(wall.kind && !wall.text.startsWith(wall.kind + ":"), "the Mechanics list has its own kind column, so the text never repeats the kind");
   assert.ok(!/import/i.test(imported.unread), "the list names fields and never says a figure was not imported");
 });
 

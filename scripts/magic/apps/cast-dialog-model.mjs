@@ -461,7 +461,7 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   ];
 
   // The bucket: one row per token, with what the seat answers for it folded in.
-  const reach = ctx.reachAt ? ctx.reachAt(resolved, inv, mode) : null;
+  const reach = ctx.reachAt ? ctx.reachAt(resolved, inv, mode, picks) : null;
   const gates = ctx.gatesAt ? ctx.gatesAt(resolved, inv) : {};
   const pending = ctx.pendingAt ? ctx.pendingAt(mode, picks, resolved, inv) : {};
   const holders = new Map((ctx.holders ?? []).map((h) => [h.uuid, h]));

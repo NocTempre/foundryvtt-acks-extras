@@ -35,7 +35,7 @@ class FakeItem {
 globalThis.CONFIG = { Item: { documentClass: FakeItem } };
 
 const kinds = await import("../scripts/magic/cast-kinds.mjs");
-const { placeOf, rowOpens, rowResisted, livesKind, entryOf, kindOf, pickWeapon, chosenWeapon, liftPlan, APPLY_KINDS } = kinds;
+const { placeOf, rowOpens, rowResisted, livesKind, entryOf, kindOf, pickWeapon, chosenWeapon, liftPlan, APPLY_KINDS, stepOf, takesTargets } = kinds;
 const { checkApplyRequest, applyOnTarget, applyKind, undoEntry } = await import("../scripts/magic/cast-apply.mjs");
 const { buildTargets, castSpellRun, applyNotice } = await import("../scripts/magic/cast-spell.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
@@ -122,8 +122,11 @@ const keyed = (rows) => keyedRows(rows);
 /* ------------------------------------------------------------------ */
 
 t("every kind of the dispatch has its card place, its opening rule and its save rule in one table, and a type outside it has none", () => {
-  assert.deepEqual(Object.keys(APPLY_KINDS), ["ignite", "conditionGrant", "conditionRemove", "slay", "destroyItem"]);
-  assert.deepEqual(["ignite", "conditionGrant", "conditionRemove", "slay", "destroyItem"].map((type) => applyKind(type) !== null), [true, true, true, true, true], "each has its writes");
+  assert.deepEqual(Object.keys(APPLY_KINDS), ["ignite", "conditionGrant", "conditionRemove", "slay", "destroyItem", "illusion", "detect", "light", "dispel", "createObject", "wall", "afflictionDelay", "purify", "seal", "summon"]);
+  const applied = Object.keys(APPLY_KINDS).filter((type) => applyKind(type) !== null);
+  assert.deepEqual(applied, Object.keys(APPLY_KINDS).filter((type) => type !== "summon"), "each has its writes, and a summoning takes a step in their place");
+  assert.equal(applyKind("summon"), null);
+  assert.equal(typeof APPLY_KINDS.summon.step, "function");
   assert.equal(applyKind("damage"), null);
   assert.equal(applyKind("toString"), null, "an inherited name is no kind");
   assert.equal(kindOf("heal"), null);
@@ -158,6 +161,38 @@ t("a lifting row, an ignite row and a holder with no weapon are resisted by no s
   assert.deepEqual(entryOf(SMASH, armed), { item: { id: "w1", name: "Sample blade" } });
   assert.deepEqual(entryOf(SMASH, bare), { item: null });
   assert.deepEqual(entryOf(SLAY, armed), {});
+});
+
+t("the new kinds: an affliction's delay is a record kind on a recipient; a purify and a seal are card lines that open no entry; a summoning is a line with its own step", () => {
+  const delay = { type: "afflictionDelay", appliesTo: "recipient", lasts: "duration", effects: ["disease"] };
+  assert.equal(placeOf(delay), "rowAndLine");
+  assert.equal(placeOf({ ...delay, appliesTo: "target" }), "line");
+  assert.equal(placeOf({ ...delay, lasts: "instant" }), "line");
+  assert.deepEqual([rowOpens(delay), rowResisted(delay, null), livesKind("afflictionDelay")], [true, false, true]);
+  for (const type of ["purify", "seal", "summon"]) assert.deepEqual([placeOf({ type }), rowOpens({ type }), livesKind(type), kindOf(type)?.records], ["line", false, false, undefined], type);
+  assert.equal(stepOf("heal"), null);
+  assert.equal(stepOf("purify"), null);
+  const seen = [];
+  const ctx = { keyed: { key: "s" } };
+  assert.equal(stepOf("summon")(ctx, { summon: (c) => (seen.push(c), "done") }), "done", "the step is run from the cast's own dependencies");
+  assert.deepEqual(seen, [ctx]);
+});
+
+t("takesTargets: a row that opens an entry for a token counts; a self row, a card line, a later round's row and a summoning do not", () => {
+  const take = (...rows) => takesTargets(keyed(rows));
+  assert.equal(take(), false, "no rows, no entry");
+  assert.equal(take({ type: "heal", roll: "1d6" }), true);
+  assert.equal(take({ type: "damage", roll: "1d6", recur: "laterRounds" }), false, "a row that waits for a later round is a line");
+  assert.equal(take({ type: "damage", delivery: "melee", recur: "laterRounds" }), true, "a thrown row is thrown at a target");
+  assert.equal(take({ type: "heal", roll: "1d6", appliesTo: "self" }), false);
+  assert.equal(take({ type: "modifier", target: "ac", appliesTo: "target" }), true);
+  assert.equal(take({ type: "ward", appliesTo: "recipient" }), true);
+  assert.equal(take(LIFT, SLAY, SMASH), true);
+  assert.equal(take({ type: "detect", appliesTo: "area", lasts: "duration" }), false);
+  assert.equal(take({ type: "detect", appliesTo: "recipient", lasts: "duration" }), true);
+  assert.equal(take({ type: "detect", appliesTo: "recipient", lasts: "instant" }), false);
+  assert.equal(take({ type: "purify" }, { type: "seal", lasts: "duration" }, { type: "summon" }, { type: "curse", appliesTo: "target" }), false);
+  assert.equal(take(IGNITE, { type: "detect", appliesTo: "area" }), true, "one row that opens one is enough");
 });
 
 /* ------------------------------------------------------------------ */
@@ -549,6 +584,25 @@ await ta("a recurring Save press rolls no save for a row no save governs and sen
   assert.deepEqual(sent[0].payload.entries, [{ rowKey: "choke" }]);
   const world = relayWorld([free], card, { ownsTarget: true, boundsOf: () => ({ min: 1, max: 6 }) });
   assert.deepEqual(checkApplyRequest({ ...ask("choke"), resist: sent[0].payload.resist, entries: [{ rowKey: "choke" }] }, world), { ok: true }, "the relay's stored resist is blank too");
+});
+
+await ta("a purify, a seal and a recipient-aimed delay apply through the dispatch: the first two write nothing, the delay writes the recipient's record by its lasting", async () => {
+  const rows = [
+    { key: "clean", type: "purify" },
+    { key: "shut", type: "seal", lasts: "duration" },
+    { key: "hold", type: "afflictionDelay", appliesTo: "recipient", effects: ["disease"], lasts: "duration" },
+  ];
+  const actor = holder("Actor.h1");
+  const { deps, log } = applyDeps(actor, rows);
+  const entries = Object.fromEntries(rows.map((r) => [`t1_${r.key}`, { state: "pending" }]));
+  await applyOnTarget(cardFor(rows, entries), "t1", rows.map((r) => ({ rowKey: r.key })), deps);
+  assert.deepEqual(["clean", "shut", "hold"].map((k) => log.entries[`t1_${k}`]?.state), ["applied", "applied", "applied"]);
+  assert.deepEqual(log.entries.t1_clean.recordIds, []);
+  assert.deepEqual(log.entries.t1_shut.recordIds, []);
+  assert.equal(log.made.length, 1, "only the delay writes a record");
+  const record = spellEffectOf(log.made[0]);
+  assert.deepEqual([record.role, record.rowKey, record.duration], ["recipient", "hold", { value: 60, units: "seconds" }]);
+  assert.deepEqual(log.hp, [], "no hit points move");
 });
 
 console.log(`\n${n} cast-kinds tests passed`);

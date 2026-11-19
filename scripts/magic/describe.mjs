@@ -69,7 +69,9 @@ function castParts(e) {
  *   reading, and the name of its option within its choice group (blank for none)
  */
 export function describeSpellEffect(e, o = {}) {
-  return { ...readEffect(e, o), option: e.pickOption || "" };
+  const { kind, text, lead } = readEffect(e, o);
+  // A line read alone (a card, a dialog row) names a tracked kind; a list with its own kind column does not.
+  return { kind, text: lead ? (text === "—" ? kind : `${kind}: ${text}`) : text, option: e.pickOption || "" };
 }
 
 /**
@@ -89,11 +91,17 @@ export function effectRowView(row, index, { nameOf, cite = "", fieldLabel = (nam
   const blank = [...(row.unread ?? [])].map(fieldLabel);
   return {
     index,
-    ...describeSpellEffect(row, { nameOf }),
+    ...rowReading(row, nameOf),
     origin: row.origin === REGISTER_ORIGIN ? "register" : "hand",
     unread: blank.length ? say("mech.unread", { fields: blank.join(", ") }) : "",
     cite,
   };
+}
+
+/** The kind and text a list with its own kind column shows: the text never repeats the kind. */
+function rowReading(row, nameOf) {
+  const { kind, text } = readEffect(row, { nameOf });
+  return { kind, text, option: row.pickOption || "" };
 }
 
 function readEffect(e, { nameOf } = {}) {
@@ -124,9 +132,11 @@ function readEffect(e, { nameOf } = {}) {
           // a lookup that fails leaves the ref as written
         }
       }
+      // `max` is the count's ceiling at the caster level (a level value, read as `value` is).
+      const ceiling = valueText(e.max);
       return {
         kind,
-        text: `${[vocabLabel("summonFormat", e.summonFormat), e.amount ? `${e.amount}×` : "", creature, n ? `${n} HD` : "", vocabLabel("controlKind", e.control)]
+        text: `${[vocabLabel("summonFormat", e.summonFormat), e.amount ? `${e.amount}×` : "", ceiling ? `up to ${ceiling}` : "", creature, n ? `${n} HD` : "", vocabLabel("controlKind", e.control)]
           .filter(Boolean)
           .join(" ")}${qualifier(e)}`,
       };
@@ -160,9 +170,12 @@ function readEffect(e, { nameOf } = {}) {
       return { kind, text: e.restriction || e.note || e.condition || "—" };
     default: {
       // The tracked-only spell kinds (wall, illusion, teleport, …) read as
-      // their subject, their value and their qualifier: what a cast records.
-      const bits = [n, e.range ? `${e.range}'` : ""].filter(Boolean).join(" ");
-      return { kind, text: `${subject(e)}${bits}${qualifier(e)}`.trim() || "—" };
+      // their kind, their subject, their value, the effects a row holds back
+      // and their qualifier: what a cast records.
+      const held = [...(e.effects ?? [])].map((k) => label(V.EFFECT_KEYS, k)).join(", ");
+      const bits = [n, e.range ? `${e.range}'` : "", held].filter(Boolean).join(" ");
+      const rest = `${subject(e)}${bits}${qualifier(e)}`.replace(/ {2,}/g, " ").trim();
+      return { kind, text: rest || "—", lead: true };
     }
   }
 }

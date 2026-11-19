@@ -419,6 +419,14 @@ t("the recipe rules accept a well-formed spell recipe and refuse a printed figur
   assert.ok(spellRecipeProblems({ effects: [{ key: "k", type: "modifier", target: "damage", gate: { kind: "nowhere" } }] }).some((p) => p.includes("gate.kind")));
 });
 
+t("the recipe rules take an affliction row's effect keys as structure, from lib's effect keywords", () => {
+  const row = (extra) => ({ key: "k", type: "afflictionDelay", appliesTo: "recipient", lasts: "duration", ...extra });
+  assert.deepEqual(spellRecipeProblems({ effects: [row({ effects: ["disease", "poison"] })] }), []);
+  const bad = spellRecipeProblems({ effects: [row({ effects: ["nowhere"] }), row({ key: "j", effects: [] })] });
+  assert.ok(bad.some((p) => p.includes('effects[0].effects names "nowhere"')), bad.join(" | "));
+  assert.ok(bad.some((p) => p.includes("effects[1].effects is a non-empty list")), bad.join(" | "));
+});
+
 t("the recipe rules require a key on every row, in the module's pattern, once per entry, a reversed twin's included", () => {
   const rows = (...keys) => keys.map((key) => ({ ...(key === undefined ? {} : { key }), type: "heal" }));
   const has = (problems, s) => assert.ok(problems.some((p) => p.includes(s)), `expected a problem naming: ${s}\n${problems.join("\n")}`);

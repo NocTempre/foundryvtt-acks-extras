@@ -42,7 +42,7 @@ import { rangeFeet, rangeVerdicts } from "./cast-range.mjs";
 import { instanceCount, instanceRow, allocate, assignedOf, wholeSplit } from "./cast-instances.mjs";
 import { OFF_SCENE, withOnlyTarget, waitingInstances, instancesState, throwInstances, splitFor, pendingRequests, requestOf } from "./cast-throw.mjs";
 import { areaExtent } from "./cast-area.mjs";
-import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon } from "./cast-kinds.mjs";
+import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon, takesTargets } from "./cast-kinds.mjs";
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell } from "./summon-spell.mjs";
@@ -198,10 +198,13 @@ export const castReadsInvocation = (spell, lookups, rows) => {
  * level: the range verdict inputs (`cast-range.mjs`) and the count cap, each
  * null or empty where the import read nothing. A per-level figure reads only
  * once a level is known.
- * @param {{figures: {range: object|null, target: object|null}, level: number|null, tokens: object[], gaps?: Record<string, number|null>}} from
+ * A cast whose rows open no entry for a target (`takesTargets`) measures none:
+ * `takes` false answers no range verdict and no count.
+ * @param {{figures: {range: object|null, target: object|null}, level: number|null, tokens: object[], gaps?: Record<string, number|null>, takes?: boolean}} from
  * @returns {{range: ReturnType<typeof rangeVerdicts>, count: number|null}}
  */
-export function castReach({ figures, level, tokens, gaps = {} }) {
+export function castReach({ figures, level, tokens, gaps = {}, takes = true }) {
+  if (!takes) return { range: rangeVerdicts({}), count: null };
   const target = figures?.target ?? {};
   const area = target.area ?? {};
   const figure = (value) => modifierFigure({ value }, level);
@@ -644,8 +647,9 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   // Where the cast falls, given how long it takes: a stored declaration resolves as it was declared, and any other cast over a round is `long`.
   const momentAt = (mode, inv, levelValue, praw) => (resolving ? MOMENT.resolve : castMoment({ combat: world.combat, combatant: world.combatant, castingTime: timeAt(mode, inv, levelValue, praw) }));
   let moment = momentAt(modeKeys[0], startInv, known.value, declared?.procedure);
-  // What the range and the target count say of the targeted tokens at a caster level.
-  const reachAt = (levelValue, inv = startInv, mode = modeKeys[0]) => castReach({ figures: figuresAt(mode, inv), level: levelValue, tokens: seat.tokens, gaps: seat.gaps });
+  // What the range and the target count say of the targeted tokens at a caster level, for the rows the picks keep: a cast whose rows open no entry measures no target.
+  const reachAt = (levelValue, inv = startInv, mode = modeKeys[0], picks = {}) =>
+    castReach({ figures: figuresAt(mode, inv), level: levelValue, tokens: seat.tokens, gaps: seat.gaps, takes: takesTargets(rowsForMode(all, mode, picks, atFor(mode, inv))) });
   // Each thrown row's instance count at a caster level, and how many throws the seat's split assigns it (the default split assigns the count). A split is typed by token uuid.
   const instancesFor = (mode, picks, levelValue, typed = null, inv = startInv) => {
     const counts = {};
@@ -661,7 +665,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     return { counts, assigned };
   };
   const verdictsFor = (mode, picks, levelValue, typed = null, inv = startInv, praw = declared?.procedure ?? {}) => {
-    const reach = reachAt(levelValue, inv, mode);
+    const reach = reachAt(levelValue, inv, mode, picks);
     const { value, cap, reads } = levelFor(mode, inv);
     const at = momentAt(mode, inv, levelValue, praw);
     const view = procViewAt(mode, inv, levelValue, praw, at);

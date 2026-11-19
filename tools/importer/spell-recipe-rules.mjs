@@ -20,7 +20,7 @@
 import { LOCATABLE_FIELDS } from "../../scripts/importer/executor.mjs";
 import {
   AREA_SHAPES, CONDITION_KEYS, EFFECT_DELIVERIES, EFFECT_LASTS, EFFECT_RECURRENCES, EFFECT_RECUR_MOMENTS, EFFECT_RECUR_SAVES, EFFECT_RECUR_TARGETS,
-  EFFECT_MODES, EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
+  EFFECT_KEYS, EFFECT_MODES, EFFECT_SUBJECTS, EFFECT_TYPES, HEAL_KINDS, MODIFIER_TARGETS,
   SAVE_EFFECTS, SAVE_KINDS, TARGET_MODELS, ALIGNMENTS, SCOPE_ALIGNMENT_MODES, SCOPE_ALIGNMENT_REFERENCES, SCOPE_BRANCH_FIELDS, hasScope, isCapabilityToken,
 } from "../../scripts/lib/vocab.mjs";
 import { ENDS_ON_CAUSES } from "../../scripts/lib/ends-on.mjs";
@@ -29,7 +29,7 @@ import { AREA_MEASURES, CONTROL_KINDS, DISTANCE_UNITS, REGISTER_KEY, SAVE_CATEGO
 
 /** The keys a spell row spec may carry besides what the vocabulary tables below check. */
 const ROW_KEYS = new Set([
-  "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
+  "key", "type", "appliesTo", "target", "mode", "healKind", "conditions", "effects", "saveEffect", "delivery", "lasts", "recur", "recurAt", "recurSave", "recurTarget",
   "pick", "pickOption", "reversed", "summonFormat", "control",
   "vsAlignment", "vsAlignmentMode", "vsAlignmentOf", "vsEnemy", "vsKinds", "anyOf", "stacksWith", "notStacksWith", "ref", "refs", "forWhat", "condition", "note", "from", "onMiss",
   "conditionFrom", "noteFrom", "audited", "gate", "each", "endsOn", "untimed",
@@ -208,6 +208,11 @@ export function spellRecipeProblems({ effects, values } = {}) {
       if (!SPELL_GATE_KINDS.includes(spec.gate?.kind)) out.push(`${label}.gate.kind "${spec.gate?.kind}" is not a spell gate kind`);
     }
     for (const key of spec.conditions ?? []) if (!Object.hasOwn(CONDITION_KEYS, key)) out.push(`${label}.conditions names "${key}", which is no condition key`);
+    // The effects an affliction row holds back: words of lib's effect keywords, structure and never located.
+    if (spec.effects !== undefined) {
+      if (!Array.isArray(spec.effects) || !spec.effects.length) out.push(`${label}.effects is a non-empty list of effect keys`);
+      else for (const key of spec.effects) if (!Object.hasOwn(EFFECT_KEYS, key)) out.push(`${label}.effects names "${key}", which is no effect key`);
+    }
     // What a row's record ends on, and the conditions it writes with no clock: words of lib's tables, never located.
     if (spec.endsOn !== undefined && !(Array.isArray(spec.endsOn) && spec.endsOn.length && spec.endsOn.every((c) => ENDS_ON_CAUSES.includes(c)))) out.push(`${label}.endsOn is a non-empty list of ${ENDS_ON_CAUSES.join(", ")}`);
     if (spec.untimed !== undefined) {

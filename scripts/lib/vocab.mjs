@@ -694,6 +694,13 @@ export const EFFECT_TYPES = {
   // Destroys one weapon of each holder the row reaches, up to `target.count`,
   // on a failed save: the weapon is marked destroyed, never deleted.
   destroyItem: { label: "Destroy Item", domain: "spell" },
+  // Holds back the onset of the effects a row names (`effects`, from EFFECT_KEYS)
+  // on its recipient for the row's duration: a record and a card line.
+  afflictionDelay: { label: "Affliction Delay", domain: "spell" },
+  // Takes a located quantity away at once: a card line, and nothing is written to a target.
+  purify: { label: "Purify", domain: "spell" },
+  // Closes a way for as long as the row lasts: a card line and the caster's record.
+  seal: { label: "Seal", domain: "spell" },
 };
 
 /**

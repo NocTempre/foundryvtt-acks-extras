@@ -14,16 +14,29 @@
  * `destroyItem` row takes from a holder (`pickWeapon`).
  */
 import { MODULE_ID } from "./constants.mjs";
-import { aimedAtSelf, awaitsFail } from "./cast-rows.mjs";
+import { aimedAtSelf, awaitsFail, resolvesAtCast, rowNeedsThrow, ROLLED_KINDS } from "./cast-rows.mjs";
+import { isModRow } from "./cast-mods.mjs";
 import { ITEM_FLAGS } from "../equipment/constants.mjs";
 import { isManagedEffect } from "../lib/managed-effects.mjs";
 import { HELD_CONDITION_FLAG } from "../lib/held-condition.mjs";
 
-/** The kinds of the ruling-14 family (a record and a card line, no arithmetic) that name a recipient and lasting write the recipient's record, not only a line. */
-export const RECORD_KINDS = Object.freeze(["ignite"]);
+/** The `lasts` values whose row keeps a clock, which is what a recipient's record needs to stand on. */
+const RECORDED_LASTS = Object.freeze(["duration", "rounds", "nextTurn", "followingTurn"]);
 
-/** Does this row write a record on the recipient, as a card row with an entry per target? */
-export const writesRecipientRecord = (row) => RECORD_KINDS.includes(row?.type) && !aimedAtSelf(row) && ["duration", "rounds", "nextTurn", "followingTurn"].includes(row.lasts);
+/** The reach a record kind names a recipient by: any row not aimed at the caster. */
+const notSelf = (row) => !aimedAtSelf(row);
+
+/** The reach a record kind names a recipient by when only a row that says `recipient` counts, so an area or target row stays a card line. */
+const toRecipient = (row) => row?.appliesTo === "recipient";
+
+/**
+ * The entry of a kind of the ruling-14 family (a card line and a record, no arithmetic): a card row with an entry per target where the row writes a recipient's record, else a card line. No saving throw governs it.
+ *
+ * @param {(row: object) => boolean} records  which rows of the kind name a recipient
+ */
+function recordKind(records) {
+  return Object.freeze({ place: (row) => (writesRecipientRecord(row) ? "rowAndLine" : "line"), opens: () => true, resisted: () => false, lives: true, records });
+}
 
 /** The weapons an actor carries that are not already marked destroyed. */
 export const liveWeapons = (actor) => [...(actor?.items ?? [])].filter((i) => i?.type === "weapon" && !isDestroyed(i));
@@ -102,19 +115,64 @@ export function liftPlan(effects, ids) {
  *   this target (absent: it does, wherever the save's effect says so);
  * - `lives`: the row lasts a number of rounds, a next turn or a following one;
  * - `entry(row, actor, pick)`: what the target's entry opens with beside `pending`; `pick` is the weapon the seat picked for this holder;
- * - `lineKey`: the card's footnote line, a key under the cast's strings.
+ * - `lineKey`: the card's footnote line, a key under the cast's strings;
+ * - `records(row)`: the kind writes a recipient's record where this holds of the row and the row lasts on a clock (`writesRecipientRecord`);
+ * - `step(ctx, deps)`: a step the cast takes for the kind before its card, run from the cast's dependencies and not an apply.
  */
 export const APPLY_KINDS = Object.freeze({
-  ignite: Object.freeze({ place: (row) => (writesRecipientRecord(row) ? "rowAndLine" : "line"), opens: () => true, resisted: () => false, lives: true }),
+  ignite: recordKind(notSelf),
   // A row that waits for a failed recurring save is no part of the cast save: it writes its anchor alone at the cast.
   conditionGrant: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: (row) => !awaitsFail(row), lives: true }),
   conditionRemove: Object.freeze({ place: () => "row", opens: (card) => Boolean(card.conditions?.length), resisted: () => false }),
   slay: Object.freeze({ place: () => "row", opens: () => true }),
   destroyItem: Object.freeze({ place: () => "rowAndLine", opens: () => true, resisted: (_row, actor) => pickWeapon(actor) !== null, entry: (_row, actor, pick) => ({ item: chosenWeapon(actor, pick) }), lineKey: "line.unheldWeapons" }),
+  // The tracked kinds (a card line and the caster's record) write a recipient's record too where a row names a recipient.
+  illusion: recordKind(toRecipient),
+  detect: recordKind(toRecipient),
+  light: recordKind(toRecipient),
+  dispel: recordKind(toRecipient),
+  createObject: recordKind(toRecipient),
+  wall: recordKind(toRecipient),
+  // A disease's onset put off: the row names the effects it holds back, on its recipient, for its duration.
+  afflictionDelay: recordKind(toRecipient),
+  // Takes away a quantity at once: a card line, and nothing is written to a target.
+  purify: Object.freeze({ place: () => "line", opens: () => false }),
+  // Closes a way for as long as it lasts: a card line, and the caster's record where the row lasts the duration.
+  seal: Object.freeze({ place: () => "line", opens: () => false }),
+  // A summoning's placement: no card row and no entry; the cast runs its own step.
+  summon: Object.freeze({ place: () => "line", opens: () => false, step: (ctx, deps) => deps.summon(ctx) }),
 });
 
 /** The dispatch entry of a row type, or null where the type is not one of them. */
 export const kindOf = (type) => (Object.hasOwn(APPLY_KINDS, type) ? APPLY_KINDS[type] : null);
+
+/** The kinds that write a record on the recipient, as a card row with an entry per target, where the row is aimed at one and lasts on a clock. */
+export const RECORD_KINDS = Object.freeze(Object.keys(APPLY_KINDS).filter((type) => APPLY_KINDS[type].records));
+
+/** Does this row write a record on the recipient, as a card row with an entry per target? */
+export const writesRecipientRecord = (row) => Boolean(kindOf(row?.type)?.records?.(row)) && RECORDED_LASTS.includes(row.lasts);
+
+/** The step a kind takes for the cast, or null where it takes none. */
+export const stepOf = (type) => kindOf(type)?.step ?? null;
+
+/**
+ * Do any of the cast's rows open an entry for a target token? A cast whose rows
+ * open none measures no target: neither the range nor the count applies. A
+ * row aimed at the caster, a card line, a summoning and a recurring row that waits
+ * for a later round open no entry; a modifier or ward row, a rolled row that
+ * resolves at the cast or is thrown, and a kind whose place is a card row do.
+ * Where a row's own figures cannot say yet (a modifier's), it counts.
+ *
+ * @param {Array<{row: object}>} keyed  the cast's kept rows (`rowsForMode`)
+ */
+export function takesTargets(keyed) {
+  return (keyed ?? []).some(({ row }) => {
+    if (aimedAtSelf(row)) return false;
+    if (isModRow(row)) return true;
+    if (ROLLED_KINDS.includes(row?.type)) return resolvesAtCast(row) || rowNeedsThrow(row);
+    return ["row", "rowAndLine"].includes(placeOf(row));
+  });
+}
 
 /** Where a spell's row goes on the card: its kind's place, else null (the caller's own rules). */
 export const placeOf = (row) => kindOf(row?.type)?.place(row) ?? null;

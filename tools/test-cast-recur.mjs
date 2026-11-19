@@ -19,6 +19,7 @@ const { promptRows, bearerHolds, anchorStands, anchorsNeeded, duePrompts, roundP
 const { checkApplyRequest, applyOnTarget } = await import("../scripts/magic/cast-apply.mjs");
 const { castCardView } = await import("../scripts/magic/cast-card.mjs");
 const { writesRecipientRecord, RECORD_KINDS } = await import("../scripts/magic/cast-spell.mjs");
+const { placeOf } = await import("../scripts/magic/cast-kinds.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 
 let n = 0;
@@ -388,11 +389,44 @@ await ta("a row that already left the bearer a record of the cast writes no seco
 const IGNITE = { key: "ign", type: "ignite", appliesTo: "target", lasts: "rounds", rounds: "1d4+1" };
 
 t("a ruling-14 kind that names a recipient and lasts writes the recipient's record; one that lasts once, or is the caster's own, stays a line", () => {
-  assert.deepEqual([...RECORD_KINDS], ["ignite"]);
+  assert.deepEqual([...RECORD_KINDS], ["ignite", "illusion", "detect", "light", "dispel", "createObject", "wall", "afflictionDelay"]);
   assert.equal(writesRecipientRecord(IGNITE), true);
   assert.equal(writesRecipientRecord({ ...IGNITE, lasts: "instant" }), false);
   assert.equal(writesRecipientRecord({ ...IGNITE, appliesTo: "self" }), false);
-  assert.equal(writesRecipientRecord({ ...IGNITE, type: "illusion" }), false);
+  assert.equal(writesRecipientRecord({ ...IGNITE, type: "damage" }), false, "a type outside the table writes none");
+  assert.equal(writesRecipientRecord({ ...IGNITE, appliesTo: undefined }), true, "ignite keeps its own reach: any row not aimed at the caster");
+});
+
+t("a tracked kind or an affliction's delay writes a recipient's record only where its row says recipient and lasts on a clock", () => {
+  for (const type of RECORD_KINDS.filter((k) => k !== "ignite")) {
+    const row = { key: "r", type, appliesTo: "recipient", lasts: "duration" };
+    assert.equal(writesRecipientRecord(row), true, `${type}: a recipient row that lasts the duration`);
+    assert.equal(writesRecipientRecord({ ...row, lasts: "rounds" }), true, `${type}: a rounds lasting`);
+    assert.equal(writesRecipientRecord({ ...row, lasts: "instant" }), false, `${type}: an instant row is a line`);
+    for (const aimed of ["area", "target", "self", undefined]) assert.equal(writesRecipientRecord({ ...row, appliesTo: aimed }), false, `${type}: ${aimed} stays a card line`);
+  }
+});
+
+await ta("a tracked kind aimed at a recipient writes the recipient's status-free record by the row's lasting; one aimed at an area or a target is a line and opens no entry", async () => {
+  const wall = { key: "barr", type: "wall", appliesTo: "recipient", lasts: "duration" };
+  const rows = [wall];
+  const { deps, log } = applyDeps(rows);
+  await applyOnTarget(castCard(rows, { t1_barr: { state: "pending" } }), "t1", [{ rowKey: "barr" }], deps);
+  assert.equal(log.made.length, 1);
+  const record = spellEffectOf(log.made[0]);
+  assert.deepEqual([record.role, record.rowKey, record.startTime, record.duration], ["recipient", "barr", 500, { value: 60, units: "seconds" }]);
+  assert.deepEqual(log.made[0].statuses ?? [], [], "status-free");
+  assert.deepEqual(log.entries.t1_barr.recordIds, ["rec10"], "the entry carries it for Undo");
+  assert.deepEqual([placeOf(wall), placeOf({ ...wall, appliesTo: "area" }), placeOf({ ...wall, appliesTo: "target" })], ["rowAndLine", "line", "line"]);
+});
+
+await ta("an affliction's delay on a recipient writes its record by its lasting, and an instant one writes none", async () => {
+  const delay = { key: "hold", type: "afflictionDelay", appliesTo: "recipient", effects: ["disease"], lasts: "duration" };
+  const { deps, log } = applyDeps([delay]);
+  await applyOnTarget(castCard([delay], { t1_hold: { state: "pending" } }), "t1", [{ rowKey: "hold" }], deps);
+  assert.equal(log.made.length, 1);
+  assert.deepEqual(spellEffectOf(log.made[0]).duration, { value: 60, units: "seconds" });
+  assert.equal(placeOf({ ...delay, lasts: "instant" }), "line");
 });
 
 await ta("an ignite row with a recipient writes its record with the row's own life, and a bearer-start row of the cast stands on it with no anchor of its own", async () => {

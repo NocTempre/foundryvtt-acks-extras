@@ -458,7 +458,7 @@ async function lifeFor({ row, rounds, found, deps }) {
 const wholeOrNone = (made) => made.fraction === 1 || made.fraction === 0;
 
 /**
- * An ignite row names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
+ * A row of the record family (ignite, the tracked kinds, an affliction's delay) names a recipient and no arithmetic: its record is status-free and lives by the row's own `lasts`, which is what a recurring row of the cast stands on.
  */
 async function applyIgnite({ card, keyed, found, deps, existing, base, rounds }) {
   const { row, key } = keyed;
@@ -571,14 +571,31 @@ function checkItem(keyed, _e, world, { card, targetKey }) {
   return (world.weaponOf(named)?.id ?? null) === named ? null : "badItem";
 }
 
+/** A row that writes nothing to a target: its entry is applied and holds no record. A kind whose row is a card line opens no entry, so this is what an entry of one would be. */
+async function applyNothing({ base }) {
+  return { ...base, state: "applied", saved: null, recordIds: [] };
+}
+
+/** The appliers of the record family: one record on the recipient, timed by the row's own `lasts`. */
+const RECORDING = Object.freeze({ apply: applyIgnite, check: (keyed, e, world) => checkRounds(keyed.row, e, world) });
+
 /**
  * The row kinds a cast applies with no amount of their own, by type: the one dispatch (`cast-kinds.mjs` holds the same types' card and entry facts). Each entry:
  * `apply(ctx)` writes one row on one target and returns the card's entry, where `ctx` is `{card, keyed, id, resist, found, deps, existing, base, rounds, gate}` (`gate`: the target's gate for this row, null for the caster's own target);
  * `check(keyed, request, world, {card, targetKey})` is what the relay holds a request for it to beyond the common checks (a refusal word, or null).
- * A new kind is added here and in `APPLY_KINDS`.
+ * A new kind is added here and in `APPLY_KINDS`; a kind that takes a step instead of an apply (a summoning) is in `APPLY_KINDS` alone.
  */
 const APPLIERS = Object.freeze({
-  ignite: Object.freeze({ apply: applyIgnite, check: (keyed, e, world) => checkRounds(keyed.row, e, world) }),
+  ignite: RECORDING,
+  illusion: RECORDING,
+  detect: RECORDING,
+  light: RECORDING,
+  dispel: RECORDING,
+  createObject: RECORDING,
+  wall: RECORDING,
+  afflictionDelay: RECORDING,
+  purify: Object.freeze({ apply: applyNothing }),
+  seal: Object.freeze({ apply: applyNothing }),
   conditionGrant: Object.freeze({ apply: applyConditionGrant, check: (keyed, e, world) => checkRounds(keyed.row, e, world) }),
   conditionRemove: Object.freeze({ apply: applyConditionRemove }),
   slay: Object.freeze({ apply: applySlay }),
