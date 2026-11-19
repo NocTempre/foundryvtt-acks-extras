@@ -9,6 +9,8 @@ import { makeLoc } from "../lib/util.mjs";
 import { centreOffset, tokenCentre, tokenCorner } from "../lib/token-centre.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { findZone } from "./zones.mjs";
+import { THING_KINDS } from "../lib/place-things-logic.mjs";
+import { thingsOf, updateThingOn } from "../lib/place-things.mjs";
 import { behaviorsUnder, regionDistance } from "../lib/regions.mjs";
 import { sceneFeetPerCell } from "../lib/distance-units.mjs";
 import {
@@ -120,13 +122,18 @@ export function findTrapZone(formation) {
 /* -------------------------------------------- */
 
 /**
- * Where a trap is buried, behind one interface: along a wall the party crosses
- * or over a region it walks into. The rules reach a placement only through
- * these members.
+ * Where a trap is buried, behind one interface: along a wall the party crosses,
+ * over a region it walks into, or as a trap thing on the place a region is
+ * linked to. The rules reach a placement only through these members; only a
+ * wall halts the party.
  *
  * @typedef {object} Placement
- * @property {"zone"|"wall"} kind
- * @property {string} uuid the placement document's own uuid — what a UI targets
+ * @property {"zone"|"wall"|"thing"} kind
+ * @property {object} doc the document the trap is stored on: a behavior, a wall or a place
+ * @property {object} [region] the Region a zone or a thing is measured through
+ * @property {string} uuid what a UI targets: the document's own uuid, or for a
+ *   thing the place's uuid, `::` and the thing's id (never a path `fromUuid`
+ *   could resolve)
  * @property {string} trapUuid
  * @property {string} state one of `STATES`
  * @property {boolean} known has the party found it?
@@ -162,6 +169,70 @@ export function zonePlacement(zone) {
   };
 }
 
+/**
+ * A trap thing of a place as a placement. `region` is the Region it is reached
+ * through, which is where its distance is measured. The thing's `state` object
+ * holds the state and both lock ledgers, and `known` is the opposite of its
+ * `hidden`. `write` closes over the place and the thing's id and nothing else:
+ * `updateThingOn` reads the list again at the write, so two writes from one
+ * older snapshot each change only the keys they name.
+ *
+ * @param {Actor} place the location actor holding the thing
+ * @param {object} thing a thing of kind trap, in its signed shape
+ * @param {object} region the Region the place is reached through
+ * @returns {Placement}
+ */
+export function thingPlacement(place, thing, region) {
+  const held = thing.state ?? {};
+  const id = thing.id;
+  return {
+    kind: "thing",
+    doc: place,
+    region,
+    uuid: `${place.uuid}::${id}`,
+    trapUuid: thing.ref ?? "",
+    state: Object.values(STATES).includes(held.state) ? held.state : STATES.armed,
+    known: !thing.hidden,
+    repeatLock: held.repeatLock ?? {},
+    searchLock: held.searchLock ?? {},
+    write: (patch) => {
+      const state = {};
+      for (const key of ["state", "repeatLock", "searchLock"]) if (key in patch) state[key] = patch[key];
+      const change = { state };
+      if ("known" in patch) change.hidden = !patch.known;
+      return updateThingOn(place, id, change);
+    },
+  };
+}
+
+/** The place linked to a Region, or null where the location feature or the link is absent. */
+const placeOfRegion = (region) => globalThis.acksExtras?.location?.scenes?.locationOfRegion?.(region) ?? null;
+
+/**
+ * The places linked to the Regions a token stands in, as `{place, region}`: in
+ * the scene's Region order, each place once, through the first of its Regions
+ * the token stands in.
+ */
+function placesUnder(token) {
+  const standing = token?.regions;
+  if (!standing?.size) return [];
+  const out = [];
+  for (const region of token.parent?.regions ?? []) {
+    if (!standing.has(region)) continue;
+    const place = placeOfRegion(region);
+    if (place && !out.some((held) => held.place.uuid === place.uuid)) out.push({ place, region });
+  }
+  return out;
+}
+
+/** The trap things of a place, as placements through `region`; `armedOnly` keeps those still set. */
+function trapThingsOf(place, region, { armedOnly = false } = {}) {
+  return thingsOf(place)
+    .filter((thing) => thing.kind === THING_KINDS.TRAP)
+    .map((thing) => thingPlacement(place, thing, region))
+    .filter((placement) => !armedOnly || placement.state === STATES.armed);
+}
+
 /** A trapped wall as a placement. */
 export function wallPlacement(wall) {
   const t = wallTrap(wall) ?? {};
@@ -189,13 +260,15 @@ export async function trapFor(placement) {
  * Every armed trap the party meets on a move, in the order it meets them: each
  * trapped wall crossed along the path, by distance from `from`, then each armed
  * Trap Zone behavior on every region the party stands in (a region carrying
- * two trap behaviors answers twice), in the scene's region order. Traps stack:
- * one placement does not hide another (`trapStack` has the order).
+ * two trap behaviors answers twice), in the scene's region order, then each
+ * armed trap thing of the places linked to those regions (each place once, in
+ * the same order). Traps stack: one placement does not hide another
+ * (`trapStack` has the order).
  *
  * @returns {Promise<Array<{placement: Placement, haltAt: object|null, approach: object|null}>>}
  *   `haltAt` is where a wall's line was met and `approach` where the party
  *   came from, both in centre coordinates, so a halt pulls up on the near side
- *   of the line; a zone has neither
+ *   of the line; a zone and a thing have neither
  */
 export async function livePlacements(formation, { from = null, to = null } = {}) {
   const token = getPartyToken(formation);
@@ -215,7 +288,8 @@ export async function livePlacements(formation, { from = null, to = null } = {})
         .filter(({ behavior }) => behavior.system.state === STATES.armed)
         .map(zonePlacement)
     : [];
-  return trapStack({ walls, zones });
+  const things = placesUnder(token).flatMap(({ place, region }) => trapThingsOf(place, region, { armedOnly: true }));
+  return trapStack({ walls, zones: [...zones, ...things] });
 }
 
 /**
@@ -263,9 +337,9 @@ function partyPath(formation, { from = null, to = null } = {}) {
 /** How far a placement lies from the ground the party covered, in feet. */
 function placementDistanceFeet(placement, path) {
   if (!path) return Infinity;
-  // A zone is measured by core's geometry (`regionDistance`): ground the party
-  // stands on is zero away, a hole is not ground, and a region with none is
-  // out of reach.
+  // A zone, and a thing through the Region its place is linked to, is measured
+  // by core's geometry (`regionDistance`): ground the party stands on is zero
+  // away, a hole is not ground, and a region with none is out of reach.
   const px = placement.kind === "wall" ? segmentDistance(path.seg, placement.doc.c) : regionDistance(placement.region, path.seg);
   return Math.max(0, px - path.halfToken) * path.feetPerPixel;
 }
@@ -280,8 +354,10 @@ export function trapbreakReach() {
 }
 
 /**
- * Every trap placed on this scene, as placements — trapped walls and enabled
- * Trap Zone behaviors alike, read off the scene and not the canvas.
+ * Every trap placed on this scene, as placements: trapped walls, enabled Trap
+ * Zone behaviors, and every trap thing of each place linked to a Region of the
+ * scene (each place once, through the first Region linking it), read off the
+ * scene and not the canvas.
  */
 export function allPlacements(scene) {
   const out = [];
@@ -292,6 +368,13 @@ export function allPlacements(scene) {
     for (const behavior of region.behaviors) {
       if (behavior.type === TRAP_ZONE_TYPE && !behavior.disabled) out.push(zonePlacement({ region, behavior }));
     }
+  }
+  const seen = new Set();
+  for (const region of scene?.regions ?? []) {
+    const place = placeOfRegion(region);
+    if (!place || seen.has(place.uuid)) continue;
+    seen.add(place.uuid);
+    out.push(...trapThingsOf(place, region));
   }
   return out;
 }
@@ -326,7 +409,7 @@ export function knownPlacementsNear(formation, feet = trapbreakReach()) {
   return placementsNear(formation, { feet }).filter((p) => p.known);
 }
 
-/** One placement by its document uuid, if it is within reach of the party. */
+/** One placement by its `uuid` (a thing's is the place's and the thing's id), if it is within reach of the party. */
 export function placementNearByUuid(formation, uuid, feet = trapbreakReach()) {
   return placementsNear(formation, { feet }).find((p) => p.uuid === uuid) ?? null;
 }
@@ -477,8 +560,9 @@ export async function sweepForTraps(formation, { from = null, to = null, hurried
  * The party crosses its traps: search, then each trap in the order it is met,
  * probe and walk into it.
  *
- * Called when the party token has moved. Traps stack: every armed wall crossed
- * and every armed Trap Zone behavior the party stands in resolves, each with
+ * Called when the party token has moved. Traps stack: every armed wall crossed,
+ * every armed Trap Zone behavior the party stands in and every armed trap thing
+ * of the places those regions are linked to resolves, each with
  * its own card and its own probe sequence (`livePlacements`, `walkTrapStack`).
  * The search sweeps once for all of them, and a trap found off the line of
  * march is reported on one card of its own. A wall the party found or sprang

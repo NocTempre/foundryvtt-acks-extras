@@ -977,6 +977,23 @@ resolves even after one springs. `trapStack`, `stackStops` and
 trap in the list the walk never reached that the sweep found is reported on a
 sweep card of its own.
 
+**A place's trap things are the third source.** A trap Item dropped on a
+place becomes a trap thing in the place's list (`lib/place-things.mjs`).
+`thingPlacement` makes it a placement of kind `thing`:
+
+- It is measured through the Region linked to its place, as a zone is.
+- `known` is the inverse of the thing's `hidden`.
+- The state and both lock ledgers live in the thing's `state`.
+- `write` re-reads the list at the write (`updateThingOn`).
+
+`livePlacements` lists the armed trap things of the places under the token
+after the zones, each place once, through the first of its Regions the token
+stands in. A thing halts nothing. `allPlacements` lists every trap thing of
+each linked place, so the sweep and the Trapbreaking dialog reach them.
+
+A thing's `uuid` is the place's uuid, `::` and the thing's id. It is a string
+key that `fromUuid` never resolves. The trap markers draw walls and zones only.
+
 **The figures are imported and each says what happens without it.** They are
 keys of the `formation` document, read through `trapFigures` and `pitFigures`
 (`trap-rules.mjs`): `searchReachFeet` and `poleSearchReachFeet` (a window each

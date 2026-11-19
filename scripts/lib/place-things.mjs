@@ -7,7 +7,7 @@
  * `place-things-logic.mjs`.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { addThing, normalizeThings } from "./place-things-logic.mjs";
+import { addThing, normalizeThings, patchThing } from "./place-things-logic.mjs";
 
 /** The flag key, under the module's scope, holding a place's list of things. */
 export const THINGS_FLAG = "things";
@@ -29,6 +29,27 @@ export function thingsOf(place) {
 export async function addThingTo(place, thing) {
   if (!place || !game.user?.isGM) return null;
   const next = addThing(thingsOf(place), thing);
+  await place.update({ [`flags.${MODULE_ID}.${THINGS_FLAG}`]: foundry.data.operators.ForcedReplacement.create(next) });
+  return next;
+}
+
+/**
+ * Patch one thing of a place (`patchThing`) and write the whole list back. The
+ * list is read at the moment of the write and the thing is found by id, so a
+ * caller holding an older snapshot overwrites only the keys it names. A GM
+ * client is the only writer; any other seat, a missing place or an id the place
+ * no longer holds writes nothing.
+ *
+ * @param {Actor} place the location actor
+ * @param {string} id the thing's id
+ * @param {{hidden?: boolean, state?: object}} patch as `patchThing` takes it
+ * @returns {Promise<object[]|null>} the written list, or null when nothing was written
+ */
+export async function updateThingOn(place, id, patch) {
+  if (!place || !game.user?.isGM) return null;
+  const held = thingsOf(place);
+  if (!held.some((thing) => thing.id === id)) return null;
+  const next = patchThing(held, id, patch);
   await place.update({ [`flags.${MODULE_ID}.${THINGS_FLAG}`]: foundry.data.operators.ForcedReplacement.create(next) });
   return next;
 }

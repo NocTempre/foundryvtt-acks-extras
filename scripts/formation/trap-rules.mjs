@@ -349,12 +349,13 @@ export function triggerFires(die, triggerOn) {
  * crossed on the way, come first and in the order of distance along the path
  * (`t`, the crossing's fraction of the step, ties keeping the scene's order);
  * then the zones the party ends in, in the order given (the scene's region
- * order, then each region's behaviors). A wall carries the point it halts the
- * party at and the point they came from; a zone halts nothing.
+ * order, then each region's behaviors), then the trap things of the places
+ * those regions are linked to. A wall carries the point it halts the party at
+ * and the point they came from; a zone or a thing halts nothing.
  *
  * @param {object} o
  * @param {Array<{placement: object, haltAt: object, approach: object, t: number}>} [o.walls]
- * @param {object[]} [o.zones] zone placements
+ * @param {object[]} [o.zones] the placements that are not walls: zones, then things
  * @returns {Array<{placement: object, haltAt: object|null, approach: object|null}>}
  */
 export function trapStack({ walls = [], zones = [] } = {}) {
@@ -369,7 +370,8 @@ export function trapStack({ walls = [], zones = [] } = {}) {
  * Does the party stop at this trap? A wall stops it when the trap was found
  * (the party never crosses the line) or sprang (the halt pulls the party back
  * short of it); a wall crossed unsprung, or left to the Judge's hand, lets it
- * walk on. A zone never stops it: every zone under the party resolves.
+ * walk on. Nothing else stops it: every zone and every thing under the party
+ * resolves.
  *
  * @param {{outcome?: string}|null} result what the trap's resolution answered
  * @param {{kind: string}} placement

@@ -166,6 +166,30 @@ export function resetThing(list, id, options = {}) {
   return normalizeThings(list, options).map((thing) => (thing.id === id ? { ...thing, state: {} } : thing));
 }
 
+/**
+ * The list with one thing patched, found by id: a NEW list, the input untouched.
+ * `patch.hidden`, when a boolean, replaces the thing's `hidden`; `patch.state`
+ * names keys of its `state`, each replacing the stored value whole (so an
+ * emptied ledger is empty, not merged back) while every key the patch does not
+ * name stays. Nothing else is writable here. An id the list does not hold
+ * changes nothing.
+ *
+ * @param {object[]} list
+ * @param {string} id
+ * @param {{hidden?: boolean, state?: object}} patch
+ * @param {object} [options] see `normalizeThing`
+ */
+export function patchThing(list, id, patch, options = {}) {
+  return normalizeThings(list, options).map((thing) => {
+    if (thing.id !== id) return thing;
+    const state = { ...thing.state };
+    for (const [key, value] of Object.entries(isPlain(patch?.state) ? patch.state : {})) {
+      if (value !== undefined) state[key] = copy(value);
+    }
+    return { ...thing, hidden: typeof patch?.hidden === "boolean" ? patch.hidden : thing.hidden, state };
+  });
+}
+
 /* -------------------------------------------- */
 /*  What a drop becomes                          */
 /* -------------------------------------------- */
