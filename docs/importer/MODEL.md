@@ -2582,8 +2582,13 @@ twice. A form is never parsed.
   it; a verify, HEAD or open that was running when the path moved is discarded and
   asked again. A parse names the file its bytes came from (`prepare`'s `src`) and
   refuses when that is not the journal's, so one file's text is never recorded
-  under another's path. A handle with no `src` (a file this seat picked) and a
-  book the shelf no longer holds keep what they have. A re-pointed book is parsed
+  under another's path. A handle follows a change of the journal, never a difference
+  from it: a file this seat connected on purpose (`adopt` with its own `src`)
+  stays the handle's, with no saved text since a pointer names the journal's
+  file, until the journal moves; a journal that moves to the path the handle
+  already holds (a staging adopts the new path first) changes nothing. A handle
+  with no `src` (a file this seat picked) and a book the shelf no longer holds
+  keep what they have. A re-pointed book is parsed
   again on the next GM read into a new file; a player seat opens the new PDF live
   until then.
 - **Not saved.** Any control or state on the Books tab.

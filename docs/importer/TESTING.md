@@ -1628,6 +1628,12 @@ shelf journal's pointer names, so every step counts requests.
    reference PDF writes. The file's header names the PDF's path and size, so it
    equals the uploaded file's only with the journal's own `src` and where the
    fixture's PDF is that same printing.
+4. **`importer/adventure-cached`** — for step 7: the shelf journal of a Judge's
+   book that has scene recipes and none with `walls` (`jj`: 11 recipes, none
+   walled; `ax1` has 15 walled of 17), parsed under this build, whose scene
+   pictures are cached in `acks-extras-art`. Found by its marker; built by
+   running the book's Adventure once (Manage imports → **Adventures** tab →
+   **Write Adventure**), which makes the pictures and the saved text.
 
 ### Steps
 
@@ -1663,7 +1669,8 @@ shelf journal's pointer names, so every step counts requests.
    joined, with the book registered on the first path, needs no reload: its next
    read follows the journal and fetches the second copy, never the first. A Player
    seat joined before the re-point reads the second copy live (one `GET` of its
-   path, no read of the saved file) until a GM seat has parsed it.
+   path, no read of the saved file) until a GM seat has parsed it; a Player seat's
+   read cannot be started live here (below), so that half is `test-parsed-book`'s.
 7. Rebuild an Adventure from a book whose pictures are already cached. Use a
    book with scene recipes and none with `walls` (the AX1 maps with walls
    still render the page to trace it, so they open the PDF; count that apart).
@@ -1677,14 +1684,11 @@ shelf journal's pointer names, so every step counts requests.
    fetches the PDF once and uploads the picture; a placement check alone never
    does.
 
-Fixture 4, for step 7: **`importer/adventure-cached`**, a shelf journal for a
-book with scene recipes, none walled, whose pictures are cached in
-`acks-extras-art`. Found by its marker; built by importing the book's maps once.
-
 A Player seat's half (no parse, no upload, no pointer write, opening the PDF
-while no text is saved) has no read a Player can start live: the hire's ability
-read runs on the GM seat. It is covered by `test-parsed-book`; a walk that finds a
-Player-reachable read records its drive mechanics here.
+while no text is saved, and reading a re-pointed book live) has no read a Player
+can start live: the hire's ability read runs on the GM seat. It is covered by
+`test-parsed-book`; a walk that finds a Player-reachable read records its drive
+mechanics here.
 
 ### Teardown
 

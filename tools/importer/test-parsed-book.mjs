@@ -626,6 +626,25 @@ const said = async (handle, n) => JSON.stringify(await pageItems(handle, n));
 }
 
 {
+  // A file this seat connected on purpose is its own until the journal moves.
+  const w = world();
+  const handle = w.seat().handle();
+  const adopted = fakeDoc(7, 60, "C");
+  handle.adopt({ doc: adopted, numPages: 7, title: "Connected", src: "books/connected.pdf" });
+  ok("a connected file reads as itself while the journal is where it was", (await said(handle, 3)).includes("ed C") && handle.isLive && handle.verified);
+  ok("and fetches nothing, makes no text, writes no pointer", w.log.length === 0 && w.uploads.length === 0 && w.pointerWrites === 0, w.log.join(" | "));
+  w.files.set("books/connected.pdf", { bytes: 3000 });
+  w.journals.rr.src = "books/connected.pdf";
+  await handle.verify();
+  ok("a journal that moves to the connected path leaves the connected file in place", handle.isLive && adopted.destroyed === 0 && w.gets("/rr.pdf") === 0, w.log.join(" | "));
+  repoint(w);
+  w.log.length = 0;
+  ok("a journal that moves to another path takes the handle with it", (await said(handle, 3)).includes("ed B") && handle.src === "books/rr-2.pdf" && adopted.destroyed === 1);
+  ok("and reads that path, never the connected one", w.gets("/connected.pdf") === 0 && w.gets("/rr-2.pdf") === 1, w.log.join(" | "));
+  await handle.destroy();
+}
+
+{
   // Bytes of one file are never recorded as another's text.
   const w = world();
   w.journals.rr.src = "books/rr-2.pdf";

@@ -2863,15 +2863,19 @@ entry above.
   files differ, and the only runtime callers read the boxes. A page the file
   does not hold is read live, and a live answer carries the names. `PARSE_SCHEMA`
   is 2: every file written by S2 is of another stamp, read by no seat, and its
-  book is parsed again on the next GM read. S2 has not shipped, so no world holds
-  one.
+  book is parsed again on the next GM read. No released build wrote one (S2 is
+  on `main` and was walked, so the test world may hold some, left behind as
+  every stale file is).
 - **A handle follows its journal.** S2's handle kept the path it was registered
   with, while a parse recorded the journal's current one. A GM handle registered
   before a re-point (a peer seat re-staging, a hand-edited page: nothing hooks the
   page) would have parsed the old file and pointed the new path at it, and every
   other seat would have read the old text as the new book's. The handle now
-  takes the journal's path at the head of each read, and a parse names the file
-  its bytes came from and refuses another. Found while building S3; the test that
+  takes the journal's path at the head of each read, but only when the journal
+  has moved: a file this seat connected on purpose (`connectBookUrl` adopts it
+  with its own `src`) stays the handle's until the journal moves, so the
+  walk that connects another file into a book's slot still provokes its refusal.
+  A parse names the file its bytes came from and refuses another. Found while building S3; the test that
   shows it fails without either guard.
 
 *Rejected:* a pointer that lists the pages whose placements it holds (the owner's
@@ -2891,6 +2895,6 @@ session should read what the world now names).
 - A handle that follows the journal re-reads the shelf journal on every read
   (the pointer check already did), and a re-point in the middle of a read costs
   that read one more verify.
-- A re-point made between a staging's open and its journal write (`shelvePath`
-  adopts the new path first) makes the handle follow the old path back and then
-  forward again, one extra fetch.
+- A staging adopts the new path before it writes the journal (`shelvePath`);
+  the journal then moves to the path the handle already holds, which changes
+  nothing.

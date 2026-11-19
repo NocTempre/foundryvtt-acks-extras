@@ -30,7 +30,10 @@
  * re-pointed (`src` changes) the handle drops its live document, its vouching
  * and its saved text, takes the new path, and reads, verifies and parses that
  * file as a fresh handle would. Nothing it holds of the old file answers for
- * the new one, and a parse it started before the change is not recorded.
+ * the new one, and a parse it started before the change is not recorded. It
+ * follows a change of the journal and never a difference from it: a file this
+ * seat connected on purpose (`adopt`) stays the handle's until the journal
+ * moves, and has no saved text, since a pointer names the journal's file.
  *
  * Fetch, open and the saved-text store are injected, so the handle holds no PDF
  * engine and no Foundry: `open(buffer)` fingerprints and returns
@@ -82,6 +85,8 @@ export class BookHandle {
   #gone = false;
   #idleMs;
   #epoch = 0;
+  #seen;
+  #row;
 
   /**
    * @param {object} o
@@ -104,6 +109,8 @@ export class BookHandle {
     this.#open = open;
     this.#fetch = fetchImpl;
     this.#parsed = parsed;
+    this.#seen = parsed?.shelfSrc(bookId) ?? null;
+    this.#row = { numPages, title };
   }
 
   /** Marks a handle where a plain document would not carry one. */
@@ -120,13 +127,18 @@ export class BookHandle {
   }
 
   /**
-   * Take the journal's path when it is no longer this handle's. A handle with
-   * no `src` (a file this seat picked) and a book the shelf no longer holds
-   * keep what they have. Runs at the head of every read, so a stale handle
-   * is corrected before it serves a page, a placement or a verdict.
+   * Take the journal's path when the journal has moved to one that is not this
+   * handle's. A handle whose journal has not moved, one with no `src` (a file
+   * this seat picked), a book the shelf no longer holds, and a journal that
+   * moved to the path the handle already holds (a staging adopts the new path
+   * before it writes the journal) keep what they have. Runs at the head of every
+   * read, so a stale handle is corrected before it serves a page, a placement
+   * or a verdict.
    */
   #follow() {
     const now = this.#parsed?.shelfSrc(this.#bookId) ?? null;
+    if (now === this.#seen) return;
+    this.#seen = now;
     if (!this.#src || !now || now === this.#src) return;
     const doc = this.#doc;
     this.#epoch++;
@@ -137,6 +149,8 @@ export class BookHandle {
     this.#verified = false;
     this.#vouched = false;
     this.#opened = false;
+    this.#numPages = this.#row.numPages;
+    this.#title = this.#row.title;
     this.#saved = null;
     this.#noParse = false;
     this.#refusal = null;
@@ -289,7 +303,7 @@ export class BookHandle {
   }
 
   #canPrepare() {
-    return !!this.#parsed && !!this.#src && !this.#noParse && this.#parsed.canParse(this.#bookId);
+    return !!this.#parsed && !!this.#src && !this.#noParse && this.#parsed.canParse(this.#bookId) && this.#parsed.shelfSrc(this.#bookId) === this.#src;
   }
 
   async #prepare(epoch) {
