@@ -33,6 +33,7 @@
  */
 import { MODULE_ID, LANG_PREFIX, SUMMONS_PLACED_HOOK } from "./constants.mjs";
 import { docOf, makeLoc } from "./util.mjs";
+import { centreOfToken, pointGapFeet } from "./distance-units.mjs";
 import * as services from "./services.mjs";
 import { libraryPacks, byCookbookId, whenReady } from "./library.mjs";
 import {
@@ -53,6 +54,9 @@ import {
   registerSummonNaming,
   normalizeRef,
   offerRows,
+  normalizeCast,
+  checkPlacementRange,
+  rangeLimitOf,
 } from "./summons-logic.mjs";
 
 export { summonerOf, registerSummonPolicy, registerSummonNaming };
@@ -258,25 +262,51 @@ async function resolveSource(ref, spellId) {
   return byCookbookId("Actor", key);
 }
 
-/** Place summons: authorize, find or make the copy, create the tokens. */
-async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, spellId = "", castId = "", user }) {
+/**
+ * The centre of the caster's token on the scene, for the range a placement is
+ * measured from: the token the request names, only when it stands on this
+ * scene as the summoner's own. Null otherwise.
+ */
+function casterCentre(scene, tokenId, summoner) {
+  const token = tokenId ? scene?.tokens?.get?.(tokenId) : null;
+  if (!token || !(token.actorId === summoner.id || token.actor?.uuid === summoner.uuid)) return null;
+  return centreOfToken(token);
+}
+
+/**
+ * Place summons: authorize, hold the places to the cast's range, find or make
+ * the copy, create the tokens. The range and the cast's levels are the seat's
+ * word, as the apply relay takes a level; a Judge's request is not held to the
+ * range, as the seat's own gate only warns a Judge.
+ */
+async function placeOp({ summonerUuid, sourceUuid, sceneId, positions, count, spellId = "", castId = "", cast: stated = null, casterTokenId = "", rangeFeet = null, calling = false, user }) {
   const summoner = await fromUuid(summonerUuid);
   const source = await resolveSource(sourceUuid, spellId);
   const scene = game.scenes.get(sceneId);
-  const verdict = checkPlaceRequest({ user, summoner, source, scene, count, positions, spellId });
+  const cast = normalizeCast({ ...stated, castId: stated?.castId ?? castId }, foundry.utils.randomID());
+  const verdict = checkPlaceRequest({ user, summoner, source, scene, count, positions, spellId, cast });
   if (!verdict.ok) return refused(verdict.reason);
+  if (!user.isGM) {
+    const range = checkPlacementRange({
+      positions,
+      from: casterCentre(scene, casterTokenId, summoner),
+      rangeFeet,
+      calling,
+      measure: (a, b) => pointGapFeet(scene, a, b),
+    });
+    if (!range.ok) return refused(range.reason);
+  }
   const copy = await worldCopy(source);
   if (!copy) return refused("noCopy");
-  const cast = validCastId(castId) ? castId : foundry.utils.randomID();
   // The spell's name is read here, from the summoner's own item, never taken from the payload.
   const spellName = spellId ? (summoner.items.get(spellId)?.name ?? "") : "";
-  const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast, at: game.time.worldTime });
+  const flags = summonFlags(summoner.uuid, { sourceUuid: source.uuid, name: source.name, spellId, spellName, castId: cast.castId, at: game.time.worldTime });
   const ownership = summonOwnership(summoner.ownership, [user.id], (id) => !!game.users.get(id)?.isGM);
   const tokenUuids = await createTokens({ copy, scene, positions, flags, ownership });
   if (tokenUuids.length) {
     Hooks.callAll(SUMMONS_PLACED_HOOK, { summonerUuid: summoner.uuid, sceneId: scene.id, tokenIds: tokenUuids.map((uuid) => uuid.split(".").pop()) });
   }
-  return { ok: true, castId: cast, tokenUuids };
+  return { ok: true, castId: cast.castId, tokenUuids };
 }
 
 /**
@@ -388,9 +418,103 @@ async function previewsFor(source, summoner, count) {
 }
 
 /**
- * Summon creatures: the seat clicks where each goes, and the GM's client makes
- * the tokens. A placement the user cut short places the creatures chosen so
- * far; one cancelled outright places nothing.
+ * What a placement request may say before the seat clicks: the checks the
+ * GM's client will run again, the canvas and the pause, answered at once.
+ * Nothing is made and nothing is announced, so a cast can hold its verdict
+ * ahead of any spend.
+ * @param {Actor} summoner
+ * @param {object} o  the placement options (`placeSummons`' `sourceUuid`, `count`, `spellId`)
+ * @returns {Promise<{ok: true, scene: Scene, source: Actor|null}|{ok: false, reason: string}>}
+ */
+export async function summonVerdict(summoner, { sourceUuid, count = 1, spellId = "" } = {}) {
+  const scene = sceneNow();
+  const source = sourceUuid ? await fromUuid(normalizeRef(sourceUuid)).catch(() => null) : null;
+  const verdict = checkPlaceRequest({ user: game.user, summoner, source, sourceRef: sourceUuid, scene, count, spellId });
+  if (!verdict.ok) return refused(verdict.reason);
+  if (!canvas?.ready || !scene) return refused("noCanvas");
+  if (game.paused && !game.user.isGM) return refused("paused");
+  return { ok: true, scene, source };
+}
+
+/**
+ * The `preConfirm` that holds each click to a cast's range: a place beyond
+ * `rangeFeet` of the caster's token centre is refused to a Player and warned to
+ * a Judge, and the caster's token missing from the scene reads the same way.
+ * The measure is the one the GM's client runs again (`checkPlacementRange`).
+ * Any `preConfirm` the caller passed runs first and may refuse the click itself.
+ */
+function rangePreConfirm({ scene, casterToken, rangeFeet, calling, preConfirm }) {
+  const token = typeof casterToken === "string" ? scene?.tokens?.get?.(casterToken) : casterToken;
+  return (context) => {
+    if (preConfirm?.(context) === false) return false;
+    const from = token ? centreOfToken(token) : null;
+    const point = placedPositions([context?.document])[0];
+    const verdict = checkPlacementRange({ positions: [point], from, rangeFeet, calling, measure: (a, b) => pointGapFeet(scene, a, b) });
+    if (verdict.ok) return undefined;
+    ui.notifications.warn(loc(`refused.${verdict.reason}`));
+    return game.user.isGM ? undefined : false;
+  };
+}
+
+/**
+ * The click-to-place half of a summoning, shared by `pickPlacement` and
+ * `placeSummons`: core's placement of one preview token per creature with
+ * nothing created, the range gate on each click where the cast states a range.
+ * @returns {Promise<{positions: object[]}|{reason: string}>} the places chosen (possibly none), or the
+ *   reason the placement could not run
+ */
+async function clickPlacement(summoner, { scene, source, count, preConfirm, rangeFeet, calling, casterToken }) {
+  const gate = rangeLimitOf(rangeFeet) === null || calling === true ? preConfirm : rangePreConfirm({ scene, casterToken, rangeFeet, calling, preConfirm });
+  try {
+    const placed = await canvas.tokens.placeTokens(await previewsFor(source, summoner, count), { create: false, preConfirm: gate });
+    return { positions: placedPositions(placed) };
+  } catch (err) {
+    console.error(`${MODULE_ID} | summon placement failed`, err);
+    return { reason: "placement" };
+  }
+}
+
+/**
+ * The seat's clicks for the places of a summoning: a preview token per
+ * creature on the scene the canvas shows, and the positions chosen. It makes
+ * nothing and sends nothing. A seat that stops a placement short gets the
+ * places chosen so far. Null means nothing was chosen, whether the seat
+ * cancelled outright or the request could not start (a refusal `summonVerdict`
+ * would give, a game paused for a Player, a placement that threw). Every such
+ * case but a cancel warns the seat in its own words, and a cast that must
+ * decide before it spends holds `summonVerdict` first.
+ * @param {Actor} summoner
+ * @param {object} o
+ * @param {string} o.sourceUuid  the creature, as `placeSummons` reads it
+ * @param {number} [o.count=1]
+ * @param {string} [o.spellId]
+ * @param {Function} [o.preConfirm]  core's placement hook, run before the range gate; returning false refuses a click
+ * @param {number|null} [o.rangeFeet]  the farthest a place may be from the centre of the caster's token, in
+ *   feet; passed in by the caller, never read here. Null or absent states none and nothing is measured
+ * @param {boolean} [o.calling]  the creature is called from where it stands, so no range bounds the place
+ * @param {TokenDocument|string|null} [o.casterToken]  the caster's token, or its id on the scene
+ * @returns {Promise<{positions: {x: number, y: number}[]}|null>}
+ */
+export async function pickPlacement(summoner, { sourceUuid, count = 1, spellId = "", preConfirm, rangeFeet = null, calling = false, casterToken = null } = {}) {
+  const verdict = await summonVerdict(summoner, { sourceUuid, count, spellId });
+  if (!verdict.ok) {
+    warnRefusal(verdict.reason);
+    return null;
+  }
+  const clicked = await clickPlacement(summoner, { scene: verdict.scene, source: verdict.source, count, preConfirm, rangeFeet, calling, casterToken });
+  if (clicked.reason) {
+    warnRefusal(clicked.reason);
+    return null;
+  }
+  return clicked.positions.length ? { positions: clicked.positions } : null;
+}
+
+/**
+ * Summon creatures: the seat clicks where each goes (`pickPlacement`), and the
+ * GM's client makes the tokens. A placement the user cut short places the
+ * creatures chosen so far; one cancelled outright places nothing. With
+ * `positions` already picked no click is made and the creatures stand where
+ * those say.
  * @param {Actor} summoner  the character summoning
  * @param {object} o
  * @param {string} o.sourceUuid  the library creature: a document uuid, or, for a request that names a
@@ -402,34 +526,45 @@ async function previewsFor(source, summoner, count) {
  * @param {Function} [o.preConfirm]  core's placement hook, `({event, document, index, count}) => boolean|void`:
  *   returning false refuses that click, which is where a summoning that
  *   constrains where the creature appears states its constraint
+ * @param {{x: number, y: number}[]} [o.positions]  places already picked (`pickPlacement`'s answer); the
+ *   creature count sent is their number. An empty list is a cancel
+ * @param {string} [o.castId]  the cast's id; the GM's client replaces one that is malformed
+ * @param {{castId?: string, casterLevel?: number, invocationLevel?: number}} [o.cast]  the cast the request
+ *   belongs to, handed to every registered policy on the GM's client. The levels are the seat's word and
+ *   the GM does not recompute them
+ * @param {number|null} [o.rangeFeet]  the farthest a place may be from the centre of the caster's token,
+ *   in feet. The GM's client measures every place against it again and refuses a Player's request that
+ *   stands beyond it (`outOfRange`) or that names no caster token on the scene (`noCaster`); a Judge's is
+ *   not refused. Null or absent: nothing is measured
+ * @param {boolean} [o.calling]  the creature is called from where it stands: exempt from the range
+ * @param {TokenDocument|string|null} [o.casterToken]  the caster's token, or its id on the scene
  * @returns {Promise<{ok: boolean, reason?: string, castId?: string, tokenUuids?: string[]}>}
  */
-export async function placeSummons(summoner, { sourceUuid, count = 1, spellId = "", preConfirm } = {}) {
-  const scene = sceneNow();
-  const source = sourceUuid ? await fromUuid(normalizeRef(sourceUuid)).catch(() => null) : null;
-  const verdict = checkPlaceRequest({ user: game.user, summoner, source, sourceRef: sourceUuid, scene, count, spellId });
+export async function placeSummons(summoner, { sourceUuid, count = 1, spellId = "", preConfirm, positions, castId, cast, rangeFeet = null, calling = false, casterToken = null } = {}) {
+  const verdict = await summonVerdict(summoner, { sourceUuid, count, spellId });
   if (!verdict.ok) return refused(verdict.reason);
-  if (!canvas?.ready || !scene) return refused("noCanvas");
-  if (game.paused && !game.user.isGM) return refused("paused");
-  let placed;
-  try {
-    placed = await canvas.tokens.placeTokens(await previewsFor(source, summoner, count), { create: false, preConfirm });
-  } catch (err) {
-    console.error(`${MODULE_ID} | summon placement failed`, err);
-    return refused("placement");
+  let places = positions;
+  if (!places) {
+    const clicked = await clickPlacement(summoner, { scene: verdict.scene, source: verdict.source, count, preConfirm, rangeFeet, calling, casterToken });
+    if (clicked.reason) return refused(clicked.reason);
+    places = clicked.positions;
   }
-  const positions = placedPositions(placed);
-  if (!positions.length) return refused("cancelled");
-  return send({
+  if (!places.length) return refused("cancelled");
+  const payload = {
     op: "place",
     summonerUuid: summoner.uuid,
     sourceUuid,
-    sceneId: scene.id,
-    positions,
-    count: positions.length,
+    sceneId: verdict.scene.id,
+    positions: places,
+    count: places.length,
     spellId,
-    castId: foundry.utils.randomID(),
-  });
+    castId: castId ?? cast?.castId ?? foundry.utils.randomID(),
+  };
+  if (cast) payload.cast = { castId: payload.castId, casterLevel: cast.casterLevel ?? null, invocationLevel: cast.invocationLevel ?? null };
+  if (rangeLimitOf(rangeFeet) !== null) {
+    Object.assign(payload, { rangeFeet, calling: calling === true, casterTokenId: typeof casterToken === "string" ? casterToken : (casterToken?.id ?? "") });
+  }
+  return send(payload);
 }
 
 /**

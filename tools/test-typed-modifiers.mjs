@@ -652,6 +652,13 @@ await (async () => {
       assert.equal(row.gate.fields.occasion.a.initial, false);
       assert.equal(row.exemptSizeOver.a.initial, "");
     });
+    check("effectField carries a row name as an optional blank-by-default string beside ref", () => {
+      assert.ok(row.name instanceof Field && !(row.name instanceof Schema) && !(row.name instanceof List), "a plain string field");
+      assert.equal(row.name.a.initial, "", "blank until the import names it");
+      assert.equal(row.name.a.required, false);
+      assert.equal(row.name.a.blank, true);
+      assert.ok("ref" in row, "ref stays");
+    });
     check("effectField keeps the ability row's existing spell fields", () => {
       for (const key of ["school", "spell", "spellRef", "casterLevelDelta"]) assert.ok(key in row, key);
     });

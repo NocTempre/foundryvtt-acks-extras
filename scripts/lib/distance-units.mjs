@@ -72,8 +72,13 @@ export function sceneMilesPerCell(scene) {
   return sceneFeetPerCell(scene) / DISTANCE_UNITS.mi.feet;
 }
 
-/** A token document's centre point, as the document itself gives it, else from its own corner and size; null when neither is readable. */
-function centreOfToken(token) {
+/**
+ * A token document's centre point, as the document itself gives it, else from
+ * its own corner and size.
+ * @param {TokenDocument} token
+ * @returns {{x: number, y: number}|null} null when neither is readable
+ */
+export function centreOfToken(token) {
   const own = token?.getCenterPoint?.({ x: token.x, y: token.y });
   if (Number.isFinite(own?.x) && Number.isFinite(own?.y)) return { x: own.x, y: own.y };
   const size = Number(token?.parent?.grid?.size);
@@ -95,11 +100,26 @@ function centreOfToken(token) {
  */
 export function tokenGapFeet(a, b) {
   const scene = a?.parent;
-  if (!scene || !b || !a || scene.id !== b.parent?.id || typeof scene.grid?.measurePath !== "function") return null;
-  const from = centreOfToken(a);
-  const to = centreOfToken(b);
-  if (!from || !to) return null;
-  const distance = Number(scene.grid.measurePath([from, to])?.distance);
+  if (!scene || !b || !a || scene.id !== b.parent?.id) return null;
+  return pointGapFeet(scene, centreOfToken(a), centreOfToken(b));
+}
+
+/**
+ * The distance between two points of a scene, in FEET, by the scene grid's own
+ * `measurePath` read through its units: the figure a ruler on that scene shows.
+ * The points are taken as given; no token size is added to either.
+ *
+ * @param {Scene} scene
+ * @param {{x: number, y: number}|null} from
+ * @param {{x: number, y: number}|null} to
+ * @returns {number|null} null where a point is missing or not finite, or the
+ *   scene's grid cannot measure
+ */
+export function pointGapFeet(scene, from, to) {
+  if (typeof scene?.grid?.measurePath !== "function") return null;
+  const ok = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
+  if (!ok(from) || !ok(to)) return null;
+  const distance = Number(scene.grid.measurePath([{ x: from.x, y: from.y }, { x: to.x, y: to.y }])?.distance);
   return Number.isFinite(distance) && distance >= 0 ? distance * feetPerUnit(scene.grid.units) : null;
 }
 

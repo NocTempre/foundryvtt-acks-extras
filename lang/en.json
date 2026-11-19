@@ -725,6 +725,8 @@
   "ACKS-LIB.summons.refused.badSpell": "That spell is not on this character's sheet.",
   "ACKS-LIB.summons.refused.badScene": "That scene is not one this seat is viewing.",
   "ACKS-LIB.summons.refused.badPositions": "The places chosen are not on the scene.",
+  "ACKS-LIB.summons.refused.outOfRange": "That place is beyond the spell's range from the caster.",
+  "ACKS-LIB.summons.refused.noCaster": "The caster has no token on this scene to measure the range from.",
   "ACKS-LIB.summons.refused.noCopy": "The GM's client could not make the creature.",
   "ACKS-LIB.summons.refused.badOp": "The request was not understood.",
   "ACKS-LIB.summons.refused.noCanvas": "Open a scene to summon onto.",

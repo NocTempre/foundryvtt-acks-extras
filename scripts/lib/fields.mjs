@@ -445,6 +445,9 @@ export function effectField() {
     // docs/lib/API.md, "Relational effects — requires / grants / modifies,
     // stacking and chaining".
     ref: str(),
+    // The name of the document `ref` points at, as the import materialized it
+    // (a summon row's creature). A label to read, never a key: nothing matches on it.
+    name: str(),
     refs: refList(),
     ifHas: refList(),
     mode: choice(EFFECT_MODES),

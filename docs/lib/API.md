@@ -1,4 +1,4 @@
-# lib API (apiVersion 63)
+# lib API (apiVersion 64)
 
 `lib` is the module's shared-primitives subsystem, `scripts/lib/`. It is what
 every other feature is allowed to depend on, and the one place overrides of core
@@ -30,7 +30,7 @@ else in the repo.**
 
 ```
 acksExtras.lib = {
-  apiVersion: 63,
+  apiVersion: 64,
   // --- primitives ---
   vocab,               // lib/vocab.mjs — enums + resolvers (Foundry-free)
   fields,              // lib/fields.mjs — DataModel field-builders (Foundry-only); 17 adds `occupantField`, the roster row a place and a faction share
@@ -599,6 +599,7 @@ these are structured refs rather than free text. Any effect may carry:
 | field | meaning |
 |---|---|
 | `ref` / `refs` | the ability this effect targets (`modifies`), requires, or grants |
+| `name` | the name of the document `ref` points at, as the import materialized it (a summon row's creature); a label, never matched on |
 | `ifHas` | gate — applies only while the character *also* has these |
 | `mode` | `add` \| `replace` \| `set` ("instead of" is a replace variant) |
 | `stacksWith` / `notStacksWith` | explicit stacking rules |
@@ -969,7 +970,7 @@ rest. `source` is `condition`, `state`, `custom`, `system` or `foreign`;
 setting `acks-extras.statusPalette`; the Foundry-free model that reads and
 writes its shape is `scripts/lib/status-palette.mjs`, imported directly.
 
-## `summons` — a character's summoned creatures (apiVersion 36)
+## `summons` — a character's summoned creatures (apiVersion 64)
 
 The model is docs/lib/MODEL.md, "Summons"; the ruling is
 docs/character-sheet/DECISIONS.md, "A summon is an unlinked token of a GM-made copy".
@@ -978,8 +979,12 @@ docs/character-sheet/DECISIONS.md, "A summon is an unlinked token of a GM-made c
 acksExtras.lib.summons = {
   summonerOf(actor),                       // → the summoner's actor uuid, or null
   summonsOf(summoner, {scene}?),           // → the TokenDocuments on the scene (default: the canvas's) whose creature names it
-  placeSummons(summoner, {sourceUuid, count?, spellId?, preConfirm?}),
+  placeSummons(summoner, {sourceUuid, count?, spellId?, preConfirm?, positions?, castId?, cast?, rangeFeet?, calling?, casterToken?}),
                                            // → Promise<{ok, reason?, castId?, tokenUuids?}>
+  pickPlacement(summoner, {sourceUuid, count?, spellId?, preConfirm?, rangeFeet?, calling?, casterToken?}),
+                                           // → Promise<{positions}|null>  (the clicks alone; makes nothing)
+  summonVerdict(summoner, {sourceUuid, count?, spellId?}),
+                                           // → Promise<{ok: true, scene, source}|{ok: false, reason}>
   dismissSummons(summoner, {tokens?, entries?, held?, scene?, castId?, confirm?}),
                                            // → Promise<{ok, reason?, deleted?, refused?}>
   pickSummon(summoner, {spell?, options?, resolveRef?}),
@@ -999,7 +1004,22 @@ on the placing GM's client once the tokens stand.
 `placeSummons` runs on the summoner's owner's seat: core's click-to-place
 (`canvas.tokens.placeTokens`, `create: false`), then a relay to the GM's client
 that makes the tokens. `preConfirm` is core's placement hook; returning false
-refuses a click. `dismissSummons` asks the seat first (`confirm: false` only
+refuses a click. `pickPlacement` is the clicks alone: it returns `{positions}`
+and makes and sends nothing, or null when nothing was chosen (a cancel, or a
+request that could not start, which it warns the seat of; `summonVerdict` is the
+same checks answered first, with no warning, for a cast that must decide before
+it spends). `placeSummons` given `positions` makes no click and stands the
+creatures where those say; its `castId` and `cast` `{castId, casterLevel,
+invocationLevel}` name the cast, and a malformed id is replaced by the GM's own.
+`rangeFeet`, passed in by the caller and never read from a table here, bounds
+each place from the centre of `casterToken`'s token (the stored point, no
+creature size added): the seat's click is refused to a Player and warned to a
+Judge, and the GM's client measures the points again, refusing a Player's
+request `outOfRange`, or `noCaster` where the token is not the summoner's on
+that scene. `calling` (the creature is called from where it stands), a `rangeFeet`
+that is null or not a finite number, a place the grid cannot measure and a
+Judge's request are exempt. The levels, the range and `calling` are the seat's
+word. `dismissSummons` asks the seat first (`confirm: false` only
 when the caller already has); it removes only summons the module's own
 summoning made for that summoner. It takes the union of `tokens`, the tokens
 `entries` name (`{tokenId, sceneId?}`, read on `sceneId`, else on `scene`,
@@ -1013,7 +1033,7 @@ token from its scene; with `release` absent, a held summon is refused and
 counted in `refused`, and a token is deleted from its scene. `deleted` counts
 every one removed. `reason` is one of `noUser`, `notSummoner`,
 `notOwner`, `badCount`, `badSource`, `unreadable`, `badSpell`, `spellRequired`,
-`badScene`, `badPositions`, `noCopy`, `badOp`, `noCanvas`, `paused`,
+`badScene`, `badPositions`, `outOfRange`, `noCaster`, `noCopy`, `badOp`, `noCanvas`, `paused`,
 `placement`, `none`, `cancelled`, `declined`, `noGm`, or a reason id a
 registered policy gave.
 
@@ -1024,10 +1044,12 @@ A request naming no spell is refused `spellRequired` unless
 GM seat; that function is the one place the choice is made.
 
 `registerSummonPolicy(fn)` adds a refusal a feature owns, so lib imports no
-feature. `fn({user, summoner, source, sourceRef, count, spellId, spell})`
+feature. `fn({user, summoner, source, sourceRef, count, spellId, spell, cast, positions, scene})`
 returns null to allow or a reason id to refuse, synchronously (a promise
 allows). `source` is null, and `sourceRef` the ref the request carries, on a
-seat that could not resolve the creature a spell names. Policies run after every
+seat that could not resolve the creature a spell names. `cast` is `{castId, casterLevel, invocationLevel}` (a level not stated is null);
+`positions` and `scene` are the places chosen and their scene on the GM's client,
+null on the seat's own pre-check. Policies run after every
 built-in check, on the requesting seat and on the GM's client, and each must
 answer from documents both can read. A policy that throws is logged to the
 console and counts as an allow. The call returns a function that unregisters it.

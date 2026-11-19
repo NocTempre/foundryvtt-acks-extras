@@ -33,7 +33,10 @@ const policies = new Set();
 /**
  * Register a refusal policy a feature adds to `checkPlaceRequest` without lib
  * importing the feature. A policy is `({user, summoner, source, sourceRef,
- * count, spellId, spell}) => string|null`: null (or anything that is not a
+ * count, spellId, spell, cast, positions, scene}) => string|null`: `cast` is
+ * the request's `{castId, casterLevel, invocationLevel}` (a level the seat did
+ * not state is null), `positions` the places chosen and `scene` the scene they
+ * are on, the last two null on the seat's own pre-check. null (or anything that is not a
  * non-empty string) allows, a string is the refusal's reason id. It runs after
  * every built-in check, on the requesting seat and on the GM's client alike,
  * so it must answer from documents both can read, and synchronously: a
@@ -273,9 +276,11 @@ export function sourceReadable(source, user) {
  * @param {{x: number, y: number}[]} [req.positions]  omitted when the seat is only asking whether it may
  * @param {string} [req.spellId]  the summoner's spell item the cast is made from; empty is a bare
  *   summoning, which only a seat `bareSummonAllowed` answers true for may make (`spellRequired`)
+ * @param {{castId?: string, casterLevel?: number, invocationLevel?: number}|null} [req.cast]  the cast the
+ *   request belongs to, handed to every policy as it stands (levels not finite numbers read null)
  * @returns {{ok: true}|{ok: false, reason: string}}
  */
-export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scene = null, count, positions = null, spellId = "" } = {}) {
+export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scene = null, count, positions = null, spellId = "", cast = null } = {}) {
   if (!user) return { ok: false, reason: "noUser" };
   if (summoner?.type !== SUMMONER_TYPE) return { ok: false, reason: "notSummoner" };
   if (!owns(user, summoner)) return { ok: false, reason: "notOwner" };
@@ -291,14 +296,83 @@ export function checkPlaceRequest({ user, summoner, source, sourceRef = "", scen
   }
   if (spellId && !spellOk) return { ok: false, reason: "badSpell" };
   if (!spellId && !bareSummonAllowed(user)) return { ok: false, reason: "spellRequired" };
-  const refusal = policyRefusal({ user, summoner, source: source ?? null, sourceRef: source ? "" : String(sourceRef ?? ""), count, spellId, spell });
-  if (refusal) return { ok: false, reason: refusal };
   if (positions) {
     if (!sceneViewable(scene, user)) return { ok: false, reason: "badScene" };
     const rect = scene.dimensions?.rect ?? null;
     if (!Array.isArray(positions) || positions.length !== count || !positions.every((p) => positionValid(p, rect))) {
       return { ok: false, reason: "badPositions" };
     }
+  }
+  const refusal = policyRefusal({
+    user,
+    summoner,
+    source: source ?? null,
+    sourceRef: source ? "" : String(sourceRef ?? ""),
+    count,
+    spellId,
+    spell,
+    cast: cast ? { castId: cast.castId ?? null, casterLevel: finiteOrNull(cast.casterLevel), invocationLevel: finiteOrNull(cast.invocationLevel) } : null,
+    positions: positions ?? null,
+    scene: positions ? scene : null,
+  });
+  if (refusal) return { ok: false, reason: refusal };
+  return { ok: true };
+}
+
+/** A figure as a request may carry it: a finite number, else null. */
+const finiteOrNull = (n) => (typeof n === "number" && Number.isFinite(n) ? n : null);
+
+/**
+ * The cast a placement request belongs to, as the GM's client reads it: the
+ * cast id only when well formed (else the caller's `fallbackId`), and the two
+ * levels the seat stated only when finite numbers. The levels are the seat's
+ * word; nothing here can recompute a level a hand set.
+ * @param {{castId?: string, casterLevel?: number, invocationLevel?: number}|null} cast
+ * @param {string} fallbackId  the id minted where the request names none that is well formed
+ * @returns {{castId: string, casterLevel: number|null, invocationLevel: number|null}}
+ */
+export function normalizeCast(cast, fallbackId) {
+  return {
+    castId: validCastId(cast?.castId) ? cast.castId : fallbackId,
+    casterLevel: finiteOrNull(cast?.casterLevel),
+    invocationLevel: finiteOrNull(cast?.invocationLevel),
+  };
+}
+
+/** The farthest the measure may exceed a range before a point is out: a float's slack, not a rule's figure. */
+const RANGE_SLACK = 1e-6;
+
+/**
+ * The range a request states, as a limit in feet: a finite non-negative number,
+ * else null. `null`, a blank, a string and a non-finite figure all state none,
+ * and a range that states none is not measured.
+ * @param {*} rangeFeet
+ * @returns {number|null}
+ */
+export const rangeLimitOf = (rangeFeet) => (typeof rangeFeet === "number" && Number.isFinite(rangeFeet) && rangeFeet >= 0 ? rangeFeet : null);
+
+/**
+ * Hold a set of places to the range a cast states: each place is measured from
+ * the centre of the caster's token, as it was stored and with no creature size
+ * added, and one beyond `rangeFeet` refuses the placement. A `calling` (the
+ * creature is called from where it already is, so the place is not the
+ * caster's to bound) and a range that states none are exempt, and so is a
+ * place the grid cannot measure.
+ * @param {object} o
+ * @param {{x: number, y: number}[]} o.positions
+ * @param {{x: number, y: number}|null} o.from  the centre of the caster's token, null where none is on the scene
+ * @param {number|null} o.rangeFeet
+ * @param {boolean} [o.calling]
+ * @param {(from: object, to: object) => number|null} o.measure  feet between two points, null where unmeasurable
+ * @returns {{ok: true}|{ok: false, reason: "noCaster"|"outOfRange"}}
+ */
+export function checkPlacementRange({ positions, from, rangeFeet, calling = false, measure }) {
+  const limit = rangeLimitOf(rangeFeet);
+  if (calling === true || limit === null) return { ok: true };
+  if (!from) return { ok: false, reason: "noCaster" };
+  for (const point of positions ?? []) {
+    const gap = measure(from, point);
+    if (gap !== null && gap !== undefined && gap > limit + RANGE_SLACK) return { ok: false, reason: "outOfRange" };
   }
   return { ok: true };
 }

@@ -635,6 +635,408 @@ await t("the seat's dismissSummons takes entries of tokens and held summons, and
 });
 
 /* -------------------------------------------- */
+/*  The seat: the bare prompt and the placement */
+/* -------------------------------------------- */
+
+const { promptSummon, placeSummons, pickPlacement, summonVerdict } = await import("../scripts/lib/summons.mjs");
+
+const notes = { warn: [], info: [] };
+globalThis.ui = { notifications: { warn: (m) => notes.warn.push(m), info: (m) => notes.info.push(m) } };
+const dialogAnswers = [];
+globalThis.foundry.applications = { api: { DialogV2: { prompt: async () => dialogAnswers.shift() ?? null, confirm: async () => true } } };
+
+/** One system creature shelf holding creature `m1`, so the bare prompt has something to offer. */
+const shelf = () => [{ documentName: "Actor", metadata: { packageType: "system", label: "Shelf" }, collection: "shelf.mons", visible: true, index: new Map([["m1", { uuid: "Compendium.test.Actor.m1", type: "monster", name: "Creature m1" }]]) }];
+
+/** A canvas whose `placeTokens` answers `placed` (documents), or throws, and records what it was asked. */
+function seatCanvas(scene, { placed = [], fail = false, ready = true } = {}) {
+  const asked = [];
+  globalThis.canvas = {
+    scene,
+    ready,
+    tokens: {
+      placeTokens: async (previews, opts) => {
+        asked.push({ previews, opts });
+        if (fail) throw new Error("placement down");
+        return placed;
+      },
+    },
+  };
+  return asked;
+}
+
+const endSeat = () => {
+  delete globalThis.canvas;
+  game.paused = false;
+  game.packs = [];
+  game.user = gm;
+  notes.warn.length = 0;
+  notes.info.length = 0;
+  dialogAnswers.length = 0;
+};
+
+await t("the bare prompt asks the shelves, has the seat click, and relays the places to the GM", async () => {
+  const { scene } = setup();
+  game.packs = shelf();
+  const asked = seatCanvas(scene, { placed: [{ _source: { x: 40, y: 50 } }, { _source: { x: 60, y: 70, rotation: 10 } }] });
+  dialogAnswers.push({ sourceUuid: "Compendium.test.Actor.m1", count: 2, spellId: "" });
+  const out = await promptSummon(world.actors.get("sum") ?? registry.get("Actor.sum"));
+  assert.equal(out.ok, true);
+  assert.equal(asked.length, 1);
+  assert.equal(asked[0].previews.length, 2, "one preview per creature");
+  assert.equal(asked[0].opts.create, false, "nothing is made by the click");
+  assert.deepEqual(calls.tokenCreate.map((d) => [d.x, d.y, d.rotation]), [[40, 50, undefined], [60, 70, 10]], "the GM made a token at each place clicked");
+  const rec = calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG];
+  assert.equal(rec.spellId, undefined);
+  assert.match(rec.castId, /^rid\d+$/, "the seat mints the cast id");
+  assert.equal(calls.tokenCreate[1].delta.flags[M][logic.SUMMON_RECORD_FLAG].castId, rec.castId, "one cast");
+  assert.equal(notes.info.length, 1, "the seat is told how many stand");
+  endSeat();
+});
+
+await t("the bare prompt answers cancelled when the seat places nothing, and warns of nothing", async () => {
+  const { scene } = setup();
+  game.packs = shelf();
+  seatCanvas(scene, { placed: [] });
+  dialogAnswers.push({ sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: "" });
+  const out = await promptSummon(registry.get("Actor.sum"));
+  assert.deepEqual(out, { ok: false, reason: "cancelled" });
+  assert.equal(calls.tokenCreate.length, 0);
+  assert.deepEqual(notes.warn, []);
+  endSeat();
+});
+
+await t("a placement that throws is refused 'placement', a paused game or a missing canvas before any click", async () => {
+  const { scene } = setup();
+  game.packs = shelf();
+  const asked = seatCanvas(scene, { fail: true });
+  const summoner = registry.get("Actor.sum");
+  dialogAnswers.push({ sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: "" });
+  assert.deepEqual(await promptSummon(summoner), { ok: false, reason: "placement" });
+  assert.equal(asked.length, 1);
+  seatCanvas(scene, { ready: false });
+  dialogAnswers.push({ sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: "" });
+  assert.deepEqual(await promptSummon(summoner), { ok: false, reason: "noCanvas" });
+  game.user = p1;
+  game.paused = true;
+  const clicks = seatCanvas(scene);
+  assert.deepEqual(await promptSummon(summoner), { ok: false, reason: "spellRequired" }, "a Player seat is held to a spell before anything else");
+  assert.equal(clicks.length + calls.tokenCreate.length, 0);
+  endSeat();
+});
+
+await t("the bare prompt closed, or with no shelf to offer, answers null", async () => {
+  const { scene } = setup();
+  seatCanvas(scene);
+  assert.equal(await promptSummon(registry.get("Actor.sum")), null, "no shelf: the seat is told and nothing is offered");
+  game.packs = shelf();
+  assert.equal(await promptSummon(registry.get("Actor.sum")), null, "a closed prompt");
+  endSeat();
+});
+
+/* -------------------------------------------- */
+/*  Placement from picked places, and the range */
+/* -------------------------------------------- */
+
+/** A grid of 100-pixel cells of 5 units, in feet, that measures a straight line. */
+const gridOf = (scene) => {
+  scene.grid = { size: 100, distance: 5, units: "ft", measurePath: ([a, b]) => ({ distance: (Math.hypot(b.x - a.x, b.y - a.y) / 100) * 5 }) };
+  return scene;
+};
+
+/** The summoner's own token on a scene, 100 pixels square, its centre 50 pixels in from its corner. */
+const casterOn = (scene, x, y, over = {}) => {
+  const doc = { documentName: "Token", id: "caster", uuid: `Scene.${scene.id}.Token.caster`, parent: scene, actorId: "sum", x, y, width: 1, height: 1, getCenterPoint: (p) => ({ x: p.x + 50, y: p.y + 50 }), ...over };
+  scene.tokens.set(doc.id, doc);
+  return doc;
+};
+
+const FAR = { x: 950, y: 150 };
+const NEAR = { x: 450, y: 150 };
+
+await t("the relay hands every policy the cast, the places and the scene, and the GM's own cast id stands", async () => {
+  const { scene } = setup();
+  const seen = [];
+  const off = logic.registerSummonPolicy((req) => {
+    seen.push(req);
+    return null;
+  });
+  const out = await summonRelay(place({ cast: { castId: "castP1", casterLevel: 7, invocationLevel: "9", extra: 1 }, castId: "ignored1" }));
+  off();
+  assert.equal(out.ok, true);
+  assert.equal(out.castId, "castP1");
+  assert.deepEqual(seen[0].cast, { castId: "castP1", casterLevel: 7, invocationLevel: null }, "a level that is no finite number reads null");
+  assert.deepEqual(seen[0].positions, place().positions);
+  assert.equal(seen[0].scene, scene);
+  assert.equal(calls.tokenCreate[0].delta.flags[M][logic.SUMMON_RECORD_FLAG].castId, "castP1");
+});
+
+await t("a policy sees the cast of a request that names none, with the id the GM mints and null levels", async () => {
+  setup();
+  const seen = [];
+  const off = logic.registerSummonPolicy((req) => {
+    seen.push(req.cast);
+    return null;
+  });
+  const out = await summonRelay(place());
+  off();
+  assert.deepEqual(seen[0], { castId: out.castId, casterLevel: null, invocationLevel: null });
+});
+
+await t("the places are validated before any policy runs", async () => {
+  setup();
+  let ran = 0;
+  const off = logic.registerSummonPolicy(() => {
+    ran++;
+    return "policyNo";
+  });
+  assert.equal((await summonRelay(place({ count: 3 }))).reason, "badPositions");
+  assert.equal(ran, 0);
+  assert.equal((await summonRelay(place())).reason, "policyNo");
+  off();
+});
+
+await t("the GM measures the places again: one beyond the range is refused a Player and nothing is made", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  casterOn(scene, 100, 100);
+  const both = place({ positions: [NEAR, FAR], rangeFeet: 30, casterTokenId: "caster" });
+  assert.deepEqual(await summonRelay(both), { ok: false, reason: "outOfRange" });
+  assert.equal(calls.tokenCreate.length + calls.actorCreate.length, 0);
+  const ok = await summonRelay(place({ positions: [NEAR, { x: 450, y: 550 }], rangeFeet: 30, casterTokenId: "caster" }));
+  assert.equal(ok.ok, true, "both inside: 15 and about 25 feet from the token's centre");
+  assert.equal(calls.tokenCreate.length, 2);
+});
+
+await t("the range is measured from the token's centre with no creature size added, at the edge and a hair beyond", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  casterOn(scene, 100, 100);
+  const at = (x) => place({ positions: [{ x, y: 150 }], count: 1, rangeFeet: 30, casterTokenId: "caster" });
+  assert.equal((await summonRelay(at(750))).ok, true, "exactly 30 feet from (150, 150) is inside");
+  assert.equal((await summonRelay(at(751))).reason, "outOfRange");
+});
+
+await t("a calling, a range that states none and a place the grid cannot measure are exempt", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  casterOn(scene, 100, 100);
+  const far = (over) => place({ positions: [FAR, FAR], casterTokenId: "caster", ...over });
+  assert.equal((await summonRelay(far({ rangeFeet: 30, calling: true }))).ok, true, "a calling");
+  for (const rangeFeet of [null, undefined, "", "30", NaN, Infinity, -5]) {
+    assert.equal((await summonRelay(far({ rangeFeet }))).ok, true, `a range of ${String(rangeFeet)} is not measured`);
+  }
+  scene.grid.measurePath = () => ({ distance: NaN });
+  assert.equal((await summonRelay(far({ rangeFeet: 30 }))).ok, true, "an unmeasurable grid is not a refusal");
+});
+
+await t("a measured range with no caster token of the summoner's on the scene is refused noCaster", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  const base = { rangeFeet: 30, positions: [NEAR, NEAR] };
+  assert.equal((await summonRelay(place({ ...base }))).reason, "noCaster", "no token named");
+  assert.equal((await summonRelay(place({ ...base, casterTokenId: "ghost" }))).reason, "noCaster", "a token that is not on the scene");
+  casterOn(scene, 100, 100, { actorId: "other" });
+  assert.equal((await summonRelay(place({ ...base, casterTokenId: "caster" }))).reason, "noCaster", "another creature's token");
+  assert.equal(calls.tokenCreate.length, 0);
+});
+
+await t("a Judge's request is not held to the range", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  casterOn(scene, 100, 100);
+  const out = await summonRelay(place({ positions: [FAR, FAR], rangeFeet: 30, casterTokenId: "caster", requestUserId: null }));
+  assert.equal(out.ok, true);
+});
+
+await t("placeSummons given places makes no click, relays them with the cast, and mints no id of its own over the cast's", async () => {
+  const { scene } = setup();
+  const asked = seatCanvas(scene);
+  const out = await placeSummons(registry.get("Actor.sum"), {
+    sourceUuid: "Compendium.test.Actor.m1",
+    count: 3,
+    spellId: SPELL.id,
+    positions: [{ x: 10, y: 20 }, { x: 30, y: 40 }],
+    cast: { castId: "castQ1", casterLevel: 5, invocationLevel: 2 },
+  });
+  assert.equal(out.ok, true);
+  assert.equal(out.castId, "castQ1");
+  assert.equal(asked.length, 0, "nothing was clicked");
+  assert.deepEqual(calls.tokenCreate.map((d) => [d.x, d.y]), [[10, 20], [30, 40]], "the creature count is the places given");
+  endSeat();
+});
+
+await t("placeSummons given no places answers cancelled for an empty list, and still refuses what it refused before the clicks", async () => {
+  const { scene } = setup();
+  const asked = seatCanvas(scene);
+  const summoner = registry.get("Actor.sum");
+  assert.deepEqual(await placeSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id, positions: [] }), { ok: false, reason: "cancelled" });
+  assert.equal((await placeSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 0, spellId: SPELL.id, positions: [{ x: 1, y: 1 }] })).reason, "badCount");
+  assert.equal(asked.length + calls.tokenCreate.length, 0);
+  endSeat();
+});
+
+await t("a request through placeSummons carries its range to the GM, who measures it again", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  const token = casterOn(scene, 100, 100);
+  seatCanvas(scene);
+  const summoner = registry.get("Actor.sum");
+  // A Player's seat: its request leaves on the socket, which is the live half, so what it sends is
+  // captured and handed to the relay the way the GM's client hands it, stamped with the sender.
+  const sent = [];
+  game.user = p1;
+  game.users.activeGM = gm;
+  game.socket = { emit: (_channel, message) => sent.push(message.payload) };
+  const ask = (positions) => placeSummons(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: positions.length, spellId: SPELL.id, positions, rangeFeet: 30, casterToken: token, cast: { castId: "castR1", casterLevel: 6 } });
+  await ask([NEAR]);
+  await ask([FAR]);
+  delete game.socket;
+  delete game.users.activeGM;
+  assert.equal(sent.length, 2);
+  assert.deepEqual([sent[0].rangeFeet, sent[0].calling, sent[0].casterTokenId], [30, false, "caster"]);
+  assert.deepEqual(sent[0].cast, { castId: "castR1", casterLevel: 6, invocationLevel: null });
+  assert.equal((await summonRelay({ ...sent[0], requestUserId: p1.id })).ok, true);
+  assert.deepEqual(await summonRelay({ ...sent[1], requestUserId: p1.id }), { ok: false, reason: "outOfRange" });
+  assert.equal(calls.tokenCreate.length, 1, "only the place in range was made");
+  endSeat();
+});
+
+await t("pickPlacement returns the places the seat clicked and makes nothing", async () => {
+  const { scene } = setup();
+  const asked = seatCanvas(scene, { placed: [{ _source: { x: 5, y: 6 } }, { _source: { x: 7, y: 8, rotation: 45 } }] });
+  const out = await pickPlacement(registry.get("Actor.sum"), { sourceUuid: "Compendium.test.Actor.m1", count: 2, spellId: SPELL.id });
+  assert.deepEqual(out, { positions: [{ x: 5, y: 6 }, { x: 7, y: 8, rotation: 45 }] });
+  assert.equal(asked[0].opts.create, false);
+  assert.equal(asked[0].previews.length, 2);
+  assert.equal(calls.tokenCreate.length + calls.actorCreate.length + calls.folderCreate.length, 0, "no token, copy or folder is made");
+  endSeat();
+});
+
+await t("pickPlacement answers null for a cancel and makes nothing, and warns of nothing", async () => {
+  const { scene } = setup();
+  seatCanvas(scene, { placed: [] });
+  assert.equal(await pickPlacement(registry.get("Actor.sum"), { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id }), null);
+  assert.deepEqual(notes.warn, []);
+  assert.equal(calls.tokenCreate.length, 0);
+  endSeat();
+});
+
+await t("pickPlacement answers null and warns where the request cannot start", async () => {
+  const { scene } = setup();
+  const summoner = registry.get("Actor.sum");
+  const asked = seatCanvas(scene, { fail: true });
+  assert.equal(await pickPlacement(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id }), null);
+  assert.equal(notes.warn.length, 1, "a placement that threw is told to the seat");
+  seatCanvas(scene, { ready: false });
+  assert.equal(await pickPlacement(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id }), null);
+  assert.equal(notes.warn.length, 2);
+  assert.equal(asked.length, 1);
+  endSeat();
+});
+
+await t("summonVerdict is the refusals before the clicks, silent and with nothing placed", async () => {
+  const { scene } = setup();
+  const summoner = registry.get("Actor.sum");
+  const asked = seatCanvas(scene);
+  const ok = await summonVerdict(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id });
+  assert.equal(ok.ok, true);
+  assert.equal(ok.scene, scene);
+  assert.equal((await summonVerdict(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 0, spellId: SPELL.id })).reason, "badCount");
+  seatCanvas(scene, { ready: false });
+  assert.equal((await summonVerdict(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id })).reason, "noCanvas");
+  assert.equal(asked.length + notes.warn.length, 0);
+  endSeat();
+});
+
+await t("the seat's click is refused a Player beyond the range, warned to a Judge, and exempt for a calling", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  const token = casterOn(scene, 100, 100);
+  const summoner = registry.get("Actor.sum");
+  const candidates = [{ x: NEAR.x, y: NEAR.y }, { x: FAR.x, y: FAR.y }];
+  /** A placement that offers each candidate to the hook and keeps the ones it does not refuse. */
+  const offering = () => {
+    globalThis.canvas = {
+      scene,
+      ready: true,
+      tokens: { placeTokens: async (previews, { preConfirm }) => candidates.filter((c, index) => preConfirm?.({ document: { _source: c }, index, count: 2 }) !== false).map((c) => ({ _source: c })) },
+    };
+  };
+  const pick = (over = {}) => pickPlacement(summoner, { sourceUuid: "Compendium.test.Actor.m1", count: 2, spellId: SPELL.id, rangeFeet: 30, casterToken: token, ...over });
+  offering();
+  game.user = gm;
+  assert.equal((await pick()).positions.length, 2, "a Judge keeps both clicks");
+  assert.equal(notes.warn.length, 1, "and is warned of the far one");
+  notes.warn.length = 0;
+  game.user = p1;
+  assert.deepEqual((await pick()).positions, [{ x: NEAR.x, y: NEAR.y }], "a Player's far click is refused");
+  assert.equal(notes.warn.length, 1);
+  notes.warn.length = 0;
+  assert.equal((await pick({ calling: true })).positions.length, 2, "a calling is not bounded");
+  assert.equal((await pick({ rangeFeet: null })).positions.length, 2, "no range states no bound");
+  assert.equal((await pick({ casterToken: "caster" })).positions.length, 1, "the token may be named by its id on the scene");
+  notes.warn.length = 0;
+  assert.equal(await pick({ casterToken: null }), null, "no token to measure from refuses a Player every click, and nothing is placed");
+  assert.equal(notes.warn.length, 2);
+  endSeat();
+});
+
+await t("a preConfirm the caller passes still refuses a click first, range or none", async () => {
+  const { scene } = setup();
+  gridOf(scene);
+  const token = casterOn(scene, 100, 100);
+  const seen = [];
+  globalThis.canvas = {
+    scene,
+    ready: true,
+    tokens: { placeTokens: async (previews, { preConfirm }) => [{ _source: NEAR }].filter((c) => preConfirm?.({ document: { _source: c } }) !== false).map((c) => ({ _source: c })) },
+  };
+  const summoner = registry.get("Actor.sum");
+  const base = { sourceUuid: "Compendium.test.Actor.m1", count: 1, spellId: SPELL.id, preConfirm: (ctx) => (seen.push(ctx), false) };
+  assert.equal(await pickPlacement(summoner, { ...base, rangeFeet: 30, casterToken: token }), null);
+  assert.equal(await pickPlacement(summoner, base), null);
+  assert.equal(seen.length, 2);
+  endSeat();
+});
+
+await t("the range limit reads a finite non-negative number and nothing else", () => {
+  assert.equal(logic.rangeLimitOf(0), 0);
+  assert.equal(logic.rangeLimitOf(12.5), 12.5);
+  for (const bad of [null, undefined, "", "5", NaN, -1, Infinity, true, {}]) assert.equal(logic.rangeLimitOf(bad), null, String(bad));
+});
+
+await t("checkPlacementRange measures each place and names what stopped it", () => {
+  const measure = (a, b) => Math.abs(a.x - b.x);
+  const from = { x: 0, y: 0 };
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 5, y: 0 }, { x: 10, y: 0 }], from, rangeFeet: 10, measure }), { ok: true });
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 5, y: 0 }, { x: 11, y: 0 }], from, rangeFeet: 10, measure }), { ok: false, reason: "outOfRange" });
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 99, y: 0 }], from: null, rangeFeet: 10, measure }), { ok: false, reason: "noCaster" });
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 99, y: 0 }], from: null, rangeFeet: 10, calling: true, measure }), { ok: true });
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 99, y: 0 }], from, rangeFeet: null, measure }), { ok: true });
+  assert.deepEqual(logic.checkPlacementRange({ positions: [{ x: 99, y: 0 }], from, rangeFeet: 10, measure: () => null }), { ok: true });
+});
+
+await t("normalizeCast keeps a well-formed id and finite levels, and drops the rest", () => {
+  assert.deepEqual(logic.normalizeCast({ castId: "abc9", casterLevel: 4, invocationLevel: 0 }, "fb"), { castId: "abc9", casterLevel: 4, invocationLevel: 0 });
+  assert.deepEqual(logic.normalizeCast({ castId: "a b", casterLevel: "4", invocationLevel: NaN }, "fb"), { castId: "fb", casterLevel: null, invocationLevel: null });
+  assert.deepEqual(logic.normalizeCast(undefined, "fb"), { castId: "fb", casterLevel: null, invocationLevel: null });
+});
+
+await t("pointGapFeet measures two points as given through the grid's own units, and is null where it cannot", async () => {
+  const { pointGapFeet, centreOfToken } = await import("../scripts/lib/distance-units.mjs");
+  const scene = gridOf({ id: "g" });
+  assert.equal(pointGapFeet(scene, { x: 0, y: 0 }, { x: 300, y: 0 }), 15);
+  scene.grid.units = "yd";
+  assert.equal(pointGapFeet(scene, { x: 0, y: 0 }, { x: 300, y: 0 }), 45, "units read through feet per unit");
+  assert.equal(pointGapFeet(scene, { x: 0, y: 0 }, null), null);
+  assert.equal(pointGapFeet(scene, { x: 0, y: NaN }, { x: 1, y: 1 }), null);
+  assert.equal(pointGapFeet({ grid: {} }, { x: 0, y: 0 }, { x: 1, y: 1 }), null);
+  assert.deepEqual(centreOfToken({ x: 100, y: 100, getCenterPoint: (p) => ({ x: p.x + 50, y: p.y + 50 }) }), { x: 150, y: 150 });
+  assert.equal(centreOfToken(null), null);
+});
+
+/* -------------------------------------------- */
 /*  The pure half                               */
 /* -------------------------------------------- */
 

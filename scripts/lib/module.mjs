@@ -64,7 +64,7 @@ import { keepDetachedMarks, pinFontScale, pinLook, pinTheme } from "./client-pin
 import * as moneyLogic from "./money-logic.mjs";
 import * as storage from "./storage.mjs";
 import * as places from "./place.mjs";
-import { summonerOf, summonsOf, placeSummons, dismissSummons, pickSummon, registerSummonPolicy, registerSummonNaming, registerSummons } from "./summons.mjs";
+import { summonerOf, summonsOf, placeSummons, pickPlacement, summonVerdict, dismissSummons, pickSummon, registerSummonPolicy, registerSummonNaming, registerSummons } from "./summons.mjs";
 import * as actorRead from "./actor-read.mjs";
 import { loadRuledata } from "./ruledata.mjs";
 import { resolveLevelValue } from "./vocab.mjs";
@@ -164,7 +164,7 @@ const FOLLOWER_SHEET_KEY = `${MODULE_ID}.FollowerCardSheet`;
 /** The library's own implementation of its API surface. */
 const localImpl = Object.freeze({
   // Rises whenever the surface below changes shape; a consumer gates on it.
-  apiVersion: 63,
+  apiVersion: 64,
   vocab,
   fields,
   /**
@@ -380,13 +380,14 @@ const localImpl = Object.freeze({
   /**
    * A character's summoned creatures (summons.mjs): `summonerOf` reads whose
    * summon a creature is, `summonsOf` lists a character's on a scene,
-   * `placeSummons` has the seat click where each stands and the GM's client
+   * `placeSummons` has the seat click where each stands (`pickPlacement`, the
+   * clicks alone; `summonVerdict`, the checks before them) and the GM's client
    * make the tokens, `dismissSummons` confirms and has the GM remove them,
    * `pickSummon` asks the creature and count of a spell's cast, and
    * `registerSummonPolicy` adds a feature's refusal to the placement check and
    * `registerSummonNaming` says which creatures a spell names.
    */
-  summons: { summonerOf, summonsOf, placeSummons, dismissSummons, pickSummon, registerSummonPolicy, registerSummonNaming },
+  summons: { summonerOf, summonsOf, placeSummons, pickPlacement, summonVerdict, dismissSummons, pickSummon, registerSummonPolicy, registerSummonNaming },
   /** Shared item baseline: isPhysical / isEquippable / weight6Of / … */
   itemModel,
   /** System actor reads: abilityMod / classLevel / monsterHd / hitDiceOrLevel. */
