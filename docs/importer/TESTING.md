@@ -1575,6 +1575,8 @@ fetched and holds, not only what it shows.
    second request for the same path, since OCR takes its bytes through
    `getData()`, which is a fetch of its own: count the opening request on its
    own, and expect the OCR's after it.
+   That holds for a book with no saved text; with one current the request is a
+   HEAD (see "A book is prepared once").
 8. With `importer/shelf-gone` in place, run
    `acksExtras.importer.cookbookReimportBook(<its book>, {ask: async () => true})`
    as the GM. *Observable:* a notice that the book is not connected, one
@@ -1587,6 +1589,77 @@ fetched and holds, not only what it shows.
 The three fixtures are kept. Step 7 imports documents: track the uuids of what
 it made (`api.track`, read back from the action's own result) and sweep them
 with `api.sweepTracked()`; the world's shelf itself was only read.
+
+## A book is prepared once
+
+A shelved book's text is parsed on the first GM read and saved beside its PDF;
+every later read, on any seat, takes the saved file and fetches no PDF
+(`docs/importer/MODEL.md`, "A book's text is parsed once and read from the saved
+file"). The observable is what the seat fetched and uploaded, and what the
+shelf journal's pointer names, so every step counts requests.
+
+### Fixtures
+
+1. **`importer/parse-fresh`** — a shelf journal for a registry book that has none
+   on the real shelf, built as `importer/shelf-shared` is (the shelf recipe's
+   fixture 2), its PDF page pointed at a copy of the smallest book that fits
+   under the Data directory at a path nothing has been parsed from
+   (`acks-extras-books/parse-fresh-<n>.pdf`). It carries
+   `flags.world.fixture` = `importer/parse-fresh` and no `flags.acks-extras.parsed`.
+   Kept. **To run step 2 again, re-point the journal's PDF page at a second
+   copy** (`parse-fresh-<n+1>.pdf`): the pointer's `src` no longer matches, so
+   the book has no current parse, and the old file stays in the `parsed` folder.
+   That re-pointing is the reset; nothing is deleted, since Foundry deletes no
+   file.
+2. **A seat that counts.** A capture browser per seat, each with a script added by
+   `Page.addScriptToEvaluateOnNewDocument` before navigation that wraps `fetch`
+   to log method and url, and wraps `FilePicker.upload` (the class at
+   `foundry.applications.apps.FilePicker.implementation`) to log its target
+   and file name. Two GM seats are needed for step 5.
+3. **The reference digest.** `node tools/importer/check-parse-parity.mjs <book>`
+   prints the sha256 of the file a parse of the reference PDF writes. It equals
+   the uploaded file's only where the fixture's PDF is that same printing.
+
+### Steps
+
+1. Read the fixture's pointer: `game.journal.find(j => j.getFlag("world",
+   "fixture") === "importer/parse-fresh").getFlag("acks-extras", "parsed")`.
+   *Observable:* undefined, or its `src` is not the PDF page's current path.
+2. As a GM, run an import that reads the fixture's book (the shelf recipe's
+   step 7). *Observable:* one `GET` of the fixture's `.pdf` for the whole
+   import, however many entries it reads; one `upload` into
+   `acks-extras-books/parsed` of `<book>-<stamp>-<attempt>.json`; and the pointer
+   now reads `{stamp, file, src, bytes, numPages, title}` with `src` the PDF page's
+   path, `bytes` the file's size on disk and `file` the uploaded path. The
+   imported documents are as with a book read live. Where fixture 3 applies,
+   fetch `file` and compare its sha256 with the gate's; record the node of one
+   entry (`executeEntry` through `cookbookDebug`) for step 3.
+3. Reload the GM seat and run the same import. *Observable:* no `.pdf` `GET`
+   for the fixture, one `HEAD` of its path and one `GET` of the saved file, no
+   `upload`, the pointer unchanged, and the recorded node of step 2 equal to the
+   new one.
+4. Rename the Data copy so the fixture's path answers 404, and
+   repeat step 3's read. *Observable:* the HEAD answers 404; the read says the
+   book is not connected (`book-closed`); the pointer still names the file; a
+   repair over the book deletes nothing. Rename it back.
+5. With two GM seats joined and the fixture's pointer made stale (the reset
+   above), start the same import on both at once. *Observable:* two uploaded
+   files with different names whose sha256 are equal, a pointer naming one of
+   them, and both seats' imports complete with equal nodes.
+6. Re-point the PDF page at a second copy. *Observable:* the pointer's `src` no
+   longer matches, the next read parses again (one `GET`, one `upload`), and
+   the earlier file is still in the `parsed` folder.
+
+A Player seat's half (no parse, no upload, no pointer write, opening the PDF
+while no text is saved) has no read a Player can start live: the hire's ability
+read runs on the GM seat. It is covered by `test-parsed-book`; a walk that finds a
+Player-reachable read records its drive mechanics here.
+
+### Teardown
+
+The fixture is kept. Step 2's imports make documents: track their uuids from the
+action's result and sweep them with `api.sweepTracked()`. Restore the PDF
+page's `src` to the copy the fixture is meant to hold; the uploaded files stay.
 
 ## Location journals refuse a page they cannot anchor
 

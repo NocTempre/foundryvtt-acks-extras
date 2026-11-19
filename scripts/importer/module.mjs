@@ -14,7 +14,10 @@
  * A PDF staged under the Foundry data directory is the shelf: one JournalEntry
  * per book, its PDF page pointing at the staged file. Every seat that may read
  * a shelved book registers it at join with no gesture and fetches nothing: the
- * file is fetched and opened by the first read that needs it. The per-seat
+ * first read that needs its text makes it once (a GM seat parses the PDF and
+ * saves the text beside it), and every seat then reads the saved text; the file
+ * is fetched and opened only for pixels, bytes and a book with no saved text
+ * on a seat that may not make one. The per-seat
  * kinds are how a book is read the first time and how its bytes reach the
  * shelf. Design: docs/importer/MODEL.md.
  *
@@ -33,6 +36,7 @@ import { matchFilesToBooks } from "./book-match.mjs";
 import { readForm } from "../character-sheet/pdf/form.mjs";
 import { RECIPES } from "./recipes.mjs";
 import { BookHandle } from "./book-handle.mjs";
+import { ParsedBooks } from "./parsed-book.mjs";
 import { openBook, useTypography, pageItems, extractRecipe, extractDisplay, extractRunin, extractSpoils, extractPageArt, extractPageArtRegion, extractPageGray, extractPageMap, listHeadings, wirePdfjs } from "./extract.mjs";
 import { sceneFrame, turnMatrix, pictureKey } from "./scene-binding.mjs";
 import { TRACE_PITCH, storeyCrops, traceStoreys, traceWalls } from "./wall-trace.mjs";
@@ -78,7 +82,8 @@ const sessionDocs = new Map();
 
 /**
  * Where each book lives ON THIS SEAT, so the next session can offer to reopen
- * it. The location persists; the book's text never does.
+ * it. The location persists on the seat, never the file. A shelved book's
+ * parsed text is the world's, on the server (`parsed-book.mjs`), not the seat's.
  *
  * Three kinds, one per way a seat can reach its own PDF:
  *
@@ -533,7 +538,21 @@ async function shelveUpload(bookId, file, { verified = false } = {}) {
   const record = { path: res.path, name, size: named.size ?? 0 };
   if (!verified) return shelvePath(bookId, res.path, { name, size: record.size });
   await shelfPut(bookId, record);
+  parseStaged(bookId, named);
   return record;
+}
+
+/**
+ * Make a just-staged book's saved text from the bytes this seat holds, so the
+ * first read finds it. Started once the file is up and fingerprinted, and not
+ * waited for: staging does not take the length of a parse. A failure leaves the
+ * book as it was; the first GM read makes the text instead.
+ */
+function parseStaged(bookId, file) {
+  if (!parsedBooks.canParse(bookId)) return;
+  parsedBooks
+    .prepare(bookId, { getBytes: () => file.arrayBuffer() })
+    .catch((err) => console.warn(`${MODULE_ID} | the text of ${bookId} could not be saved after staging`, err));
 }
 
 /**
@@ -584,10 +603,51 @@ async function stageFile(bookId, file) {
 }
 
 /**
- * A handle for a book: the registry row's page count and label until a live
- * open reports the file's own, the book's typography from the first page
- * read, and `openChecked` as the open that fingerprints. `src` is where the
- * file can be fetched again, null for a file only this seat holds.
+ * The shelf journal flag that points at a book's saved text, beside `shelf`:
+ * `{stamp, file, src, bytes, numPages, title}`. It is current while `src` is the
+ * journal's PDF page and `stamp` is this build's.
+ */
+const PARSED_FLAG = "parsed";
+
+/** Where saved text is uploaded: beside the shelved PDFs, in a folder of its own. */
+const PARSED_DIR = `${SHELF_DIR}/parsed`;
+
+/**
+ * The world's saved text of shelved books (`parsed-book.mjs`), over the shelf
+ * journals. Every call reads the journal at that moment: a pointer is current
+ * only while the journal's PDF page still names the file it was parsed from.
+ */
+const parsedBooks = new ParsedBooks({
+  isGM: () => !!game.user?.isGM,
+  // A form is read by field and never parsed.
+  srcOf: (bookId) => (bookIsForm(bookId) ? null : (shelfPage(shelfJournal(bookId))?.src ?? null)),
+  pointerOf: (bookId) => shelfJournal(bookId)?.getFlag(MODULE_ID, PARSED_FLAG) ?? null,
+  writePointer: async (bookId, pointer) => {
+    const journal = shelfJournal(bookId);
+    if (!journal) throw new Error(`${bookId} is not on the shelf`);
+    await journal.update({ [`flags.${MODULE_ID}.${PARSED_FLAG}`]: pointer });
+  },
+  upload: async (name, text) => {
+    const FP = filePicker();
+    for (const dir of [SHELF_DIR, PARSED_DIR]) {
+      await FP.createDirectory("data", dir).catch((err) =>
+        console.debug(`${MODULE_ID} | directory "${dir}" not created (it usually already exists)`, err),
+      );
+    }
+    const res = await FP.upload("data", PARSED_DIR, new File([text], name, { type: "application/json" }), {}, { notify: false });
+    if (!res?.path) throw new Error(`${MODULE_ID} | the saved text of ${name} could not be uploaded`);
+    return res.path;
+  },
+  open: (bookId, buffer) => openChecked(bookId, buffer),
+  attempt: () => foundry.utils.randomID(10),
+});
+
+/**
+ * A handle for a book: the saved text's page count and label (the registry
+ * row's until one is made) until a live open reports the file's own, the book's
+ * typography from the first page read, and `openChecked` as the open that
+ * fingerprints. `src` is where the file can be fetched again, null for a file
+ * only this seat holds.
  */
 function handleFor(bookId, src) {
   const row = REGISTRY[bookId];
@@ -597,6 +657,7 @@ function handleFor(bookId, src) {
     numPages: row?.pages ?? 0,
     title: row?.label ?? bookId,
     open: (buffer) => openChecked(bookId, buffer),
+    parsed: parsedBooks,
   });
   return useTypography(handle, bookId);
 }

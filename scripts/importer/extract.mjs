@@ -108,7 +108,7 @@ const footerKey = (pageNo, it) => `${pageNo % 2}@${it.transform[5].toFixed(1)}@$
  * width test depends on. Runs before the footer test so compiler and runtime
  * dedupe identically.
  */
-function textRuns(content) {
+export function textRuns(content) {
   const seen = new Set();
   const runs = [];
   // pdf.js sets a tight word space as its own zero-width " " item and marks a

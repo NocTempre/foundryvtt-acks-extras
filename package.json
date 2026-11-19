@@ -21,6 +21,7 @@
     "harvest:index": "node tools/importer/harvest-index.mjs",
     "compile": "node tools/importer/compile-cookbook.mjs",
     "verify:cookbook": "node tools/importer/verify-cookbook.mjs",
+    "check:parse-parity": "node tools/importer/check-parse-parity.mjs",
     "ledger": "node tools/importer/ledger-init.mjs",
     "verify:compendium": "node tools/importer/verify-against-compendium.mjs",
     "rebuild": "node tools/rebuild.mjs"

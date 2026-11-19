@@ -2468,12 +2468,13 @@ document, `acksExtras.bookOpened` fires, and nothing is fetched. The handle is
 doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
 
 - **Registered and verified.** A handle answers `numPages` and `title` from the
-  registry row until a live open reports the file's own, and carries the book's
-  typography. `live()` fetches the file from the handle's `src`, opens it
+  book's saved text when one is current, else from the registry row, until a
+  live open reports the file's own, and carries the book's typography. `live()` fetches the file from the handle's `src`, opens it
   through `openChecked` (`module.mjs`: the fingerprint, the wrong-book and
   not-a-form refusals) and holds the pdf.js document; it is single-flight, and
   a failure is not remembered. Once it has succeeded the handle is
-  *verified* for as long as it holds that document. A connect or a staging (`ingestBook`) hands its
+  *verified* for as long as it holds that document; a current saved text, or a
+  parse this seat just made, verifies it as well (next section). A connect or a staging (`ingestBook`) hands its
   open document to the handle (`adopt`), which is verified from then on; a file
   this seat picked has no `src`.
 - **Reads verify first.** `readForImport` and `repairFromEntry`, and the direct
@@ -2499,6 +2500,65 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
   `src` never releases.
 - **The character sheet's blank** is `bookBytes("sheet")`: a fetch of the
   shelf file when Export is pressed, null when the file cannot be read.
+
+## A book's text is parsed once and read from the saved file
+
+`parsed-book.mjs` makes and reads a shelved book's text layer. A GM seat parses
+a book once; every seat then serves a page's text from the saved file, so a
+read after the first fetches no PDF. A form is never parsed.
+
+- **The file.** One JSON per book, uploaded by `FilePicker.upload` to
+  `acks-extras-books/parsed/<book>-<stamp>-<attempt>.json`. Header
+  `{book, stamp, src, bytes, numPages, title, fonts}`; per page
+  `[width, height, runs]`; a run `[str, x, y, width, height, font, sp]`, the
+  text matrix's translation as pdf.js gave it, at full precision, `font` an index
+  into `fonts`, `sp` the word-space boundary `textRuns` keeps. It holds
+  `textRuns`' output and nothing after it: the furniture profile, typography and
+  `fuseRuns` run in `pageItems` at read, so an edit to `extract.mjs` or to a
+  registry row never invalidates a file. The stamp is `PARSE_SCHEMA` (bumped with
+  the shape or with `textRuns`) over the pdf.js version. The body holds no time
+  and no seat, so two seats parsing one PDF write the same bytes.
+- **Font ids.** pdf.js names a font by the document that loaded it
+  (`g_d3_f1`), a counter that runs on across every open in a page. The saved id
+  drops the counter (`g_f1`; `fontId`) and keeps the load order, which a parse
+  fixes by reading pages 1 to N from one open of its own. Nothing compares a
+  font id across documents.
+- **The pointer.** `flags["acks-extras"].parsed = {stamp, file, src, bytes,
+  numPages, title}` on the shelf journal, beside `shelf`. It is current while its
+  `src` is the journal's PDF page now and its stamp is this build's, so a
+  re-staged book or a new pdf.js makes it stale with no other signal. The page
+  stays the record of which file is the book. `bytes` is the PDF's size.
+- **Who parses.** `BookHandle.verify()` on a GM seat with no current pointer
+  calls `ParsedBooks.prepare`: fetch the PDF, open and fingerprint it
+  (`openChecked`), parse every page, upload, write the pointer. The staging seat
+  (`shelveUpload`, after the journal is written) does the same from the bytes it
+  holds, without waiting. One run per book at a time; a second caller takes the
+  first's result. Two GM seats racing each write a file and a pointer, and the
+  last pointer wins: the files differ only in name. A book re-staged while its
+  parse ran gets no pointer. A player seat never parses: with no current
+  pointer it opens the PDF, and it saves nothing. A parse or upload that fails
+  is remembered by the handle until its release, and reads open the PDF.
+- **Verified from saved text.** One HEAD of the pointer's `src`: a 404, or a
+  `content-length` other than `bytes`, refuses the book and nothing falls back
+  to a live open; a reply with no `content-length` vouches for presence only. A
+  seat that just parsed the file is verified without a HEAD. The vouching lapses
+  with the live document's: after `IDLE_MS` with no read, so a delete asks the
+  server again. A read re-arms the clock.
+- **Reads.** `getPage(n)` verifies, then serves the saved page (`SavedPage`:
+  `getViewport` and `getTextContent`, which is all `pageItems` and
+  `footerProfile` call), else the live document's. The saved book is fetched
+  once per handle and dropped with the release. A saved file that cannot be read
+  or is not the pointer's book is remembered as unreadable and the live document
+  answers. A saved page throws for an operator list or a render, so a pixel
+  reader that skipped `liveDoc` fails loudly; the pixel readers, the bytes and
+  OCR still take the live document.
+- **Not saved.** Placements for scene pages (`pageArtPlacements` still opens the
+  PDF) and any control or state on the Books tab.
+- **The parity gate.** `tools/importer/check-parse-parity.mjs`, local only like
+  `verify-cookbook`: every page's `pageItems` and every entry's node, live
+  against saved, deep-equal, plus the digest of the file and of a second parse
+  from another open. Run it after a change to `textRuns`, `parsed-book.mjs` or
+  the pdf.js build.
 
 ## The cookbook's files
 

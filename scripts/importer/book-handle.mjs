@@ -2,25 +2,31 @@
  * A shelved book as the session holds it: a doc-shaped handle that fetches
  * nothing until something needs the file.
  *
- * A handle answers `numPages` and `title` at once (from the registry row until
- * a live open reports the file's own), carries the book's typography, and
- * stands in `sessionDocs` where a pdf.js document stood, so every reader keeps
- * its `doc.getPage(n)` / `doc.numPages` shape. Its two states:
+ * A handle answers `numPages` and `title` at once (from the book's saved text
+ * when one is current, else the registry row, until a live open reports the
+ * file's own), carries the book's typography, and stands in `sessionDocs`
+ * where a pdf.js document stood, so every reader keeps its `doc.getPage(n)` /
+ * `doc.numPages` shape. Its two states:
  *
  *   registered  placed at join; the file has not been asked for.
- *   verified    a live open fingerprinted the file (`live()`) and its document is
- *               still held, so the file is there and is this book. A release
- *               lapses it.
+ *   verified    the file is there and is this book: a live open fingerprinted
+ *               it (`live()`) and its document is still held, or a current
+ *               saved text's `src` answered one HEAD with the size it was parsed
+ *               at, or this seat just parsed it. An idle release lapses it.
  *
  * Reads verify before their first page; deletes ask `verified` and never run
- * on a registered handle (`verifiedDoc`). The live pdf.js document opens on
- * the first page read, is kept while a hold stands (`holdingLive`), and is
- * released after `IDLE_MS` with no read. A handle with no `src` (a file this
- * seat picked) cannot reopen what it released, so it never releases.
+ * on a registered handle (`verifiedDoc`). A page's text comes from the saved
+ * text (`parsed-book.mjs`) when its pointer is current and from the live pdf.js
+ * document otherwise; a GM seat with no current pointer makes the saved text
+ * first (`prepare`), a player seat never does. The pixel readers take the live
+ * document (`liveDoc`), which opens on the first call, is kept while a hold
+ * stands (`holdingLive`), and is released after `IDLE_MS` with no read. A
+ * handle with no `src` (a file this seat picked) cannot reopen what it
+ * released and has no saved text, so it never releases.
  *
- * Fetch and open are injected, so the handle holds no PDF engine and no
- * Foundry: `open(buffer)` fingerprints and returns `{doc, numPages, title}`,
- * or throws for a file that is another book.
+ * Fetch, open and the saved-text store are injected, so the handle holds no PDF
+ * engine and no Foundry: `open(buffer)` fingerprints and returns
+ * `{doc, numPages, title}`, or throws for a file that is another book.
  */
 
 /** How long a live document stays open after its last read, in milliseconds. Longer than the slowest page render. */
@@ -56,6 +62,13 @@ export class BookHandle {
   #doc = null;
   #opening = null;
   #verified = false;
+  #vouched = false;
+  #verifying = null;
+  #refusal = null;
+  #opened = false;
+  #parsed;
+  #saved = null;
+  #noParse = false;
   #timer = null;
   #gone = false;
   #idleMs;
@@ -64,14 +77,15 @@ export class BookHandle {
    * @param {object} o
    * @param {string} o.bookId the registry id
    * @param {string|null} o.src a fetchable path of the file; null for a file only this seat holds
-   * @param {number} o.numPages the registry row's page count, until a live open reports the file's
-   * @param {string} o.title the registry row's label, until a live open reports the file's
+   * @param {number} o.numPages the registry row's page count, until saved text or a live open reports the file's
+   * @param {string} o.title the registry row's label, until saved text or a live open reports the file's
    * @param {(buffer: ArrayBuffer) => Promise<{doc: object, numPages: number, title: string}>} o.open
    *   opens and fingerprints the bytes; rejects for another book
    * @param {typeof fetch} [o.fetchImpl]
    * @param {number} [o.idleMs] how long the live document outlives its last read
+   * @param {import("./parsed-book.mjs").ParsedBooks|null} [o.parsed] the saved-text store; with none every read opens the PDF
    */
-  constructor({ bookId, src = null, numPages = 0, title = "", open, fetchImpl = (...args) => globalThis.fetch(...args), idleMs = IDLE_MS }) {
+  constructor({ bookId, src = null, numPages = 0, title = "", open, fetchImpl = (...args) => globalThis.fetch(...args), idleMs = IDLE_MS, parsed = null }) {
     this.#idleMs = idleMs;
     this.#bookId = bookId;
     this.#src = src;
@@ -79,6 +93,7 @@ export class BookHandle {
     this.#title = title;
     this.#open = open;
     this.#fetch = fetchImpl;
+    this.#parsed = parsed;
   }
 
   /** Marks a handle where a plain document would not carry one. */
@@ -94,18 +109,28 @@ export class BookHandle {
     return this.#src;
   }
 
-  /** The file's page count once a live open reported it, else the registry row's. */
+  /** The current saved text's pointer, when it is this handle's file. */
+  #pointer() {
+    const pointer = this.#parsed?.pointer(this.#bookId);
+    return pointer && this.#src && pointer.src === this.#src ? pointer : null;
+  }
+
+  /** The file's page count once a live open reported it, else the saved text's, else the registry row's. */
   get numPages() {
-    return this.#numPages;
+    return this.#opened ? this.#numPages : (this.#pointer()?.numPages ?? this.#numPages);
   }
 
   get title() {
-    return this.#title;
+    return this.#opened ? this.#title : (this.#pointer()?.title ?? this.#title);
   }
 
-  /** Whether a live open fingerprinted the file and still holds it: the only state a delete may rest on. */
+  /**
+   * Whether the file is known to be there and to be this book: the only state
+   * a delete may rest on. A held live document, or a vouching that has not
+   * lapsed.
+   */
   get verified() {
-    return this.#verified;
+    return this.#verified || this.#vouched;
   }
 
   /** Whether a live pdf.js document is held now. */
@@ -124,6 +149,7 @@ export class BookHandle {
     this.#numPages = numPages;
     this.#title = title;
     this.#src = src;
+    this.#opened = true;
     this.#verified = true;
     this.#gone = false;
     this.#arm();
@@ -158,26 +184,125 @@ export class BookHandle {
     this.#doc = doc;
     this.#numPages = numPages;
     this.#title = title;
+    this.#opened = true;
     this.#verified = true;
     this.#arm();
     return doc;
   }
 
-  /** Whether the file is there and is this book: a live open, repeated after a release. Never throws. */
-  async verify() {
-    if (this.#verified) return true;
+  /**
+   * Whether the file is there and is this book. Settled in this order, and
+   * never throws:
+   *
+   *   1. a GM seat with no current saved text makes it (`prepare`), which
+   *      fetches, fingerprints and parses the file, so what it leaves is
+   *      verified; a failure is remembered until a release and the read opens
+   *      the PDF instead;
+   *   2. a current saved text is checked with one HEAD of its `src`: the file
+   *      answers, at the size it was parsed at. A 404 or another size refuses
+   *      the book, and nothing falls back to opening the PDF;
+   *   3. with no saved text the PDF is opened live and fingerprinted.
+   *
+   * A verified handle answers at once. A concurrent call shares the first's run.
+   */
+  verify() {
+    if (this.#verifying) return this.#verifying;
+    this.#verifying = this.#verify().finally(() => {
+      this.#verifying = null;
+    });
+    return this.#verifying;
+  }
+
+  async #verify() {
     try {
+      let pointer = this.#pointer();
+      if (!pointer && this.#canPrepare()) {
+        const made = await this.#prepare();
+        pointer = made?.pointer ?? null;
+        if (made?.fresh) this.#vouch();
+      }
+      if (this.verified) {
+        this.#arm();
+        return true;
+      }
+      if (pointer) return await this.#head(pointer);
       await this.live();
       return true;
     } catch (err) {
-      console.warn(`acks-extras | ${this.#bookId} could not be verified`, err);
-      return false;
+      return this.#refuse(err);
     }
   }
 
-  /** A page of the live document; opens it on first use. Rejects when the file cannot be opened. */
+  /** Remember why the book was refused, so a read rejects with it; answers false. */
+  #refuse(err) {
+    console.warn(`acks-extras | ${this.#bookId} could not be verified`, err);
+    this.#refusal = err;
+    return false;
+  }
+
+  #canPrepare() {
+    return !!this.#parsed && !!this.#src && !this.#noParse && this.#parsed.canParse(this.#bookId);
+  }
+
+  async #prepare() {
+    try {
+      return await this.#parsed.prepare(this.#bookId, { getBytes: () => this.#bytes() });
+    } catch (err) {
+      console.warn(`acks-extras | ${this.#bookId}: its text could not be saved, so reads open the PDF`, err);
+      this.#noParse = true;
+      return null;
+    }
+  }
+
+  async #bytes() {
+    const resp = await this.#fetch(this.#src);
+    if (!resp?.ok) throw new Error(`${this.#bookId}: could not read ${this.#src} (${resp?.status})`);
+    return resp.arrayBuffer();
+  }
+
+  /**
+   * One HEAD of the saved text's `src`. The size is checked where the host
+   * reports one; a reply with no `content-length` vouches for presence only.
+   */
+  async #head(pointer) {
+    const resp = await this.#fetch(pointer.src, { method: "HEAD" });
+    if (!resp?.ok) return this.#refuse(new Error(`${this.#bookId}: could not read ${pointer.src} (${resp?.status})`));
+    const length = resp.headers?.get?.("content-length");
+    if (length != null && length !== "" && Number(length) !== pointer.bytes) {
+      return this.#refuse(new Error(`${this.#bookId}: ${pointer.src} is ${length} bytes, its saved text was read from ${pointer.bytes}`));
+    }
+    this.#vouch();
+    return true;
+  }
+
+  #vouch() {
+    this.#vouched = true;
+    this.#arm();
+  }
+
+  /**
+   * A page: the saved text's when its pointer is current, else the live
+   * document's, opened on first use. Rejects when the book cannot be verified
+   * and when neither source can be read. A saved text that cannot be read is
+   * remembered until a release, and the live document answers.
+   */
   async getPage(n) {
-    return (await this.live()).getPage(n);
+    if (!(await this.verify())) throw this.#refusal ?? new Error(`${this.#bookId}: the file could not be verified`);
+    const saved = await this.#text();
+    return saved ? saved.getPage(n) : (await this.live()).getPage(n);
+  }
+
+  /** The saved text, read once while the pointer stays the same; null when none is current or it cannot be read. */
+  #text() {
+    const pointer = this.#pointer();
+    if (!pointer) return Promise.resolve(null);
+    if (this.#saved?.file === pointer.file) return this.#saved.promise;
+    const promise = this.#parsed.read(this.#bookId, pointer).catch((err) => {
+      console.warn(`acks-extras | ${this.#bookId}: its saved text could not be read, so reads open the PDF`, err);
+      return null;
+    });
+    this.#saved = { file: pointer.file, promise };
+    return promise;
   }
 
   /** A fresh copy of the file's bytes, fetched from `src`, or from the live document for a picked file. */
@@ -192,7 +317,7 @@ export class BookHandle {
   #arm() {
     clearTimeout(this.#timer);
     this.#timer = null;
-    if (!this.#src || !this.#doc) return;
+    if (!this.#src || !(this.#doc || this.#vouched)) return;
     this.#timer = setTimeout(() => this.#idle(), this.#idleMs);
     this.#timer.unref?.();
   }
@@ -203,14 +328,18 @@ export class BookHandle {
     this.#release();
   }
 
-  // A fingerprint vouches for the file as it was when the live document opened.
-  // Once that document is released nothing holds the file, so the vouching
-  // lapses with it: the next read or delete opens again and finds the file
-  // gone or changed instead of resting on a stale answer.
+  // A fingerprint vouches for the file as it was when the live document opened,
+  // and a HEAD for the file as it answered. Once the idle grace passes nothing
+  // holds the file, so the vouching lapses: the next read or delete asks again
+  // and finds the file gone or changed instead of resting on a stale answer.
+  // The saved text and a remembered failure to make it go with it.
   #release() {
     const doc = this.#doc;
     this.#doc = null;
     this.#verified = false;
+    this.#vouched = false;
+    this.#saved = null;
+    this.#noParse = false;
     Promise.resolve(doc?.destroy?.()).catch(() => {});
   }
 
@@ -221,6 +350,8 @@ export class BookHandle {
     this.#timer = null;
     const doc = this.#doc;
     this.#doc = null;
+    this.#vouched = false;
+    this.#saved = null;
     await doc?.destroy?.();
   }
 }
@@ -239,5 +370,5 @@ export const liveDoc = (doc) => (doc?.isBookHandle ? doc.live() : Promise.resolv
  */
 export const verifiedDoc = (doc) => (doc?.isBookHandle ? doc.verified : !!doc);
 
-/** Verify a session document before a read: a handle opens live, any other document is already open. Never throws. */
+/** Verify a session document before a read: a handle settles it as `verify()` does, any other document is already open. Never throws. */
 export const verifyDoc = (doc) => (doc?.isBookHandle ? doc.verify() : Promise.resolve(!!doc));

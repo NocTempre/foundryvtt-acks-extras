@@ -2692,7 +2692,7 @@ for `blob:` workers, or what its file server lets another origin read. Where
 a `blob:` worker is refused, pdf.js opens the book on the main thread, slower;
 the OCR engine has no such fallback.
 
-## 2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it
+## 2026-11-18 — Nothing opens at join: a shelved book is registered, and its file opens when a read needs it — SUPERSEDED IN PART 2026-11-18
 
 **Ruled.** The owner: "Parse once, read everywhere". This slice (S1) is its
 first half: nothing is fetched or parsed at join. Example: a GM seat joining
@@ -2776,3 +2776,68 @@ breaks, and the dedup index and the ledger have to follow the move.
 imported in. Journal first leaves it in the Judge's pack; Tome first puts it
 in the Tome's line pack. A Judge who looks for every Tome item in the Tome's
 pack finds the ones the Journal made first in the Judge's pack.
+
+## 2026-11-18 — A shelved book's text is parsed once and saved beside its PDF
+
+**Ruled.** The owner: "Parse once, read everywhere", and on persisting it, "Yes,
+save it". Books already shelved: "On first read", so no background parse.
+Example: RR is read on a GM seat for the first time after this build. That seat
+fetches the 100 MB PDF once, parses its pages, uploads `rr-<stamp>-<attempt>.json`
+and writes the pointer on RR's shelf journal. The next GM seat, the same seat
+tomorrow, and a Player seat the Judge shared RR with, read pages from that file
+and fetch no PDF; each asks the PDF's address one HEAD.
+
+This is S2 of the plan whose S1 is the entry above. It supersedes in part that
+entry's two states: *verified* is now a live open fingerprinted this session
+**or** a current saved text whose `src` answers one HEAD with its `bytes` (or
+which this seat just parsed). A 404 or another size refuses the book and never
+falls through to a live open. New evidence for the change, which that entry
+could not have used: the text a read needs is in a file the seat can check by a
+HEAD, so a 100 MB fetch to learn that the file is there is no longer needed. S1's
+cost line ("a book is fetched on the first read of each session") ends here.
+Everything else in S1 stands, including 2026-11-10's delete licence, asked of
+verified, and the gone-file guarantee: a current pointer over a 404 reads
+nothing and licenses no delete.
+
+**What is saved.** `textRuns`' output per page (size and runs, full precision),
+not `pageItems`' output: furniture, typography and `fuseRuns` still run at read,
+so no registry or `extract.mjs` edit invalidates a file. The stamp is the
+schema number over the pdf.js version. The pointer sits on the shelf journal and
+is current while its `src` is the PDF page's, so the page stays the record
+(2026-09-03). Who parses: the first GM seat to need the text, or the staging
+seat; one run per book; racing seats write identical bytes under different names
+and the last pointer wins; a player seat never parses.
+
+**Found while building.** pdf.js's font id carries a per-document counter
+(`g_d3_f1`), so the same file read twice names its fonts differently, and two
+seats could never have written one file. The saved id drops the counter and
+keeps the load order (`fontId`). `PDFDocumentProxy` has no `destroy` in the
+vendored pdf.js 6.1.200; its loading task does, so `doc.destroy?.()` releases
+nothing. The parse releases through the task (`releaseDoc`); S1's handle still
+calls `doc.destroy?.()`.
+
+*Rejected:* saving `pageItems`' output (a registry or extract edit would
+invalidate every file); parsing from the handle's live document (its fonts load
+in whatever order earlier reads left, so the file would differ per seat); a
+HEAD mismatch that falls back to a live open (the file at that path is not the
+one that was parsed, and the pointer would go on naming a stale parse); a
+background backfill (the owner: "On first read").
+
+*Costs.*
+- Stale parse files pile up: Foundry has no delete and never overwrites a
+  non-media file, so every attempt, every re-staging and every pdf.js update
+  leaves a file behind.
+- A same-length replacement of the PDF at the same path goes unnoticed; the HEAD
+  checks presence and size. Re-staging writes a new path and so a stale pointer.
+- The first read of a book staged before this build pays one fetch and one
+  whole-book parse (14 to 46 seconds offline, unmeasured in a browser).
+- The JSON is readable by anyone who learns the path, as the PDF is (2026-08-21).
+- A HEAD that returns `content-length` on a host that redirects is inferred and
+  unmeasured; a host that omits it gets a presence check only.
+- A browser parse matching a Node parse byte for byte is unmeasured; the gate
+  compares two Node opens and live against saved, and the walk compares the
+  uploaded file's digest with the gate's.
+- A parse or upload that fails leaves reads opening the PDF, once per book per
+  idle release, with a warning.
+- T-0675's guard, which protected the join pass that S1 removed, is dead code to
+  delete in a later slice.
