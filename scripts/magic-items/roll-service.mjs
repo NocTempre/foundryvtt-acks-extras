@@ -11,7 +11,7 @@
 import * as services from "../lib/services.mjs";
 import { getDoc, getLayer, hasDoc, citeOf, PRIORITY } from "../lib/tables.mjs";
 import { COOKBOOK_ITEMS_CONTRACT, MAGIC_ITEM_DOC } from "./constants.mjs";
-import { listAt, walkChain } from "./chain-logic.mjs";
+import { armsTypeOf, listAt, walkChain } from "./chain-logic.mjs";
 
 /** The document's merged tables, or null while nothing is imported. */
 export function readTables() {
@@ -107,26 +107,36 @@ export async function linkedDocument(ref) {
  * @param {"classic"|"heroic"|"gritty"} [args.style]
  * @param {string} [args.rarity] the heroic or gritty list's key
  * @param {string} [args.category] the classic category list's key
+ * @param {string} [args.armsSetting] a setting column's key in the arms grids (`s1` and on); with it, a
+ *   row that links to an arms grid is also typed (`item.armsType`), and without it nothing extra is rolled
  * @param {function} [args.roller] `roll(expr) -> {total, sides}`; the Foundry roller by default
  * @param {object} [args.tables] the document's tables; the registry's by default
  * @returns {Promise<{ok: boolean, reason?: string, start: string|null,
  *   steps: object[], item: object|null, error?: object, rolls: Roll[]}>}
  *   Each step is a walk step with the list's `caption`, `cite` and `overridden`.
  *   The item's `uuid` is the linked document's where its `ref` names one the
- *   `cookbook-items` provider answers, else null.
+ *   `cookbook-items` provider answers, else null. `item.arms` is the row's link to
+ *   the grid or list that types an arm (`{grid}`, `{kind}` or `{name}`), present
+ *   only on a row that has one. `item.armsType` is the type rolled on the setting's
+ *   column, as the grid prints it: present only with `armsSetting`, a `{grid}` or
+ *   `{kind}` link, and lists that roll. A `{name}` link rolls nothing, since the row's
+ *   own noun names the arm. The type's dice are in `rolls` after the chain's, never in `steps`.
  */
-export async function rollMagicItem({ from, style, rarity, category, roller, tables } = {}) {
+export async function rollMagicItem({ from, style, rarity, category, armsSetting, roller, tables } = {}) {
   const rolls = [];
   const refuse = (reason, extra = {}) => ({ ok: false, reason, start: null, steps: [], item: null, rolls, ...extra });
   const source = tables === undefined ? readTables() : tables;
   if (!source) return refuse("not-imported");
   const start = startOf({ from, style, rarity, category });
   if (!start.ok) return refuse(start.reason);
-  const walked = await walkChain({ tables: source, from: start.from, roll: roller ?? foundryRoller(rolls) });
+  const roll = roller ?? foundryRoller(rolls);
+  const walked = await walkChain({ tables: source, from: start.from, roll });
   const steps = walked.steps.map((s) => ({ ...s, ...describeList(s.list, source) }));
   if (walked.error) {
     return { ok: false, reason: walked.error.code, start: start.from, steps, item: null, error: walked.error, rolls };
   }
   const linked = await linkedDocument(walked.item?.ref);
-  return { ok: true, start: start.from, steps, item: linked ? { ...walked.item, uuid: linked.uuid } : walked.item, rolls };
+  const item = linked ? { ...walked.item, uuid: linked.uuid } : walked.item;
+  const armsType = await armsTypeOf({ tables: source, arms: item?.arms, setting: armsSetting, roll });
+  return { ok: true, start: start.from, steps, item: armsType ? { ...item, armsType } : item, rolls };
 }

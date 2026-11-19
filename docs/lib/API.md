@@ -306,14 +306,14 @@ conditions held on its score (`withMoraleConditions`). `open` is handed the
 actor with its score as stored, and a page that wants the conditions reads
 them from `conditions.rollMath("morale", conditions.subjectOf(actor))`.
 
-### Contract `magic-item-roll` v1
+### Contract `magic-item-roll` v2
 
 Provider: the magic-items feature (`scripts/magic-items/roll-service.mjs`).
 Consumers: any feature that rolls a magic item without importing it. Shape:
 
 ```
 {
-  roll({from, style, rarity, category, roller}) → Promise<result>   // never throws on table content
+  roll({from, style, rarity, category, armsSetting, roller}) → Promise<result>   // never throws on table content
 }
 ```
 
@@ -333,6 +333,20 @@ where the chain could not go on). `ref` is the cookbook entry id the importer li
 the reached row to when it assembled the tables, else null; it is not one of `fields`.
 `uuid` is the document of `ref` where a `cookbook-items` provider (below) answers
 one, else null. `rolls` holds the Foundry `Roll`s of the default roller.
+
+v2 adds the typing of an arm. A row the importer found to name an arm by its bonuses
+alone carries `item.arms`, its link: `{grid}` (the arms grid that types it), `{kind}`
+(the id of the weapon-kind list, which picks the grid) or `{name}` (the row's own noun
+names the arm); the key is absent on any other row and is not one of `fields`.
+`armsSetting` is a setting column's key in the arms grids (`s1` and on, named by
+`armsSettings` in the document). With it, a `{grid}` link rolls that grid's column and a
+`{kind}` link rolls the kind list and then the column of the grid it landed on, and the
+type as the grid prints it is `item.armsType`. Its dice follow the chain's in `rolls` and
+are not steps. `armsType` is absent, the roll still ok, when no setting is given (nothing
+extra is rolled), the link is `{name}` or none, the ammunition grid is the one named (the
+importer links none to it), a list or column is not imported, or a die is not the one
+asked for. The setting is the caller's: the contract takes no default and rolls no type
+without one.
 
 ### Contract `cookbook-items` v1
 

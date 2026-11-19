@@ -17,7 +17,7 @@ import { openRoller } from "./roll-dialog.mjs";
 Hooks.once("init", () => {
   services.register(MAGIC_ITEM_ROLL_CONTRACT, { roll: rollMagicItem });
   // apiVersion: bumped on additive changes; a removal is a new major.
-  acksExtras.magicItems = { apiVersion: 2, roll: rollMagicItem, starts, rollAndPost, openRoller };
+  acksExtras.magicItems = { apiVersion: 3, roll: rollMagicItem, starts, rollAndPost, openRoller };
 });
 
 Hooks.once("setup", () => {

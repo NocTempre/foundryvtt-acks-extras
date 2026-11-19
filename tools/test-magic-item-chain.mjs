@@ -7,7 +7,7 @@
  * a table that cannot be rolled ends the walk with the steps so far.
  */
 import assert from "node:assert";
-import { MAX_HOPS, listAt, walkChain } from "../scripts/magic-items/chain-logic.mjs";
+import { MAX_HOPS, armsTypeOf, listAt, walkChain } from "../scripts/magic-items/chain-logic.mjs";
 
 let pass = 0;
 const check = (label, cond) => { assert.ok(cond, label); pass++; };
@@ -241,6 +241,46 @@ const banded = () => ({
   eq("an inner band with no ref gives null", (await walk(1, 6, 5)).item.ref, null);
   const flagged = await walkChain({ tables: { kinds: { bands: [{ min: 1, max: 1, item: "Zq", hop: null, ref: "zz.item1" }] } }, from: "kinds.bands", roll: rig(1).roll });
   eq("a flagged item keeps the ref of the band it reached", [flagged.item.flag, flagged.item.ref], ["unresolved-hop", "zz.item1"]);
+}
+
+/* --- arms: the link a row carries and the type a setting column names ------------------- */
+{
+  const grid = { s1: [{ min: 1, max: 3, type: "Zz tine" }, { min: 4, max: 6, type: "Zz prong" }], s2: [{ min: 1, max: 6, type: "Zz lance" }] };
+  const tables = {
+    things: { alpha: [{ min: 1, max: 1, item: "Zq tine +1", arms: { grid: "armsZz" } }, { min: 2, max: 2, item: "Zq weapon +1", arms: { kind: "kinds.bands" } }, { min: 3, max: 3, item: "Zq shield +1", arms: { name: true } }, { min: 4, max: 4, item: "Zq plain" }] },
+    kinds: { bands: [{ min: 1, max: 5, item: "Zq A", arms: { grid: "armsZz" } }, { min: 6, max: 6, item: "Zq B" }] },
+    armsZz: grid,
+  };
+  const walk = (total) => walkChain({ tables, from: "things.alpha", roll: rig(total).roll });
+  const arms = (item, setting, ...totals) => armsTypeOf({ tables, arms: item?.arms, setting, roll: rig(...totals).roll });
+
+  const grid1 = await walk(1);
+  eq("a row's arms link rides on the item and is not one of its fields", [grid1.item.arms, Object.keys(grid1.item.fields)], [{ grid: "armsZz" }, ["item"]]);
+  check("a row with no link has no arms key at all", !("arms" in (await walk(4)).item));
+
+  eq("a grid link rolls the setting's column and answers the type as printed", [await arms(grid1.item, "s1", 5), await arms(grid1.item, "s1", 2), await arms(grid1.item, "s2", 6)], ["Zz prong", "Zz tine", "Zz lance"]);
+  const dice = rig(5);
+  await armsTypeOf({ tables, arms: grid1.item.arms, setting: "s1", roll: dice.roll });
+  eq("the die is the column's own", dice.exprs, ["1d6"]);
+
+  const kindRow = (await walk(2)).item;
+  eq("a kind link rolls the kind list, then the grid it landed on", [await arms(kindRow, "s1", 3, 5), await arms(kindRow, "s2", 1, 1)], ["Zz prong", "Zz lance"]);
+  const both = rig(3, 5);
+  await armsTypeOf({ tables, arms: kindRow.arms, setting: "s1", roll: both.roll });
+  eq("the kind list's die, then the column's", both.exprs, ["1d6", "1d6"]);
+  eq("a kind that names no grid has no type", await arms(kindRow, "s1", 6), null);
+
+  const none = rig();
+  eq("without a setting nothing is rolled", [await armsTypeOf({ tables, arms: kindRow.arms, setting: undefined, roll: none.roll }), await armsTypeOf({ tables, arms: grid1.item.arms, setting: "", roll: none.roll }), none.exprs], [null, null, []]);
+  eq("a name link rolls nothing and has no type", [await armsTypeOf({ tables, arms: { name: true }, setting: "s1", roll: none.roll }), await armsTypeOf({ tables, arms: undefined, setting: "s1", roll: none.roll }), none.exprs], [null, null, []]);
+
+  eq("a setting the grid does not print has no type", [await arms(grid1.item, "s9", 1), await arms(grid1.item, "s1.x", 1), await arms(grid1.item, "constructor", 1)], [null, null, null]);
+  eq("a grid that is not imported has no type", await armsTypeOf({ tables: { ...tables, armsZz: undefined }, arms: grid1.item.arms, setting: "s1", roll: rig(1).roll }), null);
+  eq("a kind list that is not imported has no type", await armsTypeOf({ tables: { armsZz: grid }, arms: kindRow.arms, setting: "s1", roll: rig(1, 1).roll }), null);
+  eq("a die that is not the one asked for gives no type, in the kind list or the column", [await armsTypeOf({ tables, arms: kindRow.arms, setting: "s1", roll: () => ({ total: 3, sides: 20 }) }), await armsTypeOf({ tables, arms: grid1.item.arms, setting: "s1", roll: () => ({ total: 3, sides: 20 }) })], [null, null]);
+  eq("a total out of range, a roller that throws and one that answers nothing give no type", [await arms(grid1.item, "s1", 99), await armsTypeOf({ tables, arms: grid1.item.arms, setting: "s1", roll: () => { throw new Error("gone"); } }), await armsTypeOf({ tables, arms: grid1.item.arms, setting: "s1", roll: () => null })], [null, null, null]);
+  eq("a column whose bands do not tile has no type", await armsTypeOf({ tables: { armsZz: { s1: [{ min: 2, max: 6, type: "Zz tine" }] } }, arms: grid1.item.arms, setting: "s1", roll: rig(3).roll }), null);
+  eq("a grid whose band prints no type has no type", await armsTypeOf({ tables: { armsZz: { s1: [{ min: 1, max: 6 }] } }, arms: grid1.item.arms, setting: "s1", roll: rig(3).roll }), null);
 }
 
 console.log(`test-magic-item-chain: ${pass} checks passed.`);

@@ -124,6 +124,58 @@ unregisterTable(MAGIC_ITEM_DOC, { priority: PRIORITY.OVERRIDE });
   delete globalThis.Roll;
 }
 
+/* --- an arm is typed on a setting's column ------------------------------------------------ */
+{
+  const armsTables = () => ({
+    classic: {
+      kk: [
+        { min: 1, max: 4, item: "Zq tine +1", arms: { grid: "armsZz" } },
+        { min: 5, max: 6, item: "Zq weapon +1", arms: { kind: "weaponKinds.bands" } },
+        { min: 7, max: 8, item: "Zq shield +1", arms: { name: true } },
+        { min: 9, max: 10, item: "Zq plain" },
+      ],
+    },
+    weaponKinds: { bands: [{ min: 1, max: 5, item: "Zq A", arms: { grid: "armsZz" } }, { min: 6, max: 6, item: "Zq B" }] },
+    armsZz: { s1: [{ min: 1, max: 3, type: "Zz tine" }, { min: 4, max: 6, type: "Zz prong" }], s2: [{ min: 1, max: 6, type: "Zz lance" }] },
+  });
+  const calls = [];
+  const rigged = (...totals) => ({ roller: (expr) => { calls.push(expr); return { total: totals.shift(), sides: Number(expr.slice(2)) }; } });
+  const roll = (totals, extra = {}) => { calls.length = 0; return rollMagicItem({ from: "classic.kk", tables: armsTables(), ...extra, ...rigged(...totals) }); };
+
+  const grid = await roll([2, 5], { armsSetting: "s1" });
+  eq("a grid row is typed on the setting's column", [grid.ok, grid.item.armsType, grid.item.arms, calls], [true, "Zz prong", { grid: "armsZz" }, ["1d10", "1d6"]]);
+  eq("the type's roll is not a step, so the card and the deal read what they did", [grid.steps.length, grid.steps.map((s) => s.list)], [1, ["classic.kk"]]);
+  eq("the item's fields stay the row's own", Object.keys(grid.item.fields), ["item"]);
+
+  const kind = await roll([5, 3, 2], { armsSetting: "s2" });
+  eq("a generic weapon row rolls the kind list, then the column of the grid it landed on", [kind.item.armsType, kind.item.arms, calls], ["Zz lance", { kind: "weaponKinds.bands" }, ["1d10", "1d6", "1d6"]]);
+
+  const noSetting = await roll([2]);
+  eq("without a setting nothing extra is rolled and the item carries its link only", [noSetting.item.armsType, noSetting.item.arms, calls], [undefined, { grid: "armsZz" }, ["1d10"]]);
+  eq("a blank setting is no setting", [(await roll([2], { armsSetting: "" })).item.armsType, calls], [undefined, ["1d10"]]);
+
+  const named = await roll([7], { armsSetting: "s1" });
+  eq("a named arm rolls nothing and has no type", [named.item.armsType, named.item.arms, calls], [undefined, { name: true }, ["1d10"]]);
+  const plain = await roll([9], { armsSetting: "s1" });
+  eq("a row with no link has neither field", [plain.ok, "arms" in plain.item, "armsType" in plain.item, calls], [true, false, false, ["1d10"]]);
+
+  const badKind = await roll([5, 6], { armsSetting: "s1" });
+  eq("a kind that names no grid leaves the roll ok with no type", [badKind.ok, badKind.item.text, badKind.item.armsType], [true, "Zq weapon +1", undefined]);
+  const badDie = await rollMagicItem({ from: "classic.kk", tables: armsTables(), armsSetting: "s1", roller: (expr) => ({ total: 2, sides: expr === "1d10" ? 10 : 20 }) });
+  eq("a die that is not the one asked for leaves the roll ok with no type", [badDie.ok, badDie.item.text, badDie.item.armsType], [true, "Zq tine +1", undefined]);
+  const noColumn = await roll([2, 1], { armsSetting: "s9" });
+  eq("a setting the grid does not print leaves the roll ok with no type", [noColumn.ok, noColumn.item.armsType], [true, undefined]);
+  const noGrids = armsTables();
+  delete noGrids.armsZz;
+  const lost = await rollMagicItem({ from: "classic.kk", tables: noGrids, armsSetting: "s1", ...rigged(2) });
+  eq("a grid that is not imported leaves the roll ok with no type", [lost.ok, lost.item.armsType], [true, undefined]);
+
+  globalThis.Roll = class { constructor(expr) { this.expr = expr; this.dice = [{ faces: Number(expr.slice(2)) }]; } async evaluate() { this.total = 2; return this; } };
+  const real = await rollMagicItem({ from: "classic.kk", tables: armsTables(), armsSetting: "s1" });
+  eq("the default roller keeps the type's Rolls after the chain's", [real.item.armsType, real.rolls.map((x) => x.expr)], ["Zz tine", ["1d10", "1d6"]]);
+  delete globalThis.Roll;
+}
+
 /* --- the entry ----------------------------------------------------------------------- */
 for (const fn of hooks.init) fn();
 check("the roll is published under its contract name", services.get(MAGIC_ITEM_ROLL_CONTRACT)?.roll === rollMagicItem);

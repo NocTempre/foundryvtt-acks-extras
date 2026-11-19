@@ -74,6 +74,16 @@ band it landed on names another list, rolls that. Pure; the roller is
   `cookbook-items` service (`documentOf(ref)`, `docs/lib/API.md`) only for a row with a
   `ref` and fills `item.uuid` from its answer; with no provider, no document or a throw,
   `uuid` is null. The roller's card does not draw the link.
+- A band the importer found to name an arm by its bonuses alone carries `arms`
+  (`{grid}`, `{kind}` or `{name}`, docs/importer/MODEL.md "Arms links"), kept on the
+  item and out of `fields`. `rollMagicItem({armsSetting})` then types it
+  (`armsTypeOf`, `chain-logic.mjs`): a `{grid}` link rolls that grid's column for
+  the setting, a `{kind}` link rolls the weapon-kind list and then the column of
+  the grid it landed on, and the type as the grid prints it is `item.armsType`.
+  Without a setting nothing extra is rolled; with a `{name}` link, no link, a list
+  or column not imported or a die that is not the one asked for, `armsType` is
+  absent and the roll is still ok. The type's dice follow the chain's in `rolls`
+  and are never steps. The contract is `magic-item-roll` v2 (`docs/lib/API.md`).
 - `starts(tables)` is `{classicType, classic: [{key, id, caption}], heroic: [...]}`
   for a roller window to list; a list the import did not read is absent.
 

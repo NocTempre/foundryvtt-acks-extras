@@ -26,8 +26,11 @@ import { bandDie, bracketRow } from "../lib/tables.mjs";
 /** The most hops one walk follows; a chain longer than this ends flagged `too-deep`. */
 export const MAX_HOPS = 8;
 
-/** Keys of a band that are not the item's fields (`ref` names the cookbook entry the importer linked the row to). */
-const STRUCTURE = new Set(["min", "max", "sub", "hop", "ref"]);
+/**
+ * Keys of a band that are not the item's fields (`ref` names the cookbook entry
+ * the importer linked the row to, `arms` the grid or list that types an arm).
+ */
+const STRUCTURE = new Set(["min", "max", "sub", "hop", "ref", "arms"]);
 
 /**
  * The bands of a list id `"<table>.<column>"` in a document's tables, or null
@@ -104,7 +107,9 @@ function hopsList(bands) {
  *   `roll-failed`, `die-mismatch`, `roll-out-of-range`, and `steps` holds what
  *   was rolled before it. `ref` is the deepest band's `ref` (the id of the
  *   cookbook entry the importer linked the row to, else null); `uuid` is null
- *   here and is filled by the caller from `ref`.
+ *   here and is filled by the caller from `ref`. `arms` is the deepest band's
+ *   `arms` link (`{grid}`, `{kind}` or `{name}`) where it has one, and the key
+ *   is absent otherwise.
  */
 export async function walkChain({ tables, from, roll, maxHops = MAX_HOPS }) {
   const steps = [];
@@ -130,6 +135,7 @@ export async function walkChain({ tables, from, roll, maxHops = MAX_HOPS }) {
     steps.push(step);
 
     const item = { list, text: textOf(step.fields), fields: step.fields, flag: null, ref: typeof deepest.ref === "string" ? deepest.ref : null, uuid: null };
+    if (deepest.arms && typeof deepest.arms === "object") item.arms = deepest.arms;
     if (!hopsList(bands)) return { steps, item, error: null };
 
     const target = deepest.hop;
@@ -140,4 +146,33 @@ export async function walkChain({ tables, from, roll, maxHops = MAX_HOPS }) {
     hops++;
     list = target;
   }
+}
+
+/**
+ * The type of arm a roll on an arms link names, one column of the setting grid
+ * rolled on: the grid the link names, or, for a `{kind}` link, the grid the
+ * kind list's roll lands on. Null when the link names none to roll (a `{name}`
+ * link, an absent link), when no setting is given, or when a list is not
+ * imported or cannot be rolled (nothing here throws on content). Nothing is
+ * rolled without a setting.
+ *
+ * @param {object} args
+ * @param {object} args.tables the document's tables
+ * @param {object|undefined} args.arms the walked item's `arms`
+ * @param {string} args.setting the setting column's key in the grids (`s1` and on)
+ * @param {function} args.roll `roll(expr) -> {total, sides}`, sync or async
+ * @returns {Promise<string|null>} the type as the grid prints it
+ */
+export async function armsTypeOf({ tables, arms, setting, roll }) {
+  if (!arms || typeof setting !== "string" || !setting) return null;
+  let grid = typeof arms.grid === "string" ? arms.grid : null;
+  if (!grid && typeof arms.kind === "string") {
+    const kind = await walkChain({ tables, from: arms.kind, roll });
+    const landed = kind.error || kind.item?.flag ? null : kind.item?.arms?.grid;
+    grid = typeof landed === "string" ? landed : null;
+  }
+  if (!grid) return null;
+  const typed = await walkChain({ tables, from: `${grid}.${setting}`, roll });
+  const type = typed.error || typed.item?.flag ? null : typed.item?.fields?.type;
+  return typeof type === "string" && type ? type : null;
 }
