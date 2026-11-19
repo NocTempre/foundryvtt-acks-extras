@@ -184,3 +184,11 @@ B2 and H3 are on the topic as 5dfdfbec. The owner answered the three points of t
 - Figures as "Length 40 ft · Depth —", not the board's "Sheer climb · 40′": "Labelled".
 
 **Carried to H4:** the board draws "Swim · depth —", but the swim setup reads no depth, so a swim row shows no figure. H4 either drops the depth figure from that row or adds the read, whichever the page supports.
+
+### H4: the seed half
+
+The orchestrator relayed the owner's go-ahead, "Build H4 + batch 3", and ruled option (a): H4 lands the seed half, and the Judge's params row goes to scene search behind a design revision, in the minor. Landed on main as ea541dae, bf06bdd3 and ad9a6742.
+
+- A place carries a squeeze's `shape` and a swim's `penaltyPick` with `penaltyLarger`. `movement` and `judgeMod` are not carried. The swim row drops depth: RR ch. 6, Swimming and Drowning, reads no depth figure. The rulings are in DECISIONS, 2026-11-19.
+- Walked live on lane B, 3/3, through the card's own Begin buttons on `formation/hazard-entry-place-d`: a squeeze thing with shape "squeeze" opened shape squeeze, length 20; a swim thing with step pick "4" opened on that step; a pick of "9", which the world does not import, opened on "none". Neither swim row shows a figure. The three things the walk added were removed, the zone re-armed and the three cards swept by id.
+- Open: no window writes a thing's `params` (formation ROADMAP, owned by scene search). The card labels a squeeze row with its Hazard's name ("Squeeze · chokepoint") whatever shape the place stores.
