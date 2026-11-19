@@ -638,3 +638,37 @@ in scene-search DECISIONS, same date.
   `planClaim`), and `markLotsFound` is the only writer of the mark. Closing a pot
   deletes it with its unfound cards, and their goods are still on the bodies, so
   nothing is lost; under the old timing the same close would have lost them.
+
+## 2026-11-19 — The pot's look: a find in the muck, no motion, no card words
+
+The treasure plan retired today. Each slice had already moved its rulings into
+the entries above. This entry records the rulings on the pot's look that no
+entry carried, in the owner's words.
+
+- **The mood.** The owner, approving the deal controls on 2026-11-18: "It
+  should evoke the feeling of ripping a TCG pack!" On the cards: "Full art,
+  foils, special borders, fun". This produced the band frames, lozenge corners
+  and breaks, foils and the aura and curse frames (MODEL, "How a card is
+  dressed").
+- **Not literally cards.** On the Fable pass: "Only miss is they are not
+  literally cards. So something like "You found X items" makes more sense." No
+  user string calls an entry a card. The header reads "In the pot: {n}" while
+  staging and "You found {n} items" once open.
+- **No motion.** "No motion, or literal card packs. It was a mood to evoke, not
+  a physical procedure to mimic". This supersedes the plan's owner question E,
+  whose default was a colour swap and whose counter was a card that turns over.
+  It also rejects the drawn departure, seal, tear, deal, turn and Reveal board.
+  A turn changes a colour and nothing moves.
+- **Grime around the lucre.** "These are adventurers rummaging through guts and
+  filth. But it should be somehow justified by the (sometimes literally filthy)
+  lucre". Grime is heaviest on the lowest band and is gone at the top.
+- **Textures are read, never drawn.** The owner's standing rule against
+  generated art (`.claude/rules/ip-doctrine.md`, "Art") removed the drawn grime,
+  foil, vignette and hatch before T5 slice B was committed. Each layer paints
+  only a texture the art reader finds.
+- **A core raster icon takes the framed slot** (`CORE_RASTER_SLOTS`). This was
+  the plan's default for its picture question Q1. It stands unanswered, beside
+  Q2 (ROADMAP, "Face pictures: two open questions").
+- **Counter (moderate):** the mood the owner asked for was a pack torn open.
+  Without motion, the opening carries that feeling only through the frames, the
+  foils and the count.
