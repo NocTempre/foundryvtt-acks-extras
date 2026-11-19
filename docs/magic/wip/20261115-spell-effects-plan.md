@@ -3956,6 +3956,123 @@ Owner checks: summonManes's control is read from its own page, against the
 JJ format note. summonManes carries no `amount`, so that `summonRefusal`
 does not cap it at one.
 
+### Session 1d-B rulings (architect, 2026-11-19)
+
+The orchestrator moved 1d-B onto topic/spell-effects (the owner: "mostly
+concerned about RR completion"), so the start prompt's
+`topic/spell-effects-1d` is not reopened.
+
+- **157 Summons join `castSpellRun` (208).** It claims every
+  `isSummonSpell` item, a rowless one too (the shelf pick). The castSummon
+  claimant retires; its policy and naming stay. The order:
+  1. dialog and verdicts;
+  2. the seat's clicks (lib `pickPlacement`; nothing is made yet);
+  3. spend and pool (at a turn, `declare.finish`);
+  4. `endHeld`, then `castId`, then `perform`;
+  5. tokens, made only when the cast proceeds;
+  6. the card.
+  A declared summons clicks at its turn, and a cancel there leaves the
+  declaration standing. Every refusal `placeSummons` makes before the
+  clicks becomes a verdict before the spend. Supersedes ruling 5 and
+  206(a) IN PART, and qualifies the In-force 2026-11-11 summon entry.
+  *Rejected:* a mirrored `castSummonSpell`; clicks after the spend (a
+  cancel would cost the slot). *Counter (medium):* 208's "place" could be
+  read as creation.
+- **158 The record keeps the summons' end path.** A held summons uses
+  `heldRecordData`. Any other is core-timed with no `startTime`, so
+  `cast-expiry` still announces it with Dismiss (Q1-c), never the silent
+  flag-timed delete. *Counter (medium):* two caster-record shapes.
+- **159 The count goes through `castAt`.**
+  - `flattenAt(row, castAt)`, then `max` at the caster level (null with
+    none; abilities through S3c's matcher). The ceiling is `max`, else
+    `amount`. A blank stays blank with the page reference.
+  - Duration comes from `castDurationOf`; `noSlot` and `adjustPool` are
+    unchanged. The verdict is `summonCount`.
+  - Lib's policy request gains `cast {castId, casterLevel,
+    invocationLevel}`, `positions` and `scene`.
+  - The GM trusts the seat's level, as the apply relay does (DECISIONS
+    2026-11-16). *Rejected:* the GM recomputing it, since a hand-set level
+    cannot be recomputed.
+  - *Counter (medium):* a forged level buys creatures.
+  - Finding: ruling 111's ROADMAP rows for the concentration save and a
+    summoned creature's HP were not found.
+- **160 Placement range** (JJ ch. 14, Summoning Spell Notes; RR ch. 5,
+  conjurations).
+  - A point for a thin-air creature beyond `rangeFeet` from the centre of
+    the caster's token is refused to a Player and warned to a Judge
+    (`preConfirm`).
+  - The GM's policy measures the same points again, never the creature's
+    size. A `calling` and an unmeasured range are exempt.
+  - A refusal after the spend posts a card line, and the spend stands.
+  - *Counter (medium):* an animation's range bounds the remains.
+- **161 Declaration** (RR ch. 6).
+  - A summons declares like any cast. `summon {ref, count}` joins
+    `ANSWER_FIELDS` (DECISIONS 2026-11-18), and a time over a round is
+    `longCast` (204).
+  - Supersedes 1d.5 and MODEL's "not declared". The 2026-11-17 entry is
+    under 7 days old; the new evidence is RR ch. 6, ruling 204, and 1d.5's
+    own "until 1d-B".
+  - *Counter (low).*
+- **162 A held summons' end** (RR ch. 5, conjurations: lost concentration
+  loses control, and the creature stays).
+  - The funnel card lists the cast's standing creatures (`castSummons`),
+    with Dismiss drawn on a GM seat (`isGM`, display only). Restore
+    restores the record only.
+  - Supersedes 1d.6.
+  - Finding: `bindCard`'s `isOwner` End test.
+  - *Rejected:* a Dismiss for owners (as written, no control is left);
+    removing the creatures (a house rule).
+  - *Counter (medium):* the sheet's lib Dismiss still admits owners
+    (finding).
+- **163 A row `name`.** Lib `effectField` gains `name`. `bindSpell` writes
+  the referenced creature's materialized name, blank where it is not
+  imported. *Counter (low):* import order; a repair refreshes it.
+- **164 Describe.** The summon arm reads `max`, and the default arm leads
+  with its kind. This is wording in existing lines and the kind select, so
+  it needs no board. *Counter (medium):* ui-layout says "anything a user
+  sees".
+- **165 The kinds of 151.** Each goes into `APPLY_KINDS`, `APPLIERS` and
+  lang:
+  - `afflictionDelay`: `effects` from EFFECT_KEYS, on the recipient, lasts
+    its duration;
+  - `purify`: an instant line, with the quantity located;
+  - `seal`: a caster record and a line.
+  *Counter (low).*
+- **166 Recipient records.** `RECORD_KINDS` gains the six tracked kinds and
+  `afflictionDelay`, on `appliesTo === "recipient"` only. Ignite keeps
+  `!aimedAtSelf`. Every current tracked row is area or target. *Counter
+  (medium):* latent.
+- **167 No entry, no measure.** `takesTargets` gates the range and the
+  count. `locateAnimalOrPlant` is a `detect` row that lasts its duration.
+  The summon step is `APPLY_KINDS.summon.step`, run from deps. *Counter
+  (medium):* a step is not an apply.
+
+**Boards** on the cast canvas, each drawn for both seats:
+- 20, the Summon band that replaces `pickSummon`;
+- 21, the range ring while placing (optional);
+- 22, the held-end card;
+- 23, the row editor's `lasts` and the `afflictionDelay` field.
+
+**Slices** (each an implementer; 1 to 5 land first):
+1. H `heldRecordData`;
+2. L lib (`pickPlacement`, `placeSummons({positions, castId, cast})`, the
+   policy fields, `effectField.name`, apiVersion);
+3. K1 rulings 164 to 167;
+4. K2 the four register entries;
+5. N ruling 163;
+6. S-a rulings 157 to 162, on dialog doubles (lands with 7);
+7. S-b board 20;
+8. D board 22;
+9. E board 23;
+10. R board 21;
+11. then the walk.
+
+Owner questions, defaults proceeded on:
+- **1d.7** Do Players lose ownership of a held summons' tokens at its end?
+  Default: no; the card says so.
+- **1d.8** Does sealPortal lock a picked door wall for its record's life?
+  Default: a record and a line, with a ROADMAP row.
+
 ### Start prompt, session 1d-B
 
 > Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
