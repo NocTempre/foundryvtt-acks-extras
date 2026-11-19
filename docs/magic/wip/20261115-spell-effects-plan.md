@@ -4087,6 +4087,94 @@ Owner questions, defaults proceeded on:
   locked. Its end unlocks the door only if the door is still in the state
   the spell left. No ROADMAP row.
 
+### Session 1d-B rulings 168–177 (architect, 2026-11-19)
+
+1d.7, the owner: "Specific per summon, check RAW". An example of how it
+reads: a spell whose page ends it when concentration lapses loses its
+creature with it, while a spell whose page says nothing keeps ownership,
+and its card says control is lost.
+
+- **168 Vocabulary.** Lib `CONTROL_ENDS` is `stays`, `gone` and `hostile`.
+  The row key `controlEnd` goes into `effectField`, `ROW_KEYS` and each
+  register entry, as structure the way `control` is. A blank reads as
+  `stays`, and so do rowless shelf summons.
+  - *Rejected:* `free`, since no row forces it.
+  - *Counter (low).*
+- **169 One key, whichever end comes.** The GM client resolves it from the
+  spell's row, never from a card or a request.
+  - At the held end (every `HELD_CAUSES`) it is applied.
+  - At the timed end (cast-expiry), Q1-c of 2026-11-11 stands: the card
+    names the outcome, and the GM's Dismiss applies `gone`. This is the
+    orchestrator's narrowing of the architect's "apply at both ends".
+  - *Counter (high):* the owner's 1d.7 asked about the held end, and Q1-c
+    explicitly rejected a delete at expiry. Asked as 1d.9.
+- **170 Conjurations are held.** A `conjuration` row with a duration that
+  is not concentration casts held, with the printed duration as its cap
+  (RR ch. 5, Summoning Spells).
+  - Finding: `parseDurationLine` reads conjureCacodemonSpawn's duration as
+    `fixed`, so its `hostile` could never fire today.
+- **171 Apply.** Lib `applyControlEnd` (`summons.mjs`) runs on the GM
+  client, with a pure plan in `summons-logic.mjs`. Every creature is
+  stamped `lost`.
+  - `gone` deletes the way `dismissOp` does; a stashed creature goes
+    through the roster's `release`.
+  - `hostile` empties the delta's ownership and sets the disposition to
+    hostile.
+  - `checkDismissRequest` refuses `controlLost` to a non-GM, which closes
+    162's finding.
+  - With no GM connected nothing is applied; Restore restores the record
+    only.
+- **172 Cards.** The control-lost line takes the outcome's wording
+  (`controlLostLine(outcome)`). cast-expiry's Dismiss is drawn for `isGM`
+  only. The editor's `controlEnd` select is new, so it is board 24
+  panel B.
+- **173 Supersedes**, with the owner's 1d.7 answer of 2026-11-19 as the new
+  evidence:
+  - 162's "Rejected: removing the creatures", IN PART;
+  - 1d.6.
+  Q1-c stands (169).
+
+| Spell key | End | `controlEnd` | Cite |
+|---|---|---|---|
+| callOfTheWolf | timed | gone | RR ch. 5 |
+| summonManes | timed | gone | RR ch. 5 |
+| faithfulCompanion | timed | gone | RR ch. 5 |
+| unlivingPuppet | held | gone | RR ch. 5 |
+| conjureCacodemonSpawn | held (170) | hostile | RR ch. 5, Summoning Spells |
+
+1d.8, the owner: "Lock the door".
+- **174 Pick.** It runs through `APPLY_KINDS.seal`, in S-a's pre-spend
+  slot.
+  - New lib `door-pick.mjs`, with `battlemap/pointer-catcher.mjs` promoted
+    to lib, so the click never toggles core's door control.
+  - Only door controls visible to the seat are offered; a secret door is
+    never offered to a Player.
+  - The range comes from `castAt`, and a blank range is not measured.
+  - The pick may be skipped, since a portal need not be a wall; a skip
+    keeps K2's record and line. A cancel costs nothing.
+  - Its banner is board 24 panel A.
+- **175 Write.** New `cast-seal.mjs`.
+  - A GM seat writes directly; a Player's seat relays through
+    `SEAL_HANDLER`.
+  - `checkSealRequest` checks: the requester owns the caster, the spell
+    has a seal row, the wall is a door (secret only for a GM), it is on
+    the caster token's scene, and it is in range.
+  - It writes `ds: LOCKED` and the wall flag `sealedBy {was, casts}`. A
+    second seal appends its castId.
+- **176 Record.** The caster mark gains `seal {sceneId, wallId}`. The
+  GM-written stamp is the truth.
+- **177 End.** The active GM runs `sealEndPlan` on the record's deletion,
+  and a GM `ready` sweep catches orphaned stamps.
+  - Once a door's list is empty, it goes to CLOSED only if `ds` is still
+    LOCKED and `was` was not.
+  - With no GM connected, the door waits for the next GM `ready`.
+
+**Slices added:** C (rulings 168–173), Z (174–177; its banner waits for
+board 24 A), and R (board 21). Owner question:
+- **1d.9** At a timed end, should a `gone` summons be removed
+  automatically, or keep Q1-c's card with a GM's Dismiss? Default: Q1-c
+  stands.
+
 ### Start prompt, session 1d-B
 
 > Run session 1d-B of `docs/magic/wip/20261115-spell-effects-plan.md` in
