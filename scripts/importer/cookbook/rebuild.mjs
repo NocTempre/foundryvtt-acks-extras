@@ -47,6 +47,7 @@ import { importMerchandise, importVariations, importTraps, importSpells } from "
 import { journalBound, regionSiteClaim } from "./adventure-places.mjs";
 import { cookbookImportAdventureItems, bookCensus, bookDocuments } from "./adventure-maps.mjs";
 import { cookbookImportMagicItems, magicItemEntries } from "./magic-items.mjs";
+import { BOOK_ART_SOURCE } from "./book-art.mjs";
 import { importMany, importOne } from "./actor-import.mjs";
 import { cookbookImportAbilities, cookbookUpdateAbilities } from "./abilities-import.mjs";
 
@@ -1423,6 +1424,8 @@ export const ENTRY_SOURCES = [
       ]),
     present: (docId) => !!getLayer(docId, PRIORITY.WORLD),
   },
+  // A book's art table, one claim per book with art, in the ruledata store as the rules tables are.
+  BOOK_ART_SOURCE,
 ];
 
 /**

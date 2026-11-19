@@ -428,6 +428,8 @@ const UNOWNED = [
   "zz.adventure",
   "zz.journal-abc123",
   "zz.book",
+  // A book with no art recipe in the manifest has no art claim.
+  "zz.bookArt",
   "",
 ];
 for (const [id, key] of OWNED) {
@@ -447,6 +449,14 @@ for (const kind of IMPORT_KINDS) {
 }
 for (const kind of ENTRY_SOURCES) {
   check(`${kind.key}'s run is its refill, else its idsRefill, else the picker's own import`, kind.make.run === (kind.refill ?? kind.idsRefill ?? "importMany"));
+}
+{
+  // The art kind's claims come from the manifest; no book declares art until its recipe lands.
+  const art = ENTRY_SOURCES.find((k) => k.key === "BookArt");
+  check("the book art kind is an entry source", !!art && IMPORT_KINDS.includes(art));
+  check("the book art kind writes no document and takes the books", art.type === null && art.make.takes.join() === "books" && art.chain === "stepBookArt");
+  check("the book art kind re-runs through its idsRefill", art.idsRefill === "cookbookImportBookArt" && !art.refill);
+  check("the book art kind is no book step and no shelf's", !art.own && !art.bookSteps && !art.shelves && !art.viaBook);
 }
 same("an entry's book is the book its cookbook names", IMPORT_KINDS.find((k) => k.key === "Classes").book("def.class.adv"), "ax1");
 same("a row filed beneath its entry is read from the entry's book", IMPORT_KINDS.find((k) => k.key === "Monsters").book("mm.alpha.leaders"), "mm");
@@ -532,7 +542,10 @@ same("a stat-line creature is read from its place's book", IMPORT_KINDS.find((k)
   check("the tables' documents are written right after the classes, before the packages",
     chain.indexOf("stepTablesApply") === chain.indexOf("stepClasses") + 1 && chain.indexOf("stepTemplatePackages") === chain.indexOf("stepTablesApply") + 1);
   check("the adventures are written last", chain.at(-1) === "stepAdventures");
-  check("the chain has twenty-two steps", chain.length === 22);
+  check("the book art follows the magic items and precedes the maps",
+    chain.indexOf("stepBookArt") === chain.indexOf("stepMagicItems") + 1 && chain.indexOf("stepScenes") === chain.indexOf("stepBookArt") + 1);
+  check("the book art step calls the book art run alone", recorded.stepBookArt.join() === "cookbookImportBookArt");
+  check("the chain has twenty-three steps", chain.length === 23);
   check("run alone, the apply step reads and applies in one call", recorded.stepTablesApply.join() === "cookbookImportTables");
 }
 
