@@ -16,6 +16,7 @@ import { acksExtras } from "../namespace.mjs";
 import { MODULE_ID, LANG_PREFIX, LOCATION_TYPE } from "./constants.mjs";
 import { primaryGMSettled } from "../lib/util.mjs";
 import { allPlaces, emptyOfPlaces } from "../lib/place.mjs";
+import { thingsOf } from "../lib/place-things.mjs";
 import { hasWrittenNotes } from "./notes.mjs";
 
 /** World setting: empty, unremarkable locations self-clean at ready. */
@@ -217,7 +218,8 @@ Hooks.once("ready", () => {
  * is a market (any market class or a market subtree), someone's vault, a place
  * a GM made hold goods, a scene-linked place, a quarter's own place, a place
  * standing on a map as a token, a place a domain holds, a place with notes
- * written on it (`hasWrittenNotes`), or a place that a surviving place sits in
+ * written on it (`hasWrittenNotes`), a place keyed with things (`thingsOf`),
+ * or a place that a surviving place sits in
  * (`emptyOfPlaces`). Gated by the `pruneEmptyLocations` setting. `dryRun`
  * deletes nothing, setting or not, and answers with the uuids a sweep would
  * remove. See docs/lib/DECISIONS.md, "Money is physical; four rulings land at
@@ -238,6 +240,7 @@ export async function pruneEmptyLocations({ dryRun = false } = {}) {
     if ((a.system?.roster ?? []).length > 0) return false;
     if (a.system?.market != null || a.system?.marketClass != null) return false;
     if (hasWrittenNotes(a.system)) return false;
+    if (thingsOf(a).length > 0) return false;
     const kept = a.getFlag(MODULE_ID, "storage");
     if (kept?.vaultOf || kept?.provider) return false;
     if (sceneOfLocation(a) || regionOfLocation(a)) return false;
