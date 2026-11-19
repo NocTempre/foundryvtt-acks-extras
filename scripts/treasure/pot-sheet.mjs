@@ -21,7 +21,8 @@ import { DEAL_STYLE, DEAL_TOGGLE, apparentName, bucketCards, cardInPot, cardView
 import { slowestSpeed, speedOfRank } from "./grab-pot.mjs";
 import { TEXTURE, backArt, backDress, faceArt, faceDress, textureArt } from "./card-art.mjs";
 import { dealLines, dealMessages, lairWarning } from "./deal-logic.mjs";
-import { dealLettersIntoPot } from "./deal.mjs";
+import { armsSource, dealLettersIntoPot } from "./deal.mjs";
+import { armsBandParts, armsField } from "./magic-deal-logic.mjs";
 import { styleCite } from "./hoard.mjs";
 import {
   addTruths, closePot, mayGrab, openPot, partyFigures, potOf, removeStaged, setDealMetInLair, setDealMonsterOn, setDealOption, setDealToggle, setMode, truthsFromItem, viewOf,
@@ -203,6 +204,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       // No page is named while the table is not imported: the module ships no citation for a style.
       return { key, label, pressed: deal.style === key, tip: page ? loc("deal.tip.style", { style: label, cite: page }) : loc("deal.tip.styleBare", { style: label }) };
     });
+    const { columns, cite: armsCite } = armsSource();
+    const arms = armsField({ columns, chosen: deal.armsSetting, cite: armsCite ?? loc("cite.arms"), loc });
     const lines = dealLines(deal);
     const standing = this.#warned && !!lairWarning({ letters: lines, metInLair: deal.metInLair });
     return {
@@ -210,6 +213,7 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
       letter: deal.letter ?? "",
       letterTip: loc("search.letterTip"),
       styles,
+      arms,
       special: deal.special,
       lair: deal.metInLair,
       lairTip: cite,
@@ -289,13 +293,16 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const pool = v.look === "cursed" ? loc("card.cursed") : loc(`pool.${v.poolKey}`);
     const backPool = loc(`pool.${v.backKey}`);
     const bandName = loc(`band.${v.band}`);
+    // The Judge's view alone carries the parts an arm ranked by; the same tooltip names them after the band.
+    const parts = v.armsParts ? armsBandParts(v.armsParts, { cite: armsSource().cite ?? loc("cite.arms"), loc, gp: gpText }) : "";
     return {
       ...v,
       tag: pool,
       band: v.band,
       bandPips: "◆".repeat(v.band + 1),
       bandName,
-      bandTip: loc("tip.band", { band: bandName }),
+      bandTip: parts ? `${loc("tip.band", { band: bandName })} · ${parts}` : loc("tip.band", { band: bandName }),
+      rolledText: v.rolledType ? loc("card.rolledType", { type: v.rolledType }) : "",
       // A player's tooltip names the displayed pool's page and nothing else, so no card can be told from another by it.
       tip: loc("tip.pool", { pool: backPool, cite: loc(`cite.${v.backKey}`) }),
       backTag: backPool,
@@ -349,8 +356,9 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
   }
 
   /**
-   * Bound once per window element: the by-hand treasure type is written when its
-   * field changes, since a pot is not a form and nothing else stores it. A change
+   * Bound once per window element: the by-hand treasure type and the arms column
+   * are written when their fields change, since a pot is not a form and nothing
+   * else stores them. A change
    * made by pressing Deal is written after the press (`writeOnChange`), so the
    * re-render does not swallow Deal's click. The target is told by `matches`,
    * never by `instanceof`.
@@ -360,7 +368,9 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     if (root.dataset.choiceBound) return;
     root.dataset.choiceBound = "1";
     writeOnChange(root, (field) => {
-      if (field?.matches?.("[data-deal-letter]") && game.user.isGM) setDealOption(this.document, "letter", field.value);
+      if (!game.user.isGM) return;
+      if (field?.matches?.("[data-deal-letter]")) setDealOption(this.document, "letter", field.value);
+      else if (field?.matches?.("[data-deal-arms]")) setDealOption(this.document, "armsSetting", field.value);
     });
   }
 

@@ -14,10 +14,12 @@ import { masterworkFigure } from "../equipment/printed-layers.mjs";
 import { keyOfItem } from "../equipment/weapon-rows.mjs";
 import { isWorldCopy, libraryItems, whenReady } from "../lib/library.mjs";
 import * as services from "../lib/services.mjs";
+import { citeOf, getDoc, hasDoc } from "../lib/tables.mjs";
+import { MAGIC_ITEM_DOC } from "../magic-items/constants.mjs";
 import { MAGIC_ITEM_ROLL_CONTRACT, MODULE_ID } from "./constants.mjs";
 import { groupMonsters, monsterRows, runLetterDeal } from "./deal-logic.mjs";
 import { dealHoard } from "./hoard.mjs";
-import { armsBases, rollMagicTruths } from "./magic-deal-logic.mjs";
+import { armsBases, armsColumns, rollMagicTruths } from "./magic-deal-logic.mjs";
 import { addTruths, newPot, potOf, truthsFromItem } from "./pot.mjs";
 
 /**
@@ -111,6 +113,18 @@ async function rollMagicCards({ letter, truths, style = "classic", roller, armsS
     armsSetting,
     ...arms,
   });
+}
+
+/**
+ * The arms column choices the deal panel offers, read from the imported
+ * magic-item tables: the setting columns of the arms grids (`armsColumns`) and
+ * the page the import recorded for them, or null where it recorded none or a
+ * Judge's override holds the table. With no grid imported there are no columns.
+ * @returns {{columns: Array<{key: string, label: string}>, cite: string|null}}
+ */
+export function armsSource() {
+  const tables = hasDoc(MAGIC_ITEM_DOC) ? getDoc(MAGIC_ITEM_DOC).tables ?? null : null;
+  return { columns: armsColumns(tables), cite: citeOf(MAGIC_ITEM_DOC, "armsSettings") };
 }
 
 /**

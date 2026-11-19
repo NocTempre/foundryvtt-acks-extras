@@ -54,6 +54,17 @@
             </div>
           </fieldset>
           <div class="acks-extras-treasure__field">
+            <label class="acks-extras-caption" for="{{@root.partId}}-arms">{{localize "ACKS-TREASURE.deal.armsTitle"}}</label>
+            <div class="acks-extras-treasure__select" data-tooltip-text="{{deal.arms.tip}}">
+              <select class="acks-input" id="{{@root.partId}}-arms" data-deal-arms aria-describedby="{{@root.partId}}-arms-hint"{{#if deal.arms.off}} disabled{{/if}}>
+                {{#each deal.arms.options}}
+                  <option value="{{key}}"{{#if selected}} selected{{/if}}>{{label}}</option>
+                {{/each}}
+              </select>
+            </div>
+            <span class="acks-extras-treasure__hint" id="{{@root.partId}}-arms-hint">{{localize "ACKS-TREASURE.deal.armsHint"}}</span>
+          </div>
+          <div class="acks-extras-treasure__field">
             <button type="button" class="acks-extras-treasure__toggle" data-action="dealSpecial" aria-pressed="{{deal.special}}">
               <span class="acks-extras-treasure__toggle-mark" aria-hidden="true"></span>
               <span class="acks-extras-treasure__toggle-label">{{localize "ACKS-TREASURE.deal.special"}}</span>
@@ -117,6 +128,7 @@
                 {{#unless found}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.unfound"}}</span>{{/unless}}
                 {{#if maskName}}<span class="acks-extras-treasure-card__note">{{localize "ACKS-TREASURE.card.maskedAs" name=maskName}}</span>{{/if}}
                 {{#if leaks}}<span class="acks-extras-treasure-card__warn">{{#if leaksPicture}}{{localize "ACKS-TREASURE.card.leaksPicture"}}{{else}}{{localize "ACKS-TREASURE.card.leaks"}}{{/if}}</span>{{/if}}
+                {{#if rolledText}}<span class="acks-extras-treasure-card__note">{{rolledText}}</span>{{/if}}
                 <span class="acks-extras-treasure-card__note">{{worthText}}</span>
                 <span class="acks-extras-treasure-card__note">{{weightText}}</span>
                 <span class="acks-extras-treasure-card__note">{{stateText}}</span>

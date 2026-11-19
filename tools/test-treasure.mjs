@@ -322,6 +322,22 @@ const cardOf = (id, t, face = null, value = 0) => ({ id, face, value, truth: t }
   eq(dealOf(v).struck, ["m"], "a 300 seed takes the arms lot, which ranks 422");
   const none = stagingView([lot("a", 100), cardOf("m", arm(null)), seed("s", 300)], { order: ["a", "m"], buckets: { add: [], replace: ["s"] } });
   eq(dealOf(none).struck, [], "the same arm with no figures ranks 0, and a 300 seed finds the lots short");
+
+  // The type rolled, kept beside the figures: the Judge's view only.
+  const typedFigures = { ...figures, type: "  Quill Spear " };
+  eq(arm(typedFigures).apparent, { ...figures, type: "Quill Spear" }, "a rolled type is kept, trimmed");
+  eq([arm({ ...figures, type: "" }).apparent, arm({ ...figures, type: "   " }).apparent, arm({ ...figures, type: 4 }).apparent, arm({ ...figures, type: null }).apparent], [figures, figures, figures, figures], "a blank or non-text type is no type, and the key is absent");
+  eq(arm({ baseGp: 19, type: "Quill Spear" }).apparent, null, "a type alone stores nothing");
+  eq(rankWorth(arm(typedFigures)), 422, "the type changes no rank");
+  const judge = cardView({ id: "m", face: null, value: 1, truth: arm(typedFigures) }, { isGM: true });
+  eq([judge.rolledType, judge.armsParts], ["Quill Spear", { type: "Quill Spear", baseGp: 19, masterworkGp: 403 }], "the Judge's view carries the type and the parts the rank was read from");
+  eq([cardView({ id: "m", face: null, value: 1, truth: arm(figures) }, { isGM: true }).rolledType, cardView({ id: "m", face: null, value: 1, truth: arm(typedFigures, { detected: true }) }, { isGM: true }).rolledType], ["", ""], "an arm with no type rolled, and a detected one, show no type");
+  eq(cardView({ id: "m", face: null, value: 1, truth: arm(typedFigures, { mask: { name: "Plain", cost: 5 } }) }, { isGM: true }).armsParts, null, "a rank that is a mask's cost is not these parts");
+  for (const face of [null, 0]) {
+    const seen = cardView({ id: "m", face, value: 1, truth: arm(typedFigures) }, { isGM: false });
+    eq([seen.rolledType, seen.armsParts], ["", null], "a player's view carries neither, face down or turned");
+    ok(!/Quill|19|403/.test(JSON.stringify(seen)), "and none of the figures");
+  }
 }
 
 /* --- the arms column: a staged pot's deal choice -------------------------------------- */

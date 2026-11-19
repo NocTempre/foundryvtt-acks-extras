@@ -140,12 +140,19 @@ export function normalizePot(flag) {
  * any other way shows everything it holds. `lot` is the key a scene's entry
  * lists the lot under (`yields.lots`), or null for a lot no entry holds.
  * `apparent` is what a rolled magic arm ranks by while undetected: its base's
- * cost and the masterwork cost, kept only when both are positive figures.
+ * cost and the masterwork cost, kept only when both are positive figures; with
+ * them `type`, the arm's type as the grid printed it, kept only where one was
+ * rolled (a row linked by name rolled none).
  */
 export function normalizeTruth(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
   const apparent = f.apparent && typeof f.apparent === "object" && num(f.apparent.baseGp) > 0 && num(f.apparent.masterworkGp) > 0
-    ? { baseUuid: typeof f.apparent.baseUuid === "string" && f.apparent.baseUuid ? f.apparent.baseUuid : null, baseGp: num(f.apparent.baseGp), masterworkGp: num(f.apparent.masterworkGp) }
+    ? {
+      baseUuid: typeof f.apparent.baseUuid === "string" && f.apparent.baseUuid ? f.apparent.baseUuid : null,
+      baseGp: num(f.apparent.baseGp),
+      masterworkGp: num(f.apparent.masterworkGp),
+      ...(typeof f.apparent.type === "string" && f.apparent.type.trim() ? { type: f.apparent.type.trim() } : {}),
+    }
     : null;
   const coin = f.coin && typeof f.coin === "object"
     ? { name: String(f.coin.name ?? ""), cv: num(f.coin.cv, 1), count: Math.max(0, Math.floor(num(f.coin.count))) }
@@ -243,10 +250,28 @@ export function worthOf(truth) {
 export function rankWorth(truth) {
   const stated = worthOf(truth);
   if (stated != null) return stated;
-  const maskCost = truth.mask?.cost;
-  if (maskCost != null && maskCost !== "" && Number.isFinite(Number(maskCost))) return Number(maskCost);
+  const maskCost = maskCostOf(truth);
+  if (maskCost != null) return maskCost;
   if (truth.magical && !truth.detected) return apparentWorth(truth) ?? armsWorth(truth) ?? 0;
   return num(truth.source?.data?.system?.cost, 0);
+}
+
+/** A mask's stated cost in gp, or null where the mask states none. */
+function maskCostOf(truth) {
+  const cost = truth.mask?.cost;
+  return cost != null && cost !== "" && Number.isFinite(Number(cost)) ? Number(cost) : null;
+}
+
+/**
+ * The parts of an arm's rank, `{type, baseGp, masterworkGp}` (`type` blank where
+ * none was rolled), only where `rankWorth` reached them: an undetected magic
+ * card that states no worth, has no mask cost and no apparent value of its own
+ * and stored both figures. Anything else ranks by something that is not these
+ * parts, and a tooltip listing them would not produce the band beside it.
+ */
+export function armsParts(truth) {
+  if (!truth?.magical || truth.detected || worthOf(truth) != null || maskCostOf(truth) != null || apparentWorth(truth) != null) return null;
+  return armsWorth(truth) == null ? null : { type: truth.apparent.type ?? "", baseGp: num(truth.apparent.baseGp), masterworkGp: num(truth.apparent.masterworkGp) };
 }
 
 /**
@@ -375,7 +400,10 @@ const cookbookIdOf = (truth) => {
  * or a mask with no picture, so the item's true one shows (`leaksPicture`).
  * `kind` (the item's cookbook id) and `artSrc` feed the face's picture: a player
  * gets the kind only where the card is neither masked nor undetected magic, and
- * never the true picture behind a mask that names an item without one.
+ * never the true picture behind a mask that names an item without one. A
+ * Judge's view of an undetected arm also carries the type rolled for it
+ * (`rolledType`) and the parts its band was ranked by (`armsParts`); a player's
+ * carry a blank and null in their place.
  * @param {{id: string, face: number|null, value: number, truth: object}} card
  * @param {{isGM?: boolean}} [seat]
  */
@@ -404,6 +432,8 @@ export function cardView(card, { isGM = false } = {}) {
     seed: isGM && !!truth.bucket,
     leaks: isGM && truth.magical && !truth.detected && !(truth.mask?.name && truth.mask?.img),
     leaksPicture: isGM && truth.magical && !truth.detected && !!truth.mask?.name && !truth.mask?.img,
+    rolledType: isGM && truth.magical && !truth.detected ? truth.apparent?.type ?? "" : "",
+    armsParts: isGM ? armsParts(truth) : null,
     claimed: !!truth.claimedBy,
     found: isFound(card),
     claimedByName: truth.claimedBy?.actorName ?? truth.claimedBy?.placeName ?? "",

@@ -22,7 +22,7 @@
  * read at the deal. A find with no base or no cost stores nothing and ranks as it
  * did.
  */
-import { bonusNoun } from "../importer/magic-item-binding.mjs";
+import { ARMS_RAW_KEYS, bonusNoun } from "../importer/magic-item-binding.mjs";
 import { creatureKeys, leadingNameHit, nameKeys } from "../lib/vocab.mjs";
 import { keyForName } from "../lib/weapons.mjs";
 import { MODULE_ID, POOL } from "./constants.mjs";
@@ -205,8 +205,8 @@ const armsNameOf = (item) => {
 };
 
 /**
- * The figures an undetected arm ranks by: `{baseUuid, baseGp, masterworkGp}`,
- * or null. The arm's name is looked up among the bases (`findBase`) and the base's
+ * The figures an undetected arm ranks by: `{baseUuid, baseGp, masterworkGp}`
+ * and, where a type was rolled for it, `type` (the grid's cell), or null. The arm's name is looked up among the bases (`findBase`) and the base's
  * kind picks the masterwork tier (`ARMS_TIER`). Nothing is returned, and nothing
  * stored, unless the base's cost and the tier's cost are both positive: a row that
  * is no arm (a ring, a cloak) finds no base, and a world with no masterwork
@@ -222,7 +222,67 @@ export function apparentOf(item, { bases, masterwork }) {
   const baseGp = Number(base?.costGp);
   if (!(baseGp > 0)) return null;
   const masterworkGp = Number(masterwork?.(ARMS_TIER[base.kind]));
-  return masterworkGp > 0 ? { baseUuid: base.uuid, baseGp, masterworkGp } : null;
+  if (!(masterworkGp > 0)) return null;
+  const type = typeof item?.armsType === "string" ? item.armsType.trim() : "";
+  return { baseUuid: base.uuid, baseGp, masterworkGp, ...(type ? { type } : {}) };
+}
+
+/**
+ * The setting columns of the imported arms grids, in column order:
+ * `[{key, label}]`, a key (`s1` and on) with the label the import read for it.
+ * A column counts only where it is named and some arms grid has rows under it,
+ * so a world with no grid imported has none (the pot's select is then off).
+ * The labels are the Judge's own imported text.
+ *
+ * @param {object|null|undefined} tables the magic-item document's tables
+ * @returns {Array<{key: string, label: string}>}
+ */
+export function armsColumns(tables) {
+  const grids = Object.keys(ARMS_RAW_KEYS).map((name) => tables?.[name]).filter((g) => g && typeof g === "object");
+  const names = tables?.armsSettings && typeof tables.armsSettings === "object" ? tables.armsSettings : {};
+  return Object.keys(names)
+    .filter((key) => /^s\d+$/.test(key) && typeof names[key] === "string" && names[key].trim() && grids.some((g) => Array.isArray(g[key]) && g[key].length))
+    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)))
+    .map((key) => ({ key, label: names[key].trim() }));
+}
+
+/**
+ * The deal panel's arms column field as the template reads it. `options` lists
+ * "(none)" first, then one option per imported column; `selected` marks the
+ * pot's own column, or "(none)" where the pot has none or a column the import no
+ * longer has. With no column imported the field is `off` and its tooltip is the
+ * page reference alone; otherwise the tooltip names the selected column and the
+ * page, or is the page alone where none is picked.
+ *
+ * @param {object} args
+ * @param {Array<{key: string, label: string}>} args.columns `armsColumns`'
+ * @param {string} args.chosen the pot's `deal.armsSetting`
+ * @param {string} args.cite the page reference
+ * @param {(key: string, data?: object) => string} args.loc the treasure lang formatter
+ */
+export function armsField({ columns, chosen, cite, loc }) {
+  const picked = columns.find((c) => c.key === chosen) ?? null;
+  return {
+    off: columns.length === 0,
+    options: [{ key: "", label: loc("deal.armsNone"), selected: !picked }, ...columns.map((c) => ({ key: c.key, label: c.label, selected: c === picked }))],
+    tip: picked ? loc("deal.tip.arms", { column: picked.label, cite }) : cite,
+  };
+}
+
+/**
+ * The parts of an arm's rank worded for its band's tooltip, named with the
+ * world's own figures: the type rolled where there is one, its base's cost, the
+ * masterwork cost, and the page. `parts` is `armsParts`' answer.
+ *
+ * @param {{type: string, baseGp: number, masterworkGp: number}} parts
+ * @param {object} args
+ * @param {string} args.cite the arms page reference
+ * @param {(key: string, data?: object) => string} args.loc the treasure lang formatter
+ * @param {(gp: number) => string} args.gp a gp figure as text
+ */
+export function armsBandParts(parts, { cite, loc, gp }) {
+  const figures = { base: gp(parts.baseGp), masterwork: gp(parts.masterworkGp), cite, masterworkCite: loc("cite.masterwork") };
+  return parts.type ? loc("tip.armsParts", { ...figures, type: parts.type }) : loc("tip.armsPartsBare", figures);
 }
 
 /**

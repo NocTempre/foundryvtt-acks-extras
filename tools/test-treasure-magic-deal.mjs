@@ -246,7 +246,9 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   const asked = [];
   const row = (text, extra = {}) => item(text, extra);
   eq(apparentOf(row("Zork Blade +1", { arms: { name: true } }), { bases, masterwork: masterwork(asked) }), { baseUuid: "Item.zorkBlade", baseGp: 19, masterworkGp: 403 }, "a row linked by name: the noun before its bonuses is the base, and a weapon takes the both-tier cost");
-  eq(apparentOf(row("Shiny +2", { arms: { grid: "armsZz" }, armsType: "Tarn Hauberk Armor" }), { bases, masterwork: masterwork(asked) }), { baseUuid: "Item.tarnHauberkArmor", baseGp: 40, masterworkGp: 211 }, "a rolled type is the base, and armour takes the AC-tier cost");
+  eq(apparentOf(row("Shiny +2", { arms: { grid: "armsZz" }, armsType: "Tarn Hauberk Armor" }), { bases, masterwork: masterwork(asked) }), { baseUuid: "Item.tarnHauberkArmor", baseGp: 40, masterworkGp: 211, type: "Tarn Hauberk Armor" }, "a rolled type is the base, armour takes the AC-tier cost, and the type is kept beside the figures");
+  eq(apparentOf(row("Shiny +2", { arms: { grid: "armsZz" }, armsType: "  Tarn Hauberk Armor " }), { bases, masterwork: masterwork() }).type, "Tarn Hauberk Armor", "the type kept is trimmed");
+  eq("type" in apparentOf(row("Zork Blade +1", { arms: { name: true } }), { bases, masterwork: masterwork() }), false, "a row linked by name rolled no type, so keeps none");
   eq(apparentOf(row("Shiny +1", { arms: { kind: "k" }, armsType: "Tarn Buckler" }), { bases, masterwork: masterwork(asked) }).masterworkGp, 211, "a shield takes the AC-tier cost");
   eq([asked, ARMS_TIER], [["weaponBoth", "armorAC", "armorAC"], { weapon: "weaponBoth", armor: "armorAC", shield: "armorAC" }], "the tier is asked once per arm, by the base's kind");
   eq(apparentOf(row("Band of Tines +1", { arms: { name: true } }), { bases, masterwork: masterwork() }), null, "a ring linked by name finds no base, so no figures");
@@ -288,7 +290,7 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   r = await withArms(row("Zork Blade +1", { arms: { name: true } }), { bases: undefined, masterwork: undefined });
   eq(r.truths[0].apparent, null, "no seams stores nothing");
   r = await withArms(row("Zork Blade +1", { arms: { grid: "armsZz" }, armsType: "Quill Spear" }));
-  eq(r.truths[0].apparent, { baseUuid: "Item.quillSpear", baseGp: 7, masterworkGp: 403 }, "a rolled type is stored as its base");
+  eq(r.truths[0].apparent, { baseUuid: "Item.quillSpear", baseGp: 7, masterworkGp: 403, type: "Quill Spear" }, "a rolled type is stored as its base, and kept on the truth as the type rolled");
 
   const two = async () => [knownTruth(), normalizeTruth({ pool: POOL.coins, label: "2 Tin", coin: { name: "Tin", cv: 1, count: 2 } })];
   r = await withArms(row("Zork Blade +1", { arms: { name: true }, uuid: "Item.d" }), { resolve: two });
@@ -517,6 +519,108 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   eq(r.errors, [{ code: MAGIC_ERROR, reason: MAGIC_REASON.noMatch, noun: "whatever" }], "a type-list placeholder in heroic is refused");
   r = await run([typed("whatever")], { lists: LISTS, roll });
   eq(r.errors, [{ code: MAGIC_ERROR, reason: "not-imported", noun: "whatever" }], "no type list read: the placeholder stays and says so");
+}
+
+/* --- the deal panel's arms column and the Judge's card: the window's own context -------- */
+{
+  const { MAGIC_ITEM_DOC } = await import("../scripts/magic-items/constants.mjs");
+  const { armsColumns, armsField, armsBandParts } = await import("../scripts/treasure/magic-deal-logic.mjs");
+  const { armsParts } = await import("../scripts/treasure/pot-logic.mjs");
+  const { armsSource } = await import("../scripts/treasure/deal.mjs");
+
+  // Pure: the columns the import read, "(none)" first, the pot's own selected.
+  const grid = (...keys) => Object.fromEntries(keys.map((k) => [k, [{ min: 1, max: 6, type: `Type ${k}` }]]));
+  const tables = { armsSettings: { s2: "Beta setting", s1: "Alpha setting", s10: "Kappa setting", s3: "  ", s4: "Delta setting", s5: 7 }, armsSword: grid("s1", "s2", "s3", "s10", "s5"), armsOther: { s4: [] } };
+  eq(armsColumns(tables), [{ key: "s1", label: "Alpha setting" }, { key: "s2", label: "Beta setting" }, { key: "s10", label: "Kappa setting" }], "the columns are the named ones some grid has rows under, in column order: a blank name, a non-text name and a column with no rows are left out");
+  eq([armsColumns(null), armsColumns({}), armsColumns({ armsSettings: { s1: "Alpha setting" } }), armsColumns({ armsSettings: { s1: "Alpha setting" }, armsSword: { s1: "nope" } })], [[], [], [], []], "no grid imported means no column, however the settings are named");
+  eq(armsColumns({ armsSettings: { x1: "Odd", s1: "Alpha setting" }, armsBow: grid("s1", "x1") }).map((c) => c.key), ["s1"], "a key that is no setting key is not a column");
+  const tl = (key, data = {}) => lang[`ACKS-TREASURE.${key}`].replace(/\{(\w+)\}/g, (_, k) => data[k] ?? "");
+  const cols = armsColumns(tables);
+  let f = armsField({ columns: cols, chosen: "", cite: "INV p. 9", loc: tl });
+  eq([f.off, f.options.map((o) => [o.key, o.label, o.selected]), f.tip], [false, [["", "(none)", true], ["s1", "Alpha setting", false], ["s2", "Beta setting", false], ["s10", "Kappa setting", false]], "INV p. 9"], "a new pot: (none) first and selected, the tooltip the page alone");
+  f = armsField({ columns: cols, chosen: "s2", cite: "INV p. 9", loc: tl });
+  eq([f.options.filter((o) => o.selected).map((o) => o.key), f.tip], [["s2"], "Beta setting (INV p. 9)"], "the pot's own column is the selected one, and the tooltip names the column and the page");
+  f = armsField({ columns: cols, chosen: "s7", cite: "INV p. 9", loc: tl });
+  eq([f.options.filter((o) => o.selected).map((o) => o.key), f.tip], [[""], "INV p. 9"], "a stored column the import no longer has reads as (none)");
+  f = armsField({ columns: [], chosen: "s1", cite: "INV p. 9", loc: tl });
+  eq([f.off, f.options.map((o) => [o.key, o.selected]), f.tip], [true, [["", true]], "INV p. 9"], "no column imported: the field is off, holds (none) alone, and its tooltip is the page reference alone");
+  const gpOf = (n) => String(n);
+  eq(armsBandParts({ type: "Tarn Hauberk Armor", baseGp: 40, masterworkGp: 211 }, { cite: "INV p. 9", loc: tl, gp: gpOf }), "Tarn Hauberk Armor 40 gp (its imported item) + masterwork 211 gp (RR ch. 4) · INV p. 9", "a typed arm's parts: the type, its base's cost, the masterwork cost and the pages");
+  eq(armsBandParts({ type: "", baseGp: 19, masterworkGp: 403 }, { cite: "INV p. 9", loc: tl, gp: gpOf }), "Base 19 gp (its imported item) + masterwork 403 gp (RR ch. 4) · INV p. 9", "an arm with no type names no type");
+
+  // The truths the cards carry, and which of them show their parts.
+  const arm = (over = {}) => normalizeTruth({ pool: POOL.magic, label: "Rolled shiny", magical: true, detected: false, mask: { name: "Plain thing" }, apparent: { baseUuid: "Item.x", baseGp: 40, masterworkGp: 211, type: "Tarn Hauberk Armor" }, ...over });
+  eq(armsParts(arm()), { type: "Tarn Hauberk Armor", baseGp: 40, masterworkGp: 211 }, "an undetected arm with figures shows its parts");
+  eq(armsParts(arm({ apparent: { baseUuid: null, baseGp: 19, masterworkGp: 403 } })), { type: "", baseGp: 19, masterworkGp: 403 }, "a row linked by name shows its parts with no type");
+  eq([armsParts(arm({ mask: { name: "Plain thing", cost: 7 } })), armsParts(arm({ detected: true })), armsParts(arm({ apparent: null })), armsParts(arm({ valueGp: 5 })), armsParts(arm({ source: { uuid: "Item.x", data: { flags: { [MODULE_ID]: { markets: { apparentValueGp: 12 } } } } } }))], [null, null, null, null, null], "a mask's cost, a detected card, no figures, a stated worth and an apparent value each rank it by something else, so no parts");
+  eq([rankWorth(arm()), rankWorth(arm({ mask: { name: "Plain thing", cost: 7 } }))], [251, 7], "the parts, where shown, are what the rank is");
+
+  // The window's context: the real sheet over a mocked base class.
+  const keep = { foundry: globalThis.foundry, format: game.i18n.format, localize: game.i18n.localize, isGM: game.user.isGM };
+  let seatedPile = null;
+  globalThis.foundry = { applications: { api: { HandlebarsApplicationMixin: (Base) => Base, DocumentSheetV2: class { get document() { return seatedPile; } async _prepareContext() { return {}; } }, DialogV2: {} } } };
+  game.i18n.format = (key, data = {}) => (lang[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => data[k] ?? "");
+  game.i18n.localize = (key) => lang[key] ?? key;
+  const { default: PotSheet } = await import("../scripts/treasure/pot-sheet.mjs");
+  const potWith = (truths, deal = {}) => {
+    const cards = truths.map((t, i) => ({ id: `c${i}`, face: null, value: 0, flags: { [MODULE_ID]: { [CARD_FLAG]: t } } }));
+    return { id: "pot9", documentName: "Cards", type: "pile", flags: { [MODULE_ID]: { [POT_FLAG]: { phase: PHASE.staging, order: cards.map((c) => c.id), deal } } }, cards: { contents: cards, get: (id) => cards.find((c) => c.id === id) } };
+  };
+  const contextOf = async (pile, { gm = true } = {}) => {
+    seatedPile = pile;
+    game.user.isGM = gm;
+    return new PotSheet()._prepareContext({});
+  };
+  const imported = (extra = {}) => { resetTables(); registerTable({ id: MAGIC_ITEM_DOC, cites: { armsSettings: "INV p. 9" }, tables: { armsSettings: { s1: "Alpha setting", s2: "Beta setting" }, armsSword: grid("s1", "s2"), ...extra } }, { priority: PRIORITY.WORLD }); };
+  const typed = arm();
+  const named = arm({ label: "Named shiny", apparent: { baseUuid: null, baseGp: 19, masterworkGp: 403 } });
+  const masked = arm({ label: "Masked shiny", mask: { name: "Plain thing", cost: 7 } });
+  const plain = normalizeTruth({ pool: POOL.item, label: "Wooden spoon", valueGp: 1 });
+
+  imported();
+  let ctx = await contextOf(potWith([typed, named, masked, plain], { armsSetting: "s2" }));
+  eq([ctx.deal.arms.off, ctx.deal.arms.options.map((o) => [o.key, o.label, o.selected]), ctx.deal.arms.tip], [false, [["", "(none)", false], ["s1", "Alpha setting", false], ["s2", "Beta setting", true]], "Beta setting (INV p. 9)"], "the Judge's panel lists (none) and the imported columns with the pot's own selected, and the tooltip names it and the page the import recorded");
+  eq(ctx.deal.styles.length > 0 && Object.keys(ctx.deal).indexOf("arms") === Object.keys(ctx.deal).indexOf("styles") + 1, true, "the field follows the table style in the panel's context");
+  ctx = await contextOf(potWith([plain]));
+  eq([ctx.deal.arms.options.find((o) => o.selected).key, ctx.deal.arms.tip], ["", "INV p. 9"], "a new pot has none picked, and its tooltip is the page alone");
+  eq(armsSource().cite, "INV p. 9", "the page is the one the import recorded");
+  resetTables();
+  registerTable({ id: MAGIC_ITEM_DOC, tables: { armsSettings: { s1: "Alpha setting" }, armsSword: grid("s1") } }, { priority: PRIORITY.WORLD });
+  ctx = await contextOf(potWith([plain], { armsSetting: "s1" }));
+  eq([ctx.deal.arms.off, ctx.deal.arms.tip], [false, "Alpha setting (JJ ch. 4)"], "with no page recorded the tooltip falls to the reference the module ships");
+  resetTables();
+  ctx = await contextOf(potWith([plain], { armsSetting: "s1" }));
+  eq([ctx.deal.arms.off, ctx.deal.arms.options.map((o) => [o.key, o.label, o.selected]), ctx.deal.arms.tip], [true, [["", "(none)", true]], "JJ ch. 4"], "with nothing imported the field is off, blank, and its tooltip is the page reference alone");
+  imported({ armsSword: {} });
+  ctx = await contextOf(potWith([plain]));
+  eq(ctx.deal.arms.off, true, "settings named but no grid under them is no grid imported");
+
+  // The Judge's card: the type, and the band's tooltip.
+  imported();
+  ctx = await contextOf(potWith([typed, named, masked, plain], { armsSetting: "s1" }));
+  const [cTyped, cNamed, cMasked, cPlain] = ctx.cards;
+  eq([cTyped.rolledText, cNamed.rolledText, cMasked.rolledText, cPlain.rolledText], ["Undetected · rolled: Tarn Hauberk Armor", "", "Undetected · rolled: Tarn Hauberk Armor", ""], "a typed arm's line names the type rolled, masked or not; a card with no type rolled, none");
+  const band = (c) => `${c.bandName} band: ranked within this pot by its apparent worth`;
+  eq(cTyped.bandTip, `${band(cTyped)} · Tarn Hauberk Armor 40 gp (its imported item) + masterwork 211 gp (RR ch. 4) · INV p. 9`, "the band's tooltip is the one it had, with the parts and the pages after it, in the world's figures");
+  eq(cNamed.bandTip, `${band(cNamed)} · Base 19 gp (its imported item) + masterwork 403 gp (RR ch. 4) · INV p. 9`, "an arm with no type names its base and masterwork alone");
+  eq([cMasked.bandTip, cPlain.bandTip], [band(cMasked), band(cPlain)], "a card whose rank is not those parts says nothing of them");
+
+  // A Player seat: no field, no type, no parts, in anything the window is handed.
+  ctx = await contextOf(potWith([typed, named, masked, plain], { armsSetting: "s2" }), { gm: false });
+  eq([ctx.deal, ctx.isGM], [null, false], "a Player seat's window carries no deal panel, so no arms field");
+  eq(JSON.stringify(ctx).match(/.{20}(Alpha setting|Beta setting|Tarn Hauberk|rolled:|masterwork).{20}/i), null, "and nothing of the columns, the type or the parts is in what it is handed");
+  eq(ctx.cards.every((c) => c.rolledType === "" && c.armsParts === null && c.rolledText === ""), true, "every card's type and parts are blank in a Player's view");
+  const open = potWith([typed, named]);
+  open.flags[MODULE_ID][POT_FLAG].phase = PHASE.open;
+  open.flags[MODULE_ID][POT_FLAG].audience = ["u1"];
+  ctx = await contextOf(open, { gm: false });
+  ok(!/Tarn Hauberk|rolled:|masterwork \d|Alpha setting/i.test(JSON.stringify(ctx)), "an opened pot's Player window says none of it either");
+  eq(ctx.cards.every((c) => c.rolledText === "" && !/masterwork/.test(c.bandTip)), true, "its band tooltips are the plain ones");
+
+  Object.assign(game.i18n, { format: keep.format, localize: keep.localize });
+  game.user.isGM = keep.isGM;
+  globalThis.foundry = keep.foundry;
+  resetTables();
 }
 
 console.log(`treasure magic deal: ${checks} checks passed`);
