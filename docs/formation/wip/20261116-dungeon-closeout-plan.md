@@ -1193,7 +1193,13 @@ Phase 4. No slice below has a build commit on `main` yet.
   start it earlier as a lane of its own.
 - **Later batches.** Batch 2 waits until H0 and P3 have landed, and batch 3
   until H3 and H4 have. Rows 5–6, 3b and the rest of 3c go to later
-  sessions.
+  sessions. *Corrected 2026-11-19 (§18):* H0 (`7d26b616`), P3
+  (`3d74d294`) and H3 (`0da6368f`) are on `main`, so batch 2 may start;
+  H4 is still only a ROADMAP row, so batch 3 waits. W is done (T-0669,
+  `8583a950` and `63588364`). R-DC2 now goes into H0's landed
+  `sweepForTraps` rather than its hunks, and U1t reads P3's thing
+  placements through `allPlacements`. T-0677's open half, `attemptDisarm`,
+  rides U1t.
 - **Scene search.** Its S2 waits on R-DC1 to R-DC3, so this batch unblocks
   it.
 - **Setup.** Run `acks-branch sync dungeon-closeout` first; the build-ahead
@@ -2047,3 +2053,101 @@ topic changes, so they are built after `topic/dungeon-closeout` lands on
 R-DC4, the Turn plan's "Search here" button, is built on scene search's own
 topic, together with `acksExtras.sceneSearch.open`. Formation reviews its diff
 before it lands.
+
+## 18. Batch 1 results (2026-11-19)
+
+Built on `topic/dungeon-closeout`, one agent per slice, and landed on
+`main` as `357e6081` (full gate green, 330 suites). The landed slices:
+R-DC3 `9800d341`, R-DC1 `c6aa127f`, R-DC6 `9d6e876c`, D1 `0e4b375b`, T1
+`56001464` (`lib/throws.mjs`), U2 `5a95732a`, D2 `ccf2633a` with its
+follow-ups `74195a47`, U3 and U1d `3e9fe506`, and docs `48ca93d3`,
+`f1f4bf62` and `71372a03`. Gate fixes are in `357e6081`. W was taken by
+lane 3 as T-0669 (`8583a950`). Walk fixes on `main`: `63588364` and
+`64a7f873`. None of these is pushed by this session.
+
+Owner rulings it was built on: the four `api.formation.doors` names stay
+exported and empty. A bookless world bashes no door. The shape change
+stays in the minor ("Still a minor", told that the functions shipped in
+v2026.11.14 and that outside callers are unknown).
+
+### Exercised live
+
+Walked on `main` at `63588364`, lane B (Gamemaster 2 / Player 2), with
+fixture tag `dc1`. The world stayed up throughout.
+
+- `formation-turn-plan`: 36 pass, 0 fail.
+- `formation-steps`: 57 pass, 1 fail (T-0680, below). The door section
+  passed 15/15 again after `64a7f873`.
+- **R-DC1:** a secret door becomes an ordinary door with its marks and
+  state kept, and a second reveal writes nothing.
+- **Door window:**
+  - Each door opens its own window, and reopening one fronts it.
+  - The basher follows the selected token.
+  - The partner list holds the party's members only.
+  - Every tooltip is `data-tooltip-text` with a page, and no `title`
+    attribute is left.
+  - Bash and Batter sit in the pinned footer part.
+  - Seeded with invented figures, Needs shows a figure. Blank, it shows
+    "—", Bash is disabled and the tooltip is the page reference alone.
+- **D1 and T1:** the RR Rules import of `formation` and `throws` on the
+  lane wrote the door grid with batter rows, all nine bash figures cited,
+  and both natural-die edges. With only the import, the door window lists
+  the rows, Needs is a figure, Bash and Batter are enabled, and every
+  tooltip carries an RR page. `lib/throws` answers a boolean (7/7).
+- **U2:** the Trapbreaking opener appears once, in the Dungeon tab's head
+  pill, and not on the Order tab. The strip's figures carry tooltips.
+
+### Found by the walk
+
+- **T-0669 d (fixed, `63588364`):** the squeeze Push forward tooltip named
+  only the figure's source. It now names the Dungeonbashing throw, with
+  the source after it.
+- **T-0671 (fixed, `63588364`):** a monster with no character speeds was
+  refused on every squeeze row. It now falls back to the speeds core
+  derives for it.
+- **The `formation-turn-plan` walk crashed** with a variable-before-
+  declaration error: a local named `blocked` shadowed the imported
+  helper. It was renamed in `63588364`.
+- **The `formation-steps` "Batter, no formation" step was stale:** door 2
+  had no row picked, so it had no batter. Fixed in `64a7f873`.
+- **T-0680 (registered, outside batch 1):** the city "Quiet" check in
+  `formation-steps` fails with one row. Suspects: a stale walk step or the
+  bug-sweep merges.
+
+### Checked offline only
+
+- The pair-bash and solo `bashStrength` terms, and the `unthrown` audit
+  bucket (`test-formation-flows`, `test-crossing`,
+  `test-skill-audit-roll`).
+- The four empty kept names and `apiVersion`.
+- Q6's base label against `resolveCheck` (`test-crossing-surface`).
+
+### Not checked
+
+- Turn-plan TESTING steps 10–13 as written: the Judge's warned lock past a
+  refusal, a player's refusal note when pressing, the contents of the strip
+  tooltips, and the spell label. The walk's lock steps passed, but not
+  these specific observables.
+- The reveal as seen from the player seat.
+- A pair bash with a party partner, live.
+- The Trapbreaking dialog (batch 2).
+
+Printed literals U2 found in turn-plan code, registered for the
+`acks-printed-value` pass:
+- `ROUNDS_PER_TURN`.
+- The `/3` and `*10` in `effectiveSpeed`.
+- `turns * 10` in `formatTurns`, and the "(10 minutes)" string.
+
+Also left over:
+- The lang key `app.speedHint` is orphaned.
+- ROADMAP gains a row for the door window's art register entry (RR p. 261).
+- The generated API page is gitignored, so `apiVersion`'s change shows
+  only in the `upgrading` fragment.
+
+### Fixtures kept
+
+The `formation/steps-*` door fixtures, all under `@dc1`: scene, doors 1
+and 2, basher and stranger tokens, door party, and
+`formation/secret-door`. Also the `formation/plan-*` turn-plan fixtures.
+The world registry holds the RR `formation` and `throws` import. Nothing
+was swept.
