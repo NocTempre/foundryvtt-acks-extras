@@ -549,7 +549,7 @@ by hand.
     *Teardown:* the fixture by its tracked uuid. Offline:
     `tools/test-market-class-unknown.mjs`.
 
-28. **A pack set down is a pile on the ground.** *Unwalked when written.* Fixtures:
+28. **A pack set down is a pile on the ground.** Fixtures:
     `location/ground-hero`, `location/ground-scene` (Fixtures above). Drive it
     from the console, `acksExtras.location.ground.setDown(actor, item)`, on
     each seat; a Player seat's call reaches the Judge's seat through the socket.
@@ -557,7 +557,9 @@ by hand.
     *Player seat, owner of the character, token on the active scene:*
     the call resolves `{ok: true, pileUuid}`. *Observable:* one new
     `acks-extras.location` actor with `flags["acks-extras"].ground` set and
-    `building` false, `ownership.default` 2 and no seat named an owner; a
+    `building` false, `ownership.default` 2 and no Player seat named an owner
+    (core adds the creating Judge seat at owner, which grants nothing a Judge
+    lacks); a
     linked token for it on the scene, centred on the character's token; the
     character holds only the loose item, and their Load has dropped; the pile
     holds the pack and all that was in it, each stamped to the character, and
@@ -581,6 +583,17 @@ by hand.
     location sheet's Storage tab). *Observable:* the pack is on the character
     again in its slot with whatever came back, and a moment later the pile and
     its token are gone; a pile still holding one item stays.
+    *A pin does not reach a pile:* as the Player, pin someone else's tokenless
+    pile on their own character (`setPinnedPlace(actor, pileUuid, true)` from
+    `scripts/location/reach.mjs`; dropping the pile on the sheet warns and pins
+    nothing). *Observable:* `depositReach` answers `{can: false}` and a
+    `lib.storage.retrieve` of a row on it answers `{ok: false, reason:
+    "permission"}`. Unpin afterwards.
+    *The system sheet's Storage tab:* open the Player's character on the system
+    sheet, Storage tab, with their pack set down. *Observable:* the pile's row
+    has *Take everything* and per-row take controls, no *Leave something here*
+    and no lock hint, and its name is text; as the Judge the name is a link.
+    Someone else's pile is not listed there.
     *A bystander's take:* walked in docs/character-sheet/TESTING.md, "Set down a
     pack from the Equipment tab", step 11 (fixture
     `character-sheet/set-down-bystander`).

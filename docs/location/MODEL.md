@@ -346,8 +346,11 @@ stamped to the claimant from wherever they stand (`docs/lib/API.md`, storage).
 **Who may take.** Anyone standing at the pile (2026-11-19). A relayed
 retrieval into a character the sender owns takes any row on a pile, whoever it
 is stamped to, when `depositReach(character, pile)` says the character reaches
-it, which with the pile observed and owned by none means its own token; a
-character away from the pile takes only rows stamped to them. A row taken by
+it, which with the pile observed and owned by none means its own token; a pin
+never reaches a pile (`depositReach` skips it, and the Storage tab's
+drop-to-pin refuses one with a warning), since a pin would let a character take
+from it anywhere. A character away from the pile takes only rows stamped to
+them. A row taken by
 someone else leaves the stamp behind with the rest of the attribution, so a
 container that lands on another character has its record cleared and is taken
 off, since the worn mark rides the transfer (below), and the pile goes once it

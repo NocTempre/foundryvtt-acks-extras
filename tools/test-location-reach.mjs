@@ -1052,6 +1052,22 @@ ok("a pile is reached by its own token, never by observing it", () => {
   assert.equal(pile.ownership.default, 2, "every seat can read it, which is all that default is for");
 });
 
+ok("a pin never puts a pile in reach", () => {
+  const town = makeScene("Town Square");
+  const pins = [];
+  const hero = makeHero("Gor", { ...owned(), getFlag: (_ns, key) => (key === "places" ? pins : null) });
+  const pile = makePile();
+  const stash = makePlace("The Warehouse", owned(JUDGE));
+  drop(town, pile, { x: 500, y: 500, linked: true });
+  march(town, [hero], { x: 5000, y: 5000 });
+  pins.push(pile.uuid, stash.uuid);
+  assert.equal(depositReach(hero, stash).can, true, "a pinned place is in reach from afar");
+  const out = depositReach(hero, pile);
+  assert.equal(out.can, false, "a pinned pile is not: only standing at it reaches it");
+  assert.equal(out.reason, "notHere", "and the refusal names the map it is on");
+  assert.ok(!reachablePlaces(hero).includes(pile));
+});
+
 /* -------------------------------------------- */
 /*  A gate is the point of entry to its market  */
 /* -------------------------------------------- */

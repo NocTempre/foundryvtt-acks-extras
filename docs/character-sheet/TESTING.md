@@ -1020,7 +1020,7 @@ only where the run advanced it and no peer's cast depends on it.
 
 ## Set down a pack from the Equipment tab
 
-*Unwalked when written.* The pile itself (its actor, token, hooks and the
+*Step 11 unwalked when written.* The pile itself (its actor, token, hooks and the
 restoring of the slot) is walked in docs/location/TESTING.md, step 28; this
 recipe walks the sheet's half: the control, the row and what the sheet shows.
 
@@ -1082,7 +1082,7 @@ data)`, and kept.
    shows no *Set down*. Not walked here: an unlinked token's own actor sheet (no
    fixture makes one); `tools/test-equipment-tab.mjs` holds it offline.
 9. Set the Backpack down again, then open `set-down-hero` on the system
-   sheet, Storage tab, and press *Retrieve all* on the pile's row. *Observable:* the pack is
+   sheet, Storage tab, and press *Take everything* on the pile's row. *Observable:* the pack is
    back on Back exactly as in step 5.
 10. Raise the type size setting and reopen the sheet with a pile listed.
     *Observable:* the row, the tag and the controls scale with it; Tab reaches

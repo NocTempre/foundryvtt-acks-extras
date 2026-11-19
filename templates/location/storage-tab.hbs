@@ -13,9 +13,13 @@
     <section class="acks-location-place" data-place-uuid="{{place.uuid}}">
       <header class="acks-location-place-head">
         <img class="acks-location-place-img" src="{{place.img}}" alt="{{place.name}}" />
+        {{#if place.canOpen}}
         <a class="acks-location-place-name" data-acksl-action="openLocation">
           {{#if place.isVault}}<i class="fas fa-vault"></i> {{/if}}{{place.name}}
         </a>
+        {{else}}
+        <span class="acks-location-place-name">{{place.name}}</span>
+        {{/if}}
         {{#if place.coinGC}}
           <span class="acks-location-coin">{{place.coinGC}} {{localize "ACKS-LOCATION.storage.gp"}}</span>
         {{/if}}
@@ -24,7 +28,7 @@
             <button type="button" class="acks-location-btn acks-location-btn--sm" data-acksl-action="deposit"{{#unless place.canReach}} data-tooltip-text="{{place.reachReason}}"{{/unless}}>
               <i class="fas fa-down-long"></i> {{localize "ACKS-LOCATION.storage.deposit"}}
             </button>
-          {{else}}
+          {{else if place.reachReason}}
             {{! Leaving something somewhere needs you to be there; taking your
                 own goods back does not, so retrieval stays below whatever this
                 says. The reason is named rather than the control just being

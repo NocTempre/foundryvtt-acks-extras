@@ -32,6 +32,7 @@ import { getFormations, getFormationForActor } from "../formation/formation-mode
 import { partyPoint } from "../formation/zones.mjs";
 import { placeReachesSpot, placeStandsOn } from "./here.mjs";
 import { tokenCentre } from "../lib/token-centre.mjs";
+import { isGroundPile } from "../lib/place.mjs";
 
 /** Flag on a CHARACTER: places they have pinned to their own sheet. */
 export const PINNED_PLACES_FLAG = "places";
@@ -304,7 +305,9 @@ export function depositReach(actor, place, { scan } = {}) {
 
   // Every clause here is about the CHARACTER, ownership included, not the client reading it.
   if (ownersShare(actor, place)) return { can: true, reason: null, scene: null };
-  if (pinnedPlaces(actor).has(place.uuid)) return { can: true, reason: null, scene: null };
+  // A pin puts a place in reach from anywhere; a pile on the ground is reached
+  // only by standing at it, since reaching it lets a character take what is in it.
+  if (!isGroundPile(place) && pinnedPlaces(actor).has(place.uuid)) return { can: true, reason: null, scene: null };
   if (companionOwns(actor, place)) return { can: true, reason: null, scene: null };
 
   // Ground presence: a place's own token, on any scene the character stands on.

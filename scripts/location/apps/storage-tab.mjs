@@ -21,6 +21,7 @@ import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan, setPinnedPlace }
 import { ITEM_TYPE, ACTOR_TYPE } from "../../lib/vocab.mjs";
 import { COIN_ORDER_TEMPLATE, bindCoinOrder, coinOrderView } from "../../lib/coin-order.mjs";
 import { readPicks, restorePicks, spendPicks } from "../../lib/picks.mjs";
+import { isGroundPile } from "../../lib/place.mjs";
 
 const ANCHOR_CLASS = "acks-location-storage-anchor";
 const TAB_CLASS = "acks-location-storage-tab";
@@ -41,15 +42,19 @@ function collect(actor) {
   const held = api.providersFor(actor);
   const entry = (provider, items, coinGC) => {
     // `canReach` gates the DEPOSIT control only; retrieval is not gated (reach.mjs).
+    // A pile on the ground takes no deposit from anyone, a Judge included, and
+    // its own sheet shows a Player nothing, so its name opens it for a Judge only.
     const reach = depositReach(actor, provider, { scan });
+    const ground = isGroundPile(provider);
     return {
     uuid: provider.uuid,
     name: provider.name,
     img: provider.img,
     isVault: !!api.vaultOwnerUuid(provider),
     canReach: reach.can,
-    canDeposit: reach.can || !!game.user?.isGM,
-    reachReason: reach.can ? null : loc(`storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
+    canDeposit: !ground && (reach.can || !!game.user?.isGM),
+    canOpen: !ground || !!game.user?.isGM,
+    reachReason: reach.can || ground ? null : loc(`storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     coinGC,
     rows: items.map((item) => {
       const qty = api.quantityOf(item.toObject())?.value ?? null;
@@ -64,7 +69,8 @@ function collect(actor) {
   const pinned = pinnedPlaces(actor);
   const empty = api
     .providers()
-    .filter((p) => !places.some((e) => e.uuid === p.uuid) && listsWhenEmpty(actor, p, { scan, pinned }))
+    // A pile is listed only to someone with goods in it; one the character stands at is the Equipment tab's.
+    .filter((p) => !isGroundPile(p) && !places.some((e) => e.uuid === p.uuid) && listsWhenEmpty(actor, p, { scan, pinned }))
     .map((p) => entry(p, [], 0));
 
   return {
@@ -188,6 +194,7 @@ async function onAction(event, actor) {
 
   switch (button.dataset.ackslAction) {
     case "openLocation":
+      if (isGroundPile(place) && !game.user?.isGM) break;
       place.sheet?.render(true);
       break;
     case "deposit":
@@ -236,6 +243,8 @@ function bindPlaceDrop(root, actor) {
       if (!dropped || !storage()?.isProvider?.(dropped)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
+      // A pin would put a pile in reach from anywhere, and reaching a pile is taking from it.
+      if (isGroundPile(dropped)) return void ui.notifications.warn(loc("storage.pileNoPin", { name: dropped.name }));
       setPinnedPlace(actor, dropped.uuid, true)
         .then(() => {
           ui.notifications.info(loc("storage.pinned", { name: dropped.name }));
