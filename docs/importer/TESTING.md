@@ -4675,7 +4675,8 @@ reads the registry (a GM seat cannot see a leak).
    `jj-art1001-p450-0-54-66-612` and `jj-art1002-p1-60-68-236-94` with the
    Journal open. `t.getLayer("bookArt", t.PRIORITY.WORLD).tables` has a `tt`
    key (and `jj`), each row with a src under the art directory and a
-   `"TT p.<folio>"` cite; `t.citeOf("bookArt", "tt")` answers. To confirm:
+   `"TT p.<folio>"` cite, or `"TT PDF p. 1"` for a cover crop (a page before
+   folio 1, `artCite`); `t.citeOf("bookArt", "tt")` answers. To confirm:
    the library journal shows a page for the table (inferred from
    `materializeAll`; correct MODEL if it does not).
 2. **The backs and faces.** *Observable:*

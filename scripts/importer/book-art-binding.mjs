@@ -18,7 +18,7 @@
  * no entry.
  */
 import { BOOK_ART_DOC, ART_SIDES, artRowProblems } from "../lib/book-art.mjs";
-import { citeFor } from "./books.mjs";
+import { REGISTRY, citeFor } from "./books.mjs";
 import { joinCites } from "./produces.mjs";
 import { BOOK_CODE } from "./books/index.mjs";
 
@@ -177,12 +177,19 @@ export function planBookArt(bookId, rows) {
 /** One picture's result from a Map or a plain object keyed by ordinal. */
 const resultOf = (results, n) => (results instanceof Map ? results.get(n) : results?.[n]) ?? null;
 
+/** A picture's cite: its printed folio, or `<short> PDF p. <n>` for a page before folio 1. */
+export function artCite(bookId, page) {
+  const offset = REGISTRY[bookId]?.printedOffset ?? 0;
+  return page - offset >= 1 ? citeFor(bookId, page) : `${REGISTRY[bookId]?.short ?? bookId} PDF p. ${page}`;
+}
+
 /**
  * Registry rows from the pictures that came back: every use of a picture whose
  * result has a `path` becomes `{side, pool, band, kind, src, cite}`, with
  * `licence` where the use gives one. A texture's pool is null and its kind the
  * texture kind; a face's kind is its entry id, a back's null. Band 0 stays 0.
- * The cite is the picture's printed folio (`citeFor`).
+ * The cite is the picture's printed folio (`citeFor`), or its PDF page where the
+ * page comes before folio 1 (a cover), in the `PDF p.` form `parseCite` reads.
  *
  * @param {string} bookId
  * @param {object[]} planned `planBookArt`'s list
@@ -194,7 +201,7 @@ export function bookArtRows(bookId, planned, results) {
   for (const pic of planned ?? []) {
     const src = resultOf(results, pic.n)?.path;
     if (!nonEmpty(src)) continue;
-    const cite = citeFor(bookId, pic.page);
+    const cite = artCite(bookId, pic.page);
     for (const use of pic.uses) {
       rows.push({
         side: use.side,

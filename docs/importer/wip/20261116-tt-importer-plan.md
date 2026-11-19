@@ -200,3 +200,20 @@ S8 status (2026-11-19): the Journal's 158 magic items are registered (`register/
 Next: the treasure-art seam (B1-B6 and the texture crops), then the MM harvest (H1-H4).
 
 Art seam status (2026-11-19), on `topic/importer-books`, not landed: B1 96a63118 (lib `treasureArt`, `tools/test-book-art.mjs` 23), B4 ce6d6ac9 (the "Book art" step, chain at 23 steps), B3 66b249b8 (the Tome's 2 backs and 15 faces, the grime and foil crops and the Journal's two, `census-art.mjs` 215 candidates, `check-book-art.mjs` 21 rows sound), B2 03f1e77d (`placedPicture` and `uploadBookPicture`; the Node probe found 23 pictures with one object fetch each, 24 ms to 1.0 s a page). B5 writes the MODEL section, two DECISIONS entries, the TESTING walk and the ROADMAP rows. What remains: B6, the GM walk on lane C (no `tools/live/` walk yet), with first-run and re-run times and the journal projection confirmed; then the treasure card wires its reader to `treasureArt` and walks the Player half.
+
+Art seam landed (2026-11-19) on `main` at 0512dee9. B6 walked on lane C by hand, with a scratch driver for TESTING steps 1-5, 14 of 14.
+- The first run wrote 21 files (17 pictures, 4 crops) in 28.4 s.
+- A re-run reused all 21 in 0.5-3.0 s.
+- After one file was deleted, a run wrote it back under the same name.
+- Every lookup answered as TESTING says.
+- No seat console errors.
+- Each crop holds its region alone, with no purchaser stamp.
+- The walk found that the cover crops cited "p.-1". A page before folio 1 now cites "PDF p. <n>" (`artCite`).
+
+Not walked:
+- step 6 (an override, whose path is untraced);
+- step 7 (a world without the Tome);
+- the library journal page, which no world journal held, so MODEL's projection inference stays unconfirmed;
+- the Player half, which is the treasure card's walk once it reads `treasureArt`.
+
+Next: the MM harvest (H1-H4).

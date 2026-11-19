@@ -14,11 +14,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  PRODUCES, booksWithArt, bookArtClaim, bookOfArtClaim, bookArtProblems, planBookArt, bookArtRows, bookArtDoc, refusedArtRows,
+  PRODUCES, artCite, booksWithArt, bookArtClaim, bookOfArtClaim, bookArtProblems, planBookArt, bookArtRows, bookArtDoc, refusedArtRows,
   CROP_LIMITS, cropProblems, isCropRow,
 } from "../../scripts/importer/book-art-binding.mjs";
 import { BOOK_ART_DOC, artRowProblems } from "../../scripts/lib/book-art.mjs";
-import { citeFor, BOOKS } from "../../scripts/importer/books.mjs";
+import { citeFor, parseCite, BOOKS } from "../../scripts/importer/books.mjs";
 import { BOOK_CODE } from "../../scripts/importer/books/index.mjs";
 import { POOL, BAND_COUNT } from "../../scripts/treasure/constants.mjs";
 import { placementAt, cropBox, pictureBlob, extractPageArt } from "../../scripts/importer/extract.mjs";
@@ -210,6 +210,15 @@ ok("bookArtRows: the cite is the picture's printed folio, from its page", () => 
   assert.equal(plan[0].page, 50);
   assert.equal(row.cite, citeFor(CITED, 50));
   assert.notEqual(row.cite, `${BOOKS[CITED].short} p.50`);
+});
+
+ok("artCite: a page before folio 1 (a cover) cites its PDF page, and parseCite reads it back", () => {
+  const offset = BOOKS[CITED].printedOffset;
+  assert.ok(offset >= 1, "the cited book's folios start after its first PDF page");
+  const cover = artCite(CITED, 1);
+  assert.doesNotMatch(cover, /p\.-|p\.0\b/, "never a folio of 0 or below");
+  assert.deepEqual(parseCite(cover), { book: CITED, page: 1 });
+  assert.equal(artCite(CITED, offset + 1), citeFor(CITED, offset + 1), "folio 1 and after keep the printed folio");
 });
 
 ok("refusedArtRows names a row lib's check refuses", () => {
