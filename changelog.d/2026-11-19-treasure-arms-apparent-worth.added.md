@@ -4,7 +4,7 @@
   non-magical base, and ranks the card at that base's cost plus the masterwork
   cost, so a +1 sword reads as a fine one and no longer as worth nothing. An
   arm whose row names only a kind of weapon or armour needs the pot's arms
-  column to type it: in the pot window's left rail, under Table style, the
+  column to type it: in the pot window's rail, under Table style, the
   "Arms and armor column" field lists "(none)" and the setting columns of your
   imported arms grids. The pick is kept on the pot and is the next new pot's
   default; with "(none)", or with no arms grid imported (the field is then

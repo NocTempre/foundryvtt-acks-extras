@@ -293,8 +293,8 @@ export default class PotSheet extends HandlebarsApplicationMixin(DocumentSheetV2
     const pool = v.look === "cursed" ? loc("card.cursed") : loc(`pool.${v.poolKey}`);
     const backPool = loc(`pool.${v.backKey}`);
     const bandName = loc(`band.${v.band}`);
-    // The Judge's view alone carries the parts an arm ranked by; the same tooltip names them after the band.
-    const parts = v.armsParts ? armsBandParts(v.armsParts, { cite: armsSource().cite ?? loc("cite.arms"), loc, gp: gpText }) : "";
+    // The Judge's view alone carries the parts an arm ranked by; the same tooltip names them after the band, with the page that prints the procedure.
+    const parts = v.armsParts ? armsBandParts(v.armsParts, { cite: loc("cite.arms"), loc, gp: gpText }) : "";
     return {
       ...v,
       tag: pool,

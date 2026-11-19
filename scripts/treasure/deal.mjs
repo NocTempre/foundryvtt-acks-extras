@@ -118,13 +118,15 @@ async function rollMagicCards({ letter, truths, style = "classic", roller, armsS
 /**
  * The arms column choices the deal panel offers, read from the imported
  * magic-item tables: the setting columns of the arms grids (`armsColumns`) and
- * the page the import recorded for them, or null where it recorded none or a
- * Judge's override holds the table. With no grid imported there are no columns.
+ * the pages the import recorded for them (the grids' own, joined), or null where
+ * it recorded none, or a Judge's override holds the table: the document's whole
+ * span is no page for them. With no grid imported there are no columns.
  * @returns {{columns: Array<{key: string, label: string}>, cite: string|null}}
  */
 export function armsSource() {
-  const tables = hasDoc(MAGIC_ITEM_DOC) ? getDoc(MAGIC_ITEM_DOC).tables ?? null : null;
-  return { columns: armsColumns(tables), cite: citeOf(MAGIC_ITEM_DOC, "armsSettings") };
+  const doc = hasDoc(MAGIC_ITEM_DOC) ? getDoc(MAGIC_ITEM_DOC) : null;
+  const named = doc?.cites?.armsSettings;
+  return { columns: armsColumns(doc?.tables ?? null), cite: typeof named === "string" && named && citeOf(MAGIC_ITEM_DOC, "armsSettings") ? named : null };
 }
 
 /**

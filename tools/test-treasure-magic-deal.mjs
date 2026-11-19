@@ -589,6 +589,12 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   ctx = await contextOf(potWith([plain], { armsSetting: "s1" }));
   eq([ctx.deal.arms.off, ctx.deal.arms.tip], [false, "Alpha setting (JJ ch. 4)"], "with no page recorded the tooltip falls to the reference the module ships");
   resetTables();
+  registerTable({ id: MAGIC_ITEM_DOC, source: { pages: "INV whole span" }, tables: { armsSettings: { s1: "Alpha setting" }, armsSword: grid("s1") } }, { priority: PRIORITY.WORLD });
+  eq(armsSource().cite, null, "the document's whole span is no page for the columns, so none is named");
+  resetTables();
+  registerTable({ id: MAGIC_ITEM_DOC, cites: { armsSettings: "INV p. 9" }, tables: { armsSettings: { s1: "Alpha setting" }, armsSword: grid("s1") } }, { priority: PRIORITY.OVERRIDE });
+  eq(armsSource().cite, null, "a Judge's override has no page to point at");
+  resetTables();
   ctx = await contextOf(potWith([plain], { armsSetting: "s1" }));
   eq([ctx.deal.arms.off, ctx.deal.arms.options.map((o) => [o.key, o.label, o.selected]), ctx.deal.arms.tip], [true, [["", "(none)", true]], "JJ ch. 4"], "with nothing imported the field is off, blank, and its tooltip is the page reference alone");
   imported({ armsSword: {} });
@@ -601,8 +607,8 @@ const run = (truths, over = {}) => rollMagicTruths({ truths, style: "classic", w
   const [cTyped, cNamed, cMasked, cPlain] = ctx.cards;
   eq([cTyped.rolledText, cNamed.rolledText, cMasked.rolledText, cPlain.rolledText], ["Undetected · rolled: Tarn Hauberk Armor", "", "Undetected · rolled: Tarn Hauberk Armor", ""], "a typed arm's line names the type rolled, masked or not; a card with no type rolled, none");
   const band = (c) => `${c.bandName} band: ranked within this pot by its apparent worth`;
-  eq(cTyped.bandTip, `${band(cTyped)} · Tarn Hauberk Armor 40 gp (its imported item) + masterwork 211 gp (RR ch. 4) · INV p. 9`, "the band's tooltip is the one it had, with the parts and the pages after it, in the world's figures");
-  eq(cNamed.bandTip, `${band(cNamed)} · Base 19 gp (its imported item) + masterwork 403 gp (RR ch. 4) · INV p. 9`, "an arm with no type names its base and masterwork alone");
+  eq(cTyped.bandTip, `${band(cTyped)} · Tarn Hauberk Armor 40 gp (its imported item) + masterwork 211 gp (RR ch. 4) · JJ ch. 4`, "the band's tooltip is the one it had, with the parts and the pages after it, in the world's figures");
+  eq(cNamed.bandTip, `${band(cNamed)} · Base 19 gp (its imported item) + masterwork 403 gp (RR ch. 4) · JJ ch. 4`, "an arm with no type names its base and masterwork alone; the page is the procedure's, never the import's page for the columns");
   eq([cMasked.bandTip, cPlain.bandTip], [band(cMasked), band(cPlain)], "a card whose rank is not those parts says nothing of them");
 
   // A Player seat: no field, no type, no parts, in anything the window is handed.

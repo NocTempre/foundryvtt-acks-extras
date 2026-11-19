@@ -332,7 +332,7 @@ const P = {
       line: [...li.querySelectorAll(".acks-extras-treasure-card__note")].some((n) => H.text(n) === H.t("card.rolledType", { type })),
       tipKeepsBand: tip.startsWith(H.t("tip.band", { band: bandName })),
       tipParts: tip.includes(type) && tip.includes(`${gp(baseGp)} gp`) && tip.includes(`${gp(masterworkGp)} gp`) && tip.includes(H.t("cite.masterwork")),
-      tipPage: tip.includes(D.armsSource().cite ?? H.t("cite.arms")),
+      tipPage: tip.endsWith(H.t("cite.arms")),
       noTitle: !li.querySelector("[title]"),
       ranks: L.rankWorth(L.normalizeTruth(typed)) === baseGp + masterworkGp,
     };

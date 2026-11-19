@@ -531,7 +531,8 @@ keeps the Judge's next-pot default), and a new pot opens with that default. With
 no arms grid imported the select is disabled and holds "(none)" alone; deal still
 works. The select's tooltip, on its wrapper since a disabled control takes no
 pointer, names the selected column and the page the import recorded for the
-settings (`citeOf`, else the reference the module ships), and with none picked or
+settings (the grids' own pages the import joined, else the reference the module
+ships; the document's whole span is no page for them), and with none picked or
 nothing imported is the page alone. The hint says what the field does. A Player's
 window never gets the panel, so it never gets the field.
 
@@ -540,7 +541,7 @@ the type as the grid printed it, `apparent.type`, beside its figures (absent whe
 none was rolled, as for a row linked by name). Its Judge-only line reads
 "Undetected · rolled: <type>". Its band's tooltip, the one every card has, then
 adds the parts after it ("<type> <base> gp (its imported item) + masterwork <cost>
-gp · pages") with the world's figures, only where `rankWorth` reached them
+gp (masterwork's page) · the page that prints the deal") with the world's figures, only where `rankWorth` reached them
 (`armsParts`: a stated worth, a mask's cost or an apparent value outranks them, and
 then the tooltip lists none). `cardView` builds both for a Judge alone: a Player's
 view carries a blank type and no parts, and the window is handed neither.
