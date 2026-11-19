@@ -15,7 +15,7 @@ import { MODULE_ID, POT_FLAG, REFUSAL } from "../treasure/constants.mjs";
 import { dealHoard } from "../treasure/hoard.mjs";
 import { addTruths, markLotsFound, newPot, openPot, potOf, viewOf } from "../treasure/pot.mjs";
 import { ORIGIN } from "./constants.mjs";
-import { foundKeys, lotsInPot, runHaulDeal } from "./haul-logic.mjs";
+import { carriedOf, foundKeys, lotsInPot, runHaulDeal } from "./haul-logic.mjs";
 
 /**
  * Deal a scene's haul: make a pot, deal each source's letters into it unfound,
@@ -57,9 +57,19 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
       await discard();
       return result;
     }
-    if (scene?.sceneId || partyId) {
+    // The goods a body carried are written before the pot opens: the pot's opening is what takes them off the bodies.
+    const carried = carriedOf(result.lots, viewOf(pile));
+    const takesOff = Object.keys(carried).length > 0;
+    if (scene?.sceneId || partyId || takesOff) {
       const tie = {};
-      if (scene?.sceneId) tie[`flags.${MODULE_ID}.${POT_FLAG}.origin`] = { kind: ORIGIN.SCENE, sceneId: scene.sceneId, placeUuid: scene.placeUuid ?? null };
+      if (scene?.sceneId || takesOff) {
+        tie[`flags.${MODULE_ID}.${POT_FLAG}.origin`] = {
+          kind: ORIGIN.SCENE,
+          sceneId: scene?.sceneId ?? null,
+          placeUuid: scene?.placeUuid ?? null,
+          ...(takesOff ? { takeOff: true, carried, takenOff: false } : {}),
+        };
+      }
       if (partyId) tie[`flags.${MODULE_ID}.${POT_FLAG}.partyId`] = partyId;
       await pile.update(tie);
     }

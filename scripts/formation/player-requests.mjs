@@ -24,9 +24,10 @@ import { turnActivity } from "../lib/turn-activities.mjs";
  * only GMs can write, so member-owning players declare actions from the party
  * sheet and the primary GM's client validates and executes them. The request
  * types are the `case`s of `executeRequest`: lights, spells, a rest turn, party
- * checks, the turn plan, the marching order, roles, detaching, leaving a
- * member behind, conveyance, bringing an actor in or out, light discipline,
- * anchoring a map, trapbreaking and a crossing's throw.
+ * checks, the turn plan, a Round or a turn asked of the Judge, a search declared,
+ * the marching order, roles, detaching, leaving a member behind, conveyance,
+ * bringing an actor in or out, light discipline, anchoring a map, trapbreaking
+ * and a crossing's throw.
  *
  * Ownership is validated HERE, on the executing GM client, against the sender
  * Foundry's server attests (`lib/sockets.mjs` `runRelayed`); nothing the
@@ -217,6 +218,15 @@ async function executeRequest(formation, user, type, payload) {
       const key = { round: "request.askRound", turn: "request.askTurn" }[payload.press];
       if (!key) return;
       await announceDeclaration(formation, user, loc(key));
+      break;
+    }
+
+    /* --- A player declares the party searches here: announced, and the Judge opens the scene --- */
+    case "declareSearch": {
+      if (!userOwnsMember(formation, user)) return;
+      // Nothing in the payload is read. The declaration opens no session, deals
+      // nothing and moves no clock: only the Judge's own press does any of them.
+      await announceDeclaration(formation, user, loc("request.searchHere"));
       break;
     }
 

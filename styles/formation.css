@@ -2048,6 +2048,13 @@
   padding: 0;
 }
 
+.acks-extras.party-sheet .acks-extras-turn-plan-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-2) 0 0;
+}
+
 .acks-extras.party-sheet .acks-extras-turn-plan-row {
   display: flex;
   flex-wrap: wrap;

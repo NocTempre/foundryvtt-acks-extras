@@ -94,3 +94,10 @@ export const SESSION_REFUSAL = Object.freeze({
   NOT_OFFERED: `${SCENE}notOffered`,
   DEAL_FAILED: `${SCENE}dealFailed`,
 });
+
+/** Why a way into the scene (the fight-over card, the Dungeon tab's Search here) cannot open it, each a `scene:` code. */
+export const WAYS_REFUSAL = Object.freeze({
+  NO_PARTY_HERE: `${SCENE}noPartyHere`,
+  NO_PLACE_HERE: `${SCENE}noPlaceHere`,
+  CARD_SPENT: `${SCENE}cardSpent`,
+});

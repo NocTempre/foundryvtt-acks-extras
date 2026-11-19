@@ -123,3 +123,48 @@ keeps it in the plan rather than taking it out, so the next Turn rolls nothing
 twice and the plan entry's `by` is still there for the locker check; the
 scene's fallback (unlock, then resolve) and the `lockedBy` it carried are
 removed. The import stays lazy, as the seam entry ruled.
+
+## 2026-11-19 — The ways in: Search the scene replaces Stage a pot, Search here opens a session
+
+The owner, answering Q9: "B, there is no "stage a pot" as a thing", and "rolled
+by judge before interaction, visible as found"; and on the party sheet: "It
+could also be used in general when the party declares searching even without
+combat... add integration on party sheet?". Built to the SceneKey board's "Two
+ways in" (design approved). Supersedes in part treasure DECISIONS "2026-11-17 —
+Search the fallen" (its Stage a pot); the evidence is the owner's Q9 answer and
+S5 itself. Readings the board does not settle:
+
+- **The place is the first of `placesAround`, with no picker.** The board shows
+  none for a party standing in several places, and a map drop already takes the
+  first. A party in no place is refused with a notice. Open for the owner: a
+  picker, if two places at the same area ever tie.
+- **The party is named from the card's scene.** A record carries a scene and no
+  party. One party on that scene, else the world's only party, else a refusal.
+  Rejected: remembering the fight's party on the combat, which the end of the
+  fight clears.
+- **One card deals once.** The card is stamped when its scene opens, and once
+  that scene has ended the same card is refused, since a second deal would
+  duplicate goods already taken off the bodies. Open for the owner: whether a
+  Judge who ended the scene by mistake can reopen a card's scene.
+- **The lair warning is a notice, not a prompt.** A body's treasure letter raises
+  treasure's lair warning, which has no control on the board. The Judge pressed
+  to search, so the warning is shown with treasure's own words and the deal goes
+  on ("judges get warnings"). Rejected: a confirm dialog, which the board does
+  not show. Open for the owner.
+- **A deal that rolls nothing still opens the scene.** The deal answers empty
+  when every letter dealt no card, and the session would not open; the card
+  would stay fresh and each press would roll again, against "rolled by judge
+  before interaction". The press opens the scene with the bodies and no pot
+  instead, and stamps the card.
+- **A player's Search here declares and moves nothing**, the same reading as
+  `askPress`: any member's owner may declare, the request reads no payload, and
+  the Judge opens the scene.
+- **Goods leave the bodies when the scene opens**, since the pot opens in the
+  same call as the deal. Open for the owner: leaving each good on its body until
+  a check finds its lot would be truer to the table but needs the found mark to
+  drive the take-off.
+- **A text result of a body's table is kept on the fight-over card**, as before,
+  since no card shape can deliver it; the draw runs again if a refused open is
+  pressed again.
+- **A fight whose fallen hold nothing posts no card**, so it has no way in but
+  Search here. Left as is.

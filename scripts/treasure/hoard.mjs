@@ -6,8 +6,8 @@
  * on core's dice, and names the world's coin for each denomination dealt.
  *
  * With nothing imported it deals nothing and says so: no figure stands in for
- * a table (`ip-doctrine.md`). It wires to no control; `search.mjs`
- * `dealLetter` is the seam a caller reaches it through.
+ * a table (`ip-doctrine.md`). It wires to no control: the pot window's deal
+ * (`deal.mjs`) and the scene search's haul (`scene-search/haul.mjs`) call it.
  */
 
 import { citeOf, getDoc, hasDoc } from "../lib/tables.mjs";

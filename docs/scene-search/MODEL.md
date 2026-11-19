@@ -26,6 +26,35 @@ entry until a level is gained.
 `shown`, bodies, dealt lots, the log. `api.mjs` opens, ends and shows it
 (Judge-only), assigns members, and answers `read(partyId)`.
 
+## Ways in
+
+Two controls open a session, and both are `acksExtras.sceneSearch.searchHere`
+(`ways-in.mjs`; `ways-in-logic.mjs` is its pure half):
+
+- **Search the scene** on the fight-over chat card (Judges only, from
+  `treasure/search.mjs`). The card's record names the fight's scene, and the
+  party is the one party whose token is on it, else the world's only party
+  (`partyOfRecord`); two parties on that scene are not told apart and none is
+  named.
+- **Search here** on the party sheet, Dungeon tab, in the Turn plan section
+  (`formation-actions.mjs` `searchHere`). A Judge's press is the call with the
+  sheet's party. A player who owns a member sees the button too, and a player's
+  press is a declaration, not this call: the party's request relay takes a
+  `declareSearch` request (closed: no payload is read, any-member ownership),
+  announces it, and moves nothing. The Judge then presses.
+
+A press does one of four things (`planPress`). A party with a session already
+open gets its screen and nothing else. A press while the first is still opening
+a session does nothing. A card whose scene was opened once, and has since ended,
+is refused, so one card deals once (`record.opened`, stamped when the open
+succeeds). Otherwise it opens a session at **the place whose area holds the
+party token**: `placesAround`'s first, the closest area first, as a map drop
+picks it. A party with no token, or a token no place holds, is refused with a
+notice. The session is opened through `api.open` with the card's id as
+`recordMessageId`, and the screen opens on success. A deal that rolls nothing
+(a letter the tables deal no card for) does not stop the scene: it opens with
+the bodies and no pot, so a second press cannot roll again.
+
 A seat reads through a projection. A Judge reads every entry and the whole log.
 A player's `read` drops hidden entries, empties every unfound layer's yields,
 keeps the public "something more" mark, and returns `playerLog`: only rows at
@@ -56,6 +85,17 @@ in the plan while it resolves), because the relay runs a lock on a Judge's clien
 The Judge's roll deals the treasure when the session opens, into a pot
 (`treasure/pot.mjs`), every lot unfound. A lot is found when the check that
 holds it is. The pot's window and the tray show a player the found lots only.
+
+A fight's record turns into the session's bodies and a source for each body
+(`session-logic.mjs` `bodiesFromRecord`): the goods it carried, then whatever
+its linked table drew (`api.mjs` draws it through treasure's own
+`drawFallenTable` before the deal, once the cheap refusals are past, and only
+where the record is the deal). Each carried truth keeps the `{actorUuid,
+itemId}` it was made from through the source and the lot, so `haul.mjs` writes
+the pot's `origin.carried` (card id to that item) before the pot opens, and the
+opening takes the goods off the bodies the way treasure's take-off does (see
+[treasure MODEL](../treasure/MODEL.md), "Search the fallen"). The lair warning a
+body's letter raises is shown to the Judge as a notice and the deal goes on.
 
 ## The screen
 

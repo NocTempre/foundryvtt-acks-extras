@@ -84,7 +84,7 @@ to chat. At open, add cards take a random position in `order` and replace cards
 join as they are; nothing is struck from the roll until the replace planner
 exists.
 
-## 2026-11-17 — Search the fallen: its own `deleteCombat` hook, the record on a whispered card
+## 2026-11-17 — Search the fallen: its own `deleteCombat` hook, the record on a whispered card — SUPERSEDED IN PART 2026-11-19
 
 The owner, 2026-11-17: "It should show up as part of a search after a battle."
 And: "It should be an inventory stash players can click a button or drag and drop
@@ -496,7 +496,7 @@ two bands of one monster from two lairs then deal one hoard where the table
 means two; the Judge deals the second by hand. The UI, its lang and its walk
 come with T5's approved design.
 
-## 2026-11-18 — A lot carries a found mark; the scene deals its pot open, with no doorway
+## 2026-11-18 — A lot carries a found mark; the scene deals its pot open, with no doorway — SUPERSEDED IN PART 2026-11-19
 
 The owner, answering scene search's Q1: "rolled by judge before interaction,
 visible as found", and Q9: "B, there is no "stage a pot" as a thing". So a
@@ -586,3 +586,25 @@ masterwork quality at a glance unless disguised intentionally".
 - **Rejected:** widening the `magic-items` API with an accessor for the setting
   columns. The deal panel reads the imported document through `lib/tables.mjs`,
   as the hoard reads its own.
+
+## 2026-11-19 — The fight-over card opens the scene; the take-off asks by `takeOff`
+
+The owner's Q9 answer (2026-11-18): "B, there is no "stage a pot" as a thing".
+New evidence since the 2026-11-17 entry: scene search's S5 built the card's
+replacement, so the card now carries **Search the scene** and nothing stages a
+pot by hand. This supersedes in part the 2026-11-17 entry (its Stage a pot,
+`stageFromCard`, the combat `origin` and its `stagedPot`) and the 2026-11-18
+sentence that kept Stage a pot until then.
+
+- **The take-off keys on the origin's own say-so.** `needsTakeOff` reads
+  `origin.takeOff === true` rather than `kind === "combat"`, since no pot is
+  made with a combat origin any more and the scene's pot is the one that
+  carries goods. Rejected: widening it to `kind: "scene"`, which would make
+  treasure name a feature that is not its own.
+- **Cost:** a pot staged from the card before this change and still unopened
+  keeps its `kind: "combat"` origin and no longer takes its goods off the
+  bodies when opened. No tool is written for it (the owner: no tools for
+  previous-version data).
+- **A body's linked table is drawn at the scene's open**, by treasure's own
+  routine (`drawFallenTable`), so the draw stays quiet and its text results
+  stay on the card.

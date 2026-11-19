@@ -263,7 +263,7 @@ container past the reach), `scene-search/session-party` with the two searchers
 Player seat's character). Open a session with a source on the floor and on the
 fixture's hidden container (`open`, as S2 Judge 1), then open the screen from
 each seat with `acksExtras.sceneSearch.openScreen(partyId)` (`partyId` is the
-formation's id). The screen's own ways in come with S5.
+formation's id). The screen's own ways in are S5 below.
 
 Held-die drive: `CONFIG.Dice.randomUniform = () => 0.025` throws a 20 on a d20,
 `0.975` a 1. Restore it after.
@@ -352,6 +352,84 @@ Player seat (the Player seat's character is `searcher-plain`):
 
 Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept fixtures
 stay.
+
+## S5 — the ways in (not yet walked)
+
+Offline coverage is `tools/test-scene-ways.mjs` (which party a record names,
+what a press does, the call over a fake world), the S5 blocks of
+`tools/test-scene-haul.mjs` (the origin's carried map), `tools/test-scene-session.mjs`
+(a body's table drawn at the deal, the source's owners) and
+`tools/test-formation-flows.mjs` (the `declareSearch` relay), and
+`tools/test-treasure-search.mjs`. None draws a card or a button, deletes an item
+or opens a window, so every observable below needs a live Judge seat and, for
+the declaration, a live Player seat. The card and the take-off are also in
+[treasure TESTING](../treasure/TESTING.md), "Search the fallen".
+
+### Fixtures
+
+Found by `flags.world.fixture`, built through `api.fixture`. Reuse S2's place and
+party where the walk is not about a fight.
+
+- `scene-search/ways-scene` — a scene with a Region, and the place
+  (`scene-search/ways-place`, a location actor linked to that Region) whose
+  area holds the party's token. The party's token stands inside it.
+- `scene-search/ways-party` — a formation of two characters, one owned by the
+  Player seat, its token on `ways-scene` inside the Region. `scene-search/ways-owner`
+  is the character the Player seat owns.
+- `scene-search/ways-hostile` — a HOSTILE, unlinked `monster` token on the
+  scene whose actor carries one goods item and a treasure letter, so the card
+  lists it with an item count and a letter. A second one carries a linked table
+  (`scene-search/ways-table`: an item result, a text result) and no goods.
+- A combat is not kept: the run makes it, and `api.track`s the card's id and the
+  scene's pot (from the session's `potUuid`) as they appear.
+
+### Steps
+
+Judge seat:
+
+1. **A real fight ends.** Begin a combat with the party's token and both hostile
+   tokens, knock both to 0 hit points, End Combat. Observables: the Chat sidebar
+   shows a "The fight is over" card (Judges only) with both bodies, and a
+   **Search the scene** button; the card has no Stage a pot control.
+2. **Search the scene.** Press it. Observables: the scene screen opens at
+   `ways-place`'s name with the bar reading "After the battle"; each body is an
+   entry; the pot the scene dealt is open, with `origin.kind` `scene`,
+   `origin.takeOff` true and `origin.carried` naming the goods item's card; the
+   goods item is no longer on its body (`origin.takenOff` true); the lot the
+   letter dealt and the one the table drew are unfound tiles; no chat message
+   was posted by the draw, and the table's text result is listed on the card;
+   a lair warning notice appeared for the letter's hoard; the card's button now reads "Open the scene".
+3. **Press it again.** Observables: the same screen comes forward and no second
+   pot exists. End the session (`acksExtras.sceneSearch.end(partyId)`) and press
+   the card once more: a notification says the fight's scene was already opened
+   and nothing is dealt.
+4. **No place.** Move the party's token outside the Region and every other
+   area, make a fresh fight, press **Search the scene**. Observable: a
+   notification says the party stands in no place and no session or pot is made.
+5. **Search here.** On `ways-party`'s sheet open the Dungeon tab (party sheet →
+   Dungeon tab → Turn plan) and press **Search here** with the token back in the
+   Region. Observables: a session opens at the place with no fight (the bar reads
+   "Searching here"), no pot is dealt, and the screen opens; pressing it again
+   brings the same screen forward. A member assigned on the screen shows as that
+   member's turn-plan entry in the Dungeon tab's Turn plan.
+
+Player seat:
+
+6. **A declaration.** With no session open, open the party's sheet on the Player
+   seat (the character from `ways-owner`). Observables: **Search here** is
+   shown; pressing it posts one "<user> declares: declares that the party
+   searches here." card to the table, and no session, pot or clock change
+   exists afterwards. A seat that owns no member sees no button.
+7. **The Judge accepts.** The Judge presses Search here: the session opens and
+   the Player seat's screen follows once the Judge shows the scene.
+
+Teardown: `acksExtras.sceneSearch.end(partyId)`, then `api.sweepTracked()` over
+the run's own ids (the combat, the card, the pots, the sessions' pots); the kept
+fixtures stay.
+
+What this walk could teach and has not: the card's whisper reaching a second
+Judge seat; the button's label after a world reload; the take-off when a body's
+token was deleted between the fight and the press.
 
 ## What this walk does not reach
 

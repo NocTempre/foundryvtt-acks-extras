@@ -1,13 +1,13 @@
 /**
  * Pure-logic tests for "Search the fallen" (Foundry-free): which combatants
  * count as fallen, the record built from snapshots that outlives its bodies,
- * what staging asks for, and which goods an opened pot takes off the bodies.
+ * and which goods an opened pot takes off the bodies.
  * Every creature, item and table here is this file's own invention.
  */
 import assert from "node:assert/strict";
 import {
-  DRAW_REQUEST, ORIGIN_KIND, cardRows, carriedMap, entryOf, fallenOf, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
-  normalizeRecord, openedNow, originOf, planStaging, planTakeOff, recordOf, specOfResult, uuidOfLink,
+  DRAW_REQUEST, cardRows, entryOf, fallenOf, holdsAnything, isDefeated, isHostile, isNaturalWeapon, letterOf, needsTakeOff,
+  normalizeRecord, openedNow, planTakeOff, recordOf, specOfResult, uuidOfLink,
 } from "../scripts/treasure/search-logic.mjs";
 
 let checks = 0;
@@ -119,10 +119,10 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
   delete world.actors.a1;
   eq(Object.keys(world.actors), [], "the body is removed");
   eq(stored, record, "the record read from a flag is the record that was posted");
-  eq(planStaging(stored).goods.map((g) => g.truth.label), ["Wooden spoon", "Bent ladle"], "the goods are still there as cards");
+  eq(stored.fallen[0].goods.flatMap((g) => g.truths.map((t) => t.label)), ["Wooden spoon", "Bent ladle"], "the goods are still there as truths");
   eq(stored.fallen[0].letter, "Q");
   eq(stored.fallen[0].tableUuid, "RollTable.t1");
-  eq(stored.stagedPot, null);
+  eq(stored.opened, false);
   eq(stored.drawnText, []);
 
   eq(recordOf({ combatId: "f2", entries: [entryOf(facts(), { goods: [], treasure: { type: "none", table: "" } })] }), null, "nothing carried posts no card");
@@ -137,10 +137,10 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
 
 /* --- reading a record back --- */
 {
-  const r = normalizeRecord({ combatId: 5, fallen: "x", stagedPot: "", drawnText: [1, "a"] });
-  eq(r, { combatId: "", sceneId: null, fallen: [], stagedPot: null, drawnText: ["1", "a"] });
+  const r = normalizeRecord({ combatId: 5, fallen: "x", opened: "yes", drawnText: [1, "a"] });
+  eq(r, { combatId: "", sceneId: null, fallen: [], opened: false, drawnText: ["1", "a"] }, "only a real true is opened");
   eq(normalizeRecord(null).fallen, []);
-  eq(normalizeRecord({ stagedPot: "Cards.p1" }).stagedPot, "Cards.p1");
+  eq(normalizeRecord({ opened: true }).opened, true, "a card whose scene was opened says so");
 }
 
 /* --- what the card shows --- */
@@ -159,41 +159,10 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
   eq(cardRows(null), []);
 }
 
-/* --- staging: goods, the quiet draw, the letter seam --- */
+/* --- the quiet draw's request --- */
 {
-  const record = recordOf({
-    combatId: "f1",
-    entries: [
-      entryOf(facts({ id: "a", name: "Mossback", actorUuid: "Actor.a1" }), {
-        goods: [{ itemId: "i1", truths: [truthA] }],
-        treasure: { type: "Q", table: "@UUID[RollTable.t1]{x}" },
-      }),
-      entryOf(facts({ id: "b", name: "Gnarl", actorUuid: "Scene.s1.Token.k1" }), {
-        goods: [{ itemId: "i7", truths: [truthB, truthA] }],
-        treasure: { type: "none", table: "@UUID[RollTable.t2]{y}" },
-      }),
-    ],
-  });
-  const plan = planStaging(record);
-  eq(plan.goods.map((g) => g.owner), [
-    { actorUuid: "Actor.a1", itemId: "i1" },
-    { actorUuid: "Scene.s1.Token.k1", itemId: "i7" },
-    { actorUuid: "Scene.s1.Token.k1", itemId: "i7" },
-  ], "each card names the body and item it came from; a bundle's cards share one");
-  eq(plan.draws.map((d) => d.tableUuid), ["RollTable.t1", "RollTable.t2"], "one draw per linked table");
-  for (const d of plan.draws) eq(d.request, { displayChat: false }, "a table is drawn quietly");
   eq(DRAW_REQUEST, { displayChat: false });
   ok(Object.isFrozen(DRAW_REQUEST), "the shared request cannot be changed");
-  plan.draws[0].request.displayChat = true;
-  eq(DRAW_REQUEST.displayChat, false, "a draw's request is its own copy");
-  eq(plan.letters, [{ name: "Mossback", letter: "Q" }], "a letter is listed, and a 'none' is not");
-
-  const letterOnly = recordOf({ combatId: "f2", entries: [entryOf(facts(), { treasure: { type: "H" } })] });
-  const only = planStaging(letterOnly);
-  eq(only.goods, [], "a letter alone deals no card yet");
-  eq(only.draws, []);
-  eq(only.letters, [{ name: "Mossback", letter: "H" }], "it is still listed for the Judge");
-  eq(planStaging(null), { goods: [], draws: [], letters: [] }, "no record stages nothing");
 }
 
 /* --- drawn results --- */
@@ -207,31 +176,15 @@ const truthB = { source: { uuid: "Actor.a1.Item.i2", data: { name: "Bent ladle" 
   eq(specOfResult({ documentUuid: "Item.x2" }), { kind: "item", uuid: "Item.x2", label: "" });
 }
 
-/* --- origin and the card-to-body map --- */
+/* --- who owes a take-off --- */
 {
-  const record = recordOf({ combatId: "f1", sceneId: "s1", entries: [entryOf(facts(), { goods: [{ itemId: "i1", truths: [truthA] }] })] });
-  const origin = originOf({ record, messageId: "m1" });
-  eq(origin.kind, ORIGIN_KIND);
-  eq(origin.kind, "combat");
-  eq({ combatId: origin.combatId, sceneId: origin.sceneId, messageId: origin.messageId }, { combatId: "f1", sceneId: "s1", messageId: "m1" });
-  eq(origin.fallen, [{ name: "Mossback", actorUuid: "Actor.a1" }]);
-  eq(origin.carried, {});
-  eq(origin.takenOff, false);
-
-  eq(carriedMap([{ actorUuid: "A", itemId: "i" }, { actorUuid: "B", itemId: "j" }], ["c1", "c2"]), {
-    c1: { actorUuid: "A", itemId: "i" },
-    c2: { actorUuid: "B", itemId: "j" },
-  });
-  eq(carriedMap([{ actorUuid: "A", itemId: "i" }], []), {}, "fewer cards than owners maps nothing");
-  eq(carriedMap([], ["c1"]), {}, "more cards than owners maps nothing");
-  eq(carriedMap(null, null), {});
-
-  ok(needsTakeOff({ kind: "combat", takenOff: false, carried: { c1: { actorUuid: "A", itemId: "i" } } }));
-  ok(!needsTakeOff({ kind: "combat", takenOff: true, carried: { c1: {} } }), "taken once is taken");
-  ok(!needsTakeOff({ kind: "combat", takenOff: false, carried: {} }), "nothing mapped, nothing owed");
-  ok(!needsTakeOff({ kind: "stash", takenOff: false, carried: { c1: {} } }), "another origin owes nothing");
+  ok(needsTakeOff({ takeOff: true, takenOff: false, carried: { c1: { actorUuid: "A", itemId: "i" } } }));
+  ok(!needsTakeOff({ takeOff: true, takenOff: true, carried: { c1: {} } }), "taken once is taken");
+  ok(!needsTakeOff({ takeOff: true, takenOff: false, carried: {} }), "nothing mapped, nothing owed");
+  ok(!needsTakeOff({ kind: "stash", takenOff: false, carried: { c1: {} } }), "an origin that does not ask owes nothing, whatever kind it is");
+  ok(!needsTakeOff({ takeOff: "yes", takenOff: false, carried: { c1: {} } }), "only a real true asks");
   ok(!needsTakeOff(null));
-  ok(!needsTakeOff({ kind: "combat" }));
+  ok(!needsTakeOff({ takeOff: true }));
 }
 
 /* --- opening --- */

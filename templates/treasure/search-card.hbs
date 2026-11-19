@@ -19,13 +19,11 @@
       </li>
       {{/each}}
     </ul>
-    {{#if hasLetters}}
-    <p class="acks-extras-treasure-search__note">{{localize "ACKS-TREASURE.search.letterNote"}}</p>
-    {{/if}}
     <div class="acks-extras-treasure-search__textwrap" data-field="textWrap" hidden>
       <p>{{localize "ACKS-TREASURE.search.textTitle"}}</p>
       <ul class="acks-extras-treasure-search__text" data-field="text"></ul>
     </div>
-    <button type="button" class="acks-btn acks-btn--block" data-action="stagePot">{{localize "ACKS-TREASURE.search.stage"}}</button>
+    <button type="button" class="acks-btn acks-btn--sm" data-action="searchScene">{{localize "ACKS-TREASURE.search.scene"}}</button>
+    <p class="acks-extras-treasure-search__note">{{localize "ACKS-TREASURE.search.sceneNote"}}</p>
   </div>
 </article>

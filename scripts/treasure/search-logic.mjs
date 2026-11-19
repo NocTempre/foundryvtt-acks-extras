@@ -1,8 +1,7 @@
 /**
  * "Search the fallen" on plain data, Foundry-free: which combatants of a fight
- * that ended count as fallen, the record built of them, what staging that
- * record into a pot asks for, and which goods an opened pot takes off the
- * bodies (JJ ch. 4; RR, Adventures chapter, for the procedure; this file holds
+ * that ended count as fallen, the record built of them, and which goods an
+ * opened pot takes off the bodies (JJ ch. 4; RR, Adventures chapter, for the procedure; this file holds
  * no figure from either).
  *
  * The record is built from facts read off the combatants (`CombatantFacts`)
@@ -23,9 +22,6 @@ import { MODULE_ID, PHASE, POT_FLAG } from "./constants.mjs";
 
 /** Flag key, under the module's scope, of the chat card that carries a fight's record. */
 export const SEARCH_FLAG = "treasureSearch";
-
-/** `origin.kind` of a pot staged from a fight's record. */
-export const ORIGIN_KIND = "combat";
 
 /** The options a linked table is drawn with: the Judge's client only, nothing posted to the table. */
 export const DRAW_REQUEST = Object.freeze({ displayChat: false });
@@ -98,27 +94,27 @@ export function entryOf(facts, { goods = [], treasure = {} } = {}) {
   };
 }
 
-/** Whether an entry holds anything a pot could be staged from. */
+/** Whether an entry holds anything a scene could deal a haul from. */
 export const holdsAnything = (entry) => !!(entry.goods.length || entry.letter || entry.tableUuid);
 
 /**
  * The record of a fight: its entries that hold something. Null when none does,
  * so a fight whose fallen carried nothing posts no card.
- * @returns {{combatId: string, sceneId: string|null, fallen: object[], stagedPot: null, drawnText: string[]}|null}
+ * @returns {{combatId: string, sceneId: string|null, fallen: object[], opened: false, drawnText: string[]}|null}
  */
 export function recordOf({ combatId, sceneId = null, entries }) {
   const fallen = (Array.isArray(entries) ? entries : []).filter(holdsAnything);
-  return fallen.length ? { combatId, sceneId, fallen, stagedPot: null, drawnText: [] } : null;
+  return fallen.length ? { combatId, sceneId, fallen, opened: false, drawnText: [] } : null;
 }
 
-/** A record read back from a flag, every key present. */
+/** A record read back from a flag, every key present. `opened` is set once a scene search has been opened from the card, so one card deals once. */
 export function normalizeRecord(flag) {
   const f = flag && typeof flag === "object" ? flag : {};
   return {
     combatId: typeof f.combatId === "string" ? f.combatId : "",
     sceneId: typeof f.sceneId === "string" ? f.sceneId : null,
     fallen: Array.isArray(f.fallen) ? f.fallen.filter((e) => e && typeof e === "object") : [],
-    stagedPot: typeof f.stagedPot === "string" && f.stagedPot ? f.stagedPot : null,
+    opened: f.opened === true,
     drawnText: Array.isArray(f.drawnText) ? f.drawnText.map(String) : [],
   };
 }
@@ -138,29 +134,6 @@ export function cardRows(record) {
 }
 
 /**
- * What staging a record into a pot asks for. Goods go in as the cards they
- * already are, each with the `{actorUuid, itemId}` of the body that carries it;
- * a linked table is drawn once per creature, quietly; a letter is listed and
- * deals nothing until the treasure tables seam (`dealLetter` in `search.mjs`)
- * is filled.
- * @returns {{goods: Array<{owner: {actorUuid: string, itemId: string}, truth: object}>, draws: Array<{name: string, tableUuid: string, request: object}>, letters: Array<{name: string, letter: string}>}}
- */
-export function planStaging(record) {
-  const r = normalizeRecord(record);
-  const goods = [];
-  const draws = [];
-  const letters = [];
-  for (const e of r.fallen) {
-    for (const g of Array.isArray(e.goods) ? e.goods : []) {
-      for (const truth of g.truths ?? []) goods.push({ owner: { actorUuid: e.actorUuid, itemId: g.itemId }, truth });
-    }
-    if (e.tableUuid) draws.push({ name: String(e.name ?? ""), tableUuid: e.tableUuid, request: { ...DRAW_REQUEST } });
-    if (letterOf(e.letter)) letters.push({ name: String(e.name ?? ""), letter: letterOf(e.letter) });
-  }
-  return { goods, draws, letters };
-}
-
-/**
  * What a drawn table result becomes: an item the result points at, or a line of
  * text. Null for an empty result. A text result has no card shape that a claim
  * can deliver, so the Judge reads it instead.
@@ -175,41 +148,16 @@ export function specOfResult(result) {
   return label ? { kind: "text", label } : null;
 }
 
-/**
- * The `origin` a staged pot carries. `carried` stays empty until the cards
- * exist and `carriedMap` fills it.
- */
-export function originOf({ record, messageId = null }) {
-  const r = normalizeRecord(record);
-  return {
-    kind: ORIGIN_KIND,
-    combatId: r.combatId,
-    sceneId: r.sceneId,
-    messageId,
-    fallen: r.fallen.map((e) => ({ name: String(e.name ?? ""), actorUuid: e.actorUuid ?? null })),
-    carried: {},
-    takenOff: false,
-  };
-}
-
-/**
- * Which body's item each goods card stands for: card id to `{actorUuid,
- * itemId}`. The two lists run in the order the cards were made; when their
- * lengths disagree nothing is mapped, so nothing is ever taken off on a guess.
- * @param {Array<{actorUuid: string, itemId: string}>} owners
- * @param {string[]} cardIds
- */
-export function carriedMap(owners, cardIds) {
-  if (!Array.isArray(owners) || !Array.isArray(cardIds) || owners.length !== cardIds.length) return {};
-  return Object.fromEntries(cardIds.map((id, i) => [id, { actorUuid: owners[i].actorUuid, itemId: owners[i].itemId }]));
-}
-
 /** Whether a pot update's diff turned the pot open. */
 export const openedNow = (changes) => changes?.flags?.[MODULE_ID]?.[POT_FLAG]?.phase === PHASE.open;
 
-/** Whether an origin is a fight's, still owes its take-off and has goods mapped. */
+/**
+ * Whether an origin asks for its carried goods to be taken off the bodies
+ * (`takeOff: true`), has not yet and has goods mapped. An origin that does not
+ * say so owes nothing, whatever else it carries.
+ */
 export const needsTakeOff = (origin) =>
-  origin?.kind === ORIGIN_KIND && !origin.takenOff && !!origin.carried && Object.keys(origin.carried).length > 0;
+  origin?.takeOff === true && !origin.takenOff && !!origin.carried && Object.keys(origin.carried).length > 0;
 
 /**
  * The items an opened pot takes off the bodies. Only a goods card still in the

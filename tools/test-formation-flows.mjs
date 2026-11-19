@@ -1572,6 +1572,22 @@ await scenario("players steer their own members via the GM relay", async () => {
     await requests.requestPartyAction(id, "askPress", { press: "rest" });
     await drain();
     assert.equal(chat.length, said + 2, "a press outside the closed set is dropped unannounced");
+
+    // A declared search: announced to the table, and nothing else moves. The payload is not read.
+    const beforeSearch = structuredClone(onlyFormation());
+    await requests.requestPartyAction(id, "declareSearch", { partyId: "other", placeUuid: "Actor.elsewhere" });
+    await drain();
+    assert.equal(chat.length, said + 3, "a declared search is announced to the table");
+    assert.deepEqual(onlyFormation(), beforeSearch, "and changes nothing on the party's record");
+    assert.deepEqual(party?.getFlag?.(MODULE_ID, "turnPlan") ?? null, planBefore, "nor its turn plan");
+    // A seat that owns no member declares nothing.
+    game.users.push({ id: "PL9", name: "Stranger", isGM: false, isSelf: false });
+    game.user = game.users.get("PL9");
+    await requests.requestPartyAction(id, "declareSearch", {});
+    await drain();
+    assert.equal(chat.length, said + 3, "a seat that owns no member of the party is not announced");
+    game.user = game.users.get("PL1");
+    game.users.pop();
   } finally {
     game.user = gmUser;
   }

@@ -65,19 +65,29 @@ export function normalizeSession(raw) {
  * something one source, keyed to the body's entry (`body:<id>`), dealing its
  * treasure letter and holding its carried goods as the truths already made. A
  * body whose goods the creature carries is turned out by the hasty check, as a
- * pocket is. A linked table is not drawn here.
+ * pocket is. Each carried truth names the item it was made from, so the deal can
+ * take it off the body. A linked table is drawn by the caller, since drawing is
+ * a roll: what it drew, as truths by the fallen's combatant id, joins that
+ * body's source after the goods it carries.
  * @param {{fallen?: object[]}} record `treasure/search-logic.mjs` `normalizeRecord`'s answer
+ * @param {{drawn?: Record<string, object[]>}} [opts] `drawn`: the truths each body's linked table drew
  * @returns {{bodies: object[], sources: object[]}}
  */
-export function bodiesFromRecord(record) {
+export function bodiesFromRecord(record, { drawn = {} } = {}) {
   const bodies = [];
   const sources = [];
   for (const fallen of Array.isArray(record?.fallen) ? record.fallen : []) {
     const id = text(fallen?.combatantId);
     if (!id || bodies.some((b) => b.id === id)) continue;
     bodies.push({ id, ref: text(fallen.actorUuid) || null, name: text(fallen.name), hidden: false, hint: null, point: null, state: {}, layers: {} });
-    const truths = (Array.isArray(fallen.goods) ? fallen.goods : []).flatMap((good) => (Array.isArray(good?.truths) ? good.truths : []));
-    const [source] = normalizeSources([{ thing: `body:${id}`, letters: text(fallen.letter) ? [fallen.letter] : [], truths }]);
+    const carried = (Array.isArray(fallen.goods) ? fallen.goods : []).flatMap((good) =>
+      (Array.isArray(good?.truths) ? good.truths : []).map((truth) => ({ truth, owner: { actorUuid: fallen.actorUuid, itemId: good.itemId } })),
+    );
+    const made = (Array.isArray(drawn?.[id]) ? drawn[id] : []).map((truth) => ({ truth, owner: null }));
+    const truths = [...carried, ...made];
+    const [source] = normalizeSources([
+      { thing: `body:${id}`, letters: text(fallen.letter) ? [fallen.letter] : [], truths: truths.map((t) => t.truth), owners: truths.map((t) => t.owner) },
+    ]);
     if (source) sources.push(source);
   }
   return { bodies, sources };

@@ -216,6 +216,9 @@ const reset = async () => {
   eq([s.bodies.length, s.lots, s.log.length, s.potUuid, s.recordMessageId], [1, [{ key: "k", thing: "body:b1", layer: "hasty", cardId: null }], 1, null, null], "bodies, lots and the log are cleaned and every key is present");
   const { bodies, sources } = SJ.bodiesFromRecord({ fallen: [{ combatantId: "c1", name: "Ogre", actorUuid: "Actor.ogre", letter: null, goods: [{ itemId: "i1", truths: [truth("Ladle")] }] }, { combatantId: "c2", goods: [] }, { name: "no id" }] });
   eq([bodies.map((b) => b.id), sources.map((x) => [x.thing, x.layer, x.truths.length])], [["c1", "c2"], [["body:c1", "hasty", 1]]], "a record's fallen become bodies, and a source keyed to each body that carries something");
+  eq(sources[0].owners, [{ actorUuid: "Actor.ogre", itemId: "i1" }], "each carried truth names the body's item it was made from");
+  const drawn = SJ.bodiesFromRecord({ fallen: [{ combatantId: "c1", actorUuid: "Actor.ogre", goods: [{ itemId: "i1", truths: [truth("Ladle")] }] }, { combatantId: "c2", actorUuid: "Actor.hound", goods: [] }] }, { drawn: { c1: [truth("Cup")], c2: [truth("Bone")] } });
+  eq(drawn.sources.map((x) => [x.thing, x.truths.map((t) => t.label), x.owners.map((o) => o?.itemId ?? null)]), [["body:c1", ["Ladle", "Cup"], ["i1", null]], ["body:c2", ["Bone"], [null]]], "what a body's table drew follows its carried goods and belongs to no item, and a body that carried nothing still gets a source of it");
 }
 
 /* ---------------- applying one check ---------------- */
@@ -461,6 +464,27 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   const floor = api.options({ partyId: "f1", actorId: "a1" }).find((r) => r.key === "thing:thing-8").layers[0];
   eq([floor.mode, floor.target, floor.bonus], ["search", 14, null], "the thief's bonus is already in the member's target, so none is added on top");
   await api.end("f1");
+
+  // A body's linked table is drawn at the deal, through the injected draw, and what it dealt joins that body's lots.
+  messages.set("m2", { flags: { [MODULE_ID]: { treasureSearch: { combatId: "k2", fallen: [
+    { combatantId: "c2", name: "Gnoll", actorUuid: "Actor.gnoll", tableUuid: "RollTable.t1", goods: [{ itemId: "i3", truths: [truth("Spear")] }] },
+    { combatantId: "c3", name: "Hound", actorUuid: "Actor.hound", goods: [{ itemId: "i4", truths: [truth("Bone")] }] },
+  ] } } } });
+  const draws = [];
+  const withTable = createSceneSearchApi({ plan, request: async () => null, drawTable: async (draw) => (draws.push(draw), [truth("Drawn cup")]) });
+  const tabled = await withTable.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m2", metInLair: true });
+  eq(draws, [{ messageId: "m2", name: "Gnoll", tableUuid: "RollTable.t1" }], "only a body with a linked table is drawn, from the card its record is on");
+  eq(tabled.session.lots.map((l) => l.key), ["body:c2/1", "body:c2/2", "body:c3/1"], "what the table dealt follows the goods the body carried");
+  await withTable.end("f1");
+  draws.length = 0;
+  const given = await withTable.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m2", sources: [{ thing: "body:c3", truths: [truth("Bone")] }], metInLair: true });
+  eq([draws.length, given.ok], [0, true], "a deal the caller names draws no table");
+  await withTable.end("f1");
+  const refusedFirst = await withTable.open({ partyId: "f1", placeUuid: "Actor.nowhere", recordMessageId: "m2" });
+  eq([refusedFirst.reason, draws.length], [SESSION_REFUSAL.NO_PLACE, 0], "a refusal before the deal draws nothing");
+  const bare2 = await createSceneSearchApi({ plan, request: async () => null }).open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1", recordMessageId: "m2", metInLair: true });
+  eq(bare2.session.lots.map((l) => l.key), ["body:c2/1", "body:c3/1"], "with no draw supplied the table is left alone");
+  await createSceneSearchApi({ plan, request: async () => null }).end("f1");
 }
 
 /* ---------------- S4: the asker, the labels, a locker who cannot see, shown, what a player reads ---------------- */

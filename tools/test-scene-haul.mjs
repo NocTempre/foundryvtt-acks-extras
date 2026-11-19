@@ -126,9 +126,9 @@ const judge = { id: "j1", isGM: true };
       null,
     ]),
     [
-      { thing: "den", layer: "hasty", letters: ["Y", "Z"], truths: [] },
-      { thing: "chest", layer: "methodical", letters: [], truths: [{ label: "gem" }] },
-      { thing: "rug", layer: "hasty", letters: ["Y"], truths: [] },
+      { thing: "den", layer: "hasty", letters: ["Y", "Z"], truths: [], owners: [] },
+      { thing: "chest", layer: "methodical", letters: [], truths: [{ label: "gem" }], owners: [null] },
+      { thing: "rug", layer: "hasty", letters: ["Y"], truths: [], owners: [] },
     ],
     "a source names its thing, defaults to the hasty check, and drops what holds nothing",
   );
@@ -189,6 +189,35 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
   eq(short.reason, REFUSAL.failed, "a stage that returns the wrong number of cards fails");
   const own = await H.runHaulDeal({ isGM: true, pot: staged({ metInLair: true }), sources: [{ thing: "body", truths: [{ label: "purse" }] }], deal: fakeDeal(), stage: fakeStage() });
   eq([own.ok, own.lots.map((l) => l.key)], [true, ["body/1"]], "ready-made truths are tagged and staged like dealt ones");
+
+  // A body's carried goods keep the item they were made from, and the letter's truths after them carry none.
+  const spoon = { actorUuid: "Actor.b1", itemId: "i1" };
+  const owned = await H.runHaulDeal({
+    isGM: true,
+    pot: staged({ metInLair: true }),
+    sources: [{ thing: "body:b1", letters: ["Y"], truths: [{ label: "spoon" }, { label: "ladle" }], owners: [spoon, { actorUuid: "", itemId: "i2" }] }],
+    deal: fakeDeal(),
+    stage: fakeStage(),
+  });
+  eq(owned.lots.map((l) => [l.key, l.owner ?? null]), [["body:b1/1", spoon], ["body:b1/2", null], ["body:b1/3", null], ["body:b1/4", null]], "a lot made from a body's item names it, one with no owner or a blank one names none, and dealt lots follow");
+}
+
+/* --- which card stands for which body item --- */
+{
+  const lots = [
+    { key: "body:b1/1", owner: { actorUuid: "Actor.b1", itemId: "i1" } },
+    { key: "body:b1/2", owner: { actorUuid: "Actor.b1", itemId: "i2" } },
+    { key: "body:b1/3" },
+    { key: "body:b2/1", owner: { actorUuid: "Actor.b2", itemId: "i9" } },
+  ];
+  // The cards were made in another order than the lots were asked in, and one lot's card is gone.
+  const v = view([card("z9", { lot: "body:b1/2" }), card("a1", { lot: "body:b1/1" }), card("m5", { lot: "body:b1/3" })]);
+  eq(
+    H.carriedOf(lots, v),
+    { a1: { actorUuid: "Actor.b1", itemId: "i1" }, z9: { actorUuid: "Actor.b1", itemId: "i2" } },
+    "the map is by the key a card carries, never the order made; a lot with no owner or no card maps nothing",
+  );
+  eq([H.carriedOf(null, v), H.carriedOf(lots, null)], [{}, {}], "no lots or no view maps nothing");
 }
 
 /* --- a check finds exactly its lots --- */
@@ -376,6 +405,26 @@ const staged = (deal = {}) => L.normalizePot({ phase: PHASE.staging, deal });
     toggles: { noMagic: true },
   });
   eq([mixed.ok, mixed.lots.map((l) => l.key)], [true, ["z/2"]], "a lot the deal toggles strike when the pot opens is not in the answered map");
+
+  // A fight's goods: the pot's origin maps each card to the body item it stands for before it opens, so the opening takes them off.
+  const spoon = { actorUuid: "Actor.b1", itemId: "i1" };
+  const fight = await dealSceneHaul({
+    sources: [{ thing: "body:b1", truths: [truth({ label: "Spoon" }), truth({ label: "Ladle" })], owners: [spoon, null] }],
+    metInLair: true,
+    scene: { sceneId: "scene1", placeUuid: "Actor.place1" },
+  });
+  const fightPile = piles.at(-1);
+  const cardOf = (key) => cardsOf(fightPile).find((c) => c.flags[MODULE_ID][CARD_FLAG].lot === key).id;
+  eq(
+    potOf(fightPile).origin,
+    { kind: "scene", sceneId: "scene1", placeUuid: "Actor.place1", takeOff: true, carried: { [cardOf("body:b1/1")]: spoon }, takenOff: false },
+    "a body's carried item is mapped by its card, and only that one",
+  );
+  eq(fight.lots.length, 2, "and both lots are dealt");
+  await dealSceneHaul({ sources: [{ thing: "body:b2", truths: [truth({ label: "Cup" })], owners: [{ actorUuid: "Actor.b2", itemId: "i2" }] }], metInLair: true });
+  eq(potOf(piles.at(-1)).origin?.takeOff, true, "goods carried by a body are mapped even where no scene id is given");
+  await dealSceneHaul({ sources: [{ thing: "z2", truths: [truth({ label: "Cup" })] }], metInLair: true, scene: { sceneId: "scene1" } });
+  eq(potOf(piles.at(-1)).origin, { kind: "scene", sceneId: "scene1", placeUuid: null }, "a pot with no carried goods owes no take-off");
 }
 
 /* --- an opening that leaves nothing, and the closing record --- */

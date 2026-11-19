@@ -915,6 +915,21 @@ export const SHARED_ACTIONS = {
     this.render();
   },
 
+  /**
+   * Search here: the Judge opens the scene search at the place the party stands
+   * in (or its screen where one is open); a player's press is a declaration the
+   * party's request relay announces, and the Judge then presses.
+   */
+  async searchHere() {
+    const formation = this.formation;
+    if (!formation) return;
+    if (!game.user.isGM) {
+      await requestPartyAction(formation.id, "declareSearch", {});
+      return;
+    }
+    await globalThis.acksExtras?.sceneSearch?.searchHere?.({ partyId: formation.id });
+  },
+
   /** The Judge's rest: the turn rests whatever the plan says, and the plan resolves. */
   async restTurn() {
     const formation = gmFormation(this);

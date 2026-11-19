@@ -24,7 +24,7 @@ A pot is a core `pile` Cards document, GM-only through staging. Its flag
 | `deal.toggles` | `{noMagic, forceCursed}`, both booleans, set while staging and applied at open |
 | `partyId` | the party the aside lists and Quick grab shares among; nothing writes it, so `resolveParty` reads it while the roster lists it, else the only party the roster has (see "The party aside") |
 | `grab` | `{leftover: [{cardId, count, code}]}`, what the last Quick grab left: the card, the coin still unplaced (null for a whole card) and `tooHeavy`, `noRoom` or `failed`; null before any grab |
-| `origin` | `null` on a hand-built pot; the fight's record on a pot staged from one (shape under "Search the fallen") |
+| `origin` | `null` on a hand-built pot; on a scene's pot `{kind: "scene", sceneId, placeUuid}`, and with it `{takeOff, carried, takenOff}` where bodies carried goods (see "Search the fallen") |
 
 Core lets any user create a Card in a pile. A Card whose id is not in `order`
 (or a bucket list) is never shown by the window and never acted on by the
@@ -159,24 +159,29 @@ as a natural weapon, nor a monster's weapon that states no cost (`isNaturalWeapo
 that is the creature's body, and an imported attack row carries no flag.
 
 The record rides on a chat card whispered to the Judges, in
-`flags["acks-extras"].treasureSearch`: `{combatId, sceneId, fallen, stagedPot,
-drawnText}`. A fight whose fallen hold nothing posts no card. **Stage a pot** on
-the card (`stageFromCard`):
+`flags["acks-extras"].treasureSearch`: `{combatId, sceneId, fallen, opened,
+drawnText}`. A fight whose fallen hold nothing posts no card. The card's
+**Search the scene** opens the scene search with the record
+(`acksExtras.sceneSearch.searchHere`, which [scene-search's MODEL](../scene-search/MODEL.md)
+describes): the fallen become the scene's bodies, their carried goods and
+letters its haul, and no pot is staged by hand. `opened` is set once a scene
+was opened from the card, so a card deals once.
 
-- carried goods become cards, and the pot's `origin` is `{kind: "combat",
-  combatId, sceneId, messageId, fallen, carried, takenOff}`, where `carried` maps
-  each goods card's id to the `{actorUuid, itemId}` it came from;
-- each linked table is drawn quietly (`drawQuietly`); item results become cards,
-  text results are listed on the card;
-- the letters are listed and deal nothing yet (`dealLetter`, the seam the hoard
-  adapter, "The hoard adapter", will fill);
-- the staged pot's uuid is written back to the card, so a second press opens it.
+- Each linked table is drawn quietly (`drawFallenTable`, over `drawQuietly`);
+  item results become cards, text results are listed on the card
+  (`drawnText`).
+- A treasure letter is dealt by the scene's own deal.
 
-**Open** moves the goods: an `updateCards` listener on the opening client calls
-`takeOffBodies`, which deletes, once per item, the goods of cards still in
-`order` from bodies that still exist (`planTakeOff`), and marks `origin.takenOff`.
-Nothing is posted to a player until the Judge opens the pot. Why each choice:
-[DECISIONS.md](DECISIONS.md).
+**The take-off** moves the goods: a pot whose `origin` says `takeOff: true` and
+holds a `carried` map (each goods card's id to the `{actorUuid, itemId}` it came
+from) has them taken when it opens. An `updateCards` listener on the opening
+client calls `takeOffBodies`, which deletes, once per item, the goods of cards
+still in `order` from bodies that still exist (`planTakeOff`), and marks
+`origin.takenOff`. A pot whose origin does not ask owes nothing, whatever its
+kind. The scene's deal writes the map before it opens the pot, keyed by the lot
+key each card's truth carries (`scene-search/haul-logic.mjs` `carriedOf`), so
+the order the cards were made in never matters. Nothing is posted to a player
+until the Judge shows the scene. Why each choice: [DECISIONS.md](DECISIONS.md).
 
 ## Quick grab
 

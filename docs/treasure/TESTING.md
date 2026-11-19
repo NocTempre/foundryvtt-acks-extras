@@ -216,7 +216,9 @@ place, the chat card by the message id in the pile flag.
 ## Search the fallen (Judge seat, a real fight)
 
 Offline coverage is `tools/test-treasure-search.mjs` (who is fallen, the record,
-staging, the take-off). The hooks, the card and the take-off need this walk.
+who owes a take-off). The hooks and the card need this walk; what the card's
+button does, and the take-off through a scene's pot, are walked in
+[scene-search TESTING](../scene-search/TESTING.md), "S5 — the ways in".
 
 ### Fixtures
 
@@ -245,30 +247,20 @@ All invented, found by `flags.world.fixture`; built through `api.fixture`.
    Knock `treasure/search-hostile` and the friend to 0 hit points (or mark both
    defeated in the tracker); leave `treasure/search-hostile-2` at 0 too.
 2. **End the combat** (Combat tracker → End Combat). Observables: the **Chat
-   sidebar** shows a "Search the fallen" card on the Judge seat, listing both
-   hostile bodies with item counts and the first one's letter, with the note that
-   letters are dealt when the treasure tables are imported; the friend is not
-   listed; the Player seat sees no card. A second Judge seat sees it once.
-3. **Stage a pot** on the card. Observables: a pot window opens in staging; its
-   cards are the hostile bodies' goods (three cards); the pot flag's `origin.kind`
-   is `combat` with `carried` mapping each card id to the body's actor uuid and
-   item id; the bodies still carry their items; the card's button now reads
-   "Open the staged pot"; pressing it again opens the same pot and makes no
-   second one.
-4. **A linked table.** With `treasure/search-table` linked, run steps 1 to 3 again
-   (the pot from step 3 is closed first). Observables: no chat message from the
-   draw; the item result is a card whose item stays in the world after Open (it
-   is not in `origin.carried`), the text result is listed on the Search card.
-5. **Delete one body before Open:** delete `treasure/search-hostile-2`'s token.
-6. **Open to the table.** Observables: `origin.takenOff` is true; the surviving
-   body no longer carries the goods that are cards in the pot; the deleted body's
-   card is still in the pot and still claims; a card removed from the pot in
-   staging (a repeat run) left its item on its body; the Player seat sees the
-   doorway only now.
+   sidebar** shows a "The fight is over" card on the Judge seat, listing both
+   hostile bodies with item counts and the first one's letter, with a **Search
+   the scene** button; the friend is not listed; the Player seat sees no card. A
+   second Judge seat sees it once.
+3. **Search the scene** on the card, then the table's draw and the take-off:
+   the steps are scene-search TESTING, "S5 — the ways in", steps 1 to 3. A
+   linked table is drawn quietly there (no chat message from the draw, the item
+   result a lot whose item stays in the world, the text result listed on the
+   card), and the take-off is read on the scene's pot (`origin.takeOff`,
+   `origin.takenOff`, the bodies no longer carrying the goods that are lots).
 
 ### Teardown
 
-`api.sweepTracked()` over the run's own ids (the combat, the pot, the chat card);
+`api.sweepTracked()` over the run's own ids (the combat, the pot, the chat card, the scene's session ended through `acksExtras.sceneSearch.end`);
 the marked fixtures, `treasure/search-table` among them, stay.
 
 ## Bands, backs, faces and deal toggles (both seats)

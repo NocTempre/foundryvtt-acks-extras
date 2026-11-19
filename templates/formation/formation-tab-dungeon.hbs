@@ -94,6 +94,14 @@
       </li>
       {{/each}}
     </ul>
+    {{#if (or isGM ownedMembers.length)}}
+    <div class="acks-extras-turn-plan-foot">
+      <button type="button" class="acks-btn acks-btn--sm" data-action="searchHere"
+              data-tooltip="{{#if isGM}}{{localize 'ACKS-FORMATION.plan.searchHereTip'}}{{else}}{{localize 'ACKS-FORMATION.plan.searchHereAskTip'}}{{/if}}">
+        {{localize "ACKS-FORMATION.plan.searchHere"}}
+      </button>
+    </div>
+    {{/if}}
     <p class="hint">{{localize "ACKS-FORMATION.plan.hint"}}</p>
   </section>
   {{/if}}

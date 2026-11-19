@@ -22,13 +22,22 @@ import { CODE, LAYER } from "./constants.mjs";
 
 const isPlain = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
+/** A truth's owner as `{actorUuid, itemId}`, or null where the answer names no body item. */
+const ownerOf = (raw) => {
+  const actorUuid = typeof raw?.actorUuid === "string" ? raw.actorUuid.trim() : "";
+  const itemId = typeof raw?.itemId === "string" ? raw.itemId.trim() : "";
+  return actorUuid && itemId ? { actorUuid, itemId } : null;
+};
+
 /**
- * The sources of a haul in their clean shape: `{thing, layer, letters, truths}`.
+ * The sources of a haul in their clean shape: `{thing, layer, letters, truths, owners}`.
  * `thing` is the id of the place's thing that hides the lots, `layer` the check
  * that finds them (the hasty check unless it names the methodical one), `letters` the treasure letters to
- * deal for it and `truths` goods already made into card truths. A source with
+ * deal for it and `truths` goods already made into card truths. `owners` names,
+ * for each of those truths in order, the body's item it was made from
+ * (`{actorUuid, itemId}`), or null for a truth no body carried. A source with
  * no thing, or neither letters nor truths, is dropped.
- * @param {Array<{thing: string, layer?: string, letters?: Array<string|{letter: string|null}>, truths?: object[]}>} list
+ * @param {Array<{thing: string, layer?: string, letters?: Array<string|{letter: string|null}>, truths?: object[], owners?: Array<object|null>}>} list
  */
 export function normalizeSources(list) {
   const out = [];
@@ -36,9 +45,15 @@ export function normalizeSources(list) {
     if (!isPlain(raw)) continue;
     const thing = typeof raw.thing === "string" ? raw.thing.trim() : "";
     const letters = (Array.isArray(raw.letters) ? raw.letters : []).map((x) => letterOf(typeof x === "string" ? x : x?.letter)).filter(Boolean);
-    const truths = (Array.isArray(raw.truths) ? raw.truths : []).filter(isPlain);
+    const truths = [];
+    const owners = [];
+    (Array.isArray(raw.truths) ? raw.truths : []).forEach((truth, i) => {
+      if (!isPlain(truth)) return;
+      truths.push(truth);
+      owners.push(ownerOf(Array.isArray(raw.owners) ? raw.owners[i] : null));
+    });
     if (!thing || !(letters.length || truths.length)) continue;
-    out.push({ thing, layer: LAYER_NAMES.includes(raw.layer) ? raw.layer : LAYER.HASTY, letters, truths });
+    out.push({ thing, layer: LAYER_NAMES.includes(raw.layer) ? raw.layer : LAYER.HASTY, letters, truths, owners });
   }
   return out;
 }
@@ -65,7 +80,8 @@ export const lotKey = (thing, n) => `${thing}/${n}`;
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  * @param {(args: {letter: string, toggles: object}) => Promise<{truths: object[], errors: object[], cite: string|null}>} args.deal one letter dealt
  * @param {(truths: object[]) => Promise<string[]>} args.stage puts truths in the pot, returning the new card ids
- * @returns {Promise<{ok: true, dealt: object[], lots: Array<{key: string, thing: string, layer: string, cardId: string}>}|{ok: false, reason: string, dealt?: object[]}>}
+ * @returns {Promise<{ok: true, dealt: object[], lots: Array<{key: string, thing: string, layer: string, cardId: string, owner?: {actorUuid: string, itemId: string}}>}|{ok: false, reason: string, dealt?: object[]}>}
+ *   a lot made from a body's item carries `owner`
  */
 export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage }) {
   if (!isGM) return { ok: false, reason: REFUSAL.notAllowed };
@@ -99,12 +115,14 @@ export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage
       if (!result.ok) return result;
       dealt.push(...result.dealt.map((d) => ({ ...d, thing: source.thing })));
     }
-    for (const truth of truths) {
+    // The source's own truths come first, so its owners line up with the first lots.
+    for (const [i, truth] of truths.entries()) {
       const n = (counts.get(source.thing) ?? 0) + 1;
       counts.set(source.thing, n);
       const key = lotKey(source.thing, n);
+      const owner = source.owners?.[i] ?? null;
       tagged.push({ ...truth, found: false, lot: key });
-      planned.push({ key, thing: source.thing, layer: source.layer });
+      planned.push({ key, thing: source.thing, layer: source.layer, ...(owner ? { owner } : {}) });
     }
   }
   if (!tagged.length) return { ok: false, reason: REFUSAL.empty, dealt };
@@ -124,6 +142,26 @@ export async function runHaulDeal({ isGM, pot, sources, confirmLair, deal, stage
 export function lotsInPot(lots, view) {
   const byKey = new Map(potCards(view).filter((c) => c.truth?.lot).map((c) => [c.truth.lot, c.id]));
   return (Array.isArray(lots) ? lots : []).filter((lot) => byKey.has(lot.key)).map((lot) => ({ ...lot, cardId: byKey.get(lot.key) }));
+}
+
+/**
+ * Which body item each card of a pot stands for: card id to `{actorUuid,
+ * itemId}`, from the lots that carry an `owner`. A card is found by the key its
+ * truth carries, never by the order the cards were made in, and a lot whose card
+ * is not in the pot maps nothing. This is the pot's `origin.carried`, which the
+ * take-off reads when the pot opens.
+ * @param {Array<{key: string, owner?: {actorUuid: string, itemId: string}}>} lots `runHaulDeal`'s lots
+ * @param {{cards: Array<{id: string, truth: {lot?: string}}>}} view the pot's `PotView`
+ * @returns {Record<string, {actorUuid: string, itemId: string}>}
+ */
+export function carriedOf(lots, view) {
+  const byKey = new Map((Array.isArray(view?.cards) ? view.cards : []).filter((c) => c.truth?.lot).map((c) => [c.truth.lot, c.id]));
+  const out = {};
+  for (const lot of Array.isArray(lots) ? lots : []) {
+    const id = byKey.get(lot.key);
+    if (id && lot.owner) out[id] = { actorUuid: lot.owner.actorUuid, itemId: lot.owner.itemId };
+  }
+  return out;
 }
 
 /**

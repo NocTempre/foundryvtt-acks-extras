@@ -9,9 +9,9 @@
  * means the request was declared to the Judge, who may still refuse it. The read calls answer
  * every seat, a player's through the projection that strips what is unfound.
  *
- * The turn plan, the party's request relay and the fight's record are reached
- * through `deps` so a suite supplies its own; the module's wiring supplies the
- * real ones.
+ * The turn plan, the party's request relay, the fight's record and a linked
+ * table's draw are reached through `deps` so a suite supplies its own; the
+ * module's wiring supplies the real ones.
  */
 import { MODULE_ID } from "../lib/constants.mjs";
 import { LOCATION_TYPE } from "../location/constants.mjs";
@@ -51,8 +51,9 @@ function locationOf(uuid) {
  * @param {(formationId: string, type: string, payload: object) => Promise<*>} deps.request the party's `requestPartyAction`
  * @param {(messageId: string) => object|null} [deps.record] a fight's record by the search card's message id
  * @param {(partyId: string) => *} [deps.announce] tells the table's other seats the scene was shown (the module's socket)
+ * @param {(draw: {messageId: string, name: string, tableUuid: string}) => Promise<object[]>} [deps.drawTable] draws a fallen creature's linked table and answers the card truths it dealt (the treasure feature's own draw)
  */
-export function createSceneSearchApi({ plan, request, record = defaultRecord, announce = null }) {
+export function createSceneSearchApi({ plan, request, record = defaultRecord, announce = null, drawTable = null }) {
   const planOf = async () => (typeof plan === "function" ? plan() : plan);
 
   async function open({ partyId, placeUuid, sceneId = null, recordMessageId = null, sources = null, ...deal } = {}) {
@@ -63,7 +64,15 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord, an
     if (!place) return refuse(SESSION_REFUSAL.NO_PLACE);
     if (readSession(formation)) return refuse(SESSION_REFUSAL.SESSION_OPEN);
 
-    const found = recordMessageId ? bodiesFromRecord(normalizeRecord(record(recordMessageId))) : { bodies: [], sources: [] };
+    const fight = recordMessageId ? normalizeRecord(record(recordMessageId)) : null;
+    // A linked table is a roll, so it is drawn once the cheap refusals are past and only when the deal is the record's own.
+    const drawn = {};
+    if (fight && !Array.isArray(sources) && drawTable) {
+      for (const body of fight.fallen) {
+        if (body.combatantId && body.tableUuid) drawn[body.combatantId] = await drawTable({ messageId: recordMessageId, name: String(body.name ?? ""), tableUuid: body.tableUuid });
+      }
+    }
+    const found = fight ? bodiesFromRecord(fight, { drawn }) : { bodies: [], sources: [] };
     const asked = Array.isArray(sources) ? sources : found.sources;
     const keys = new Set(sessionEntries({ things: thingsOf(place), session: { bodies: found.bodies, lots: [] } }).map((e) => e.key));
     const unknown = asked.find((s) => !keys.has(String(s?.thing ?? "").trim()));
