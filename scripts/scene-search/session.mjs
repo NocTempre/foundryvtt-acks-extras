@@ -20,6 +20,7 @@ import { unset } from "../lib/util.mjs";
 import { getFormation, getPartyActor, getPartyToken } from "../formation/formation-model.mjs";
 import { trapFigures } from "../formation/trap-rules.mjs";
 import { SESSION_FLAG } from "./constants.mjs";
+import { plateNames } from "./plate-logic.mjs";
 import { appendLog, normalizeSession, sessionEntries } from "./session-logic.mjs";
 
 const path = `flags.${MODULE_ID}.${SESSION_FLAG}`;
@@ -131,6 +132,34 @@ export function reachContext(formation, session) {
     feetPerPixel: feet > 0 && size > 0 ? feet / size : null,
     partyPoint: onScene ? tokenCentre(token, scene, token._source ?? token) : null,
   };
+}
+
+/** The document an entry points at, or null where it points at none, the document is gone or the reference is no uuid. */
+function refDocOf(entry) {
+  try {
+    return entry.ref ? (fromUuidSync(entry.ref, { strict: false }) ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The name the document an entry points at carries, or empty. */
+const refName = (entry) => refDocOf(entry)?.name ?? "";
+
+/** The picture the document an entry points at carries (an item's or an actor's image), or null; never a made-up one. */
+export function refImageOf(entry) {
+  const img = refDocOf(entry)?.img;
+  return typeof img === "string" && img ? img : null;
+}
+
+/**
+ * The plate name of each of these entries, by key: the document an entry points
+ * at, else the word for its kind, told apart by order (`plateNames`). The names
+ * are those of the entries handed in, so a seat is named only what it sees.
+ * @returns {Map<string, string>}
+ */
+export function plateNamesOf(entries) {
+  return plateNames(entries, { nameOf: refName, kindWord: (kind) => game.i18n.localize(`ACKS-LOCATION.sceneSearch.kind.${kind}`) });
 }
 
 /** The uuids a member's items answer to as a tool: the item's own and the one it was made from. */

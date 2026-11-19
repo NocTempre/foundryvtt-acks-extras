@@ -44,6 +44,8 @@ export async function resolveSceneRound(formation, deps = null) {
   if (!sessionOf(formation)) return { via: "scene", results: [] };
   const due = dueRoundEntries(plan.readPlan(formation));
   for (const { actorId } of due) await plan.unlockPlan(formation, actorId);
-  const results = await resolveDue(due, { actorOf: (id) => actorOf(formation, id), ctx: { formation } });
+  // The plan entry is gone once unlocked, so the user who locked each is carried in the context the resolution reads.
+  const lockedBy = Object.fromEntries(due.map(({ actorId, entry }) => [actorId, entry.by ?? null]));
+  const results = await resolveDue(due, { actorOf: (id) => actorOf(formation, id), ctx: { formation, lockedBy } });
   return { via: "scene", results };
 }

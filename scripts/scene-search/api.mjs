@@ -21,8 +21,8 @@ import { getFormation } from "../formation/formation-model.mjs";
 import { ACTIVITY, LAYER, LAYER_OF_ACTIVITY, SCENE, SESSION_REFUSAL } from "./constants.mjs";
 import { sceneOptionsFor } from "./activities.mjs";
 import { dealSceneHaul } from "./haul.mjs";
-import { sceneView } from "./scene-logic.mjs";
-import { bodiesFromRecord, sessionEntries } from "./session-logic.mjs";
+import { sceneView, seatView } from "./scene-logic.mjs";
+import { bodiesFromRecord, playerLog, sessionEntries } from "./session-logic.mjs";
 import { readSession, readWorld, writeSession } from "./session.mjs";
 
 const refuse = (reason, extra = {}) => ({ ok: false, reason, ...extra });
@@ -50,8 +50,9 @@ function locationOf(uuid) {
  * @param {{lockPlan: Function, unlockPlan: Function, planRefusal: Function, readPlan: Function}|(() => Promise<object>)} deps.plan `formation/turn-plan.mjs`, or a loader for it
  * @param {(formationId: string, type: string, payload: object) => Promise<*>} deps.request the party's `requestPartyAction`
  * @param {(messageId: string) => object|null} [deps.record] a fight's record by the search card's message id
+ * @param {(partyId: string) => *} [deps.announce] tells the table's other seats the scene was shown (the module's socket)
  */
-export function createSceneSearchApi({ plan, request, record = defaultRecord }) {
+export function createSceneSearchApi({ plan, request, record = defaultRecord, announce = null }) {
   const planOf = async () => (typeof plan === "function" ? plan() : plan);
 
   async function open({ partyId, placeUuid, sceneId = null, recordMessageId = null, sources = null, ...deal } = {}) {
@@ -76,7 +77,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
       potUuid = dealt.potUuid;
       lots = dealt.lots.map(({ key, thing, layer, cardId }) => ({ key, thing, layer, cardId }));
     }
-    const session = { sceneId, placeUuid, recordMessageId, potUuid, bodies: found.bodies, lots, log: [] };
+    const session = { sceneId, placeUuid, recordMessageId, potUuid, shown: false, bodies: found.bodies, lots, log: [] };
     await writeSession(formation, session);
     return { ok: true, session: readSession(formation), potUuid };
   }
@@ -90,6 +91,18 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     return { ok: true };
   }
 
+  /** Show the scene to the table: sets the session's `shown` flag and tells the other seats. Judge-only; pressing it again tells them again. */
+  async function show(partyId) {
+    if (!isGM()) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    const session = readSession(formation);
+    if (!session) return refuse(SESSION_REFUSAL.NO_SESSION);
+    await writeSession(formation, { ...session, shown: true });
+    await announce?.(partyId);
+    return { ok: true };
+  }
+
   async function assign({ partyId, actorId, layer, entryKey } = {}) {
     const formation = getFormation(partyId);
     if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
@@ -97,7 +110,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     if (!key) return refuse(SESSION_REFUSAL.NOT_OFFERED);
     const world = readWorld(formation);
     if (!world) return refuse(SESSION_REFUSAL.NO_SESSION);
-    if (!world.entries.some((e) => e.key === entryKey)) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY);
+    if (!seatView(world.entries, { isGM: isGM() }).some((e) => e.key === entryKey)) return refuse(SESSION_REFUSAL.UNKNOWN_ENTRY);
     if (!formation.members?.some((m) => m.actorId === actorId)) return refuse(SESSION_REFUSAL.NOT_A_MEMBER);
     if (!isGM() && !ownsActor(actorId)) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
     const turnPlan = await planOf();
@@ -129,16 +142,24 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     const world = formation ? readWorld(formation) : null;
     if (!world) return null;
     const { session, place, entries } = world;
-    const { bodies: _bodies, lots, ...shown } = session;
-    return { session: isGM() ? { ...shown, lots } : shown, place: { uuid: place.uuid, name: place.name }, entries: sceneView(entries, { isGM: isGM() }), log: session.log };
+    const { bodies: _bodies, lots, ...rest } = session;
+    const seen = sceneView(entries, { isGM: isGM() });
+    return {
+      session: isGM() ? { ...rest, lots } : rest,
+      place: { uuid: place.uuid, name: place.name },
+      entries: seen,
+      log: isGM() ? session.log : playerLog(session.log, seen.map((e) => e.key)),
+    };
   }
 
   /** Who is assigned to which entry and layer: the plan's scene entries, `[{actorId, layer, entryKey, remaining, resolved}]`. */
   async function assignments(partyId) {
     const formation = getFormation(partyId);
     const turnPlan = await planOf();
+    const world = formation ? readWorld(formation) : null;
+    const seen = world ? new Set(sceneView(world.entries, { isGM: isGM() }).map((e) => e.key)) : null;
     return Object.entries(formation ? turnPlan.readPlan(formation) : {})
-      .filter(([, entry]) => entry?.key in LAYER_OF_ACTIVITY)
+      .filter(([, entry]) => entry?.key in LAYER_OF_ACTIVITY && (isGM() || seen?.has(entry.option)))
       .map(([actorId, entry]) => ({ actorId, layer: LAYER_OF_ACTIVITY[entry.key], entryKey: entry.option, remaining: entry.remaining, resolved: entry.resolvedTurn != null }));
   }
 
@@ -149,7 +170,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord }) 
     return formation && actor ? sceneOptionsFor(formation, actor) : [];
   }
 
-  return { open, end, assign, unassign, read, assignments, options };
+  return { open, end, show, assign, unassign, read, assignments, options };
 }
 
 /** The api over the real dependencies, made once at init by `configureSceneSearchApi`. */
@@ -166,6 +187,9 @@ export function configureSceneSearchApi(deps) {
 
 /** Open a session at a place for a party and deal its haul (`createSceneSearchApi`'s `open`). Judge-only. */
 export const openSceneSearch = (args) => live.open(args);
+
+/** Show the scene to the table (`createSceneSearchApi`'s `show`). Judge-only. */
+export const showSceneSearch = (partyId) => live.show(partyId);
 
 /** End the party's session (`createSceneSearchApi`'s `end`). Judge-only. */
 export const endSceneSearch = (partyId) => live.end(partyId);

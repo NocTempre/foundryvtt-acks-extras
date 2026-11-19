@@ -23,14 +23,14 @@ import { isHurried } from "../formation/formation-model.mjs";
 import { CAPABILITY, CHECK, CODE, LAYER, LAYER_OF_ACTIVITY, REFUSAL, SESSION_REFUSAL } from "./constants.mjs";
 import { layerOptions, layerRefusal, seatView } from "./scene-logic.mjs";
 import { applyCheck, capabilitiesWanted, logRowOf } from "./session-logic.mjs";
-import { logCheck, readWorld, reachContext, toolsOf, writeEntryState } from "./session.mjs";
+import { logCheck, plateNamesOf, readWorld, reachContext, toolsOf, writeEntryState } from "./session.mjs";
 import { markSceneFound } from "./haul.mjs";
 import { revealExit } from "./seams.mjs";
 
 const LANG_ACTIVITY = "ACKS-LOCATION.sceneSearch.activity.";
 
-/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor}`, `postRoll(card)` for the Judges' card, and `reveal` for `revealSecretDoor`. */
-const seams = { checks: null, postRoll: null, reveal: null, pot: null };
+/** The party-check seams: `{PARTY_CHECKS, resolveCheck, rollCheckFor}`, `postRoll(card)` for the Judges' card, `reveal` for `revealSecretDoor`, and `planBy` for who locked a plan entry. */
+const seams = { checks: null, postRoll: null, reveal: null, pot: null, planBy: null };
 
 /**
  * Supply what resolution needs from outside this feature. Called once at init
@@ -40,12 +40,14 @@ const seams = { checks: null, postRoll: null, reveal: null, pot: null };
  * @param {(card: {formation: object, actor: object, key: string, layer: string, rolled: object|null, outcome: object}) => *} [deps.postRoll] posts the Judges' card
  * @param {((wall: object) => *)|null} [deps.reveal] `revealSecretDoor`, once it exists
  * @param {((uuid: string) => object|null)|null} [deps.pot] finds a pot pile by uuid (`fromUuidSync` by default)
+ * @param {((formation: object, actorId: string) => string|null)|null} [deps.planBy] the id of the user who locked a member's plan entry (the turn plan's `by`)
  */
-export function configureSceneChecks({ checks, postRoll = null, reveal = null, pot = null }) {
+export function configureSceneChecks({ checks, postRoll = null, reveal = null, pot = null, planBy = null }) {
   seams.checks = checks;
   seams.postRoll = postRoll;
   seams.reveal = reveal;
   seams.pot = pot;
+  seams.planBy = planBy;
 }
 
 /** The ad hoc party-check config for a named capability's skill check: it matches the capability and nothing by name, and allows no Adventuring stand-in. */
@@ -119,6 +121,20 @@ export function sceneOptionsFor(formation, actor, { isGM = !!game.user?.isGM } =
 }
 
 /**
+ * Did a player's lock name an entry that player cannot see? The party's relay
+ * runs the lock on a Judge's client with no word of who asked, so the registry's
+ * own refusal cannot tell a player's hand-made request from the Judge's; the
+ * plan entry's `by` (the user the lock was made for) says it, and a check never
+ * resolves at an entry its locker is not shown. `lockedBy` is that user where the
+ * caller already holds it (the Round press, which unlocks the entry first).
+ */
+function namedBeyondSight(formation, actor, key, entries, lockedBy = null) {
+  const by = lockedBy ?? seams.planBy?.(formation, actor.id);
+  const user = by ? game.users?.get(by) : null;
+  return !!user && !user.isGM && !seatView(entries, { isGM: false }).some((e) => e.key === key);
+}
+
+/**
  * Resolve one member's check at one layer of one entry: roll if it needs a
  * throw, apply the answer, write the entry's state, mark the lots it finds,
  * show what it reveals, log it and post the Judges' card. A refusal writes and
@@ -129,14 +145,15 @@ export function sceneOptionsFor(formation, actor, { isGM = !!game.user?.isGM } =
  * @param {object} args.actor the searcher
  * @param {string} args.key the entry's key
  * @param {string} args.layer `hasty` or `methodical`
+ * @param {string|null} [args.lockedBy] the user who locked the check, where the caller already holds it
  * @returns {Promise<{ok: true, outcome: object, lots: {ids: string[], missing: string[]}|null}|{ok: false, reason: string, outcome?: object}>}
  */
-export async function resolveSceneCheck({ formation, actor, key, layer }) {
+export async function resolveSceneCheck({ formation, actor, key, layer, lockedBy = null }) {
   if (!game.user?.isGM) return { ok: false, reason: SESSION_REFUSAL.NOT_ALLOWED };
   const world = readWorld(formation);
   if (!world) return { ok: false, reason: SESSION_REFUSAL.NO_SESSION };
   const entry = world.entries.find((e) => e.key === key);
-  if (!entry) return { ok: false, reason: SESSION_REFUSAL.UNKNOWN_ENTRY };
+  if (!entry || namedBeyondSight(formation, actor, key, world.entries, lockedBy)) return { ok: false, reason: SESSION_REFUSAL.UNKNOWN_ENTRY };
   const member = memberOf(actor, world.entries);
   const ctx = contextOf(formation, world, actor);
 
@@ -167,8 +184,8 @@ export async function resolveSceneCheck({ formation, actor, key, layer }) {
   }
   const scene = world.session.sceneId ? game.scenes?.get(world.session.sceneId) : null;
   for (const wallId of applied.walls) await revealExit(scene, wallId, { reveal: seams.reveal });
-  await logCheck(formation, logRowOf({ member, key, layer, outcome }));
-  await seams.postRoll?.({ formation, actor, key, layer, rolled, outcome });
+  const card = await seams.postRoll?.({ formation, actor, key, layer, rolled, outcome });
+  await logCheck(formation, logRowOf({ member, key, layer, outcome, card: card?.id ?? null }));
   return { ok: true, outcome, lots };
 }
 
@@ -184,11 +201,14 @@ const defaultPot = (uuid) => {
 /** The length in whole turns: a hasty check is one, a methodical check its layer's authored turns, else one. */
 const turnsOf = (layer, name) => (name === LAYER.HASTY ? 1 : (layer.turns ?? 1));
 
-/** The registry's reason for a refusal: the `scene:` code and what the member lacks. */
-function blockedOf(formation, actor, optionId, name) {
+/** Does the seat that asked see Judge-only entries? The user a lock's `ctx` names (`ctx.user`) where it names one, else the seat this runs on: a player's own client refuses a hidden entry here, and a request relayed to a Judge's client is held back at resolution (`namedBeyondSight`). */
+const askerIsJudge = (ctx) => !!(ctx?.user ?? game.user)?.isGM;
+
+/** The registry's reason for a refusal: the `scene:` code and what the member lacks. An entry the asker cannot see is refused as unknown. */
+function blockedOf(formation, actor, optionId, name, judge) {
   const world = readWorld(formation);
   if (!world) return { reason: SESSION_REFUSAL.NO_SESSION, missing: [] };
-  const entry = world.entries.find((e) => e.key === optionId);
+  const entry = seatView(world.entries, { isGM: judge }).find((e) => e.key === optionId);
   if (!entry) return { reason: SESSION_REFUSAL.UNKNOWN_ENTRY, missing: [] };
   if (name === LAYER.HASTY && entry.layers.hasty.check === CHECK.SEARCH && isHurried(formation)) return { reason: "hurried", missing: [] };
   const refused = layerRefusal(entry, name, memberOf(actor, world.entries), contextOf(formation, world, actor));
@@ -210,14 +230,17 @@ export function registerSceneActivities() {
       label: `${LANG_ACTIVITY}${name}`,
       options: (_actor, ctx) => {
         const world = ctx?.formation ? readWorld(ctx.formation) : null;
-        return world ? seatView(world.entries, { isGM: !!game.user?.isGM }).map((entry) => ({ id: entry.key })) : [];
+        if (!world) return [];
+        const seen = seatView(world.entries, { isGM: askerIsJudge(ctx) });
+        const names = plateNamesOf(seen);
+        return seen.map((entry) => ({ id: entry.key, label: names.get(entry.key) }));
       },
       turns: (_actor, option, ctx) => {
         const entry = ctx?.formation ? readWorld(ctx.formation)?.entries.find((e) => e.key === option?.id) : null;
         return entry ? turnsOf(entry.layers[name], name) : null;
       },
-      blocked: (actor, option, ctx) => (ctx?.formation ? blockedOf(ctx.formation, actor, option?.id, name) : { reason: SESSION_REFUSAL.NO_SESSION, missing: [] }),
-      resolve: (actor, option, ctx) => resolveSceneCheck({ formation: ctx.formation, actor, key: option.id, layer: name }),
+      blocked: (actor, option, ctx) => (ctx?.formation ? blockedOf(ctx.formation, actor, option?.id, name, askerIsJudge(ctx)) : { reason: SESSION_REFUSAL.NO_SESSION, missing: [] }),
+      resolve: (actor, option, ctx) => resolveSceneCheck({ formation: ctx.formation, actor, key: option.id, layer: name, lockedBy: ctx.lockedBy?.[actor.id] ?? null }),
     }),
   );
   return () => off.forEach((fn) => fn());

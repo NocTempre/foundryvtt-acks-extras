@@ -3,10 +3,12 @@
  * while it searches a place, the entries read through it, and what one check
  * does to them. `session.mjs` is the Foundry side.
  *
- * A session is `{sceneId, placeUuid, recordMessageId, potUuid, bodies, lots,
- * log}`. The place's authored list is never written with runtime facts, so
+ * A session is `{sceneId, placeUuid, recordMessageId, potUuid, shown, bodies,
+ * lots, log}`. The place's authored list is never written with runtime facts, so
  * everything a session adds to it lives here:
  *
+ * - `shown` is whether the Judge has shown the scene to the table: a player's
+ *   screen has nothing to read until it is true;
  * - `bodies` are the fight's fallen as entry rows (`id`, `ref`, `hidden`,
  *   `hint`, `point`, `state`, `layers`), each carrying its own `state`, since a
  *   body has no thing to hold one;
@@ -50,6 +52,7 @@ export function normalizeSession(raw) {
     placeUuid: text(raw.placeUuid),
     recordMessageId: text(raw.recordMessageId) || null,
     potUuid: text(raw.potUuid) || null,
+    shown: raw.shown === true,
     bodies,
     lots,
     log: (Array.isArray(raw.log) ? raw.log : []).filter(isPlain).slice(-LOG_LIMIT),
@@ -174,9 +177,11 @@ export function applyCheck({ entries, key, layer, member, ctx = {}, roll = null 
 /**
  * The row of a session's log for one answered check: who, which entry and layer,
  * the answer's code, any clue it found, and the kinds still unfound. Nothing a
- * die, a target or a total could be read from.
+ * die, a target or a total could be read from. `card` is the id of the Judges'
+ * whispered card the throw was posted on, kept only where one was, so the
+ * Judge's screen can read the throw from it and no seat can from here.
  */
-export function logRowOf({ member, key, layer, outcome }) {
+export function logRowOf({ member, key, layer, outcome, card = null }) {
   return {
     actorId: member?.id ?? null,
     key,
@@ -184,7 +189,27 @@ export function logRowOf({ member, key, layer, outcome }) {
     code: outcome?.code ?? null,
     clue: outcome?.code === CODE.FOUND ? (outcome.clue ?? null) : null,
     more: Array.isArray(outcome?.more) ? [...outcome.more] : [],
+    ...(card ? { card } : {}),
   };
+}
+
+/**
+ * The log a player may read: only the rows at entries the seat can see
+ * (`visibleKeys`), each with nothing the table must not learn. A found row
+ * keeps its clue and the kinds still unfound; a vague row keeps its code; every
+ * other answer (found nothing, whether it was a miss or an empty place) is
+ * blanked to a row that says who checked what and nothing of the result.
+ * @param {object[]} log the session's rows
+ * @param {Iterable<string>} visibleKeys the keys of the entries the seat sees
+ */
+export function playerLog(log, visibleKeys) {
+  const keys = new Set(visibleKeys);
+  return (Array.isArray(log) ? log : [])
+    .filter((row) => isPlain(row) && keys.has(row.key))
+    .map((row) => {
+      const kept = row.code === CODE.FOUND || row.code === CODE.VAGUE;
+      return { actorId: row.actorId ?? null, key: row.key, layer: row.layer, code: kept ? row.code : null, clue: row.code === CODE.FOUND ? (row.clue ?? null) : null, more: kept && Array.isArray(row.more) ? [...row.more] : [] };
+    });
 }
 
 /** The log with one row added, held to `LOG_LIMIT` (the oldest go): a new list. */

@@ -42,6 +42,7 @@
     "styles/markets.css",
     "styles/merchandise.css",
     "styles/monsters.css",
+    "styles/scene-search.css",
     "styles/treasure.css",
     "styles/vehicles.css"
   ],

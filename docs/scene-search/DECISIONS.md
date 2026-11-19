@@ -69,3 +69,45 @@ imported, nothing is in reach by distance" reads the other way, as a refusal
 that would block every point-bearing thing in a world with no import. Open for
 the owner. The gate would go in `activities.mjs` `blockedOf` and
 `resolveSceneCheck`.
+
+## 2026-11-19 — The screen: what S4 built to the boards, and where it stopped
+
+Built to the approved boards (SceneJudge, ScenePlayer, SceneCards): the header,
+the bar, the cards with their two rails, the party, the log and the haul tray,
+for both seats. Left to later slices: the Judge's keying aside (S6), harvest
+rows (S7b), fight bodies' pictures (S5), and doors and traps read off the map
+(R-DC1). Four readings the boards do not settle:
+
+- **Round and Spend a turn are the Judge's.** The board says a player's press
+  "asks the Judge (the turn plan's relay)", but the party's relay carries a
+  `rest` request, a `plan` request and others, and none that moves the clock or
+  resolves the plan. A new relay kind would let any player advance the party's
+  clock, which is a table-trust call. Built: both buttons are drawn disabled on a
+  player's seat with a tooltip. Open for the owner.
+- **`shown` gates the screen, not the read.** A player's screen has nothing to
+  show until the Judge shows the scene; `read` and the Dungeon tab's plan select
+  still answer a player at an open session, so a seat that calls the api reads
+  what the projection lets through. Gating `read` would also empty the Dungeon
+  tab's options for a seat. Open for the owner.
+- **The "something more" line shows once a check was made at the entry**, as the
+  boards draw it (a Seen card carries no mark, a checked one does), though the
+  projection holds the mark from the start. The line is the Judge's own hint
+  where one was written, else the generic words, else the vague words where the
+  latest answer there was the vague one.
+- **The bar's cap reads "After the battle" for a search a fight's record opened,
+  and "Searching here" otherwise.** The boards draw only the first. The second is
+  the one word needed for a search with no fight.
+
+A lock a player's hand-made `plan` request makes at a hidden entry is held back
+at resolution, not at the lock: the relay runs `lockPlan` on a Judge's client with
+no word of who asked, and `turn-plan.mjs` is the dungeon close-out's. The check
+reads the plan entry's `by` (`planBy` seam, `activities.mjs`
+`namedBeyondSight`; on the Round press, which unlocks the entry before it
+resolves, the `lockedBy` it carries in the context) and refuses an entry that
+user cannot see. The lock itself
+still lands in the plan, so a hidden key a player guesses is stored until the
+Judge's next press; closing that needs the registrant calls to carry the asking
+user (R-DC3). Likewise the Dungeon tab's select labels each entry by the
+activity alone (`optionLabel` ignores an option's `label`), so while a session is
+open it lists identical lines; the scene's options carry `label`, which that
+function can read once R-DC3 lands.

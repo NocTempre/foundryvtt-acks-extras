@@ -1,0 +1,142 @@
+<div class="acks-extras-ss acks-ui" {{#if texture}}style="--acks-extras-ss-grime: {{texture}};"{{/if}}>
+  <header class="acks-porphyry acks-extras-ss-head">
+    <span class="acks-extras-ss-banner">{{localize "ACKS-LOCATION.sceneSearch.screen.title"}}</span>
+    {{#if header}}<span class="acks-extras-ss-place">· {{header.place}}</span>{{/if}}
+    <span class="acks-extras-ss-grow"></span>
+    {{#if header}}
+      <span class="acks-extras-ss-seat">{{header.seat}}{{#if isGM}} · {{header.showState}}{{/if}}</span>
+    {{/if}}
+    {{#if isGM}}
+      {{#if open}}
+        <button type="button" class="acks-btn acks-btn--sm acks-btn--secondary" data-action="show"
+                data-tooltip="ACKS-LOCATION.sceneSearch.screen.showTip">{{localize "ACKS-LOCATION.sceneSearch.screen.show"}}</button>
+      {{/if}}
+    {{/if}}
+  </header>
+
+  {{#unless open}}
+    <p class="acks-extras-ss-empty">{{localize "ACKS-LOCATION.sceneSearch.reason.noSession"}}</p>
+  {{else}}
+  {{#if waiting}}
+    <p class="acks-extras-ss-empty">{{localize "ACKS-LOCATION.sceneSearch.screen.waiting"}}</p>
+  {{else}}
+  <div class="acks-parchment acks-parchment--aged acks-extras-ss-bar">
+    <span class="acks-extras-ss-cap">{{header.cap}}</span>
+    <span class="acks-extras-ss-count">
+      <span data-tooltip="ACKS-LOCATION.sceneSearch.screen.count.foundTip">{{foundText}}</span>
+      <span data-tooltip="ACKS-LOCATION.sceneSearch.screen.count.untouchedTip">{{untouchedText}}</span>
+    </span>
+    <span class="acks-extras-ss-grow"></span>
+    <span class="acks-extras-ss-press" data-tooltip="ACKS-LOCATION.sceneSearch.screen.press.tip">{{localize "ACKS-LOCATION.sceneSearch.screen.press.label"}} {{pressText}}</span>
+    {{#if turnText}}<span class="acks-extras-ss-turn" data-tooltip="ACKS-LOCATION.sceneSearch.screen.turn.tip">{{turnText}}</span>{{/if}}
+    {{#if isGM}}
+      <button type="button" class="acks-btn acks-btn--secondary" data-action="round"
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.roundTip">{{localize "ACKS-LOCATION.sceneSearch.screen.button.round"}}</button>
+      <button type="button" class="acks-btn acks-btn--roll" data-action="spend"
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.spendTip">{{localize "ACKS-LOCATION.sceneSearch.screen.button.spend"}}</button>
+    {{else}}
+      <button type="button" class="acks-btn acks-btn--secondary" disabled
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.judgeOnly">{{localize "ACKS-LOCATION.sceneSearch.screen.button.round"}}</button>
+      <button type="button" class="acks-btn acks-btn--roll" disabled
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.judgeOnly">{{localize "ACKS-LOCATION.sceneSearch.screen.button.spend"}}</button>
+      <span class="acks-extras-ss-help">{{localize "ACKS-LOCATION.sceneSearch.screen.button.judgeOnly"}}</span>
+    {{/if}}
+  </div>
+
+  <div class="acks-extras-ss-board">
+    <section class="acks-extras-ss-entries" aria-labelledby="{{@root.partId}}-entries">
+      <h3 class="acks-extras-ss-cap" id="{{@root.partId}}-entries">{{localize "ACKS-LOCATION.sceneSearch.screen.section.entries"}}</h3>
+      <div class="acks-extras-ss-grid">
+        {{#each cards}}
+        <div class="acks-extras-ss-card is-{{kind}}{{#if hidden}} is-hidden{{/if}}" role="group" aria-label="{{aria}}"
+             data-drop-entry="{{key}}">
+          <div class="acks-extras-ss-strip">
+            <span><span aria-hidden="true">◇</span> {{kindWord}}</span>
+            {{#if hidden}}<span class="acks-extras-ss-tag">{{localize "ACKS-LOCATION.sceneSearch.screen.state.hidden"}}</span>{{/if}}
+            <span class="acks-extras-ss-state">{{statusWord}}</span>
+          </div>
+          {{#if img}}<div class="acks-extras-ss-art" aria-hidden="true"><img src="{{img}}" alt=""></div>{{/if}}
+          <div class="acks-extras-ss-plate"><b>{{name}}</b></div>
+          {{#if tell}}<div class="acks-extras-ss-tell"><span class="acks-extras-ss-folio" aria-hidden="true"><b>?</b></span>{{tell}}</div>{{/if}}
+          {{#if finds.length}}
+          <ul class="acks-extras-ss-finds" data-tooltip="ACKS-LOCATION.sceneSearch.screen.finds.tip">
+            {{#each finds}}<li><i aria-hidden="true"></i><span>{{this}}</span></li>{{/each}}
+          </ul>
+          {{/if}}
+          {{#each notes}}<div class="acks-extras-ss-note" data-tooltip="ACKS-LOCATION.sceneSearch.screen.judge.tip">{{this}}</div>{{/each}}
+          <div class="acks-extras-ss-rail">
+            {{#each rows}}
+            <div class="acks-extras-ss-row" data-drop-entry="{{../key}}" data-drop-layer="{{layer}}" data-press-home="{{../key}}-{{layer}}" tabindex="-1">
+              <span class="acks-extras-ss-pip{{#if done}} is-on{{/if}}" aria-hidden="true"></span>
+              <div>
+                <div class="acks-extras-ss-lb">{{label}} <em data-tooltip-text="{{costTip}}">· {{cost}}</em></div>
+                <div class="acks-extras-ss-chips">
+                  {{#each chips}}
+                    {{#if removable}}
+                    <button type="button" class="acks-extras-ss-chip" data-action="unassign" data-actor-id="{{actorId}}"
+                            aria-label="{{tip}}" data-tooltip-text="{{tip}}"><i aria-hidden="true"></i>{{name}}</button>
+                    {{else}}
+                    <span class="acks-extras-ss-chip{{#if struck}} is-struck{{/if}}"{{#if tip}} data-tooltip-text="{{tip}}"{{/if}}><i aria-hidden="true"></i>{{name}}</span>
+                    {{/if}}
+                  {{/each}}
+                  {{#if canAssign}}
+                  <button type="button" class="acks-extras-ss-add" data-action="pick" data-entry="{{../key}}" data-layer="{{layer}}" aria-label="{{assignLabel}}" data-tooltip-text="{{assignLabel}}">{{localize "ACKS-LOCATION.sceneSearch.screen.assign.button"}}</button>
+                  {{/if}}
+                </div>
+                {{#if barTip}}<div class="acks-extras-ss-bar-track" role="img" aria-label="{{barTip}}" data-tooltip-text="{{barTip}}"><i style="width: {{bar}}%"></i></div>{{/if}}
+                {{#if picker}}
+                <div class="acks-extras-ss-picker" role="group" aria-label="{{picker.title}}">
+                  <span class="acks-extras-ss-picker-title">{{picker.title}}</span>
+                  {{#each picker.rows}}
+                  <div class="acks-extras-ss-pick">
+                    <button type="button" class="acks-extras-ss-pick-btn" data-action="assign" data-actor-id="{{actorId}}"
+                            data-entry="{{../../key}}" data-layer="{{../layer}}"{{#if blocked}} aria-disabled="true" data-blocked="true"{{/if}}
+                            {{#if tip}}data-tooltip-text="{{tip}}"{{/if}}>{{name}}</button>
+                    {{#if refusal}}<span class="acks-extras-ss-refuse">{{refusal}}</span>{{/if}}
+                  </div>
+                  {{/each}}
+                  <button type="button" class="acks-extras-ss-add" data-action="cancelPick">{{localize "ACKS-LOCATION.sceneSearch.screen.assign.cancel"}}</button>
+                </div>
+                {{/if}}
+              </div>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/each}}
+      </div>
+    </section>
+
+    <aside class="acks-extras-ss-aside" aria-label="{{localize 'ACKS-LOCATION.sceneSearch.screen.section.party'}}">
+      <h3 class="acks-extras-ss-cap">{{localize "ACKS-LOCATION.sceneSearch.screen.section.party"}}</h3>
+      {{#each members}}
+      <div class="acks-extras-ss-member"{{#if draggable}} draggable="true" data-member-drag data-actor-id="{{actorId}}" data-tooltip="ACKS-LOCATION.sceneSearch.screen.member.dragTip"{{/if}}>
+        <i aria-hidden="true"></i>
+        <div><span class="acks-extras-ss-member-name">{{name}}</span><span class="acks-extras-ss-member-at">{{at}}</span></div>
+      </div>
+      {{/each}}
+      <hr class="acks-rule--ornament">
+      <h3 class="acks-extras-ss-cap">{{localize "ACKS-LOCATION.sceneSearch.screen.section.log"}}</h3>
+      <ul class="acks-extras-ss-log">
+        {{#each log}}
+        <li><span class="{{cls}}">{{head}}</span> {{text}}{{#if throw}} <span class="acks-extras-ss-throw" data-tooltip="ACKS-LOCATION.sceneSearch.screen.log.throwTip">{{throw}}</span>{{/if}}</li>
+        {{else}}
+        <li><span class="is-miss">{{localize "ACKS-LOCATION.sceneSearch.screen.log.empty"}}</span> {{localize "ACKS-LOCATION.sceneSearch.screen.log.emptyHint"}}</li>
+        {{/each}}
+      </ul>
+      <p class="acks-extras-ss-foot">{{#if isGM}}{{localize "ACKS-LOCATION.sceneSearch.screen.foot.judge"}}{{else}}{{localize "ACKS-LOCATION.sceneSearch.screen.foot.player"}}{{/if}}</p>
+    </aside>
+  </div>
+
+  <footer class="acks-porphyry acks-porphyry--rich acks-extras-ss-tray">
+    <span class="acks-extras-ss-cap">{{localize "ACKS-LOCATION.sceneSearch.screen.tray.title"}}</span>
+    {{#each tray}}
+    <span class="acks-extras-ss-back{{#unless found}} is-wait{{/unless}}" role="img" aria-label="{{tip}}" data-tooltip-text="{{tip}}"><i aria-hidden="true"></i>{{word}}</span>
+    {{/each}}
+    <span class="acks-extras-ss-help">{{#if isGM}}{{localize "ACKS-LOCATION.sceneSearch.screen.tray.helpJudge"}}{{else}}{{localize "ACKS-LOCATION.sceneSearch.screen.tray.helpPlayer"}}{{/if}}</span>
+    <span class="acks-extras-ss-grow"></span>
+    <button type="button" class="acks-btn" data-action="openPot"{{#unless potOpen}} disabled data-tooltip="ACKS-LOCATION.sceneSearch.screen.tray.noPot"{{/unless}}>{{localize "ACKS-LOCATION.sceneSearch.screen.tray.open"}}</button>
+  </footer>
+  {{/if}}
+  {{/unless}}
+</div>

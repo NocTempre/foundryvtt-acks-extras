@@ -1,0 +1,505 @@
+/* The scene screen (scripts/scene-search/screen.mjs). The window scrolls at its
+   entries and party columns inside the one body part: the window root is capped
+   to the viewport, the content box takes the frame's remaining height without
+   scrolling itself, and the header, the bar and the tray stay on screen.
+   Every box is the canvas figure times the type knob (`--acks-extras-k`) and
+   every size of type is a step of the ramp, so a raised type size reaches
+   each surface. No texture is drawn but the one the art seam reads
+   (`--acks-extras-ss-grime`); with none imported a card is a plain slab. */
+
+.acks-extras.acks-extras-scene-search.application {
+  max-height: 92vh;
+}
+
+/* Core pins a size on the content box and on the header; re-take both. */
+.acks-extras-scene-search .window-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-scene-search .window-header {
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-ss {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-ss-grow {
+  flex-grow: 1;
+}
+
+.acks-extras-ss-head,
+.acks-extras-ss-tray {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(10px * var(--acks-extras-k));
+  padding: calc(7px * var(--acks-extras-k)) calc(12px * var(--acks-extras-k));
+}
+
+.acks-extras-ss-banner {
+  font-family: var(--acks-font-banner);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-size: var(--acks-fs-banner);
+}
+
+.acks-extras-ss-cap {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-ss-empty {
+  margin: 0;
+  padding: calc(24px * var(--acks-extras-k));
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-quote);
+}
+
+/* The bar: what was found, what the next press does, and the two presses. */
+.acks-extras-ss-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: calc(14px * var(--acks-extras-k));
+  padding: calc(9px * var(--acks-extras-k)) calc(14px * var(--acks-extras-k));
+  border-bottom: calc(3px * var(--acks-extras-k)) solid var(--acks-burgundy);
+}
+
+.acks-extras-ss-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 calc(8px * var(--acks-extras-k));
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-quote);
+}
+
+.acks-extras-ss-press {
+  max-width: calc(330px * var(--acks-extras-k));
+  text-align: right;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-ss-board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(290px * var(--acks-extras-k));
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.acks-extras-ss-entries {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: calc(12px * var(--acks-extras-k));
+  background: var(--acks-paper-deep);
+}
+
+.acks-extras-ss-aside {
+  display: flex;
+  flex-direction: column;
+  gap: calc(7px * var(--acks-extras-k));
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: calc(10px * var(--acks-extras-k)) calc(12px * var(--acks-extras-k));
+  border-left: calc(2px * var(--acks-extras-k)) solid var(--acks-burgundy);
+}
+
+.acks-extras-ss-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(calc(196px * var(--acks-extras-k)), 1fr));
+  gap: calc(12px * var(--acks-extras-k));
+  margin-top: calc(8px * var(--acks-extras-k));
+}
+
+/* One entry. */
+.acks-extras-ss-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--acks-ink-soft);
+  background-color: var(--acks-ink);
+  background-image: var(--acks-extras-ss-grime, none);
+  background-size: cover;
+  color: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-card.is-hidden {
+  border: calc(2px * var(--acks-extras-k)) dashed var(--acks-burgundy);
+}
+
+.acks-extras-ss-strip {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  padding: calc(5px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  border-bottom: 1px solid var(--acks-rule-color-soft);
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.acks-extras-ss-state {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.acks-extras-ss-tag {
+  padding: 1px calc(5px * var(--acks-extras-k));
+  background: var(--acks-burgundy);
+  color: var(--acks-on-burgundy);
+}
+
+.acks-extras-ss-art {
+  margin: calc(8px * var(--acks-extras-k)) auto 0;
+  width: calc(96px * var(--acks-extras-k));
+  height: calc(72px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  overflow: hidden;
+}
+
+.acks-extras-ss-art img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+
+.acks-extras-ss-plate {
+  margin: calc(8px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k)) 0;
+  padding: calc(5px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  background: color-mix(in srgb, var(--acks-ink) 60%, transparent);
+}
+
+.acks-extras-ss-plate b {
+  display: block;
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-quote);
+  font-weight: normal;
+  overflow-wrap: anywhere;
+}
+
+/* The public "something more" line, and the mark that goes with it. */
+.acks-extras-ss-tell {
+  display: flex;
+  align-items: center;
+  gap: calc(6px * var(--acks-extras-k));
+  margin: calc(6px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k)) 0;
+  font-family: var(--acks-font-body);
+  font-style: italic;
+  color: var(--acks-paper-warm);
+}
+
+.acks-extras-ss-folio {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: calc(20px * var(--acks-extras-k));
+  height: calc(20px * var(--acks-extras-k));
+  transform: rotate(45deg);
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-folio b {
+  transform: rotate(-45deg);
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+  font-style: normal;
+  color: var(--acks-burgundy);
+}
+
+.acks-extras-ss-finds {
+  margin: calc(6px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k)) 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--acks-fs-label);
+  line-height: 1.35;
+}
+
+.acks-extras-ss-finds li {
+  display: flex;
+  align-items: baseline;
+  gap: calc(6px * var(--acks-extras-k));
+}
+
+.acks-extras-ss-finds li i {
+  flex: none;
+  width: calc(7px * var(--acks-extras-k));
+  height: calc(7px * var(--acks-extras-k));
+  transform: rotate(45deg);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-note {
+  margin: calc(6px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k)) 0;
+  padding: calc(4px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
+  border-left: calc(3px * var(--acks-extras-k)) solid var(--acks-burgundy-lit);
+  background: var(--acks-paper-warm);
+  color: var(--acks-ink);
+  font-size: var(--acks-fs-label);
+  line-height: 1.35;
+}
+
+/* The rail: the two checks, each with its chips and its assign control. */
+.acks-extras-ss-rail {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--acks-extras-k));
+  margin: auto calc(8px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  padding-top: calc(8px * var(--acks-extras-k));
+}
+
+.acks-extras-ss-row {
+  display: grid;
+  grid-template-columns: calc(12px * var(--acks-extras-k)) minmax(0, 1fr);
+  gap: calc(6px * var(--acks-extras-k));
+  align-items: start;
+  padding: calc(4px * var(--acks-extras-k)) calc(6px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  background: color-mix(in srgb, var(--acks-paper-pure) 8%, transparent);
+}
+
+.acks-extras-ss-pip {
+  width: calc(8px * var(--acks-extras-k));
+  height: calc(8px * var(--acks-extras-k));
+  margin-top: calc(4px * var(--acks-extras-k));
+  transform: rotate(45deg);
+  border: 1.5px solid var(--acks-paper-pure);
+}
+
+.acks-extras-ss-pip.is-on {
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-lb {
+  font-size: var(--acks-fs-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.acks-extras-ss-lb em {
+  font-style: normal;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--acks-paper-deep);
+}
+
+.acks-extras-ss-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(4px * var(--acks-extras-k));
+  margin-top: calc(3px * var(--acks-extras-k));
+}
+
+.acks-extras-ss-chip,
+.acks-extras-ss-add,
+.acks-extras-ss-pick-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(4px * var(--acks-extras-k));
+  width: auto;
+  min-height: 0;
+  height: auto;
+  margin: 0;
+  line-height: 1.3;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-ss-chip {
+  padding: 1px calc(6px * var(--acks-extras-k)) 1px calc(2px * var(--acks-extras-k));
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+}
+
+.acks-extras-ss-chip i {
+  width: calc(14px * var(--acks-extras-k));
+  height: calc(14px * var(--acks-extras-k));
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-warm);
+}
+
+.acks-extras-ss-chip.is-struck {
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.acks-extras-ss-add {
+  padding: 1px calc(6px * var(--acks-extras-k));
+  border: 1px dashed var(--acks-rule-color-soft);
+  background: transparent;
+  color: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-bar-track {
+  height: calc(5px * var(--acks-extras-k));
+  margin-top: calc(3px * var(--acks-extras-k));
+  background: color-mix(in srgb, var(--acks-paper-pure) 25%, transparent);
+}
+
+.acks-extras-ss-bar-track i {
+  display: block;
+  height: 100%;
+  background: var(--acks-paper-pure);
+}
+
+/* The assign picker, open on one rail. */
+.acks-extras-ss-picker {
+  display: flex;
+  flex-direction: column;
+  gap: calc(4px * var(--acks-extras-k));
+  margin-top: calc(6px * var(--acks-extras-k));
+  padding: calc(6px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  background: color-mix(in srgb, var(--acks-ink) 70%, transparent);
+}
+
+.acks-extras-ss-picker-title {
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-ss-pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.acks-extras-ss-pick-btn {
+  padding: 1px calc(6px * var(--acks-extras-k));
+  border: 1px solid var(--acks-burgundy);
+  background: var(--acks-paper-pure);
+  color: var(--acks-ink);
+}
+
+.acks-extras-ss-pick-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.acks-extras-ss-refuse {
+  font-size: var(--acks-fs-fine);
+  color: var(--acks-paper-warm);
+}
+
+/* The party and the log. */
+.acks-extras-ss-member {
+  display: grid;
+  grid-template-columns: calc(30px * var(--acks-extras-k)) minmax(0, 1fr);
+  gap: calc(8px * var(--acks-extras-k));
+  align-items: center;
+  padding: calc(6px * var(--acks-extras-k)) calc(8px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  background: var(--acks-paper-pure);
+}
+
+.acks-extras-ss-member[draggable="true"] {
+  cursor: grab;
+}
+
+.acks-extras-ss-member i {
+  width: calc(30px * var(--acks-extras-k));
+  height: calc(30px * var(--acks-extras-k));
+  border: 1px dashed var(--acks-burgundy);
+  background: var(--acks-paper-warm);
+}
+
+.acks-extras-ss-member-name {
+  display: block;
+  font-family: var(--acks-font-body);
+  font-size: var(--acks-fs-quote);
+}
+
+.acks-extras-ss-member-at {
+  display: block;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-ss-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.acks-extras-ss-log li {
+  padding: calc(5px * var(--acks-extras-k)) 0;
+  border-bottom: 1px solid var(--acks-rule-color-soft);
+  font-size: var(--acks-fs-label);
+  line-height: 1.4;
+}
+
+.acks-extras-ss-log .is-hit {
+  font-weight: 600;
+  color: var(--acks-ink);
+}
+
+.acks-extras-ss-log .is-miss {
+  font-weight: 600;
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-ss-foot,
+.acks-extras-ss-help {
+  margin: 0;
+  font-size: var(--acks-fs-fine);
+  line-height: 1.4;
+}
+
+.acks-extras-ss-foot {
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-ss-help {
+  max-width: calc(420px * var(--acks-extras-k));
+}
+
+/* The haul tray: one tile per lot; a lot not yet found is dashed (Judge only). */
+.acks-extras-ss-back {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(4px * var(--acks-extras-k));
+  width: calc(58px * var(--acks-extras-k));
+  height: calc(80px * var(--acks-extras-k));
+  border: 1px solid var(--acks-rule-color-soft);
+  font-size: var(--acks-fs-fine);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.acks-extras-ss-back i {
+  width: calc(22px * var(--acks-extras-k));
+  height: calc(22px * var(--acks-extras-k));
+  transform: rotate(45deg);
+  border: 1.5px solid currentColor;
+}
+
+.acks-extras-ss-back.is-wait {
+  border-style: dashed;
+  opacity: 0.75;
+}

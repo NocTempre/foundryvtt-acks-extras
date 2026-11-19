@@ -251,15 +251,16 @@ tables.registerTable({ id: FORMATION_DOC, tables: { searchReachFeet: 7 } }, { pr
 const dice = [];
 const posted = [];
 const revealed = [];
-A.configureSceneChecks({
-  checks: {
-    PARTY_CHECKS: { searchHasty: { id: "hasty" }, searchMethodical: { id: "methodical" } },
-    resolveCheck: (actor, cfg) => (cfg.id === "hasty" ? (actor.id === "a1" ? { target: 14 } : null) : cfg.id === "methodical" ? { target: 16 } : null),
-    rollCheckFor: async (actor, cfg) => {
-      const passed = dice.shift();
-      return { roll: null, check: {}, row: { name: actor.name, total: passed ? 20 : 2, target: cfg.id === "hasty" ? 14 : 16, source: "src", sourceTip: "tip", success: passed } };
-    },
+const sceneChecks = {
+  PARTY_CHECKS: { searchHasty: { id: "hasty" }, searchMethodical: { id: "methodical" } },
+  resolveCheck: (actor, cfg) => (cfg.id === "hasty" ? (actor.id === "a1" ? { target: 14 } : null) : cfg.id === "methodical" ? { target: 16 } : null),
+  rollCheckFor: async (actor, cfg) => {
+    const passed = dice.shift();
+    return { roll: null, check: {}, row: { name: actor.name, total: passed ? 20 : 2, target: cfg.id === "hasty" ? 14 : 16, source: "src", sourceTip: "tip", success: passed } };
   },
+};
+A.configureSceneChecks({
+  checks: sceneChecks,
   postRoll: (card) => card.rolled && posted.push(card),
   reveal: (wall) => revealed.push(wall.id),
 });
@@ -467,6 +468,98 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   const floor = api.options({ partyId: "f1", actorId: "a1" }).find((r) => r.key === "thing:thing-8").layers[0];
   eq([floor.mode, floor.target, floor.bonus], ["search", 14, null], "the thief's bonus is already in the member's target, so none is added on top");
   await api.end("f1");
+}
+
+/* ---------------- S4: the asker, the labels, a locker who cannot see, shown, what a player reads ---------------- */
+{
+  await reset();
+  const announced = [];
+  const api4 = createSceneSearchApi({ plan: {}, request: async () => null, announce: async (id) => announced.push(id) });
+  eq((await api4.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1" })).ok, true, "a session opens");
+  eq(S.readSession(formation()).shown, false, "and starts unshown");
+
+  // finding 1: the lock's asker decides which entries it may name
+  const ask = (asker, option = "thing:thing-4") => lockActivity({}, { actorId: "a2", actor: members.a2, key: ACTIVITY.METHODICAL, option, ctx: { formation: formation(), user: asker } });
+  eq(ask({ id: "p1", isGM: false }).reason, "unknownOption", "a player's request naming a hidden entry is refused as no such option");
+  eq([ask({ id: "j1", isGM: true }).ok, ask(undefined).ok], [true, true], "a Judge's lock names it, and a lock with no asker falls back to the seat it runs on (a Judge's client)");
+  eq(ask({ id: "p1", isGM: false }, "thing:thing-1").ok, true, "while a player may name a visible one");
+  eq(turnActivity(ACTIVITY.METHODICAL).blocked(members.a2, { id: "thing:thing-4" }, { formation: formation(), user: { isGM: false } }).reason, SESSION_REFUSAL.UNKNOWN_ENTRY, "the gate refuses a hidden entry for a player too");
+
+  // finding 2: every option names its entry
+  const labelsOf = (asker) => offeredActivities(members.a1, { formation: formation(), user: asker }).filter((r) => r.key === ACTIVITY.HASTY).map((r) => r.option.label);
+  const judgeLabels = labelsOf({ isGM: true });
+  const playerLabels = labelsOf({ isGM: false });
+  eq([judgeLabels.length, new Set(judgeLabels).size, playerLabels.length, new Set(playerLabels).size], [7, 7, 6, 6], "no two options carry the same label, on either seat, and a player's list lacks the hidden entry");
+  ok(judgeLabels.every((l) => typeof l === "string" && l.length > 0), "each option has a label");
+
+  // finding 3: a check resolves only at an entry the user who locked it can see
+  A.configureSceneChecks({ checks: sceneChecks, postRoll: (card) => card.rolled && posted.push(card), reveal: (wall) => revealed.push(wall.id), planBy: (_f, actorId) => lockedBy[actorId] ?? null });
+  const lockedBy = { a2: "p1" };
+  game.users.get = (id) => ({ p1: { id: "p1", isGM: false }, j1: { id: "j1", isGM: true } })[id];
+  const resolveAt = (key) => A.resolveSceneCheck({ formation: formation(), actor: members.a2, key, layer: "methodical" });
+  eq((await resolveAt("thing:thing-4")).reason, SESSION_REFUSAL.UNKNOWN_ENTRY, "a check a player's lock named at a hidden entry resolves nothing");
+  eq([(await resolveAt("thing:thing-1")).reason === SESSION_REFUSAL.UNKNOWN_ENTRY], [false], "while the same player's check at a visible entry goes on");
+  lockedBy.a2 = "j1";
+  dice.push(true);
+  eq((await resolveAt("thing:thing-4")).ok, true, "and a Judge's lock at the hidden entry resolves");
+  delete lockedBy.a2;
+  eq((await resolveAt("thing:thing-4")).reason === SESSION_REFUSAL.UNKNOWN_ENTRY, false, "a plan entry with no recorded locker is not held back");
+  // the Round press unlocks each entry before it resolves, so the locker travels in the context, not in the plan
+  const roundOf = async (by) => {
+    await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create({ a2: { key: ACTIVITY.HASTY, option: "thing:thing-4", remaining: 1, turns: 1, by } }) });
+    const stored = () => party.getFlag(MODULE_ID, "turnPlan") ?? {};
+    const unlock = async (_f, id) => { const next = { ...stored() }; delete next[id]; await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create(next) }); };
+    return resolveSceneRound(formation(), { plan: { readPlan: stored, unlockPlan: unlock }, actorOf: (_f, id) => members[id], readSession: S.readSession });
+  };
+  const byPlayer = await roundOf("p1");
+  eq([Object.keys(party.getFlag(MODULE_ID, "turnPlan")), byPlayer.results[0].result.reason], [[], SESSION_REFUSAL.UNKNOWN_ENTRY], "a hasty lock a player made at a hidden entry is held back on the Round press too, though the press has unlocked the entry by then");
+  eq((await roundOf("j1")).results[0].result.ok, true, "and a Judge's lock at it resolves");
+  user.isGM = false;
+  eq((await api4.assign({ partyId: "f1", actorId: "a2", layer: "methodical", entryKey: "thing:thing-4" })).reason, SESSION_REFUSAL.UNKNOWN_ENTRY, "a player's own assign at a hidden entry is refused as no such entry");
+  user.isGM = true;
+  await reset();
+  await api4.open({ partyId: "f1", placeUuid: place.uuid, sceneId: "s1" });
+
+  // shown
+  eq([(await api4.show("f1")).ok, S.readSession(formation()).shown, announced], [true, true, ["f1"]], "the Judge shows the scene: the flag is set and the other seats are told");
+  user.isGM = false;
+  eq([(await api4.show("f1")).reason, announced.length], [SESSION_REFUSAL.NOT_ALLOWED, 1], "a player shows nothing");
+  user.isGM = true;
+  eq((await api4.show("zz")).reason, SESSION_REFUSAL.NO_PARTY, "an unknown party is refused");
+
+  // what a player reads: the log and the assignments
+  const session = S.readSession(formation());
+  const rows = [
+    { actorId: "a1", key: "thing:thing-3", layer: "hasty", code: CODE.FOUND, clue: "A subject", more: ["clue"], card: "m1" },
+    { actorId: "a1", key: "thing:thing-1", layer: "hasty", code: CODE.FOUND_NOTHING, clue: null, more: ["lots"], card: "m2" },
+    { actorId: "a2", key: "thing:thing-2", layer: "hasty", code: CODE.VAGUE, clue: null, more: [] },
+    { actorId: "a1", key: "thing:thing-4", layer: "methodical", code: CODE.FOUND, clue: null, more: [] },
+  ];
+  await S.writeSession(formation(), { ...session, log: rows });
+  const keysSeen = ["thing:thing-1", "thing:thing-2", "thing:thing-3"];
+  eq(SJ.playerLog(rows, keysSeen).map((r) => [r.key, r.code, r.clue, r.more, "card" in r]), [
+    ["thing:thing-3", CODE.FOUND, "A subject", ["clue"], false],
+    ["thing:thing-1", null, null, [], false],
+    ["thing:thing-2", CODE.VAGUE, null, [], false],
+  ], "a player's log drops the row at an entry they cannot see, blanks a miss to who and what, and carries no Judges' card");
+  user.isGM = false;
+  const seenLog = api4.read("f1").log;
+  user.isGM = true;
+  eq(seenLog.map((r) => r.key), ["thing:thing-3", "thing:thing-1", "thing:thing-2"], "the api hands a player the projected log");
+  eq(api4.read("f1").log.length, 4, "and a Judge every row");
+  eq(SJ.logRowOf({ member: { id: "a1" }, key: "k", layer: "hasty", outcome: { code: CODE.FOUND }, card: "m9" }).card, "m9", "a row keeps the card its throw was posted on");
+  eq("card" in SJ.logRowOf({ member: { id: "a1" }, key: "k", layer: "hasty", outcome: { code: CODE.FOUND } }), false, "and has none where nothing was posted");
+
+  await party.update({ [`flags.${MODULE_ID}.turnPlan`]: ForcedReplacement.create({
+    a1: { key: ACTIVITY.HASTY, option: "thing:thing-4", remaining: 1, turns: 1 },
+    a2: { key: ACTIVITY.HASTY, option: "thing:thing-1", remaining: 1, turns: 1 },
+  }) });
+  const planApi = createSceneSearchApi({ plan: { readPlan: () => party.getFlag(MODULE_ID, "turnPlan") }, request: async () => null });
+  user.isGM = false;
+  const mine = (await planApi.assignments("f1")).map((a) => a.entryKey);
+  user.isGM = true;
+  eq([mine, (await planApi.assignments("f1")).map((a) => a.entryKey)], [["thing:thing-1"], ["thing:thing-4", "thing:thing-1"]], "a player is told of no assignment at an entry they cannot see");
+  await api4.end("f1");
 }
 
 console.log(`test-scene-session: ${checks} checks passed`);

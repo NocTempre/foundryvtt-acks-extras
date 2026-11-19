@@ -3,10 +3,11 @@
 Format per docs-doctrine: fixtures → steps → observable → teardown. Server and
 driver mechanics are `C:\Proj\acks-rules\TEST_ENVIRONMENT.md`. Offline coverage
 of the haul is `tools/test-scene-haul.mjs`; of the model, `tools/test-scene-search.mjs`.
-Neither proves a window opens or a Card writes; only this walk does. The screen
-(S4) has no walk here yet. The session API and the activities (S2) are below,
-walked by `tools/live/scene-search-session.mjs`; the haul's steps above reach
-the Foundry side by a dynamic import in page context.
+Neither proves a window opens or a Card writes; only this walk does. The session
+API and the activities (S2) are below, walked by
+`tools/live/scene-search-session.mjs`; the screen (S4) is the last section, not
+yet walked; the haul's steps reach the Foundry side by a dynamic import in page
+context.
 
 The walk needs a real Judge seat and a real Player seat joined at once
 (`live-testing.md`): the found-only rule is a projection on the player's client,
@@ -220,6 +221,109 @@ Player seat:
 
 Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept
 fixtures stay.
+
+## S4 — the screen
+
+**Not walked.** Offline coverage is `tools/test-scene-screen.mjs` (the view
+model: who sees what, the counts, the rails, the tray, the log, the drag
+payload) and the S4 block of `tools/test-scene-session.mjs` (the plan entry's
+locker, `show`, the player's log and assignments). Neither draws a window, so
+the observables below need a live Judge seat and a live Player seat at once.
+
+It reuses S2's fixtures, found by marker: `scene-search/session-scene`,
+`scene-search/session-place` (a floor, a container, a fixture whose hasty check
+yields a clue and whose methodical check reveals a hidden container, and a
+container past the reach), `scene-search/session-party` with the two searchers
+(`scene-search/searcher-skilled`, and `scene-search/searcher-plain`, which is the
+Player seat's character). Open a session with a source on the floor and on the
+fixture's hidden container (`open`, as S2 Judge 1), then open the screen from
+each seat with `acksExtras.sceneSearch.openScreen(partyId)` (`partyId` is the
+formation's id). The screen's own ways in come with S5.
+
+Held-die drive: `CONFIG.Dice.randomUniform = () => 0.025` throws a 20 on a d20,
+`0.975` a 1. Restore it after.
+
+Judge seat:
+
+1. **Open the screen.** Observables: the header reads the place's name, "Judge
+   seat" and "not yet shown to the table", with a Show the scene button; the bar
+   reads "After the battle" only where a fight's record opened the session, else
+   "Searching here"; a card is drawn for every entry, the hidden container
+   included, dashed and tagged Hidden with the note "Behind <the fixture>, found
+   by checking it methodically"; each card has two rails, hastily and
+   methodically, each with `+ Assign`; the floor's card shows a Judge note of the
+   lots waiting under its hasty check. The tray holds one dashed tile per dealt
+   lot (no tile is solid), and its tooltip says "not found yet (Judge only)".
+2. **Assign by picker.** Press `+ Assign` on the floor's hasty rail. Observables:
+   a picker lists every member; a member who may not attempt the check carries
+   the refusal under their button and does nothing when pressed; pressing the
+   skilled searcher puts a chip on the rail, the member tile reads "<floor> ·
+   hastily", the bar's press line reads "Round: 1 hasty check resolves at once.",
+   and the party's `turnPlan` holds the entry.
+3. **Assign by drag.** Drag the plain searcher's tile onto the fixture's
+   methodical rail, then onto the container's card (not a rail). Observables:
+   a chip on the rail; the second drop lands on the first check that member may
+   attempt; a drag onto a rail whose check is refused (the container past the
+   reach) posts the refusal as a notification and adds no chip.
+4. **Round.** With the die at a 20 press Round. Observables: the floor's hasty
+   chip clears and its pip fills; the floor's card reads "Checked hastily" with
+   its lots counted ("Found: N items"); the tray's tiles for those lots turn
+   solid; the bar's "You found N items." is the count of solid tiles; the log
+   gains one row, newest first, and, on this seat only, a throw figure
+   "(Judge: throw N against M.)" whose tooltip names the Judges' card; the bar's
+   Turn count did not move (the Round press spends no clock time).
+5. **A hasty miss locks.** With the die at a 1, assign the skilled searcher to
+   the second floor and press Round. Observables: a struck chip for them on that
+   rail, whose tooltip names the lock; the picker lists them with the
+   `hastyLocked` refusal.
+6. **Spend a turn** with the plain searcher on the fixture's methodical rail.
+   Observables: the Turn count in the bar rises by one; the hidden container's
+   Hidden tag goes and its state reads Seen; the fixture's "something more" line
+   shows the Judge's own hint, or the generic words, only while something
+   remains unfound there.
+7. **Show the scene.** Press Show the scene. Observables: the header reads "shown
+   to the table"; the Player seat's screen opens by itself (Player 2).
+8. **Layout.** Resize narrower and raise the type size: the header, bar and tray
+   stay on screen and the entries and party columns scroll on their own; reopen
+   the window and the entries' scroll position is kept across a re-render (assign
+   a member while scrolled down).
+9. **End** (`end(partyId)`) with the window open. Observables: the window reads
+   "No scene search is open" and nothing throws.
+
+Player seat (the Player seat's character is `searcher-plain`):
+
+1. **Before the scene is shown**, open the screen. Observables: the header reads
+   "Player seat · <the character>"; the body says the Judge has not shown the
+   scene; there is no bar, no card, no tray; the Round and Spend a turn buttons
+   are not drawn.
+2. **After the Judge shows it** (Judge 7). Observables: the screen is open with
+   no further action; no card is drawn for the hidden container and no text
+   anywhere on the screen names it; the tray has no tile for an unfound lot (the
+   count of tiles is the count the bar reads); no Judge note and no throw figure
+   is anywhere on the screen.
+3. **Assign by picker and by drag.** Observables: the picker lists the player's
+   own character only; the member tiles of the other characters are not
+   draggable; a drop of the own character onto a rail declares the assignment
+   (the Judge's seat shows the chip once the Judge's client has accepted it); a
+   rail's chip for the own character removes on press, another's is plain text.
+4. **A hand-made request.** From the console send the party's `plan` request
+   naming the hidden container's key for a methodical check, then have the Judge
+   press Spend a turn; repeat for a hasty check and press Round. Observables: the
+   check at the hidden entry never resolves on either press (no log row, no
+   state change, the container stays hidden); the Judge's client's unresolved
+   notes card names the member.
+5. **After the Judge's Round and Turn** the player's log shows who searched
+   what; a found row shows the clue and "Something more is here." where
+   something remains; a missed check shows only who and what, with no result; no
+   throw figure.
+6. **Round and Spend a turn** are drawn disabled with the tooltip "Only the Judge
+   presses this."; this is the build's reading of the board's "asks the Judge"
+   and is an open owner question (DECISIONS).
+7. **Open the pot** opens the pot's window. Observables: it lists found lots
+   only.
+
+Teardown: `end`, then `api.sweepTracked({ only: [potUuid] })`; the kept fixtures
+stay.
 
 ## What this walk does not reach
 

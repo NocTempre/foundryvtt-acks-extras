@@ -3,13 +3,18 @@
  * What scene search says: a refusal in words, and the Judges' card a rolled check
  * posts. The card carries the die, the target and the source, which are the
  * Judges' alone; the table's log (`session-logic.mjs` `logRowOf`) holds none of
- * them.
+ * them. The card also carries the throw's figures in a flag, for the Judge's
+ * screen to read.
  */
+import { MODULE_ID } from "../lib/constants.mjs";
 import { renderRollCard } from "../lib/roll-card.mjs";
 import { postToJudges } from "../lib/roll-audience.mjs";
 import { autoCardRow } from "../formation/party-rolls.mjs";
 
 const ROOT = "ACKS-LOCATION.sceneSearch.";
+
+/** The flag under the module's scope on the Judges' card that holds the throw's figures (`{total, target, success}`), read by the Judge's screen. */
+export const ROLL_FLAG = "sceneRoll";
 
 /** A refusal's `scene:` code as a sentence; a code with no words reads as the generic line. A refusal for a figure nobody imported has no words and answers an empty string. */
 export function sceneReasonText(reason, name = "") {
@@ -49,5 +54,6 @@ export function postRollCard({ formation, actor, rolled, outcome }) {
       },
     ],
   });
-  return postToJudges({ content: html, rolls: rolled.roll ? [rolled.roll] : [], speaker: { alias: formation.name } });
+  const throwFigures = row.auto ? {} : { total: row.total, target: row.target, success: row.success === true };
+  return postToJudges({ content: html, rolls: rolled.roll ? [rolled.roll] : [], speaker: { alias: formation.name }, flags: { [MODULE_ID]: { [ROLL_FLAG]: throwFigures } } });
 }
