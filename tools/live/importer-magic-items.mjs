@@ -561,6 +561,8 @@ const own = [];
 let touched = false;
 /** The Tome cookbook's row count, once read. */
 let COUNT = 0;
+/** The Tome cookbook's kind.magicItem ids, read in the cookbook section. */
+let IDS = [];
 /** The Tome's staged path, kept so the teardown can reconnect it if the session entry cannot be put back. */
 let ttPath = null;
 /** Whether step 11 took the Tome off the seat and has not yet put it back. */
@@ -604,10 +606,13 @@ async function sweepItem(uuid) {
   return out;
 }
 
-/** The item import as one job; resolves its counts. */
+/**
+ * The item import as one job, held to the Tome rows; resolves its counts.
+ * The Judges Journal is open too, and an unscoped import would count its rows.
+ */
 async function importItems(args = {}) {
   touched = true;
-  await run(gm, P.itemsJob, args);
+  await run(gm, P.itemsJob, { only: IDS, ...args });
   return waitFor(gm, P.jobState, {}, "import the magic items", 900);
 }
 
@@ -636,7 +641,7 @@ try {
   section("the Tome's magic-item rows");
   const cb = await run(gm, P.cookbook);
   if (!cb.ok || !cb.ids?.length) blocked("the served cookbook/tt.json is missing or holds no kind.magicItem rows: it is not the importer-books build");
-  const IDS = cb.ids;
+  IDS = cb.ids;
   COUNT = IDS.length;
   note("kind.magicItem rows in the served tt cookbook", { count: COUNT, perCategory: cb.perCategory });
   check("every row id is tt.item<n>, all distinct", IDS.every((id) => /^tt\.item\d+$/.test(id)) && new Set(IDS).size === COUNT);
@@ -854,7 +859,7 @@ try {
   }
   if (gm && touched) {
     try {
-      await run(gm, P.itemsJob, {});
+      await run(gm, P.itemsJob, { only: IDS });
       const back = await waitFor(gm, P.jobState, {}, "restore the items", 900);
       note("items imported again", { made: back.made, already: back.already, refused: back.refused });
       check("teardown: every Tome item stands again, none refused", back.ok && back.refused === 0 && back.already + back.made > 0, { made: back.made, swept });
