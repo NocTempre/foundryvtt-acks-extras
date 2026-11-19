@@ -133,7 +133,8 @@ shows only to the character's owner, on a container you carry at the top level
 **Take from a pile.** To take something out of a pile, open the Actors sidebar →
 the character → Equipment tab → **Kept elsewhere** → the pile's row → **Show**,
 then press **Take** on a line. A stack has a number box beside it: type how many
-to take, or leave it blank for the lot. What you take goes into your own pack.
+to take, or leave it blank for the lot. What you take lands loose, under
+**Carried**.
 Taking a container brings what is in it. A character standing at someone else's
 pile sees the pile's row too, "On the ground · <owner>'s <container>", and can
 take from it the same way; the row is there while you reach the pile and goes

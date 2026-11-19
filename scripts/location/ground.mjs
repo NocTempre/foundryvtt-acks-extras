@@ -325,7 +325,7 @@ export async function onCreateItem(item) {
     });
     if (plan.wear?.slot) await wearAt(item, plan.wear.slot);
     else if (plan.wear?.equip) await setEquipped(item, true);
-    else if (plan.unwear && isWorn(item)) await wearAt(item, null);
+    else if (plan.unwear) await wearAt(item, null);
     if (plan.coinOrder) await setCoinOrder(parent, plan.coinOrder);
     if (plan.clear) await item.unsetFlag(MODULE_ID, SET_DOWN_FLAG);
   } catch (err) {

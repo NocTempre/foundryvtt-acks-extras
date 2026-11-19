@@ -765,10 +765,10 @@ const noReach = () => { delete globalThis.acksExtras.location; };
 const seatOf = (id) => { game.user = USERS[id]; };
 
 /** A pile Hero's pack was set down at, and Alys, a second Player's character with a pack of her own. */
-async function pileWithBystander() {
+async function pileWithBystander({ equippable = false } = {}) {
   const scene = makeScene();
   const hero = await makeHero({ scene });
-  const pack = await kit(hero);
+  const pack = await kit(hero, { equippable });
   assert.equal((await setDownRelay(asPlayer(hero, pack, PLAYER, scene.id))).ok, true);
   const alys = await Actor.create({ name: "Alys", type: "character", ownership: { [STRANGER]: 3 } });
   await alys.createEmbeddedDocuments("Item", [{ _id: "own1", name: "Satchel", type: "item", system: { subtype: "item", cost: 0, weight6: 0 }, flags: { [MOD]: gear() } }], { keepId: true });
@@ -817,8 +817,8 @@ await ok("a character away from the pile is refused, and nothing moves", async (
   }
 });
 
-await ok("the bystander who takes the set-down pack gets it loose: record cleared, not worn", async () => {
-  const { hero, alys, pile } = await pileWithBystander();
+for (const equippable of [false, true]) await ok(`the bystander who takes the set-down pack gets it loose: record cleared, not worn (${equippable ? "equippable, slot declared" : "plain, slot declared"})`, async () => {
+  const { hero, alys, pile } = await pileWithBystander({ equippable });
   reachAnswers(true);
   try {
     seatOf(STRANGER);

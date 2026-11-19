@@ -1320,7 +1320,7 @@ export class AcksCharacterSheet extends FrameMixin(PicksMixin(HandlebarsApplicat
     this.render();
   }
 
-  /** Take one line of a pile into this character's pack (`takeFromPile`). */
+  /** Take one line of a pile onto this character, loose (`takeFromPile`). */
   static async #onPileTake(event, target) {
     const line = target.closest("[data-pile-line]");
     const pile = this.#placeOf(target);

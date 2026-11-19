@@ -1112,11 +1112,11 @@ data)`, and kept.
     the pile and open the sheet again. *Observable:* the row is gone. Move the
     token back, open the sheet, unfold the row and press *Take* on the
     Backpack's own line. *Observable:* the Backpack is on the bystander,
-    `flags["acks-extras"].setDown` is gone, and the bystander's own worn
-    container keeps its slot (nothing is put back on Back); the hero has no
-    Backpack. Record where the taken Backpack shows on the bystander's sheet,
-    worn on Back or under *Carried* (the engine leaves its `gear.wornAt` mark on
-    it). Take the remaining lines: a moment later the pile and its token are
+    `flags["acks-extras"].setDown` is gone, the taken Backpack lists loose under
+    *Carried* (its `gear.wornAt` is empty and it is not equipped, though it was
+    worn on Back when set down), and the bystander's own worn container is
+    still on Back; the hero has no Backpack. Two packs on Back is the failure
+    this step exists to catch. Take the remaining lines: a moment later the pile and its token are
     deleted and the row disappears from both sheets without a refresh.
     *Fallback if the sheet's control cannot be driven:*
     `acksExtras.lib.storage.retrieve(pile, bystander, [{id}])` as the bystander's
@@ -1141,7 +1141,7 @@ data)`, and kept.
 14. *Keyboard and type size.* Raise the type size setting and reopen a sheet
     with a pile unfolded. *Observable:* lines, boxes and buttons scale with it.
     Tab reaches the toggle, each number box and each *Take*; a screen reader
-    names them ("Take <item> into your own pack", "How many of <item> to take").
+    names them ("Take <item>, loose under Carried", "How many of <item> to take").
 
 **Teardown.** The fixtures are kept. Delete the piles and tokens a run made by
 its own ledger (`api.track` each pile's uuid from `setDown`'s result,

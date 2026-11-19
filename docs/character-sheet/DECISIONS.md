@@ -95,9 +95,8 @@ owner's row and on a bystander's.
   sheet and not in the document: a long pile would otherwise push every other
   place off the tab, and a redraw must not shut what a player opened.
 - **Every row the pile stores is a line**, the container and what is in it,
-  because a bystander may take one torch out of a pack without taking the pack.
-  Proceeded on as a default, not the owner's words: the board said "one line per
-  top-level row" and this reads that as every stored row, flat.
+  flat, as the board draws them: a bystander may take one torch out of a pack
+  without taking the pack.
 - **Open is the Judge's.** It opens the pile's own sheet, whose Storage tab a
   Player cannot see; offered to a Player it opens a window with nothing in it.
 - **A bystander's row is listed from reach alone**, read at each render; a token
