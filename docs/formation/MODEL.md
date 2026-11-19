@@ -958,10 +958,10 @@ registered on every client by `registerTrapZoneSocket`): the relayed player
 request names the requesting player, the Trapbreaking window the Judge's own
 user, and the turn plan the user who locked the entry (`entry.by`, the id of
 the user who declared it, which `resolveDue` hands a resolver as its fourth
-argument). With no `askUserId` the dialog opens on the running client. An
-answer that never comes (the user offline, no socketlib, a throw, the dialog
-dismissed) leaves the disarmed trap written first, so a lost question never
-loses the trap's state. The throw reads its natural die before the total
+argument). With no `askUserId` the dialog opens on the running client, and the
+handler refuses a call a player's client sent. An answer that never comes (the
+user offline, no socketlib, a throw, the dialog dismissed) leaves the disarmed
+trap written first, so a lost question never loses the trap's state. The throw reads its natural die before the total
 (`lib/throws.mjs`), as the other party checks do.
 
 A trap wall **restricts nothing**. The party walks through it as though it were

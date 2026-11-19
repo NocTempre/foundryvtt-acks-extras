@@ -1097,10 +1097,12 @@ const ASK_DISCHARGE_HANDLER = "trapAskDischarge";
 
 /**
  * Registers the handler a relayed disarm asks its thrower through. Once, on
- * every client, since the question is answered on the thrower's own.
+ * every client, since the question is answered on the thrower's own. Only a
+ * Judge's client asks (`runRelayed` stamps a player's call with their id), so a
+ * player cannot open the dialog on another user's screen.
  */
 export function registerTrapZoneSocket() {
-  registerHandler(ASK_DISCHARGE_HANDLER, ({ name } = {}) => askDischargeHere(name));
+  registerHandler(ASK_DISCHARGE_HANDLER, ({ name, requestUserId = null } = {}) => (requestUserId ? false : askDischargeHere(name)));
 }
 
 /**

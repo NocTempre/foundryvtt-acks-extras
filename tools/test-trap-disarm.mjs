@@ -93,10 +93,9 @@ globalThis.Roll = class {
 
 const T = await import("../scripts/lib/tables.mjs");
 const { THROWS_DOC, THROW_TABLE } = await import("../scripts/lib/throws.mjs");
-const sockets = await import("../scripts/lib/sockets.mjs");
-const { attemptDisarm, thingPlacement, registerTrapZoneSocket } = await import("../scripts/formation/trap-zone.mjs");
+const { attemptDisarm, registerTrapZoneSocket } = await import("../scripts/formation/trap-zone.mjs");
 const { thingsOf } = await import("../scripts/lib/place-things.mjs");
-const { registerTurnActivity, resolveDue } = await import("../scripts/lib/turn-activities.mjs");
+const { resolveDue } = await import("../scripts/lib/turn-activities.mjs");
 const { registerFormationActivities } = await import("../scripts/formation/turn-plan.mjs");
 const { registerRequestSocket } = await import("../scripts/formation/player-requests.mjs");
 
@@ -214,6 +213,15 @@ await ok("an unanswered ask (offline user, no answer) leaves the trap disarmed",
   assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false, askUserId: "player" })).outcome, "disarmed", "an answer of undefined is a disarm");
 });
 
+await ok("a player cannot put the question to another user: only a Judge's call opens the dialog", async () => {
+  reset();
+  assert.equal(await relayed("trapAskDischarge", "player", { name: "Alder" }), false);
+  assert.deepEqual(dialogs, []);
+  click = () => true;
+  assert.equal(await relayed("trapAskDischarge", "judge", { name: "Alder" }), true);
+  assert.equal(dialogs.length, 1);
+});
+
 /* --- the dialog ------------------------------------------------------------- */
 await ok("the dialog escapes the actor's name and only the discharge button's true counts", async () => {
   reset();
@@ -267,6 +275,30 @@ await ok("an imported automatic-failure face fails the throw even when its total
   assert.equal(done.outcome, "failed");
   assert.deepEqual(dialogs, [], "no question for a failure");
   assert.equal(stateNow(), "armed", "the trap is untouched");
+  T.unregisterTable(THROWS_DOC);
+});
+
+await ok("an imported automatic-success face succeeds for a thrower skilled in the task, and for no one else", async () => {
+  T.unregisterTable(THROWS_DOC);
+  imported({ autoFailMax: 3, autoSucceedMin: 18 });
+  const skill = { id: "s1", type: "ability", name: "Probe Traps", system: {}, flags: { "acks-extras": { extras: { provides: ["kw:trapbreaking"], effects: [], rolls: [{ key: "methodical", label: "methodical", formula: "1d20", rollType: "above", target: { kind: "flat", flat: 15 } }] } } } };
+  skill.getFlag = (scope, key) => skill.flags[scope]?.[key];
+  const skilled = { ...alder, id: "Skilled", name: "Skilled", system: { ...alder.system, adventuring: {} } };
+  skilled.items = Object.assign([{ name: "Thieves' Tools" }, skill], { get: (id) => (id === "s1" ? skill : undefined) });
+  skill.actor = skilled;
+  game.actors.set("Skilled", skilled);
+  formation.members.push({ actorId: "Skilled", roles: [] });
+  reset();
+  click = () => false;
+  throwOnce(19, 10);
+  const made = await attemptDisarm(formation, skilled, { targetUuid, spend: false });
+  assert.equal(made.outcome, "disarmed", "a skilled thrower's 19 passes whatever the total");
+  reset();
+  throwOnce(19, 10);
+  assert.equal((await attemptDisarm(formation, alder, { targetUuid, spend: false })).outcome, "failed", "an unskilled thrower's does not");
+  reset();
+  throwOnce(17, 10);
+  assert.equal((await attemptDisarm(formation, skilled, { targetUuid, spend: false })).outcome, "failed", "a face under the edge is the target's to decide");
   T.unregisterTable(THROWS_DOC);
 });
 
