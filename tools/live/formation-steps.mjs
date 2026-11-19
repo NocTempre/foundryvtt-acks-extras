@@ -1209,6 +1209,8 @@ try {
 
   r = await run(gm, P.doorOpen, { wallId: door2.id, tokenId: tStranger.id });
   check("the dialog reopens on the second door with the unformed character heaving", r.open && r.wallMatches && r.basher, r);
+  // A door with no construction picked has no batter, so the second door takes the row that prints a time.
+  await run(gm, P.doorInput, { name: "kind", value: "1:Door A" });
   r = await run(gm, P.doorBatter, { fid: null, sceneId: s1.id, wallId: door2.id, watch: [f1] });
   await trackAll(r.uuids);
   clockMoves += r.worldTimeDelta;
