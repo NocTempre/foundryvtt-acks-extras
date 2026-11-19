@@ -1348,6 +1348,37 @@ missing}`. `resolve(actor, option, ctx)` runs when the entry's last turn ends.
 or `"failed"` (`resolve` threw). Write the plan `advanceTurn` returns before
 calling `resolveDue`.
 
+## `bookArt` — pictures from the Judge's books (module-internal, not on the api)
+
+`scripts/lib/book-art.mjs`, imported directly, Foundry-free. An import writes
+one registry document, one table of rows per book:
+
+```js
+{ id: "bookArt", source: { pages: "ZZ p.1; ZZ p.4" }, cites: { zz: "ZZ p.1; ZZ p.4" },
+  tables: { zz: [
+    { side: "back", pool: "zz.p1", band: null, kind: null, src: "x/a.webp", cite: "ZZ p.1" },
+    { side: "face", pool: "zz.p1", band: null, kind: "zz.item1", src: "x/b.webp", cite: "ZZ p.4" },
+    { side: "texture", pool: null, band: 0, kind: "grime", src: "x/c.webp", cite: "ZZ p.4" },
+  ] } }
+```
+
+Three sides (`ART_SIDES`): a `back` has a pool and kind null; a `face` has a
+pool and a kind or null; a `texture` has a kind and pool null. `band` is null
+or an integer of 0 or more, matched by equality: band 0 is a band, never null.
+`licence` is an optional string. `artRowProblems(row)` lists what is wrong.
+
+`treasureArt({side, pool, band, kind})` answers `{src, cite}` (plus `licence`
+when the row has one) or null. Books are read in sorted key order and the
+first matching row wins. Every step except a kind step reads kind-null rows
+only, and a null band skips any step that names the band.
+
+- Back: the pool at the band; the pool at band null.
+- Face: the kind (case- and accent-folded) at any pool; the pool at the band;
+  the pool at band null; the pool at its lowest band. A face with no kind
+  never reaches a kind-keyed row.
+- Texture: the kind at the band; the kind at band null. Never another kind's
+  row.
+
 ## `distance-units` — scene distance in feet (module-internal, not on the api)
 
 `scripts/lib/distance-units.mjs`, imported directly, Foundry-free: `feetPerUnit`,
