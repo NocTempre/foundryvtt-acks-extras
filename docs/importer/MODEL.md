@@ -2490,7 +2490,9 @@ doc-shaped, so every reader keeps its `doc.getPage(n)` / `doc.numPages`.
   repair entry (a shelf, a book, an adventure book, the entry picker, the class
   update) awaits `verifyBooks` / `verifiedBook` for its scope first.
   `rebuildable` asks every book the claim draws from (`drawnFrom`). A
-  registered, unverified handle licenses no delete.
+  registered, unverified handle licenses no delete. Recording a refusal lapses
+  the handle's verified state and vouching, so the next `verify` asks the file
+  again and a file the server refused never licenses one.
 - **The live document.** The pixel and operator-list readers of `extract.mjs`
   take `liveDoc(doc)` before a page, and OCR takes the bytes through
   `getData()`, which fetches `src`. A live document is held while a

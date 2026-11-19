@@ -209,10 +209,18 @@ export class BookHandle {
     return this.#refusal;
   }
 
-  /** Record or clear the refusal, then tell `onChange` where it changed what a row would say. */
+  /**
+   * Record or clear the refusal, then tell `onChange` where it changed what a row would say.
+   * Recording one lapses the vouching and the verified mark, so the next `verify` asks the
+   * file again and a refused file never licenses a delete.
+   */
   #setRefusal(next) {
     const was = this.#refusal;
     this.#refusal = next;
+    if (next) {
+      this.#verified = false;
+      this.#vouched = false;
+    }
     if (!!was === !!next && was?.kind === next?.kind && was?.refusedSrc === next?.refusedSrc) return;
     try {
       this.#onChange?.(this.#bookId);

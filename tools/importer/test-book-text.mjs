@@ -12,7 +12,7 @@
  * notifier and never throws. Every text in it is invented.
  */
 import assert from "node:assert";
-import { BookHandle } from "../../scripts/importer/book-handle.mjs";
+import { BookHandle, verifiedDoc } from "../../scripts/importer/book-handle.mjs";
 import { ParsedBooks, PARSE_STAMP } from "../../scripts/importer/parsed-book.mjs";
 import { TEXT_STATES, pressRead, refusalKind, rowActions, tally, textState } from "../../scripts/importer/book-text.mjs";
 
@@ -335,6 +335,30 @@ const stateOf = (parsed, bookId = "rr", refusal = null) => textState({ parsed, b
   same("a refusal of another path does not refuse the journal's file now", [redrawn.state, redrawn.refusal], [TEXT_STATES.STALE, null]);
   ok("the handle holds no refusal once its journal moved on", handle.refusal === null);
   w.journals.rr.src = PDF;
+}
+
+/* --- a refusal lapses the vouching, so a gone file stays refused and licenses no delete -------- */
+
+{
+  const w = world();
+  const gm = w.seat();
+  const handle = gm.handle();
+  await handle.reread();
+  ok("a re-read that succeeds leaves the handle verified, and the document a delete may rest on", handle.verified === true && verifiedDoc(handle) === true);
+
+  w.files.delete(PDF);
+  await assert.rejects(() => handle.reread(), /404/);
+  pass++;
+  ok("a later re-read that finds the file gone leaves the handle unverified", handle.verified === false && verifiedDoc(handle) === false);
+
+  const heads = () => w.log.filter((l) => l === `HEAD ${PDF}`).length;
+  const before = heads();
+  ok("so the next verify asks the file again and the gone file stays refused", (await handle.verify()) === false && heads() === before + 1 && handle.verified === false);
+  ok("and the refusal stands", handle.refusal instanceof Error && handle.refusal.kind === "gone" && stateOf(gm.parsed, "rr", handle.refusal).state === TEXT_STATES.REFUSED);
+  ok("and no delete may rest on the book", verifiedDoc(handle) === false);
+
+  w.files.set(PDF, { bytes: PDF_BYTES });
+  ok("a file that comes back verifies and clears the refusal", (await handle.verify()) === true && handle.verified === true && handle.refusal === null);
 }
 
 /* --- the controls a row offers --------------------------------------------------------------- */
