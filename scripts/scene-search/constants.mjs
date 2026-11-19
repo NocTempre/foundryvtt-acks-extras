@@ -69,3 +69,28 @@ export function defaultLayer(kind, name) {
   const check = KIND_DEFAULTS[kind]?.[name] ?? (name === LAYER.HASTY ? CHECK.INSPECT : CHECK.SEARCH);
   return { check, capability: null, anyone: false, tools: [], turns: null, yields: { lots: [], clue: null, reveal: [] } };
 }
+
+/** The party actor's flag, under the module's scope, holding the scene's session. */
+export const SESSION_FLAG = "sceneSearch";
+
+/** The two turn-plan activities a check is assigned through; the key says which layer it rolls. */
+export const ACTIVITY = Object.freeze({ HASTY: "sceneHasty", METHODICAL: "sceneMethodical" });
+
+/** The layer each activity key resolves. */
+export const LAYER_OF_ACTIVITY = Object.freeze({ [ACTIVITY.HASTY]: LAYER.HASTY, [ACTIVITY.METHODICAL]: LAYER.METHODICAL });
+
+/** How many rows of a session's log are kept: the oldest go first. */
+export const LOG_LIMIT = 200;
+
+/** Why the session api refuses a call, each a `scene:` code. */
+export const SESSION_REFUSAL = Object.freeze({
+  NOT_ALLOWED: `${SCENE}notAllowed`,
+  NO_PARTY: `${SCENE}noParty`,
+  NO_PLACE: `${SCENE}noPlace`,
+  NO_SESSION: `${SCENE}noSession`,
+  SESSION_OPEN: `${SCENE}sessionOpen`,
+  UNKNOWN_ENTRY: `${SCENE}unknownEntry`,
+  NOT_A_MEMBER: `${SCENE}notAMember`,
+  NOT_OFFERED: `${SCENE}notOffered`,
+  DEAL_FAILED: `${SCENE}dealFailed`,
+});

@@ -7,7 +7,7 @@
  * `place-things-logic.mjs`.
  */
 import { MODULE_ID } from "./constants.mjs";
-import { addThing, normalizeThings, patchThing } from "./place-things-logic.mjs";
+import { addThing, normalizeThings, patchThing, removeThing, resetThing } from "./place-things-logic.mjs";
 
 /** The flag key, under the module's scope, holding a place's list of things. */
 export const THINGS_FLAG = "things";
@@ -51,5 +51,51 @@ export async function updateThingOn(place, id, patch) {
   if (!held.some((thing) => thing.id === id)) return null;
   const next = patchThing(held, id, patch);
   await place.update({ [`flags.${MODULE_ID}.${THINGS_FLAG}`]: foundry.data.operators.ForcedReplacement.create(next) });
+  return next;
+}
+
+/* -------------------------------------------- */
+/*  Removing and resetting                       */
+/* -------------------------------------------- */
+
+/** Write a list whole, replacing what the flag held rather than merging into it. */
+function writeThings(place, list) {
+  return place.update({ [`flags.${MODULE_ID}.${THINGS_FLAG}`]: foundry.data.operators.ForcedReplacement.create(list) });
+}
+
+/**
+ * Remove one thing from a place and write the whole list back. The list is read
+ * at the moment of the write. A GM client is the only writer; any other seat, a
+ * missing place or an id the place no longer holds writes nothing.
+ *
+ * @param {Actor} place the location actor
+ * @param {string} id the thing's id
+ * @returns {Promise<object[]|null>} the written list, or null when nothing was written
+ */
+export async function removeThingFrom(place, id) {
+  if (!place || !game.user?.isGM) return null;
+  const held = thingsOf(place);
+  if (!held.some((thing) => thing.id === id)) return null;
+  const next = removeThing(held, id);
+  await writeThings(place, next);
+  return next;
+}
+
+/**
+ * Reset one thing of a place: its `state` is cleared and nothing else changes
+ * (`resetThing`). `patchThing` only ever sets keys, so a Reset is its own write.
+ * A GM client is the only writer; any other seat, a missing place or an id the
+ * place no longer holds writes nothing.
+ *
+ * @param {Actor} place the location actor
+ * @param {string} id the thing's id
+ * @returns {Promise<object[]|null>} the written list, or null when nothing was written
+ */
+export async function resetThingIn(place, id) {
+  if (!place || !game.user?.isGM) return null;
+  const held = thingsOf(place);
+  if (!held.some((thing) => thing.id === id)) return null;
+  const next = resetThing(held, id);
+  await writeThings(place, next);
   return next;
 }

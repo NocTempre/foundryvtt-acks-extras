@@ -34,10 +34,11 @@ import { foundKeys, lotsInPot, runHaulDeal } from "./haul-logic.mjs";
  * @param {(warning: {letters: string[]}) => (boolean|Promise<boolean>)} [args.confirmLair]
  *   asked once for the whole haul while the lair warning stands
  * @param {{sceneId: string, placeUuid?: string|null}} [args.scene] what the pot is tied to
+ * @param {string|null} [args.partyId] the party the pot answers to (the pot flag's `partyId`), written with the origin
  * @param {boolean} [args.doorway] post the doorway card (a scene's own tray replaces it)
  * @returns {Promise<{ok: true, potId: string, potUuid: string, lots: Array<{key: string, thing: string, layer: string, cardId: string}>, dealt: object[]}|{ok: false, reason: string, dealt?: object[]}>}
  */
-export async function dealSceneHaul({ sources, name = "", style, special, metInLair = false, toggles, confirmLair, scene = null, doorway = false } = {}) {
+export async function dealSceneHaul({ sources, name = "", style, special, metInLair = false, toggles, confirmLair, scene = null, partyId = null, doorway = false } = {}) {
   if (!game.user?.isGM) return { ok: false, reason: REFUSAL.notAllowed };
   const pile = await newPot({ name, render: false, deal: { metInLair, style, special, toggles } });
   if (!pile) return { ok: false, reason: REFUSAL.failed };
@@ -56,8 +57,11 @@ export async function dealSceneHaul({ sources, name = "", style, special, metInL
       await discard();
       return result;
     }
-    if (scene?.sceneId) {
-      await pile.update({ [`flags.${MODULE_ID}.${POT_FLAG}.origin`]: { kind: ORIGIN.SCENE, sceneId: scene.sceneId, placeUuid: scene.placeUuid ?? null } });
+    if (scene?.sceneId || partyId) {
+      const tie = {};
+      if (scene?.sceneId) tie[`flags.${MODULE_ID}.${POT_FLAG}.origin`] = { kind: ORIGIN.SCENE, sceneId: scene.sceneId, placeUuid: scene.placeUuid ?? null };
+      if (partyId) tie[`flags.${MODULE_ID}.${POT_FLAG}.partyId`] = partyId;
+      await pile.update(tie);
     }
     const opened = await openPot(pile, { doorway });
     if (!opened.ok) {

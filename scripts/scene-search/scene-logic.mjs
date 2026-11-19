@@ -178,6 +178,43 @@ export function seatView(entries, { isGM = false } = {}) {
 }
 
 /**
+ * What a player is shown of the entries `seatView` lets through: every entry
+ * with `more` (the kinds still unfound, from `remainingKinds`) and
+ * `moreRemains` computed over the WHOLE scene first, and then each unfound
+ * layer's `yields` emptied, so the lots, clue and reveal it holds are never in
+ * what the table reads. A found layer keeps what it yielded. The Judge's hint
+ * is shown only while something more remains. A new list, the input untouched.
+ *
+ * @param {object[]} entries every entry of the scene, the Judge's view
+ * @returns {object[]}
+ */
+export function playerView(entries) {
+  const all = Array.isArray(entries) ? entries : [];
+  return seatView(all, { isGM: false }).map((entry) => {
+    const more = remainingKinds(entry, all);
+    const layers = {};
+    for (const name of LAYER_NAMES) {
+      const layer = entry.layers[name];
+      layers[name] = layerState(entry, name).found ? layer : { ...layer, yields: { lots: [], clue: null, reveal: [] } };
+    }
+    return { ...entry, layers, hint: more.length ? entry.hint : null, more, moreRemains: more.length > 0 };
+  });
+}
+
+/**
+ * The entries a seat reads: the Judge's own, each with `more` and
+ * `moreRemains`, or a player's through `playerView`.
+ */
+export function sceneView(entries, { isGM = false } = {}) {
+  if (!isGM) return playerView(entries);
+  const all = Array.isArray(entries) ? entries : [];
+  return all.map((entry) => {
+    const more = remainingKinds(entry, all);
+    return { ...entry, more, moreRemains: isVisible(entry) && more.length > 0 };
+  });
+}
+
+/**
  * The kinds of thing still unfound on an entry, from `MORE`: `lots` and
  * `clue` where an unfound layer yields them, `reveal` where it names a thing
  * players cannot see yet. A found layer contributes nothing. `skip` names
