@@ -286,6 +286,34 @@ so the line follows what the mount carries. Row controls sit in three groups: th
 state toggles (draw or sheathe, wear or remove, grip, strap, light, ready a
 torch, take out, split, favourite), and edit and delete.
 
+**Set down.** A container's header carries, beside fold, lock, pick, bash and
+empty, a *Set down* control (`containerControls`, `canSetDown`) that calls the
+location feature's `setDown(actor, item)`. It shows only to the character's
+owner, never on a token's own actor (an unlinked token's actor is refused for
+every seat), and only on a container carried at the top level (one inside
+another goes down with the container it is in); a locked container keeps the
+control, since it goes down whole with its lock in its flags. The pile it makes
+and how it is restored are the location feature's
+([MODEL](../location/MODEL.md) "On the ground"); the sheet only words them.
+While the pile holds the character's goods, *Kept elsewhere* lists it as "On
+the ground · <container>" (`groundRowOf`, from the facts `pileRowFacts` reads
+off the pile: the container's name now, else the one it was set down with). Its
+row carries an *At risk* tag in the warning tone, an item count whose tooltip
+lists the viewer's goods as "name ×qty" joined by " · ", and two controls, *Pick
+up* and *Open*. *Pick up* is the retrieve-all action with its own icon and a
+tooltip that says where it puts the pack back, "back to" the worn slot's label
+or "carried" when it was not worn. *Deposit* and *Pin* are absent for a pile
+(a pin would give reach to it from anywhere), and picking up is not reach-gated.
+The Load figure drops by what was set down, since the sheet's load reads the
+character's own items, and its tooltip names the containers on the ground. The
+tab adds no pile to the coin order's extra places, and a pile takes no
+arriving coin (`takesCoin`, the location MODEL), so it is never a receive-into
+choice. Coin set down in the pack is kept at the pile like any place's, so the
+pay-from choice can still name a pile that holds the character's coin. The
+sheet re-renders when a pile of the
+character's is deleted (`watchPile`, on the pile's own flag, since a deleted pile
+is already out of the providers).
+
 A drop of the character's own item onto a slot wears or draws it (out of a
 container first; a torch stack dropped on a hand place readies one torch into
 the hand, as the equipment feature's `prepareTorch` with `draw` does), onto a

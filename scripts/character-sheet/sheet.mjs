@@ -73,6 +73,8 @@ import { buildServicePanel } from "../henchmen/service-view.mjs";
 import { getManager } from "../henchmen/acks-adapter.mjs";
 import { openStashDialog } from "../location/apps/stash-dialog.mjs";
 import { setPinnedPlace, pinnedPlaces } from "../location/reach.mjs";
+import { setDown } from "../location/ground.mjs";
+import { GROUND_FLAG, isGroundPile } from "../lib/place.mjs";
 import { mountOf, ride, dismount } from "../lib/mount.mjs";
 import { ITEM_TYPE, ACTOR_TYPE } from "../lib/vocab.mjs";
 
@@ -159,6 +161,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       containerPick: AcksCharacterSheet.#onContainerPick,
       containerBash: AcksCharacterSheet.#onContainerBash,
       containerEmpty: AcksCharacterSheet.#onContainerEmpty,
+      containerSetDown: AcksCharacterSheet.#onContainerSetDown,
       annotateAll: AcksCharacterSheet.#onAnnotateAll,
       companionOpen: AcksCharacterSheet.#onCompanionOpen,
       companionChoose: AcksCharacterSheet.#onCompanionChoose,
@@ -270,6 +273,12 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     const watchActor = (doc) => {
       if (related(doc)) this.#renderSoon();
     };
+    // A pile of this character's that is deleted is already out of
+    // `providers()` when the hook fires, so `related` no longer names it; its
+    // own flag still says whose it was.
+    const watchPile = (doc) => {
+      if (doc?.documentName === "Actor" && isGroundPile(doc) && doc.getFlag(MODULE_ID, GROUND_FLAG)?.ownerUuid === this.actor.uuid) this.#renderSoon();
+    };
     const watchItem = (doc) => {
       if (related(doc?.parent)) this.#renderSoon();
     };
@@ -309,7 +318,7 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
       this.#castKey = key;
     };
     const pairs = [
-      ["updateActor", watchActor], ["deleteActor", watchActor],
+      ["updateActor", watchActor], ["deleteActor", watchActor], ["deleteActor", watchPile],
       ["createItem", watchItem], ["updateItem", watchItem], ["deleteItem", watchItem],
       ["createToken", watchToken], ["updateToken", watchTokenUpdate], ["deleteToken", watchToken],
       ["canvasReady", () => this.#renderSoon()], ["updateSetting", watchSetting],
@@ -1233,6 +1242,13 @@ export class AcksCharacterSheet extends FrameMixin(HandlebarsApplicationMixin(Ac
     if (!item) return;
     const n = await emptyContainer(this.actor, item);
     if (n) ui.notifications.info(game.i18n.format("ACKS-EQUIPMENT.container.emptied", { n, name: item.name }));
+  }
+
+  // `setDown` says how it went itself (a refusal, or the Judge's warning), so
+  // nothing is notified here.
+  static async #onContainerSetDown(event, target) {
+    const item = this.#itemOf(target);
+    if (item) await setDown(this.actor, item);
   }
 
   static async #onAnnotateAll() {

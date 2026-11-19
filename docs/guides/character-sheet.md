@@ -119,6 +119,16 @@ under Stowed, and every place holding your goods lists under Kept elsewhere.
 Drop a thing on a place to wear or draw it, on a container to store it, on
 the right column to take it off or out.
 
+**Set a pack down.** To leave a container and everything in it where you stand,
+open the Actors sidebar → the character → Equipment tab → the container's
+header → **Set down**. Your Load drops, the worn place shows empty, and
+**Kept elsewhere** lists the pack as "On the ground · <name>" with an **At
+risk** tag: it is on the ground, and it stays where you left it when you move on.
+**Pick up** on that row puts the pack back where it was worn, with whatever is
+still in it; **Open** opens the pile. The control shows only to the
+character's owner, on a container you carry at the top level (one inside
+another goes down with it), and not on an unlinked token's actor.
+
 **Mount** names what you ride and what it is bearing, with a control to
 dismount and one to open its sheet. On foot it says how to mount: drop an
 animal anywhere on the sheet, or a monster on that line

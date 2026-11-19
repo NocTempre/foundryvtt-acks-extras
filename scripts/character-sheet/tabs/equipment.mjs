@@ -36,6 +36,9 @@ import { coinOrderView } from "../../lib/coin-order.mjs";
 import { WEAR_SLOT_ORDER, WEAR_SLOTS, ITEM_TYPE, slotCapacitySource } from "../../lib/vocab.mjs";
 import { libStorage } from "../../lib/util.mjs";
 import { depositReach, listsWhenEmpty, pinnedPlaces, reachScan } from "../../location/reach.mjs";
+import { GROUND_FLAG, isGroundPile } from "../../lib/place.mjs";
+import { SET_DOWN_FLAG } from "../../location/ground.mjs";
+import { pileRowFacts } from "../../location/ground-logic.mjs";
 
 const loc = makeLoc(LANG);
 const num = (v, fallback = 0) => (Number.isFinite(Number(v)) ? Number(v) : fallback);
@@ -130,8 +133,16 @@ function rowControls(actor, item, loadout, lights) {
   return { roll, state, keep };
 }
 
-/** The container header's own controls: fold, the lock, pick and bash, empty. */
-function containerControls(actor, report) {
+/**
+ * May the viewer set this container down on the ground? Its owner may, on a
+ * character's own actor (an unlinked token's actor is refused for every seat,
+ * `location/ground-logic.mjs`), and only a container carried at the top level:
+ * one inside another goes down with the container it is in.
+ */
+export const canSetDown = (actor, item) => !!actor?.isOwner && !actor.isToken && !containedIn(item);
+
+/** The container header's own controls: fold, the lock, pick and bash, empty, set down. */
+export function containerControls(actor, report) {
   const out = [];
   const mayBypass = !report.locked || game.user.isGM;
   // Folding a container writes its record, so it is the owner's like the rest.
@@ -145,6 +156,8 @@ function containerControls(actor, report) {
     if (canBash(actor)) out.push(ctl("containerBash", "fa-solid fa-hammer", game.i18n.localize("ACKS-EQUIPMENT.container.bash")));
   }
   if (mayBypass) out.push(ctl("containerEmpty", "fa-solid fa-box-open", game.i18n.localize("ACKS-EQUIPMENT.container.empty")));
+  // A locked container goes down whole, its lock in its flags: storage never refuses a shut one.
+  if (canSetDown(actor, report.item)) out.push(ctl("containerSetDown", "fa-solid fa-arrow-down-to-line", game.i18n.localize("ACKS-EQUIPMENT.container.setDown")));
   return out;
 }
 
@@ -194,10 +207,48 @@ function rowOf(actor, item, ctx, depth = 0) {
   return row;
 }
 
-/** A place kept off-person, as the Kept elsewhere rule lists it. */
+/**
+ * The words of a ground pile's row, from the facts `pileRowFacts` reads off the
+ * pile: its label (the container's name now, else the one it had when set
+ * down), whether it is at risk, the viewer's goods as "name ×qty" for the
+ * line's tooltip, and where Pick up puts the container back.
+ * @param {Actor} actor the viewer's character
+ * @param {Actor} provider the pile
+ * @param {Item[]} items what the pile holds, as `providersFor` lists it
+ */
+export function groundRowOf(actor, provider, items) {
+  const api = libStorage();
+  const facts = pileRowFacts({
+    flag: provider.getFlag?.(MODULE_ID, GROUND_FLAG) ?? null,
+    items: items.map((i) => ({
+      name: i.name,
+      quantity: stackCountOf(i) ?? 1,
+      ownerUuid: api?.ownerOf?.(i)?.uuid ?? null,
+      setDown: i.getFlag?.(MODULE_ID, SET_DOWN_FLAG) ?? null,
+    })),
+    viewerUuid: actor.uuid,
+  });
+  return {
+    label: game.i18n.format("ACKS-LOCATION.ground.name", { name: facts.container }),
+    container: facts.container,
+    count: facts.count,
+    atRisk: facts.atRisk,
+    atRiskTip: facts.atRisk ? loc("equipment.atRiskTip") : "",
+    lineTip: facts.lines.map((l) => `${l.name} ×${l.quantity}`).join(" · "),
+    pickUpTip: facts.worn && facts.slot ? loc("equipment.pickUp", { slot: wearLabel(facts.slot) }) : loc("equipment.pickUpCarried"),
+  };
+}
+
+/**
+ * A place kept off-person, as the Kept elsewhere rule lists it. A ground pile
+ * carries a `ground` block of its own words, takes no deposit from anyone (a
+ * Judge included) and is never pinned: a pin would give reach to it from
+ * anywhere.
+ */
 function placeRow(actor, provider, items, coinGC, pinned, scan) {
   const api = libStorage();
   const reach = depositReach(actor, provider, { scan });
+  const ground = isGroundPile(provider) ? groundRowOf(actor, provider, items) : null;
   return {
     uuid: provider.uuid,
     name: provider.name,
@@ -206,9 +257,12 @@ function placeRow(actor, provider, items, coinGC, pinned, scan) {
     count: items.length,
     coinGC,
     canReach: reach.can,
-    canDeposit: reach.can || !!game.user?.isGM,
-    reachReason: reach.can ? "" : game.i18n.format(`ACKS-LOCATION.storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
+    canDeposit: !ground && (reach.can || !!game.user?.isGM),
+    reachReason: reach.can || ground ? "" : game.i18n.format(`ACKS-LOCATION.storage.reach.${reach.reason}`, { scene: reach.scene?.name ?? "" }),
     pinned,
+    canPin: !ground,
+    ground,
+    // Picking up is not reach-gated; a pile holding nothing of the viewer's has nothing to take.
     canRetrieve: items.length > 0,
   };
 }
@@ -331,17 +385,22 @@ export function buildEquipmentTab(actor) {
   // they are standing. Anything wider puts a whole imported city on the tab.
   for (const p of storage?.providers?.() ?? []) {
     if (elsewhere.some((e) => e.uuid === p.uuid)) continue;
+    // A pile is listed for whoever has goods in it and no one else, even one
+    // standing on it.
+    if (isGroundPile(p)) continue;
     if (listsWhenEmpty(actor, p, { scan, pinned })) {
       elsewhere.push(placeRow(actor, p, [], 0, pinned.has(p.uuid), scan));
     }
   }
   // The coin order is offered every store the tab lists: loose, the
-  // containers, and each place under Kept elsewhere.
-  const order = coinOrderView(actor, { places: elsewhere });
+  // containers, and each place under Kept elsewhere, a ground pile excepted:
+  // arriving coin is never sent to the ground.
+  const order = coinOrderView(actor, { places: elsewhere.filter((e) => !e.ground) });
   const purse = order.shown
     ? { ...order, note: loc("equipment.purseNote", { hand: gpLabel(order.onHandGp), kept: gpLabel(order.keptGp) }) }
     : null;
 
+  const setDownNames = elsewhere.filter((e) => e.ground?.count).map((e) => e.ground.container);
   const enc = sys.encumbrance ?? {};
   const pct = num(enc.pct);
   const bp = enc.breakpoints ?? {};
@@ -362,6 +421,8 @@ export function buildEquipmentTab(actor) {
       ticks: bar.ticks,
       label: loc(bar.eased6 > 0 ? "equipment.loadLabelEased" : "equipment.loadLabel", figures),
       hint: bar.eased6 > 0 ? loc("equipment.loadEased", { eased: stoneLabel(bar.eased6) }) : "",
+      // What is set down on the ground is not in the figure; the tooltip names it.
+      tip: setDownNames.length ? loc("equipment.loadGround", { names: setDownNames.join(" · ") }) : "",
       state: loc(`equipment.loadState.${state}`),
       tone: state === "overburdened" || state === "heavy" ? "bad" : state === "unencumbered" ? null : "warn",
     },

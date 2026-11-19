@@ -55,6 +55,14 @@ the code, not missing from it; the rulings behind the built half are
   could write that flag when its creature is placed, and a duration could
   release it; the initiative card's summoner groups could read it too.
 
+- **Set down on the system sheet.** The system sheet's own container header
+  has no Set down control; only this sheet's Equipment tab does. It needs its
+  own design before it is built.
+
+- **Set down packs, party-wide.** One control that sets every member's carried
+  containers down at once. Deferred by the owner's choice (4A, per character
+  only); the per-character control is built.
+
 ## The official sheet (PDF)
 
 - **The gear boxes' per-line columns.** Each gear place has a column of item

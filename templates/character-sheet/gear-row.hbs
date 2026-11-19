@@ -31,7 +31,7 @@
   <div class="acks-extras-frame__gear-head">
     <span class="acks-extras-frame__gear-line acks-nums"{{#if container.capacityTip}} data-tooltip-text="{{container.capacityTip}}"{{/if}}>{{container.load}}{{#if container.visible}} · {{container.count}}{{/if}}</span>
     <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
-      {{#each container.controls}}<button type="button" class="acks-extras-frame__ctl" data-action="{{action}}" data-tooltip="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
+      {{#each container.controls}}<button type="button" class="acks-extras-frame__ctl" data-action="{{action}}" data-tooltip="{{title}}" aria-label="{{title}}"><i class="{{icon}}" inert></i></button>{{/each}}
     </span></span>
   </div>
   {{#if container.rows.length}}

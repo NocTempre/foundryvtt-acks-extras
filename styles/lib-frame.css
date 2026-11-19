@@ -1651,6 +1651,14 @@ button.acks-extras-frame__pill:not(:disabled) {
   cursor: pointer;
 }
 
+/* The design system's tag has no warning variant; the At risk tag takes the
+ * warning tokens the way the research window's does. */
+.acks-extras-frame .acks-tag.is-warn {
+  border-color: var(--acks-warning);
+  background: var(--acks-warning-tint);
+  color: var(--acks-warning-ink);
+}
+
 /* --- Class ---------------------------------------------------------------- */
 
 .acks-extras-frame__gold-band {

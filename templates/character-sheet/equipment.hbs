@@ -17,7 +17,7 @@
         <i class="fa-solid fa-tags" inert></i>{{localize "ACKS-CHARACTER.equipment.annotate"}}
       </button>
       {{/if}}
-      <span class="acks-extras-frame__rule-note acks-nums">{{eq.load.label}} · {{eq.load.state}}</span>
+      <span class="acks-extras-frame__rule-note acks-nums"{{#if eq.load.tip}} data-tooltip-text="{{eq.load.tip}}"{{/if}}>{{eq.load.label}} · {{eq.load.state}}</span>
     </div>
     <div class="acks-extras-frame__bar is-thin{{#if eq.load.tone}} is-{{eq.load.tone}}{{/if}}"{{#if eq.load.hint}} data-tooltip="{{eq.load.hint}}"{{/if}}><i style="width: {{eq.load.pct}}%"></i>{{#if eq.load.phantom}}<s style="left: {{eq.load.pct}}%; width: {{eq.load.phantom}}%"></s>{{/if}}{{#each eq.load.ticks}}<u style="left: {{this}}%"></u>{{/each}}</div>
   </div>
@@ -143,15 +143,24 @@
       <div class="acks-extras-frame__row is-place" data-place-uuid="{{place.uuid}}">
         <img class="acks-extras-frame__gear-img" src="{{place.img}}" alt="" inert>
         <span class="acks-extras-frame__row-text">
+          {{#if place.ground}}
+          <a class="acks-extras-frame__gear-name" data-action="placeOpen">{{place.ground.label}}</a>
+          <span class="acks-extras-frame__row-line acks-nums"{{#if place.ground.lineTip}} data-tooltip-text="{{place.ground.lineTip}}"{{/if}}>{{localize "ACKS-CHARACTER.equipment.placeLine" n=place.count gp=place.coinGC}}</span>
+          {{else}}
           <a class="acks-extras-frame__gear-name" data-action="placeOpen">{{#if place.isVault}}<i class="fa-solid fa-vault" inert></i> {{/if}}{{place.name}}</a>
           <span class="acks-extras-frame__row-line acks-nums">{{localize "ACKS-CHARACTER.equipment.placeLine" n=place.count gp=place.coinGC}}{{#unless place.canReach}} · {{place.reachReason}}{{/unless}}</span>
+          {{/if}}
         </span>
+        {{#if place.ground.atRisk}}<span class="acks-tag is-warn" data-tooltip-text="{{place.ground.atRiskTip}}">{{localize "ACKS-CHARACTER.equipment.atRisk"}}</span>{{/if}}
         {{#if place.pinned}}<span class="acks-tag acks-tag--ghost">{{localize "ACKS-CHARACTER.equipment.pinned"}}</span>{{/if}}
         {{#if eq.editable}}
         <span class="acks-extras-frame__ctls"><span class="acks-extras-frame__grp">
           {{#if place.canDeposit}}<button type="button" class="acks-extras-frame__ctl" data-action="placeDeposit" data-tooltip="{{localize 'ACKS-LOCATION.storage.deposit'}}"><i class="fa-solid fa-down-long" inert></i></button>{{/if}}
-          {{#if place.canRetrieve}}<button type="button" class="acks-extras-frame__ctl" data-action="placeRetrieveAll" data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieveAll'}}"><i class="fa-solid fa-up-long" inert></i></button>{{/if}}
-          <button type="button" class="acks-extras-frame__ctl{{#if place.pinned}} is-on{{/if}}" data-action="placePin" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.pinPlace'}}"><i class="fa-solid fa-thumbtack" inert></i></button>
+          {{#if place.canRetrieve}}
+          {{#if place.ground}}<button type="button" class="acks-extras-frame__ctl" data-action="placeRetrieveAll" data-tooltip-text="{{place.ground.pickUpTip}}" aria-label="{{place.ground.pickUpTip}}"><i class="fa-solid fa-hand-holding" inert></i></button>
+          {{else}}<button type="button" class="acks-extras-frame__ctl" data-action="placeRetrieveAll" data-tooltip="{{localize 'ACKS-LOCATION.storage.retrieveAll'}}"><i class="fa-solid fa-up-long" inert></i></button>{{/if}}
+          {{/if}}
+          {{#if place.canPin}}<button type="button" class="acks-extras-frame__ctl{{#if place.pinned}} is-on{{/if}}" data-action="placePin" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.pinPlace'}}"><i class="fa-solid fa-thumbtack" inert></i></button>{{/if}}
           <button type="button" class="acks-extras-frame__ctl" data-action="placeOpen" data-tooltip="{{localize 'ACKS-CHARACTER.equipment.openPlace'}}"><i class="fa-solid fa-chevron-right" inert></i></button>
         </span></span>
         {{/if}}

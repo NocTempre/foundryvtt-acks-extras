@@ -1017,3 +1017,74 @@ it):
 by its own ledger (`api.track` each, `sweepTracked`), and the chat card the
 plain spell's cast posted; quote the sweep's result. Return the world clock
 only where the run advanced it and no peer's cast depends on it.
+
+## Set down a pack from the Equipment tab
+
+*Unwalked when written.* The pile itself (its actor, token, hooks and the
+restoring of the slot) is walked in docs/location/TESTING.md, step 28; this
+recipe walks the sheet's half: the control, the row and what the sheet shows.
+
+**Fixtures.** Both are found by marker, built with `api.fixture(marker, kind,
+data)`, and kept.
+- `character-sheet/set-down-hero`: a `character` owned by the Player seat, its
+  token on the active scene (`location/ground-scene`). It wears a Backpack on
+  Back, annotated to declare a capacity, holding a Torch stack, a `money` row
+  and a dagger. It also carries a Large Sack stowed (carried, not worn) and a
+  locked box (a container with a lock in its flags). Its coin order receives
+  into the Backpack (`setCoinOrder(actor, {receiveInto: containerStoreKey(id)})`).
+- `character-sheet/set-down-npc`: a `character` owned by the Player seat with
+  no token on any scene, carrying one container.
+- `character-sheet/set-down-other`: a `character` the Player seat observes and
+  does not own, carrying one container. It receives the Torches in step 4 and is
+  looked at in step 8.
+
+**Steps.**
+1. As the Player, open `set-down-hero`'s sheet, Equipment tab, and note the
+   Load figure. Press *Set down* in the Backpack's container header.
+   *Observable:* the Load figure drops by the pack and its contents; the Back
+   place reads empty; the Backpack is no longer under the worn places.
+2. Read *Kept elsewhere*. *Observable:* a row "On the ground · Backpack"; an
+   *At risk* tag in the warning tone whose tooltip says what the tag means here;
+   the row's line gives the item count, and its tooltip lists the goods as
+   "name ×qty" joined by " · " (the Backpack, the Torches, the dagger and the
+   coin row); the controls are *Pick up* (tooltip "Pick everything up, back to Back") and *Open*,
+   and no *Deposit* and no *Pin*. Hover the Load figure: its tooltip names the
+   Backpack as set down. Open the coin order: the pile is offered in
+   neither the receive-into select nor, while it holds no coin of the
+   character's, the pay-from select (the hero's coin lies in it, so pay-from may
+   name it; record what it shows).
+3. Run item loss on the character and open the loadout. *Observable:* neither
+   lists the Torches or the dagger.
+4. As the Judge, move the Torch stack out of the pile to `set-down-other`
+   (the pile's sheet, Storage tab, or `acksExtras.lib.storage.retrieve(pile,
+   other, [{id}])`; note which). *Observable:* the Player's row count and its
+   tooltip lose the Torches without a reload.
+5. As the Player, press *Pick up*. *Observable:* the Backpack is back on Back,
+   the Torches gone from it (they are the other character's), the dagger and
+   coin inside; the coin order's receive select names the Backpack's new id;
+   a moment later the pile and its token are deleted and the row disappears
+   without a refresh.
+6. Set the Large Sack and the locked box down in turn, then pick each up.
+   *Observable:* the Sack comes back under *Stowed*, not on a worn slot; the
+   box comes back still locked. Each press offers *Set down* only on a
+   top-level container: put the Sack inside the Backpack first and its own
+   header, now nested, shows no control.
+7. Open `set-down-npc`'s sheet as the Player and press *Set down* on a
+   container there. *Observable:* the refusal `notOnMap`, nothing created. As
+   the Judge, the same press warns once and makes a pile with no token that the
+   row still lists and *Pick up* still restores.
+8. As the Player, open `set-down-other`'s sheet. *Observable:* its container
+   shows no *Set down*. Not walked here: an unlinked token's own actor sheet (no
+   fixture makes one); `tools/test-equipment-tab.mjs` holds it offline.
+9. Set the Backpack down again, then open `set-down-hero` on the system
+   sheet, Storage tab, and press *Retrieve all* on the pile's row. *Observable:* the pack is
+   back on Back exactly as in step 5.
+10. Raise the type size setting and reopen the sheet with a pile listed.
+    *Observable:* the row, the tag and the controls scale with it; Tab reaches
+    *Pick up* and each container header control, each named for a screen reader
+    (`aria-label`).
+
+**Teardown.** The fixtures are kept. Delete the piles and tokens a run made by
+its own ledger (`api.track` each pile's uuid from `setDown`'s result,
+`sweepTracked`) and quote the sweep's result; return the Torches from `set-down-other` to the
+hero, so the kept fixtures hold what step 1 expects. Offline: `tools/test-equipment-tab.mjs`.
