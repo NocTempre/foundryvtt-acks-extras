@@ -16,9 +16,11 @@
  * A rolled item is a dealt find, unknown whatever its source document's own
  * marks say: undetected, unidentified, its curse not known.
  *
- * With the pot's arms column set, a rolled arm also stores what it ranks by
- * while undetected (`apparentOf`): its non-magical base's cost and the masterwork
- * cost, found by the base's import stamp. Bands freeze at open, so the figures are
+ * A rolled arm also stores what it ranks by while undetected (`apparentOf`): its
+ * non-magical base's cost and the masterwork cost, found by the base's import
+ * stamp. A row linked by name finds its base with or without the pot's arms
+ * column; a row linked to a grid or to the weapon-kind list needs the column's
+ * rolled type. Bands freeze at open, so the figures are
  * read at the deal. A find with no base or no cost stores nothing and ranks as it
  * did.
  */
