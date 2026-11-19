@@ -38,6 +38,7 @@
     "styles/influence.css",
     "styles/location.css",
     "styles/magic.css",
+    "styles/magic-held-card.css",
     "styles/magic-items.css",
     "styles/markets.css",
     "styles/merchandise.css",

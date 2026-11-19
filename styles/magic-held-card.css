@@ -1,0 +1,84 @@
+/* The card posted when a held cast's concentration ends (templates/magic/cast-held-card.hbs): a header of the
+   caster's portrait and a two-line title, the cause and control-lost lines, the lists, the standing creatures as
+   rows of lib's bucket (styles/lib-bucket.css supplies the row, art and name), and a footer of Restore and
+   Dismiss all. Colours are design-system tokens and type is the ramp; boxes ride the family ratio
+   (--acks-extras-k, styles/lib.css). A seat that may not press a control has it removed, so the footer and the
+   rows hold whatever is left. */
+
+.acks-extras-cast-held {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  min-width: 0;
+  color: var(--acks-ink);
+}
+
+.acks-extras-cast-held__head {
+  display: flex;
+  align-items: center;
+  gap: var(--acks-sp-4);
+}
+
+.acks-extras-cast-held__portrait {
+  width: calc(40px * var(--acks-extras-k));
+  height: calc(40px * var(--acks-extras-k));
+}
+
+.acks-extras-cast-held__title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.acks-extras-cast-held__heading {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-body);
+}
+
+.acks-extras-cast-held__byline {
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-held__line {
+  margin: 0;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-ink-soft);
+}
+
+.acks-extras-cast-held__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+}
+
+.acks-extras-cast-held__legend {
+  margin: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-cast-held__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--acks-fs-label);
+}
+
+.acks-extras-cast-held__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}
+
+.acks-extras-cast-held__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--acks-sp-3);
+}

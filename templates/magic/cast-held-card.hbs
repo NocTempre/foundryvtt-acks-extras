@@ -1,0 +1,51 @@
+{{!-- The card posted when a held cast's concentration ends (scripts/magic/cast-held.mjs `heldEndView`). It is
+      rendered once, by the client that deleted the record, and shown to every seat the whisper reaches, so
+      nothing here tests the seat: End, Restore and every Dismiss are drawn and the render hook (`bindCard`)
+      removes the ones the seat may not press. The creatures' rows reuse lib's bucket classes
+      (`acks-extras-bucket__rows|row|main|art|text|name`, styles/lib-bucket.css) because lib's `bucket-row.hbs`
+      has no slot for a trailing button. Every string arrives localized in the context; no id is written. --}}
+<div class="acks-ui acks-extras acks-extras-cast-held">
+  <header class="acks-extras-cast-held__head">
+    <span class="acks-extras-bucket__art acks-extras-cast-held__portrait">{{#if casterImg}}<img src="{{casterImg}}" alt="" inert>{{else}}<i class="fa-solid fa-user" inert></i>{{/if}}</span>
+    <div class="acks-extras-cast-held__title">
+      <h4 class="acks-extras-cast-held__heading">{{title}}</h4>
+      <span class="acks-extras-cast-held__byline">{{byline}}</span>
+    </div>
+  </header>
+  <p class="acks-extras-cast-held__line">{{cause}}</p>
+  {{#if controlLost}}<p class="acks-extras-cast-held__line">{{controlLost}}</p>{{/if}}
+  {{#each sections}}
+  <section class="acks-extras-cast-held__section">
+    <h5 class="acks-extras-cast-held__legend">{{legend}}</h5>
+    <ul class="acks-extras-cast-held__list">
+      {{#each rows}}
+      <li class="acks-extras-cast-held__item">
+        <span>{{name}}</span>
+        {{#if figure}}<span class="acks-nums" data-tooltip-text="{{figureTip}}">{{figure}}</span>{{/if}}
+        {{#if end}}<button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-acks-extras-held-end data-actor-uuid="{{end.actorUuid}}" data-record-id="{{end.id}}">{{end.label}}</button>{{/if}}
+      </li>
+      {{/each}}
+    </ul>
+  </section>
+  {{/each}}
+  {{#if creatures.length}}
+  <section class="acks-extras-cast-held__section">
+    <h5 class="acks-extras-cast-held__legend">{{creaturesLegend}}</h5>
+    <ul class="acks-extras-bucket__rows">
+      {{#each creatures}}
+      <li class="acks-extras-bucket__row">
+        <div class="acks-extras-bucket__main">
+          <span class="acks-extras-bucket__art">{{#if img}}<img src="{{img}}" alt="" inert>{{else}}<i class="fa-solid fa-ghost" inert></i>{{/if}}</span>
+          <span class="acks-extras-bucket__text"><span class="acks-extras-bucket__name">{{name}}</span></span>
+        </div>
+        <button type="button" class="acks-btn acks-btn--quiet acks-btn--sm" data-acks-extras-held-dismiss{{#if tokenUuid}} data-token-uuid="{{tokenUuid}}"{{/if}}{{#if partyId}} data-party-id="{{partyId}}" data-member-id="{{memberId}}"{{/if}} aria-label="{{aria}}" data-tooltip-text="{{tip}}">{{@root.dismissLabel}}</button>
+      </li>
+      {{/each}}
+    </ul>
+  </section>
+  {{/if}}
+  <footer class="acks-extras-cast-held__foot">
+    <button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-acks-extras-held-restore data-tooltip-text="{{restoreTip}}">{{restoreLabel}}</button>
+    {{#if creatures.length}}<button type="button" class="acks-btn acks-btn--secondary acks-btn--sm" data-acks-extras-held-dismiss data-all="1" aria-label="{{dismissAllAria}}" data-tooltip-text="{{dismissAllTip}}">{{dismissAllLabel}}</button>{{/if}}
+  </footer>
+</div>

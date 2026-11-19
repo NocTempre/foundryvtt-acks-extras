@@ -1,4 +1,4 @@
-/* global game, ChatMessage, Hooks, fromUuid, fromUuidSync */
+/* global game, ChatMessage, Hooks, foundry, fromUuid, fromUuidSync */
 /**
  * Concentration's end. A spell held by concentration leaves a status-only
  * record on its caster (`concentrating`, or `concentratingStationary`) carrying
@@ -23,8 +23,9 @@
  * and the caster's owners, says why and what ended, what runs on, what still
  * stands, and carries the Judge's Restore (every record it lists, put back with
  * its own id, the re-timings undone). A held summons' creatures stay when its
- * control ends: the card also lists those the cast left standing, with the
- * Judge's Dismiss, and Restore puts back the records only.
+ * control ends: the card says so, lists those the cast left standing, one row
+ * each with the Judge's Dismiss, and the Judge's Dismiss all; Restore puts back
+ * the records only. The card is `templates/magic/cast-held-card.hbs`.
  *
  * The GM's client takes the tail from the spell, never from the request, and
  * accepts the request only from a user who owns the caster once no held record
@@ -38,7 +39,7 @@ import { spellEffectOf, spellEffectData } from "./spell-effect.mjs";
 import { castEndedRecipients } from "./cast-expiry.mjs";
 import { worldActors } from "../lib/repair.mjs";
 import { lossInFlight } from "../lib/status-effects.mjs";
-import { escape as esc, unset } from "../lib/util.mjs";
+import { unset } from "../lib/util.mjs";
 
 /** The causes a card names. */
 export const HELD_CAUSES = Object.freeze(["damage", "save", "cast", "time", "removed", "saved"]);
@@ -210,9 +211,12 @@ export async function endHeldCast(record, { cause, caster, deps }) {
       done.open.push(...answer.open);
     } else done.open.push(...plan.relay.map((r) => ({ actorUuid: r.actorUuid, id: r.id, name: r.name })));
   }
-  // A summons held by concentration loses its control, and its creatures stay: the card lists them by name, and Dismiss is the Judge's.
+  // A summons held by concentration loses its control, and its creatures stay: the card lists them with the ids a Dismiss names, and Dismiss is the Judge's.
   const found = (await deps.standing?.(record)) ?? {};
-  const summons = [...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? "") })), ...(found.held ?? []).map((h) => ({ name: String(h.name ?? "") }))];
+  const summons = [
+    ...(found.tokens ?? []).map((t) => ({ name: String(t.name ?? t.actor?.name ?? ""), img: String(t.texture?.src || t.actor?.img || ""), tokenUuid: String(t.uuid ?? "") })),
+    ...(found.held ?? []).map((h) => ({ name: String(h.name ?? ""), img: String(h.img ?? ""), held: { partyId: String(h.partyId ?? ""), actorId: String(h.actorId ?? "") } })),
+  ];
   const flag = {
     cause,
     castId: record.castId,
@@ -220,6 +224,7 @@ export async function endHeldCast(record, { cause, caster, deps }) {
     spellUuid: record.spellUuid,
     spellName: caster.spellName ?? "",
     casterName: caster.name ?? "",
+    casterImg: caster.img ?? "",
     cite: caster.cite ?? "",
     ended: done.ended,
     retimed: done.retimed,
@@ -235,10 +240,74 @@ export async function endHeldCast(record, { cause, caster, deps }) {
 /*  The card                                     */
 /* -------------------------------------------- */
 
-/** The attributes the card's buttons carry. */
+/** The attributes the card's buttons carry. Every Dismiss carries `DISMISS_ATTR`; the one for the whole cast also carries `data-all`. */
 const END_ATTR = "data-acks-extras-held-end";
 const RESTORE_ATTR = "data-acks-extras-held-restore";
 const DISMISS_ATTR = "data-acks-extras-held-dismiss";
+
+/** The card's template. */
+const CARD_TEMPLATE = `modules/${MODULE_ID}/templates/magic/cast-held-card.hbs`;
+
+/**
+ * The line that says what became of the creatures when their control ended,
+ * by outcome. `stays` is the only outcome built: the creatures are still on
+ * the map, and the control is lost. Any other outcome draws no line.
+ *
+ * @param {string} [outcome="stays"]
+ * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
+ * @returns {string}
+ */
+export function controlLostLine(outcome = "stays", loc) {
+  return outcome === "stays" ? loc("controlLost.stays") : "";
+}
+
+/**
+ * What `templates/magic/cast-held-card.hbs` draws: every string localized, the
+ * rows of each list, the creatures as buckets of one row each. It carries no
+ * seat: End, Restore and Dismiss are all in it and the render hook trims them.
+ *
+ * @param {object} flag  the card's `castHeldEnd` flag
+ * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
+ * @returns {object}
+ */
+export function heldEndView(flag, loc) {
+  const cite = flag.cite ? ` (${flag.cite})` : "";
+  const creatures = (flag.summons ?? []).map((c) => ({
+    name: c.name,
+    img: c.img ?? "",
+    tokenUuid: c.tokenUuid ?? "",
+    partyId: c.held?.partyId ?? "",
+    memberId: c.held?.actorId ?? "",
+    aria: loc("aria.dismiss", { name: c.name }),
+    tip: loc("tip.dismiss", { name: c.name }),
+  }));
+  const lost = creatures.length ? controlLostLine(flag.outcome ?? "stays", loc) : "";
+  const sections = [];
+  if (flag.ended?.length) sections.push({ legend: loc("ended"), rows: flag.ended.map((i) => ({ name: i.name })) });
+  if (flag.retimed?.length) {
+    sections.push({
+      legend: loc("retimed"),
+      rows: flag.retimed.map((i) => ({ name: i.name, figure: `${i.duration.value} ${i.duration.units}`, figureTip: loc("tip.retimed", { value: i.duration.value, units: i.duration.units, cite: flag.cite ?? "" }) })),
+    });
+  }
+  if (flag.open?.length) sections.push({ legend: loc("open"), rows: flag.open.map((i) => ({ name: i.name, end: { actorUuid: i.actorUuid, id: i.id, label: loc("button.end") } })) });
+  return {
+    title: loc("title"),
+    byline: loc("byline", { spell: flag.spellName, name: flag.casterName }),
+    casterImg: flag.casterImg ?? "",
+    cause: `${loc(`cause.${HELD_CAUSES.includes(flag.cause) ? flag.cause : "removed"}`)}${lost ? "" : cite}`,
+    controlLost: lost ? `${lost}${cite}` : "",
+    sections,
+    creatures,
+    creaturesLegend: loc("summons"),
+    dismissLabel: loc("button.dismiss"),
+    dismissAllLabel: loc("button.dismissAll"),
+    dismissAllAria: loc("aria.dismissAll"),
+    dismissAllTip: loc("tip.dismissAll"),
+    restoreLabel: loc("button.restore"),
+    restoreTip: loc("tip.restore"),
+  };
+}
 
 /**
  * The card's body, as a viewer with no rights sees it: the buttons are in it and
@@ -247,29 +316,10 @@ const DISMISS_ATTR = "data-acks-extras-held-dismiss";
  *
  * @param {object} flag  the card's `castHeldEnd` flag
  * @param {(key: string, data?: object) => string} loc  this card's strings, `ACKS-MAGIC.castHeld.<key>`
+ * @returns {Promise<string>}
  */
 export function heldEndContent(flag, loc) {
-  const cite = flag.cite ? ` (${flag.cite})` : "";
-  const list = (items, line) => (items.length ? `<ul>${items.map((i) => `<li>${line(i)}</li>`).join("")}</ul>` : "");
-  const sections = [];
-  if (flag.ended?.length) sections.push(`<section><h5>${esc(loc("ended"))}</h5>${list(flag.ended, (i) => esc(i.name))}</section>`);
-  if (flag.retimed?.length) {
-    const line = (i) => `${esc(i.name)}: <span data-tooltip-text="${esc(loc("tip.retimed", { value: i.duration.value, units: i.duration.units, cite: flag.cite ?? "" }))}">${esc(`${i.duration.value} ${i.duration.units}`)}</span>`;
-    sections.push(`<section><h5>${esc(loc("retimed"))}</h5>${list(flag.retimed, line)}</section>`);
-  }
-  if (flag.open?.length) {
-    const line = (i) => `${esc(i.name)} <button type="button" ${END_ATTR} data-actor-uuid="${esc(i.actorUuid)}" data-record-id="${esc(i.id)}">${esc(loc("button.end"))}</button>`;
-    sections.push(`<section><h5>${esc(loc("open"))}</h5>${list(flag.open, line)}</section>`);
-  }
-  if (flag.summons?.length) {
-    const dismiss = `<button type="button" ${DISMISS_ATTR} data-tooltip-text="${esc(loc("tip.dismiss"))}"><i class="fa-solid fa-ghost" inert></i> ${esc(loc("button.dismiss"))}</button>`;
-    sections.push(`<section><h5>${esc(loc("summons"))}</h5>${list(flag.summons, (i) => esc(i.name))}${dismiss}</section>`);
-  }
-  const restore = `<button type="button" ${RESTORE_ATTR} data-tooltip-text="${esc(loc("tip.restore"))}"><i class="fa-solid fa-rotate-left" inert></i> ${esc(loc("button.restore"))}</button>`;
-  return (
-    `<div class="acks-extras-cast-held"><h4>${esc(loc("title", { spell: flag.spellName, name: flag.casterName }))}</h4>` +
-    `<p>${esc(loc(`cause.${HELD_CAUSES.includes(flag.cause) ? flag.cause : "removed"}`))}${esc(cite)}</p>${sections.join("")}${restore}</div>`
-  );
+  return foundry.applications.handlebars.renderTemplate(CARD_TEMPLATE, heldEndView(flag, loc));
 }
 
 /* -------------------------------------------- */
@@ -328,7 +378,7 @@ async function postCard(flag) {
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor: caster }),
     whisper: castEndedRecipients(caster?.ownership, game.users.filter((u) => u.isGM).map((u) => u.id), isGM),
-    content: heldEndContent(flag, loc),
+    content: await heldEndContent(flag, loc),
     flags: { [MODULE_ID]: { [CAST_HELD_END_FLAG]: flag } },
   });
 }
@@ -393,6 +443,7 @@ function onDeleteEffect(effect, options, userId) {
   const caster = {
     actorUuid: effect.parent?.uuid,
     name: effect.parent?.name ?? "",
+    img: effect.parent?.img ?? "",
     spellName: spell?.name ?? effect.name ?? "",
     cite: spell?.flags?.[MODULE_ID]?.[FLAG_SPELL]?.cite ?? "",
     data: effect.toObject(),
@@ -449,15 +500,27 @@ async function pressEnd(button) {
   button.disabled = true;
 }
 
-/** A Dismiss press: the cast's creatures on every scene and in a party token, through lib's confirmed dismissal. */
-async function pressDismiss(flag) {
-  const caster = fromUuidSync(flag.casterUuid);
-  if (!caster) return;
-  const { promptDismiss, castSummons } = await import("../lib/summons.mjs");
-  await promptDismiss(caster, { ...castSummons(caster, flag.castId, { scenes: game.scenes }), castId: flag.castId });
+/**
+ * A Dismiss press, through lib's confirmed dismissal: one creature when the
+ * button names it (a token by uuid, a held summon by party and member), else
+ * every creature of the cast on every scene and in a party token. Either way
+ * the dismissal is of this cast alone, and lib's door decides who may remove.
+ *
+ * @param {object} flag  the card's `castHeld` flag
+ * @param {object} dataset  the pressed button's `data-*`
+ * @param {object} [deps]  `caster`, `promptDismiss`, `castSummons`: lib's, unless a test hands its own
+ * @returns {Promise<{ok: boolean}|null>} the dismissal's answer, null when the caster is gone
+ */
+export async function pressDismiss(flag, dataset, deps = {}) {
+  const caster = deps.caster ?? fromUuidSync(flag.casterUuid);
+  if (!caster) return null;
+  const lib = deps.promptDismiss && deps.castSummons ? deps : await import("../lib/summons.mjs");
+  if (dataset.all) return lib.promptDismiss(caster, { ...lib.castSummons(caster, flag.castId, { scenes: game.scenes }), castId: flag.castId });
+  const entry = dataset.tokenUuid ? { tokenUuid: dataset.tokenUuid } : { held: { partyId: dataset.partyId, actorId: dataset.memberId } };
+  return lib.promptDismiss(caster, { entries: [entry], castId: flag.castId });
 }
 
-/** Wire a card's buttons for this seat: Restore and Dismiss for a GM alone, End for the record's owners and GMs. Dismiss is drawn for a GM seat and display only: lib's dismissal decides who may remove. */
+/** Wire a card's buttons for this seat: Restore and Dismiss for a GM alone, End for the record's owners and GMs. Dismiss is drawn for a GM seat and display only: lib's dismissal decides who may remove. A seat that keeps no Dismiss loses the footer that held it, whitespace defeating `:empty`. */
 export function bindCard(message, html) {
   const flag = message?.flags?.[MODULE_ID]?.[CAST_HELD_END_FLAG];
   if (!flag || !html?.querySelectorAll) return;
@@ -466,7 +529,13 @@ export function bindCard(message, html) {
     else {
       button.addEventListener("click", (event) => {
         event.preventDefault();
-        pressDismiss(flag).catch((err) => console.error(`${MODULE_ID} | dismiss failed`, err));
+        pressDismiss(flag, button.dataset)
+          .then((answer) => {
+            if (answer?.ok !== true) return;
+            const rows = button.dataset.all ? (button.closest?.(".acks-extras-cast-held")?.querySelectorAll(`[${DISMISS_ATTR}]`) ?? []) : [button];
+            for (const each of rows) each.disabled = true;
+          })
+          .catch((err) => console.error(`${MODULE_ID} | dismiss failed`, err));
       });
     }
   }
@@ -492,6 +561,8 @@ export function bindCard(message, html) {
       });
     }
   }
+  const foot = html.querySelector?.(".acks-extras-cast-held__foot");
+  if (foot && !foot.children?.length) foot.remove();
 }
 
 let registered = false;

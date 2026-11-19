@@ -9,10 +9,18 @@
  */
 import assert from "node:assert/strict";
 
-globalThis.foundry = { utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) } };
+import fs from "node:fs";
+const Handlebars = (await import("handlebars")).default;
+
+// The card's own template file, compiled as Foundry compiles it: no helper registered beyond the ones core has.
+const CARD = Handlebars.compile(fs.readFileSync(new URL("../templates/magic/cast-held-card.hbs", import.meta.url), "utf8"));
+globalThis.foundry = {
+  utils: { escapeHTML: (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]) },
+  applications: { handlebars: { renderTemplate: async (path, view) => (path.endsWith("cast-held-card.hbs") ? CARD(view) : "") } },
+};
 globalThis.game = { i18n: { format: (key) => key, localize: (key) => key } };
 
-const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
+const { heldStatusOf, heldRecordData, causeOf, heldEndPlan, checkHeldEndRequest, restorePlan, runHeldPlan, endHeldCast, heldEndContent, heldEndView, controlLostLine, pressDismiss, bindCard, HELD_CAUSES } = await import("../scripts/magic/cast-held.mjs");
 const { spellEffectData, spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
 
 let n = 0;
@@ -159,7 +167,7 @@ function funnelDeps({ recipients, relay, canWrite } = {}) {
     },
   };
 }
-const caster = { actorUuid: "Actor.c", name: "Testcaster", spellName: "Testhold", cite: "p. 1", data: dataOf("rk", "x", "Actor.c", "caster") };
+const caster = { actorUuid: "Actor.c", name: "Testcaster", img: "icons/invented-caster.webp", spellName: "Testhold", cite: "p. 1", data: dataOf("rk", "x", "Actor.c", "caster") };
 const held = (tail) => ({ castId: "x", casterUuid: "Actor.c", spellUuid: "Actor.c.Item.s", role: "caster", held: "mobile", ...(tail ? { tail } : {}) });
 
 await ta("the funnel ends what the client can write, relays the rest to the GM's client and posts one card naming all of it", async () => {
@@ -190,6 +198,7 @@ await ta("with no GM connected the records a seat cannot write stay and are list
   flag = await endHeldCast(held({ none: "noFigure" }), { cause: "cast", caster, deps: r.deps });
   assert.deepEqual([r.calls.removed, flag.open.map((o) => o.id)], [[], ["a"]]);
   assert.equal(r.calls.posted.length, 1);
+  assert.equal(r.calls.posted[0].casterImg, "icons/invented-caster.webp", "the caster's portrait rides the flag");
   r = funnelDeps({ recipients: [] });
   await endHeldCast(held(), { cause: "removed", caster, deps: r.deps });
   assert.equal(r.calls.posted.length, 1, "a cast with no recipient still says its concentration ended");
@@ -197,26 +206,41 @@ await ta("with no GM connected the records a seat cannot write stay and are list
 
 const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
 
-t("the card names the cause, lists what ended, what runs on and what stands, with a tooltip on each figure; Restore and End are in its body for the render hook to trim", () => {
-  const html = heldEndContent(FLAG(), loc);
-  assert.ok(html.includes("title|") && html.includes("cause.damage"));
+const count = (html, needle) => html.split(needle).length - 1;
+const SUMMONS = () => [
+  { name: "Invented Wisp", img: "icons/invented-wisp.webp", tokenUuid: "Scene.s1.Token.t1" },
+  { name: "<i>x</i>", img: "", tokenUuid: "Scene.s1.Token.t2" },
+  { name: "Invented Stashed", img: "icons/invented-stashed.webp", held: { partyId: "party1", actorId: "member1" } },
+];
+
+await ta("the card names the cause, lists what ended, what runs on and what stands, with a tooltip on each figure; Restore and End are in its body for the render hook to trim", async () => {
+  const html = await heldEndContent(FLAG(), loc);
+  assert.ok(html.includes("title") && html.includes("byline|") && html.includes("cause.damage"));
+  assert.ok(html.includes("cause.damage (p. 1)"), "with no creature the cause line carries the page reference");
   assert.ok(html.includes("Actor a") && html.includes("Actor b") && html.includes("Actor c"));
   assert.ok(html.includes('data-tooltip-text="tip.retimed|'), "the re-timed figure carries its tooltip");
   assert.ok(html.includes("2 rounds"));
-  assert.ok(html.includes('data-acks-extras-held-end') && html.includes('data-record-id="rc"'));
-  assert.ok(html.includes('data-acks-extras-held-restore') && html.includes('data-tooltip-text="tip.restore"'));
-  const bare = heldEndContent({ ...FLAG(), ended: [], retimed: [], open: [], cause: "mystery" }, loc);
-  assert.ok(bare.includes("cause.removed") && !bare.includes("<section>") && !bare.includes("data-acks-extras-held-end"), "an unknown cause reads as removed, and empty lists draw nothing");
-  assert.ok(!heldEndContent({ ...FLAG(), spellName: "<b>x</b>" }, loc).includes("<b>x</b>"), "names are escaped");
+  assert.ok(html.includes("data-acks-extras-held-end") && html.includes('data-record-id="rc"'));
+  assert.ok(html.includes("data-acks-extras-held-restore") && html.includes('data-tooltip-text="tip.restore"'));
+  assert.equal(count(html, "data-acks-extras-held-dismiss"), 0, "no creature, no Dismiss");
+  assert.ok(!html.includes("controlLost"), "no creature, no control-lost line");
+  const bare = await heldEndContent({ ...FLAG(), ended: [], retimed: [], open: [], cause: "mystery" }, loc);
+  assert.ok(bare.includes("cause.removed") && !bare.includes("<section") && !bare.includes("data-acks-extras-held-end"), "an unknown cause reads as removed, and empty lists draw nothing");
+  assert.ok(!(await heldEndContent({ ...FLAG(), spellName: "<b>x</b>" }, loc)).includes("<b>x</b>"), "names are escaped");
+  assert.ok((await heldEndContent({ ...FLAG(), casterImg: "icons/invented-caster.webp" }, loc)).includes('src="icons/invented-caster.webp"'), "the caster's portrait heads the card");
 });
 
 await ta("a held summons' end lists the cast's standing creatures by name, token and stashed alike, and leaves the flag as it was where none stand", async () => {
   const asked = [];
   const r = funnelDeps({ recipients: [] });
-  r.deps.standing = async (record) => (asked.push(record.castId), { tokens: [{ name: "Invented Wisp" }, { actor: { name: "Invented Sprite" } }], held: [{ name: "Invented Stashed" }] });
+  r.deps.standing = async (record) => (asked.push(record.castId), { tokens: [{ name: "Invented Wisp", uuid: "Scene.s1.Token.t1", texture: { src: "icons/invented-wisp.webp" } }, { actor: { name: "Invented Sprite", img: "icons/invented-sprite.webp" }, uuid: "Scene.s1.Token.t2" }], held: [{ name: "Invented Stashed", img: "", partyId: "party1", actorId: "member1" }] });
   const flag = await endHeldCast(held(), { cause: "damage", caster, deps: r.deps });
   assert.deepEqual(asked, ["x"], "asked of the record's own cast");
-  assert.deepEqual(flag.summons, [{ name: "Invented Wisp" }, { name: "Invented Sprite" }, { name: "Invented Stashed" }]);
+  assert.deepEqual(flag.summons, [
+    { name: "Invented Wisp", img: "icons/invented-wisp.webp", tokenUuid: "Scene.s1.Token.t1" },
+    { name: "Invented Sprite", img: "icons/invented-sprite.webp", tokenUuid: "Scene.s1.Token.t2" },
+    { name: "Invented Stashed", img: "", held: { partyId: "party1", actorId: "member1" } },
+  ]);
   assert.deepEqual(r.calls.removed, [], "the creatures are listed and never removed by the end");
   const none = funnelDeps({ recipients: [] });
   none.deps.standing = async () => ({ tokens: [], held: [] });
@@ -225,35 +249,87 @@ await ta("a held summons' end lists the cast's standing creatures by name, token
   assert.deepEqual([plan.create.length, plan.undo.length, plan.skipped], [1, 0, 0], "Restore puts the record back and has nothing to say of the creatures");
 });
 
-t("the card lists the standing creatures with a Dismiss, drawn only when there are some; every name is escaped", () => {
-  const html = heldEndContent({ ...FLAG(), summons: [{ name: "Invented Wisp" }, { name: "<i>x</i>" }] }, loc);
-  assert.ok(html.includes("summons") && html.includes("Invented Wisp"));
-  assert.ok(html.includes("data-acks-extras-held-dismiss") && html.includes('data-tooltip-text="tip.dismiss"'));
-  assert.ok(!html.includes("<i>x</i>"), "escaped");
-  assert.ok(!heldEndContent(FLAG(), loc).includes("data-acks-extras-held-dismiss"), "no creature, no Dismiss");
+t("the control-lost line is one function of the outcome: stays is built, any other outcome draws nothing", () => {
+  assert.equal(controlLostLine("stays", loc), "controlLost.stays");
+  assert.equal(controlLostLine(undefined, loc), "controlLost.stays", "stays is the default");
+  assert.equal(controlLostLine("gone", loc), "");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS() }, loc).controlLost, "controlLost.stays (p. 1)");
+  assert.equal(heldEndView({ ...FLAG(), summons: SUMMONS(), outcome: "gone" }, loc).controlLost, "", "an unbuilt outcome writes no line");
 });
 
-t("on a seat, Dismiss is kept for a GM seat alone, whoever owns the caster; Restore follows the same seat, and the lib dismissal is what decides who may remove", () => {
-  const button = () => ({ removed: false, listeners: 0, remove() { this.removed = true; }, addEventListener() { this.listeners += 1; } });
+await ta("the card lists the standing creatures, a Dismiss on each row and one for all, the page reference once on the control-lost line; every name is escaped", async () => {
+  const html = await heldEndContent({ ...FLAG(), summons: SUMMONS() }, loc);
+  assert.equal(count(html, "data-acks-extras-held-dismiss"), 4, "one per creature, and one for the whole cast");
+  assert.equal(count(html, 'data-all="1"'), 1);
+  assert.ok(html.includes("summons") && html.includes("Invented Wisp") && html.includes("Invented Stashed"));
+  assert.ok(html.includes('data-token-uuid="Scene.s1.Token.t1"') && html.includes('data-party-id="party1"') && html.includes('data-member-id="member1"'), "each Dismiss names its creature");
+  assert.ok(html.includes('src="icons/invented-wisp.webp"') && html.includes("fa-ghost"), "token art, and a glyph where a creature has none");
+  assert.ok(html.includes("aria.dismiss|") && html.includes("Invented Wisp&quot;}") && html.includes('data-tooltip-text="tip.dismiss|'), "a name and a tooltip on each");
+  assert.ok(html.includes("controlLost.stays (p. 1)") && !html.includes("cause.damage (p. 1)"), "the page reference is on the control-lost line alone");
+  assert.ok(html.includes("data-acks-extras-held-restore"), "Restore stays beside Dismiss all");
+  assert.ok(!html.includes("<i>x</i>"), "escaped");
+  assert.ok(html.includes("acks-extras-bucket__row"), "the rows are lib's bucket rows");
+  assert.ok(!/\sid=/.test(html), "no id is drawn, so two copies of the card never share one");
+});
+
+const press = async (flag, dataset) => {
+  const calls = [];
+  const lib = {
+    caster: { uuid: "Actor.c" },
+    castSummons: (caster, castId) => (calls.push(["castSummons", caster.uuid, castId]), { tokens: [{ id: "t1" }], held: [{ partyId: "party1", actorId: "member1" }] }),
+    promptDismiss: async (caster, options) => (calls.push(["promptDismiss", caster.uuid, options]), { ok: true, deleted: 1 }),
+  };
+  globalThis.game.scenes = ["scenes"];
+  const answer = await pressDismiss(flag, dataset, lib);
+  return { calls, answer };
+};
+
+await ta("a row's Dismiss asks the dismissal for that creature alone, of this cast; Dismiss all asks for every creature of the cast", async () => {
+  const flag = { ...FLAG(), summons: SUMMONS() };
+  const token = await press(flag, { tokenUuid: "Scene.s1.Token.t1" });
+  assert.deepEqual(token.calls, [["promptDismiss", "Actor.c", { entries: [{ tokenUuid: "Scene.s1.Token.t1" }], castId: "x" }]]);
+  assert.equal(token.answer.ok, true);
+  const stashed = await press(flag, { partyId: "party1", memberId: "member1" });
+  assert.deepEqual(stashed.calls, [["promptDismiss", "Actor.c", { entries: [{ held: { partyId: "party1", actorId: "member1" } }], castId: "x" }]]);
+  const all = await press(flag, { all: "1" });
+  assert.deepEqual(all.calls, [["castSummons", "Actor.c", "x"], ["promptDismiss", "Actor.c", { tokens: [{ id: "t1" }], held: [{ partyId: "party1", actorId: "member1" }], castId: "x" }]]);
+  globalThis.fromUuidSync = () => null;
+  const gone = await pressDismiss(flag, { all: "1" }, { promptDismiss: async () => assert.fail("no caster, no dismissal"), castSummons: () => assert.fail("no caster, no dismissal") });
+  assert.equal(gone, null, "a caster no longer in the world dismisses nothing");
+  delete globalThis.fromUuidSync;
+  delete globalThis.game.scenes;
+});
+
+await ta("on a seat, Dismiss and Dismiss all are kept for a GM seat alone, whoever owns the caster; Restore follows the same seat, and the lib dismissal is what decides who may remove", async () => {
+  const html0 = await heldEndContent({ ...FLAG(), summons: SUMMONS() }, loc);
+  const asked = [];
+  const button = (attrs = {}) => ({ removed: false, listeners: 0, dataset: attrs, remove() { this.removed = true; }, addEventListener() { this.listeners += 1; } });
   const seat = (isGM, owner) => {
     globalThis.game.user = { isGM };
     globalThis.fromUuidSync = () => ({ isOwner: owner });
-    const dismiss = button();
+    const dismiss = [button({ tokenUuid: "a" }), button({ tokenUuid: "b" }), button({ partyId: "p", memberId: "m" }), button({ all: "1" })];
     const restore = button();
-    const end = button();
-    end.dataset = { actorUuid: "Actor.c2" };
-    const message = { flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: [{ name: "Invented Wisp" }] } } } };
-    const html = { querySelectorAll: (sel) => (sel.includes("dismiss") ? [dismiss] : sel.includes("restore") ? [restore] : [end]) };
+    const end = button({ actorUuid: "Actor.c2" });
+    const foot = { removed: false, children: isGM ? [{}, {}] : [], remove() { this.removed = true; } };
+    const message = { flags: { "acks-extras": { castHeldEnd: { ...FLAG(), summons: SUMMONS() } } } };
+    const html = {
+      querySelectorAll: (sel) => (asked.push(sel), sel.includes("dismiss") ? dismiss : sel.includes("restore") ? [restore] : [end]),
+      querySelector: () => foot,
+    };
     bindCard(message, html);
-    return { dismiss, restore, end };
+    return { dismiss, restore, end, foot };
   };
   const gm = seat(true, false);
-  assert.deepEqual([gm.dismiss.removed, gm.dismiss.listeners], [false, 1], "a GM seat keeps Dismiss and wires it");
+  assert.deepEqual(gm.dismiss.map((d) => [d.removed, d.listeners]), [[false, 1], [false, 1], [false, 1], [false, 1]], "a GM seat keeps every Dismiss and wires it");
+  assert.equal(gm.foot.removed, false);
   const owner = seat(false, true);
-  assert.deepEqual([owner.dismiss.removed, owner.dismiss.listeners], [true, 0], "an owner's seat is not a GM's: Dismiss is removed");
-  assert.equal(owner.end.removed, false, "End keeps its own owner test, which Dismiss does not copy");
+  assert.deepEqual(owner.dismiss.map((d) => [d.removed, d.listeners]), [[true, 0], [true, 0], [true, 0], [true, 0]], "an owner's seat is not a GM's: every Dismiss is removed");
+  assert.deepEqual([owner.restore.removed, owner.end.removed], [true, false], "End keeps its own owner test, which Dismiss does not copy");
+  assert.equal(owner.foot.removed, true, "the footer Restore and Dismiss all left is taken away empty");
   const other = seat(false, false);
-  assert.equal(other.dismiss.removed, true);
+  assert.ok(other.dismiss.every((d) => d.removed));
+  assert.ok(asked.includes("[data-acks-extras-held-dismiss]"), "the hook asks for the attribute the template draws");
+  for (const attr of ["data-acks-extras-held-dismiss", "data-acks-extras-held-restore", "data-acks-extras-held-end"]) assert.ok(html0.includes(attr), `the template draws ${attr}`);
   delete globalThis.game.user;
   delete globalThis.fromUuidSync;
 });

@@ -59,7 +59,8 @@ import { placeOf, kindOf, rowOpens, rowResisted, livesKind, entryOf, pickWeapon,
 import { targetGate, noSaveResist } from "./cast-gates.mjs";
 import { levelUnder } from "./spell-names.mjs";
 import { isSummonSpell, resolveSummonRef } from "./summon-spell.mjs";
-import { summonRowsOf, summonCeilingFor, summonIsCalling } from "./cast-summon.mjs";
+import { summonRowsOf, summonOffer, judgeSummon } from "./cast-summon.mjs";
+import { displayDuration } from "./spell-logic.mjs";
 import { byCookbookId, cookbookId, whenReady } from "../lib/library.mjs";
 import { addSpellUseClaimant, removeSpellUseClaimant } from "../lib/patches/spell-use.mjs";
 import { MAGIC_ATTACK_TYPE, spellCarrier, magicDamageSpec, actorToken, addAttackContributor } from "../lib/patches/attack-throw.mjs";
@@ -121,15 +122,19 @@ export function castTimeOf(spell, lookups) {
  * where it does not.
  */
 export function castDurationOf(spell, lookups, level, roll, mode = CAST_MODES.normal) {
+  return castDuration(durationShapeOf(spell, lookups, mode), { casterLevel: level, roll });
+}
+
+/** The duration object a cast reads (the spell's own, else its twin's; the reverse's in the reversed mode where it prints one): the imported shape, not yet resolved at a level. */
+export function durationShapeOf(spell, lookups, mode = CAST_MODES.normal) {
   const own = flagOf(spell);
   const id = spell.flags?.[MODULE_ID]?.cookbook?.id;
   const twin = id ? lookups?.byCookbookId?.("Item", id) : null;
   if (mode === CAST_MODES.reversed) {
     const reverse = own.reversedDuration?.shape ? own.reversedDuration : flagOf(twin).reversedDuration;
-    if (reverse?.shape) return castDuration(reverse, { casterLevel: level, roll });
+    if (reverse?.shape) return reverse;
   }
-  const duration = own.duration?.shape ? own.duration : (flagOf(twin).duration ?? own.duration);
-  return castDuration(duration, { casterLevel: level, roll });
+  return own.duration?.shape ? own.duration : (flagOf(twin).duration ?? own.duration);
 }
 
 /**
@@ -519,6 +524,7 @@ const liveDeps = () => ({
   declare: liveDeclare(),
   // A summoning's creature prompt, the ref's creature, lib's pre-click checks, the seat's clicks and the placement (`lib/summons.mjs`, loaded where a summoning is cast).
   pickSummon: async (caster, o) => (await import("../lib/summons.mjs")).pickSummon(caster, o),
+  summonShelves: async () => (await import("../lib/summons.mjs")).summonShelves(),
   resolveRef: (ref) => resolveSummonRef(ref, { fromUuid: (uuid) => fromUuid(uuid), byCookbookId }),
   summonVerdict: async (caster, o) => {
     const lib = await import("../lib/summons.mjs");
@@ -746,10 +752,24 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     deps.notify(gone.length ? "warn" : "info", why, { name: caster.name, n: gone.length });
   }
   const gateExtras = (inv = startInv) => castGateExtrasOf(spell, deps.lookups, atFor(modeKeys[0], inv));
+  // A summoning's creatures: its rows' own, each resolved once, else the shelves the seat can open. The dialog's Summon band offers them and answers one.
+  const summoning = isSummonSpell(spell) && !fromProject;
+  const summonRows = summoning ? summonRowsOf(spell, deps.lookups) : [];
+  const offer = summoning ? await summonOffer(summonRows, { resolveRef: deps.resolveRef, shelves: deps.summonShelves }) : null;
+  // A Player's creatures are made by the GM's client: with none connected the placement would be refused after the spend. A Judge's own seat needs no relay.
+  const gmMissing = () => !deps.isGM() && Boolean(deps.gmOnline) && !deps.gmOnline();
+  const noGm = () => ({ reason: "noGm", notice: loc("notice.summonNoGm") });
+  // The pick as the band holds it, weighed at the level and invocation level the seat holds, for the dialog's footer: the reading the confirm takes, less lib's own checks (they wait for the click).
+  const summonAt = (picked, { mode: form, level: levelValue, inv, declaring = false }) => ({
+    ...judgeSummon(summonRows, picked, { source: picked.source ?? null, level: levelValue, at: { invocationLevel: inv }, refused: !declaring && gmMissing() ? noGm() : null }),
+    range: rangeFeet(figuresAt(form ?? modeKeys[0], inv).range, levelValue)?.value ?? null,
+  });
   const askContext = () => ({
     spell,
     caster,
     moment,
+    // A summoning's creatures and the judge of a pick; null where the cast summons nothing.
+    summon: summoning ? { creatures: offer.creatures, shelves: offer.shelves, at: summonAt } : null,
     // Where the cast falls with the seat's own answer (the procedure's casting time can lengthen it past a round).
     momentAt: (mode, levelValue, praw, inv = startInv) => momentAt(mode ?? modeKeys[0], inv, levelValue ?? known.value, praw ?? declared?.procedure ?? {}),
     // The tradition's procedure as the dialog draws it: its fields, the answer they make and its band, read against the seat's answer so far (and the invocation level it holds); null where the tradition has none.
@@ -813,9 +833,8 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   if (!storedFits) seat = readSeat();
 
   // A summoning's pick: the answer's own, else the declaration's, else the shelf prompt. A cancel ends the cast with nothing spent.
-  const summonRows = isSummonSpell(spell) && !fromProject ? summonRowsOf(spell, deps.lookups) : [];
   let pick = null;
-  if (isSummonSpell(spell) && !fromProject) {
+  if (summoning) {
     pick = ANSWER_FIELDS.summon(answer.summon ?? declared?.summon);
     if (!pick) {
       const chosen = await deps.pickSummon?.(caster, { spell, options: summonRows, resolveRef: deps.resolveRef });
@@ -824,18 +843,13 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
     if (!pick) return { ok: false, reason: "cancelled" };
     answer = { ...answer, summon: pick };
   }
-  // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (none in a declaring, which places nothing, or where the seat cannot ask).
-  const summonJudged = async ({ pick: picked, rows, level: casterLvl, at: invAt, declaring }) => {
-    const creature = { source: (await deps.resolveRef?.(picked.ref)) ?? null, sourceRef: picked.ref };
+  // The pick weighed: its count against the ceiling the rows state at this caster level, whether the creature is called from where it stands, and the refusal lib gives a request before any click (none in a declaring, which places nothing, or where the seat cannot ask). The creature's name is the card's.
+  const summonJudged = async ({ pick: picked, level: casterLvl, at: invAt, declaring }) => {
+    const source = (await deps.resolveRef?.(picked.ref)) ?? null;
     let asked = declaring || !deps.summonVerdict ? { ok: true } : await deps.summonVerdict(caster, { sourceUuid: picked.ref, count: picked.count, spellId: spell.id });
-    // A Player's creatures are made by the GM's client: with none connected the placement would be refused after the spend, so it is refused here. A Judge's own seat needs no relay.
-    if (asked?.ok !== false && !declaring && !deps.isGM() && deps.gmOnline && !deps.gmOnline()) asked = { ok: false, reason: "noGm", notice: loc("notice.summonNoGm") };
-    return {
-      count: picked.count,
-      ceiling: summonCeilingFor(rows, { ...creature, level: casterLvl, at: invAt }),
-      calling: summonIsCalling(rows, creature),
-      refused: asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null,
-    };
+    if (asked?.ok !== false && !declaring && gmMissing()) asked = { ok: false, ...noGm() };
+    const refused = asked?.ok === false ? { reason: asked.reason, notice: asked.notice || asked.reason } : null;
+    return { ...judgeSummon(summonRows, picked, { source, level: casterLvl, at: invAt, refused }), name: String(source?.name ?? offer.creatures.find((c) => c.value === picked.ref)?.name ?? "").trim() };
   };
 
   const mode =modeKeys.includes(answer.mode) ? answer.mode : CAST_MODES.normal;
@@ -851,7 +865,7 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   moment = momentAt(mode, invocation.value, level.value, answer.procedure);
   const procedureAnswer = procViewAt(mode, invocation.value, level.value, answer.procedure, moment)?.answer ?? {};
   // A summoning's creature and count, judged on the final answer: the ceiling at this caster level, and lib's own refusal before any click. Nothing is placed in a declaring, so lib's checks wait for the turn.
-  const summon = pick ? await summonJudged({ pick, rows: summonRows, level: level.value, at, declaring: moment === MOMENT.declare }) : null;
+  const summon = pick ? await summonJudged({ pick, level: level.value, at, declaring: moment === MOMENT.declare }) : null;
   const verdicts = verdictsFor(mode, answer.picks, level.value, answer.allocation, invocation.value, answer.procedure, summon);
   const stop = verdicts.find((v) => v.severity === "block");
   const detail = (v) => ({ name: caster.name, names: (v.out ?? []).map((t) => t.name).join(", "), max: v.max ?? "", over: v.over ?? "" });
@@ -950,8 +964,15 @@ export async function castSpellRun(spell, spend, deps = liveDeps(), options = {}
   let placed = null;
   if (positions) {
     placed = await stepOf("summon")({ caster, spell, castId, pick, positions, cast: { castId, casterLevel: level.value, invocationLevel: invocation.value }, rangeFeet: rangeLimit, calling: summon.calling, casterToken: world.casterToken ?? null, card }, deps);
-    if (placed?.ok) card.lines.push(loc("line.summonPlaced", { n: placed.tokenUuids?.length ?? positions.length }));
-    else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
+    if (placed?.ok) {
+      // The line names the creature, how many stand and how long the spell lasts; any click that made no creature is its own line.
+      const made = placed.tokenUuids?.length ?? positions.length;
+      // The spell's own printed length (a level-scaled or concentration one reads as written), none for an instant.
+      const shape = durationShapeOf(spell, deps.lookups, mode);
+      const lasts = shape?.shape === "instantaneous" ? "" : displayDuration(shape);
+      card.lines.push(loc(lasts ? "line.summoned" : "line.summonedOpen", { name: summon.name || loc("dialog.summonCreature"), n: made, duration: lasts }));
+      if (made < positions.length) card.lines.push(loc("line.summonShort", { n: positions.length - made }));
+    } else card.lines.push(placed?.reason === "noGm" || !placed ? loc("line.summonNoGm") : loc("line.summonRefused", { reason: placed.notice || placed.reason || "" }));
   }
   for (const keyed of kept) {
     const { row } = keyed;

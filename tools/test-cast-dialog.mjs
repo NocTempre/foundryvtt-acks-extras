@@ -400,6 +400,37 @@ await ta("Cast answers the state once, a blocked Player's Cast answers nothing, 
   assert.equal(await stopped, null);
 });
 
+await ta("the Summon band's controls are read from the page: a new creature drops the typed count, the same creature keeps it, the footer judges the pick before Cast, and the answer carries it", async () => {
+  CastDialog.instances.length = 0;
+  hooks.clear();
+  const seen = [];
+  const creatures = [{ value: "uA", name: "Alpha", amount: 2, source: null }, { value: "uB", name: "Beta", amount: 3, source: null }];
+  const summon = { creatures, shelves: [], at: (pick) => ({ count: pick.count, ceiling: 4, calling: false, refused: null, range: 20 }) };
+  const ctx = baseCtx({ summon, verdictsAt: (...args) => (seen.push(args), args[6]?.count > args[6]?.ceiling ? [{ key: "summonCount", severity: "block", max: 4, over: args[6].count - 4 }] : []) });
+  const asked = CastDialog.wait(ctx);
+  await settle(5);
+  const [dialog] = CastDialog.instances;
+  const fieldsOf = (values) => (selector) => values[/name="(\w+)"/.exec(selector)?.[1]] ?? null;
+  dialog.element.querySelector = fieldsOf({ summonRef: { value: "uB" }, summonCount: { value: "9" } });
+  const { actions } = CastDialog.DEFAULT_OPTIONS;
+  // The creature changed from the first offered: the typed 9 belongs to Alpha, so Beta's own 3 stands.
+  actions.cast.call(dialog, {}, {});
+  assert.deepEqual(seen.at(-1)[6], { count: 3, ceiling: 4, calling: false, refused: null, range: 20 }, "the footer was judged on the pick the page holds");
+  assert.deepEqual((await asked).summon, { ref: "uB", count: 3 });
+  // The same creature: the typed count is kept, and a count over the ceiling blocks Cast with the verdict in the footer.
+  CastDialog.instances.length = 0;
+  const again = CastDialog.wait(ctx);
+  await settle(5);
+  const [second] = CastDialog.instances;
+  second.element.querySelector = fieldsOf({ summonRef: { value: "uA" }, summonCount: { value: "9" } });
+  actions.cast.call(second, {}, {});
+  assert.equal(second.closed, false, "a Player over the ceiling cannot cast");
+  await second.render();
+  assert.deepEqual([second.last.summon.count.over, second.last.summon.count.value, second.last.footer.verdicts.map((v) => v.severity)], [true, 9, ["block"]]);
+  actions.cancel.call(second, {}, {});
+  assert.equal(await again, null);
+});
+
 /* ------------------------------------------------------------------ */
 /*  The cast reads the bucket after the answer                         */
 /* ------------------------------------------------------------------ */

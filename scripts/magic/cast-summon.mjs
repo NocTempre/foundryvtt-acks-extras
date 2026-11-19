@@ -17,7 +17,7 @@ import { isSummonSpell, summonOptionsOf, libraryTwin } from "./summon-spell.mjs"
 import { flattenAt } from "./cast-rows.mjs";
 import { modifierFigure } from "./cast-mods.mjs";
 import { byCookbookId, cookbookId } from "../lib/library.mjs";
-import { normalizeRef, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
+import { normalizeRef, offerRows, registerSummonPolicy, registerSummonNaming, bareSummonAllowed } from "../lib/summons-logic.mjs";
 
 /** The world lookups the rows and the twin need, as the live world gives them. */
 const worldLookups = () => ({ byCookbookId, fromUuidSync: (uuid) => fromUuidSync(uuid) });
@@ -110,6 +110,43 @@ export function summonCeilingFor(rows, { source = null, sourceRef = "", level = 
 export function summonIsCalling(rows, creature) {
   const fitting = summonFitting(rows, creature);
   return fitting.length > 0 && fitting.every((row) => row.summonFormat === CALLING_FORMAT);
+}
+
+/**
+ * The creatures the cast dialog's Summon band offers: each row's creature as
+ * lib's `offerRows` reads it (the seat's own resolution, else the ref passed
+ * through under the row's imported name), each with the document it resolved
+ * to (`source`, null where the seat could not open it). A spell with no
+ * offerable row offers the shelves the seat can open instead, since the policy
+ * refuses a creature the rows do not name only where a row names one.
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{resolveRef?: (ref: string) => Promise<object|null>, shelves?: () => Promise<object[]>|object[]}} deps
+ * @returns {Promise<{creatures: {value: string, name: string, amount: number, passed: boolean, source: object|null}[], shelves: {label: string, entries: {uuid: string, name: string}[]}[]}>}
+ */
+export async function summonOffer(rows, { resolveRef, shelves } = {}) {
+  const resolved = [];
+  for (const row of rows) {
+    const ref = String(row?.ref ?? "").trim();
+    resolved.push(ref && resolveRef ? await Promise.resolve(resolveRef(ref)).catch(() => null) : null);
+  }
+  const creatures = offerRows(rows, resolved).map((offer) => ({ ...offer, source: offer.passed ? null : (resolved.find((doc) => doc?.uuid === offer.value) ?? null) }));
+  return { creatures, shelves: creatures.length ? [] : ((await shelves?.()) ?? []) };
+}
+
+/**
+ * A pick weighed against the rows: its count, the ceiling the rows that fit
+ * the creature state at the caster level (and invocation level), whether the
+ * creature is called from where it stands, and the refusal handed in. The one
+ * reading the dialog's footer and the cast's confirm both take, so the two
+ * cannot drift.
+ * @param {object[]} rows  `summonRowsOf`'s
+ * @param {{ref: string, count: number}} pick
+ * @param {{source?: object|null, level?: number|null, at?: object|null, refused?: {reason: string, notice: string}|null}} [from]
+ * @returns {{count: number, ceiling: number|null, calling: boolean, refused: {reason: string, notice: string}|null}}
+ */
+export function judgeSummon(rows, pick, { source = null, level = null, at = null, refused = null } = {}) {
+  const creature = { source, sourceRef: pick.ref };
+  return { count: pick.count, ceiling: summonCeilingFor(rows, { ...creature, level, at }), calling: summonIsCalling(rows, creature), refused };
 }
 
 /**

@@ -6,15 +6,20 @@
  * an invocation level, the verdicts that block a Player and warn a Judge, the
  * range and calling handed to lib, a refusal after the spend, a declared
  * summons, the end a record announces, and the policy that reads the same
- * ceiling. The summon band is not built yet, so the answer's `summon` is fed by
- * the test, or by the existing shelf prompt. Foundry-free; every spell, creature
+ * ceiling. The cast dialog's Summon band supplies the answer's `summon` (its
+ * model is walked at the end: the offer, the ceiling and its tooltip, the
+ * placement line, the footer's verdicts per seat, the answer); an answer with
+ * none falls to the existing shelf prompt. Foundry-free; every spell, creature
  * and figure below is invented, so this file carries no book content.
  *
  * Usage: node tools/test-cast-summon.mjs
  */
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
-globalThis.foundry = { utils: { escapeHTML: (s) => String(s) } };
+const Handlebars = (await import("handlebars")).default;
+const HELD_CARD = Handlebars.compile(fs.readFileSync(new URL("../templates/magic/cast-held-card.hbs", import.meta.url), "utf8"));
+globalThis.foundry = { utils: { escapeHTML: (s) => String(s) }, applications: { handlebars: { renderTemplate: async (_path, view) => HELD_CARD(view) } } };
 globalThis.game = { i18n: { format: (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key), localize: (key) => key } };
 globalThis.Roll = class {
   constructor(formula) {
@@ -33,7 +38,7 @@ const { summonCeiling, summonCeilingFor, summonIsCalling, summonRefusal, summonR
 const { castVerdicts, VERDICT } = await import("../scripts/magic/cast-plan.mjs");
 const { ANSWER_FIELDS, answerStored, answerFromPending } = await import("../scripts/magic/cast-declare.mjs");
 const { registerCastProcedure } = await import("../scripts/magic/cast-procedure.mjs");
-const { heldRecordData } = await import("../scripts/magic/cast-held.mjs");
+const { heldRecordData, endHeldCast, heldEndContent, pressDismiss } = await import("../scripts/magic/cast-held.mjs");
 const { castDuration } = await import("../scripts/magic/cast-duration.mjs");
 const { stepOf } = await import("../scripts/magic/cast-kinds.mjs");
 const { spellEffectOf } = await import("../scripts/magic/spell-effect.mjs");
@@ -163,7 +168,7 @@ await ta("the order: dialog and verdicts, the clicks, the spend and the pool, th
   assert.deepEqual(r.calls.verdicts, [{ sourceUuid: REF, count: 2, spellId: "sp1" }], "lib's checks answer before anything is spent");
   assert.deepEqual(r.calls.clicked[0], { sourceUuid: REF, count: 2, spellId: "sp1", rangeFeet: null, calling: false, casterToken: CASTER_TOKEN });
   assert.equal(spellEffectOf(r.calls.records[0]).castId, "castX", "the record carries the id the creatures carry");
-  assert.ok(r.calls.posts[0].lines.includes("ACKS-MAGIC.cast.line.summonPlaced|{\"n\":2}"));
+  assert.ok(r.calls.posts[0].lines.includes("ACKS-MAGIC.cast.line.summoned|{\"name\":\"Glimmerkin\",\"n\":2,\"duration\":\"2 hours\"}"), "the card names the creature, how many stood and how long");
   assert.equal(out.placed.ok, true);
 });
 
@@ -449,6 +454,41 @@ await ta("a held summons writes the record heldRecordData returns, whatever its 
   assert.deepEqual(r.calls.records[0].statuses, ["concentratingStationary"]);
 });
 
+await ta("a held summons' end card lists the creatures the cast placed, and each row's Dismiss names that creature and that cast", async () => {
+  const imported = { shape: "concentrationMax", concentration: "stationary", value: 1, unit: "hours" };
+  const r = runDeps({ answer: answerOf() });
+  const spell = makeSpell({ extra: { duration: imported } });
+  await cast(spell, r);
+  const castId = r.calls.placed[0].castId;
+  const placed = r.calls.placed.length ? ["Scene.s1.Token.t0", "Scene.s1.Token.t1"] : [];
+  const record = spellEffectOf(r.calls.records[0]);
+  const posted = [];
+  const flag = await endHeldCast(record, {
+    cause: "damage",
+    caster: { actorUuid: spell.parent.uuid, name: "Invented Caster", img: "", spellName: spell.name, cite: "", data: r.calls.records[0] },
+    deps: {
+      now: () => 99,
+      recipients: async () => [],
+      canWrite: () => true,
+      remove: async () => true,
+      retime: async () => {},
+      post: async (f) => posted.push(f),
+      standing: async (rec) => ({ tokens: placed.map((uuid, i) => ({ uuid, name: `Invented Hound ${i}`, texture: { src: "icons/invented-hound.webp" } })), held: rec.castId === castId ? [] : [{ name: "wrong cast" }] }),
+    },
+  });
+  assert.deepEqual(flag.summons.map((c) => c.tokenUuid), placed, "the card lists what the cast placed, by the ids it placed them with");
+  const loc = (key, data) => (data ? `${key}|${JSON.stringify(data)}` : key);
+  const html = await heldEndContent(flag, loc);
+  assert.equal(html.split("data-acks-extras-held-dismiss").length - 1, 3, "a Dismiss on each creature and one for the cast");
+  assert.ok(html.includes('data-token-uuid="Scene.s1.Token.t0"') && html.includes('data-token-uuid="Scene.s1.Token.t1"'));
+  const asked = [];
+  const lib = { caster: spell.parent, castSummons: () => ({}), promptDismiss: async (caster, o) => (asked.push([caster.uuid, o]), { ok: true }) };
+  await pressDismiss(flag, { tokenUuid: "Scene.s1.Token.t1" }, lib);
+  assert.deepEqual(asked, [[spell.parent.uuid, { entries: [{ tokenUuid: "Scene.s1.Token.t1" }], castId: flag.castId }]]);
+  assert.equal(flag.castId, castId, "the cast id the creatures were placed with");
+  assert.deepEqual(r.calls.placed.length, 1, "Restore and the end place nothing more");
+});
+
 await ta("any other summons is core-timed with no startTime of this module's own, at the caster level; an untimed one carries no duration", async () => {
   const written = async (extra, level) => {
     const r = runDeps({ answer: answerOf(level ? { casterLevel: level } : {}) });
@@ -560,6 +600,145 @@ await ta("through the seam: the system's cast runs once, only after the clicks, 
     if (prior.CONFIG === undefined) delete globalThis.CONFIG;
     if (prior.libWrapper) globalThis.libWrapper = prior.libWrapper;
   }
+});
+
+/* ------------------------------------------------------------------ */
+/*  The Summon band                                                   */
+/* ------------------------------------------------------------------ */
+
+const model = await import("../scripts/magic/apps/cast-dialog-model.mjs");
+const bandCite = { cite: "RR 1" };
+
+/** The context a run's dialog is asked with, the dialog cancelling so nothing is cast. */
+const askedWith = async (spell, over = {}) => {
+  const seen = [];
+  const r = runDeps({ answer: null, ...over });
+  r.deps.ask = async (ctx) => (seen.push(ctx), null);
+  await cast(spell, r);
+  return seen[0];
+};
+/** What the footer of the dialog says of a state: the verdicts as [severity, text] and whether Cast is blocked. */
+const footerOf = (ctx, state) => {
+  const view = model.dialogContext(ctx, state);
+  return { view, verdicts: view.footer.verdicts.map((v) => [v.severity, v.text]), blocked: view.footer.blocked };
+};
+
+await ta("the band offers the row's creature by its resolved name and reads its count and ceiling at the level the seat holds; the ceiling's tooltip names the figure, the creature, the caster level and the page", async () => {
+  const spell = makeSpell({ rows: [row({ amount: 2, max: perLevel(2, 2) })], extra: bandCite });
+  const ctx = await askedWith(spell);
+  assert.deepEqual(ctx.summon.creatures.map((c) => [c.value, c.name, c.amount, c.source === GLIMMER]), [[GLIMMER.uuid, "Glimmerkin", 2, true]]);
+  const { view } = footerOf(ctx, { casterLevel: "3" });
+  const band = view.summon;
+  assert.deepEqual([band.show, band.none, band.creature.options], [true, false, [{ value: GLIMMER.uuid, label: "Glimmerkin", selected: true }]]);
+  assert.deepEqual([band.count.value, band.count.of, band.count.over], [2, 'ACKS-MAGIC.cast.dialog.summonOf|{"max":6}', false], "the row's own count opens, beside the ceiling at level 3");
+  assert.equal(band.count.tip, 'ACKS-MAGIC.cast.tip.summonCeiling|{"max":6,"name":"Glimmerkin","level":3,"cite":" (RR 1)"}');
+  assert.equal(model.dialogContext(ctx, { casterLevel: "5" }).summon.count.of, 'ACKS-MAGIC.cast.dialog.summonOf|{"max":10}', "each level reads its own");
+  assert.deepEqual(model.answerOf(ctx, { casterLevel: "3" }).summon, { ref: GLIMMER.uuid, count: 2 });
+  assert.deepEqual(model.answerOf(ctx, { summon: { ref: GLIMMER.uuid, count: "4" } }).summon, { ref: GLIMMER.uuid, count: 4 }, "a typed count is the answer's");
+});
+
+await ta("a creature the seat cannot open is offered by the row's name, else Creature n; a spell with no rows offers the shelf and its ceiling stays blank", async () => {
+  let ctx = await askedWith(makeSpell({ rows: [row({ ref: "def.invented.far", name: "Far hound" }), row({ ref: "def.invented.unseen", amount: 1 })] }), {});
+  assert.deepEqual(model.dialogContext(ctx, {}).summon.creature.options.map((o) => o.label), ["Far hound", 'ACKS-LIB.summons.creatureN|{"n":2}']);
+  const shelves = [{ label: "Invented shelf", entries: [{ uuid: "Compendium.invented.Actor.z", name: "Zebra" }] }];
+  const seen = [];
+  const r = runDeps({ answer: null });
+  r.deps.summonShelves = async () => shelves;
+  r.deps.ask = async (c) => (seen.push(c), null);
+  await cast(makeSpell({ rows: [] }), r);
+  const band = model.dialogContext(seen[0], {}).summon;
+  assert.deepEqual([band.creature.options, band.creature.groups.map((g) => [g.label, g.options.map((o) => o.value)])], [[], [["Invented shelf", ["Compendium.invented.Actor.z"]]]]);
+  assert.deepEqual(model.answerOf(seen[0], {}).summon, { ref: "Compendium.invented.Actor.z", count: 1 });
+  assert.equal(band.count.of, "");
+  ctx = await askedWith(makeSpell({ rows: [] }), {});
+  assert.deepEqual([model.dialogContext(ctx, {}).summon.none, "summon" in model.answerOf(ctx, {})], [true, false], "nothing to offer: no answer, so the cast asks with the shelf prompt");
+});
+
+await ta("a blank ceiling shows the page reference alone, and no count is held against it", async () => {
+  const ctx = await askedWith(makeSpell({ rows: [row({ amount: 0 })], extra: bandCite }));
+  const band = model.dialogContext(ctx, { summon: { ref: GLIMMER.uuid, count: "9" } }).summon;
+  assert.deepEqual([band.count.of, band.count.tip, band.count.over], ["", "RR 1", false]);
+  assert.deepEqual(footerOf(ctx, { summon: { ref: GLIMMER.uuid, count: "9" } }).verdicts, []);
+  const bare = model.dialogContext(await askedWith(makeSpell({ rows: [row({ amount: 0 })] })), {}).summon;
+  assert.equal(bare.count.tip, "", "with no reference either, there is none to show");
+});
+
+await ta("the placement line reads the spell's range in feet from the caster, a calling arrives on its own, and a spell stating no range says how the places are chosen", async () => {
+  const at = async (rows, extra, level = "3") => model.dialogContext(await askedWith(makeSpell({ rows, extra: { ...bandCite, ...extra } })), { casterLevel: level }).summon.placement;
+  let placement = await at([row()], { range: { shape: "distancePerLevel", value: 10, unit: "feet" } });
+  assert.deepEqual([placement.text, placement.tip], ['ACKS-MAGIC.cast.dialog.summonWithin|{"feet":30,"name":"Invented Caster"}', 'ACKS-MAGIC.cast.tip.summonRange|{"feet":30,"level":3,"cite":" (RR 1)"}']);
+  placement = await at([row({ summonFormat: "calling" })], { range: { shape: "distance", value: 30, unit: "feet" } });
+  assert.deepEqual([placement.text, placement.tip], ["ACKS-MAGIC.cast.dialog.summonCalled|{}", ""]);
+  placement = await at([row()], {});
+  assert.deepEqual([placement.text, placement.tip], ["ACKS-MAGIC.cast.dialog.summonOpen|{}", "RR 1"]);
+});
+
+await ta("the footer carries the count's verdict before the confirm: it blocks a Player's Cast and only warns a Judge's, with the page on its tooltip", async () => {
+  const spell = () => makeSpell({ rows: [row({ amount: 2, max: perLevel(2, 2) })], extra: bandCite });
+  const over = { casterLevel: "3", summon: { ref: GLIMMER.uuid, count: "7" } };
+  const blocking = `ACKS-MAGIC.cast.notice.blocked.summonCount|{"name":"Invented Caster","names":"","max":6,"over":1}`;
+  const player = footerOf(await askedWith(spell()), over);
+  assert.deepEqual([player.verdicts, player.blocked], [[["block", blocking]], true]);
+  assert.equal(player.view.footer.verdicts[0].tip, 'ACKS-MAGIC.cast.tip.cite|{"cite":"RR 1"}');
+  const judge = footerOf(await askedWith(spell(), { isGM: true }), over);
+  assert.deepEqual([judge.verdicts.map(([severity]) => severity), judge.blocked], [["warn"], false]);
+  assert.deepEqual(footerOf(await askedWith(spell()), { ...over, summon: { ref: GLIMMER.uuid, count: "6" } }).verdicts, [], "the ceiling itself is allowed");
+});
+
+await ta("no GM connected shows in a Player's footer before the confirm and blocks Cast; a Judge's seat and a declaring show none", async () => {
+  const noGm = 'ACKS-MAGIC.cast.notice.summonNoGm|{}';
+  const player = footerOf(await askedWith(makeSpell(), { gmOnline: false }), {});
+  assert.deepEqual([player.verdicts, player.blocked], [[["block", noGm]], true]);
+  assert.deepEqual(footerOf(await askedWith(makeSpell(), { gmOnline: false, isGM: true }), {}).verdicts, []);
+  assert.deepEqual(footerOf(await askedWith(makeSpell(), { gmOnline: false, world: fight("cb2") }), {}).verdicts, [], "nothing is placed at a declaring");
+});
+
+await ta("no slot or pool, and a casting time over a round in a fight, reach the footer of a summons as they do any cast: a Player is blocked and a Judge warned", async () => {
+  const slotless = { verdict: "none" };
+  const spell = () => makeSpell({ extra: { castingTime: { shape: "timed", value: 3, unit: "turns" } } });
+  const fights = fight("cb1");
+  const keysOf = (c) => footerOf(c, {}).view.footer.verdicts.map((v) => v.text);
+  const player = await askedWith(spell(), { capacity: slotless, world: fights });
+  assert.deepEqual(keysOf(player), ["ACKS-MAGIC.cast.notice.blocked.noSlot|" + JSON.stringify({ name: "Invented Caster", names: "", max: "", over: "" }), "ACKS-MAGIC.cast.notice.blocked.longCast|" + JSON.stringify({ name: "Invented Caster", names: "", max: "", over: "" })]);
+  assert.equal(footerOf(player, {}).blocked, true);
+  const judge = footerOf(await askedWith(spell(), { capacity: slotless, world: fights, isGM: true }), {});
+  assert.deepEqual([judge.view.footer.verdicts.map((v) => v.severity), judge.blocked], [["warn", "warn"], false]);
+});
+
+await ta("the band's answer is the cast's pick: no shelf prompt, the count it holds is the one weighed, spent against and placed, and a declaration reopens on it", async () => {
+  const spell = () => makeSpell({ rows: [row({ amount: 2, max: perLevel(2, 2) })], extra: bandCite });
+  const r = runDeps({ answer: null, isGM: true });
+  let ctx;
+  r.deps.ask = async (c) => (ctx = c, r.order.push("ask"), model.answerOf(c, { casterLevel: "3", summon: { ref: GLIMMER.uuid, count: "7" } }));
+  const out = await cast(spell(), r);
+  assert.equal(out.ok, true);
+  assert.deepEqual(r.order.filter((step) => step === "pickSummon"), [], "the shelf prompt is the fallback only");
+  assert.deepEqual([r.calls.placed[0].pick, r.calls.verdicts[0]], [{ ref: GLIMMER.uuid, count: 7 }, { sourceUuid: GLIMMER.uuid, count: 7, spellId: "sp1" }]);
+  assert.deepEqual(keys(r), ["warn:verdict.summonCount"], "a Judge's count over the ceiling is warned, as the footer said");
+  assert.ok(r.calls.posts[0].lines.some((l) => l.startsWith("ACKS-MAGIC.cast.line.summonedOpen|") && l.includes('"name":"Glimmerkin","n":2')), "the card names the creature and the clicks' two places");
+  const state = model.initialState({ ...ctx, initial: { summon: { ref: GLIMMER.uuid, count: 5 } } });
+  assert.deepEqual(state.summon, { ref: GLIMMER.uuid, count: "5" });
+});
+
+await ta("the card's summon line says how long the spell lasts as it is written (a level-scaled and a concentration length too), nothing for an instant, and a click that made no creature is its own line", async () => {
+  const lineFor = async (duration, over = {}) => {
+    const r = runDeps({ answer: answerOf(), ...over });
+    await cast(makeSpell({ extra: { duration } }), r);
+    return r.calls.posts[0].lines.filter((l) => l.includes("line.summon"));
+  };
+  assert.deepEqual(await lineFor({ shape: "perLevel", value: 1, unit: "turns" }), ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":2,"duration":"1 turn/level"}']);
+  assert.deepEqual(await lineFor({ shape: "concentration", concentration: "mobile" }), ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":2,"duration":"concentration"}']);
+  assert.deepEqual(await lineFor({ shape: "instantaneous" }), ['ACKS-MAGIC.cast.line.summonedOpen|{"name":"Glimmerkin","n":2,"duration":""}']);
+  const short = await lineFor({ shape: "fixed", value: 1, unit: "hours" }, { place: (ctx) => ({ ok: true, castId: ctx.castId, tokenUuids: ["Scene.s1.Token.t0"] }) });
+  assert.deepEqual(short, ['ACKS-MAGIC.cast.line.summoned|{"name":"Glimmerkin","n":1,"duration":"1 hour"}', 'ACKS-MAGIC.cast.line.summonShort|{"n":1}']);
+});
+
+await ta("a count under one reads as one, and a targeted token the summons never draws raises no verdict in its footer", async () => {
+  const ctx = await askedWith(makeSpell({ rows: [row({ amount: 2 })], extra: { ...bandCite, range: { shape: "distance", value: 30, unit: "feet" } } }), { world: { tokens: [{ uuid: "Scene.s1.Token.far", name: "Far token", actor: {} }], gaps: { "Scene.s1.Token.far": 500 } } });
+  assert.deepEqual(model.answerOf(ctx, { summon: { ref: GLIMMER.uuid, count: "0" } }).summon, { ref: GLIMMER.uuid, count: 1 });
+  assert.equal(model.dialogContext(ctx, {}).summon.count.value, 2);
+  const { view, verdicts } = footerOf(ctx, {});
+  assert.deepEqual([view.summon.show, verdicts], [true, []], "the targets are not drawn, and none is held against the cast");
 });
 
 console.log(`\n${n} cast-summon tests passed`);

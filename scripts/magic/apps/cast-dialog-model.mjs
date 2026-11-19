@@ -97,6 +97,33 @@ export function effectRow(row, statusImg = () => null) {
 /*  The answer's state                          */
 /* -------------------------------------------- */
 
+/** The creatures the Summon band offers, flat: each row's creature where the spell names one, else every creature on the shelves the seat can open. `amount` is the count a row opens on. Empty where the cast summons nothing. */
+function summonOptions(ctx) {
+  const s = ctx.summon;
+  if (!s) return [];
+  if (s.creatures?.length) return s.creatures.map((c, i) => ({ value: c.value, name: c.name || game.i18n.format("ACKS-LIB.summons.creatureN", { n: i + 1 }), amount: Number(c.amount) || 0, source: c.source ?? null }));
+  return (s.shelves ?? []).flatMap((shelf) => shelf.entries.map((e) => ({ value: e.uuid, name: e.name, amount: 0, source: null })));
+}
+
+/**
+ * The creature and count the Summon band stands on: the seat's creature where
+ * it is still offered, else the first; the seat's typed count, else the row's
+ * own count, else one. Null where the cast summons nothing or nothing is
+ * offered (the cast then asks for the creature with lib's shelf prompt).
+ * @param {object} ctx
+ * @param {object} state
+ * @returns {{ref: string, count: number, name: string, source: object|null}|null}
+ */
+export function summonPick(ctx, state) {
+  const options = summonOptions(ctx);
+  const chosen = options.find((o) => o.value === state.summon?.ref) ?? options[0];
+  if (!chosen) return null;
+  const typed = String(state.summon?.count ?? "").trim();
+  // A count under one reads as one, as the cast does (`ANSWER_FIELDS.summon`), so the band shows and judges the figure the cast uses.
+  const count = typed !== "" && Number.isFinite(Number(typed)) ? Math.max(1, Math.trunc(Number(typed))) : chosen.amount || 1;
+  return { ref: chosen.value, count, name: chosen.name, source: chosen.source };
+}
+
 /** The first option of every group the spell offers, by group id. */
 const firstPicks = (ctx) =>
   Object.fromEntries((ctx.modes ?? []).flatMap((m) => (ctx.groups?.[m] ?? []).map((g) => [g.id, (g.options ?? g.rows.map((e) => ({ token: e.key })))[0]?.token ?? ""])));
@@ -117,13 +144,17 @@ export function initialState(ctx, { visibility = "public" } = {}) {
   // The invocation level opens on the tradition's cap where there is one and the level is asked (R.1); with none it opens blank, never defaulted.
   const first = ctx.invocation?.[ctx.modes?.[0] ?? "normal"];
   const preset = first?.offered && invocationFigure(first.cap) !== null ? String(first.cap) : "";
-  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", invocationLevel: preset, situational: "", saveMod: false, procedure: {}, visibility, ritualLocation: "" };
+  // The Summon band opens on the first creature it offers, its count blank so the row's own count stands until the seat types one.
+  const offered = summonOptions(ctx);
+  const base = { mode: ctx.modes?.[0] ?? "normal", picks: firstPicks(ctx), pickKind: "", items: {}, allocation: {}, casterLevel: "", invocationLevel: preset, situational: "", saveMod: false, procedure: {}, visibility, ritualLocation: "", ...(ctx.summon ? { summon: { ref: offered[0]?.value ?? "", count: "" } } : {}) };
   const from = ctx.initial;
   if (!from) return base;
-  const given = Object.fromEntries(Object.keys(base).filter((key) => from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
+  const given = Object.fromEntries(Object.keys(base).filter((key) => key !== "summon" && from[key] !== undefined && from[key] !== null).map((key) => [key, from[key]]));
   return {
     ...base,
     ...given,
+    // A declared summons reopens on its creature and count, copied.
+    ...(ctx.summon && from.summon?.ref ? { summon: { ref: String(from.summon.ref), count: from.summon.count != null ? String(from.summon.count) : "" } } : {}),
     picks: { ...base.picks, ...(from.picks ?? {}) },
     items: { ...(from.items ?? {}) },
     // The procedure's answer is plain data, copied so the stored record is never written through.
@@ -215,7 +246,7 @@ function ritualContext(ctx, st) {
  *
  * @param {object} ctx
  * @param {object} state
- * @returns {{mode: string, picks: Record<string, string>, pickKind: string|null, items: Record<string, string>, allocation: Record<string, Record<string, string>>, casterLevel: string, situational: string, saveMod: boolean, procedure: object, visibility: string}}
+ * @returns {{mode: string, picks: Record<string, string>, pickKind: string|null, items: Record<string, string>, allocation: Record<string, Record<string, string>>, casterLevel: string, situational: string, saveMod: boolean, procedure: object, visibility: string, summon?: {ref: string, count: number}}}
  */
 export function answerOf(ctx, state) {
   if (ctx.ritual) return { ritual: { locationUuid: ritualLocationOf(ctx, state) }, visibility: "public" };
@@ -231,6 +262,7 @@ export function answerOf(ctx, state) {
     allocation[item.key] = Object.fromEntries((ctx.targets ?? []).map((t) => [t.uuid, String(state.allocation?.[item.key]?.[t.uuid] ?? item.split?.[t.uuid] ?? 0)]));
   }
   const kind = kindOf(kept, state);
+  const summon = summonPick(ctx, state);
   return {
     mode,
     picks: Object.fromEntries(groupsOf(ctx, mode, inv).map((g) => [g.id, picks[g.id]])),
@@ -245,6 +277,8 @@ export function answerOf(ctx, state) {
     // The tradition's procedure answers its fields, its band's controls, its buckets and the pick of each; a cast whose tradition has none answers nothing.
     procedure: procedureOf(ctx, state, mode, inv)?.answer ?? {},
     visibility: state.visibility || "public",
+    // The Summon band's creature and count, where the cast summons and the band offers a creature.
+    ...(summon ? { summon: { ref: summon.ref, count: summon.count } } : {}),
   };
 }
 
@@ -406,6 +440,56 @@ export function bucketViews(proc, entries, ctx = {}) {
 }
 
 /* -------------------------------------------- */
+/*  The Summon band                             */
+/* -------------------------------------------- */
+
+/**
+ * The Summon band the template draws for a summons: the creature select (the
+ * rows' creatures, else the shelves), the count with the ceiling beside it and
+ * the placement line. A ceiling's tooltip names its figure, the creature and
+ * the caster level it was read at, with the spell's page reference; a blank
+ * ceiling shows the reference alone. The template draws no Targets band beside it.
+ *
+ * @param {object} ctx
+ * @param {{ref: string, count: number, name: string}|null} pick  `summonPick`'s
+ * @param {{ceiling: number|null, calling: boolean, range?: number|null}|null} judged  `ctx.summon.at`'s reading of the pick
+ * @param {{cite: string, level: number|null}} read
+ */
+function summonView(ctx, pick, judged, { cite, level }) {
+  const options = summonOptions(ctx);
+  const flat = ctx.summon.creatures?.length > 0;
+  const mark = (o) => ({ value: o.value, label: o.name, selected: o.value === pick?.ref });
+  const ceiling = judged?.ceiling ?? null;
+  const parens = cite ? ` (${cite})` : "";
+  const feet = Number.isFinite(judged?.range) ? Math.round(judged.range * 10) / 10 : null;
+  const placement = judged?.calling
+    ? { text: loc("dialog.summonCalled"), tip: "" }
+    : feet !== null
+      ? { text: loc("dialog.summonWithin", { feet, name: ctx.caster?.name ?? "" }), tip: loc(level != null ? "tip.summonRange" : "tip.summonRangeFlat", { feet, level: level ?? "", cite: parens }) }
+      : { text: loc("dialog.summonOpen"), tip: cite };
+  return {
+    show: true,
+    none: options.length === 0,
+    noneText: game.i18n.localize("ACKS-LIB.summons.noMonsters"),
+    legend: loc("dialog.summon"),
+    creature: {
+      label: game.i18n.localize("ACKS-LIB.summons.creature"),
+      options: flat ? options.map(mark) : [],
+      groups: flat ? [] : (ctx.summon.shelves ?? []).map((shelf) => ({ label: shelf.label, options: shelf.entries.map((e) => mark({ value: e.uuid, name: e.name })) })),
+    },
+    count: {
+      label: loc("dialog.summonCount"),
+      value: pick?.count ?? "",
+      of: ceiling === null ? "" : loc("dialog.summonOf", { max: ceiling }),
+      over: ceiling !== null && Number(pick?.count) > ceiling,
+      // The figure's provenance; with nothing imported the reference alone.
+      tip: ceiling === null ? cite : loc(level != null ? "tip.summonCeiling" : "tip.summonCeilingFlat", { max: ceiling, name: pick?.name ?? "", level: level ?? "", cite: parens }),
+    },
+    placement: { label: loc("dialog.summonPlacement"), ...placement },
+  };
+}
+
+/* -------------------------------------------- */
 /*  The view                                    */
 /* -------------------------------------------- */
 
@@ -446,7 +530,10 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
   // The tradition's procedure, and where the cast falls once the seat's answer to it is in (its casting time can make the cast `long`).
   const proc = procedureOf(ctx, st, mode, inv);
   const moment = ctx.momentAt ? ctx.momentAt(mode, resolved, st.procedure, inv) : ctx.moment;
-  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, inv, st.procedure) : (ctx.verdicts?.[mode] ?? []);
+  // A summons: the creature and count the band stands on, weighed at this level so the count and a missing GM show in the footer before the confirm.
+  const pick = summonPick(ctx, st);
+  const judged = pick ? (ctx.summon.at?.(pick, { mode, level: resolved, inv, declaring: moment === "declare" }) ?? null) : null;
+  const verdicts = ctx.verdictsAt ? ctx.verdictsAt(mode, picks, resolved, st.allocation, inv, st.procedure, judged) : (ctx.verdicts?.[mode] ?? []);
   const blocks = verdicts.some((v) => v.severity === "block");
 
   // The saves: the situational figure, ruling 126's toggle, and the parts that stand.
@@ -525,6 +612,7 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
       level: { show: Boolean(ctx.levelNeeded && !stand.value), value: st.casterLevel, tip: [loc("tip.level.hand", { value: "" }), levelTip(level, loc)].filter(Boolean).join(" · ") },
       kind: { show: kind.options.length > 0, options: kind.options.map((key) => ({ key, selected: key === kind.value })), rows: kept.filter(({ row }) => row.pickKind === true).map(({ row }) => effectRow(row, statusImg)) },
     },
+    summon: ctx.summon ? summonView(ctx, pick, judged, { cite, level: resolved }) : { show: false },
     // One band, between the spell and the saves: the procedure's fields, then its band. Its heading is the tradition's: the procedure's own label, else the tradition's name.
     invocation: (() => {
       const lvl = levelView(ctx, st, read);
@@ -569,7 +657,7 @@ export function dialogContext(ctx, state = {}, { modeLabel = (k) => k, visibilit
         severity: v.severity,
         // A finding a procedure worded itself reads in its own words.
         text: v.notice || loc(`notice.${v.severity === "block" ? "blocked" : "verdict"}.${v.key}`, { name: ctx.caster?.name ?? "", names: (v.out ?? []).map((o) => o.name).join(", "), max: v.max ?? "", over: v.over ?? "" }),
-        tip: v.key === "outOfRange" ? rangeTip(v, cite) : v.key === "tooManyTargets" && cite ? loc("tip.cite", { cite }) : "",
+        tip: v.key === "outOfRange" ? rangeTip(v, cite) : (v.key === "tooManyTargets" || v.key === "summonCount") && cite ? loc("tip.cite", { cite }) : "",
       })),
       blocked: blocks,
       cast: moment === "declare" ? loc("dialog.declare") : loc("dialog.cast"),

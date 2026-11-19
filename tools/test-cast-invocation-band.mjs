@@ -529,6 +529,30 @@ await ta("the real templates render the band: one select with its disabled optio
   assert.ok(html.indexOf("invocationLevel") < html.indexOf("data-bucket-drop"), "the level leads, the bucket follows");
 });
 
+await ta("the real template draws a summons' Summon band in the targets band's place: the creature select, the count with its ceiling and tooltip, the placement; a spell that summons nothing keeps its targets", async () => {
+  const Handlebars = (await import("handlebars")).default;
+  Handlebars.registerHelper("localize", (key) => key);
+  const read = (rel) => fs.readFileSync(new URL(rel, import.meta.url), "utf8");
+  const render = (ctx, state = {}) => Handlebars.compile(read("../templates/magic/cast-dialog.hbs"))(dialogContext(ctx, state)).replaceAll("&quot;", "\"");
+  const summon = {
+    creatures: [{ value: "uA", name: "Alpha", amount: 2, source: null }, { value: "uB", name: "", amount: 3, source: null }],
+    shelves: [],
+    at: (pick) => ({ count: pick.count, ceiling: 4, calling: false, refused: null, range: 20 }),
+  };
+  const html = render(baseCtx({ summon }));
+  assert.match(html, /<select name="summonRef">\s*<option value="uA" selected>Alpha<\/option><option value="uB">ACKS-LIB\.summons\.creatureN\|\{"n":2\}<\/option>/);
+  assert.match(html, /<input type="number" name="summonCount" min="1" step="1" value="2">/);
+  assert.match(html, /acks-extras-cast-cap acks-nums" data-tooltip-text="ACKS-MAGIC\.cast\.tip\.summonCeiling|{"max":4,"name":"Alpha"/);
+  assert.match(html, /summonWithin\|\{"feet":20/);
+  assert.doesNotMatch(html, /acks-extras-cast-targets"/, "a summons draws no Targets band");
+  assert.doesNotMatch(html, /name="summonCount"[^>]*\sid=/);
+  assert.match(render(baseCtx()), /acks-extras-cast-targets"/, "a cast that summons nothing keeps its Targets band");
+  assert.doesNotMatch(render(baseCtx()), /summonRef/);
+  const shelf = render(baseCtx({ summon: { creatures: [], shelves: [{ label: "Invented shelf", entries: [{ uuid: "uZ", name: "Zebra" }] }], at: () => null } }));
+  assert.match(shelf, /<optgroup label="Invented shelf"><option value="uZ" selected>Zebra<\/option><\/optgroup>/);
+  assert.match(render(baseCtx({ summon: { creatures: [], shelves: [] } })), /ACKS-LIB\.summons\.noMonsters/, "no creature to offer says so, with no select");
+});
+
 /* ------------------------------------------------------------------ */
 /*  The surfaces                                                      */
 /* ------------------------------------------------------------------ */

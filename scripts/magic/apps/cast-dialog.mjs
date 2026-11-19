@@ -4,7 +4,8 @@
  * ApplicationV2 over a scrolling body and a pinned footer (the shape of the
  * influence window). The body holds the header (caster, spell, level, and the
  * form of a reversible spell), the spell's choices drawn as effect rows in the
- * character sheet's tones, the tradition's band (the fields and the band of its
+ * character sheet's tones, a summons' Summon band (creature, count and ceiling,
+ * placement; it takes the Targets bucket's place), the tradition's band (the fields and the band of its
  * procedure, `cast-procedure.mjs`, headed by the tradition's name), the saves, and the targets bucket; the footer holds
  * what stands in the way, the visibility, Cancel and Cast (or Declare). A
  * verdict that blocks a Player disables the button, and a Judge reads it as a
@@ -204,6 +205,9 @@ export class CastDialog extends HandlebarsApplicationMixin(ApplicationV2) {
         if (el.checked) a.procedure[key] = el.value;
       } else a.procedure[key] = el.type === "checkbox" ? el.checked : el.value;
     }
+    // The Summon band: a changed creature drops the typed count, so the new creature's own count stands.
+    const creature = field("summonRef");
+    if (creature) a.summon = { ref: creature.value, count: creature.value === a.summon?.ref ? (field("summonCount")?.value ?? "") : "" };
     const toggle = field("saveMod");
     if (toggle && !toggle.disabled) a.saveMod = toggle.checked;
     const typed = {};
