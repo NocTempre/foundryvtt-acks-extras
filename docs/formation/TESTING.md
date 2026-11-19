@@ -4009,6 +4009,55 @@ full hit points.
    the new turn. Unregister the activity. The positive case for a real
    registrant, the hasty search, is walked through scene search's own recipe
    once it lands.
+10. **The Judge locks past a refusal, with a warning (U2).** Move the party
+    token five cells (`animate: false`) so `clock.movedThisTurn` is set. On the
+    GM seat the thief's row shows its reason and still has its choice list.
+    Pick the thief's methodical search and press Lock. *Observable:* the flag
+    holds the thief's entry with `by` the GM's user id, and a line at the foot
+    of the row (`.acks-extras-turn-plan-note.is-warned`) reads "A player would
+    be refused: The party moved this turn. Locked for you anyway." Re-render
+    the sheet (change the tab and back): the line is still there. Press Turn:
+    the line is gone. Press Keep watch on the row after a fresh warned lock:
+    the line goes with the entry. The one refusal that stays hard: pick a
+    choice whose length is not imported (the batter row, while nothing reads
+    the door figures). *Observable:* its option is greyed out for the Judge as
+    for a player and the flag gains nothing. A player's *relayed* request for
+    the moved party is refused by the Judge's client as before (step 4).
+11. **A player's press-time refusal is visible beside the row (U2).** The
+    player's list greys out a refused pick, so reach one the way a user does:
+    on the Player seat lock the thief's hasty search, then have the GM
+    seat toggle Hurried (no hasty searching at that pace), and on the Player seat
+    press Lock again on the thief's still-selected pick. *Observable:* a toast
+    and, at the foot of the row, `.acks-extras-turn-plan-note.is-refused`
+    ("Not locked: …"); the flag keeps the earlier entry and gains no other. The
+    note survives a re-render and is gone after Turn. Where the hasty search is not
+    offered on this build, say so and use a once-per-turn activity
+    the thief already used this turn.
+12. **The Trapbreaking opener has one home (U2).** On the GM seat, with the
+    party on a delve, the Dungeon tab's head holds a Trapbreaking pill beside
+    Turn and Rest a turn; press it. *Observable:* the Trapbreaking window
+    opens. The Order tab's head holds no `[data-action="openTrapbreak"]`. On
+    the Player seat, with a member who may make the throw (the thief), the
+    Dungeon tab's head holds the same pill and the tab's foot holds none;
+    press it. *Observable:* the window opens. Give the Player a member with
+    no Trapbreaking skill and no Adventuring: the head shows no pill. In the
+    request section, the spell-duration box has a visible "Duration in turns"
+    label bound to it (click the label: the box takes focus).
+13. **The strip's four figures say where they came from (U2).** On each seat
+    hover Exploration, Elapsed, Rest and Carry-over. *Observable:* each
+    tooltip lists its parts with the party's own numbers and a page
+    reference: Exploration the slowest member, their ride and pace (and the
+    dark or hurried line when either holds); Elapsed the turns, the clock
+    time and the rounds into the current turn out of the rounds to a turn;
+    Rest the turns since the last rest and the limit; Carry-over the feet
+    moved and the length of a round. Hurry the pace and darken the scene
+    (a member with no sight in the dark) and hover Exploration again:
+    *Observable:* it names each. Delete the registered `formation` table's
+    `restInterval` (setup is the subject: read the one document, re-import
+    after): *Observable:* the Rest figure shows its count with no limit and
+    its tooltip is the page reference alone. Press Round until the partial
+    rounds wrap: *Observable:* the figure after the slash under Elapsed is the
+    count at which it wraps to the next turn.
 
 Teardown: every card the GM seat posts carries the run's nonce, is tracked by
 id the moment the walk reads it, and is swept with the combat and step 8's

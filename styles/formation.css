@@ -2074,6 +2074,22 @@
   color: var(--acks-warning-ink);
 }
 
+/* A lock's note, under the row: the Judge's warning, a player's refusal. */
+.acks-extras.party-sheet .acks-extras-turn-plan-note {
+  flex: 1 0 100%;
+  font-size: var(--acks-fs-label);
+  color: var(--acks-warning-ink);
+}
+
+.acks-extras.party-sheet .acks-extras-turn-plan-note.is-warned {
+  font-style: italic;
+}
+
+.acks-extras.party-sheet .player-spell-turns-label {
+  flex: 0 0 auto;
+  font-size: var(--acks-fs-label);
+}
+
 .acks-extras.party-sheet .acks-extras-turn-plan-rest.is-rest {
   color: var(--acks-ink-soft);
 }

@@ -62,6 +62,19 @@ function paceParts(formation, load) {
   });
 }
 
+/**
+ * Who sets the party's pace, on what, and at what, for the strip's speed
+ * tooltip: `paceSetter`'s member, the ride that gives their figure, and that
+ * figure before any dark. Null with nobody on the march to read.
+ * @returns {{name: string, how: string, speed: number}|null}
+ */
+export function paceSetterNote(formation) {
+  const setter = paceSetter(formation);
+  if (!setter) return null;
+  const how = rideLabel(rideOf(formation, setter.member, setter.actor, carriedLoad(formation)));
+  return { name: setter.actor.name, how, speed: setter.speed };
+}
+
 /** The line that heads the section: who sets the pace and on what, and the pace. */
 function paceLine(formation, load, o) {
   const setter = paceSetter(formation);

@@ -11,8 +11,8 @@
  */
 import assert from "node:assert/strict";
 
-const { registerTurnActivity, cancelForCombat, turnActivity, TURN_REASONS } = await import("../scripts/lib/turn-activities.mjs");
-const { PLAN_REASONS, cancelForMove, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } = await import(
+const { registerTurnActivity, cancelForCombat, offeredActivities, turnActivity, TURN_REASONS } = await import("../scripts/lib/turn-activities.mjs");
+const { PLAN_REASONS, cancelForMove, lockForJudge, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } = await import(
   "../scripts/formation/turn-plan-logic.mjs"
 );
 
@@ -329,8 +329,58 @@ await test("a Turn press with an unresolved round entry resolves it once, and th
   assert.equal(h.log.spends.length, 1, "the clock is spent once, by the turn");
 });
 
+// The Judge's lock: a refusal a player would get becomes a warning and the entry is written;
+// what nothing can be built from stays refused; the relay's own path (`lockForMember`) is unchanged.
+const judgeLock = (plan, request, state = { member: { actorId: request.actorId } }, said) => lockForJudge(
+  plan,
+  { actorId: request.actorId, actor: actorOf(request.actorId), ...request },
+  state,
+  { offered: offeredActivities(actorOf(request.actorId), {}), ...(said ? { said } : {}) },
+);
+
+await test("the Judge locks past a blocked activity with a warning, and a player's path still refuses it", () => {
+  const request = { actorId: "a", actor: actors.a, key: "qaShut", by: "gm1" };
+  const relay = lockForMember({}, request, free);
+  assert.deepEqual([relay.ok, relay.reason], [false, "qaNoTool"], "the player's lock is refused with the activity's reason");
+  const out = judgeLock({}, { actorId: "a", key: "qaShut", by: "gm1" });
+  assert.equal(out.ok, true);
+  assert.deepEqual(out.warned, { reason: "qaNoTool", missing: ["tool"] }, "the refusal a player would get comes back as the warning");
+  assert.deepEqual(out.plan.a, { key: "qaShut", option: null, remaining: 1, turns: 1, by: "gm1" });
+});
+
+await test("the Judge's forced entry is the entry lib writes for the same unblocked pick", () => {
+  const lib = lockForMember({}, { actorId: "a", actor: actors.a, key: "qaLook", by: "gm1" }, free);
+  const judge = judgeLock({}, { actorId: "a", key: "qaLook", by: "gm1" });
+  assert.deepEqual(judge.entry, lib.entry, "an unrefused lock is lib's, entry for entry");
+  assert.equal(judge.warned, null, "and warns of nothing");
+  const forced = judgeLock({}, { actorId: "a", key: "qaShut", by: "gm1" }).entry;
+  assert.deepEqual(Object.keys(forced).sort(), Object.keys(lib.entry).sort(), "a forced entry has the shape lib's has");
+});
+
+await test("the Judge locks past the party's own stop, and the entry then resolves like any other", async () => {
+  const state = { member: { actorId: "a" }, moved: true };
+  assert.equal(lockForMember({}, { actorId: "a", actor: actors.a, key: "qaLook" }, state).reason, "moved", "a player is stopped");
+  const out = judgeLock({}, { actorId: "a", key: "qaLook" }, state);
+  assert.deepEqual([out.ok, out.warned.reason], [true, "moved"]);
+  const { log, effects } = harness();
+  await runPlanTurn({ plan: out.plan, memberIds: ["a"], ...effects, ctx: {} });
+  assert.deepEqual(log.rolls, [["qaLook", ["a"]]], "it rolls on the turn as a player's lock would");
+});
+
+await test("the Judge's refusals that stay: no length, no such activity or option, no member, no words", () => {
+  const long = judgeLock({}, { actorId: "a", key: "qaLong" });
+  assert.deepEqual([long.ok, long.reason], [false, TURN_REASONS.notImported], "a length nobody imported");
+  assert.equal(judgeLock({}, { actorId: "a", key: "qaNoSuch" }).reason, TURN_REASONS.unknownActivity);
+  assert.equal(judgeLock({}, { actorId: "a", key: "qaShut", option: "nope" }).reason, TURN_REASONS.unknownOption);
+  assert.equal(judgeLock({}, { actorId: "a", key: "qaLook" }, { member: null }).reason, PLAN_REASONS.notMember, "no member to lock for");
+  assert.equal(judgeLock({}, { actorId: "a", key: "qaShut" }, undefined, () => "").ok, false, "a refusal with no words has no warning to show");
+  assert.equal(judgeLock({}, { actorId: "a", key: "qaShut" }, { member: { actorId: "a" }, moved: true }, () => "").reason, "moved");
+});
+
 // The column's words: a registrant's option label and its own refusal lang root.
 const lang = {
+  "ACKS-FORMATION.plan.warned": "A player would be refused: {reason}. Locked for you anyway.",
+  "ACKS-FORMATION.plan.refused": "Not locked: {reason}",
   "ACKS-QA.act.dig": "Dig",
   "ACKS-QA.opt.east": "East wall",
   "ACKS-QA.reason.outOfReach": "{name} cannot reach it",
@@ -352,7 +402,7 @@ globalThis.game = {
     format: (key, data = {}) => (lang[key] ?? key).replace(/\{(\w+)\}/g, (_m, k) => data[k] ?? ""),
   },
 };
-const { reasonText, optionLabel } = await import("../scripts/formation/turn-plan.mjs");
+const { reasonText, optionLabel, planNote, attachPlanNotes } = await import("../scripts/formation/turn-plan.mjs");
 const undoWords = [
   registerTurnActivity({
     key: "qaScene",
@@ -394,6 +444,24 @@ await test("an option's label shows beside the activity: a lang key localized, p
   assert.equal(optionLabel({ key: "qaScene", option: { id: "e", label: "Gallery of Echoes" } }), "Dig (Gallery of Echoes)");
   assert.equal(optionLabel({ key: "qaScene", option: {} }), "Dig", "no label: the activity alone");
   assert.equal(optionLabel({ key: "qaScene", option: { id: "w", kind: "wall", label: "Ignored" } }), "Dig (Wall)", "a trap option wins");
+});
+
+await test("a row's note: the Judge's warning and a player's reason, kept for the turn they were made on", () => {
+  const warned = planNote("warned", "moved", { name: "Ann" }, 5);
+  assert.deepEqual(warned, { kind: "warned", text: "A player would be refused: Moved. Locked for you anyway.", turn: 5 }, "the reason's own stop is not doubled");
+  assert.equal(planNote("refused", "qa:outOfReach", { name: "Ann" }, 5).text, "Not locked: Ann cannot reach it");
+  assert.equal(planNote("warned", "notImported", null, 5), null, "a figure nobody imported has no words, so no note");
+  const notes = new Map([["a", warned], ["b", { kind: "refused", text: "old", turn: 4 }], ["d", warned], ["e", { kind: "refused", text: "kept", turn: 5 }]]);
+  const plan = { rows: [{ actorId: "a", entry: {} }, { actorId: "b" }, { actorId: "c" }, { actorId: "d" }, { actorId: "e" }] };
+  attachPlanNotes(plan, notes, 5);
+  assert.equal(plan.rows[0].note.text, warned.text, "the row carries its note across the re-render");
+  assert.equal(plan.rows[1].note, undefined, "a note for an earlier turn is not shown");
+  assert.ok(!notes.has("b"), "and is dropped");
+  assert.equal(plan.rows[2].note, undefined);
+  assert.equal(plan.rows[3].note, undefined, "a warning whose entry a move, a fight or an unlock cleared is not shown");
+  assert.ok(!notes.has("d"), "and is dropped");
+  assert.equal(plan.rows[4].note.text, "kept", "a refusal needs no entry: nothing was locked");
+  attachPlanNotes(null, notes, 5);
 });
 
 for (const u of undoWords) u();

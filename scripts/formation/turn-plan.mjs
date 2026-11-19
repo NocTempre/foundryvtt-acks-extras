@@ -38,7 +38,7 @@ import {
   turnActivity,
   unlockActivity,
 } from "../lib/turn-activities.mjs";
-import { cancelForMove, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } from "./turn-plan-logic.mjs";
+import { cancelForMove, lockForJudge, lockForMember, memberBlock, queueGroup, runPlanRound, runPlanTurn } from "./turn-plan-logic.mjs";
 import { getFormation, getMemberActor, getPartyActor, isDown, isHurried, memberActorById, realMembers } from "./formation-model.mjs";
 import { PARTY_CHECKS, resolveCheck, rollPartyCheck } from "./party-rolls.mjs";
 import { advanceTurns, hasEndurance, postNotesCard } from "./turn-engine.mjs";
@@ -221,6 +221,32 @@ export async function lockPlan(formation, request) {
   if (!result.ok) return result;
   await writePlan(formation, result.plan);
   return { ok: true, entry: result.entry };
+}
+
+/**
+ * The Judge's own lock, on a GM client: a refusal a player would get is
+ * written past and answered as `warned`, except the ones nothing can be built
+ * from (`lockForJudge`). Only the Judge's press calls this; the relay's write
+ * for a player is `lockPlan`, which refuses.
+ * @param {object} formation
+ * @param {{actorId: string, key: string, option?: string|null, by?: string|null}} request
+ * @returns {Promise<{ok: true, entry: object, warned: {reason: string, missing: string[]}|null}
+ *   |{ok: false, reason: string, missing: string[]}>}
+ */
+export async function lockPlanAsJudge(formation, request) {
+  const { actor, state } = memberState(formation, request.actorId);
+  const result = lockForJudge(
+    readPlan(formation),
+    { ...request, actor, usedThisTurn: usedThisTurn(formation), ctx: { formation, member: state.member } },
+    state,
+    {
+      offered: actor ? offeredActivities(actor, { formation, member: state.member }) : [],
+      said: (reason) => reasonText(reason, actor),
+    },
+  );
+  if (!result.ok) return result;
+  await writePlan(formation, result.plan);
+  return { ok: true, entry: result.entry, warned: result.warned };
 }
 
 /** Take a member's entry out of the stored plan, on a GM client: they keep watch again. */
@@ -497,13 +523,17 @@ export function planView(formation) {
         }),
       };
     }
-    if (actor && view.canControl && !blockId) {
+    // The Judge is offered the choices a refusal would hide or grey out, and
+    // locks one with a warning (`lockPlanAsJudge`); only a choice with no
+    // length stays out of reach for every seat.
+    const judge = game.user.isGM;
+    if (actor && view.canControl && (!blockId || judge)) {
       view.options = offeredActivities(actor, { ...ctx, member }).map((row) => {
         const why = row.blocked ? reasonText(row.blocked.reason, actor) : null;
         return {
           value: `${row.key}|${row.option?.id ?? ""}`,
           label: why ? `${optionLabel(row)} — ${why}` : optionLabel(row),
-          disabled: !!row.blocked || row.turns == null,
+          disabled: (!judge && !!row.blocked) || row.turns == null,
           selected: !!entry && entry.key === row.key && (entry.option ?? "") === (row.option?.id ?? ""),
         };
       });
@@ -520,6 +550,40 @@ export function planView(formation) {
     };
   }
   return { rows, rest };
+}
+
+/**
+ * The line a row carries after a Lock press: the Judge's warning, "a player
+ * would be refused: <reason>", or the refusal a player is shown beside the
+ * row. Null when the refusal has no words (a figure nobody imported).
+ * @param {"warned"|"refused"} kind
+ * @param {string} reason A refusal id.
+ * @param {Actor|null} actor The member the row is for.
+ * @param {number} turn The clock's turn the note belongs to.
+ * @returns {{kind: string, text: string, turn: number}|null}
+ */
+export function planNote(kind, reason, actor, turn) {
+  // The lang line ends the reason's sentence itself, so the reason's own full stop goes.
+  const said = reasonText(reason, actor).replace(/\.\s*$/, "");
+  return said ? { kind, text: loc(`plan.${kind}`, { reason: said }), turn } : null;
+}
+
+/**
+ * Put a sheet's held row notes onto the plan view's rows. A note outlives the
+ * re-render its press causes and no longer than the turn it was made on, and a
+ * warning no longer than its entry (a move, a fight or an unlock clears the
+ * entry); one that has lapsed is dropped from `notes`, a `Map` keyed by actor id.
+ * @param {{rows: object[]}|null} plan `planView`'s result
+ * @param {Map<string, object>} notes
+ * @param {number} turn The clock's current turn.
+ */
+export function attachPlanNotes(plan, notes, turn) {
+  for (const row of plan?.rows ?? []) {
+    const note = notes.get(row.actorId);
+    if (!note) continue;
+    if (note.turn !== turn || (note.kind === "warned" && !row.entry)) notes.delete(row.actorId);
+    else row.note = { kind: note.kind, text: note.text };
+  }
 }
 
 /** The `key|option` a column select carries, split; null for an empty pick. */

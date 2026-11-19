@@ -2607,7 +2607,7 @@ async function frame(gm, player, census) {
     ["Camp", { part: "mode", section: "camp" }, ["travel.exposure.hours", "travel.exposure.atHeatSource", "travel.exposure.wet", "travel.camp.steal", "travel.camp.water", "travel.camp.sleepInArmour"]],
     ["Judge tab, The episode", { part: "judge", section: "episode" }, ["@lostBegin", "travel.lostNote"]],
     ["Judge tab, The Judge's hand", { part: "judge", section: "hand" }, ["travel.override.ground", "travel.override.encounterTerrain", "travel.override.territory", "travel.override.climate", "travel.override.road", "travel.override.following"]],
-    ["Order head", { part: "order", head: true }, ["@autoArrange", "frontage", "@saveMarchingOrder", "@loadMarchingOrder", "@addBlank", "@openTrapbreak", "@openSkillAudit", "@disband"]],
+    ["Order head", { part: "order", head: true }, ["@autoArrange", "frontage", "@saveMarchingOrder", "@loadMarchingOrder", "@addBlank", "@openSkillAudit", "@disband"]],
   ];
   const homes = await page(gm, P.frameHomes, { partyId: party.id, keys: [...HOME.flatMap(([, , ks]) => ks), "@paintThisHex", "@clearOverride"] });
   for (const [group, want, ks] of HOME) {

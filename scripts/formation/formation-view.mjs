@@ -3,8 +3,10 @@ import { defaultPartyShape, isCasualty, isDead, partyTokenShape } from "./format
 import { appliedEffects } from "../lib/effect-scan.mjs";
 import { lightCite, lightControl, lightFigures, magicLights } from "../lib/light.mjs";
 import {
+  FORMATION_DOC,
   LIGHT_SOURCES,
   PARTY_TOKEN_SHAPES,
+  ROUNDS_PER_TURN,
   restEnforced,
   restInterval,
   ROLE_HINTS,
@@ -82,7 +84,8 @@ import { findDistrict } from "./district-zone.mjs";
 import { hunterName } from "./hunt.mjs";
 import { TERRAIN, travelMultiplier } from "../vehicles/vehicle-speed.mjs";
 import { carrierPool, wheelsEnter } from "./conveyance.mjs";
-import { buildMemberConveyance, buildMovementView } from "./movement-view.mjs";
+import { buildMemberConveyance, buildMovementView, paceSetterNote } from "./movement-view.mjs";
+import { citeOf } from "../lib/tables.mjs";
 import {
   CLIMATES,
   CONDITIONS,
@@ -790,6 +793,48 @@ function journeyClock(t) {
 }
 
 /**
+ * The tooltips of the turn tracker's four figures, each saying where its figure
+ * came from: its named parts with the party's own numbers, and the page that
+ * prints the procedure. A figure whose imported part is missing (the rest
+ * limit) carries the page reference alone. Strings assembled at render, for
+ * `data-tooltip-text`.
+ * @param {object} formation
+ * @param {object} delve `strip.delve`, as `buildStripView` has filled it
+ * @param {string} mode The travel mode; a city's turn distance is its pace's, so
+ *   the carry figure names no round length there.
+ * @returns {{speed: string, elapsed: string, rest: string, carry: string}}
+ */
+export function delveTips(formation, delve, mode) {
+  const say = (key, data = {}) => game.i18n.format(`ACKS-FORMATION.strip.tip.${key}`, data);
+  const cite = game.i18n.localize("ACKS-FORMATION.strip.tip.refExploration");
+
+  const setter = paceSetterNote(formation);
+  const speedParts = [];
+  if (setter) {
+    speedParts.push(say("speedSetter", { name: setter.name, how: setter.how, feet: setter.speed }));
+    // Only the dark lowers the party's figure below its slowest member's.
+    if (delve.speed < setter.speed) speedParts.push(say("speedDark", { feet: delve.speed }));
+  }
+  if (delve.hurried) speedParts.push(say("speedHurried", { combat: delve.combatSpeed, feet: delve.effSpeed }));
+
+  const restCite = game.i18n.localize("ACKS-FORMATION.strip.tip.refRest");
+  const rest = delve.restMax == null
+    ? restCite
+    : say("rest", { since: delve.sinceRest ?? 0, max: delve.restMax, cite: citeOf(FORMATION_DOC, "restInterval") ?? game.i18n.localize("ACKS-FORMATION.app.lightJudgeTable") });
+
+  const feet = delve.carryFeet ?? 0;
+  const roundFeet = mode === "delve" && delve.effSpeed > 0 ? tenths(delve.effSpeed / ROUNDS_PER_TURN) : null;
+  return {
+    speed: speedParts.length ? say("speed", { parts: speedParts.join(" · "), cite }) : cite,
+    elapsed: say("elapsed", { turns: delve.turns ?? 0, time: delve.elapsed, rounds: delve.roundsPartial, perTurn: ROUNDS_PER_TURN, cite }),
+    rest,
+    carry: roundFeet == null
+      ? say("carryBare", { feet, cite })
+      : say("carry", { feet, round: roundFeet, speed: delve.effSpeed, rounds: ROUNDS_PER_TURN, cite }),
+  };
+}
+
+/**
  * The play surface's context, by mode: the clock strip on the mode tab, which
  * the frame's band, rails and heads read as well.
  *
@@ -850,7 +895,9 @@ export function buildStripView(formation, speed, travelView = null) {
       restOn: restEnforced(),
       winded: !!clock.winded,
       carryFeet: clock.carryFeet,
+      roundsPerTurn: ROUNDS_PER_TURN,
     };
+    strip.delve.tips = delveTips(formation, strip.delve, mode);
   }
 
   if (mode === "settlement") {
@@ -1930,7 +1977,11 @@ function wheelRefusals(formation, t) {
 export function buildGMExtras(formation) {
   const extras = {};
 
-  extras.lightTypes = Object.entries(LIGHT_SOURCES).map(([key, cfg]) => {
+  // The Judge may always open the Trapbreaking dialog; a player's seat reads
+  // `buildPlayerPanel`'s own `canTrapbreak`. The Dungeon tab's head asks one question.
+  extras.canTrapbreak = true;
+
+  extras.lightTypes =Object.entries(LIGHT_SOURCES).map(([key, cfg]) => {
     const { turns } = lightFigures(key);
     return {
       key,

@@ -6,6 +6,7 @@ import { seatChanged } from "./conveyance.mjs";
 import { buildFormationView, buildGMExtras, buildPlayerPanel } from "./formation-view.mjs";
 import { MODE_TEMPLATES, TAB_IDS, buildFrameView, framePartIds, frameTabs } from "./frame-view.mjs";
 import { drawPlate } from "./plate.mjs";
+import { attachPlanNotes } from "./turn-plan.mjs";
 import { travelOf } from "./travel.mjs";
 import { acksCompatStubs } from "../lib/actor-compat.mjs";
 import { refuseGoods } from "../lib/bundles.mjs";
@@ -132,7 +133,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     classes: ["acks-ui", "acks-extras", "acks-extras-party-sheet", "party-sheet"],
     position: { width: 920, height: "auto" },
     tag: "form",
-    window: { resizable: true, contentClasses: ["acks-extras-party-sheet__content"] },
+    window: { contentClasses: ["acks-extras-party-sheet__content"] },
     // Replace the document sheet's submit pipeline: form inputs configure the
     // FORMATION record (rename, mode, the travel fields); the description, the
     // one actor field, is routed by the same handler.
@@ -194,6 +195,13 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
 
   /** Sheet-local state that survives the re-render every form change causes. */
   #ui = { keyOpen: false, magical: true, editing: false };
+
+  /**
+   * The Turn plan rows' notes by actor id (`turn-plan.mjs` `planNote`): the
+   * Judge's warning after a lock past a refusal, a player's reason for the
+   * lock that was refused. Held here so the re-render a lock causes keeps them.
+   */
+  planNotes = new Map();
 
   /** Hook ids for the watch on the members' hit points, which the figures rail reads. */
   #watch = [];
@@ -357,6 +365,7 @@ export class PartySheet extends HandlebarsApplicationMixin(foundry.applications.
     Object.assign(context, buildFormationView(formation));
     if (isGM) Object.assign(context, buildGMExtras(formation));
     else Object.assign(context, buildPlayerPanel(formation));
+    attachPlanNotes(context.plan, this.planNotes, formation.clock?.turnsTotal ?? 0);
 
     // The party is counted in BODIES; a stack's row says how many it stands for.
     const stacks = stackRows(formation);

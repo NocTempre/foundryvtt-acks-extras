@@ -47,24 +47,24 @@
   {{else}}
   {{! ---- The delve and the city: the turn tracker ---- }}
   <div class="stats">
-    <div class="stat {{#if strip.delve.hurried}}quiet{{/if}}" data-tooltip="{{localize 'ACKS-FORMATION.app.speedHint'}}">
+    <div class="stat {{#if strip.delve.hurried}}quiet{{/if}}" data-tooltip-text="{{strip.delve.tips.speed}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.speed"}}</span>
       <span class="value">{{#if strip.delve.hurried}}{{strip.delve.effSpeed}}'{{else}}{{strip.delve.speed}}'{{/if}}</span>
       <span class="sub">{{#if strip.delve.hurried}}{{localize "ACKS-FORMATION.app.hurriedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.perTurn"}} · {{strip.delve.combatSpeed}}' {{localize "ACKS-FORMATION.app.perRound"}}{{/if}}</span>
     </div>
-    <div class="stat">
+    <div class="stat" data-tooltip-text="{{strip.delve.tips.elapsed}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.elapsed"}}</span>
       <span class="value">{{strip.delve.turns}}</span>
-      <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{strip.delve.elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{strip.delve.roundsPartial}}/10</span>
+      <span class="sub">{{localize "ACKS-FORMATION.app.turns"}} ({{strip.delve.elapsed}}) · {{localize "ACKS-FORMATION.app.roundShort"}} {{strip.delve.roundsPartial}}/{{strip.delve.roundsPerTurn}}</span>
     </div>
     {{#if strip.delve.restOn}}
-    <div class="stat {{#if strip.delve.winded}}bad{{/if}}">
+    <div class="stat {{#if strip.delve.winded}}bad{{/if}}" data-tooltip-text="{{strip.delve.tips.rest}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.rest"}}</span>
-      <span class="value">{{strip.delve.sinceRest}}/{{strip.delve.restMax}}</span>
+      <span class="value">{{strip.delve.sinceRest}}{{#if strip.delve.restMax includeZero=true}}/{{strip.delve.restMax}}{{/if}}</span>
       <span class="sub">{{#if strip.delve.winded}}{{localize "ACKS-FORMATION.app.windedBadge"}}{{else}}{{localize "ACKS-FORMATION.app.sinceRest"}}{{/if}}</span>
     </div>
     {{/if}}
-    <div class="stat">
+    <div class="stat" data-tooltip-text="{{strip.delve.tips.carry}}">
       <span class="stat-label">{{localize "ACKS-FORMATION.app.carry"}}</span>
       <span class="value">{{strip.delve.carryFeet}}'</span>
       <span class="sub">{{localize "ACKS-FORMATION.app.carryHint"}}</span>

@@ -1,6 +1,8 @@
 {{!-- The mode tab in the delve (Dungeon): the turn clock's own actions at its
-      head, the strip's tiles, the Turn plan, and a member-owner's requests. The lights and
-      spells stay on the Kit tab. --}}
+      head, and with them the party's one Trapbreaking opener (the Judge's
+      always, a player's when a member they own may make the throw), the
+      strip's tiles, the Turn plan, and a member-owner's requests. The lights
+      and spells stay on the Kit tab. --}}
 <div class="tab acks-extras-party-sheet__panel{{#if tabs.mode.active}} active{{/if}}" data-group="primary" data-tab="mode">
   {{#if formation}}
   <header class="acks-extras-party-sheet__head">
@@ -11,8 +13,9 @@
         <p class="acks-extras-party-sheet__head-sub">{{frame.heads.mode.sub}}</p>
       </div>
     </div>
-    {{#if isGM}}
+    {{#if canTrapbreak}}
     <div class="acks-extras-party-sheet__head-actions">
+      {{#if isGM}}
       <button type="button" class="acks-extras-party-sheet__head-pill" data-action="advanceTurn"
               data-tooltip="{{localize 'ACKS-FORMATION.app.advanceTurnHint'}}">
         <i class="fa-solid fa-hourglass-half" inert></i> {{localize "ACKS-FORMATION.app.advanceTurn"}}
@@ -33,6 +36,11 @@
               aria-pressed="{{#if strip.delve.hurried}}true{{else}}false{{/if}}"
               data-tooltip="{{localize 'ACKS-FORMATION.app.paceHint'}}">
         <i class="fa-solid {{#if strip.delve.hurried}}fa-person-running{{else}}fa-person-walking{{/if}}" inert></i> {{localize "ACKS-FORMATION.frame.pill.hurried"}}
+      </button>
+      {{/if}}
+      <button type="button" class="acks-extras-party-sheet__head-pill" data-action="openTrapbreak"
+              data-tooltip="{{localize 'ACKS-FORMATION.traps.breakHint'}}">
+        <i class="fa-solid fa-screwdriver-wrench" inert></i> {{localize "ACKS-FORMATION.traps.breakTitle"}}
       </button>
     </div>
     {{/if}}
@@ -82,6 +90,7 @@
           {{/if}}
         </span>
         {{/if}}
+        {{#if this.note}}<span class="acks-extras-turn-plan-note is-{{this.note.kind}}" role="status">{{this.note.text}}</span>{{/if}}
       </li>
       {{/each}}
     </ul>

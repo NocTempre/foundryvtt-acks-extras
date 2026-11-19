@@ -8,7 +8,7 @@
  * takes every effect — the clock's spend, the flag write, the rolls — as a
  * passed-in function, so the order is tested without a world.
  */
-import { advanceTurn, lockActivity, partyRest, resolveDue } from "../lib/turn-activities.mjs";
+import { TURN_REASONS, advanceTurn, lockActivity, partyRest, resolveDue } from "../lib/turn-activities.mjs";
 
 /**
  * The reason ids the party itself refuses a lock with, before any activity is
@@ -57,6 +57,49 @@ export function lockForMember(plan, request, state) {
   const block = memberBlock(state);
   if (block) return { ok: false, reason: block, missing: [] };
   return lockActivity(plan, request);
+}
+
+/**
+ * The refusals a Judge cannot lock past: there is no member, activity, option
+ * or length to build the entry from.
+ */
+const HARD_REASONS = new Set([
+  PLAN_REASONS.notMember,
+  TURN_REASONS.unknownActivity,
+  TURN_REASONS.unknownOption,
+  TURN_REASONS.unknownActor,
+  TURN_REASONS.faulted,
+  TURN_REASONS.notImported,
+]);
+
+/**
+ * The Judge's lock: `lockForMember`'s decision, with a refusal a player would
+ * get turned into a warning and the entry written anyway. Only an explicit
+ * Judge lock calls this; a player's request relayed to the Judge's client
+ * still goes through `lockForMember` and is refused.
+ *
+ * Stays refused: a reason in `HARD_REASONS`, a choice the member is not offered
+ * (no row in `offered`), a length nobody imported (`turns` null on its row), and
+ * a refusal with no words (`said` answers an empty string). The entry is built
+ * as lib builds it, from the length on the row.
+ * @param {object} plan
+ * @param {object} request `lockActivity`'s request.
+ * @param {object} state `memberBlock`'s state.
+ * @param {object} [o]
+ * @param {object[]} [o.offered] `offeredActivities`' rows for this member, unblocked or not.
+ * @param {(reason: string) => string} [o.said] The words a refusal has; an empty string says it has none.
+ * @returns {{ok: true, plan: object, entry: object, warned: {reason: string, missing: string[]}|null}
+ *   |{ok: false, reason: string, missing: string[]}}
+ */
+export function lockForJudge(plan, request, state, { offered = [], said = (reason) => reason } = {}) {
+  const first = lockForMember(plan, request, state);
+  if (first.ok) return { ...first, warned: null };
+  if (HARD_REASONS.has(first.reason) || !said(first.reason)) return first;
+  const optionId = request.option ?? null;
+  const row = offered.find((r) => r.key === request.key && (r.option?.id ?? null) === optionId);
+  if (!row || row.turns == null) return first;
+  const entry = { key: request.key, option: optionId, remaining: row.turns, turns: row.turns, by: request.by ?? null };
+  return { ok: true, plan: { ...plan, [request.actorId]: entry }, entry, warned: { reason: first.reason, missing: first.missing } };
 }
 
 /**

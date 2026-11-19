@@ -209,10 +209,10 @@ the art row, on every tab.
 
 | Tab | Head (the Judge's) | Body |
 |---|---|---|
-| Dungeon | Turn, Round, Rest a turn, Undo, Hurried | the strip; the Turn plan (§The turn plan); a member-owner's requests |
+| Dungeon | Turn, Round, Rest a turn, Undo, Hurried, and Trapbreaking (the one opener: every Judge's, a player's when a member they own may make the throw) | the strip (each of its four figures carries a provenance tooltip, `delveTips`); the Turn plan (§The turn plan); a member-owner's requests |
 | Wilderness | the hex field, Next hex, Work the country, End day | the strip; Country (the cards and the encounters line for every seat; their sources, chips and brush the Judge's; §The country); Points of interest (the search's two selects at its foot) and Movement (GM); Sky (a player's seat while it has a reading; the climate card and the controls the Judge's); Day (GM); Camp (the forecast and the suffering for every seat; exposure, declarations and throw lines the Judge's); a member-owner's requests |
 | City | Hop (while a point of interest is in reach), Hunted here, Turn, Round, Rest a turn, Undo | the strip with the city block; The city; a member-owner's requests |
-| Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Trapbreaking, Skill audit, Disband | the ranks and the train |
+| Order, Train or Company | Auto-arrange, Frontage, Save order, Load order, Add a blank, Skill audit, Disband | the ranks and the train |
 | Kit | none | the lights and spells |
 | Sightings | none | the journey's log; off a journey, a line saying it is kept there |
 | Judge (GM seat, dashed) | the episode's state | Where they are: the true and believed plates, the compass and Shift the truth (§Lost); The episode: the lost episode's controls and note; What the party is shown: the two tiles and a player's preview (§Lost); Navigation, quietly (§The navigation throw); The Judge's hand: the six country overrides (§The country); off a journey, a line saying so |
@@ -498,11 +498,18 @@ party's own stops in the Foundry-free
 - **The column** is the Turn plan section on the Dungeon tab: a row per member
   with what they locked (or Keeps watch), the reason that stops every choice
   when there is one, and, on a seat that may choose for them, a staging select
-  of what `offeredActivities` lists (a refused or not-imported choice is listed
-  disabled with its reason) with Lock and Keep watch. The Judge chooses for
-  anyone; a player for a member they own, refused on their own client with the
-  reason, then relayed as the `plan` request, which the GM client decides again
-  against the attested sender and announces. When someone chose Rest, a line
+  of what `offeredActivities` lists (a refused choice is listed disabled with its
+  reason, and a not-imported one always; the Judge's list holds every other
+  refused choice enabled, and offers choices for a member the party's own stop
+  holds) with Lock and Keep watch. The Judge chooses for anyone and is warned,
+  not stopped: `lockPlanAsJudge` writes a choice a player would be refused
+  (`lockForJudge`) and the row carries a note, "a player would be refused:
+  <reason>", held on the sheet (`planNotes`) for the turn it was made on; no
+  member, no such activity or option, a choice with no imported length and a
+  refusal with no words stay refused. A player chooses for a member they own,
+  refused on their own client with the reason in a toast and in a note on the row,
+  then relayed as the `plan` request, which the GM client decides again with
+  `lockPlan`, which refuses, against the attested sender and announces. When someone chose Rest, a line
   says whether the turn rests or who still owes it. A registrant words its own
   choices and refusals: an option's string `label` follows the activity's name
   in the select, as a lang key when one exists and as text otherwise; and an

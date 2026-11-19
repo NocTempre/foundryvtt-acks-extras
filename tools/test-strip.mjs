@@ -253,6 +253,7 @@ const speedOf = (id) => {
 const { buildStripView, buildWarnings, buildFormationView, buildGMExtras, buildPlayerPanel } =
   await import("../scripts/formation/formation-view.mjs");
 const { dayBudget } = await import("../scripts/formation/travel.mjs");
+const { ROUNDS_PER_TURN } = await import("../scripts/formation/constants.mjs");
 const { unregisterTable } = await import("../scripts/lib/tables.mjs");
 
 const tenths = (n) => Math.round(n * 10) / 10;
@@ -359,6 +360,36 @@ const stripOf = (id) => {
   assert.ok(strip.delve.speed > 0 && strip.delve.combatSpeed > 0);
   assert.equal(strip.speed, undefined);
   assert.equal(strip.settlement, undefined);
+
+  // Each figure says where it came from: its parts with the party's own
+  // numbers, and the page. The rounds to a turn is the module's constant, not
+  // a template literal.
+  assert.equal(strip.delve.roundsPerTurn, ROUNDS_PER_TURN, "the elapsed denominator is the module's constant");
+  const tips = strip.delve.tips;
+  assert.deepEqual(Object.keys(tips).sort(), ["carry", "elapsed", "rest", "speed"], "four tooltips, one per figure");
+  assert.match(tips.speed, /strip.tip.speed /, "the speed tooltip lists its parts");
+  assert.match(tips.speed, /speedSetter[^]*Walker[^]*120/, "and names the slowest member and their pace");
+  assert.doesNotMatch(tips.speed, /speedDark|speedHurried/, "with no dark and no hurry, no part for either");
+  assert.match(tips.elapsed, new RegExp(`"turns":12[^]*"perTurn":${ROUNDS_PER_TURN}[^]*"cite":"ACKS-FORMATION.strip.tip.refExploration"`), "elapsed: the turns, the rounds to a turn, the page");
+  assert.equal(tips.rest, "ACKS-FORMATION.strip.tip.refRest", "with no rest limit imported the page reference stands alone");
+  assert.match(tips.carry, new RegExp(`strip.tip.carry [^]*"feet":40[^]*"round":${120 / ROUNDS_PER_TURN}[,}]`), "carry: the feet moved against a round's feet (the party's turn distance over the rounds to a turn)");
+  assert.equal(strip.delve.restMax, null, "and no limit is shown");
+  const dark = buildStripView(getFormation(delve), 80).delve.tips.speed;
+  assert.match(dark, /speedDark[^]*feet[^]*80/, "a party slowed below its slowest member names the dark and its pace");
+  settings.formations[delve].stance = { pace: "hurried" };
+  assert.match(stripOf(delve).delve.tips.speed, /speedHurried[^]*combat[^]*40[^]*feet[^]*400/, "a hurried party names combat speed and the turn's distance");
+  delete settings.formations[delve].stance;
+  const INVENTED_REST = 91; // invented, like TABLE_MILES: no printed figure
+  registerTable(
+    { id: "formation", tables: { restInterval: INVENTED_REST }, cites: { restInterval: "XX p. 0" } },
+    { priority: PRIORITY.WORLD, source: "test" },
+  );
+  assert.match(stripOf(delve).delve.tips.rest, new RegExp(`strip.tip.rest [^]*"since":3[^]*"max":${INVENTED_REST}[^]*"cite":"XX p. 0"`), "an imported limit is named with the page the importer read it from");
+  unregisterTable("formation");
+  registerTable({ id: "formation", tables: { restInterval: INVENTED_REST } }, { priority: PRIORITY.OVERRIDE, source: "test" });
+  assert.match(stripOf(delve).delve.tips.rest, /strip.tip.rest [^]*cite[^]*lightJudgeTable/, "a limit the Judge set by hand is credited to the Judge's table, not a page");
+  unregisterTable("formation");
+
   settings.formations[delve].clock.pausedBy = "judge";
   settings.formations[delve].clock.paused = false;
   assert.equal(stripOf(delve).paused, false, "and not the journey's pausedBy");
@@ -367,6 +398,7 @@ const stripOf = (id) => {
   const c = stripOf(city);
   assert.equal(c.mode, "settlement");
   assert.ok(c.delve && c.settlement, "a city keeps the turn clock and adds the board's lines");
+  assert.match(c.delve.tips.carry, /strip.tip.carryBare/, "a city's turn distance is its pace's, so carry names no round length");
   for (const key of ["clockLine", "rateBlocks", "blocksUnpriced", "straggling", "blocks", "turns", "cadenceLine", "cadenceMissing", "unpricedIntent"]) {
     assert.ok(key in c.settlement, `the city strip carries ${key}`);
   }
@@ -528,7 +560,7 @@ const stripOf = (id) => {
    * builds (party-actor.mjs `_prepareContext`), the mode tab active:
    * `{partId: html}` for every part the seat is configured with.
    */
-  const render = (id, { gm }) => {
+  const render = (id, { gm, extra = {} }) => {
     const f = getFormation(id);
     const was = game.user;
     game.user = { isGM: gm, id: gm ? "gm1" : "pl1" };
@@ -546,6 +578,7 @@ const stripOf = (id) => {
         panelHidden: false,
         ...buildFormationView(f),
         ...(gm ? buildGMExtras(f) : buildPlayerPanel(f)),
+        ...extra,
         headcount: 1,
         description: { source: "", html: "", editing: false },
         document: { uuid: "Actor.party" },
@@ -622,7 +655,7 @@ const stripOf = (id) => {
     tabs: ['data-action="togglePanel"', 'data-action="tab"'],
     order: [
       'data-action="autoArrange"', 'name="frontage"', 'data-action="saveMarchingOrder"', 'data-action="loadMarchingOrder"',
-      'data-action="addBlank"', 'data-action="openTrapbreak"', 'data-action="openSkillAudit"', 'data-action="disband"',
+      'data-action="addBlank"', 'data-action="openSkillAudit"', 'data-action="disband"',
     ],
   };
   for (const [home, needles] of Object.entries(HOMES)) {
@@ -686,6 +719,19 @@ const stripOf = (id) => {
   for (const action of ["advanceTurn", "advanceRound", "restTurn", "undoTurn", "togglePace"]) {
     assert.ok(delveHead.includes(`data-action="${action}"`), `the Dungeon tab's head offers ${action}`);
   }
+  assert.ok(delveHead.includes('data-action="openTrapbreak"'), "the Judge's Trapbreaking opener sits at the Dungeon tab's head");
+  assert.equal(count(whole(gmDelve), 'data-action="openTrapbreak"'), 1, "and is drawn nowhere else, the Order tab included");
+  const delveStrip = gmDelve.mode.slice(gmDelve.mode.indexOf('class="clock acks-extras-strip'));
+  assert.equal(delveStrip.match(/data-tooltip-text="[^"]*strip.tip./g)?.length, 4, "the strip's four figures carry their provenance tooltips");
+  assert.ok(delveStrip.includes("ACKS-FORMATION.app.roundShort") && delveStrip.includes(`/${ROUNDS_PER_TURN}<`), "the elapsed denominator reads the constant");
+  // A player: the opener only with a member who may make the throw, and in the same place.
+  const playerDelve = render(delve, { gm: false });
+  assert.ok(!whole(playerDelve).includes('data-action="openTrapbreak"'), "a player with no member able to try sees no opener");
+  const abler = render(delve, { gm: false, extra: { canTrapbreak: true } });
+  const ablerHead = abler.mode.slice(0, abler.mode.indexOf("</header>"));
+  assert.ok(ablerHead.includes('data-action="openTrapbreak"'), "a player who may make the throw sees the opener at the same head");
+  assert.ok(!ablerHead.includes('data-action="advanceTurn"'), "and none of the Judge's clock presses");
+  assert.equal(count(whole(abler), 'data-action="openTrapbreak"'), 1, "drawn once for the player too");
   assert.ok(!gmDelve.mode.includes("data-section="), "no declaration sections in the delve");
   assert.ok(!whole(gmDelve).includes('data-action="travelEndDay"'), "the delve ends no day");
   assert.ok(gmDelve.judge.includes("ACKS-FORMATION.frame.judge.offJourney"), "the Judge's tab says it waits for a journey");

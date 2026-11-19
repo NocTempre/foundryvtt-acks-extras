@@ -2673,6 +2673,7 @@
       "spellPickHint": "Track a spell known by a member (duration parsed from the spell when it reads like \"6 turns\")",
       "spellName": "Spell or effect name",
       "spellTurns": "turns",
+      "spellTurnsLabel": "Duration in turns",
       "trackSpell": "Track",
       "trackSpellHint": "Counts down one per dungeon turn; announced when it gutters (1 turn) and expires",
       "spellPlusHint": "Add one turn (e.g. higher caster level)",
@@ -4483,7 +4484,19 @@
       "supplies": "Supplies",
       "foodDays": "Food {days} d",
       "waterDays": "Water {days} d",
-      "slotDone": "Resolved"
+      "slotDone": "Resolved",
+      "tip": {
+        "refExploration": "RR p. 263",
+        "refRest": "RR p. 271",
+        "speed": "{parts} ({cite})",
+        "speedSetter": "Slowest: {name}, {how}, {feet}' a turn",
+        "speedDark": "In the dark: {feet}' a turn",
+        "speedHurried": "Hurried: combat speed {combat}' a round, {feet}' a turn",
+        "elapsed": "{turns} turns ({time}) · round {rounds} of {perTurn} in the current turn ({cite})",
+        "rest": "{since} turns since the last rest · limit {max} ({cite})",
+        "carry": "{feet}' moved toward the next round · a round is {round}' ({speed}' a turn over {rounds} rounds) ({cite})",
+        "carryBare": "{feet}' moved toward the next round ({cite})"
+      }
     },
     "REGION_PLACE": {
       "label": "Place",
@@ -7311,6 +7324,8 @@
   "ACKS-FORMATION.plan.reason.left": "{name} was left behind.",
   "ACKS-FORMATION.plan.reason.detached": "{name} is out on their own.",
   "ACKS-FORMATION.plan.reason.down": "{name} is down.",
+  "ACKS-FORMATION.plan.warned": "A player would be refused: {reason}. Locked for you anyway.",
+  "ACKS-FORMATION.plan.refused": "Not locked: {reason}",
   "ACKS-FORMATION.plan.reason.hurried": "Not while the party is hurried.",
   "ACKS-FORMATION.plan.reason.noThrow": "{name} has no throw for this.",
   "ACKS-FORMATION.plan.activity.batter": "Batter down a door",

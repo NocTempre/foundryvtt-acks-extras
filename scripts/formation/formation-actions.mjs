@@ -40,7 +40,7 @@ import { PARTY_CHECKS, rollPartyCheck } from "./party-rolls.mjs";
 import {
   applyCrossingForm, beginCrossing, endCrossing, haulToSurface, jumpFor, landFor, readCrossing, relayRefusalWords, reportLanding, rescueRefusalWords, setPace, setRescuer, throwAll, throwFor,
 } from "./crossing.mjs";
-import { lockPlan, parsePick, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
+import { lockPlanAsJudge, parsePick, planNote, planRefusal, reasonText, resolvePlanRound, resolvePlanTurn, unlockPlan } from "./turn-plan.mjs";
 import { deploymentOf, deployVehicle, strikeVehicle } from "../vehicles/deploy.mjs";
 import { requestBringIn, requestCrossingPace, requestCrossingRescue, requestCrossingThrow, requestPartyAction, requestTakeOut } from "./player-requests.mjs";
 import { spendPicks } from "../lib/picks.mjs";
@@ -924,9 +924,12 @@ export const SHARED_ACTIONS = {
   },
 
   /**
-   * Lock the choice in a member's Turn plan row. The Judge writes it; a player
-   * is refused here with the reason, since the relay answers nothing, and
-   * otherwise relays the request for the Judge's client to decide again.
+   * Lock the choice in a member's Turn plan row. The Judge writes it: a
+   * refusal a player would get is a warning on the row and the lock stands,
+   * and only a choice nothing can be built from stays refused. A player is
+   * refused here with the reason, in a toast and on the row, since the relay
+   * answers nothing, and otherwise relays the request for the Judge's client
+   * to decide again.
    */
   async planLock(_event, target) {
     const formation = this.formation;
@@ -936,14 +939,31 @@ export const SHARED_ACTIONS = {
     if (!formation || !actorId || !pick) return;
     const request = { actorId, key: pick.key, option: pick.option };
     if (!game.user.isGM && !ownsActor(actorId)) return;
-    const refused = planRefusal(formation, request);
-    if (refused) {
-      const said = reasonText(refused.reason, game.actors.get(actorId));
+    const actor = game.actors.get(actorId);
+    const turn = formation.clock?.turnsTotal ?? 0;
+    const note = (kind, reason) => {
+      const held = planNote(kind, reason, actor, turn);
+      if (held) this.planNotes.set(actorId, held);
+      else this.planNotes.delete(actorId);
+      this.render();
+    };
+    this.planNotes.delete(actorId);
+    if (game.user.isGM) {
+      const done = await lockPlanAsJudge(formation, { ...request, by: game.user.id });
+      if (done.ok) {
+        if (done.warned) note("warned", done.warned.reason);
+        return;
+      }
+      const said = reasonText(done.reason, actor);
       if (said) ui.notifications.warn(said);
+      note("refused", done.reason);
       return;
     }
-    if (game.user.isGM) {
-      await lockPlan(formation, { ...request, by: game.user.id });
+    const refused = planRefusal(formation, request);
+    if (refused) {
+      const said = reasonText(refused.reason, actor);
+      if (said) ui.notifications.warn(said);
+      note("refused", refused.reason);
       return;
     }
     await requestPartyAction(formation.id, "plan", request);
@@ -954,6 +974,7 @@ export const SHARED_ACTIONS = {
     const formation = this.formation;
     const actorId = target.closest("[data-plan-actor]")?.dataset.planActor;
     if (!formation || !actorId) return;
+    this.planNotes.delete(actorId);
     if (game.user.isGM) {
       await unlockPlan(formation, actorId);
       return;
