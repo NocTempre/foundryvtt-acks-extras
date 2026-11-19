@@ -152,6 +152,21 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord, an
     };
   }
 
+  /**
+   * A player's press of Round (`press: "round"`) or Spend a turn (`"turn"`): asks
+   * the Judge through the party's relay, which announces it and moves no clock.
+   * A Judge presses for themself, so their call is refused.
+   */
+  async function ask({ partyId, press } = {}) {
+    if (isGM()) return refuse(SESSION_REFUSAL.NOT_ALLOWED);
+    const formation = getFormation(partyId);
+    if (!formation) return refuse(SESSION_REFUSAL.NO_PARTY);
+    if (!readSession(formation)) return refuse(SESSION_REFUSAL.NO_SESSION);
+    if (press !== "round" && press !== "turn") return refuse(SESSION_REFUSAL.NOT_OFFERED);
+    await request(formation.id, "askPress", { press });
+    return { ok: true };
+  }
+
   /** Who is assigned to which entry and layer: the plan's scene entries, `[{actorId, layer, entryKey, remaining, resolved}]`. */
   async function assignments(partyId) {
     const formation = getFormation(partyId);
@@ -170,7 +185,7 @@ export function createSceneSearchApi({ plan, request, record = defaultRecord, an
     return formation && actor ? sceneOptionsFor(formation, actor) : [];
   }
 
-  return { open, end, show, assign, unassign, read, assignments, options };
+  return { open, end, show, assign, unassign, ask, read, assignments, options };
 }
 
 /** The api over the real dependencies, made once at init by `configureSceneSearchApi`. */
@@ -199,6 +214,9 @@ export const assignSceneCheck = (args) => live.assign(args);
 
 /** Take a member's scene assignment off the plan. */
 export const unassignSceneCheck = (args) => live.unassign(args);
+
+/** A player's Round or Spend a turn press, asked of the Judge through the party's relay. */
+export const askScenePress = (args) => live.ask(args);
 
 /** The session, its entries as this seat reads them, and the log; null with no session open. */
 export const readSceneSearch = (partyId) => live.read(partyId);

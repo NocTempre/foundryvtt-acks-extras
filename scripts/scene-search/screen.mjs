@@ -21,7 +21,7 @@ import { SETTING_FORMATIONS, getFormation, getMemberActor, getPartyActor, realMe
 import { resolvePlanTurn } from "../formation/turn-plan.mjs";
 import { TEXTURE, textureArt } from "../treasure/card-art.mjs";
 import { isPot, viewOf } from "../treasure/pot.mjs";
-import { assignSceneCheck, readSceneSearch, sceneAssignments, sceneOptions, showSceneSearch, unassignSceneCheck } from "./api.mjs";
+import { askScenePress, assignSceneCheck, readSceneSearch, sceneAssignments, sceneOptions, showSceneSearch, unassignSceneCheck } from "./api.mjs";
 import { resolveSceneRound } from "./round.mjs";
 import { CHECK } from "./constants.mjs";
 import { plateNamesOf, refImageOf } from "./session.mjs";
@@ -283,18 +283,20 @@ export default class SceneSearchScreen extends HandlebarsApplicationMixin(Applic
     this.render();
   }
 
-  /** The Round press: the hasty checks assigned resolve. Judge-only. */
+  /** The Round press: on the Judge's seat the hasty checks assigned resolve; on a player's it asks the Judge. */
   static async #onRound() {
     const formation = this.formation;
-    if (!game.user.isGM || !formation) return;
+    if (!formation) return;
+    if (!game.user.isGM) return this.#note(await askScenePress({ partyId: this.#partyId, press: "round" }));
     await resolveSceneRound(formation);
     this.render();
   }
 
-  /** Spend a turn: the party's turn plan resolves, as the Dungeon tab's Advance turn does. Judge-only. */
+  /** Spend a turn: on the Judge's seat the party's turn plan resolves, as the Dungeon tab's Advance turn does; on a player's it asks the Judge. */
   static async #onSpend() {
     const formation = this.formation;
-    if (!game.user.isGM || !formation) return;
+    if (!formation) return;
+    if (!game.user.isGM) return this.#note(await askScenePress({ partyId: this.#partyId, press: "turn" }));
     await resolvePlanTurn(formation);
     this.render();
   }

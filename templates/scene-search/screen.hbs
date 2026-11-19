@@ -35,11 +35,11 @@
       <button type="button" class="acks-btn acks-btn--roll" data-action="spend"
               data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.spendTip">{{localize "ACKS-LOCATION.sceneSearch.screen.button.spend"}}</button>
     {{else}}
-      <button type="button" class="acks-btn acks-btn--secondary" disabled
-              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.judgeOnly">{{localize "ACKS-LOCATION.sceneSearch.screen.button.round"}}</button>
-      <button type="button" class="acks-btn acks-btn--roll" disabled
-              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.judgeOnly">{{localize "ACKS-LOCATION.sceneSearch.screen.button.spend"}}</button>
-      <span class="acks-extras-ss-help">{{localize "ACKS-LOCATION.sceneSearch.screen.button.judgeOnly"}}</span>
+      <button type="button" class="acks-btn acks-btn--secondary" data-action="round"
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.askRoundTip">{{localize "ACKS-LOCATION.sceneSearch.screen.button.round"}}</button>
+      <button type="button" class="acks-btn acks-btn--roll" data-action="spend"
+              data-tooltip="ACKS-LOCATION.sceneSearch.screen.button.askSpendTip">{{localize "ACKS-LOCATION.sceneSearch.screen.button.spend"}}</button>
+      <span class="acks-extras-ss-help">{{localize "ACKS-LOCATION.sceneSearch.screen.button.asks"}}</span>
     {{/if}}
   </div>
 

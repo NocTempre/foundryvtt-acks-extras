@@ -316,9 +316,10 @@ Player seat (the Player seat's character is `searcher-plain`):
    what; a found row shows the clue and "Something more is here." where
    something remains; a missed check shows only who and what, with no result; no
    throw figure.
-6. **Round and Spend a turn** are drawn disabled with the tooltip "Only the Judge
-   presses this."; this is the build's reading of the board's "asks the Judge"
-   and is an open owner question (DECISIONS).
+6. **Round and Spend a turn** press on the player's seat. Observables: each posts
+   one "<user> declares: asks the Judge …" card; the party's Turn count and the
+   Judge's assigned checks are unchanged (nothing resolves until the Judge
+   presses).
 7. **Open the pot** opens the pot's window. Observables: it lists found lots
    only.
 

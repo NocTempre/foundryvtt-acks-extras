@@ -433,6 +433,13 @@ const fcall = (key, over = {}) => ({ actorId: "a1", actor: members.a1, key, ctx:
   eq(relayed[0], ["f1", "plan", { actorId: "a2", key: ACTIVITY.METHODICAL, option: "thing:thing-1" }], "as that request");
   eq((await api.assign({ partyId: "f1", actorId: "a3", layer: "methodical", entryKey: "thing:thing-1" })).reason, REFUSAL.TOOL_MISSING, "and is refused on the player's own client with the reason");
   eq(relayed.length, 1, "without being relayed");
+  eq([(await api.ask({ partyId: "f1", press: "round" })).ok, (await api.ask({ partyId: "f1", press: "turn" })).ok], [true, true], "a player's Round and Spend a turn ask the Judge");
+  eq(relayed.slice(1), [["f1", "askPress", { press: "round" }], ["f1", "askPress", { press: "turn" }]], "as the party relay's askPress request, and nothing else");
+  eq((await api.ask({ partyId: "f1", press: "rest" })).reason, SESSION_REFUSAL.NOT_OFFERED, "a press that is not one is refused");
+  eq(relayed.length, 3, "without being relayed");
+  user.isGM = true;
+  eq((await api.ask({ partyId: "f1", press: "round" })).reason, SESSION_REFUSAL.NOT_ALLOWED, "a Judge presses for themself and asks nobody");
+  user.isGM = false;
   members.a1.testUserPermission = undefined;
   eq([(await api.open({ partyId: "f1", placeUuid: place.uuid })).reason, (await api.end("f1")).reason], [SESSION_REFUSAL.NOT_ALLOWED, SESSION_REFUSAL.NOT_ALLOWED], "a player opens and ends nothing");
   const seen = api.read("f1");

@@ -1556,6 +1556,22 @@ await scenario("players steer their own members via the GM relay", async () => {
     await requests.requestPartyAction(id, "lightToggle", { lightId });
     await drain();
     assert.ok(!onlyFormation().lights[0].lit, "player doused their own lantern");
+
+    // A scene screen's Round and Spend a turn from a player's seat: the Judge is
+    // told, and the party's record, its clock and its turn plan stay as they were.
+    const party = game.actors.get(onlyFormation().actorId);
+    const before = structuredClone(onlyFormation());
+    const planBefore = structuredClone(party?.getFlag?.(MODULE_ID, "turnPlan") ?? null);
+    const said = chat.length;
+    await requests.requestPartyAction(id, "askPress", { press: "round" });
+    await requests.requestPartyAction(id, "askPress", { press: "turn" });
+    await drain();
+    assert.deepEqual(onlyFormation(), before, "an ask moves no clock and changes nothing on the party's record");
+    assert.deepEqual(party?.getFlag?.(MODULE_ID, "turnPlan") ?? null, planBefore, "and resolves nothing on its turn plan");
+    assert.equal(chat.length, said + 2, "each ask is declared to the table");
+    await requests.requestPartyAction(id, "askPress", { press: "rest" });
+    await drain();
+    assert.equal(chat.length, said + 2, "a press outside the closed set is dropped unannounced");
   } finally {
     game.user = gmUser;
   }

@@ -12,6 +12,7 @@ import { PARTY_CHECKS, resolveCheck, rollCheckFor } from "../formation/party-rol
 import * as turnPlan from "../formation/turn-plan.mjs";
 import { configureSceneChecks, registerSceneActivities } from "./activities.mjs";
 import {
+  askScenePress,
   assignSceneCheck,
   configureSceneSearchApi,
   endSceneSearch,
@@ -42,6 +43,7 @@ Hooks.once("init", () => {
     openScreen: openSceneScreen,
     assign: assignSceneCheck,
     unassign: unassignSceneCheck,
+    ask: askScenePress,
     read: readSceneSearch,
     assignments: sceneAssignments,
     options: sceneOptions,

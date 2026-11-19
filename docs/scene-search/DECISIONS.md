@@ -78,12 +78,12 @@ for both seats. Left to later slices: the Judge's keying aside (S6), harvest
 rows (S7b), fight bodies' pictures (S5), and doors and traps read off the map
 (R-DC1). Four readings the boards do not settle:
 
-- **Round and Spend a turn are the Judge's.** The board says a player's press
-  "asks the Judge (the turn plan's relay)", but the party's relay carries a
-  `rest` request, a `plan` request and others, and none that moves the clock or
-  resolves the plan. A new relay kind would let any player advance the party's
-  clock, which is a table-trust call. Built: both buttons are drawn disabled on a
-  player's seat with a tooltip. Open for the owner.
+- **A player's Round and Spend a turn ask the Judge.** The board says a player's
+  press "asks the Judge (the turn plan's relay)", and the party's relay had no
+  kind for it; a kind that moved the clock would let any player advance it. The
+  owner chose "Notify the Judge": the relay's new `askPress` request announces
+  the ask and moves no clock and resolves no plan; only the Judge's own press
+  does either. Rejected: drawing both buttons disabled on a player's seat.
 - **`shown` gates the screen, not the read.** A player's screen has nothing to
   show until the Judge shows the scene; `read` and the Dungeon tab's plan select
   still answer a player at an open session, so a seat that calls the api reads

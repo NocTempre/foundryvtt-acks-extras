@@ -68,7 +68,8 @@ view model `screen-logic.mjs` `buildScreen` makes for the seat that opened it:
   on every seat that owns one of the party's characters (a socket broadcast).
 - **Bar:** lots found and entries untouched (the visible ones), the press line
   (what a Round and a Turn would resolve now), the party's turn count, and the
-  two presses. Only a Judge presses them.
+  two presses. A Judge's press resolves; a player's asks the Judge (`ask`, the
+  party relay's `askPress` request), which announces it and moves no clock.
 - **Entries:** one card each: kind and state, a Hidden tag only the Judge sees,
   the name (the document an entry points at, else the word for its kind, told
   apart by order), what its checks found, the public "something more" line once a

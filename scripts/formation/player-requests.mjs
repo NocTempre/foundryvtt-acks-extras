@@ -209,6 +209,17 @@ async function executeRequest(formation, user, type, payload) {
       break;
     }
 
+    /* --- A player asks the Judge for a Round or a turn: declared, nothing more --- */
+    case "askPress": {
+      if (!userOwnsMember(formation, user)) return;
+      // Closed set. The ask is announced and moves no clock and resolves no plan:
+      // only the Judge's own press does either.
+      const key = { round: "request.askRound", turn: "request.askTurn" }[payload.press];
+      if (!key) return;
+      await announceDeclaration(formation, user, loc(key));
+      break;
+    }
+
     /* --- Marching order: a player moves THEIR OWN character --- */
     case "reorder": {
       if (!userOwnsMember(formation, user, payload.actorId)) return;
