@@ -33,6 +33,7 @@ import { registerCastProcedure, procedureOfKind } from "./cast-procedure.mjs";
 import { implementsBucket, IMPLEMENTS_KEY } from "./cast-implements.mjs";
 import { powerApi, registerPower } from "./power-ledger-live.mjs";
 import { researchApi, registerProjects } from "./research-project-live.mjs";
+import { sacrificeApi, registerSacrifice } from "./sacrifice-live.mjs";
 import { RESEARCH_TEMPLATES } from "./research-tab.mjs";
 import { selfReach, twinLookups } from "./cast-reach.mjs";
 import { classForActor } from "../classes/registry.mjs";
@@ -102,6 +103,8 @@ Hooks.once("init", () => {
     power: powerApi,
     /** The research projects at a location and the facilities they read: the record, its writes and the links back to a researcher (research-project-live.mjs). */
     research: researchApi,
+    /** The blood sacrifice: `open(actor)` opens its window for a caster (sacrifice-live.mjs). */
+    sacrifice: sacrificeApi,
     get AcksSpellSheet() {
       return AcksSpellSheet;
     },
@@ -187,6 +190,12 @@ Hooks.once("init", () => {
     registerProjects();
   } catch (err) {
     console.error(`${MODULE_ID} | the research record could not register`, err);
+  }
+  // A Player's seat asks the GM's client to mark a blood sacrifice's victims dead.
+  try {
+    registerSacrifice();
+  } catch (err) {
+    console.error(`${MODULE_ID} | the blood sacrifice could not register`, err);
   }
   console.log(`${MODULE_ID} | initialised (spell primitive ready)`);
 });

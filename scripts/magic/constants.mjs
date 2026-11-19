@@ -28,3 +28,5 @@ export const POWER_HANDLER = "magicPower";
 export const FLAG_MAGIC = "magic";
 /** The handler on lib's sockets through which a seat has the GM's client write a research record it cannot. */
 export const PROJECT_HANDLER = "magicProject";
+/** The handler on lib's sockets through which a seat has the GM's client mark a blood sacrifice's victims dead, a write a Player's seat lacks. */
+export const SACRIFICE_HANDLER = "magicSacrifice";

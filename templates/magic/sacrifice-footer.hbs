@@ -1,0 +1,14 @@
+{{!-- The Blood sacrifice window's pinned footer: what stands in the way, and the two answers. A separate part so it
+      stays put while the body scrolls. A blocked Sacrifice is `aria-disabled` and described by the verdict list, so
+      the reason is reached from the keyboard as well as read. --}}
+<footer class="acks-extras-cast-foot">
+  {{#if lines.length}}
+  <ul class="acks-extras-cast-verdicts" id="{{@root.partId}}-why">
+    {{#each lines}}<li data-severity="{{severity}}" class="is-{{severity}}"><i class="fa-solid {{#if (eq severity 'block')}}fa-ban{{else}}fa-triangle-exclamation{{/if}}" inert></i> {{text}}</li>{{/each}}
+  </ul>
+  {{/if}}
+  <div class="acks-extras-cast-foot__bar">
+    <button type="button" data-action="cancel"><i class="fa-solid fa-xmark" inert></i> {{localize "ACKS-MAGIC.sacrifice.close"}}</button>
+    <button type="button" class="acks-extras-cast-go" data-action="sacrifice"{{#if blocked}} aria-disabled="true"{{#if lines.length}} aria-describedby="{{@root.partId}}-why"{{/if}}{{/if}}><i class="fa-solid fa-droplet" inert></i> {{localize "ACKS-MAGIC.sacrifice.button"}}</button>
+  </div>
+</footer>

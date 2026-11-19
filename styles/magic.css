@@ -1029,3 +1029,130 @@
   padding: var(--acks-sp-3);
   border: var(--acks-border-soft);
 }
+
+/* The Blood sacrifice window (`apps/sacrifice-window.mjs`): a scrolling body over the cast dialog's pinned footer.
+   Core pins a size on the content box, so it is taken again here; type is a step of the ramp or an em off it. */
+.acks-extras-sacrifice.application .window-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding: 0;
+  font-size: var(--acks-fs-body);
+}
+.acks-extras-sacrifice .acks-extras-sacrifice-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-4);
+  padding: var(--acks-sp-4);
+}
+.acks-extras-sacrifice-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-4);
+}
+.acks-extras-sacrifice-portrait {
+  flex: none;
+  width: calc(44px * var(--acks-extras-k));
+  height: calc(44px * var(--acks-extras-k));
+  border: var(--acks-rule-hair) solid var(--acks-ink);
+  object-fit: cover;
+}
+.acks-extras-sacrifice-portrait.is-small {
+  width: calc(26px * var(--acks-extras-k));
+  height: calc(26px * var(--acks-extras-k));
+}
+.acks-extras-sacrifice-portrait.is-off {
+  opacity: 0.5;
+}
+.acks-extras-sacrifice-who {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  font-family: var(--acks-font-display);
+  font-size: var(--acks-fs-h2);
+  line-height: 1.1;
+  color: var(--acks-ink);
+}
+.acks-extras-sacrifice-to {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-1);
+  color: var(--acks-ink-soft);
+}
+.acks-extras-sacrifice-band {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  border-block-start: var(--acks-border-soft);
+  padding-block-start: var(--acks-sp-3);
+}
+.acks-extras-sacrifice-legend {
+  margin: 0;
+  border: 0;
+  font-family: var(--acks-font-banner);
+  font-size: var(--acks-fs-body);
+  letter-spacing: var(--acks-tracking-caps);
+  text-transform: uppercase;
+  color: var(--acks-ink);
+}
+.acks-extras-sacrifice-states {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.acks-extras-sacrifice-state {
+  display: flex;
+  flex-direction: column;
+  gap: var(--acks-sp-2);
+  padding: var(--acks-sp-3);
+  border: var(--acks-border-soft);
+}
+.acks-extras-sacrifice-state__name {
+  font-family: var(--acks-font-display);
+  font-weight: var(--acks-weight-medium);
+  line-height: var(--acks-lh-tight);
+}
+.acks-extras-sacrifice-state__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--acks-sp-2) var(--acks-sp-4);
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-sacrifice-check,
+.acks-extras-sacrifice-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--acks-sp-2);
+}
+.acks-extras-sacrifice-value input {
+  inline-size: 8ch;
+  min-height: 24px;
+}
+.acks-extras-sacrifice-yield {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--acks-sp-1) var(--acks-sp-5);
+  margin: 0;
+  font-family: var(--acks-font-ui);
+  font-size: var(--acks-fs-label);
+}
+.acks-extras-sacrifice-yield dt,
+.acks-extras-sacrifice-yield dd {
+  margin: 0;
+}
+.acks-extras-cast-go[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

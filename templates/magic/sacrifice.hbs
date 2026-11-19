@@ -1,0 +1,53 @@
+{{!-- The Blood sacrifice window's scrolling body (`apps/sacrifice-window.mjs`, `scripts/magic/sacrifice.mjs`
+      `panelModel`): the caster and the victims' portraits, the victims bucket (lib's partial), what a Judge
+      says of each victim, the site and the class power, and the yield. A control is read back by the
+      data-* hooks below; every checkbox sits inside its own label, so no id is written. --}}
+<section class="acks-extras-sacrifice-body">
+  <header class="acks-extras-sacrifice-head">
+    {{#if caster.img}}<img class="acks-extras-sacrifice-portrait" src="{{caster.img}}" alt="" inert>{{/if}}
+    <h2 class="acks-extras-sacrifice-who">{{caster.name}}</h2>
+    {{#if bucket.rows.length}}
+    <span class="acks-extras-sacrifice-to" role="img" aria-label="{{localize 'ACKS-MAGIC.sacrifice.victims'}}: {{bucket.rows.length}}">
+      <i class="fa-solid fa-arrow-right" inert></i>
+      {{#each bucket.rows}}<img class="acks-extras-sacrifice-portrait is-small{{#if off}} is-off{{/if}}" src="{{img}}" alt="" inert>{{/each}}
+    </span>
+    {{/if}}
+  </header>
+
+  {{> "modules/acks-extras/templates/lib/bucket.hbs" bucket}}
+
+  {{#if states.length}}
+  <section class="acks-extras-sacrifice-band">
+    <h3 class="acks-extras-sacrifice-legend">{{localize "ACKS-MAGIC.sacrifice.states"}}</h3>
+    <ul class="acks-extras-sacrifice-states">
+      {{#each states as |s|}}
+      <li class="acks-extras-sacrifice-state">
+        <span class="acks-extras-sacrifice-state__name">{{s.name}}</span>
+        <span class="acks-extras-sacrifice-state__controls">
+          {{#each s.controls}}
+          <label class="acks-extras-sacrifice-check" data-tooltip-text="{{tip}}"><input type="checkbox" data-victim="{{s.uuid}}" data-field="{{field}}"{{#if checked}} checked{{/if}}{{#if disabled}} disabled{{/if}}> <span>{{label}}</span></label>
+          {{/each}}
+          {{#each s.traits}}
+          <label class="acks-extras-sacrifice-check" data-tooltip-text="{{tip}}"><input type="checkbox" data-victim="{{s.uuid}}" data-trait="{{index}}"{{#if checked}} checked{{/if}}{{#if disabled}} disabled{{/if}}> <span>{{label}}</span></label>
+          {{/each}}
+          {{#if s.value}}
+          <label class="acks-extras-sacrifice-value" data-tooltip-text="{{s.value.tip}}"><span>{{s.value.label}}</span> <input type="number" class="acks-input acks-nums" min="0" step="1" data-victim="{{s.uuid}}" data-value value="{{s.value.shown}}"></label>
+          {{/if}}
+        </span>
+      </li>
+      {{/each}}
+    </ul>
+  </section>
+  {{/if}}
+
+  <section class="acks-extras-sacrifice-band">
+    <label class="acks-extras-sacrifice-check" data-tooltip-text="{{site.tip}}"><input type="checkbox" name="site"{{#if site.checked}} checked{{/if}}{{#if site.disabled}} disabled{{/if}}> <span>{{site.label}}</span></label>
+    <label class="acks-extras-sacrifice-check" data-tooltip-text="{{power.tip}}"><input type="checkbox" name="power"{{#if power.checked}} checked{{/if}}{{#if power.disabled}} disabled{{/if}}> <span>{{power.label}}</span></label>
+    <dl class="acks-extras-sacrifice-yield">
+      <dt data-tooltip-text="{{yield.now.tip}}">{{yield.now.label}}</dt>
+      <dd class="acks-nums" data-tooltip-text="{{yield.now.tip}}">{{yield.now.text}}</dd>
+      <dt data-tooltip-text="{{yield.bonus.tip}}">{{yield.bonus.label}}</dt>
+      <dd class="acks-nums" data-tooltip-text="{{yield.bonus.tip}}">{{yield.bonus.text}}</dd>
+    </dl>
+  </section>
+</section>

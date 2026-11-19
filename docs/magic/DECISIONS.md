@@ -1278,3 +1278,42 @@ figure imported or left blank.
   ordinary bands. Finding 1c.36 is closed by the same claim.
 - **Board 18 approved.** The owner: "Approve, build it", the Judge's "Common spell (no throw)" check as
   drawn. It builds as M-r3.
+
+## 2026-11-18 — The Blood sacrifice window (M-s, rulings 209, 211, 212, 213, 217; K.2 to K.4, K-b.3)
+
+Built to board 11, which the owner approved with the v19 canvas: "Approve spell cast design". The model is
+`scripts/magic/sacrifice.mjs`, the world's half `sacrifice-live.mjs`, the window `apps/sacrifice-window.mjs`. The
+page's procedure is the structure and every figure is an imported row (`sacrificeTraits`, `powerOfSacrifice`, the
+research ladder), so no figure ships. Rulings made in building it, each with the default proceeded on and the counter:
+
+- **One throw for the act, over every victim.** The page's worked example makes one research throw for a sacrifice
+  and adds the traits on its success. The throw is `throwPlan` for a project with no level of effect and no facility,
+  so the research ladder and the Intellect bonus are the only parts. *Counter (medium):* one throw per victim would
+  fit "each victim yields" read alone; the example's single throw over the sacrifice decides it.
+- **The class power's multiple applies to base and traits alike.** The page counts "any arcane power from blood
+  sacrifice" at the multiple. *Counter (low):* the base alone would leave the traits at their face value; the page's
+  words name no such split.
+- **The Judge's mark of the class power picks the ledger.** With it set the gain is arcane, else a divine caster's is
+  divine, else the caster has nothing to gain (`noBasis`). No identifier for the class power exists to detect it by
+  (a printed class name would be the book's), so it is a Judge's check in the window. *Counter (medium):* the
+  cookbook id of the class's power, once the importer mints one, is what ruling 213 names; the check is replaced by
+  that read and the rest holds.
+- **Only `sapient` counts as sapient.** A character is sapient; a creature is when its intelligence reads `sapient`,
+  and a blank intelligence holds a lawful or neutral caster's act. *Counter (medium):* semi-sapient could be read as
+  sapient too; the page says "sapient" and the module's scale has the word.
+- **A limit is a verdict and a missing figure is a hold.** Where the rules forbid, a Player is blocked and a Judge
+  warned (`castVerdicts`), and a K.3 animal sacrifice by a lawful or neutral caster is a Judge's warning alone. A figure
+  not read (a victim's value, a ticked trait's factor, the multiple, the throw's target, the Intellect bonus) holds
+  everyone, as research's Finish does, since nothing may be rolled or written with a figure missing. A Judge's value
+  box replaces an unread value, and is the only way a character victim yields until an award-by-level table is imported.
+- **The Judge's toggles are the window's own state.** They live on the window instance and are not shared, so a Player's
+  window starts with them unset and disabled and is blocked until a Judge acts for the character. *Counter (STRONG):*
+  shared state would let a Judge set a victim up for a Player's own seat; it needs storage and a place a Player cannot
+  edit, which the design does not draw.
+- **The order is the throw, the victims marked, then the power gained for the victims that were marked.** A victim that
+  could not be marked yields nothing and the card says so. An unwilling chaotic victim, a dead victim and a creature the
+  XP bar excludes count for nothing and are left unmarked.
+- **A Player's mark is relayed.** The seat marks what it may write and asks the GM's client for the rest, which checks
+  the sender against the caster and each victim as it reads them (`checkMarkRequest`). *Cost:* the GM's client cannot
+  see the Judge's toggles, so the relay authorizes by ownership of the caster and the victim's state, not by the page's
+  limits; a Player's own act is already held by them.
