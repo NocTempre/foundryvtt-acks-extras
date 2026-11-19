@@ -1963,6 +1963,14 @@ await ok("at a swimmer's turn the primary GM posts one prompt card for the round
   assert.deepEqual((await drive(combat, turnAt(3, 1), turnAt(4, 0))).prompted, ["Alder"], "the next round prompts again");
 });
 
+await ok("a round's first turn, reached from the unordered position (turn null), prompts like any other", async () => {
+  const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }]]);
+  const combat = fightOf(formation, { round: 1, at: 0 });
+  const unordered = { round: 1, turn: null, combatantId: null };
+  assert.deepEqual((await drive(combat, turnAt(1, 0), unordered)).prompted, [], "the unordered position is no turn");
+  assert.deepEqual((await drive(combat, unordered, turnAt(1, 0))).prompted, ["Alder"], "null to 0 begins the first turn");
+});
+
 await ok("the prompt's Throw rolls the swimmer's throw, takes the button off the card and keeps the result; a second press is refused", async () => {
   const { formation } = await swimWorld([["Alder", { stone: 9, owner: PLAYER.id }]]);
   const combat = fightOf(formation);

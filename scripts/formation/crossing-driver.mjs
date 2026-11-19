@@ -47,7 +47,10 @@ const loc = makeLoc("ACKS-FORMATION");
 export function turnBegan(prior, current) {
   if (!current?.combatantId) return false;
   if (!prior) return true;
-  return current.round > prior.round || (current.round === prior.round && current.turn > prior.turn);
+  // A round opens at turn null until initiative orders it, so the round's first
+  // turn arrives as null to 0; `0 > null` is false, which would skip it.
+  if (current.round > prior.round) return true;
+  return current.round === prior.round && current.turn != null && (prior.turn == null || current.turn > prior.turn);
 }
 
 /** The breath-out card: to the Judges alone, saying whose breath it is and that nothing was written. */
